@@ -15,14 +15,15 @@ const coarse=matchMedia('(pointer: coarse)').matches;
 /* ---------- world units: 1 unit = 1 ft = one shoe length ---------- */
 const S=5, WS=5, R=0.18, DMIN=0.45, DMAX=2.25, LAT=1.7, MAXHP=6, LIFT=1.0;
 const WOB=0.85;                                  // seconds of wobble before the foot snaps back
+const TAP=0.16, TAP_STRIDE=1.35, TAP_GIANT=2.7;  // let go within TAP seconds and the foot takes a normal stride instead
 const GIANT={dmax:3.6,lat:2.2}, GIANT_MAX=3, STREAK_EVERY=10;
 const STAGE_START=[0,6,14,24,34];
 const STAGES=[
-  {name:'Maple Ave',  note:'fresh pour',      stamp:'MAPLE AVE · 2024',  T:1.05},
-  {name:'Linden St',  note:'hairline cracks', stamp:'LINDEN ST · 1998',  T:0.9},
-  {name:'Oak St',     note:'root heave',      stamp:'OAK ST · 1971',     T:0.78},
-  {name:'Old Mill Rd',note:'old flagstone',   stamp:'OLD MILL RD · 1923',T:0.68},
-  {name:'Quarry Ln',  note:'condemned',       stamp:'QUARRY LN · 1938',  T:0.6}
+  {name:'Maple Ave',  note:'fresh pour',      stamp:'MAPLE AVE · 2024',  T:0.8},
+  {name:'Linden St',  note:'hairline cracks', stamp:'LINDEN ST · 1998',  T:0.7},
+  {name:'Oak St',     note:'root heave',      stamp:'OAK ST · 1971',     T:0.6},
+  {name:'Old Mill Rd',note:'old flagstone',   stamp:'OLD MILL RD · 1923',T:0.52},
+  {name:'Quarry Ln',  note:'condemned',       stamp:'QUARRY LN · 1938',  T:0.46}
 ];
 const MOMTXT=['',
   'Is technically flooring now.',
@@ -44,7 +45,7 @@ function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const slabIdx=d=>Math.floor(d/S);
 function stageOf(i){let s=0;for(let j=1;j<5;j++) if(i>=STAGE_START[j]) s=j;return s;}
-function swingTime(i){const s=stageOf(i);return s<4?STAGES[s].T:Math.max(0.45,0.6-(i-STAGE_START[4])*0.004);}
+function swingTime(i){const s=stageOf(i);return s<4?STAGES[s].T:Math.max(0.36,0.46-(i-STAGE_START[4])*0.003);}
 
 /* ---------- geometry ---------- */
 function psd(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=t<0?0:t>1?1:t;const qx=ax+t*dx-px,qy=ay+t*dy-py;return Math.sqrt(qx*qx+qy*qy);}
@@ -431,7 +432,7 @@ function drawChalk(g,c,sl,d0,tx,ty){
   }
   if(sl.chalk==='howto'){
     let fs=0.46*K; const font=f=>`${f}px "Schoolbell", cursive`;
-    const lines=coarse?['left side: left foot','right side: right foot','tap to shuffle']:['A or left half: left foot','D or right half: right foot','tap to shuffle'];
+    const lines=coarse?['left side: left foot','right side: right foot','tap to walk, hold to aim']:['A or left half: left foot','D or right half: right foot','tap to walk, hold to aim'];
     h.font=font(fs); const w=Math.max(...lines.map(s=>h.measureText(s).width)); fs*=Math.min(1,4.2*K/w); h.font=font(fs);
     h.textAlign='center'; h.fillStyle='#f4e27a';
     lines.forEach((s,j)=>h.fillText(s,tx(2.5),ty(d0+3.75-j*0.95)));
@@ -507,8 +508,12 @@ function drawFeet(){
       x=sw.dx+(sw.wob?Math.sin(performance.now()*0.075)*0.035:0); d=sw.dd; lift=sw.lift;
       drawOutline(sw.tx,sw.td,sw.u,air.side,sw.giant,sw.wob>0);
     }
+    else if(drop.tap){   // a tap step: one quick arc from where the foot was to a stride ahead
+      const e=Math.min(1,drop.t/drop.dur), s=e*e*(3-2*e);
+      x=drop.fx+(drop.x-drop.fx)*s; d=drop.fd+(drop.d-drop.fd)*s; lift=Math.max(drop.fl*(1-e),Math.sin(Math.PI*e)*(drop.giant?0.9:0.6));
+    }
     else {const e=Math.min(1,drop.t/drop.dur), ee=e*e; x=drop.fx+(drop.x-drop.fx)*ee; d=drop.fd+(drop.d-drop.fd)*ee; lift=drop.fl*(1-ee);}
-    const sc=1+0.12*lift, yy=Y(d-LIFT*lift);
+    const sc=1+0.7*lift, yy=Y(d-LIFT*lift);
     drawShoe(X(x),yy,sc,air.side,1-lift);
     drawLeg(X(x),yy,sc,hipX(air),hy);
   }
@@ -1247,7 +1252,32 @@ let phase='idle', feet=[], front=null, back=null, sw=null, drop=null, hp=MAXHP, 
 let streak=0, runStreak=0, giant=1, armed=false, tStart=null, tEnd=null, lastTs='', runResult=null;
 let best=0, bestStreak=0, bestAtStart=0, bestStreakAtStart=0, newBestShown=false;
 try{best=parseInt(localStorage.getItem('dsotc-best'),10)||0; bestStreak=parseInt(localStorage.getItem('dsotc-best-streak'),10)||0;}catch(_){}
-const input={down:false,latch:0,id:null,key:null,lastX:0,keys:{l:false,r:false}};
+// Each side of the screen (and A / D) belongs to one foot. A press while the other foot is
+// still up waits its turn, so thumbs can overlap; a foot comes down as soon as its own side is let go.
+const input={ptrs:new Map(),keySide:new Map(),q:[],bot:0,keys:{l:false,r:false}};
+function held(side){
+  if(input.bot===side) return true;
+  for(const p of input.ptrs.values()) if(p.side===side) return true;
+  for(const s of input.keySide.values()) if(s===side) return true;
+  return false;
+}
+function press(side){
+  if(phase==='swing'&&sw.foot.side===side) return;          // that foot is already up
+  input.q=input.q.filter(p=>p.side!==side); input.q.push({side,up:0});
+}
+function release(side){
+  if(held(side)) return;
+  const t=performance.now()/1000;
+  for(const p of input.q) if(p.side===side&&!p.up) p.up=t;
+}
+function clearInput(){input.ptrs.clear(); input.keySide.clear(); input.q=[]; input.bot=0; input.keys.l=input.keys.r=false;}
+// Space / W / Up step with whichever foot is due next
+function nextSide(){
+  if(phase==='swing') return -sw.foot.side;
+  if(phase==='drop'&&!drop.snap) return -drop.foot.side;
+  if(input.q.length) return -input.q[input.q.length-1].side;
+  return back.side;
+}
 let nextBird=0, nextBeat=0, nextAmbient=0, lastStepAt=0, idleTexted=false, pausedAt=0;
 const elapsed=now=>tStart===null?0:((tEnd===null?now:tEnd)-tStart);
 
@@ -1260,7 +1290,7 @@ function reset(){
   phase='idle'; sw=null; drop=null; hp=MAXHP; steps=0; camD=front.d; bodyX=2.5; lastStage=0; hitFx=[]; puffs=[]; shake=0;
   streak=0; runStreak=0; giant=2; armed=false; tStart=null; tEnd=null; lastTs=''; timeEl.textContent='0:00';
   bestAtStart=best; bestStreakAtStart=bestStreak; newBestShown=false;
-  input.latch=0; input.down=false; input.id=null; input.key=null;
+  clearInput();
   kinks=[]; curPose=clonePose(POSES[6]); camFlinch=0; xrayUntil=0; xrayJ=-1; clearTexts(); idleTexted=false;
   dadA.on=false; dogReset(); chatStats.mom=0;
   lastStepAt=performance.now()/1000; nextAmbient=lastStepAt+30; bot.active=false; bot.next=0; ambientReset(lastStepAt);
@@ -1277,7 +1307,8 @@ function toggleGiant(){
   armed=!armed; syncGiant();
   if(armed){say('Mother, may I?','Yes, you may.',1100); sfx.arm();} else sfx.disarm();
 }
-// act on touch-down: while one thumb holds a foot, phones often never turn a second finger's tap into a click
+// act on touch-down: while one thumb holds a foot, phones often never turn a second finger's tap into a click.
+// stopPropagation keeps the press from also counting as the right side of the screen.
 giantBtn.addEventListener('pointerdown',e=>{e.stopPropagation(); e.preventDefault(); toggleGiant();});
 giantBtn.addEventListener('click',e=>{if(!e.detail) toggleGiant();});
 
@@ -1293,13 +1324,14 @@ function clampSw(){
   sw.x=clamp(sw.x,Math.max(R+0.05,o.x-sw.lat),Math.min(WS-R-0.05,o.x+sw.lat));
   sw.ex=sideClamp(sw.x,sw.ahead);
 }
-// the swing starts wherever the foot is, so a quick tap is a small shuffle step
+// A held foot starts wherever it is and slides forward for aiming (quicker while it's still behind the other foot).
+// Let go within TAP seconds and it's a tap instead: the foot takes a normal stride, so quick alternating taps walk.
 function beginSwing(side,now){
   const f=side?feet.find(q=>q.side===side):back, other=f===feet[0]?feet[1]:feet[0];
   const g=armed&&giant>0&&mode==='play', dmax=g?GIANT.dmax:DMAX;
   const start=clamp(f.d-other.d,-1.3,dmax-0.4);
   phase='swing';
-  sw={foot:f,other,t:0,u:0,start,dmin:DMIN,dmax,lat:g?GIANT.lat:LAT,giant:g,x:f.x,ex:f.x,ahead:start,tx:f.x,td:other.d+start,dx:f.x,dd:f.d,lift:0,warned:false,wob:0,stopWob:null};
+  sw={foot:f,other,t:0,u:0,dmin:DMIN,dmax,lat:g?GIANT.lat:LAT,giant:g,x:f.x,ex:f.x,ahead:start,tx:f.x,td:other.d+start,dx:f.x,dd:f.d,lift:0,warned:false,full:-1,wob:0,stopWob:null,upgraded:false};
   clampSw(); sfx.lift();
   if(mode==='play'&&tStart===null){tStart=now; momText(T.open);}
 }
@@ -1307,9 +1339,21 @@ function beginSwing(side,now){
 function upgradeSwing(){
   const was=sw.wob>0;
   stopWobble();
-  sw.giant=true; sw.dmax=GIANT.dmax; sw.lat=GIANT.lat; sw.start=sw.ahead; sw.t=0; sw.wob=0; sw.warned=false;
+  sw.giant=true; sw.dmax=GIANT.dmax; sw.lat=GIANT.lat; sw.full=-1; sw.wob=0; sw.warned=false; sw.upgraded=true;
   armed=false; syncGiant();
   sayNow('Giant step!',was?'Saved yourself.':'Mother, may I? Yes.',1000); sfx.arm();
+}
+// the tap: a normal stride ahead of the other foot, keeping roughly to its own lane
+function tapStep(){
+  stopWobble();
+  const f=sw.foot, o=sw.other, side=f.side;
+  const ahead=Math.min(sw.dmax-0.1,Math.max(sw.ahead,sw.giant?TAP_GIANT:TAP_STRIDE));
+  let x=side<0?clamp(sw.ex,o.x-1.3,o.x-0.6):clamp(sw.ex,o.x+0.6,o.x+1.3);
+  x=clamp(x,R+0.05,WS-R-0.05);
+  const d=o.d+ahead, dist=Math.hypot(x-sw.dx,d-sw.dd);
+  drop={foot:f,x,d,t:0,dur:0.09+dist*0.022,fx:sw.dx,fd:sw.dd,fl:sw.lift,giant:sw.giant,tap:true};
+  if(sw.giant){giant--; armed=false; syncGiant();}
+  phase='drop';
 }
 function stopWobble(){if(sw&&sw.stopWob){sw.stopWob(); sw.stopWob=null;}}
 function plant(){
@@ -1452,7 +1496,7 @@ function startGame(){
 function pauseGame(){
   if(mode!=='play') return;
   mode='paused'; pausedAt=performance.now()/1000;
-  input.down=false; input.id=null; input.key=null; input.latch=0;
+  clearInput();
   if(phase==='swing'){stopWobble(); phase='idle'; sw=null;}   // a lifted foot just goes back down
   sfx.click(); showScreen(pauseEl,true); releaseWake();
 }
@@ -1502,11 +1546,11 @@ function botUpdate(now){
     }
     if(!pickd) pickd={x:clamp(other.x+side*0.7,R+0.15,WS-R-0.15),ahead:0.95};
     bot.tx=pickd.x; bot.ta=pickd.ahead; bot.active=true;
-    input.latch=side; input.down=true;
+    input.bot=side; press(side);
   }
   if(phase==='swing'&&bot.active){
     sw.x=bot.tx;
-    if(sw.ahead>=bot.ta-0.01){input.down=false; bot.active=false; bot.next=now+0.35+Math.random()*0.45;}
+    if(sw.ahead>=bot.ta-0.01&&sw.t>=TAP){input.bot=0; bot.active=false; bot.next=now+0.35+Math.random()*0.45;}
   }
 }
 
@@ -1514,23 +1558,20 @@ function botUpdate(now){
 view.addEventListener('pointerdown',e=>{
   if(mode!=='play'||e.target.closest('button')||e.target.closest('.screen')||e.target.closest('#over')) return;
   if(e.pointerType==='mouse'&&e.button!==0) return;
-  // a second finger while a foot is in the air: giant step, which also saves a wobbling leg
-  if(input.id!==null&&e.pointerId!==input.id){if(phase==='swing') toggleGiant(); e.preventDefault(); return;}
-  if(input.id!==null||input.key) return;
   sfx.init();
-  const rect=view.getBoundingClientRect();
-  input.id=e.pointerId; input.lastX=e.clientX; input.down=true;
-  input.latch=(e.clientX-rect.left)<rect.width/2?-1:1;
+  const rect=view.getBoundingClientRect(), side=(e.clientX-rect.left)<rect.width/2?-1:1;
+  input.ptrs.set(e.pointerId,{side,lastX:e.clientX});
+  press(side);
   try{view.setPointerCapture(e.pointerId);}catch(_){}
   e.preventDefault();
 });
 view.addEventListener('pointermove',e=>{
-  if(e.pointerId!==input.id) return;
-  const dx=e.clientX-input.lastX; input.lastX=e.clientX;
-  if(phase==='swing'&&mode==='play') sw.x+=dx/K*1.25;
+  const p=input.ptrs.get(e.pointerId); if(!p) return;
+  const dx=e.clientX-p.lastX; p.lastX=e.clientX;
+  if(phase==='swing'&&mode==='play'&&sw.foot.side===p.side) sw.x+=dx/K*1.25;
 });
-const up=e=>{if(e.pointerId!==input.id) return; input.id=null; input.down=false;};
-view.addEventListener('pointerup',up); view.addEventListener('pointercancel',up);
+const up=e=>{const p=input.ptrs.get(e.pointerId); if(!p) return; input.ptrs.delete(e.pointerId); release(p.side);};
+for(const ev of ['pointerup','pointercancel','lostpointercapture']) view.addEventListener(ev,up);
 view.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('keydown',e=>{
   const k=e.code, t=e.target, onBtn=t&&t.closest&&t.closest('button,a');
@@ -1546,38 +1587,47 @@ window.addEventListener('keydown',e=>{
   const footKey={KeyA:-1,KeyD:1,Space:0,KeyW:0,ArrowUp:0}[k];
   if(footKey!==undefined){
     e.preventDefault();
-    if(e.repeat||input.key||input.id!==null) return;
-    sfx.init(); input.key=k; input.down=true; input.latch=footKey||back.side;
+    if(e.repeat||input.keySide.has(k)) return;
+    sfx.init();
+    const side=footKey||nextSide(); input.keySide.set(k,side); press(side);
   }
   else if(k==='ArrowLeft'){e.preventDefault(); input.keys.l=true;}
   else if(k==='ArrowRight'){e.preventDefault(); input.keys.r=true;}
 });
 window.addEventListener('keyup',e=>{
   const k=e.code;
-  if(k===input.key){input.key=null; input.down=false;}
+  if(input.keySide.has(k)){const s=input.keySide.get(k); input.keySide.delete(k); release(s);}
   else if(k==='ArrowLeft') input.keys.l=false;
   else if(k==='ArrowRight') input.keys.r=false;
 });
-window.addEventListener('blur',()=>{input.down=false; input.id=null; input.key=null; input.keys.l=input.keys.r=false;});
+window.addEventListener('blur',()=>{
+  const sides=new Set([...[...input.ptrs.values()].map(p=>p.side),...input.keySide.values()]);
+  input.ptrs.clear(); input.keySide.clear(); input.keys.l=input.keys.r=false;
+  for(const s of sides) release(s);
+});
 
 /* ---------- loop ---------- */
 function update(dt,now){
   if(mode==='paused'){if(camFlinch>0) camFlinch=Math.max(0,camFlinch-dt*2.2); return;}
   if(mode==='title') botUpdate(now);
   ambientUpdate(dt,now); dadUpdate(dt); dogUpdate(dt,now);
-  if(phase==='idle'&&input.latch){const s=input.latch; input.latch=0; beginSwing(s,now);}
+  if(phase==='idle'&&input.q.length){
+    const t=performance.now()/1000;
+    input.q=input.q.filter(p=>!p.up||t-p.up<0.35);           // a tap that waited too long is dropped, not stepped
+    const p=input.q.shift(); if(p) beginSwing(p.side,now);
+  }
   if(phase==='swing'){
     const speed=(sw.dmax-sw.dmin)/(swingTime(slabIdx(front.d))*(sw.giant?1.3:1));
     sw.t+=dt;
-    const tReach=(sw.dmax-sw.start)/speed;
-    sw.ahead=Math.min(sw.dmax,sw.start+speed*sw.t); sw.u=(sw.ahead-sw.dmin)/(sw.dmax-sw.dmin);
+    sw.ahead=Math.min(sw.dmax,sw.ahead+speed*(sw.ahead<0?1.8:1)*dt); sw.u=(sw.ahead-sw.dmin)/(sw.dmax-sw.dmin);
+    if(sw.ahead>=sw.dmax&&sw.full<0) sw.full=sw.t;
     if(sw.u>=0.8&&!sw.warned){sw.warned=true; sfx.strain();}
     const kd=(input.keys.r?1:0)-(input.keys.l?1:0); if(kd) sw.x+=kd*2.6*dt;
     clampSw();
     let tx=sw.ex, td=sw.other.d+sw.ahead;
-    if(sw.t>tReach+0.08){            // past full reach: the leg wobbles, landing gets shaky
+    if(sw.full>=0&&sw.t>sw.full+0.08){   // past full reach: the leg wobbles, landing gets shaky
       if(!sw.wob) sw.stopWob=sfx.wobble(WOB);
-      sw.wob=sw.t-tReach-0.08+1e-6;
+      sw.wob=sw.t-sw.full-0.08+1e-6;
       const k=Math.min(1,sw.wob/WOB);
       tx=sideClamp(sw.ex+Math.sin(sw.wob*28)*(0.15+0.5*k),sw.ahead);
       td+=Math.sin(sw.wob*19+1)*0.14*k;
@@ -1586,7 +1636,8 @@ function update(dt,now){
     sw.tx=tx; sw.td=td;
     const k1=1-Math.exp(-dt*(sw.wob?34:26)), k2=1-Math.exp(-dt*18);
     sw.dx+=(tx-sw.dx)*k1; sw.dd+=(td-sw.dd)*k1; sw.lift+=(1-sw.lift)*k2;
-    if(!input.down) plant(); else if(sw.wob>WOB) snapBack();
+    if(!held(sw.foot.side)){if(sw.t<TAP&&!sw.upgraded) tapStep(); else plant();}
+    else if(sw.wob>WOB) snapBack();
   } else if(phase==='drop'){
     drop.t+=dt; if(drop.t>=drop.dur) land(now);
   }
@@ -1627,7 +1678,7 @@ function frame(t){
 
 /* ---------- boot ---------- */
 if(!coarse){
-  $('#howMove').innerHTML='Hold <b>A</b> or <b>D</b> (or either half of the screen) to lift that foot, let go to step. A quick tap is a little shuffle. Steer with the arrow keys or the mouse.';
+  $('#howMove').innerHTML='Tap <b>A</b> and <b>D</b> (or either half of the screen) in turn to walk. Hold one to lift that foot and aim it, let go to put it down. Steer with the arrow keys or the mouse.';
   $('#howGiant').innerHTML="Dawdle and the Kowalskis' chihuahua comes for your heels. Overreach and your leg wobbles: press <b>G</b> for a <b>giant step</b> to save it.";
   const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>G giant step · Esc pauses · F full screen · M sound</span>';
   $('.t-how').appendChild(li);

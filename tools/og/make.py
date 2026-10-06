@@ -35,7 +35,8 @@ GAMES = [
      # a few steps in: Mom bent into an L on the Mom Cam, texting about it, the next step mid-swing
      "startGame(); setTimeout(() => { hp=4; kinks=[{j:1},{j:3}]; curPose=clonePose(POSES[4]);"
      " steps=23; streak=7; tStart=performance.now()/1000-42; updateHUD(); document.getElementById('ft').textContent='61';"
-     " momText('I am now shaped like the letter L'); input.latch=1; input.down=true; }, 400);",
+     " momText('I am now shaped like the letter L'); }, 400);"
+     " setTimeout(() => { input.bot=1; press(1); }, 1250);",
      {"screenshot": True, "title_px": 40}),
 ]
 
