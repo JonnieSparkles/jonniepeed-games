@@ -8,10 +8,12 @@ Small browser games and pixel scenes. Plain static files, no build step.
 site/                   everything that gets published
   index.html            studio page: logo, game shelf, pixel easter egg (assets/ident.js)
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
+  dont-step-on-the-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
   assets/               logo, ident.js, pixel mark, thumbnails, favicons, preview cards
-  assets/fonts/         Silkscreen and Pixelify Sans (SIL OFL), self-hosted
+  assets/fonts/         Silkscreen, Pixelify Sans, Cabin Sketch, Atkinson Hyperlegible, IBM Plex Mono (SIL OFL)
+                        and Schoolbell (Apache 2.0), self-hosted
   favicon.ico
-tools/og/make.py        builds the social preview cards
+tools/og/make.py        builds the social preview cards (pixel canvases, or page screenshots for smooth games)
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 brand/                  source logo files, not published
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
