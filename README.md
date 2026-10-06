@@ -23,14 +23,23 @@ brand/                  source logo files, not published
 
 Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io.
 
+## Standards
+
+These apply to every change:
+
+- **Full screen and every orientation.** Each game or scene has a full screen mode and works in portrait, landscape and on desktop. Exceptions are fine when noted. Thimbleful's "full screen" section in `thimbleful/game.js` is the reference.
+- **Cache busting.** Run `python3 tools/stamp.py` after any change in `site/`, so changed files get new `?v=` links.
+- **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games.
+- **Relative links, explicit `index.html`.** Needed for Arweave manifests.
+- **No backward compatibility.** Remove old pages and paths outright, with no redirects or shims.
+- **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
+
 ## Adding a game
 
-1. Make a folder in `site/` with an `index.html` that only uses relative paths.
-   Every game or scene needs a full screen mode and has to work in portrait, landscape and on desktop.
-   Thimbleful (`thimbleful/game.js`, "full screen" section) is the reference: Fullscreen API where it exists,
-   a fill-the-window fallback on iPhone, the stage fitted with container units, and a thumb zone in portrait.
-2. Add a 4:3 thumbnail to `site/assets/` (pixel art: 96×72 scaled 4× with nearest-neighbour).
+1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
+2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail.
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/index.html`.
+4. Run `python3 tools/stamp.py`.
 
 ## Social previews
 
