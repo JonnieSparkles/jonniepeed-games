@@ -25,7 +25,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=c9eec24c41">
 <link rel="stylesheet" href="assets/fonts/fonts.css?v=8218a85879">
 <style>
-/* Layout: interactive pixel logo hero (canvas), GAMES wordmark and tagline, then the shelf of game cards, then a small footer */
+/* Layout: logo hero, then a shelf of game cards (2-3 across on desktop, 1 on phones), a pixel easter egg on the shelf floor, then a small footer */
 :root{
   --bg:#ffffff;--ink:#17141f;--muted:#5f5973;--line:#e8e4f0;--card:#f7f5fb;
   --blue:#1e8fe0;--green:#5fa616;--orange:#f07a12;--pink:#e3157f;
@@ -37,16 +37,18 @@
 html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5}
 .wrap{max-width:1000px;margin:0 auto;padding-inline:16px}
-.hero{padding-block:20px 8px;display:grid;justify-items:center;gap:10px}
-.hero h1{margin:0;width:100%}
-.hero canvas{display:block;margin-inline:auto;image-rendering:pixelated;touch-action:pan-y;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.hero canvas:focus-visible{outline:3px solid var(--pink);outline-offset:4px;border-radius:4px}
+.hero{padding-block:28px 12px;display:grid;justify-items:center;gap:6px}
+.hero h1{margin:0;width:100%;display:flex;justify-content:center}
+.hero img{width:min(100%,520px);height:auto}
+.hero p{margin:0;color:var(--muted);font-size:18px;text-align:center}
+.logo-dark{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo-light{display:none}:root:not([data-theme="light"]) .logo-dark{display:block}}
+:root[data-theme="dark"] .logo-light{display:none}
+:root[data-theme="dark"] .logo-dark{display:block}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.games-word{margin:0;display:flex;align-items:center;gap:14px;font-family:var(--display);font-size:clamp(22px,6vw,34px);letter-spacing:.3em;padding-left:.3em;color:var(--ink)}
-.games-word i{display:block;width:clamp(22px,6vw,40px);height:5px;border-radius:3px;background:var(--blue)}
-.games-word i:last-child{background:var(--pink)}
-.hero p.tagline{margin:0;color:var(--muted);font-size:17px;text-align:center}
-.hero p.howto{margin:0;color:var(--muted);font-size:13px;font-family:var(--display);letter-spacing:.08em;text-transform:uppercase}
+.egg{min-width:0;margin-top:20px}
+.egg canvas{display:block;image-rendering:pixelated;cursor:pointer;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.egg canvas:focus-visible{outline:3px solid var(--pink);outline-offset:4px;border-radius:4px}
 .shelf{padding-block:8px 40px;display:grid;gap:16px}
 .shelf h2{font-family:var(--display);font-weight:400;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0;display:flex;align-items:center;gap:12px}
 .shelf h2::after{content:"";flex:1;height:2px;background:var(--line)}
@@ -75,13 +77,11 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
 </head>
 <body>
 <header class="hero wrap">
-  <h1><span class="sr-only">JonniePeed Games</span><canvas id="hero" width="180" height="88" tabindex="0" role="img" aria-label="Pixel-art JonniePeed logo: a stick figure sends a rainbow arc into arched paint letters. Hold to spray and slide left or right to aim, or hold Space and use the arrow keys. Painting every letter sets off confetti."></canvas></h1>
-  <p class="games-word" aria-hidden="true"><i></i>GAMES<i></i></p>
-  <p class="tagline">Small games you play right in your browser.</p>
-  <p class="howto">Hold to spray, slide to aim</p>
+  <h1><img class="logo-light" src="assets/logo.webp?v=90c7aa524d" width="900" height="722" alt="JonniePeed Games"><img class="logo-dark" src="assets/logo-dark.webp?v=afcb87ba0c" width="900" height="722" alt="JonniePeed Games"></h1>
+  <p>Small games you play right in your browser.</p>
 </header>
 <main class="shelf wrap">
-  <h2 class="sr-only">Games</h2>
+  <h2>Games</h2>
   <div class="grid">
     <a class="card" href="thimbleful/index.html">
       <div class="thumb"><img class="px" src="assets/thumb-thimbleful.png?v=0f6a9cffb6" width="384" height="288" alt="Pixel windowsill with a tiny explorer holding a thimble under a leaking watering can"></div>
@@ -102,6 +102,7 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
       </div>
     </a>
   </div>
+  <div class="egg"><canvas id="ident" width="120" height="48" tabindex="0" role="img" aria-label="Pixel JonniePeed sending a rainbow along the shelf floor. Hold to build up power, or hold Space."></canvas></div>
 </main>
 <footer>
   <div class="wrap">
@@ -109,6 +110,6 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
     <span>© 2026 JonniePeed Games</span>
   </div>
 </footer>
-<script src="assets/hero.js?v=644dc5f5fb"></script>
+<script src="assets/ident.js?v=3edfdbbf0d"></script>
 </body>
 </html>

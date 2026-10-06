@@ -6,9 +6,9 @@ Small browser games and pixel scenes. Plain static files, no build step.
 
 ```
 site/                   everything that gets published
-  index.html            studio page: interactive pixel logo (assets/hero.js), game shelf
+  index.html            studio page: logo, game shelf, pixel easter egg (assets/ident.js)
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
-  assets/               hero.js, pixel mark, thumbnails, favicons, preview cards
+  assets/               logo, ident.js, pixel mark, thumbnails, favicons, preview cards
   assets/fonts/         Silkscreen and Pixelify Sans (SIL OFL), self-hosted
   favicon.ico
 tools/og/make.py        builds the social preview cards
