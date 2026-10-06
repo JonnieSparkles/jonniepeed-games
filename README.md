@@ -19,6 +19,7 @@ brand/                  source logo files, not published
   mark-pixel*.png                 pixel-art mark (1x and 8x)
   icon-192.png, icon-512.png, apple-touch-icon.png, favicon.ico
   logo-animated.mp4               animated logo, 6s, no audio (for social posts)
+  logo-animated-original.mp4      the original animated logo as made, with audio
 ```
 
 Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io.
