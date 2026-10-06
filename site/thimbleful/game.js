@@ -1,8 +1,8 @@
 // Thimbleful: a tiny explorer catches drips from a leaking watering can to grow a sunflower.
-// States: title (live windowsill scene) -> intro (first play only: plant the seed) -> play -> over.
+// States: title (live windowsill scene) -> intro (first play only: plant the seed in the big pot) -> play -> over.
 // "Just watch" puts the scene in a passive mode with no game on top.
 const c = document.getElementById('c'), g = c.getContext('2d');
-const W = 96, H = 72, MAXSPILL = 5, POT_X = 45, CAN_HOME = 52, CAN_AWAY = -14;
+const W = 96, H = 72, MAXSPILL = 5, SUN_X = 10, SUN_BASE = 36, PLANT_STAND = 21, CAN_HOME = 52, CAN_AWAY = -14;
 const R = (a, b, w, h, k) => { g.fillStyle = k; g.fillRect(Math.round(a), Math.round(b), w, h); };
 const P = (a, b, k) => R(a, b, 1, 1, k);
 function disc(cx, cy, r, k) { for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (i * i + j * j <= r * r + r * 0.6) P(cx + i, cy + j, k); }
@@ -20,7 +20,8 @@ let introSeen = store.get('thimbleful-intro-seen') === '1';
 
 let state = 'title', score = 0, spills = 0, el = 0, ex = 32, target = null, walk = 0, moved = false, flash = 0, time = 0, dropT = 1.2;
 let pose = 'seed';                         // seed: holding the seed, thimble on back | back: thimble on back | up: thimble held overhead
-const plant = { planted: false, size: 0 }; // the sunflower grown in the middle pot
+const plant = { planted: false, size: 0 }; // the sunflower grown in the big pot on the left
+let facing = 1, hop = 0, wander = { next: 3, to: null };
 const keys = { l: false, r: false }, can = { x: CAN_AWAY, tx: 60, want: CAN_AWAY };
 let drops = [], parts = [], wet = [], intro = null, seedFall = null;
 
@@ -48,11 +49,11 @@ function start(withIntro) {
   if (!introSeen) {
     // first play: walk to the pot, plant the seed, the can slides in, thimble goes up
     plant.planted = false; plant.size = 0; pose = 'seed';
-    state = 'intro'; intro = { t: 0, planted: false }; ex = 32;
+    state = 'intro'; intro = { t: 0, planted: false }; ex = 32; facing = -1;
     can.x = Math.min(can.x, CAN_AWAY); can.want = CAN_HOME;
     skipBtn.hidden = false;
   } else {
-    plant.planted = true; plant.size = 0; pose = 'up'; ex = 48; walk = 0;
+    plant.planted = true; plant.size = 0; pose = 'up'; ex = 48; walk = 0; facing = 1;
     can.want = null; if (can.x < 8) can.x = CAN_AWAY;
     state = 'play'; dropT = can.x < 8 ? 1.6 : 1.1;
   }
@@ -67,7 +68,7 @@ function finishIntro() {
 function end() {
   state = 'over'; drops = []; ThimbleSound.over();
   if (score > best) { best = score; store.set('thimbleful-best', String(best)); }
-  hud(); can.want = can.x;
+  hud(); can.want = can.x; facing = ex > SUN_X ? -1 : 1; wander.next = 4;
   showCard('The sill is soaked', `You caught ${score} drop${score === 1 ? '' : 's'} and grew your sunflower. Best: ${best}.`, 'Play again');
   go.focus();
 }
@@ -75,7 +76,7 @@ function watch() {
   state = 'watch'; drops = []; target = null;
   overlay.hidden = true; skipBtn.hidden = true; leaveBtn.hidden = false;
   main.classList.add('watching');
-  pose = plant.planted ? 'back' : 'seed'; can.want = CAN_AWAY;
+  pose = plant.planted ? 'back' : 'seed'; can.want = CAN_AWAY; wander.next = 2;
   hint.textContent = 'Just watching. Tap Play in the corner to get back to the game.';
 }
 function leaveWatch() {
@@ -163,14 +164,30 @@ function burst(x, y, n, spread, lift, col) { for (let i = 0; i < n; i++) parts.p
 
 function updateIntro(dt) {
   intro.t += dt;
-  const standX = POT_X - 7;
-  if (Math.abs(ex - standX) > 0.3) { ex += Math.sign(standX - ex) * Math.min(Math.abs(standX - ex), 22 * dt); moved = true; walk += dt; }
-  else if (!intro.planted && !seedFall) { seedFall = { x: Math.round(ex) + 6, y: 42, t: 0 }; pose = 'back'; }
+  if (Math.abs(ex - PLANT_STAND) > 0.3) { facing = Math.sign(PLANT_STAND - ex); ex += facing * Math.min(Math.abs(PLANT_STAND - ex), 22 * dt); moved = true; walk += dt; }
+  else if (!intro.planted && !seedFall) {
+    // she tosses the seed over her shoulder into the big pot
+    facing = 1; hop = 0.18; pose = 'back';
+    seedFall = { x0: Math.round(ex) + 4, y0: 41, t: 0, x: 0, y: 0 };
+  }
   if (seedFall) {
-    seedFall.t += dt; seedFall.x += (POT_X - seedFall.x) * Math.min(1, dt * 10); seedFall.y += 14 * dt;
-    if (seedFall.y >= 43) { seedFall = null; intro.planted = true; plant.planted = true; ThimbleSound.plant(); burst(POT_X, 42, 3, 14, 8, '#6b4a2c'); }
+    seedFall.t += dt; const u = Math.min(1, seedFall.t / 0.6);
+    seedFall.x = seedFall.x0 + (SUN_X - seedFall.x0) * u; seedFall.y = seedFall.y0 + (SUN_BASE - seedFall.y0) * u - 14 * 4 * u * (1 - u);
+    if (u >= 1) { seedFall = null; intro.planted = true; plant.planted = true; ThimbleSound.plant(); burst(SUN_X, SUN_BASE, 4, 14, 8, '#6b4a2c'); }
   }
   if (intro.planted && Math.abs(can.x - CAN_HOME) < 1 && intro.t > 1.6) finishIntro();
+}
+
+// in the title screen and watch mode she potters about the sill on her own
+function idle(dt) {
+  if (wander.to === null) {
+    wander.next -= dt;
+    if (wander.next <= 0 && !calm) wander.to = 22 + Math.random() * 52;
+    return;
+  }
+  const d = wander.to - ex;
+  if (Math.abs(d) < 0.4) { wander.to = null; wander.next = 4 + Math.random() * 5; if (Math.random() < 0.4) hop = 0.18; return; }
+  facing = Math.sign(d); ex += facing * Math.min(Math.abs(d), 13 * dt); moved = true; walk += dt;
 }
 
 let shownState = '';
@@ -181,8 +198,9 @@ function update(dt) {
   parts = parts.filter(p => p.life > 0);
   for (const w of wet) w.t -= dt;
   wet = wet.filter(w => w.t > 0);
+  hop = Math.max(0, hop - dt);
   if (state === 'intro') { moveCan(dt, 0); updateIntro(dt); return; }
-  if (state !== 'play') { moveCan(dt, 14); return; }
+  if (state !== 'play') { moveCan(dt, 14); if (state === 'title' || state === 'watch') idle(dt); return; }
   el += dt; ThimbleSound.intensity(el);
   const interval = Math.max(0.48, 1.45 - el * 0.018), fall = Math.min(56, 20 + el * 0.55);
   moveCan(dt, 16 + el * 0.45);
@@ -191,15 +209,17 @@ function update(dt) {
   if (mv) ex += mv * sp * dt;
   else if (target !== null) { const d = target - ex; ex += Math.sign(d) * Math.min(Math.abs(d), sp * 1.2 * dt); }
   ex = Math.max(7, Math.min(89, ex));
-  moved = Math.abs(ex - before) > 0.05; if (moved) walk += dt;
+  moved = Math.abs(ex - before) > 0.05; if (moved) { walk += dt; facing = ex > before ? 1 : -1; }
   dropT -= dt;
   if (dropT <= 0 && can.x > 6) { drops.push({ x: Math.round(can.x) - 4, y: 9, vy: fall }); dropT = interval * (0.75 + Math.random() * 0.5); }
   const mid = Math.round(ex);
   for (const d of drops) {
     const py = d.y; d.y += d.vy * dt;
     if (py < 38 && d.y >= 38 && Math.abs(d.x - mid) <= 3.5) {
-      d.done = true; score++; plant.size = score; flash = 0.3; burst(d.x, 37, 4, 30, 20); hud();
-      ThimbleSound.catch(); if (score % 10 === 0) ThimbleSound.milestone();
+      d.done = true; score++; plant.size = score; flash = 0.3; hop = 0.12; burst(d.x, 37, 4, 30, 20); hud();
+      ThimbleSound.catch();
+      if (score === 14 || score === 20 || score === 26) { const f = flowerPos(); burst(f.x, f.y, 10, 40, 22, '#ffd84a'); ThimbleSound.milestone(); }
+      else if (score % 10 === 0) ThimbleSound.milestone();
     } else if (d.y >= 48) {
       d.done = true; spills++; wet.push({ x: d.x, t: 3 }); burst(d.x, 47, 5, 36, 14); hud();
       if (spills >= MAXSPILL) { end(); break; }
@@ -224,7 +244,7 @@ function scene() {
   for (const [bx, bw, bh] of far) R(bx, 46 - bh, bw, bh, '#6e5788');
   for (const [lx, ly] of lit) P(lx, ly, (Math.floor(time * 0.7 + lx) % 5) ? '#ffd98a' : '#6e5788');
   for (const [bx, bw, bh] of near) R(bx, 46 - bh, bw, bh, '#4f3f68');
-  if (state !== 'play') for (let i = 0; i < 10; i++) { const mx = 12 + ((i * 29 + time * 1.2 * (1 + i % 3)) % 72), my = 8 + ((i * 17) % 30) + Math.sin(time * 0.8 + i) * 2; P(mx, my, 'rgba(255,246,216,0.75)'); }
+  for (let i = 0; i < (state === 'play' ? 5 : 10); i++) { const mx = 12 + ((i * 29 + time * 1.2 * (1 + i % 3)) % 72), my = 8 + ((i * 17) % 30) + Math.sin(time * 0.8 + i) * 2; P(mx, my, 'rgba(255,246,216,0.75)'); }
   g.restore();
   R(47, 5, 2, 41, '#b57b52'); R(49, 5, 1, 41, '#8a5a3b'); R(9, 24, 78, 2, '#b57b52'); R(9, 26, 78, 1, '#8a5a3b');
   R(4, 1, 88, 1, '#c9a24a'); R(3, 0, 2, 3, '#a5832f'); R(91, 0, 2, 3, '#a5832f');
@@ -238,30 +258,38 @@ function flower(fx, fy, r) {
   if (r >= 3) { P(fx - 1, fy - 1, '#4a2a14'); P(fx + 1, fy, '#4a2a14'); }
 }
 
+function sunflowerTop() { return SUN_BASE - Math.min(26, 2 + Math.floor(plant.size * 1.1)); }
+function flowerPos() {
+  const sw = calm ? 0 : Math.sin(time * 1.2), top = sunflowerTop();
+  return { x: SUN_X + Math.round(sw * (SUN_BASE - top) / 24 * 1.6), y: top - 2 };
+}
+
 function plants() {
   const sw = calm ? 0 : Math.sin(time * 1.2);
-  // a succulent on the left; the only sunflower on the sill is the one the player grows
-  R(6, 34, 9, 3, '#7fb89a'); R(7, 32, 7, 2, '#93c9ab'); R(9, 30, 3, 2, '#a8d8bd');
-  P(6, 34, '#c97b8a'); P(14, 34, '#c97b8a'); P(7, 32, '#c97b8a'); P(13, 32, '#c97b8a'); P(10, 30, '#c97b8a');
-  pot(5, 37, 11, 13);
-
-  // the seed pot in the middle: grows with every catch
-  const base = 42;
+  // your sunflower, in the big pot on the left
   if (plant.planted) {
     const s = plant.size;
-    if (s === 0) { P(POT_X, base, '#6b4a2c'); P(POT_X - 1, base, '#5a3d24'); }
+    if (s === 0) { R(SUN_X, SUN_BASE, 2, 1, '#6b4a2c'); P(SUN_X + 1, SUN_BASE - 1, '#5fa646'); }
     else {
-      const h = Math.min(24, 1 + Math.floor(s * 0.9)), top = base - h;
-      const o2 = y => Math.round(sw * (base - y) / 24 * 1.4);
-      for (let y = base; y >= top; y--) P(POT_X + o2(y), y, '#5a9a3f');
-      if (h <= 3) { P(POT_X - 1 + o2(top), top, '#6cbf5f'); P(POT_X + 1 + o2(top), top, '#6cbf5f'); }
-      for (let k = 4, side = -1; base - k > top + 3; k += 5, side = -side) leaf(side < 0 ? POT_X - 1 + o2(base - k) : POT_X + 1 + o2(base - k), base - k, side);
-      const fx = POT_X + o2(top);
-      if (s >= 14) flower(fx, top - 2, Math.min(4, 2 + Math.floor((s - 14) / 6)));
-      else if (s >= 8) { disc(fx, top - 1, 1, '#5fa646'); if (s >= 11) P(fx, top - 2, '#f5c32c'); }
+      const top = sunflowerTop(), off = y => Math.round(sw * (SUN_BASE - y) / 24 * 1.6);
+      for (let y = SUN_BASE; y >= top; y--) { R(SUN_X + off(y), y, 2, 1, '#4f8f3a'); P(SUN_X + off(y), y, '#67a84c'); }
+      if (s < 4) { P(SUN_X - 1 + off(top), top, '#6cbf5f'); P(SUN_X + 2 + off(top), top, '#6cbf5f'); }
+      for (let k = 5, side = -1; SUN_BASE - k > top + 3; k += 5, side = -side) leaf(side < 0 ? SUN_X - 1 + off(SUN_BASE - k) : SUN_X + 2 + off(SUN_BASE - k), SUN_BASE - k, side);
+      const fx = SUN_X + off(top);
+      if (s >= 14) {
+        const r = Math.min(4, 2 + Math.floor((s - 14) / 6));
+        flower(fx, top - r, r);
+        // the head nods now and then
+        if (!calm && (time % 7) < 0.4) P(fx, top - r * 2 - 1, '#f5c32c');
+      } else if (s >= 8) { disc(fx, top - 1, 1, '#5fa646'); if (s >= 11) P(fx, top - 2, '#f5c32c'); }
     }
-  }
-  pot(POT_X - 4, 43, 9, 7);
+  } else R(SUN_X - 2, SUN_BASE, 6, 1, '#4a3322');
+  pot(5, 37, 11, 13);
+
+  // succulent in the middle pot
+  R(42, 40, 7, 3, '#7fb89a'); R(43, 38, 5, 2, '#93c9ab'); P(45, 37, '#a8d8bd');
+  P(42, 40, '#c97b8a'); P(48, 40, '#c97b8a'); P(44, 38, '#c97b8a');
+  pot(41, 43, 9, 7);
 
   disc(62, 47, 3, '#3a5c9e'); disc(62, 47, 2, '#4f78c4'); P(61, 46, '#2a3f6e'); P(63, 46, '#2a3f6e'); P(61, 48, '#2a3f6e'); P(63, 48, '#2a3f6e');
 
@@ -271,14 +299,28 @@ function plants() {
   R(80, 36, 4, 3, '#4e9a4e'); R(84, 35, 4, 3, '#5aab55'); R(87, 36, 4, 3, '#4e9a4e'); P(81, 36, '#6cbf5f'); P(85, 35, '#6cbf5f'); P(88, 36, '#6cbf5f');
 }
 
+// a butterfly drifts around the window when nobody is playing
+function butterfly() {
+  if (state === 'play' || state === 'intro') return;
+  const t = time, x = Math.round(36 + 24 * Math.sin(t * 0.45) + 5 * Math.sin(t * 1.9)), y = Math.round(20 + 7 * Math.sin(t * 0.7) + 2 * Math.sin(t * 2.3));
+  const up = !calm && Math.floor(t * 7) % 2 === 0;
+  P(x, y, '#3a3550');
+  if (up) { P(x - 1, y - 1, '#f6a6c8'); P(x + 1, y - 1, '#f6a6c8'); P(x - 2, y - 1, '#ffd2e4'); P(x + 2, y - 1, '#ffd2e4'); }
+  else { P(x - 1, y, '#f6a6c8'); P(x + 1, y, '#f6a6c8'); P(x - 1, y + 1, '#ffd2e4'); P(x + 1, y + 1, '#ffd2e4'); }
+}
+
+let lastCanX = 0;
 function wateringCan() {
   const cx = Math.round(can.x);
+  const swinging = Math.abs(can.x - lastCanX) > 0.01 && !calm; lastCanX = can.x;
   if (cx < -10) return;
+  g.save(); if (swinging && Math.floor(time * 5) % 2) g.translate(0, 1);
   P(cx + 3, 1, '#8f8f8f');
   R(cx + 1, 2, 5, 1, '#4f7f90'); P(cx + 1, 3, '#4f7f90'); P(cx + 5, 3, '#4f7f90');
   R(cx, 4, 7, 5, '#6f9fb0'); R(cx, 4, 7, 1, '#9cc6d4'); R(cx + 5, 5, 2, 4, '#557f8f');
   P(cx - 1, 7, '#6f9fb0'); P(cx - 2, 6, '#6f9fb0'); P(cx - 3, 6, '#6f9fb0'); R(cx - 4, 5, 1, 3, '#557f8f');
   if (state === 'play' && dropT < 0.3) P(cx - 4, 8, '#bfe8ff');
+  g.restore();
 }
 
 function legs(L) {
@@ -292,6 +334,14 @@ function face(L) {
 }
 function explorer() {
   const L = Math.round(ex) - 3;
+  const idleBob = !moved && state !== 'play' && !calm && (time % 2.6) < 0.18;
+  g.save();
+  if (facing < 0) { g.translate(2 * Math.round(ex) + 1, 0); g.scale(-1, 1); }
+  if (hop > 0 || idleBob) g.translate(0, -1);
+  drawExplorer(L);
+  g.restore();
+}
+function drawExplorer(L) {
   if (pose === 'up') {
     R(L, 38, 7, 1, '#d4d8de'); R(L + 1, 39, 5, 2, '#b8bcc4'); P(L + 2, 39, '#8d929c'); P(L + 4, 39, '#8d929c'); P(L + 3, 40, '#8d929c');
     if (flash > 0) R(L + 1, 38, 5, 1, '#7fd0ff');
@@ -312,7 +362,7 @@ function ladybug() {
 }
 
 function draw() {
-  scene(); plants(); ladybug(); wateringCan();
+  scene(); plants(); butterfly(); ladybug(); wateringCan();
   for (const d of drops) { P(d.x, d.y, '#d9f3ff'); P(d.x, d.y + 1, '#7fd0ff'); }
   explorer();
   if (seedFall) { R(seedFall.x, seedFall.y, 2, 2, '#3b2c22'); }
