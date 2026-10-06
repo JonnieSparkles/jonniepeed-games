@@ -25,7 +25,7 @@ main{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:20px 28px;d
 .back:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
 h1{font-family:var(--display);font-weight:400;font-size:24px;margin:0;color:var(--sun);letter-spacing:.02em}
-.hud{display:flex;gap:18px}
+.hud{display:flex;flex-wrap:wrap;align-items:end;gap:18px}
 .stat{display:grid;gap:2px}
 .stat span{font-family:var(--display);font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
 .stat b{font-weight:600;font-size:20px;line-height:24px;font-variant-numeric:tabular-nums}
@@ -42,6 +42,10 @@ button{font-family:var(--display);font-size:14px;background:var(--sun);color:var
 button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--sun-deep)}
 button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .hint{margin:0;color:var(--muted);font-size:14px}
+.snd{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--cream);box-shadow:none;border:2px solid var(--dusk-2);padding:8px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.snd:active{transform:none;box-shadow:none}
+.snd i{display:block;width:8px;height:8px;background:var(--drop)}
+.snd[aria-pressed="false"] i{background:var(--dusk-2)}
 </style>
 </head>
 <body>
@@ -53,6 +57,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
       <div class="stat"><span>Caught</span><b id="score">0</b></div>
       <div class="stat"><span>Chances</span><div class="pips" id="pips"></div></div>
       <div class="stat"><span>Best</span><b id="best">0</b></div>
+      <button class="snd" id="snd" type="button" aria-pressed="true"><i aria-hidden="true"></i><span>Sound on</span></button>
     </div>
   </header>
   <div class="stage">
@@ -65,8 +70,9 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
       </div>
     </div>
   </div>
-  <p class="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys.</p>
+  <p class="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, and M to mute.</p>
 </main>
+<script src="audio.js"></script>
 <script>
 const c=document.getElementById('c'),g=c.getContext('2d');
 const W=96,H=72,MAXSPILL=5;
@@ -92,9 +98,9 @@ function hud(){
   for(let i=0;i<MAXSPILL;i++){const p=document.createElement('i');if(i<spills)p.className='gone';pips.appendChild(p)}
 }
 function reset(){score=0;spills=0;el=0;ex=48;target=null;dropT=1.2;drops=[];parts=[];wet=[];flash=0;hud()}
-function start(){reset();state='play';overlay.hidden=true}
+function start(){reset();state='play';overlay.hidden=true;ThimbleSound.start()}
 function end(){
-  state='over';drops=[];
+  state='over';drops=[];ThimbleSound.over();
   if(score>best){best=score;try{localStorage.setItem('thimbleful-best',String(best))}catch(e){}}
   hud();
   ovTitle.textContent='The sill is soaked';
@@ -102,6 +108,10 @@ function end(){
   go.textContent='Play again';overlay.hidden=false;go.focus();
 }
 go.addEventListener('click',start);
+const snd=$('snd');
+function sndLabel(){const on=!ThimbleSound.muted;snd.setAttribute('aria-pressed',String(on));snd.lastElementChild.textContent=on?'Sound on':'Sound off'}
+snd.addEventListener('click',()=>{ThimbleSound.toggle();sndLabel()});
+sndLabel();
 
 function toLogical(e){const r=c.getBoundingClientRect();return (e.clientX-r.left)/r.width*W}
 let down=false;
@@ -113,6 +123,7 @@ const isL=k=>k==='ArrowLeft'||k==='a'||k==='A',isR=k=>k==='ArrowRight'||k==='d'|
 addEventListener('keydown',e=>{
   if(isL(e.key)){keys.l=true;target=null}
   else if(isR(e.key)){keys.r=true;target=null}
+  else if((e.key==='m'||e.key==='M')&&!e.repeat){ThimbleSound.toggle();sndLabel();return}
   else return;
   if(state==='play')e.preventDefault();
 });
@@ -132,7 +143,7 @@ function update(dt){
   for(const w of wet)w.t-=dt;
   wet=wet.filter(w=>w.t>0);
   if(state!=='play'){moveCan(dt,14);moved=false;return}
-  el+=dt;
+  el+=dt;ThimbleSound.intensity(el);
   const interval=Math.max(0.48,1.45-el*0.018),fall=Math.min(56,20+el*0.55);
   moveCan(dt,16+el*0.45);
   const before=ex,sp=72;
@@ -146,8 +157,8 @@ function update(dt){
   const mid=Math.round(ex);
   for(const d of drops){
     const py=d.y;d.y+=d.vy*dt;
-    if(py<38&&d.y>=38&&Math.abs(d.x-mid)<=3.5){d.done=true;score++;flash=0.3;burst(d.x,37,4,30,20);hud()}
-    else if(d.y>=48){d.done=true;spills++;wet.push({x:d.x,t:3});burst(d.x,47,5,36,14);hud();if(spills>=MAXSPILL){end();break}}
+    if(py<38&&d.y>=38&&Math.abs(d.x-mid)<=3.5){d.done=true;score++;flash=0.3;burst(d.x,37,4,30,20);hud();ThimbleSound.catch();if(score%10===0)ThimbleSound.milestone()}
+    else if(d.y>=48){d.done=true;spills++;wet.push({x:d.x,t:3});burst(d.x,47,5,36,14);hud();if(spills>=MAXSPILL){end();break}ThimbleSound.spill()}
   }
   drops=drops.filter(d=>!d.done);
 }
