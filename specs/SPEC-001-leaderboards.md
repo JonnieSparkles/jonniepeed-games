@@ -216,7 +216,13 @@ The goal: an agent (or Jonnie) who has never seen this spec can add a game to th
     - Bump the board: anything that changes how a run scores or ranks, such as difficulty, what counts as a point, `higherIsBetter`, `tieBreak`, or lowering `maxScore`. Steps: add the new number to `boards`, **deploy the Worker first**, then bump `BOARD` in the game, run `check_boards.py`, deploy the site.
     - Never: rename a game ID, remove a board from `boards`, remove a `meta` key, narrow a `meta` range, or change an existing `/v1/` path. Old copies depend on them. Explain the exception to "no backward compatibility" here.
   - The `games.json` field reference.
-  - Deleting a bad score with `wrangler d1 execute` (example `SELECT` to find it and `DELETE ... WHERE id = ?`), and clearing the test board.
+  - **Admin recipes.** There's no admin page. Jonnie manages scores with SQL, either in the Cloudflare dashboard's D1 console (no terminal needed) or with `wrangler d1 execute --remote`. Give each recipe as dashboard steps and as a command:
+    - See a board (top 50 with ids).
+    - Find scores by initials.
+    - Delete one score by `id`.
+    - Reset a board (`DELETE ... WHERE game = ? AND board = ?`). Explain when to wipe (same rules, clean slate, no deploy) vs. bump the board (rules changed, old board kept).
+    - Clear the test board (board 0).
+    - Undo a mistake with D1's restore-to-earlier-point feature. Check and state how far back the free plan goes.
 - **README.md**: add `scores/` to Layout (`specs/` and `docs/guides/` are already there). Add a Standards bullet: games with scores follow `docs/guides/leaderboards.md`, and the scores API is the one exception to "no backward compatibility". In "Adding a game", add a step pointing to the guide's checklist.
 - **AGENTS.md**: short bullets matching the README ones:
   - Before adding scores to a game, or changing a game's scoring, `BOARD` or `scores/games.json`, read `docs/guides/leaderboards.md`.
