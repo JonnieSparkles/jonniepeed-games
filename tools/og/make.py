@@ -32,10 +32,10 @@ GAMES = [
     ("thimbleful", "Thimbleful", "Plant a seed. Catch the drips. Grow a sunflower.", "Play in your browser",
      "introSeen=true; document.getElementById('go').click(); score=18; plant.size=18; el=20; hud();"),
     ("dont-step-on-the-crack", "Don't Step on the Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
-     # a few steps in: Mom bent into an L on the Mom Cam, the family chat going, the next step mid-swing
+     # a few steps in: Mom bent into an L on the Mom Cam, texting about it, the next step mid-swing
      "startGame(); setTimeout(() => { hp=4; kinks=[{j:1},{j:3}]; curPose=clonePose(POSES[4]);"
      " steps=23; streak=7; tStart=performance.now()/1000-42; updateHUD(); document.getElementById('ft').textContent='61';"
-     " post('mom','I am now shaped like the letter L'); setTimeout(() => post('dad','👍'), 50); input.latch=1; input.down=true; }, 400);",
+     " momText('I am now shaped like the letter L'); input.latch=1; input.down=true; }, 400);",
      {"screenshot": True, "title_px": 40}),
 ]
 

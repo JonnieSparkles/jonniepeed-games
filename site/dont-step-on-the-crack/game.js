@@ -255,7 +255,7 @@ function layout(){
   const wEff=Math.min(Wg,ih*0.66,640);
   K=(wEff*0.8)/WS; X0=(Wc-WS*K)/2;
   const hs=0.32*Hv, ha=hs*P/(P*c-hs*s); yAnchor=Hc-ha;
-  dpr=Math.min(window.devicePixelRatio||1,2,Math.sqrt(6e6/(Wc*Hc)));
+  dpr=Math.min(window.devicePixelRatio||1,2,Math.sqrt(2.2e6/(Wc*Hc)));
   cv.width=Math.round(Wc*dpr); cv.height=Math.round(Hc*dpr);
   cv.style.width=Wc+'px'; cv.style.height=Hc+'px';
   cv.style.left=((Wg-Wc)/2)+'px'; cv.style.top=(Hv-Hc)+'px';
@@ -437,8 +437,10 @@ function drawChalk(g,c,sl,d0,tx,ty){
     lines.forEach((s,j)=>h.fillText(s,tx(2.5),ty(d0+3.75-j*0.95)));
   }
   h.setTransform(1,0,0,1,0,0); h.globalCompositeOperation='destination-out';
-  const r=mulberry32((sl.seed^0xc0ffee)>>>0), n=(tmp.width*tmp.height/70)|0;
-  for(let j=0;j<n;j++){h.fillStyle=`rgba(0,0,0,${(0.3+r()*0.7).toFixed(2)})`; const s=dpr*(0.6+r()*1.4); h.fillRect(r()*tmp.width,r()*tmp.height,s,s);}
+  let ex=0, ey=0, ew=tmp.width, eh=tmp.height;
+  if(!sl.chalk&&sl.graffiti){const cx=tx(sl.graffiti.x)*dpr, cy=ty(sl.graffiti.d)*dpr, hw=2*K*dpr, hh=0.7*K*dpr; ex=Math.max(0,cx-hw); ey=Math.max(0,cy-hh); ew=Math.min(tmp.width-ex,2*hw); eh=Math.min(tmp.height-ey,2*hh);}
+  const r=mulberry32((sl.seed^0xc0ffee)>>>0), n=(ew*eh/70)|0;
+  for(let j=0;j<n;j++){h.fillStyle=`rgba(0,0,0,${(0.3+r()*0.7).toFixed(2)})`; const s=dpr*(0.6+r()*1.4); h.fillRect(ex+r()*ew,ey+r()*eh,s,s);}
   g.save(); g.setTransform(1,0,0,1,0,0); g.globalAlpha=0.88; g.drawImage(tmp,0,0); g.restore();
 }
 function getTile(sl){let c=tiles.get(sl.i); if(!c){c=renderTile(sl); tiles.set(sl.i,c);} return c;}
@@ -531,6 +533,10 @@ function drawCoupons(now,lo,hi){
     else drawCoupon(cp.x,cp.d,cp.a,1,0);
   }
 }
+// a soft dark dot, made once and drawn scaled (cheaper than a fresh radial gradient every frame)
+const SOFT=(()=>{const n=96, c=document.createElement('canvas'); c.width=c.height=n; const g=c.getContext('2d'), gr=g.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);
+  gr.addColorStop(0,'rgba(18,22,14,1)'); gr.addColorStop(0.55,'rgba(18,22,14,0.55)'); gr.addColorStop(1,'rgba(18,22,14,0)'); g.fillStyle=gr; g.fillRect(0,0,n,n); return c;})();
+function softDot(x,y,r,a){ctx.globalAlpha=a; ctx.drawImage(SOFT,x-r,y-r,2*r,2*r); ctx.globalAlpha=1;}
 function drawShadows(now,lo,hi){
   ctx.lineCap='round'; ctx.lineJoin='round';
   for(let i=lo;i<=hi;i++){
@@ -544,7 +550,7 @@ function drawShadows(now,lo,hi){
         ctx.lineWidth=b.w*0.6*K*wm;
         for(const tw of b.twigs){const w0=tw.bi/(n-1); ctx.beginPath(); tw.pts.forEach((p,j)=>{const q=P2(p,w0+j*0.15); j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);}); ctx.stroke();}
       }
-      for(const bl of b.blobs){const q=P2([bl.x,bl.d],1.15), rr=bl.r*K, gr=ctx.createRadialGradient(q[0],q[1],0,q[0],q[1],rr); gr.addColorStop(0,'rgba(18,22,12,0.16)'); gr.addColorStop(1,'rgba(18,22,12,0)'); ctx.fillStyle=gr; ctx.fillRect(q[0]-rr,q[1]-rr,2*rr,2*rr);}
+      for(const bl of b.blobs){const q=P2([bl.x,bl.d],1.15); softDot(q[0],q[1],bl.r*K,0.16);}
     }
   }
 }
@@ -602,7 +608,7 @@ const dadA={on:false,t:0,healed:false};
 function camSetup(){
   const dp=CAM_CSS/CW*Math.min(2.5,window.devicePixelRatio||1);
   camCv.width=Math.round(CW*dp); camCv.height=Math.round(CH*dp);
-  const db=dp*1.8;                                   // the backdrop gets zoomed, so draw it sharper
+  const db=dp*1.3;                                   // the backdrop gets zoomed a little, so draw it a bit sharper
   camBg=document.createElement('canvas'); camBg.width=Math.round(BGW*db); camBg.height=Math.round(BGH*db);
   const g=camBg.getContext('2d'); g.setTransform(db,0,0,db,-BGX*db,-BGY*db);
   g.fillStyle='#e6d8bd'; g.fillRect(BGX,BGY,BGW,FLOOR-BGY);
@@ -823,8 +829,10 @@ function camTarget(R_){
   const half=CH/2/z, halfW=CW/2/z;
   return {z,x:clamp((x0+x1)/2,BGX+halfW,BGX+BGW-halfW),y:clamp((y0+y1)/2+4,BGY+half,BGY+BGH-half)};
 }
+let camTick=0;
 function drawCam(now){
   if(!camBg) camSetup();
+  if((camTick++&1)&&now>=xrayUntil&&camFlinch<=0) return;      // 30 fps is plenty for the cam
   const dt=Math.min(0.05,Math.max(0,now-lastCamT)); lastCamT=now;
   tweenPose(dt);
   const R_=rig(), T_=camTarget(R_), k=1-Math.exp(-dt*3.5);
@@ -859,7 +867,7 @@ function dadUpdate(dt){
     if(mode==='play'&&hp>0&&hp<MAXHP){
       hp++; kinks.pop(); updateHUD(); sfx.backpop();
       say("Dad walked on Mom's back.",'Something popped back in.',1600);
-      momText(T.healed); post('dad',FAM.dad.heal,{chance:0.6});
+      momText(T.healed);
     }
   }
   if(dadA.t>=2.75){dadA.on=false; camLabel();}
@@ -889,15 +897,10 @@ const T={
   idle:["why'd you stop","are you standing on a crack right now. be honest","hello??","the suspense is worse than the cracks"],
   ambient:["your father wants to know if you're stepping on cracks","the chiropractor is here. he's crying","I can hear my spine in my teeth","the roomba keeps bumping into me","bring milk","who taught you to walk like that","I'm proud of you. also be careful","ok"]
 };
-const FAM={
-  dad:{thumb:['👍'],heal:['walked on your mother. something went back in 👍','fixed her','she popped. in a good way','socks on. I was careful'],dog:['that dog bit me in 2019','his name is Lorenzo. he knows what he did'],stage:['I helped pour that street in 1971. not my fault']},
-  linda:['🙏🙏🙏','praying for her lumbar','Kyle told me what happened','is she ok?? call me','my chiropractor is a miracle worker. sending you his number'],
-  kyle:['lol','F','can I have her room','mom is that you on the floor','this chat is wild']
-};
-const PEOPLE={mom:{name:'Mom',c:'#d97b6c',ping:1},dad:{name:'Dad',c:'#6f9bd1',ping:0.8},linda:{name:'Aunt Linda',c:'#b38ad6',ping:1.15},kyle:{name:'Kyle',c:'#7fbf6a',ping:1.3}};
+const PEOPLE={mom:{name:'Mom',c:'#d97b6c',ping:1}};
 const chatEl=$('#chat');
 let chatQ=[], chatBusy=false, chatTimer=0, lastTextAt=-1e9;
-const chatStats={mom:0,thumbs:0};
+const chatStats={mom:0};
 const lastPick=new Map();
 function pick(arr){if(arr.length===1) return arr[0]; const last=lastPick.get(arr); let i; do{i=(Math.random()*arr.length)|0;}while(i===last); lastPick.set(arr,i); return arr[i];}
 function retire(el){if(el.classList.contains('gone')) return; el.classList.add('gone','out'); clearTimeout(el._t); setTimeout(()=>el.remove(),300);}
@@ -913,13 +916,6 @@ function post(who,src,o){
   if(!chatBusy) nextChat();
 }
 function momText(src,o){post('mom',src,o);}
-// somebody in the family usually has something to add
-function familyReacts(){
-  const r=Math.random();
-  if(r<0.45) post('dad',FAM.dad.thumb);
-  else if(r<0.6) post('linda',FAM.linda);
-  else if(r<0.72) post('kyle',FAM.kyle);
-}
 function nextChat(){
   const m=chatQ.shift();
   if(!m){chatBusy=false; return;}
@@ -929,42 +925,49 @@ function nextChat(){
   el.firstChild.textContent=PEOPLE[m.who].name;
   chatEl.appendChild(el); void el.offsetWidth; el.classList.remove('out');
   const live=[...chatEl.children].filter(x=>!x.classList.contains('gone'));
-  while(live.length>2) retire(live.shift());
+  while(live.length>1) retire(live.shift());
   for(const x of live) x.classList.toggle('old',x!==el);
   chatTimer=setTimeout(()=>{
     el.lastChild.textContent=m.text; sfx.ping(PEOPLE[m.who].ping);
     if(m.who==='mom') chatStats.mom++;
-    if(m.who==='dad'&&m.text.includes('👍')) chatStats.thumbs++;
     el._t=setTimeout(()=>retire(el),Math.max(2600,m.text.length*55+1600));
     chatTimer=setTimeout(nextChat,950);
   },m.text==='👍'?380:620);
 }
 function clearTexts(){chatQ=[]; clearTimeout(chatTimer); chatBusy=false; for(const el of [...chatEl.children]) retire(el);}
 
-/* ---------- the Kowalskis' chihuahua: trots along behind you and nips if you dawdle ---------- */
-// It moves at a steady walking pace that rises each street. Reach your heel and it nips:
-// a foot in the air lands where it is, a foot on the ground lurches forward somewhere you didn't pick.
-const dog={on:false,d:0,x:2.5,side:1,yapAt:0,nipAt:0,run:0,yaps:[],gap:9};
-function dogReset(){dog.on=false; dog.yaps=[]; dog.gap=9;}
+/* ---------- the Kowalskis' chihuahua: only shows up when you dawdle ---------- */
+// Stand still too long and it comes running from behind. Get moving again (two steps) and it loses interest.
+// If it reaches your heel it nips: a foot in the air drops where it is, a planted one lurches forward somewhere you didn't pick.
+const dog={on:false,state:'off',d:0,x:2.5,side:1,yapAt:0,run:0,yaps:[],gap:9,since:0,leaveT:0};
+function dogReset(){dog.on=false; dog.state='off'; dog.yaps=[]; dog.gap=9;}
 function heelD(){return Math.min(feet[0].d,feet[1].d)-0.55;}
+const dawdleLimit=()=>3.4-stageOf(slabIdx(front.d))*0.3;      // 3.4 s on Maple Ave down to 2.2 s on Quarry Ln
 function dogUpdate(dt,now){
   if(mode!=='play'||tStart===null) return;
-  const heel=heelD();
-  if(!dog.on){dog.on=true; dog.d=heel-4.6; dog.side=Math.random()<0.5?-1:1; dog.x=bodyX+dog.side*1.2; dog.nipAt=now+1;}
-  const st=stageOf(slabIdx(front.d)), late=st===4?Math.min(0.35,(slabIdx(front.d)-STAGE_START[4])*0.01):0;
-  dog.d+=(1.0+0.14*st+late)*dt; dog.run+=dt*18;
-  if(heel-dog.d>6) dog.d=heel-6;                       // never so far back that it stops mattering
-  dog.gap=heel-dog.d;
-  dog.x+=((clamp(bodyX+dog.side*1.15,-0.6,WS+0.6))-dog.x)*(1-Math.exp(-dt*3));
-  if(dog.gap<2.4&&now>dog.yapAt){
-    dog.yapAt=now+0.22+Math.max(0,dog.gap)*0.32; sfx.yap(dog.side*0.4);
-    dog.yaps.push({t:now,x:dog.x+(Math.random()-0.5)*0.5,d:dog.d+0.35});
-  }
   dog.yaps=dog.yaps.filter(y=>now-y.t<0.7);
-  if(dog.gap<=0&&now>dog.nipAt&&(phase==='idle'||phase==='swing')) nip(now);
+  if(dog.state==='off'){
+    if(phase==='idle'&&now-lastStepAt>dawdleLimit()){
+      dog.on=true; dog.state='chase'; dog.side=Math.random()<0.5?-1:1; dog.d=heelD()-3.8; dog.x=bodyX+dog.side*1.2; dog.since=steps; dog.yapAt=0;
+    }
+    return;
+  }
+  dog.run+=dt*18;
+  if(dog.state==='chase'){
+    dog.d+=2.3*dt; dog.gap=heelD()-dog.d;
+    dog.x+=((clamp(bodyX+dog.side*1.15,-0.6,WS+0.6))-dog.x)*(1-Math.exp(-dt*3));
+    if(dog.gap<2.8&&now>dog.yapAt){
+      dog.yapAt=now+0.22+Math.max(0,dog.gap)*0.3; sfx.yap(dog.side*0.4);
+      dog.yaps.push({t:now,x:dog.x+(Math.random()-0.5)*0.5,d:dog.d+0.35});
+    }
+    if(steps-dog.since>=2){dog.state='leave'; dog.leaveT=0;}
+    else if(dog.gap<=0&&(phase==='idle'||phase==='swing')){nip(now); dog.state='leave'; dog.leaveT=0;}
+  } else {
+    dog.leaveT+=dt; dog.x+=dog.side*3.4*dt; dog.d-=0.5*dt; dog.gap=9;
+    if(dog.leaveT>1.6){dog.on=false; dog.state='off'; lastStepAt=Math.max(lastStepAt,now-1);}
+  }
 }
 function nip(now){
-  dog.nipAt=now+1.4; dog.d=heelD()-2.8;
   const had=streak; streak=0;
   sayNow('Nip!',had>=3?`The Kowalskis' chihuahua. Streak of ${had} gone.`:"The Kowalskis' chihuahua.",1100); sfx.nip(); kick(8);
   if(phase==='swing') plant();                         // the jolt drops the lifted foot where it is
@@ -974,14 +977,14 @@ function nip(now){
     drop={foot:f,x,d:o.d+ahead,t:0,dur:0.12,fx:f.x,fd:f.d,fl:0.4}; phase='drop';
   }
   updateHUD();
-  momText(T.dog,{chance:0.55}); post('dad',FAM.dad.dog,{chance:0.25});
+  momText(T.dog,{chance:0.55});
 }
 function drawDog(now){
   if(!dog.on||mode==='title') return;
   const x=X(dog.x), y=Y(dog.d);
   if(y<Hc+0.8*K){
     const s=K*1.7, hop=Math.abs(Math.sin(dog.run));
-    ctx.save(); ctx.translate(x,y);
+    ctx.save(); ctx.translate(x,y); if(dog.state==='leave') ctx.rotate(dog.side*Math.PI/2);
     ctx.fillStyle='rgba(0,0,0,0.24)'; ctx.beginPath(); ctx.ellipse(0.02*s,0.05*s,0.17*s,0.3*s,0,0,6.283); ctx.fill();
     ctx.translate(0,-hop*0.04*s);
     ctx.lineCap='round';
@@ -1013,7 +1016,7 @@ function drawDog(now){
 }
 // the bottom of the screen reddens as it closes in
 function drawDogDanger(){
-  if(!dog.on||mode!=='play'||dog.gap>1.6) return;
+  if(dog.state!=='chase'||mode!=='play'||dog.gap>1.6) return;
   const a=0.24*(1-Math.max(0,dog.gap)/1.6), h=Hc*0.15, gr=ctx.createLinearGradient(0,Hc,0,Hc-h);
   gr.addColorStop(0,`rgba(205,52,36,${a.toFixed(3)})`); gr.addColorStop(1,'rgba(205,52,36,0)');
   ctx.fillStyle=gr; ctx.fillRect(0,Hc-h,Wc,h);
@@ -1127,12 +1130,13 @@ function drawSquirrel(){
 }
 function drawCloud(){
   if(!cloud) return;
-  const size=Math.max(Wc,Hc)*0.7, cx=cloud.x*Wc, cy=cloud.y*Hc;
-  for(const b of cloud.blobs){
-    const x=cx+b.dx*size, y=cy+b.dy*size, r=b.r*size, gr=ctx.createRadialGradient(x,y,0,x,y,r);
-    gr.addColorStop(0,'rgba(22,30,42,0.075)'); gr.addColorStop(1,'rgba(22,30,42,0)');
-    ctx.fillStyle=gr; ctx.fillRect(x-r,y-r,2*r,2*r);
+  if(!cloud.cv){
+    const n=128, c=document.createElement('canvas'); c.width=c.height=n; const g=c.getContext('2d');
+    for(const b of cloud.blobs){const x=n/2+b.dx*n*0.5, y=n/2+b.dy*n*0.5, r=b.r*n*0.5, gr=g.createRadialGradient(x,y,0,x,y,r); gr.addColorStop(0,'rgba(22,30,42,0.075)'); gr.addColorStop(1,'rgba(22,30,42,0)'); g.fillStyle=gr; g.fillRect(x-r,y-r,2*r,2*r);}
+    cloud.cv=c;
   }
+  const size=Math.max(Wc,Hc)*1.4;
+  ctx.drawImage(cloud.cv,cloud.x*Wc-size/2,cloud.y*Hc-size/2,size,size);
 }
 // a street tree at the edge of the grass, roots reaching under the sidewalk (drawn into the tile, before the concrete)
 function drawTree(g,x,y,r,seed){
@@ -1254,11 +1258,11 @@ function reset(){
   frontier=[{x:front.x,d:front.d},{x:back.x,d:back.d}]; genNext=0; ensureSlabs(4);
   stopWobble();
   phase='idle'; sw=null; drop=null; hp=MAXHP; steps=0; camD=front.d; bodyX=2.5; lastStage=0; hitFx=[]; puffs=[]; shake=0;
-  streak=0; runStreak=0; giant=1; armed=false; tStart=null; tEnd=null; lastTs=''; timeEl.textContent='0:00';
+  streak=0; runStreak=0; giant=2; armed=false; tStart=null; tEnd=null; lastTs=''; timeEl.textContent='0:00';
   bestAtStart=best; bestStreakAtStart=bestStreak; newBestShown=false;
   input.latch=0; input.down=false; input.id=null; input.key=null;
   kinks=[]; curPose=clonePose(POSES[6]); camFlinch=0; xrayUntil=0; xrayJ=-1; clearTexts(); idleTexted=false;
-  dadA.on=false; dogReset(); chatStats.mom=0; chatStats.thumbs=0;
+  dadA.on=false; dogReset(); chatStats.mom=0;
   lastStepAt=performance.now()/1000; nextAmbient=lastStepAt+30; bot.active=false; bot.next=0; ambientReset(lastStepAt);
   sfx.wind(0);
   clearMsgs();
@@ -1266,14 +1270,16 @@ function reset(){
 }
 function kick(n){if(!reduceMotion) shake=Math.max(shake,n);}
 function toggleGiant(){
-  if(mode!=='play'||phase==='over'||giant<=0) return;
+  if(mode!=='play'||phase==='over') return;
+  if(giant<=0){if(phase==='swing') sayNow('No giant steps left.','',900); return;}
   sfx.init();
   if(phase==='swing'&&!sw.giant){upgradeSwing(); return;}
   armed=!armed; syncGiant();
   if(armed){say('Mother, may I?','Yes, you may.',1100); sfx.arm();} else sfx.disarm();
 }
-giantBtn.addEventListener('pointerdown',e=>e.stopPropagation());
-giantBtn.addEventListener('click',e=>{toggleGiant(); if(e.detail) giantBtn.blur();});
+// act on touch-down: while one thumb holds a foot, phones often never turn a second finger's tap into a click
+giantBtn.addEventListener('pointerdown',e=>{e.stopPropagation(); e.preventDefault(); toggleGiant();});
+giantBtn.addEventListener('click',e=>{if(!e.detail) toggleGiant();});
 
 // The lifted foot is measured from the one still planted (sw.other).
 // Feet keep to their own side: they never cross, and side by side they keep a gap.
@@ -1352,7 +1358,6 @@ function land(now){
       if(kind!=='crack'&&r<0.5) momText(T[kind],{urgent:true});
       else if(r<0.62||vj<0) momText(T.hit[hp],{urgent:true});
       else momText(pick(T.vert).replace('{v}',VERT[vj]),{urgent:true});
-      familyReacts();
     }
   } else {
     if(!drop.giant){
@@ -1370,12 +1375,12 @@ function land(now){
       else say(`${streak} clean.`,'Giant steps full.',1200);
     } else if(streak%5===0){pop(streakEl); sfx.chime(streak/5);}
   }
-  if(got&&hp>0){momText(T.coupon); post('linda',FAM.linda,{chance:0.3}); if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500);} else say('Chiropractor coupon.',"Mom's fine. You keep it.",1300); sfx.paper();}
+  if(got&&hp>0){momText(T.coupon); if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500);} else say('Chiropractor coupon.',"Mom's fine. You keep it.",1300); sfx.paper();}
   updateHUD();
   lastStepAt=now; idleTexted=false;
   if(hp<=0){gameOver(now); return;}
   const st=stageOf(slabIdx(front.d));
-  if(st>lastStage){lastStage=st; say(STAGES[st].name,STAGES[st].note,2000,true); sfx.car(); sfx.wind(st); momText(T.stage[st]); if(st===2) post('dad',FAM.dad.stage,{chance:0.6});}
+  if(st>lastStage){lastStage=st; say(STAGES[st].name,STAGES[st].note,2000,true); sfx.car(); sfx.wind(st); momText(T.stage[st]);}
   if(!newBestShown&&bestAtStart>0&&dist()>bestAtStart){newBestShown=true; say('New best.','Keep walking.',1400); sfx.newbest();}
 }
 function gameOver(now){
@@ -1412,7 +1417,7 @@ function showOver(){
     countUp($('#sStreak'),r.streak,v=>String(Math.round(v)),r.stBest);
     $('#sMeta').textContent=`Made it to ${r.block}. Best walk ${best} ft, best streak ${bestStreak}.`;
     const times=n=>n===1?'once':`${n} times`;
-    $('#sChat').textContent=`Mom texted ${times(chatStats.mom)}. Dad replied 👍 ${times(chatStats.thumbs)}.`;
+    $('#sChat').textContent=chatStats.mom?`Mom texted you ${times(chatStats.mom)}.`:'';
     if(r.ftBest||r.stBest) setTimeout(()=>sfx.newbest(),reduceMotion?0:820);
     try{$('#again').focus({preventScroll:true});}catch(_){}
   },reduceMotion?400:1500);
@@ -1509,6 +1514,8 @@ function botUpdate(now){
 view.addEventListener('pointerdown',e=>{
   if(mode!=='play'||e.target.closest('button')||e.target.closest('.screen')||e.target.closest('#over')) return;
   if(e.pointerType==='mouse'&&e.button!==0) return;
+  // a second finger while a foot is in the air: giant step, which also saves a wobbling leg
+  if(input.id!==null&&e.pointerId!==input.id){if(phase==='swing') toggleGiant(); e.preventDefault(); return;}
   if(input.id!==null||input.key) return;
   sfx.init();
   const rect=view.getBoundingClientRect();
@@ -1588,6 +1595,7 @@ function update(dt,now){
   let sx=0; for(const f of feet){sx+=phase==='swing'&&f===sw.foot?sw.tx:phase==='drop'&&f===drop.foot?drop.x:f.x;}
   bodyX+=(sx/feet.length-bodyX)*(1-Math.exp(-dt*5));
   ensureSlabs(slabIdx(camD+yAnchor/K)+1);
+  {const nx=slabs.get(slabIdx(camD+yAnchor/K)+1); if(nx&&!tiles.has(nx.i)) getTile(nx);}
   const keep=slabIdx(camD-(Hc-yAnchor)/K)-2;
   for(const k of [...slabs.keys()]) if(k<keep) slabs.delete(k);
   for(const k of [...tiles.keys()]) if(k<keep) tiles.delete(k);
@@ -1601,8 +1609,7 @@ function update(dt,now){
   }
 }
 function render(now){
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle='#4b6629'; ctx.fillRect(0,0,Wc,Hc);
+  ctx.setTransform(dpr,0,0,dpr,0,0);                    // the tiles cover the whole canvas, so no clear needed
   if(shake>0.3) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake*0.6);
   const lo=slabIdx(camD-(Hc-yAnchor)/K), hi=slabIdx(camD+yAnchor/K);
   for(let i=hi;i>=lo;i--){const sl=slabs.get(i); if(!sl) continue; const c=getTile(sl); ctx.drawImage(c,0,Y((i+1)*S),Wc,c.height/dpr);}
@@ -1621,7 +1628,8 @@ function frame(t){
 /* ---------- boot ---------- */
 if(!coarse){
   $('#howMove').innerHTML='Hold <b>A</b> or <b>D</b> (or either half of the screen) to lift that foot, let go to step. A quick tap is a little shuffle. Steer with the arrow keys or the mouse.';
-  const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>G arms a giant step · Esc pauses · F full screen · M sound</span>';
+  $('#howGiant').innerHTML="Dawdle and the Kowalskis' chihuahua comes for your heels. Overreach and your leg wobbles: press <b>G</b> for a <b>giant step</b> to save it.";
+  const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>G giant step · Esc pauses · F full screen · M sound</span>';
   $('.t-how').appendChild(li);
 }
 makeChalkMask(); syncSound(); syncFs();
