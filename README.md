@@ -28,8 +28,16 @@ Unruggabull lives in its own repo and is linked from the shelf at https://unrugg
 2. Add a 4:3 thumbnail to `site/assets/` (pixel art: 96×72 scaled 4× with nearest-neighbour).
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/index.html`.
 
+## Publishing to GitHub Pages
+
+Manual only. In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
+
 ## Publishing to Arweave / ArNS
 
 - Upload the `site/` folder as one path manifest with `index.html` as the index. `brand/` stays out.
 - Links point at `folder/index.html` explicitly, because manifest paths are exact and `folder/` on its own may not resolve.
 - Everything, fonts included, is served from the folder, so nothing depends on a third-party CDN.
+
+## License
+
+Code is MIT. The Jonniepeed Games name, logo and mark are not covered by it; see [LICENSE](LICENSE).
