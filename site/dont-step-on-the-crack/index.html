@@ -11,14 +11,14 @@
 <meta property="og:title" content="Don't Step on the Crack · JonniePeed Games">
 <meta property="og:description" content="Walk home without stepping on a crack. Every one you land on folds Mom up a little more, live on the Mom Cam. A game for phone or desktop.">
 <meta property="og:url" content="https://jonniesparkles.github.io/jonniepeed-games/dont-step-on-the-crack/index.html">
-<meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=838708469a">
+<meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=8574b4a593">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Looking down at your sneakers on a cracked sidewalk, with a security-camera view of Mom folded in half in her kitchen">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Don't Step on the Crack · JonniePeed Games">
 <meta name="twitter:description" content="Walk home without stepping on a crack. Every one you land on folds Mom up a little more, live on the Mom Cam. A game for phone or desktop.">
-<meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=838708469a">
+<meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=8574b4a593">
 <meta name="twitter:image:alt" content="Looking down at your sneakers on a cracked sidewalk, with a security-camera view of Mom folded in half in her kitchen">
 <link rel="icon" href="../favicon.ico?v=443c0101ac" sizes="any">
 <link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
@@ -97,9 +97,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 #cam.hit{animation:camhit .4s linear}
 @keyframes camhit{0%,100%{transform:none}20%{transform:translate(-3px,1px) rotate(-2deg)}40%{transform:translate(3px,-1px) rotate(2deg)}60%{transform:translate(-2px,0)}80%{transform:translate(1px,1px)}}
 
-#text{max-width:min(270px,100%);pointer-events:none;transform-origin:left top;transition:opacity .2s,transform .2s}
-#text.out{opacity:0;transform:translateY(-6px) scale(.96)}
-.from{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--chalk);text-shadow:0 1px 2px rgba(0,0,0,.7);margin:0 0 4px 10px}
+#chat{display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:min(270px,100%);pointer-events:none}
+.cmsg{--who:var(--chalk);max-width:100%;transform-origin:left top;transition:opacity .25s,transform .25s}
+.cmsg.out{opacity:0;transform:translateY(-6px) scale(.96)}
+.cmsg.old:not(.out){opacity:.62}
+.from{display:flex;align-items:center;gap:5px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--chalk);text-shadow:0 1px 2px rgba(0,0,0,.7);margin:0 0 4px 10px}
+.from::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--who);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .bubble{background:#ebe8e1;color:#1c1b18;font-size:15px;line-height:1.3;padding:8px 12px;border-radius:5px 17px 17px 17px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .typing{display:inline-flex;gap:4px;padding:4px 0}
 .typing i{width:6px;height:6px;border-radius:50%;background:#8b877e;animation:typ 1s infinite}
@@ -157,7 +160,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .t-cam{position:relative;flex:none;width:clamp(108px,32vw,156px);aspect-ratio:1;border-radius:14px;overflow:hidden;background:#111;box-shadow:0 0 0 2px rgba(18,18,16,.92),0 12px 26px rgba(0,0,0,.4)}
 .t-cam .cam-top{font-size:9px;left:8px;top:8px}
 .t-cam .cam-bot{font-size:8px;left:8px;bottom:7px}
-.t-said{min-width:0;padding-top:4px}
+.t-said{min-width:0;padding-top:4px;display:grid;gap:6px;justify-items:start}
 .t-said .bubble{font-size:15.5px}
 .t-how{grid-area:how;list-style:none;margin:0;padding:0;display:grid;gap:10px;font-size:15px;line-height:1.38;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .t-how li{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;align-items:start}
@@ -219,11 +222,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .stats dd{margin:4px 0 0;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .nb{display:inline-block;vertical-align:middle;margin-left:6px;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;background:var(--leaf);color:#21160a;border-radius:999px;padding:2px 6px;font-weight:700}
 .meta{font-size:13px;color:var(--ink-dim);margin:0 0 16px}
+#sChat{margin:-4px 0 8px;color:var(--ink)}
 .phone .stack .btn.primary{font-size:16px;padding:12px 22px}
 
 @media (prefers-reduced-motion:reduce){
   .phone.ringing,#cam.hit,.typing i,.rec,#giant[aria-pressed="true"]{animation:none}
-  #msg,#text,.hud,.screen{transition:none}
+  #msg,.cmsg,.hud,.screen{transition:none}
   .intro *{animation:none!important}
 }
 </style>
@@ -256,7 +260,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
             <div class="stat" id="streakCell"><div class="v" id="streak">0</div><div class="k">Clean</div></div>
           </div>
         </div>
-        <div id="text" class="out" aria-live="polite" hidden><div class="from">Mom</div><div class="bubble" id="bubble"></div></div>
+        <div id="chat" aria-live="polite"></div>
       </div>
     </div>
 
@@ -272,12 +276,15 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
         </header>
         <section class="t-mom" aria-label="Mom">
           <div class="t-cam"><canvas id="tcam" aria-hidden="true"></canvas><div class="cam-top"><span class="rec"></span>MOM CAM</div><div class="cam-bot">KITCHEN</div></div>
-          <div class="t-said"><div class="from">Mom</div><div class="bubble">walking home? watch the cracks. love mom</div></div>
+          <div class="t-said">
+            <div class="cmsg" style="--who:#d97b6c"><div class="from">Mom</div><div class="bubble">walking home? watch the cracks. love mom</div></div>
+            <div class="cmsg" style="--who:#6f9bd1"><div class="from">Dad</div><div class="bubble">👍</div></div>
+          </div>
         </section>
         <ul class="t-how">
-          <li><i class="dot d1"></i><span id="howMove">Hold the <b>left or right side</b> to lift that foot. Let go to step.</span></li>
-          <li><i class="dot d2"></i><span>Land on a crack, a line or a pothole and one of Mom's vertebrae goes. Six and she's done.</span></li>
-          <li><i class="dot d3"></i><span>Ten clean steps in a row earn a <b>giant step</b>. Hold too long and your leg wobbles, then snaps back.</span></li>
+          <li><i class="dot d1"></i><span id="howMove">Hold the <b>left or right side</b> to lift that foot, let go to step. A quick tap is a little shuffle.</span></li>
+          <li><i class="dot d2"></i><span>Every crack, line or pothole you land on breaks one of Mom's vertebrae. Ten clean steps in a row and <b>Dad walks on her back</b> to fix one.</span></li>
+          <li><i class="dot d3"></i><span>Keep moving: the Kowalskis' chihuahua is right behind you. Overreach and your leg wobbles. Tap <b>Giant step</b> to save it.</span></li>
         </ul>
         <div class="t-act">
           <button id="start" class="btn primary" type="button">Start walking</button>
@@ -319,6 +326,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
             <div><dt>Steps</dt><dd id="sSteps">0</dd></div>
             <div><dt>Clean streak</dt><dd id="sStreak">0</dd></div>
           </dl>
+          <p class="meta" id="sChat"></p>
           <p class="meta" id="sMeta"></p>
           <div class="stack">
             <button id="again" class="btn primary" type="button">Walk it again</button>
@@ -329,7 +337,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
     </div>
   </div>
 </div>
-<script src="audio.js?v=3460723b50"></script>
-<script src="game.js?v=f5a5a59849"></script>
+<script src="audio.js?v=054737ce75"></script>
+<script src="game.js?v=648eb20c57"></script>
 </body>
 </html>

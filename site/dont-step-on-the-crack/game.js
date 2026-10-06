@@ -15,14 +15,14 @@ const coarse=matchMedia('(pointer: coarse)').matches;
 /* ---------- world units: 1 unit = 1 ft = one shoe length ---------- */
 const S=5, WS=5, R=0.18, DMIN=0.45, DMAX=2.25, LAT=1.7, MAXHP=6, LIFT=1.0;
 const WOB=0.85;                                  // seconds of wobble before the foot snaps back
-const GIANT={dmin:1.2,dmax:3.6,lat:2.2}, GIANT_MAX=3, GIANT_EVERY=10;
+const GIANT={dmax:3.6,lat:2.2}, GIANT_MAX=3, STREAK_EVERY=10;
 const STAGE_START=[0,6,14,24,34];
 const STAGES=[
-  {name:'Maple Ave',  note:'fresh pour',      stamp:'MAPLE AVE · 2024',  T:1.5},
-  {name:'Linden St',  note:'hairline cracks', stamp:'LINDEN ST · 1998',  T:1.25},
-  {name:'Oak St',     note:'root heave',      stamp:'OAK ST · 1971',     T:1.05},
-  {name:'Old Mill Rd',note:'old flagstone',   stamp:'OLD MILL RD · 1923',T:0.9},
-  {name:'Quarry Ln',  note:'condemned',       stamp:'QUARRY LN · 1938',  T:0.8}
+  {name:'Maple Ave',  note:'fresh pour',      stamp:'MAPLE AVE · 2024',  T:1.05},
+  {name:'Linden St',  note:'hairline cracks', stamp:'LINDEN ST · 1998',  T:0.9},
+  {name:'Oak St',     note:'root heave',      stamp:'OAK ST · 1971',     T:0.78},
+  {name:'Old Mill Rd',note:'old flagstone',   stamp:'OLD MILL RD · 1923',T:0.68},
+  {name:'Quarry Ln',  note:'condemned',       stamp:'QUARRY LN · 1938',  T:0.6}
 ];
 const MOMTXT=['',
   'Is technically flooring now.',
@@ -44,7 +44,7 @@ function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const slabIdx=d=>Math.floor(d/S);
 function stageOf(i){let s=0;for(let j=1;j<5;j++) if(i>=STAGE_START[j]) s=j;return s;}
-function swingTime(i){const s=stageOf(i);return s<4?STAGES[s].T:Math.max(0.6,0.8-(i-STAGE_START[4])*0.005);}
+function swingTime(i){const s=stageOf(i);return s<4?STAGES[s].T:Math.max(0.45,0.6-(i-STAGE_START[4])*0.004);}
 
 /* ---------- geometry ---------- */
 function psd(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=t<0?0:t>1?1:t;const qx=ax+t*dx-px,qy=ay+t*dy-py;return Math.sqrt(qx*qx+qy*qy);}
@@ -431,7 +431,7 @@ function drawChalk(g,c,sl,d0,tx,ty){
   }
   if(sl.chalk==='howto'){
     let fs=0.46*K; const font=f=>`${f}px "Schoolbell", cursive`;
-    const lines=coarse?['left side: left foot','right side: right foot','let go to step']:['A or left half: left foot','D or right half: right foot','let go to step'];
+    const lines=coarse?['left side: left foot','right side: right foot','tap to shuffle']:['A or left half: left foot','D or right half: right foot','tap to shuffle'];
     h.font=font(fs); const w=Math.max(...lines.map(s=>h.measureText(s).width)); fs*=Math.min(1,4.2*K/w); h.font=font(fs);
     h.textAlign='center'; h.fillStyle='#f4e27a';
     lines.forEach((s,j)=>h.fillText(s,tx(2.5),ty(d0+3.75-j*0.95)));
@@ -494,7 +494,7 @@ function drawOutline(x,d,u,side,giant,wob){
 }
 function drawFeet(){
   const hipD=camD-(Hc-yAnchor)/K-1.6, hy=Y(hipD);
-  const hipX=f=>X(bodyX+f.side*0.62);
+  const hipX=f=>X(bodyX+f.side*0.72);
   const air=phase==='swing'?sw.foot:phase==='drop'?drop.foot:null;
   const planted=feet.filter(f=>f!==air).sort((a,b)=>b.d-a.d);
   for(const f of planted) drawShoe(X(f.x),Y(f.d),1,f.side,1);
@@ -571,20 +571,24 @@ function drawPuffs(now){
   }
 }
 
-/* ---------- Mom cam: a small rig that eases between one designed pose per health level ---------- */
+/* ---------- Mom cam ---------- */
+// Mom is a small rig (legs, three spine segments, neck, arms) that eases between one designed pose per health level.
+// The camera zooms in and follows her as she sinks. Room units: the floor is at y=100, the window around x=10..40.
 const camEl=$('#cam'), camCv=$('#camcv'), cc=camCv.getContext('2d'), camStateEl=$('#camState');
 const CW=120, CH=120, FLOOR=100, CAM_CSS=150;
+const BGX=-34, BGY=-14, BGW=190, BGH=142;           // the backdrop covers more room than the camera ever shows
 const VERT=['L5','L4','L3','L2','L1','T12'];
-const LT=13, LS=13, SEGL=8, UA=10, FA=9;
+const LT=14, LS=14, SEGL=8.5, UA=10.5, FA=9.5, NECK=11, HEAD=8;
+const INK='#2a1d1a';
 // angles in degrees, absolute: 0 = facing right, 90 = down, -90 = up
 const POSES={
-  6:{hx:50, th:92,  sh:90,  ft:0,   sp:[-90,-90,-88], nk:-86, ua:76,  fa:-18, bu:100, bf:95},   // upright, coffee
-  5:{hx:50, th:94,  sh:88,  ft:0,   sp:[-80,-62,-48], nk:-34, ua:70,  fa:-12, bu:128, bf:28},   // hunched, hand on back
-  4:{hx:40, th:90,  sh:90,  ft:0,   sp:[-24,-8,0],    nk:14,  ua:88,  fa:92,  bu:-168,bf:176},  // an "L"
-  3:{hx:46, th:84,  sh:94,  ft:0,   sp:[30,62,88],    nk:98,  ua:96,  fa:90,  bu:92,  bf:90},   // folded in half, reading the floor
-  2:{hx:54, th:62,  sh:182, ft:95,  sp:[-8,8,30],     nk:52,  ua:22,  fa:4,   bu:26,  bf:8},    // kneeling, cat on top
-  1:{hx:42, th:180, sh:180, ft:95,  sp:[0,0,2],       nk:6,   ua:172, fa:178, bu:170, bf:178, hy:FLOOR-5}, // flat. flooring now
-  0:{hx:36, th:-62, sh:-12, ft:-80, sp:[0,-26,-72],   nk:-112,ua:150, fa:118, bu:150, bf:118, hy:FLOOR-5}  // folded like a taco
+  6:{hx:50, th:91,  sh:90,  ft:0,   sp:[-90,-89,-87], nk:-85, ua:78,  fa:-20, bu:100, bf:96},   // upright, coffee, crossword
+  5:{hx:48, th:95,  sh:88,  ft:0,   sp:[-78,-58,-40], nk:-26, ua:72,  fa:-12, bu:132, bf:24},   // hunched, hand on her back
+  4:{hx:38, th:90,  sh:90,  ft:0,   sp:[-18,-4,2],    nk:18,  ua:90,  fa:95,  bu:-165,bf:175},  // an "L"
+  3:{hx:40, th:100, sh:94,  ft:0,   sp:[50,75,88],    nk:20,  ua:84,  fa:78,  bu:96,  bf:86},   // folded over, reading the floor
+  2:{hx:52, th:70,  sh:182, ft:95,  sp:[-6,10,32],    nk:60,  ua:25,  fa:5,   bu:30,  bf:8},    // kneeling. the cat's ottoman
+  1:{hx:34, th:180, sh:180, ft:95,  sp:[0,0,1],       nk:4,   ua:172, fa:178, bu:168, bf:178, hy:FLOOR-6}, // flat. flooring now
+  0:{hx:70, th:-88, sh:-92, ft:0,   sp:[180,180,182], nk:180, ua:-140,fa:-115,bu:160, bf:175, hy:FLOOR-6}  // flat on her back, legs straight up
 };
 const rad=a=>a*Math.PI/180;
 const dirv=(a,r)=>({x:Math.cos(rad(a))*r,y:Math.sin(rad(a))*r});
@@ -592,22 +596,36 @@ const add=(p,v)=>({x:p.x+v.x,y:p.y+v.y});
 function poseHipY(P){return P.hy!==undefined?P.hy:FLOOR-2-(Math.sin(rad(P.th))*LT+Math.sin(rad(P.sh))*LS);}
 function clonePose(P){return {hx:P.hx,hy:poseHipY(P),th:P.th,sh:P.sh,ft:P.ft,sp:P.sp.slice(),nk:P.nk,ua:P.ua,fa:P.fa,bu:P.bu,bf:P.bf};}
 let kinks=[], camFlinch=0, xrayUntil=0, xrayJ=-1, camBg=null, curPose=clonePose(POSES[6]), lastCamT=0;
+const camView={z:1.2,x:58,y:62};
+const dadA={on:false,t:0,healed:false};
+
 function camSetup(){
   const dp=CAM_CSS/CW*Math.min(2.5,window.devicePixelRatio||1);
   camCv.width=Math.round(CW*dp); camCv.height=Math.round(CH*dp);
-  camBg=document.createElement('canvas'); camBg.width=camCv.width; camBg.height=camCv.height;
-  const g=camBg.getContext('2d'); g.setTransform(dp,0,0,dp,0,0);
-  g.fillStyle='#e6d8bd'; g.fillRect(0,0,CW,FLOOR);
-  g.fillStyle='rgba(160,120,80,0.08)'; for(let x=0;x<CW;x+=10) g.fillRect(x,0,4,FLOOR);
+  const db=dp*1.8;                                   // the backdrop gets zoomed, so draw it sharper
+  camBg=document.createElement('canvas'); camBg.width=Math.round(BGW*db); camBg.height=Math.round(BGH*db);
+  const g=camBg.getContext('2d'); g.setTransform(db,0,0,db,-BGX*db,-BGY*db);
+  g.fillStyle='#e6d8bd'; g.fillRect(BGX,BGY,BGW,FLOOR-BGY);
+  g.fillStyle='rgba(160,120,80,0.08)'; for(let x=BGX;x<BGX+BGW;x+=10) g.fillRect(x,BGY,4,FLOOR-BGY);
+  g.fillStyle='#d9c9aa'; g.fillRect(BGX,FLOOR-9,BGW,9); g.fillStyle='rgba(0,0,0,0.08)'; g.fillRect(BGX,FLOOR-9,BGW,1);   // baseboard
+  // calendar
+  g.fillStyle='#fbf6ec'; g.fillRect(-22,16,14,18); g.fillStyle='#d97b6c'; g.fillRect(-22,16,14,5);
+  g.fillStyle='rgba(0,0,0,0.25)'; for(let r=0;r<3;r++) for(let c=0;c<4;c++) g.fillRect(-20.5+c*3.2,23.5+r*3.3,1.6,1.6);
+  // window
   g.fillStyle='#b9d6e6'; g.fillRect(10,18,30,26); g.fillStyle='#d9ecf3'; g.fillRect(10,18,30,9);
   g.strokeStyle='#fbf6ec'; g.lineWidth=3; g.strokeRect(10,18,30,26); g.lineWidth=1.5; g.beginPath(); g.moveTo(25,18); g.lineTo(25,44); g.stroke();
-  g.fillStyle='#fbf6ec'; g.beginPath(); g.arc(100,26,7,0,6.283); g.fill(); g.strokeStyle='#6b5a48'; g.lineWidth=1.1; g.stroke();
-  g.beginPath(); g.moveTo(100,26); g.lineTo(100,21.5); g.moveTo(100,26); g.lineTo(103,27.5); g.stroke();
-  g.fillStyle='#9a7b5c'; g.fillRect(90,68,30,FLOOR-68); g.fillStyle='#d9d2c4'; g.fillRect(88,64,32,5);
+  // clock
+  g.fillStyle='#fbf6ec'; g.beginPath(); g.arc(100,24,7,0,6.283); g.fill(); g.strokeStyle='#6b5a48'; g.lineWidth=1.1; g.stroke();
+  g.beginPath(); g.moveTo(100,24); g.lineTo(100,19.5); g.moveTo(100,24); g.lineTo(103,25.5); g.stroke();
+  // counter, toaster, fridge
+  g.fillStyle='#9a7b5c'; g.fillRect(90,68,40,FLOOR-68); g.fillStyle='#86684d'; for(const x of [100,115]) g.fillRect(x,72,1,FLOOR-76);
+  g.fillStyle='#d9d2c4'; g.fillRect(88,64,42,5);
   g.fillStyle='#c8c2b6'; g.fillRect(100,55,12,9); g.fillStyle='#8f897e'; g.fillRect(102,54,3,2); g.fillRect(107,54,3,2);
-  g.fillStyle='#c7b18d'; g.fillRect(0,FLOOR,CW,CH-FLOOR);
-  for(let x=0;x<CW;x+=12) for(let y=FLOOR;y<CH;y+=8) if(((x/12)+(y-FLOOR)/8)%2===0){g.fillStyle='rgba(90,70,40,0.12)'; g.fillRect(x,y,12,8);}
-  g.fillStyle='rgba(0,0,0,0.18)'; g.fillRect(0,FLOOR,CW,2);
+  g.fillStyle='#eef0ee'; g.fillRect(131,18,26,FLOOR-18); g.fillStyle='rgba(0,0,0,0.1)'; g.fillRect(131,50,26,1.2); g.fillStyle='#b8bcbc'; g.fillRect(133,30,1.6,12); g.fillRect(133,56,1.6,14);
+  // floor
+  g.fillStyle='#c7b18d'; g.fillRect(BGX,FLOOR,BGW,BGY+BGH-FLOOR);
+  for(let x=BGX;x<BGX+BGW;x+=12) for(let y=FLOOR;y<BGY+BGH;y+=8) if((((x-BGX)/12)+(y-FLOOR)/8)%2===0){g.fillStyle='rgba(90,70,40,0.12)'; g.fillRect(x,y,12,8);}
+  g.fillStyle='rgba(0,0,0,0.18)'; g.fillRect(BGX,FLOOR,BGW,2);
 }
 function tweenPose(dt){
   const T=POSES[clamp(hp,0,6)], k=1-Math.exp(-dt*7);
@@ -617,20 +635,24 @@ function tweenPose(dt){
 }
 function rig(){
   const P=curPose, f=camFlinch, j=()=>(Math.random()-0.5)*f;
-  const sip=hp===MAXHP?sipAmount(performance.now()/1000):0;
+  const sip=hp===MAXHP&&!dadA.on?sipAmount(performance.now()/1000):0;
   const hip={x:P.hx+j()*3,y:P.hy+j()*2};
-  const fl=y=>Math.min(FLOOR-1,y);
+  const fl=y=>Math.min(FLOOR-1.5,y);
   const sp=[hip];
   for(let i=0;i<3;i++){const q=add(sp[i],dirv(P.sp[i]+j()*14,SEGL)); q.y=fl(q.y); sp.push(q);}
   const sh=sp[3];
-  const head=add(sh,dirv(P.nk+j()*10,10)); head.y=Math.min(FLOOR-7,head.y);
+  const head=add(sh,dirv(P.nk+j()*10,NECK)); head.y=Math.min(FLOOR-HEAD-0.5,head.y);
   const leg=(dth,dsh)=>{const knee=add(hip,dirv(P.th+dth,LT)); knee.y=fl(knee.y); const ank=add(knee,dirv(P.sh+dsh,LS)); ank.y=fl(ank.y); return {knee,ank};};
   const arm=(u,fo)=>{const el=add(sh,dirv(u,UA)); el.y=fl(el.y); const hn=add(el,dirv(fo,FA)); hn.y=fl(hn.y); return {el,hn};};
-  return {hip,sp,sh,head,nk:P.nk,ft:P.ft,front:leg(0,0),back:leg(6,4),farm:arm(P.ua-sip*70,P.fa-sip*95),barm:arm(P.bu,P.bf)};
+  return {hip,sp,sh,head,nk:P.nk,ft:P.ft,front:leg(0,0),back:leg(7,5),farm:arm(P.ua-sip*70,P.fa-sip*95),barm:arm(P.bu,P.bf)};
 }
 // 0..1..0 over 1.4 s, once every 7 s
 function sipAmount(t){const u=(t%7)/1.4; if(u>=1) return 0; return Math.sin(u*Math.PI)**2;}
 function line(g,pts){g.beginPath(); pts.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y)); g.stroke();}
+// a limb or the torso: dark outline first, then the colour, so overlapping parts stay separate
+function limb(g,pts,w,col){g.strokeStyle=INK; g.lineWidth=w+2.4; line(g,pts); g.strokeStyle=col; g.lineWidth=w; line(g,pts);}
+function blob(g,x,y,r,col){g.fillStyle=INK; g.beginPath(); g.arc(x,y,r+1.2,0,6.283); g.fill(); g.fillStyle=col; g.beginPath(); g.arc(x,y,r,0,6.283); g.fill();}
+function topPoint(R_){return R_.sp.slice(1).reduce((m,p)=>p.y<m.y?p:m,R_.sp[1]);}
 function drawCat(g,x,y,face){
   g.save(); g.translate(x,y); g.scale(face,1);
   g.strokeStyle='#3b3a3e'; g.lineWidth=2; g.lineCap='round'; g.beginPath(); g.moveTo(-6,1); g.quadraticCurveTo(-12,-2,-10,-9); g.stroke();
@@ -640,84 +662,180 @@ function drawCat(g,x,y,face){
   g.fillStyle='#f0d34a'; g.fillRect(7,-6,1.4,1.4);
   g.restore();
 }
-function slipper(g,ank,ft){g.save(); g.translate(ank.x,ank.y); g.rotate(rad(ft)); g.fillStyle='#e9a3b0'; g.beginPath(); g.ellipse(2.5,0,4.6,2.3,0,0,6.283); g.fill(); g.restore();}
-function drawKitchen(g,R_,now){
-  const {hip,sp,sh,head,nk,ft,front,back,farm,barm}=R_;
-  g.drawImage(camBg,0,0,CW,CH);
+function slipper(g,ank,ft){
+  g.save(); g.translate(ank.x,ank.y); g.rotate(rad(ft));
+  g.fillStyle=INK; g.beginPath(); g.ellipse(2.4,0.2,4.4,2.6,0,0,6.283); g.fill();
+  g.fillStyle='#f2a7b8'; g.beginPath(); g.ellipse(2.4,0.2,3.4,1.7,0,0,6.283); g.fill();
+  g.fillStyle='#fff6f8'; g.beginPath(); g.arc(4.6,-0.6,1.5,0,6.283); g.fill();
+  g.restore();
+}
+// Mom's face. Expressions go with how folded she is.
+function momFace(g,head,nk,expr){
+  const F=dirv(nk+90,1), U=dirv(nk,1), P=(a,b)=>({x:head.x+F.x*a+U.x*b,y:head.y+F.y*a+U.y*b});
+  const eye=P(4,1.3), m=P(5.3,-3.4);
+  blob(g,P(7.7,-0.4).x,P(7.7,-0.4).y,1.5,'#efd2b6');                      // nose
+  g.lineCap='round'; g.lineJoin='round'; g.strokeStyle=INK; g.fillStyle=INK; g.lineWidth=1;
+  const at=(c,a,b)=>({x:c.x+F.x*a+U.x*b,y:c.y+F.y*a+U.y*b});
+  const seg=(c,pts)=>{g.beginPath(); pts.forEach((q,i)=>{const p=at(c,q[0],q[1]); i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y);}); g.stroke();};
+  // eyes
+  if(expr==='flinch'||expr==='wince') seg(eye,[[-1.1,1],[0.6,0],[-1.1,-1]]);
+  else if(expr==='dead') seg(eye,[[-1.1,0],[1,0]]);
+  else if(expr==='x'){seg(eye,[[-1,1],[1,-1]]); seg(eye,[[-1,-1],[1,1]]);}
+  else if(expr==='relief') seg(eye,[[-1.1,-0.4],[0,0.7],[1.1,-0.4]]);
+  else {g.beginPath(); g.arc(eye.x,eye.y,1.05,0,6.283); g.fill();}
+  // glasses
+  g.lineWidth=0.9; g.beginPath(); g.arc(eye.x,eye.y,2.7,0,6.283); g.stroke();
+  const tmp=at(eye,-2.7,0.4), ear=P(-1.5,0.6); g.beginPath(); g.moveTo(tmp.x,tmp.y); g.lineTo(ear.x,ear.y); g.stroke();
+  // mouth
+  g.lineWidth=1;
+  if(expr==='smile'){g.beginPath(); const a=at(m,-1.6,0.6), c=at(m,0,-1.3), b=at(m,1.6,0.6); g.moveTo(a.x,a.y); g.quadraticCurveTo(c.x,c.y,b.x,b.y); g.stroke();}
+  else if(expr==='relief'){g.beginPath(); const c=at(m,0,-0.4); g.ellipse(c.x,c.y,1.4,1.1,0,0,6.283); g.fill();}
+  else if(expr==='meh') seg(m,[[-1.4,0.1],[1.4,-0.3]]);
+  else if(expr==='wince'||expr==='flinch') seg(m,[[-1.5,0],[-0.7,0.6],[0,-0.3],[0.8,0.5],[1.5,-0.1]]);
+  else if(expr==='oof'){g.beginPath(); const c=at(m,0.2,-0.2); g.arc(c.x,c.y,1.15,0,6.283); g.fill();}
+  else seg(m,[[-1.4,0],[1.4,0]]);
+  if(expr==='sweat'){const d=P(-2.5,5.5); g.fillStyle='#8ccbf0'; g.beginPath(); g.ellipse(d.x,d.y,1,1.5,0,0,6.283); g.fill();}
+}
+function momHead(g,head,nk,expr){
+  const bun=add(head,dirv(nk-50,9.6));
+  blob(g,bun.x,bun.y,3.6,'#d3cbc2');
+  g.fillStyle=INK; g.beginPath(); g.arc(head.x,head.y,HEAD+1.2,0,6.283); g.fill();
+  const curls=[]; for(let i=0;i<7;i++) curls.push(add(head,dirv(nk-130+i*24,6.4)));
+  g.fillStyle=INK; for(const c of curls){g.beginPath(); g.arc(c.x,c.y,3.9,0,6.283); g.fill();}
+  g.fillStyle='#efd2b6'; g.beginPath(); g.arc(head.x,head.y,HEAD,0,6.283); g.fill();
+  g.fillStyle='#d3cbc2'; for(const c of curls){g.beginPath(); g.arc(c.x,c.y,2.9,0,6.283); g.fill();}
+  g.fillStyle='rgba(120,100,90,0.35)'; for(const c of curls){g.beginPath(); g.arc(c.x+0.6,c.y+0.6,1.1,0,6.283); g.fill();}
+  momFace(g,head,nk,expr);
+}
+function momExpr(){
+  if(camFlinch>0.3) return 'flinch';
+  if(dadA.on&&dadA.t>1.35&&dadA.t<2.3) return 'relief';
+  return ['x','dead','sweat','oof','wince','meh','smile'][clamp(hp,0,6)];
+}
+// Dad: polo, khakis, socks. b squashes him on a bounce, arms 0..1 swings them out for balance
+function drawDad(g,x,y,face,b,arms,walk){
+  g.save(); g.translate(x,y); g.scale(face,1-b*0.1);
   g.lineCap='round'; g.lineJoin='round';
-  // props on the floor
-  if(hp<=4){g.fillStyle='rgba(110,70,30,0.55)'; g.beginPath(); g.ellipse(80,FLOOR+3,9,2,0,0,6.283); g.fill(); g.fillStyle='#f3efe6'; g.save(); g.translate(78,FLOOR-2); g.rotate(1.2); g.fillRect(-3,-3,6,6); g.restore();}
-  if(hp<=3){const nx=hp===3?clamp(head.x,14,70):18; g.fillStyle='#ece8de'; g.fillRect(nx-8,FLOOR-2,16,3); g.fillStyle='rgba(0,0,0,0.25)'; for(let x=nx-7;x<nx+7;x+=3) g.fillRect(x,FLOOR-1.5,1.5,1.5);}
-  if(hp<=1){g.fillStyle='#f2c230'; g.beginPath(); g.moveTo(98,FLOOR); g.lineTo(101.5,FLOOR-13); g.lineTo(105.5,FLOOR-13); g.lineTo(109,FLOOR); g.closePath(); g.fill(); g.fillStyle='#2a221d'; g.fillRect(103,FLOOR-10,1.4,5); g.fillRect(103,FLOOR-4,1.4,1.4);}
-  g.fillStyle='rgba(0,0,0,0.15)'; g.beginPath(); g.ellipse(hip.x+6,FLOOR+2,24,3,0,0,6.283); g.fill();
-  // back limbs
-  g.strokeStyle='#b07065'; g.lineWidth=3.6; line(g,[sh,barm.el,barm.hn]);
-  g.strokeStyle='#4d586d'; g.lineWidth=5.6; line(g,[hip,back.knee,back.ank]); slipper(g,back.ank,ft);
-  // torso
-  g.strokeStyle='#7c463e'; g.lineWidth=12.5; line(g,sp);
-  g.strokeStyle='#d48c7e'; g.lineWidth=10.5; line(g,sp);
-  g.fillStyle='#5c6982'; g.beginPath(); g.arc(hip.x,hip.y,5.4,0,6.283); g.fill();
-  // front leg
-  g.strokeStyle='#5c6982'; g.lineWidth=6; line(g,[hip,front.knee,front.ank]); slipper(g,front.ank,ft);
-  // head
-  const up=nk, fwd=nk+90, back_=nk-90;
-  g.fillStyle='#ead0b5'; g.beginPath(); g.arc(head.x,head.y,7,0,6.283); g.fill();
-  g.strokeStyle='#cfc2b6'; g.lineWidth=3.6; g.beginPath(); g.arc(head.x,head.y,5.6,rad(back_-25),rad(up+30)); g.stroke();
-  const bun=add(head,dirv(up-45,8)); g.fillStyle='#cfc2b6'; g.beginPath(); g.arc(bun.x,bun.y,3.2,0,6.283); g.fill();
-  const eye=add(add(head,dirv(fwd,3.4)),dirv(up,1.2));
-  g.strokeStyle='#2a221d'; g.lineWidth=1.1;
-  if(camFlinch>0.3){const d1=dirv(fwd,-1.6), d2=dirv(up,1.4); g.beginPath(); g.moveTo(eye.x+d1.x+d2.x,eye.y+d1.y+d2.y); g.lineTo(eye.x,eye.y); g.lineTo(eye.x+d1.x-d2.x,eye.y+d1.y-d2.y); g.stroke();}
-  else {g.fillStyle='#2a221d'; g.fillRect(eye.x-0.7,eye.y-0.7,1.5,1.5);}
-  g.beginPath(); g.arc(eye.x,eye.y,2.4,0,6.283); g.stroke();
-  // front arm (+ mug while she can still hold it)
-  g.strokeStyle='#c27c6f'; g.lineWidth=4; line(g,[sh,farm.el,farm.hn]);
-  if(hp>=5){
-    const h=farm.hn; g.fillStyle='#f3efe6'; g.fillRect(h.x-1,h.y-5,6,6.5); g.strokeStyle='#f3efe6'; g.lineWidth=1.3; g.beginPath(); g.arc(h.x+5.5,h.y-2,2,-1.3,1.3); g.stroke();
-    if(hp===MAXHP){g.strokeStyle='rgba(255,255,255,0.75)'; g.lineWidth=0.9; g.beginPath(); for(const o of [0.5,3.5]){const sx=h.x+o, sy=h.y-6.5, w=Math.sin(now*3+o)*1.2; g.moveTo(sx,sy); g.quadraticCurveTo(sx-1.5+w,sy-3,sx+0.5,sy-6);} g.stroke();}
+  const sw=Math.sin(walk*12)*4, hip={x:0,y:-21};
+  limb(g,[hip,{x:-1+sw*0.5,y:-10.5},{x:-2+sw,y:-1}],5.6,'#9d8a63');
+  limb(g,[{x:-4,y:-38},add({x:-4,y:-38},dirv(100+arms*95,12))],4,'#4f7cc0');      // back arm
+  limb(g,[hip,{x:1-sw*0.5,y:-10.5},{x:2-sw,y:-1}],5.6,'#b8a47a');
+  for(const fx of [-2+sw,2-sw]){g.fillStyle=INK; g.beginPath(); g.ellipse(fx+1.6,-0.6,3.8,2.1,0,0,6.283); g.fill(); g.fillStyle='#f7f7f4'; g.beginPath(); g.ellipse(fx+1.6,-0.6,2.9,1.3,0,0,6.283); g.fill();}
+  // polo with a dad belly
+  const body=()=>{g.beginPath(); g.moveTo(-6.5,-20); g.lineTo(-7.5,-36); g.quadraticCurveTo(-6.5,-43,0,-43); g.quadraticCurveTo(6,-43,7,-37); g.quadraticCurveTo(13.5,-29,7,-19.5); g.closePath();};
+  g.fillStyle=INK; g.save(); g.lineWidth=2.4; g.strokeStyle=INK; body(); g.stroke(); g.restore();
+  g.fillStyle='#4f7cc0'; body(); g.fill();
+  g.fillStyle='#f4f1ea'; g.beginPath(); g.moveTo(-1,-43); g.lineTo(3.5,-43); g.lineTo(1.6,-39.5); g.closePath(); g.fill();
+  g.fillStyle='#6b4a2c'; g.fillRect(-6.6,-21.6,13.6,1.6);
+  limb(g,[{x:1,y:-38},add({x:1,y:-38},dirv(80-arms*100,12))],4,'#5a88cc');      // front arm
+  const hand=add({x:1,y:-38},dirv(80-arms*100,12)); blob(g,hand.x,hand.y,1.7,'#e9c6a3');
+  // head: bald on top, grey at the sides, glasses, moustache
+  blob(g,1,-50,7,'#e9c6a3');
+  g.fillStyle='#bdb6ae'; g.beginPath(); g.ellipse(-4.3,-49,2.6,3.6,0,0,6.283); g.fill();
+  g.fillStyle='rgba(255,255,255,0.45)'; g.beginPath(); g.ellipse(-0.5,-55,2.6,1.2,-0.3,0,6.283); g.fill();
+  g.strokeStyle=INK; g.lineWidth=0.9; g.beginPath(); g.arc(4.4,-51,2.4,0,6.283); g.stroke();
+  g.fillStyle=INK; g.beginPath(); g.arc(4.6,-51,0.9,0,6.283); g.fill();
+  g.fillStyle='#7d736a'; g.beginPath(); g.ellipse(5.6,-46.7,2.6,1.2,0,0,6.283); g.fill();
+  g.restore();
+}
+function dadPose(R_){
+  const t=dadA.t, top=topPoint(R_), st={x:top.x,y:top.y-6.5}, door=158, side=st.x+15;
+  const lerp=(a,b,u)=>a+(b-a)*u;
+  if(t<0.6){const u=t/0.6; return {x:lerp(door,side,u),y:FLOOR,face:-1,b:0,arms:0,walk:t};}
+  if(t<0.9){const u=(t-0.6)/0.3; return {x:lerp(side,st.x,u),y:lerp(FLOOR,st.y,u)-Math.sin(u*Math.PI)*10,face:-1,b:0,arms:u,walk:0};}
+  if(t<1.8) return {x:st.x,y:st.y,face:-1,b:Math.abs(Math.sin((t-0.9)*Math.PI*2.2)),arms:1,walk:0};
+  if(t<2.1){const u=(t-1.8)/0.3; return {x:lerp(st.x,side+2,u),y:lerp(st.y,FLOOR,u)-Math.sin(u*Math.PI)*8,face:1,b:0,arms:1-u,walk:0};}
+  const u=Math.min(1,(t-2.1)/0.6); return {x:lerp(side+2,door,u),y:FLOOR,face:1,b:0,arms:0,walk:t};
+}
+function drawMom(g,R_,now){
+  const {hip,sp,sh,head,nk,ft,front,back,farm,barm}=R_;
+  g.lineCap='round'; g.lineJoin='round';
+  limb(g,[sh,barm.el,barm.hn],4.2,'#b9685a'); blob(g,barm.hn.x,barm.hn.y,1.8,'#e2c2a6');
+  limb(g,[hip,back.knee,back.ank],6.2,'#2b3549'); slipper(g,back.ank,ft);
+  blob(g,hip.x,hip.y,6,'#34405a');
+  limb(g,sp,12,'#d97b6c');
+  // cardigan buttons and a blouse collar, on her front side
+  for(let i=0;i<3;i++){const a=sp[i], b=sp[i+1], ang=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI, m=add({x:(a.x+b.x)/2,y:(a.y+b.y)/2},dirv(ang+90,3.6)); g.fillStyle='#f4efe4'; g.beginPath(); g.arc(m.x,m.y,0.9,0,6.283); g.fill();}
+  const col=add(sh,dirv(nk+90,2.2)); g.fillStyle='#f4efe4'; g.beginPath(); g.arc(col.x,col.y,2.4,0,6.283); g.fill();
+  limb(g,[hip,front.knee,front.ank],6.4,'#34405a'); slipper(g,front.ank,ft);
+  limb(g,[sh,add(sh,dirv(nk,4))],4.4,'#efd2b6');
+  momHead(g,head,nk,momExpr());
+  limb(g,[sh,farm.el,farm.hn],4.4,'#d0705f'); blob(g,farm.hn.x,farm.hn.y,1.9,'#efd2b6');
+  if(hp>=5&&!dadA.on){
+    const h=farm.hn;
+    g.fillStyle=INK; g.fillRect(h.x-2.2,h.y-6.2,8.4,8.6); g.fillStyle='#f3efe6'; g.fillRect(h.x-1.2,h.y-5.2,6.4,6.6);
+    g.strokeStyle=INK; g.lineWidth=1.2; g.beginPath(); g.arc(h.x+5.6,h.y-2,2.2,-1.3,1.3); g.stroke();
+    if(hp===MAXHP){g.strokeStyle='rgba(255,255,255,0.8)'; g.lineWidth=0.9; g.beginPath(); for(const o of [0.6,3.6]){const sx=h.x+o, sy=h.y-7, w=Math.sin(now*3+o)*1.2; g.moveTo(sx,sy); g.quadraticCurveTo(sx-1.5+w,sy-3,sx+0.5,sy-6);} g.stroke();}
   }
-  // the cat
-  if(hp<=2){const top=sp.slice(1).reduce((m,p)=>p.y<m.y?p:m,sp[1]); drawCat(g,top.x,top.y-10,1);}
-  else drawCat(g,108,FLOOR-5,-1);
+}
+function drawKitchen(g,R_,now){
+  const {hip,head,front}=R_;
+  g.drawImage(camBg,BGX,BGY,BGW,BGH);
+  g.lineCap='round'; g.lineJoin='round';
+  if(hp<=4){const mx=front.ank.x+17; g.fillStyle='rgba(110,70,30,0.55)'; g.beginPath(); g.ellipse(mx+3,FLOOR+3,9,2,0,0,6.283); g.fill(); g.fillStyle='#f3efe6'; g.save(); g.translate(mx,FLOOR-2); g.rotate(1.2); g.fillRect(-3,-3,6,6); g.restore();}
+  if(hp===3||hp<=2){const nx=hp===3?head.x+2:hip.x-14; g.fillStyle='#ece8de'; g.fillRect(nx-8,FLOOR-2,16,3); g.fillStyle='rgba(0,0,0,0.25)'; for(let x=nx-7;x<nx+7;x+=3) g.fillRect(x,FLOOR-1.5,1.5,1.5);}
+  if(hp<=1){const sx=head.x+15; g.fillStyle=INK; g.beginPath(); g.moveTo(sx-6,FLOOR); g.lineTo(sx-2.6,FLOOR-14); g.lineTo(sx+2.6,FLOOR-14); g.lineTo(sx+6,FLOOR); g.closePath(); g.fill(); g.fillStyle='#f2c230'; g.beginPath(); g.moveTo(sx-4.8,FLOOR-0.6); g.lineTo(sx-1.8,FLOOR-13); g.lineTo(sx+1.8,FLOOR-13); g.lineTo(sx+4.8,FLOOR-0.6); g.closePath(); g.fill(); g.fillStyle=INK; g.fillRect(sx-0.6,FLOOR-10.5,1.3,5); g.fillRect(sx-0.6,FLOOR-4,1.3,1.3);}
+  g.fillStyle='rgba(0,0,0,0.15)'; g.beginPath(); g.ellipse(hip.x+6,FLOOR+2,26,3,0,0,6.283); g.fill();
+  drawMom(g,R_,now);
+  const catOnTop=hp<=2&&!dadA.on;
+  if(catOnTop){const top=topPoint(R_); drawCat(g,top.x,top.y-11,1);}
+  if(dadA.on){const d=dadPose(R_); drawDad(g,d.x,d.y,d.face,d.b,d.arms,d.walk);}
+  if(!catOnTop) drawCat(g,Math.max(front.ank.x,head.x)+24,FLOOR-5,-1);
+  if(dadA.on&&dadA.t>1.35&&dadA.t<1.9){
+    const top=topPoint(R_), a=1-(dadA.t-1.35)/0.55;
+    g.globalAlpha=a; g.font='700 11px "IBM Plex Mono", ui-monospace, monospace'; g.fillStyle='#ffffff'; g.strokeStyle=INK; g.lineWidth=2.5;
+    g.strokeText('POP',top.x-24,top.y-30-(1-a)*6); g.fillText('POP',top.x-24,top.y-30-(1-a)*6); g.globalAlpha=1;
+  }
 }
 function drawXray(g,R_,now){
   const {hip,sp,sh,head,front,back,farm,barm}=R_, bone='#e8f1ff';
-  g.fillStyle='#0a1828'; g.fillRect(0,0,CW,CH);
-  g.strokeStyle='rgba(120,180,255,0.1)'; g.lineWidth=1; g.beginPath(); for(let x=0;x<CW;x+=12){g.moveTo(x,0);g.lineTo(x,CH);} for(let y=0;y<CH;y+=12){g.moveTo(0,y);g.lineTo(CW,y);} g.stroke();
+  g.fillStyle='#0a1828'; g.fillRect(BGX,BGY,BGW,BGH);
+  g.strokeStyle='rgba(120,180,255,0.1)'; g.lineWidth=1; g.beginPath(); for(let x=BGX;x<BGX+BGW;x+=12){g.moveTo(x,BGY);g.lineTo(x,BGY+BGH);} for(let y=BGY;y<BGY+BGH;y+=12){g.moveTo(BGX,y);g.lineTo(BGX+BGW,y);} g.stroke();
   g.lineCap='round'; g.lineJoin='round'; g.strokeStyle=bone;
-  g.lineWidth=2.2; line(g,[hip,back.knee,back.ank]); line(g,[hip,front.knee,front.ank]); line(g,[sh,barm.el,barm.hn]); line(g,[sh,farm.el,farm.hn]);
-  g.lineWidth=1.6; g.beginPath(); g.ellipse(hip.x,hip.y+1,6.5,3.6,0,0,6.283); g.stroke();
+  g.lineWidth=2.4; line(g,[hip,back.knee,back.ank]); line(g,[hip,front.knee,front.ank]); line(g,[sh,barm.el,barm.hn]); line(g,[sh,farm.el,farm.hn]);
+  g.lineWidth=1.6; g.beginPath(); g.ellipse(hip.x,hip.y+1,7,3.8,0,0,6.283); g.stroke();
   g.lineWidth=1; g.strokeStyle='rgba(232,241,255,0.5)'; line(g,sp);
   let vi=0;
   for(let i=0;i<3;i++){
     const a=sp[i], b=sp[i+1], ang=Math.atan2(b.y-a.y,b.x-a.x);
     for(const t of [0.28,0.78]){
       const m={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}, isNew=vi===xrayJ, isBroken=kinks.some(k=>k.j===vi);
-      g.save(); g.translate(m.x,m.y); g.rotate(ang); g.fillStyle=isNew?'#ff5a46':isBroken?'#ffb4a8':bone; g.fillRect(-1.7,-3.3,3.4,6.6); g.restore();
+      g.save(); g.translate(m.x,m.y); g.rotate(ang); g.fillStyle=isNew?'#ff5a46':isBroken?'#ffb4a8':bone; g.fillRect(-1.8,-3.5,3.6,7); g.restore();
       if(isNew){
         g.strokeStyle='#ff5a46'; g.lineWidth=1.3; g.beginPath(); g.moveTo(m.x-6,m.y-3); g.lineTo(m.x-2,m.y+1); g.lineTo(m.x+1,m.y-2); g.lineTo(m.x+6,m.y+3); g.stroke();
-        g.font='700 11px "IBM Plex Mono", ui-monospace, monospace'; g.fillStyle='#ff6a55';
-        g.fillText(VERT[vi],clamp(m.x+8,4,CW-28),clamp(m.y-7,22,FLOOR));
+        g.font='700 10px "IBM Plex Mono", ui-monospace, monospace'; g.fillStyle='#ff6a55';
+        g.fillText(VERT[vi],m.x+8,m.y-7);
       }
       vi++;
     }
-    if(i===2){for(const t of [0.2,0.55,0.9]){const m={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}, n=dirv(ang*180/Math.PI+90,7); g.strokeStyle='rgba(232,241,255,0.7)'; g.lineWidth=1.1; g.beginPath(); g.moveTo(m.x,m.y); g.lineTo(m.x+n.x,m.y+n.y); g.stroke();}}
+    if(i===2){for(const t of [0.2,0.55,0.9]){const m={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}, n=dirv(ang*180/Math.PI+90,7.5); g.strokeStyle='rgba(232,241,255,0.7)'; g.lineWidth=1.1; g.beginPath(); g.moveTo(m.x,m.y); g.lineTo(m.x+n.x,m.y+n.y); g.stroke();}}
   }
-  g.strokeStyle=bone; g.lineWidth=2; g.beginPath(); g.arc(head.x,head.y,6.6,0,6.283); g.stroke();
-  const eye=add(head,dirv(R_.nk+90,3)); g.fillStyle=bone; g.beginPath(); g.arc(eye.x,eye.y,1.5,0,6.283); g.fill();
-  g.font='700 8px "IBM Plex Mono", ui-monospace, monospace'; g.fillStyle='rgba(232,241,255,0.6)'; g.fillText('X-RAY',CW-34,CH-6);
+  g.strokeStyle=bone; g.lineWidth=2; g.beginPath(); g.arc(head.x,head.y,HEAD-0.5,0,6.283); g.stroke();
+  const eye=add(head,dirv(R_.nk+90,3.4)); g.fillStyle=bone; g.beginPath(); g.arc(eye.x,eye.y,1.6,0,6.283); g.fill();
+}
+// where the camera wants to be: framing Mom snugly, or pulled back while Dad is in the shot
+function camTarget(R_){
+  if(dadA.on) return {z:0.98,x:66,y:52};
+  const pts=[R_.hip,...R_.sp,R_.front.ank,R_.back.ank,R_.farm.hn,R_.barm.hn,{x:R_.head.x-HEAD-4,y:R_.head.y-HEAD-4},{x:R_.head.x+HEAD+2,y:R_.head.y+HEAD}];
+  let x0=1e9,x1=-1e9,y0=1e9,y1=FLOOR+3;
+  for(const p of pts){x0=Math.min(x0,p.x); x1=Math.max(x1,p.x); y0=Math.min(y0,p.y); y1=Math.max(y1,p.y);}
+  const z=clamp(Math.min(CW/(x1-x0+34),CH/(y1-y0+28)),1.1,1.75);
+  const half=CH/2/z, halfW=CW/2/z;
+  return {z,x:clamp((x0+x1)/2,BGX+halfW,BGX+BGW-halfW),y:clamp((y0+y1)/2+4,BGY+half,BGY+BGH-half)};
 }
 function drawCam(now){
   if(!camBg) camSetup();
   const dt=Math.min(0.05,Math.max(0,now-lastCamT)); lastCamT=now;
   tweenPose(dt);
-  const dp=camCv.width/CW; cc.setTransform(dp,0,0,dp,0,0);
-  const R_=rig();
+  const R_=rig(), T_=camTarget(R_), k=1-Math.exp(-dt*3.5);
+  camView.z+=(T_.z-camView.z)*k; camView.x+=(T_.x-camView.x)*k; camView.y+=(T_.y-camView.y)*k;
+  const dp=camCv.width/CW, z=camView.z;
+  cc.setTransform(dp*z,0,0,dp*z,dp*(CW/2-camView.x*z),dp*(CH/2-camView.y*z));
   if(now<xrayUntil) drawXray(cc,R_,now); else drawKitchen(cc,R_,now);
+  if(now<xrayUntil){cc.setTransform(dp,0,0,dp,0,0); cc.font='700 8px "IBM Plex Mono", ui-monospace, monospace'; cc.fillStyle='rgba(232,241,255,0.6)'; cc.fillText('X-RAY',CW-34,CH-6);}
   if(mode==='title'&&tcamCtx){
-    // same feed, cropped in a little so Mom reads at title size
     if(tcamCv.width!==camCv.width){tcamCv.width=camCv.width; tcamCv.height=camCv.height;}
-    const k=camCv.width/CW;
-    tcamCtx.drawImage(camCv,6*k,10*k,104*k,104*k,0,0,tcamCv.width,tcamCv.height);
+    tcamCtx.drawImage(camCv,0,0);
   }
 }
 function breakVertebra(now){
@@ -729,56 +847,177 @@ function breakVertebra(now){
   camEl.classList.remove('hit'); void camEl.offsetWidth; camEl.classList.add('hit');
   return j;
 }
-function camLabel(){camStateEl.textContent=hp>=4?'KITCHEN':hp>=2?'KITCHEN FLOOR':'MOSTLY FLOOR';}
+function camLabel(){camStateEl.textContent=dadA.on?'KITCHEN · DAD':hp>=4?'KITCHEN':hp>=2?'KITCHEN FLOOR':'MOSTLY FLOOR';}
 
-/* ---------- Mom's texts ---------- */
+/* ---------- Dad fixes her: every ten clean steps he walks on her back ---------- */
+function startDad(){dadA.on=true; dadA.t=0; dadA.healed=false; camLabel();}
+function dadUpdate(dt){
+  if(!dadA.on) return;
+  dadA.t+=dt;
+  if(!dadA.healed&&dadA.t>=1.35){
+    dadA.healed=true;
+    if(mode==='play'&&hp>0&&hp<MAXHP){
+      hp++; kinks.pop(); updateHUD(); sfx.backpop();
+      say("Dad walked on Mom's back.",'Something popped back in.',1600);
+      momText(T.healed); post('dad',FAM.dad.heal,{chance:0.6});
+    }
+  }
+  if(dadA.t>=2.75){dadA.on=false; camLabel();}
+}
+
+/* ---------- the family group chat ---------- */
 const T={
   open:["walking home? watch the cracks. love mom","be careful sweetie. my back's been weird today","remember. cracks."],
   hit:{5:["did you just step on something","my back just made a noise like bubble wrap","I heard that from the kitchen"],
        4:["I am now shaped like the letter L","the crossword is on the ceiling now apparently","your father says I look taller sideways"],
-       3:["folded in half. still doing the crossword","I can see my own heels. they need lotion","the dog thinks this is a game"],
+       3:["folded over. still doing the crossword","I can see my own heels. they need lotion","the floor is very interesting from here"],
        2:["the cat is using me as an ottoman","I've been a zigzag for ten minutes. very modern","your aunt says I look like a lightning bolt"],
        1:["I'm a rug now. the cat agrees","a neighbor wiped his feet on me","I'm fine. I'm flooring but I'm fine"]},
   vert:["pretty sure that was my {v}","{v}. gone. it had a good run","RIP {v}","my {v} just left the group chat"],
   line:["that was a LINE. lines are worse. ask any spine","line. spine. you know the rules"],
   hole:["a POTHOLE?? I felt that in my whole column"],
   near:["that was close. I felt a draft","careful. my disc just gasped","I flinched. the soup flinched"],
-  streak:["you're walking so nicely. I can feel my lumbar again","ten clean steps. I stood up straight for a second. it was weird","keep this up and I'll reach the top shelf"],
+  streak:["you're walking so nicely. I can feel my lumbar again","keep this up and I'll reach the top shelf"],
+  healed:["your father walked on me. something went back in","ok that helped. tell him to wipe his feet","one notch less folded. thank your father","he does this every christmas"],
   giant:["was that a giant step. my knees heard it","I said yes but I didn't mean it like THAT","show off"],
   coupon:["is that a chiropractor coupon. bring it home. don't fold it","ooh. coupon. tape it to my back","unfolding one notch. thank you"],
   snap:["don't stretch like that. that's how this started for me","you looked just like me for a second","hamstrings aren't free sweetie"],
+  dog:["is that the kowalski dog","tell that dog I said no","RUN. I'm serious","that dog has never liked our family"],
   stage:{1:["linden st. your grandmother cracked her hip there in 1998"],2:["oak st?? the ROOTS. I'm bracing"],3:["old mill rd is all flagstone. so many lines. so many spines"],4:["quarry ln. I'm updating my will. you get the heating pad"]},
   gum:["was that gum. my back feels sticky","gum?? I can taste spearmint"],
   leaf:["I heard that leaf. sounded like my L4"],
   idle:["why'd you stop","are you standing on a crack right now. be honest","hello??","the suspense is worse than the cracks"],
   ambient:["your father wants to know if you're stepping on cracks","the chiropractor is here. he's crying","I can hear my spine in my teeth","the roomba keeps bumping into me","bring milk","who taught you to walk like that","I'm proud of you. also be careful","ok"]
 };
-const textEl=$('#text'), bubbleEl=$('#bubble');
-let textQ=[], textTimer=0, textShowing=false, lastTextAt=-1e9;
+const FAM={
+  dad:{thumb:['👍'],heal:['walked on your mother. something went back in 👍','fixed her','she popped. in a good way','socks on. I was careful'],dog:['that dog bit me in 2019','his name is Lorenzo. he knows what he did'],stage:['I helped pour that street in 1971. not my fault']},
+  linda:['🙏🙏🙏','praying for her lumbar','Kyle told me what happened','is she ok?? call me','my chiropractor is a miracle worker. sending you his number'],
+  kyle:['lol','F','can I have her room','mom is that you on the floor','this chat is wild']
+};
+const PEOPLE={mom:{name:'Mom',c:'#d97b6c',ping:1},dad:{name:'Dad',c:'#6f9bd1',ping:0.8},linda:{name:'Aunt Linda',c:'#b38ad6',ping:1.15},kyle:{name:'Kyle',c:'#7fbf6a',ping:1.3}};
+const chatEl=$('#chat');
+let chatQ=[], chatBusy=false, chatTimer=0, lastTextAt=-1e9;
+const chatStats={mom:0,thumbs:0};
 const lastPick=new Map();
 function pick(arr){if(arr.length===1) return arr[0]; const last=lastPick.get(arr); let i; do{i=(Math.random()*arr.length)|0;}while(i===last); lastPick.set(arr,i); return arr[i];}
-function momText(src,o){
+function retire(el){if(el.classList.contains('gone')) return; el.classList.add('gone','out'); clearTimeout(el._t); setTimeout(()=>el.remove(),300);}
+function post(who,src,o){
   o=o||{};
-  if(!src||(phase==='over'&&!o.urgent)) return;
+  if(!src||mode!=='play') return;
   if(o.chance!==undefined&&Math.random()>o.chance) return;
-  const msg=typeof src==='string'?src:pick(src);
-  if(o.urgent){textQ=[msg]; clearTimeout(textTimer); nextText(); return;}
-  if(textShowing){if(textQ.length<1) textQ.push(msg); return;}
-  textQ.push(msg); nextText();
+  const m={who,text:typeof src==='string'?src:pick(src)};
+  if(o.urgent){
+    chatQ=[m]; clearTimeout(chatTimer); chatBusy=false;
+    for(const el of [...chatEl.children]) if(el.querySelector('.typing')) retire(el);
+  } else {if(chatQ.length>=3) return; chatQ.push(m);}
+  if(!chatBusy) nextChat();
 }
-function nextText(){
-  const msg=textQ.shift();
-  if(!msg){textShowing=false; textEl.classList.add('out'); return;}
-  textShowing=true; lastTextAt=performance.now()/1000;
-  textEl.hidden=false; textEl.classList.remove('out');
-  bubbleEl.innerHTML='<span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>';
-  textTimer=setTimeout(()=>{
-    bubbleEl.textContent=msg; sfx.ping();
-    textTimer=setTimeout(()=>{textEl.classList.add('out'); textTimer=setTimeout(nextText,260);},Math.max(2300,msg.length*55+1400));
-  },650);
+function momText(src,o){post('mom',src,o);}
+// somebody in the family usually has something to add
+function familyReacts(){
+  const r=Math.random();
+  if(r<0.45) post('dad',FAM.dad.thumb);
+  else if(r<0.6) post('linda',FAM.linda);
+  else if(r<0.72) post('kyle',FAM.kyle);
 }
-function clearTexts(){textQ=[]; clearTimeout(textTimer); textShowing=false; textEl.classList.add('out');}
+function nextChat(){
+  const m=chatQ.shift();
+  if(!m){chatBusy=false; return;}
+  chatBusy=true; lastTextAt=performance.now()/1000;
+  const el=document.createElement('div'); el.className='cmsg out'; el.style.setProperty('--who',PEOPLE[m.who].c);
+  el.innerHTML='<div class="from"></div><div class="bubble"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span></div>';
+  el.firstChild.textContent=PEOPLE[m.who].name;
+  chatEl.appendChild(el); void el.offsetWidth; el.classList.remove('out');
+  const live=[...chatEl.children].filter(x=>!x.classList.contains('gone'));
+  while(live.length>2) retire(live.shift());
+  for(const x of live) x.classList.toggle('old',x!==el);
+  chatTimer=setTimeout(()=>{
+    el.lastChild.textContent=m.text; sfx.ping(PEOPLE[m.who].ping);
+    if(m.who==='mom') chatStats.mom++;
+    if(m.who==='dad'&&m.text.includes('👍')) chatStats.thumbs++;
+    el._t=setTimeout(()=>retire(el),Math.max(2600,m.text.length*55+1600));
+    chatTimer=setTimeout(nextChat,950);
+  },m.text==='👍'?380:620);
+}
+function clearTexts(){chatQ=[]; clearTimeout(chatTimer); chatBusy=false; for(const el of [...chatEl.children]) retire(el);}
 
+/* ---------- the Kowalskis' chihuahua: trots along behind you and nips if you dawdle ---------- */
+// It moves at a steady walking pace that rises each street. Reach your heel and it nips:
+// a foot in the air lands where it is, a foot on the ground lurches forward somewhere you didn't pick.
+const dog={on:false,d:0,x:2.5,side:1,yapAt:0,nipAt:0,run:0,yaps:[],gap:9};
+function dogReset(){dog.on=false; dog.yaps=[]; dog.gap=9;}
+function heelD(){return Math.min(feet[0].d,feet[1].d)-0.55;}
+function dogUpdate(dt,now){
+  if(mode!=='play'||tStart===null) return;
+  const heel=heelD();
+  if(!dog.on){dog.on=true; dog.d=heel-4.6; dog.side=Math.random()<0.5?-1:1; dog.x=bodyX+dog.side*1.2; dog.nipAt=now+1;}
+  const st=stageOf(slabIdx(front.d)), late=st===4?Math.min(0.35,(slabIdx(front.d)-STAGE_START[4])*0.01):0;
+  dog.d+=(1.0+0.14*st+late)*dt; dog.run+=dt*18;
+  if(heel-dog.d>6) dog.d=heel-6;                       // never so far back that it stops mattering
+  dog.gap=heel-dog.d;
+  dog.x+=((clamp(bodyX+dog.side*1.15,-0.6,WS+0.6))-dog.x)*(1-Math.exp(-dt*3));
+  if(dog.gap<2.4&&now>dog.yapAt){
+    dog.yapAt=now+0.22+Math.max(0,dog.gap)*0.32; sfx.yap(dog.side*0.4);
+    dog.yaps.push({t:now,x:dog.x+(Math.random()-0.5)*0.5,d:dog.d+0.35});
+  }
+  dog.yaps=dog.yaps.filter(y=>now-y.t<0.7);
+  if(dog.gap<=0&&now>dog.nipAt&&(phase==='idle'||phase==='swing')) nip(now);
+}
+function nip(now){
+  dog.nipAt=now+1.4; dog.d=heelD()-2.8;
+  const had=streak; streak=0;
+  sayNow('Nip!',had>=3?`The Kowalskis' chihuahua. Streak of ${had} gone.`:"The Kowalskis' chihuahua.",1100); sfx.nip(); kick(8);
+  if(phase==='swing') plant();                         // the jolt drops the lifted foot where it is
+  else {
+    const f=back, o=front, ahead=0.9+Math.random()*1.1;
+    const x=clamp(o.x+f.side*(0.55+Math.random()*0.5),R+0.05,WS-R-0.05);
+    drop={foot:f,x,d:o.d+ahead,t:0,dur:0.12,fx:f.x,fd:f.d,fl:0.4}; phase='drop';
+  }
+  updateHUD();
+  momText(T.dog,{chance:0.55}); post('dad',FAM.dad.dog,{chance:0.25});
+}
+function drawDog(now){
+  if(!dog.on||mode==='title') return;
+  const x=X(dog.x), y=Y(dog.d);
+  if(y<Hc+0.8*K){
+    const s=K*1.7, hop=Math.abs(Math.sin(dog.run));
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle='rgba(0,0,0,0.24)'; ctx.beginPath(); ctx.ellipse(0.02*s,0.05*s,0.17*s,0.3*s,0,0,6.283); ctx.fill();
+    ctx.translate(0,-hop*0.04*s);
+    ctx.lineCap='round';
+    // tail curled up behind, legs scrabbling
+    ctx.strokeStyle='#c99a62'; ctx.lineWidth=0.045*s; ctx.beginPath(); ctx.moveTo(0,0.2*s); ctx.quadraticCurveTo(0.12*s,0.33*s+Math.sin(dog.run*1.3)*0.04*s,0.02*s,0.38*s); ctx.stroke();
+    ctx.fillStyle='#b98a55'; const l=Math.sin(dog.run)*0.05;
+    for(const [lx,ly] of [[0.11,-0.1+l],[-0.11,-0.1-l],[0.11,0.13-l],[-0.11,0.13+l]]){ctx.beginPath(); ctx.arc(lx*s,ly*s,0.035*s,0,6.283); ctx.fill();}
+    // body in a little pink sweater
+    ctx.fillStyle='#d9b07c'; ctx.beginPath(); ctx.ellipse(0,0.02*s,0.12*s,0.21*s,0,0,6.283); ctx.fill();
+    ctx.fillStyle='#e8679b'; ctx.beginPath(); ctx.ellipse(0,0.0,0.125*s,0.15*s,0,0,6.283); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=0.018*s; for(const yy of [-0.07,0,0.07]){ctx.beginPath(); ctx.moveTo(-0.11*s,yy*s); ctx.lineTo(0.11*s,yy*s); ctx.stroke();}
+    // head: bug eyes, huge ears
+    ctx.fillStyle='#d9b07c';
+    ctx.beginPath(); ctx.moveTo(-0.06*s,-0.24*s); ctx.lineTo(-0.2*s,-0.38*s); ctx.lineTo(-0.03*s,-0.31*s); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0.06*s,-0.24*s); ctx.lineTo(0.2*s,-0.38*s); ctx.lineTo(0.03*s,-0.31*s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#f0a9b9'; ctx.beginPath(); ctx.moveTo(-0.07*s,-0.27*s); ctx.lineTo(-0.16*s,-0.35*s); ctx.lineTo(-0.05*s,-0.31*s); ctx.closePath(); ctx.moveTo(0.07*s,-0.27*s); ctx.lineTo(0.16*s,-0.35*s); ctx.lineTo(0.05*s,-0.31*s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#d9b07c'; ctx.beginPath(); ctx.arc(0,-0.25*s,0.095*s,0,6.283); ctx.fill();
+    ctx.fillStyle='#c4955f'; ctx.beginPath(); ctx.ellipse(0,-0.34*s,0.045*s,0.04*s,0,0,6.283); ctx.fill();
+    ctx.fillStyle='#120d0a'; ctx.beginPath(); ctx.arc(-0.045*s,-0.27*s,0.024*s,0,6.283); ctx.arc(0.045*s,-0.27*s,0.024*s,0,6.283); ctx.arc(0,-0.375*s,0.012*s,0,6.283); ctx.fill();
+    ctx.restore();
+  }
+  // "yap!" written in chalk over wherever it yapped
+  ctx.font=`${(0.34*K).toFixed(1)}px "Schoolbell", cursive`; ctx.textAlign='center'; ctx.lineWidth=3; ctx.lineJoin='round';
+  for(const yp of dog.yaps){
+    const a=1-(now-yp.t)/0.7, ty=Math.min(Y(yp.d),Hc-0.5*K)-(1-a)*0.5*K;
+    ctx.globalAlpha=a; ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.strokeText('yap!',X(yp.x),ty); ctx.fillStyle='#fbf8f1'; ctx.fillText('yap!',X(yp.x),ty);
+  }
+  ctx.globalAlpha=1; ctx.textAlign='start';
+}
+// the bottom of the screen reddens as it closes in
+function drawDogDanger(){
+  if(!dog.on||mode!=='play'||dog.gap>1.6) return;
+  const a=0.24*(1-Math.max(0,dog.gap)/1.6), h=Hc*0.15, gr=ctx.createLinearGradient(0,Hc,0,Hc-h);
+  gr.addColorStop(0,`rgba(205,52,36,${a.toFixed(3)})`); gr.addColorStop(1,'rgba(205,52,36,0)');
+  ctx.fillStyle=gr; ctx.fillRect(0,Hc-h,Wc,h);
+}
 
 /* ---------- ambient life: falling leaves, a squirrel, ants on a crack, cloud shadows ---------- */
 // All cosmetic. The only thing that touches play is that a leaf landing on a crack hides it, like the ones already there.
@@ -1010,7 +1249,7 @@ const elapsed=now=>tStart===null?0:((tEnd===null?now:tEnd)-tStart);
 
 function reset(){
   seedBase=(Math.random()*1e9)|0; slabs.clear(); tiles.clear();
-  feet=[{side:-1,x:2.12,d:1.4},{side:1,x:2.88,d:2.6}]; back=feet[0]; front=feet[1];
+  feet=[{side:-1,x:1.95,d:1.4},{side:1,x:3.05,d:2.6}]; back=feet[0]; front=feet[1];
   slabs.set(-2,buildSlab(-2,seedBase+11,0)); slabs.set(-1,buildSlab(-1,seedBase+13,0));
   frontier=[{x:front.x,d:front.d},{x:back.x,d:back.d}]; genNext=0; ensureSlabs(4);
   stopWobble();
@@ -1019,6 +1258,7 @@ function reset(){
   bestAtStart=best; bestStreakAtStart=bestStreak; newBestShown=false;
   input.latch=0; input.down=false; input.id=null; input.key=null;
   kinks=[]; curPose=clonePose(POSES[6]); camFlinch=0; xrayUntil=0; xrayJ=-1; clearTexts(); idleTexted=false;
+  dadA.on=false; dogReset(); chatStats.mom=0; chatStats.thumbs=0;
   lastStepAt=performance.now()/1000; nextAmbient=lastStepAt+30; bot.active=false; bot.next=0; ambientReset(lastStepAt);
   sfx.wind(0);
   clearMsgs();
@@ -1027,33 +1267,48 @@ function reset(){
 function kick(n){if(!reduceMotion) shake=Math.max(shake,n);}
 function toggleGiant(){
   if(mode!=='play'||phase==='over'||giant<=0) return;
-  sfx.init(); armed=!armed; syncGiant();
+  sfx.init();
+  if(phase==='swing'&&!sw.giant){upgradeSwing(); return;}
+  armed=!armed; syncGiant();
   if(armed){say('Mother, may I?','Yes, you may.',1100); sfx.arm();} else sfx.disarm();
 }
 giantBtn.addEventListener('pointerdown',e=>e.stopPropagation());
 giantBtn.addEventListener('click',e=>{toggleGiant(); if(e.detail) giantBtn.blur();});
 
-// The lifted foot is measured from the one still planted (sw.other)
-function clampSw(){
-  const lo=R+0.05, hi=WS-R-0.05, o=sw.other;
-  sw.x=clamp(sw.x,Math.max(lo,o.x-sw.lat),Math.min(hi,o.x+sw.lat));
-  let x=sw.x;
-  if(sw.ahead<1.06&&Math.abs(x-o.x)<0.42){const s=x===o.x?sw.foot.side:Math.sign(x-o.x); x=o.x+s*0.42; if(x<lo||x>hi) x=o.x-s*0.42;}
-  sw.ex=clamp(x,lo,hi);
+// The lifted foot is measured from the one still planted (sw.other).
+// Feet keep to their own side: they never cross, and side by side they keep a gap.
+function sideClamp(x,ahead){
+  const o=sw.other, gap=Math.abs(ahead)<1.06?0.5:0.18;
+  x=sw.foot.side<0?Math.min(x,o.x-gap):Math.max(x,o.x+gap);
+  return clamp(x,R+0.05,WS-R-0.05);
 }
+function clampSw(){
+  const o=sw.other;
+  sw.x=clamp(sw.x,Math.max(R+0.05,o.x-sw.lat),Math.min(WS-R-0.05,o.x+sw.lat));
+  sw.ex=sideClamp(sw.x,sw.ahead);
+}
+// the swing starts wherever the foot is, so a quick tap is a small shuffle step
 function beginSwing(side,now){
   const f=side?feet.find(q=>q.side===side):back, other=f===feet[0]?feet[1]:feet[0];
-  const g=armed&&giant>0&&mode==='play', dmin=g?GIANT.dmin:DMIN, dmax=g?GIANT.dmax:DMAX;
-  const start=clamp(f.d-other.d,dmin,dmax-0.4);
+  const g=armed&&giant>0&&mode==='play', dmax=g?GIANT.dmax:DMAX;
+  const start=clamp(f.d-other.d,-1.3,dmax-0.4);
   phase='swing';
-  sw={foot:f,other,t:0,u:0,start,dmin,dmax,lat:g?GIANT.lat:LAT,giant:g,x:f.x,ex:f.x,ahead:start,tx:f.x,td:other.d+start,dx:f.x,dd:f.d,lift:0,warned:false,wob:0,stopWob:null};
+  sw={foot:f,other,t:0,u:0,start,dmin:DMIN,dmax,lat:g?GIANT.lat:LAT,giant:g,x:f.x,ex:f.x,ahead:start,tx:f.x,td:other.d+start,dx:f.x,dd:f.d,lift:0,warned:false,wob:0,stopWob:null};
   clampSw(); sfx.lift();
   if(mode==='play'&&tStart===null){tStart=now; momText(T.open);}
+}
+// tapping Giant step mid-swing turns this step into one, which also rescues a wobbling leg
+function upgradeSwing(){
+  const was=sw.wob>0;
+  stopWobble();
+  sw.giant=true; sw.dmax=GIANT.dmax; sw.lat=GIANT.lat; sw.start=sw.ahead; sw.t=0; sw.wob=0; sw.warned=false;
+  armed=false; syncGiant();
+  sayNow('Giant step!',was?'Saved yourself.':'Mother, may I? Yes.',1000); sfx.arm();
 }
 function stopWobble(){if(sw&&sw.stopWob){sw.stopWob(); sw.stopWob=null;}}
 function plant(){
   stopWobble();
-  drop={foot:sw.foot,x:sw.tx,d:sw.td,t:0,dur:0.1,fx:sw.dx,fd:sw.dd,fl:sw.lift,giant:sw.giant};
+  drop={foot:sw.foot,x:sw.tx,d:sw.td,t:0,dur:0.08,fx:sw.dx,fd:sw.dd,fl:sw.lift,giant:sw.giant};
   if(sw.giant){giant--; armed=false; syncGiant();}
   phase='drop';
 }
@@ -1097,6 +1352,7 @@ function land(now){
       if(kind!=='crack'&&r<0.5) momText(T[kind],{urgent:true});
       else if(r<0.62||vj<0) momText(T.hit[hp],{urgent:true});
       else momText(pick(T.vert).replace('{v}',VERT[vj]),{urgent:true});
+      familyReacts();
     }
   } else {
     if(!drop.giant){
@@ -1106,22 +1362,24 @@ function land(now){
     } else momText(T.giant,{chance:0.6});
     if(footHits(f.x,f.d,near,0.1).length){camFlinch=Math.max(camFlinch,0.55); momText(T.near,{chance:0.35});}
     streak++; if(streak>runStreak) runStreak=streak;
-    if(streak%GIANT_EVERY===0){
-      if(giant<GIANT_MAX){giant++; say('Giant step earned.',`${streak} clean in a row.`,1500);}
+    if(streak%STREAK_EVERY===0){
+      // clean streaks fix Mom: Dad walks on her back. If she's already fine, you get a giant step
+      pop(streakEl); sfx.earn();
+      if(hp<MAXHP&&!dadA.on){startDad(); say(`${streak} clean.`,'Dad is on his way.',1300);}
+      else if(giant<GIANT_MAX){giant++; say('Giant step earned.',`${streak} clean in a row.`,1500); momText(T.streak,{chance:0.5});}
       else say(`${streak} clean.`,'Giant steps full.',1200);
-      sfx.earn(); pop(streakEl); momText(T.streak);
     } else if(streak%5===0){pop(streakEl); sfx.chime(streak/5);}
   }
-  if(got&&hp>0){momText(T.coupon); if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500);} else say('Chiropractor coupon.',"Mom's fine. You keep it.",1300); sfx.paper();}
+  if(got&&hp>0){momText(T.coupon); post('linda',FAM.linda,{chance:0.3}); if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500);} else say('Chiropractor coupon.',"Mom's fine. You keep it.",1300); sfx.paper();}
   updateHUD();
   lastStepAt=now; idleTexted=false;
   if(hp<=0){gameOver(now); return;}
   const st=stageOf(slabIdx(front.d));
-  if(st>lastStage){lastStage=st; say(STAGES[st].name,STAGES[st].note,2000,true); sfx.car(); sfx.wind(st); momText(T.stage[st]);}
+  if(st>lastStage){lastStage=st; say(STAGES[st].name,STAGES[st].note,2000,true); sfx.car(); sfx.wind(st); momText(T.stage[st]); if(st===2) post('dad',FAM.dad.stage,{chance:0.6});}
   if(!newBestShown&&bestAtStart>0&&dist()>bestAtStart){newBestShown=true; say('New best.','Keep walking.',1400); sfx.newbest();}
 }
 function gameOver(now){
-  phase='over'; mode='over'; msgQ=[]; tEnd=now; armed=false; syncGiant(); kinks.length<6&&breakVertebra(now); xrayUntil=0; clearTexts(); releaseWake();
+  phase='over'; mode='over'; msgQ=[]; tEnd=now; armed=false; dadA.on=false; syncGiant(); kinks.length<6&&breakVertebra(now); xrayUntil=0; clearTexts(); releaseWake();
   const ft=dist();
   runResult={ft,time:elapsed(now),steps,streak:runStreak,block:STAGES[stageOf(slabIdx(front.d))].name,
     ftBest:ft>bestAtStart&&ft>0, stBest:runStreak>bestStreakAtStart&&runStreak>0};
@@ -1153,6 +1411,8 @@ function showOver(){
     countUp($('#sSteps'),r.steps,v=>String(Math.round(v)),false);
     countUp($('#sStreak'),r.streak,v=>String(Math.round(v)),r.stBest);
     $('#sMeta').textContent=`Made it to ${r.block}. Best walk ${best} ft, best streak ${bestStreak}.`;
+    const times=n=>n===1?'once':`${n} times`;
+    $('#sChat').textContent=`Mom texted ${times(chatStats.mom)}. Dad replied 👍 ${times(chatStats.thumbs)}.`;
     if(r.ftBest||r.stBest) setTimeout(()=>sfx.newbest(),reduceMotion?0:820);
     try{$('#again').focus({preventScroll:true});}catch(_){}
   },reduceMotion?400:1500);
@@ -1230,12 +1490,12 @@ function botUpdate(now){
     let pickd=null;
     for(let i=0;i<48;i++){
       const ahead=0.95+Math.random()*1.05;
-      const x=clamp(other.x+side*(0.35+Math.random()*0.5)+(Math.random()-0.5)*0.6,R+0.15,WS-R-0.15), d=other.d+ahead;
+      const x=clamp(other.x+side*(0.6+Math.random()*0.45)+(Math.random()-0.5)*0.3,R+0.15,WS-R-0.15), d=other.d+ahead;
       if(footHits(x,d,slabsNear(d),0.07).length) continue;
       const score=Math.abs(x-2.5)*0.25+Math.abs(ahead-1.45)+Math.random()*0.2;
       if(!pickd||score<pickd.score) pickd={x,ahead,score};
     }
-    if(!pickd) pickd={x:clamp(other.x+side*0.45,R+0.15,WS-R-0.15),ahead:0.95};
+    if(!pickd) pickd={x:clamp(other.x+side*0.7,R+0.15,WS-R-0.15),ahead:0.95};
     bot.tx=pickd.x; bot.ta=pickd.ahead; bot.active=true;
     input.latch=side; input.down=true;
   }
@@ -1297,10 +1557,10 @@ window.addEventListener('blur',()=>{input.down=false; input.id=null; input.key=n
 function update(dt,now){
   if(mode==='paused'){if(camFlinch>0) camFlinch=Math.max(0,camFlinch-dt*2.2); return;}
   if(mode==='title') botUpdate(now);
-  ambientUpdate(dt,now);
+  ambientUpdate(dt,now); dadUpdate(dt); dogUpdate(dt,now);
   if(phase==='idle'&&input.latch){const s=input.latch; input.latch=0; beginSwing(s,now);}
   if(phase==='swing'){
-    const speed=(sw.dmax-sw.dmin)/(swingTime(slabIdx(front.d))*(sw.giant?1.35:1));
+    const speed=(sw.dmax-sw.dmin)/(swingTime(slabIdx(front.d))*(sw.giant?1.3:1));
     sw.t+=dt;
     const tReach=(sw.dmax-sw.start)/speed;
     sw.ahead=Math.min(sw.dmax,sw.start+speed*sw.t); sw.u=(sw.ahead-sw.dmin)/(sw.dmax-sw.dmin);
@@ -1312,19 +1572,19 @@ function update(dt,now){
       if(!sw.wob) sw.stopWob=sfx.wobble(WOB);
       sw.wob=sw.t-tReach-0.08+1e-6;
       const k=Math.min(1,sw.wob/WOB);
-      tx=clamp(sw.ex+Math.sin(sw.wob*28)*(0.15+0.5*k),R+0.05,WS-R-0.05);
+      tx=sideClamp(sw.ex+Math.sin(sw.wob*28)*(0.15+0.5*k),sw.ahead);
       td+=Math.sin(sw.wob*19+1)*0.14*k;
       if(!reduceMotion) shake=Math.max(shake,1.2+2*k);
     }
     sw.tx=tx; sw.td=td;
-    const k1=1-Math.exp(-dt*(sw.wob?34:24)), k2=1-Math.exp(-dt*14);
+    const k1=1-Math.exp(-dt*(sw.wob?34:26)), k2=1-Math.exp(-dt*18);
     sw.dx+=(tx-sw.dx)*k1; sw.dd+=(td-sw.dd)*k1; sw.lift+=(1-sw.lift)*k2;
     if(!input.down) plant(); else if(sw.wob>WOB) snapBack();
   } else if(phase==='drop'){
     drop.t+=dt; if(drop.t>=drop.dur) land(now);
   }
   if(tStart!==null&&mode==='play'){const ts=fmtTime(elapsed(now)); if(ts!==lastTs){lastTs=ts; timeEl.textContent=ts;}}
-  camD+=(front.d-camD)*(1-Math.exp(-dt*8));
+  camD+=(front.d-camD)*(1-Math.exp(-dt*11));
   let sx=0; for(const f of feet){sx+=phase==='swing'&&f===sw.foot?sw.tx:phase==='drop'&&f===drop.foot?drop.x:f.x;}
   bodyX+=(sx/feet.length-bodyX)*(1-Math.exp(-dt*5));
   ensureSlabs(slabIdx(camD+yAnchor/K)+1);
@@ -1347,8 +1607,8 @@ function render(now){
   const lo=slabIdx(camD-(Hc-yAnchor)/K), hi=slabIdx(camD+yAnchor/K);
   for(let i=hi;i>=lo;i--){const sl=slabs.get(i); if(!sl) continue; const c=getTile(sl); ctx.drawImage(c,0,Y((i+1)*S),Wc,c.height/dpr);}
   drawFallen(lo,hi); drawAnts(now,lo,hi);
-  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(); drawFeet();
-  drawFalling(); drawCloud();
+  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(); drawDog(now); drawFeet();
+  drawFalling(); drawCloud(); drawDogDanger();
   drawCam(now);
 }
 let lastT=performance.now();
@@ -1360,7 +1620,7 @@ function frame(t){
 
 /* ---------- boot ---------- */
 if(!coarse){
-  $('#howMove').innerHTML='Hold <b>A</b> or <b>D</b> (or either half of the screen) to lift that foot. Let go to step. Steer with the arrow keys or the mouse.';
+  $('#howMove').innerHTML='Hold <b>A</b> or <b>D</b> (or either half of the screen) to lift that foot, let go to step. A quick tap is a little shuffle. Steer with the arrow keys or the mouse.';
   const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>G arms a giant step · Esc pauses · F full screen · M sound</span>';
   $('.t-how').appendChild(li);
 }

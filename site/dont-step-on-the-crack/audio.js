@@ -116,6 +116,23 @@ const CrackSound = {
     o.connect(f1); o.connect(f2); f1.connect(g); f2.connect(g); g.connect(lp); lp.connect(this.out(-0.5));
     o.start(t); vib.start(t); o.stop(t + dur + 0.05); vib.stop(t + dur + 0.05);
   },
+  // the chihuahua
+  yap(pan) { const f = 1150 + Math.random() * 250; this.tone(f, f * 0.66, 0.07, 0.05, 'square', 0, { pan }); this.noise(0.04, 'bandpass', 2300, 3, 0.12, 0, { pan }); },
+  nip() { this.noise(0.05, 'highpass', 2500, 0.7, 0.3); this.tone(1500, 900, 0.09, 0.06, 'square', 0.02); this.tone(1700, 1100, 0.08, 0.05, 'square', 0.13); },
+  // Dad on Mom's back: a run of satisfying pops, then a long relieved "ahh" from the kitchen
+  backpop() {
+    for (const [w, f] of [[0, 2600], [0.07, 1900], [0.13, 2300], [0.22, 1700]]) this.noise(0.03, 'bandpass', f, 6, 0.7, w);
+    if (!this.live()) return;
+    const c = this.c, t = c.currentTime + 0.35, dur = 0.9, f0 = 220;
+    const o = c.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0 * 1.15, t); o.frequency.exponentialRampToValueAtTime(f0 * 0.82, t + dur);
+    const f1 = c.createBiquadFilter(); f1.type = 'bandpass'; f1.Q.value = 6; f1.frequency.value = 780;
+    const f2 = c.createBiquadFilter(); f2.type = 'bandpass'; f2.Q.value = 8; f2.frequency.value = 1150;
+    const g = c.createGain(); this.env(g, t, 0.6, dur, 0.08);
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
+    o.connect(f1); o.connect(f2); f1.connect(g); f2.connect(g); g.connect(lp); lp.connect(this.out(-0.5));
+    o.start(t); o.stop(t + dur + 0.05);
+  },
   heartbeat() { this.tone(62, 42, 0.12, 0.35); this.tone(58, 40, 0.12, 0.22, 'sine', 0.2); },
   static() { this.noise(0.25, 'highpass', 1400, 0.5, 0.1); },
 
@@ -149,7 +166,8 @@ const CrackSound = {
     o.connect(f); n.connect(nf); nf.connect(ng); ng.connect(f); f.connect(g); g.connect(this.out(pan));
     o.start(t); wob.start(t); n.start(t); o.stop(t + dur); wob.stop(t + dur); n.stop(t + dur);
   },
-  ping() { this.tone(1568, 1570, 0.09, 0.045, 'triangle'); this.tone(2093, 2095, 0.12, 0.035, 'triangle', 0.08); },
+  // a message landing in the family chat; each person pings at their own pitch
+  ping(k = 1) { this.tone(1568 * k, 1570 * k, 0.09, 0.045, 'triangle'); this.tone(2093 * k, 2095 * k, 0.12, 0.035, 'triangle', 0.08); },
   ring() { for (const w of [0, 0.55]) { this.tone(440, 440, 0.42, 0.09, 'sine', w); this.tone(480, 480, 0.42, 0.09, 'sine', w); this.tone(115, 115, 0.42, 0.035, 'sawtooth', w); } },
 
   // ---- streaks and giant steps
