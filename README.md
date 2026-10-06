@@ -12,6 +12,7 @@ site/                   everything that gets published
   assets/fonts/         Silkscreen and Pixelify Sans (SIL OFL), self-hosted
   favicon.ico
 tools/og/make.py        builds the social preview cards
+tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 brand/                  source logo files, not published
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
@@ -40,6 +41,16 @@ Rebuild the cards and index thumbnails after changing a game's art or adding a g
 ```
 python3 tools/og/make.py
 ```
+
+## Caching
+
+Every local script, stylesheet and image link carries `?v=<content hash>`, so a changed file gets a new URL and browsers fetch it fresh on a normal reload. After editing anything in `site/`, run:
+
+```
+python3 tools/stamp.py
+```
+
+The Pages workflow runs it too. Run it before publishing to Arweave.
 
 ## Publishing to GitHub Pages
 
