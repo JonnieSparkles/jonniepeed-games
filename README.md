@@ -12,6 +12,7 @@ site/                   everything that gets published
   assets/               logo, pixel mark, thumbnails, favicons, ident.js
   assets/fonts/         Silkscreen and Pixelify Sans (SIL OFL), self-hosted
   favicon.ico
+tools/og/make.py        builds the social preview cards
 brand/                  source logo files, not published
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
@@ -27,6 +28,16 @@ Unruggabull lives in its own repo and is linked from the shelf at https://unrugg
 1. Make a folder in `site/` with an `index.html` that only uses relative paths.
 2. Add a 4:3 thumbnail to `site/assets/` (pixel art: 96×72 scaled 4× with nearest-neighbour).
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/index.html`.
+
+## Social previews
+
+Each page has Open Graph and Twitter tags pointing at a 1200×630 card in `site/assets/og/`. Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniesparkles.github.io/jonniepeed-games/`). Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the three pages.
+
+Rebuild the cards after changing a game's art or adding a game (add it to `GAMES` in the script first):
+
+```
+python3 tools/og/make.py
+```
 
 ## Publishing to GitHub Pages
 
