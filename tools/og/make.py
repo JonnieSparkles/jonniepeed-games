@@ -70,22 +70,19 @@ p{{font-size:32px;line-height:1.3;color:#f6e7c8}}
 </body></html>"""
 
 
-def index_card(thumbs):
-    items = "".join(
-        f'<li><img src="{uri}" class="{cls}"><span>{name}</span></li>' for name, uri, cls in thumbs
-    )
+def index_card():
+    """Studio card: logo plus tagline only, so it never lists games that go stale."""
+    dots = "".join(f'<i style="background:{c}"></i>' for c in ["#1e9bf0", "#5fbf1e", "#ff7a14", "#ec188c", "#8a2be2"])
     return f"""<!doctype html><html><head><style>{BASE_CSS}
-body{{background:#ffffff;color:#17141f;font-family:'Pixelify Sans',sans-serif;display:grid;grid-template-columns:600px 1fr;align-items:center;gap:40px;padding:0 64px 0 48px}}
-.logo{{width:600px;height:auto}}
-.side{{display:grid;gap:22px}}
-h2{{font-family:'Silkscreen',monospace;font-weight:400;font-size:22px;letter-spacing:.12em;text-transform:uppercase;color:#5f5973}}
-ul{{list-style:none;padding:0;display:grid;gap:16px}}
-li{{display:flex;align-items:center;gap:18px;font-family:'Silkscreen',monospace;font-size:28px}}
-li img{{width:128px;height:96px;object-fit:cover;border-radius:8px;border:3px solid #e8e4f0}}
-li img.px{{image-rendering:pixelated}}
+body{{background:#ffffff;color:#17141f;font-family:'Pixelify Sans',sans-serif;display:grid;grid-template-columns:620px 1fr;align-items:center;gap:36px;padding:0 72px 0 40px}}
+.logo{{width:620px;height:auto}}
+.side{{display:grid;gap:28px}}
+p{{font-size:46px;line-height:1.2}}
+.dots{{display:flex;gap:14px}}
+.dots i{{display:block;width:22px;height:22px}}
 </style></head><body>
 <img class="logo" src="{{LOGO_URI}}">
-<div class="side"><h2>Play in your browser</h2><ul>{items}</ul></div>
+<div class="side"><p>Small games you play right in your browser.</p><div class="dots">{dots}</div></div>
 </body></html>"""
 
 
@@ -103,13 +100,8 @@ def main():
             card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
             card.screenshot(path=str(OUT / f"{slug}.png"))
             print("wrote", OUT / f"{slug}.png")
-        thumbs = [
-            ("Thimbleful", data_uri(SITE / "assets" / "thumb-thimbleful.png"), "px"),
-            ("Unruggabull", "data:image/webp;base64," + base64.b64encode((SITE / "assets" / "thumb-unruggabull.webp").read_bytes()).decode(), ""),
-            ("Windowsill", data_uri(SITE / "assets" / "thumb-windowsill.png"), "px"),
-        ]
         logo_uri = "data:image/webp;base64," + base64.b64encode((SITE / "assets" / "logo.webp").read_bytes()).decode()
-        card.set_content(index_card(thumbs).replace("{LOGO_URI}", logo_uri))
+        card.set_content(index_card().replace("{LOGO_URI}", logo_uri))
         card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
         card.screenshot(path=str(OUT / "index.png"))
         print("wrote", OUT / "index.png")
