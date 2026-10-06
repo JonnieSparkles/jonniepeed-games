@@ -70,9 +70,9 @@
     const ph = calm ? { grow: 1, cut: 0, on: true } : phase(time);
     const ox = fx + 9 + sway, oy = 31;
     const room = W - ox - 6;
-    const base = Math.min(room, 150) * (0.42 + 0.22 * (0.5 + 0.5 * Math.sin(time * 0.8)));
+    const base = Math.min(room, 150) * (0.2 + 0.24 * (0.5 + 0.5 * Math.sin(time * 0.8)));
     const reach = base + (room - base) * power;                     // full power reaches the far end
-    const tx = ox + reach, peak = 14 + 2 * Math.sin(time * 1.3) + power * 16;
+    const tx = ox + reach, peak = 8 + 2 * Math.sin(time * 1.3) + power * 22;
     const n = Math.ceil(reach * 1.6);
     for (let i = 0; i <= n; i++) {
       const u = i / n;
@@ -121,7 +121,7 @@
     // a big splash where the stream lands when you let go near full power
     if (power > 0.7) {
       const ox = 15, room = W - ox - 6;
-      burst(ox + room * (0.42 + 0.58 * power), 40, 1.4); splashT = 0.25;
+      burst(ox + room * (0.2 + 0.8 * power), 40, 1.4); splashT = 0.25;
     }
     if (calm) { for (let i = 0; i < 20; i++) stains.set(Math.round(W * (0.5 + Math.random() * 0.45)), { c: COLORS[(Math.random() * 6) | 0], life: 5 }); draw(); }
   }
