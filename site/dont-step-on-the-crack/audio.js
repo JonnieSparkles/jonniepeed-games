@@ -133,6 +133,22 @@ const CrackSound = {
     else g.connect(this.master);
     s.start(t); s.stop(t + dur + 0.05);
   },
+  // a squirrel scolding you from the middle of the sidewalk
+  chitter(pan) { for (let i = 0; i < 7; i++) this.tone(2600 + Math.random() * 900, 3400 + Math.random() * 600, 0.025, 0.03, 'triangle', i * 0.055 + Math.random() * 0.015, { pan, always: true }); },
+  // a lawnmower a few houses over: fades in, drones, fades out
+  mower() {
+    if (!this.c || !this.on) return;
+    const c = this.c, t = c.currentTime, dur = 10 + Math.random() * 5, pan = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.4);
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(92, t);
+    const wob = c.createOscillator(); wob.frequency.value = 0.35; const wg = c.createGain(); wg.gain.value = 6; wob.connect(wg); wg.connect(o.frequency);
+    const n = c.createBufferSource(); n.buffer = this.nb; n.loop = true;
+    const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 900; nf.Q.value = 0.8;
+    const ng = c.createGain(); ng.gain.value = 0.25;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 520;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.022, t + 3); g.gain.setValueAtTime(0.022, t + dur - 3); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(f); n.connect(nf); nf.connect(ng); ng.connect(f); f.connect(g); g.connect(this.out(pan));
+    o.start(t); wob.start(t); n.start(t); o.stop(t + dur); wob.stop(t + dur); n.stop(t + dur);
+  },
   ping() { this.tone(1568, 1570, 0.09, 0.045, 'triangle'); this.tone(2093, 2095, 0.12, 0.035, 'triangle', 0.08); },
   ring() { for (const w of [0, 0.55]) { this.tone(440, 440, 0.42, 0.09, 'sine', w); this.tone(480, 480, 0.42, 0.09, 'sine', w); this.tone(115, 115, 0.42, 0.035, 'sawtooth', w); } },
 

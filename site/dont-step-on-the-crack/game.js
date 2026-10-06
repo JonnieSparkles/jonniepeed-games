@@ -192,6 +192,18 @@ function buildSlab(i,seed,k){
   if(i>=4&&rng()<0.2) sl.graffiti={t:GRAF[(rng()*GRAF.length)|0],x:1.4+rng()*2.2,d:d0+1+rng()*3,r:(rng()-0.5)*0.5,c:['#f7a8c4','#f4e27a','#9fd3f0','#fbf8f1'][(rng()*4)|0]};
   const gl=6+st*3+(rng()*4|0);
   for(let j=0;j<gl;j++){const left=rng()<0.5, off=0.12+rng()*rng()*3.4; sl.grassLeaves.push({x:left?-off:WS+off,d:d0+0.3+rng()*(S-0.6),s:0.22+rng()*0.24,a:rng()*6.283,c:LEAFC[(rng()*LEAFC.length)|0],t:rng()<0.35?'oak':'oval'});}
+  if(i>=1&&rng()<(sl.heave?0.9:st===2?0.4:0.1)){
+    const side=sl.heave||(rng()<0.5?-1:1), r=0.42+rng()*0.25, off=0.75+r+rng()*0.35;
+    sl.tree={x:side<0?-off:WS+off,d:d0+1.5+rng()*(S-3),r,seed:(rng()*1e9)|0};
+  }
+  if(st>=2&&nonJoint.length&&rng()<0.3){
+    const c=nonJoint[(rng()*nonJoint.length)|0];
+    if(c.pts.length>=4){
+      const cum=[0]; for(let j=1;j<c.pts.length;j++) cum.push(cum[j-1]+Math.hypot(c.pts[j][0]-c.pts[j-1][0],c.pts[j][1]-c.pts[j-1][1]));
+      const n=5+(rng()*6|0);
+      sl.ants={c,cum,len:cum[cum.length-1],n,off:rng()*10,v:(rng()<0.5?1:-1)*(0.12+rng()*0.08),gaps:Array.from({length:n},()=>0.1+rng()*0.18),side:rng()<0.5?1:-1};
+    }
+  }
   return sl;
 }
 
@@ -333,6 +345,7 @@ function renderTile(sl){
   const gp=g.createPattern(grassCv,'repeat'); setPat(gp,0,((d1*K)%gper+gper)%gper);
   g.fillStyle=gp; g.fillRect(0,0,Wc,hpx+1);
   const gt=[0,0.05,0.1,0.16,0.24][st]; if(gt){g.fillStyle=`rgba(152,122,58,${gt})`; g.fillRect(0,0,Wc,hpx+1);}
+  if(sl.tree) drawTree(g,tx(sl.tree.x),ty(sl.tree.d),sl.tree.r*K,sl.tree.seed);
   for(const side of [-1,1]){
     const xe=side<0?tx(0):tx(WS);
     g.fillStyle='rgba(36,28,18,0.85)'; g.beginPath(); g.moveTo(xe,-1);
@@ -767,6 +780,141 @@ function nextText(){
 function clearTexts(){textQ=[]; clearTimeout(textTimer); textShowing=false; textEl.classList.add('out');}
 
 
+/* ---------- ambient life: falling leaves, a squirrel, ants on a crack, cloud shadows ---------- */
+// All cosmetic. The only thing that touches play is that a leaf landing on a crack hides it, like the ones already there.
+let falling=[], squirrel=null, cloud=null, nextLeaf=0, nextSquirrel=0, nextCloud=0, nextMower=0;
+function ambientReset(now){
+  falling=[]; squirrel=null; cloud=null;
+  nextLeaf=now+1.5; nextSquirrel=now+10+Math.random()*10; nextCloud=now+18+Math.random()*25; nextMower=now+25+Math.random()*40;
+}
+function ambientUpdate(dt,now){
+  const st=stageOf(slabIdx(front.d));
+  // leaves let go every few seconds, more often under Oak St's trees
+  if(now>nextLeaf){
+    nextLeaf=now+((st===2?1.6:st>=3?2.6:3.4)+Math.random()*3)*(reduceMotion?2:1);
+    if(falling.length<6) falling.push({x:-1.8+Math.random()*(WS+3.6),d:camD+1.5+Math.random()*10,t:0,dur:3.2+Math.random()*2.2,h:1,
+      a:Math.random()*6.28,spin:(Math.random()-0.5)*5,ph:Math.random()*6.28,sw:0.25+Math.random()*0.35,s:0.22+Math.random()*0.2,
+      c:LEAFC[(Math.random()*LEAFC.length)|0],ty:Math.random()<0.3?'oak':'oval'});
+  }
+  for(let i=falling.length-1;i>=0;i--){
+    const L=falling[i]; L.t+=dt; L.h=Math.max(0,1-L.t/L.dur); L.a+=L.spin*dt*L.h; L.d-=dt*0.12;
+    if(L.h>0) continue;
+    falling.splice(i,1);
+    const sl=slabs.get(slabIdx(L.d));
+    if(sl){(sl.fallen||(sl.fallen=[])).push({x:L.x,d:L.d,s:L.s,a:L.a,c:L.c,t:L.ty}); if(sl.fallen.length>12) sl.fallen.shift();}
+  }
+  // a squirrel dashes across ahead now and then, stopping once in the middle to stare at you
+  if(!squirrel&&now>nextSquirrel){
+    nextSquirrel=now+(st===2?16:26)+Math.random()*18;
+    const dir=Math.random()<0.5?1:-1;
+    squirrel={x:dir>0?-3.2:WS+3.2,d:camD+3.5+Math.random()*5,dir,state:'run',t:0,seg:0.35,stopped:false,flick:0,hop:0};
+  }
+  if(squirrel){
+    const q=squirrel; q.t+=dt;
+    if(q.state==='run'){
+      q.x+=q.dir*6.5*dt; q.hop+=dt*16;
+      const mid=q.dir>0?q.x>WS*0.42:q.x<WS*0.58;
+      if(!q.stopped&&mid){q.stopped=true; q.state='pause'; q.t=0; q.seg=0.8+Math.random()*0.6; sfx.chitter(clamp((q.x-WS/2)/4,-0.8,0.8));}
+      else if(q.t>q.seg){q.state='pause'; q.t=0; q.seg=0.12+Math.random()*0.25;}
+    } else if(q.t>q.seg){q.state='run'; q.t=0; q.seg=0.3+Math.random()*0.35;}
+    q.flick=q.state==='pause'?Math.sin(q.t*20)*Math.max(0,1-q.t*1.8):0;
+    if(q.x<-4.5||q.x>WS+4.5) squirrel=null;
+  }
+  // a cloud's shadow slides over every so often
+  if(!cloud&&now>nextCloud){
+    nextCloud=now+40+Math.random()*35;
+    cloud={x:-0.7,y:0.2+Math.random()*0.5,v:0.055+Math.random()*0.03,blobs:Array.from({length:6},()=>({dx:(Math.random()-0.5)*0.9,dy:(Math.random()-0.5)*0.35,r:0.25+Math.random()*0.25}))};
+  }
+  if(cloud){cloud.x+=cloud.v*dt; if(cloud.x>1.7) cloud=null;}
+  // somebody is mowing a lawn a few houses over (the quieter streets only)
+  if(now>nextMower){nextMower=now+70+Math.random()*60; if(st<=2) sfx.mower();}
+}
+function drawFallen(lo,hi){
+  for(let i=lo;i<=hi;i++){const sl=slabs.get(i); if(sl&&sl.fallen) for(const L of sl.fallen) drawLeaf(ctx,X(L.x),Y(L.d),L.s*K,L.a,L.c,L.t);}
+}
+function drawFalling(){
+  for(const L of falling){
+    const gx=X(L.x), gy=Y(L.d), h=L.h, sway=Math.sin(L.t*2.2+L.ph)*L.sw*h;
+    ctx.fillStyle=`rgba(0,0,0,${(0.08+0.14*(1-h)).toFixed(3)})`;
+    ctx.beginPath(); ctx.ellipse(gx+sway*K*0.3,gy,L.s*K*0.45,L.s*K*0.25,L.a,0,6.283); ctx.fill();
+    // flutter: the leaf flips edge-on now and then as it falls
+    const flip=0.35+0.65*Math.abs(Math.cos(L.t*3.1+L.ph));
+    ctx.save(); ctx.translate(gx+sway*K,gy-h*2.6*K); ctx.scale(1+0.35*h,(1+0.35*h)*flip);
+    drawLeaf(ctx,0,0,L.s*K,L.a,L.c,L.ty); ctx.restore();
+  }
+}
+// ants march single file beside a crack (Oak St and on)
+function antAt(a,s){
+  const p=a.c.pts, cum=a.cum; let j=0; while(j<cum.length-2&&cum[j+1]<s) j++;
+  const seg=cum[j+1]-cum[j]||1, u=(s-cum[j])/seg, ang=Math.atan2(p[j+1][1]-p[j][1],p[j+1][0]-p[j][0]);
+  return {x:p[j][0]+(p[j+1][0]-p[j][0])*u, d:p[j][1]+(p[j+1][1]-p[j][1])*u, ang};
+}
+function drawAnts(now,lo,hi){
+  ctx.fillStyle='#17110c';
+  const k=K/58;
+  for(let i=lo;i<=hi;i++){
+    const sl=slabs.get(i), a=sl&&sl.ants; if(!a) continue;
+    let s0=a.off+now*a.v;
+    for(let n=0;n<a.n;n++){
+      s0+=a.gaps[n];
+      const s=((s0%a.len)+a.len)%a.len, fade=Math.min(1,s/0.2,(a.len-s)/0.2); if(fade<=0.05) continue;
+      const P=antAt(a,s), nx=-Math.sin(P.ang)*a.side, nd=Math.cos(P.ang)*a.side, off=0.06+Math.sin(now*18+n*1.7)*0.008;
+      const x=X(P.x+nx*off), y=Y(P.d+nd*off), dx=Math.cos(P.ang)*(a.v>0?1:-1), dy=-Math.sin(P.ang)*(a.v>0?1:-1);
+      ctx.globalAlpha=fade;
+      for(const [o,r] of [[2.8,1.4],[0,1.25],[-3.2,1.9]]){ctx.beginPath(); ctx.arc(x+dx*o*k,y+dy*o*k,r*k,0,6.283); ctx.fill();}
+    }
+  }
+  ctx.globalAlpha=1;
+}
+function drawSquirrel(){
+  const q=squirrel; if(!q) return;
+  const s=K*1.2, hop=q.state==='run'?Math.abs(Math.sin(q.hop)):0;
+  ctx.save(); ctx.translate(X(q.x),Y(q.d));
+  ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(-0.12*s,0.06*s,0.52*s,0.16*s,0,0,6.283); ctx.fill();
+  ctx.translate(0,-hop*0.06*s); ctx.scale(q.dir*(1+hop*0.06),1+hop*0.06);
+  // tail: a fluffy chain of puffs behind, waving side to side
+  const wave=t=>Math.sin(q.hop*0.6+t*2)*0.05+q.flick*0.09*t;
+  const puffs=[[-0.3,0.1],[-0.43,0.125],[-0.56,0.13],[-0.68,0.11]];
+  ctx.fillStyle='#a88d75'; for(const [px,r] of puffs){ctx.beginPath(); ctx.arc(px*s,wave(-px)*s,(r+0.03)*s,0,6.283); ctx.fill();}
+  ctx.fillStyle='#7a604c'; for(const [px,r] of puffs){ctx.beginPath(); ctx.arc(px*s,wave(-px)*s,r*s,0,6.283); ctx.fill();}
+  // legs scrabble while running
+  if(q.state==='run'){ctx.fillStyle='#6e5644'; const l=Math.sin(q.hop)*0.04; for(const [lx,ly] of [[0.12+l,0.11],[0.12-l,-0.11],[-0.12-l,0.12],[-0.12+l,-0.12]]){ctx.beginPath(); ctx.arc(lx*s,ly*s,0.035*s,0,6.283); ctx.fill();}}
+  ctx.fillStyle='#735742'; ctx.beginPath(); ctx.ellipse(-0.02*s,0,0.24*s,0.12*s,0,0,6.283); ctx.fill();
+  ctx.fillStyle='rgba(60,42,30,0.35)'; ctx.beginPath(); ctx.ellipse(-0.04*s,0,0.18*s,0.035*s,0,0,6.283); ctx.fill();
+  ctx.fillStyle='#735742'; ctx.beginPath(); ctx.ellipse(0.23*s,0,0.1*s,0.085*s,0,0,6.283); ctx.fill();
+  ctx.fillStyle='#6a5141'; ctx.beginPath(); ctx.arc(0.2*s,0.072*s,0.026*s,0,6.283); ctx.arc(0.2*s,-0.072*s,0.026*s,0,6.283); ctx.fill();
+  ctx.fillStyle='#120d0a'; ctx.beginPath(); ctx.arc(0.28*s,0.045*s,0.014*s,0,6.283); ctx.arc(0.28*s,-0.045*s,0.014*s,0,6.283); ctx.fill();
+  ctx.restore();
+}
+function drawCloud(){
+  if(!cloud) return;
+  const size=Math.max(Wc,Hc)*0.7, cx=cloud.x*Wc, cy=cloud.y*Hc;
+  for(const b of cloud.blobs){
+    const x=cx+b.dx*size, y=cy+b.dy*size, r=b.r*size, gr=ctx.createRadialGradient(x,y,0,x,y,r);
+    gr.addColorStop(0,'rgba(22,30,42,0.075)'); gr.addColorStop(1,'rgba(22,30,42,0)');
+    ctx.fillStyle=gr; ctx.fillRect(x-r,y-r,2*r,2*r);
+  }
+}
+// a street tree at the edge of the grass, roots reaching under the sidewalk (drawn into the tile, before the concrete)
+function drawTree(g,x,y,r,seed){
+  const rng=mulberry32(seed);
+  g.fillStyle='rgba(58,44,30,0.55)'; g.beginPath(); g.ellipse(x,y,r*1.55,r*1.45,0,0,6.283); g.fill();
+  g.lineCap='round';
+  for(let i=5+(rng()*3|0);i>0;i--){
+    const a=rng()*6.283, L=r*(1.15+rng()*0.9), bend=(rng()-0.5)*0.6;
+    for(const [w,f] of [[0.34,0.45],[0.2,0.78],[0.09,1]]){
+      g.strokeStyle='#5b4735'; g.lineWidth=r*w;
+      g.beginPath(); g.moveTo(x+Math.cos(a)*r*0.7,y+Math.sin(a)*r*0.7);
+      g.quadraticCurveTo(x+Math.cos(a+bend)*L*0.6*f,y+Math.sin(a+bend)*L*0.6*f,x+Math.cos(a+bend*1.4)*L*f,y+Math.sin(a+bend*1.4)*L*f); g.stroke();
+    }
+  }
+  const gr=g.createRadialGradient(x-r*0.3,y-r*0.35,r*0.1,x,y,r);
+  gr.addColorStop(0,'#7a624b'); gr.addColorStop(1,'#4a392b');
+  g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,6.283); g.fill();
+  g.strokeStyle='rgba(30,22,15,0.45)'; g.lineWidth=Math.max(1,r*0.06);
+  for(let i=0;i<14;i++){const a=rng()*6.283, r0=r*(0.45+rng()*0.3); g.beginPath(); g.moveTo(x+Math.cos(a)*r0,y+Math.sin(a)*r0); g.lineTo(x+Math.cos(a)*r*0.97,y+Math.sin(a)*r*0.97); g.stroke();}
+}
+
 /* ---------- sound buttons ---------- */
 const sfx=CrackSound;
 const sndBtns=[...document.querySelectorAll('.snd')];
@@ -871,7 +1019,7 @@ function reset(){
   bestAtStart=best; bestStreakAtStart=bestStreak; newBestShown=false;
   input.latch=0; input.down=false; input.id=null; input.key=null;
   kinks=[]; curPose=clonePose(POSES[6]); camFlinch=0; xrayUntil=0; xrayJ=-1; clearTexts(); idleTexted=false;
-  lastStepAt=performance.now()/1000; nextAmbient=lastStepAt+30; bot.active=false; bot.next=0;
+  lastStepAt=performance.now()/1000; nextAmbient=lastStepAt+30; bot.active=false; bot.next=0; ambientReset(lastStepAt);
   sfx.wind(0);
   clearMsgs();
   updateHUD();
@@ -932,7 +1080,7 @@ function land(now){
   let got=false, leafy=false, gum=false;
   for(const sl of near){
     const cp=sl.coupon; if(cp&&!cp.taken&&psd(cp.x,cp.d,f.x,ay,f.x,by)<R+0.24){cp.taken=true; cp.tt=now; got=true;}
-    for(const L of sl.leaves) if(psd(L.x,L.d,f.x,ay,f.x,by)<R+L.s*0.35){leafy=true; break;}
+    for(const L of sl.leaves.concat(sl.fallen||[])) if(psd(L.x,L.d,f.x,ay,f.x,by)<R+L.s*0.35){leafy=true; break;}
     for(const gm of sl.gum) if(psd(gm.x,gm.d,f.x,ay,f.x,by)<R+gm.r){gum=true; break;}
   }
   if(drop.giant){sfx.giantLand(); kick(5);}
@@ -1149,6 +1297,7 @@ window.addEventListener('blur',()=>{input.down=false; input.id=null; input.key=n
 function update(dt,now){
   if(mode==='paused'){if(camFlinch>0) camFlinch=Math.max(0,camFlinch-dt*2.2); return;}
   if(mode==='title') botUpdate(now);
+  ambientUpdate(dt,now);
   if(phase==='idle'&&input.latch){const s=input.latch; input.latch=0; beginSwing(s,now);}
   if(phase==='swing'){
     const speed=(sw.dmax-sw.dmin)/(swingTime(slabIdx(front.d))*(sw.giant?1.35:1));
@@ -1197,7 +1346,9 @@ function render(now){
   if(shake>0.3) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake*0.6);
   const lo=slabIdx(camD-(Hc-yAnchor)/K), hi=slabIdx(camD+yAnchor/K);
   for(let i=hi;i>=lo;i--){const sl=slabs.get(i); if(!sl) continue; const c=getTile(sl); ctx.drawImage(c,0,Y((i+1)*S),Wc,c.height/dpr);}
-  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawFeet();
+  drawFallen(lo,hi); drawAnts(now,lo,hi);
+  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(); drawFeet();
+  drawFalling(); drawCloud();
   drawCam(now);
 }
 let lastT=performance.now();
