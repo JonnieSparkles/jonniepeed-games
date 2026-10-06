@@ -19,11 +19,11 @@ const TAP=0.16, TAP_STRIDE=1.35, TAP_GIANT=2.7;  // let go within TAP seconds an
 const GIANT={dmax:3.6,lat:2.2}, GIANT_MAX=3, STREAK_EVERY=10;
 const STAGE_START=[0,6,14,24,34];
 const STAGES=[
-  {name:'Maple Ave',  note:'fresh pour',      stamp:'MAPLE AVE · 2024',  T:0.8},
-  {name:'Linden St',  note:'hairline cracks', stamp:'LINDEN ST · 1998',  T:0.7},
-  {name:'Oak St',     note:'root heave',      stamp:'OAK ST · 1971',     T:0.6},
-  {name:'Old Mill Rd',note:'old flagstone',   stamp:'OLD MILL RD · 1923',T:0.52},
-  {name:'Quarry Ln',  note:'condemned',       stamp:'QUARRY LN · 1938',  T:0.46}
+  {name:'Maple Ave',  note:'fresh pour',      stamp:'MAPLE AVE · 2024',  T:0.72},
+  {name:'Linden St',  note:'hairline cracks', stamp:'LINDEN ST · 1998',  T:0.63},
+  {name:'Oak St',     note:'root heave',      stamp:'OAK ST · 1971',     T:0.54},
+  {name:'Old Mill Rd',note:'old flagstone',   stamp:'OLD MILL RD · 1923',T:0.47},
+  {name:'Quarry Ln',  note:'condemned',       stamp:'QUARRY LN · 1938',  T:0.42}
 ];
 const MOMTXT=['',
   'Is technically flooring now.',
@@ -45,7 +45,7 @@ function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const slabIdx=d=>Math.floor(d/S);
 function stageOf(i){let s=0;for(let j=1;j<5;j++) if(i>=STAGE_START[j]) s=j;return s;}
-function swingTime(i){const s=stageOf(i);return s<4?STAGES[s].T:Math.max(0.36,0.46-(i-STAGE_START[4])*0.003);}
+function swingTime(i){const s=stageOf(i);return s<4?STAGES[s].T:Math.max(0.33,0.42-(i-STAGE_START[4])*0.003);}
 
 /* ---------- geometry ---------- */
 function psd(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=t<0?0:t>1?1:t;const qx=ax+t*dx-px,qy=ay+t*dy-py;return Math.sqrt(qx*qx+qy*qy);}
@@ -432,7 +432,7 @@ function drawChalk(g,c,sl,d0,tx,ty){
   }
   if(sl.chalk==='howto'){
     let fs=0.46*K; const font=f=>`${f}px "Schoolbell", cursive`;
-    const lines=coarse?['left side: left foot','right side: right foot','tap to walk, hold to aim']:['A or left half: left foot','D or right half: right foot','tap to walk, hold to aim'];
+    const lines=coarse?['left side: left foot','right side: right foot','tap to walk, hold and slide to aim']:['A or left half: left foot','D or right half: right foot','tap to walk, hold and slide to aim'];
     h.font=font(fs); const w=Math.max(...lines.map(s=>h.measureText(s).width)); fs*=Math.min(1,4.2*K/w); h.font=font(fs);
     h.textAlign='center'; h.fillStyle='#f4e27a';
     lines.forEach((s,j)=>h.fillText(s,tx(2.5),ty(d0+3.75-j*0.95)));
@@ -469,8 +469,8 @@ function drawShoe(px,py,sc,side,shadowA){
   ctx.stroke();
   ctx.restore(); ctx.restore();
 }
-function drawLeg(sx,sy,sc,hx,hy){
-  const hw=0.235*K*sc, hemY=sy+0.17*K*sc, hipW=0.85*K;
+function drawLeg(sx,sy,sc,hx,hy,shoeSc=sc){
+  const hw=0.235*K*sc, hemY=sy+0.17*K*shoeSc, hipW=0.85*K;
   const gr=ctx.createLinearGradient(Math.min(sx-hw,hx-hipW),0,Math.max(sx+hw,hx+hipW),0);
   gr.addColorStop(0,'#22261d'); gr.addColorStop(0.45,'#40463a'); gr.addColorStop(1,'#20231b');
   const hem=()=>{ctx.moveTo(sx-hw,hemY+0.03*K); ctx.quadraticCurveTo(sx,hemY-0.09*K*sc,sx+hw,hemY+0.03*K);};
@@ -513,9 +513,10 @@ function drawFeet(){
       x=drop.fx+(drop.x-drop.fx)*s; d=drop.fd+(drop.d-drop.fd)*s; lift=Math.max(drop.fl*(1-e),Math.sin(Math.PI*e)*(drop.giant?0.9:0.6));
     }
     else {const e=Math.min(1,drop.t/drop.dur), ee=e*e; x=drop.fx+(drop.x-drop.fx)*ee; d=drop.fd+(drop.d-drop.fd)*ee; lift=drop.fl*(1-ee);}
+    // the shoe swells as it comes up toward you; the trouser leg much less, so it doesn't swallow the other foot
     const sc=1+0.7*lift, yy=Y(d-LIFT*lift);
     drawShoe(X(x),yy,sc,air.side,1-lift);
-    drawLeg(X(x),yy,sc,hipX(air),hy);
+    drawLeg(X(x),yy,1+0.2*lift,hipX(air),hy,sc);
   }
 }
 
@@ -873,9 +874,15 @@ function dadUpdate(dt){
       hp++; kinks.pop(); updateHUD(); sfx.backpop();
       say("Dad walked on Mom's back.",'Something popped back in.',1600);
       momText(T.healed);
-    }
+    } else if(mode==='play'&&hp===MAXHP) bankGiant("Dad walked on Mom's back.");
   }
   if(dadA.t>=2.75){dadA.on=false; camLabel();}
+}
+// a fix Mom doesn't need becomes a giant step
+function bankGiant(title){
+  if(giant<GIANT_MAX){giant++; say(title,"She was already fine. Giant step instead.",1600); sfx.earn();}
+  else say(title,"She's fine and your giant steps are full.",1400);
+  updateHUD();
 }
 
 /* ---------- the family group chat ---------- */
@@ -894,6 +901,7 @@ const T={
   healed:["your father walked on me. something went back in","ok that helped. tell him to wipe his feet","one notch less folded. thank your father","he does this every christmas"],
   giant:["was that a giant step. my knees heard it","I said yes but I didn't mean it like THAT","show off"],
   coupon:["is that a chiropractor coupon. bring it home. don't fold it","ooh. coupon. tape it to my back","unfolding one notch. thank you"],
+  couponFine:["a coupon? I'm fine. use it on your legs","save it. you'll need it on quarry ln"],
   snap:["don't stretch like that. that's how this started for me","you looked just like me for a second","hamstrings aren't free sweetie"],
   dog:["is that the kowalski dog","tell that dog I said no","RUN. I'm serious","that dog has never liked our family"],
   stage:{1:["linden st. your grandmother cracked her hip there in 1998"],2:["oak st?? the ROOTS. I'm bracing"],3:["old mill rd is all flagstone. so many lines. so many spines"],4:["quarry ln. I'm updating my will. you get the heating pad"]},
@@ -953,7 +961,7 @@ function dogUpdate(dt,now){
   dog.yaps=dog.yaps.filter(y=>now-y.t<0.7);
   if(dog.state==='off'){
     if(phase==='idle'&&now-lastStepAt>dawdleLimit()){
-      dog.on=true; dog.state='chase'; dog.side=Math.random()<0.5?-1:1; dog.d=heelD()-3.8; dog.x=bodyX+dog.side*1.2; dog.since=steps; dog.yapAt=0;
+      dog.on=true; dog.state='chase'; dog.side=Math.random()<0.5?-1:1; dog.d=heelD()-3.8; dog.x=bodyX+dog.side*1.2; dog.since=fwdSteps; dog.yapAt=0;
     }
     return;
   }
@@ -965,7 +973,7 @@ function dogUpdate(dt,now){
       dog.yapAt=now+0.22+Math.max(0,dog.gap)*0.3; sfx.yap(dog.side*0.4);
       dog.yaps.push({t:now,x:dog.x+(Math.random()-0.5)*0.5,d:dog.d+0.35});
     }
-    if(steps-dog.since>=2){dog.state='leave'; dog.leaveT=0;}
+    if(fwdSteps-dog.since>=2){dog.state='leave'; dog.leaveT=0;}
     else if(dog.gap<=0&&(phase==='idle'||phase==='swing')){nip(now); dog.state='leave'; dog.leaveT=0;}
   } else {
     dog.leaveT+=dt; dog.x+=dog.side*3.4*dt; dog.d-=0.5*dt; dog.gap=9;
@@ -1033,6 +1041,7 @@ let falling=[], squirrel=null, cloud=null, nextLeaf=0, nextSquirrel=0, nextCloud
 function ambientReset(now){
   falling=[]; squirrel=null; cloud=null;
   nextLeaf=now+1.5; nextSquirrel=now+10+Math.random()*10; nextCloud=now+18+Math.random()*25; nextMower=now+25+Math.random()*40;
+  soundscapeReset(now);
 }
 function ambientUpdate(dt,now){
   const st=stageOf(slabIdx(front.d));
@@ -1075,6 +1084,34 @@ function ambientUpdate(dt,now){
   if(cloud){cloud.x+=cloud.v*dt; if(cloud.x>1.7) cloud=null;}
   // somebody is mowing a lawn a few houses over (the quieter streets only)
   if(now>nextMower){nextMower=now+70+Math.random()*60; if(st<=2) sfx.mower();}
+  soundscape(now,st);
+}
+// What you can hear changes street by street: kids and doves on Maple Ave, traffic and horns
+// further on, crows and a jackhammer by Quarry Ln. Seconds between each: [least, plus up to]. null: never here.
+const SCAPE=[
+  {kids:[7,9],   car:[16,16], horn:null,    dove:[25,25], truck:[40,40], crow:null,    hammer:null},
+  {kids:[10,12], car:[11,12], horn:[35,30], dove:[30,30], truck:[70,50], crow:null,    hammer:null},
+  {kids:[18,18], car:[8,9],   horn:[20,20], dove:null,    truck:null,    crow:[28,28], hammer:null},
+  {kids:null,    car:[7,8],   horn:[15,15], dove:null,    truck:null,    crow:[18,18], hammer:[28,22]},
+  {kids:null,    car:[9,10],  horn:[13,13], dove:null,    truck:null,    crow:[12,12], hammer:[16,16]}];
+let nextSnd={};
+function soundscapeReset(now){nextSnd={kids:now+4,car:now+7,horn:now+14,dove:now+12,truck:now+30+Math.random()*25,crow:now+9,hammer:now+10};}
+function soundscape(now,st){
+  if(!sfx.c||mode==='over') return;
+  const sc=SCAPE[st], side=()=>Math.random()<0.5?-1:1;
+  for(const k in nextSnd){
+    if(now<nextSnd[k]) continue;
+    const r=sc[k]; nextSnd[k]=now+(r?r[0]+Math.random()*r[1]:6);
+    if(!r) continue;
+    const pan=side()*(0.35+Math.random()*0.5);
+    if(k==='kids') sfx.kids(pan);
+    else if(k==='car') sfx.carBy(side(),Math.min(1,0.25+st*0.2));
+    else if(k==='horn') sfx.horn(pan);
+    else if(k==='dove') sfx.dove(pan);
+    else if(k==='truck') sfx.truck(side());
+    else if(k==='crow') sfx.crow(pan);
+    else if(k==='hammer') sfx.hammer(pan);
+  }
 }
 function drawFallen(lo,hi){
   for(let i=lo;i<=hi;i++){const sl=slabs.get(i); if(sl&&sl.fallen) for(const L of sl.fallen) drawLeaf(ctx,X(L.x),Y(L.d),L.s*K,L.a,L.c,L.t);}
@@ -1248,6 +1285,7 @@ function syncGiant(){gcountEl.textContent=giant; giantBtn.setAttribute('aria-pre
 // mode: title (a demo walk runs behind the title) | play | paused | over
 // phase: what the feet are doing: idle | swing | drop | over
 let mode='title';
+let far=0, fwdSteps=0;
 let phase='idle', feet=[], front=null, back=null, sw=null, drop=null, hp=MAXHP, steps=0, camD=0, bodyX=2.5, lastStage=0, hitFx=[], puffs=[], shake=0;
 let streak=0, runStreak=0, giant=1, armed=false, tStart=null, tEnd=null, lastTs='', runResult=null;
 let best=0, bestStreak=0, bestAtStart=0, bestStreakAtStart=0, newBestShown=false;
@@ -1287,7 +1325,7 @@ function reset(){
   slabs.set(-2,buildSlab(-2,seedBase+11,0)); slabs.set(-1,buildSlab(-1,seedBase+13,0));
   frontier=[{x:front.x,d:front.d},{x:back.x,d:back.d}]; genNext=0; ensureSlabs(4);
   stopWobble();
-  phase='idle'; sw=null; drop=null; hp=MAXHP; steps=0; camD=front.d; bodyX=2.5; lastStage=0; hitFx=[]; puffs=[]; shake=0;
+  phase='idle'; sw=null; drop=null; hp=MAXHP; steps=0; far=front.d; fwdSteps=0; camD=front.d; bodyX=2.5; lastStage=0; hitFx=[]; puffs=[]; shake=0;
   streak=0; runStreak=0; giant=2; armed=false; tStart=null; tEnd=null; lastTs=''; timeEl.textContent='0:00';
   bestAtStart=best; bestStreakAtStart=bestStreak; newBestShown=false;
   clearInput();
@@ -1315,7 +1353,7 @@ giantBtn.addEventListener('click',e=>{if(!e.detail) toggleGiant();});
 // The lifted foot is measured from the one still planted (sw.other).
 // Feet keep to their own side: they never cross, and side by side they keep a gap.
 function sideClamp(x,ahead){
-  const o=sw.other, gap=Math.abs(ahead)<1.06?0.5:0.18;
+  const o=sw.other, gap=Math.abs(ahead)<1.06?0.6:0.45;
   x=sw.foot.side<0?Math.min(x,o.x-gap):Math.max(x,o.x+gap);
   return clamp(x,R+0.05,WS-R-0.05);
 }
@@ -1343,12 +1381,15 @@ function upgradeSwing(){
   armed=false; syncGiant();
   sayNow('Giant step!',was?'Saved yourself.':'Mother, may I? Yes.',1000); sfx.arm();
 }
-// the tap: a normal stride ahead of the other foot, keeping roughly to its own lane
+// the tap: a normal stride ahead of the other foot at a normal stance width,
+// drifting back toward the middle of the sidewalk so a run of taps walks straight
 function tapStep(){
   stopWobble();
   const f=sw.foot, o=sw.other, side=f.side;
   const ahead=Math.min(sw.dmax-0.1,Math.max(sw.ahead,sw.giant?TAP_GIANT:TAP_STRIDE));
-  let x=side<0?clamp(sw.ex,o.x-1.3,o.x-0.6):clamp(sw.ex,o.x+0.6,o.x+1.3);
+  let x=o.x+side*0.95;
+  x+=(WS/2-(x+o.x)/2)*0.3;
+  x=side<0?clamp(x,o.x-1.35,o.x-0.6):clamp(x,o.x+0.6,o.x+1.35);
   x=clamp(x,R+0.05,WS-R-0.05);
   const d=o.d+ahead, dist=Math.hypot(x-sw.dx,d-sw.dd);
   drop={foot:f,x,d,t:0,dur:0.09+dist*0.022,fx:sw.dx,fd:sw.dd,fl:sw.lift,giant:sw.giant,tap:true};
@@ -1380,6 +1421,8 @@ function land(now){
   puffs.push({x:f.x,d:f.d,t:now,r:Math.random()*6,s:drop.giant?2:1});
   if(mode!=='play') return;                       // the title screen's demo walk counts nothing
   steps++;
+  // only a step that takes you somewhere new counts toward the clean streak
+  const fwd=f.d>far+0.3; if(f.d>far) far=f.d;
   const ay=f.d-0.5+R, by=f.d+0.5-R;
   const near=slabsNear(f.d), hits=footHits(f.x,f.d,near);
   let got=false, leafy=false, gum=false;
@@ -1410,18 +1453,25 @@ function land(now){
       else sfx.step();
     } else momText(T.giant,{chance:0.6});
     if(footHits(f.x,f.d,near,0.1).length){camFlinch=Math.max(camFlinch,0.55); momText(T.near,{chance:0.35});}
-    streak++; if(streak>runStreak) runStreak=streak;
-    if(streak%STREAK_EVERY===0){
-      // clean streaks fix Mom: Dad walks on her back. If she's already fine, you get a giant step
-      pop(streakEl); sfx.earn();
-      if(hp<MAXHP&&!dadA.on){startDad(); say(`${streak} clean.`,'Dad is on his way.',1300);}
-      else if(giant<GIANT_MAX){giant++; say('Giant step earned.',`${streak} clean in a row.`,1500); momText(T.streak,{chance:0.5});}
-      else say(`${streak} clean.`,'Giant steps full.',1200);
-    } else if(streak%5===0){pop(streakEl); sfx.chime(streak/5);}
+    // shuffling in place is safe, but only steps forward count toward Dad
+    if(fwd){
+      streak++; if(streak>runStreak) runStreak=streak;
+      if(streak%STREAK_EVERY===0){
+        // clean streaks fix Mom: Dad walks on her back. If she's already fine, you get a giant step
+        pop(streakEl); sfx.earn();
+        if(hp<MAXHP&&!dadA.on){startDad(); say(`${streak} clean.`,'Dad is on his way.',1300);}
+        else if(giant<GIANT_MAX){giant++; say('Giant step earned.',`${streak} clean in a row.`,1500); momText(T.streak,{chance:0.5});}
+        else say(`${streak} clean.`,'Giant steps full.',1200);
+      } else if(streak%5===0){pop(streakEl); sfx.chime(streak/5);}
+    }
   }
-  if(got&&hp>0){momText(T.coupon); if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500);} else say('Chiropractor coupon.',"Mom's fine. You keep it.",1300); sfx.paper();}
+  if(got&&hp>0){
+    sfx.paper();
+    if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500); momText(T.coupon);}
+    else {bankGiant('Chiropractor coupon.'); momText(T.couponFine);}
+  }
   updateHUD();
-  lastStepAt=now; idleTexted=false;
+  if(fwd){lastStepAt=now; idleTexted=false; fwdSteps++;}   // and to the chihuahua, shuffling is dawdling
   if(hp<=0){gameOver(now); return;}
   const st=stageOf(slabIdx(front.d));
   if(st>lastStage){lastStage=st; say(STAGES[st].name,STAGES[st].note,2000,true); sfx.car(); sfx.wind(st); momText(T.stage[st]);}

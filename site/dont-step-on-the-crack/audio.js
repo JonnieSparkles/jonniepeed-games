@@ -166,6 +166,103 @@ const CrackSound = {
     o.connect(f); n.connect(nf); nf.connect(ng); ng.connect(f); f.connect(g); g.connect(this.out(pan));
     o.start(t); wob.start(t); n.start(t); o.stop(t + dur); wob.stop(t + dur); n.stop(t + dur);
   },
+
+  // ---- the neighborhood you hear but never see (plays on the title screen too)
+  // a held note with a flat top, for horns
+  hold(f, dur, peak, type, when, pan, lp) {
+    if (!this.c || !this.on) return;
+    const c = this.c, t = c.currentTime + when, o = c.createOscillator(), g = c.createGain(), fl = c.createBiquadFilter();
+    o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = lp;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 0.025); g.gain.setValueAtTime(peak, t + dur - 0.04); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(fl); fl.connect(g); g.connect(this.out(pan)); o.start(t); o.stop(t + dur + 0.05);
+  },
+  // something voice-like: a buzzy tone through two vowel formants, muffled by distance
+  voice(f0, f1, dur, peak, vowel, when, pan, fs = 1.18) {
+    if (!this.c || !this.on) return;
+    const c = this.c, t = c.currentTime + when, o = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter();
+    const F = { a: [850, 1600], e: [480, 2300], o: [520, 950], u: [380, 850] }[vowel];
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    for (const [fq, k] of [[F[0], 1], [F[1], 0.55]]) {
+      const b = c.createBiquadFilter(), bg = c.createGain(); b.type = 'bandpass'; b.frequency.value = fq * fs; b.Q.value = 5; bg.gain.value = k;
+      o.connect(b); b.connect(bg); bg.connect(g);
+    }
+    lp.type = 'lowpass'; lp.frequency.value = 2600;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + Math.min(0.05, dur * 0.3)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.connect(lp); lp.connect(this.out(pan)); o.start(t); o.stop(t + dur + 0.05);
+  },
+  // kids playing a few yards over: whoops, a laugh, a squeal, sometimes a ball
+  kids(pan) {
+    const n = 3 + (Math.random() * 4 | 0), P = d => Math.max(-0.9, Math.min(0.9, pan + d));
+    for (let i = 0; i < n; i++) {
+      const w = Math.random() * 1.8, p = P((Math.random() - 0.5) * 0.4), f = 300 + Math.random() * 250, r = Math.random();
+      if (r < 0.4) this.voice(f, f * (1.3 + Math.random() * 0.4), 0.22 + Math.random() * 0.25, 0.09, 'u', w, p);
+      else if (r < 0.7) this.voice(f * 1.25, f * 0.85, 0.3 + Math.random() * 0.3, 0.08, 'a', w, p);
+      else if (r < 0.88) for (let k = 0; k < 4; k++) this.voice(f * (1.15 - k * 0.05), f * (1.05 - k * 0.05), 0.08, 0.07, 'a', w + k * 0.12, p);
+      else this.voice(f * 2.1, f * 2.7, 0.2, 0.05, 'e', w, p);
+    }
+    if (Math.random() < 0.35) { let w = 0.4, gap = 0.42; for (let k = 0; k < 5; k++) { this.tone(150, 85, 0.07, 0.07 * (1 - k * 0.16), 'sine', w, { pan, always: true }); w += gap; gap *= 0.7; } }
+  },
+  // a car going by on the cross street; loud is 0..1
+  carBy(dir, loud) {
+    if (!this.c || !this.on) return;
+    const c = this.c, t = c.currentTime, dur = 2.6 + Math.random() * 1.6, mid = t + dur * 0.5, f0 = 55 + Math.random() * 30;
+    const o = c.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0 * 1.06, t); o.frequency.setValueAtTime(f0 * 1.06, mid - 0.2); o.frequency.exponentialRampToValueAtTime(f0 * 0.93, mid + 0.3);
+    const of = c.createBiquadFilter(); of.type = 'lowpass'; of.frequency.value = 240;
+    const n = c.createBufferSource(); n.buffer = this.nb; n.loop = true;
+    const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.Q.value = 0.7;
+    nf.frequency.setValueAtTime(380, t); nf.frequency.exponentialRampToValueAtTime(950, mid); nf.frequency.exponentialRampToValueAtTime(330, t + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.014 + 0.036 * loud, mid); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(of); of.connect(g); n.connect(nf); nf.connect(g);
+    if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.setValueAtTime(-0.85 * dir, t); p.pan.linearRampToValueAtTime(0.85 * dir, t + dur); g.connect(p); p.connect(this.master); }
+    else g.connect(this.master);
+    o.start(t); n.start(t, Math.random()); o.stop(t + dur + 0.05); n.stop(t + dur + 0.05);
+  },
+  // somebody leaning on a horn a block away: two quick honks or one long one
+  horn(pan) {
+    const f = 370 + Math.random() * 90, pat = Math.random() < 0.55 ? [[0, 0.15], [0.23, 0.17]] : [[0, 0.45 + Math.random() * 0.5]];
+    for (const [w, d] of pat) for (const k of [1, 1.25]) this.hold(f * k, d, 0.011, 'square', w, pan, 1300);
+  },
+  // the ice cream truck, wandering past with its little tune (original, not a real truck's)
+  truck(dir) {
+    if (!this.c || !this.on) return;
+    const c = this.c, t0 = c.currentTime + 0.05, beat = 0.19;
+    const mel = [76, 79, 84, 79, 81, 79, 76, 72, 74, 76, 77, 81, 79, 0, 0, 0, 76, 79, 84, 79, 81, 84, 83, 81, 79, 76, 74, 77, 76, 72, 0, 0];
+    const loops = 3, total = mel.length * beat * loops;
+    const bus = c.createGain(), spk = c.createBiquadFilter();
+    bus.gain.setValueAtTime(0.0001, t0); bus.gain.exponentialRampToValueAtTime(1, t0 + total * 0.5); bus.gain.exponentialRampToValueAtTime(0.0001, t0 + total);
+    spk.type = 'bandpass'; spk.frequency.value = 1500; spk.Q.value = 0.9;               // a small tinny speaker on the roof
+    bus.connect(spk);
+    if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.setValueAtTime(-0.8 * dir, t0); p.pan.linearRampToValueAtTime(0.8 * dir, t0 + total); spk.connect(p); p.connect(this.master); }
+    else spk.connect(this.master);
+    const wob = c.createOscillator(), wg = c.createGain(); wob.frequency.value = 5; wg.gain.value = 14; wob.connect(wg); wob.start(t0); wob.stop(t0 + total + 0.5);
+    for (let L = 0; L < loops; L++) mel.forEach((m, i) => {
+      if (!m) return;
+      const t = t0 + (L * mel.length + i) * beat, f = 440 * Math.pow(2, (m - 69) / 12);
+      for (const [k, type, pk] of [[1, 'square', 0.03], [2, 'sine', 0.02]]) {
+        const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f * k; wg.connect(o.detune);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(pk, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.6);
+        o.connect(g); g.connect(bus); o.start(t); o.stop(t + beat * 1.7);
+      }
+    });
+  },
+  // a mourning dove on a wire: coo-OO-oo, oo, oo
+  dove(pan) {
+    const o = { pan, always: true, att: 0.09 };
+    this.tone(480, 520, 0.32, 0.02, 'sine', 0, o); this.tone(560, 470, 0.5, 0.026, 'sine', 0.38, o);
+    this.tone(470, 440, 0.38, 0.018, 'sine', 1.05, o); this.tone(470, 440, 0.38, 0.016, 'sine', 1.6, o);
+  },
+  // crows, for the rougher streets
+  crow(pan) {
+    const n = 2 + (Math.random() * 2 | 0);
+    for (let i = 0; i < n; i++) { const w = i * (0.4 + Math.random() * 0.12); this.voice(600, 450, 0.25, 0.1, 'a', w, pan, 1.4); this.noise(0.22, 'bandpass', 1400, 2, 0.025, w, { pan, always: true }); }
+  },
+  // a jackhammer somewhere on Quarry Ln
+  hammer(pan) {
+    const runs = 1 + (Math.random() * 2 | 0); let w = 0;
+    for (let r = 0; r < runs; r++) { const n = 14 + (Math.random() * 14 | 0); for (let i = 0; i < n; i++) this.noise(0.03, 'bandpass', 650 + Math.random() * 300, 1.2, 0.15, w + i * 0.052, { pan, always: true }); w += n * 0.052 + 0.5 + Math.random() * 0.6; }
+  },
+
   // a message landing in the family chat; each person pings at their own pitch
   ping(k = 1) { this.tone(1568 * k, 1570 * k, 0.09, 0.045, 'triangle'); this.tone(2093 * k, 2095 * k, 0.12, 0.035, 'triangle', 0.08); },
   ring() { for (const w of [0, 0.55]) { this.tone(440, 440, 0.42, 0.09, 'sine', w); this.tone(480, 480, 0.42, 0.09, 'sine', w); this.tone(115, 115, 0.42, 0.035, 'sawtooth', w); } },
