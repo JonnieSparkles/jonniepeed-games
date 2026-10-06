@@ -107,7 +107,7 @@ def main():
             card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
             card.screenshot(path=str(OUT / f"{slug}.png"))
             print("wrote", OUT / f"{slug}.png")
-        logo_uri = "data:image/webp;base64," + base64.b64encode((SITE / "assets" / "logo.webp").read_bytes()).decode()
+        logo_uri = "data:image/png;base64," + base64.b64encode((ROOT / "brand" / "logo.png").read_bytes()).decode()
         card.set_content(index_card().replace("{LOGO_URI}", logo_uri))
         card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
         card.screenshot(path=str(OUT / "index.png"))
