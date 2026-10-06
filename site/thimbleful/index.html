@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Thimbleful · Jonniepeed Games</title>
+<title>Thimbleful · JonniePeed Games</title>
 <meta name="description" content="Plant a seed on a sunset windowsill and catch the drips from a leaking watering can to grow it. A tiny pixel game for phone or desktop.">
 <meta name="theme-color" content="#2a2140">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Jonniepeed Games">
-<meta property="og:title" content="Thimbleful · Jonniepeed Games">
+<meta property="og:site_name" content="JonniePeed Games">
+<meta property="og:title" content="Thimbleful · JonniePeed Games">
 <meta property="og:description" content="Plant a seed on a sunset windowsill and catch the drips from a leaking watering can to grow it. A tiny pixel game for phone or desktop.">
 <meta property="og:url" content="https://jonniesparkles.github.io/jonniepeed-games/thimbleful/index.html">
 <meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/thimbleful.png">
@@ -16,7 +16,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Pixel art of a tiny explorer on a windowsill holding up a thimble to catch drips from a watering can">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Thimbleful · Jonniepeed Games">
+<meta name="twitter:title" content="Thimbleful · JonniePeed Games">
 <meta name="twitter:description" content="Plant a seed on a sunset windowsill and catch the drips from a leaking watering can to grow it. A tiny pixel game for phone or desktop.">
 <meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/thimbleful.png">
 <meta name="twitter:image:alt" content="Pixel art of a tiny explorer on a windowsill holding up a thimble to catch drips from a watering can">
@@ -29,7 +29,7 @@
 [hidden]{display:none!important}
 html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 body{margin:0}
-/* Layout: one centered column; HUD row, then a 4:3 pixel stage with its own overlay, then a one-line hint */
+/* Layout: one centered column; HUD row, 4:3 pixel stage, start card, hint. Full screen: HUD bar on top, stage fitted to the rest, card floats at the bottom */
 :root{--dusk:#2a2140;--dusk-2:#3b2f58;--cream:#f6e7c8;--muted:#b6a6cc;--sun:#f5c32c;--sun-deep:#b8861a;--drop:#7fd0ff;--display:'Silkscreen',ui-monospace,monospace;--body:'Pixelify Sans',system-ui,sans-serif;color-scheme:dark}
 html,body{background:var(--dusk);color:var(--cream)}
 body{font-family:var(--body);font-size:16px}
@@ -47,7 +47,27 @@ h1{font-family:var(--display);font-weight:400;font-size:24px;margin:0;color:var(
 .pips{display:flex;gap:4px;height:24px;align-items:center}
 .pips i{width:8px;height:10px;background:var(--drop);display:block}
 .pips i.gone{background:var(--dusk-2)}
-.stage{position:relative;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px var(--dusk-2)}
+.game{display:grid;gap:14px}
+.stage{position:relative;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px var(--dusk-2);width:min(100%,max(300px,calc((100svh - 150px) * 4 / 3)));margin-inline:auto;aspect-ratio:4/3}
+.tool{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--cream);box-shadow:none;border:2px solid var(--dusk-2);padding:8px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.tool:active{transform:none;box-shadow:none}
+.fs-ico{display:block;width:10px;height:10px;border:2px solid var(--cream)}
+.full .fs-ico{border-style:dashed}
+body.locked{overflow:hidden}
+.game.full{position:fixed;inset:0;z-index:10;background:var(--dusk);grid-template-rows:auto minmax(0,1fr);gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-right,0px) + 12px) calc(env(safe-area-inset-bottom,0px) + 10px) calc(env(safe-area-inset-left,0px) + 12px)}
+.game.full header{gap:8px 14px}
+.game.full h1{font-size:16px}
+.game.full .hud{gap:12px}
+.game.full .stat b{font-size:16px;line-height:20px}
+.game.full .tool{padding:6px 10px}
+.full .arena{container-type:size;display:grid;place-items:center;min-height:0}
+.full .arena{position:relative;touch-action:none}
+@media (orientation:portrait){.full.playing .arena::after{content:"Drag anywhere here to move";position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:var(--display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);pointer-events:none}}
+.full .stage{width:min(100cqw,calc(100cqh * 4 / 3));max-width:none}
+.full .overlay{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:grid;place-items:center;padding-inline:12px;pointer-events:none}
+.full .card{pointer-events:auto;width:min(100%,460px);background:rgba(59,47,88,.95);padding:12px 14px 14px;gap:8px}
+.full .card h2{font-size:16px}
+.full .card p{font-size:14px}
 canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:ew-resize}
 .overlay{display:grid;text-align:center}
 .card{display:grid;gap:10px;justify-items:center;background:var(--dusk-2);border-radius:10px;padding:16px 18px 18px}
@@ -65,28 +85,30 @@ button{font-family:var(--display);font-size:14px;background:var(--sun);color:var
 button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--sun-deep)}
 button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .hint{margin:0;color:var(--muted);font-size:14px}
-.snd{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--cream);box-shadow:none;border:2px solid var(--dusk-2);padding:8px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-.snd:active{transform:none;box-shadow:none}
 .snd i{display:block;width:8px;height:8px;background:var(--drop)}
 .snd[aria-pressed="false"] i{background:var(--dusk-2)}
 </style>
 </head>
 <body>
 <main>
-  <a class="back" href="../index.html"><img src="../assets/mark-pixel-dark.png" alt="" width="40" height="44">Jonniepeed Games</a>
+  <a class="back" href="../index.html"><img src="../assets/mark-pixel-dark.png" alt="" width="40" height="44">JonniePeed Games</a>
+  <section class="game" id="game" aria-label="Thimbleful">
   <header>
     <h1>Thimbleful</h1>
     <div class="hud">
       <div class="stat"><span>Caught</span><b id="score">0</b></div>
       <div class="stat"><span>Chances</span><div class="pips" id="pips"></div></div>
       <div class="stat"><span>Best</span><b id="best">0</b></div>
-      <button class="snd" id="snd" type="button" aria-pressed="true"><i aria-hidden="true"></i><span>Sound on</span></button>
+      <button class="tool snd" id="snd" type="button" aria-pressed="true"><i aria-hidden="true"></i><span>Sound on</span></button>
+      <button class="tool" id="fs" type="button"><i class="fs-ico" aria-hidden="true"></i><span>Full screen</span></button>
     </div>
   </header>
+  <div class="arena">
   <div class="stage">
     <canvas id="c" width="96" height="72" aria-label="A tiny explorer on a windowsill garden at sunset catches drips from a leaking watering can in her thimble"></canvas>
     <button id="skip" class="corner" type="button" hidden>Skip</button>
     <button id="leave" class="corner" type="button" hidden>Play</button>
+  </div>
   </div>
   <div class="overlay" id="overlay">
     <div class="card">
@@ -95,7 +117,8 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
       <div class="btns"><button id="go" type="button">Start</button><button id="watchBtn" class="ghost" type="button">Just watch</button></div>
     </div>
   </div>
-  <p class="hint" id="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, and M to mute.</p>
+  </section>
+  <p class="hint" id="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, M to mute and F for full screen.</p>
 </main>
 <script src="audio.js"></script>
 <script src="game.js"></script>

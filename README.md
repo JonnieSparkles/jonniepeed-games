@@ -1,4 +1,4 @@
-# Jonniepeed Games
+# JonniePeed Games
 
 Small browser games and pixel scenes. Plain static files, no build step.
 
@@ -8,7 +8,6 @@ Small browser games and pixel scenes. Plain static files, no build step.
 site/                   everything that gets published
   index.html            studio page: logo, pixel ident, game shelf
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
-  windowsill/           old link, redirects to thimbleful/#watch
   assets/               logo, pixel mark, thumbnails, favicons, ident.js
   assets/fonts/         Silkscreen and Pixelify Sans (SIL OFL), self-hosted
   favicon.ico
@@ -26,6 +25,9 @@ Unruggabull lives in its own repo and is linked from the shelf at https://unrugg
 ## Adding a game
 
 1. Make a folder in `site/` with an `index.html` that only uses relative paths.
+   Every game or scene needs a full screen mode and has to work in portrait, landscape and on desktop.
+   Thimbleful (`thimbleful/game.js`, "full screen" section) is the reference: Fullscreen API where it exists,
+   a fill-the-window fallback on iPhone, the stage fitted with container units, and a thumb zone in portrait.
 2. Add a 4:3 thumbnail to `site/assets/` (pixel art: 96×72 scaled 4× with nearest-neighbour).
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/index.html`.
 
@@ -51,4 +53,4 @@ Manual only. In the Actions tab, open "Deploy to GitHub Pages" and click Run wor
 
 ## License
 
-Code is MIT. The Jonniepeed Games name, logo and mark are not covered by it; see [LICENSE](LICENSE).
+Code is MIT. The JonniePeed Games name, logo and mark are not covered by it; see [LICENSE](LICENSE).

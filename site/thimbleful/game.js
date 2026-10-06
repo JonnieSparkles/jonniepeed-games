@@ -79,7 +79,7 @@ function watch() {
 }
 function leaveWatch() {
   main.classList.remove('watching'); leaveBtn.hidden = true;
-  hint.textContent = 'Drag anywhere on the scene to move. On a keyboard, use the arrow keys, and M to mute.';
+  hint.textContent = 'Drag anywhere on the scene to move. On a keyboard, use the arrow keys, M to mute and F for full screen.';
   state = 'title';
   showCard('Catch the drips', plant.planted
     ? 'Plant a new seed and catch the drips to grow it. Five spills ends the game.'
@@ -96,18 +96,51 @@ function sndLabel() { const on = !ThimbleSound.muted; snd.setAttribute('aria-pre
 snd.addEventListener('click', () => { ThimbleSound.toggle(); sndLabel(); });
 sndLabel();
 
+// ---------- full screen ----------
+// Uses the Fullscreen API where it exists; on phones without it (iPhone) the game just fills the window.
+const gameEl = $('game'), fsBtn = $('fs');
+let wakeLock = null;
+function setFull(on) {
+  gameEl.classList.toggle('full', on); document.body.classList.toggle('locked', on);
+  fsBtn.lastElementChild.textContent = on ? 'Exit full screen' : 'Full screen';
+  fsBtn.setAttribute('aria-pressed', String(on));
+  if (on && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; l.addEventListener('release', () => { wakeLock = null; }); }).catch(() => {});
+  if (!on && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+const isFull = () => gameEl.classList.contains('full');
+function toggleFull() {
+  const native = document.fullscreenElement || document.webkitFullscreenElement;
+  if (isFull()) {
+    if (native) { try { const r = (document.exitFullscreen || document.webkitExitFullscreen).call(document); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
+    setFull(false);
+  } else {
+    setFull(true);
+    const req = gameEl.requestFullscreen || gameEl.webkitRequestFullscreen;
+    if (req) { try { const r = req.call(gameEl); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
+  }
+}
+function onNativeChange() { if (!(document.fullscreenElement || document.webkitFullscreenElement) && isFull()) setFull(false); }
+document.addEventListener('fullscreenchange', onNativeChange);
+document.addEventListener('webkitfullscreenchange', onNativeChange);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && isFull() && navigator.wakeLock && !wakeLock) setFull(true); });
+fsBtn.addEventListener('click', toggleFull);
+
 // ---------- input ----------
 function toLogical(e) { const r = c.getBoundingClientRect(); return (e.clientX - r.left) / r.width * W; }
+// the whole arena takes drags, so in portrait full screen the empty space under the scene is a thumb zone
 let down = false;
-c.addEventListener('pointerdown', e => { if (state !== 'play') return; down = true; try { c.setPointerCapture(e.pointerId); } catch (_) {} target = toLogical(e); });
-c.addEventListener('pointermove', e => { if (state === 'play' && (down || e.pointerType === 'mouse')) target = toLogical(e); });
-c.addEventListener('pointerup', () => { down = false; });
-c.addEventListener('pointercancel', () => { down = false; });
+const arena = document.querySelector('.arena');
+arena.addEventListener('pointerdown', e => { if (state !== 'play' || e.target.closest('button')) return; down = true; try { arena.setPointerCapture(e.pointerId); } catch (_) {} target = toLogical(e); });
+arena.addEventListener('pointermove', e => { if (state === 'play' && (down || (e.pointerType === 'mouse' && e.target === c))) target = toLogical(e); });
+arena.addEventListener('pointerup', () => { down = false; });
+arena.addEventListener('pointercancel', () => { down = false; });
 const isL = k => k === 'ArrowLeft' || k === 'a' || k === 'A', isR = k => k === 'ArrowRight' || k === 'd' || k === 'D';
 addEventListener('keydown', e => {
   if (isL(e.key)) { keys.l = true; target = null; }
   else if (isR(e.key)) { keys.r = true; target = null; }
   else if ((e.key === 'm' || e.key === 'M') && !e.repeat) { ThimbleSound.toggle(); sndLabel(); return; }
+  else if ((e.key === 'f' || e.key === 'F') && !e.repeat && !e.metaKey && !e.ctrlKey) { toggleFull(); return; }
+  else if (e.key === 'Escape' && isFull() && !(document.fullscreenElement || document.webkitFullscreenElement)) { setFull(false); return; }
   else if (e.key === 'Escape' && state === 'watch') { leaveWatch(); go.focus(); return; }
   else if (e.key === 'Escape' && state === 'intro') { finishIntro(); return; }
   else return;
@@ -136,7 +169,9 @@ function updateIntro(dt) {
   if (intro.planted && Math.abs(can.x - CAN_HOME) < 1 && intro.t > 1.6) finishIntro();
 }
 
+let shownState = '';
 function update(dt) {
+  if (shownState !== state) { shownState = state; gameEl.classList.toggle('playing', state === 'play'); }
   time += dt; flash = Math.max(0, flash - dt); moved = false;
   for (const p of parts) { p.vy += 140 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
   parts = parts.filter(p => p.life > 0);

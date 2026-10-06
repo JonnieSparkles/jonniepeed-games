@@ -65,7 +65,7 @@ p{{font-size:32px;line-height:1.3;color:#f6e7c8}}
 .play{{font-family:'Silkscreen',monospace;font-size:20px;letter-spacing:.08em;text-transform:uppercase;color:#7fd0ff}}
 .scene{{width:672px;height:504px;image-rendering:pixelated;border-radius:16px;box-shadow:0 0 0 4px #3b2f58}}
 </style></head><body>
-<div class="txt"><div class="studio"><img src="{mark}">Jonniepeed Games</div><h1>{title}</h1><p>{tagline}</p><div class="play">{cta}</div></div>
+<div class="txt"><div class="studio"><img src="{mark}">JonniePeed Games</div><h1>{title}</h1><p>{tagline}</p><div class="play">{cta}</div></div>
 <img class="scene" src="{scene_uri}">
 </body></html>"""
 

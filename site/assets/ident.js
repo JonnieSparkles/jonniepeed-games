@@ -1,4 +1,4 @@
-// Pixel version of the Jonniepeed logo: a stick figure sends a rainbow arc across the shelf.
+// Pixel version of the JonniePeed logo: a stick figure sends a rainbow arc across the shelf.
 // Splashes land on the ground line and leave colour stains that fade. Tap or press Enter for a big splash.
 (function () {
   const cv = document.getElementById('ident');
