@@ -4,9 +4,10 @@ Shared online high score boards for Thimbleful and Don't Step on the Crack, in t
 
 Status: ready to build. Read AGENTS.md and README.md first. Every rule there still applies.
 
-## Open decision
+## Hostname
 
-- **API hostname.** `scores.sparklelabs.org` or `scores.games.sparklelabs.org`. Both work as a Worker Custom Domain on the `sparklelabs.org` Cloudflare zone. It appears in exactly two places: the `API` constant in `site/assets/leaderboard.js` and `routes` in `scores/wrangler.jsonc`. Ask Jonnie if it isn't settled.
+- **`scores.games.sparklelabs.org`**, a Worker Custom Domain on the `sparklelabs.org` Cloudflare zone. It appears in exactly two places: the `API` constant in `site/assets/leaderboard.js` and `routes` (with `custom_domain: true`) in `scores/wrangler.jsonc`.
+- Cloudflare issues the certificate for a Custom Domain itself. If attaching this two-level name ever asks for a paid certificate product, fall back to `scores.sparklelabs.org` in those same two places, and tell Jonnie.
 
 ## Architecture
 
@@ -34,6 +35,7 @@ Cloudflare D1  (one table: scores)
 - Each copy of a game sends its own `BOARD` and shows that board. Old boards stay open: old copies (for example Arweave uploads) keep submitting to them.
 - **Board `0` is the test board** for every game. Always allowed, never shown by a real game.
 - API paths are versioned (`/v1/...`). CORS allows any origin (`*`), since Arweave gateways serve from changing domains. There are no cookies or logins.
+- **Exception to "no backward compatibility":** the scores API is the one place that stays backward compatible, because copies already out there (especially Arweave uploads) can't be updated. Never rename a game ID, remove a board from `boards`, remove a `meta` key, or change the meaning of an existing `/v1/` path. Breaking changes mean a new board, or a `/v2/` path alongside `/v1/`.
 - No rate limiting, no admin UI, no countdown on initials entry. Bad scores are deleted by hand (see the guide).
 - Cheating isn't a priority. Validation only keeps data sane.
 
@@ -101,8 +103,8 @@ Field meanings (document these in the guide too, since JSON has no comments):
 - `boards`: board numbers this game accepts. `0` is always accepted on top of these.
 - `higherIsBetter`: sort direction for `score`.
 - `maxScore`: scores must be integers from 0 to this.
-- `meta`: the extra fields a game sends. Every listed key is required, must be an integer within `min`–`max`, and unknown keys are refused.
-- `tieBreak`: list of `[metaKey, "asc"|"desc"]` used when scores are equal. After those, the earlier entry wins (an arcade tie doesn't knock anyone down).
+- `meta`: the extra fields a game may send. Keys are optional, so a field added later doesn't break older copies that don't send it. A key that is sent must be an integer within `min`–`max`. Unknown keys are refused.
+- `tieBreak`: list of `[metaKey, "asc"|"desc"]` used when scores are equal. A row missing a tie-break value sorts after rows that have it (`NULLS LAST`, and the same in the JS comparator). After those, the earlier entry wins (an arcade tie doesn't knock anyone down).
 
 The Worker builds its SQL `ORDER BY` only from this file, never from request input. Meta keys are read with `json_extract(meta, '$.key')`.
 
@@ -197,21 +199,30 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 
 - Plain Node, no dependencies. Base URL from `BASE`, default `http://localhost:8787`.
 - Use only board `0`, so running it against the live Worker only touches the test board. Use random `run_id`s.
-- Cover: preflight headers; `top` on an empty board; valid submit for each game (one `touch`, one `keys`); repeated `run_id` returns the same row; `placement` for a winning score, a losing score and a score that only ties 50th (fill the board first); Crack tie-break by time; each validation error code; blocklisted name; unknown path 404.
+- Cover: preflight headers; `top` on an empty board; valid submit for each game (one `touch`, one `keys`); repeated `run_id` returns the same row; `placement` for a winning score, a losing score and a score that only ties 50th (fill the board first); Crack tie-break by time, with a row missing `time_ms` sorting last; a submit with no `meta` at all is accepted; each validation error code; blocklisted name; unknown path 404.
 - Print a pass/fail line per case and exit non-zero on any failure.
 
 ## Docs
 
-- **`docs/guides/leaderboards.md`**, the operating guide, written for Jonnie and for agents:
+The goal: an agent (or Jonnie) who has never seen this spec can add a game to the leaderboard, or change an existing game's setup, from the docs alone. After this spec is built, the docs are the source of truth, not this spec.
+
+- **`docs/guides/leaderboards.md`**, the operating guide:
   - What it is (the diagram above) and where each piece lives.
   - One-time setup: install Node and Wrangler, `wrangler login`, create the D1 database and put its ID in `wrangler.jsonc`, apply `schema.sql` to the remote database, deploy, confirm the custom domain, run the smoke test with `BASE` set to the live URL.
   - Local development: `wrangler dev`, apply the schema locally, serve `site/` on localhost so `leaderboard.js` uses the local Worker.
-  - **Adding a game to the leaderboard**: checklist (entry in `games.json`, `BOARD = 1` in the game, game-over hookup, deploy the Worker, run `check_boards.py`, then deploy the site).
-  - **Changing scoring (bump the board)**: checklist. Add the new number to `boards`, **deploy the Worker first**, then bump `BOARD` in the game, run `check_boards.py`, deploy the site.
+  - **Adding a game to the leaderboard.** A checklist plus a worked example to copy: the `games.json` entry, the `BOARD` constant, the run-start lines (`run_id`, input flag), the game-over hookup (`load`, picker, `submit`, board view), local-best key, and the `<script>` include. Order: add to `games.json`, deploy the Worker, hook up the game, run `check_boards.py`, test locally, deploy the site.
+  - **Changing an existing game.** A table of what's safe and what isn't:
+    - Safe any time, no bump: raising `maxScore`, adding a `meta` key, widening a `meta` range, changing how rows look in the game.
+    - Bump the board: anything that changes how a run scores or ranks, such as difficulty, what counts as a point, `higherIsBetter`, `tieBreak`, or lowering `maxScore`. Steps: add the new number to `boards`, **deploy the Worker first**, then bump `BOARD` in the game, run `check_boards.py`, deploy the site.
+    - Never: rename a game ID, remove a board from `boards`, remove a `meta` key, narrow a `meta` range, or change an existing `/v1/` path. Old copies depend on them. Explain the exception to "no backward compatibility" here.
   - The `games.json` field reference.
   - Deleting a bad score with `wrangler d1 execute` (example `SELECT` to find it and `DELETE ... WHERE id = ?`), and clearing the test board.
-- **README.md**: add `scores/`, `specs/` and `docs/guides/` to Layout. Add a Standards bullet: games with scores follow `docs/guides/leaderboards.md`; scoring changes bump `BOARD`, Worker first. In "Adding a game", add a step pointing to the guide's checklist.
-- **AGENTS.md**: short bullets matching the README ones, plus: run `python3 tools/check_boards.py` after touching `BOARD` or `games.json`.
+- **README.md**: add `scores/` to Layout (`specs/` and `docs/guides/` are already there). Add a Standards bullet: games with scores follow `docs/guides/leaderboards.md`, and the scores API is the one exception to "no backward compatibility". In "Adding a game", add a step pointing to the guide's checklist.
+- **AGENTS.md**: short bullets matching the README ones:
+  - Before adding scores to a game, or changing a game's scoring, `BOARD` or `scores/games.json`, read `docs/guides/leaderboards.md`.
+  - Scoring or ranking changes bump the board, Worker deployed first.
+  - The scores API stays backward compatible: never rename game IDs, remove boards or meta keys, or change `/v1/`.
+  - Run `python3 tools/check_boards.py` after touching `BOARD` or `games.json`.
 
 ## Done when
 
@@ -220,7 +231,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 - Both end screens work in portrait, landscape and desktop, including a full 50-row "See all".
 - `tools/check_boards.py` passes, and fails when a `BOARD` is changed to an unlisted number.
 - `python3 tools/stamp.py` has been run.
-- Docs updated as above.
+- Docs updated as above. Check them by following the "Adding a game" section mentally for a made-up third game: nothing should require reading this spec.
 
 ## Not in this spec (later, if wanted)
 
@@ -231,8 +242,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 
 ## Jonnie does (needs his Cloudflare account)
 
-1. Pick the API hostname (Open decision above).
-2. `wrangler login`, create the D1 database, put its ID in `scores/wrangler.jsonc`.
-3. Apply `schema.sql` to the remote database, deploy the Worker, confirm the custom domain answers.
-4. Run the smoke test against the live URL (board 0 only).
-5. Run the "Deploy to GitHub Pages" workflow.
+1. `wrangler login`, create the D1 database, put its ID in `scores/wrangler.jsonc`.
+2. Apply `schema.sql` to the remote database, deploy the Worker, confirm the custom domain answers.
+3. Run the smoke test against the live URL (board 0 only).
+4. Run the "Deploy to GitHub Pages" workflow.
