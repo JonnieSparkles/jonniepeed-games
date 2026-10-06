@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jonniepeed Games</title>
+<meta name="description" content="Small browser games and pixel scenes from Jonniepeed Games.">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta property="og:title" content="Jonniepeed Games">
+<meta property="og:description" content="Small browser games and pixel scenes.">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<style>
+/* Layout: logo hero, then a shelf of game cards (3 across on desktop, 1 on phones), then a small footer */
+:root{
+  --bg:#ffffff;--ink:#17141f;--muted:#5f5973;--line:#e8e4f0;--card:#f7f5fb;
+  --blue:#1e8fe0;--green:#5fa616;--orange:#f07a12;--pink:#e3157f;
+  --display:'Silkscreen',ui-monospace,monospace;--body:'Pixelify Sans',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16131e;--ink:#f6f2ec;--muted:#aaa3bb;--line:#2d2839;--card:#1f1a2a;--blue:#4cb0ff;--green:#8fd43c;--orange:#ff9a3d;--pink:#ff4fa8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16131e;--ink:#f6f2ec;--muted:#aaa3bb;--line:#2d2839;--card:#1f1a2a;--blue:#4cb0ff;--green:#8fd43c;--orange:#ff9a3d;--pink:#ff4fa8;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px}
+.hero{padding-block:28px 12px;display:grid;justify-items:center;gap:6px}
+.hero h1{margin:0;width:100%;display:flex;justify-content:center}
+.hero img{width:min(100%,520px);height:auto}
+.hero p{margin:0;color:var(--muted);font-size:18px;text-align:center}
+.logo-dark{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo-light{display:none}:root:not([data-theme="light"]) .logo-dark{display:block}}
+:root[data-theme="dark"] .logo-light{display:none}
+:root[data-theme="dark"] .logo-dark{display:block}
+.shelf{padding-block:8px 40px;display:grid;gap:16px}
+.shelf h2{font-family:var(--display);font-weight:400;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0;display:flex;align-items:center;gap:12px}
+.shelf h2::after{content:"";flex:1;height:2px;background:var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.card{--accent:var(--blue);display:grid;grid-template-rows:auto 1fr;background:var(--card);border:2px solid var(--line);border-radius:12px;overflow:hidden;color:inherit;text-decoration:none;transition:transform .15s ease,border-color .15s ease}
+.card:hover{transform:translateY(-3px);border-color:var(--accent)}
+.card:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.card.green{--accent:var(--green)}.card.orange{--accent:var(--orange)}
+.thumb{aspect-ratio:4/3;max-width:100%;background:var(--line)}
+.thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.thumb img.px{image-rendering:pixelated}
+.info{display:grid;align-content:start;gap:6px;padding:16px 18px 18px;min-width:0}
+.tag{justify-self:start;font-family:var(--display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.info h3{margin:0;font-family:var(--display);font-weight:400;font-size:21px;line-height:1.2;text-wrap:balance}
+.info p{margin:0;color:var(--muted);font-size:16px}
+.go{margin-top:8px;font-family:var(--display);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.ident{min-width:0}
+.ident canvas{display:block;image-rendering:pixelated;cursor:pointer;touch-action:manipulation}
+.ident canvas:focus-visible{outline:3px solid var(--pink);outline-offset:4px;border-radius:4px}
+footer{border-top:2px solid var(--line)}
+footer .wrap{display:flex;align-items:center;gap:10px;padding-block:18px 24px;color:var(--muted);font-size:14px}
+footer img{width:20px;height:22px;image-rendering:pixelated}
+.mark-dark{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mark-light{display:none}:root:not([data-theme="light"]) .mark-dark{display:block}}
+:root[data-theme="dark"] .mark-light{display:none}
+:root[data-theme="dark"] .mark-dark{display:block}
+@media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+</style>
+</head>
+<body>
+<header class="hero wrap">
+  <h1><img class="logo-light" src="assets/logo.webp" width="900" height="722" alt="Jonniepeed Games"><img class="logo-dark" src="assets/logo-dark.webp" width="900" height="722" alt="Jonniepeed Games"></h1>
+  <p>Small browser games and pixel scenes.</p>
+</header>
+<main class="shelf wrap">
+  <div class="ident"><canvas id="ident" width="120" height="48" tabindex="0" role="img" aria-label="Pixel Jonniepeed sending a rainbow across the shelf. Tap for a bigger splash."></canvas></div>
+  <h2>Games</h2>
+  <div class="grid">
+    <a class="card" href="thimbleful/index.html">
+      <div class="thumb"><img class="px" src="assets/thumb-thimbleful.png" width="384" height="288" alt="Pixel windowsill with a tiny explorer holding a thimble under a leaking watering can"></div>
+      <div class="info">
+        <span class="tag">Game · phone or desktop</span>
+        <h3>Thimbleful</h3>
+        <p>Slide a tiny explorer along the sill and catch the drips from a leaking watering can before the sill gets soaked.</p>
+        <span class="go">Play</span>
+      </div>
+    </a>
+    <a class="card orange" href="https://unruggabull.ar.io" target="_blank" rel="noopener">
+      <div class="thumb"><img src="assets/thumb-unruggabull.webp" width="768" height="576" alt="Unruggabull title screen: a bull in a red vest and sunglasses holding a blaster"></div>
+      <div class="info">
+        <span class="tag">Game · desktop</span>
+        <h3>Unruggabull: RugCo Alley</h3>
+        <p>A 2D platformer with a jumpy, blaster-toting bull and a boss fight against the Rugfather.</p>
+        <span class="go">Play at unruggabull.ar.io</span>
+      </div>
+    </a>
+    <a class="card green" href="windowsill/index.html">
+      <div class="thumb"><img class="px" src="assets/thumb-windowsill.png" width="384" height="288" alt="Pixel windowsill garden at sunset with a sunflower, a tiny explorer and a ladybug"></div>
+      <div class="info">
+        <span class="tag">Pixel scene</span>
+        <h3>Windowsill</h3>
+        <p>A looping scene of a tiny explorer's windowsill garden at sunset, with drifting clouds and a wandering ladybug.</p>
+        <span class="go">Watch</span>
+      </div>
+    </a>
+  </div>
+</main>
+<footer>
+  <div class="wrap">
+    <img class="mark-light" src="assets/mark-pixel.png" width="40" height="44" alt=""><img class="mark-dark" src="assets/mark-pixel-dark.png" width="40" height="44" alt="">
+    <span>© 2026 Jonniepeed Games</span>
+  </div>
+</footer>
+<script src="assets/ident.js"></script>
+</body>
+</html>

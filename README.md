@@ -1,0 +1,35 @@
+# Jonniepeed Games
+
+Small browser games and pixel scenes. Plain static files, no build step.
+
+## Layout
+
+```
+site/                   everything that gets published
+  index.html            studio page: logo, pixel ident, game shelf
+  thimbleful/           catch-the-drips game (phone or desktop)
+  windowsill/           animated pixel scene
+  assets/               logo, pixel mark, thumbnails, favicons, ident.js
+  assets/fonts/         Silkscreen and Pixelify Sans (SIL OFL), self-hosted
+  favicon.ico
+brand/                  source logo files, not published
+  logo.png, logo-dark.png         full logo, transparent, light and dark versions
+  mark.png, mark-dark.png         stick figure mark
+  mark-pixel*.png                 pixel-art mark (1x and 8x)
+  icon-192.png, icon-512.png, apple-touch-icon.png, favicon.ico
+  logo-animated.mp4               animated logo, 6s, no audio (for social posts)
+```
+
+Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io.
+
+## Adding a game
+
+1. Make a folder in `site/` with an `index.html` that only uses relative paths.
+2. Add a 4:3 thumbnail to `site/assets/` (pixel art: 96×72 scaled 4× with nearest-neighbour).
+3. Copy one of the cards in `site/index.html` and point it at `yourgame/index.html`.
+
+## Publishing to Arweave / ArNS
+
+- Upload the `site/` folder as one path manifest with `index.html` as the index. `brand/` stays out.
+- Links point at `folder/index.html` explicitly, because manifest paths are exact and `folder/` on its own may not resolve.
+- Everything, fonts included, is served from the folder, so nothing depends on a third-party CDN.
