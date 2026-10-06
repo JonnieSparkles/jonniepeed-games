@@ -6,6 +6,10 @@ Follow the **Standards** section in README.md on every change. In short:
 - After any change in `site/`: run `python3 tools/stamp.py`.
 - New or changed game art: run `python3 tools/og/make.py`.
 - No backward compatibility: delete old paths, no redirects.
+- Before adding scores to a game, or changing scoring, `BOARD` or `scores/games.json`, read `docs/guides/leaderboards.md`.
+- Scoring or ranking changes bump the board; deploy the Worker first.
+- The scores API stays backward compatible: never rename game IDs, remove boards or meta keys, narrow meta ranges, or change `/v1/`.
+- Run `python3 tools/check_boards.py` after touching `BOARD` or `games.json`.
 - Studio name is JonniePeed Games (capital P).
 - Don't commit or push to `main` unless the user says to in the conversation. Deliverables go in the repo, not zip files.
 - Pages deploys only by hand (workflow_dispatch). Never add automatic triggers.

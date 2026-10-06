@@ -1,0 +1,26 @@
+{
+  "thimbleful": {
+    "boards": {
+      "1": {
+        "higherIsBetter": true,
+        "maxScore": 10000,
+        "meta": { "time_ms": { "min": 0, "max": 86400000 } },
+        "tieBreak": []
+      }
+    }
+  },
+  "dont-step-on-the-crack": {
+    "boards": {
+      "1": {
+        "higherIsBetter": true,
+        "maxScore": 1000000,
+        "meta": {
+          "time_ms": { "min": 0, "max": 86400000 },
+          "steps": { "min": 0, "max": 1000000 },
+          "streak": { "min": 0, "max": 1000000 }
+        },
+        "tieBreak": [["time_ms", "asc"]]
+      }
+    }
+  }
+}

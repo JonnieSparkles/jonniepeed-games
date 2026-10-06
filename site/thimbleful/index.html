@@ -90,6 +90,29 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .hint{margin:0;color:var(--muted);font-size:14px}
 .snd i{display:block;width:8px;height:8px;background:var(--drop)}
 .snd[aria-pressed="false"] i{background:var(--dusk-2)}
+
+/* Arcade board, styled for this game's end screen. */
+#board{width:100%;min-width:0;display:grid;gap:8px;margin:6px 0 12px}
+#board h3{font-family:var(--display);font-size:18px;margin:0;color:var(--sun)}
+#board .lb-message{font-size:14px;margin:0}
+.lb-slots{display:flex;justify-content:center;gap:12px}
+.lb-slot{display:grid;gap:4px}
+#board .lb-button{font:inherit;border:1px solid var(--muted);border-radius:5px;background:var(--dusk);color:var(--cream);padding:7px 12px;min-width:44px;min-height:44px;cursor:pointer;box-shadow:none}
+#board .lb-letter{font-family:var(--display);font-size:24px}
+#board .lb-current .lb-letter{outline:2px solid var(--sun);outline-offset:1px}
+.lb-actions{display:flex;justify-content:center;gap:12px;margin-top:10px}
+.lb-input{width:18px;height:18px;vertical-align:middle}
+.lb-list{max-height:210px;max-height:min(210px,36dvh);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
+.lb-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.lb-table th{font-size:11px;font-weight:400;color:var(--muted)}
+.lb-table td,.lb-table th{padding:5px 2px;text-align:right}
+.lb-table td:nth-child(2),.lb-table th:nth-child(2){text-align:left}
+.lb-table .lb-you{background:#63512b;color:var(--cream);font-weight:bold}
+#board .lb-more{font:inherit;min-height:44px;padding:7px 12px;background:var(--dusk);color:var(--cream);border:1px solid var(--muted);border-radius:5px;cursor:pointer;box-shadow:none}
+#board button:focus-visible,.lb-list:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+#board button:disabled{opacity:.6;cursor:wait}
+
+.full .card{max-height:calc(100dvh - 100px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
 </style>
 </head>
 <body>
@@ -117,6 +140,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
     <div class="card">
       <h2 id="ovTitle">Catch the drips</h2>
       <p id="ovText">Plant the seed, then catch the drips in your thimble to make it grow. Five spills ends the game.</p>
+      <section id="board" aria-label="Online high scores" hidden></section>
       <div class="btns"><button id="go" type="button">Start</button><button id="watchBtn" class="ghost" type="button">Just watch</button></div>
       <button id="introBtn" class="link" type="button" hidden>Play with the intro</button>
     </div>
@@ -125,6 +149,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
   <p class="hint" id="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, M to mute and F for full screen.</p>
 </main>
 <script src="audio.js?v=cd567a2e80"></script>
-<script src="game.js?v=d86d27c875"></script>
+<script src="../assets/leaderboard.js?v=aa140ba9fe"></script>
+<script src="game.js?v=1efbacbc98"></script>
 </body>
 </html>

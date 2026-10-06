@@ -1,0 +1,11 @@
+{
+  "name": "jonniepeed-scores",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-06",
+  "routes": [{ "pattern": "scores.games.sparklelabs.org", "custom_domain": true }],
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "jonniepeed-scores",
+    "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+  }]
+}
