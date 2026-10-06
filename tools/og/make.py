@@ -4,7 +4,8 @@ Run from the repo root:
     python3 tools/og/make.py
 
 Needs Playwright with Chromium (pip install playwright && python3 -m playwright install chromium).
-Pixel games are captured live from their own canvas, so the cards stay in sync with the art.
+Pixel games are captured live from their own canvas, so the cards and the index thumbnails
+(site/assets/thumb-<slug>.png) stay in sync with the art.
 To add a game: add an entry to GAMES below and run the script again.
 """
 import base64
@@ -25,9 +26,8 @@ def font_uri(name):
 
 # slug, title, tagline, call to action, setup JS run on the page before capturing the canvas
 GAMES = [
-    ("thimbleful", "Thimbleful", "Catch the drips before the sill gets soaked.", "Play in your browser",
-     "document.getElementById('go').click(); score=16; el=20; hud();"),
-    ("windowsill", "Windowsill", "A tiny explorer's garden at sunset.", "Animated pixel scene", ""),
+    ("thimbleful", "Thimbleful", "Plant a seed. Catch the drips. Grow a sunflower.", "Play in your browser",
+     "introSeen=true; document.getElementById('go').click(); score=18; plant.size=18; el=20; hud();"),
 ]
 
 BASE_CSS = f"""
@@ -94,6 +94,13 @@ def main():
         scenes = {}
         for slug, title, tagline, cta, setup in GAMES:
             scenes[slug] = capture_canvas(page, slug, setup)
+            # 4x nearest-neighbour thumbnail for the index card
+            thumb = page.evaluate("""(u) => new Promise(r => { const i = new Image(); i.onload = () => {
+                const k = document.createElement('canvas'); k.width = i.width * 4; k.height = i.height * 4;
+                const x = k.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(i, 0, 0, k.width, k.height);
+                r(k.toDataURL('image/png')); }; i.src = u; })""", scenes[slug])
+            (SITE / "assets" / f"thumb-{slug}.png").write_bytes(base64.b64decode(thumb.split(",")[1]))
+            print("wrote", SITE / "assets" / f"thumb-{slug}.png")
         card = browser.new_page(viewport={"width": 1200, "height": 630})
         for slug, title, tagline, cta, _ in GAMES:
             card.set_content(game_card(scenes[slug], title, tagline, cta))

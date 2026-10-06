@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Thimbleful · Jonniepeed Games</title>
-<meta name="description" content="Catch the drips from a leaking watering can before the sill gets soaked. A tiny pixel game for phone or desktop.">
+<meta name="description" content="Plant a seed on a sunset windowsill and catch the drips from a leaking watering can to grow it. A tiny pixel game for phone or desktop.">
 <meta name="theme-color" content="#2a2140">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Jonniepeed Games">
 <meta property="og:title" content="Thimbleful · Jonniepeed Games">
-<meta property="og:description" content="Catch the drips from a leaking watering can before the sill gets soaked. A tiny pixel game for phone or desktop.">
+<meta property="og:description" content="Plant a seed on a sunset windowsill and catch the drips from a leaking watering can to grow it. A tiny pixel game for phone or desktop.">
 <meta property="og:url" content="https://jonniesparkles.github.io/jonniepeed-games/thimbleful/index.html">
 <meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/thimbleful.png">
 <meta property="og:image:width" content="1200">
@@ -17,7 +17,7 @@
 <meta property="og:image:alt" content="Pixel art of a tiny explorer on a windowsill holding up a thimble to catch drips from a watering can">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Thimbleful · Jonniepeed Games">
-<meta name="twitter:description" content="Catch the drips from a leaking watering can before the sill gets soaked. A tiny pixel game for phone or desktop.">
+<meta name="twitter:description" content="Plant a seed on a sunset windowsill and catch the drips from a leaking watering can to grow it. A tiny pixel game for phone or desktop.">
 <meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/thimbleful.png">
 <meta name="twitter:image:alt" content="Pixel art of a tiny explorer on a windowsill holding up a thimble to catch drips from a watering can">
 <link rel="icon" href="../favicon.ico" sizes="any">
@@ -49,8 +49,16 @@ h1{font-family:var(--display);font-weight:400;font-size:24px;margin:0;color:var(
 .pips i.gone{background:var(--dusk-2)}
 .stage{position:relative;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px var(--dusk-2)}
 canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:ew-resize}
-.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(42,33,64,.8);padding:16px;text-align:center}
-.card{display:grid;gap:10px;justify-items:center;max-width:34ch}
+.overlay{display:grid;text-align:center}
+.card{display:grid;gap:10px;justify-items:center;background:var(--dusk-2);border-radius:10px;padding:16px 18px 18px}
+.card p{max-width:44ch}
+.btns{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.ghost{background:transparent;color:var(--cream);box-shadow:none;border:2px solid var(--cream)}
+.ghost:active{transform:none;box-shadow:none}
+.corner{position:absolute;top:8px;right:8px;font-size:11px;padding:6px 10px;background:rgba(42,33,64,.85);color:var(--cream);box-shadow:none;border:2px solid var(--dusk-2)}
+.corner:active{transform:none;box-shadow:none}
+.watching .hud .stat{visibility:hidden}
+.watching canvas{cursor:default}
 .card h2{font-family:var(--display);font-weight:400;font-size:20px;margin:0;color:var(--sun);text-wrap:balance}
 .card p{margin:0;line-height:1.4;color:var(--cream)}
 button{font-family:var(--display);font-size:14px;background:var(--sun);color:var(--dusk);border:0;border-radius:4px;padding:10px 18px;box-shadow:0 3px 0 var(--sun-deep);cursor:pointer}
@@ -76,188 +84,20 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
     </div>
   </header>
   <div class="stage">
-    <canvas id="c" width="96" height="72" aria-label="Windowsill game: a tiny explorer catches drops from a leaking watering can in her thimble"></canvas>
-    <div class="overlay" id="overlay">
-      <div class="card">
-        <h2 id="ovTitle">Catch the drips</h2>
-        <p id="ovText">The watering can is leaking. Slide the explorer along the sill and catch each drop in her thimble. Five spills ends the game.</p>
-        <button id="go" type="button">Start</button>
-      </div>
+    <canvas id="c" width="96" height="72" aria-label="A tiny explorer on a windowsill garden at sunset catches drips from a leaking watering can in her thimble"></canvas>
+    <button id="skip" class="corner" type="button" hidden>Skip</button>
+    <button id="leave" class="corner" type="button" hidden>Play</button>
+  </div>
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2 id="ovTitle">Catch the drips</h2>
+      <p id="ovText">Plant the seed, then catch the drips in your thimble to make it grow. Five spills ends the game.</p>
+      <div class="btns"><button id="go" type="button">Start</button><button id="watchBtn" class="ghost" type="button">Just watch</button></div>
     </div>
   </div>
-  <p class="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, and M to mute.</p>
+  <p class="hint" id="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, and M to mute.</p>
 </main>
 <script src="audio.js"></script>
-<script>
-const c=document.getElementById('c'),g=c.getContext('2d');
-const W=96,H=72,MAXSPILL=5;
-const R=(a,b,w,h,k)=>{g.fillStyle=k;g.fillRect(Math.round(a),Math.round(b),w,h)};
-const P=(a,b,k)=>R(a,b,1,1,k);
-function disc(cx,cy,r,k){for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)if(i*i+j*j<=r*r+r*0.6)P(cx+i,cy+j,k)}
-const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const $=id=>document.getElementById(id);
-const scoreEl=$('score'),bestEl=$('best'),pips=$('pips'),overlay=$('overlay'),go=$('go'),ovTitle=$('ovTitle'),ovText=$('ovText');
-let best=0;try{best=+localStorage.getItem('thimbleful-best')||0}catch(e){}
-let state='ready',score=0,spills=0,el=0,ex=48,target=null,walk=0,moved=false,flash=0,time=0,dropT=1.2;
-const keys={l:false,r:false},can={x:44,tx:60};
-let drops=[],parts=[],wet=[];
-
-const sky=[[5,'#46569a'],[12,'#6767ab'],[18,'#9676b2'],[24,'#cf8ca6'],[30,'#eea78b'],[36,'#f7c88c']];
-const far=[[9,8,6],[17,6,9],[23,10,5],[33,7,8],[40,9,4],[49,6,10],[55,11,6],[66,8,7],[74,6,9],[80,7,5]];
-const near=[[9,12,3],[24,9,4],[38,14,2],[57,10,3],[72,15,3]];
-const lit=[[19,39],[35,40],[51,38],[68,41],[76,39]];
-const clouds=[[0,10,2.2],[40,16,1.4],[70,8,1.8]];
-
-function hud(){
-  scoreEl.textContent=score;bestEl.textContent=best;pips.innerHTML='';
-  for(let i=0;i<MAXSPILL;i++){const p=document.createElement('i');if(i<spills)p.className='gone';pips.appendChild(p)}
-}
-function reset(){score=0;spills=0;el=0;ex=48;target=null;dropT=1.2;drops=[];parts=[];wet=[];flash=0;hud()}
-function start(){reset();state='play';overlay.hidden=true;ThimbleSound.start()}
-function end(){
-  state='over';drops=[];ThimbleSound.over();
-  if(score>best){best=score;try{localStorage.setItem('thimbleful-best',String(best))}catch(e){}}
-  hud();
-  ovTitle.textContent='The sill is soaked';
-  ovText.textContent=`You caught ${score} drop${score===1?'':'s'}. Your best is ${best}.`;
-  go.textContent='Play again';overlay.hidden=false;go.focus();
-}
-go.addEventListener('click',start);
-const snd=$('snd');
-function sndLabel(){const on=!ThimbleSound.muted;snd.setAttribute('aria-pressed',String(on));snd.lastElementChild.textContent=on?'Sound on':'Sound off'}
-snd.addEventListener('click',()=>{ThimbleSound.toggle();sndLabel()});
-sndLabel();
-
-function toLogical(e){const r=c.getBoundingClientRect();return (e.clientX-r.left)/r.width*W}
-let down=false;
-c.addEventListener('pointerdown',e=>{down=true;try{c.setPointerCapture(e.pointerId)}catch(_){}target=toLogical(e)});
-c.addEventListener('pointermove',e=>{if(down||e.pointerType==='mouse')target=toLogical(e)});
-c.addEventListener('pointerup',()=>{down=false});
-c.addEventListener('pointercancel',()=>{down=false});
-const isL=k=>k==='ArrowLeft'||k==='a'||k==='A',isR=k=>k==='ArrowRight'||k==='d'||k==='D';
-addEventListener('keydown',e=>{
-  if(isL(e.key)){keys.l=true;target=null}
-  else if(isR(e.key)){keys.r=true;target=null}
-  else if((e.key==='m'||e.key==='M')&&!e.repeat){ThimbleSound.toggle();sndLabel();return}
-  else return;
-  if(state==='play')e.preventDefault();
-});
-addEventListener('keyup',e=>{if(isL(e.key))keys.l=false;if(isR(e.key))keys.r=false});
-
-function moveCan(dt,sp){
-  const d=can.tx-can.x;
-  if(Math.abs(d)<1)can.tx=14+Math.random()*74;
-  else can.x+=Math.sign(d)*Math.min(Math.abs(d),sp*dt);
-}
-function burst(x,y,n,spread,lift){for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*spread,vy:-lift-Math.random()*lift,life:.4})}
-
-function update(dt){
-  time+=dt;flash=Math.max(0,flash-dt);
-  for(const p of parts){p.vy+=140*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
-  parts=parts.filter(p=>p.life>0);
-  for(const w of wet)w.t-=dt;
-  wet=wet.filter(w=>w.t>0);
-  if(state!=='play'){moveCan(dt,14);moved=false;return}
-  el+=dt;ThimbleSound.intensity(el);
-  const interval=Math.max(0.48,1.45-el*0.018),fall=Math.min(56,20+el*0.55);
-  moveCan(dt,16+el*0.45);
-  const before=ex,sp=72;
-  const mv=(keys.r?1:0)-(keys.l?1:0);
-  if(mv)ex+=mv*sp*dt;
-  else if(target!==null){const d=target-ex;ex+=Math.sign(d)*Math.min(Math.abs(d),sp*1.2*dt)}
-  ex=Math.max(7,Math.min(89,ex));
-  moved=Math.abs(ex-before)>0.05;if(moved)walk+=dt;
-  dropT-=dt;
-  if(dropT<=0){drops.push({x:Math.round(can.x)-4,y:9,vy:fall});dropT=interval*(0.75+Math.random()*0.5)}
-  const mid=Math.round(ex);
-  for(const d of drops){
-    const py=d.y;d.y+=d.vy*dt;
-    if(py<38&&d.y>=38&&Math.abs(d.x-mid)<=3.5){d.done=true;score++;flash=0.3;burst(d.x,37,4,30,20);hud();ThimbleSound.catch();if(score%10===0)ThimbleSound.milestone()}
-    else if(d.y>=48){d.done=true;spills++;wet.push({x:d.x,t:3});burst(d.x,47,5,36,14);hud();if(spills>=MAXSPILL){end();break}ThimbleSound.spill()}
-  }
-  drops=drops.filter(d=>!d.done);
-}
-
-function pot(x,y,w,h){R(x-1,y+1,w+2,3,'#c8643c');R(x-1,y+1,w+2,1,'#e08a5c');R(x,y,w,1,'#3d2a1c');R(x,y+4,w,h-4,'#b0532f');R(x+w-2,y+4,2,h-4,'#8e4024');R(x+1,y+5,1,h-6,'#c8643c')}
-function leaf(x,y,dir){R(dir>0?x:x-4,y,4,2,'#5fa646');P(dir>0?x+4:x-5,y,'#5fa646');R(dir>0?x:x-3,y+1,3,1,'#4b8a37')}
-
-function scene(){
-  R(0,0,W,H,'#e7d6b8');
-  for(let j=2;j<H;j+=6)for(let i=(j%12?0:3);i<W;i+=6)P(i,j,'#dcc8a6');
-  R(6,3,84,45,'#8a5a3b');R(8,4,80,43,'#b57b52');
-  g.save();g.beginPath();g.rect(9,5,78,41);g.clip();
-  for(let s=0;s<sky.length;s++){const y0=sky[s][0],y1=s<sky.length-1?sky[s+1][0]:46;R(9,y0,78,y1-y0,sky[s][1]);if(s>0)for(let i=9;i<87;i+=2)P(i,y0-1,sky[s][1])}
-  disc(64,37,6,'#ffe0a0');disc(64,37,5,'#fff0c2');
-  for(const[x0,y,sp]of clouds){const a=9+((x0+(calm?0:time*sp))%100)-14;R(a,y,12,2,'#fde6e3');R(a+3,y-2,6,2,'#fde6e3');R(a+1,y+2,10,1,'#e8b8c8')}
-  for(const[bx,bw,bh]of far)R(bx,46-bh,bw,bh,'#6e5788');
-  for(const[lx,ly]of lit)P(lx,ly,(Math.floor(time*0.7+lx)%5)?'#ffd98a':'#6e5788');
-  for(const[bx,bw,bh]of near)R(bx,46-bh,bw,bh,'#4f3f68');
-  g.restore();
-  R(47,5,2,41,'#b57b52');R(49,5,1,41,'#8a5a3b');R(9,24,78,2,'#b57b52');R(9,26,78,1,'#8a5a3b');
-  R(4,1,88,1,'#c9a24a');R(3,0,2,3,'#a5832f');R(91,0,2,3,'#a5832f');
-  R(4,46,88,5,'#d4a06c');R(4,46,88,1,'#ecc08a');R(2,51,92,4,'#a8703f');R(2,51,92,1,'#c48a55');R(4,55,88,1,'#cbb593');
-  for(const w of wet){g.globalAlpha=Math.min(1,w.t/1.5)*0.7;R(w.x-1,48,3,1,'#7a4a28');g.globalAlpha=1}
-}
-
-function plants(){
-  const sw=calm?0:Math.sin(time*1.2);
-  const h=Math.min(24,8+Math.floor(score/2)),top=36-h;
-  const off=y=>Math.round(sw*(36-y)/22*1.6);
-  for(let y=36;y>=top;y--){R(10+off(y),y,2,1,'#4f8f3a');P(10+off(y),y,'#67a84c')}
-  for(let k=5,side=-1;36-k>top+2;k+=5,side=-side)leaf(side<0?9+off(36-k):12+off(36-k),36-k,side);
-  const fx=10+off(top);
-  if(score<6){disc(fx,top-1,1,'#5fa646');if(score>=3)P(fx,top-2,'#f5c32c')}
-  else{
-    const r=Math.min(4,2+Math.floor((score-6)/5)),fy=top-r;
-    if(r>=3)for(let k=0;k<8;k++){const a=k*Math.PI/4;P(Math.round(fx+Math.cos(a)*(r+1)),Math.round(fy+Math.sin(a)*(r+1)),'#e0a01c')}
-    disc(fx,fy,r,'#f5c32c');disc(fx,fy,Math.max(1,r-2),'#6b3f1f');if(r>=3){P(fx-1,fy-1,'#4a2a14');P(fx+1,fy,'#4a2a14')}
-  }
-  pot(5,37,11,13);
-  R(45,40,7,3,'#7fb89a');R(46,38,5,2,'#93c9ab');P(48,37,'#a8d8bd');P(45,40,'#c97b8a');P(51,40,'#c97b8a');P(47,38,'#c97b8a');
-  pot(44,43,9,7);
-  const vs=calm?0:Math.sin(time*0.9+1);
-  for(let y=41;y<=63;y++){const vx=79-Math.round((y-41)/9)+Math.round(vs*(y-41)/22*1.5);P(vx,y,'#3f7d3a');if((y-41)%4===0){const s=((y-41)/4)%2?1:-2;R(vx+s,y,2,2,'#4e9a4e');P(vx+s,y,'#6cbf5f')}}
-  pot(80,39,11,11);
-  R(80,36,4,3,'#4e9a4e');R(84,35,4,3,'#5aab55');R(87,36,4,3,'#4e9a4e');P(81,36,'#6cbf5f');P(85,35,'#6cbf5f');P(88,36,'#6cbf5f');
-}
-
-function wateringCan(){
-  const cx=Math.round(can.x);
-  P(cx+3,1,'#8f8f8f');
-  R(cx+1,2,5,1,'#4f7f90');P(cx+1,3,'#4f7f90');P(cx+5,3,'#4f7f90');
-  R(cx,4,7,5,'#6f9fb0');R(cx,4,7,1,'#9cc6d4');R(cx+5,5,2,4,'#557f8f');
-  P(cx-1,7,'#6f9fb0');P(cx-2,6,'#6f9fb0');P(cx-3,6,'#6f9fb0');R(cx-4,5,1,3,'#557f8f');
-  if(state==='play'&&dropT<0.3)P(cx-4,8,'#bfe8ff');
-}
-
-function explorer(){
-  const L=Math.round(ex)-3;
-  R(L,38,7,1,'#d4d8de');R(L+1,39,5,2,'#b8bcc4');P(L+2,39,'#8d929c');P(L+4,39,'#8d929c');P(L+3,40,'#8d929c');
-  if(flash>0)R(L+1,38,5,1,'#7fd0ff');
-  P(L,40,'#f2c9a0');P(L+6,40,'#f2c9a0');R(L,41,1,5,'#d9733b');R(L+6,41,1,5,'#d9733b');
-  R(L+2,42,3,1,'#3f8f5a');R(L+1,43,5,3,'#3f8f5a');R(L+2,44,3,2,'#f2c9a0');
-  const blink=(time%4)<0.15;
-  P(L+2,44,blink?'#f2c9a0':'#2a1f1a');P(L+4,44,blink?'#f2c9a0':'#2a1f1a');
-  R(L+1,46,5,3,'#d9733b');
-  const step=moved?Math.floor(walk*10)%2:-1;
-  R(L+2,49,1,step===0?1:2,'#3a3550');R(L+4,49,1,step===1?1:2,'#3a3550');
-}
-
-function ladybug(){
-  const per=24,ph=(time%per)/per,dir=ph<0.5?1:-1,lx=Math.round(8+(ph<0.5?ph*2:2-ph*2)*76);
-  R(lx,52,3,2,'#d23a2a');P(lx+1,52,'#1e1a1a');P(dir>0?lx+3:lx-1,53,'#1e1a1a');P(lx+((Math.floor(time*6)%2)?0:2),54,'#1e1a1a');
-}
-
-function draw(){
-  scene();plants();ladybug();wateringCan();
-  for(const d of drops){P(d.x,d.y,'#d9f3ff');P(d.x,d.y+1,'#7fd0ff')}
-  explorer();
-  for(const p of parts)P(p.x,p.y,'#9fdcff');
-}
-
-let lastT=0;
-function loop(t){const dt=Math.min(0.05,((t-lastT)/1000)||0);lastT=t;update(dt);draw();requestAnimationFrame(loop)}
-hud();requestAnimationFrame(loop);
-</script>
+<script src="game.js"></script>
 </body>
 </html>

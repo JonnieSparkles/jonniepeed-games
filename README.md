@@ -7,8 +7,8 @@ Small browser games and pixel scenes. Plain static files, no build step.
 ```
 site/                   everything that gets published
   index.html            studio page: logo, pixel ident, game shelf
-  thimbleful/           catch-the-drips game (phone or desktop)
-  windowsill/           animated pixel scene
+  thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
+  windowsill/           old link, redirects to thimbleful/#watch
   assets/               logo, pixel mark, thumbnails, favicons, ident.js
   assets/fonts/         Silkscreen and Pixelify Sans (SIL OFL), self-hosted
   favicon.ico
@@ -31,9 +31,9 @@ Unruggabull lives in its own repo and is linked from the shelf at https://unrugg
 
 ## Social previews
 
-Each page has Open Graph and Twitter tags pointing at a 1200×630 card in `site/assets/og/`. Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniesparkles.github.io/jonniepeed-games/`). Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the three pages.
+Each page has Open Graph and Twitter tags pointing at a 1200×630 card in `site/assets/og/`. Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniesparkles.github.io/jonniepeed-games/`). Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
 
-Rebuild the cards after changing a game's art or adding a game (add it to `GAMES` in the script first):
+Rebuild the cards and index thumbnails after changing a game's art or adding a game (add it to `GAMES` in the script first):
 
 ```
 python3 tools/og/make.py

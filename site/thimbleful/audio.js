@@ -88,6 +88,12 @@ window.ThimbleSound = (function () {
       tone(hz(m), t, 0.12, 'sine', 0.7, sfxBus, hz(m + 5));
       tone(hz(m + 12), t + 0.04, 0.1, 'triangle', 0.25, sfxBus);
     },
+    plant() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      noise(t, 0.08, 0.4, 900, 300, 'lowpass', sfxBus);
+      tone(hz(67), t + 0.05, 0.12, 'sine', 0.5, sfxBus, hz(74));
+    },
     milestone() {
       if (!ctx) return;
       const t = ctx.currentTime + 0.12;
