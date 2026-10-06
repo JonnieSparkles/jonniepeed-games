@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Follow the **Standards** section in README.md on every change. In short:
 
