@@ -11,14 +11,14 @@
 <meta property="og:title" content="Don't Step on the Crack · JonniePeed Games">
 <meta property="og:description" content="Walk home without stepping on a crack. Every one you land on folds Mom up a little more, live on the Mom Cam. A game for phone or desktop.">
 <meta property="og:url" content="https://jonniesparkles.github.io/jonniepeed-games/dont-step-on-the-crack/index.html">
-<meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=7f90db7ad3">
+<meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=6abe3e34e1">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Looking down at your sneakers on a cracked sidewalk, with a security-camera view of Mom folded in half in her kitchen">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Don't Step on the Crack · JonniePeed Games">
 <meta name="twitter:description" content="Walk home without stepping on a crack. Every one you land on folds Mom up a little more, live on the Mom Cam. A game for phone or desktop.">
-<meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=7f90db7ad3">
+<meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/og/dont-step-on-the-crack.png?v=6abe3e34e1">
 <meta name="twitter:image:alt" content="Looking down at your sneakers on a cracked sidewalk, with a security-camera view of Mom folded in half in her kitchen">
 <link rel="icon" href="../favicon.ico?v=443c0101ac" sizes="any">
 <link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
@@ -125,6 +125,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 @keyframes glow{from{box-shadow:0 0 0 3px rgba(222,140,54,.3),0 0 18px rgba(222,140,54,.45)}to{box-shadow:0 0 0 6px rgba(222,140,54,.15),0 0 34px rgba(222,140,54,.75)}}
 #view.titling .hud{opacity:0;transform:translateY(-14px)}
 #view.titling #giant,#view.titling #msg{opacity:0;pointer-events:none}
+/* the power-up you're wearing, and how long it has left */
+#power{position:absolute;left:calc(env(safe-area-inset-left,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:2;display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;color:#21160a;background:var(--pw,#9be15d);border-radius:999px;padding:9px 14px;white-space:nowrap;pointer-events:none;box-shadow:0 0 0 3px rgba(0,0,0,.18)}
+#power[hidden]{display:none}
+#power i{display:block;width:64px;height:7px;border-radius:4px;background:rgba(33,22,10,.25);overflow:hidden}
+#power b{display:block;height:100%;width:100%;background:#21160a;border-radius:4px}
+#power.ending{animation:blink .32s steps(2,end) infinite}
+@keyframes blink{50%{opacity:.35}}
+#view.titling #power{display:none}
 
 /* ---------- shared screen pieces ---------- */
 .screen{position:absolute;inset:0;z-index:5;display:grid;place-items:center;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:calc(env(safe-area-inset-top,0px) + 54px) calc(env(safe-area-inset-right,0px) + 20px) calc(env(safe-area-inset-bottom,0px) + 22px) calc(env(safe-area-inset-left,0px) + 20px);background:linear-gradient(180deg,rgba(14,15,11,.8),rgba(14,15,11,.5) 42%,rgba(14,15,11,.84));transition:opacity .35s ease}
@@ -226,7 +234,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .phone .stack .btn.primary{font-size:16px;padding:12px 22px}
 
 @media (prefers-reduced-motion:reduce){
-  .phone.ringing,#cam.hit,.typing i,.rec,#giant[aria-pressed="true"]{animation:none}
+  .phone.ringing,#cam.hit,.typing i,.rec,#giant[aria-pressed="true"],#power.ending{animation:none}
   #msg,.cmsg,.hud,.screen{transition:none}
   .intro *{animation:none!important}
 }
@@ -266,6 +274,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 
     <div id="msg" aria-live="polite"><div class="m"></div><div class="s"></div></div>
     <button id="giant" type="button" aria-pressed="false">Giant step <span class="gc" id="gcount">1</span></button>
+    <div id="power" hidden><span id="powName">Heelies</span><i><b id="powBar"></b></i></div>
 
     <div id="title" class="screen intro">
       <a class="studio" href="../index.html"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" width="40" height="44" alt="">JonniePeed Games</a>
@@ -281,9 +290,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
           </div>
         </section>
         <ul class="t-how">
-          <li><i class="dot d1"></i><span id="howMove">Tap the <b>left and right sides</b> in turn to walk. Hold a side to lift that foot, slide your thumb to steer it, let go to put it down.</span></li>
+          <li><i class="dot d1"></i><span id="howMove">Tap the <b>left and right sides</b> in turn to walk. Hold a side to lift that foot, slide your thumb to steer it, let go to put it down. Tap <b>both at once</b> to jump.</span></li>
           <li><i class="dot d2"></i><span>Every crack, line or pothole you land on breaks one of Mom's vertebrae. Ten clean steps in a row and <b>Dad walks on her back</b> to fix one.</span></li>
-          <li><i class="dot d3"></i><span id="howGiant">Dawdle and the Kowalskis' chihuahua comes for your heels. Overreach and your leg wobbles: hit <b>Giant step</b> to save it.</span></li>
+          <li><i class="dot d3"></i><span id="howGiant">Dawdle and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: hit <b>Giant step</b> to save it.</span></li>
         </ul>
         <div class="t-act">
           <button id="start" class="btn primary" type="button">Start walking</button>
@@ -336,7 +345,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
     </div>
   </div>
 </div>
-<script src="audio.js?v=71a0976523"></script>
-<script src="game.js?v=ea5389b5d8"></script>
+<script src="audio.js?v=5d7830a151"></script>
+<script src="game.js?v=412d939d8b"></script>
 </body>
 </html>

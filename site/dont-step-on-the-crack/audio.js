@@ -116,8 +116,8 @@ const CrackSound = {
     o.connect(f1); o.connect(f2); f1.connect(g); f2.connect(g); g.connect(lp); lp.connect(this.out(-0.5));
     o.start(t); vib.start(t); o.stop(t + dur + 0.05); vib.stop(t + dur + 0.05);
   },
-  // the chihuahua
-  yap(pan) { const f = 1150 + Math.random() * 250; this.tone(f, f * 0.66, 0.07, 0.05, 'square', 0, { pan }); this.noise(0.04, 'bandpass', 2300, 3, 0.12, 0, { pan }); },
+  // Calzone the corgi: a sharp little "arf", lower than you'd expect
+  yap(pan) { const f = 620 + Math.random() * 140; this.voice(f, f * 0.7, 0.11, 0.16, 'a', 0, pan, 1.5); this.noise(0.05, 'bandpass', 1500, 2, 0.08, 0, { pan }); },
   nip() { this.noise(0.05, 'highpass', 2500, 0.7, 0.3); this.tone(1500, 900, 0.09, 0.06, 'square', 0.02); this.tone(1700, 1100, 0.08, 0.05, 'square', 0.13); },
   // Dad on Mom's back: a run of satisfying pops, then a long relieved "ahh" from the kitchen
   backpop() {
@@ -262,6 +262,44 @@ const CrackSound = {
     const runs = 1 + (Math.random() * 2 | 0); let w = 0;
     for (let r = 0; r < runs; r++) { const n = 14 + (Math.random() * 14 | 0); for (let i = 0; i < n; i++) this.noise(0.03, 'bandpass', 650 + Math.random() * 300, 1.2, 0.15, w + i * 0.052, { pan, always: true }); w += n * 0.052 + 0.5 + Math.random() * 0.6; }
   },
+
+  // ---- things that come at you
+  // a skateboard's wheels on concrete, getting louder for dur seconds; returns a function that stops it early
+  roll(dur, pan) {
+    if (!this.live()) return () => {};
+    const c = this.c, t = c.currentTime, s = c.createBufferSource(); s.buffer = this.nb; s.loop = true;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(380, t); f.frequency.exponentialRampToValueAtTime(900, t + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + dur * 0.85); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const trem = c.createGain(); trem.gain.value = 0.6;
+    const lfo = c.createOscillator(); lfo.frequency.value = 13; const lg = c.createGain(); lg.gain.value = 0.4; lfo.connect(lg); lg.connect(trem.gain);
+    s.connect(f); f.connect(trem); trem.connect(g); g.connect(this.out(pan));
+    s.start(t, Math.random()); lfo.start(t); s.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05);
+    return () => { const n = c.currentTime; g.gain.cancelScheduledValues(n); g.gain.setTargetAtTime(0.0001, n, 0.04); };
+  },
+  // a rubber kickball hitting the ground
+  ballBounce(pan, loud) { this.tone(210, 130, 0.12, 0.12 * loud, 'sine', 0, { pan }); this.noise(0.05, 'lowpass', 500, 0.8, 0.1 * loud, 0, { pan }); },
+  // the board cracking into your ankle and clattering off
+  clack() { this.noise(0.04, 'bandpass', 1900, 2, 0.4); this.tone(320, 180, 0.08, 0.15, 'triangle'); for (let i = 1; i < 4; i++) this.noise(0.03, 'bandpass', 1500 + Math.random() * 800, 2, 0.18 / i, i * 0.11 + Math.random() * 0.03); this.scuff(); },
+  // both feet leaving the ground, and coming back down together
+  jump() { this.noise(0.22, 'bandpass', 420, 0.9, 0.12, 0, { f1: 1700, att: 0.05 }); this.tone(240, 380, 0.14, 0.06, 'triangle'); },
+  jumpLand() { this.noise(0.09, 'lowpass', 380, 0.8, 0.6); this.noise(0.08, 'lowpass', 320, 0.8, 0.45, 0.025); this.tone(90, 45, 0.18, 0.3); },
+
+  // ---- power-ups
+  // heelies: little wheels humming on concrete until stopped; returns the stop function
+  glide() {
+    if (!this.live()) return () => {};
+    const c = this.c, t = c.currentTime, s = c.createBufferSource(); s.buffer = this.nb; s.loop = true;
+    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 0.8;
+    const o = c.createOscillator(); o.type = 'triangle'; o.frequency.value = 180; const og = c.createGain(); og.gain.value = 0.25;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09, t + 0.4);
+    s.connect(f); f.connect(g); o.connect(og); og.connect(g); g.connect(this.master); s.start(t, Math.random()); o.start(t);
+    return () => { const n = c.currentTime; g.gain.cancelScheduledValues(n); g.gain.setTargetAtTime(0.0001, n, 0.08); s.stop(n + 0.5); o.stop(n + 0.5); };
+  },
+  // the wheels clicking over a joint between slabs
+  tick() { this.noise(0.025, 'bandpass', 2400, 2, 0.12); this.tone(900, 700, 0.03, 0.04, 'square'); },
+  // moon shoes: a big springy boing up, and a wobbly landing
+  boing() { this.tone(180, 620, 0.32, 0.09, 'triangle'); this.tone(360, 1240, 0.28, 0.03, 'sine', 0.02); this.noise(0.2, 'bandpass', 500, 0.9, 0.08, 0, { f1: 1800, att: 0.05 }); },
+  moonLand() { this.noise(0.08, 'lowpass', 400, 0.8, 0.5); this.tone(90, 50, 0.2, 0.3); for (let i = 0; i < 6; i++) this.tone(i % 2 ? 300 : 360, i % 2 ? 290 : 350, 0.07, 0.06 * (1 - i / 6), 'triangle', 0.05 + i * 0.06); },
 
   // a message landing in the family chat; each person pings at their own pitch
   ping(k = 1) { this.tone(1568 * k, 1570 * k, 0.09, 0.045, 'triangle'); this.tone(2093 * k, 2095 * k, 0.12, 0.035, 'triangle', 0.08); },

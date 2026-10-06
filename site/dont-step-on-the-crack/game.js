@@ -237,6 +237,9 @@ function genSlab(i,fr){
   if(!nf.length){nf=[];for(let x=R+0.06;x<=WS-R-0.06;x+=0.2) nf.push({x,d:(i+1)*S-0.56});}
   const rr=mulberry32((sl.seed^0x51ed)>>>0), prob=[0.07,0.12,0.1,0.08,0.06][sl.stage];
   if(i>=3&&r.reachable.length&&rr()<prob){const p=r.reachable[(rr()*r.reachable.length)|0]; sl.coupon={x:p.x,d:p.d,a:(rr()-0.5)*0.8,taken:false,tt:0};}
+  // now and then a shoebox: heelies or moon shoes, about one a street
+  const bp=[0.08,0.1,0.11,0.11,0.1][sl.stage];
+  if(i>=4&&!sl.coupon&&r.reachable.length&&rr()<bp){const p=r.reachable[(rr()*r.reachable.length)|0]; sl.box={kind:rr()<0.5?'heelies':'moon',x:p.x,d:p.d,a:(rr()-0.5)*0.5,taken:false,tt:0};}
   return {sl,frontier:nf};
 }
 function ensureSlabs(upTo){while(genNext<=upTo){const r=genSlab(genNext,frontier);slabs.set(genNext,r.sl);frontier=r.frontier;genNext++;}}
@@ -457,6 +460,11 @@ function spline(g,pts){
 function drawShoe(px,py,sc,side,shadowA){
   const pts=side>0?SHOE_R:SHOE_L, s=K*sc;
   ctx.save(); ctx.translate(px,py); ctx.scale(s,s);
+  if(pow&&pow.kind==='moon'&&mode==='play'){          // moon shoes: a bouncy platform strapped under the shoe
+    ctx.fillStyle='#8fc7ff'; ctx.beginPath(); ctx.ellipse(0,0.02,0.3,0.54,0,0,6.283); ctx.fill();
+    ctx.lineWidth=0.045; ctx.strokeStyle='#2f5f9e'; ctx.stroke();
+    ctx.fillStyle='#2f5f9e'; for(const [bx,by] of [[-0.23,-0.28],[0.23,-0.28],[-0.23,0.32],[0.23,0.32]]){ctx.beginPath(); ctx.arc(bx,by,0.045,0,6.283); ctx.fill();}
+  }
   if(shadowA>0.01){ctx.save(); ctx.translate(0.04,0.05); spline(ctx,pts); ctx.fillStyle=`rgba(0,0,0,${(0.32*shadowA).toFixed(3)})`; ctx.fill(); ctx.restore();}
   spline(ctx,pts); ctx.fillStyle='#d7d5ce'; ctx.fill(); ctx.lineWidth=1.2/s; ctx.strokeStyle='rgba(20,20,20,0.45)'; ctx.stroke();
   ctx.save(); ctx.scale(0.85,0.93); spline(ctx,pts); ctx.fillStyle='#878b8d'; ctx.fill(); ctx.clip();
@@ -498,6 +506,16 @@ function drawOutline(x,d,u,side,giant,wob){
 function drawFeet(){
   const hipD=camD-(Hc-yAnchor)/K-1.6, hy=Y(hipD);
   const hipX=f=>X(bodyX+f.side*0.72);
+  if(phase==='jump'){
+    // both feet in the air: shadows stay on the ground, shoes come up at you
+    const e=Math.min(1,jp.t/jp.dur), s=e*e*(3-2*e), lift=Math.sin(Math.PI*e)*(jp.moon?1.25:jp.herd?0.35:1);
+    jp.feet.forEach((f,i)=>drawOutline(jp.to[i].x,jp.to[i].d,0,f.side,jp.moon,!!jp.herd));
+    const pos=jp.feet.map((f,i)=>({f,x:jp.from[i].x+(jp.to[i].x-jp.from[i].x)*s,d:jp.from[i].d+(jp.to[i].d-jp.from[i].d)*s}));
+    for(const p of pos){ctx.fillStyle=`rgba(0,0,0,${(0.22*(1-lift*0.5)).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(X(p.x),Y(p.d),0.2*K*(1-lift*0.25),0.42*K*(1-lift*0.25),0,0,6.283); ctx.fill();}
+    const sc=1+0.6*lift;
+    for(const p of pos.sort((a,b)=>b.d-a.d)){const yy=Y(p.d-LIFT*lift); drawShoe(X(p.x),yy,sc,p.f.side,0); drawLeg(X(p.x),yy,1+0.15*lift,hipX(p.f),hy,sc);}
+    return;
+  }
   const air=phase==='swing'?sw.foot:phase==='drop'?drop.foot:null;
   const planted=feet.filter(f=>f!==air).sort((a,b)=>b.d-a.d);
   for(const f of planted) drawShoe(X(f.x),Y(f.d),1,f.side,1);
@@ -512,7 +530,8 @@ function drawFeet(){
       const e=Math.min(1,drop.t/drop.dur), s=e*e*(3-2*e);
       x=drop.fx+(drop.x-drop.fx)*s; d=drop.fd+(drop.d-drop.fd)*s; lift=Math.max(drop.fl*(1-e),Math.sin(Math.PI*e)*(drop.giant?0.9:0.6));
     }
-    else {const e=Math.min(1,drop.t/drop.dur), ee=e*e; x=drop.fx+(drop.x-drop.fx)*ee; d=drop.fd+(drop.d-drop.fd)*ee; lift=drop.fl*(1-ee);}
+    else {const e=Math.min(1,drop.t/drop.dur), ee=e*e; x=drop.fx+(drop.x-drop.fx)*ee; d=drop.fd+(drop.d-drop.fd)*ee; lift=drop.fl*(1-ee);
+      if(drop.stumble) drawOutline(drop.x,drop.d,1,air.side,false,true);}           // a stumble: where you're being shoved, in red
     // the shoe swells as it comes up toward you; the trouser leg much less, so it doesn't swallow the other foot
     const sc=1+0.7*lift, yy=Y(d-LIFT*lift);
     drawShoe(X(x),yy,sc,air.side,1-lift);
@@ -534,10 +553,26 @@ function drawCoupon(x,d,a,alpha,lift){
 }
 function drawCoupons(now,lo,hi){
   for(let i=lo;i<=hi;i++){
-    const sl=slabs.get(i); if(!sl||!sl.coupon) continue; const cp=sl.coupon;
+    const sl=slabs.get(i); if(!sl) continue;
+    const bx=sl.box;
+    if(bx){if(bx.taken){const a=(now-bx.tt)/0.6; if(a<1) drawBox(bx,now,1-a,a*0.8*K);} else drawBox(bx,now,1,0);}
+    if(!sl.coupon) continue; const cp=sl.coupon;
     if(cp.taken){const a=(now-cp.tt)/0.6; if(a<1) drawCoupon(cp.x,cp.d,cp.a,1-a,a*0.8*K);}
     else drawCoupon(cp.x,cp.d,cp.a,1,0);
   }
+}
+// a shoebox: black with a green stripe for heelies, blue with a moon for moon shoes. It glows a little so you notice it.
+function drawBox(b,now,alpha,lift){
+  const w=0.62*K, h=0.95*K, moon=b.kind==='moon';
+  ctx.save(); ctx.translate(X(b.x),Y(b.d)-lift); ctx.rotate(b.a); ctx.globalAlpha=alpha;
+  if(!lift){const g=0.5+0.5*Math.sin(now*4); ctx.strokeStyle=`rgba(255,240,160,${(0.25+0.3*g).toFixed(2)})`; ctx.lineWidth=Math.max(2,0.07*K); ctx.beginPath(); rrect(ctx,-w/2-0.1*K,-h/2-0.1*K,w+0.2*K,h+0.2*K,0.12*K); ctx.stroke();}
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(-w/2+2,-h/2+3,w,h);
+  ctx.fillStyle=moon?'#2f5f9e':'#222222'; ctx.fillRect(-w/2,-h/2,w,h);
+  ctx.fillStyle=moon?'#3d74bd':'#333'; ctx.fillRect(-w/2,-h/2,w,h*0.22);                 // the lid's edge
+  if(moon){ctx.fillStyle='#f4e27a'; ctx.beginPath(); ctx.arc(0,h*0.12,w*0.24,0,6.283); ctx.fill(); ctx.fillStyle='#3d74bd'; ctx.beginPath(); ctx.arc(w*0.1,h*0.06,w*0.2,0,6.283); ctx.fill();
+    ctx.fillStyle='#fff'; for(const [sx,sy] of [[-0.3,-0.05],[0.28,0.32],[-0.22,0.36]]){ctx.beginPath(); ctx.arc(sx*w,sy*h,Math.max(1,0.025*K),0,6.283); ctx.fill();}}
+  else {ctx.fillStyle='#9be15d'; ctx.fillRect(-w/2,h*0.02,w,h*0.13); ctx.fillStyle='#9be15d'; ctx.beginPath(); ctx.arc(0,h*0.3,w*0.13,0,6.283); ctx.fill(); ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(0,h*0.3,w*0.06,0,6.283); ctx.fill();}
+  ctx.restore();
 }
 // a soft dark dot, made once and drawn scaled (cheaper than a fresh radial gradient every frame)
 const SOFT=(()=>{const n=96, c=document.createElement('canvas'); c.width=c.height=n; const g=c.getContext('2d'), gr=g.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);
@@ -901,9 +936,16 @@ const T={
   healed:["your father walked on me. something went back in","ok that helped. tell him to wipe his feet","one notch less folded. thank your father","he does this every christmas"],
   giant:["was that a giant step. my knees heard it","I said yes but I didn't mean it like THAT","show off"],
   coupon:["is that a chiropractor coupon. bring it home. don't fold it","ooh. coupon. tape it to my back","unfolding one notch. thank you"],
+  board:["was that the henderson kid's skateboard","a SKATEBOARD. on a SIDEWALK. I'm calling the city","that's how I did my L3 in 1989. a skateboard"],
+  ball:["is that the shmookies' ball. don't kick it back","a ball is just a round crack","heads up sweetie. too late I guess"],
+  jump:["did you just JUMP. I felt the landing in my tailbone","both feet?? at once?? my discs","no jumping on the sidewalk. I'm serious"],
+  cleared:["you jumped it. I didn't feel a thing. proud of you","that's my kid. over the top"],
+  heelies:["are you wearing heelies. technically that's not stepping. I'll allow it","heelies?? what year is it","ROLL sweetie. roll"],
+  moon:["moon shoes. MOON SHOES. I can feel every landing","those were recalled in 1994","you'll put your eye out. or my back out"],
+  leash:["a leash is a line. lines are spines. I don't make the rules","tell mrs shmookie I said hi. and that I hate her dog","calzone AGAIN??"],
   couponFine:["a coupon? I'm fine. use it on your legs","save it. you'll need it on quarry ln"],
   snap:["don't stretch like that. that's how this started for me","you looked just like me for a second","hamstrings aren't free sweetie"],
-  dog:["is that the kowalski dog","tell that dog I said no","RUN. I'm serious","that dog has never liked our family"],
+  dog:["is that calzone","tell calzone I said no","RUN. I'm serious","that corgi has never liked our family","who names a dog calzone"],
   stage:{1:["linden st. your grandmother cracked her hip there in 1998"],2:["oak st?? the ROOTS. I'm bracing"],3:["old mill rd is all flagstone. so many lines. so many spines"],4:["quarry ln. I'm updating my will. you get the heating pad"]},
   gum:["was that gum. my back feels sticky","gum?? I can taste spearmint"],
   leaf:["I heard that leaf. sounded like my L4"],
@@ -949,90 +991,374 @@ function nextChat(){
 }
 function clearTexts(){chatQ=[]; clearTimeout(chatTimer); chatBusy=false; for(const el of [...chatEl.children]) retire(el);}
 
-/* ---------- the Kowalskis' chihuahua: only shows up when you dawdle ---------- */
-// Stand still too long and it comes running from behind. Get moving again (two steps) and it loses interest.
-// If it reaches your heel it nips: a foot in the air drops where it is, a planted one lurches forward somewhere you didn't pick.
-const dog={on:false,state:'off',d:0,x:2.5,side:1,yapAt:0,run:0,yaps:[],gap:9,since:0,leaveT:0};
+/* ---------- Calzone, the Shmookies' corgi: only shows up when you dawdle ---------- */
+// Stand still too long and he trots in from the side, where you can see him, barking. Corgis herd:
+// if he reaches you he shoves your whole stance sideways, away from him (a stumble, so maybe onto a crack).
+// Get moving again (two steps forward) and he loses interest.
+const dog={on:false,state:'off',d:0,x:2.5,side:1,yapAt:0,run:0,yaps:[],gap:9,since:0,leaveT:0,rot:0};
 function dogReset(){dog.on=false; dog.state='off'; dog.yaps=[]; dog.gap=9;}
-function heelD(){return Math.min(feet[0].d,feet[1].d)-0.55;}
 const dawdleLimit=()=>3.4-stageOf(slabIdx(front.d))*0.3;      // 3.4 s on Maple Ave down to 2.2 s on Quarry Ln
+const turnTo=(a,b,k)=>a+((((b-a)%6.2832)+9.4248)%6.2832-3.1416)*k;
 function dogUpdate(dt,now){
   if(mode!=='play'||tStart===null) return;
   dog.yaps=dog.yaps.filter(y=>now-y.t<0.7);
   if(dog.state==='off'){
-    if(phase==='idle'&&now-lastStepAt>dawdleLimit()){
-      dog.on=true; dog.state='chase'; dog.side=Math.random()<0.5?-1:1; dog.d=heelD()-3.8; dog.x=bodyX+dog.side*1.2; dog.since=fwdSteps; dog.yapAt=0;
+    if(phase==='idle'&&now-lastStepAt>dawdleLimit()&&!(obs&&obs.kind==='leash')){
+      dog.on=true; dog.state='chase'; dog.side=Math.random()<0.5?-1:1;
+      dog.x=dog.side<0?-1.4:WS+1.4; dog.d=Math.max(feet[0].d,feet[1].d)+1+Math.random()*1.4; dog.rot=-dog.side*Math.PI/2;
+      dog.since=fwdSteps; dog.yapAt=0;
     }
     return;
   }
   dog.run+=dt*18;
   if(dog.state==='chase'){
-    dog.d+=2.3*dt; dog.gap=heelD()-dog.d;
-    dog.x+=((clamp(bodyX+dog.side*1.15,-0.6,WS+0.6))-dog.x)*(1-Math.exp(-dt*3));
-    if(dog.gap<2.8&&now>dog.yapAt){
-      dog.yapAt=now+0.22+Math.max(0,dog.gap)*0.3; sfx.yap(dog.side*0.4);
-      dog.yaps.push({t:now,x:dog.x+(Math.random()-0.5)*0.5,d:dog.d+0.35});
+    // he goes for the outside of the foot on his side
+    const f=feet.find(q=>q.side===dog.side), tx=f.x+dog.side*0.62, td=f.d;
+    const dx=tx-dog.x, dd=td-dog.d, dist=Math.hypot(dx,dd), sp=2.6+0.25*stageOf(slabIdx(front.d));
+    if(dist>0.02){const k=Math.min(1,sp*dt/dist); dog.x+=dx*k; dog.d+=dd*k; dog.rot=turnTo(dog.rot,Math.atan2(dx,dd),Math.min(1,dt*10));}
+    dog.gap=dist;
+    if(dist<3.2&&now>dog.yapAt){
+      dog.yapAt=now+0.24+dist*0.18; sfx.yap(clamp((dog.x-WS/2)/3,-0.9,0.9));
+      dog.yaps.push({t:now,x:dog.x+(Math.random()-0.5)*0.5,d:dog.d+0.5});
     }
     if(fwdSteps-dog.since>=2){dog.state='leave'; dog.leaveT=0;}
-    else if(dog.gap<=0&&(phase==='idle'||phase==='swing')){nip(now); dog.state='leave'; dog.leaveT=0;}
+    else if(dist<0.1&&(phase==='idle'||phase==='swing')){herd(now); dog.state='leave'; dog.leaveT=0;}
   } else {
-    dog.leaveT+=dt; dog.x+=dog.side*3.4*dt; dog.d-=0.5*dt; dog.gap=9;
+    dog.leaveT+=dt; dog.x+=dog.side*3.4*dt; dog.rot=turnTo(dog.rot,dog.side*Math.PI/2,Math.min(1,dt*8)); dog.gap=9;
     if(dog.leaveT>1.6){dog.on=false; dog.state='off'; lastStepAt=Math.max(lastStepAt,now-1);}
   }
 }
-function nip(now){
-  const had=streak; streak=0;
-  sayNow('Nip!',had>=3?`The Kowalskis' chihuahua. Streak of ${had} gone.`:"The Kowalskis' chihuahua.",1100); sfx.nip(); kick(8);
-  if(phase==='swing') plant();                         // the jolt drops the lifted foot where it is
+// the herd: both feet shoved sideways away from him and a little forward, wherever that lands
+function herd(now){
+  const had=streak; streak=0; kick(7); camFlinch=Math.max(camFlinch,0.5);
+  if(phase==='swing'){plant(); drop.stumble=true; drop.dur=0.16;}            // jolted: the lifted foot drops where it is
   else {
-    const f=back, o=front, ahead=0.9+Math.random()*1.1;
-    const x=clamp(o.x+f.side*(0.55+Math.random()*0.5),R+0.05,WS-R-0.05);
-    drop={foot:f,x,d:o.d+ahead,t:0,dur:0.12,fx:f.x,fd:f.d,fl:0.4}; phase='drop';
+    const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0);
+    const dx=clamp(-dog.side*(0.55+Math.random()*0.45),R+0.05-L.x,WS-R-0.05-Rt.x), fw=0.25+Math.random()*0.4;
+    jp={t:0,t0:now,dur:0.3,herd:true,moon:false,cx0:0,feet:[L,Rt],from:[{x:L.x,d:L.d},{x:Rt.x,d:Rt.d}],to:[{x:L.x+dx,d:L.d+fw},{x:Rt.x+dx,d:Rt.d+fw}]};
+    phase='jump';
   }
   updateHUD();
+  sayNow('Herded.',had>=3?`Calzone moved you. Streak of ${had} gone.`:"Calzone. The Shmookies' corgi.",1200); sfx.nip();
   momText(T.dog,{chance:0.55});
+}
+// A stumble: the streak goes, and a lifted foot drops where it is, or a planted one lurches
+// forward somewhere you didn't pick. It only hurts Mom if that's a crack.
+function stumble(){
+  const had=streak; streak=0; kick(8); camFlinch=Math.max(camFlinch,0.5);
+  if(phase==='swing'){plant(); drop.stumble=true; drop.dur=0.16;}
+  else if(phase==='idle'){
+    const f=back, o=front, ahead=0.9+Math.random()*1.1;
+    const x=clamp(o.x+f.side*(0.55+Math.random()*0.5),R+0.05,WS-R-0.05);
+    drop={foot:f,x,d:o.d+ahead,t:0,dur:0.24,fx:f.x,fd:f.d,fl:0.5,stumble:true}; phase='drop';
+  }
+  updateHUD();
+  return had;
+}
+
+/* ---------- things that come at you: a runaway skateboard, the neighbors' kickball ---------- */
+// Each is announced first, with a sound and a chalk "!" where it will come from.
+// Jump it (both sides at once), get out of its way, or stumble. Once it has passed under you mid-jump it's
+// cleared, wherever you land.
+// skateboard: rolls down the sidewalk at you in a lane lined up with one of your feet. Step aside or jump.
+// ball: rolls across the sidewalk right where you're standing. Hurry past the line or jump.
+// leash: Mrs. Shmookie walking Calzone. He dashes across just ahead of you and the leash lies across the
+//   sidewalk for a few seconds: a line you can't land on. Step over it, jump it, or wait.
+let obs=null, nextObs=0, obsSeen=0, leashSeen=0;
+const OBS_GAP=[[18,10],[14,9],[11,8],[9,6],[8,5]];          // seconds between, by street: [least, plus up to]
+function obsReset(now){if(obs&&obs.stop) obs.stop(); obs=null; nextObs=now+12+Math.random()*6; obsSeen=0; leashSeen=0;}
+function obsStop(){if(obs&&obs.stop){obs.stop(); obs.stop=null;}}
+function airborne(){return phase==='jump'&&!jp.herd;}
+function plantedFeet(){return feet.filter(f=>!(phase==='swing'&&f===sw.foot)&&!(phase==='drop'&&f===drop.foot)&&!airborne());}
+function obsUpdate(dt,now){
+  if(mode!=='play'||tStart===null) return;
+  const st=stageOf(slabIdx(front.d));
+  if(!obs){
+    if(now<nextObs||dog.state==='chase') return;
+    const hint=obsSeen<2?(coarse?'Tap both sides at once to jump.':'Press A and D together to jump.'):'';
+    obsSeen++;
+    const pick=Math.random();
+    if(pick>=0.74&&dog.state==='off'){
+      const s=Math.random()<0.5?-1:1, L=Math.max(feet[0].d,feet[1].d)+1.7+Math.random()*0.7;
+      obs={kind:'leash',state:'warn',t:0,warn:1.1,side:s,hx:s<0?-0.1:WS+0.1,hd:L,cx:s<0?-0.3:WS+0.3,cd:L,run:0,rot:-s*Math.PI/2,hold:2.4+Math.random()*1.2,cleared:false};
+      sfx.yap(s*0.8);
+      sayNow('Calzone!',leashSeen++<2?"Mrs. Shmookie's walking him. A leash is a line: step over it.":"Mrs. Shmookie's walking him.",1700);
+    } else if(pick<0.37){
+      const f=feet[Math.random()<0.5?0:1], x=clamp(f.x+(Math.random()-0.5)*0.3,0.45,WS-0.45);
+      obs={kind:'board',state:'warn',t:0,warn:Math.max(0.65,1.15-st*0.12),x,d:camD+Math.min(yAnchor/K+1.6,12),v:6+st*0.9,rot:0,vx:0,cleared:false};
+      obs.stop=sfx.roll(obs.warn+(obs.d-camD)/obs.v+0.6,(x-WS/2)/4);
+      sayNow('Skateboard!',hint||'Coming down the sidewalk.',1300);
+    } else {
+      const s=Math.random()<0.5?-1:1;
+      obs={kind:'ball',state:'warn',t:0,warn:Math.max(0.6,1.05-st*0.1),side:s,x:s<0?-1.5:WS+1.5,d:(feet[0].d+feet[1].d)/2+(Math.random()-0.5)*0.4,v:4.6+st*0.6,h:0,rot:0,bounces:0,cleared:false};
+      sfx.ballBounce(s*0.8,0.5);
+      sayNow('Heads up!',hint||'Ball.',1300);
+    }
+    return;
+  }
+  const o=obs; o.t+=dt;
+  if(o.kind==='leash'){leashUpdate(o,dt,now); if(!obs) nextObs=now+OBS_GAP[st][0]+Math.random()*OBS_GAP[st][1]; return;}
+  if(o.state==='warn'){if(o.t>=o.warn){o.state='go'; o.t=0;} return;}
+  if(o.kind==='board'){
+    if(o.state==='hit'){o.x+=o.vx*dt; o.d-=o.v*0.3*dt; o.rot+=o.vx*1.6*dt; o.t>1.2&&(obs=null);}
+    else {
+      o.d-=o.v*dt;
+      if(!o.cleared) for(const f of feet){
+        const over=Math.abs(f.x-o.x)<0.36+R&&Math.abs(f.d-o.d)<1.3+0.5-R;
+        if(!over) continue;
+        if(airborne()) o.cleared=true;
+        else if(plantedFeet().includes(f)){if(phase==='roll') bowl(o); else hitBy(o,now,f); break;}
+      }
+      // mid-jump, passing under where you'll land counts too
+      if(!o.cleared&&airborne()&&jp.to.some(q=>Math.abs(q.x-o.x)<0.36+R&&Math.abs(q.d-o.d)<1.3+0.5-R)) o.cleared=true;
+      if(obs&&o.state!=='hit'&&o.d<camD-(Hc-yAnchor)/K-2){if(o.cleared) cleared(o); obs=null;}
+    }
+  } else {
+    o.x-=o.side*o.v*dt; o.rot-=o.side*o.v*dt/0.38;
+    const ph=o.t*7, b=Math.floor(ph/Math.PI); o.h=Math.abs(Math.sin(ph))*0.22*(o.state==='hit'?1.6:1);
+    if(b>o.bounces){o.bounces=b; sfx.ballBounce(clamp((o.x-WS/2)/3.5,-0.9,0.9),0.35);}
+    if(o.state==='hit'){o.d+=1.4*dt;}
+    else if(!o.cleared) for(const f of feet){
+      const over=psd(o.x,o.d,f.x,f.d-0.5+R,f.x,f.d+0.5-R)<0.38+R;
+      if(!over) continue;
+      if(airborne()) o.cleared=true;
+      else if(plantedFeet().includes(f)){if(phase==='roll') bowl(o); else hitBy(o,now,f); break;}
+    }
+    if(o.state!=='hit'&&!o.cleared&&airborne()&&jp.to.some(q=>psd(o.x,o.d,q.x,q.d-0.5+R,q.x,q.d+0.5-R)<0.38+R)) o.cleared=true;
+    if(obs&&(o.x<-2.2||o.x>WS+2.2)){if(o.cleared&&o.state!=='hit') cleared(o); obs=null;}
+  }
+  if(!obs) nextObs=now+OBS_GAP[st][0]+Math.random()*OBS_GAP[st][1];
+}
+function hitBy(o,now,f){
+  o.state='hit'; o.t=0;
+  const had=stumble();
+  if(o.kind==='leash'){sfx.scuff(); sfx.yap(clamp((o.cx-WS/2)/3,-0.9,0.9)); sayNow('Tripped on the leash.',had>=3?`Streak of ${had} gone.`:'Mrs. Shmookie apologizes. Calzone does not.',1400); momText(T.leash,{chance:0.6});}
+  else if(o.kind==='board'){obsStop(); o.vx=(f.x<o.x?1:-1)*4; sfx.clack(); sayNow('Skateboard.',had>=3?`Streak of ${had} gone.`:'Right into your ankle.',1100); momText(T.board,{chance:0.6});}
+  else {o.side=-o.side*0.5; sfx.scuff(); sayNow('Ball.',had>=3?`Streak of ${had} gone.`:'Off the shin.',1100); momText(T.ball,{chance:0.6});}
+}
+function cleared(o){say({board:'Over the skateboard.',ball:'Over the ball.',leash:'Over the leash.'}[o.kind],'',900); if(Math.random()<0.4) momText(T.cleared);}
+function leashUpdate(o,dt,now){
+  o.run+=dt*18;
+  const far=o.side<0?WS+0.45:-0.45, home=o.side<0?-0.3:WS+0.3;     // narrow phones show little lawn
+  if(o.state==='warn'){if(o.t>=o.warn){o.state='go'; o.t=0;}}
+  else if(o.state==='go'){                                   // he bolts across, dragging the leash with him
+    o.cx-=o.side*9*dt; o.rot=-o.side*Math.PI/2;
+    if((far-o.cx)*-o.side<=0){o.cx=far; o.state='hold'; o.t=0; sfx.yap(clamp((o.cx-WS/2)/3,-0.9,0.9));}
+  } else if(o.state==='hold'){                               // sniffing something on the far lawn; the leash lies across
+    o.cd=o.hd+Math.sin(o.t*1.7)*0.22; o.rot=-o.side*Math.PI/2+Math.sin(o.t*3)*0.5; o.run*=0.9;
+    if(o.t>o.hold){o.state='back'; o.t=0;}
+  } else if(o.state==='back'){
+    o.cx+=o.side*9*dt; o.cd+=(o.hd-o.cd)*Math.min(1,dt*8); o.rot=o.side*Math.PI/2;
+    if((o.cx-home)*o.side>=0){o.cx=home; o.state='leave'; o.t=0; if(o.cleared) cleared(o);}
+  } else if(o.t>0.8) obs=null;                                // 'leave' or 'hit': they wander off
+  if(o.state==='go'||o.state==='hold'||o.state==='back'){
+    for(const f of feet){
+      if(ssd(o.hx,o.hd,o.cx,o.cd,f.x,f.d-0.5+R,f.x,f.d+0.5-R)>=R+0.04) continue;
+      if(airborne()) continue;
+      if(plantedFeet().includes(f)){if(phase==='roll') bowl(o); else hitBy(o,now,f); break;}
+    }
+    // jumping from behind it to beyond it counts as clearing it
+    if(obs&&!o.cleared&&airborne()&&Math.max(jp.from[0].d,jp.from[1].d)<o.hd&&jp.to[0].d-0.5>o.hd) o.cleared=true;
+  }
+}
+// Mrs. Shmookie, from above: lavender cardigan, grey curls, one arm out holding the leash
+function drawShmookie(o,alpha){
+  const x=X(o.hx+(o.side<0?-0.38:0.38)), y=Y(o.hd+0.15), k=K;
+  ctx.save(); ctx.globalAlpha=alpha;
+  ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x+3,y+4,0.4*k,0.3*k,0,0,6.283); ctx.fill();
+  ctx.strokeStyle='#a77dba'; ctx.lineWidth=0.15*k; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(X(o.hx),Y(o.hd)); ctx.stroke();
+  ctx.fillStyle='#b48bc4'; ctx.beginPath(); ctx.ellipse(x,y,0.38*k,0.26*k,0,0,6.283); ctx.fill();
+  ctx.fillStyle='#d9d6de'; ctx.beginPath(); ctx.arc(x,y-0.04*k,0.2*k,0,6.283); ctx.fill();
+  ctx.fillStyle='#c4c0cc'; for(const [cx,cy] of [[-0.12,-0.1],[0.1,-0.12],[0,0.06],[-0.1,0.08],[0.12,0.06]]){ctx.beginPath(); ctx.arc(x+cx*k,y-0.04*k+cy*k,0.07*k,0,6.283); ctx.fill();}
+  ctx.fillStyle='#f2c9a5'; ctx.beginPath(); ctx.arc(X(o.hx),Y(o.hd),0.07*k,0,6.283); ctx.fill();
+  ctx.restore();
+}
+function drawLeash(o,now){
+  const a=o.state==='warn'?Math.min(1,o.t/0.4):(o.state==='leave'||o.state==='hit')?Math.max(0,1-o.t/0.8):1;
+  // the leash: taut while he's out, a lazy curve while he's at her feet
+  const x1=X(o.hx), y1=Y(o.hd), x2=X(o.cx), y2=Y(o.cd), out=o.state==='go'||o.state==='hold'||o.state==='back';
+  ctx.save(); ctx.globalAlpha=a; ctx.lineCap='round';
+  for(const [w,c] of [[0.11,'rgba(0,0,0,0.45)'],[0.06,'#c0312b']]){
+    ctx.strokeStyle=c; ctx.lineWidth=Math.max(2,w*K); ctx.beginPath(); ctx.moveTo(x1,y1);
+    if(out) ctx.lineTo(x2,y2); else ctx.quadraticCurveTo((x1+x2)/2,(y1+y2)/2+0.4*K,x2,y2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  drawCorgi(x2,y2,o.rot,o.run,a);
+  drawShmookie(o,a);
+}
+function drawObs(now){
+  const o=obs; if(!o) return;
+  if(o.kind==='leash'){drawLeash(o,now); return;}
+  if(o.state==='warn') return;
+  if(o.kind==='board'){
+    const x=X(o.x), y=Y(o.d), w=0.36*K, l=1.3*K;
+    ctx.save(); ctx.translate(x,y); ctx.rotate(o.rot); ctx.globalAlpha=o.state==='hit'?Math.max(0,1-o.t/1.2):1;
+    ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.beginPath(); rrect(ctx,-w+3,-l+5,2*w,2*l,w); ctx.fill();
+    ctx.fillStyle='#e9e2d4'; for(const yy of [-0.95,0.95]) for(const xx of [-1.12,1.12]){ctx.beginPath(); rrect(ctx,xx*w-0.08*K,yy*l-0.11*K,0.16*K,0.22*K,0.05*K); ctx.fill();}
+    ctx.fillStyle='#2b2a28'; ctx.beginPath(); rrect(ctx,-w,-l,2*w,2*l,w); ctx.fill();
+    ctx.fillStyle='#d9573b'; ctx.beginPath(); rrect(ctx,-w*0.7,-l*0.25,w*1.4,l*0.5,w*0.3); ctx.fill();
+    ctx.fillStyle='#f4e27a'; ctx.beginPath(); ctx.arc(0,0,w*0.42,0,6.283); ctx.fill();
+    ctx.restore();
+  } else {
+    const x=X(o.x), y=Y(o.d), r=0.38*K*(1+o.h*0.6), hy=o.h*K*1.2;
+    ctx.fillStyle=`rgba(0,0,0,${(0.25*(1-o.h)).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(x+3,y+4,0.38*K,0.32*K,0,0,6.283); ctx.fill();
+    ctx.save(); ctx.translate(x,y-hy); ctx.rotate(o.rot);
+    ctx.fillStyle='#cf3d34'; ctx.beginPath(); ctx.arc(0,0,r,0,6.283); ctx.fill();
+    ctx.strokeStyle='rgba(120,20,20,0.6)'; ctx.lineWidth=Math.max(1,0.04*K);
+    for(const a of [0,2.094,4.189]){ctx.beginPath(); ctx.arc(Math.cos(a)*r*0.95,Math.sin(a)*r*0.95,r*0.75,a+2.4,a+3.9); ctx.stroke();}
+    ctx.fillStyle='rgba(255,255,255,0.28)'; ctx.beginPath(); ctx.arc(-r*0.3,-r*0.35,r*0.35,0,6.283); ctx.fill();
+    ctx.restore();
+  }
+}
+// the warning: a chalk "!" where it will come from, with an arrow the way it's going
+function drawObsWarn(now){
+  const o=obs; if(!o||o.state!=='warn') return;
+  const a=0.55+0.45*Math.abs(Math.sin(now*9));
+  let x,y,ang;
+  if(o.kind==='board'){x=X(o.x); y=Y(camD+Math.min(5.2,(yAnchor-0.12*Hc)/K)); ang=Math.PI/2;}
+  else {x=X(o.side<0?0.4:WS-0.4); y=Y(o.kind==='leash'?o.hd:o.d); ang=o.side<0?0:Math.PI;}
+  ctx.save(); ctx.globalAlpha=a; ctx.translate(x,y);
+  ctx.fillStyle='rgba(20,18,14,0.55)'; ctx.beginPath(); ctx.arc(0,0,0.36*K,0,6.283); ctx.fill();
+  ctx.strokeStyle='#f4e27a'; ctx.lineWidth=Math.max(2,0.06*K); ctx.beginPath(); ctx.arc(0,0,0.36*K,0,6.283); ctx.stroke();
+  ctx.fillStyle='#f4e27a'; ctx.font=`${(0.5*K).toFixed(1)}px "Schoolbell", cursive`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('!',0,0.03*K);
+  ctx.rotate(ang); ctx.beginPath(); ctx.moveTo(0.5*K,-0.14*K); ctx.lineTo(0.72*K,0); ctx.lineTo(0.5*K,0.14*K); ctx.closePath(); ctx.fill();
+  ctx.restore(); ctx.textBaseline='alphabetic'; ctx.textAlign='start';
 }
 function drawDog(now){
   if(!dog.on||mode==='title') return;
-  const x=X(dog.x), y=Y(dog.d);
-  if(y<Hc+0.8*K){
-    const s=K*1.7, hop=Math.abs(Math.sin(dog.run));
-    ctx.save(); ctx.translate(x,y); if(dog.state==='leave') ctx.rotate(dog.side*Math.PI/2);
-    ctx.fillStyle='rgba(0,0,0,0.24)'; ctx.beginPath(); ctx.ellipse(0.02*s,0.05*s,0.17*s,0.3*s,0,0,6.283); ctx.fill();
-    ctx.translate(0,-hop*0.04*s);
-    ctx.lineCap='round';
-    // tail curled up behind, legs scrabbling
-    ctx.strokeStyle='#c99a62'; ctx.lineWidth=0.045*s; ctx.beginPath(); ctx.moveTo(0,0.2*s); ctx.quadraticCurveTo(0.12*s,0.33*s+Math.sin(dog.run*1.3)*0.04*s,0.02*s,0.38*s); ctx.stroke();
-    ctx.fillStyle='#b98a55'; const l=Math.sin(dog.run)*0.05;
-    for(const [lx,ly] of [[0.11,-0.1+l],[-0.11,-0.1-l],[0.11,0.13-l],[-0.11,0.13+l]]){ctx.beginPath(); ctx.arc(lx*s,ly*s,0.035*s,0,6.283); ctx.fill();}
-    // body in a little pink sweater
-    ctx.fillStyle='#d9b07c'; ctx.beginPath(); ctx.ellipse(0,0.02*s,0.12*s,0.21*s,0,0,6.283); ctx.fill();
-    ctx.fillStyle='#e8679b'; ctx.beginPath(); ctx.ellipse(0,0.0,0.125*s,0.15*s,0,0,6.283); ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=0.018*s; for(const yy of [-0.07,0,0.07]){ctx.beginPath(); ctx.moveTo(-0.11*s,yy*s); ctx.lineTo(0.11*s,yy*s); ctx.stroke();}
-    // head: bug eyes, huge ears
-    ctx.fillStyle='#d9b07c';
-    ctx.beginPath(); ctx.moveTo(-0.06*s,-0.24*s); ctx.lineTo(-0.2*s,-0.38*s); ctx.lineTo(-0.03*s,-0.31*s); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(0.06*s,-0.24*s); ctx.lineTo(0.2*s,-0.38*s); ctx.lineTo(0.03*s,-0.31*s); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#f0a9b9'; ctx.beginPath(); ctx.moveTo(-0.07*s,-0.27*s); ctx.lineTo(-0.16*s,-0.35*s); ctx.lineTo(-0.05*s,-0.31*s); ctx.closePath(); ctx.moveTo(0.07*s,-0.27*s); ctx.lineTo(0.16*s,-0.35*s); ctx.lineTo(0.05*s,-0.31*s); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#d9b07c'; ctx.beginPath(); ctx.arc(0,-0.25*s,0.095*s,0,6.283); ctx.fill();
-    ctx.fillStyle='#c4955f'; ctx.beginPath(); ctx.ellipse(0,-0.34*s,0.045*s,0.04*s,0,0,6.283); ctx.fill();
-    ctx.fillStyle='#120d0a'; ctx.beginPath(); ctx.arc(-0.045*s,-0.27*s,0.024*s,0,6.283); ctx.arc(0.045*s,-0.27*s,0.024*s,0,6.283); ctx.arc(0,-0.375*s,0.012*s,0,6.283); ctx.fill();
-    ctx.restore();
-  }
-  // "yap!" written in chalk over wherever it yapped
+  drawCorgi(X(dog.x),Y(dog.d),dog.rot,dog.run,1);
+  // "arf!" written in chalk over wherever he barked
   ctx.font=`${(0.34*K).toFixed(1)}px "Schoolbell", cursive`; ctx.textAlign='center'; ctx.lineWidth=3; ctx.lineJoin='round';
   for(const yp of dog.yaps){
     const a=1-(now-yp.t)/0.7, ty=Math.min(Y(yp.d),Hc-0.5*K)-(1-a)*0.5*K;
-    ctx.globalAlpha=a; ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.strokeText('yap!',X(yp.x),ty); ctx.fillStyle='#fbf8f1'; ctx.fillText('yap!',X(yp.x),ty);
+    ctx.globalAlpha=a; ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.strokeText('arf!',X(yp.x),ty); ctx.fillStyle='#fbf8f1'; ctx.fillText('arf!',X(yp.x),ty);
   }
   ctx.globalAlpha=1; ctx.textAlign='start';
 }
-// the bottom of the screen reddens as it closes in
+// Calzone, facing rot (0 = up the sidewalk)
+function drawCorgi(x,y,rot,run,alpha){
+  {
+    if(y>Hc+0.8*K) return;
+    const s=K*1.9, hop=Math.abs(Math.sin(run)), dog={run};
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot); ctx.globalAlpha=alpha;
+    ctx.fillStyle='rgba(0,0,0,0.24)'; ctx.beginPath(); ctx.ellipse(0.02*s,0.05*s,0.17*s,0.3*s,0,0,6.283); ctx.fill();
+    ctx.translate(0,-hop*0.04*s);
+    ctx.lineCap='round';
+    // Calzone: a long orange loaf on very short legs, white fluffy rear (no tail), giant ears
+    const l=Math.sin(dog.run)*0.04;
+    ctx.fillStyle='#f6efe4';
+    for(const [lx,ly] of [[0.12,-0.13+l],[-0.12,-0.13-l],[0.12,0.17-l],[-0.12,0.17+l]]){ctx.beginPath(); ctx.ellipse(lx*s,ly*s,0.04*s,0.05*s,0,0,6.283); ctx.fill();}
+    ctx.fillStyle='#d9803a'; ctx.beginPath(); ctx.ellipse(0,0.03*s,0.135*s,0.25*s,0,0,6.283); ctx.fill();
+    ctx.fillStyle='#f6efe4';                                   // the famous rear
+    ctx.beginPath(); ctx.arc(-0.055*s,0.24*s,0.075*s,0,6.283); ctx.arc(0.055*s,0.24*s,0.075*s,0,6.283); ctx.fill();
+    ctx.fillStyle='#e9a25e'; ctx.beginPath(); ctx.ellipse(0,0.02*s,0.06*s,0.14*s,0,0,6.283); ctx.fill();
+    ctx.fillStyle='#c0312b'; ctx.beginPath(); ctx.ellipse(0,-0.19*s,0.085*s,0.03*s,0,0,6.283); ctx.fill();   // collar
+    ctx.fillStyle='#f2c94c'; ctx.beginPath(); ctx.arc(0,-0.165*s,0.018*s,0,6.283); ctx.fill();
+    // head: fox face, white blaze and muzzle, ears up
+    ctx.fillStyle='#d9803a';
+    for(const k of [-1,1]){ctx.beginPath(); ctx.moveTo(k*0.03*s,-0.27*s); ctx.lineTo(k*0.15*s,-0.42*s); ctx.lineTo(k*0.115*s,-0.25*s); ctx.closePath(); ctx.fill();}
+    ctx.fillStyle='#f0a9a0';
+    for(const k of [-1,1]){ctx.beginPath(); ctx.moveTo(k*0.055*s,-0.285*s); ctx.lineTo(k*0.135*s,-0.39*s); ctx.lineTo(k*0.105*s,-0.27*s); ctx.closePath(); ctx.fill();}
+    ctx.fillStyle='#d9803a'; ctx.beginPath(); ctx.ellipse(0,-0.27*s,0.1*s,0.085*s,0,0,6.283); ctx.fill();
+    ctx.fillStyle='#f6efe4'; ctx.beginPath(); ctx.ellipse(0,-0.33*s,0.045*s,0.07*s,0,0,6.283); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0,-0.27*s,0.018*s,0.06*s,0,0,6.283); ctx.fill();
+    ctx.fillStyle='#120d0a'; for(const [ex,ey,er] of [[0,-0.395,0.02],[-0.05,-0.29,0.017],[0.05,-0.29,0.017]]){ctx.beginPath(); ctx.arc(ex*s,ey*s,er*s,0,6.283); ctx.fill();}
+    ctx.restore();
+  }
+}
 function drawDogDanger(){
-  if(dog.state!=='chase'||mode!=='play'||dog.gap>1.6) return;
-  const a=0.24*(1-Math.max(0,dog.gap)/1.6), h=Hc*0.15, gr=ctx.createLinearGradient(0,Hc,0,Hc-h);
+  if(dog.state!=='chase'||mode!=='play'||dog.gap>1.8) return;
+  const a=0.26*(1-Math.max(0,dog.gap)/1.8), w=Wc*0.22, x0=dog.side<0?0:Wc, gr=ctx.createLinearGradient(x0,0,x0-dog.side*w,0);
   gr.addColorStop(0,`rgba(205,52,36,${a.toFixed(3)})`); gr.addColorStop(1,'rgba(205,52,36,0)');
-  ctx.fillStyle=gr; ctx.fillRect(0,Hc-h,Wc,h);
+  ctx.fillStyle=gr; ctx.fillRect(dog.side<0?0:Wc-w,0,w,Hc);
+}
+
+/* ---------- power-ups: a shoebox on the sidewalk, step on it to put them on ---------- */
+// Heelies: you roll for a few seconds. Wheels aren't steps, so cracks don't count, and things bounce off you.
+//   Hold a side (or slide your thumb, or the arrow keys) to lean that way. When they stop you're standing, safely.
+// Moon shoes: for a while every jump clears a whole slab, and you can see and steer where it lands.
+const POW={heelies:{name:'Heelies',dur:6,col:'#9be15d'},moon:{name:'Moon shoes',dur:15,col:'#8fc7ff'}};
+let pow=null, pendingPow=null, rl=null;
+const powEl=$('#power'), powName=$('#powName'), powBar=$('#powBar');
+function powReset(){if(rl&&rl.stop) rl.stop(); pow=null; pendingPow=null; rl=null; powEl.hidden=true; powEl.classList.remove('ending');}
+function startPower(kind,now){
+  if(rl){if(rl.stop) rl.stop(); rl=null; if(phase==='roll') phase='idle';}
+  pow={kind,until:now+POW[kind].dur};
+  powName.textContent=POW[kind].name; powEl.style.setProperty('--pw',POW[kind].col); powEl.hidden=false; powEl.classList.remove('ending');
+  sfx.earn();
+  if(kind==='heelies'){
+    const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0), d=Math.max(L.d,Rt.d);
+    rl={x:clamp((L.x+Rt.x)/2,0.8,WS-0.8),d,v:0,lean:0,joint:slabIdx(d),stop:sfx.glide()};
+    phase='roll'; input.q=[];
+    if(dog.state==='chase'){dog.state='leave'; dog.leaveT=0;}
+    sayNow('Heelies!',coarse?"Wheels aren't steps. Hold a side to lean.":"Wheels aren't steps. Hold A or D to lean.",1600);
+    momText(T.heelies);
+  } else {
+    sayNow('Moon shoes!','Every jump clears a slab. Steer it in the air.',1700);
+    momText(T.moon);
+  }
+}
+function endPower(now){
+  const k=pow.kind; pow=null; powEl.hidden=true; powEl.classList.remove('ending'); sfx.disarm();
+  if(k==='heelies'){
+    if(rl&&rl.stop) rl.stop(); rl=null; phase='idle'; lastStepAt=now; input.q=[];
+    say('Heelies off.','Back to walking.',1100);
+  } else say('Moon shoes off.','',1000);
+}
+function powUpdate(dt,now){
+  if(mode!=='play') return;
+  if(pendingPow&&phase==='idle'){startPower(pendingPow,now); pendingPow=null;}
+  if(!pow) return;
+  if(phase==='roll'&&rl) rollUpdate(dt,now,pow.until-now);      // may pick up another pair and switch
+  const left=pow.until-now;
+  powBar.style.width=`${Math.max(0,left/POW[pow.kind].dur*100).toFixed(1)}%`;
+  powEl.classList.toggle('ending',left<1.5);
+  if(left<=0&&(pow.kind==='heelies'||phase!=='jump')) endPower(now);   // moon shoes finish the jump you're in
+}
+function rollUpdate(dt,now,left){
+  input.q=[];                                              // taps don't step while you're rolling
+  rl.v+=((left<0.8?2:7)-rl.v)*(1-Math.exp(-dt*4));          // they slow down at the end
+  const kd=(held(1)||input.keys.r?1:0)-(held(-1)||input.keys.l?1:0);
+  rl.lean+=(kd-rl.lean)*(1-Math.exp(-dt*8));
+  rl.x=clamp(rl.x+rl.lean*2.8*dt,0.75,WS-0.75);
+  rl.d+=rl.v*dt;
+  const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0);
+  L.x=rl.x-0.45; Rt.x=rl.x+0.45; L.d=rl.d+0.3; Rt.d=rl.d-0.3; front=L; back=Rt;    // one foot a little ahead
+  if(L.d>far) far=L.d;
+  const j=slabIdx(rl.d); if(j>rl.joint){rl.joint=j; sfx.tick();}
+  lastStepAt=now;
+  // rolling over a coupon or another shoebox picks it up
+  for(const f of feet) for(const sl of slabsNear(f.d)){
+    const cp=sl.coupon; if(cp&&!cp.taken&&psd(cp.x,cp.d,f.x,f.d-0.5+R,f.x,f.d+0.5-R)<R+0.24){cp.taken=true; cp.tt=now; if(hp>0) takeCoupon(); updateHUD();}
+    const bx=sl.box; if(bx&&!bx.taken&&psd(bx.x,bx.d,f.x,f.d-0.5+R,f.x,f.d+0.5-R)<R+0.32){bx.taken=true; bx.tt=now; pendingPow=bx.kind;}
+  }
+  const ft=dist(); if(ft!==rl.ft){rl.ft=ft; $('#ft').textContent=ft;}
+  afterMove();
+  if(pendingPow){const k=pendingPow; pendingPow=null; startPower(k,now);}
+}
+// in heelies, whatever you roll into gets knocked out of the way
+function bowl(o){
+  o.state='hit'; o.t=0;
+  if(o.kind==='leash'){say('Rolled right over the leash.','Mrs. Shmookie lets go.',1100); sfx.yap(0);}
+  else if(o.kind==='board'){obsStop(); o.vx=(Math.random()<0.5?-1:1)*4; sfx.clack(); say('Out of the way.','',800);}
+  else {o.side=-o.side*0.8; sfx.ballBounce(0,1); say('Kicked it.','',800);}
+}
+// in the air: lean the landing spot left or right. A normal jump only a little; moon shoes anywhere.
+function nudge(dx){
+  let cx=(jp.to[0].x+jp.to[1].x)/2+dx; cx=clamp(cx,0.75,WS-0.75);
+  if(!jp.moon) cx=clamp(cx,jp.cx0-0.6,jp.cx0+0.6);
+  jp.to[0].x=cx-0.45; jp.to[1].x=cx+0.45;
+}
+// heelies: little speed lines past each shoe
+function drawRollLines(now){
+  if(phase!=='roll') return;
+  ctx.strokeStyle='rgba(255,255,255,0.45)'; ctx.lineWidth=Math.max(1,0.03*K); ctx.lineCap='round';
+  for(const f of feet) for(let k=0;k<3;k++){
+    const ph=((now*rl.v*0.9+k*0.37)%1), x=X(f.x+f.side*(0.32+k*0.06)), y=Y(f.d+0.3-ph*1.6);
+    ctx.globalAlpha=(1-ph)*Math.min(1,rl.v/5); ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+0.45*K); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
 }
 
 /* ---------- ambient life: falling leaves, a squirrel, ants on a crack, cloud shadows ---------- */
@@ -1285,14 +1611,16 @@ function syncGiant(){gcountEl.textContent=giant; giantBtn.setAttribute('aria-pre
 // mode: title (a demo walk runs behind the title) | play | paused | over
 // phase: what the feet are doing: idle | swing | drop | over
 let mode='title';
-let far=0, fwdSteps=0;
+let far=0, fwdSteps=0, jp=null;
 let phase='idle', feet=[], front=null, back=null, sw=null, drop=null, hp=MAXHP, steps=0, camD=0, bodyX=2.5, lastStage=0, hitFx=[], puffs=[], shake=0;
 let streak=0, runStreak=0, giant=1, armed=false, tStart=null, tEnd=null, lastTs='', runResult=null;
 let best=0, bestStreak=0, bestAtStart=0, bestStreakAtStart=0, newBestShown=false;
 try{best=parseInt(localStorage.getItem('dsotc-best'),10)||0; bestStreak=parseInt(localStorage.getItem('dsotc-best-streak'),10)||0;}catch(_){}
 // Each side of the screen (and A / D) belongs to one foot. A press while the other foot is
 // still up waits its turn, so thumbs can overlap; a foot comes down as soon as its own side is let go.
-const input={ptrs:new Map(),keySide:new Map(),q:[],bot:0,keys:{l:false,r:false}};
+// Both sides pressed within JUMP_WIN seconds of each other is a jump instead.
+const JUMP_WIN=0.075;
+const input={ptrs:new Map(),keySide:new Map(),q:[],bot:0,keys:{l:false,r:false},at:{'-1':-9,'1':-9}};
 function held(side){
   if(input.bot===side) return true;
   for(const p of input.ptrs.values()) if(p.side===side) return true;
@@ -1300,20 +1628,32 @@ function held(side){
   return false;
 }
 function press(side){
+  const t=performance.now()/1000, other=input.at[-side]; input.at[side]=t;
+  if(mode==='play'&&t-other<JUMP_WIN&&phase!=='jump'&&phase!=='roll'&&!input.q.some(p=>p.jump)){
+    // the first of the two presses may already have lifted its foot: that lift is undone
+    if(phase==='swing'&&sw.foot.side===-side&&sw.t<0.15){stopWobble(); phase='idle'; sw=null;}
+    input.q=input.q.filter(p=>p.side!==side&&p.side!==-side); input.q.unshift({jump:true,up:0});
+    input.at[side]=input.at[-side]=-9;
+    return;
+  }
   if(phase==='swing'&&sw.foot.side===side) return;          // that foot is already up
+  if(phase==='jump') return;                                 // in the air, pressing a side steers the landing instead
   input.q=input.q.filter(p=>p.side!==side); input.q.push({side,up:0});
 }
+// held, by a press made after time t0 (so the thumbs that started a jump don't steer it)
+function heldSince(side,t0){return held(side)&&input.at[side]>t0;}
 function release(side){
   if(held(side)) return;
   const t=performance.now()/1000;
   for(const p of input.q) if(p.side===side&&!p.up) p.up=t;
 }
-function clearInput(){input.ptrs.clear(); input.keySide.clear(); input.q=[]; input.bot=0; input.keys.l=input.keys.r=false;}
+function clearInput(){input.ptrs.clear(); input.keySide.clear(); input.q=[]; input.bot=0; input.keys.l=input.keys.r=false; input.at={'-1':-9,'1':-9};}
 // Space / W / Up step with whichever foot is due next
 function nextSide(){
   if(phase==='swing') return -sw.foot.side;
   if(phase==='drop'&&!drop.snap) return -drop.foot.side;
-  if(input.q.length) return -input.q[input.q.length-1].side;
+  const last=input.q[input.q.length-1];
+  if(last&&last.side) return -last.side;
   return back.side;
 }
 let nextBird=0, nextBeat=0, nextAmbient=0, lastStepAt=0, idleTexted=false, pausedAt=0;
@@ -1325,12 +1665,12 @@ function reset(){
   slabs.set(-2,buildSlab(-2,seedBase+11,0)); slabs.set(-1,buildSlab(-1,seedBase+13,0));
   frontier=[{x:front.x,d:front.d},{x:back.x,d:back.d}]; genNext=0; ensureSlabs(4);
   stopWobble();
-  phase='idle'; sw=null; drop=null; hp=MAXHP; steps=0; far=front.d; fwdSteps=0; camD=front.d; bodyX=2.5; lastStage=0; hitFx=[]; puffs=[]; shake=0;
+  phase='idle'; sw=null; drop=null; jp=null; hp=MAXHP; steps=0; far=front.d; fwdSteps=0; camD=front.d; bodyX=2.5; lastStage=0; hitFx=[]; puffs=[]; shake=0;
   streak=0; runStreak=0; giant=2; armed=false; tStart=null; tEnd=null; lastTs=''; timeEl.textContent='0:00';
   bestAtStart=best; bestStreakAtStart=bestStreak; newBestShown=false;
   clearInput();
   kinks=[]; curPose=clonePose(POSES[6]); camFlinch=0; xrayUntil=0; xrayJ=-1; clearTexts(); idleTexted=false;
-  dadA.on=false; dogReset(); chatStats.mom=0;
+  dadA.on=false; dogReset(); obsReset(performance.now()/1000); powReset(); chatStats.mom=0;
   lastStepAt=performance.now()/1000; nextAmbient=lastStepAt+30; bot.active=false; bot.next=0; ambientReset(lastStepAt);
   sfx.wind(0);
   clearMsgs();
@@ -1396,6 +1736,28 @@ function tapStep(){
   if(sw.giant){giant--; armed=false; syncGiant();}
   phase='drop';
 }
+// The jump: both feet up, a hop forward, both down side by side. You can't aim it,
+// and each foot that lands on a crack counts.
+const JUMP_DIST=1.5, JUMP_T=0.52;
+function beginJump(now){
+  const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0);
+  let cx=clamp((L.x+Rt.x)/2,0.75,WS-0.75); cx+=(WS/2-cx)*0.15;
+  const moon=!!(pow&&pow.kind==='moon'), d=Math.max(L.d,Rt.d)+(moon?4.6:JUMP_DIST);
+  jp={t:0,t0:performance.now()/1000,dur:moon?0.95:JUMP_T,moon,cx0:cx,feet:[L,Rt],from:[{x:L.x,d:L.d},{x:Rt.x,d:Rt.d}],to:[{x:cx-0.45,d},{x:cx+0.45,d}]};
+  phase='jump'; if(moon) sfx.boing(); else sfx.jump();
+  if(tStart===null){tStart=now; momText(T.open);}
+}
+function landJump(now){
+  if(jp.moon){sfx.moonLand(); kick(6);} else if(jp.herd){sfx.scuff();} else {sfx.jumpLand(); kick(4);}
+  for(let i=0;i<2;i++){
+    const f=jp.feet[i];
+    drop={foot:f,x:jp.to[i].x,d:jp.to[i].d,t:0,dur:0,fx:f.x,fd:f.d,fl:0,jump:true,stumble:!!jp.herd};
+    land(now);
+    if(mode!=='play') break;
+  }
+  const wasHerd=jp.herd; jp=null;
+  if(mode==='play'&&!wasHerd) momText(T.jump,{chance:0.2});
+}
 function stopWobble(){if(sw&&sw.stopWob){sw.stopWob(); sw.stopWob=null;}}
 function plant(){
   stopWobble();
@@ -1422,21 +1784,25 @@ function land(now){
   if(mode!=='play') return;                       // the title screen's demo walk counts nothing
   steps++;
   // only a step that takes you somewhere new counts toward the clean streak
-  const fwd=f.d>far+0.3; if(f.d>far) far=f.d;
+  const fwd=f.d>far+0.3&&!drop.stumble; if(f.d>far) far=f.d;
   const ay=f.d-0.5+R, by=f.d+0.5-R;
   const near=slabsNear(f.d), hits=footHits(f.x,f.d,near);
   let got=false, leafy=false, gum=false;
   for(const sl of near){
     const cp=sl.coupon; if(cp&&!cp.taken&&psd(cp.x,cp.d,f.x,ay,f.x,by)<R+0.24){cp.taken=true; cp.tt=now; got=true;}
+    const bx=sl.box; if(bx&&!bx.taken&&psd(bx.x,bx.d,f.x,ay,f.x,by)<R+0.32){bx.taken=true; bx.tt=now; pendingPow=bx.kind;}
     for(const L of sl.leaves.concat(sl.fallen||[])) if(psd(L.x,L.d,f.x,ay,f.x,by)<R+L.s*0.35){leafy=true; break;}
     for(const gm of sl.gum) if(psd(gm.x,gm.d,f.x,ay,f.x,by)<R+gm.r){gum=true; break;}
   }
   if(drop.giant){sfx.giantLand(); kick(5);}
-  if(hits.length){
+  // Any foot that ends up on a crack hurts Mom, however it got there. A two-foot landing counts once.
+  if(hits.length&&drop.jump&&jp&&jp.hurt){streak=0; for(const h of hits) hitFx.push({c:h.c,h:h.h,t:now});}
+  else if(hits.length){
+    if(drop.jump&&jp) jp.hurt=true;
     hp--; streak=0; for(const h of hits) hitFx.push({c:h.c,h:h.h,t:now});
     const kind=hits.some(h=>h.h)?'hole':hits.some(h=>h.c&&h.c.kind==='line')?'line':'crack';
     const m={crack:['Crack.',"Mom's back."],line:['Line.',"Mom's spine."],hole:['Pothole.',"Mom's whole back."]}[kind];
-    sayNow(m[0],m[1],1100); kick(10);
+    sayNow(drop.stumble?`Shoved onto a ${{crack:'crack',line:'line',hole:'pothole'}[kind]}.`:m[0],m[1],1100); kick(10);
     const vj=breakVertebra(now); sfx.static();
     if(kind==='hole') sfx.gravel(); else sfx.crack(kind);
     if(hp>0){
@@ -1465,20 +1831,25 @@ function land(now){
       } else if(streak%5===0){pop(streakEl); sfx.chime(streak/5);}
     }
   }
-  if(got&&hp>0){
-    sfx.paper();
-    if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500); momText(T.coupon);}
-    else {bankGiant('Chiropractor coupon.'); momText(T.couponFine);}
-  }
+  if(got&&hp>0) takeCoupon();
   updateHUD();
-  if(fwd){lastStepAt=now; idleTexted=false; fwdSteps++;}   // and to the chihuahua, shuffling is dawdling
+  if(fwd){lastStepAt=now; idleTexted=false; fwdSteps++;}   // and to Calzone, shuffling is dawdling
   if(hp<=0){gameOver(now); return;}
+  afterMove();
+}
+function takeCoupon(){
+  sfx.paper();
+  if(hp<MAXHP){hp++; kinks.pop(); say('Chiropractor coupon.','Mom unfolds a notch.',1500); momText(T.coupon);}
+  else {bankGiant('Chiropractor coupon.'); momText(T.couponFine);}
+}
+// a new street, a new best
+function afterMove(){
   const st=stageOf(slabIdx(front.d));
-  if(st>lastStage){lastStage=st; say(STAGES[st].name,STAGES[st].note,2000,true); sfx.car(); sfx.wind(st); momText(T.stage[st]);}
+  if(st>lastStage){lastStage=st; say(STAGES[st].name,STAGES[st].note,2000,true); sfx.car(); sfx.wind(st); momText(T.stage[st]); updateHUD();}
   if(!newBestShown&&bestAtStart>0&&dist()>bestAtStart){newBestShown=true; say('New best.','Keep walking.',1400); sfx.newbest();}
 }
 function gameOver(now){
-  phase='over'; mode='over'; msgQ=[]; tEnd=now; armed=false; dadA.on=false; syncGiant(); kinks.length<6&&breakVertebra(now); xrayUntil=0; clearTexts(); releaseWake();
+  phase='over'; mode='over'; msgQ=[]; tEnd=now; armed=false; dadA.on=false; obsStop(); powReset(); syncGiant(); kinks.length<6&&breakVertebra(now); xrayUntil=0; clearTexts(); releaseWake();
   const ft=dist();
   runResult={ft,time:elapsed(now),steps,streak:runStreak,block:STAGES[stageOf(slabIdx(front.d))].name,
     ftBest:ft>bestAtStart&&ft>0, stBest:runStreak>bestStreakAtStart&&runStreak>0};
@@ -1546,7 +1917,7 @@ function startGame(){
 function pauseGame(){
   if(mode!=='play') return;
   mode='paused'; pausedAt=performance.now()/1000;
-  clearInput();
+  clearInput(); obsStop(); if(rl&&rl.stop){rl.stop(); rl.stop=null;}
   if(phase==='swing'){stopWobble(); phase='idle'; sw=null;}   // a lifted foot just goes back down
   sfx.click(); showScreen(pauseEl,true); releaseWake();
 }
@@ -1554,7 +1925,8 @@ function resumeGame(){
   if(mode!=='paused') return;
   const away=performance.now()/1000-pausedAt;
   if(tStart!==null) tStart+=away;
-  lastStepAt+=away; nextAmbient+=away;
+  lastStepAt+=away; nextAmbient+=away; if(pow) pow.until+=away;
+  if(phase==='roll'&&rl&&!rl.stop) rl.stop=sfx.glide();
   mode='play'; sfx.click(); showScreen(pauseEl,false); requestWake();
 }
 $('#start').addEventListener('click',startGame);
@@ -1618,7 +1990,10 @@ view.addEventListener('pointerdown',e=>{
 view.addEventListener('pointermove',e=>{
   const p=input.ptrs.get(e.pointerId); if(!p) return;
   const dx=e.clientX-p.lastX; p.lastX=e.clientX;
-  if(phase==='swing'&&mode==='play'&&sw.foot.side===p.side) sw.x+=dx/K*1.25;
+  if(mode!=='play') return;
+  if(phase==='swing'&&sw.foot.side===p.side) sw.x+=dx/K*1.25;
+  else if(phase==='roll') rl.x=clamp(rl.x+dx/K*1.25,0.75,WS-0.75);
+  else if(phase==='jump'&&!jp.herd) nudge(dx/K*1.25);
 });
 const up=e=>{const p=input.ptrs.get(e.pointerId); if(!p) return; input.ptrs.delete(e.pointerId); release(p.side);};
 for(const ev of ['pointerup','pointercancel','lostpointercapture']) view.addEventListener(ev,up);
@@ -1664,7 +2039,7 @@ function update(dt,now){
   if(phase==='idle'&&input.q.length){
     const t=performance.now()/1000;
     input.q=input.q.filter(p=>!p.up||t-p.up<0.35);           // a tap that waited too long is dropped, not stepped
-    const p=input.q.shift(); if(p) beginSwing(p.side,now);
+    const p=input.q.shift(); if(p){if(p.jump) beginJump(now); else beginSwing(p.side,now);}
   }
   if(phase==='swing'){
     const speed=(sw.dmax-sw.dmin)/(swingTime(slabIdx(front.d))*(sw.giant?1.3:1));
@@ -1690,10 +2065,15 @@ function update(dt,now){
     else if(sw.wob>WOB) snapBack();
   } else if(phase==='drop'){
     drop.t+=dt; if(drop.t>=drop.dur) land(now);
+  } else if(phase==='jump'){
+    jp.t+=dt;
+    if(!jp.herd){const kd=(heldSince(1,jp.t0)||input.keys.r?1:0)-(heldSince(-1,jp.t0)||input.keys.l?1:0); if(kd) nudge(kd*(jp.moon?2.6:1.6)*dt);}
+    if(jp.t>=jp.dur) landJump(now);
   }
+  obsUpdate(dt,now); powUpdate(dt,now);
   if(tStart!==null&&mode==='play'){const ts=fmtTime(elapsed(now)); if(ts!==lastTs){lastTs=ts; timeEl.textContent=ts;}}
   camD+=(front.d-camD)*(1-Math.exp(-dt*11));
-  let sx=0; for(const f of feet){sx+=phase==='swing'&&f===sw.foot?sw.tx:phase==='drop'&&f===drop.foot?drop.x:f.x;}
+  let sx=0; for(const f of feet){sx+=phase==='swing'&&f===sw.foot?sw.tx:phase==='drop'&&f===drop.foot?drop.x:phase==='jump'?jp.to[jp.feet.indexOf(f)].x:f.x;}
   bodyX+=(sx/feet.length-bodyX)*(1-Math.exp(-dt*5));
   ensureSlabs(slabIdx(camD+yAnchor/K)+1);
   {const nx=slabs.get(slabIdx(camD+yAnchor/K)+1); if(nx&&!tiles.has(nx.i)) getTile(nx);}
@@ -1715,21 +2095,21 @@ function render(now){
   const lo=slabIdx(camD-(Hc-yAnchor)/K), hi=slabIdx(camD+yAnchor/K);
   for(let i=hi;i>=lo;i--){const sl=slabs.get(i); if(!sl) continue; const c=getTile(sl); ctx.drawImage(c,0,Y((i+1)*S),Wc,c.height/dpr);}
   drawFallen(lo,hi); drawAnts(now,lo,hi);
-  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(); drawDog(now); drawFeet();
-  drawFalling(); drawCloud(); drawDogDanger();
+  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(); drawDog(now); drawObs(now); drawRollLines(now); drawFeet();
+  drawFalling(); drawCloud(); drawDogDanger(); drawObsWarn(now);
   drawCam(now);
 }
 let lastT=performance.now();
 function frame(t){
   const now=t/1000, dt=Math.min(0.05,Math.max(0,(t-lastT)/1000)); lastT=t;
-  update(dt,now); render(now);
   requestAnimationFrame(frame);
+  try{update(dt,now); render(now);}catch(e){console.error(e);}
 }
 
 /* ---------- boot ---------- */
 if(!coarse){
-  $('#howMove').innerHTML='Tap <b>A</b> and <b>D</b> (or either half of the screen) in turn to walk. Hold one to lift that foot and aim it, let go to put it down. Steer with the arrow keys or the mouse.';
-  $('#howGiant').innerHTML="Dawdle and the Kowalskis' chihuahua comes for your heels. Overreach and your leg wobbles: press <b>G</b> for a <b>giant step</b> to save it.";
+  $('#howMove').innerHTML='Tap <b>A</b> and <b>D</b> (or either half of the screen) in turn to walk. Hold one to lift that foot and aim it, let go to put it down. Steer with the arrow keys or the mouse. <b>A and D together</b> jump.';
+  $('#howGiant').innerHTML="Dawdle and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: press <b>G</b> for a <b>giant step</b> to save it.";
   const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>G giant step · Esc pauses · F full screen · M sound</span>';
   $('.t-how').appendChild(li);
 }
