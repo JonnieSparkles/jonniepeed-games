@@ -1,6 +1,7 @@
 // Thimbleful: a tiny explorer catches drips from a leaking watering can to grow a sunflower.
 // States: title (live windowsill scene) -> intro (first play only: plant the seed in the big pot) -> play -> over.
 // "Just watch" puts the scene in a passive mode with no game on top.
+const BOARD = 1;
 const c = document.getElementById('c'), g = c.getContext('2d');
 const W = 96, H = 72, MAXSPILL = 5, SUN_X = 10, SUN_BASE = 36, PLANT_STAND = 21, CAN_HOME = 52, CAN_AWAY = -14;
 const R = (a, b, w, h, k) => { g.fillStyle = k; g.fillRect(Math.round(a), Math.round(b), w, h); };
@@ -15,7 +16,7 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 };
-let best = +store.get('thimbleful-best') || 0;
+let best = +store.get('thimbleful-best-' + BOARD) || 0;
 let introSeen = store.get('thimbleful-intro-seen') === '1';
 
 let state = 'title', score = 0, spills = 0, el = 0, ex = 32, target = null, walk = 0, moved = false, flash = 0, time = 0, dropT = 1.2;
@@ -31,6 +32,90 @@ const near = [[9, 12, 3], [24, 9, 4], [38, 14, 2], [57, 10, 3], [72, 15, 3]];
 const lit = [[19, 39], [35, 40], [51, 38], [68, 41], [76, 39]];
 const clouds = [[0, 10, 2.2], [40, 16, 1.4], [70, 8, 1.8]];
 
+
+/* ---------- online arcade board ---------- */
+let lbRun = null, lbEntry = null;
+const lbBox = $('board');
+function clearLeaderboard() {
+  if (lbEntry) lbEntry.destroy();
+  lbEntry = null; lbRun = null; lbBox.replaceChildren(); lbBox.hidden = true;
+}
+function resetLeaderboard() {
+  clearLeaderboard();
+  if (window.Leaderboard) lbRun = { id: Leaderboard.newRunId(), input: 'keys', data: null, shown: false };
+}
+function loadLeaderboard(score, meta) {
+  const run = lbRun;
+  if (!run || !window.Leaderboard) return;
+  run.score = score; run.meta = meta;
+  Leaderboard.load('thimbleful', BOARD, score, meta).then(data => {
+    if (lbRun !== run || !(state === 'over')) return;
+    run.data = data;
+    showLeaderboard();
+  });
+}
+function showLeaderboard() {
+  const run = lbRun;
+  if (!run || !run.data || run.shown || !(state === 'over')) return;
+  run.shown = true;
+  const data = run.data;
+  lbBox.hidden = false;
+  if (typeof data.placement !== 'number') { drawLeaderboard(data.scores); return; }
+  const heading = document.createElement('h3'); heading.textContent = 'You made the board!';
+  const message = document.createElement('p'); message.className = 'lb-message'; message.setAttribute('role', 'status');
+  lbBox.append(heading, message);
+  lbEntry = Leaderboard.entry(lbBox, {
+    initials: Leaderboard.initials(),
+    async onDone(name) {
+      const picker = lbEntry;
+      if (!picker || run.busy) return;
+      run.busy = true; picker.setBusy(true); message.textContent = 'Saving…';
+      Leaderboard.saveInitials(name);
+      const result = await Leaderboard.submit({game:'thimbleful',board:BOARD,run_id:run.id,name,
+        score:run.score,input:run.input,meta:run.meta});
+      if (lbRun !== run || !(state === 'over')) return;
+      run.busy = false;
+      if (result?.error === 'name_not_allowed') {
+        message.textContent = 'Try other initials'; picker.setBusy(false); return;
+      }
+      picker.destroy(); lbEntry = null;
+      drawLeaderboard(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
+    },
+    onSkip() { if (run.busy) return; lbEntry.destroy(); lbEntry = null; drawLeaderboard(data.scores); }
+  });
+}
+function drawLeaderboard(scores, highlight = null, all = false) {
+  lbBox.replaceChildren();
+  const title = document.createElement('h3'); title.textContent = 'High scores';
+  const list = document.createElement('div'); list.className = 'lb-list'; list.tabIndex = 0;
+  list.setAttribute('role', 'region'); list.setAttribute('aria-label', 'High scores, scroll to see more');
+  const table = document.createElement('table'); table.className = 'lb-table';
+  const head = table.createTHead().insertRow();
+  for (const label of ['Rank', 'Name', 'Drops', 'Input']) { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = label; head.append(cell); }
+  const body = table.createTBody();
+  const addRow = row => {
+    const tr = body.insertRow(); if (row.rank === highlight) tr.className = 'lb-you';
+    for (const value of [String(row.rank), row.name, String(row.score)]) { const cell = tr.insertCell(); cell.textContent = value; }
+    const iconCell = tr.insertCell();
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 20 20'); icon.setAttribute('class', 'lb-input');
+    icon.setAttribute('role', 'img'); icon.setAttribute('aria-label', row.input === 'touch' ? 'touch' : 'keyboard');
+    const path = document.createElementNS(icon.namespaceURI, 'path');
+    path.setAttribute('d', row.input === 'touch' ? 'M8 17L4 11L6 10L8 12V3H11V9L16 10V16L14 18H9Z' : 'M2 5H18V15H2ZM5 8H6M9 8H10M13 8H14M5 11H6M9 11H15');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-width', '1.5'); icon.append(path); iconCell.append(icon);
+  };
+  (all ? scores : scores.slice(0, 10)).forEach(addRow);
+  if (!all && highlight > 10) {
+    const player = scores.find(row => row.rank === highlight);
+    if (player) { const gap = body.insertRow().insertCell(); gap.colSpan = ['Rank', 'Name', 'Drops', 'Input'].length; gap.textContent = '…'; addRow(player); }
+  }
+  list.append(table); lbBox.append(title, list);
+  if (scores.length > 10) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more'; button.textContent = all ? 'Top 10' : 'See all';
+    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all); lbBox.querySelector('.lb-more').focus(); }); lbBox.append(button);
+  }
+}
+
 // ---------- UI ----------
 function hud() {
   scoreEl.textContent = score; bestEl.textContent = best; pips.innerHTML = '';
@@ -42,6 +127,7 @@ function showCard(title, text, goLabel) {
 }
 
 function start(withIntro) {
+  resetLeaderboard();
   if (withIntro === true) introSeen = false;
   ThimbleSound.start();
   score = 0; spills = 0; el = 0; target = null; drops = []; parts = []; wet = []; flash = 0; hud();
@@ -66,13 +152,16 @@ function finishIntro() {
   skipBtn.hidden = true; state = 'play'; dropT = 0.9;
 }
 function end() {
+  if (state !== 'play') return;
   state = 'over'; drops = []; ThimbleSound.over();
-  if (score > best) { best = score; store.set('thimbleful-best', String(best)); }
+  if (score > best) { best = score; store.set('thimbleful-best-' + BOARD, String(best)); }
   hud(); can.want = can.x; facing = ex > SUN_X ? -1 : 1; wander.next = 4;
   showCard('The sill is soaked', `You caught ${score} drop${score === 1 ? '' : 's'} and grew your sunflower. Best: ${best}.`, 'Play again');
   go.focus();
+  loadLeaderboard(score, { time_ms: Math.round(el * 1000) });
 }
 function watch() {
+  clearLeaderboard();
   state = 'watch'; drops = []; target = null;
   overlay.hidden = true; skipBtn.hidden = true; leaveBtn.hidden = false;
   main.classList.add('watching');
@@ -135,12 +224,13 @@ function toLogical(e) { const r = c.getBoundingClientRect(); return (e.clientX -
 // the whole arena takes drags, so in portrait full screen the empty space under the scene is a thumb zone
 let down = false;
 const arena = document.querySelector('.arena');
-arena.addEventListener('pointerdown', e => { if (state !== 'play' || e.target.closest('button')) return; down = true; try { arena.setPointerCapture(e.pointerId); } catch (_) {} target = toLogical(e); });
+arena.addEventListener('pointerdown', e => { if (state !== 'play' || e.target.closest('button')) return; if (lbRun && (e.pointerType === 'touch' || e.pointerType === 'pen')) lbRun.input = 'touch'; down = true; try { arena.setPointerCapture(e.pointerId); } catch (_) {} target = toLogical(e); });
 arena.addEventListener('pointermove', e => { if (state === 'play' && (down || (e.pointerType === 'mouse' && e.target === c))) target = toLogical(e); });
 arena.addEventListener('pointerup', () => { down = false; });
 arena.addEventListener('pointercancel', () => { down = false; });
 const isL = k => k === 'ArrowLeft' || k === 'a' || k === 'A', isR = k => k === 'ArrowRight' || k === 'd' || k === 'D';
 addEventListener('keydown', e => {
+  if (lbEntry) return;
   if (isL(e.key)) { keys.l = true; target = null; }
   else if (isR(e.key)) { keys.r = true; target = null; }
   else if ((e.key === 'm' || e.key === 'M') && !e.repeat) { ThimbleSound.toggle(); sndLabel(); return; }

@@ -238,6 +238,29 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
   #msg,.cmsg,.hud,.screen{transition:none}
   .intro *{animation:none!important}
 }
+
+/* Arcade board, styled for this game's end screen. */
+#board{width:100%;min-width:0;display:grid;gap:8px;margin:6px 0 12px}
+#board h3{font-family:var(--f-chalk);font-size:18px;margin:0;color:var(--chalk-yellow)}
+#board .lb-message{font-size:14px;margin:0}
+.lb-slots{display:flex;justify-content:center;gap:12px}
+.lb-slot{display:grid;gap:4px}
+#board .lb-button{font:inherit;border:1px solid var(--ink-dim);border-radius:5px;background:#282b23;color:var(--ink);padding:7px 12px;min-width:44px;min-height:44px;cursor:pointer;box-shadow:none}
+#board .lb-letter{font-family:var(--f-chalk);font-size:24px}
+#board .lb-current .lb-letter{outline:2px solid var(--chalk-yellow);outline-offset:1px}
+.lb-actions{display:flex;justify-content:center;gap:12px;margin-top:10px}
+.lb-input{width:18px;height:18px;vertical-align:middle}
+.lb-list{max-height:210px;max-height:min(210px,36dvh);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
+.lb-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.lb-table th{font-size:11px;font-weight:400;color:var(--ink-dim)}
+.lb-table td,.lb-table th{padding:5px 2px;text-align:right}
+.lb-table td:nth-child(2),.lb-table th:nth-child(2){text-align:left}
+.lb-table .lb-you{background:#4b4228;color:var(--ink);font-weight:bold}
+#board .lb-more{font:inherit;min-height:44px;padding:7px 12px;background:#282b23;color:var(--ink);border:1px solid var(--ink-dim);border-radius:5px;cursor:pointer;box-shadow:none}
+#board button:focus-visible,.lb-list:focus-visible{outline:2px solid var(--chalk-yellow);outline-offset:2px}
+#board button:disabled{opacity:.6;cursor:wait}
+
+.over:has(#board:not([hidden])){align-items:start}.over:has(#board:not([hidden])) .phone{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
 </style>
 </head>
 <body>
@@ -336,7 +359,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
           </dl>
           <p class="meta" id="sChat"></p>
           <p class="meta" id="sMeta"></p>
-          <div class="stack">
+          <section id="board" aria-label="Online high scores" hidden></section>
+      <div class="stack">
             <button id="again" class="btn primary" type="button">Walk it again</button>
             <button id="overTitle" class="btn ghost" type="button">Title screen</button>
           </div>
@@ -346,6 +370,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
   </div>
 </div>
 <script src="audio.js?v=5d7830a151"></script>
-<script src="game.js?v=412d939d8b"></script>
+<script src="../assets/leaderboard.js?v=aa140ba9fe"></script>
+<script src="game.js?v=f92bca5fa7"></script>
 </body>
 </html>

@@ -5,12 +5,97 @@
 // Flow: title (a demo walk runs behind it) -> play <-> paused -> over (Mom calls) -> play or title.
 'use strict';
 'use strict';
+const BOARD=1;
 const $=s=>document.querySelector(s);
 const view=$('#view'), cv=$('#world'), ctx=cv.getContext('2d');
 const msgEl=$('#msg'), msgM=msgEl.querySelector('.m'), msgS=msgEl.querySelector('.s');
 const overEl=$('#over'), phoneEl=$('#phone'), callerEl=$('#caller'), callingEl=$('#calling'), afterEl=$('#after');
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse=matchMedia('(pointer: coarse)').matches;
+
+
+/* ---------- online arcade board ---------- */
+let lbRun = null, lbEntry = null;
+const lbBox = $('#board');
+function clearLeaderboard() {
+  if (lbEntry) lbEntry.destroy();
+  lbEntry = null; lbRun = null; lbBox.replaceChildren(); lbBox.hidden = true;
+}
+function resetLeaderboard() {
+  clearLeaderboard();
+  if (window.Leaderboard) lbRun = { id: Leaderboard.newRunId(), input: 'keys', data: null, shown: false };
+}
+function loadLeaderboard(score, meta) {
+  const run = lbRun;
+  if (!run || !window.Leaderboard) return;
+  run.score = score; run.meta = meta;
+  Leaderboard.load('dont-step-on-the-crack', BOARD, score, meta).then(data => {
+    if (lbRun !== run || !(mode === 'over')) return;
+    run.data = data;
+    if (!afterEl.hidden) showLeaderboard();
+  });
+}
+function showLeaderboard() {
+  const run = lbRun;
+  if (!run || !run.data || run.shown || !(mode === 'over')) return;
+  run.shown = true;
+  const data = run.data;
+  lbBox.hidden = false;
+  if (typeof data.placement !== 'number') { drawLeaderboard(data.scores); return; }
+  const heading = document.createElement('h3'); heading.textContent = 'You made the board!';
+  const message = document.createElement('p'); message.className = 'lb-message'; message.setAttribute('role', 'status');
+  lbBox.append(heading, message);
+  lbEntry = Leaderboard.entry(lbBox, {
+    initials: Leaderboard.initials(),
+    async onDone(name) {
+      const picker = lbEntry;
+      if (!picker || run.busy) return;
+      run.busy = true; picker.setBusy(true); message.textContent = 'Saving…';
+      Leaderboard.saveInitials(name);
+      const result = await Leaderboard.submit({game:'dont-step-on-the-crack',board:BOARD,run_id:run.id,name,
+        score:run.score,input:run.input,meta:run.meta});
+      if (lbRun !== run || !(mode === 'over')) return;
+      run.busy = false;
+      if (result?.error === 'name_not_allowed') {
+        message.textContent = 'Try other initials'; picker.setBusy(false); return;
+      }
+      picker.destroy(); lbEntry = null;
+      drawLeaderboard(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
+    },
+    onSkip() { if (run.busy) return; lbEntry.destroy(); lbEntry = null; drawLeaderboard(data.scores); }
+  });
+}
+function drawLeaderboard(scores, highlight = null, all = false) {
+  lbBox.replaceChildren();
+  const title = document.createElement('h3'); title.textContent = 'High scores';
+  const list = document.createElement('div'); list.className = 'lb-list'; list.tabIndex = 0;
+  list.setAttribute('role', 'region'); list.setAttribute('aria-label', 'High scores, scroll to see more');
+  const table = document.createElement('table'); table.className = 'lb-table';
+  const head = table.createTHead().insertRow();
+  for (const label of ['Rank', 'Name', 'Feet', 'Streak', 'Input']) { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = label; head.append(cell); }
+  const body = table.createTBody();
+  const addRow = row => {
+    const tr = body.insertRow(); if (row.rank === highlight) tr.className = 'lb-you';
+    for (const value of [String(row.rank), row.name, String(row.score), String(row.meta?.streak ?? '—')]) { const cell = tr.insertCell(); cell.textContent = value; }
+    const iconCell = tr.insertCell();
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 20 20'); icon.setAttribute('class', 'lb-input');
+    icon.setAttribute('role', 'img'); icon.setAttribute('aria-label', row.input === 'touch' ? 'touch' : 'keyboard');
+    const path = document.createElementNS(icon.namespaceURI, 'path');
+    path.setAttribute('d', row.input === 'touch' ? 'M8 17L4 11L6 10L8 12V3H11V9L16 10V16L14 18H9Z' : 'M2 5H18V15H2ZM5 8H6M9 8H10M13 8H14M5 11H6M9 11H15');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-width', '1.5'); icon.append(path); iconCell.append(icon);
+  };
+  (all ? scores : scores.slice(0, 10)).forEach(addRow);
+  if (!all && highlight > 10) {
+    const player = scores.find(row => row.rank === highlight);
+    if (player) { const gap = body.insertRow().insertCell(); gap.colSpan = ['Rank', 'Name', 'Feet', 'Streak', 'Input'].length; gap.textContent = '…'; addRow(player); }
+  }
+  list.append(table); lbBox.append(title, list);
+  if (scores.length > 10) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more'; button.textContent = all ? 'Top 10' : 'See all';
+    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all); lbBox.querySelector('.lb-more').focus(); }); lbBox.append(button);
+  }
+}
 
 /* ---------- world units: 1 unit = 1 ft = one shoe length ---------- */
 const S=5, WS=5, R=0.18, DMIN=0.45, DMAX=2.25, LAT=1.7, MAXHP=6, LIFT=1.0;
@@ -1615,7 +1700,7 @@ let far=0, fwdSteps=0, jp=null;
 let phase='idle', feet=[], front=null, back=null, sw=null, drop=null, hp=MAXHP, steps=0, camD=0, bodyX=2.5, lastStage=0, hitFx=[], puffs=[], shake=0;
 let streak=0, runStreak=0, giant=1, armed=false, tStart=null, tEnd=null, lastTs='', runResult=null;
 let best=0, bestStreak=0, bestAtStart=0, bestStreakAtStart=0, newBestShown=false;
-try{best=parseInt(localStorage.getItem('dsotc-best'),10)||0; bestStreak=parseInt(localStorage.getItem('dsotc-best-streak'),10)||0;}catch(_){}
+try{best=parseInt(localStorage.getItem('dsotc-best-'+BOARD),10)||0; bestStreak=parseInt(localStorage.getItem('dsotc-best-streak-'+BOARD),10)||0;}catch(_){}
 // Each side of the screen (and A / D) belongs to one foot. A press while the other foot is
 // still up waits its turn, so thumbs can overlap; a foot comes down as soon as its own side is let go.
 // Both sides pressed within JUMP_WIN seconds of each other is a jump instead.
@@ -1849,13 +1934,16 @@ function afterMove(){
   if(!newBestShown&&bestAtStart>0&&dist()>bestAtStart){newBestShown=true; say('New best.','Keep walking.',1400); sfx.newbest();}
 }
 function gameOver(now){
+  if(mode!=='play') return;
   phase='over'; mode='over'; msgQ=[]; tEnd=now; armed=false; dadA.on=false; obsStop(); powReset(); syncGiant(); kinks.length<6&&breakVertebra(now); xrayUntil=0; clearTexts(); releaseWake();
   const ft=dist();
   runResult={ft,time:elapsed(now),steps,streak:runStreak,block:STAGES[stageOf(slabIdx(front.d))].name,
     ftBest:ft>bestAtStart&&ft>0, stBest:runStreak>bestStreakAtStart&&runStreak>0};
-  if(ft>best){best=ft; try{localStorage.setItem('dsotc-best',String(best));}catch(_){}}
-  if(runStreak>bestStreak){bestStreak=runStreak; try{localStorage.setItem('dsotc-best-streak',String(bestStreak));}catch(_){}}
-  setTimeout(showOver,700);
+  if(ft>best){best=ft; try{localStorage.setItem('dsotc-best-'+BOARD,String(best));}catch(_){}}
+  if(runStreak>bestStreak){bestStreak=runStreak; try{localStorage.setItem('dsotc-best-streak-'+BOARD,String(bestStreak));}catch(_){}}
+  loadLeaderboard(runResult.ft, {time_ms:Math.round(runResult.time*1000),steps:runResult.steps,streak:runResult.streak});
+  const endedRun=lbRun;
+  setTimeout(()=>{if(lbRun===endedRun) showOver();},700);
 }
 function countUp(el,to,fmt,badge){
   const done=()=>{el.textContent=fmt(to); if(badge){const b=document.createElement('span'); b.className='nb'; b.textContent='best'; el.appendChild(b);}};
@@ -1868,12 +1956,14 @@ function showOver(){
   clearMsgs();
   overEl.hidden=false; phoneEl.classList.add('ringing'); callerEl.textContent='Mom'; callingEl.hidden=false; afterEl.hidden=true;
   sfx.ring();
+  const endedRun=lbRun;
   setTimeout(()=>{
-    if(mode!=='over') return;
+    if(mode!=='over'||lbRun!==endedRun) return;
     const r=runResult;
     phoneEl.classList.remove('ringing'); callerEl.textContent='…Mom?'; callingEl.hidden=true; sfx.click();
     $('#line').textContent=ENDINGS[(Math.random()*ENDINGS.length)|0];
     afterEl.hidden=false;
+    showLeaderboard();
     const av=$('#avatar'), dpa=Math.min(2,window.devicePixelRatio||1); av.width=av.height=Math.round(72*dpa);
     av.getContext('2d').drawImage(camCv,0,0,camCv.width,camCv.height,0,0,av.width,av.height);
     countUp($('#sFt'),r.ft,v=>Math.round(v)+' ft',r.ftBest);
@@ -1884,7 +1974,7 @@ function showOver(){
     const times=n=>n===1?'once':`${n} times`;
     $('#sChat').textContent=chatStats.mom?`Mom texted you ${times(chatStats.mom)}.`:'';
     if(r.ftBest||r.stBest) setTimeout(()=>sfx.newbest(),reduceMotion?0:820);
-    try{$('#again').focus({preventScroll:true});}catch(_){}
+    if(!lbEntry) try{$('#again').focus({preventScroll:true});}catch(_){}
   },reduceMotion?400:1500);
 }
 
@@ -1899,6 +1989,7 @@ function syncBest(){
   else tBest.hidden=true;
 }
 function goTitle(){
+  clearLeaderboard();
   mode='title'; sfx.quiet=true;
   overEl.hidden=true; pauseEl.hidden=true;
   reset();
@@ -1907,6 +1998,8 @@ function goTitle(){
   showScreen(titleEl,true); syncBest(); releaseWake();
 }
 function startGame(){
+  resetLeaderboard();
+  afterEl.hidden=true;
   sfx.init(); sfx.quiet=false; sfx.start();
   overEl.hidden=true; showScreen(pauseEl,false);
   if(!titleEl.hidden) showScreen(titleEl,false);
@@ -1980,6 +2073,7 @@ function botUpdate(now){
 view.addEventListener('pointerdown',e=>{
   if(mode!=='play'||e.target.closest('button')||e.target.closest('.screen')||e.target.closest('#over')) return;
   if(e.pointerType==='mouse'&&e.button!==0) return;
+  if(lbRun&&(e.pointerType==='touch'||e.pointerType==='pen')) lbRun.input='touch';
   sfx.init();
   const rect=view.getBoundingClientRect(), side=(e.clientX-rect.left)<rect.width/2?-1:1;
   input.ptrs.set(e.pointerId,{side,lastX:e.clientX});
@@ -1999,6 +2093,7 @@ const up=e=>{const p=input.ptrs.get(e.pointerId); if(!p) return; input.ptrs.dele
 for(const ev of ['pointerup','pointercancel','lostpointercapture']) view.addEventListener(ev,up);
 view.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('keydown',e=>{
+  if(lbEntry) return;
   const k=e.code, t=e.target, onBtn=t&&t.closest&&t.closest('button,a');
   if(e.metaKey||e.ctrlKey||e.altKey) return;
   if(k==='KeyM'&&!e.repeat){toggleSound(); return;}

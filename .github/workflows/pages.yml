@@ -25,6 +25,8 @@ jobs:
       - uses: actions/configure-pages@v6
       - name: Version file links so browsers fetch changed files
         run: python3 tools/stamp.py
+      - name: Check leaderboard board numbers
+        run: python3 tools/check_boards.py
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

@@ -15,6 +15,8 @@ site/                   everything that gets published
   favicon.ico
 tools/og/make.py        builds the social preview cards (pixel canvases, or page screenshots for smooth games)
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
+tools/check_boards.py   checks game BOARD constants before deploying
+scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
 docs/guides/            operating guides (setup, deploying, how-to)
 brand/                  source logo files, not published
@@ -37,6 +39,7 @@ These apply to every change:
 - **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games.
 - **Relative links, explicit `index.html`.** Needed for Arweave manifests.
 - **No backward compatibility.** Remove old pages and paths outright, with no redirects or shims.
+- **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/leaderboards.md). The scores API is the one exception to no backward compatibility: old published copies must keep working.
 - **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
 
 ## Adding a game
@@ -45,6 +48,7 @@ These apply to every change:
 2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail.
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/index.html`.
 4. Run `python3 tools/stamp.py`.
+5. For online scores, follow the [Adding a game checklist](docs/guides/leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
 
 ## Social previews
 
