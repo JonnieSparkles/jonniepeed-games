@@ -9,3 +9,4 @@ Follow the **Standards** section in README.md on every change. In short:
 - Studio name is JonniePeed Games (capital P).
 - Don't commit or push to `main` unless the user says to in the conversation. Deliverables go in the repo, not zip files.
 - Pages deploys only by hand (workflow_dispatch). Never add automatic triggers.
+- Build specs live in `specs/` as `SPEC-NNN-name.md`, numbered in order. Operating guides live in `docs/guides/`.

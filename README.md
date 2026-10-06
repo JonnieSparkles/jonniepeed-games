@@ -15,6 +15,8 @@ site/                   everything that gets published
   favicon.ico
 tools/og/make.py        builds the social preview cards (pixel canvases, or page screenshots for smooth games)
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
+specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
+docs/guides/            operating guides (setup, deploying, how-to)
 brand/                  source logo files, not published
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
