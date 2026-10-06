@@ -39,7 +39,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font
 .wrap{max-width:1000px;margin:0 auto;padding-inline:16px}
 .hero{padding-block:20px 8px;display:grid;justify-items:center;gap:10px}
 .hero h1{margin:0;width:100%}
-.hero canvas{display:block;margin-inline:auto;image-rendering:pixelated;touch-action:pan-y;cursor:crosshair}
+.hero canvas{display:block;margin-inline:auto;image-rendering:pixelated;touch-action:pan-y;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .hero canvas:focus-visible{outline:3px solid var(--pink);outline-offset:4px;border-radius:4px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .games-word{margin:0;display:flex;align-items:center;gap:14px;font-family:var(--display);font-size:clamp(22px,6vw,34px);letter-spacing:.3em;padding-left:.3em;color:var(--ink)}
@@ -75,10 +75,10 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
 </head>
 <body>
 <header class="hero wrap">
-  <h1><span class="sr-only">JonniePeed Games</span><canvas id="hero" width="180" height="88" tabindex="0" role="img" aria-label="Pixel-art JonniePeed logo: a stick figure sends a rainbow arc into colourful paint-splash letters. Point, tap or use the arrow keys to aim; paint drips off the letters and confetti pops when hit."></canvas></h1>
+  <h1><span class="sr-only">JonniePeed Games</span><canvas id="hero" width="180" height="88" tabindex="0" role="img" aria-label="Pixel-art JonniePeed logo: a stick figure sends a rainbow arc into arched paint letters. Hold to spray and slide left or right to aim, or hold Space and use the arrow keys. Painting every letter sets off confetti."></canvas></h1>
   <p class="games-word" aria-hidden="true"><i></i>GAMES<i></i></p>
   <p class="tagline">Small games you play right in your browser.</p>
-  <p class="howto">Point or tap to aim</p>
+  <p class="howto">Hold to spray, slide to aim</p>
 </header>
 <main class="shelf wrap">
   <h2 class="sr-only">Games</h2>
@@ -109,6 +109,6 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
     <span>© 2026 JonniePeed Games</span>
   </div>
 </footer>
-<script src="assets/hero.js?v=70cbddf743"></script>
+<script src="assets/hero.js?v=644dc5f5fb"></script>
 </body>
 </html>

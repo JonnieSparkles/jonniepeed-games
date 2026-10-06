@@ -1,12 +1,13 @@
 // Interactive pixel version of the JonniePeed logo.
-// The lettering is drawn in code from Pixelify Sans, thresholded to hard pixels and shaded like the paint letters
-// in the logo. The stick figure aims his rainbow wherever you point (hover, tap or drag); paint splats and drips
-// on the letters, confetti squares pop when hit, and when nobody is aiming he sweeps across the letters on his own.
+// Arched lettering is built in code from Pixelify Sans and shaded like the paint letters in the logo.
+// Letters start pale; the rainbow paints them in. Hold to spray (the longer you hold, the stronger it gets)
+// and slide left or right to swing the direction. He turns and leans with the stream.
+// When nobody is playing he puts on the show himself, then the paint slowly fades and he starts again.
 (function () {
   const cv = document.getElementById('hero');
   if (!cv) return;
   const g = cv.getContext('2d');
-  const H = 88, GROUND = 84;
+  const H = 136, GROUND = 132, S = 2.05, GRAV = 150;
   const BANDS = ['#ec188c', '#ffcc00', '#1e9bf0'];
   const PAINT = ['#1e9bf0', '#63b81c', '#ff8a1f', '#ec188c', '#8a2be2', '#ffcc00'];
   const SHADES = {
@@ -16,246 +17,312 @@
   const WORD = 'JonniePeed';
   const LETTER_COLORS = ['blue', 'green', 'orange', 'pink', 'purple', 'blue', 'green', 'orange', 'pink', 'purple'];
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const darkQ = matchMedia('(prefers-color-scheme: dark)');
 
   let W = 180, scale = 2, time = 0, last = 0, running = false, visible = true;
-  let layer = null, mask = null, box = { x: 0, y: 6, w: 0, h: 0 };
-  let parts = [], drips = [], stains = new Map(), puddles = new Map(), confetti = [];
-  let aim = null, lastInput = -99, surge = 0, hop = 0, fx = 40;
+  let letters = [], box = { x: 0, y: 0, w: 0, h: 0 };
+  let parts = [], drops = [], puddles = new Map(), confetti = [];
+  // control state
+  let holding = false, aimDir = 0.5, power = 0, lastInput = -99, facing = 1, hop = 0, cheer = 0;
+  let figX = 60, allPaintedAt = -1, fading = -1;
+
+  // ---------- theme ----------
+  function isDark() {
+    const t = document.documentElement.getAttribute('data-theme');
+    return t ? t === 'dark' : darkQ.matches;
+  }
+  const pale = () => isDark() ? ['#36304a', '#453e5c', '#29243a'] : ['#e7e3ef', '#f5f3f9', '#d3cde0'];
+  function ink() { return getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#17141f'; }
+  function groundColor() { return getComputedStyle(document.documentElement).getPropertyValue('--line').trim() || '#e8e4f0'; }
 
   // ---------- lettering ----------
+  function shadeGlyph(owner, w, h, sh, ctx, withDrips, seedBase) {
+    const at = (x, y) => (x >= 0 && y >= 0 && x < w && y < h) ? owner[y * w + x] : 0;
+    let shine = false;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!at(x, y)) continue;
+      let c = sh[0];
+      if (!at(x, y - 1)) c = sh[1];
+      else if (!at(x, y + 1) || (!at(x + 1, y) && !at(x + 1, y + 1))) c = sh[2];
+      ctx.fillStyle = c; ctx.fillRect(x, y, 1, 1);
+      if (!shine && at(x, y - 1) && !at(x, y - 2) && at(x - 1, y) && at(x + 1, y)) { shine = true; ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, 1, 1); }
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!at(x, y) && at(x - 1, y - 1)) { ctx.fillStyle = 'rgba(40,20,60,0.25)'; ctx.fillRect(x, y, 1, 1); }
+    if (!withDrips) return;
+    let seed = seedBase;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let x = 1; x < w - 1; x++) for (let y = h - 1; y > 0; y--) {
+      if (!at(x, y)) continue;
+      if (!at(x, y + 1) && at(x - 1, y) && at(x + 1, y) && rnd() < 0.18) {
+        const len = 2 + Math.floor(rnd() * 5);
+        ctx.fillStyle = sh[0]; ctx.fillRect(x, y + 1, 1, len);
+        if (len > 3) { ctx.fillRect(x - 1, y + len, 3, 1); ctx.fillRect(x, y + len + 1, 1, 1); }
+        ctx.fillStyle = sh[2]; ctx.fillRect(x, y + len, 1, 1);
+      }
+      break;
+    }
+  }
+
   function buildLetters() {
-    const target = Math.min(W - 10, 172);
+    const keep = letters.map(l => l.painted);
+    const target = Math.min(W - 10, 210);
     const font = sz => `600 ${sz}px "Pixelify Sans", ui-monospace, monospace`;
     const probe = document.createElement('canvas').getContext('2d');
     probe.font = font(20);
     const fs = Math.max(14, Math.floor(20 * target / probe.measureText(WORD).width));
-    const off = document.createElement('canvas'), lw = W, lh = 48, STRETCH = 1.45;
-    off.width = lw; off.height = lh;
-    const o = off.getContext('2d');
-    o.font = font(fs); o.textBaseline = 'alphabetic';
-    const tw = o.measureText(WORD).width, x0 = Math.round((W - tw) / 2), base = Math.round((fs * 0.8 + 3) / STRETCH) + 1;
-    o.setTransform(1, 0, 0, STRETCH, 0, 0);
-    // draw each letter in its own index colour so we know which letter owns each pixel
-    const owner = new Int8Array(lw * lh).fill(-1);
+    probe.font = font(fs);
+    const STRETCH = 1.45, gh = Math.ceil(fs * STRETCH) + 10;
+    const total = probe.measureText(WORD).width, x0 = (W - total) / 2;
+    const ARCH = Math.round(Math.min(20, W * 0.085));
+    letters = [];
     for (let i = 0; i < WORD.length; i++) {
-      o.clearRect(0, 0, lw, lh / STRETCH + 1);
-      o.fillStyle = '#000';
-      o.fillText(WORD[i], x0 + o.measureText(WORD.slice(0, i)).width, base);
-      const d = o.getImageData(0, 0, lw, lh).data;
-      for (let p = 0; p < lw * lh; p++) if (d[p * 4 + 3] > 120 && owner[p] < 0) owner[p] = i;
+      const adv = probe.measureText(WORD.slice(0, i)).width, cw = probe.measureText(WORD[i]).width;
+      const gw = Math.ceil(cw) + 6;
+      const off = document.createElement('canvas'); off.width = gw; off.height = gh;
+      const o = off.getContext('2d');
+      o.setTransform(1, 0, 0, STRETCH, 0, 0); o.font = font(fs); o.fillStyle = '#000';
+      o.fillText(WORD[i], 3, Math.round(fs * 0.82));
+      const d = o.getImageData(0, 0, gw, gh).data;
+      const raw = new Uint8Array(gw * gh);
+      for (let p = 0; p < gw * gh; p++) raw[p] = d[p * 4 + 3] > 120 ? 1 : 0;
+      // fatten sideways by a pixel: chunky paint strokes, holes in e, o and P stay open
+      const m = raw.slice();
+      for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) if (!raw[y * gw + x] && ((x > 0 && raw[y * gw + x - 1]) || (x < gw - 1 && raw[y * gw + x + 1]))) m[y * gw + x] = 1;
+      const col = document.createElement('canvas'); col.width = gw; col.height = gh + 8;
+      shadeGlyph(m, gw, gh, SHADES[LETTER_COLORS[i]], col.getContext('2d'), true, 11 + i * 97);
+      const pl = document.createElement('canvas'); pl.width = gw; pl.height = gh;
+      shadeGlyph(m, gw, gh, pale(), pl.getContext('2d'), false, 0);
+      const u = (adv + cw / 2) / total;
+      const lx = Math.round(x0 + adv - 3), ly = 6 + Math.round(ARCH - ARCH * Math.sin(Math.PI * u));
+      letters.push({ i, x: lx, y: ly, w: gw, h: gh, mask: m, col, pale: pl, painted: keep[i] ?? calm, bounce: 0, stains: new Map(), color: SHADES[LETTER_COLORS[i]][0] });
     }
-    // fatten strokes sideways by a pixel so the letters read as chunky paint; sideways only, so the holes in e, o and P stay open
-    const fat = owner.slice();
-    for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) {
-      if (owner[y * lw + x] >= 0) continue;
-      const n = [[1, 0], [-1, 0]].map(([dx, dy]) => (x + dx >= 0 && x + dx < lw && y + dy >= 0 && y + dy < lh) ? owner[(y + dy) * lw + x + dx] : -1).find(v => v >= 0);
-      if (n !== undefined) fat[y * lw + x] = n;
-    }
-    owner.set(fat);
-    mask = new Uint8Array(W * H);
-    const lay = document.createElement('canvas'); lay.width = W; lay.height = H;
-    const l = lay.getContext('2d');
-    const at = (x, y) => (x >= 0 && y >= 0 && x < lw && y < lh) ? owner[y * lw + x] : -1;
-    let minX = W, maxX = 0, minY = lh, maxY = 0;
-    // fill, with a light top edge, a dark bottom edge and a drop shadow down and to the right
-    const shine = new Set();
-    for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) {
-      const i = at(x, y); if (i < 0) continue;
-      const sh = SHADES[LETTER_COLORS[i]];
-      let c = sh[0];
-      if (at(x, y - 1) < 0) c = sh[1];
-      else if (at(x, y + 1) < 0 || at(x + 1, y) < 0 && at(x + 1, y + 1) < 0) c = sh[2];
-      l.fillStyle = c; l.fillRect(x, y, 1, 1);
-      mask[y * W + x] = i + 1;
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      // glossy highlight: first solid pixel one row below the top edge of each letter
-      if (!shine.has(i) && at(x, y - 1) >= 0 && at(x, y - 2) < 0 && at(x - 1, y) >= 0 && at(x + 1, y) >= 0) { shine.add(i); l.fillStyle = '#ffffff'; l.fillRect(x, y, 1, 1); }
-    }
-    for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) {
-      if (at(x, y) >= 0 || at(x - 1, y - 1) < 0) continue;
-      l.fillStyle = 'rgba(40,20,60,0.28)'; l.fillRect(x, y, 1, 1);
-    }
-    // a few painted drips hanging off the bottoms of letters, like the logo
-    let seed = 7;
-    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    for (let x = 0; x < lw; x++) {
-      for (let y = lh - 1; y > 0; y--) {
-        const i = at(x, y);
-        if (i < 0) continue;
-        if (at(x, y + 1) < 0 && at(x - 1, y) >= 0 && at(x + 1, y) >= 0 && rnd() < 0.16) {
-          const len = 2 + Math.floor(rnd() * 5), sh = SHADES[LETTER_COLORS[i]];
-          l.fillStyle = sh[0]; l.fillRect(x, y + 1, 1, len);
-          l.fillStyle = sh[2]; l.fillRect(x, y + len, 1, 1);
-          if (len > 3) { l.fillStyle = sh[0]; l.fillRect(x - 1, y + len, 3, 1); l.fillRect(x, y + len + 1, 1, 1); }
-          for (let k = 1; k <= len; k++) mask[(y + k) * W + x] = i + 1;
-        }
-        break;
-      }
+    let minX = W, maxX = 0, minY = H, maxY = 0;
+    for (const l of letters) for (let y = 0; y < l.h; y++) for (let x = 0; x < l.w; x++) if (l.mask[y * l.w + x]) {
+      minX = Math.min(minX, l.x + x); maxX = Math.max(maxX, l.x + x); minY = Math.min(minY, l.y + y); maxY = Math.max(maxY, l.y + y);
     }
     box = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
-    layer = lay;
+  }
+  function letterAt(x, y) {
+    for (const l of letters) {
+      const lx = Math.floor(x - l.x), ly = Math.floor(y - l.y + (l.bounce > 0 ? 2 : 0));
+      if (lx >= 0 && ly >= 0 && lx < l.w && ly < l.h && l.mask[ly * l.w + lx]) return { l, lx, ly };
+    }
+    return null;
   }
 
   // ---------- sizing ----------
   function size() {
     const cw = cv.parentElement.clientWidth;
     scale = Math.max(2, Math.min(4, Math.floor(cw / 150)));
-    W = Math.max(120, Math.floor(cw / scale));
+    W = Math.max(130, Math.floor(cw / scale));
     cv.width = W; cv.height = H;
     cv.style.width = W * scale + 'px'; cv.style.height = H * scale + 'px';
     buildLetters();
-    fx = Math.round(box.x + box.w * 0.3 - 6);
-    stains.clear(); puddles.clear(); drips = []; parts = [];
-    seedConfetti();
+    figX = Math.round(box.x + box.w * 0.3);
+    puddles.clear(); drops = []; parts = [];
+    confetti = []; for (let i = 0; i < 4; i++) confetti.push(newConfetti(true));
     draw();
   }
-
-  function seedConfetti() {
-    confetti = [];
-    for (let i = 0; i < 5; i++) confetti.push(newConfetti(true));
-  }
   function newConfetti(anywhere) {
-    const y = 4 + Math.random() * 40;
-    return { x: anywhere ? Math.random() * W : (Math.random() < 0.5 ? -4 : W + 4), y, vx: (Math.random() - 0.5) * 4 || 1, ph: Math.random() * 6, c: PAINT[(Math.random() * PAINT.length) | 0], wait: 0 };
+    return { x: anywhere ? 8 + Math.random() * (W - 16) : (Math.random() < 0.5 ? -4 : W + 4), y: 8 + Math.random() * 52, vx: (Math.random() - 0.5) * 5 || 1.5, ph: Math.random() * 6, c: PAINT[(Math.random() * PAINT.length) | 0], wait: 0 };
   }
 
   // ---------- drawing helpers ----------
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
   function line(x0, y0, x1, y1, c, t) {
-    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2 || 1;
-    for (let i = 0; i <= n; i++) { const u = i / n; R(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, t, t, c); }
-  }
-  function tokens() {
-    const s = getComputedStyle(document.documentElement);
-    return { ink: s.getPropertyValue('--ink').trim() || '#17141f', ground: s.getPropertyValue('--line').trim() || '#e8e4f0' };
+    const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2) || 1, h = (t - 1) / 2;
+    for (let i = 0; i <= n; i++) { const u = i / n; R(x0 + (x1 - x0) * u - h, y0 + (y1 - y0) * u - h, t, t, c); }
   }
 
-  function figure(x, ink) {
-    const Y = GROUND - 44, sway = calm ? 0 : Math.round(Math.sin(time * 2.2) * 0.6), b = x + sway, up = hop > 0 ? -2 : 0;
-    g.save(); g.translate(0, up);
-    line(x + 6, Y + 33, x + 1, Y + 43, ink, 2); line(x + 7, Y + 33, x + 11, Y + 43, ink, 2);
-    R(x - 1, Y + 43, 3, 2, ink); R(x + 11, Y + 43, 3, 2, ink);
-    R(b + 5, Y + 22, 2, 12, ink);
-    line(b + 5, Y + 24, b + 1, Y + 28, ink, 1); line(b + 1, Y + 28, b + 5, Y + 31, ink, 1);
-    line(b + 7, Y + 24, b + 11, Y + 28, ink, 1); line(b + 11, Y + 28, b + 7, Y + 31, ink, 1);
-    for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) if (i * i + j * j <= 18) R(b + 6 + i, Y + 17 + j, 1, 1, ink);
-    R(b + 3, Y + 11, 6, 2, ink); R(b + 2, Y + 12, 9, 3, ink); R(b + 10, Y + 14, 4, 1, ink); R(b + 5, Y + 10, 1, 1, ink);
-    g.clearRect(b + 2, Y + 15, 9, 1);
-    g.restore();
-    return { ox: b + 9, oy: Y + 31 + up };
+  // The figure is the original small stick figure, scaled up, mirrored to face the stream,
+  // and leaned: the upper body tilts back as the stream gets stronger.
+  function figurePose(pw = power, face = facing, still = false) {
+    const lean = (calm ? 0.4 : 0.3 + pw * 1.1) * -1;               // lean back, in local units at the shoulders
+    const bob = still ? 0 : hop > 0 ? -3 : cheer > 0 ? -Math.abs(Math.sin(cheer * 18)) * 3 : 0;
+    const sway = calm || still ? 0 : Math.sin(time * 2.2) * 0.25;
+    return (x, y) => {
+      const k = y < 33 ? (33 - y) / 23 : 0;
+      return { x: figX + ((x - 6.5) + (lean + sway) * k) * S * face, y: GROUND - (44 - y) * S + bob };
+    };
+  }
+  function figure(color) {
+    const L = figurePose(), seg = (a, b, t) => { const p = L(a[0], a[1]), q = L(b[0], b[1]); line(p.x, p.y, q.x, q.y, color, t); };
+    seg([6, 33], [1, 43], 3); seg([7, 33], [12, 43], 3);
+    const f1 = L(1, 43.6), f2 = L(12, 43.6);
+    line(f1.x, f1.y, f1.x + 3 * facing, f1.y, color, 2); line(f2.x, f2.y, f2.x + 3 * facing, f2.y, color, 2);
+    seg([6.5, 22], [6.5, 33.5], 3);
+    seg([5.5, 24], [1, 28], 2); seg([1, 28], [5.5, 31], 2);
+    seg([7.5, 24], [12, 28], 2); seg([12, 28], [7.5, 31], 2);
+    const hc = L(6.5, 17), r = 4.4 * S;
+    for (let j = -Math.ceil(r); j <= Math.ceil(r); j++) for (let i = -Math.ceil(r); i <= Math.ceil(r); i++) if (i * i + j * j <= r * r) R(hc.x + i, hc.y + j, 1, 1, color);
+    const b0 = L(10, 14.6), b1 = L(14.5, 14.6);
+    line(b0.x, b0.y, b1.x, b1.y, color, 2);
+    const knob = L(6.5, 12.4); R(knob.x - 1, knob.y - 1, 2, 2, color);
+    // cap line
+    const c0 = L(2.6, 15.6), c1 = L(10.6, 15.6);
+    const n = Math.ceil(Math.abs(c1.x - c0.x)) + 1;
+    for (let i = 0; i <= n; i++) { const u = i / n; g.clearRect(Math.round(c0.x + (c1.x - c0.x) * u), Math.round(c0.y + (c1.y - c0.y) * u), 1, 1); }
+    return L(9.5, 31);
   }
 
-  // where the stream is pointed: the visitor's aim, or an idle sweep across the letters
-  function target() {
-    if (aim && time - lastInput < 3) return aim;
-    const u = 0.5 + 0.5 * Math.sin(time * 0.55);
-    return { x: box.x + box.w * (0.42 + 0.52 * u), y: box.y + box.h * (0.45 + 0.2 * Math.sin(time * 1.3)) };
-  }
-  function streamOn() {
-    if (calm || (aim && time - lastInput < 3)) return 1;
-    const c = time % 10;                       // idle rhythm: flow, stop, start again
-    if (c < 0.4) return c / 0.4;
-    if (c < 8.6) return 1;
-    return 0;
+  // ---------- the stream: a real arc from his hip ----------
+  function trace(o, aim = aimDir, pw = power) {
+    const ang = (5 + Math.abs(aim) * 66) * Math.PI / 180;             // from straight up
+    const v = 60 + pw * 135;
+    let vx = Math.sin(ang) * v * Math.sign(aim || 1), vy = -Math.cos(ang) * v, x = o.x, y = o.y;
+    const pts = [];
+    for (let k = 0; k < 900; k++) {
+      const dt = 0.0035;
+      x += vx * dt; y += vy * dt; vy += GRAV * dt;
+      pts.push({ x, y });
+      if (k > 6 && letterAt(x, y)) return { pts, hit: { x, y } };
+      if (y >= GROUND || x < -2 || x > W + 2) return { pts, hit: y >= GROUND ? { x, y: GROUND, ground: true } : null };
+    }
+    return { pts, hit: null };
   }
 
   function draw() {
-    if (!layer) return null;
-    const { ink, ground } = tokens();
+    if (!letters.length) return null;
+    const color = ink();
     g.clearRect(0, 0, W, H);
-    R(0, GROUND + 1, W, 1, ground);
-    g.drawImage(layer, 0, 0);
-    for (const [k, s] of stains) { g.globalAlpha = Math.min(1, s.life / 2); R(k % W, (k / W) | 0, 1, 1, s.c); }
-    for (const [x, s] of puddles) { g.globalAlpha = Math.min(1, s.life / 2); R(x, GROUND, 1, 1, s.c); if (s.n > 2) R(x, GROUND - 1, 1, 1, s.c); }
-    g.globalAlpha = 1;
-    for (const d of drips) R(d.x, d.y, 1, d.falling ? 2 : 1, d.c);
+    R(0, GROUND + 1, W, 1, groundColor());
+    for (const l of letters) {
+      const dy = l.bounce > 0 ? -2 : 0;
+      g.drawImage(l.painted ? l.col : l.pale, l.x, l.y + dy);
+      for (const [k, s] of l.stains) { g.globalAlpha = Math.min(1, s.life / 2); R(l.x + k % l.w, l.y + dy + ((k / l.w) | 0), 1, 1, s.c); }
+      g.globalAlpha = 1;
+    }
+    for (const [x, s] of puddles) { g.globalAlpha = Math.min(1, s.life / 2); R(x, GROUND, 1, 1, s.c); if (s.n > 2) R(x, GROUND - 1, 1, 1, s.c); g.globalAlpha = 1; }
+    for (const d of drops) R(d.x, d.y, 1, 2, d.c);
     for (const cf of confetti) {
       if (cf.wait > 0) continue;
-      const tilt = Math.floor((time * 1.5 + cf.ph) % 2);
-      if (tilt) { R(cf.x, cf.y - 2, 1, 1, cf.c); R(cf.x - 1, cf.y - 1, 3, 1, cf.c); R(cf.x - 2, cf.y, 5, 1, cf.c); R(cf.x - 1, cf.y + 1, 3, 1, cf.c); R(cf.x, cf.y + 2, 1, 1, cf.c); }
+      if (Math.floor((time * 1.5 + cf.ph) % 2)) { R(cf.x, cf.y - 2, 1, 1, cf.c); R(cf.x - 1, cf.y - 1, 3, 1, cf.c); R(cf.x - 2, cf.y, 5, 1, cf.c); R(cf.x - 1, cf.y + 1, 3, 1, cf.c); R(cf.x, cf.y + 2, 1, 1, cf.c); }
       else R(cf.x - 1, cf.y - 1, 3, 3, cf.c);
     }
-
-    const t = target(), on = streamOn();
-    const sway = calm ? 0 : Math.round(Math.sin(time * 2.2) * 0.6);
-    const o = { ox: fx + sway + 9, oy: GROUND - 44 + 31 + (hop > 0 ? -2 : 0) };
-    let end = null;
-    if (on > 0) {
-      const tx = Math.max(2, Math.min(W - 2, t.x)), ty = Math.max(2, Math.min(GROUND - 4, t.y));
-      // always leave him going forward, so aiming behind him loops up and over rather than through his head
-      const cx = Math.max((o.ox + tx) / 2 - (tx - o.ox) * 0.15, o.ox + 8), cy = Math.min(o.oy, ty) - 16 - Math.abs(tx - o.ox) * 0.12 - 8 * surge;
-      const len = Math.hypot(tx - o.ox, ty - o.oy) + 30, n = Math.ceil(len * 1.4);
-      for (let i = 0; i <= n * on; i++) {
-        const u = i / n, a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c2 = u * u;
-        const x = a * o.ox + b * cx + c2 * tx, y = a * o.oy + b * cy + c2 * ty;
-        const dx = 2 * (1 - u) * (cx - o.ox) + 2 * u * (tx - cx), dy = 2 * (1 - u) * (cy - o.oy) + 2 * u * (ty - cy);
-        const m = Math.hypot(dx, dy) || 1, nx = -dy / m, ny = dx / m;
-        const glint = ((i - Math.floor(time * 60)) % 26 + 26) % 26 === 0;
-        R(x - nx, y - ny, 1, 1, glint ? '#ffffff' : BANDS[0]); R(x, y, 1, 1, BANDS[1]); R(x + nx, y + ny, 1, 1, BANDS[2]);
+    const o = figure(color);
+    let res = null;
+    if (power > 0.04) {
+      res = trace(o);
+      const pts = res.pts;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy) || 1, nx = -dy / m, ny = dx / m;
+        const glint = ((i - Math.floor(time * 220)) % 70 + 70) % 70 < 2;
+        const thin = power < 0.25 && i > pts.length * 0.6;
+        R(b.x - nx, b.y - ny, 1, 1, glint ? '#ffffff' : BANDS[0]); R(b.x, b.y, 1, 1, BANDS[1]); if (!thin) R(b.x + nx, b.y + ny, 1, 1, BANDS[2]);
       }
-      if (on >= 1) end = { x: tx, y: ty };
     }
-    figure(fx, ink);
     for (const p of parts) R(p.x, p.y, 1, 1, p.c);
-    return end;
+    return res;
   }
 
   // ---------- simulation ----------
-  const inMask = (x, y) => x >= 0 && y >= 0 && x < W && y < H && mask[(y | 0) * W + (x | 0)] > 0;
-  function splat(x, y, n) {
-    for (let i = 0; i < n; i++) {
-      const sx = Math.round(x + (Math.random() - 0.5) * 6), sy = Math.round(y + (Math.random() - 0.5) * 5);
-      if (inMask(sx, sy)) stains.set(sy * W + sx, { c: PAINT[(Math.random() * PAINT.length) | 0], life: 7 + Math.random() * 4 });
-    }
+  function spray(x, y, n, power2, colors, spark) {
+    for (let i = 0; i < n; i++) parts.push({ x, y, spark, vx: (Math.random() - 0.5) * 60 * power2, vy: -(10 + Math.random() * 32) * power2, c: colors ? colors[(Math.random() * colors.length) | 0] : PAINT[(Math.random() * PAINT.length) | 0] });
   }
-  function spray(x, y, n, power) {
-    for (let i = 0; i < n; i++) parts.push({ x, y, vx: (Math.random() - 0.5) * 50 * power, vy: -(8 + Math.random() * 28) * power, c: PAINT[(Math.random() * PAINT.length) | 0] });
+  function puddle(x, c) { if (x < 0 || x >= W) return; const s = puddles.get(x); puddles.set(x, { c, life: 6, n: s ? s.n + 1 : 1 }); }
+  function paintLetter(l) {
+    if (l.painted) return;
+    l.painted = true; l.bounce = 0.22;
+    spray(l.x + l.w / 2, l.y + l.h / 2, 14, 1.1, [l.color, '#ffffff', l.color], true);
+    if (letters.every(k => k.painted)) celebrate();
+  }
+  function celebrate() {
+    allPaintedAt = time; cheer = 1.2;
+    for (let i = 0; i < 70; i++) parts.push({ spark: true, x: box.x + Math.random() * box.w, y: box.y + Math.random() * box.h, vx: (Math.random() - 0.5) * 90, vy: -(20 + Math.random() * 60), c: PAINT[(Math.random() * PAINT.length) | 0] });
+    for (const cf of confetti) if (cf.wait <= 0) pop(cf);
+  }
+  function pop(cf) {
+    for (let i = 0; i < 16; i++) parts.push({ spark: true, x: cf.x, y: cf.y, vx: (Math.random() - 0.5) * 80, vy: -(10 + Math.random() * 45), c: cf.c });
+    cf.wait = 1.5 + Math.random() * 2.5;
+  }
+
+  // idle show: he paints the word in from left to right, then plays across it; short pauses in between.
+  // Each new target letter gets a quick search for an aim and strength whose arc actually lands on it.
+  const auto = { goalAim: 0.5, goalPow: 0.7, next: 0, idx: 0, skip: new Set() };
+  function solveFor(l) {
+    let bestScore = Infinity, best = null;
+    const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+    for (let a = -1; a <= 1.001; a += 0.06) {
+      if (Math.abs(a) < 0.03) continue;
+      for (let pw = 0.3; pw <= 1.001; pw += 0.07) {
+        const o = figurePose(pw, Math.sign(a), true)(9.5, 31);
+        const r = trace(o, a, pw);
+        if (!r.hit || r.hit.ground) continue;
+        const hl = letterAt(r.hit.x, r.hit.y);
+        if (!hl) continue;
+        const sc = (hl.l === l ? 0 : 1000) + Math.hypot(r.hit.x - cx, r.hit.y - cy) + Math.abs(a - aimDir) * 4;
+        if (sc < bestScore) { bestScore = sc; best = { a, pw, direct: hl.l === l }; }
+      }
+    }
+    return best;
+  }
+  function autopilot(dt) {
+    if (time >= auto.next) {
+      const unpainted = letters.filter(l => !l.painted && !auto.skip.has(l));
+      if (!unpainted.length) auto.skip.clear();
+      const l = unpainted.length ? unpainted[0] : letters[(auto.idx = (auto.idx + 1 + Math.floor(Math.random() * 3)) % letters.length)];
+      const sol = solveFor(l);
+      if (sol && !sol.direct && !l.painted) auto.skip.add(l);
+      if (sol) { auto.goalAim = sol.a; auto.goalPow = sol.pw; }
+      auto.next = time + (unpainted.length ? 0.55 : 1.1 + Math.random() * 0.8);
+    }
+    aimDir += (auto.goalAim - aimDir) * Math.min(1, dt * 5);
+    const c = time % 14;
+    return c < 12.6 ? auto.goalPow : 0;
   }
 
   function step(dt) {
-    surge = Math.max(0, surge - dt * 1.4); hop = Math.max(0, hop - dt);
-    const end = draw();
-    if (end) {
-      if (Math.random() < dt * 30) spray(end.x, end.y, 1, 1);
-      if (inMask(end.x, end.y)) {
-        if (Math.random() < dt * 22) splat(end.x, end.y, 2);
-        if (Math.random() < dt * 2.5) drips.push({ x: Math.round(end.x), y: Math.round(end.y), c: PAINT[(Math.random() * PAINT.length) | 0], falling: false, vy: 0, crawl: 0 });
-      }
-      for (const cf of confetti) if (cf.wait <= 0 && Math.abs(cf.x - end.x) < 4 && Math.abs(cf.y - end.y) < 4) pop(cf);
+    const user = time - lastInput < 4;
+    let want;
+    if (user) want = holding ? Math.min(1, power + dt * 1.1) : 0;
+    else want = autopilot(dt);
+    power += (want - power) * Math.min(1, dt * (want > power ? (user ? 30 : 6) : 6));
+    if (Math.abs(aimDir) > 0.02) facing = Math.sign(aimDir);
+    hop = Math.max(0, hop - dt); cheer = Math.max(0, cheer - dt);
+    for (const l of letters) l.bounce = Math.max(0, l.bounce - dt);
+
+    // after a good while fully painted with nobody around, the paint fades and the show restarts
+    if (allPaintedAt >= 0 && !user && time - allPaintedAt > 18 && fading < 0) fading = time;
+    if (fading >= 0) {
+      const n = Math.floor((time - fading) / 0.12);
+      for (let i = 0; i < letters.length && i <= n; i++) letters[letters.length - 1 - i].painted = false;
+      if (n >= letters.length) { fading = -1; allPaintedAt = -1; }
+    }
+
+    const res = draw();
+    if (res && res.hit) {
+      const h = res.hit;
+      if (Math.random() < dt * 28) spray(h.x, h.y, 1, h.ground ? 0.6 : 1);
+      const hit = h.ground ? null : letterAt(h.x, h.y);
+      if (hit) {
+        paintLetter(hit.l);
+        if (Math.random() < dt * 24) for (let k = 0; k < 2; k++) {
+          const sx = hit.lx + Math.round((Math.random() - 0.5) * 6), sy = hit.ly + Math.round((Math.random() - 0.5) * 5);
+          if (sx >= 0 && sy >= 0 && sx < hit.l.w && sy < hit.l.h && hit.l.mask[sy * hit.l.w + sx]) hit.l.stains.set(sy * hit.l.w + sx, { c: PAINT[(Math.random() * PAINT.length) | 0], life: 6 + Math.random() * 4 });
+        }
+        if (Math.random() < dt * 2) drops.push({ x: Math.round(h.x), y: Math.round(h.y), c: PAINT[(Math.random() * PAINT.length) | 0], vy: 0, crawl: true });
+      } else if (h.ground && Math.random() < dt * 20) puddle(Math.round(h.x), PAINT[(Math.random() * PAINT.length) | 0]);
+      for (const cf of confetti) if (cf.wait <= 0) for (let i = 0; i < res.pts.length; i += 3) { const p = res.pts[i]; if (Math.abs(p.x - cf.x) < 3 && Math.abs(p.y - cf.y) < 3) { pop(cf); break; } }
     }
     for (const cf of confetti) {
       if (cf.wait > 0) { cf.wait -= dt; if (cf.wait <= 0) Object.assign(cf, newConfetti(false)); continue; }
       cf.x += cf.vx * dt; cf.y += Math.sin(time * 1.2 + cf.ph) * 3 * dt;
       if (cf.x < -6 || cf.x > W + 6) Object.assign(cf, newConfetti(false));
     }
-    for (const p of parts) { p.vy += 140 * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+    for (const p of parts) { p.vy += GRAV * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
     parts = parts.filter(p => {
-      if (inMask(p.x, p.y) && p.vy > 0) { if (Math.random() < 0.5) stains.set((p.y | 0) * W + (p.x | 0), { c: p.c, life: 6 }); return false; }
+      if (p.vy > 0 && !p.spark) { const h = letterAt(p.x, p.y); if (h) { if (!h.l.painted && Math.random() < 0.35) paintLetter(h.l); else h.l.stains.set(h.ly * h.l.w + h.lx, { c: p.c, life: 5 }); return false; } }
       if (p.y < GROUND) return p.x > -2 && p.x < W + 2;
       puddle(Math.round(p.x), p.c); return false;
     });
-    // drips crawl down through the letter, then fall to the ground
-    for (const d of drips) {
-      if (!d.falling) {
-        d.crawl += dt * 7;
-        while (d.crawl >= 1) {
-          d.crawl -= 1; stains.set(d.y * W + d.x, { c: d.c, life: 6 });
-          if (inMask(d.x, d.y + 1)) d.y++; else { d.falling = true; break; }
-        }
-      } else { d.vy += 120 * dt; d.y += d.vy * dt; }
+    // drips slide down the letter they landed on, then fall
+    for (const d of drops) {
+      if (d.crawl) { d.y += dt * 9; if (!letterAt(d.x, d.y + 1)) d.crawl = false; }
+      else { d.vy += GRAV * dt; d.y += d.vy * dt; }
     }
-    drips = drips.filter(d => { if (d.falling && d.y >= GROUND) { puddle(d.x, d.c); return false; } return true; });
-    for (const [k, s] of stains) { s.life -= dt; if (s.life <= 0) stains.delete(k); }
+    drops = drops.filter(d => { if (!d.crawl && d.y >= GROUND) { puddle(d.x, d.c); return false; } return d.y < H; });
+    for (const l of letters) for (const [k, s] of l.stains) { s.life -= dt; if (s.life <= 0) l.stains.delete(k); }
     for (const [k, s] of puddles) { s.life -= dt; if (s.life <= 0) puddles.delete(k); }
-  }
-  function puddle(x, c) {
-    if (x < 0 || x >= W) return;
-    const s = puddles.get(x);
-    puddles.set(x, { c, life: 6, n: s ? s.n + 1 : 1 });
-  }
-  function pop(cf) {
-    for (let i = 0; i < 14; i++) parts.push({ x: cf.x, y: cf.y, vx: (Math.random() - 0.5) * 70, vy: -(10 + Math.random() * 40), c: cf.c });
-    cf.wait = 1.5 + Math.random() * 2;
   }
 
   function tick(now) {
@@ -267,29 +334,44 @@
   function start() { if (calm || running || !visible || document.hidden) return; running = true; last = performance.now(); requestAnimationFrame(tick); }
   function stop() { running = false; }
 
-  // ---------- input: hover or touch to aim, tap for a big splash ----------
-  function toLogical(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
-  function aimAt(e) { aim = toLogical(e); lastInput = time; }
-  cv.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) aimAt(e); });
+  // ---------- controls: hold to spray, slide left or right to aim ----------
+  function steer(e) {
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W;
+    aimDir = Math.max(-1, Math.min(1, (x - figX) / (W * 0.42)));
+    if (Math.abs(aimDir) < 0.06) aimDir = 0.06 * (facing || 1);
+    lastInput = time;
+  }
   cv.addEventListener('pointerdown', e => {
-    aimAt(e); surge = 1;
-    const p = aim;
-    if (Math.abs(p.x - (fx + 6)) < 9 && p.y > GROUND - 46) { hop = 0.2; return; }
-    spray(p.x, p.y, 18, 1.2);
-    if (inMask(p.x, p.y)) splat(p.x, p.y, 10);
-    if (calm) draw();
+    steer(e); holding = true; try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+    if (Math.abs(x - figX) < 10 && y > GROUND - 60) hop = 0.25;
+    if (calm) { power = 0.8; draw(); }
   });
-  cv.addEventListener('pointerleave', () => { lastInput = time - 2; });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointermove', e => { if (holding || e.pointerType === 'mouse') steer(e); });
+  const release = () => { holding = false; lastInput = time; if (calm) { power = 0.8; draw(); } };
+  cv.addEventListener('pointerup', release);
+  cv.addEventListener('pointercancel', release);
   cv.addEventListener('keydown', e => {
-    const k = { ArrowLeft: [-4, 0], ArrowRight: [4, 0], ArrowUp: [0, -3], ArrowDown: [0, 3] }[e.key];
-    if (k) { e.preventDefault(); const t = aim && time - lastInput < 3 ? aim : target(); aim = { x: t.x + k[0], y: t.y + k[1] }; lastInput = time; if (calm) draw(); }
-    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const t = target(); surge = 1; spray(t.x, t.y, 18, 1.2); if (inMask(t.x, t.y)) splat(t.x, t.y, 10); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault(); lastInput = time;
+      aimDir = Math.max(-1, Math.min(1, aimDir + (e.key === 'ArrowLeft' ? -0.12 : 0.12)));
+      if (Math.abs(aimDir) < 0.06) aimDir = e.key === 'ArrowLeft' ? -0.06 : 0.06;
+      if (calm) draw();
+    } else if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); holding = true; lastInput = time; }
   });
+  cv.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') { holding = false; lastInput = time; } });
+  cv.addEventListener('blur', () => { holding = false; });
 
   function boot() {
-    new ResizeObserver(() => { const before = W; size(); if (before !== W && !running) draw(); }).observe(cv.parentElement);
+    let lastW = -1;
+    new ResizeObserver(() => { const cw = cv.parentElement.clientWidth; if (cw !== lastW) { lastW = cw; size(); } }).observe(cv.parentElement);
     if ('IntersectionObserver' in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; visible ? start() : stop(); }).observe(cv);
     document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+    const rebuild = () => { buildLetters(); draw(); };
+    darkQ.addEventListener?.('change', rebuild);
+    new MutationObserver(rebuild).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    if (calm) { power = 0.8; aimDir = 0.55; }
     size(); start();
   }
   const ready = document.fonts && document.fonts.load ? document.fonts.load('600 20px "Pixelify Sans"').catch(() => {}) : Promise.resolve();
