@@ -71,18 +71,16 @@ p{{font-size:32px;line-height:1.3;color:#f6e7c8}}
 
 
 def index_card():
-    """Studio card: logo plus tagline only, so it never lists games that go stale."""
-    dots = "".join(f'<i style="background:{c}"></i>' for c in ["#1e9bf0", "#5fbf1e", "#ff7a14", "#ec188c", "#8a2be2"])
+    """Studio card: just the logo, centred, with confetti squares from the logo palette.
+    No tagline and no game list, so it never goes stale."""
+    squares = [(140, 120, "#1e9bf0", 0), (1010, 140, "#ec188c", 45), (180, 470, "#5fbf1e", 45), (1040, 450, "#8a2be2", 0), (1090, 300, "#ff7a14", 45), (110, 300, "#ffcc00", 0)]
+    sq = "".join(f'<i style="left:{x}px;top:{y}px;background:{c};transform:rotate({r}deg)"></i>' for x, y, c, r in squares)
     return f"""<!doctype html><html><head><style>{BASE_CSS}
-body{{background:#ffffff;color:#17141f;font-family:'Pixelify Sans',sans-serif;display:grid;grid-template-columns:620px 1fr;align-items:center;gap:36px;padding:0 72px 0 40px}}
-.logo{{width:620px;height:auto}}
-.side{{display:grid;gap:28px}}
-p{{font-size:46px;line-height:1.2}}
-.dots{{display:flex;gap:14px}}
-.dots i{{display:block;width:22px;height:22px}}
+body{{background:#ffffff;display:grid;place-items:center;position:relative}}
+.logo{{height:560px;width:auto}}
+i{{position:absolute;display:block;width:26px;height:26px}}
 </style></head><body>
-<img class="logo" src="{{LOGO_URI}}">
-<div class="side"><p>Small games you play right in your browser.</p><div class="dots">{dots}</div></div>
+<img class="logo" src="{{LOGO_URI}}">{sq}
 </body></html>"""
 
 
