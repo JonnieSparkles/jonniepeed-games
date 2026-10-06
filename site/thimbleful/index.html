@@ -75,6 +75,9 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
 .btns{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
 .ghost{background:transparent;color:var(--cream);box-shadow:none;border:2px solid var(--cream)}
 .ghost:active{transform:none;box-shadow:none}
+.link{background:none;box-shadow:none;padding:4px 6px;color:var(--muted);font-family:var(--body);font-size:14px;letter-spacing:0;text-transform:none;text-decoration:underline;text-underline-offset:3px}
+.link:hover{color:var(--cream)}
+.link:active{transform:none;box-shadow:none}
 .corner{position:absolute;top:8px;right:8px;font-size:11px;padding:6px 10px;background:rgba(42,33,64,.85);color:var(--cream);box-shadow:none;border:2px solid var(--dusk-2)}
 .corner:active{transform:none;box-shadow:none}
 .watching .hud .stat{visibility:hidden}
@@ -115,6 +118,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
       <h2 id="ovTitle">Catch the drips</h2>
       <p id="ovText">Plant the seed, then catch the drips in your thimble to make it grow. Five spills ends the game.</p>
       <div class="btns"><button id="go" type="button">Start</button><button id="watchBtn" class="ghost" type="button">Just watch</button></div>
+      <button id="introBtn" class="link" type="button" hidden>Play with the intro</button>
     </div>
   </div>
   </section>

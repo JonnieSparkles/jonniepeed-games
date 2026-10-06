@@ -36,22 +36,23 @@ function hud() {
   for (let i = 0; i < MAXSPILL; i++) { const p = document.createElement('i'); if (i < spills) p.className = 'gone'; pips.appendChild(p); }
 }
 function showCard(title, text, goLabel) {
-  ovTitle.textContent = title; ovText.textContent = text; go.textContent = goLabel;
+  ovTitle.textContent = title; ovText.textContent = text; go.textContent = goLabel; syncIntroBtn();
   overlay.hidden = false; skipBtn.hidden = true; leaveBtn.hidden = true;
 }
 
-function start() {
+function start(withIntro) {
+  if (withIntro === true) introSeen = false;
   ThimbleSound.start();
   score = 0; spills = 0; el = 0; target = null; drops = []; parts = []; wet = []; flash = 0; hud();
   overlay.hidden = true; main.classList.remove('watching');
   if (!introSeen) {
     // first play: walk to the pot, plant the seed, the can slides in, thimble goes up
     plant.planted = false; plant.size = 0; pose = 'seed';
-    state = 'intro'; intro = { t: 0, planted: false };
+    state = 'intro'; intro = { t: 0, planted: false }; ex = 32;
     can.x = Math.min(can.x, CAN_AWAY); can.want = CAN_HOME;
     skipBtn.hidden = false;
   } else {
-    plant.planted = true; plant.size = 0; pose = 'up';
+    plant.planted = true; plant.size = 0; pose = 'up'; ex = 48; walk = 0;
     can.want = null; if (can.x < 8) can.x = CAN_AWAY;
     state = 'play'; dropT = can.x < 8 ? 1.6 : 1.1;
   }
@@ -87,7 +88,10 @@ function leaveWatch() {
   if (location.hash === '#watch') history.replaceState(null, '', location.pathname);
 }
 
-go.addEventListener('click', start);
+go.addEventListener('click', () => start());
+const introBtn = $('introBtn');
+introBtn.addEventListener('click', () => start(true));
+function syncIntroBtn() { introBtn.hidden = !introSeen; }
 watchBtn.addEventListener('click', watch);
 skipBtn.addEventListener('click', finishIntro);
 leaveBtn.addEventListener('click', () => { leaveWatch(); go.focus(); });
@@ -236,11 +240,9 @@ function flower(fx, fy, r) {
 
 function plants() {
   const sw = calm ? 0 : Math.sin(time * 1.2);
-  // the old sunflower on the left, already in full bloom
-  const off = y => Math.round(sw * (36 - y) / 24 * 1.6);
-  for (let y = 36; y >= 12; y--) { R(10 + off(y), y, 2, 1, '#4f8f3a'); P(10 + off(y), y, '#67a84c'); }
-  leaf(9 + off(31), 31, -1); leaf(12 + off(25), 25, 1); leaf(9 + off(19), 19, -1);
-  flower(10 + off(12), 8, 4);
+  // a succulent on the left; the only sunflower on the sill is the one the player grows
+  R(6, 34, 9, 3, '#7fb89a'); R(7, 32, 7, 2, '#93c9ab'); R(9, 30, 3, 2, '#a8d8bd');
+  P(6, 34, '#c97b8a'); P(14, 34, '#c97b8a'); P(7, 32, '#c97b8a'); P(13, 32, '#c97b8a'); P(10, 30, '#c97b8a');
   pot(5, 37, 11, 13);
 
   // the seed pot in the middle: grows with every catch
@@ -319,6 +321,6 @@ function draw() {
 
 let lastT = 0;
 function loop(t) { const dt = Math.min(0.05, ((t - lastT) / 1000) || 0); lastT = t; update(dt); draw(); requestAnimationFrame(loop); }
-hud();
+hud(); syncIntroBtn();
 if (location.hash === '#watch') watch();
 requestAnimationFrame(loop);
