@@ -7,5 +7,5 @@ Follow the **Standards** section in README.md on every change. In short:
 - New or changed game art: run `python3 tools/og/make.py`.
 - No backward compatibility: delete old paths, no redirects.
 - Studio name is JonniePeed Games (capital P).
-- Commit straight to `main`. Deliverables go in the repo, not zip files.
+- Don't commit or push to `main` unless the user says to in the conversation. Deliverables go in the repo, not zip files.
 - Pages deploys only by hand (workflow_dispatch). Never add automatic triggers.
