@@ -29,6 +29,7 @@ Cloudflare D1  (one table: scores)
 - Game IDs are the folder names: `thimbleful`, `dont-step-on-the-crack`. Permanent.
 - Boards hold the **top 50**. Every run counts, so one player can appear many times (arcade style). No accounts.
 - Names are exactly **3 characters**, A–Z and 0–9, entered with an arcade-style letter picker. No text box, so phones never open the keyboard.
+- **Each score records how the run was played:** `touch` if any touch or pen input drove the game during the run, otherwise `keys` (keyboard or mouse). This is the input used, not the device type. It's one board for everyone, with an icon on each row. No separate boards by input.
 - **Board numbers.** Each game has a `BOARD` constant. Bump it by hand only when scoring changes so old scores aren't comparable (difficulty, what counts as a point). Art, sound and bug fixes don't bump it.
 - Each copy of a game sends its own `BOARD` and shows that board. Old boards stay open: old copies (for example Arweave uploads) keep submitting to them.
 - **Board `0` is the test board** for every game. Always allowed, never shown by a real game.
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS scores (
   run_id     TEXT    NOT NULL UNIQUE,   -- one row per run; makes retries safe
   name       TEXT    NOT NULL,          -- 3 chars, A-Z 0-9
   score      INTEGER NOT NULL,
+  input      TEXT    NOT NULL,          -- 'touch' or 'keys'
   meta       TEXT,                      -- JSON object of the game's extra fields, or NULL
   created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
@@ -118,7 +120,7 @@ Optional: `&score=<n>&meta=<url-encoded JSON>` to ask where a finished run would
   "game": "dont-step-on-the-crack",
   "board": 1,
   "scores": [
-    { "rank": 1, "name": "JON", "score": 412, "meta": { "time_ms": 93000, "steps": 410, "streak": 61 } }
+    { "rank": 1, "name": "JON", "score": 412, "input": "touch", "meta": { "time_ms": 93000, "steps": 410, "streak": 61 } }
   ],
   "placement": 7
 }
@@ -130,7 +132,7 @@ Optional: `&score=<n>&meta=<url-encoded JSON>` to ask where a finished run would
 ### `POST /v1/submit`
 
 ```json
-{ "game": "thimbleful", "board": 1, "run_id": "uuid", "name": "JON", "score": 38, "meta": { "time_ms": 61000 } }
+{ "game": "thimbleful", "board": 1, "run_id": "uuid", "name": "JON", "score": 38, "input": "keys", "meta": { "time_ms": 61000 } }
 ```
 
 ```json
@@ -139,7 +141,7 @@ Optional: `&score=<n>&meta=<url-encoded JSON>` to ask where a finished run would
 
 - `rank` is the new row's rank, or `null` if it landed outside the top 50.
 - A repeated `run_id` doesn't insert again. Return `ok` with that existing row's `id` and `rank`.
-- Validation, with error codes: unknown game `bad_game`; board not `0` and not in `boards` `bad_board`; `run_id` not 8–64 chars of `A-Za-z0-9-` `bad_run_id`; name not exactly 3 of `A-Z0-9` `bad_name`; name in the blocklist `name_not_allowed`; score not an integer in range `bad_score`; meta wrong `bad_meta`.
+- Validation, with error codes: unknown game `bad_game`; board not `0` and not in `boards` `bad_board`; `run_id` not 8–64 chars of `A-Za-z0-9-` `bad_run_id`; name not exactly 3 of `A-Z0-9` `bad_name`; name in the blocklist `name_not_allowed`; score not an integer in range `bad_score`; input not `touch` or `keys` `bad_input`; meta wrong `bad_meta`.
 
 ## Client (`site/assets/leaderboard.js`)
 
@@ -148,7 +150,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 - `API`: the hostname above. When the page is on `localhost` or `127.0.0.1`, use `http://localhost:8787` (`wrangler dev`) instead.
 - `Leaderboard.newRunId()`: `crypto.randomUUID()`, with a fallback where that's missing.
 - `Leaderboard.load(game, board, score?, meta?)`: calls `/v1/top`. Resolves to the response or `null`.
-- `Leaderboard.submit({game, board, run_id, name, score, meta})`: calls `/v1/submit`, retries once on a network error with the same `run_id`. Resolves to the response or `null`, or `{ok:false, error}` for a 400 so the game can react to `name_not_allowed`.
+- `Leaderboard.submit({game, board, run_id, name, score, input, meta})`: calls `/v1/submit`, retries once on a network error with the same `run_id`. Resolves to the response or `null`, or `{ok:false, error}` for a 400 so the game can react to `name_not_allowed`.
 - Every call times out after about 4 seconds, and nothing ever throws into game code.
 - `Leaderboard.initials()` / `Leaderboard.saveInitials(s)`: last used initials in localStorage key `jpg-initials`, default `AAA`, wrapped in try/catch like the games' existing storage.
 - `Leaderboard.entry(container, {initials, onDone(name), onSkip()})`: builds the initials picker as plain DOM with `lb-` class names and no styling, so each game styles it:
@@ -161,19 +163,21 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 ## Game-over flow (both games)
 
 1. Only real runs count: not the Crack title-screen demo walk, not Thimbleful's "Just watch". Create a fresh `run_id` when a run starts.
+   - Also reset an input flag at run start to `keys`. Set it to `touch` when a pointer event with `pointerType` of `touch` or `pen` drives the game during the run. That's the game's own play-area pointer handler (Thimbleful's `arena` `pointerdown`, Crack's `view` `pointerdown`), not taps on buttons or menus.
 2. At game over, call `Leaderboard.load(game, BOARD, score, meta)` right away, so the answer is usually back by the time the end screen shows.
 3. If `placement` is a number, show the initials picker in the end screen. On OK: save the initials, submit, then show the board with the new row highlighted. If the answer is `name_not_allowed`, show a short "Try other initials" and keep the picker open. On Skip: show the board without submitting.
 4. If `placement` is `null`, just show the board.
 5. If `load` returned `null`, show nothing extra. The end screen is exactly today's.
-6. **The board view at game over** shows the top 10. If the player's row is below 10th, add a gap row ("…") and their row underneath. A **See all** button shows the full 50 in a scrollable list inside the same screen.
-7. While the picker is open, the game's own keyboard shortcuts must not fire. Both games have a window `keydown` handler (`thimbleful/game.js`, `dont-step-on-the-crack/game.js`) that has to ignore keys while entry is open.
+6. Every row shows a small input icon (touch or keys), drawn in the game's own style, with an accessible label ("touch" / "keyboard").
+7. **The board view at game over** shows the top 10. If the player's row is below 10th, add a gap row ("…") and their row underneath. A **See all** button shows the full 50 in a scrollable list inside the same screen.
+8. While the picker is open, the game's own keyboard shortcuts must not fire. Both games have a window `keydown` handler (`thimbleful/game.js`, `dont-step-on-the-crack/game.js`) that has to ignore keys while entry is open.
 
 ### Thimbleful (`site/thimbleful/`)
 
 - Add `const BOARD = 1;` at the top of `game.js`.
 - Score: drops caught. Meta: `time_ms` from the play time (`el`, in seconds, × 1000, rounded).
 - Hook into `end()`. The board and picker go in the existing overlay card under the end text, styled to match the card.
-- Rows show rank, initials and drops.
+- Rows show rank, initials, drops and the input icon.
 - Local best key becomes `'thimbleful-best-' + BOARD`. The old key isn't migrated (no backward compatibility).
 
 ### Don't Step on the Crack (`site/dont-step-on-the-crack/`)
@@ -181,7 +185,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 - Add `const BOARD=1;` near the other top constants in `game.js`.
 - Score: `runResult.ft`. Meta: `time_ms` (`runResult.time` × 1000, rounded), `steps`, `streak` (`runResult.streak`). Ties rank the faster time first (set in `games.json`).
 - Hook into `gameOver()` and `showOver()`. The board and picker go in the phone dialog's `#after` section, styled to match it. Make sure the dialog still fits on a short landscape phone. That's where "See all" scrolling matters most.
-- Rows show rank, initials, feet and streak.
+- Rows show rank, initials, feet, streak and the input icon.
 - Local best keys become `'dsotc-best-'+BOARD` and `'dsotc-best-streak-'+BOARD`. No migration.
 
 ## Board check (`tools/check_boards.py`)
@@ -193,7 +197,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 
 - Plain Node, no dependencies. Base URL from `BASE`, default `http://localhost:8787`.
 - Use only board `0`, so running it against the live Worker only touches the test board. Use random `run_id`s.
-- Cover: preflight headers; `top` on an empty board; valid submit for each game; repeated `run_id` returns the same row; `placement` for a winning score, a losing score and a score that only ties 50th (fill the board first); Crack tie-break by time; each validation error code; blocklisted name; unknown path 404.
+- Cover: preflight headers; `top` on an empty board; valid submit for each game (one `touch`, one `keys`); repeated `run_id` returns the same row; `placement` for a winning score, a losing score and a score that only ties 50th (fill the board first); Crack tie-break by time; each validation error code; blocklisted name; unknown path 404.
 - Print a pass/fail line per case and exit non-zero on any failure.
 
 ## Docs
@@ -223,6 +227,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 - High score table on the title screens (arcade attract mode).
 - Showing which board is current, or naming boards.
 - Rate limiting, an admin page, freezing old boards.
+- Separate boards or filters by input.
 
 ## Jonnie does (needs his Cloudflare account)
 
