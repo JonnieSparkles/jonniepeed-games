@@ -173,6 +173,8 @@ def summary(results):
         lines.append('Simulation speed: %dx real time per page (median run %s s of wall time).' % (sim / wall, fmt(statistics.median(r['elapsed'] for r in runs))))
     if ref:
         lines.append('Compared with %s (%s) on the same seeds. "changed" marks a median wave that moves by a full wave or more and differs on a rank test, or survival at a wave that differs, each beyond about 99%% confidence.' % (ref['name'], ref['commit']))
+        if ref.get('bot') == 'own':
+            lines.append("The reference was played by its own bot (`--ref-bot own`), because the bot's view of the game changed between the versions. Differences include the bots' own changes.")
     if 'verify' in results:
         v = results['verify']
         lines.append('Verify: %d runs replayed twice (once with effects on); %s.' % (v['checked'], 'all identical' if not v['mismatched'] else '%d mismatched' % len(v['mismatched'])))

@@ -2,6 +2,7 @@
 
     python3 tools/balance/run.py stick-army --runs 200 --skills casual,decent,expert
     python3 tools/balance/run.py stick-army --runs 200 --skills decent --ref main
+    python3 tools/balance/run.py stick-army --runs 200 --skills decent --ref main --ref-bot own
     python3 tools/balance/run.py stick-army --runs 5 --verify
 
 Run by hand; nothing here is pass/fail. Serves site/ itself and launches Chromium like the other harnesses
@@ -136,6 +137,9 @@ def main():
     ap.add_argument('--jobs', type=int, default=4, help='parallel browser pages (default 4)')
     ap.add_argument('--cap-minutes', type=float, default=40, help='simulated time cap per run (default 40)')
     ap.add_argument('--ref', help='also run the same seeds against this commit and compare')
+    ap.add_argument('--ref-bot', choices=['current', 'own'], default='current',
+                    help="which bot plays --ref: the current one (default), or the ref commit's own bot.js when the "
+                         "adapter's observe/act contract changed between the versions")
     ap.add_argument('--verify', action='store_true', help='play every run twice, plus once with effects on, and check the records match')
     ap.add_argument('--out', help='output directory (default work/balance/<timestamp>)')
     args = ap.parse_args()
@@ -175,12 +179,16 @@ def main():
         print('verify: %d runs, %d mismatched %s' % (len(tasks), len(mismatched), mismatched[:5] if mismatched else ''))
 
     if args.ref:
+        # Save the working tree's runs first, so a failure in the reference run doesn't lose them.
+        (out / 'results.json').write_text(json.dumps(results, indent=1))
         worktree = Path(tempfile.mkdtemp(prefix='balance-ref-'))
         try:
             git('worktree', 'add', '--detach', str(worktree), args.ref)
             ref_server, ref_base = serve(worktree / 'site')
-            old = variant(args.ref, worktree, args.game, ref_base, bot_source)
-            results['ref'] = {'name': args.ref, 'commit': git('rev-parse', '--short', args.ref), 'runs': play_all(old, tasks, args.jobs, args.ref)}
+            ref_bot = (worktree / 'tests' / args.game / 'bot.js').read_text() if args.ref_bot == 'own' else bot_source
+            old = variant(args.ref, worktree, args.game, ref_base, ref_bot)
+            results['ref'] = {'name': args.ref, 'commit': git('rev-parse', '--short', args.ref), 'bot': args.ref_bot,
+                              'runs': play_all(old, tasks, args.jobs, args.ref)}
             ref_server.shutdown()
         finally:
             subprocess.call(['git', 'worktree', 'remove', '--force', str(worktree)], cwd=ROOT)

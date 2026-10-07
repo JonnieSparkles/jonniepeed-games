@@ -428,7 +428,7 @@
     { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'supply', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
     { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'supply', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
-    { id: 'auto', name: 'Sentry tower', desc: 'A tower gun on the bunker picks off bombs, shells and low chutes.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
+    { id: 'auto', name: 'Sentry tower', desc: 'A tower beside the bunker shoots down bombs and shells, then low chutes and landers.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'One more call for the bomber. Press B or the plane button.', tier: 'supply', cost: 45, maxStacks: Infinity, apply: function (s) { s.strikes++; } },
     { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
@@ -436,7 +436,7 @@
   // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
   [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
    ['engineer', 'Engineer', 40, 'Repairs the wall twice as fast as anyone.'],
-   ['bazooka', 'Bazooka', 55, 'Slow rockets that can bring down aircraft.'],
+   ['bazooka', 'Bazooka', 55, 'Slow rockets for tanks and aircraft.'],
    ['sniper', 'Sniper', 50, 'Slow, precise shots.'],
    ['medic', 'Medic', 55, 'Heals nearby crew. One at a time.']].forEach(function (h) {
     ITEMS.push({ id: 'hire-' + h[0], role: h[0], name: h[1], desc: h[3], tier: 'hire', maxStacks: Infinity,
@@ -1726,7 +1726,7 @@
     sound.play('over');
   }
   // What brought the wall down: the last source to hurt it (hurtWall).
-  var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.' };
+  var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.' };
   // Owned upgrades as pencil icons: icon-only with counts in the shop, icon and name on the pause card.
   // Repeatable buys (repairs, pizza, hires) aren't kit.
   function kitItems() { return ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; }); }
