@@ -45,11 +45,14 @@
 :root[data-theme="dark"] { --desk: #1c1b19; --desk-shadow: rgba(0, 0, 0, 0.6); color-scheme: dark; }
 
 [hidden] { display: none !important; }
+/* iPhones zoom on a quick double tap, even on buttons. Pinch zoom
+   still works, and stricter rules (none, pan-y) still win. */
+* { touch-action: manipulation; }
 html { height: 100%; box-sizing: border-box; }
 body {
   height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none;
   background: var(--desk); color: var(--ink); font-family: var(--font-hand);
-  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
 }
 #wrap { height: 100%; box-sizing: border-box; padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(64px, calc(52px + env(safe-area-inset-bottom))) max(16px, env(safe-area-inset-left)); display: flex; align-items: center; justify-content: center; }
 #wrap { position: relative; }
