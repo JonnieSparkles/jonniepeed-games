@@ -1,7 +1,7 @@
 // Thimbleful: a tiny explorer catches drips from a leaking watering can to grow a sunflower.
 // States: title (live windowsill scene) -> intro (first play only: plant the seed in the big pot) -> play -> over.
 // "Just watch" puts the scene in a passive mode with no game on top.
-const BOARD = 2;   // 2: wider catch to match the bigger drops
+const BOARD = 3;   // 2: wider catch to match the bigger drops. 3: it keeps getting harder after the first minute
 const c = document.getElementById('c'), g = c.getContext('2d');
 const W = 96, H = 72, MAXSPILL = 5, SUN_X = 10, SUN_BASE = 36, PLANT_STAND = 21, CAN_HOME = 52, CAN_AWAY = -14;
 const R = (a, b, w, h, k) => { g.fillStyle = k; g.fillRect(Math.round(a), Math.round(b), w, h); };
@@ -23,7 +23,7 @@ let state = 'title', score = 0, spills = 0, el = 0, ex = 32, target = null, walk
 let pose = 'seed';                         // seed: holding the seed, thimble on back | back: thimble on back | up: thimble held overhead
 const plant = { planted: false, size: 0 }; // the sunflower grown in the big pot on the left
 let facing = 1, hop = 0, wander = { next: 3, to: null };
-const keys = { l: false, r: false }, can = { x: CAN_AWAY, tx: 60, want: CAN_AWAY };
+const keys = { l: false, r: false }, can = { x: CAN_AWAY, tx: 60, want: CAN_AWAY, dart: 0 };
 let drops = [], parts = [], wet = [], intro = null, seedFall = null;
 // golden drops: worth GOLD_POINTS, fall faster, and missing one costs nothing (it just sparkles away)
 const GOLD_POINTS = 3, GOLD_AFTER = 8, GOLD_CHANCE = 0.11;
@@ -34,6 +34,10 @@ let streak = 0, lastEarn = -999, regained = -1;
 // dusk: the sky slowly turns to night over a run (0 = sunset, 1 = night)
 const DUSK_SECONDS = 150;
 let dusk = 0, duskTarget = 0;
+// edge: the first minute stays cozy, then over EDGE_RAMP seconds the game turns (0 = cozy, 1 = full storm).
+// It drives difficulty (faster, less even drops, a can that feints) and the mood (storm, the can's face, minor-key music).
+const COZY = 60, EDGE_RAMP = 180;
+let edge = 0, edgeShown = 0, feintNext = false, boltT = 0, nextBolt = 8, boltX = 40, boltSeed = 1;
 
 const sky = [[5, '#46569a'], [12, '#6767ab'], [18, '#9676b2'], [24, '#cf8ca6'], [30, '#eea78b'], [36, '#f7c88c']];
 const far = [[9, 8, 6], [17, 6, 9], [23, 10, 5], [33, 7, 8], [40, 9, 4], [49, 6, 10], [55, 11, 6], [66, 8, 7], [74, 6, 9], [80, 7, 5]];
@@ -237,7 +241,7 @@ function start(withIntro) {
   if (withIntro === true) introSeen = false;
   ThimbleSound.start();
   score = 0; spills = 0; el = 0; target = null; drops = []; parts = []; wet = []; flash = 0; nextGold = false;
-  streak = 0; lastEarn = -999; duskTarget = 0; hud();
+  streak = 0; lastEarn = -999; duskTarget = 0; edge = 0; feintNext = false; can.dart = 0; nextBolt = 6; hud();
   overlay.hidden = true; main.classList.remove('watching');
   if (!introSeen) {
     // first play: walk to the pot, plant the seed, the can slides in, thimble goes up
@@ -269,7 +273,7 @@ function end() {
 }
 function watch() {
   clearLeaderboard();
-  state = 'watch'; drops = []; target = null;
+  state = 'watch'; drops = []; target = null; edge = 0;
   overlay.hidden = true; skipBtn.hidden = true; leaveBtn.hidden = false;
   main.classList.add('watching');
   pose = plant.planted ? 'back' : 'seed'; can.want = CAN_AWAY; wander.next = 2;
@@ -354,6 +358,7 @@ addEventListener('keyup', e => { if (isL(e.key)) keys.l = false; if (isR(e.key))
 function moveCan(dt, sp) {
   if (can.want !== null) { const d = can.want - can.x; can.x += Math.sign(d) * Math.min(Math.abs(d), 45 * dt); return; }
   const d = can.tx - can.x;
+  if (can.dart > 0) sp *= 2.4;
   if (Math.abs(d) < 1) can.tx = 14 + Math.random() * 74;
   else can.x += Math.sign(d) * Math.min(Math.abs(d), Math.max(sp, can.x < 10 ? 45 : 0) * dt);
 }
@@ -392,6 +397,8 @@ function update(dt) {
   dusk += (duskTarget - dusk) * Math.min(1, dt * (duskTarget < dusk ? 1.2 : 0.6));
   if (shownState !== state) { shownState = state; gameEl.classList.toggle('playing', state === 'play'); }
   time += dt; flash = Math.max(0, flash - dt); moved = false;
+  edgeShown += (edge - edgeShown) * Math.min(1, dt * (edge < edgeShown ? 1.2 : 0.8));
+  can.dart = Math.max(0, can.dart - dt); boltT = Math.max(0, boltT - dt);
   for (const p of parts) { p.vy += 140 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
   parts = parts.filter(p => p.life > 0);
   for (const w of wet) w.t -= dt;
@@ -399,9 +406,26 @@ function update(dt) {
   hop = Math.max(0, hop - dt);
   if (state === 'intro') { moveCan(dt, 0); updateIntro(dt); return; }
   if (state !== 'play') { moveCan(dt, 14); if (state === 'title' || state === 'watch') idle(dt); return; }
-  el += dt; ThimbleSound.intensity(el); duskTarget = Math.min(1, el / DUSK_SECONDS);
-  const interval = Math.max(0.48, 1.45 - el * 0.018), fall = Math.min(56, 20 + el * 0.55);
-  moveCan(dt, 16 + el * 0.45);
+  el += dt; edge = Math.min(1, Math.max(0, (el - COZY) / EDGE_RAMP));
+  ThimbleSound.intensity(el, edge); duskTarget = Math.min(1, el / DUSK_SECONDS);
+  // the first minute ramps up as before; after that it keeps going, more slowly
+  const interval = Math.max(0.48, 1.45 - el * 0.018) - 0.1 * edge, fall = Math.min(56, 20 + el * 0.55) + 14 * edge;
+  // a twitchy can: now and then it jerks the other way just as it's about to drip
+  if (feintNext && dropT < 0.28) {
+    feintNext = false; can.dart = 0.3;
+    const dir = Math.sign(can.tx - can.x) || 1;
+    can.tx = Math.max(14, Math.min(88, can.x - dir * (12 + Math.random() * 12)));
+  }
+  moveCan(dt, Math.min(100, 16 + el * 0.45));
+  // lightning once the storm is in (not with reduced motion)
+  if (edgeShown > 0.3 && !calm) {
+    nextBolt -= dt;
+    if (nextBolt <= 0) {
+      boltT = 0.22; boltX = 16 + Math.random() * 60; boltSeed = 1 + Math.floor(Math.random() * 997);
+      nextBolt = 6 + Math.random() * (12 - 6 * edge);
+      ThimbleSound.thunder(0.3 + Math.random() * 0.6);
+    }
+  }
   const before = ex, sp = 72;
   const mv = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
   if (mv) ex += mv * sp * dt;
@@ -410,8 +434,11 @@ function update(dt) {
   moved = Math.abs(ex - before) > 0.05; if (moved) { walk += dt; facing = ex > before ? 1 : -1; }
   dropT -= dt;
   if (dropT <= 0 && can.x > 6) {
-    drops.push({ x: Math.round(can.x) - 4, y: 9, vy: nextGold ? fall * 1.25 : fall, gold: nextGold });
+    // later on, drops fall at uneven speeds (up to 25% either way) so there's no settling into one rhythm
+    const vary = 1 + (Math.random() - 0.5) * 0.5 * edge;
+    drops.push({ x: Math.round(can.x) - 4, y: 9, vy: (nextGold ? fall * 1.25 : fall) * vary, gold: nextGold });
     dropT = interval * (0.75 + Math.random() * 0.5);
+    feintNext = Math.random() < 0.45 * edge;
     // decide the next drop now, so the spout can glint gold before it falls
     nextGold = score >= GOLD_AFTER && !drops.some(d => d.gold) && Math.random() < GOLD_CHANCE;
   }
@@ -477,13 +504,35 @@ function scene() {
   for (const [x0, y, sp] of clouds) { const a = 9 + ((x0 + (calm ? 0 : time * sp)) % 100) - 14; R(a, y, 12, 2, cloudA); R(a + 3, y - 2, 6, 2, cloudA); R(a + 1, y + 2, 10, 1, cloudB); }
   // the moon sits in front of the drifting clouds
   if (n > 0.65) { g.globalAlpha = Math.min(1, (n - 0.65) / 0.25); disc(80, 11, 3, '#f4f0dc'); P(79, 10, '#ffffff'); P(81, 12, '#d8d2b8'); g.globalAlpha = 1; }
+  // after the cozy first minute a storm rolls in: the sky greys over, low clouds pile up, lightning
+  const e = edgeShown;
+  if (e > 0.01) {
+    g.globalAlpha = e * 0.45; R(9, 5, 78, 41, '#2c2840'); g.globalAlpha = 1;
+    const storm = mix('#5d5679', '#29253e', n), stormLo = mix('#47415f', '#1d1a30', n);
+    for (let k = 0; k < 5 && e > 0.12 + k * 0.16; k++) {
+      const sx = 9 + ((k * 23 + (calm ? 0 : time * (2.2 + k * 0.7))) % 104) - 18, sy = 5 + (k % 3) * 2;
+      R(sx, sy, 22, 3, storm); R(sx + 3, sy + 3, 15, 2, stormLo);
+    }
+    if (boltT > 0) {
+      g.globalAlpha = Math.min(1, boltT / 0.12) * 0.55; R(9, 5, 78, 41, '#e8ecff'); g.globalAlpha = 1;
+      let x = boltX;
+      for (let y = 6; y < 38; y++) { x += Math.floor((Math.sin(boltSeed * 12.9898 + y * 78.233) * 43758.5453 % 1 + 1) % 1 * 3) - 1; P(x, y, '#ffffff'); if (y % 9 === 4) P(x + 1, y, '#cfd8ff'); }
+    }
+  }
   const farC = mix('#6e5788', '#2e2850', n), nearC = mix('#4f3f68', '#1f1a38', n);
   for (const [bx, bw, bh] of far) R(bx, 46 - bh, bw, bh, farC);
   for (const [lx, ly] of lit) P(lx, ly, (Math.floor(time * 0.7 + lx) % 5) ? '#ffd98a' : farC);
   // more windows light up as it gets dark
   MORE_LIT.forEach(([lx, ly], i) => { if (n > 0.25 + i * 0.08) P(lx, ly, (Math.floor(time * 0.5 + lx * 3) % 9) ? '#ffd98a' : farC); });
   for (const [bx, bw, bh] of near) R(bx, 46 - bh, bw, bh, nearC);
-  for (let i = 0; i < (state === 'play' ? 5 : 10) * (1 - n * 0.7); i++) { const mx = 12 + ((i * 29 + time * 1.2 * (1 + i % 3)) % 72), my = 8 + ((i * 17) % 30) + Math.sin(time * 0.8 + i) * 2; P(mx, my, 'rgba(255,246,216,0.75)'); }
+  if (e > 0.05) {   // rain, slanting a little
+    g.fillStyle = 'rgba(205,220,255,0.55)';
+    for (let i = 0, nR = Math.floor(e * 36); i < nR; i++) {
+      const rx = Math.floor(9 + (i * 37 + (calm ? 0 : time * 14)) % 78), ry = Math.floor(5 + (i * 53 + (calm ? 0 : time * (70 + (i % 4) * 12))) % 41);
+      g.fillRect(rx, ry, 1, 1); g.fillRect(rx - 1, ry + 1, 1, 1);
+    }
+  }
+  for (let i = 0; i < (state === 'play' ? 5 : 10) * (1 - n * 0.7) * (1 - e); i++) { const mx = 12 + ((i * 29 + time * 1.2 * (1 + i % 3)) % 72), my = 8 + ((i * 17) % 30) + Math.sin(time * 0.8 + i) * 2; P(mx, my, 'rgba(255,246,216,0.75)'); }
   g.restore();
   R(47, 5, 2, 41, '#b57b52'); R(49, 5, 1, 41, '#8a5a3b'); R(9, 24, 78, 2, '#b57b52'); R(9, 26, 78, 1, '#8a5a3b');
   R(4, 1, 88, 1, '#c9a24a'); R(3, 0, 2, 3, '#a5832f'); R(91, 0, 2, 3, '#a5832f');
@@ -577,10 +626,21 @@ function wateringCan() {
   const swinging = Math.abs(can.x - lastCanX) > 0.01 && !calm; lastCanX = can.x;
   if (cx < -10) return;
   g.save(); if (swinging && Math.floor(time * 5) % 2) g.translate(0, 1);
+  if (can.dart > 0 && !calm) g.translate(Math.floor(time * 40) % 2 ? 1 : -1, 0);   // it shudders when it feints
   P(cx + 3, 1, '#8f8f8f');
   R(cx + 1, 2, 5, 1, '#4f7f90'); P(cx + 1, 3, '#4f7f90'); P(cx + 5, 3, '#4f7f90');
   R(cx, 4, 7, 5, '#6f9fb0'); R(cx, 4, 7, 1, '#9cc6d4'); R(cx + 5, 5, 2, 4, '#557f8f');
   P(cx - 1, 7, '#6f9fb0'); P(cx - 2, 6, '#6f9fb0'); P(cx - 3, 6, '#6f9fb0'); R(cx - 4, 5, 1, 3, '#557f8f');
+  // it starts out a plain can, turns smug, then goes manic and watches you
+  const e = edgeShown, ink = '#22343c';
+  if (e > 0.08) {
+    if (e < 0.55) { R(cx, 6, 2, 1, ink); R(cx + 3, 6, 2, 1, ink); P(cx + 2, 8, ink); P(cx + 3, 8, ink); P(cx + 4, 7, ink); }
+    else {
+      const look = ex < cx + 2 ? 0 : 1;
+      R(cx, 5, 2, 2, '#ffffff'); R(cx + 3, 5, 2, 2, '#ffffff'); P(cx + look, 6, ink); P(cx + 3 + look, 6, ink);
+      R(cx + 1, 8, 4, 1, ink); P(cx + 2, 8, '#ffffff'); P(cx + 4, 8, '#ffffff');
+    }
+  }
   if (state === 'play' && dropT < 0.3) { P(cx - 4, 8, nextGold ? '#ffe680' : '#5cc0f5'); P(cx - 4, 9, nextGold ? '#d99a12' : '#2f8fd0'); }
   g.restore();
 }
@@ -685,6 +745,7 @@ function draw() {
   if (seedFall) { R(seedFall.x, seedFall.y, 2, 2, '#3b2c22'); }
   for (const p of parts) P(p.x, p.y, p.c);
   for (const p of popups) (p.kind === 'heart' ? heartPop : plusThree)(p.x, p.y, p.t);
+  if (boltT > 0) { g.globalAlpha = Math.min(1, boltT / 0.12) * 0.12; R(0, 0, W, H, '#ffffff'); g.globalAlpha = 1; }   // the flash lights the room a little
 }
 
 let lastT = 0;
