@@ -526,10 +526,10 @@ function drawChalk(g,c,sl,d0,tx,ty){
   if(sl.chalk==='title'){
     let fs=0.95*K; const font=f=>`700 ${f}px "Cabin Sketch", "Schoolbell", cursive`;
     h.font=font(fs);
-    const w=Math.max(h.measureText("DON'T STEP").width,h.measureText('ON THE CRACK').width);
+    const w=Math.max(h.measureText("DON'T STEP").width,h.measureText('ON A CRACK').width);
     fs*=Math.min(1,4.3*K/w); h.font=font(fs);
     h.textAlign='center'; h.fillStyle='#fbf8f1'; h.fillText("DON'T STEP",tx(2.5),ty(d0+3.55));
-    const a='ON THE ', b='CRACK', wa=h.measureText(a).width, wb=h.measureText(b).width, x0=tx(2.5)-(wa+wb)/2, y2=ty(d0+2.3);
+    const a='ON A ', b='CRACK', wa=h.measureText(a).width, wb=h.measureText(b).width, x0=tx(2.5)-(wa+wb)/2, y2=ty(d0+2.3);
     h.textAlign='left'; h.fillText(a,x0,y2); h.fillStyle='#f7a8c4'; h.fillText(b,x0+wa,y2);
     h.strokeStyle='#f7a8c4'; h.lineWidth=0.05*K; h.lineCap='round'; h.beginPath();
     for(let x=0;x<=wb;x+=4){const yy=y2+fs*0.58+Math.sin(x*0.25)*fs*0.05; x?h.lineTo(x0+wa+x,yy):h.moveTo(x0+wa+x,yy);} h.stroke();
