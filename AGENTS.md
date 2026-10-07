@@ -12,5 +12,7 @@ Follow the **Standards** section in README.md on every change. In short:
 - Run `python3 tools/check_boards.py` after touching `BOARD` or `games.json`.
 - Studio name is JonniePeed Games (capital P).
 - Don't commit or push to `main` unless the user says to in the conversation. Deliverables go in the repo, not zip files.
+- Backend services are named after their repo folder: folder `name/`, Worker and database `jonniepeed-games-name`, address `name.games.sparklelabs.org` (so `scores/` is `scores.games.sparklelabs.org`). Features can have friendlier names in docs and buttons ("leaderboards").
+- Every new `*.games.sparklelabs.org` address needs its own CAA records (`issue` for `pki.goog`, `letsencrypt.org`, `ssl.com`), because `games.` points to GitHub. See the certificate section of `docs/guides/00-leaderboards.md`.
 - Pages and the leaderboard Worker (`scores/`) deploy only by hand (workflow_dispatch). Never add automatic triggers. Only `scores/` changes need a Worker deploy.
 - Build specs live in `specs/` as `SPEC-NNN-name.md`, numbered in order. Operating guides live in `docs/guides/` as `NN-name.md`, numbered in order from `00`. Each file's title starts with its number (`# SPEC-001: Name`, `# 00: Name`), and a guide built from a spec links to it at the top.
