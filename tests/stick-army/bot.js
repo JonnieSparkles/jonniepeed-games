@@ -59,7 +59,12 @@ window.__balanceBot = function (profile, seed) {
       }
     });
     o.planes.forEach(function (p) {
-      if (p.state === 'fly' && p.x > 20 && p.x < 380) consider(p.kind === 'zeppelin' ? 150 : 200 + p.y / 10, lead(o, p.x, p.y, p.vx, 0), p.id);
+      if (p.state === 'fly' && p.x > 20 && p.x < 380) consider(p.kind === 'zeppelin' ? 150 : p.kind === 'cargo' ? 260 : 200 + p.y / 10, lead(o, p.x, p.y, p.vx, 0), p.id);
+    });
+    // Tanks: on the way down, or parked within the barrel's dip.
+    (o.tanks || []).forEach(function (tk) {
+      if (tk.state === 'chute') consider(240, lead(o, tk.x, tk.y, 0, 40), tk.id);
+      else { var shot = groundShot(o, { x: tk.x - tk.dir * 18, y: tk.y - 14 }); if (shot) consider(330, shot, tk.id); }
     });
     return list;
   }
@@ -67,25 +72,35 @@ window.__balanceBot = function (profile, seed) {
   // Like a hand on a mouse or a thumb on glass: the aim sweeps at a limited speed, stays on its target until
   // something clearly more urgent appears, and carries a small per-target offset plus tremor.
   var aim = -Math.PI / 2, focus = null, offset = 0, lastT = 0, readyAt = 0;
+  // Air strikes: when a tank is shelling the wall, the ground is crowded, or the wall is in trouble.
+  // Casual players only reach for it when things are dire.
+  function wantStrike(o) {
+    if (!o.strikes || o.strikeActive) return false;
+    var ground = o.troopers.filter(function (t) { return t.state === 'ground'; }).length;
+    var parked = (o.tanks || []).some(function (tk) { return tk.state !== 'chute'; });
+    if (profile.shop === 'random') return o.wall < o.maxWall * 0.25;
+    return parked || ground >= 5 || o.wall < o.maxWall * 0.3;
+  }
   function decide(o) {
     var dt = Math.min(0.1, Math.max(0, o.t - lastT)); lastT = o.t;
+    var strike = wantStrike(o);
     if (profile.heat_stop < 1) { if (o.heat > profile.heat_stop) hot = true; else if (o.heat < profile.heat_resume) hot = false; }
     var list = candidates(o), best = null, current = null;
     list.forEach(function (c) { if (!best || c.rank > best.rank) best = c; if (focus && c.id === focus) current = c; });
     var target = current && (!best || best.rank < current.rank + 100) ? current : best;
-    if (!target) { focus = null; return { fire: false }; }
+    if (!target) { focus = null; return { fire: false, strike: strike }; }
     // A new target takes a moment to pick up (switch_s).
     if (target.id !== focus) { focus = target.id; offset = (rnd() * 2 - 1) * aimErr; readyAt = o.t + profile.switch_s; }
     // The hand starts moving once the new target is picked up, then sweeps at aim_speed. Like most players,
     // the bot keeps the trigger down while it has a target, and only heat discipline lets go.
     var want = target.angle + offset + (rnd() * 2 - 1) * aimErr * 0.25, step = o.t >= readyAt ? profile.aim_speed * dt : 0;
     aim += Math.max(-step, Math.min(step, want - aim));
-    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot };
+    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot, strike: strike };
   }
 
   // Shop: one readable function. The gift first, then supplies by priority within the budget, then hiring,
   // and pizza last when the wall is low.
-  var PRIORITY = ['spread', 'double', 'tramp', 'fire', 'rockets', 'auto', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
+  var PRIORITY = ['strike', 'spread', 'double', 'tramp', 'fire', 'rockets', 'auto', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
     'mines', 'catcher', 'mat', 'aim', 'sandbags', 'wire', 'repair'];
   function shop(o) {
     var sh = o.shop, take = [];
@@ -99,7 +114,8 @@ window.__balanceBot = function (profile, seed) {
     var pizza = items.find(function (it) { return it.id === 'pizza'; });
     var wantPizza = pizza && pizza.can && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
     if (wantPizza) coins -= pizza.cost;
-    var rest = items.filter(function (it) { return it !== gift && it.id !== 'pizza'; });
+    // A couple of air strikes in hand is plenty.
+    var rest = items.filter(function (it) { return it !== gift && it.id !== 'pizza' && (it.id !== 'strike' || o.strikes < 2); });
     if (profile.shop === 'random') {
       if (rest.length && rnd() < 0.5) buy(rest[Math.floor(rnd() * rest.length)]);
     } else {

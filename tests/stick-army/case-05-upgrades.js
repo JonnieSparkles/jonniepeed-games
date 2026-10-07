@@ -19,8 +19,10 @@
   equip('mines'); startWave(2); spawnTrooper(100,GROUND-33); var t=S.troopers[0]; t.type='rifle'; land(t); updateTroopers(0.01);
   check(t.dead && !S.mines[0].armed && !r.dead,'mines spare crew');
   newGame(); spawnTrooper(18,GROUND-33); var sn=S.troopers[0]; sn.type='sniper'; land(sn);
-  hitTest({x:18,y:GROUND-20,owner:'player',kind:'bullet'}); check(!sn.dead,'player cannot reach trench sniper');
-  hitTest({x:18,y:GROUND-20,owner:'ally',kind:'bullet'}); check(sn.dead,'crew can reach sniper');
+  // Snipers have no immunity: a low shot skimming the field reaches one at the edge.
+  aimAt({x:18,y:GROUND-20}); shoot();
+  for(var k=0;k<120 && !sn.dead;k++) updateBullets(1/60);
+  check(sn.dead,'a low shot across the field kills an edge sniper');
   newGame(); equip('auto'); spawnTrooper(120,500); S.troopers[0].open=1; updateAutoTurret(0.1); check(S.bullets.length===1,'auto turret fires');
   newGame(); equip('catcher'); spawnTrooper(56,490); S.troopers[0].open=1;
   check(aimPoint(makeRecruit(0,'rifle'),S.troopers[0]).y<490,'trained crew aims for low chute');

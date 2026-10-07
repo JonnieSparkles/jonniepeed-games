@@ -206,9 +206,10 @@
       coins: 0, volleys: 0, autoCD: 0, mines: [], shop: null, delivery: null, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
+      tanks: [], strikes: 1, strike: null, strikeBombs: [],
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
-      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0 },
+      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
       hint: false, slotRes: {}
     };
     resizeMats(); clearInput();
@@ -222,11 +223,16 @@
     return {
       // Boss waves trade the bombers and half the planes for a zeppelin.
       planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (boss ? 0.5 : 1)),
-      bombers: !boss && n >= 2 ? Math.min(5, n - 1) : 0,
+      bombers: !boss && n >= 2 ? Math.min(8, n - 1) : 0,
       boss: boss ? 1 : 0,
+      // Rushers from wave 6 and tanks from wave 9 (units.js) keep adding pressure after the spawn rate settles.
+      rushes: n >= RUSH.WAVE ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 2)) : 0,
+      rushSize: Math.min(6, 2 + Math.floor((n - RUSH.WAVE) / 3)),
+      cargo: n >= TANK.WAVE ? Math.min(4, 1 + Math.floor((n - TANK.WAVE) / 3)) : 0,
       bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
-      sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.22, 0.10 + n * 0.015) : 0,
-      interval: Math.max(0.85, 2.5 - 0.24 * n),
+      sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
+      // Planes come faster until wave 7, then keep tightening slowly instead of flattening out.
+      interval: n <= 7 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.5, 0.82 - 0.025 * (n - 7)),
       speed: 65 + 8 * n,
       maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(100, 47 + BALANCE.FALL_PER_WAVE * n),
@@ -352,9 +358,10 @@
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: 3.5, timer: 2.4 };
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: 3.5, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
     S.waveState = 'active';
-    var sub = c.boss ? 'zeppelin incoming!' : n === 1 ? 'here they come' : (n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : '');
+    var sub = c.boss ? 'zeppelin incoming!' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
+      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === TANK.WAVE ? 'tanks inbound! (B: air strike)' : '';
     S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
@@ -372,8 +379,10 @@
         sp.timer = sp.cfg.interval * between(RW, 0.7, 1.3);
       }
       if (sp.boss > 0) { sp.bossT -= dt; if (sp.bossT <= 0) { sp.boss--; spawnZeppelin(); } }
-      var enemies = S.troopers.some(function (t) { return !t.dead; });
-      if (sp.planes + sp.bombers + (sp.boss || 0) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
+      if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14); } }
+      if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15); } }
+      var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
+      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave }); emit('coins', { amount: waveTags, reason: 'wave' });
@@ -408,6 +417,7 @@
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
     { id: 'auto', name: 'Sentry doodle', desc: 'A small auto-turret shoots bombs and low-flying enemies.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
+    { id: 'strike', name: 'Air strike', desc: 'One more call for the bomber. Press B or the plane button.', tier: 'supply', cost: 45, maxStacks: Infinity, apply: function (s) { s.strikes++; } },
     { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
   ];
   // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
@@ -440,9 +450,11 @@
   function costNow(it) { return onHouse(it) ? 0 : price(it); }
   function openShop() {
     S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null;
-    // Three rotating supplies from one pool (one of them free), pizza always, and every role for hire.
-    var items = offer(OFFERS, ['pizza']), gift = Math.floor(RS() * Math.max(1, items.length));
-    S.shop = { items: items.concat(ITEMS.find(function (it) { return it.id === 'pizza'; })), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
+    // Three rotating supplies from one pool (one of them free), air strikes once tanks are near, pizza always,
+    // and every role for hire.
+    var items = offer(OFFERS, ['pizza', 'strike']), gift = Math.floor(RS() * Math.max(1, items.length));
+    var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= TANK.WAVE - 1); });
+    S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
       gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
     emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
@@ -470,15 +482,19 @@
   var world = { W: W, H: H, GROUND: GROUND, BK: BK, TUR: TUR, BALANCE: BALANCE,
     INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER, RED_FILL: RED_FILL, INK_FILL: INK_FILL,
     L: L, SP: SP, Ci: Ci, ink: ink, pen: pen, jt: jt, stick: stick, tube: tube, clamp: clamp, between: between, rr: rr, substream: substream,
-    makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit,
+    makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz) { addText(t, x, y, c, sz); },
     addDecal: function (d) { addDecal(d); }, id: function () { return nextId++; } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
-    boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, sound: { get: function () { return sound; } } });
+    boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, sound: { get: function () { return sound; } },
+    BOMBER_PTS: { get: function () { return BOMBER_PTS; } } });
   var UNITS = StickArmyUnits(world), ZEP = UNITS.ZEP, zeppelinHP = UNITS.zeppelinHP, spawnZeppelin = UNITS.spawnZeppelin,
     zeppelinOnScreen = UNITS.zeppelinOnScreen, planeHit = UNITS.planeHit, updateZeppelin = UNITS.updateZeppelin,
-    hurtZeppelin = UNITS.hurtZeppelin, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar;
+    hurtZeppelin = UNITS.hurtZeppelin, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar,
+    RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo,
+    tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
+    STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike;
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
     G = g; boil = 0;
@@ -736,7 +752,9 @@
       p.state = 'fall'; p.vy = -20; p.rot = 0; p.smoke = 0;
       S.stats.planes++;
       emit('plane_down', { kind: p.kind, by: owner === 'ally' ? 'crew' : 'player' });
-      award(p.kind === 'bomber' ? 120 : 50, p.x, p.y + 26, p.kind === 'bomber' ? 'bomber down!' : 'kaboom!', owner === 'ally' ? BLUE : INK, true);
+      // A cargo plane downed before its drop takes its tank with it.
+      award(p.kind === 'cargo' ? 150 : p.kind === 'bomber' ? 120 : 50, p.x, p.y + 26, p.kind === 'cargo' ? (p.tankX != null ? 'tank and all!' : 'cargo down!') : p.kind === 'bomber' ? 'bomber down!' : 'kaboom!', owner === 'ally' ? BLUE : INK, true);
+      p.tankX = null;
       S.shake = Math.max(S.shake, 0.25);
       sound.play('boom');
       p.drops.forEach(function (x, i) { spawnTrooper(p.x + between(p.rng, -16, 16), p.y + 10, p.kits[i]); });
@@ -749,14 +767,14 @@
   function explode(x, y, r, kind, owner) {
     for (var i = 0; i < 7; i++) puff(x + rr(-r, r) * 0.4, y + rr(-r, r) * 0.3, rr(3, 7), rr(0.4, 0.7));
     burst(x, y, 10, INK, 220);
-    S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' ? 0.55 : kind === 'crash' ? 0.35 : 0.15);
+    S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' ? 0.55 : kind === 'crash' || kind === 'wreck' ? 0.35 : kind === 'strike' || kind === 'shell' ? 0.25 : 0.15);
     if (y > GROUND - 30) addDecal({ kind: 'scorch', x: x, y: GROUND - 3, r: r * 0.55, color: INK, a: 0.2, seed: nextId++ });
-    var col = kind === 'rocket' ? BLUE : INK;
+    var col = kind === 'rocket' || kind === 'strike' ? BLUE : INK;
     // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
     S.troopers.forEach(function (t) {
-      if (kind !== 'flak' && !t.dead && t.state !== 'bounce' && !(owner === 'player' && t.type === 'sniper' && t.state === 'ground') && Math.hypot(t.x - x, t.y + 14 - y) < r) {
+      if (kind !== 'flak' && !t.dead && t.state !== 'bounce' && Math.hypot(t.x - x, t.y + 14 - y) < r) {
         t.dead = true; killFx(t, kind === 'bomb' || kind === 'crash' ? 320 : 240); S.stats.kills++;
-        emit('kill', { by: kind === 'crash' ? 'crash' : 'explosion', source: kind, type: t.type });
+        emit('kill', { by: kind === 'crash' ? 'crash' : kind === 'strike' ? 'strike' : 'explosion', source: kind, type: t.type });
         award(10, t.x, t.y - 4, 'boom!', col, true);
       }
     });
@@ -764,7 +782,12 @@
       if (Math.abs(x - BK.x) < 48) { hurtWall(18, 'bomb'); addText('wall -18', BK.x, BK.top - 36, RED, 20); }
       // A direct hit still kills a bare recruit; near misses wound. Helmets and trenches help.
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4, 'bomb'); });
+    } else if (kind === 'shell') {
+      // Tank shells: lighter than bombs, aimed at the bunker.
+      if (Math.abs(x - BK.x) < 44) { hurtWall(TANK.SHELL_DAMAGE, 'tank'); addText('wall -' + TANK.SHELL_DAMAGE, BK.x, BK.top - 36, RED, 18); }
+      S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 26) hurtRecruit(q, 1.6 * (1 - d / 26) + 0.2, 'tank'); });
     }
+    blastTanks(x, y, r, kind, owner);
     if (kind === 'rocket' || kind === 'flak') {
       S.planes.forEach(function (p) { if (p.state === 'fly' && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally', x, y); });
       S.bombs.forEach(function (m) { if (!m.dead && Math.hypot(m.x-x,m.y-y) < r + 8) { m.dead=true; emit('bomb_intercepted', { by: owner === 'player' ? 'player' : 'crew' }); award(20,m.x,m.y-12,'bomb popped!',BLUE,true); puff(m.x,m.y,8,0.4); } });
@@ -800,11 +823,16 @@
         return;
       }
     }
+    for (i = 0; i < S.tanks.length; i++) {
+      var tk = S.tanks[i];
+      if (tk.dead || seen.indexOf(tk.id) >= 0 || !tankHit(tk, b.x, b.y, 0)) continue;
+      if (b.kind !== 'rocket' || !projectileBurst(b)) { damageTank(tk, 1, b.owner); consumeBullet(b, tk); }
+      return;
+    }
     for (i = 0; i < S.troopers.length; i++) {
       t = S.troopers[i];
       if (t.dead || t.state === 'bounce' || seen.indexOf(t.id) >= 0) continue;
-      // The trench edge is below the player's firing arc. Crew must handle snipers.
-      if (b.owner === 'player' && t.type === 'sniper' && t.state === 'ground') continue;
+      // Snipers sit at the edges, mostly beyond the barrel's dip; a shot that does reach one counts.
       // Rockets explode on contact; flak only bursts near aircraft and bombs, so a direct hit is a plain bullet.
       if (Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
         if (b.kind !== 'rocket' || !projectileBurst(b)) { killTrooper(t, b.owner); consumeBullet(b, t); }
@@ -822,13 +850,16 @@
 
   // ---------- recruit brains ----------
   function pickTarget(r) {
-    var ox = r.x, oy = GROUND - 23, best = null, bd = 1e9;
+    var ox = r.x, oy = GROUND - 23, best = null, bd = 1e9, tank = null, td = 300;
+    S.tanks.forEach(function (tk) { var d = Math.abs(tk.x - ox); if (!tk.dead && tk.state !== 'chute' && d < td) { td = d; tank = tk; } });
+    if (tank && r.type === 'bazooka') return tank;
     S.troopers.forEach(function (t) {
       if (t.dead || t.state !== 'ground') return;
       var d = Math.abs(t.x - ox);
       if (d < 240 && d < bd) { bd = d; best = t; }
     });
     if (best) return best;
+    if (tank) return tank;
     S.bombs.forEach(function (m) {
       if (m.dead || m.y < 250) return;
       var d = Math.hypot(m.x - ox, m.y - oy);
@@ -856,6 +887,7 @@
     var x, y, vx = 0, vy = 0, sp = r.type === 'bazooka' ? 300 : 520;
     if (tg.kind === 'plane' || tg.kind === 'bomber') { x = tg.x; y = tg.y; vx = tg.dir * tg.speed; }
     else if (tg.kind === 'zeppelin') { x = tg.x; y = tg.y; vx = tg.face * tg.speed; }
+    else if (tg.tread !== undefined) { x = tg.x; y = tg.y - 2; vx = 0; }
     else if (tg.isBomb) { x = tg.x; y = tg.y; vx = tg.vx; vy = tg.vy; }
     else if (tg.state === 'ground') { x = tg.x; y = tg.y + 14; vx = (tg.type === 'sniper' || tg.atWall || tg.attacking) ? 0 : tg.dir * 22 * (S.mods.wire ? 0.5 : 1); }
     else {
@@ -933,6 +965,7 @@
       p.hitFlash = Math.max(0, p.hitFlash - dt);
       if (p.state === 'fly') {
         p.x += p.dir * p.speed * dt;
+        if (p.kind === 'cargo') updateCargo(p);
         while (p.drops.length && (p.dir > 0 ? p.x >= p.drops[0] : p.x <= p.drops[0])) spawnTrooper(p.drops.shift(), p.y + 8, p.kits.shift());
         while (p.bombRun.length && (p.dir > 0 ? p.x >= p.bombRun[0].x : p.x <= p.bombRun[0].x)) {
           var drop = p.bombRun.shift();
@@ -962,7 +995,7 @@
       m.vy += 260 * dt; m.x += m.vx * dt; m.y += m.vy * dt;
       if (m.y >= GROUND - 6 || (m.x > BK.x1 - 4 && m.x < BK.x2 + 4 && m.y >= BK.top - 8)) {
         m.dead = true;
-        explode(m.x, Math.min(m.y, GROUND - 4), 42, 'bomb');
+        explode(m.x, Math.min(m.y, GROUND - 4), m.shell ? 28 : 42, m.shell ? 'shell' : 'bomb');
       }
     });
   }
@@ -1032,7 +1065,8 @@
       t.thump -= dt;
       if (t.thump <= 0) { t.thump = 0.6; S.parts.push({ k: 'tink', x: wallX + t.dir * 8, y: GROUND - 18, life: 0.25, max: 0.25, c: RED, id: nextId++ }); sound.play('thump'); }
     } else {
-      t.x += t.dir * 22 * (S.mods.wire ? 0.5 : 1) * dt; t.walk += dt * 9;
+      var pace = (t.speed || 22) * (S.mods.wire ? 0.5 : 1);
+      t.x += t.dir * pace * dt; t.walk += dt * 9 * pace / 22;
     }
   }
   function updateTroopers(dt) {
@@ -1141,6 +1175,8 @@
     updatePlanes(dt);
     updateBombs(dt);
     updateTroopers(dt);
+    updateTanks(dt);
+    updateStrike(dt);
     updateRecruits(dt);
     updateAutoTurret(dt);
     updateBullets(dt);
@@ -1282,7 +1318,7 @@
   var BOMBER_PTS = [-46, 4, -44, -11, -30, -15, 30, -13, 42, -15, 50, -30, 60, -30, 58, 2, 24, 13, -34, 14];
   function drawPlane(p) {
     pen(p.id);
-    var sc = p.sc, bomber = p.kind === 'bomber';
+    var sc = p.sc, bomber = p.kind === 'bomber' || p.kind === 'cargo';
     G.save();
     G.translate(p.x, p.y); G.scale(-p.dir * sc, sc); if (p.rot) G.rotate(-p.rot);
     G.beginPath(); SP(bomber ? BOMBER_PTS : PLANE_PTS, true, 0.6);
@@ -1300,6 +1336,12 @@
       G.beginPath(); Ci(2, 8, 5); ink(INK, 2 / sc); G.stroke();
       G.beginPath(); L(-6, 13, 10, 13, 0.4); ink(INK, 1.6 / sc); G.stroke();
       if (p.hp < 3) { G.beginPath(); SP([30, -12, 26, -6, 31, -1], false, 0.3); if (p.hp < 2) SP([-20, -14, -16, -7, -21, -2], false, 0.3); ink(INK, 1.6 / sc); G.stroke(); }
+      // Cargo planes carry a crated tank under the belly until the drop.
+      if (p.kind === 'cargo' && p.tankX != null) {
+        G.beginPath(); L(-8, 13, -6, 20, 0.2); L(8, 13, 6, 20, 0.2); ink(INK, 1.4 / sc); G.stroke();
+        G.beginPath(); G.rect(-14, 20, 28, 13); G.fillStyle = '#e7dcc0'; G.fill(); ink(INK, 2 / sc); G.stroke();
+        G.beginPath(); L(-14, 20, 14, 33, 0.2); L(14, 20, -14, 33, 0.2); ink(INK2, 1.2 / sc); G.stroke();
+      }
     }
     if (p.state === 'fly') {
       G.globalAlpha = 0.5; G.beginPath();
@@ -1313,6 +1355,7 @@
     pen(m.id);
     var a = Math.atan2(m.vy, m.vx) - Math.PI / 2;
     G.save(); G.translate(m.x, m.y); G.rotate(a);
+    if (m.shell) { G.beginPath(); G.ellipse(0, 0, 3, 5, 0, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); G.restore(); return; }
     G.beginPath(); G.ellipse(0, 0, 4.5, 7.5, 0, 0, Math.PI * 2); G.fillStyle = INK; G.fill();
     G.beginPath(); L(-4, -6, -6, -12, 0.3); L(4, -6, 6, -12, 0.3); L(-6, -12, 6, -12, 0.3); ink(INK, 1.8); G.stroke();
     G.restore();
@@ -1541,6 +1584,8 @@
     S.planes.forEach(function (p) { if (p.kind !== 'zeppelin') drawPlane(p); });
     S.bombs.forEach(drawBomb);
     S.troopers.forEach(function (t) { if (!t.dead) drawTrooper(t); });
+    S.tanks.forEach(drawTank);
+    drawStrike();
     if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawBunker(); drawDefenses(); }
     S.recruits.forEach(function (r) { if (!r.dead) drawRecruit(r); });
     drawBullets();
@@ -1558,7 +1603,7 @@
   // ---------- flow ----------
   var titleScreen = document.getElementById('titleScreen'), pauseScreen = document.getElementById('pauseScreen'), overScreen = document.getElementById('overScreen');
   var shopScreen = document.getElementById('shopScreen');
-  var pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn');
+  var pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn'), strikeBtn = document.getElementById('strikeBtn');
 
   function titleScene() {
     reset();
@@ -1633,6 +1678,8 @@
     document.getElementById('stPlanes').textContent = String(S.stats.planes);
     document.getElementById('stZeps').textContent = String(S.stats.zeppelins);
     document.getElementById('stZeps').hidden = document.getElementById('stZepsLabel').hidden = !S.stats.zeppelins;
+    document.getElementById('stTanks').textContent = String(S.stats.tanks);
+    document.getElementById('stTanks').hidden = document.getElementById('stTanksLabel').hidden = !S.stats.tanks;
     var cause = OVER_CAUSE[S.lastHit];
     document.getElementById('overCause').textContent = cause || '';
     document.getElementById('overCause').hidden = !cause;
@@ -1725,6 +1772,7 @@
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
     else if (k === 'p' || k === 'P' || k === 'Escape') { togglePause(); }
+    else if ((k === 'b' || k === 'B') && !e.repeat && S.mode === 'play') { callStrike(); }
   });
   window.addEventListener('keyup', function (e) {
     var k = e.key;
@@ -1742,6 +1790,17 @@
   document.getElementById('restartBtn').addEventListener('click', newGame);
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
   pauseBtn.addEventListener('click', togglePause);
+  strikeBtn.addEventListener('click', function () { callStrike(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
+  // The strike button shows during play with the charges left; it only touches the DOM when something changed.
+  var strikeShown = '';
+  function syncStrikeBtn() {
+    var key = S.mode === 'play' ? S.strikes + (S.strike ? '*' : '') : '';
+    if (key === strikeShown) return;
+    strikeShown = key;
+    strikeBtn.hidden = S.mode !== 'play';
+    strikeBtn.disabled = S.strikes <= 0 || !!S.strike;
+    document.getElementById('strikeCount').textContent = String(S.strikes);
+  }
   muteBtn.addEventListener('click', function () {
     sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
     if (!sound.muted) sound.init();
@@ -1766,6 +1825,7 @@
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
     else if (S.mode === 'delivery' && !document.hidden) updateDelivery(dt);
     render();
+    syncStrikeBtn();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
     requestAnimationFrame(loop);
   }

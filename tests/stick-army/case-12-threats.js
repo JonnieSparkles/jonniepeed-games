@@ -1,0 +1,92 @@
+// Round 4 threats: side rushers, tanks from cargo planes, rising pressure, and the air strike special.
+(function () {
+  function check(ok, why) { if (!ok) throw new Error(why); }
+  var i;
+  function play(seconds) { for (var k = 0; k < seconds * 60; k++) update(1 / 60); }
+  function quiet() { S.mode = 'play'; S.shop = null; shopScreen.hidden = true; S.waveState = 'active'; S.mods.maxHP = S.wallHP = 1e6; S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.cargo = S.spawn.boss = 0; S.planes = []; S.troopers = []; S.bombs = []; }
+
+  // New threats arrive on schedule, and pressure keeps rising after wave 7.
+  check(!waveCfg(5).rushes && waveCfg(6).rushes >= 1 && waveCfg(12).rushes > waveCfg(6).rushes, 'rushers from wave 6, more later');
+  check(!waveCfg(8).cargo && waveCfg(9).cargo >= 1 && waveCfg(15).cargo > waveCfg(9).cargo, 'tanks from wave 9, more later');
+  check(waveCfg(13).interval < waveCfg(7).interval && waveCfg(20).interval < waveCfg(13).interval, 'planes keep coming faster past wave 7');
+
+  // A rush charges in from one edge along the ground, faster than a walker.
+  RUN.force = 4; newGame(); startWave(6); quiet();
+  var seen = [];
+  emitHook = function (type) { seen.push(type); };
+  S.spawn.cfg.rushSize = 3; spawnRush();
+  var rushers = S.troopers.filter(function (t) { return t.rusher; });
+  check(rushers.length === 3 && rushers.every(function (t) { return t.state === 'ground' && (t.x < 0 || t.x > W); }), 'a rush starts off the page, on the ground');
+  var x0 = rushers[0].x; update(1);
+  check(Math.abs(rushers[0].x - x0) > 40 && seen.indexOf('rush') >= 0, 'rushers run in fast');
+
+  // A cargo plane drops a tank, which rolls into range and shells the bunker. Shells can be shot down.
+  RUN.force = 9; newGame(); startWave(9); quiet(); S.recruits = [];
+  spawnCargo(); var cargo = S.planes[0], tankX = cargo.tankX;
+  check(cargo.kind === 'cargo' && tankX != null, 'a cargo plane carries a tank');
+  for (i = 0; i < 1200 && !S.tanks.length; i++) update(1 / 60);
+  var tk = S.tanks[0];
+  check(tk && tk.state === 'chute' && Math.abs(tk.x - tankX) < 1 && cargo.tankX == null && seen.indexOf('tank_drop') >= 0, 'the tank drops where planned');
+  for (i = 0; i < 1200 && tk.state === 'chute'; i++) update(1 / 60);
+  check(tk.state === 'roll', 'the tank lands');
+  var stopX = tk.dir > 0 ? BK.x1 - TANK.STOP : BK.x2 + TANK.STOP, wall = S.wallHP, shells = 0;
+  for (i = 0; i < 1800; i++) { update(1 / 60); shells += S.bombs.filter(function (m) { return m.shell && m.fresh !== false; }).length; S.bombs.forEach(function (m) { m.fresh = false; }); }
+  check(Math.abs(tk.x - stopX) < 1 && shells > 3 && S.wallHP < wall, 'it parks in range and shells the wall');
+  var shell = { id: 1, x: 200, y: 400, vx: 0, vy: 0, isBomb: true, shell: true, dead: false }; S.bombs = [shell];
+  hitTest({ x: 200, y: 400, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
+  check(shell.dead, 'shells can be shot down');
+
+  // The dipped barrel reaches a parked tank; bullets chip it, rockets hit hard, and it pays out when destroyed.
+  var hp = tk.hp; S.bullets = []; S.fireCD = 0; S.heat = 0;
+  aimAt({ x: tk.x + tk.dir * -20, y: tk.y }); shoot();
+  for (i = 0; i < 120 && S.bullets.length; i++) updateBullets(1 / 60);
+  check(tk.hp < hp, 'a fully dipped shot reaches the parked tank');
+  hp = tk.hp; explode(tk.x, tk.y, 30, 'rocket', 'player');
+  check(tk.hp === hp - TANK.BLAST.rocket, 'rockets hit hard');
+  var score = S.score; tk.hp = 1; damageTank(tk, 1, 'player'); update(1 / 60);
+  check(S.tanks.length === 0 && S.score > score + 100 && S.stats.tanks === 1 && seen.indexOf('tank_down') >= 0, 'a destroyed tank pays out');
+
+  // Downing the cargo plane before its drop takes the tank with it.
+  quiet(); spawnCargo(); cargo = S.planes[0]; cargo.x = cargo.dir > 0 ? 0 : W;
+  cargo.hp = 1; damagePlane(cargo, 1, 'player', cargo.x, cargo.y); play(6);
+  check(!S.tanks.length && cargo.tankX == null, 'tank and all');
+
+  // Bazookas go for tanks first; other crew deal with troopers before tanks.
+  quiet(); S.tanks = [{ id: 99, x: 120, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 10, maxHp: 10, shellT: 9, hitFlash: 0, tread: 0, dead: false }];
+  spawnTrooper(130, GROUND - 33); land(S.troopers[0]);
+  check(pickTarget(makeRecruit(0, 'bazooka')) === S.tanks[0] && pickTarget(makeRecruit(0, 'rifle')) === S.troopers[0], 'crew pick the right target');
+
+  // Air strike: a charge calls a bomber that clears the ground and hurts tanks, sparing crew and wall.
+  quiet(); S.tanks = [{ id: 98, x: 110, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 9, hitFlash: 0, tread: 0, dead: false }];
+  var crew = makeRecruit(4, 'rifle'), crewHp = crew.hp; S.recruits = [crew]; wall = S.wallHP;
+  [30, 60, 90].forEach(function (x) { spawnTrooper(x, GROUND - 33); land(S.troopers[S.troopers.length - 1]); });
+  var tankHp = S.tanks[0].hp, charges = S.strikes;
+  check(charges === 1, 'a run starts with one air strike');
+  check(callStrike() && S.strikes === 0 && !callStrike(), 'a strike uses a charge, and only one flies at a time');
+  play(4);
+  check(!S.strike && S.troopers.every(function (t) { return t.dead || t.state !== 'ground'; }), 'the strike clears the ground');
+  check(!crew.dead && crew.hp === crewHp && S.wallHP === wall && (S.tanks.length === 0 || S.tanks[0].hp <= tankHp - TANK.BLAST.strike), 'it spares crew and wall and hits the tank');
+  check(!callStrike(), 'no charges, no strike');
+  check(seen.indexOf('air_strike') >= 0, 'strikes are logged');
+
+  // B calls a strike; the button shows during play with the charges left.
+  S.strikes = 2; S.mode = 'play'; syncStrikeBtn();
+  check(!strikeBtn.hidden && !strikeBtn.disabled && document.getElementById('strikeCount').textContent === '2', 'button shows charges');
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }));
+  check(S.strikes === 1 && S.strike, 'B calls a strike');
+  syncStrikeBtn(); check(strikeBtn.disabled, 'button waits while a strike flies');
+  emitHook = null;
+
+  // Downing a zeppelin earns a charge; the shop sells strikes once tanks are near.
+  newGame(); S.wave = 5; var z = spawnZeppelin(); z.x = 200; var before = S.strikes; z.hp = 1; damagePlane(z, 1, 'player', 200, z.y);
+  check(S.strikes === before + 1, 'a zeppelin earns an air strike');
+  newGame(); S.wave = 4; openShop();
+  check(!S.shop.items.some(function (it) { return it.id === 'strike'; }), 'no strikes for sale early');
+  S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
+  newGame(); S.wave = 8; openShop(); var strike = S.shop.items.find(function (it) { return it.id === 'strike'; });
+  S.coins = 100; var had = S.strikes;
+  check(strike && takeItem('strike') && S.strikes === had + 1, 'strikes for sale from wave 8');
+  S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
+
+  RUN.force = null; reset(); syncStrikeBtn(); render();
+})();

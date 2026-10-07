@@ -121,6 +121,12 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); L(2, 31, 42, 31, 0.4); ink(INK, 3); G.stroke();
       G.beginPath(); L(33, 6, 33, 16, 0.3); L(28, 11, 38, 11, 0.3); ink(BLUE, 2.4); G.stroke();
     },
+    strike: function (G) {
+      G.beginPath(); SP([4, 16, 26, 16, 32, 9, 36, 9, 33, 16, 40, 16, 40, 20, 33, 20, 36, 27, 32, 27, 26, 20, 4, 20], true, 0.3);
+      G.fillStyle = PAPER; G.fill(); ink(INK, 2); G.stroke();
+      G.beginPath(); G.arc(20, 18, 2.6, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
+      [[12, 30], [20, 34], [28, 38]].forEach(function (b) { G.beginPath(); G.ellipse(b[0], b[1], 2.4, 3.6, 0, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill(); });
+    },
     // Hiring roles: a blue recruit with the tool of his trade.
     'hire-rifle': function (G) {
       G.save(); G.translate(16, 6); G.scale(0.85, 0.85); stick(0, 0, [8, 12, 13, 8, -5, 33, 5, 33], BLUE, 3); G.restore();
