@@ -19,7 +19,8 @@
     rifle: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
     engineer: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
     bazooka: { minWave: 2, cooldown: 4, spread: 0.03, hp: 2.6 },
-    sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 6 }
+    // With no crew to hit, a sniper plinks at the turret for abandonAfter seconds, then slips away unrewarded.
+    sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 14 }
   };
   // The barrel can tip slightly below horizontal on either side: enough to hit landers near the wall,
   // not enough to reach the far field. Angles run continuously from AIM_MIN (below left) to AIM_MAX (below right).
@@ -176,7 +177,7 @@
     S = {
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
-      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, stacks: {} },
+      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, stacks: {} },
       coins: 0, volleys: 0, autoCD: 0, mines: [], shop: null, delivery: null, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
@@ -213,8 +214,17 @@
     if (useCombo) { S.combo++; S.comboT = 1.4; mult = Math.min(S.combo, 5); }
     var pts = base * mult;
     S.score += pts;
-    S.coins += Math.max(1, Math.round(base / 15)) + Math.floor(mult / 3);
+    var tags = Math.max(1, Math.round(base / 15)) + Math.floor(mult / 3);
+    S.coins += tags; flyTags(x, y, tags);
     addText(label + ' +' + pts, x, y, mult > 1 ? BLUE : (color || INK), mult > 1 ? 22 : 19);
+  }
+  // S.coins is the dog-tag balance. Earned tags fly from the kill to the counter so their source is obvious.
+  var TAG_HUD = { x: 290, y: 47 };
+  function flyTags(x, y, n) {
+    // In a big pile-up, fold new tags into one already in flight rather than drawing dozens.
+    var flying = S.parts.filter(function (q) { return q.k === 'tag'; });
+    if (flying.length >= 10) { flying[flying.length - 1].n += n; return; }
+    S.parts.push({ k: 'tag', x0: x, y0: y, x: x, y: y, n: n, t: 0, dur: rr(0.55, 0.75), life: 1, max: 1, rot: rr(-0.6, 0.6), id: nextId++ });
   }
   function burst(x, y, n, color, speed) {
     for (var i = 0; i < n; i++) {
@@ -273,8 +283,18 @@
   }
   function makeRecruit(slot, type, id) {
     var hx = SLOTS[slot];
-    return { id: id || nextId++, type: type, slot: slot, x: hx, homeX: hx, tx: hx, hp: ENEMIES[type].hp, role: 'shoot',
+    return { id: id || nextId++, type: type, slot: slot, x: hx, homeX: hx, tx: hx, hp: ENEMIES[type].hp + (S.mods ? S.mods.helmet : 0), role: 'shoot',
       cd: rr(0.4, 1), aim: -Math.PI / 2 + (hx < 200 ? -0.35 : 0.35), walk: 0, hurt: 0, sparkT: 0, dead: false };
+  }
+
+  // Crew health: helmets raise the maximum, trenches cut every kind of damage.
+  var TRENCH = [1, 0.6, 0.4];
+  function crewMax(r) { return ENEMIES[r.type].hp + S.mods.helmet; }
+  function hurtRecruit(r, amount) {
+    if (r.dead) return;
+    r.hp -= amount * TRENCH[Math.min(S.mods.trench, TRENCH.length - 1)];
+    r.hurt = Math.max(r.hurt, 0.2);
+    if (r.hp <= 0) recruitDie(r);
   }
 
   // ---------- waves ----------
@@ -304,7 +324,7 @@
       var enemies = S.troopers.some(function (t) { return !t.dead; });
       if (sp.planes + sp.bombers === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
-        var bonus = 100 * S.wave; S.score += bonus; S.coins += 8 + S.wave * 2;
+        var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
         S.banner = { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
         S.hint = false;
         sound.play('wave');
@@ -326,10 +346,12 @@
     { id: 'sandbags', name: 'Sandbags', desc: '+25 maximum wall health, filled immediately.', tier: 'free', cost: 0, maxStacks: 4, apply: function (s) { s.mods.maxHP += 25; s.wallHP += 25; } },
     { id: 'wire', name: 'Barbed wire', desc: 'Marching enemies walk half as fast.', tier: 'free', cost: 0, maxStacks: 1, apply: function (s) { s.mods.wire = true; } },
     { id: 'double', name: 'Double barrel', desc: 'Two parallel shots with each trigger pull.', tier: 'free', cost: 0, maxStacks: 1, apply: function (s) { s.mods.double = true; } },
-    { id: 'stash', name: 'Rainy-day fund', desc: 'Pocket 12 coins toward a big purchase.', tier: 'free', cost: 0, maxStacks: Infinity, apply: function (s) { s.coins += 12; } },
+    { id: 'trench', name: 'Dig in', desc: 'Your crew take 40% less damage. A second trench makes it 60%.', tier: 'free', cost: 0, maxStacks: 2, apply: function (s) { s.mods.trench++; } },
+    { id: 'helmet', name: 'Helmets', desc: '+1 health for every recruit, now and later. Stacks three times.', tier: 'free', cost: 0, maxStacks: 3, apply: function (s) { s.mods.helmet++; s.recruits.forEach(function (r) { if (!r.dead) r.hp += 1; }); } },
+    { id: 'stash', name: 'Rainy-day fund', desc: 'Pocket 12 dog tags toward a big purchase.', tier: 'free', cost: 0, maxStacks: Infinity, apply: function (s) { s.coins += 12; } },
     { id: 'tramp', name: 'Second trampoline', desc: 'Open the right-hand mat. Twice the places to catch.', tier: 'premium', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
     { id: 'spread', name: 'Spread shot', desc: 'Add two angled shots to every volley.', tier: 'premium', cost: 65, maxStacks: 1, apply: function (s) { s.mods.spread = true; } },
-    { id: 'flak', name: 'Flak rounds', desc: 'Rounds burst near airborne targets. Can spoil a catch!', tier: 'premium', cost: 80, maxStacks: 1, apply: function (s) { s.mods.flak = true; } },
+    { id: 'flak', name: 'Flak rounds', desc: 'Rounds burst near planes and bombs. Paratroopers are left to you.', tier: 'premium', cost: 80, maxStacks: 1, apply: function (s) { s.mods.flak = true; } },
     { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'premium', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
     { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'premium', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'premium', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
@@ -338,12 +360,17 @@
       apply: function (s) { s.mods.medic = true; s.recruits.push(makeRecruit(freeSlot(0), 'medic')); } },
     { id: 'auto', name: 'Sentry doodle', desc: 'A small auto-turret shoots bombs and low-flying enemies.', tier: 'premium', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'premium', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
+    { id: 'hire', name: 'Hire a rifleman', desc: 'A rifleman joins a free squad slot. Each hire costs more.', tier: 'premium', maxStacks: Infinity,
+      cost: function () { return 35 + 15 * S.mods.hired; },
+      available: function () { return freeSlot(0) >= 0; },
+      apply: function (s) { s.mods.hired++; s.recruits.push(makeRecruit(freeSlot(0), 'rifle')); } },
     { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'premium', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
   ];
   function resizeMats() {
     TRAMPS[0].x1 = 22 - S.mods.mat * 6; TRAMPS[0].x2 = 92 + S.mods.mat * 6;
     TRAMPS[1].x1 = 308 - S.mods.mat * 6; TRAMPS[1].x2 = 378 + S.mods.mat * 6;
   }
+  function price(item) { return typeof item.cost === 'function' ? item.cost() : item.cost; }
   function eligible(item) { return (S.mods.stacks[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
   function sample(pool, n) {
     pool = pool.slice(); var chosen = [];
@@ -352,8 +379,10 @@
   }
   function openShop() {
     S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null;
-    var premiums = sample(ITEMS.filter(function (it) { return it.tier === 'premium' && it.id !== 'pizza' && eligible(it); }), 1);
-    // Pizza is always orderable; the other premium rotates so saving has a purpose.
+    var premiums = sample(ITEMS.filter(function (it) { return it.tier === 'premium' && it.id !== 'pizza' && it.id !== 'hire' && eligible(it); }), 1);
+    // Pizza is always orderable, and hiring whenever a slot is free; the third offer rotates so saving has a purpose.
+    var hire = ITEMS.find(function (it) { return it.id === 'hire'; });
+    if (eligible(hire)) premiums.push(hire);
     premiums.push(ITEMS.find(function (it) { return it.id === 'pizza'; }));
     S.shop = { free: sample(ITEMS.filter(function (it) { return it.tier === 'free' && eligible(it); }), 2), premium: premiums, freeTaken: false, bought: {} };
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
@@ -364,8 +393,8 @@
     if (S.mode !== 'shop' || !S.shop) return false;
     var item = S.shop.free.concat(S.shop.premium).find(function (it) { return it.id === id; });
     if (!item || S.shop.bought[id] || !eligible(item)) return false;
-    if (item.tier === 'free' ? S.shop.freeTaken : S.coins < item.cost) return false;
-    if (item.tier === 'free') S.shop.freeTaken = true; else S.coins -= item.cost;
+    if (item.tier === 'free' ? S.shop.freeTaken : S.coins < price(item)) return false;
+    if (item.tier === 'free') S.shop.freeTaken = true; else S.coins -= price(item);
     S.shop.bought[id] = true; S.mods.stacks[id] = (S.mods.stacks[id] || 0) + 1; item.apply(S);
     sound.play('recruit'); renderShop();
     if (S.mode === 'shop') { var next = S.shop.freeTaken ? document.getElementById('continueBtn') : shopScreen.querySelector('button:not(:disabled)'); next.focus({ preventScroll: true }); }
@@ -480,6 +509,24 @@
       G.beginPath(); G.moveTo(5, 9); G.quadraticCurveTo(22, 3, 39, 9); ink('#9b6a15', 3.4); G.stroke();
       [[16, 16], [27, 17], [22, 27]].forEach(function (p) { G.beginPath(); G.arc(p[0], p[1], 3, 0, Math.PI * 2); G.fillStyle = RED; G.fill(); });
     },
+    trench: function () {
+      G.beginPath(); L(2, 30, 12, 30, 0.3); G.moveTo(12, 30); G.quadraticCurveTo(22, 42, 32, 30); L(32, 30, 42, 30, 0.3); ink(INK, 2.2); G.stroke();
+      [[10, 24], [22, 22], [34, 24]].forEach(function (p) {
+        G.beginPath(); SP([p[0] - 6, p[1], p[0] - 4, p[1] - 4, p[0] + 4, p[1] - 4, p[0] + 6, p[1], p[0] + 4, p[1] + 3, p[0] - 4, p[1] + 3], true, 0.3);
+        G.fillStyle = '#e7dcc0'; G.fill(); ink(INK, 1.8); G.stroke();
+      });
+      G.save(); G.translate(22, 30); G.scale(0.45, 0.45); stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], BLUE, 4); G.restore();
+    },
+    helmet: function () {
+      G.beginPath(); G.moveTo(7, 30); G.quadraticCurveTo(8, 10, 22, 10); G.quadraticCurveTo(36, 10, 37, 30); G.closePath(); G.fillStyle = '#7d8a64'; G.fill(); ink(INK, 2.2); G.stroke();
+      G.beginPath(); L(2, 31, 42, 31, 0.4); ink(INK, 3); G.stroke();
+      G.beginPath(); L(33, 6, 33, 16, 0.3); L(28, 11, 38, 11, 0.3); ink(BLUE, 2.4); G.stroke();
+    },
+    hire: function () {
+      G.save(); G.translate(16, 6); G.scale(0.85, 0.85); stick(0, 0, [8, 12, 13, 8, -5, 33, 5, 33], BLUE, 3); G.restore();
+      G.beginPath(); L(19, 16, 31, 2, 0.3); ink(INK, 2.6); G.stroke();
+      dogTag(34, 31, 0.3, 1.4);
+    },
     fallback: function () { G.beginPath(); Ci(22, 22, 12, 0.5); L(22, 14, 22, 26, 0.3); ink(INK, 2.4); G.stroke(); G.beginPath(); G.arc(22, 31, 1.8, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
   };
   function drawItemIcon(canvas, id) {
@@ -491,22 +538,23 @@
   }
   function renderShop() {
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
-    document.getElementById('shopCoins').textContent = S.coins + ' coins';
+    document.getElementById('shopCoins').textContent = S.coins + ' dog tags';
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
-    document.getElementById('shopHint').textContent = S.shop.freeTaken ? 'Packed! Buy something extra, or save your coins.' : 'Take one free supply. Keep your coins for something special.';
+    document.getElementById('shopHint').textContent = S.shop.freeTaken ? 'Packed! Spend dog tags on something extra, or save them.' : 'Take one free supply, then spend dog tags if you like.';
     ['free', 'premium'].forEach(function (tier) {
       var holder = document.getElementById(tier + 'Items'); holder.replaceChildren();
       S.shop[tier].forEach(function (it) {
         var button = document.createElement('button'); button.type = 'button'; button.className = 'supply'; button.dataset.item = it.id;
         var bought = !!S.shop.bought[it.id];
-        button.disabled = bought || !eligible(it) || (tier === 'free' ? S.shop.freeTaken : S.coins < it.cost);
+        var cost = price(it);
+        button.disabled = bought || !eligible(it) || (tier === 'free' ? S.shop.freeTaken : S.coins < cost);
         var name = document.createElement('strong'); name.textContent = it.name;
         var desc = document.createElement('span'); desc.textContent = it.desc;
-        var price = document.createElement('em'); price.textContent = bought ? 'Packed ✓' : tier === 'free' ? 'Choose free' : it.cost + ' coins' + (S.coins < it.cost ? ' · save ' + (it.cost - S.coins) + ' more' : '');
+        var label = document.createElement('em'); label.textContent = bought ? 'Packed ✓' : tier === 'free' ? 'Take it free' : cost + ' tags' + (S.coins < cost ? ' · need ' + (cost - S.coins) + ' more' : '');
         var head = document.createElement('span'); head.className = 'supply-head';
         var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
         drawItemIcon(icon, it.id); head.append(icon, name);
-        button.append(head, desc, price); button.addEventListener('click', function () { takeItem(it.id); }); holder.append(button);
+        button.append(head, desc, label); button.addEventListener('click', function () { takeItem(it.id); }); holder.append(button);
       });
     });
     var equipped = ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; });
@@ -516,7 +564,7 @@
       stock.scrollTop += extras.getBoundingClientRect().top - stock.getBoundingClientRect().top;
     }
     document.getElementById('continueBtn').disabled = !S.shop.freeTaken;
-    document.getElementById('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
+    document.getElementById('continueBtn').textContent = S.shop.freeTaken ? 'Wave ' + (S.wave + 1) + ' →' : 'Pick one first';
   }
   function continueWave() {
     if (S.mode !== 'shop' || !S.shop.freeTaken) return;
@@ -536,7 +584,7 @@
       d.x = Math.min(200, d.x + dt * 145);
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; S.wallHP = Math.min(S.mods.maxHP, S.wallHP + 25);
-        S.recruits.forEach(function (r) { if (!r.dead) r.hp = Math.min(ENEMIES[r.type].hp, r.hp + 1); });
+        S.recruits.forEach(function (r) { if (!r.dead) r.hp = Math.min(crewMax(r), r.hp + 1); });
         sound.play('pizza'); addText('pizza time!', 200, GROUND - 65, BLUE, 26);
       }
     } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
@@ -589,11 +637,13 @@
     S.fireCD = BALANCE.FIRE_COOLDOWN * rate;
     S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool);
     S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
-    if (S.heat >= 1) {
-      S.heat = 1; S.overheat = BALANCE.OVERHEAT_LOCK;
-      addText('too hot!', TUR.x, TUR.y - 52, RED, 23);
-      sound.play('overheat');
-    }
+    if (S.heat >= 1) triggerOverheat();
+  }
+  function triggerOverheat() {
+    if (S.overheat > 0) return;
+    S.heat = 1; S.overheat = BALANCE.OVERHEAT_LOCK;
+    addText('too hot!', TUR.x, TUR.y - 52, RED, 23);
+    sound.play('overheat');
   }
   function updateHeat(dt) {
     if (S.overheat > 0) {
@@ -742,7 +792,8 @@
     });
     if (kind === 'bomb') {
       if (Math.abs(x - BK.x) < 48) { S.wallHP -= 18; addText('wall -18', BK.x, BK.top - 36, RED, 20); }
-      S.recruits.forEach(function (q) { if (!q.dead && Math.abs(q.x - x) < 30) recruitDie(q); });
+      // A direct hit still kills a bare recruit; near misses wound. Helmets and trenches help.
+      S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4); });
     }
     if (kind === 'rocket' || kind === 'flak') {
       S.planes.forEach(function (p) { if (p.state === 'fly' && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally'); });
@@ -783,7 +834,6 @@
       if (t.dead || t.state === 'bounce' || seen.indexOf(t.id) >= 0) continue;
       // The trench edge is below the player's firing arc. Crew must handle snipers.
       if (b.owner === 'player' && t.type === 'sniper' && t.state === 'ground') continue;
-      if (b.flak && t.state !== 'ground' && Math.hypot(b.x - t.x, b.y - (t.y + 10)) < 24) { projectileBurst(b); return; }
       if (Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
         if (!projectileBurst(b)) { killTrooper(t, b.owner); consumeBullet(b, t); }
         return;
@@ -886,8 +936,8 @@
         }
       } else if (r.role === 'heal') {
         r.cd -= dt;
-        var patient = live.filter(function (q) { return q !== r && q.hp < ENEMIES[q.type].hp && Math.abs(q.x - r.x) < 160; }).sort(function (a, b) { return a.hp - b.hp; })[0];
-        if (patient && r.cd <= 0) { patient.hp = Math.min(ENEMIES[patient.type].hp, patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20); }
+        var patient = live.filter(function (q) { return q !== r && q.hp < crewMax(q) && Math.abs(q.x - r.x) < 160; }).sort(function (a, b) { return a.hp - b.hp; })[0];
+        if (patient && r.cd <= 0) { patient.hp = Math.min(crewMax(patient), patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20); }
       } else if (r.role === 'shoot') {
         var tg = pickTarget(r);
         r.cd -= dt;
@@ -939,34 +989,48 @@
     });
   }
   function updateSniper(t, dt) {
-    var live = S.recruits.filter(function (r) { return !r.dead; });
-    if (!live.length) {
-      // No unwinnable wave: an idle sniper retreats off the page, without a reward.
+    var live = S.recruits.filter(function (r) { return !r.dead; }), aimX, aimY;
+    if (live.length) {
+      t.alone = 0;
+      var target = live.sort(function (a, b) { return Math.abs(a.x - t.x) - Math.abs(b.x - t.x); })[0];
+      aimX = target.x; aimY = GROUND - 22;
+    } else {
+      // No crew: plink at the turret (heat jolt, wall chip) for a while, then slip away unrewarded so a wave can't stall.
       t.alone += dt;
       if (t.alone > ENEMIES.sniper.abandonAfter) {
         t.x += (t.x < BK.x ? -1 : 1) * 32 * dt; t.walk += dt * 9;
         if (t.x < -12 || t.x > W + 12) t.dead = true;
+        return;
       }
-      return;
+      aimX = TUR.x; aimY = TUR.y + 3;
     }
-    t.alone = 0;
-    var target = live.sort(function (a, b) { return Math.abs(a.x - t.x) - Math.abs(b.x - t.x); })[0];
-    t.dir = target.x > t.x ? 1 : -1;
-    t.aim = Math.atan2(GROUND - 22 - (t.y + 11), target.x - t.x);
+    t.dir = aimX > t.x ? 1 : -1;
+    t.aim = Math.atan2(aimY - (t.y + 11), aimX - t.x);
     t.shotCD -= dt;
     if (t.shotCD <= 0) {
       t.shotCD = ENEMIES.sniper.cooldown;
-      S.enemyShots.push({ x: t.x + t.dir * 16, y: t.y + 11, vx: Math.cos(t.aim) * 260, vy: Math.sin(t.aim) * 260, life: 2 });
+      S.enemyShots.push({ x: t.x + t.dir * 16, y: t.y + 11, vx: Math.cos(t.aim) * 260, vy: Math.sin(t.aim) * 260, life: 2, turret: !live.length });
       sound.play('sniper');
     }
+  }
+  function sniperHitsTurret() {
+    S.heat = Math.min(1, S.heat + 0.25);
+    if (S.heat >= 1) triggerOverheat();
+    S.wallHP -= 3;
+    addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20);
+    S.parts.push({ k: 'tink', x: TUR.x, y: TUR.y - 6, life: 0.25, max: 0.25, c: RED, id: nextId++ });
+    sound.play('clank');
   }
   function updateEnemyShots(dt) {
     S.enemyShots.forEach(function (b) {
       b.life -= dt; var x0 = b.x; b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.turret) {
+        if (b.life > 0 && Math.hypot(b.x - TUR.x, b.y - (TUR.y + 3)) < 18) { b.life = 0; sniperHitsTurret(); }
+        return;
+      }
       S.recruits.forEach(function (r) {
         if (b.life <= 0 || r.dead || r.x < Math.min(x0, b.x) - 6 || r.x > Math.max(x0, b.x) + 6 || Math.abs(b.y - (GROUND - 22)) > 18) return;
-        b.life = 0; r.hp -= ENEMIES.sniper.damage; r.hurt = 0.3;
-        if (r.hp <= 0) recruitDie(r);
+        b.life = 0; hurtRecruit(r, ENEMIES.sniper.damage); r.hurt = 0.3;
       });
     });
     S.enemyShots = S.enemyShots.filter(function (b) { return b.life > 0 && b.x > -20 && b.x < W + 20; });
@@ -983,8 +1047,7 @@
     });
     t.attacking = null; t.atWall = false;
     if (blk && bd < 11) {
-      t.attacking = blk; blk.hp -= dt; blk.hurt = 0.15;
-      if (blk.hp <= 0) recruitDie(blk);
+      t.attacking = blk; hurtRecruit(blk, dt);
     } else if ((wallX - t.x) * t.dir <= 0) {
       t.atWall = true; t.x = wallX;
       S.wallHP -= BALANCE.WALL_DAMAGE * dt;
@@ -1054,6 +1117,11 @@
           }
         }
         if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, c: q.c, seed: q.id, a: 0.6 });
+      } else if (q.k === 'tag') {
+        q.t += dt; var u = Math.min(1, q.t / q.dur), e = u * u;
+        q.x = q.x0 + (TAG_HUD.x - q.x0) * e; q.y = q.y0 + (TAG_HUD.y - q.y0) * e - Math.sin(u * Math.PI) * 40;
+        q.life = u < 1 ? 1 : 0;
+        if (u >= 1) S.tagPulse = 0.25;
       } else if (q.k === 'spatter') {
         q.vy += 120 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
       } else if (q.k === 'fleck') {
@@ -1103,6 +1171,7 @@
     TRAMPS.forEach(function (tr) { tr.v += (-240 * tr.dip - 9 * tr.v) * dt; tr.dip += tr.v * dt; });
     if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
     S.shake = Math.max(0, S.shake - dt * 1.8);
+    if (S.tagPulse > 0) S.tagPulse = Math.max(0, S.tagPulse - dt);
     if (S.banner) { S.banner.t += dt; if (S.banner.t >= S.banner.dur) S.banner = null; }
     if (S.wallHP < 30 && S.mode === 'play') {
       S.smokeT -= dt;
@@ -1138,6 +1207,29 @@
     G.beginPath(); G.moveTo(x - 7, y - 1); G.quadraticCurveTo(x - 7, y - 10, x, y - 10); G.quadraticCurveTo(x + 7, y - 10, x + 7, y - 1); G.closePath();
     G.fillStyle = HAT; G.fill(); ink(INK, 1.6); G.stroke();
     G.beginPath(); L(x - 9.5, y - 1, x + 9.5, y - 1, 0.4); ink(INK, 2); G.stroke();
+  }
+  // A small stamped-metal dog tag with its chain hole, drawn once into a cached sprite.
+  var tagSprite = null;
+  function dogTag(x, y, rot, sc) {
+    if (!tagSprite) {
+      tagSprite = document.createElement('canvas'); tagSprite.width = tagSprite.height = 64;
+      var previous = G; G = tagSprite.getContext('2d'); G.setTransform(4, 0, 0, 4, 0, 0); G.translate(8, 8);
+      try { drawTagShape(); } finally { G = previous; }
+    }
+    G.save(); G.translate(x, y); G.rotate(rot || 0); G.scale(sc || 1, sc || 1);
+    G.drawImage(tagSprite, -8, -8, 16, 16);
+    G.restore();
+  }
+  function drawTagShape() {
+    G.beginPath(); G.moveTo(-4, -6); G.lineTo(4, -6); G.quadraticCurveTo(6, -6, 6, -3); G.lineTo(6, 4); G.quadraticCurveTo(6, 7, 3, 7); G.lineTo(-3, 7); G.quadraticCurveTo(-6, 7, -6, 4); G.lineTo(-6, -3); G.quadraticCurveTo(-6, -6, -4, -6); G.closePath();
+    G.fillStyle = '#cfd5dc'; G.fill(); G.lineWidth = 1.4; G.strokeStyle = '#56606b'; G.stroke();
+    G.beginPath(); G.arc(0, -3, 1.3, 0, Math.PI * 2); G.stroke();
+    G.beginPath(); G.moveTo(-3, 1); G.lineTo(3, 1); G.moveTo(-3, 4); G.lineTo(2, 4); G.lineWidth = 1; G.stroke();
+  }
+  function helmet(x, y) {
+    G.beginPath(); G.moveTo(x - 7.5, y - 1); G.quadraticCurveTo(x - 7, y - 10, x, y - 10); G.quadraticCurveTo(x + 7, y - 10, x + 7.5, y - 1); G.closePath();
+    G.fillStyle = '#7d8a64'; G.fill(); ink(INK, 1.5); G.stroke();
+    G.beginPath(); L(x - 10, y - 0.5, x + 10, y - 0.5, 0.4); ink(INK, 2); G.stroke();
   }
   function hammer(hx, hy, d, idle) {
     var ex = hx + d * (idle ? 1 : 4), ey = hy - 9;
@@ -1197,11 +1289,12 @@
     }
     if (tool) hammer(tool.hx, tool.hy, side, tool.idle);
     if (r.type === 'engineer') hat(x, y);
+    else if (S.mods.helmet > 0 && r.type !== 'medic') helmet(x, y);
     if (r.type === 'sniper') drawScope(x, y, Math.cos(r.aim) < 0 ? -1 : 1);
     if (r.type === 'medic') { G.beginPath(); L(x-5,y-7,x+5,y-7); L(x,y-12,x,y-2); ink(BLUE,3); G.stroke(); }
     // Crew health makes the cost of leaving a sniper alive visible.
     G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(x-6, GROUND+4, 12, 2);
-    G.fillStyle = r.hp < 1 ? RED : BLUE; G.fillRect(x-6, GROUND+4, 12 * Math.max(0,r.hp) / ENEMIES[r.type].hp, 2);
+    G.fillStyle = r.hp < 1 ? RED : BLUE; G.fillRect(x-6, GROUND+4, 12 * Math.max(0,r.hp) / crewMax(r), 2);
   }
   function drawScope(x, y, dir) {
     G.beginPath(); SP([x - 7, y - 4, x - 3, y - 10, x + 7, y - 7, x + 6, y - 3], true, 0.3); G.fillStyle = INK; G.fill();
@@ -1261,6 +1354,15 @@
     }
     S.mines.forEach(function (m) { if (!m.armed) return; G.beginPath(); Ci(m.x,GROUND-2,4); ink(INK,1.6); G.stroke(); G.beginPath(); L(m.x-2,GROUND-7,m.x+2,GROUND-7); ink(RED,2); G.stroke(); });
     if (S.mods.auto) { G.beginPath(); SP([190,608,194,597,206,597,210,608],false); L(200,599,200,585); ink(BLUE,2.4); G.stroke(); }
+    for (var row = 0; row < S.mods.trench; row++) {
+      [[98, 162], [238, 302]].forEach(function (span) {
+        for (var bx = span[0] + row * 5; bx <= span[1]; bx += 11) {
+          var by = GROUND - 3 - row * 6;
+          G.beginPath(); SP([bx - 6, by, bx - 4, by - 4, bx + 4, by - 4, bx + 6, by, bx + 4, by + 3, bx - 4, by + 3], true, 0.3);
+          G.fillStyle = '#e7dcc0'; G.fill(); ink(INK2, 1.3); G.stroke();
+        }
+      });
+    }
   }
   function drawTramp(tr, i) {
     pen(500 + i);
@@ -1349,6 +1451,7 @@
       pen(q.id);
       G.save(); G.globalAlpha = a;
       if (q.k === 'body') { G.globalAlpha = 0.85; drawBodyPart(q); }
+      else if (q.k === 'tag') { G.globalAlpha = 1; dogTag(q.x, q.y, q.rot, 1); if (q.n > 1) { G.font = '15px ' + HAND; G.fillStyle = '#56606b'; G.fillText('+' + q.n, q.x + 8, q.y - 6); } }
       else if (q.k === 'spatter') { G.globalAlpha = a * 0.6; G.beginPath(); G.arc(q.x, q.y, q.r, 0, Math.PI * 2); G.fillStyle = q.c; G.fill(); }
       else if (q.k === 'fleck') { G.beginPath(); G.moveTo(q.x, q.y); G.lineTo(q.x - q.vx * 0.02, q.y - q.vy * 0.02); ink(q.c, 2); G.stroke(); }
       else if (q.k === 'shred') { G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.arc(0, 0, 6, Math.PI, Math.PI * 1.8); ink(RED, 1.8); G.stroke(); }
@@ -1407,8 +1510,10 @@
     if (S.mode !== 'title') {
       G.fillStyle = INK2; G.font = '16px ' + HAND; G.fillText('score', 58, 28);
       G.fillStyle = INK; G.font = '34px ' + HAND; G.fillText(S.score.toLocaleString('en-US'), 58, 58);
-      G.fillStyle = '#9b6a15'; G.font = '16px ' + HAND; G.fillText('coins', 300, 28);
-      G.font = '34px ' + HAND; G.fillText(String(S.coins), 300, 58);
+      G.fillStyle = '#56606b'; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
+      dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
+      G.save(); G.translate(302, 58); var pulse = 1 + (S.tagPulse || 0) * 0.9; G.scale(pulse, pulse);
+      G.fillStyle = '#56606b'; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(S.coins), 0, 0); G.restore();
       G.fillStyle = INK;
       G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
       if (S.combo >= 2 && S.comboT > 0) {

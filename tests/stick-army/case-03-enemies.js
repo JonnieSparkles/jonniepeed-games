@@ -13,8 +13,10 @@
   check(r.hp<ENEMIES.rifle.hp && t.x===18, 'stationary sniper shoots crew');
   S.spawn.planes=S.spawn.bombers=0; S.planes=[]; updateWave(0.1);
   check(S.waveState==='active','ground enemies block clear');
-  S.recruits=[];
-  for(var n=0;n<1000;n++) updateTroopers(1/120);
-  check(t.dead,'no crew: sniper retreats, avoiding softlock');
+  S.recruits=[]; S.enemyShots=[]; S.wallHP=100; S.heat=0; t.shotCD=0;
+  var turretHit=false;
+  for(var n=0;n<120*20;n++) { updateTroopers(1/120); updateEnemyShots(1/120); if (S.wallHP<100) turretHit=true; }
+  check(turretHit,'no crew: sniper shoots the turret');
+  check(t.dead,'then retreats, avoiding softlock');
   reset(); render();
 })();
