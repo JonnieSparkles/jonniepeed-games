@@ -310,8 +310,9 @@ var StickArmyUnits = function (w) {
   // down planes and bombs. The radio holds RADIO.SLOTS calls of either kind. A run starts with none; HQ sends a
   // bomber with the first tanks, each zeppelin downed earns one, and the shop sells both.
   var RADIO = { SLOTS: 2, FULL_TAGS: 40 };
-  var STRIKE = { SPEED: 230, Y: 92, BOMBS: 11, FALL: 520 };
-  var FIGHTER = { SPEED: 300, PASSES: [150, 235], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3 };
+  // Called planes are sketched in at the left edge of the page (HOLD seconds), then fly.
+  var STRIKE = { SPEED: 230, Y: 92, BOMBS: 11, FALL: 520, START: 56, HOLD: 0.45 };
+  var FIGHTER = { SPEED: 300, PASSES: [150, 235], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
   // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead.
@@ -329,7 +330,7 @@ var StickArmyUnits = function (w) {
     S.calls.bomber--;
     var targets = [];
     for (var i = 0; i < STRIKE.BOMBS; i++) { var x = 24 + i * (W - 48) / (STRIKE.BOMBS - 1); if (Math.abs(x - BK.x) > 46) targets.push(x); }
-    S.strike = { x: -90, drops: targets, id: w.id() };
+    S.strike = { x: STRIKE.START, hold: STRIKE.HOLD, drops: targets, id: w.id() };
     addText('air strike!', 200, 260, BLUE, 30);
     w.sound.play('strike');
     emit('air_strike', { wave: S.wave, left: S.calls.bomber });
@@ -337,7 +338,8 @@ var StickArmyUnits = function (w) {
   }
   function updateStrike(dt) {
     var S = w.S, st = S.strike;
-    if (st) {
+    if (st && st.hold > 0) st.hold -= dt;
+    else if (st) {
       st.x += STRIKE.SPEED * dt;
       while (st.drops.length && st.x >= st.drops[0]) S.strikeBombs.push({ id: w.id(), x: st.drops.shift(), y: STRIKE.Y + 12, vy: 80, dead: false });
       if (st.x > W + 100) S.strike = null;
@@ -352,7 +354,7 @@ var StickArmyUnits = function (w) {
     var S = w.S;
     if (S.mode !== 'play' || S.fighter || S.calls.fighter <= 0) return false;
     S.calls.fighter--;
-    S.fighter = { pass: 0, dir: 1, x: -60, y: FIGHTER.PASSES[0], cd: 0.2, flash: 0, id: w.id() };
+    S.fighter = { pass: 0, dir: 1, x: FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD, cd: 0.2, flash: 0, id: w.id() };
     addText('fighter cover!', 200, 260, BLUE, 30);
     w.sound.play('fighter');
     emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });
@@ -376,6 +378,7 @@ var StickArmyUnits = function (w) {
   function updateFighter(dt) {
     var S = w.S, f = S.fighter;
     if (!f) return;
+    if (f.hold > 0) { f.hold -= dt; return; }
     f.x += f.dir * FIGHTER.SPEED * dt; f.cd -= dt; f.flash = Math.max(0, f.flash - dt);
     var tg = f.cd <= 0 && fighterTarget(f);
     if (tg) {
@@ -399,17 +402,24 @@ var StickArmyUnits = function (w) {
       G.beginPath(); L(-4, -6, -5, -11, 0.2); L(4, -6, 5, -11, 0.2); ink(INK, 1.6); G.stroke(); G.restore();
     });
     if (!st) return;
-    pen(st.id); G.save(); G.translate(st.x, STRIKE.Y); G.scale(-0.86, 0.86);
-    G.beginPath(); SP(w.BOMBER_PTS, true, 0.6); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.12)'; G.fill(); ink(INK, 2.6); G.stroke();
-    G.beginPath(); L(-16, 4, 22, 6); ink(INK, 3.4); G.stroke();
-    G.beginPath(); G.arc(18, -3, 5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
-    G.beginPath(); G.arc(18, -3, 2, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
-    var pl = w.boil % 2 ? 11 : 6; G.beginPath(); L(-50, -pl, -50, pl, 0.4); ink(INK, 2.3); G.stroke();
-    G.restore();
+    var body = function () {
+      pen(st.id); G.save(); G.translate(st.x, STRIKE.Y); G.scale(-0.86, 0.86);
+      G.beginPath(); SP(w.BOMBER_PTS, true, 0.6); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.12)'; G.fill(); ink(INK, 2.6); G.stroke();
+      G.beginPath(); L(-16, 4, 22, 6); ink(INK, 3.4); G.stroke();
+      G.beginPath(); G.arc(18, -3, 5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
+      G.beginPath(); G.arc(18, -3, 2, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
+      var pl = w.boil % 2 ? 11 : 6; G.beginPath(); L(-50, -pl, -50, pl, 0.4); ink(INK, 2.3); G.stroke();
+      G.restore();
+    };
+    if (st.hold > 0) w.sketchReveal(1 - st.hold / STRIKE.HOLD, [st.x - 54, STRIKE.Y - 28, st.x + 46, STRIKE.Y + 16], 'right', body); else body();
   }
   function drawFighter() {
     var f = w.S.fighter, G = w.G;
     if (!f) return;
+    if (f.hold > 0) { w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [f.x - 32, f.y - 16, f.x + 32, f.y + 8], 'right', function () { fighterBody(f, G); }); return; }
+    fighterBody(f, G);
+  }
+  function fighterBody(f, G) {
     pen(f.id); G.save(); G.translate(f.x, f.y); G.scale(-f.dir * 0.72, 0.72);
     G.beginPath(); SP(FIGHTER_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.16)'; G.fill(); ink(INK, 3); G.stroke();
     G.beginPath(); L(-10, 2, 12, 3); ink(INK, 3.6); G.stroke();

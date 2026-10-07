@@ -97,6 +97,25 @@
   check(/Sgt\. Doodle \(12 waves\)/.test(document.getElementById('overFallen').textContent) && !document.getElementById('overFallen').hidden, 'the game-over card lists the fallen');
   overScreen.hidden = true;
 
+  // Drawn in: as a wave starts, what you just bought is sketched onto the page one piece at a time.
+  RUN.force = 28; newGame(); S.wave = 8; S.coins = 999; openShop();
+  ['auto', 'hospital'].forEach(function (id) { var it = ITEMS.find(function (x) { return x.id === id; }); it.apply(S); S.shop.bought[id] = true; });
+  takeItem('hire-rifle'); var hire = S.recruits[S.recruits.length - 1];
+  continueWave(); S.spawn.timer = 99;
+  check(S.sketches.map(function (k) { return k.key; }).join() === 'auto,hospital,r' + hire.id && !hire.fresh, 'purchases and hires queue up to be drawn');
+  check(sketchProgress('auto') === 0 && sketchProgress('hospital') === 0 && sketchProgress('wire') === 1, 'nothing is drawn yet; what was never bought is not waiting');
+  for (var s1 = 0; s1 < 20; s1++) update(1 / 60);
+  check(sketchProgress('auto') > 0 && sketchProgress('auto') < 1 && sketchProgress('hospital') === 0, 'one at a time');
+  render();
+  for (s1 = 0; s1 < 120; s1++) update(1 / 60);
+  check(!S.sketches.length && sketchProgress('r' + hire.id) === 1, 'all drawn within a couple of seconds');
+  // Called planes are sketched in at the page edge, then fly.
+  S.calls.bomber = 1; callStrike(); var x0 = S.strike.x;
+  update(0.2); check(S.strike.x === x0 && x0 > 0, 'the bomber is drawn in place first');
+  for (s1 = 0; s1 < 30; s1++) update(1 / 60);
+  check(S.strike.x > x0, 'then it flies');
+  render();
+
   check(ICONS.hospital, 'icon for the field hospital');
   emitHook = null; RUN.force = null; reset(); render();
 })();

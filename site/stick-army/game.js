@@ -225,7 +225,7 @@
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null,
-      bed: null, fallen: [], usedNames: {}, news: [],
+      bed: null, fallen: [], usedNames: {}, news: [], sketches: [],
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
@@ -465,7 +465,7 @@
     ITEMS.push({ id: 'hire-' + h[0], role: h[0], name: h[1], desc: h[3], tier: 'hire', maxStacks: Infinity,
       cost: function () { return h[2] + 15 * S.mods.hired; },
       available: function () { return freeSlot(0) >= 0 && (h[0] !== 'medic' || !S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; })); },
-      apply: function (s) { s.mods.hired++; s.recruits.push(makeRecruit(freeSlot(0), h[0])); } });
+      apply: function (s) { s.mods.hired++; var r = makeRecruit(freeSlot(0), h[0]); r.fresh = true; s.recruits.push(r); } });
   });
   function resizeMats() {
     TRAMPS[0].x1 = 22 - S.mods.mat * 6; TRAMPS[0].x2 = 92 + S.mods.mat * 6;
@@ -525,7 +525,7 @@
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz) { addText(t, x, y, c, sz); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
-    crewMax: function (r) { return crewMax(r); } };
+    crewMax: function (r) { return crewMax(r); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
@@ -589,10 +589,50 @@
   }
   function continueWave() {
     if (S.mode !== 'shop') return;
+    queueSketches(S.shop.bought);
     shopScreen.hidden = true; S.shop = null; clearInput(); S.mode = 'play'; pauseBtn.hidden = false; startWave(S.wave + 1);
     // A pizza ordered in the shop rides in as the wave starts, so ordering never leaves the shop.
     if (S.pizzaOrder) { S.pizzaOrder = false; S.delivery = { x: -30, phase: 'arrive', wait: 0 }; }
     document.activeElement.blur();
+  }
+  // ---------- drawn in ----------
+  // You're the commander drawing your army: as a wave starts, whatever you just bought is sketched onto the page
+  // with a pencil, one at a time. Purely a reveal: everything works from the first frame.
+  var SKETCH = { DUR: 0.45, GAP: 0.45, DRAWN: ['auto', 'hospital', 'trench', 'wire', 'tramp'] };
+  function queueSketches(bought) {
+    var keys = SKETCH.DRAWN.filter(function (id) { return bought[id]; });
+    S.recruits.forEach(function (r) { if (r.fresh) { r.fresh = false; keys.push('r' + r.id); } });
+    S.sketches = keys.map(function (key, i) { return { key: key, t: -i * SKETCH.GAP }; });
+  }
+  function updateSketches(dt) {
+    if (!S.sketches.length) return;
+    S.sketches.forEach(function (k) { var was = k.t; k.t += dt; if (was < 0 && k.t >= 0) sound.play('scribble'); });
+    S.sketches = S.sketches.filter(function (k) { return k.t < SKETCH.DUR; });
+  }
+  function sketchProgress(key) {
+    var k = S.sketches.find(function (q) { return q.key === key; });
+    return k ? clamp(k.t / SKETCH.DUR, 0, 1) : 1;
+  }
+  // Draws fn inside box [x0, y0, x1, y1], revealed bottom-up ('up') or left to right ('right'), with the pencil at
+  // the edge of what's drawn so far.
+  function sketched(key, box, dir, fn) { sketchReveal(sketchProgress(key), box, dir, fn); }
+  function sketchReveal(p, box, dir, fn) {
+    if (p >= 1) { fn(); return; }
+    if (p <= 0) return;
+    var x0 = box[0], y0 = box[1], x1 = box[2], y1 = box[3], px, py, wob = Math.sin(S.t * 38) * 0.5 + 0.5;
+    G.save(); G.beginPath();
+    if (dir === 'up') { var top = y1 - (y1 - y0) * p; G.rect(x0 - 6, top, x1 - x0 + 12, y1 - top + 6); px = x0 + (x1 - x0) * wob; py = top; }
+    else { var edge = x0 + (x1 - x0) * p; G.rect(x0 - 6, y0 - 6, edge - x0 + 6, y1 - y0 + 12); px = edge; py = y0 + (y1 - y0) * wob; }
+    G.clip(); fn(); G.restore();
+    drawPencil(px, py);
+  }
+  function drawPencil(x, y) {
+    G.save(); G.translate(x, y); G.rotate(-0.7);
+    G.beginPath(); G.moveTo(0, 0); G.lineTo(5, -2.5); G.lineTo(5, 2.5); G.closePath(); G.fillStyle = '#e7c9a0'; G.fill();
+    G.beginPath(); G.moveTo(0, 0); G.lineTo(1.6, -0.8); G.lineTo(1.6, 0.8); G.closePath(); G.fillStyle = INK; G.fill();
+    G.fillStyle = HAT; G.fillRect(5, -2.5, 15, 5); G.fillStyle = '#d98a8a'; G.fillRect(20, -2.5, 4, 5);
+    G.beginPath(); G.moveTo(0, 0); G.lineTo(5, -2.5); G.lineTo(24, -2.5); G.lineTo(24, 2.5); G.lineTo(5, 2.5); G.closePath(); ink(INK, 1.2); G.stroke();
+    G.restore();
   }
   // The courier rides along the ground during play. Combat carries on; the pizza lands at the handoff.
   function updateDelivery(dt) {
@@ -1263,6 +1303,7 @@
     updateBullets(dt);
     updateEnemyShots(dt);
     updateParts(dt);
+    updateSketches(dt);
     TRAMPS.forEach(function (tr) { tr.v += (-240 * tr.dip - 9 * tr.v) * dt; tr.dip += tr.v * dt; });
     if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
     S.shake = Math.max(0, S.shake - dt * 1.8);
@@ -1475,17 +1516,23 @@
   }
   function drawDefenses() {
     pen(880);
-    if (S.mods.wire) {
-      G.beginPath(); [104, 296].forEach(function (x) { L(x-12,GROUND-5,x+12,GROUND-5); for(var j=-8;j<=8;j+=8) { L(x+j-3,GROUND-9,x+j+3,GROUND-1); L(x+j-3,GROUND-1,x+j+3,GROUND-9); } }); ink(INK2,1.3); G.stroke();
-    }
+    if (S.mods.wire) [104, 296].forEach(function (x) {
+      sketched('wire', [x - 14, GROUND - 11, x + 14, GROUND + 1], 'right', function () {
+        G.beginPath(); L(x-12,GROUND-5,x+12,GROUND-5); for(var j=-8;j<=8;j+=8) { L(x+j-3,GROUND-9,x+j+3,GROUND-1); L(x+j-3,GROUND-1,x+j+3,GROUND-9); } ink(INK2,1.3); G.stroke();
+      });
+    });
     S.mines.forEach(function (m) { if (!m.armed) return; G.beginPath(); Ci(m.x,GROUND-2,4); ink(INK,1.6); G.stroke(); G.beginPath(); L(m.x-2,GROUND-7,m.x+2,GROUND-7); ink(RED,2); G.stroke(); });
     for (var row = 0; row < S.mods.trench; row++) {
       [[98, 162], [238, 302]].forEach(function (span) {
-        for (var bx = span[0] + row * 5; bx <= span[1]; bx += 11) {
-          var by = GROUND - 3 - row * 6;
-          G.beginPath(); SP([bx - 6, by, bx - 4, by - 4, bx + 4, by - 4, bx + 6, by, bx + 4, by + 3, bx - 4, by + 3], true, 0.3);
-          G.fillStyle = '#e7dcc0'; G.fill(); ink(INK2, 1.3); G.stroke();
-        }
+        // Only the newest row is drawn in; older rows are already on the page.
+        var draw = function () {
+          for (var bx = span[0] + row * 5; bx <= span[1]; bx += 11) {
+            var by = GROUND - 3 - row * 6;
+            G.beginPath(); SP([bx - 6, by, bx - 4, by - 4, bx + 4, by - 4, bx + 6, by, bx + 4, by + 3, bx - 4, by + 3], true, 0.3);
+            G.fillStyle = '#e7dcc0'; G.fill(); ink(INK2, 1.3); G.stroke();
+          }
+        };
+        if (row === S.mods.trench - 1) sketched('trench', [span[0] - 7, GROUND - 10 - row * 6, span[1] + 7, GROUND + 3], 'right', draw); else draw();
       });
     }
   }
@@ -1723,7 +1770,7 @@
     ctx.drawImage(bg, 0, 0, W, H);
     ctx.drawImage(dc, 0, 0, W, H);
     drawGround();
-    activeTramps().forEach(drawTramp);
+    activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
     S.planes.forEach(function (p) { if (p.kind !== 'zeppelin') drawPlane(p); });
     S.bombs.forEach(drawBomb);
@@ -1731,8 +1778,13 @@
     S.tanks.forEach(drawTank);
     drawStrike();
     drawFighter();
-    if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawSentry(); drawBunker(); drawDefenses(); drawTent(); }
-    S.recruits.forEach(function (r) { if (!r.dead) drawRecruit(r); });
+    if (S.mode === 'dying' || S.mode === 'over') drawRubble();
+    else {
+      sketched('auto', [SENTRY.x - 12, SENTRY.y - 16, SENTRY.x + 14, GROUND], 'up', drawSentry);
+      drawBunker(); drawDefenses();
+      sketched('hospital', [SQUAD.TENT.x - SQUAD.TENT.hw, GROUND - SQUAD.TENT.h - 10, SQUAD.TENT.x + SQUAD.TENT.hw, GROUND], 'up', drawTent);
+    }
+    S.recruits.forEach(function (r) { if (!r.dead) sketched('r' + r.id, [r.x - 12, GROUND - 46, r.x + 12, GROUND + 6], 'up', function () { drawRecruit(r); }); });
     drawBullets();
     drawCourier();
     drawBossBar();
