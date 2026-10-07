@@ -10,7 +10,7 @@ Live site: https://jonniepeed.games/ · Scores API: https://scores.jonniepeed.ga
 site/                   everything that gets published
   index.html            studio page: logo, game shelf, pixel easter egg (assets/studio/ident.js)
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
-  stick-army/           notebook turret game with recruits and a between-wave shop (not yet on the shelf)
+  stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
   assets/               shared fonts, leaderboard client, dark mark and favicons
   assets/studio/        logos, ident.js, light mark, og.png and external-game thumbnails
@@ -58,9 +58,35 @@ These apply to every change:
 
 1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
 2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail.
-3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Unlisted demos stay off the shelf until approved.
+3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
 4. Add a living `docs/games/yourgame.md` linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
 5. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
+
+## Side B and promotion
+
+[Side B](specs/SPEC-004-side-b.md) is the development shelf. Hold the studio's rainbow egg with a pointer, Space or Enter: about 1.4 seconds to full power, then three more seconds as the puddle grows. Or enter `#side-b` directly. The **Side A** button returns to Games. The selected shelf lasts for this tab's visit in `sessionStorage`, including reloads and game/home round trips; a new session defaults to Side A. Side B is discoverable, not private.
+
+Stick Army is the only launch card, labelled **demo**, with local scores only. To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
+
+## Browser checks
+
+Install Python Playwright and Chromium (`python3 -m pip install playwright` and `python3 -m playwright install chromium`), then serve the site from the repo root:
+
+```sh
+python3 -m http.server 8000 --bind 127.0.0.1 --directory site
+```
+
+In another terminal:
+
+```sh
+CHROMIUM=/usr/bin/chromium python3 tests/studio/test.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
+```
+
+Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army.md#validation-and-generated-assets).
 
 ## Social previews
 

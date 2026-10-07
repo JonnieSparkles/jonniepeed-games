@@ -1,6 +1,12 @@
 # Stick Army
 
-Built from [SPEC-002](../../specs/SPEC-002-stick-army.md), with layout from [SPEC-003](../../specs/SPEC-003-repo-layout.md). The game is at `site/stick-army/index.html`; it stays off the studio shelf until Jonnie approves the listing. No build step or network service is required. The page carries `<meta name="robots" content="noindex">`; keep it until Stick Army is promoted to the public shelf, then remove it and update this doc.
+Built from [SPEC-002](../../specs/SPEC-002-stick-army.md), with layout from [SPEC-003](../../specs/SPEC-003-repo-layout.md) and the development shelf from [SPEC-004](../../specs/SPEC-004-side-b.md). The game is at `site/stick-army/index.html`. It appears only as the **demo** card on Side B; there is no public Side A card. No build step or network service is required. The page keeps `<meta name="robots" content="noindex">` until promotion.
+
+## Finding and promoting the demo
+
+On the studio page, hold the rainbow egg with a pointer, Space or Enter for about 1.4 seconds to full power, then three more seconds while its puddle grows. Alternatively open `#side-b` on the studio URL. Choose Stick Army's demo card (`stick-army/`). **Back to games** on the title, pause or game-over card uses `../`, preserving the current site mount; the selected shelf restores from `sessionStorage` during the same tab's visit. The shop and active play have no home-link overlay.
+
+After Jonnie approves promotion, remove `data-side="b"`, `data-badge="demo"`, the `.badge` span and initial `hidden` from the card, remove the game's noindex meta tag, and update this doc and the README. Run the studio and Stick Army harnesses plus applicable preview checks, run stamp last, and publish manually. Promotion is explicit; visits and saved shelf state never promote a game. Local scores stay local. Physical iPhone Safari, difficulty and phone performance still need playtesting before featuring the game.
 
 ## Rules and input contract
 
@@ -55,6 +61,7 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory site
 With Python Playwright installed, run:
 
 ```sh
+CHROMIUM=/usr/bin/chromium python3 tests/studio/test.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
@@ -80,6 +87,6 @@ The ink regression is fixed, but this throttled stress workload still misses 60 
 
 Physical iPhone Safari and subjective difficulty still merit owner playtesting before featuring the game.
 
-Game-owned previews are `site/stick-army/og.png` and `thumb.webp`. Shared fonts and the favicon remain in `site/assets/`. Clean player navigation uses `stick-army/` and `../` wherever a home link is offered.
+Game-owned previews are `site/stick-army/og.png` and `thumb.webp`. Shared fonts, favicons, apple-touch icon and home-link mark remain in `site/assets/`. Clean player navigation uses `stick-army/` and `../` wherever a home link is offered.
 
 Pages publishing remains a manual workflow. Arweave publishing is paused pending the uploader/manifest follow-up in README. No Worker deploy is needed for this change.
