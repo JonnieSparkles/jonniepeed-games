@@ -8,6 +8,7 @@ Small browser games and pixel scenes. Plain static files, no build step.
 site/                   everything that gets published
   index.html            studio page: logo, game shelf, pixel easter egg (assets/ident.js)
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
+  stick-army/           notebook turret game with recruits and a between-wave shop (not yet on the shelf)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
   assets/               logo, ident.js, pixel mark, thumbnails, favicons, preview cards
   assets/fonts/         Silkscreen, Pixelify Sans, Cabin Sketch, Atkinson Hyperlegible, IBM Plex Mono (SIL OFL)

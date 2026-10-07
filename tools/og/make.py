@@ -3,6 +3,9 @@
 Run from the repo root:
     python3 tools/og/make.py
 
+Optional: CHROMIUM=/path/to/chromium and SITE_URL=http://127.0.0.1:8000
+(use SITE_URL when the browser disallows file:// URLs).
+
 Needs Playwright with Chromium (pip install playwright && python3 -m playwright install chromium).
 Pixel games are captured live from their own canvas, so the cards and the index thumbnails
 (site/assets/thumb-<slug>.png) stay in sync with the art. Games that aren't pixel art are captured
@@ -11,6 +14,7 @@ To add a game: add an entry to GAMES below and run the script again.
 """
 import base64
 import pathlib
+import os
 
 from playwright.sync_api import sync_playwright
 
@@ -29,6 +33,8 @@ def font_uri(name):
 #   screenshot: capture the whole page (4:3 viewport) instead of the #c canvas
 #   title_px:   card title size, for long names
 GAMES = [
+    ("stick-army", "Stick Army", "Pop chutes. Catch recruits. Defend the notebook.", "Play in your browser",
+     "document.getElementById('startBtn').click();", {"screenshot": True, "wait_ms": 10000}),
     ("thimbleful", "Thimbleful", "Plant a seed. Catch the drips. Grow a sunflower.", "Play in your browser",
      "introSeen=true; document.getElementById('go').click(); score=18; plant.size=18; el=20; hud();"),
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
@@ -53,7 +59,7 @@ def data_uri(path):
 
 
 def capture_canvas(page, slug, setup):
-    page.goto((SITE / slug / "index.html").as_uri())
+    page.goto(os.environ["SITE_URL"].rstrip("/") + "/" + slug + "/index.html" if os.environ.get("SITE_URL") else (SITE / slug / "index.html").as_uri())
     page.wait_for_timeout(400)
     if setup:
         page.evaluate(setup)
@@ -63,15 +69,15 @@ def capture_canvas(page, slug, setup):
     return page.evaluate("document.getElementById('c').toDataURL('image/png')")
 
 
-def capture_page(browser, slug, setup):
+def capture_page(browser, slug, setup, wait_ms=1700):
     """Screenshot the page itself, for games drawn with smooth graphics rather than a pixel canvas."""
     page = browser.new_page(viewport={"width": 640, "height": 480}, device_scale_factor=2)
-    page.goto((SITE / slug / "index.html").as_uri())
+    page.goto(os.environ["SITE_URL"].rstrip("/") + "/" + slug + "/index.html" if os.environ.get("SITE_URL") else (SITE / slug / "index.html").as_uri())
     page.evaluate("document.fonts.ready")
     page.wait_for_timeout(1200)
     if setup:
         page.evaluate(setup)
-    page.wait_for_timeout(1700)
+    page.wait_for_timeout(wait_ms)
     png = page.screenshot()
     page.close()
     return "data:image/png;base64," + base64.b64encode(png).decode()
@@ -111,13 +117,13 @@ i{{position:absolute;display:block;width:26px;height:26px}}
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(executable_path=os.environ.get("CHROMIUM"))
         page = browser.new_page(viewport={"width": 800, "height": 900})
         scenes = {}
         for slug, title, tagline, cta, setup, *more in GAMES:
             opts = more[0] if more else {}
             if opts.get("screenshot"):
-                scenes[slug] = capture_page(browser, slug, setup)
+                scenes[slug] = capture_page(browser, slug, setup, opts.get("wait_ms", 1700))
                 # 768x576 WebP thumbnail for the index card
                 thumb = page.evaluate("""(u) => new Promise(r => { const i = new Image(); i.onload = () => {
                     const k = document.createElement('canvas'); k.width = 768; k.height = 576;
