@@ -19,14 +19,12 @@ The blocklist holds about 30 obvious profanities and slurs, plus a few look-alik
 
 The production API is https://scores.jonniepeed.games/. Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, this address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point.
 
-The Worker temporarily retains `scores.games.sparklelabs.org`. Once the new Worker version is live, remove that route from `scores/wrangler.jsonc` in a small follow-up PR and redeploy. Removing it only in the Cloudflare dashboard lets the next deploy add it again.
-
 ## One-time setup (Jonnie's Cloudflare account)
 
 1. Install Node 22 or newer and Wrangler 4 (`npm install -g wrangler@4.148.0`). Run `wrangler login`.
 2. From `scores/`, run `wrangler d1 create jonniepeed-games-scores`. Replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` in `wrangler.jsonc` with the returned ID. Keep the binding named `DB`.
 3. Apply the schema: `wrangler d1 execute jonniepeed-games-scores --remote --file=schema.sql`.
-4. Run `wrangler deploy`. Confirm the Worker Custom Domain in Cloudflare's Workers dashboard and that `/v1/top?game=<game-id>&board=1` returns JSON for a game id in `games.json`. Cloudflare normally supplies the Custom Domain certificate. If the two-level name asks for a paid certificate product, fall back to the single-level `scores` name on the same zone, editing only `API` in `site/assets/leaderboard.js` and `routes` in `scores/wrangler.jsonc`, and tell Jonnie.
+4. Run `wrangler deploy`. Confirm the Worker Custom Domain in Cloudflare's Workers dashboard and that `/v1/top?game=<game-id>&board=1` returns JSON for a game id in `games.json`. Cloudflare normally supplies the Custom Domain certificate.
 5. Run `BASE=https://<Worker-Custom-Domain> node test/smoke.mjs`. It writes only to a newly selected random negative test board, never a real board. All boards ≤ 0 are test boards; real games never display them.
 6. Run `python3 tools/check_boards.py` and `python3 tools/stamp.py` from the repository root. Deploy the site by manually running **Deploy to GitHub Pages**. Do not add automatic workflow triggers.
 
@@ -45,7 +43,7 @@ When a change touches both, deploy the Worker first, then the site.
 
 One-time setup for the GitHub workflow (repository **Settings → Secrets and variables → Actions → New repository secret**):
 
-1. `CLOUDFLARE_API_TOKEN`: in Cloudflare, **My Profile → API Tokens → Create Token**, use the **Edit Cloudflare Workers** template, limit it to your account and the `jonniepeed.games` zone (also keep `sparklelabs.org` access while the temporary legacy route remains), and create it. Cloudflare shows the token once.
+1. `CLOUDFLARE_API_TOKEN`: in Cloudflare, **My Profile → API Tokens → Create Token**, use the **Edit Cloudflare Workers** template, limit it to your account and the `jonniepeed.games` zone, and create it. Cloudflare shows the token once.
 2. `CLOUDFLARE_ACCOUNT_ID`: the Account ID shown in the Cloudflare dashboard (Workers & Pages overview, or the account home page).
 
 If a run fails with a permissions error, edit the token in Cloudflare rather than adding secrets anywhere in the repository. Never commit the token.

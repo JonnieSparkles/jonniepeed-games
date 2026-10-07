@@ -88,7 +88,6 @@ The Pages workflow runs it too. Run it before publishing to Arweave.
 - The Pages custom domain is set in repository settings. Pages deploys through the custom workflow; no `CNAME` file is needed.
 - The `jonniepeed-games-scores` Worker uses a Cloudflare Custom Domain at `scores.jonniepeed.games`.
 - `games.sparklelabs.org` redirects to the new domain through a Cloudflare redirect rule.
-- `scores.games.sparklelabs.org` remains a temporary Worker route. Once the new Worker version is live, remove it from `scores/wrangler.jsonc` in a small follow-up PR and redeploy. Removing it only in the Cloudflare dashboard lets the next deploy add it again.
 
 Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, the scores address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point.
 

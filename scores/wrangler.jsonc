@@ -3,8 +3,7 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-06",
   "routes": [
-    { "pattern": "scores.jonniepeed.games", "custom_domain": true },
-    { "pattern": "scores.games.sparklelabs.org", "custom_domain": true }
+    { "pattern": "scores.jonniepeed.games", "custom_domain": true }
   ],
   "d1_databases": [{
     "binding": "DB",
