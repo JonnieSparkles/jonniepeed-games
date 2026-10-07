@@ -3,7 +3,12 @@
   if (location.hash !== '#tune' || !window.StickArmyTune) return;
   var tuning = window.StickArmyTune;
   var fields = [
-    ['CAPTURE_SPEED', 'Capture speed', 150, 600, 10, 'px/s'],
+    ['FIRE_COOLDOWN', 'Turret fire cooldown', 0.05, 0.6, 0.01, 's'],
+    ['HEAT_PER_SHOT', 'Heat per shot', 0, 0.4, 0.01, ''],
+    ['COOL_RATE', 'Cooling per second', 0, 1, 0.01, ''],
+    ['OVERHEAT_LOCK', 'Overheat lockout', 0, 4, 0.1, 's'],
+    ['SHOT_COST', 'Points per shot', 0, 5, 1, 'pts'],
+    ['CAPTURE_SPEED', 'Capture speed (higher = catch from higher)', 150, 1000, 10, 'px/s'],
     ['DROP_CHANCE', 'Drops over a mat', 0, 1, 0.01, 'chance'],
     ['RIFLE_COOLDOWN', 'Rifle cooldown', 0.3, 5, 0.1, 's'],
     ['RIFLE_SPREAD', 'Rifle spread', 0, 0.4, 0.01, 'rad'],
