@@ -52,10 +52,6 @@ var StickArmyIcons = function (kit) {
       G.restore();
       G.beginPath(); G.moveTo(6, 39); G.arc(18, 39, 12, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2.2); G.stroke();
     },
-    stash: function (G) {
-      [[15, 34], [15, 28], [15, 22], [29, 33]].forEach(function (p) { G.beginPath(); G.ellipse(p[0], p[1], 9, 4, 0, 0, Math.PI * 2); G.fillStyle = HAT; G.fill(); ink('#9b6a15', 1.8); G.stroke(); });
-      G.beginPath(); L(34, 7, 34, 18, 0.3); L(28.5, 12.5, 39.5, 12.5, 0.3); ink('#9b6a15', 2.4); G.stroke();
-    },
     tramp: function (G) {
       [11, 33].forEach(function (cx) {
         G.beginPath(); L(cx - 8, 28, cx - 9, 38, 0.3); L(cx + 8, 28, cx + 9, 38, 0.3); ink(INK, 1.8); G.stroke();
@@ -90,11 +86,11 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); G.arc(22, 15, 2.6, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
     },
     auto: function (G) {
-      G.save(); G.translate(22, 28); G.rotate(-0.7); G.fillStyle = PAPER; G.fillRect(0, -3, 17, 6); G.beginPath(); L(0, -3, 17, -3, 0.2); L(0, 3, 17, 3, 0.2); L(17, -3.5, 17, 3.5, 0.2); ink(INK, 2); G.stroke(); G.restore();
-      G.beginPath(); G.moveTo(13, 29); G.arc(22, 29, 9, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2); G.stroke();
-      G.beginPath(); L(10, 29, 34, 29, 0.3); L(11, 29, 11, 39, 0.3); L(33, 29, 33, 39, 0.3); L(10, 39, 34, 39, 0.3); ink(INK, 2); G.stroke();
-      G.beginPath(); G.arc(22, 29, 18, Math.PI * 1.08, Math.PI * 1.32); ink(BLUE, 1.6); G.stroke();
-      G.beginPath(); G.arc(22, 29, 18, Math.PI * 1.68, Math.PI * 1.92); ink(BLUE, 1.6); G.stroke();
+      // A little gun on a lattice tower.
+      G.beginPath(); L(13, 41, 18, 19, 0.3); L(31, 41, 26, 19, 0.3); L(14, 36, 29, 26, 0.2); L(30, 36, 15, 26, 0.2); ink(INK, 1.8); G.stroke();
+      G.beginPath(); L(12, 19, 32, 19, 0.3); ink(INK, 2.6); G.stroke();
+      G.save(); G.translate(22, 14); G.rotate(-0.6); G.fillStyle = PAPER; G.fillRect(0, -2.5, 15, 5); G.beginPath(); L(0, -2.5, 15, -2.5, 0.2); L(0, 2.5, 15, 2.5, 0.2); L(15, -3, 15, 3, 0.2); ink(INK, 1.8); G.stroke(); G.restore();
+      G.beginPath(); G.moveTo(16, 18); G.arc(22, 18, 6, Math.PI, 0); G.closePath(); G.fillStyle = BLUE; G.fill(); ink(INK, 1.8); G.stroke();
     },
     catcher: function (G) {
       G.beginPath(); L(5, 33, 4, 41, 0.3); L(21, 33, 22, 41, 0.3); ink(INK, 1.8); G.stroke();

@@ -123,6 +123,11 @@
   // Older marks stay in the current raster until the next resize or new run.
   function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); }
   function redrawDecals() { dcx.clearRect(0, 0, W, H); decals.forEach(drawDecal); }
+  // Between waves the page gets a wipe: old ink fades, and the faintest marks go.
+  function washDecals() {
+    for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= 0.45; if (decals[i].a < 0.06) decals.splice(i, 1); }
+    redrawDecals();
+  }
   function drawDecal(d) {
     var g = dcx, rnd = mulberry(d.seed), i, t, r, x, y;
     g.save(); g.globalAlpha = d.a;
@@ -203,7 +208,7 @@
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, stacks: {} },
-      coins: 0, volleys: 0, autoCD: 0, mines: [], shop: null, delivery: null, waveStart: { kills: 0, captured: 0 },
+      coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], strikes: 1, strike: null, strikeBombs: [],
@@ -416,7 +421,7 @@
     { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'supply', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
     { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'supply', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
-    { id: 'auto', name: 'Sentry doodle', desc: 'A small auto-turret shoots bombs and low-flying enemies.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
+    { id: 'auto', name: 'Sentry tower', desc: 'A tower gun on the bunker picks off bombs, shells and low chutes.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'One more call for the bomber. Press B or the plane button.', tier: 'supply', cost: 45, maxStacks: Infinity, apply: function (s) { s.strikes++; } },
     { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
@@ -450,7 +455,7 @@
   function onHouse(it) { return S.shop && it.id === S.shop.gift && !S.shop.giftTaken; }
   function costNow(it) { return onHouse(it) ? 0 : price(it); }
   function openShop() {
-    S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null;
+    S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null; washDecals();
     // Three rotating supplies from one pool (one of them free), air strikes once tanks are near, pizza always,
     // and every role for hire.
     var items = offer(OFFERS, ['pizza', 'strike']), gift = Math.floor(RS() * Math.max(1, items.length));
@@ -899,7 +904,7 @@
         if (over) { y = tg.y - 28; x = tg.x + (r.x > tg.x ? 15 : -15); }
       }
     }
-    var tt = Math.hypot(x - r.x, y - (GROUND - 23)) / sp;
+    var tt = Math.hypot(x - r.x, y - (r.y != null ? r.y : GROUND - 23)) / sp;
     return { x: x + vx * tt, y: y + vy * tt };
   }
   function fireRecruit(r, ang) {
@@ -1153,14 +1158,33 @@
     S.texts = S.texts.filter(function (q) { return q.life > 0; });
   }
 
+  // The sentry tower stands just right of the bunker, clear of the main gun's swing.
+  // It covers the bunker: bombs and shells first, then low chutes, troopers on the ground, tanks, then low planes.
+  var SENTRY = { x: 242, y: 526, every: 0.7, range: 330, low: 380 };
+  function sentryTarget() {
+    var best = null, bd = 1e9, ox = SENTRY.x, oy = SENTRY.y;
+    function nearest(list, ok) {
+      list.forEach(function (o) { if (!ok(o)) return; var d = Math.hypot(o.x - ox, o.y - oy); if (d < SENTRY.range && d < bd) { bd = d; best = o; } });
+      return best;
+    }
+    return nearest(S.bombs, function (m) { return !m.dead && m.y > 200; }) ||
+      nearest(S.troopers, function (t) { return !t.dead && t.state === 'chute' && t.open >= 1 && t.y > SENTRY.low; }) ||
+      nearest(S.troopers, function (t) { return !t.dead && t.state === 'ground'; }) ||
+      nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute'; }) ||
+      nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.x > 10 && p.x < W - 10; });
+  }
   function updateAutoTurret(dt) {
     if (!S.mods.auto || S.mode !== 'play') return;
     S.autoCD -= dt;
-    var gun = { x: BK.x, type: 'rifle' }, target = pickTarget(gun);
-    if (target && S.autoCD <= 0) {
-      var ap = aimPoint(gun, target), angle = Math.atan2(ap.y - (GROUND - 23), ap.x - gun.x);
-      fireRecruit(gun, angle); S.autoCD = 1.6;
-    }
+    var target = sentryTarget();
+    if (!target) return;
+    var gun = { x: SENTRY.x, y: SENTRY.y, type: 'rifle' }, ap = aimPoint(gun, target), ang = Math.atan2(ap.y - SENTRY.y, ap.x - SENTRY.x);
+    S.autoAim = ang;
+    if (S.autoCD > 0) return;
+    var a = ang + (RC() * 2 - 1) * 0.04;
+    S.bullets.push({ x: SENTRY.x + Math.cos(a) * 14, y: SENTRY.y + Math.sin(a) * 14, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520,
+      owner: 'ally', kind: 'bullet', life: 1.6, dead: false });
+    sound.play('ally'); S.autoCD = SENTRY.every;
   }
   function update(dt) {
     S.t += dt;
@@ -1376,7 +1400,6 @@
       G.beginPath(); [104, 296].forEach(function (x) { L(x-12,GROUND-5,x+12,GROUND-5); for(var j=-8;j<=8;j+=8) { L(x+j-3,GROUND-9,x+j+3,GROUND-1); L(x+j-3,GROUND-1,x+j+3,GROUND-9); } }); ink(INK2,1.3); G.stroke();
     }
     S.mines.forEach(function (m) { if (!m.armed) return; G.beginPath(); Ci(m.x,GROUND-2,4); ink(INK,1.6); G.stroke(); G.beginPath(); L(m.x-2,GROUND-7,m.x+2,GROUND-7); ink(RED,2); G.stroke(); });
-    if (S.mods.auto) { G.beginPath(); SP([190,608,194,597,206,597,210,608],false); L(200,599,200,585); ink(BLUE,2.4); G.stroke(); }
     for (var row = 0; row < S.mods.trench; row++) {
       [[98, 162], [238, 302]].forEach(function (span) {
         for (var bx = span[0] + row * 5; bx <= span[1]; bx += 11) {
@@ -1413,6 +1436,21 @@
     var col = S.overheat > 0 ? (Math.floor(S.t * 8) % 2 ? RED : INK) : S.heat > 0.7 ? RED : INK;
     G.beginPath(); G.arc(BK.x, BK.top, r, start, end); ink(col, 3); G.stroke();
     G.restore();
+  }
+  function drawSentry() {
+    if (!S.mods.auto) return;
+    pen(9050);
+    var x = SENTRY.x, y = SENTRY.y, top = y + 6;
+    // Splayed lattice legs on the ground beside the bunker, out of reach of the main barrel.
+    G.beginPath(); L(x - 8, GROUND, x - 4, top, 0.4); L(x + 8, GROUND, x + 4, top, 0.4);
+    for (var k = 0; k < 3; k++) { var y1 = GROUND - 4 - k * 26, y2 = y1 - 24, w1 = 7.5 - k * 1.3, w2 = 6.2 - k * 1.3; L(x - w1, y1, x + w2, y2, 0.3); L(x + w1, y1, x - w2, y2, 0.3); }
+    ink(INK, 1.8); G.stroke();
+    G.beginPath(); L(x - 10, top, x + 10, top, 0.3); ink(INK, 2.8); G.stroke();
+    G.save(); G.translate(x, y); G.rotate(S.autoAim);
+    G.fillStyle = PAPER; G.fillRect(0, -2.5, 14, 5);
+    G.beginPath(); L(0, -2.5, 14, -2.5, 0.2); L(0, 2.5, 14, 2.5, 0.2); L(14, -3, 14, 3, 0.2); ink(INK, 2); G.stroke();
+    G.restore();
+    G.beginPath(); G.moveTo(x - 7, y + 5); G.arc(x, y + 5, 7, Math.PI, 0); G.closePath(); G.fillStyle = BLUE; G.fill(); ink(INK, 2); G.stroke();
   }
   function drawBunker() {
     pen(9001);
@@ -1514,13 +1552,24 @@
     G.beginPath(); G.moveTo(52, 573); G.lineTo(58, 582); G.lineTo(64, 573); G.stroke();
     G.restore();
   }
+  // The squad row doubles as a health readout: wounded crew slouch, badly hurt crew droop and fade.
   function miniFig(x, y, r, i) {
     pen(7000 + i);
     G.save(); G.translate(x, y); G.scale(0.6, 0.6);
     if (r) {
+      var h = clamp(r.hp / crewMax(r), 0, 1), state = h < 0.4 ? 2 : h < 0.7 ? 1 : 0;
+      var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE;
+      if (state) { G.translate(0, 33); G.rotate(state === 2 ? 0.4 : 0.2); G.translate(0, -33); }
+      if (state === 2) G.globalAlpha = 0.5;
+      var pose = state ? [-3, 21, 3, 21, -5, 33, 5, 33] : [-6, 19, 6, 19, -5, 33, 5, 33];
       if (r.type === 'bazooka') tube(-8, 18, 7, 5);
-      stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], BLUE, 3);
+      stick(0, 0, pose, col, 3);
+      if (r.type === 'rifle') { G.beginPath(); L(-7, 17, 7, 8, 0.3); ink(INK, 2.2); G.stroke(); }
       if (r.type === 'engineer') hat(0, 0);
+      if (r.type === 'sniper') drawScope(0, 0, 1);
+      if (r.type === 'medic') { G.beginPath(); L(-4, -9, 4, -9); L(0, -13, 0, -5); ink(BLUE, 2.6); G.stroke(); }
+      if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
+      if (state === 2) { G.globalAlpha = 1; G.beginPath(); L(9, 4, 15, 4); L(12, 1, 12, 7); ink(RED, 2.6); G.stroke(); }
     } else {
       G.setLineDash([2, 4]); stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], EMPTY, 2.4); G.setLineDash([]);
     }
@@ -1588,7 +1637,7 @@
     S.troopers.forEach(function (t) { if (!t.dead) drawTrooper(t); });
     S.tanks.forEach(drawTank);
     drawStrike();
-    if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawBunker(); drawDefenses(); }
+    if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawSentry(); drawBunker(); drawDefenses(); }
     S.recruits.forEach(function (r) { if (!r.dead) drawRecruit(r); });
     drawBullets();
     drawCourier();
