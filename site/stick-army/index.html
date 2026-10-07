@@ -66,6 +66,9 @@ body {
   border-radius: 52% 46% 50% 48% / 47% 53% 46% 52%; cursor: pointer;
 }
 .icon-btn svg { width: 22px; height: 22px; }
+.strike-btn { position: relative; color: var(--ally); }
+.strike-btn:disabled { opacity: .45; cursor: default; }
+.strike-count { position: absolute; right: -5px; top: -7px; min-width: 19px; height: 19px; padding: 0 3px; box-sizing: border-box; border: 2px solid var(--ink); border-radius: 10px; background: var(--ally); color: var(--paper); font: 14px/15px var(--font-hand); text-align: center; }
 
 .overlay { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; padding: 0 26px; background: var(--veil); }
 .overlay.top { align-items: flex-start; padding-top: 58px; }
@@ -116,35 +119,49 @@ body {
 .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 #shopCoins { white-space: nowrap; border: 2px solid #7b8590; border-radius: 9px 9px 14px 14px; padding: 4px 10px; color: #3f4852; background: #e8ecef; font-size: 19px; }
 .tag-note { margin: -4px 0 8px; font: 14px/1.3 'Atkinson Hyperlegible', sans-serif; color: var(--ink-soft); }
-.supply-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.supply { text-align: left; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 4px 11px 5px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 5px; min-height: 128px; }
-.supply strong { font: 700 23px/1 var(--font-display); }
-.supply span { font: 15px/1.25 'Atkinson Hyperlegible', sans-serif; }
-.supply em { margin-top: auto; padding-top: 5px; color: var(--ally); font: 18px var(--font-hand); }
-.supply:hover:not(:disabled), .supply:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
-.supply:disabled { cursor: default; border-color: #aaa395; color: #6d6962; }
-.supply:disabled em { color: #6d6962; }
-.supply .supply-head { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font: inherit; min-width: 0; }
-.supply-head strong { min-width: 0; overflow-wrap: break-word; }
-.supply-icon { width: 36px; height: 36px; flex: none; }
-.supply:disabled .supply-icon { opacity: .45; }
+.supply-icon { flex: none; }
 .btn:disabled { opacity: .5; cursor: default; }
-#loadout { border-top: 1px dashed #aaa395; padding-top: 8px; max-height: 38px; overflow-y: auto; font-size: 14px; }
+.deal-list { display: flex; flex-direction: column; gap: 6px; }
+.deal { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; text-align: left; padding: 6px 10px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 4px 11px 5px; cursor: pointer; }
+.deal .supply-icon { width: 30px; height: 30px; grid-row: 1 / span 2; }
+.deal strong { font: 700 19px/1.1 var(--font-display); }
+.deal span { grid-column: 2; font: 13px/1.25 'Atkinson Hyperlegible', sans-serif; color: var(--ink-soft); }
+.deal em { grid-column: 3; grid-row: 1 / span 2; color: var(--ally); font: 18px var(--font-hand); white-space: nowrap; }
+.hire-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }
+.hire { display: flex; align-items: center; gap: 4px; padding: 3px 10px 3px 4px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; font: 17px var(--font-hand); }
+.hire .supply-icon { width: 28px; height: 28px; }
+.hire strong { font: inherit; }
+.hire em { margin-left: auto; color: var(--ally); font: inherit; font-style: normal; }
+.deal:hover:not(:disabled), .deal:focus-visible, .hire:hover:not(:disabled), .hire:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
+.deal:disabled, .hire:disabled { cursor: default; border-color: #aaa395; color: #6d6962; }
+.deal:disabled em, .hire:disabled em, .deal:disabled span { color: #6d6962; }
+.deal:disabled .supply-icon, .hire:disabled .supply-icon { opacity: .45; }
+.deal.gift { border-color: var(--ally); background: #eef4ff; box-shadow: 3px 3px 0 #2f6fdc33; }
+.deal.gift::before { content: "On the house"; position: absolute; top: -9px; right: 12px; padding: 0 6px; font: 14px var(--font-hand); color: var(--paper); background: var(--ally); border-radius: 6px 3px 7px 3px; transform: rotate(2deg); }
+.deal { position: relative; }
+.deal em s { color: var(--ink-soft); font-size: 15px; }
+.kit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 30px; }
+#loadout { border-top: 1px dashed #aaa395; padding-top: 6px; }
+#loadout::before { content: "Your kit"; margin-right: 2px; font: 16px var(--font-hand); color: var(--ink-soft); }
+.kit-item { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.kit-item canvas { width: 28px; height: 28px; }
+.kit-item b { position: absolute; right: -6px; bottom: -5px; padding: 0 2px; font: 13px/1 var(--font-hand); font-weight: 400; background: var(--paper); border-radius: 4px; }
+.kit-named { gap: 4px 12px; }
+.kit-named .kit-name { font-size: 16px; color: var(--ink-soft); }
+.kit-empty { font-size: 15px; color: var(--ink-soft); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 #shopReport { margin: 0; font-size: 17px; }
 #continueBtn { flex-shrink: 0; white-space: nowrap; padding-inline: 16px; }
-.shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-@media (max-width: 380px) { .shop-card { padding: 16px; } .supply { padding: 9px; } .supply strong { font-size: 21px; } .supply-icon { width: 30px; height: 30px; } .shop-foot { justify-content: flex-end; } .shop-foot .keys { display: none; } }
-@media (max-height: 500px) and (min-width: 650px) { .shop-card { max-width: 760px; width: 100%; } .shop-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .shop-stock section + section { margin-top: 0; } }
-@media (max-width: 380px) and (max-height: 650px) { #shopReport, #loadout { display: none; } }
+.shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+@media (max-width: 380px) { .shop-card { padding: 16px; } .deal { padding: 5px 8px; } .deal strong { font-size: 18px; } }
+@media (max-height: 500px) and (min-width: 650px) { .shop-card { max-width: 760px; width: 100%; } .shop-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; align-items: start; } .shop-stock section + section { margin-top: 0; } }
+@media (max-width: 380px) and (max-height: 650px) { #shopReport { display: none; } }
 @media (max-height: 500px) and (min-width: 650px) {
   .shop-card { position: relative; padding: 12px 16px; gap: 6px; }
   .shop-head { position: absolute; top: 12px; right: 16px; }
-  .shop-head .eyebrow, #shopReport, #loadout { display: none; }
+  .shop-head .eyebrow, #shopReport, #loadout, .tag-note:not(#hireNote) { display: none; }
   .shop-card h2 { font-size: 28px; margin-right: 140px; }
-  .shop-card .tag, .shop-foot .keys { font-size: 15px; }
-  .supply { min-height: 120px; padding: 9px; }
-  .supply strong { font-size: 21px; }
-  .supply span { font-size: 14px; }
+  .shop-card .tag { font-size: 15px; }
   .shop-foot { padding-top: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
@@ -160,11 +177,11 @@ body {
       <p id="shopReport"></p>
       <p class="tag" id="shopHint" role="status"></p>
       <div class="shop-stock">
-        <section aria-labelledby="freeTitle"><h3 id="freeTitle">Free pick · choose one</h3><div class="supply-grid" id="freeItems"></div></section>
-        <section aria-labelledby="premiumTitle"><h3 id="premiumTitle">Spend your dog tags</h3><p class="tag-note">Fallen enemies and downed planes drop dog tags, and every cleared wave adds a bundle.</p><div class="supply-grid" id="premiumItems"></div></section>
+        <section aria-labelledby="supplyTitle"><h3 id="supplyTitle">Supplies</h3><p class="tag-note">Dog tags come from kills, planes and cleared waves.</p><div class="deal-list" id="supplyItems"></div></section>
+        <section aria-labelledby="hireTitle"><h3 id="hireTitle">Hire</h3><p class="tag-note" id="hireNote"></p><div class="hire-row" id="hireItems"></div></section>
       </div>
-      <p class="keys" id="loadout"></p>
-      <div class="shop-foot"><p class="keys">Keep your kit<br>until the wall falls.</p><button class="btn" type="button" id="continueBtn">Continue</button></div>
+      <div class="kit" id="loadout" aria-label="Your kit"></div>
+      <div class="shop-foot"><button class="btn" type="button" id="continueBtn">Continue</button></div>
     </div>
   </section>
   <div class="hud-btns">
@@ -174,6 +191,10 @@ body {
         </button>
         <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M8.5 6v12"/><path d="M15.5 6.5v11.5"/></svg>
+        </button>
+        <button class="icon-btn strike-btn" id="strikeBtn" type="button" aria-label="Call an air strike (B)" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10.5h11l4-4.5h2l-2 4.5h3.5v2H17.5l2 4.5h-2l-4-4.5h-11z"/><path d="M7 15.5l-1 3.5M11 15.5l-1 3.5"/></svg>
+          <span class="strike-count" id="strikeCount">1</span>
         </button>
       </div>
   <button id="fullBtn" type="button" aria-pressed="false">Full screen</button>
@@ -206,7 +227,7 @@ body {
             </li>
           </ul>
           <button class="btn" id="startBtn" type="button">Start</button>
-          <p class="keys">Mouse or touch. On a keyboard, arrows aim, space fires P pauses and F toggles full screen.</p>
+          <p class="keys">Mouse or touch. On a keyboard, arrows aim, space fires, B calls an air strike, P pauses and F toggles full screen.</p>
           <p class="keys" id="bestLine" hidden></p>
         </div>
       </div>
@@ -214,7 +235,7 @@ body {
       <div class="overlay" id="pauseScreen" hidden>
         <div class="card">
           <h2>Paused</h2>
-          <p class="keys" id="pauseKit" hidden></p>
+          <div class="kit kit-named" id="pauseKit" aria-label="Your kit" hidden></div>
           <div class="row">
             <button class="btn" id="resumeBtn" type="button">Resume</button>
             <button class="btn ghost" id="restartBtn" type="button">Restart</button>
@@ -235,6 +256,7 @@ body {
             <dt>Chutes popped</dt><dd id="stPop">0</dd>
             <dt>Planes downed</dt><dd id="stPlanes">0</dd>
             <dt id="stZepsLabel" hidden>Zeppelins downed</dt><dd id="stZeps" hidden>0</dd>
+            <dt id="stTanksLabel" hidden>Tanks destroyed</dt><dd id="stTanks" hidden>0</dd>
             <dt>Best</dt><dd id="stBest">0</dd>
           </dl>
           <button class="btn" id="againBtn" type="button">Play again</button>
@@ -245,8 +267,9 @@ body {
   </div>
 </div>
 
-<script src="audio.js?v=88456e9560"></script>
-<script src="icons.js?v=67d19bf272"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=cd7cfcff7c"></script>
+<script src="audio.js?v=3b082e9a73"></script>
+<script src="icons.js?v=41591052d9"></script>
+<script src="units.js?v=9c22445ba5"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=583b985697"></script>
 </body>
 </html>

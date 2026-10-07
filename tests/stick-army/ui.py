@@ -38,12 +38,12 @@ with sync_playwright() as p:
         page.keyboard.press('p'); assert page.locator('#pauseScreen').is_visible(); page.click('#resumeBtn')
         page.evaluate('armyTest("newGame(); S.wallHP=55; S.coins=125; S.recruits=[makeRecruit(0, \'rifle\')]; S.recruits[0].hp=1; openShop();")')
         page.screenshot(path=str(OUT/f'shop-{width}.png'))
-        assert page.locator('#continueBtn').is_disabled()
+        assert not page.locator('#continueBtn').is_disabled()
         footer=page.locator('#continueBtn').bounding_box()
         assert footer['y']>=0 and footer['y']+footer['height']<=height, footer
         assert page.locator('.shop-stock').evaluate('(el) => el.scrollWidth <= el.clientWidth + 1')
-        page.locator('#freeItems button').first.click()
-        assert page.locator('#freeItems button:disabled').count()==2
+        gift=page.locator('#supplyItems button.gift'); gift_id=gift.get_attribute('data-item'); gift.click()
+        assert page.locator('#supplyItems button.gift').count()==0 and page.locator(f'#supplyItems [data-item="{gift_id}"]').is_disabled()
         page.locator('[data-item="pizza"]').click()
         assert page.locator('#shopScreen').is_hidden()
         page.wait_for_timeout(1800)

@@ -61,6 +61,11 @@ var StickArmySound = (function () {
     bugle: function () { brass(392, 0.14, 0.07); brass(523, 0.14, 0.07, 0.14); brass(659, 0.14, 0.07, 0.28); brass(784, 0.5, 0.08, 0.42); },
     wave: function () { tone(523, 0.12, 'triangle', 0.15); tone(659, 0.12, 'triangle', 0.15, null, 0.12); tone(784, 0.22, 'triangle', 0.15, null, 0.24); },
     shop: function () { [784, 988, 1175, 1568].forEach(function (f, i) { tone(f, 0.18, 'triangle', 0.07, null, i * 0.09); }); },
+    // New threats: a rush (a sharp whistle and a yell), tank cannon (a dull thump), and the friendly bomber (a
+    // rising engine roar under a bright two-note horn).
+    rush: function () { tone(2200, 0.12, 'square', 0.04, 1900); tone(2200, 0.18, 'square', 0.04, 1800, 0.16); noise(0.3, 0.08, 1400, 0.05, 'bandpass'); },
+    cannon: function () { noise(0.3, 0.3, 300); tone(70, 0.3, 'sine', 0.22, 40); },
+    strike: function () { tone(70, 1.6, 'sawtooth', 0.05, 140); noise(1.6, 0.06, 600); brass(587, 0.18, 0.07, 0.1); brass(784, 0.4, 0.08, 0.28); },
     // Zeppelin: a low two-note horn on arrival and when it turns angry, a soft canvas thup per hit, a groan going down.
     horn: function () { brass(98, 0.8, 0.09); brass(73.4, 1.2, 0.09, 0.7); },
     thup: function () { noise(0.05, 0.1, 900); tone(210, 0.06, 'sine', 0.07, 120); },
@@ -76,23 +81,15 @@ var StickArmySound = (function () {
   }
 
   // ---------- ambience ----------
-  // A wind bed, a pool of three propeller drones that follow and pan with the nearest planes,
-  // distant artillery thumps during waves, and a heartbeat while the wall is low.
+  // A snare-and-bass-drum march that gets busier as the waves climb, a pool of three propeller drones that
+  // follow and pan with the nearest planes, and a heartbeat in place of the bass drum while the wall is low.
   // Everything runs through one bus that fades out whenever the game isn't in active play.
   var amb = null;
   function ambInit() {
     if (amb || !AC) return;
     try {
       var bus = AC.createGain(); bus.gain.value = 0; bus.connect(master);
-      var len = Math.floor(AC.sampleRate * 3), buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
-      for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      var wind = AC.createBufferSource(); wind.buffer = buf; wind.loop = true;
-      var wf = AC.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 480; wf.Q.value = 0.7;
-      var wg = AC.createGain(); wg.gain.value = 0.045;
-      var lfo = AC.createOscillator(); lfo.frequency.value = 0.07;
-      var lg = AC.createGain(); lg.gain.value = 260;
-      lfo.connect(lg); lg.connect(wf.frequency);
-      wind.connect(wf); wf.connect(wg); wg.connect(bus); wind.start(); lfo.start();
+      var drums = AC.createGain(); drums.gain.value = 0.75; drums.connect(bus);
       var voices = [];
       for (var v = 0; v < 3; v++) {
         var o = AC.createOscillator(), o2 = AC.createOscillator(), f = AC.createBiquadFilter();
@@ -108,10 +105,46 @@ var StickArmySound = (function () {
         o.start(); o2.start(); prop.start();
         voices.push({ o: o, o2: o2, g: g, pan: pan });
       }
-      amb = { bus: bus, voices: voices, nextThump: 0, nextBeat: 0 };
+      amb = { bus: bus, drums: drums, voices: voices, nextBeat: 0, marching: false, nextStep: 0, step: 0, bar: 0 };
     } catch (e) { amb = null; }
   }
-  // state: { active, planes: [{ x, dir, kind }], wave (true while a wave is running), wallLow }
+
+  // Drum voices, scheduled at time t onto the drum bus.
+  function snare(t, vol) {
+    var s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    s.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = 0.7;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    s.connect(f); f.connect(g); g.connect(amb.drums); s.start(t, Math.random() * 0.4); s.stop(t + 0.15);
+    var o = AC.createOscillator(), og = AC.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(230, t); o.frequency.exponentialRampToValueAtTime(160, t + 0.05);
+    og.gain.setValueAtTime(vol * 0.7, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    o.connect(og); og.connect(amb.drums); o.start(t); o.stop(t + 0.08);
+  }
+  function drum(t, f1, f2, dur, vol) {
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur * 0.7);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(amb.drums); o.start(t); o.stop(t + dur + 0.03);
+  }
+  function heart(t) { drum(t, 62, 52, 0.14, 0.2); drum(t + 0.22, 54, 46, 0.16, 0.15); }
+
+  // One sixteenth of the march. Waves 1-3 keep a plain left-right step with a backbeat and a roll every
+  // fourth bar; from wave 4 ghost notes and a roll every other bar; from wave 9 a pickup kick, steady
+  // ghost notes and a roll into every bar. A zeppelin adds a low timpani on each downbeat.
+  function marchStep(i, bar, wave, t, dt, low, boss) {
+    var tier = wave >= 9 ? 2 : wave >= 4 ? 1 : 0;
+    var roll = tier === 2 || (tier === 1 ? bar % 2 === 1 : bar % 4 === 3);
+    if (low) { if (i === 0 || i === 8) heart(t); }
+    else if (i === 0 || i === 8) drum(t, 120, 44, 0.3, i === 0 ? 0.18 : 0.14);
+    else if ((tier === 2 && i === 14) || (tier === 1 && i === 6 && bar % 2)) drum(t, 110, 44, 0.24, 0.1);
+    if (boss && i === 0) drum(t, 82, 58, 0.7, 0.16);
+    if (i === 4 || i === 12) { snare(t - 0.02, 0.03); snare(t, 0.1); }
+    else if (roll && i >= 13) { var v = 0.034 + (i - 13) * 0.016; snare(t, v); snare(t + dt / 2, v * 0.8); }
+    else if (tier === 2 && i % 2 === 1) snare(t, 0.024);
+    else if (tier === 1 && (i === 2 || i === 10)) snare(t, 0.03);
+  }
+
+  // state: { active, planes: [{ x, dir, kind }], wave (true while a wave is running), number (the wave), wallLow }
   function ambience(state) {
     if (!AC) return;
     ambInit();
@@ -123,20 +156,26 @@ var StickArmySound = (function () {
       var p = planes[i];
       if (!on || !p) { v.g.gain.setTargetAtTime(0, now, 0.25); return; }
       // Slightly higher pitch while approaching the middle, lower while leaving.
-      var zep = p.kind === 'zeppelin', base = zep ? 44 : p.kind === 'bomber' ? 56 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
+      var zep = p.kind === 'zeppelin', base = zep ? 44 : p.kind === 'cargo' ? 50 : p.kind === 'bomber' ? 56 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
       var near = 1 - Math.min(1, Math.abs(p.x - 200) / 260);
       v.o.frequency.setTargetAtTime(base * doppler, now, 0.25);
       v.o2.frequency.setTargetAtTime(base * doppler * 1.02, now, 0.25);
       v.g.gain.setTargetAtTime(zep ? 0.03 + 0.03 * near : 0.01 + 0.03 * near, now, 0.15);
       if (v.pan) v.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, (p.x - 200) / 220)), now, 0.1);
     });
-    if (on && state.wave && now >= amb.nextThump) {
-      if (amb.nextThump) { noise(0.9, 0.07, 140); tone(55, 0.7, 'sine', 0.055, 34); }
-      amb.nextThump = now + 5 + Math.random() * 8;
-    }
-    if (on && state.wallLow && now >= amb.nextBeat) {
-      tone(62, 0.12, 'sine', 0.2); tone(54, 0.14, 'sine', 0.15, null, 0.22);
-      amb.nextBeat = now + 0.95;
+    // The march is scheduled a little ahead of the clock. After a stall it restarts on a fresh bar.
+    if (on && state.wave) {
+      if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
+      var n = state.number || 1, bpm = Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
+      var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
+      while (amb.nextStep < now + 0.3) {
+        marchStep(amb.step, amb.bar, n, amb.nextStep, dt, !!state.wallLow, boss);
+        amb.nextStep += dt;
+        if (++amb.step === 16) { amb.step = 0; amb.bar++; }
+      }
+    } else {
+      amb.marching = false;
+      if (on && state.wallLow && now >= amb.nextBeat) { heart(now); amb.nextBeat = now + 0.95; }
     }
   }
 

@@ -53,16 +53,20 @@
   hitTest({ x: canopy.x, y: canopy.y - 30, vx: 0, vy: -700, owner: 'player', kind: 'bullet', flak: true, pierce: 1, hits: [], life: 1, dead: false });
   check(canopy.state === 'free', 'and pops a chute on a canopy hit');
 
-  // Hiring: offered while a slot is free, price rises with each hire.
+  // Hiring: pick a role while a slot is free; every hire raises the next price by 15, and roles can repeat.
   newGame(); S.coins = 500; openShop();
-  var hire = ITEMS.find(function (it) { return it.id === 'hire'; });
-  check(S.shop.premium.indexOf(hire) >= 0 && price(hire) === 35, 'hire offered at its base price');
-  takeItem(S.shop.free[0].id);
-  var purse = S.coins; // the free pick may be the rainy-day fund
-  check(takeItem('hire') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.coins === purse - 35, 'hiring adds a rifleman');
-  check(price(hire) === 50, 'the next hire costs more');
+  var hire = ITEMS.find(function (it) { return it.id === 'hire-rifle'; }), baz = ITEMS.find(function (it) { return it.id === 'hire-bazooka'; });
+  check(S.shop.hire.indexOf(hire) >= 0 && price(hire) === 35 && price(baz) === 55, 'roles priced by role');
+  var purse = S.coins;
+  check(takeItem('hire-rifle') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.coins === purse - 35, 'hiring adds a rifleman');
+  check(price(hire) === 50 && price(baz) === 70, 'the next hire costs more, whatever the role');
+  check(takeItem('hire-rifle') && takeItem('hire-bazooka') && S.recruits.map(function (r) { return r.type; }).join() === 'rifle,rifle,bazooka', 'roles can repeat in one visit');
+  check(takeItem('hire-medic') && !eligible(ITEMS.find(function (it) { return it.id === 'hire-medic'; })), 'one medic at a time');
+  check(!takeItem('hire-sniper') && freeSlot(0) < 0, 'no hiring when the squad is full');
+  check(/Squad full/.test(document.getElementById('hireNote').textContent), 'the shop says the squad is full');
+  S.mods.stacks.double = 1; renderShop();
+  check(document.querySelectorAll('#loadout .kit-item').length === 1 && /Double barrel/.test(document.getElementById('loadout').textContent), 'the shop shows the kit as icons');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
-  S.mods.slots = 1; check(!eligible(hire), 'no hiring when the squad is full');
 
   // Dog tags fly from the kill to the counter.
   newGame(); var before = S.coins; award(10, 120, 400, 'test', INK, true);
@@ -71,17 +75,18 @@
   for (var j = 0; j < 120; j++) updateParts(1 / 60);
   check(!S.parts.some(function (q) { return q.k === 'tag'; }) && S.tagPulse >= 0, 'tags arrive and disappear');
 
-  // Shop copy speaks in dog tags and explains the locked button.
+  // Shop copy speaks in dog tags, marks the gift and says what's short.
   newGame(); S.coins = 10; openShop();
   check(/dog tags/.test(document.getElementById('shopCoins').textContent), 'balance shown in dog tags');
-  check(document.getElementById('continueBtn').textContent === 'Pick one first', 'locked button explains itself');
-  check(/need \d+ more/.test(document.getElementById('premiumItems').textContent), 'unaffordable items say how many more tags');
-  takeItem(S.shop.free[0].id);
-  check(/^Wave 2/.test(document.getElementById('continueBtn').textContent), 'continue names the next wave once picked');
+  check(/^Wave 2/.test(document.getElementById('continueBtn').textContent) && !document.getElementById('continueBtn').disabled, 'continue is always open and names the next wave');
+  check(document.querySelector('#supplyItems .gift em').textContent.indexOf('Free!') >= 0, 'the gift says free');
+  check(/need \d+ more/.test(document.getElementById('supplyItems').textContent), 'unaffordable items say how many more tags');
+  takeItem(S.shop.gift);
+  check(!document.querySelector('#supplyItems .gift') && /Spend dog tags/.test(document.getElementById('shopHint').textContent), 'gift taken, hint moves on');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 
   // New supplies have icons too.
-  ['trench', 'helmet', 'hire'].forEach(function (id) { check(ICONS[id], 'icon for ' + id); });
+  ['trench', 'helmet', 'hire-rifle', 'hire-engineer', 'hire-bazooka', 'hire-sniper', 'hire-medic'].forEach(function (id) { check(ICONS[id], 'icon for ' + id); });
 
   reset(); render();
 })();

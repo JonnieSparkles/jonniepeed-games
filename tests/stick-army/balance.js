@@ -26,9 +26,8 @@
     killFx = on ? EFFECTS.killFx : NOOP; addText = on ? EFFECTS.addText : NOOP; flyTags = on ? EFFECTS.flyTags : NOOP;
   }
   function item(it) {
-    var cost = price(it), bought = !!S.shop.bought[it.id];
-    return { id: it.id, name: it.name, tier: it.tier, cost: cost, bought: bought,
-      can: !bought && eligible(it) && (it.tier === 'free' ? !S.shop.freeTaken : S.coins >= cost) };
+    var cost = costNow(it), bought = it.tier !== 'hire' && !!S.shop.bought[it.id]; // hiring repeats
+    return { id: it.id, name: it.name, tier: it.tier, cost: cost, gift: onHouse(it), bought: bought, can: !bought && eligible(it) && S.coins >= cost };
   }
   window.__balance = {
     game: 'stick-army',
@@ -50,7 +49,9 @@
         aimMin: AIM_MIN, aimMax: AIM_MAX, ground: GROUND, bunker: { x1: BK.x1, x2: BK.x2, top: BK.top },
         captureSpeed: CAPTURE_SPEED, slotsFree: freeSlot(0) >= 0, slots: S.mods.slots,
         mats: activeTramps().map(function (m) { return { x1: m.x1, x2: m.x2, y: m.y }; }),
-        troopers: [], planes: [], bombs: [], recruits: [], shop: null
+        troopers: [], planes: [], bombs: [], recruits: [], shop: null,
+        tanks: S.tanks.map(function (tk) { return { id: tk.id, x: tk.x, y: tk.y, state: tk.state, dir: tk.dir, hp: tk.hp }; }),
+        strikes: S.strikes, strikeActive: !!S.strike
       };
       S.troopers.forEach(function (t) {
         if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy });
@@ -61,7 +62,7 @@
       S.bombs.forEach(function (m) { if (!m.dead) o.bombs.push({ id: m.id, x: m.x, y: m.y, vx: m.vx, vy: m.vy }); });
       S.recruits.forEach(function (r) { if (!r.dead) o.recruits.push({ id: r.id, type: r.type, x: r.x, hp: r.hp, max: crewMax(r) }); });
       if (S.mode === 'shop' && S.shop) {
-        o.shop = { freeTaken: S.shop.freeTaken, free: S.shop.free.map(item), premium: S.shop.premium.map(item) };
+        o.shop = { items: S.shop.items.map(item), hire: S.shop.hire.map(item), gift: S.shop.gift };
         o.mods = JSON.parse(JSON.stringify(S.mods));
       }
       return o;
@@ -73,6 +74,7 @@
       if (S.mode === 'play') {
         if (a.aimAt) aimAt(a.aimAt);
         if ('fire' in a) keys.fire = !!a.fire;
+        if (a.strike) callStrike(); // the strike button and B key call this
       } else if (S.mode === 'shop') {
         (a.take || []).forEach(function (id) { if (S.mode === 'shop') takeItem(id); });
         if (a.continue && S.mode === 'shop') continueWave();

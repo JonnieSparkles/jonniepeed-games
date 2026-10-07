@@ -16,6 +16,8 @@
   check(/Troopers/.test(line.textContent) && !zeps.hidden && zeps.textContent === '2', 'names landers and counts zeppelins');
   over('sniper');
   check(/Sniper/.test(line.textContent), 'names snipers');
+  over('tank');
+  check(/Tank/.test(line.textContent), 'names tanks');
   over(null);
   check(line.hidden, 'no cause line when nothing is known');
   overScreen.hidden = true;
