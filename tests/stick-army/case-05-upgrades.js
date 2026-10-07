@@ -14,7 +14,7 @@
   newGame(); equip('sandbags'); check(S.mods.maxHP===125 && S.wallHP===125,'sandbags raise cap');
   S.wallHP=120; equip('repair'); check(S.wallHP===125,'repair clamps at upgraded cap');
   equip('tramp'); equip('mat'); check(activeTramps().length===2 && TRAMPS[0].x2-TRAMPS[0].x1===82,'second mat and width');
-  equip('medic'); var med=S.recruits[0], r=makeRecruit(4,'rifle'); r.hp=1; S.recruits.push(r); med.cd=0; updateRecruits(0.1);
+  equip('hire-medic'); var med=S.recruits[0], r=makeRecruit(4,'rifle'); r.hp=1; S.recruits.push(r); med.cd=0; updateRecruits(0.1);
   check(r.hp>1 && med.role==='heal','medic heals crew');
   equip('mines'); startWave(2); spawnTrooper(100,GROUND-33); var t=S.troopers[0]; t.type='rifle'; land(t); updateTroopers(0.01);
   check(t.dead && !S.mines[0].armed && !r.dead,'mines spare crew');

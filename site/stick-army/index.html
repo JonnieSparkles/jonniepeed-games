@@ -129,19 +129,43 @@ body {
 .supply-icon { width: 36px; height: 36px; flex: none; }
 .supply:disabled .supply-icon { opacity: .45; }
 .btn:disabled { opacity: .5; cursor: default; }
-#loadout { border-top: 1px dashed #aaa395; padding-top: 8px; max-height: 38px; overflow-y: auto; font-size: 14px; }
+.deal-list { display: flex; flex-direction: column; gap: 6px; }
+.deal { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; text-align: left; padding: 6px 10px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 4px 11px 5px; cursor: pointer; }
+.deal .supply-icon { width: 30px; height: 30px; grid-row: 1 / span 2; }
+.deal strong { font: 700 19px/1.1 var(--font-display); }
+.deal span { grid-column: 2; font: 13px/1.25 'Atkinson Hyperlegible', sans-serif; color: var(--ink-soft); }
+.deal em { grid-column: 3; grid-row: 1 / span 2; color: var(--ally); font: 18px var(--font-hand); white-space: nowrap; }
+.hire-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }
+.hire { display: flex; align-items: center; gap: 4px; padding: 3px 10px 3px 4px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; font: 17px var(--font-hand); }
+.hire .supply-icon { width: 28px; height: 28px; }
+.hire strong { font: inherit; }
+.hire em { margin-left: auto; color: var(--ally); font: inherit; font-style: normal; }
+.deal:hover:not(:disabled), .deal:focus-visible, .hire:hover:not(:disabled), .hire:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
+.deal:disabled, .hire:disabled { cursor: default; border-color: #aaa395; color: #6d6962; }
+.deal:disabled em, .hire:disabled em, .deal:disabled span { color: #6d6962; }
+.deal:disabled .supply-icon, .hire:disabled .supply-icon { opacity: .45; }
+.kit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 30px; }
+#loadout { border-top: 1px dashed #aaa395; padding-top: 6px; }
+#loadout::before { content: "Your kit"; margin-right: 2px; font: 16px var(--font-hand); color: var(--ink-soft); }
+.kit-item { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.kit-item canvas { width: 28px; height: 28px; }
+.kit-item b { position: absolute; right: -6px; bottom: -5px; padding: 0 2px; font: 13px/1 var(--font-hand); font-weight: 400; background: var(--paper); border-radius: 4px; }
+.kit-named { gap: 4px 12px; }
+.kit-named .kit-name { font-size: 16px; color: var(--ink-soft); }
+.kit-empty { font-size: 15px; color: var(--ink-soft); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 #shopReport { margin: 0; font-size: 17px; }
 #continueBtn { flex-shrink: 0; white-space: nowrap; padding-inline: 16px; }
-.shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-@media (max-width: 380px) { .shop-card { padding: 16px; } .supply { padding: 9px; } .supply strong { font-size: 21px; } .supply-icon { width: 30px; height: 30px; } .shop-foot { justify-content: flex-end; } .shop-foot .keys { display: none; } }
-@media (max-height: 500px) and (min-width: 650px) { .shop-card { max-width: 760px; width: 100%; } .shop-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .shop-stock section + section { margin-top: 0; } }
-@media (max-width: 380px) and (max-height: 650px) { #shopReport, #loadout { display: none; } }
+.shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+@media (max-width: 380px) { .shop-card { padding: 16px; } .supply { padding: 9px; } .supply strong { font-size: 21px; } .supply-icon { width: 30px; height: 30px; } }
+@media (max-height: 500px) and (min-width: 650px) { .shop-card { max-width: 760px; width: 100%; } .shop-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; align-items: start; } .shop-stock section + section { margin-top: 0; } .shop-stock section:first-child { grid-row: span 2; } }
+@media (max-width: 380px) and (max-height: 650px) { #shopReport { display: none; } }
 @media (max-height: 500px) and (min-width: 650px) {
   .shop-card { position: relative; padding: 12px 16px; gap: 6px; }
   .shop-head { position: absolute; top: 12px; right: 16px; }
-  .shop-head .eyebrow, #shopReport, #loadout { display: none; }
+  .shop-head .eyebrow, #shopReport, #loadout, .tag-note:not(#hireNote) { display: none; }
   .shop-card h2 { font-size: 28px; margin-right: 140px; }
-  .shop-card .tag, .shop-foot .keys { font-size: 15px; }
+  .shop-card .tag { font-size: 15px; }
   .supply { min-height: 120px; padding: 9px; }
   .supply strong { font-size: 21px; }
   .supply span { font-size: 14px; }
@@ -161,10 +185,11 @@ body {
       <p class="tag" id="shopHint" role="status"></p>
       <div class="shop-stock">
         <section aria-labelledby="freeTitle"><h3 id="freeTitle">Free pick · choose one</h3><div class="supply-grid" id="freeItems"></div></section>
-        <section aria-labelledby="premiumTitle"><h3 id="premiumTitle">Spend your dog tags</h3><p class="tag-note">Fallen enemies and downed planes drop dog tags, and every cleared wave adds a bundle.</p><div class="supply-grid" id="premiumItems"></div></section>
+        <section aria-labelledby="premiumTitle"><h3 id="premiumTitle">Spend your dog tags</h3><p class="tag-note">Earned from kills, planes and cleared waves.</p><div class="deal-list" id="premiumItems"></div></section>
+        <section aria-labelledby="hireTitle"><h3 id="hireTitle">Hire</h3><p class="tag-note" id="hireNote"></p><div class="hire-row" id="hireItems"></div></section>
       </div>
-      <p class="keys" id="loadout"></p>
-      <div class="shop-foot"><p class="keys">Keep your kit<br>until the wall falls.</p><button class="btn" type="button" id="continueBtn">Continue</button></div>
+      <div class="kit" id="loadout" aria-label="Your kit"></div>
+      <div class="shop-foot"><button class="btn" type="button" id="continueBtn">Continue</button></div>
     </div>
   </section>
   <div class="hud-btns">
@@ -214,7 +239,7 @@ body {
       <div class="overlay" id="pauseScreen" hidden>
         <div class="card">
           <h2>Paused</h2>
-          <p class="keys" id="pauseKit" hidden></p>
+          <div class="kit kit-named" id="pauseKit" aria-label="Your kit" hidden></div>
           <div class="row">
             <button class="btn" id="resumeBtn" type="button">Resume</button>
             <button class="btn ghost" id="restartBtn" type="button">Restart</button>
@@ -246,7 +271,7 @@ body {
 </div>
 
 <script src="audio.js?v=88456e9560"></script>
-<script src="icons.js?v=67d19bf272"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=cd7cfcff7c"></script>
+<script src="icons.js?v=9cc2b58020"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=fd556bb9f3"></script>
 </body>
 </html>

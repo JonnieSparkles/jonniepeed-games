@@ -26,7 +26,7 @@
     killFx = on ? EFFECTS.killFx : NOOP; addText = on ? EFFECTS.addText : NOOP; flyTags = on ? EFFECTS.flyTags : NOOP;
   }
   function item(it) {
-    var cost = price(it), bought = !!S.shop.bought[it.id];
+    var cost = price(it), bought = it.tier !== 'hire' && !!S.shop.bought[it.id]; // hiring repeats
     return { id: it.id, name: it.name, tier: it.tier, cost: cost, bought: bought,
       can: !bought && eligible(it) && (it.tier === 'free' ? !S.shop.freeTaken : S.coins >= cost) };
   }
@@ -61,7 +61,7 @@
       S.bombs.forEach(function (m) { if (!m.dead) o.bombs.push({ id: m.id, x: m.x, y: m.y, vx: m.vx, vy: m.vy }); });
       S.recruits.forEach(function (r) { if (!r.dead) o.recruits.push({ id: r.id, type: r.type, x: r.x, hp: r.hp, max: crewMax(r) }); });
       if (S.mode === 'shop' && S.shop) {
-        o.shop = { freeTaken: S.shop.freeTaken, free: S.shop.free.map(item), premium: S.shop.premium.map(item) };
+        o.shop = { freeTaken: S.shop.freeTaken, free: S.shop.free.map(item), premium: S.shop.premium.map(item), hire: S.shop.hire.map(item) };
         o.mods = JSON.parse(JSON.stringify(S.mods));
       }
       return o;

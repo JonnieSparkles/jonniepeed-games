@@ -2,7 +2,7 @@
 // game.js passes its pen kit once; each icon is then called with the icon canvas context as G.
 var StickArmyIcons = function (kit) {
   'use strict';
-  var L = kit.L, SP = kit.SP, Ci = kit.Ci, ink = kit.ink, stick = kit.stick, dogTag = kit.dogTag;
+  var L = kit.L, SP = kit.SP, Ci = kit.Ci, ink = kit.ink, stick = kit.stick, dogTag = kit.dogTag, hat = kit.hat, tube = kit.tube;
   var INK = kit.INK, INK2 = kit.INK2, RED = kit.RED, BLUE = kit.BLUE, HAT = kit.HAT, PAPER = kit.PAPER;
   return {
     fire: function (G) {
@@ -89,10 +89,6 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); L(22, 23, 22, 17, 0.2); L(13, 27, 9, 23, 0.2); L(31, 27, 35, 23, 0.2); ink(INK, 2); G.stroke();
       G.beginPath(); G.arc(22, 15, 2.6, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
     },
-    medic: function (G) {
-      G.beginPath(); Ci(22, 22, 16, 0.4); ink(INK, 2); G.stroke();
-      G.fillStyle = RED; G.fillRect(18, 11, 8, 22); G.fillRect(11, 18, 22, 8);
-    },
     auto: function (G) {
       G.save(); G.translate(22, 28); G.rotate(-0.7); G.fillStyle = PAPER; G.fillRect(0, -3, 17, 6); G.beginPath(); L(0, -3, 17, -3, 0.2); L(0, 3, 17, 3, 0.2); L(17, -3.5, 17, 3.5, 0.2); ink(INK, 2); G.stroke(); G.restore();
       G.beginPath(); G.moveTo(13, 29); G.arc(22, 29, 9, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2); G.stroke();
@@ -125,10 +121,27 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); L(2, 31, 42, 31, 0.4); ink(INK, 3); G.stroke();
       G.beginPath(); L(33, 6, 33, 16, 0.3); L(28, 11, 38, 11, 0.3); ink(BLUE, 2.4); G.stroke();
     },
-    hire: function (G) {
+    // Hiring roles: a blue recruit with the tool of his trade.
+    'hire-rifle': function (G) {
       G.save(); G.translate(16, 6); G.scale(0.85, 0.85); stick(0, 0, [8, 12, 13, 8, -5, 33, 5, 33], BLUE, 3); G.restore();
       G.beginPath(); L(19, 16, 31, 2, 0.3); ink(INK, 2.6); G.stroke();
-      dogTag(34, 31, 0.3, 1.4);
+    },
+    'hire-engineer': function (G) {
+      G.save(); G.translate(17, 9); G.scale(0.85, 0.85); stick(0, 0, [-7, 19, 12, 9, -5, 33, 5, 33], BLUE, 3); hat(0, 0); G.restore();
+      G.beginPath(); L(27, 16, 35, 7, 0.3); ink(INK, 2.4); G.stroke();
+      G.beginPath(); L(32, 3, 39, 10, 0.3); ink(INK, 4.5); G.stroke();
+    },
+    'hire-bazooka': function (G) {
+      G.save(); G.translate(20, 8); G.scale(0.85, 0.85); tube(-14, 14, 18, -2); stick(0, 0, [-6, 13, 8, 9, -5, 33, 5, 33], BLUE, 3); G.restore();
+    },
+    'hire-sniper': function (G) {
+      G.save(); G.translate(13, 8); G.scale(0.85, 0.85); stick(0, 0, [10, 14, 16, 12, -5, 33, 5, 33], BLUE, 3); G.restore();
+      G.beginPath(); L(15, 19, 41, 9, 0.3); ink(INK, 2.4); G.stroke();
+      G.beginPath(); Ci(29, 11, 3, 0.2); ink(INK, 1.8); G.stroke();
+    },
+    'hire-medic': function (G) {
+      G.beginPath(); Ci(22, 22, 16, 0.4); ink(INK, 2); G.stroke();
+      G.fillStyle = RED; G.fillRect(18, 11, 8, 22); G.fillRect(11, 18, 22, 8);
     },
     fallback: function (G) { G.beginPath(); Ci(22, 22, 12, 0.5); L(22, 14, 22, 26, 0.3); ink(INK, 2.4); G.stroke(); G.beginPath(); G.arc(22, 31, 1.8, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
   };

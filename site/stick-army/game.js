@@ -407,17 +407,21 @@
     { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'premium', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
     { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'premium', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'premium', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
-    { id: 'medic', name: 'Medic recruit', desc: 'Fill a free squad slot with a medic who heals nearby crew.', tier: 'premium', cost: 55, maxStacks: Infinity,
-      available: function () { return freeSlot(0) >= 0 && !S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; }); },
-      apply: function (s) { s.mods.medic = true; s.recruits.push(makeRecruit(freeSlot(0), 'medic')); } },
     { id: 'auto', name: 'Sentry doodle', desc: 'A small auto-turret shoots bombs and low-flying enemies.', tier: 'premium', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'premium', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
-    { id: 'hire', name: 'Hire a rifleman', desc: 'A rifleman joins a free squad slot. Each hire costs more.', tier: 'premium', maxStacks: Infinity,
-      cost: function () { return 35 + 15 * S.mods.hired; },
-      available: function () { return freeSlot(0) >= 0; },
-      apply: function (s) { s.mods.hired++; s.recruits.push(makeRecruit(freeSlot(0), 'rifle')); } },
     { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'premium', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
   ];
+  // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
+  [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
+   ['engineer', 'Engineer', 40, 'Repairs the wall twice as fast as anyone.'],
+   ['bazooka', 'Bazooka', 55, 'Slow rockets that can bring down aircraft.'],
+   ['sniper', 'Sniper', 50, 'Slow, precise shots.'],
+   ['medic', 'Medic', 55, 'Heals nearby crew. One at a time.']].forEach(function (h) {
+    ITEMS.push({ id: 'hire-' + h[0], role: h[0], name: h[1], desc: h[3], tier: 'hire', maxStacks: Infinity,
+      cost: function () { return h[2] + 15 * S.mods.hired; },
+      available: function () { return freeSlot(0) >= 0 && (h[0] !== 'medic' || !S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; })); },
+      apply: function (s) { s.mods.hired++; s.recruits.push(makeRecruit(freeSlot(0), h[0])); } });
+  });
   function resizeMats() {
     TRAMPS[0].x1 = 22 - S.mods.mat * 6; TRAMPS[0].x2 = 92 + S.mods.mat * 6;
     TRAMPS[1].x1 = 308 - S.mods.mat * 6; TRAMPS[1].x2 = 378 + S.mods.mat * 6;
@@ -433,12 +437,10 @@
   }
   function openShop() {
     S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null;
-    var premiums = offer('premium', 1, ['pizza', 'hire']);
-    // Pizza is always orderable, and hiring whenever a slot is free; the third offer rotates so saving has a purpose.
-    var hire = ITEMS.find(function (it) { return it.id === 'hire'; });
-    if (eligible(hire)) premiums.push(hire);
+    // One rotating premium offer so saving has a purpose, plus pizza; every role is always listed for hire.
+    var premiums = offer('premium', 1, ['pizza']);
     premiums.push(ITEMS.find(function (it) { return it.id === 'pizza'; }));
-    S.shop = { free: offer('free', 2, []), premium: premiums, freeTaken: false, bought: {} };
+    S.shop = { free: offer('free', 2, []), premium: premiums, hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }), freeTaken: false, bought: {} };
     emit('shop_offer', { wave: S.wave, free: S.shop.free.map(function (it) { return it.id; }), premium: premiums.map(function (it) { return it.id; }) });
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
     sound.play('shop');
@@ -446,8 +448,9 @@
   }
   function takeItem(id) {
     if (S.mode !== 'shop' || !S.shop) return false;
-    var item = S.shop.free.concat(S.shop.premium).find(function (it) { return it.id === id; });
-    if (!item || S.shop.bought[id] || !eligible(item)) return false;
+    var item = S.shop.free.concat(S.shop.premium, S.shop.hire).find(function (it) { return it.id === id; });
+    // Offers sell once per visit; hiring repeats while slots and tags last.
+    if (!item || (S.shop.bought[id] && item.tier !== 'hire') || !eligible(item)) return false;
     if (item.tier === 'free' ? S.shop.freeTaken : S.coins < price(item)) return false;
     if (item.tier === 'free') S.shop.freeTaken = true; else S.coins -= price(item);
     emit('purchase', { item: id, tier: item.tier, cost: item.tier === 'free' ? 0 : price(item) });
@@ -457,7 +460,7 @@
     return true;
   }
   // Pencil icons for supplies live in icons.js; they draw with this file's pen.
-  var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag,
+  var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag, hat: hat, tube: tube,
     INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER });
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
@@ -472,23 +475,37 @@
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
     document.getElementById('shopHint').textContent = (S.shop.freeTaken ? 'Packed! Spend dog tags on something extra, or save them.' : 'Take one free supply, then spend dog tags if you like.') +
       (waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
-    ['free', 'premium'].forEach(function (tier) {
-      var holder = document.getElementById(tier + 'Items'); holder.replaceChildren();
-      S.shop[tier].forEach(function (it) {
-        var button = document.createElement('button'); button.type = 'button'; button.className = 'supply'; button.dataset.item = it.id;
-        var bought = !!S.shop.bought[it.id];
-        var cost = price(it);
-        button.disabled = bought || !eligible(it) || (tier === 'free' ? S.shop.freeTaken : S.coins < cost);
-        var name = document.createElement('strong'); name.textContent = it.name;
-        var desc = document.createElement('span'); desc.textContent = it.desc;
-        var label = document.createElement('em'); label.textContent = bought ? 'Packed ✓' : tier === 'free' ? 'Take it free' : cost + ' tags' + (S.coins < cost ? ' · need ' + (cost - S.coins) + ' more' : '');
-        var head = document.createElement('span'); head.className = 'supply-head';
-        var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
-        drawItemIcon(icon, it.id); head.append(icon, name);
-        button.append(head, desc, label); button.addEventListener('click', function () { takeItem(it.id); }); holder.append(button);
-      });
-    });
-    document.getElementById('loadout').textContent = kitText() || 'A fresh page. Make it yours.';
+    // Free picks are big cards; paid offers are compact rows; hiring is a row of role chips.
+    function canBuy(it) { return eligible(it) && (it.tier === 'free' ? !S.shop.freeTaken && !S.shop.bought[it.id] : (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= price(it)); }
+    function costLabel(it) {
+      if (it.tier !== 'hire' && S.shop.bought[it.id]) return 'Packed ✓';
+      if (it.tier === 'free') return 'Take it free';
+      var cost = price(it);
+      return cost + ' tags' + (S.coins < cost && eligible(it) ? ' · need ' + (cost - S.coins) + ' more' : '');
+    }
+    function itemButton(it, cls, withDesc) {
+      var button = document.createElement('button'); button.type = 'button'; button.className = cls; button.dataset.item = it.id;
+      button.disabled = !canBuy(it);
+      var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
+      drawItemIcon(icon, it.id);
+      var name = document.createElement('strong'); name.textContent = it.name;
+      var label = document.createElement('em'); label.textContent = it.tier === 'hire' ? String(price(it)) : costLabel(it);
+      if (cls === 'supply') {
+        var head = document.createElement('span'); head.className = 'supply-head'; head.append(icon, name);
+        button.append(head);
+      } else button.append(icon, name);
+      if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
+      else button.title = it.desc;
+      button.append(label);
+      button.addEventListener('click', function () { takeItem(it.id); });
+      return button;
+    }
+    document.getElementById('freeItems').replaceChildren.apply(document.getElementById('freeItems'), S.shop.free.map(function (it) { return itemButton(it, 'supply', true); }));
+    document.getElementById('premiumItems').replaceChildren.apply(document.getElementById('premiumItems'), S.shop.premium.map(function (it) { return itemButton(it, 'deal', true); }));
+    var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || freeSlot(0) < 0; });
+    document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), roles.map(function (it) { return itemButton(it, 'hire', false); }));
+    document.getElementById('hireNote').textContent = freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire.';
+    renderKit(document.getElementById('loadout'), false);
     if (S.shop.freeTaken) {
       var stock = shopScreen.querySelector('.shop-stock'), extras = document.getElementById('premiumItems').parentElement;
       stock.scrollTop += extras.getBoundingClientRect().top - stock.getBoundingClientRect().top;
@@ -1712,9 +1729,8 @@
   function togglePause() {
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
-      var kit = kitText();
-      document.getElementById('pauseKit').textContent = kit;
-      document.getElementById('pauseKit').hidden = !kit;
+      var kit = document.getElementById('pauseKit');
+      kit.hidden = !renderKit(kit, true);
       pauseScreen.hidden = false;
       document.getElementById('resumeBtn').focus({ preventScroll: true });
     } else if (S.mode === 'paused') {
@@ -1732,10 +1748,23 @@
   }
   // What brought the wall down: the last source to hurt it (hurtWall).
   var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.' };
-  // Owned upgrades for the shop and the pause card; repeatable buys like repairs and pizza aren't listed.
-  function kitText() {
-    var equipped = ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; });
-    return equipped.length ? 'In your kit: ' + equipped.map(function (it) { return it.name + (S.mods.stacks[it.id] > 1 ? ' ×' + S.mods.stacks[it.id] : ''); }).join(' · ') : '';
+  // Owned upgrades as pencil icons: icon-only with counts in the shop, icon and name on the pause card.
+  // Repeatable buys (repairs, pizza, hires) aren't kit.
+  function kitItems() { return ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; }); }
+  function renderKit(holder, named) {
+    var items = kitItems();
+    holder.replaceChildren();
+    if (!items.length) { var none = document.createElement('span'); none.className = 'kit-empty'; none.textContent = 'No kit yet. A fresh page.'; holder.append(none); }
+    items.forEach(function (it) {
+      var n = S.mods.stacks[it.id], chip = document.createElement('span'), icon = document.createElement('canvas'), text = document.createElement('span');
+      chip.className = 'kit-item'; chip.title = it.name + (n > 1 ? ' ×' + n : '');
+      icon.width = icon.height = 88; icon.setAttribute('aria-hidden', 'true'); drawItemIcon(icon, it.id);
+      text.className = named ? 'kit-name' : 'sr'; text.textContent = it.name + (n > 1 ? ' ×' + n : '');
+      chip.append(icon, text);
+      if (!named && n > 1) { var count = document.createElement('b'); count.setAttribute('aria-hidden', 'true'); count.textContent = '×' + n; chip.append(count); }
+      holder.append(chip);
+    });
+    return items.length;
   }
   function showOver() {
     S.mode = 'over';

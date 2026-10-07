@@ -85,7 +85,7 @@ window.__balanceBot = function (profile, seed) {
 
   // Shop: one readable function. Free pick by situation, then premium spending by profile.
   var FREE_ORDER = ['fire', 'double', 'cool', 'trench', 'helmet', 'slot', 'mat', 'aim', 'sandbags', 'wire', 'repair', 'stash'];
-  var GOOD = ['tramp', 'spread', 'rockets', 'auto', 'flak', 'pierce', 'mines', 'catcher', 'medic'];
+  var GOOD = ['tramp', 'spread', 'rockets', 'auto', 'flak', 'pierce', 'mines', 'catcher'];
   function shop(o) {
     var sh = o.shop, take = [];
     if (shopped === o.wave) return { continue: true };
@@ -102,18 +102,26 @@ window.__balanceBot = function (profile, seed) {
     }
     var coins = o.coins, prem = sh.premium.filter(function (it) { return it.can; });
     function buy(it) { if (it && it.cost <= coins) { take.push(it.id); coins -= it.cost; return true; } return false; }
-    var pizza = prem.find(function (it) { return it.id === 'pizza'; }), hire = prem.find(function (it) { return it.id === 'hire'; });
-    var offer = prem.find(function (it) { return it.id !== 'pizza' && it.id !== 'hire'; });
+    var pizza = prem.find(function (it) { return it.id === 'pizza'; });
+    var offer = prem.find(function (it) { return it.id !== 'pizza'; });
     // Pizza goes last: the delivery leaves the shop, and the bot continues once it returns.
     var wantPizza = pizza && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
     if (wantPizza) coins -= pizza.cost;
     if (profile.shop === 'random') {
       var others = prem.filter(function (it) { return it.id !== 'pizza'; });
       if (rnd() < 0.35 && others.length) buy(others[Math.floor(rnd() * others.length)]);
-    } else {
-      if (offer && GOOD.indexOf(offer.id) >= 0) buy(offer);
-      // Experts keep a cushion for the next good premium; others hire whenever a slot is free.
-      if (hire && (profile.shop !== 'save' || coins - hire.cost >= 60) && o.recruits.length < o.slots) buy(hire);
+    } else if (offer && GOOD.indexOf(offer.id) >= 0) buy(offer);
+    // Hiring: the role the squad lacks most, up to two a visit. Every hire raises the next price by 15.
+    // Experts keep a cushion for the next good premium; casual players hire on a whim.
+    var have = {}, crew = o.recruits.length, extra = 0;
+    o.recruits.forEach(function (r) { have[r.type] = (have[r.type] || 0) + 1; });
+    for (var n = 0; n < 2 && crew < o.slots; n++) {
+      var role = !have.bazooka ? 'bazooka' : !have.engineer ? 'engineer' : !have.medic && crew >= 3 ? 'medic' : 'rifle';
+      if (profile.shop === 'random') { if (rnd() > 0.35) break; role = ['rifle', 'engineer', 'bazooka', 'sniper'][Math.floor(rnd() * 4)]; }
+      var job = (sh.hire || []).find(function (it) { return it.id === 'hire-' + role && (it.can || it.cost <= coins); });
+      if (!job || (profile.shop === 'save' && coins - job.cost - extra < 60)) break;
+      if (job.cost + extra > coins) break;
+      take.push(job.id); coins -= job.cost + extra; extra += 15; crew++; have[role] = (have[role] || 0) + 1;
     }
     if (wantPizza && coins >= 0) take.push('pizza');
     return { take: take, continue: true };

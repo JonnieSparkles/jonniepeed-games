@@ -53,16 +53,20 @@
   hitTest({ x: canopy.x, y: canopy.y - 30, vx: 0, vy: -700, owner: 'player', kind: 'bullet', flak: true, pierce: 1, hits: [], life: 1, dead: false });
   check(canopy.state === 'free', 'and pops a chute on a canopy hit');
 
-  // Hiring: offered while a slot is free, price rises with each hire.
+  // Hiring: pick a role while a slot is free; every hire raises the next price by 15, and roles can repeat.
   newGame(); S.coins = 500; openShop();
-  var hire = ITEMS.find(function (it) { return it.id === 'hire'; });
-  check(S.shop.premium.indexOf(hire) >= 0 && price(hire) === 35, 'hire offered at its base price');
+  var hire = ITEMS.find(function (it) { return it.id === 'hire-rifle'; }), baz = ITEMS.find(function (it) { return it.id === 'hire-bazooka'; });
+  check(S.shop.hire.indexOf(hire) >= 0 && price(hire) === 35 && price(baz) === 55, 'roles priced by role');
   takeItem(S.shop.free[0].id);
   var purse = S.coins; // the free pick may be the rainy-day fund
-  check(takeItem('hire') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.coins === purse - 35, 'hiring adds a rifleman');
-  check(price(hire) === 50, 'the next hire costs more');
+  check(takeItem('hire-rifle') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.coins === purse - 35, 'hiring adds a rifleman');
+  check(price(hire) === 50 && price(baz) === 70, 'the next hire costs more, whatever the role');
+  check(takeItem('hire-rifle') && takeItem('hire-bazooka') && S.recruits.map(function (r) { return r.type; }).join() === 'rifle,rifle,bazooka', 'roles can repeat in one visit');
+  check(takeItem('hire-medic') && !eligible(ITEMS.find(function (it) { return it.id === 'hire-medic'; })), 'one medic at a time');
+  check(!takeItem('hire-sniper') && freeSlot(0) < 0, 'no hiring when the squad is full');
+  check(/Squad full/.test(document.getElementById('hireNote').textContent), 'the shop says the squad is full');
+  check(document.querySelectorAll('#loadout .kit-item').length >= 1, 'the shop shows the kit as icons');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
-  S.mods.slots = 1; check(!eligible(hire), 'no hiring when the squad is full');
 
   // Dog tags fly from the kill to the counter.
   newGame(); var before = S.coins; award(10, 120, 400, 'test', INK, true);
@@ -81,7 +85,7 @@
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 
   // New supplies have icons too.
-  ['trench', 'helmet', 'hire'].forEach(function (id) { check(ICONS[id], 'icon for ' + id); });
+  ['trench', 'helmet', 'hire-rifle', 'hire-engineer', 'hire-bazooka', 'hire-sniper', 'hire-medic'].forEach(function (id) { check(ICONS[id], 'icon for ' + id); });
 
   reset(); render();
 })();
