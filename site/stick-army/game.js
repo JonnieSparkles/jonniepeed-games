@@ -1866,6 +1866,7 @@
       active: S.mode === 'play' && !document.hidden,
       planes: S.planes.filter(function (p) { return p.state === 'fly' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
       wave: S.waveState === 'active',
+      number: S.wave,
       wallLow: S.wallHP < S.mods.maxHP * 0.3
     };
   }

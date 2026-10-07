@@ -39,5 +39,10 @@
   check(decals.length === 1 && Math.abs(decals[0].a - 0.45 * 0.45) < 1e-9, 'the shop wipes the page between waves');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 
+  // The march plays through the ambience bus at every tier without errors, and stops between waves.
+  sound.init();
+  [1, 5, 12].forEach(function (n) { sound.ambience({ active: true, planes: [{ x: 200, dir: 1, kind: 'zeppelin' }], wave: true, number: n, wallLow: n === 12 }); });
+  sound.ambience({ active: false, planes: [], wave: false, number: 12, wallLow: true });
+
   reset(); render();
 })();
