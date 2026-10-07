@@ -2,9 +2,17 @@
 
 A Paratrooper-style turret game drawn on lined notebook paper. Planes drop stick-figure troopers. Shoot the trooper and he dies; pop his chute over a trampoline and he bounces into your squad, where he fights for you.
 
-Status: playable prototype at `site/stick-army/index.html` (one file, no build step). It isn't on the studio shelf yet. This spec records the owner's playtest feedback and the decisions made, then lays out the work in stages. Do the stages in order and playtest after each one.
+Status: stages 0–4 implemented on `stick-army`, with the owner's added pizza-delivery shop homage. The static game now uses `site/stick-army/index.html` and `game.js`. See [01: Stick Army](../docs/guides/01-stick-army.md) for current behavior, tuning and validation commands. The studio shelf listing remains pending owner approval; online scores and the longer-form ideas below remain later work.
 
-## What exists today
+Implementation notes:
+
+- The shop waits for ground enemies and hostile shots as well as airborne threats. Combat freezes during shopping and pizza delivery.
+- A sniper with no surviving crew to target eventually retreats without a reward, avoiding an unwinnable wave.
+- Pizza costs 25 coins, restores 25 wall health and 1 health per surviving recruit at the courier's handoff, and is offered alongside rotating premium equipment.
+- Repeatable repairs and a coin-stash freebie keep two free choices available after other upgrades hit their stack caps.
+- Browser checks cover each stage, plus full run flow and the shop on desktop, portrait, short landscape and a small phone. Owner playtesting is still the final call on feel and featuring.
+
+## Prototype before this spec
 
 - Turret in a bunker at bottom centre. Aim with mouse, touch or arrow keys; hold or press space to fire.
 - Planes fly across and drop troopers (rifle, bazooka, or engineer with a yellow hard hat).
@@ -22,6 +30,7 @@ Status: playable prototype at `site/stick-army/index.html` (one file, no build s
 - Needs more blood.
 - Bombers should actually bomb.
 - Wants progression and unlocks: weapons and add-ons.
+- Added during implementation: a pizza delivery shop item as a homage to the original inspiration, with health or morale benefits.
 - The captured crew was great, but too strong: "I almost maxed out and didn't need to do anything."
 
 ## Decisions
@@ -87,7 +96,7 @@ Status: playable prototype at `site/stick-army/index.html` (one file, no build s
 - Notebook "pages" as levels: lined, graph paper, a margin full of old doodles.
 - Online scores through the leaderboard guide (`docs/guides/00-leaderboards.md`).
 
-## Code map (`site/stick-army/index.html`)
+## Code map (`site/stick-army/game.js`; menu markup in `index.html`)
 
 | Area | Where |
 | --- | --- |
