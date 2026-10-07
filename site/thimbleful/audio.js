@@ -94,6 +94,19 @@ window.ThimbleSound = (function () {
       noise(t, 0.08, 0.4, 900, 300, 'lowpass', sfxBus);
       tone(hz(67), t + 0.05, 0.12, 'sine', 0.5, sfxBus, hz(74));
     },
+    earn() {
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.05;
+      [72, 79, 84, 88, 91].forEach((m, i) => tone(hz(m), t + i * 0.07, 0.22, 'triangle', 0.4, sfxBus));
+      tone(hz(96), t + 0.36, 0.45, 'sine', 0.3, sfxBus);
+    },
+    gold() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      combo++;
+      [84, 88, 91, 96, 100].forEach((m, i) => tone(hz(m), t + i * 0.045, 0.14, 'square', 0.32, sfxBus));
+      tone(hz(108), t + 0.24, 0.3, 'sine', 0.35, sfxBus);
+    },
     milestone() {
       if (!ctx) return;
       const t = ctx.currentTime + 0.12;

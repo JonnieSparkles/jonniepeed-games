@@ -25,6 +25,15 @@ const plant = { planted: false, size: 0 }; // the sunflower grown in the big pot
 let facing = 1, hop = 0, wander = { next: 3, to: null };
 const keys = { l: false, r: false }, can = { x: CAN_AWAY, tx: 60, want: CAN_AWAY };
 let drops = [], parts = [], wet = [], intro = null, seedFall = null;
+// golden drops: worth GOLD_POINTS, fall faster, and missing one costs nothing (it just sparkles away)
+const GOLD_POINTS = 3, GOLD_AFTER = 8, GOLD_CHANCE = 0.11;
+let nextGold = false, popups = [];
+// earn-back: EARN_STREAK catches in a row without a spill wins a lost chance back, at most once per EARN_COOLDOWN seconds
+const EARN_STREAK = 15, EARN_COOLDOWN = 60;
+let streak = 0, lastEarn = -999, regained = -1;
+// dusk: the sky slowly turns to night over a run (0 = sunset, 1 = night)
+const DUSK_SECONDS = 150;
+let dusk = 0, duskTarget = 0;
 
 const sky = [[5, '#46569a'], [12, '#6767ab'], [18, '#9676b2'], [24, '#cf8ca6'], [30, '#eea78b'], [36, '#f7c88c']];
 const far = [[9, 8, 6], [17, 6, 9], [23, 10, 5], [33, 7, 8], [40, 9, 4], [49, 6, 10], [55, 11, 6], [66, 8, 7], [74, 6, 9], [80, 7, 5]];
@@ -139,7 +148,8 @@ function drawLeaderboard(scores, highlight = null, all = false) {
 // ---------- UI ----------
 function hud() {
   scoreEl.textContent = score; bestEl.textContent = best; pips.innerHTML = '';
-  for (let i = 0; i < MAXSPILL; i++) { const p = document.createElement('i'); if (i < spills) p.className = 'gone'; pips.appendChild(p); }
+  for (let i = 0; i < MAXSPILL; i++) { const p = document.createElement('i'); if (i < spills) p.className = 'gone'; else if (i === regained) p.className = 'back'; pips.appendChild(p); }
+  regained = -1;
 }
 function showCard(title, text, goLabel) {
   ovTitle.textContent = title; ovText.textContent = text; go.textContent = goLabel; syncIntroBtn();
@@ -150,7 +160,8 @@ function start(withIntro) {
   resetLeaderboard();
   if (withIntro === true) introSeen = false;
   ThimbleSound.start();
-  score = 0; spills = 0; el = 0; target = null; drops = []; parts = []; wet = []; flash = 0; hud();
+  score = 0; spills = 0; el = 0; target = null; drops = []; parts = []; wet = []; flash = 0; nextGold = false;
+  streak = 0; lastEarn = -999; duskTarget = 0; hud();
   overlay.hidden = true; main.classList.remove('watching');
   if (!introSeen) {
     // first play: walk to the pot, plant the seed, the can slides in, thimble goes up
@@ -193,8 +204,8 @@ function leaveWatch() {
   hint.textContent = 'Drag anywhere on the scene to move. On a keyboard, use the arrow keys, M to mute and F for full screen.';
   state = 'title';
   showCard('Catch the drips', plant.planted
-    ? 'Plant a new seed and catch the drips to grow it. Five spills ends the game.'
-    : 'Plant the seed, then catch the drips in your thimble to make it grow. Five spills ends the game.', 'Start');
+    ? 'Plant a new seed and catch the drips to grow it. Gold drops are worth 3, and 15 in a row wins back a spill. Five spills ends the game.'
+    : 'Plant the seed, then catch the drips in your thimble to make it grow. Gold drops are worth 3, and 15 in a row wins back a spill. Five spills ends the game.', 'Start');
   if (location.hash === '#watch') history.replaceState(null, '', location.pathname);
 }
 
@@ -302,6 +313,7 @@ function idle(dt) {
 
 let shownState = '';
 function update(dt) {
+  dusk += (duskTarget - dusk) * Math.min(1, dt * (duskTarget < dusk ? 1.2 : 0.6));
   if (shownState !== state) { shownState = state; gameEl.classList.toggle('playing', state === 'play'); }
   time += dt; flash = Math.max(0, flash - dt); moved = false;
   for (const p of parts) { p.vy += 140 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
@@ -311,7 +323,7 @@ function update(dt) {
   hop = Math.max(0, hop - dt);
   if (state === 'intro') { moveCan(dt, 0); updateIntro(dt); return; }
   if (state !== 'play') { moveCan(dt, 14); if (state === 'title' || state === 'watch') idle(dt); return; }
-  el += dt; ThimbleSound.intensity(el);
+  el += dt; ThimbleSound.intensity(el); duskTarget = Math.min(1, el / DUSK_SECONDS);
   const interval = Math.max(0.48, 1.45 - el * 0.018), fall = Math.min(56, 20 + el * 0.55);
   moveCan(dt, 16 + el * 0.45);
   const before = ex, sp = 72;
@@ -321,40 +333,81 @@ function update(dt) {
   ex = Math.max(7, Math.min(89, ex));
   moved = Math.abs(ex - before) > 0.05; if (moved) { walk += dt; facing = ex > before ? 1 : -1; }
   dropT -= dt;
-  if (dropT <= 0 && can.x > 6) { drops.push({ x: Math.round(can.x) - 4, y: 9, vy: fall }); dropT = interval * (0.75 + Math.random() * 0.5); }
+  if (dropT <= 0 && can.x > 6) {
+    drops.push({ x: Math.round(can.x) - 4, y: 9, vy: nextGold ? fall * 1.25 : fall, gold: nextGold });
+    dropT = interval * (0.75 + Math.random() * 0.5);
+    // decide the next drop now, so the spout can glint gold before it falls
+    nextGold = score >= GOLD_AFTER && !drops.some(d => d.gold) && Math.random() < GOLD_CHANCE;
+  }
   const mid = Math.round(ex);
   for (const d of drops) {
     const py = d.y; d.y += d.vy * dt;
     if (py < 38 && d.y >= 38 && Math.abs(d.x - mid) <= CATCH) {
-      d.done = true; score++; plant.size = score; flash = 0.3; hop = 0.12; burst(d.x, 37, 4, 30, 20); hud();
-      ThimbleSound.catch();
-      if (score === 14 || score === 20 || score === 26) { const f = flowerPos(); burst(f.x, f.y, 10, 40, 22, '#ffd84a'); ThimbleSound.milestone(); }
-      else if (score % 10 === 0) ThimbleSound.milestone();
+      const before = score;
+      d.done = true; score += d.gold ? GOLD_POINTS : 1; plant.size = score; flash = 0.3; hop = d.gold ? 0.2 : 0.12; hud();
+      if (d.gold) { burst(d.x, 37, 12, 50, 28, '#ffd84a'); burst(d.x, 37, 4, 30, 20, '#ffffff'); popups.push({ x: d.x, y: 33, t: 0.9 }); ThimbleSound.gold(); }
+      else { burst(d.x, 37, 4, 30, 20); ThimbleSound.catch(); }
+      streak++;
+      if (streak % EARN_STREAK === 0 && spills > 0 && el - lastEarn >= EARN_COOLDOWN) {
+        spills--; lastEarn = el; regained = spills; hud();
+        burst(Math.round(ex), 40, 16, 60, 30, '#7fd0ff'); burst(Math.round(ex), 40, 6, 40, 24, '#ffffff');
+        popups.push({ x: Math.round(ex), y: 30, t: 1.1, kind: 'heart' });
+        ThimbleSound.earn();
+      }
+      const crossed = n => before < n && score >= n;
+      if (crossed(14) || crossed(20) || crossed(26)) { const f = flowerPos(); burst(f.x, f.y, 10, 40, 22, '#ffd84a'); ThimbleSound.milestone(); }
+      else if (Math.floor(score / 10) > Math.floor(before / 10)) ThimbleSound.milestone();
+    } else if (d.gold && d.y >= 48) {
+      d.done = true; burst(d.x, 47, 6, 30, 10, '#ffd84a');
     } else if (d.y >= 48) {
-      d.done = true; spills++; wet.push({ x: d.x, t: 3 }); burst(d.x, 47, 5, 36, 14); hud();
+      d.done = true; spills++; streak = 0; wet.push({ x: d.x, t: 3 }); burst(d.x, 47, 5, 36, 14); hud();
       if (spills >= MAXSPILL) { end(); break; }
       ThimbleSound.spill();
     }
   }
   drops = drops.filter(d => !d.done);
+  for (const p of popups) { p.t -= dt; p.y -= 9 * dt; }
+  popups = popups.filter(p => p.t > 0);
 }
 
 // ---------- drawing ----------
 function pot(x, y, w, h) { R(x - 1, y + 1, w + 2, 3, '#c8643c'); R(x - 1, y + 1, w + 2, 1, '#e08a5c'); R(x, y, w, 1, '#3d2a1c'); R(x, y + 4, w, h - 4, '#b0532f'); R(x + w - 2, y + 4, 2, h - 4, '#8e4024'); R(x + 1, y + 5, 1, h - 6, '#c8643c'); }
 function leaf(x, y, dir) { R(dir > 0 ? x : x - 4, y, 4, 2, '#5fa646'); P(dir > 0 ? x + 4 : x - 5, y, '#5fa646'); R(dir > 0 ? x : x - 3, y + 1, 3, 1, '#4b8a37'); }
 
+const NIGHT = ['#151a3c', '#1d2048', '#272654', '#33305e', '#423a68', '#54456c'];
+const STARS = [[14, 7], [22, 12], [31, 6], [40, 10], [55, 8], [62, 14], [70, 6], [78, 11], [84, 7], [18, 18], [52, 17], [74, 19], [36, 15]];
+const MORE_LIT = [[12, 41], [27, 43], [43, 42], [58, 37], [61, 42], [72, 42], [83, 41], [37, 44]];
+function mix(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), A = p(a), B = p(b);
+  return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
 function scene() {
+  const n = dusk;
   R(0, 0, W, H, '#e7d6b8');
   for (let j = 2; j < H; j += 6) for (let i = (j % 12 ? 0 : 3); i < W; i += 6) P(i, j, '#dcc8a6');
   R(6, 3, 84, 45, '#8a5a3b'); R(8, 4, 80, 43, '#b57b52');
   g.save(); g.beginPath(); g.rect(9, 5, 78, 41); g.clip();
-  for (let s = 0; s < sky.length; s++) { const y0 = sky[s][0], y1 = s < sky.length - 1 ? sky[s + 1][0] : 46; R(9, y0, 78, y1 - y0, sky[s][1]); if (s > 0) for (let i = 9; i < 87; i += 2) P(i, y0 - 1, sky[s][1]); }
-  disc(64, 37, 6, '#ffe0a0'); disc(64, 37, 5, '#fff0c2');
-  for (const [x0, y, sp] of clouds) { const a = 9 + ((x0 + (calm ? 0 : time * sp)) % 100) - 14; R(a, y, 12, 2, '#fde6e3'); R(a + 3, y - 2, 6, 2, '#fde6e3'); R(a + 1, y + 2, 10, 1, '#e8b8c8'); }
-  for (const [bx, bw, bh] of far) R(bx, 46 - bh, bw, bh, '#6e5788');
-  for (const [lx, ly] of lit) P(lx, ly, (Math.floor(time * 0.7 + lx) % 5) ? '#ffd98a' : '#6e5788');
-  for (const [bx, bw, bh] of near) R(bx, 46 - bh, bw, bh, '#4f3f68');
-  for (let i = 0; i < (state === 'play' ? 5 : 10); i++) { const mx = 12 + ((i * 29 + time * 1.2 * (1 + i % 3)) % 72), my = 8 + ((i * 17) % 30) + Math.sin(time * 0.8 + i) * 2; P(mx, my, 'rgba(255,246,216,0.75)'); }
+  for (let s = 0; s < sky.length; s++) { const c = mix(sky[s][1], NIGHT[s], n), y0 = sky[s][0], y1 = s < sky.length - 1 ? sky[s + 1][0] : 46; R(9, y0, 78, y1 - y0, c); if (s > 0) for (let i = 9; i < 87; i += 2) P(i, y0 - 1, c); }
+  // stars come out, then the moon
+  if (n > 0.3) {
+    const a = Math.min(1, (n - 0.3) / 0.4);
+    for (const [sx, sy] of STARS) { g.globalAlpha = a * ((Math.floor(time * 1.3 + sx) % 7) ? 0.9 : 0.35); P(sx, sy, '#fff6d8'); }
+    g.globalAlpha = 1;
+  }
+  // the sun sinks behind the buildings and warms up as it goes
+  const sunY = 37 + Math.round(n * 12);
+  disc(64, sunY, 6, mix('#ffe0a0', '#ff9a5a', n)); disc(64, sunY, 5, mix('#fff0c2', '#ffc07a', n));
+  const cloudA = mix('#fde6e3', '#6a6290', n), cloudB = mix('#e8b8c8', '#4a4572', n);
+  for (const [x0, y, sp] of clouds) { const a = 9 + ((x0 + (calm ? 0 : time * sp)) % 100) - 14; R(a, y, 12, 2, cloudA); R(a + 3, y - 2, 6, 2, cloudA); R(a + 1, y + 2, 10, 1, cloudB); }
+  // the moon sits in front of the drifting clouds
+  if (n > 0.65) { g.globalAlpha = Math.min(1, (n - 0.65) / 0.25); disc(80, 11, 3, '#f4f0dc'); P(79, 10, '#ffffff'); P(81, 12, '#d8d2b8'); g.globalAlpha = 1; }
+  const farC = mix('#6e5788', '#2e2850', n), nearC = mix('#4f3f68', '#1f1a38', n);
+  for (const [bx, bw, bh] of far) R(bx, 46 - bh, bw, bh, farC);
+  for (const [lx, ly] of lit) P(lx, ly, (Math.floor(time * 0.7 + lx) % 5) ? '#ffd98a' : farC);
+  // more windows light up as it gets dark
+  MORE_LIT.forEach(([lx, ly], i) => { if (n > 0.25 + i * 0.08) P(lx, ly, (Math.floor(time * 0.5 + lx * 3) % 9) ? '#ffd98a' : farC); });
+  for (const [bx, bw, bh] of near) R(bx, 46 - bh, bw, bh, nearC);
+  for (let i = 0; i < (state === 'play' ? 5 : 10) * (1 - n * 0.7); i++) { const mx = 12 + ((i * 29 + time * 1.2 * (1 + i % 3)) % 72), my = 8 + ((i * 17) % 30) + Math.sin(time * 0.8 + i) * 2; P(mx, my, 'rgba(255,246,216,0.75)'); }
   g.restore();
   R(47, 5, 2, 41, '#b57b52'); R(49, 5, 1, 41, '#8a5a3b'); R(9, 24, 78, 2, '#b57b52'); R(9, 26, 78, 1, '#8a5a3b');
   R(4, 1, 88, 1, '#c9a24a'); R(3, 0, 2, 3, '#a5832f'); R(91, 0, 2, 3, '#a5832f');
@@ -386,9 +439,18 @@ function plants() {
       if (s < 4) { P(SUN_X - 1 + off(top), top, '#6cbf5f'); P(SUN_X + 2 + off(top), top, '#6cbf5f'); }
       for (let k = 5, side = -1; SUN_BASE - k > top + 3; k += 5, side = -side) leaf(side < 0 ? SUN_X - 1 + off(SUN_BASE - k) : SUN_X + 2 + off(SUN_BASE - k), SUN_BASE - k, side);
       const fx = SUN_X + off(top);
+      // past 26 it keeps going: side blooms on branches, then visitors
+      const branch = (y, len, r) => {
+        const bx = SUN_X + 2 + off(y);
+        for (let k = 0; k < len; k++) P(bx + k, y - Math.floor(k / 2), '#4f8f3a');
+        flower(bx + len + r - 1, y - Math.floor(len / 2) - r, r);
+      };
+      if (s >= 35) branch(SUN_BASE - 7, 4, s >= 50 ? 3 : 2);
+      if (s >= 65) branch(SUN_BASE - 17, 3, s >= 80 ? 3 : 2);
       if (s >= 14) {
         const r = Math.min(4, 2 + Math.floor((s - 14) / 6));
         flower(fx, top - r, r);
+        if (s >= 45) visitors(fx, top - r, r, s);
         // the head nods now and then
         if (!calm && (time % 7) < 0.4) P(fx, top - r * 2 - 1, '#f5c32c');
       } else if (s >= 8) { disc(fx, top - 1, 1, '#5fa646'); if (s >= 11) P(fx, top - 2, '#f5c32c'); }
@@ -410,6 +472,20 @@ function plants() {
 }
 
 // a butterfly drifts around the window when nobody is playing
+// the butterfly comes to rest on a big enough sunflower, and bees turn up later
+function visitors(fx, fy, r, s) {
+  if (state === 'title' || state === 'intro') return;
+  if (state === 'play') {   // outside play the butterfly is already flying around the window
+    const up = !calm && Math.floor(time * 3) % 2 === 0, bx = fx + 1, by = fy - r - 1;
+    P(bx, by, '#3a3550');
+    if (up) { P(bx - 1, by - 1, '#f6a6c8'); P(bx + 1, by - 1, '#f6a6c8'); }
+    else { P(bx - 1, by, '#f6a6c8'); P(bx + 1, by, '#f6a6c8'); P(bx - 1, by + 1, '#ffd2e4'); P(bx + 1, by + 1, '#ffd2e4'); }
+  }
+  if (s >= 90) for (let k = 0; k < 2; k++) {
+    const a = time * (2.4 + k) + k * 3, x = Math.round(fx + Math.cos(a) * (r + 4)), y = Math.round(fy + Math.sin(a * 1.3) * (r + 2));
+    P(x, y, '#ffcc00'); P(x + 1, y, '#3a3550'); if (Math.floor(time * 12 + k) % 2) P(x, y - 1, '#ffffff');
+  }
+}
 function butterfly() {
   if (state === 'play' || state === 'intro') return;
   const t = time, x = Math.round(36 + 24 * Math.sin(t * 0.45) + 5 * Math.sin(t * 1.9)), y = Math.round(20 + 7 * Math.sin(t * 0.7) + 2 * Math.sin(t * 2.3));
@@ -429,7 +505,7 @@ function wateringCan() {
   R(cx + 1, 2, 5, 1, '#4f7f90'); P(cx + 1, 3, '#4f7f90'); P(cx + 5, 3, '#4f7f90');
   R(cx, 4, 7, 5, '#6f9fb0'); R(cx, 4, 7, 1, '#9cc6d4'); R(cx + 5, 5, 2, 4, '#557f8f');
   P(cx - 1, 7, '#6f9fb0'); P(cx - 2, 6, '#6f9fb0'); P(cx - 3, 6, '#6f9fb0'); R(cx - 4, 5, 1, 3, '#557f8f');
-  if (state === 'play' && dropT < 0.3) { P(cx - 4, 8, '#5cc0f5'); P(cx - 4, 9, '#2f8fd0'); }
+  if (state === 'play' && dropT < 0.3) { P(cx - 4, 8, nextGold ? '#ffe680' : '#5cc0f5'); P(cx - 4, 9, nextGold ? '#d99a12' : '#2f8fd0'); }
   g.restore();
 }
 
@@ -474,6 +550,32 @@ function ladybug() {
 // a 3x4 teardrop with a dark rim so it reads against the pale sky and the wall
 // a drop counts when any part of it touches the thimble rim (rim is 7 wide, drop is 3)
 const CATCH = 4.5;
+function goldDrop(x, y) {
+  P(x, y - 1, '#fff2b0');
+  R(x - 1, y, 3, 2, '#ffd23a'); P(x - 1, y, '#ffffff');
+  P(x - 1, y + 1, '#d99a12'); P(x + 1, y + 1, '#d99a12');
+  P(x, y + 2, '#a8700a');
+  // a twinkle that flickers around it
+  if (Math.floor(time * 10) % 3 === 0) { P(x - 2, y - 1, '#fff6c8'); P(x + 2, y + 2, '#fff6c8'); }
+  else if (Math.floor(time * 10) % 3 === 1) { P(x + 2, y - 1, '#fff6c8'); }
+}
+// "+3" in tiny pixel digits that floats up from the thimble
+function plusThree(x, y, a) {
+  g.globalAlpha = Math.min(1, a * 2);
+  const c = '#ffd23a', k = '#7a4f00', X = Math.round(x) - 3, Y = Math.round(y);
+  for (const [dx, dy] of [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [4, 0], [5, 0], [6, 0], [6, 1], [5, 2], [6, 2], [6, 3], [4, 4], [5, 4], [6, 4]]) { P(X + dx + 1, Y + dy + 1, k); }
+  for (const [dx, dy] of [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [4, 0], [5, 0], [6, 0], [6, 1], [5, 2], [6, 2], [6, 3], [4, 4], [5, 4], [6, 4]]) { P(X + dx, Y + dy, c); }
+  g.globalAlpha = 1;
+}
+// a little blue drop-heart that floats up when a chance comes back
+function heartPop(x, y, a) {
+  g.globalAlpha = Math.min(1, a * 2);
+  const X = Math.round(x) - 3, Y = Math.round(y), c = '#5cc0f5', k = '#1f6fa8';
+  for (const [dx, dy] of [[1, 0], [2, 0], [4, 0], [5, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [2, 3], [3, 3], [4, 3], [3, 4]]) { P(X + dx + 1, Y + dy + 1, k); }
+  for (const [dx, dy] of [[1, 0], [2, 0], [4, 0], [5, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [2, 3], [3, 3], [4, 3], [3, 4]]) { P(X + dx, Y + dy, c); }
+  P(X + 1, Y + 1, '#e8f8ff');
+  g.globalAlpha = 1;
+}
 function drop(x, y) {
   P(x, y - 1, '#bfe8ff');
   R(x - 1, y, 3, 2, '#5cc0f5'); P(x - 1, y, '#e8f8ff');
@@ -481,12 +583,32 @@ function drop(x, y) {
   P(x, y + 2, '#1f6fa8');
 }
 
+const DIGITS = {'0':['111','101','101','101','111'],'1':['010','110','010','010','111'],'2':['111','001','111','100','111'],'3':['111','001','111','001','111'],'4':['101','101','111','001','001'],'5':['111','100','111','001','111'],'6':['111','100','111','101','111'],'7':['111','001','010','010','010'],'8':['111','101','111','101','111'],'9':['111','101','111','001','111']};
+function digits(str, x, y, c, shadow) {
+  let cx = x;
+  for (const ch of str) { const rows = DIGITS[ch]; for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (rows[j][i] === '1') { if (shadow) P(cx + i + 1, y + j + 1, shadow); P(cx + i, y + j, c); } cx += 4; }
+}
+// a streak count on the wall under her, and a bar that fills toward the next chance back
+function streakMeter() {
+  if (state !== 'play' || streak < 5 && spills === 0) return;
+  const cx = Math.max(10, Math.min(86, Math.round(ex)));
+  if (streak >= 5) {
+    const str = String(streak), w = str.length * 4 - 1;
+    digits(str, cx - Math.floor(w / 2), 58, streak >= EARN_STREAK ? '#2f8fd0' : '#8a6a48', '#f5ead4');
+  }
+  if (spills > 0) {
+    const cooling = el - lastEarn < EARN_COOLDOWN, fill = streak % EARN_STREAK;
+    R(cx - 8, 65, 17, 3, '#cbb593'); R(cx - 7, 66, 15, 1, '#e9dcc2');
+    R(cx - 7, 66, fill, 1, cooling ? '#a99fb8' : '#5cc0f5');
+  }
+}
 function draw() {
   scene(); plants(); butterfly(); ladybug(); wateringCan();
-  for (const d of drops) drop(d.x, Math.round(d.y));
-  explorer();
+  for (const d of drops) (d.gold ? goldDrop : drop)(d.x, Math.round(d.y));
+  explorer(); streakMeter();
   if (seedFall) { R(seedFall.x, seedFall.y, 2, 2, '#3b2c22'); }
   for (const p of parts) P(p.x, p.y, p.c);
+  for (const p of popups) (p.kind === 'heart' ? heartPop : plusThree)(p.x, p.y, p.t);
 }
 
 let lastT = 0;
