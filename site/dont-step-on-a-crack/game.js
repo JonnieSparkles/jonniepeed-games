@@ -1,4 +1,4 @@
-// Don't Step on the Crack. A first-person walk home: hold a side of the screen to lift that foot, let go to step.
+// Don't Step on a Crack. A first-person walk home: hold a side of the screen to lift that foot, let go to step.
 // Every crack, line or pothole you land on breaks one of Mom's vertebrae, and the Mom Cam shows it.
 // World units are feet: a sidewalk slab is 5 by 5 and your shoe is 1 long. The canvas is drawn flat
 // and tilted back with a CSS 3D transform, so all the game logic stays in plain 2D.
@@ -29,7 +29,7 @@ function loadLeaderboard(score, meta) {
   const run = lbRun;
   if (!run || !window.Leaderboard) return;
   run.score = score; run.meta = meta;
-  Leaderboard.load('dont-step-on-the-crack', BOARD, score, meta).then(data => {
+  Leaderboard.load('dont-step-on-a-crack', BOARD, score, meta).then(data => {
     if (lbRun !== run || !(mode === 'over')) return;
     run.data = data;
     if (!afterEl.hidden) showLeaderboard();
@@ -52,7 +52,7 @@ function showLeaderboard() {
       if (!picker || run.busy) return;
       run.busy = true; picker.setBusy(true); message.textContent = 'Saving…';
       Leaderboard.saveInitials(name);
-      const result = await Leaderboard.submit({game:'dont-step-on-the-crack',board:BOARD,run_id:run.id,name,
+      const result = await Leaderboard.submit({game:'dont-step-on-a-crack',board:BOARD,run_id:run.id,name,
         score:run.score,input:run.input,meta:run.meta});
       if (lbRun !== run || !(mode === 'over')) return;
       run.busy = false;

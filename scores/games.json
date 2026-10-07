@@ -9,7 +9,7 @@
       }
     }
   },
-  "dont-step-on-the-crack": {
+  "dont-step-on-a-crack": {
     "boards": {
       "1": {
         "higherIsBetter": true,

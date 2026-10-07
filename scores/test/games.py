@@ -101,7 +101,7 @@ def suite(page, game, size, label):
 with sync_playwright() as p:
     browser=p.chromium.launch(**({'executable_path': os.environ['CHROMIUM']} if os.environ.get('CHROMIUM') else {}))
     for label,size in [('portrait',{'width':390,'height':844}),('landscape',{'width':844,'height':390}),('desktop',{'width':1280,'height':800})]:
-        for game in ['thimbleful','dont-step-on-the-crack']:
+        for game in ['thimbleful','dont-step-on-a-crack']:
             context=browser.new_context(viewport=size,reduced_motion='reduce')
             page=context.new_page(); suite(page,game,size,label); context.close()
     browser.close()
