@@ -73,7 +73,7 @@ with sync_playwright() as p:
         cdp.on('Tracing.tracingComplete', lambda event: completed.append(event))
         cdp.send('Tracing.start', {'categories':'devtools.timeline,cc,gpu,viz', 'transferMode':'ReturnAsStream'})
     page.wait_for_timeout(args.seconds*1000)
-    data=page.evaluate('armyTest("({raf:perfSample.raf,cpu:perfSample.cpu,max:perfSample.max,wave:S.wave,mode:S.mode,decals:decals.length})")')
+    data=page.evaluate('armyTest("({raf:perfSample.raf,cpu:perfSample.cpu,max:perfSample.max,wave:S.wave,mode:S.mode,decals:decals.length,scale:K})")')
     page.evaluate('armyTest("perfSample.enabled=false;")')
     if args.trace:
         cdp.send('Tracing.end')
@@ -90,7 +90,8 @@ with sync_playwright() as p:
             'frames':len(data['cpu']), 'raf':stats(data['raf']), 'loop_cpu':stats(data['cpu']),
             'fps':round(1000/(sum(data['raf'])/len(data['raf'])),1),
             'frames_over_25_ms_percent':round(100*sum(x>25 for x in data['raf'])/len(data['raf']),2),
-            'max_entities':data['max'], 'wave':data['wave'], 'retained_decals':data['decals']}
+            'max_entities':data['max'], 'wave':data['wave'], 'retained_decals':data['decals'],
+            'canvas_px_per_logical_px':round(data['scale'],3)}
     if args.output:
         args.output.parent.mkdir(parents=True,exist_ok=True); args.output.write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result,indent=2))

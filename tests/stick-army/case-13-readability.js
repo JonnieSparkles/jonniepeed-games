@@ -12,8 +12,8 @@
     finally { ctx.restore(); ctx.rotate = realRotate; }
     return { lean: turns.reduce(function (m, a) { return Math.max(m, a); }, 0) };
   }
-  var fit = figure(1), hurt = figure(0.5), bad = figure(0.2);
-  check(fit.lean === 0, 'a healthy figure stands straight');
+  var well = figure(1), hurt = figure(0.5), bad = figure(0.2);
+  check(well.lean === 0, 'a healthy figure stands straight');
   check(hurt.lean > 0 && bad.lean > hurt.lean, 'wounded figures slouch, badly hurt ones more');
 
   // The sentry stands on a tower beside the bunker and covers the bunker: bombs before troopers.
@@ -38,6 +38,26 @@
   openShop();
   check(decals.length === 1 && Math.abs(decals[0].a - 0.45 * 0.45) < 1e-9, 'the shop wipes the page between waves');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
+
+  // Canvas resolution follows the screen's pixel ratio and steps down only when frames run slow during play.
+  var realRatio = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
+  Object.defineProperty(window, 'devicePixelRatio', { value: 2, configurable: true });
+  try {
+    renderCap = 2; fit(); var sharp = cv.width;
+    newGame(); S.mode = 'play';
+    for (var f = 0; f < 120; f++) noteFrame(16);
+    check(renderCap === 2 && cv.width === sharp, 'smooth frames keep the sharp canvas');
+    for (f = 0; f < 60; f++) noteFrame(40);
+    check(renderCap === 1.5 && cv.width < sharp, 'slow frames step the resolution down');
+    for (f = 0; f < 120; f++) noteFrame(16);
+    check(renderCap === 1.5, 'and it never steps back up');
+    S.mode = 'shop'; for (f = 0; f < 120; f++) noteFrame(40);
+    check(renderCap === 1.5, 'only play counts');
+  } finally {
+    if (realRatio) Object.defineProperty(window, 'devicePixelRatio', realRatio); else delete window.devicePixelRatio;
+    renderCap = 2.5; fit();
+  }
+  S.mode = 'play';
 
   // The march plays through the ambience bus at every tier without errors, and stops between waves.
   sound.init();

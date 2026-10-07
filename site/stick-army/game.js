@@ -84,15 +84,25 @@
   var bg = document.createElement('canvas'), bgx = bg.getContext('2d');
   var dc = document.createElement('canvas'), dcx = dc.getContext('2d');
   var G = ctx, K = 1;
+  // Canvas resolution follows the screen's pixel ratio, up to 2 on touch screens and 2.5 elsewhere. If frames run
+  // slow during play, it steps down half a ratio at a time (never below 1, never back up), so weak phones stay smooth
+  // and capable ones stay sharp.
+  var renderCap = matchMedia('(pointer: coarse)').matches ? 2 : 2.5, frameWatch = { sum: 0, n: 0 };
+  function noteFrame(ms) {
+    if (S.mode !== 'play' || document.hidden || ms > 100 || Math.min(window.devicePixelRatio || 1, renderCap) <= 1) return;
+    frameWatch.sum += ms; frameWatch.n++;
+    if (frameWatch.sum < 2000) return;
+    var mean = frameWatch.sum / frameWatch.n;
+    frameWatch.sum = frameWatch.n = 0;
+    if (mean > 24) { renderCap = Math.max(1, Math.min(renderCap, window.devicePixelRatio || 1) - 0.5); fit(); }
+  }
 
   function fit() {
     var padding = getComputedStyle(wrap);
     var aw = Math.max(1, wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight));
     var ah = Math.max(1, wrap.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom));
     var s = Math.min(aw / W, ah / H);
-    // Phone canvases use CSS-pixel resolution: high DPR quadruples raster work.
-    // Desktop previews retain the sharper notebook artwork.
-    var dpr = matchMedia('(pointer: coarse)').matches ? 1 : Math.min(window.devicePixelRatio || 1, 2.5);
+    var dpr = Math.min(window.devicePixelRatio || 1, renderCap);
     frameEl.style.width = (W * s) + 'px';
     frameEl.style.height = (H * s) + 'px';
     stage.style.transform = 'scale(' + s + ')';
@@ -1901,6 +1911,7 @@
   }
   function loop(now) {
     var dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+    noteFrame(now - last);
     last = now;
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
