@@ -154,6 +154,8 @@ body {
 .kit-empty { font-size: 15px; color: var(--ink-soft); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 #shopReport { margin: 0; font-size: 17px; }
+#shopNews { margin: 2px 0 0; font-size: 17px; color: var(--ally); }
+.squad-line { margin: 4px 0 0; font-size: 18px; color: var(--ink-soft); }
 #continueBtn { flex-shrink: 0; white-space: nowrap; padding-inline: 16px; }
 .shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 @media (max-width: 380px) { .shop-card { padding: 16px; } .deal { padding: 5px 8px; } .deal strong { font-size: 18px; } }
@@ -181,6 +183,7 @@ body {
       <div class="shop-head"><p class="eyebrow" id="shopWave"></p><span id="shopCoins"></span></div>
       <h2 id="shopTitle">Field <span class="pen">supplies</span></h2>
       <p id="shopReport"></p>
+      <p id="shopNews" role="status" hidden></p>
       <p class="tag" id="shopHint" role="status"></p>
       <div class="shop-stock">
         <section aria-labelledby="supplyTitle"><h3 id="supplyTitle">Supplies</h3><p class="tag-note">Dog tags come from kills, planes and cleared waves.</p><div class="deal-list" id="supplyItems"></div></section>
@@ -246,6 +249,7 @@ body {
         <div class="card">
           <h2>Paused</h2>
           <div class="kit kit-named" id="pauseKit" aria-label="Your kit" hidden></div>
+          <p class="squad-line" id="pauseSquad" hidden></p>
           <div class="row">
             <button class="btn" id="resumeBtn" type="button">Resume</button>
             <button class="btn ghost" id="restartBtn" type="button">Restart</button>
@@ -269,6 +273,7 @@ body {
             <dt id="stTanksLabel" hidden>Tanks destroyed</dt><dd id="stTanks" hidden>0</dd>
             <dt>Best</dt><dd id="stBest">0</dd>
           </dl>
+          <p class="squad-line" id="overFallen" hidden></p>
           <button class="btn" id="againBtn" type="button">Play again</button>
           <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
@@ -278,8 +283,9 @@ body {
 </div>
 
 <script src="audio.js?v=1ef7524ba3"></script>
-<script src="icons.js?v=813bb89bed"></script>
+<script src="icons.js?v=5ed5f3c868"></script>
 <script src="units.js?v=51798a9ffa"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=bf985f28bf"></script>
+<script src="squad.js?v=b46952e2ec"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=26f5b2a412"></script>
 </body>
 </html>

@@ -123,6 +123,11 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); G.arc(20, 18, 2.6, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
       [[12, 30], [20, 34], [28, 38]].forEach(function (b) { G.beginPath(); G.ellipse(b[0], b[1], 2.4, 3.6, 0, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill(); });
     },
+    hospital: function (G) {
+      G.beginPath(); G.moveTo(4, 38); G.lineTo(22, 10); G.lineTo(40, 38); G.closePath(); G.fillStyle = PAPER; G.fill();
+      G.beginPath(); SP([4, 38, 22, 10, 40, 38], false, 0.4); L(2, 38, 42, 38, 0.3); L(22, 10, 18, 38, 0.2); L(22, 10, 26, 38, 0.2); ink(INK, 2.2); G.stroke();
+      G.fillStyle = RED; G.fillRect(19.5, 21, 5, 13); G.fillRect(15.5, 25, 13, 5);
+    },
     fighter: function (G) {
       // A small fast plane, nose left, guns blazing.
       G.beginPath(); SP([11, 21, 30, 21, 35, 14, 39, 14, 36, 21, 42, 21, 42, 24, 36, 24, 39, 31, 35, 31, 30, 24, 11, 24], true, 0.3);

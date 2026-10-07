@@ -220,11 +220,12 @@
     S = {
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
-      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, stacks: {} },
+      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, stacks: {} },
       coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null,
+      bed: null, fallen: [], usedNames: {}, news: [],
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
@@ -323,7 +324,7 @@
       var targets = [];
       for (var j = 0; j < c.bombCount; j++) targets.push(38 + j * 324 / (c.bombCount - 1));
       targets[Math.floor(targets.length / 2)] = BK.x;
-      var crew = S.recruits.filter(function (r) { return !r.dead; });
+      var crew = S.recruits.filter(standing);
       if (crew.length && targets.length > 3) targets[1] = crew[Math.floor(rnd() * crew.length)].x;
       p.bombRun = targets.map(function (target) {
         var floor = target > BK.x1 && target < BK.x2 ? BK.top - 8 : GROUND - 6;
@@ -362,12 +363,15 @@
 
   // Crew health: helmets raise the maximum, trenches cut every kind of damage.
   var TRENCH = [1, 0.6, 0.4];
-  function crewMax(r) { return ENEMIES[r.type].hp + S.mods.helmet; }
+  function crewMax(r) { return ENEMIES[r.type].hp + S.mods.helmet + (r.rank || 0) * RANK.HP; }
+  function standing(r) { return !r.dead && !r.down; }
+  // At zero health a recruit falls wounded (squad.js); any damage while down finishes him.
   function hurtRecruit(r, amount, cause) {
     if (r.dead) return;
+    if (r.down) { recruitDie(r, cause); return; }
     r.hp -= amount * TRENCH[Math.min(S.mods.trench, TRENCH.length - 1)];
     r.hurt = Math.max(r.hurt, 0.2);
-    if (r.hp <= 0) recruitDie(r, cause);
+    if (r.hp <= 0) knockDown(r, cause);
   }
   // Wall bookkeeping for the event log; the last source to hurt the wall is the game-over cause.
   function hurtWall(amount, source) { S.wallHP -= amount; S.lastHit = source; emit('wall_damage', { source: source, amount: amount }); }
@@ -412,6 +416,7 @@
         S.waveState = 'clear'; S.waveTimer = 2.0;
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave }); emit('coins', { amount: waveTags, reason: 'wave' });
+        S.news = []; serveWave(S.news); careAtWaveEnd(S.news);
         S.banner = { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
         S.hint = false;
         sound.play('wave');
@@ -442,6 +447,7 @@
     { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'supply', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
     { id: 'auto', name: 'Sentry tower', desc: 'A tower beside the bunker shoots down bombs and shells, then low chutes and landers.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
+    { id: 'hospital', name: 'Field hospital', desc: 'A tent with one bed. When a wave ends, your most decorated wounded soldier is carried in and back after a wave.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.hospital = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'A bomber carpets the field and hits tanks hard. Press B or the bomber button.', tier: 'supply', cost: 45, maxStacks: Infinity,
       available: function () { return callsHeld() < RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },
@@ -518,10 +524,11 @@
     makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz) { addText(t, x, y, c, sz); },
-    addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; } };
+    addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
+    crewMax: function (r) { return crewMax(r); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
-    BOMBER_PTS: { get: function () { return BOMBER_PTS; } } });
+    BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
   var UNITS = StickArmyUnits(world), ZEP = UNITS.ZEP, zeppelinHP = UNITS.zeppelinHP, spawnZeppelin = UNITS.spawnZeppelin,
     zeppelinOnScreen = UNITS.zeppelinOnScreen, planeHit = UNITS.planeHit, updateZeppelin = UNITS.updateZeppelin,
     hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar,
@@ -530,6 +537,10 @@
     RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
     STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
     FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter;
+  // Names, ranks, the wounded and the field hospital live in squad.js.
+  var SQUAD = StickArmySquad(world), RANK = SQUAD.RANK, RANKS = SQUAD.RANKS, rankName = SQUAD.rankName, serveWave = SQUAD.serveWave,
+    knockDown = SQUAD.knockDown, standUp = SQUAD.standUp, fallen = SQUAD.fallen, careAtWaveEnd = SQUAD.careAtWaveEnd, bedSlot = SQUAD.bedSlot,
+    chevrons = SQUAD.chevrons, drawTent = SQUAD.drawTent;
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
     G = g; boil = 0;
@@ -540,6 +551,7 @@
   function renderShop() {
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
     document.getElementById('shopCoins').textContent = S.coins + ' dog tags';
+    var news = document.getElementById('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
     document.getElementById('shopHint').textContent = (S.shop.gift && !S.shop.giftTaken ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
       (waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
@@ -590,7 +602,7 @@
       d.x = Math.min(200, d.x + dt * 145);
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; repairWall(25, 'pizza'); emit('pizza', { wave: S.wave });
-        S.recruits.forEach(function (r) { if (!r.dead) r.hp = Math.min(crewMax(r), r.hp + 1); });
+        S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(crewMax(r), r.hp + 1); if (r.down) standUp(r, 'pizza'); } });
         sound.play('pizza'); addText('pizza time!', 200, GROUND - 65, BLUE, 26);
       }
     } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
@@ -726,7 +738,7 @@
     for (var i = 0; i < order.length; i++) {
       var s = order[i];
       if (unlockedSlots().indexOf(s) < 0 || S.slotRes[s]) continue;
-      if (S.recruits.some(function (r) { return !r.dead && r.slot === s; })) continue;
+      if (S.recruits.some(function (r) { return !r.dead && r.slot === s; }) || bedSlot() === s) continue;
       return s;
     }
     return -1;
@@ -773,8 +785,8 @@
   }
   function recruitDie(r, cause) {
     if (r.dead) return;
-    r.dead = true;
-    emit('recruit_lost', { type: r.type, cause: cause || 'unknown' });
+    r.dead = true; fallen(r);
+    emit('recruit_lost', { type: r.type, cause: cause || 'unknown', rank: r.rank || 0 });
     addText('noo!', r.x, GROUND - 52, BLUE, 20);
     killFx({ x: r.x, y: GROUND - 33 }, 190, false, BLUE);
     addDecal({ kind: 'splat', x: r.x, y: GROUND - 1, r: 4, color: BLUE, a: 0.22, seed: r.id + 99 });
@@ -952,7 +964,7 @@
     var lvl = hp < 15 ? 3 : hp < 40 ? 2 : hp < 70 ? 1 : 0, exitAt = [0, 85, 55, 30];
     if (lvl > S.repairLevel) S.repairLevel = lvl;
     else if (lvl < S.repairLevel && hp >= exitAt[S.repairLevel]) S.repairLevel = lvl;
-    var live = S.recruits.filter(function (r) { return !r.dead; });
+    var live = S.recruits.filter(standing), wounded = S.recruits.filter(function (r) { return !r.dead && r.down; });
     var byNear = function (a, b) { return Math.abs(a.homeX - 200) - Math.abs(b.homeX - 200); };
     var eng = live.filter(function (r) { return r.type === 'engineer'; });
     var oth = live.filter(function (r) { return r.type !== 'engineer' && r.type !== 'medic'; }).sort(byNear);
@@ -966,6 +978,7 @@
       if (r.role === 'repair') { r.tx = side === 0 ? BK.x1 - 7 - stack[0] * 10 : BK.x2 + 7 + stack[1] * 10; stack[side]++; }
       else r.tx = r.homeX;
     });
+    wounded.forEach(function (r) { r.hurt = Math.max(0, r.hurt - dt); });
     live.forEach(function (r) {
       r.hurt = Math.max(0, r.hurt - dt);
       var d = r.tx - r.x;
@@ -973,7 +986,7 @@
       r.x = r.tx;
       if (r.role === 'repair') {
         if (S.wallHP < S.mods.maxHP && S.mode === 'play') {
-          repairWall((r.type === 'engineer' ? 6 : 3) * dt, 'crew');
+          repairWall((r.type === 'engineer' ? 6 : 3) * (1 + RANK.WORK * (r.rank || 0)) * dt, 'crew');
           r.sparkT -= dt;
           if (r.sparkT <= 0) {
             r.sparkT = 0.42;
@@ -984,15 +997,21 @@
         }
       } else if (r.role === 'heal') {
         r.cd -= dt;
-        var patient = live.filter(function (q) { return q !== r && q.hp < crewMax(q) && Math.abs(q.x - r.x) < 160; }).sort(function (a, b) { return a.hp - b.hp; })[0];
-        if (patient && r.cd <= 0) { patient.hp = Math.min(crewMax(patient), patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20); }
+        // The wounded come first, then whoever is lowest.
+        var near = function (q) { return q !== r && Math.abs(q.x - r.x) < 160; };
+        var patient = wounded.filter(near).sort(function (a, b) { return a.downAt - b.downAt; })[0] ||
+          live.filter(function (q) { return near(q) && q.hp < crewMax(q); }).sort(function (a, b) { return a.hp - b.hp; })[0];
+        if (patient && r.cd <= 0) {
+          patient.hp = Math.min(crewMax(patient), patient.hp + 0.45 * (1 + RANK.WORK * (r.rank || 0))); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20);
+          if (patient.down && patient.hp >= 1) standUp(patient, 'medic');
+        }
       } else if (r.role === 'shoot') {
         var tg = pickTarget(r);
         r.cd -= dt;
         if (tg) {
           var ap = aimPoint(r, tg), want = Math.atan2(ap.y - (GROUND - 23), ap.x - r.x);
           r.aim += angDiff(want, r.aim) * Math.min(1, dt * 10);
-          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown + between(RC, 0, 0.3); }
+          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) + between(RC, 0, 0.3); }
         } else r.cd = Math.max(r.cd, 0.2);
       }
     });
@@ -1041,7 +1060,7 @@
     });
   }
   function updateSniper(t, dt) {
-    var live = S.recruits.filter(function (r) { return !r.dead; }), aimX, aimY;
+    var live = S.recruits.filter(standing), aimX, aimY;
     if (live.length) {
       t.alone = 0;
       var target = live.sort(function (a, b) { return Math.abs(a.x - t.x) - Math.abs(b.x - t.x); })[0];
@@ -1081,7 +1100,7 @@
         return;
       }
       S.recruits.forEach(function (r) {
-        if (b.life <= 0 || r.dead || r.x < Math.min(x0, b.x) - 6 || r.x > Math.max(x0, b.x) + 6 || Math.abs(b.y - (GROUND - 22)) > 18) return;
+        if (b.life <= 0 || !standing(r) || r.x < Math.min(x0, b.x) - 6 || r.x > Math.max(x0, b.x) + 6 || Math.abs(b.y - (GROUND - 22)) > 18) return;
         b.life = 0; hurtRecruit(r, ENEMIES.sniper.damage, 'sniper'); r.hurt = 0.3;
       });
     });
@@ -1350,11 +1369,23 @@
     if (t.type === 'engineer') hat(x, y);
     else if (t.armor > 1) steelPot(x, y);
     if (t.type === 'sniper') { drawScope(x, y, t.state === 'ground' ? t.dir : 1);
-      if (t.state === 'ground' && t.shotCD < 0.8 && S.recruits.some(function (r) { return !r.dead; })) { G.save(); G.globalAlpha = 0.28; G.setLineDash([3, 5]); G.beginPath(); L(x + t.dir * 16, y + 11, x + t.dir * 160, y + 11); ink(RED, 1); G.stroke(); G.restore(); }
+      if (t.state === 'ground' && t.shotCD < 0.8 && S.recruits.some(standing)) { G.save(); G.globalAlpha = 0.28; G.setLineDash([3, 5]); G.beginPath(); L(x + t.dir * 16, y + 11, x + t.dir * 160, y + 11); ink(RED, 1); G.stroke(); G.restore(); }
     }
     G.restore();
   }
+  // A wounded recruit lies on the ground, away from the bunker, under a pulsing red cross.
+  function drawDowned(r) {
+    pen(r.id + 5000);
+    var side = r.homeX < 200 ? -1 : 1;
+    G.save(); G.globalAlpha = 0.8; G.translate(r.x, GROUND - 3); G.rotate(side * Math.PI / 2);
+    stick(0, -30, [-4, 21, 4, 21, -5, 30, 5, 30], r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE, 2.4);
+    G.restore();
+    G.save(); G.globalAlpha = 0.55 + 0.35 * Math.sin(S.t * 5);
+    G.beginPath(); L(r.x - 4, GROUND - 22, r.x + 4, GROUND - 22); L(r.x, GROUND - 26, r.x, GROUND - 18); ink(RED, 2.6); G.stroke();
+    G.restore();
+  }
   function drawRecruit(r) {
+    if (r.down) { drawDowned(r); return; }
     pen(r.id + 5000);
     var x = r.x, y = GROUND - 33, moving = Math.abs(r.x - r.tx) > 0.8, side = r.homeX < 200 ? 1 : -1;
     var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE;
@@ -1379,6 +1410,7 @@
     else if (S.mods.helmet > 0 && r.type !== 'medic') helmet(x, y);
     if (r.type === 'sniper') drawScope(x, y, Math.cos(r.aim) < 0 ? -1 : 1);
     if (r.type === 'medic') { G.beginPath(); L(x-5,y-7,x+5,y-7); L(x,y-12,x,y-2); ink(BLUE,3); G.stroke(); }
+    chevrons(x - 7, y + 9, r.rank || 0);
     // Crew health makes the cost of leaving a sniper alive visible.
     G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(x-6, GROUND+4, 12, 2);
     G.fillStyle = r.hp < 1 ? RED : BLUE; G.fillRect(x-6, GROUND+4, 12 * Math.max(0,r.hp) / crewMax(r), 2);
@@ -1602,10 +1634,16 @@
   // The squad row doubles as a health readout: a bar under each figure, wounded crew slouch with a bandage, and
   // badly hurt crew droop further, fade and get a red cross. Figures are drawn near field size so roles read.
   var MINI = 0.95;
-  function miniFig(x, y, r, i) {
+  function miniFig(x, y, r, i, inBed) {
     pen(7000 + i);
     G.save(); G.translate(x, y); G.scale(MINI, MINI);
-    if (r) {
+    if (r && (r.down || inBed)) {
+      // Wounded: flat on the ground with a red cross. In the tent: resting on a cot, bandaged.
+      G.save(); G.globalAlpha = 0.6; G.translate(0, 33); G.rotate(-Math.PI / 2 + 0.12); G.translate(0, -33);
+      stick(0, 12, [-3, 21, 3, 21, -5, 33, 5, 33], BLUE, 2.4); G.restore();
+      if (inBed) { G.beginPath(); L(-14, 38, 14, 38, 0.2); L(-13, 38, -13, 42, 0.1); L(13, 38, 13, 42, 0.1); ink(INK, 2); G.stroke(); }
+      G.beginPath(); L(-3, 20, 3, 20); L(0, 17, 0, 23); ink(RED, 2.4); G.stroke();
+    } else if (r) {
       var h = clamp(r.hp / crewMax(r), 0, 1), state = h < 0.4 ? 2 : h < 0.7 ? 1 : 0;
       var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE;
       G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(-8, 37, 16, 3);
@@ -1621,6 +1659,7 @@
       if (r.type === 'engineer') hat(0, 0);
       if (r.type === 'medic') { G.beginPath(); L(-4, -9, 4, -9); L(0, -13, 0, -5); ink(BLUE, 2.6); G.stroke(); }
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
+      chevrons(-8, 9, r.rank || 0);
       G.restore();
       if (state === 2) { G.beginPath(); L(9, 2, 15, 2); L(12, -1, 12, 5); ink(RED, 2.6); G.stroke(); }
     } else {
@@ -1657,7 +1696,8 @@
     var y2 = 690;
     G.fillStyle = INK; G.font = '21px ' + HAND; G.fillText('squad', 58, y2 + 6);
     var live = S.recruits.filter(function (r) { return !r.dead; }).sort(function (a, b) { return a.slot - b.slot; });
-    for (var i = 0; i < S.mods.slots; i++) miniFig(124 + i * 24, y2 - 20, live[i], i);
+    if (S.bed) live.push(S.bed.r);
+    for (var i = 0; i < S.mods.slots; i++) miniFig(124 + i * 24, y2 - 20, live[i], i, !!(S.bed && live[i] === S.bed.r));
     G.fillStyle = INK2; G.font = '17px ' + HAND; G.textAlign = 'left'; G.fillText(live.length + "/" + S.mods.slots, bx + bw + 10, y2 + 6);
     G.restore();
   }
@@ -1691,7 +1731,7 @@
     S.tanks.forEach(drawTank);
     drawStrike();
     drawFighter();
-    if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawSentry(); drawBunker(); drawDefenses(); }
+    if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawSentry(); drawBunker(); drawDefenses(); drawTent(); }
     S.recruits.forEach(function (r) { if (!r.dead) drawRecruit(r); });
     drawBullets();
     drawCourier();
@@ -1731,11 +1771,22 @@
     titleScreen.hidden = true; pauseScreen.hidden = true; overScreen.hidden = true; shopScreen.hidden = true; pauseBtn.hidden = false;
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
+  // The named squad for the pause card: veterans by rank with their waves, a rookie count, and who's in the tent.
+  function squadLine() {
+    var vets = S.recruits.filter(function (r) { return !r.dead && r.name; }).sort(function (a, b) { return b.rank - a.rank || b.waves - a.waves; });
+    var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return rankName(r) + ' (' + r.waves + ')'; });
+    if (rookies) parts.push(rookies + (rookies > 1 ? ' rookies' : ' rookie'));
+    var line = parts.length ? 'Squad: ' + parts.join(', ') + '.' : '';
+    if (S.bed) line += (line ? ' ' : '') + 'In the tent: ' + (S.bed.r.name ? rankName(S.bed.r) : 'a rookie') + '.';
+    return line;
+  }
   function togglePause() {
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
       var kit = document.getElementById('pauseKit');
       kit.hidden = !renderKit(kit, true);
+      var squad = document.getElementById('pauseSquad'), line = squadLine();
+      squad.textContent = line; squad.hidden = !line;
       pauseScreen.hidden = false;
       document.getElementById('resumeBtn').focus({ preventScroll: true });
     } else if (S.mode === 'paused') {
@@ -1786,6 +1837,9 @@
     document.getElementById('stTanks').textContent = String(S.stats.tanks);
     document.getElementById('stTanks').hidden = document.getElementById('stTanksLabel').hidden = !S.stats.tanks;
     var cause = OVER_CAUSE[S.lastHit];
+    var lost = document.getElementById('overFallen');
+    lost.textContent = S.fallen.length ? 'Fallen: ' + S.fallen.map(function (f) { return f.name + ' (' + f.waves + ' waves)'; }).join(', ') + '.' : '';
+    lost.hidden = !S.fallen.length;
     document.getElementById('overCause').textContent = cause || '';
     document.getElementById('overCause').hidden = !cause;
     document.getElementById('stBest').textContent = Number(best).toLocaleString('en-US');
