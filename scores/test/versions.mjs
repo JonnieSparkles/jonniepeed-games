@@ -31,7 +31,9 @@ try {
   await writeFile(join(fixture, 'blocklist.json'), JSON.stringify(['TST']));
   const games = JSON.parse(await readFile(new URL('games.json', root)));
   const oldRules = structuredClone(games.thimbleful.boards['1']);
-  games.thimbleful.boards['2'] = {
+  // a synthetic board one past the newest real one, with deliberately different rules
+  const NEXT = Math.max(...Object.keys(games.thimbleful.boards).map(Number)) + 1;
+  games.thimbleful.boards[String(NEXT)] = {
     higherIsBetter: false, maxScore: 100,
     meta: { time_ms: { min: 0, max: 100 }, extra: { min: 0, max: 10 } },
     tieBreak: [['time_ms', 'desc']]
@@ -80,25 +82,25 @@ try {
   assert.equal(refused.status, 400); assert.equal(refused.data.error, 'name_not_allowed');
   console.log('PASS blocklist validation with an isolated test-only name');
   assert.equal((await submit(1, 101, { time_ms: 999 })).status, 200);
-  assert.equal((await submit(2, 101)).data.error, 'bad_score');
-  assert.equal((await submit(2, 50, { time_ms: 999 })).data.error, 'bad_meta');
+  assert.equal((await submit(NEXT, 101)).data.error, 'bad_score');
+  assert.equal((await submit(NEXT, 50, { time_ms: 999 })).data.error, 'bad_meta');
   assert.equal((await submit(1, 50, { extra: 1 })).data.error, 'bad_meta');
-  assert.equal((await submit(2, 50, { extra: 1 })).status, 200);
-  console.log('PASS board 1 retains its score and meta validation after board 2 is added');
+  assert.equal((await submit(NEXT, 50, { extra: 1 })).status, 200);
+  console.log(`PASS board 1 retains its score and meta validation after board ${NEXT} is added`);
   await submit(1, 40); await submit(1, 50);
   assert.deepEqual((await top(1)).scores.map(row => row.score), [101, 50, 40]);
   assert.equal((await top(1, 102)).placement, 1);
   assert.equal((await top(1, 0)).placement, 4);
   console.log('PASS historical board keeps descending order and candidate placement');
-  for (let i = 1; i <= 50; i++) assert.equal((await submit(2, 40, { time_ms: i })).status, 200);
-  const rows = (await top(2)).scores;
+  for (let i = 1; i <= 50; i++) assert.equal((await submit(NEXT, 40, { time_ms: i })).status, 200);
+  const rows = (await top(NEXT)).scores;
   assert.equal(rows.length, 50); assert.equal(rows[0].meta.time_ms, 50); assert.equal(rows[49].meta.time_ms, 1);
-  assert.equal((await top(2, 39)).placement, 1);
-  assert.equal((await top(2, 40, { time_ms: 51 })).placement, 1);
-  assert.equal((await top(2, 40, { time_ms: 1 })).placement, null);
-  assert.equal((await top(2, 40)).placement, null);
-  assert.equal((await submit(2, 40, { time_ms: 51 })).data.rank, 1);
-  console.log('PASS board 2 uses ascending scores, descending meta and matching SQL/JS boundary rules');
+  assert.equal((await top(NEXT, 39)).placement, 1);
+  assert.equal((await top(NEXT, 40, { time_ms: 51 })).placement, 1);
+  assert.equal((await top(NEXT, 40, { time_ms: 1 })).placement, null);
+  assert.equal((await top(NEXT, 40)).placement, null);
+  assert.equal((await submit(NEXT, 40, { time_ms: 51 })).data.rank, 1);
+  console.log(`PASS board ${NEXT} uses ascending scores, descending meta and matching SQL/JS boundary rules`);
   for (const board of [0, -987654321]) {
     assert.equal((await submit(board, 101)).data.error, 'bad_score');
     assert.equal((await submit(board, 50, { extra: 1 })).status, 200);

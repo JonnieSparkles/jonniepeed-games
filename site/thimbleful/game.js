@@ -1,7 +1,7 @@
 // Thimbleful: a tiny explorer catches drips from a leaking watering can to grow a sunflower.
 // States: title (live windowsill scene) -> intro (first play only: plant the seed in the big pot) -> play -> over.
 // "Just watch" puts the scene in a passive mode with no game on top.
-const BOARD = 1;
+const BOARD = 2;   // 2: wider catch to match the bigger drops
 const c = document.getElementById('c'), g = c.getContext('2d');
 const W = 96, H = 72, MAXSPILL = 5, SUN_X = 10, SUN_BASE = 36, PLANT_STAND = 21, CAN_HOME = 52, CAN_AWAY = -14;
 const R = (a, b, w, h, k) => { g.fillStyle = k; g.fillRect(Math.round(a), Math.round(b), w, h); };
@@ -325,7 +325,7 @@ function update(dt) {
   const mid = Math.round(ex);
   for (const d of drops) {
     const py = d.y; d.y += d.vy * dt;
-    if (py < 38 && d.y >= 38 && Math.abs(d.x - mid) <= 3.5) {
+    if (py < 38 && d.y >= 38 && Math.abs(d.x - mid) <= CATCH) {
       d.done = true; score++; plant.size = score; flash = 0.3; hop = 0.12; burst(d.x, 37, 4, 30, 20); hud();
       ThimbleSound.catch();
       if (score === 14 || score === 20 || score === 26) { const f = flowerPos(); burst(f.x, f.y, 10, 40, 22, '#ffd84a'); ThimbleSound.milestone(); }
@@ -429,7 +429,7 @@ function wateringCan() {
   R(cx + 1, 2, 5, 1, '#4f7f90'); P(cx + 1, 3, '#4f7f90'); P(cx + 5, 3, '#4f7f90');
   R(cx, 4, 7, 5, '#6f9fb0'); R(cx, 4, 7, 1, '#9cc6d4'); R(cx + 5, 5, 2, 4, '#557f8f');
   P(cx - 1, 7, '#6f9fb0'); P(cx - 2, 6, '#6f9fb0'); P(cx - 3, 6, '#6f9fb0'); R(cx - 4, 5, 1, 3, '#557f8f');
-  if (state === 'play' && dropT < 0.3) P(cx - 4, 8, '#bfe8ff');
+  if (state === 'play' && dropT < 0.3) { P(cx - 4, 8, '#5cc0f5'); P(cx - 4, 9, '#2f8fd0'); }
   g.restore();
 }
 
@@ -471,9 +471,19 @@ function ladybug() {
   R(lx, 52, 3, 2, '#d23a2a'); P(lx + 1, 52, '#1e1a1a'); P(dir > 0 ? lx + 3 : lx - 1, 53, '#1e1a1a'); P(lx + ((Math.floor(time * 6) % 2) ? 0 : 2), 54, '#1e1a1a');
 }
 
+// a 3x4 teardrop with a dark rim so it reads against the pale sky and the wall
+// a drop counts when any part of it touches the thimble rim (rim is 7 wide, drop is 3)
+const CATCH = 4.5;
+function drop(x, y) {
+  P(x, y - 1, '#bfe8ff');
+  R(x - 1, y, 3, 2, '#5cc0f5'); P(x - 1, y, '#e8f8ff');
+  P(x - 1, y + 1, '#2f8fd0'); P(x + 1, y + 1, '#2f8fd0');
+  P(x, y + 2, '#1f6fa8');
+}
+
 function draw() {
   scene(); plants(); butterfly(); ladybug(); wateringCan();
-  for (const d of drops) { P(d.x, d.y, '#d9f3ff'); P(d.x, d.y + 1, '#7fd0ff'); }
+  for (const d of drops) drop(d.x, Math.round(d.y));
   explorer();
   if (seedFall) { R(seedFall.x, seedFall.y, 2, 2, '#3b2c22'); }
   for (const p of parts) P(p.x, p.y, p.c);
