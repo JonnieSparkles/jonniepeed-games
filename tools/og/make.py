@@ -10,10 +10,12 @@ Needs Playwright with Chromium (pip install playwright && python3 -m playwright 
 Pixel games are captured live from their own canvas, so the cards and the index thumbnails
 (site/<slug>/thumb.png) stay in sync with the art. Games that aren't pixel art are captured
 as a page screenshot instead (pass {"screenshot": True} as the last field); their thumbnail is a WebP.
+Use --game stick-army to regenerate only that game's thumbnail and card.
 To add a game: add an entry to GAMES below and run the script again.
 Entries without an existing game index are reported and skipped, never recreated.
 """
 import base64
+import argparse
 import pathlib
 import os
 
@@ -32,10 +34,16 @@ def font_uri(name):
 
 # slug, title, tagline, call to action, setup JS run on the page before capturing, optional options:
 #   screenshot: capture the whole page (4:3 viewport) instead of the #c canvas
+#   selector/crop: capture a region of an element; crop is (x, y, width, height), fractions of its bounds
+#   viewport: screenshot viewport (width, height), before device scale factor 2
 #   title_px:   card title size, for long names
 GAMES = [
     ("stick-army", "Stick Army", "Pop chutes. Catch recruits. Defend the notebook.", "Play in your browser",
-     "document.getElementById('startBtn').click();", {"screenshot": True, "wait_ms": 10000}),
+     "document.getElementById('startBtn').click();",
+     # A 4:3 close-up of the notebook's lower battlefield: catch band, turret,
+     # and wall. Keep the art's proportions, without desk or HUD buttons.
+     {"screenshot": True, "selector": "#game", "crop": (0, 380 / 720, 1, 300 / 720),
+      "viewport": (432, 800), "wait_ms": 10000}),
     ("thimbleful", "Thimbleful", "Plant a seed. Catch the drips. Grow a sunflower.", "Play in your browser",
      "introSeen=true; document.getElementById('go').click(); score=18; plant.size=18; el=20; hud();"),
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
@@ -70,16 +78,28 @@ def capture_canvas(page, slug, setup):
     return page.evaluate("document.getElementById('c').toDataURL('image/png')")
 
 
-def capture_page(browser, slug, setup, wait_ms=1700):
+def capture_page(browser, slug, setup, wait_ms=1700, selector=None, crop=None, viewport=(640, 480)):
     """Screenshot the page itself, for games drawn with smooth graphics rather than a pixel canvas."""
-    page = browser.new_page(viewport={"width": 640, "height": 480}, device_scale_factor=2)
+    page = browser.new_page(viewport={"width": viewport[0], "height": viewport[1]}, device_scale_factor=2)
     page.goto(os.environ["SITE_URL"].rstrip("/") + "/" + slug + "/index.html" if os.environ.get("SITE_URL") else (SITE / slug / "index.html").as_uri())
     page.evaluate("document.fonts.ready")
     page.wait_for_timeout(1200)
     if setup:
         page.evaluate(setup)
     page.wait_for_timeout(wait_ms)
-    png = page.screenshot()
+    if selector:
+        target = page.locator(selector)
+        if crop:
+            box = target.bounding_box()
+            x, y, width, height = crop
+            png = page.screenshot(clip={"x": box["x"] + box["width"] * x,
+                                        "y": box["y"] + box["height"] * y,
+                                        "width": box["width"] * width,
+                                        "height": box["height"] * height})
+        else:
+            png = target.screenshot()
+    else:
+        png = page.screenshot()
     page.close()
     return "data:image/png;base64," + base64.b64encode(png).decode()
 
@@ -116,18 +136,25 @@ i{{position:absolute;display:block;width:26px;height:26px}}
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--game', choices=[game[0] for game in GAMES],
+                        help='Regenerate only this game; keep other games and the studio card unchanged')
+    args = parser.parse_args()
+    games = [game for game in GAMES if not args.game or game[0] == args.game]
     OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=os.environ.get("CHROMIUM"))
         page = browser.new_page(viewport={"width": 800, "height": 900})
         scenes = {}
-        for slug, title, tagline, cta, setup, *more in GAMES:
+        for slug, title, tagline, cta, setup, *more in games:
             if not (SITE / slug / "index.html").is_file():
                 print("skipped missing game", slug)
                 continue
             opts = more[0] if more else {}
             if opts.get("screenshot"):
-                scenes[slug] = capture_page(browser, slug, setup, opts.get("wait_ms", 1700))
+                scenes[slug] = capture_page(browser, slug, setup, wait_ms=opts.get("wait_ms", 1700),
+                                            selector=opts.get("selector"), crop=opts.get("crop"),
+                                            viewport=opts.get("viewport", (640, 480)))
                 # 768x576 WebP thumbnail for the index card
                 thumb = page.evaluate("""(u) => new Promise(r => { const i = new Image(); i.onload = () => {
                     const k = document.createElement('canvas'); k.width = 768; k.height = 576;
@@ -145,7 +172,7 @@ def main():
             (SITE / slug / name).write_bytes(base64.b64decode(thumb.split(",")[1]))
             print("wrote", SITE / slug / name)
         card = browser.new_page(viewport={"width": 1200, "height": 630})
-        for slug, title, tagline, cta, _, *more in GAMES:
+        for slug, title, tagline, cta, _, *more in games:
             if slug not in scenes:
                 continue
             opts = more[0] if more else {}
@@ -153,11 +180,12 @@ def main():
             card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
             card.screenshot(path=str(SITE / slug / "og.png"))
             print("wrote", SITE / slug / "og.png")
-        logo_uri = "data:image/png;base64," + base64.b64encode((ROOT / "brand" / "logo.png").read_bytes()).decode()
-        card.set_content(index_card().replace("{LOGO_URI}", logo_uri))
-        card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
-        card.screenshot(path=str(OUT / "og.png"))
-        print("wrote", OUT / "og.png")
+        if not args.game:
+            logo_uri = "data:image/png;base64," + base64.b64encode((ROOT / "brand" / "logo.png").read_bytes()).decode()
+            card.set_content(index_card().replace("{LOGO_URI}", logo_uri))
+            card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
+            card.screenshot(path=str(OUT / "og.png"))
+            print("wrote", OUT / "og.png")
         browser.close()
 
 

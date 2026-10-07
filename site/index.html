@@ -10,15 +10,15 @@
 <meta property="og:site_name" content="JonniePeed Games">
 <meta property="og:title" content="JonniePeed Games">
 <meta property="og:description" content="Games and whatever comes next, from JonniePeed Games.">
-<meta property="og:url" content="https://jonniesparkles.github.io/jonniepeed-games/">
-<meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/studio/og.png?v=0cd6f9594a">
+<meta property="og:url" content="https://jonniepeed.games/">
+<meta property="og:image" content="https://jonniepeed.games/assets/studio/og.png?v=0cd6f9594a">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The JonniePeed Games logo: a stick figure sending a rainbow arc into colorful paint-splash letters">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="JonniePeed Games">
 <meta name="twitter:description" content="Games and whatever comes next, from JonniePeed Games.">
-<meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/assets/studio/og.png?v=0cd6f9594a">
+<meta name="twitter:image" content="https://jonniepeed.games/assets/studio/og.png?v=0cd6f9594a">
 <meta name="twitter:image:alt" content="The JonniePeed Games logo: a stick figure sending a rainbow arc into colorful paint-splash letters">
 <link rel="icon" href="assets/favicon.ico?v=443c0101ac" sizes="any">
 <link rel="icon" type="image/png" href="assets/favicon-32.png?v=569f3f592d">
@@ -34,6 +34,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16131e;--ink:#f6f2ec;--muted:#aaa3bb;--line:#2d2839;--card:#1f1a2a;--blue:#4cb0ff;--green:#8fd43c;--orange:#ff9a3d;--pink:#ff4fa8;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#16131e;--ink:#f6f2ec;--muted:#aaa3bb;--line:#2d2839;--card:#1f1a2a;--blue:#4cb0ff;--green:#8fd43c;--orange:#ff9a3d;--pink:#ff4fa8;color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
 html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5}
 .wrap{max-width:1000px;margin:0 auto;padding-inline:16px}
@@ -51,8 +52,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font
 .egg canvas:focus-visible{outline:3px solid var(--pink);outline-offset:4px;border-radius:4px}
 .shelf{padding-block:8px 40px;display:grid;gap:16px}
 .shelf h2{font-family:var(--display);font-weight:400;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0;display:flex;align-items:center;gap:12px}
+.shelf-head{display:flex;align-items:center;gap:16px}
+.shelf-head h2{flex:1}
+.shelf h2:focus-visible{outline:3px solid var(--pink);outline-offset:5px}
+#sideA{font:12px var(--display);color:var(--ink);background:var(--card);border:2px solid var(--line);border-radius:6px;min-height:44px;padding:8px 12px;cursor:pointer}
+#sideA:focus-visible{outline:3px solid var(--pink);outline-offset:3px}
 .shelf h2::after{content:"";flex:1;height:2px;background:var(--line)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+.grid{transform-origin:center;backface-visibility:hidden}
+.grid.flip-out{animation:shelf-out .2s ease-in forwards}
+.grid.flip-in{animation:shelf-in .2s ease-out forwards}
+@keyframes shelf-out{to{transform:perspective(1000px) rotateX(90deg)}}
+@keyframes shelf-in{from{transform:perspective(1000px) rotateX(-90deg)}to{transform:none}}
+.badge{justify-self:start;font:11px var(--display);padding:4px 8px;border:1px solid var(--accent);border-radius:4px;color:var(--accent)}
 .card{--accent:var(--blue);display:grid;grid-template-rows:auto 1fr;background:var(--card);border:2px solid var(--line);border-radius:12px;overflow:hidden;color:inherit;text-decoration:none;transition:transform .15s ease,border-color .15s ease}
 .card:hover{transform:translateY(-3px);border-color:var(--accent)}
 .card:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
@@ -72,7 +84,7 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mark-light{display:none}:root:not([data-theme="light"]) .mark-dark{display:block}}
 :root[data-theme="dark"] .mark-light{display:none}
 :root[data-theme="dark"] .mark-dark{display:block}
-@media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+@media (prefers-reduced-motion:reduce){.grid.flip-out,.grid.flip-in{animation:none}.card{transition:none}.card:hover{transform:none}}
 </style>
 </head>
 <body>
@@ -80,10 +92,10 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
   <h1><img class="logo-light" src="assets/studio/logo.webp?v=90c7aa524d" width="900" height="722" alt="JonniePeed Games"><img class="logo-dark" src="assets/studio/logo-dark.webp?v=afcb87ba0c" width="900" height="722" alt="JonniePeed Games"></h1>
 </header>
 <main class="shelf wrap">
-  <h2>Games</h2>
+  <div class="shelf-head"><h2 id="shelfHeading" tabindex="-1">Games</h2><button id="sideA" type="button" hidden>Side A</button></div>
   <div class="grid">
     <a class="card pink" href="dont-step-on-a-crack/">
-      <div class="thumb"><img src="dont-step-on-a-crack/thumb.webp?v=f88366b600" width="768" height="576" alt="Looking down at sneakers on a chalked sidewalk, with a Mom Cam showing Mom folded in half in her kitchen"></div>
+      <div class="thumb"><img src="dont-step-on-a-crack/thumb.webp?v=6cf878db97" width="768" height="576" alt="Looking down at sneakers on a chalked sidewalk, with a Mom Cam showing Mom folded in half in her kitchen"></div>
       <div class="info">
         <span class="tag">Game · phone or desktop</span>
         <h3>Don't Step on a Crack</h3>
@@ -92,7 +104,7 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
       </div>
     </a>
     <a class="card" href="thimbleful/">
-      <div class="thumb"><img class="px" src="thimbleful/thumb.png?v=1f21c0411b" width="384" height="288" alt="Pixel windowsill with a tiny explorer holding a thimble under a leaking watering can"></div>
+      <div class="thumb"><img class="px" src="thimbleful/thumb.png?v=aa082b3ff8" width="384" height="288" alt="Pixel windowsill with a tiny explorer holding a thimble under a leaking watering can"></div>
       <div class="info">
         <span class="tag">Game · phone or desktop</span>
         <h3>Thimbleful</h3>
@@ -109,15 +121,25 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
         <span class="go">Play at unruggabull.ar.io</span>
       </div>
     </a>
+    <a class="card green" href="stick-army/" data-side="b" data-badge="demo" hidden>
+      <div class="thumb"><img src="stick-army/thumb.webp?v=8c5d37e6b9" width="768" height="576" alt="A notebook bunker firing at stick-figure paratroopers, with recruits defending the wall"></div>
+      <div class="info">
+        <span class="badge"></span>
+        <span class="tag">Game · phone or desktop</span>
+        <h3>Stick Army</h3>
+        <p>Pop chutes low, recruit a stick army, and kit out your notebook turret between waves.</p>
+        <span class="go">Play</span>
+      </div>
+    </a>
   </div>
-  <div class="egg"><canvas id="ident" width="120" height="48" tabindex="0" role="img" aria-label="Pixel JonniePeed sending a rainbow along the shelf floor. Hold to build up power, or hold Space."></canvas></div>
+  <div class="egg"><canvas id="ident" width="120" height="48" tabindex="0" role="img" aria-label="Pixel JonniePeed sending a rainbow along the shelf floor. Hold with a pointer, Space or Enter to build power. Keep holding at full power for three more seconds to discover Side B."></canvas></div>
 </main>
 <footer>
   <div class="wrap">
     <img class="mark-light" src="assets/studio/mark-pixel.png?v=4c7026aca0" width="40" height="44" alt=""><img class="mark-dark" src="assets/mark-pixel-dark.png?v=39bbd450b3" width="40" height="44" alt="">
-    <span>© 2026 JonniePeed Games</span>
+    <span>© JonniePeed Games™</span>
   </div>
 </footer>
-<script src="assets/studio/ident.js?v=8ded0e714d"></script>
+<script src="assets/studio/ident.js?v=72f997174e"></script>
 </body>
 </html>

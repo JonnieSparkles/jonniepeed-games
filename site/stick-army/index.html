@@ -9,15 +9,17 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Stick Army — JonniePeed Games">
 <meta property="og:description" content="Pop chutes. Catch recruits. Defend the notebook.">
-<meta property="og:url" content="https://jonniesparkles.github.io/jonniepeed-games/stick-army/">
-<meta property="og:image" content="https://jonniesparkles.github.io/jonniepeed-games/stick-army/og.png?v=69b3d5f939">
+<meta property="og:url" content="https://jonniepeed.games/stick-army/">
+<meta property="og:image" content="https://jonniepeed.games/stick-army/og.png?v=29f72ba063">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Stick Army — JonniePeed Games">
 <meta name="twitter:description" content="Pop chutes. Catch recruits. Defend the notebook.">
-<meta name="twitter:image" content="https://jonniesparkles.github.io/jonniepeed-games/stick-army/og.png?v=69b3d5f939">
-<link rel="icon" href="../assets/favicon.ico?v=443c0101ac">
+<meta name="twitter:image" content="https://jonniepeed.games/stick-army/og.png?v=29f72ba063">
+<link rel="icon" href="../assets/favicon.ico?v=443c0101ac" sizes="any">
+<link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
 <link rel="stylesheet" href="../assets/fonts/fonts.css?v=1348facafd">
 <style>
 /* Layout: one portrait notebook page (400x720 logical px) scaled to fit and centered on a desk. The battle draws on canvas; menus are paper cards laid on top. */
@@ -93,6 +95,10 @@ body {
 .btn:focus-visible, .icon-btn:focus-visible { outline: 3px solid var(--ally); outline-offset: 3px; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; }
 .keys { margin: 0; font-size: 16px; line-height: 1.2; color: var(--ink-soft); }
+.back { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--ink-soft); font: 11px 'Silkscreen', ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; }
+.back img { width: 20px; height: 22px; image-rendering: pixelated; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+.back:focus-visible { outline: 2px solid var(--ally); outline-offset: 3px; }
 .big-score { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 66px; line-height: 1; color: var(--ally); font-variant-numeric: tabular-nums; }
 .flag { margin: 0; align-self: flex-start; font-size: 22px; color: var(--enemy); transform: rotate(-3deg); }
 .stats { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; font-size: 20px; }
@@ -173,6 +179,7 @@ body {
 
       <div class="overlay top" id="titleScreen">
         <div class="card">
+          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
           <h1>Stick <span class="pen">Army</span></h1>
           <p class="tag">A turret, a trampoline and a notebook full of trouble.</p>
           <ul class="rules">
@@ -206,6 +213,7 @@ body {
             <button class="btn" id="resumeBtn" type="button">Resume</button>
             <button class="btn ghost" id="restartBtn" type="button">Restart</button>
           </div>
+          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
 
@@ -222,6 +230,7 @@ body {
             <dt>Best</dt><dd id="stBest">0</dd>
           </dl>
           <button class="btn" id="againBtn" type="button">Play again</button>
+          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
     </div>

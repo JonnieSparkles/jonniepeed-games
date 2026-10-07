@@ -2,13 +2,15 @@
 
 Small browser games and pixel scenes. Plain static files, no build step.
 
+Live site: https://jonniepeed.games/ · Scores API: https://scores.jonniepeed.games/
+
 ## Layout
 
 ```
 site/                   everything that gets published
   index.html            studio page: logo, game shelf, pixel easter egg (assets/studio/ident.js)
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
-  stick-army/           notebook turret game with recruits and a between-wave shop (not yet on the shelf)
+  stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
   assets/               shared fonts, leaderboard client, dark mark and favicons
   assets/studio/        logos, ident.js, light mark, og.png and external-game thumbnails
@@ -56,13 +58,39 @@ These apply to every change:
 
 1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
 2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail.
-3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Unlisted demos stay off the shelf until approved.
+3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
 4. Add a living `docs/games/yourgame.md` linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
 5. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
 
+## Side B and promotion
+
+[Side B](specs/SPEC-004-side-b.md) is the development shelf. Hold the studio's rainbow egg with a pointer, Space or Enter: about 1.4 seconds to full power, then three more seconds as the puddle grows. Or enter `#side-b` directly. The **Side A** button returns to Games. The selected shelf lasts for this tab's visit in `sessionStorage`, including reloads and game/home round trips; a new session defaults to Side A. Side B is discoverable, not private.
+
+Stick Army is the only launch card, labelled **demo**, with local scores only. To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
+
+## Browser checks
+
+Install Python Playwright and Chromium (`python3 -m pip install playwright` and `python3 -m playwright install chromium`), then serve the site from the repo root:
+
+```sh
+python3 -m http.server 8000 --bind 127.0.0.1 --directory site
+```
+
+In another terminal:
+
+```sh
+CHROMIUM=/usr/bin/chromium python3 tests/studio/test.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
+```
+
+Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army.md#validation-and-generated-assets).
+
 ## Social previews
 
-Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (page screenshot). Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniesparkles.github.io/jonniepeed-games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
+Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (page screenshot). Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniepeed.games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
 
 Rebuild the cards and index thumbnails after changing a game's art or adding a game (add it to `GAMES` in the script first):
 
@@ -80,6 +108,15 @@ python3 tools/stamp.py
 
 The Pages workflow runs it too. Run it before publishing to Arweave.
 
+## Hosting
+
+- DNS for `jonniepeed.games` is on Cloudflare: apex A records point to GitHub Pages and `www` is a CNAME to `jonniesparkles.github.io`, all **DNS only**.
+- The Pages custom domain is set in repository settings. Pages deploys through the custom workflow; no `CNAME` file is needed.
+- The `jonniepeed-games-scores` Worker uses a Cloudflare Custom Domain at `scores.jonniepeed.games`.
+- `games.sparklelabs.org` redirects to the new domain through a Cloudflare redirect rule.
+
+Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, the scores address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point.
+
 ## Publishing to GitHub Pages
 
 Manual only. In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
@@ -92,9 +129,9 @@ Each backend service is a Cloudflare Worker in its own top-level folder, named t
 | --- | --- | --- |
 | Repo folder | `name/` | `scores/` |
 | Worker and D1 database | `jonniepeed-games-name` | `jonniepeed-games-scores` |
-| Address | `name.games.sparklelabs.org` | `scores.games.sparklelabs.org` |
+| Address | `name.jonniepeed.games` | `scores.jonniepeed.games` |
 
-The feature itself can have a friendlier name in docs and buttons (leaderboards). Every new `*.games.sparklelabs.org` address needs three CAA records of its own, or its certificate won't issue: `games.sparklelabs.org` points to GitHub Pages, whose CAA records don't allow Cloudflare's certificate authorities. The [leaderboard guide](docs/guides/00-leaderboards.md#if-the-scores-certificate-wont-issue) has the records and the fix.
+The feature itself can have a friendlier name in docs and buttons (leaderboards). New `*.jonniepeed.games` addresses do not automatically need CAA records of their own: the apex uses A records to GitHub Pages, so CAA lookup inherits the apex policy without following a GitHub CNAME. Only `www` is a CNAME. If CAA restricts issuance, the applicable policy must allow Cloudflare's certificate authorities (`pki.goog`, `letsencrypt.org`, `ssl.com`). Check closer records and any CNAME target before adding an override; see the [leaderboard guide](docs/guides/00-leaderboards.md#if-the-scores-certificate-wont-issue).
 
 ## Deploying the Leaderboard Worker
 
