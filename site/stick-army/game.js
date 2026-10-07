@@ -13,7 +13,7 @@
   // Turret heat: each volley adds heat (scaled so fire-rate upgrades keep the same heat per second),
   // heat bleeds off continuously, and reaching 1 locks the gun. Each volley also costs SHOT_COST points.
   var BALANCE = { DROP_CHANCE: 0.15, PLANES_PER_WAVE: 2, FALL_PER_WAVE: 4, DROPS_PER_WAVE: 0.5, WALL_DAMAGE: 6,
-    FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1, BOSS_HP_PER_WAVE: 8 };
+    FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1, BOSS_HP_PER_WAVE: 6 };
   // Every BOSS_EVERY waves a zeppelin moves in (see the zeppelin section).
   var BOSS_EVERY = 5;
   var ENEMIES = {
@@ -276,8 +276,9 @@
       state: 'fly', rot: 0, vy: 0, smoke: 0, hitFlash: 0, sc: b ? 0.86 : 0.78, hw: b ? 44 : 30, hh: b ? 15 : 11 };
   }
   function pickDropX(rnd) {
-    var tr = activeTramps();
-    if (rnd() < BALANCE.DROP_CHANCE) { var mat = tr[Math.floor(rnd() * tr.length)]; return between(rnd, mat.x1 + 12, mat.x2 - 12); }
+    // A little more drops over the mats each wave, so catches don't dry up as the sky gets busier.
+    var tr = activeTramps(), chance = Math.min(0.3, BALANCE.DROP_CHANCE + 0.012 * Math.max(0, (S.wave || 1) - 1));
+    if (rnd() < chance) { var mat = tr[Math.floor(rnd() * tr.length)]; return between(rnd, mat.x1 + 12, mat.x2 - 12); }
     // The remaining drops avoid mats, preserving the configured opportunity rate.
     return rnd() < 0.5 ? between(rnd, 106, 146) : (S.mods.secondTramp ? between(rnd, 254, 294) : between(rnd, 254, 382));
   }
@@ -360,7 +361,7 @@
     var c = waveCfg(n);
     S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: 3.5, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
     S.waveState = 'active';
-    var sub = c.boss ? 'zeppelin incoming!' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
+    var sub = c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
       n === RUSH.WAVE ? 'troops rushing the flanks!' : n === TANK.WAVE ? 'tanks inbound! (B: air strike)' : '';
     S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
     sound.play('bugle');
@@ -491,7 +492,7 @@
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } } });
   var UNITS = StickArmyUnits(world), ZEP = UNITS.ZEP, zeppelinHP = UNITS.zeppelinHP, spawnZeppelin = UNITS.spawnZeppelin,
     zeppelinOnScreen = UNITS.zeppelinOnScreen, planeHit = UNITS.planeHit, updateZeppelin = UNITS.updateZeppelin,
-    hurtZeppelin = UNITS.hurtZeppelin, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar,
+    hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar,
     RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo,
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
     STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike;
@@ -743,9 +744,10 @@
     addDecal({ kind: 'splat', x: r.x, y: GROUND - 1, r: 4, color: BLUE, a: 0.22, seed: r.id + 99 });
     sound.play('noo');
   }
-  function damagePlane(p, dmg, owner, hx, hy) {
+  // direct: a bullet hit, not a blast (only direct hits find the zeppelin's weak spot).
+  function damagePlane(p, dmg, owner, hx, hy, direct) {
     if (p.state !== 'fly') return;
-    if (p.kind === 'zeppelin') { hurtZeppelin(p, dmg, owner, hx, hy); return; }
+    if (p.kind === 'zeppelin') { hurtZeppelin(p, dmg, owner, hx, hy, direct); return; }
     p.hp -= dmg; p.hitFlash = 0.15;
     burst(p.x, p.y, 4, INK, 120);
     if (p.hp <= 0) {
@@ -809,7 +811,7 @@
       p = S.planes[i];
       if (seen.indexOf(p.id) >= 0) continue;
       if (p.state === 'fly' && planeHit(p, b.x, b.y, near)) {
-        if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y); consumeBullet(b, p); }
+        if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
         return;
       }
     }

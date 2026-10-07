@@ -17,7 +17,9 @@ var StickArmyUnits = function (w) {
   // It lives in S.planes so flak, rockets, bazookas and the ambience treat it as an aircraft.
   var ZEP = { HW: 78, HH: 25, Y: 172, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
     DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5 };
-  function zeppelinHP(n) { return Math.round(30 + BALANCE.BOSS_HP_PER_WAVE * n); }
+  function zeppelinHP(n) { return Math.round(12 + BALANCE.BOSS_HP_PER_WAVE * n); }
+  // The gondola is the weak spot: direct shots there do triple damage.
+  function inGondola(p, x, y) { var dx = x - p.x, dy = y - p.y; return dy > p.hh - 3 && Math.abs(dx) < 24 * Math.abs(p.face) + 4; }
   function spawnZeppelin() {
     var S = w.S;
     var rnd = substream(w.RW), dir = rnd() < 0.5 ? 1 : -1, p = makePlane('zeppelin', dir, dir > 0 ? -ZEP.HW - 20 : W + ZEP.HW + 20, ZEP.Y);
@@ -85,16 +87,17 @@ var StickArmyUnits = function (w) {
       p.gone = true;
     }
   }
-  function hurtZeppelin(p, dmg, owner, hx, hy) {
+  function hurtZeppelin(p, dmg, owner, hx, hy, direct) {
+    var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy, weak = direct && inGondola(p, x, y);
+    if (weak) { dmg *= 3; if (!p.weakShown) { p.weakShown = true; addText('weak spot!', x, y + 26, BLUE, 22); } }
     p.hp -= dmg; p.hitFlash = 0.1;
-    var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy;
-    burst(x, y, 3, INK, 90);
+    burst(x, y, weak ? 7 : 3, weak ? RED : INK, weak ? 140 : 90);
     // Holes appear where hits land, more of them as it weakens. Stored unflipped so they turn with the hull.
     var lx = (x - p.x) * (p.face < 0 ? -1 : 1), ly = y - p.y, e = Math.hypot(lx / p.hw, ly / p.hh);
     if (e > 0.8) { lx *= 0.8 / e; ly *= 0.8 / e; }
     if (p.holes.length < 2 + Math.floor((1 - Math.max(0, p.hp) / p.maxHp) * 10)) p.holes.push({ x: lx, y: ly, id: w.id() });
     if (p.hp <= 0) { zeppelinDown(p, owner); return; }
-    w.sound.play('thup');
+    w.sound.play(weak ? 'clank' : 'thup');
     if (!p.angry && p.hp <= p.maxHp / 2) { p.angry = true; addText("it's angry!", p.x, p.y - p.hh - 16, RED, 24); w.sound.play('horn'); }
   }
   function zeppelinDown(p, owner) {
@@ -347,7 +350,7 @@ var StickArmyUnits = function (w) {
   }
 
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
-    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
+    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, spawnCargo: spawnCargo, updateCargo: updateCargo, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
