@@ -1,6 +1,6 @@
 # SPEC-003: Repo layout
 
-Status: spec only. This records the agreed layout and the work for a later implementation PR. It does not authorize or perform moves in draft PR #3; Stick Army's visual/performance fixes and tuning panel are separate work on that branch.
+Status: spec only. This records the agreed layout and the work for a later implementation PR. Layout moves, clean-link changes and manifest tooling are deferred to that implementation PR; Stick Army's visual/performance fixes and tuning panel are separate work on that branch.
 
 ## Decisions
 
@@ -22,6 +22,16 @@ Studio-only resources go in `site/assets/studio/`: the logos, ident, light pixel
 Move the root `site/favicon.ico` to `site/assets/favicon.ico` and make the icon links explicit on every page. It is a shared favicon, not game-owned art.
 
 The goal is that deleting a game's folder removes all its published game files and game-owned art. Retiring a game also removes its studio shelf entry and `GAMES` generator entry so they cannot reference/recreate the deleted folder. Design docs and test harnesses are outside the published site and can be retired in the same change; specs remain historical. Permanent scores API game/board records are the deliberate exception to deletion, as described below.
+
+### Clean game and home URLs
+
+Player-facing navigation uses directory URLs: `href="<slug>/"` from the studio and `href="../"` from a game back to the studio. This includes back links on title, pause, help and game-over screens. Keep links relative, with the trailing slash; do not use origin-root links such as `/`, which lose the repository or manifest prefix. Physical entry files remain `index.html` and `<slug>/index.html`; this is a URL change, not a file rename.
+
+GitHub Pages and the custom domain serve directory indexes. Arweave publishing must explicitly map both `<slug>/` and `<slug>` to the **same transaction ID** as `<slug>/index.html` for every game folder. Keep the manifest's root `index.path` set to `index.html` so the clean studio root works too. These are entries for the new navigation scheme, not redirects or old-layout compatibility copies. Canonical links and metadata use the trailing-slash form.
+
+A slashless alias needs extra care: mapping HTML alone does not change the browser's base URL. At `/slug`, `game.js` otherwise resolves outside the game, and `../` can escape the site mount. Before any relative resource is parsed, set the document base to that entry's trailing-slash directory when it is served through a slashless alias. A small inline classic-script bootstrap can create a `<base>` from the current URL with `/` appended to its pathname and query/fragment removed, only for slashless directory entries; preserve the origin and the entire mount prefix. Apply this to the home entry too if a gateway serves a bare manifest ID without a slash. Leave directory and explicit `index.html` entry URLs, including `file://` local previews, unchanged. This does not redirect or add a history entry. Test fragment links and `#tune` with the base in place.
+
+Relative scripts, fonts, images and back links must work unchanged under `https://jonniesparkles.github.io/jonniepeed-games/`, `https://games.sparklelabs.org/`, an ar.io gateway's `/<manifest-id>/` mount, and an ArNS root. Do not substitute absolute GitHub URLs for internal navigation. `og:url` remains absolute using the existing GitHub Pages base, with clean trailing-slash page paths; preview image URLs still name their image files.
 
 ### Tests and tools
 
@@ -91,20 +101,21 @@ After migrating these files, remove the empty `site/assets/og/` directory. There
 | `tools/stick-army/perf.py` | `tests/stick-army/perf.py` | Move harness file |
 | `tools/stick-army/test.py` | `tests/stick-army/test.py` | Move harness file |
 | `tools/stick-army/ui.py` | `tests/stick-army/ui.py` | Move harness file |
-| `site/stick-army/index.html` | Same | Local OG URL, moved shared favicon; classic script order |
+| `site/stick-army/index.html` | Same | Clean page URL, local OG image URL, moved shared favicon; classic script order |
 | `site/stick-army/game.js` | Same, with audio extracted to new `site/stick-army/audio.js` | Extract audio seam; preserve behavior |
 | `site/stick-army/tune.js` | Same | Game-local, conditional classic script; update bridge if audio/data are extracted |
-| `site/thimbleful/index.html` | Same | Update metadata and moved shared favicon; existing audio/game scripts remain local |
+| `site/thimbleful/index.html` | Same | Clean metadata/home link and moved shared favicon; existing audio/game scripts remain local |
 | `site/thimbleful/game.js` | Same | No layout move |
 | `site/thimbleful/audio.js` | Same | Already split correctly |
-| `site/dont-step-on-a-crack/index.html` | Same | Update metadata and moved shared favicon; existing audio/game scripts remain local |
+| `site/dont-step-on-a-crack/index.html` | Same | Clean metadata/home link and moved shared favicon; existing audio/game scripts remain local |
 | `site/dont-step-on-a-crack/game.js` | Same | No layout move |
 | `site/dont-step-on-a-crack/audio.js` | Same | Already split correctly |
-| `site/index.html` | Same | Studio asset links and shelf thumbnails |
+| `site/index.html` | Same | Studio asset links, shelf thumbnails and clean game links |
 | `tools/og/make.py` | Same | Repo tool; change outputs and studio input paths |
+| No current file | New `tools/arweave_manifest.py` | Generate exact asset paths, game aliases and root index from upload receipts; validate before manual upload |
 | `tools/stamp.py` | Same | Repo tool; verify stamping covers changed and conditional scripts |
 | `tools/check_boards.py` | Same | Repo tool; board contract unchanged |
-| `README.md` | Same | Layout, Standards, Adding a game and Social previews |
+| `README.md` | Same | Layout, Standards, Adding a game, Social previews and Publishing to Arweave / ArNS |
 | `AGENTS.md` | Same | New docs/assets/tests/script rules |
 | `specs/SPEC-001-leaderboards.md` | Same | Historical work order; preserve historic examples |
 | `specs/SPEC-002-stick-army.md` | Same | Historical work order; update navigation link to the current game doc if needed |
@@ -129,18 +140,47 @@ After migrating these files, remove the empty `site/assets/og/` directory. There
    | `site/dont-step-on-a-crack/index.html` | `https://jonniesparkles.github.io/jonniepeed-games/dont-step-on-a-crack/og.png` |
    | `site/stick-army/index.html` | `https://jonniesparkles.github.io/jonniepeed-games/stick-army/og.png` |
 
-   Keep card dimensions/alt text and page `og:url` values. Stamp supplies fresh `?v=` hashes; do not retain hashes from old assets.
-4. Update the studio shelf paths to `thimbleful/thumb.png`, `dont-step-on-a-crack/thumb.webp`, and `assets/studio/thumb-unruggabull.webp`. Stick Army remains off the shelf until owner approval; a later approved card will use `stick-army/thumb.webp` and `stick-army/index.html`.
-5. Update the studio's logos, light mark and ident script to `assets/studio/`. Keep game back links and the studio's dark mark pointing to the shared dark mark. Change Stick Army's favicon to `../assets/favicon.ico`; add/update the studio's explicit ICO link as appropriate, retaining shared PNG and apple-touch icons on every page that already uses them.
-6. Update README **Layout** to show `assets/studio/`, game-local cards/thumbnails, `docs/games/` and `tests/<slug>/`. Update **Standards** with the ownership rule, documentation lifecycle, classic scripts and split guidance. Also update **Adding a game**, **Social previews** and any test examples so newly added games follow the layout.
-7. Add AGENTS rules: numbered repo operations guides only in `docs/guides/`; living game docs in `docs/games/<slug>.md`, linked to historical specs; player help inside the game; shared-only top-level assets and studio/game ownership; per-game harnesses in `tests/<slug>/`; audio in game-local `audio.js`; roughly 2,000 lines or a clear seam prompts splitting, with classic scripts and no ES modules.
+   Keep card dimensions/alt text. Change page `og:url` values as specified below. Stamp supplies fresh `?v=` hashes; do not retain hashes from old assets.
+4. Update the studio shelf paths to `thimbleful/thumb.png`, `dont-step-on-a-crack/thumb.webp`, and `assets/studio/thumb-unruggabull.webp`. Stick Army remains off the shelf until owner approval; a later approved card will use `stick-army/thumb.webp` and `stick-army/`. Change the existing shelf hrefs from `thimbleful/index.html` and `dont-step-on-a-crack/index.html` to `thimbleful/` and `dont-step-on-a-crack/`; the external Unruggabull URL is unchanged.
+5. Update the studio's logos, light mark and ident script to `assets/studio/`. Keep back-link images and the studio's dark mark pointing to the shared dark mark; change back-link destinations to `../` as specified below. Change Stick Army's favicon to `../assets/favicon.ico`; add/update the studio's explicit ICO link as appropriate, retaining shared PNG and apple-touch icons on every page that already uses them.
+6. Update README **Layout** to show `assets/studio/`, game-local cards/thumbnails, `docs/games/` and `tests/<slug>/`. Update **Standards** with the ownership rule, documentation lifecycle, classic scripts and split guidance. Also update **Adding a game** (shelf href `yourgame/`), **Social previews**, **Publishing to Arweave / ArNS** and any test examples so newly added games follow the layout and clean-URL rules below.
+7. Add AGENTS rules: numbered repo operations guides only in `docs/guides/`; living game docs in `docs/games/<slug>.md`, linked to historical specs; player help inside the game; shared-only top-level assets and studio/game ownership; per-game harnesses in `tests/<slug>/`; audio in game-local `audio.js`; roughly 2,000 lines or a clear seam prompts splitting, with classic scripts and no ES modules; player-facing game links use `<slug>/`, game-to-home links use `../`, and manual Arweave manifests include both game aliases.
 8. For moved Stick Army runners, `Path(__file__).resolve().parents[2]` still resolves to the repo root. Keep each `case-*.js` beside the runner, update the documented commands to `tests/stick-army/test.py`, `ui.py` and `perf.py`, and update any script/help text referring to `tools/stick-army/`. Check both HTTP and conditional tuning paths. Do not move backend API tests.
 9. Move the living game doc and fix inbound links, especially SPEC-002's pointer to it. Same-depth relative links such as `../../specs/` remain valid; verify rather than guessing. Historical specs can retain paths in descriptions of past work, but current navigation and executable commands in living docs must resolve.
-10. Search the repository for every old path, separating intentional historical references from live links, generator outputs and commands. Regenerate cards, then run `python3 tools/stamp.py` **after all changes in `site/`**, including moved images and any dynamically loaded script references. The later PR removes old published paths outright: no aliases, symlinks or redirects.
+10. Search the repository for every old path, separating intentional historical references from live links, generator outputs and commands. Regenerate cards, then run `python3 tools/stamp.py` **after all changes in `site/`**, including moved images and any dynamically loaded script references. The later PR removes old asset paths outright: no legacy asset aliases, symlinks or redirects. The clean page-entry aliases described below are intentional new manifest routes.
 
 ### Publishing, Arweave and scores
 
-The published root remains `site/`. Arweave manifests must be rebuilt/re-uploaded with the new exact paths; the old manifest's hashes and path mappings cannot be reused for the moved files. Internal asset URLs remain relative and game links explicitly name `index.html`, so both Pages' subpath and Arweave's path manifest work. Open Graph/Twitter image URLs remain absolute GitHub Pages URLs per the current standard; make those files available through a manual Pages publish when releasing the layout. Old published Arweave copies remain immutable historical copies, not redirects.
+The published root remains `site/`. Today README describes a manual folder upload as one path manifest with `index.html` as its index, excluding `brand/`. There is no checked-in Arweave publishing workflow, manifest file, generator, upload command or named uploader in this repo. The exact external uploader and how it currently constructs the manifest are not recorded; do not claim an existing automated process or assume it already creates directory aliases.
+
+Add a small standard-library Python repo tool, `tools/arweave_manifest.py`, in the later implementation PR. It generates the manifest **after file uploads** from a JSON mapping of site-relative file paths to their uploaded transaction IDs. Document how to obtain/export those receipts from the uploader actually used; adapt its receipt format explicitly rather than inventing transaction IDs. Suggested CLI: `python3 tools/arweave_manifest.py --site site --ids work/upload-ids.json --output work/manifest.json`. The script builds JSON only: it neither uploads, spends funds nor updates ArNS.
+
+- Emit a path manifest (`manifest: "arweave/paths"`, version `0.1.0`, `index: {"path": "index.html"}`, and `paths` entries of the form `{"id": "<transaction-id>"}`). Validate compatibility with the chosen ar.io gateway before release.
+- Inventory actual published files under `site/`, including moved images, fonts and scripts. Paths are exact, case-sensitive POSIX paths relative to `site/`, without a leading slash or `site/` prefix. Preserve existing content types at file upload; the manifest upload uses `application/x.arweave-manifest+json`.
+- For each immediate game folder containing `index.html` (currently `dont-step-on-a-crack`, `thimbleful`, `stick-army`), retain its physical `<slug>/index.html` entry and add `<slug>/` and `<slug>` entries with that exact same ID. Discover folders, do not depend on shelf membership: Stick Army needs aliases while unlisted. Preserve the trailing slash in alias keys rather than normalizing it away.
+- Set the root index to the uploaded `index.html`. Reject missing/invalid transaction IDs, missing entry files, unsafe paths and alias/file collisions. Emit deterministic sorted output, with no stale deleted paths, no duplicate uploads for aliases, and no fallback that turns missing assets into home-page HTML. Local checks must assert the three game keys share one ID and that the root index resolves.
+- Run stamp before uploading site files, then use those exact upload receipts to generate and upload a fresh manifest. Rebuild/re-upload it for moved files; old manifest mappings cannot serve new paths. Review a test manifest through an ar.io gateway **before** updating the production ArNS pointer. Publishing stays manual. Old published Arweave copies remain immutable historical copies, not redirects.
+
+#### Link and documentation changes
+
+| Current location / URL | Required clean URL / change |
+| --- | --- |
+| `site/index.html` shelf: `dont-step-on-a-crack/index.html` | `dont-step-on-a-crack/` |
+| `site/index.html` shelf: `thimbleful/index.html` | `thimbleful/` |
+| Future owner-approved Stick Army shelf card | `stick-army/`; do not add the card in this work |
+| `site/thimbleful/index.html` `.back`: `../index.html` | `../` |
+| `site/dont-step-on-a-crack/index.html` title-screen `.studio`: `../index.html` | `../` |
+| Stick Army game screens | No home link currently exists; any home link added by the implementation uses `../`. Audit all screens and future links for the same rule. |
+| Studio `og:url` | Keep `https://jonniesparkles.github.io/jonniepeed-games/` |
+| Thimbleful `og:url` | `https://jonniesparkles.github.io/jonniepeed-games/thimbleful/` |
+| Don't Step on a Crack `og:url` | `https://jonniesparkles.github.io/jonniepeed-games/dont-step-on-a-crack/` |
+| Stick Army `og:url` | `https://jonniesparkles.github.io/jonniepeed-games/stick-army/` |
+
+Audit HTML and JavaScript for navigation from every game screen back to home, plus any canonical/share URLs added later. Keep explicit entry paths in filesystem inventories and file-based tooling; dropping `index.html` from player-facing URLs does not mean deleting the physical file or changing `tools/og/make.py`'s file capture path. Metadata images remain absolute GitHub Pages file URLs per the current standard.
+
+Replace README's **Relative links, explicit `index.html`** Standard with: **Relative links, clean directory URLs.** Link to games as `<slug>/` and from game screens to home as `../`; retain relative asset paths so Pages, the custom domain and Arweave mounts work. Arweave publishing supplies exact directory aliases and a root index; slashless aliases must also resolve their relative resources correctly.
+
+Replace README's **Publishing to Arweave / ArNS** notes with the receipt-based manual sequence above: stamp, upload `site/` files excluding `brand/`, generate/validate the root index and both aliases for every game, upload the manifest, test clean game/home navigation and assets on an ar.io gateway, then update ArNS manually when authorized. Document the actual uploader/receipt export and generator invocation. Remove the claim that links must explicitly end in `index.html`. Add the same clean-link rule to AGENTS; keep manual publishing and scores compatibility requirements.
 
 The scores API stays backward compatible. Keep permanent game IDs, every existing board/meta key and accepted range, routes under `/v1/`, Worker/database names, and `site/assets/leaderboard.js` unchanged. No `BOARD` bump or Worker deployment is needed for asset/doc/test moves or audio extraction. Deleting a game's frontend never deletes its API records. Run `python3 tools/check_boards.py` to verify board bindings. Pages and Worker workflows remain manual (`workflow_dispatch`); there is no automatic deployment in this spec.
 
@@ -151,6 +191,10 @@ The scores API stays backward compatible. Keep permanent game IDs, every existin
 - `python3 tools/stamp.py` runs successfully and a second run makes no changes. Absolute preview tags resolve to their intended local files and carry current hashes.
 - All four pages load without console errors, missing scripts/styles/fonts/images, or 404s over a local HTTP server and under the Pages repository subpath. The default `file://` capture/local-play path still works in browsers that permit file access; no ES modules or mandatory fetch-based asset/data loading have been introduced.
 - The studio's logo, ident, light/dark marks, both local-game thumbnails and Unruggabull thumbnail show. Game back links, shared favicons and touch icons work. Stick Army's listing is still approval-gated.
+- Every game opens via its clean trailing-slash URL on GitHub Pages and through a freshly uploaded **test manifest on an ar.io gateway**, including unlisted Stick Army by direct link. Repeat on the custom domain; record the test manifest ID, gateway base URL and results in the implementation PR before a production ArNS update. A localhost directory-index test alone is insufficient.
+- Test both `<slug>/` and `<slug>` against the test manifest: HTML, scripts, fonts, audio and images load without missing files or HTML returned as an asset. Verify each alias and `<slug>/index.html` have the same transaction ID. Test gateway mounts with a manifest-ID prefix as well as an ArNS root when available; document any gateway slash normalization.
+- From each game's title/help/pause/end screen that offers home navigation, the clean back link reaches the studio in the **same mount**, and shelf links open games again. No live navigation or game `og:url` ends in `index.html`; the studio `og:url` stays at its clean root. Relative resources, fragment links and `#tune` work after slashless-base handling.
+- The manifest generator's missing-ID, collision and unsafe-path checks pass; deleted game folders generate no aliases. README Standards, Adding a game, Publishing to Arweave / ArNS and AGENTS describe the new rules consistently.
 - Touch, mouse, keyboard, pause, fullscreen and all supported orientations continue to work. Stick Army's audio and mute preference behave the same after extraction.
 - With the local site server running, `CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py` and `... tests/stick-army/ui.py` pass from the new location; run `... tests/stick-army/perf.py` to check the retained-ink late-wave case. The tuning panel remains opt-in and works after the audio split.
 - `python3 tools/check_boards.py` passes; no scores API schema/rule/route change is present. Rebuild the Arweave path manifest and verify its exact asset keys before a later release. Neither old-path redirects nor automatic deploy triggers are added.
