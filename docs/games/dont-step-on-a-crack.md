@@ -28,8 +28,8 @@ The rhyme did the rest ("Step on a crack, break your mother's back"): a first-pe
 - **Obstacles** start 12–18 s in: a runaway skateboard, the neighbors' kickball, or Mrs. Shmookie's leash stretched across the path. Jump over them. A hit costs your streak and makes you stumble, which only hurts Mom if the stumble lands on a crack.
 - **The squirrel** dashes across 2.4–5.6 ft ahead of your front foot every 26–44 s (16–34 s on Oak St), chittering as it comes, and stops once in the middle to stare. Step on it, land a jump on it, or let it run into a planted foot, and you jump back 1.6–2.2 ft: the streak goes, the feet walked go down with you, and the landing counts like any other. A lifted foot or a jump passes over it, and in heelies it hops your wheels.
 - **Power-up shoes** lie on the sidewalk in pairs. Step on them to put them on:
-  - Heelies: 6 s of rolling, where cracks don't count and obstacles get knocked away. Where the wheels stop, both feet land, like a two-foot jump: a crack under either breaks one vertebra. The stopping spot shows as two dashed footprints for the last 1.6 s (`ROLL_SHOW`), so you can lean onto clean concrete.
-  - Moon shoes: 15 s of long, steerable jumps.
+  - Heelies: 6 s of rolling, where cracks don't count and obstacles get knocked away. When time runs out, the wheels glide to the nearest spot ahead where both feet fit side by side on clean concrete, then stop. They look up to 2.5 ft ahead (`COAST_MAX`) and drift up to 1.5 ft sideways (`PARK_SIDE`); in tests, 99–100% of stops on every street end on clean ground. The stop never counts as a landing, so it never hurts Mom, even in the rare case with no clean spot.
+  - Moon shoes: 15 s of long jumps you aim in the air. They start toward 4.6 ft ahead, and while you're flying you steer left and right anywhere on the sidewalk, and near and far between 3 and 6 ft (`MOON`). Use the arrow keys (Up or W farther, Down nearer), slide a thumb, or move the mouse. A moon jump lasts 1.1 s.
   - Ballerina shoes: 10 s on tiptoe. Only a circle at the front of each shoe counts for cracks (the pink circle on the aiming outline), but reach and stride drop to 1.6 ft and 1.0 ft (`TIP`).
   - Picking up the pair you're already wearing adds half its time (heelies +3 s) without restarting the roll. A different pair swaps; leaving heelies that way lands you where you are.
   - There is exactly one pair per street from Linden St on, and one every 10 slabs on Quarry Ln, on a random slab of that stretch (`shoePlan`). The kinds are dealt from a shuffled set of three, so Linden St, Oak St and Old Mill Rd always get one of each. Luck decides where, not how many.
@@ -56,6 +56,8 @@ Playtesters said the squirrels should do something, heelies were too strong (esp
 
 Checked so far only by scripted runs in a headless browser: placement, tiptoe footprints, stacking, the heelies stop, and every way into a squirrel. Still needs a human: whether squirrel run-ins feel fair at that spawn distance, and whether heelies still feel worth grabbing.
 
+The same day, playtesters pointed out that ending heelies on a crack was unavoidable: you can only steer sideways, and joints and flagstone lines run the full width. Heelies now glide to clean ground and never hurt Mom when they stop; the dashed stop preview went with that. Moon shoes also gained near and far aiming in the air. Jonnie kept these on board 2 rather than resetting again: the heelies change fixes an unfair stop, and board 2 was a few hours old.
+
 ## Leaderboard
 
 | | |
@@ -69,7 +71,7 @@ Checked so far only by scripted runs in a headless browser: placement, tiptoe fo
 | Board | Change |
 | --- | --- |
 | 1 | Original game |
-| 2 | Squirrels knock you back, heelies land where they stop and stack by adding time, ballerina shoes, one pair of shoes per street (same scoring rules as 1) |
+| 2 | Squirrels knock you back, heelies stack by adding time and stop on clean ground, ballerina shoes, moon jumps aim near and far, one pair of shoes per street (same scoring rules as 1) |
 
 **What's new** on the title screen explains the latest board change in a few lines. Only the latest; older changes live in the table above. It also shows your best from the previous board if this device has one. Its button has a dot until the note has been opened once on that device (`dsotc-news-seen`). The text is the `#news` card in `index.html`; when you bump the board, rewrite it in a few short lines, set its `data-board` to the new `BOARD`, and set its date to the day it goes live. That brings the dot back for everyone.
 
@@ -88,8 +90,8 @@ At game over Mom calls. After the call is picked up, the results count up and th
 | Mom and Dad | `breakVertebra`, `drawCam`, `startDad`, `dadUpdate`, `bankGiant`, `takeCoupon`; Mom's poses in `POSES` |
 | Hazards | `dogUpdate`, `herd`, `stumble`, `obsUpdate`, `hitBy`, `leashUpdate`; timing in `OBS_GAP` |
 | Squirrel | spawn and run-ins in `ambientUpdate`; `squirrelAt`, `startle`, `drawSquirrel`; size in `SQ_SIZE` |
-| Power-ups | `shoePlan` (placement), `startPower`, `endPower`, `stopRolling`, `powUpdate`, `rollUpdate`, `rollStopAt`, `tiptoe`; durations in `POW`, tiptoe reach in `TIP` |
-| Shoe art | `sneakerArt` (palettes in `SNEAKER`), `wheelArt`, `moonArt`, `slipperArt`; `drawShoe` for your feet, `drawPickup` for pairs on the sidewalk, `drawRollStop` for the heelies stop |
+| Power-ups | `shoePlan` (placement), `startPower`, `endPower`, `stopRolling`, `findPark` (where heelies stop), `powUpdate`, `rollUpdate`, `nudgeDepth` (moon aiming), `tiptoe`; durations in `POW`, the heelies stop in `COAST_MAX` and `PARK_SIDE`, moon jumps in `MOON`, tiptoe reach in `TIP` |
+| Shoe art | `sneakerArt` (palettes in `SNEAKER`), `wheelArt`, `moonArt`, `slipperArt`; `drawShoe` for your feet, `drawPickup` for pairs on the sidewalk |
 | Mom's texts | `momText`, `post`, `nextChat`; messages in `T`, `MOMTXT`, `ENDINGS` |
 | Leaderboard | `loadLeaderboard`, `showLeaderboard`, `drawLeaderboard`, `openScores`; What's new in `openNews`, `syncNews` |
 
