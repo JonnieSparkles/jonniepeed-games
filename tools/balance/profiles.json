@@ -1,0 +1,5 @@
+{
+  "casual": { "reaction_ms": 350, "aim_error_deg": 4, "notice_s": 0.6, "switch_s": 0.45, "aim_speed": 2.5, "heat_stop": 1, "heat_resume": 1, "shop": "random" },
+  "decent": { "reaction_ms": 220, "aim_error_deg": 2, "notice_s": 0.3, "switch_s": 0.62, "aim_speed": 4, "heat_stop": 0.9, "heat_resume": 0.55, "shop": "heuristic" },
+  "expert": { "reaction_ms": 120, "aim_error_deg": 0.8, "notice_s": 0, "switch_s": 0.5, "aim_speed": 6, "heat_stop": 0.8, "heat_resume": 0.45, "shop": "save" }
+}

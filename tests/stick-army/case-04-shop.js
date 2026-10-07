@@ -2,7 +2,8 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   newGame(); var before=S.coins; award(10,50,300,'test',INK,true); award(10,50,300,'test',INK,true);
   check(S.coins>before && S.score===30,'coins separate from combo score');
-  openShop(); check(S.shop.free.length===2 && S.shop.premium.length===2,'two free / two premium offers');
+  openShop(); check(S.shop.free.length===2 && S.shop.premium.length===3,'two free / three premium offers');
+  check(S.shop.premium.some(it=>it.id==='hire'),'hiring offered while a slot is free');
   check(S.shop.premium.some(it=>it.id==='pizza'),'pizza always orderable');
   continueWave(); check(S.mode==='shop','must choose a free item');
   var pick=S.shop.free[0].id, other=S.shop.free[1].id;

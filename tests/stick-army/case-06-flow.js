@@ -1,6 +1,6 @@
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
-  var originalRandom=R; R=mulberry(23);
+  RUN.force=23; // a fixed run seed: same waves, drops and crew aim every time
   newGame();
   // Unattended runs must still end despite repair and wave-state transitions.
   for(var i=0;i<18000 && S.mode==='play';i++) update(1/60);
@@ -25,5 +25,5 @@
   var health=S.wallHP, time=S.t; clearInput();
   check(S.shop.free.length===2 && health>0 && time>10,'living end-of-wave shop');
   takeItem(S.shop.free[0].id); continueWave(); check(S.wave===2,'shop continues actual run');
-  R=originalRandom; reset(); shopScreen.hidden=true; render();
+  RUN.force=null; reset(); shopScreen.hidden=true; render();
 })();

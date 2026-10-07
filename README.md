@@ -22,11 +22,14 @@ site/                   everything that gets published
 tools/og/make.py        builds the social preview cards (pixel canvases, or page screenshots for smooth games)
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 tools/check_boards.py   checks game BOARD constants before deploying
+tools/balance/          balance bots: seeded headless runs at several skill levels, with reports
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
 docs/guides/            numbered repo operations guides: 00-name.md, 01-name.md, ...
 docs/games/             living game design docs: <slug>.md (unnumbered)
-tests/<slug>/           per-game browser harnesses; backend tests stay in scores/test/
+tests/<slug>/           per-game browser harnesses, plus balance.js, bot.js and balance.json for games with balance bots;
+                        backend tests stay in scores/test/
+work/                   local tool output such as work/balance/ (git-ignored, never committed)
 brand/                  source logo files, not published
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
@@ -87,6 +90,17 @@ CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
 ```
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army.md#validation-and-generated-assets).
+
+## Balance bots
+
+Stick Army has balance bots ([SPEC-005](specs/SPEC-005-balance-bots.md); see [the guide](docs/guides/01-balance-bots.md)). They play seeded runs headless at casual, decent and expert skill and report survival, causes of death, per-wave events and shop picks. Run them by hand; the runner serves `site/` itself:
+
+```sh
+python3 tools/balance/run.py stick-army --runs 200
+python3 tools/balance/run.py stick-army --runs 200 --skills decent --ref main
+```
+
+Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game includes a before/after summary for at least the decent profile. Bots measure difficulty, not fun; playtesting wins.
 
 ## Social previews
 
