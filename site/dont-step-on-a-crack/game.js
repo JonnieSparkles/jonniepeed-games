@@ -77,7 +77,7 @@ function drawLeaderboard(scores, highlight = null, all = false, box = lbBox) {
   // Top 10 shows in full (no inner scroll). "See all" shows all 50 in a scrolling list.
   // Your row is scrolled into view either way.
   box.replaceChildren();
-  const cols = [['Rank', '#'], ['Name', 'Name'], ['Feet', 'Feet'], ['Streak', 'Streak'], ['Input', '']];
+  const cols = [['Rank', '#'], ['Name', 'Name'], ['Feet', 'Feet'], ['Time', 'Time'], ['Streak', 'Streak'], ['Input', '']];
   const title = document.createElement('h3'); title.textContent = 'High scores';
   const list = document.createElement('div'); list.className = all ? 'lb-list lb-all' : 'lb-list';
   if (all) { list.tabIndex = 0; list.setAttribute('role', 'region'); list.setAttribute('aria-label', 'All high scores, scroll to see more'); }
@@ -93,7 +93,7 @@ function drawLeaderboard(scores, highlight = null, all = false, box = lbBox) {
   let you = null;
   const addRow = row => {
     const tr = body.insertRow(); if (row.rank === highlight) { tr.className = 'lb-you'; you = tr; }
-    for (const value of [String(row.rank), row.name, String(row.score), String(row.meta?.streak ?? '–')]) { const cell = tr.insertCell(); cell.textContent = value; }
+    for (const value of [String(row.rank), row.name, String(row.score), typeof row.meta?.time_ms === 'number' ? fmtTime(row.meta.time_ms / 1000) : '–', String(row.meta?.streak ?? '–')]) { const cell = tr.insertCell(); cell.textContent = value; }
     const iconCell = tr.insertCell();
     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     icon.setAttribute('viewBox', '0 0 20 20'); icon.setAttribute('class', 'lb-input');
