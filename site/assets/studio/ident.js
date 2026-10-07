@@ -9,8 +9,72 @@
   const BANDS = ['#ec188c', '#ffcc00', '#1e9bf0'];
   const COLORS = ['#ec188c', '#ff7a14', '#ffcc00', '#5fbf1e', '#1e9bf0', '#8a2be2'];
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const CHARGE_SECONDS = 1.4, OVERFLOW_SECONDS = 3, FLIP_MS = 200;
+  const shelfKey = 'jonniepeed.shelfSide';
+  const grid = document.querySelector('.grid');
+  const heading = document.getElementById('shelfHeading');
+  const sideA = document.getElementById('sideA');
+  const cards = Array.from(grid.querySelectorAll('.card'));
+  let side = 'a', flipping = false;
+  for (const card of cards) {
+    if (card.hasAttribute('data-badge')) {
+      const badge = card.querySelector('.badge') || card.querySelector('.info').appendChild(document.createElement('span'));
+      badge.className = 'badge';
+      badge.textContent = card.dataset.badge;
+    }
+  }
+  function setSide(next, user = false, keyboard = false) {
+    if (flipping || (user && side === next)) return;
+    function apply() {
+      side = next;
+      heading.textContent = side === 'b' ? 'Side B' : 'Games';
+      for (const card of cards) card.hidden = (card.dataset.side || 'a') !== side;
+      sideA.hidden = side !== 'b';
+      try { sessionStorage.setItem(shelfKey, side); } catch (_) {}
+    }
+    function finish() {
+      grid.classList.remove('flip-in');
+      grid.inert = false;
+      sideA.disabled = false;
+      flipping = false;
+      if (user) heading.focus({ focusVisible: keyboard });
+    }
+    if (!user || calm) { apply(); finish(); return; }
+    flipping = true;
+    grid.inert = true;
+    sideA.disabled = true;
+    grid.classList.add('flip-out');
+    setTimeout(() => {
+      apply();
+      grid.classList.replace('flip-out', 'flip-in');
+      setTimeout(finish, FLIP_MS);
+    }, FLIP_MS);
+  }
+  let savedSide;
+  try { savedSide = sessionStorage.getItem(shelfKey); } catch (_) {}
+  setSide(location.hash === '#side-b' || savedSide === 'b' ? 'b' : 'a');
+  sideA.addEventListener('click', e => {
+    if (flipping) return;
+    if (location.hash === '#side-b') history.replaceState(null, '', location.pathname + location.search);
+    setSide('a', true, e.detail === 0);
+  });
   let W = 120, scale = 3, time = 0, last = 0, running = false, visible = true;
-  let parts = [], stains = new Map(), power = 0, holding = false, heldFor = 0, splashT = 0;
+  let parts = [], stains = new Map(), power = 0, holding = false, splashT = 0;
+  let overflow = 0, fired = false, input = null, frame = 0, calmStep = '';
+  let flipPointer = null, clickTimer = 0;
+  function clearFlipPointer() { flipPointer = null; clearTimeout(clickTimer); }
+  // The shelf moves under a held finger. Consume its generated click even if
+  // heading focus scrolls a card into that spot before the finger is lifted.
+  document.addEventListener('click', e => {
+    if (flipPointer === null) return;
+    e.preventDefault(); e.stopImmediatePropagation(); clearFlipPointer();
+  }, true);
+  document.addEventListener('pointerdown', clearFlipPointer, true);
+  document.addEventListener('keydown', clearFlipPointer, true);
+  document.addEventListener('pointercancel', clearFlipPointer, true);
+  document.addEventListener('pointerup', e => {
+    if (e.pointerId === flipPointer) clickTimer = setTimeout(clearFlipPointer, 500);
+  }, true);
 
   function size() {
     const cw = cv.parentElement.clientWidth;
@@ -84,6 +148,13 @@
       R(x, y + 1, 1, 1, BANDS[2]);
       if (power > 0.6) R(x, y + 2, 1, 1, BANDS[2]);
     }
+    if (overflow > 0) {
+      const rows = 1 + Math.floor(overflow / OVERFLOW_SECONDS * 7);
+      for (let row = 0; row < rows; row++) {
+        const width = 4 + (rows - row) * 3;
+        R(Math.max(ox + 3, tx - width), GROUND - row, width + Math.min(3, W - tx), 1, COLORS[row % COLORS.length]);
+      }
+    }
     figure(fx, sway, ink);
     for (const p of parts) R(p.x, p.y, 1, 1, p.c);
     return { tx, on: ph.on };
@@ -95,9 +166,32 @@
 
   function tick(now) {
     if (!running) return;
-    const dt = Math.min(0.05, (now - last) / 1000 || 0); last = now; time += dt;
-    if (holding) { heldFor += dt; power = Math.min(1, power + dt / 1.4); }
+    frame = 0;
+    const elapsed = Math.max(0, (now - last) / 1000 || 0);
+    const dt = Math.min(0.05, elapsed); last = now;
+    if (!calm) time += dt;
+    if (holding && !document.hidden) {
+      const charging = (1 - power) * CHARGE_SECONDS;
+      power = Math.min(1, power + elapsed / CHARGE_SECONDS);
+      if (side === 'a' && !fired) {
+        overflow += Math.max(0, elapsed - charging);
+        if (overflow >= OVERFLOW_SECONDS) {
+          overflow = OVERFLOW_SECONDS;
+          fired = true;
+          if (typeof input === 'number') flipPointer = input;
+          if (!calm) { burst(W - 6, 60, 1.8); splashT = 0.25; }
+          setSide('b', true, typeof input === 'string');
+        }
+      }
+    }
     else power = Math.max(0, power - dt * 1.6);
+    if (calm) {
+      const step = Math.floor(power * 7) + ':' + Math.floor(overflow / OVERFLOW_SECONDS * 7);
+      if (step !== calmStep) { calmStep = step; draw(); }
+      if (holding) frame = requestAnimationFrame(tick);
+      else stop();
+      return;
+    }
     splashT = Math.max(0, splashT - dt);
     const { tx, on } = draw();
     if (on && Math.random() < dt * (45 + power * 60)) burst(tx, 1, 1 + power * 0.6);
@@ -109,32 +203,48 @@
       return false;
     });
     for (const [x, s] of stains) { s.life -= dt; if (s.life <= 0) stains.delete(x); }
-    requestAnimationFrame(tick);
+    frame = requestAnimationFrame(tick);
   }
-  function start() { if (calm || running || !visible || document.hidden) return; running = true; last = performance.now(); requestAnimationFrame(tick); }
-  function stop() { running = false; }
+  function start() { if ((calm && !holding) || running || !visible || document.hidden) return; running = true; last = performance.now(); frame = requestAnimationFrame(tick); }
+  function stop() { running = false; cancelAnimationFrame(frame); frame = 0; }
 
-  function press() { holding = true; heldFor = 0; }
+  function press(source) {
+    if (holding || document.hidden) return;
+    holding = true; input = source; overflow = 0; fired = false;
+    last = performance.now();
+    start();
+  }
   function release() {
     if (!holding) return;
-    holding = false;
+    holding = false; input = null; overflow = 0;
     // a big splash where the stream lands when you let go near full power
     if (power > 0.7) {
       const ox = 15, room = W - ox - 6;
       burst(ox + room * (0.2 + 0.8 * power), 40, 1.4); splashT = 0.25;
     }
-    if (calm) { for (let i = 0; i < 20; i++) stains.set(Math.round(W * (0.5 + Math.random() * 0.45)), { c: COLORS[(Math.random() * 6) | 0], life: 5 }); draw(); }
+    if (calm) { stop(); power = 0; for (let i = 0; i < 20; i++) stains.set(Math.round(W * (0.5 + Math.random() * 0.45)), { c: COLORS[(Math.random() * 6) | 0], life: 5 }); draw(); }
   }
-  cv.addEventListener('pointerdown', e => { press(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
-  cv.addEventListener('pointerup', release);
-  cv.addEventListener('pointercancel', release);
+  cv.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || !e.isPrimary || holding) return;
+    e.preventDefault(); // Keep the later compatibility mouse event from stealing heading focus.
+    cv.focus({ preventScroll: true });
+    press(e.pointerId);
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  const pointerRelease = e => { if (input === e.pointerId) release(); };
+  cv.addEventListener('pointerup', pointerRelease);
+  cv.addEventListener('pointercancel', pointerRelease);
+  cv.addEventListener('lostpointercapture', pointerRelease);
   cv.addEventListener('contextmenu', e => e.preventDefault());
-  cv.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); press(); } });
-  cv.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') release(); });
+  cv.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!e.repeat) press(e.key); }
+  });
+  cv.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (input === e.key) release(); } });
   cv.addEventListener('blur', release);
+  window.addEventListener('blur', release);
 
   new ResizeObserver(size).observe(cv.parentElement);
-  if ('IntersectionObserver' in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; visible ? start() : stop(); }).observe(cv);
-  document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+  if ('IntersectionObserver' in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible) start(); else { release(); stop(); } }).observe(cv);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { release(); stop(); } else start(); });
   size(); draw(); start();
 })();

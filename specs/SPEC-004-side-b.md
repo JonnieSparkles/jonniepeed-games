@@ -1,18 +1,18 @@
 # SPEC-004: Side B
 
-Status: spec only. A hidden second shelf on the studio homepage for games in development. This PR adds the work order, not the shelf, trigger or cards.
+Status: implemented. The studio homepage has a hidden development shelf, rainbow overflow discovery, visit-scoped side selection and one Stick Army demo card. Automated browser acceptance checks live in `tests/studio/`. The ar.io gateway acceptance check is deferred while Arweave publishing is paused.
 
 ## Rollout and dependencies
 
-1. Merge draft PR #3 first with Stick Army unlisted and its page noindexed. Merging does not publish: GitHub Pages deploys only through the manual `workflow_dispatch` workflow.
-2. Resolve [SPEC-003](SPEC-003-repo-layout.md)'s open questions, then implement it in its own PR, with no other site changes in flight. Complete the layout, game-owned assets and clean trailing-slash navigation before starting Side B. The owner confirms the Arweave uploader; slashless aliases and a manifest helper remain undecided until then.
-3. Implement this spec after SPEC-003 in a separate PR. It relies on the moved `site/assets/studio/ident.js`, `site/stick-army/thumb.webp` and clean `stick-army/` link. Publish only by hand after review. Side B placement is not promotion to the public Side A shelf.
+1. PR #3 (Stick Army) and PR #4 ([SPEC-003](SPEC-003-repo-layout.md)) are merged. Stick Army remains noindexed. SPEC-003 is complete: player links use trailing-slash `<slug>/` entries only, with no slashless aliases. Side B was implemented on a separate branch from the latest `main`, after PR #4.
+2. The moved `site/assets/studio/ident.js`, game-owned `site/stick-army/thumb.webp` and clean `stick-army/` link are used. Side B placement is not promotion to the public Side A shelf. Review first and publish only by hand; GitHub Pages uses manual `workflow_dispatch`.
+3. Arweave publishing remains paused pending the uploader/manifest follow-up, as recorded in SPEC-003 and README. Skip the ar.io gateway acceptance check in this implementation. Before publishing resumes, confirm uploader support and receipt format, use root `index.path: "index.html"`, and map every `<slug>/` to the same transaction ID as `<slug>/index.html`, including unlisted demos. Test a fresh manifest on an ar.io gateway at a manifest-ID mount and an ArNS root where available; record the manifest ID, gateway URL and results. No slashless aliases, upload or production ArNS update are introduced here.
 
 Stick Army was built from [SPEC-002](SPEC-002-stick-army.md). Its living doc is [Stick Army](../docs/games/stick-army.md), moved by SPEC-003. Update the living doc when Side B launches and when the game is promoted.
 
 ## Discovery: let the rainbow overflow
 
-The homepage egg currently lives in `site/assets/ident.js`. Holding charges power from zero to full in about 1.4 seconds; release makes the existing splash (currently available above 0.7 power). Preserve that behavior and idle animation for every release before the new threshold.
+The homepage egg lives in `site/assets/studio/ident.js` after SPEC-003. Holding charges power from zero to full in about 1.4 seconds; release makes the existing splash (currently available above 0.7 power). Preserve that behavior and idle animation for every release before the new threshold.
 
 Add one stage: while still held at full power, accumulate about three more seconds. At the end, the stream overflows and flips the shelf to Side B. From a cold start this takes about 4.4 seconds; measure the extra time at full power, not from initial press. One continuous hold can trigger only one flip. On Side B the overflow does not toggle back or retrigger; returning uses the Side A button. Releasing, cancelling, losing focus or hiding the document resets overflow progress, so separate holds cannot add up and a background tab cannot complete it.
 
@@ -49,25 +49,26 @@ Demo game pages keep `<meta name="robots" content="noindex">` until promoted. Si
 
 Follow [the leaderboard guide](../docs/guides/00-leaderboards.md) before adding online scores or changing scoring. Stick Army has local scores only; Side B adds no API calls, board or Worker changes. Future update builds should keep online submission disabled by default; any separate testing setup needs its own reviewed rules and must never submit to the live positive board. Do not show test boards in real games or invent a permanent `-update` API game ID just because that folder exists. If promotion changes score meaning or difficulty, register a new positive board and deploy the Worker first, then change the frontend BOARD and run `tools/check_boards.py`. Keep original game IDs, all old boards/meta keys/ranges and `/v1/` contracts backward compatible. Deleting a frontend copy never deletes its API records.
 
-## Implementation for the later PR
+## Implementation locations
 
 | Location after SPEC-003 | Work |
 | --- | --- |
 | `site/index.html` | Side-aware shelf heading/button, hidden demo card, attribute-driven badge, minimal flip styles and reduced-motion behavior |
 | `site/assets/studio/ident.js` | Extend existing hold input with full-power overflow timing and puddle cue; add the small shared side setter, initial hash/storage checks and focus handling |
-| `site/stick-army/index.html` | Verify noindex remains, and game-to-home navigation uses clean `../` where offered |
+| `site/stick-army/index.html` | Keep noindex; add shared favicon/touch icons and marked `../` home links on title, pause and game-over cards |
 | `docs/games/stick-army.md` | Record Side B demo status, entry path and promotion steps; keep noindex until promotion |
+| `tests/studio/test.py` | Automated hold/input, shelf/focus/accessibility, hash/session/storage, badge and responsive acceptance checks |
 | `README.md` | Brief Side B/card authoring and promotion instructions; no changes to manual publishing or leaderboard contracts |
 
-Use the existing plain classic script. Keep timing constants and side state together, with no new dependencies or asset uploads just for the effect. Discover cards from their attributes rather than hard-coding titles into the script. Adapt to SPEC-003's final manifest decision: all game directories, including unlisted demos, need their clean trailing-slash entries when publishing to Arweave. Regenerate previews after art changes, then run `python3 tools/stamp.py` after all site changes; the generic studio preview should remain generic.
+Use the existing plain classic script. Keep timing constants and side state together, with no new dependencies or asset uploads just for the effect. Discover cards from their attributes rather than hard-coding titles into the script. Follow SPEC-003's resolved manifest decision (publishing remains paused): all game directories, including unlisted demos, need their clean trailing-slash entries when publishing to Arweave. Regenerate previews after art changes, then run `python3 tools/stamp.py` after all site changes; the generic studio preview should remain generic.
 
-## Acceptance checks for the later implementation
+## Acceptance checks
 
 - Default load in a new session shows Games and public cards only. Holding/releasing before full power or during the extra three seconds preserves the existing animation/splash and never opens Side B. A continuous hold at full power for about three seconds opens it exactly once; the puddle visibly builds during that stage.
 - Mouse, touch, Space and Enter all trigger the same behavior. Keyboard hold does not scroll; repeated keys, pointer cancel, blur and tab visibility changes do not accumulate progress or queue flips. Reduced-motion users can discover Side B without rotation or continuous idle animation.
 - A flip shows the Side B heading, demo card and Side A button; public cards are hidden. Side A restores Games and only the public cards. Focus lands on the current shelf heading after each user flip; inactive cards/button cannot be tabbed to and are absent from the accessibility tree. Test short landscape, portrait and desktop, light/dark themes and reduced motion.
 - `#side-b` opens Side B directly. Reload and same-tab game/home navigation retain the visit's choice; the Side A button works after direct-hash entry. New-session default is Side A. Denied/unavailable session storage still permits both flips without console errors. Without JavaScript only the public shelf is exposed.
 - Changing or adding a card's `data-badge` value changes its visible and accessible label without script changes. The only launch label is demo, on the single Stick Army card; no update/archive feature is present.
-- Stick Army opens from `stick-army/`, its local thumbnail displays, home navigation stays in the same mount, and the page remains noindexed. The public studio page stays indexable. Verify Pages/custom-domain and a test Arweave manifest on an ar.io gateway using SPEC-003's resolved alias scheme, with no missing assets.
+- Stick Army opens from `stick-army/`, its local thumbnail displays, home navigation stays in the same mount, and the page remains noindexed. The public studio page stays indexable. Verify relative links and assets at a Pages-style mount and domain root, with no missing assets. Live Pages/custom-domain verification belongs to manual release; the test Arweave manifest and ar.io gateway check are deferred to the uploader follow-up above, using trailing-slash entries only.
 - No demo/update traffic posts to a live leaderboard board, no scores API contract changes are made, and existing public leaderboard behavior is unchanged. Stick Army's gameplay and UI harnesses pass from `tests/stick-army/` after SPEC-003; board checks pass if bindings are touched.
 - The promotion checklist is documented and testable: move card to Side A, remove game noindex, update living docs, stamp and publish manually. Before promotion the demo remains on Side B only. No automated deployment, production ArNS update or archive copy is introduced.
