@@ -1,0 +1,176 @@
+// Stick Army units beyond the basic trooper and plane: the zeppelin boss, and the units added with it.
+// Classic script; load before game.js. game.js calls StickArmyUnits(world) once. The world object carries its
+// constants and helpers, and live values (state S, canvas G, line boil, the wave stream RW, sound) through getters,
+// so this file never reaches into game.js's scope. Effect helpers are wrappers, so harness stubs still apply.
+var StickArmyUnits = function (w) {
+  'use strict';
+  var W = w.W, GROUND = w.GROUND, BK = w.BK, TUR = w.TUR, BALANCE = w.BALANCE;
+  var INK = w.INK, INK2 = w.INK2, RED = w.RED, BLUE = w.BLUE, HAT = w.HAT, PAPER = w.PAPER, RED_FILL = w.RED_FILL, INK_FILL = w.INK_FILL;
+  var L = w.L, SP = w.SP, Ci = w.Ci, ink = w.ink, pen = w.pen, jt = w.jt, stick = w.stick, tube = w.tube;
+  var clamp = w.clamp, between = w.between, rr = w.rr, R = Math.random, substream = w.substream;
+  var makePlane = w.makePlane, spawnTrooper = w.spawnTrooper, rollTrooper = w.rollTrooper, award = w.award, explode = w.explode, emit = w.emit;
+  var puff = w.puff, burst = w.burst, killFx = w.killFx, addText = w.addText, addDecal = w.addDecal;
+
+  // ---------- zeppelin boss ----------
+  // Every BOSS_EVERY waves a zeppelin patrols the sky until it is shot down. It drops paratroopers from its gondola
+  // and bomb clusters from its belly, sinks as it loses gas, and turns angry (faster, busier) at half health.
+  // It lives in S.planes so flak, rockets, bazookas and the ambience treat it as an aircraft.
+  var ZEP = { HW: 78, HH: 25, Y: 172, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
+    DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5 };
+  function zeppelinHP(n) { return Math.round(30 + BALANCE.BOSS_HP_PER_WAVE * n); }
+  function spawnZeppelin() {
+    var S = w.S;
+    var rnd = substream(w.RW), dir = rnd() < 0.5 ? 1 : -1, p = makePlane('zeppelin', dir, dir > 0 ? -ZEP.HW - 20 : W + ZEP.HW + 20, ZEP.Y);
+    p.rng = rnd;
+    p.hp = p.maxHp = zeppelinHP(S.wave); p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
+    p.baseY = ZEP.Y; p.bob = between(rnd, 0, 6.28); p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
+    S.planes.push(p);
+    emit('plane_spawn', { kind: 'zeppelin', dir: dir, y: p.y, hp: p.maxHp });
+    w.sound.play('horn');
+    return p;
+  }
+  function zeppelinOnScreen(p) { return p.x > 40 && p.x < W - 40; }
+  // The hull is an ellipse (narrowed while it turns), plus the gondola underneath.
+  function planeHit(p, x, y, near) {
+    var dx = x - p.x, dy = y - p.y;
+    if (p.kind !== 'zeppelin') return Math.abs(dx) < p.hw + near && Math.abs(dy) < p.hh + near;
+    var f = Math.abs(p.face), hw = Math.max(16, p.hw * f) + near, hh = p.hh + near;
+    if (dx * dx / (hw * hw) + dy * dy / (hh * hh) < 1) return true;
+    return Math.abs(dx) < 24 * f + 4 + near && dy > p.hh - 3 && dy < p.hh + 17 + near;
+  }
+  function updateZeppelin(p, dt) {
+    var S = w.S;
+    p.hitFlash = Math.max(0, p.hitFlash - dt);
+    // Turning is a cartoon flip: the hull squashes through zero width, so it slows, stops and heads back.
+    p.face += clamp(p.dir - p.face, -dt * 2.6, dt * 2.6);
+    if (p.state === 'fly') {
+      if (!p.entered && p.x > ZEP.LEFT && p.x < ZEP.RIGHT) p.entered = true;
+      var want = !p.entered ? ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
+      p.speed += (want - p.speed) * Math.min(1, dt * 1.5);
+      if (p.entered && (p.dir > 0 ? p.x > ZEP.RIGHT : p.x < ZEP.LEFT)) p.dir = -p.dir;
+      p.x += p.face * p.speed * dt;
+      p.baseY += (ZEP.Y + ZEP.SINK * (1 - p.hp / p.maxHp) - p.baseY) * Math.min(1, dt * 0.8);
+      p.y = p.baseY + Math.sin(S.t * 1.1 + p.bob) * 2.5;
+      if (zeppelinOnScreen(p)) {
+        p.dropT -= dt;
+        if (p.dropT <= 0) { p.dropT = p.angry ? ZEP.ANGRY_DROP_EVERY : ZEP.DROP_EVERY; spawnTrooper(p.x + between(p.rng, -8, 8), p.y + p.hh + 12, rollTrooper(p.rng)).zep = p.id; }
+        p.bombT -= dt;
+        if (p.bombT <= 0) {
+          p.bombT = p.angry ? ZEP.ANGRY_BOMB_EVERY : ZEP.BOMB_EVERY;
+          [-1, 0, 1].forEach(function (k) { S.bombs.push({ id: w.id(), x: p.x + k * 10, y: p.y + p.hh - 2, vx: p.face * p.speed * 0.5 + k * 40, vy: 0, isBomb: true, dead: false }); emit('bomb_dropped', { by: 'zeppelin' }); });
+          w.sound.play('whistle');
+        }
+      }
+      p.holes.forEach(function (h) { if (R() < dt * 0.8) puff(p.x + h.x * p.face, p.y + h.y, 2, 0.5); });
+      return;
+    }
+    // Going down: nose-first, small blasts along the hull, then a big crash. Its own bailed crew are spared.
+    p.vy += 70 * dt; p.y += p.vy * dt; p.x += p.face * 16 * dt; p.rot = Math.min(0.42, p.rot + 0.22 * dt);
+    p.boomT -= dt;
+    if (p.boomT <= 0) {
+      p.boomT = rr(0.22, 0.4);
+      var ox = rr(-0.75, 0.75) * p.hw * p.face, oy = rr(-0.5, 0.5) * p.hh;
+      burst(p.x + ox, p.y + oy, 6, RED, 150); puff(p.x + ox, p.y + oy, 5, 0.8);
+      w.sound.play('hit');
+    }
+    p.smoke -= dt;
+    if (p.smoke <= 0) { p.smoke = 0.07; puff(p.x + rr(-0.6, 0.6) * p.hw, p.y - p.hh * 0.6, rr(3, 6), 0.9); }
+    S.troopers.forEach(function (t) {
+      if (t.dead || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
+      if (Math.abs(t.x - p.x) < p.hw && Math.abs(t.y + 10 - p.y) < p.hh + 8) { t.dead = true; killFx(t); S.stats.kills++; emit('kill', { by: 'crash', type: t.type }); award(10, t.x, t.y, 'bonk!', INK, true); }
+    });
+    if (p.y + p.hh * 0.5 >= GROUND - 8) {
+      [-0.6, 0, 0.6].forEach(function (k) { explode(clamp(p.x + k * p.hw * p.face, 10, W - 10), GROUND - 4, 46, 'crash'); });
+      S.shake = Math.max(S.shake, 0.8);
+      p.gone = true;
+    }
+  }
+  function hurtZeppelin(p, dmg, owner, hx, hy) {
+    p.hp -= dmg; p.hitFlash = 0.1;
+    var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy;
+    burst(x, y, 3, INK, 90);
+    // Holes appear where hits land, more of them as it weakens. Stored unflipped so they turn with the hull.
+    var lx = (x - p.x) * (p.face < 0 ? -1 : 1), ly = y - p.y, e = Math.hypot(lx / p.hw, ly / p.hh);
+    if (e > 0.8) { lx *= 0.8 / e; ly *= 0.8 / e; }
+    if (p.holes.length < 2 + Math.floor((1 - Math.max(0, p.hp) / p.maxHp) * 10)) p.holes.push({ x: lx, y: ly, id: w.id() });
+    if (p.hp <= 0) { zeppelinDown(p, owner); return; }
+    w.sound.play('thup');
+    if (!p.angry && p.hp <= p.maxHp / 2) { p.angry = true; addText("it's angry!", p.x, p.y - p.hh - 16, RED, 24); w.sound.play('horn'); }
+  }
+  function zeppelinDown(p, owner) {
+    var S = w.S;
+    p.state = 'fall'; p.hp = 0; p.vy = 0; p.rot = 0; p.smoke = 0; p.boomT = 0.15;
+    S.stats.planes++; S.stats.zeppelins++;
+    emit('plane_down', { kind: 'zeppelin', by: owner === 'ally' ? 'crew' : 'player' });
+    award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
+    S.banner = { s: 'zeppelin down!', sub: 'catch the crew!', t: 0, dur: 2.2 };
+    S.shake = Math.max(S.shake, 0.5);
+    w.sound.play('zepdown');
+    for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
+  }
+
+  function drawZeppelin(p) {
+    var G = w.G;
+    pen(p.id);
+    var hw = p.hw, hh = p.hh, f = p.face, i, fly = p.state === 'fly';
+    if (fly) { G.beginPath(); G.ellipse(p.x, GROUND - 2, hw * Math.max(0.2, Math.abs(f)) * 0.7, 3, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(46,46,51,0.07)'; G.fill(); }
+    G.save(); G.translate(p.x, p.y); G.scale(f, 1); if (p.rot) G.rotate(p.rot);
+    // Tail fins with enemy stripes. Local +x is the nose.
+    [-1, 1].forEach(function (sd) {
+      G.beginPath(); SP([-hw * 0.6, sd * hh * 0.55, -hw * 1.02, sd * hh * 1.3, -hw * 1.1, sd * hh * 1.25, -hw * 0.98, sd * 3], true, 0.5);
+      G.fillStyle = PAPER; G.fill(); ink(INK, 2.2); G.stroke();
+      G.beginPath(); L(-hw * 0.94, sd * hh * 1.08, -hw * 0.97, sd * hh * 0.3, 0.3); ink(RED, 3); G.stroke();
+    });
+    var pts = [];
+    for (i = 0; i < 20; i++) { var a = i / 20 * Math.PI * 2, c = Math.cos(a); pts.push(c * hw, Math.sin(a) * hh * (c < 0 ? 1 - 0.3 * c * c : 1)); }
+    G.beginPath(); SP(pts, true, 0.6);
+    G.fillStyle = PAPER; G.fill();
+    G.fillStyle = p.hitFlash > 0 ? 'rgba(200,67,58,0.28)' : p.angry ? RED_FILL : INK_FILL; G.fill();
+    ink(INK, 2.6); G.stroke();
+    // Gores and a seam give it some roundness.
+    G.beginPath();
+    [-0.62, -0.3, 0.02, 0.34, 0.64].forEach(function (k) {
+      var x = k * hw, h = hh * Math.sqrt(1 - k * k) * (k < 0 ? 1 - 0.3 * k * k : 1) - 1;
+      G.moveTo(x + jt(0.4), -h); G.quadraticCurveTo(x + 7 + jt(0.8), 0, x + jt(0.4), h);
+    });
+    ink('rgba(46,46,51,0.35)', 1.3); G.stroke();
+    G.beginPath(); L(-hw * 0.88, hh * 0.32, hw * 0.9, hh * 0.25, 0.6); ink('rgba(46,46,51,0.25)', 1.2); G.stroke();
+    G.beginPath(); G.arc(hw * 0.5, -hh * 0.18, 7, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
+    G.beginPath(); G.arc(hw * 0.5, -hh * 0.18, 2.6, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
+    p.holes.forEach(function (h) { pen(h.id); G.beginPath(); SP([h.x - 3, h.y, h.x - 1, h.y - 3, h.x + 3, h.y - 2, h.x + 2, h.y + 2, h.x - 2, h.y + 3], true, 0.6); G.fillStyle = INK; G.fill(); });
+    pen(p.id);
+    if (!fly) {
+      [-0.4, 0.1, 0.5].forEach(function (k, j) {
+        var fx = k * hw, fy = -hh * Math.sqrt(1 - k * k) + 2, fh = 10 + ((w.boil + j) % 3) * 4;
+        G.beginPath(); SP([fx - 7, fy, fx - 4, fy - fh * 0.6, fx - 1, fy - fh * 0.3, fx + 1, fy - fh, fx + 4, fy - fh * 0.4, fx + 7, fy], false, 0.8);
+        G.fillStyle = 'rgba(200,67,58,0.25)'; G.fill(); ink(RED, 2); G.stroke();
+      });
+    }
+    // Gondola, with a stick crew at the windows while it flies.
+    G.beginPath(); L(-16, hh - 3, -12, hh + 5, 0.3); L(16, hh - 3, 12, hh + 5, 0.3); ink(INK, 1.8); G.stroke();
+    G.beginPath(); SP([-24, hh + 4, 22, hh + 4, 26, hh + 9, 20, hh + 16, -22, hh + 16], true, 0.4); G.fillStyle = PAPER; G.fill(); ink(INK, 2.2); G.stroke();
+    [-14, -3, 8].forEach(function (wx) {
+      G.beginPath(); G.rect(wx, hh + 6.5, 6, 6); ink(INK, 1.3); G.stroke();
+      if (fly) { G.beginPath(); G.arc(wx + 3, hh + 9.5, 1.8, 0, Math.PI * 2); G.fillStyle = RED; G.fill(); }
+    });
+    var pl = w.boil % 2 ? 7 : 4;
+    G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
+    if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
+    G.restore();
+  }
+  // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry.
+  function drawBossBar() {
+    var S = w.S, G = w.G; // w is the world; bw is the bar width
+    var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
+    if (!z) return;
+    var bw = 96, x = clamp(z.x, 12 + bw / 2, W - 12 - bw / 2) - bw / 2, y = z.y - z.hh - 12, f = clamp(z.hp / z.maxHp, 0, 1);
+    pen(4343);
+    G.fillStyle = PAPER; G.fillRect(x, y - 4, bw, 8);
+    G.fillStyle = z.hitFlash > 0 ? 'rgba(200,67,58,0.75)' : 'rgba(200,67,58,0.45)'; G.fillRect(x + 1.5, y - 2.5, (bw - 3) * f, 5);
+    G.beginPath(); L(x, y - 4, x + bw, y - 4, 0.4); L(x + bw, y - 4, x + bw, y + 4, 0.3); L(x + bw, y + 4, x, y + 4, 0.4); L(x, y + 4, x, y - 4, 0.3); ink(INK, 1.6); G.stroke();
+    G.beginPath(); L(x + bw / 2, y - 6, x + bw / 2, y + 6, 0.2); ink(INK2, 1.2); G.stroke();
+  }
+
+  return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
+    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar };
+};
