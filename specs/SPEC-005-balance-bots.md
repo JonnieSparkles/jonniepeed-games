@@ -1,6 +1,6 @@
 # SPEC-005: Balance bots
 
-Status: spec only. Implementation comes in a later PR, Stick Army first. Other games opt in later.
+Status: implemented for Stick Army; operations are in [the balance bots guide](../docs/guides/01-balance-bots.md). Other games opt in later.
 
 ## Why
 

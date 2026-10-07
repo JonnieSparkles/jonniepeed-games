@@ -724,8 +724,9 @@
     S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' ? 0.55 : kind === 'crash' ? 0.35 : 0.15);
     if (y > GROUND - 30) addDecal({ kind: 'scorch', x: x, y: GROUND - 3, r: r * 0.55, color: INK, a: 0.2, seed: nextId++ });
     var col = kind === 'rocket' ? BLUE : INK;
+    // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
     S.troopers.forEach(function (t) {
-      if (!t.dead && t.state !== 'bounce' && !(owner === 'player' && t.type === 'sniper' && t.state === 'ground') && Math.hypot(t.x - x, t.y + 14 - y) < r) {
+      if (kind !== 'flak' && !t.dead && t.state !== 'bounce' && !(owner === 'player' && t.type === 'sniper' && t.state === 'ground') && Math.hypot(t.x - x, t.y + 14 - y) < r) {
         t.dead = true; killFx(t, kind === 'bomb' || kind === 'crash' ? 320 : 240); S.stats.kills++;
         emit('kill', { by: kind === 'crash' ? 'crash' : 'explosion', source: kind, type: t.type });
         award(10, t.x, t.y - 4, 'boom!', col, true);
@@ -776,14 +777,15 @@
       if (t.dead || t.state === 'bounce' || seen.indexOf(t.id) >= 0) continue;
       // The trench edge is below the player's firing arc. Crew must handle snipers.
       if (b.owner === 'player' && t.type === 'sniper' && t.state === 'ground') continue;
+      // Rockets explode on contact; flak only bursts near aircraft and bombs, so a direct hit is a plain bullet.
       if (Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
-        if (!projectileBurst(b)) { killTrooper(t, b.owner); consumeBullet(b, t); }
+        if (b.kind !== 'rocket' || !projectileBurst(b)) { killTrooper(t, b.owner); consumeBullet(b, t); }
         return;
       }
       if (t.state === 'chute' && t.open > 0.6) {
         var dx = (b.x - t.x) / 23, dy = (b.y - (t.y - 22)) / 21;
         if (dy < 0.15 && dy > -1 && dx * dx + dy * dy < 1) {
-          if (!projectileBurst(b)) { popChute(t); consumeBullet(b, t); }
+          if (b.kind !== 'rocket' || !projectileBurst(b)) { popChute(t); consumeBullet(b, t); }
           return;
         }
       }
