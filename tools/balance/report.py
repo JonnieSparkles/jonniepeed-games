@@ -47,6 +47,24 @@ def z_score(p1, n1, p2, n2):
     return (p1 - p2) / math.sqrt(pooled * (1 - pooled) * (1 / n1 + 1 / n2))
 
 
+def rank_z(a, b):
+    """Mann-Whitney U as a z score (normal approximation with tie correction): do a's values run higher than b's?"""
+    n1, n2 = len(a), len(b)
+    if not n1 or not n2:
+        return 0
+    pooled = sorted([(v, 0) for v in a] + [(v, 1) for v in b])
+    ranks, i, ties = {}, 0, 0
+    while i < len(pooled):
+        j = i
+        while j < len(pooled) and pooled[j][0] == pooled[i][0]:
+            j += 1
+        ranks[pooled[i][0]] = (i + j + 1) / 2; ties += (j - i) ** 3 - (j - i); i = j
+    u = sum(ranks[v] for v in a) - n1 * (n1 + 1) / 2
+    n = n1 + n2
+    var = n1 * n2 / 12 * ((n + 1) - ties / (n * (n - 1)))
+    return (u - n1 * n2 / 2) / math.sqrt(var) if var > 0 else 0
+
+
 def wave_means(runs, columns, max_wave):
     """Per wave: the mean of each column over runs that reached that wave."""
     rows = []
@@ -70,7 +88,8 @@ def skill_section(name, runs, columns, ref_runs=None):
         fmt(statistics.median(r['t'] for r in runs) / 60) + ' min'))
     if ref_runs:
         rq1, rmed, rq3 = quartiles([r['wave'] for r in ref_runs])
-        flag = ' **changed**' if abs(med - rmed) >= 1 else ''
+        # Both: a full wave of movement and a rank test beyond noise (outcomes are often bimodal, so medians wobble).
+        flag = ' **changed**' if abs(med - rmed) >= 1 and abs(rank_z(waves, [r['wave'] for r in ref_runs])) >= Z_FLAG else ''
         lines.append('Ref: median %s (quartiles %s–%s).%s' % (fmt(rmed), fmt(rq1), fmt(rq3), flag))
     lines.append('')
 
@@ -153,7 +172,7 @@ def summary(results):
         sim = sum(r['t'] for r in runs); wall = sum(r['elapsed'] for r in runs) or 1
         lines.append('Simulation speed: %dx real time per page (median run %s s of wall time).' % (sim / wall, fmt(statistics.median(r['elapsed'] for r in runs))))
     if ref:
-        lines.append('Compared with %s (%s) on the same seeds. "changed" marks a median wave moving by a full wave or more, or survival differing beyond about 99%% confidence.' % (ref['name'], ref['commit']))
+        lines.append('Compared with %s (%s) on the same seeds. "changed" marks a median wave that moves by a full wave or more and differs on a rank test, or survival at a wave that differs, each beyond about 99%% confidence.' % (ref['name'], ref['commit']))
     if 'verify' in results:
         v = results['verify']
         lines.append('Verify: %d runs replayed twice (once with effects on); %s.' % (v['checked'], 'all identical' if not v['mismatched'] else '%d mismatched' % len(v['mismatched'])))

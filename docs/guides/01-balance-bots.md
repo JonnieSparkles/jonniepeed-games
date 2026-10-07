@@ -38,7 +38,7 @@ python3 tools/balance/run.py stick-army --runs 10 --verify
 - **Shop:** how often each item was offered and taken, and the median wave of runs that took it. That is correlation, not cause: good runs buy more.
 - **Odd:** timeouts, stuck runs, or no captures at all.
 
-With `--ref`, the old numbers sit beside the new ones. "changed" marks only differences clearly beyond run-to-run noise: the median wave moving by a full wave or more, or survival at a wave differing beyond about 99% confidence (two-proportion z of 2.58).
+With `--ref`, the old numbers sit beside the new ones. "changed" marks only differences clearly beyond run-to-run noise: a median wave that moves by a full wave or more and also differs on a rank test (Mann-Whitney), or survival at a wave that differs (two-proportion test), each at about 99% confidence (z of 2.58). Outcomes are often bimodal, so a median alone can jump on noise.
 
 ## Rules
 
