@@ -540,7 +540,7 @@ function drawChalk(g,c,sl,d0,tx,ty){
   }
   if(sl.chalk==='howto'){
     let fs=0.46*K; const font=f=>`${f}px "Schoolbell", cursive`;
-    const lines=coarse?['left side: left foot','right side: right foot','tap to walk, hold and slide to aim']:['A or left half: left foot','D or right half: right foot','tap to walk, hold and slide to aim'];
+    const lines=coarse?['left side: left foot','right side: right foot','tap to walk, hold and slide to aim']:['A or left half: left foot','D or right half: right foot','tap to walk, hold to aim, mouse to steer'];
     h.font=font(fs); const w=Math.max(...lines.map(s=>h.measureText(s).width)); fs*=Math.min(1,4.2*K/w); h.font=font(fs);
     h.textAlign='center'; h.fillStyle='#f4e27a';
     lines.forEach((s,j)=>h.fillText(s,tx(2.5),ty(d0+3.75-j*0.95)));
@@ -1207,7 +1207,7 @@ function obsUpdate(dt,now){
   const st=stageOf(slabIdx(front.d));
   if(!obs){
     if(now<nextObs||dog.state==='chase') return;
-    const hint=obsSeen<2?(coarse?'Tap both sides at once to jump.':'Press A and D together to jump.'):'';
+    const hint=obsSeen<2?(coarse?'Tap both sides at once to jump.':'Press Space to jump.'):'';
     obsSeen++;
     const pick=Math.random();
     if(pick>=0.74&&dog.state==='off'){
@@ -1424,7 +1424,7 @@ function startPower(kind,now){
     rl={x:clamp((L.x+Rt.x)/2,0.8,WS-0.8),d,v:0,lean:0,joint:slabIdx(d),stop:sfx.glide()};
     phase='roll'; input.q=[];
     if(dog.state==='chase'){dog.state='leave'; dog.leaveT=0;}
-    sayNow('Heelies!',coarse?"Wheels aren't steps. Hold a side to lean.":"Wheels aren't steps. Hold A or D to lean.",1600);
+    sayNow('Heelies!',coarse?"Wheels aren't steps. Hold a side to lean.":"Wheels aren't steps. Lean with the mouse, or A and D.",1600);
     momText(T.heelies);
   } else {
     sayNow('Moon shoes!','Every jump clears a slab. Steer it in the air.',1700);
@@ -1774,6 +1774,12 @@ function press(side){
 }
 // held, by a press made after time t0 (so the thumbs that started a jump don't steer it)
 function heldSince(side,t0){return held(side)&&input.at[side]>t0;}
+// keyboard: Space jumps (after the foot that's up, if one is)
+function keyJump(){
+  if(mode!=='play'||phase==='jump'||phase==='roll'||input.q.some(p=>p.jump)) return;
+  if(phase==='swing'&&sw.t<0.15&&!held(sw.foot.side)){stopWobble(); phase='idle'; sw=null;}
+  input.q=[{jump:true,up:0}];
+}
 function release(side){
   if(held(side)) return;
   const t=performance.now()/1000;
@@ -2160,13 +2166,20 @@ view.addEventListener('pointerdown',e=>{
   try{view.setPointerCapture(e.pointerId);}catch(_){}
   e.preventDefault();
 });
-view.addEventListener('pointermove',e=>{
-  const p=input.ptrs.get(e.pointerId); if(!p) return;
-  const dx=e.clientX-p.lastX; p.lastX=e.clientX;
-  if(mode!=='play') return;
-  if(phase==='swing'&&sw.foot.side===p.side) sw.x+=dx/K*1.25;
+// Dragging a held side steers. A mouse steers just by moving, no button needed, so a keyboard player
+// can lift a foot with A or D and aim it with the mouse.
+function steerBy(dx,side){
+  if(mode!=='play'||!dx) return;
+  if(phase==='swing'&&(!side||sw.foot.side===side)) sw.x+=dx/K*1.25;
   else if(phase==='roll') rl.x=clamp(rl.x+dx/K*1.25,0.75,WS-0.75);
   else if(phase==='jump'&&!jp.herd) nudge(dx/K*1.25);
+}
+let hoverX=null;
+view.addEventListener('pointermove',e=>{
+  const p=input.ptrs.get(e.pointerId);
+  if(p){const dx=e.clientX-p.lastX; p.lastX=e.clientX; steerBy(dx,p.side); return;}
+  if(e.pointerType!=='mouse') return;
+  const dx=hoverX===null?0:e.clientX-hoverX; hoverX=e.clientX; steerBy(dx,0);
 });
 const up=e=>{const p=input.ptrs.get(e.pointerId); if(!p) return; input.ptrs.delete(e.pointerId); release(p.side);};
 for(const ev of ['pointerup','pointercancel','lostpointercapture']) view.addEventListener(ev,up);
@@ -2186,8 +2199,9 @@ window.addEventListener('keydown',e=>{
     if(k==='Enter'&&!afterEl.hidden) startGame(); return;
   }
   if(mode!=='play') return;
-  if((k==='KeyG'||k==='ShiftLeft'||k==='ShiftRight')&&!e.repeat){toggleGiant(); return;}
-  const footKey={KeyA:-1,KeyD:1,Space:0,KeyW:0,ArrowUp:0}[k];
+  if((k==='KeyS'||k==='KeyG'||k==='ShiftLeft'||k==='ShiftRight')&&!e.repeat){toggleGiant(); return;}
+  if(k==='Space'){e.preventDefault(); if(!e.repeat){sfx.init(); keyJump();} return;}
+  const footKey={KeyA:-1,KeyD:1,KeyW:0,ArrowUp:0}[k];
   if(footKey!==undefined){
     e.preventDefault();
     if(e.repeat||input.keySide.has(k)) return;
@@ -2286,9 +2300,9 @@ function frame(t){
 
 /* ---------- boot ---------- */
 if(!coarse){
-  $('#howMove').innerHTML='Tap <b>A</b> and <b>D</b> (or either half of the screen) in turn to walk. Hold one to lift that foot and aim it, let go to put it down. Steer with the arrow keys or the mouse. <b>A and D together</b> jump.';
-  $('#howGiant').innerHTML="Dawdle and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: press <b>G</b> for a <b>giant step</b> to save it.";
-  const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>G giant step · Esc pauses · F full screen · M sound</span>';
+  $('#howMove').innerHTML='Tap <b>A</b> and <b>D</b> (or either half of the screen) in turn to walk. Hold one to lift that foot, steer it with the <b>mouse</b> (or the arrow keys), let go to put it down. <b>Space</b> (or A and D together) jumps.';
+  $('#howGiant').innerHTML="Dawdle and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: press <b>S</b> for a <b>giant step</b> to save it.";
+  const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>Space jump · S giant step · Esc pauses · F full screen · M sound</span>';
   $('.t-how').appendChild(li);
 }
 makeChalkMask(); syncSound(); syncFs();
