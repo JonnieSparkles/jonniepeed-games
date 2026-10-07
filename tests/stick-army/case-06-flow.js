@@ -23,7 +23,7 @@
   }
   check(S.mode==='shop' && S.wave===1 && S.stats.kills>0,'actual combat reaches the shop');
   var health=S.wallHP, time=S.t; clearInput();
-  check(S.shop.free.length===2 && health>0 && time>10,'living end-of-wave shop');
-  takeItem(S.shop.free[0].id); continueWave(); check(S.wave===2,'shop continues actual run');
+  check(S.shop.items.length===4 && health>0 && time>10,'living end-of-wave shop');
+  takeItem(S.shop.gift); continueWave(); check(S.wave===2,'shop continues actual run');
   RUN.force=null; reset(); shopScreen.hidden=true; render();
 })();

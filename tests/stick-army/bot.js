@@ -83,44 +83,40 @@ window.__balanceBot = function (profile, seed) {
     return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot };
   }
 
-  // Shop: one readable function. Free pick by situation, then premium spending by profile.
-  var FREE_ORDER = ['fire', 'double', 'cool', 'trench', 'helmet', 'slot', 'mat', 'aim', 'sandbags', 'wire', 'repair', 'stash'];
-  var GOOD = ['tramp', 'spread', 'rockets', 'auto', 'flak', 'pierce', 'mines', 'catcher'];
+  // Shop: one readable function. The gift first, then supplies by priority within the budget, then hiring,
+  // and pizza last when the wall is low.
+  var PRIORITY = ['spread', 'double', 'tramp', 'fire', 'rockets', 'auto', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
+    'mines', 'catcher', 'mat', 'aim', 'sandbags', 'wire', 'repair'];
   function shop(o) {
     var sh = o.shop, take = [];
     if (shopped === o.wave) return { continue: true };
     shopped = o.wave;
-    var free = sh.free.filter(function (it) { return it.can; }), wallLow = o.wall < o.maxWall * 0.45;
-    if (free.length) {
-      var pick;
-      if (profile.shop === 'random') pick = free[Math.floor(rnd() * free.length)];
-      else {
-        var order = wallLow ? ['repair', 'sandbags'].concat(FREE_ORDER) : FREE_ORDER;
-        pick = free.slice().sort(function (x, y) { return order.indexOf(x.id) - order.indexOf(y.id); })[0];
-      }
-      take.push(pick.id);
-    }
-    var coins = o.coins, prem = sh.premium.filter(function (it) { return it.can; });
-    function buy(it) { if (it && it.cost <= coins) { take.push(it.id); coins -= it.cost; return true; } return false; }
-    var pizza = prem.find(function (it) { return it.id === 'pizza'; });
-    var offer = prem.find(function (it) { return it.id !== 'pizza'; });
-    // Pizza goes last: the delivery leaves the shop, and the bot continues once it returns.
-    var wantPizza = pizza && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
+    var coins = o.coins, wallLow = o.wall < o.maxWall * 0.45, cushion = profile.shop === 'save' ? 40 : 0;
+    function buy(it) { if (it && it.can && it.cost <= coins) { take.push(it.id); coins -= it.cost; return true; } return false; }
+    var items = sh.items.filter(function (it) { return it.can || it.cost > coins; });
+    var gift = items.find(function (it) { return it.gift; });
+    buy(gift);
+    var pizza = items.find(function (it) { return it.id === 'pizza'; });
+    var wantPizza = pizza && pizza.can && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
     if (wantPizza) coins -= pizza.cost;
+    var rest = items.filter(function (it) { return it !== gift && it.id !== 'pizza'; });
     if (profile.shop === 'random') {
-      var others = prem.filter(function (it) { return it.id !== 'pizza'; });
-      if (rnd() < 0.35 && others.length) buy(others[Math.floor(rnd() * others.length)]);
-    } else if (offer && GOOD.indexOf(offer.id) >= 0) buy(offer);
+      if (rest.length && rnd() < 0.5) buy(rest[Math.floor(rnd() * rest.length)]);
+    } else {
+      var order = wallLow ? ['repair', 'sandbags'].concat(PRIORITY) : PRIORITY;
+      rest.sort(function (x, y) { return order.indexOf(x.id) - order.indexOf(y.id); }).forEach(function (it) {
+        // Experts keep a cushion except for the top of the list.
+        if (order.indexOf(it.id) < 3 || coins - it.cost >= cushion) buy(it);
+      });
+    }
     // Hiring: the role the squad lacks most, up to two a visit. Every hire raises the next price by 15.
-    // Experts keep a cushion for the next good premium; casual players hire on a whim.
     var have = {}, crew = o.recruits.length, extra = 0;
     o.recruits.forEach(function (r) { have[r.type] = (have[r.type] || 0) + 1; });
     for (var n = 0; n < 2 && crew < o.slots; n++) {
       var role = !have.bazooka ? 'bazooka' : !have.engineer ? 'engineer' : !have.medic && crew >= 3 ? 'medic' : 'rifle';
       if (profile.shop === 'random') { if (rnd() > 0.35) break; role = ['rifle', 'engineer', 'bazooka', 'sniper'][Math.floor(rnd() * 4)]; }
-      var job = (sh.hire || []).find(function (it) { return it.id === 'hire-' + role && (it.can || it.cost <= coins); });
-      if (!job || (profile.shop === 'save' && coins - job.cost - extra < 60)) break;
-      if (job.cost + extra > coins) break;
+      var job = (sh.hire || []).find(function (it) { return it.id === 'hire-' + role; });
+      if (!job || job.cost + extra > coins - cushion) break;
       take.push(job.id); coins -= job.cost + extra; extra += 15; crew++; have[role] = (have[role] || 0) + 1;
     }
     if (wantPizza && coins >= 0) take.push('pizza');

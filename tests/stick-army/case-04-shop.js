@@ -2,12 +2,13 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   newGame(); var before=S.coins; award(10,50,300,'test',INK,true); award(10,50,300,'test',INK,true);
   check(S.coins>before && S.score===30,'coins separate from combo score');
-  openShop(); check(S.shop.free.length===2 && S.shop.premium.length===2,'two free picks, a rotating offer and pizza');
+  openShop(); check(S.shop.items.length===4 && S.shop.items[3].id==='pizza','three rotating supplies and pizza');
+  check(S.shop.items.slice(0,3).some(it=>it.id===S.shop.gift) && costNow(ITEMS.find(it=>it.id===S.shop.gift))===0,'one supply is on the house');
   check(S.shop.hire.length===5 && S.shop.hire.every(it=>eligible(it)),'every role for hire while a slot is free');
-  check(S.shop.premium.some(it=>it.id==='pizza'),'pizza always orderable');
-  continueWave(); check(S.mode==='shop','must choose a free item');
-  var pick=S.shop.free[0].id, other=S.shop.free[1].id;
-  check(takeItem(pick),'take free'); check(!takeItem(other) && !takeItem(pick),'exactly one free choice');
+  var pick=S.shop.gift, other=S.shop.items.find(it=>it.id!==pick && it.id!=='pizza').id, purse=S.coins;
+  check(takeItem(pick) && S.coins===purse,'the gift is free'); check(!takeItem(pick),'each supply once per visit');
+  check(costNow(ITEMS.find(it=>it.id===pick))===price(ITEMS.find(it=>it.id===pick)),'only one gift a visit');
+  S.coins=0; check(!takeItem(other),'other supplies cost tags');
   S.coins=0; check(!takeItem('pizza'),'cannot overspend');
   S.coins=100; S.wallHP=50; var r=makeRecruit(0,'rifle'); r.hp=1; S.recruits=[r];
   var coins=S.coins, spawnTimer=S.spawn.timer;
@@ -21,6 +22,7 @@
   newGame();
   check(S.coins===0 && S.mods.slots===4 && !S.mods.stacks[pick] && S.recruits.length===0, 'new run resets progression');
   ITEMS.filter(it=>it.maxStacks!==Infinity).forEach(it=>S.mods.stacks[it.id]=it.maxStacks);
-  openShop(); check(S.shop.free.length===2,'endless run still has two free choices');
+  openShop(); check(S.shop.items.length>=2 && S.shop.items.some(it=>it.id==='repair'),'endless run still offers repairs and pizza');
+  newGame(); openShop(); continueWave(); check(S.mode==='play' && S.wave===2,'leaving without buying is fine');
   reset(); shopScreen.hidden=true; render();
 })();

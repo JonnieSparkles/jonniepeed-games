@@ -20,7 +20,7 @@ window.__balanceDriver = (function () {
         if (amount !== null) bump(w, e.ev + '.amount:' + k + '=' + e[k], amount);
       });
       if (e.ev === 'game_over') rec.end = { wave: e.wave, score: e.score, cause: e.cause };
-      else if (e.ev === 'shop_offer') rec.offers.push((e.free || []).concat(e.premium || []));
+      else if (e.ev === 'shop_offer') rec.offers.push(e.items || (e.free || []).concat(e.premium || []));
       else if (e.ev === 'purchase') rec.purchases.push({ item: e.item, cost: e.cost, wave: e.wave });
     });
   }

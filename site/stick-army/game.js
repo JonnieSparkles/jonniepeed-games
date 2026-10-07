@@ -389,27 +389,26 @@
 
   // ---------- field supplies: all upgrades are run-local ----------
   var ITEMS = [
-    { id: 'fire', name: 'Quick trigger', desc: 'Fire 18% faster. Stacks four times.', tier: 'free', cost: 0, maxStacks: 4, apply: function (s) { s.mods.fire++; } },
-    { id: 'cool', name: 'Cooling fins', desc: 'Each shot heats the gun 20% less. Stacks three times.', tier: 'free', cost: 0, maxStacks: 3, apply: function (s) { s.mods.cool++; } },
-    { id: 'slot', name: 'Room for one more', desc: '+1 squad slot, up to eight.', tier: 'free', cost: 0, maxStacks: 4, apply: function (s) { s.mods.slots++; } },
-    { id: 'repair', name: 'Patch the wall', desc: 'Restore 30 wall health.', tier: 'free', cost: 0, maxStacks: Infinity, apply: function () { repairWall(30, 'supply'); } },
-    { id: 'mat', name: 'Bigger bounce', desc: 'Widen both trampoline frames by 12. Timing still matters!', tier: 'free', cost: 0, maxStacks: 2, apply: function (s) { s.mods.mat++; resizeMats(); } },
-    { id: 'aim', name: 'Steady hands', desc: 'Recruit spread is 28% tighter.', tier: 'free', cost: 0, maxStacks: 3, apply: function (s) { s.mods.aim++; } },
-    { id: 'sandbags', name: 'Sandbags', desc: '+25 maximum wall health, filled immediately.', tier: 'free', cost: 0, maxStacks: 4, apply: function (s) { s.mods.maxHP += 25; repairWall(25, 'supply'); } },
-    { id: 'wire', name: 'Barbed wire', desc: 'Marching enemies walk half as fast.', tier: 'free', cost: 0, maxStacks: 1, apply: function (s) { s.mods.wire = true; } },
-    { id: 'double', name: 'Double barrel', desc: 'Two parallel shots with each trigger pull.', tier: 'free', cost: 0, maxStacks: 1, apply: function (s) { s.mods.double = true; } },
-    { id: 'trench', name: 'Dig in', desc: 'Your crew take 40% less damage. A second trench makes it 60%.', tier: 'free', cost: 0, maxStacks: 2, apply: function (s) { s.mods.trench++; } },
-    { id: 'helmet', name: 'Helmets', desc: '+1 health for every recruit, now and later. Stacks three times.', tier: 'free', cost: 0, maxStacks: 3, apply: function (s) { s.mods.helmet++; s.recruits.forEach(function (r) { if (!r.dead) r.hp += 1; }); } },
-    { id: 'stash', name: 'Rainy-day fund', desc: 'Pocket 12 dog tags toward a big purchase.', tier: 'free', cost: 0, maxStacks: Infinity, apply: function (s) { s.coins += 12; emit('coins', { amount: 12, reason: 'stash' }); } },
-    { id: 'tramp', name: 'Second trampoline', desc: 'Open the right-hand mat. Twice the places to catch.', tier: 'premium', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
-    { id: 'spread', name: 'Spread shot', desc: 'Add two angled shots to every volley.', tier: 'premium', cost: 65, maxStacks: 1, apply: function (s) { s.mods.spread = true; } },
-    { id: 'flak', name: 'Flak rounds', desc: 'Rounds burst near planes and bombs. Paratroopers are left to you.', tier: 'premium', cost: 80, maxStacks: 1, apply: function (s) { s.mods.flak = true; } },
-    { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'premium', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
-    { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'premium', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
-    { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'premium', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
-    { id: 'auto', name: 'Sentry doodle', desc: 'A small auto-turret shoots bombs and low-flying enemies.', tier: 'premium', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
-    { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'premium', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
-    { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'premium', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
+    { id: 'fire', name: 'Quick trigger', desc: 'Fire 18% faster. Stacks four times.', tier: 'supply', cost: 25, maxStacks: 4, apply: function (s) { s.mods.fire++; } },
+    { id: 'cool', name: 'Cooling fins', desc: 'Each shot heats the gun 20% less. Stacks three times.', tier: 'supply', cost: 20, maxStacks: 3, apply: function (s) { s.mods.cool++; } },
+    { id: 'slot', name: 'Room for one more', desc: '+1 squad slot, up to eight.', tier: 'supply', cost: 30, maxStacks: 4, apply: function (s) { s.mods.slots++; } },
+    { id: 'repair', name: 'Patch the wall', desc: 'Restore 30 wall health.', tier: 'supply', cost: 15, maxStacks: Infinity, apply: function () { repairWall(30, 'supply'); } },
+    { id: 'mat', name: 'Bigger bounce', desc: 'Widen both trampoline frames by 12. Timing still matters!', tier: 'supply', cost: 20, maxStacks: 2, apply: function (s) { s.mods.mat++; resizeMats(); } },
+    { id: 'aim', name: 'Steady hands', desc: 'Recruit spread is 28% tighter.', tier: 'supply', cost: 15, maxStacks: 3, apply: function (s) { s.mods.aim++; } },
+    { id: 'sandbags', name: 'Sandbags', desc: '+25 maximum wall health, filled immediately.', tier: 'supply', cost: 20, maxStacks: 4, apply: function (s) { s.mods.maxHP += 25; repairWall(25, 'supply'); } },
+    { id: 'wire', name: 'Barbed wire', desc: 'Marching enemies walk half as fast.', tier: 'supply', cost: 25, maxStacks: 1, apply: function (s) { s.mods.wire = true; } },
+    { id: 'double', name: 'Double barrel', desc: 'Two parallel shots with each trigger pull.', tier: 'supply', cost: 40, maxStacks: 1, apply: function (s) { s.mods.double = true; } },
+    { id: 'trench', name: 'Dig in', desc: 'Your crew take 40% less damage. A second trench makes it 60%.', tier: 'supply', cost: 25, maxStacks: 2, apply: function (s) { s.mods.trench++; } },
+    { id: 'helmet', name: 'Helmets', desc: '+1 health for every recruit, now and later. Stacks three times.', tier: 'supply', cost: 20, maxStacks: 3, apply: function (s) { s.mods.helmet++; s.recruits.forEach(function (r) { if (!r.dead) r.hp += 1; }); } },
+    { id: 'tramp', name: 'Second trampoline', desc: 'Open the right-hand mat. Twice the places to catch.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
+    { id: 'spread', name: 'Spread shot', desc: 'Add two angled shots to every volley.', tier: 'supply', cost: 65, maxStacks: 1, apply: function (s) { s.mods.spread = true; } },
+    { id: 'flak', name: 'Flak rounds', desc: 'Rounds burst near planes and bombs. Paratroopers are left to you.', tier: 'supply', cost: 80, maxStacks: 1, apply: function (s) { s.mods.flak = true; } },
+    { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'supply', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
+    { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'supply', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
+    { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
+    { id: 'auto', name: 'Sentry doodle', desc: 'A small auto-turret shoots bombs and low-flying enemies.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
+    { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
+    { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
   ];
   // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
   [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
@@ -428,35 +427,40 @@
   }
   function price(item) { return typeof item.cost === 'function' ? item.cost() : item.cost; }
   function eligible(item) { return (S.mods.stacks[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
-  // Offers walk a seeded shuffle of the whole tier and take the first eligible items, so for a given seed
+  // Offers walk a seeded shuffle of every supply and take the first eligible ones, so for a given seed
   // the offers change only when eligibility does.
-  function offer(tier, n, skip) {
-    var order = ITEMS.filter(function (it) { return it.tier === tier && skip.indexOf(it.id) < 0; }), i, j, tmp;
+  var OFFERS = 3;
+  function offer(n, skip) {
+    var order = ITEMS.filter(function (it) { return it.tier === 'supply' && skip.indexOf(it.id) < 0; }), i, j, tmp;
     for (i = order.length - 1; i > 0; i--) { j = Math.floor(RS() * (i + 1)); tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
     return order.filter(eligible).slice(0, n);
   }
+  // One random offer each visit is on the house.
+  function onHouse(it) { return S.shop && it.id === S.shop.gift && !S.shop.giftTaken; }
+  function costNow(it) { return onHouse(it) ? 0 : price(it); }
   function openShop() {
     S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null;
-    // One rotating premium offer so saving has a purpose, plus pizza; every role is always listed for hire.
-    var premiums = offer('premium', 1, ['pizza']);
-    premiums.push(ITEMS.find(function (it) { return it.id === 'pizza'; }));
-    S.shop = { free: offer('free', 2, []), premium: premiums, hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }), freeTaken: false, bought: {} };
-    emit('shop_offer', { wave: S.wave, free: S.shop.free.map(function (it) { return it.id; }), premium: premiums.map(function (it) { return it.id; }) });
+    // Three rotating supplies from one pool (one of them free), pizza always, and every role for hire.
+    var items = offer(OFFERS, ['pizza']), gift = Math.floor(RS() * Math.max(1, items.length));
+    S.shop = { items: items.concat(ITEMS.find(function (it) { return it.id === 'pizza'; })), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
+      gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
+    emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
     sound.play('shop');
     shopScreen.querySelector('button:not(:disabled)').focus({ preventScroll: true });
   }
   function takeItem(id) {
     if (S.mode !== 'shop' || !S.shop) return false;
-    var item = S.shop.free.concat(S.shop.premium, S.shop.hire).find(function (it) { return it.id === id; });
-    // Offers sell once per visit; hiring repeats while slots and tags last.
+    var item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
+    // Supplies sell once per visit; hiring repeats while slots and tags last.
     if (!item || (S.shop.bought[id] && item.tier !== 'hire') || !eligible(item)) return false;
-    if (item.tier === 'free' ? S.shop.freeTaken : S.coins < price(item)) return false;
-    if (item.tier === 'free') S.shop.freeTaken = true; else S.coins -= price(item);
-    emit('purchase', { item: id, tier: item.tier, cost: item.tier === 'free' ? 0 : price(item) });
+    var gift = onHouse(item), cost = costNow(item);
+    if (S.coins < cost) return false;
+    S.coins -= cost; if (gift) S.shop.giftTaken = true;
+    emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
     S.shop.bought[id] = true; S.mods.stacks[id] = (S.mods.stacks[id] || 0) + 1; item.apply(S);
     sound.play('recruit'); renderShop();
-    if (S.mode === 'shop') { var next = S.shop.freeTaken ? document.getElementById('continueBtn') : shopScreen.querySelector('button:not(:disabled)'); next.focus({ preventScroll: true }); }
+    if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
     return true;
   }
   // Pencil icons for supplies live in icons.js; they draw with this file's pen.
@@ -473,48 +477,40 @@
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
     document.getElementById('shopCoins').textContent = S.coins + ' dog tags';
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
-    document.getElementById('shopHint').textContent = (S.shop.freeTaken ? 'Packed! Spend dog tags on something extra, or save them.' : 'Take one free supply, then spend dog tags if you like.') +
+    document.getElementById('shopHint').textContent = (S.shop.gift && !S.shop.giftTaken ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
       (waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
-    // Free picks are big cards; paid offers are compact rows; hiring is a row of role chips.
-    function canBuy(it) { return eligible(it) && (it.tier === 'free' ? !S.shop.freeTaken && !S.shop.bought[it.id] : (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= price(it)); }
+    // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
+    function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= costNow(it); }
     function costLabel(it) {
       if (it.tier !== 'hire' && S.shop.bought[it.id]) return 'Packed ✓';
-      if (it.tier === 'free') return 'Take it free';
+      if (onHouse(it)) return 'Free!';
       var cost = price(it);
       return cost + ' tags' + (S.coins < cost && eligible(it) ? ' · need ' + (cost - S.coins) + ' more' : '');
     }
     function itemButton(it, cls, withDesc) {
-      var button = document.createElement('button'); button.type = 'button'; button.className = cls; button.dataset.item = it.id;
+      var button = document.createElement('button'); button.type = 'button'; button.className = cls + (onHouse(it) ? ' gift' : ''); button.dataset.item = it.id;
       button.disabled = !canBuy(it);
       var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
       drawItemIcon(icon, it.id);
       var name = document.createElement('strong'); name.textContent = it.name;
       var label = document.createElement('em'); label.textContent = it.tier === 'hire' ? String(price(it)) : costLabel(it);
-      if (cls === 'supply') {
-        var head = document.createElement('span'); head.className = 'supply-head'; head.append(icon, name);
-        button.append(head);
-      } else button.append(icon, name);
+      button.append(icon, name);
       if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
       else button.title = it.desc;
+      if (onHouse(it)) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
       button.append(label);
       button.addEventListener('click', function () { takeItem(it.id); });
       return button;
     }
-    document.getElementById('freeItems').replaceChildren.apply(document.getElementById('freeItems'), S.shop.free.map(function (it) { return itemButton(it, 'supply', true); }));
-    document.getElementById('premiumItems').replaceChildren.apply(document.getElementById('premiumItems'), S.shop.premium.map(function (it) { return itemButton(it, 'deal', true); }));
+    document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
     var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || freeSlot(0) < 0; });
     document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), roles.map(function (it) { return itemButton(it, 'hire', false); }));
     document.getElementById('hireNote').textContent = freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire.';
     renderKit(document.getElementById('loadout'), false);
-    if (S.shop.freeTaken) {
-      var stock = shopScreen.querySelector('.shop-stock'), extras = document.getElementById('premiumItems').parentElement;
-      stock.scrollTop += extras.getBoundingClientRect().top - stock.getBoundingClientRect().top;
-    }
-    document.getElementById('continueBtn').disabled = !S.shop.freeTaken;
-    document.getElementById('continueBtn').textContent = S.shop.freeTaken ? 'Wave ' + (S.wave + 1) + ' →' : 'Pick one first';
+    document.getElementById('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
   }
   function continueWave() {
-    if (S.mode !== 'shop' || !S.shop.freeTaken) return;
+    if (S.mode !== 'shop') return;
     shopScreen.hidden = true; S.shop = null; clearInput(); S.mode = 'play'; pauseBtn.hidden = false; startWave(S.wave + 1);
     document.activeElement.blur();
   }
