@@ -47,7 +47,8 @@
   var hire = ITEMS.find(function (it) { return it.id === 'hire'; });
   check(S.shop.premium.indexOf(hire) >= 0 && price(hire) === 35, 'hire offered at its base price');
   takeItem(S.shop.free[0].id);
-  check(takeItem('hire') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.coins === 465, 'hiring adds a rifleman');
+  var purse = S.coins; // the free pick may be the rainy-day fund
+  check(takeItem('hire') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.coins === purse - 35, 'hiring adds a rifleman');
   check(price(hire) === 50, 'the next hire costs more');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   S.mods.slots = 1; check(!eligible(hire), 'no hiring when the squad is full');
