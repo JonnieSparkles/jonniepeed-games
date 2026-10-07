@@ -12,6 +12,12 @@
         "maxScore": 10000,
         "meta": { "time_ms": { "min": 0, "max": 86400000 } },
         "tieBreak": []
+      },
+      "3": {
+        "higherIsBetter": true,
+        "maxScore": 10000,
+        "meta": { "time_ms": { "min": 0, "max": 86400000 } },
+        "tieBreak": []
       }
     }
   },
