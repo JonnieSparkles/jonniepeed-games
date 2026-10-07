@@ -2,6 +2,8 @@
 
 Small browser games and pixel scenes. Plain static files, no build step.
 
+Live site: https://jonniepeed.games/ · Scores API: https://scores.jonniepeed.games/
+
 ## Layout
 
 ```
@@ -62,7 +64,7 @@ These apply to every change:
 
 ## Social previews
 
-Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (page screenshot). Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniesparkles.github.io/jonniepeed-games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
+Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (page screenshot). Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniepeed.games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
 
 Rebuild the cards and index thumbnails after changing a game's art or adding a game (add it to `GAMES` in the script first):
 
@@ -80,6 +82,15 @@ python3 tools/stamp.py
 
 The Pages workflow runs it too. Run it before publishing to Arweave.
 
+## Hosting
+
+- DNS for `jonniepeed.games` is on Cloudflare: apex A records point to GitHub Pages and `www` is a CNAME to `jonniesparkles.github.io`, all **DNS only**.
+- The Pages custom domain is set in repository settings. Pages deploys through the custom workflow; no `CNAME` file is needed.
+- The `jonniepeed-games-scores` Worker uses a Cloudflare Custom Domain at `scores.jonniepeed.games`.
+- `games.sparklelabs.org` redirects to the new domain through a Cloudflare redirect rule.
+
+Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, the scores address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point.
+
 ## Publishing to GitHub Pages
 
 Manual only. In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
@@ -92,9 +103,9 @@ Each backend service is a Cloudflare Worker in its own top-level folder, named t
 | --- | --- | --- |
 | Repo folder | `name/` | `scores/` |
 | Worker and D1 database | `jonniepeed-games-name` | `jonniepeed-games-scores` |
-| Address | `name.games.sparklelabs.org` | `scores.games.sparklelabs.org` |
+| Address | `name.jonniepeed.games` | `scores.jonniepeed.games` |
 
-The feature itself can have a friendlier name in docs and buttons (leaderboards). Every new `*.games.sparklelabs.org` address needs three CAA records of its own, or its certificate won't issue: `games.sparklelabs.org` points to GitHub Pages, whose CAA records don't allow Cloudflare's certificate authorities. The [leaderboard guide](docs/guides/00-leaderboards.md#if-the-scores-certificate-wont-issue) has the records and the fix.
+The feature itself can have a friendlier name in docs and buttons (leaderboards). New `*.jonniepeed.games` addresses do not automatically need CAA records of their own: the apex uses A records to GitHub Pages, so CAA lookup inherits the apex policy without following a GitHub CNAME. Only `www` is a CNAME. If CAA restricts issuance, the applicable policy must allow Cloudflare's certificate authorities (`pki.goog`, `letsencrypt.org`, `ssl.com`). Check closer records and any CNAME target before adding an override; see the [leaderboard guide](docs/guides/00-leaderboards.md#if-the-scores-certificate-wont-issue).
 
 ## Deploying the Leaderboard Worker
 

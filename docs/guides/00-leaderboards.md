@@ -17,12 +17,14 @@ The Worker owns validation, board membership, limits and ranking. Each game owns
 
 The blocklist holds about 30 obvious profanities and slurs, plus a few look-alike spellings. It deliberately leaves out ordinary words that some lists wrongly block (such as `GAY` or `JEW`). It stops casual abuse, not a determined troll: use the delete recipes below for anything that gets through. To change it, edit the array (uppercase, exactly three of A–Z/0–9) and deploy the Worker. The smoke test checks that its first entry is refused.
 
+The production API is https://scores.jonniepeed.games/. Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, this address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point.
+
 ## One-time setup (Jonnie's Cloudflare account)
 
 1. Install Node 22 or newer and Wrangler 4 (`npm install -g wrangler@4.148.0`). Run `wrangler login`.
 2. From `scores/`, run `wrangler d1 create jonniepeed-games-scores`. Replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` in `wrangler.jsonc` with the returned ID. Keep the binding named `DB`.
 3. Apply the schema: `wrangler d1 execute jonniepeed-games-scores --remote --file=schema.sql`.
-4. Run `wrangler deploy`. Confirm the Worker Custom Domain in Cloudflare's Workers dashboard and that `/v1/top?game=<game-id>&board=1` returns JSON for a game id in `games.json`. Cloudflare normally supplies the Custom Domain certificate. If the two-level name asks for a paid certificate product, fall back to the single-level `scores` name on the same zone, editing only `API` in `site/assets/leaderboard.js` and `routes` in `scores/wrangler.jsonc`, and tell Jonnie.
+4. Run `wrangler deploy`. Confirm the Worker Custom Domain in Cloudflare's Workers dashboard and that `/v1/top?game=<game-id>&board=1` returns JSON for a game id in `games.json`. Cloudflare normally supplies the Custom Domain certificate.
 5. Run `BASE=https://<Worker-Custom-Domain> node test/smoke.mjs`. It writes only to a newly selected random negative test board, never a real board. All boards ≤ 0 are test boards; real games never display them.
 6. Run `python3 tools/check_boards.py` and `python3 tools/stamp.py` from the repository root. Deploy the site by manually running **Deploy to GitHub Pages**. Do not add automatic workflow triggers.
 
@@ -41,16 +43,18 @@ When a change touches both, deploy the Worker first, then the site.
 
 One-time setup for the GitHub workflow (repository **Settings → Secrets and variables → Actions → New repository secret**):
 
-1. `CLOUDFLARE_API_TOKEN`: in Cloudflare, **My Profile → API Tokens → Create Token**, use the **Edit Cloudflare Workers** template, limit it to your account and the `sparklelabs.org` zone, and create it. Cloudflare shows the token once.
+1. `CLOUDFLARE_API_TOKEN`: in Cloudflare, **My Profile → API Tokens → Create Token**, use the **Edit Cloudflare Workers** template, limit it to your account and the `jonniepeed.games` zone, and create it. Cloudflare shows the token once.
 2. `CLOUDFLARE_ACCOUNT_ID`: the Account ID shown in the Cloudflare dashboard (Workers & Pages overview, or the account home page).
 
 If a run fails with a permissions error, edit the token in Cloudflare rather than adding secrets anywhere in the repository. Never commit the token.
 
 ### If the scores certificate won't issue
 
-`games.sparklelabs.org` is a CNAME to GitHub Pages (`jonniesparkles.github.io`). When a certificate authority checks `scores.games.sparklelabs.org` and finds no CAA records on that exact name, it climbs to `games.sparklelabs.org`, follows the CNAME, and finds GitHub's CAA records. Those only allow DigiCert, Sectigo and Let's Encrypt, so a Cloudflare certificate from Google Trust Services fails with a "CAA records block issuance" error under **SSL/TLS → Edge Certificates**.
+New `*.jonniepeed.games` addresses do not automatically need their own CAA records. `jonniepeed.games` uses A records to GitHub Pages; A records do not redirect CAA lookup to GitHub. With no CAA records on the requested hostname, lookup climbs to the apex and uses its policy. Only `www.jonniepeed.games` is a CNAME to GitHub Pages, so that name follows its CNAME target during CAA lookup; sibling names such as `scores.jonniepeed.games` do not.
 
-The fix (already in place) is CAA records on `scores.games` itself, so the check stops there: three `CAA` records named `scores.games`, tag **Only allow specific hostnames** (`issue`), for `pki.goog`, `letsencrypt.org` and `ssl.com`. Cloudflare adds its own CAA records alongside them, which is what the dashboard's warning means. Don't delete them, or renewals can fail the same way. After adding them, a stuck certificate can take a while to retry. If it stays in error, delete the certificate, remove the Worker's custom domain and run `wrangler deploy` again to order a fresh one.
+If no applicable CAA policy restricts issuance, no extra CAA records are required. If an applicable policy exists, it must authorize the certificate authorities used by the service. For Cloudflare Custom Domains, allow `issue` for `pki.goog`, `letsencrypt.org` and `ssl.com`. Keep Let's Encrypt allowed for GitHub Pages at the apex too. Check the exact hostname, any CNAME target and the inherited apex policy when **SSL/TLS → Edge Certificates** reports "CAA records block issuance". For a service hostname without a CNAME, add an explicit policy only when it needs to override an inherited restriction. A CNAME cannot coexist with CAA records at the same name; correct its target's policy or change the DNS layout instead. Keep the required authorizations for renewals.
+
+After correcting CAA, a stuck certificate can take a while to retry. If it stays in error, remove the Worker's custom domain and run `wrangler deploy` again to order a fresh one.
 
 ## Local development
 
