@@ -15,6 +15,9 @@
   const heading = document.getElementById('shelfHeading');
   const sideA = document.getElementById('sideA');
   const cards = Array.from(grid.querySelectorAll('.card'));
+  // Sound is optional: if audio.js didn't load, the shelf and the egg still work.
+  const sound = typeof StudioSound === 'undefined' ? { init() {}, play() {}, ready: false, muted: false, none: true } : StudioSound;
+  const soundKey = 'jonniepeed.muted';
   let side = 'a', flipping = false;
   for (const card of cards) {
     if (card.hasAttribute('data-badge')) {
@@ -25,6 +28,7 @@
   }
   function setSide(next, user = false, keyboard = false) {
     if (flipping || (user && side === next)) return;
+    if (user) sound.play(next === 'b' ? 'sideB' : 'sideA');
     function apply() {
       side = next;
       heading.textContent = side === 'b' ? 'Side B' : 'Games';
@@ -58,9 +62,63 @@
     if (location.hash === '#side-b') history.replaceState(null, '', location.pathname + location.search);
     setSide('a', true, e.detail === 0);
   });
+
+  // Sound. Browsers only allow audio after a click, tap or key press, so the first one unlocks it.
+  // Only the events browsers count as a gesture are used: a mouse press, a lifted finger or pen (a scroll
+  // cancels the pointer instead, so scrolling never unlocks or plays anything) and a key press.
+  const soundBtn = document.getElementById('sound');
+  const unlock = e => {
+    if (soundBtn && soundBtn.contains(e.target)) return; // the button handles its own first press
+    if (e.type === 'keydown' || (e.type === 'pointerdown') === (e.pointerType === 'mouse')) sound.init();
+  };
+  for (const type of ['pointerdown', 'pointerup', 'keydown']) addEventListener(type, unlock, { capture: true, passive: true });
+  // Cards get a quiet note on mouse hover or keyboard focus (each its own pitch), and a blip on a real click.
+  // A same-tab click waits a beat before leaving so the blip is heard.
+  let leaving = false;
+  cards.forEach((card, i) => {
+    card.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sound.play('tick', i); });
+    card.addEventListener('focus', () => { if (card.matches(':focus-visible')) sound.play('tick', i); });
+    card.addEventListener('click', e => {
+      if (e.defaultPrevented || !sound.ready || sound.muted) return;
+      if (leaving) { e.preventDefault(); return; }
+      sound.play('press');
+      if (card.target === '_blank' || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      leaving = true;
+      setTimeout(() => { leaving = false; location.href = card.href; }, 120);
+    });
+  });
+  // The footer button shows sound as on only when it's really playing: until the browser allows audio it
+  // reads "Sound off", and pressing it turns sound on (with a little hello) instead of muting.
+  if (soundBtn && !sound.none && (window.AudioContext || window.webkitAudioContext)) {
+    try { sound.muted = localStorage.getItem(soundKey) === '1'; } catch (_) {}
+    const label = soundBtn.querySelector('span');
+    let on = false;
+    const showSound = () => {
+      on = sound.ready && !sound.muted;
+      soundBtn.classList.toggle('off', !on);
+      soundBtn.setAttribute('aria-pressed', String(on));
+      label.textContent = on ? 'Sound on' : 'Sound off';
+    };
+    showSound();
+    soundBtn.hidden = false;
+    let greet = false;
+    soundBtn.addEventListener('click', () => {
+      const turnOn = !on;
+      sound.muted = !turnOn;
+      try { localStorage.setItem(soundKey, turnOn ? '0' : '1'); } catch (_) {}
+      sound.init();
+      greet = turnOn;
+      showSound();
+      if (greet && sound.ready) { greet = false; sound.play('hello'); }
+    });
+    // A first press can take a moment to start audio; greet once it does.
+    sound.onready = () => { showSound(); if (greet && on) { greet = false; sound.play('hello'); } };
+    addEventListener('pageshow', showSound);
+  }
   let W = 120, scale = 3, time = 0, last = 0, running = false, visible = true;
   let parts = [], stains = new Map(), power = 0, holding = false, splashT = 0;
-  let overflow = 0, fired = false, input = null, frame = 0, calmStep = '';
+  let overflow = 0, fired = false, charged = false, input = null, frame = 0, calmStep = '';
   let flipPointer = null, clickTimer = 0;
   function clearFlipPointer() { flipPointer = null; clearTimeout(clickTimer); }
   // The shelf moves under a held finger. Consume its generated click even if
@@ -173,11 +231,18 @@
     if (holding && !document.hidden) {
       const charging = (1 - power) * CHARGE_SECONDS;
       power = Math.min(1, power + elapsed / CHARGE_SECONDS);
+      // a held note climbs with the power, then a little further while the puddle grows.
+      // It waits for a deliberate hold, so a finger that only brushes the egg on the way to a scroll stays quiet.
+      if (!fired && power > 0.12) {
+        sound.play('charge', power + overflow / OVERFLOW_SECONDS * 0.25);
+        if (power === 1 && !charged) { charged = true; sound.play('full'); }
+      }
       if (side === 'a' && !fired) {
         overflow += Math.max(0, elapsed - charging);
         if (overflow >= OVERFLOW_SECONDS) {
           overflow = OVERFLOW_SECONDS;
           fired = true;
+          sound.play('chargeEnd');
           if (typeof input === 'number') flipPointer = input;
           if (!calm) { burst(W - 6, 60, 1.8); splashT = 0.25; }
           setSide('b', true, typeof input === 'string');
@@ -210,17 +275,19 @@
 
   function press(source) {
     if (holding || document.hidden) return;
-    holding = true; input = source; overflow = 0; fired = false;
+    holding = true; input = source; overflow = 0; fired = false; charged = false;
     last = performance.now();
     start();
   }
   function release() {
     if (!holding) return;
     holding = false; input = null; overflow = 0;
+    sound.play('chargeEnd');
     // a big splash where the stream lands when you let go near full power
     if (power > 0.7) {
       const ox = 15, room = W - ox - 6;
       burst(ox + room * (0.2 + 0.8 * power), 40, 1.4); splashT = 0.25;
+      sound.play('splash');
     }
     if (calm) { stop(); power = 0; for (let i = 0; i < 20; i++) stains.set(Math.round(W * (0.5 + Math.random() * 0.45)), { c: COLORS[(Math.random() * 6) | 0], life: 5 }); draw(); }
   }
