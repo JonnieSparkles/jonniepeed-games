@@ -15,6 +15,9 @@
   const heading = document.getElementById('shelfHeading');
   const sideA = document.getElementById('sideA');
   const cards = Array.from(grid.querySelectorAll('.card'));
+  // Sound is optional: if audio.js didn't load, the shelf and the egg still work.
+  const sound = typeof StudioSound === 'undefined' ? { init() {}, play() {}, muted: false, none: true } : StudioSound;
+  const soundKey = 'jonniepeed.muted';
   let side = 'a', flipping = false;
   for (const card of cards) {
     if (card.hasAttribute('data-badge')) {
@@ -25,6 +28,7 @@
   }
   function setSide(next, user = false, keyboard = false) {
     if (flipping || (user && side === next)) return;
+    if (user) sound.play(next === 'b' ? 'sideB' : 'sideA');
     function apply() {
       side = next;
       heading.textContent = side === 'b' ? 'Side B' : 'Games';
@@ -58,9 +62,31 @@
     if (location.hash === '#side-b') history.replaceState(null, '', location.pathname + location.search);
     setSide('a', true, e.detail === 0);
   });
+
+  // Sound. The audio context can only start from a gesture, so any press or key unlocks it.
+  // Cards get a quiet note on hover or keyboard focus (each its own pitch) and a blip when pressed.
+  for (const type of ['pointerdown', 'pointerup', 'keydown']) addEventListener(type, () => sound.init(), { capture: true, passive: true });
+  cards.forEach((card, i) => {
+    card.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sound.play('tick', i); });
+    card.addEventListener('focus', () => { if (card.matches(':focus-visible')) sound.play('tick', i); });
+    card.addEventListener('pointerdown', () => sound.play('press'));
+  });
+  const soundBtn = document.getElementById('sound');
+  if (soundBtn && !sound.none && (window.AudioContext || window.webkitAudioContext)) {
+    try { sound.muted = localStorage.getItem(soundKey) === '1'; } catch (_) {}
+    const showSound = () => { soundBtn.classList.toggle('off', sound.muted); soundBtn.setAttribute('aria-pressed', String(!sound.muted)); };
+    showSound();
+    soundBtn.hidden = false;
+    soundBtn.addEventListener('click', () => {
+      sound.muted = !sound.muted;
+      try { localStorage.setItem(soundKey, sound.muted ? '1' : '0'); } catch (_) {}
+      showSound();
+      sound.play('press'); // silent when it was just muted
+    });
+  }
   let W = 120, scale = 3, time = 0, last = 0, running = false, visible = true;
   let parts = [], stains = new Map(), power = 0, holding = false, splashT = 0;
-  let overflow = 0, fired = false, input = null, frame = 0, calmStep = '';
+  let overflow = 0, fired = false, charged = false, input = null, frame = 0, calmStep = '';
   let flipPointer = null, clickTimer = 0;
   function clearFlipPointer() { flipPointer = null; clearTimeout(clickTimer); }
   // The shelf moves under a held finger. Consume its generated click even if
@@ -173,11 +199,17 @@
     if (holding && !document.hidden) {
       const charging = (1 - power) * CHARGE_SECONDS;
       power = Math.min(1, power + elapsed / CHARGE_SECONDS);
+      if (!fired) {
+        // a held note climbs with the power, then a little further while the puddle grows
+        sound.play('charge', power + overflow / OVERFLOW_SECONDS * 0.25);
+        if (power === 1 && !charged) { charged = true; sound.play('full'); }
+      }
       if (side === 'a' && !fired) {
         overflow += Math.max(0, elapsed - charging);
         if (overflow >= OVERFLOW_SECONDS) {
           overflow = OVERFLOW_SECONDS;
           fired = true;
+          sound.play('chargeEnd');
           if (typeof input === 'number') flipPointer = input;
           if (!calm) { burst(W - 6, 60, 1.8); splashT = 0.25; }
           setSide('b', true, typeof input === 'string');
@@ -210,17 +242,19 @@
 
   function press(source) {
     if (holding || document.hidden) return;
-    holding = true; input = source; overflow = 0; fired = false;
+    holding = true; input = source; overflow = 0; fired = false; charged = false;
     last = performance.now();
     start();
   }
   function release() {
     if (!holding) return;
     holding = false; input = null; overflow = 0;
+    sound.play('chargeEnd');
     // a big splash where the stream lands when you let go near full power
     if (power > 0.7) {
       const ox = 15, room = W - ox - 6;
       burst(ox + room * (0.2 + 0.8 * power), 40, 1.4); splashT = 0.25;
+      sound.play('splash');
     }
     if (calm) { stop(); power = 0; for (let i = 0; i < 20; i++) stains.set(Math.round(W * (0.5 + Math.random() * 0.45)), { c: COLORS[(Math.random() * 6) | 0], life: 5 }); draw(); }
   }

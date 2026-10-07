@@ -8,12 +8,12 @@ Live site: https://jonniepeed.games/ · Scores API: https://scores.jonniepeed.ga
 
 ```
 site/                   everything that gets published
-  index.html            studio page: logo, game shelf, pixel easter egg (assets/studio/ident.js)
+  index.html            studio page: logo, game shelf, pixel easter egg (assets/studio/ident.js), sound (assets/studio/audio.js)
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
   assets/               shared fonts, leaderboard client, dark mark and favicons
-  assets/studio/        logos, ident.js, light mark, og.png and external-game thumbnails
+  assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
   <slug>/thumb.<ext>    game-owned shelf thumbnail (retain its image format)
   <slug>/audio.js       classic sound script loaded before game.js
