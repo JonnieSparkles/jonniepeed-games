@@ -231,9 +231,10 @@
     return {
       // Boss waves trade the bombers and half the planes for a zeppelin.
       planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (boss ? 0.5 : 1)),
-      bombers: !boss && n >= 2 ? (n <= 9 ? n - 1 : 8 + Math.floor((n - 9) * 2 / 3)) : 0,
+      bombers: !boss && n >= 2 ? (n <= 11 ? Math.min(5, n - 1) : n - 6) : 0,
       boss: boss ? 1 : 0,
-      // Rushers from wave 6 and tanks from wave 9 (units.js) keep adding pressure after the spawn rate settles.
+      // Rushers from wave 6 and tanks from wave 9 (units.js) add variety mid-run. From wave 12 bombers grow by one a
+      // wave with no cap and planes come ever faster, so pressure keeps rising instead of flattening out.
       rushes: n >= RUSH.WAVE ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 2)) : 0,
       rushSize: Math.min(6, 2 + Math.floor((n - RUSH.WAVE) / 3)),
       cargo: n >= TANK.WAVE ? Math.min(4, 1 + Math.floor((n - TANK.WAVE) / 3)) : 0,
@@ -241,8 +242,8 @@
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
       armorChance: n >= ARMOR.WAVE ? Math.min(0.5, 0.08 + 0.03 * (n - ARMOR.WAVE)) : 0,
       armorHits: n >= ARMOR.HEAVY ? 2 : 1,
-      // Planes come faster until wave 7, then keep tightening slowly instead of flattening out.
-      interval: n <= 7 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.82 - 0.025 * (n - 7)),
+      // Planes come faster until wave 7, hold until wave 11, then keep tightening to a 0.3 s gap by wave 29.
+      interval: n <= 11 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.03 * (n - 11)),
       speed: 65 + 8 * n,
       maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
@@ -500,7 +501,7 @@
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz) { addText(t, x, y, c, sz); },
     addDecal: function (d) { addDecal(d); }, id: function () { return nextId++; } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
-    boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, sound: { get: function () { return sound; } },
+    boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } } });
   var UNITS = StickArmyUnits(world), ZEP = UNITS.ZEP, zeppelinHP = UNITS.zeppelinHP, spawnZeppelin = UNITS.spawnZeppelin,
     zeppelinOnScreen = UNITS.zeppelinOnScreen, planeHit = UNITS.planeHit, updateZeppelin = UNITS.updateZeppelin,

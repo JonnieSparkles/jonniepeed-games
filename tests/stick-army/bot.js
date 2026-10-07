@@ -59,7 +59,8 @@ window.__balanceBot = function (profile, seed) {
       }
     });
     o.planes.forEach(function (p) {
-      if (p.state === 'fly' && p.x > 20 && p.x < 380) consider(p.kind === 'zeppelin' ? 150 : p.kind === 'cargo' ? 260 : 200 + p.y / 10, lead(o, p.x, p.y, p.vx, 0), p.id);
+      // Bombers get priority over troopers: downing one saves chasing its whole bomb run.
+      if (p.state === 'fly' && p.x > 20 && p.x < 380) consider(p.kind === 'zeppelin' ? 150 : p.kind === 'bomber' ? 340 : p.kind === 'cargo' ? 260 : 200 + p.y / 10, lead(o, p.x, p.y, p.vx, 0), p.id);
     });
     // Tanks: on the way down, or parked within the barrel's dip.
     (o.tanks || []).forEach(function (tk) {
@@ -98,8 +99,8 @@ window.__balanceBot = function (profile, seed) {
     return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot, strike: strike };
   }
 
-  // Shop: one readable function. The gift first, then supplies by priority within the budget, then hiring,
-  // and pizza last when the wall is low.
+  // Shop: one readable function. The gift first, a rifleman if the squad is down to one or none, the top of the
+  // supply list, then hiring, then the rest of the supplies within the budget, and pizza last when the wall is low.
   var PRIORITY = ['strike', 'spread', 'double', 'tramp', 'fire', 'rockets', 'auto', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
     'mines', 'catcher', 'mat', 'aim', 'sandbags', 'wire', 'repair'];
   function shop(o) {
@@ -111,23 +112,26 @@ window.__balanceBot = function (profile, seed) {
     var items = sh.items.filter(function (it) { return it.can || it.cost > coins; });
     var gift = items.find(function (it) { return it.gift; });
     buy(gift);
+    // An empty trench loses to the first landers, so a thin squad gets the cheapest hire before any supplies.
+    var have = {}, crew = o.recruits.length, extra = 0;
+    o.recruits.forEach(function (r) { have[r.type] = (have[r.type] || 0) + 1; });
+    var first = (sh.hire || []).find(function (it) { return it.id === 'hire-rifle'; });
+    if (profile.shop !== 'random' && crew < 2 && crew < o.slots && first && first.cost <= coins) {
+      take.push(first.id); coins -= first.cost; extra += 15; crew++; have.rifle = (have.rifle || 0) + 1;
+    }
     var pizza = items.find(function (it) { return it.id === 'pizza'; });
     var wantPizza = pizza && pizza.can && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
     if (wantPizza) coins -= pizza.cost;
     // A couple of air strikes in hand is plenty.
-    var rest = items.filter(function (it) { return it !== gift && it.id !== 'pizza' && (it.id !== 'strike' || o.strikes < 2); });
+    var rest = items.filter(function (it) { return it !== gift && it.id !== 'pizza' && (it.id !== 'strike' || o.strikes < 2); }), later = [];
     if (profile.shop === 'random') {
       if (rest.length && rnd() < 0.5) buy(rest[Math.floor(rnd() * rest.length)]);
     } else {
       var order = wallLow ? ['repair', 'sandbags'].concat(PRIORITY) : PRIORITY;
-      rest.sort(function (x, y) { return order.indexOf(x.id) - order.indexOf(y.id); }).forEach(function (it) {
-        // Experts keep a cushion except for the top of the list.
-        if (order.indexOf(it.id) < 3 || coins - it.cost >= cushion) buy(it);
-      });
+      rest.sort(function (x, y) { return order.indexOf(x.id) - order.indexOf(y.id); });
+      rest.forEach(function (it) { if (order.indexOf(it.id) < 4) buy(it); else later.push(it); });
     }
     // Hiring: the role the squad lacks most, up to two a visit. Every hire raises the next price by 15.
-    var have = {}, crew = o.recruits.length, extra = 0;
-    o.recruits.forEach(function (r) { have[r.type] = (have[r.type] || 0) + 1; });
     for (var n = 0; n < 2 && crew < o.slots; n++) {
       var role = !have.bazooka ? 'bazooka' : !have.engineer ? 'engineer' : !have.medic && crew >= 3 ? 'medic' : 'rifle';
       if (profile.shop === 'random') { if (rnd() > 0.35) break; role = ['rifle', 'engineer', 'bazooka', 'sniper'][Math.floor(rnd() * 4)]; }
@@ -135,6 +139,8 @@ window.__balanceBot = function (profile, seed) {
       if (!job || job.cost + extra > coins - cushion) break;
       take.push(job.id); coins -= job.cost + extra; extra += 15; crew++; have[role] = (have[role] || 0) + 1;
     }
+    // Experts keep a cushion for the rest of the list.
+    later.forEach(function (it) { if (coins - it.cost >= cushion) buy(it); });
     if (wantPizza && coins >= 0) take.push('pizza');
     return { take: take, continue: true };
   }

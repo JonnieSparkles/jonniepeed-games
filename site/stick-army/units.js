@@ -1,7 +1,8 @@
 // Stick Army units beyond the basic trooper and plane: the zeppelin boss, side rushers, tanks and the air strike.
 // Classic script; load before game.js. game.js calls StickArmyUnits(world) once. The world object carries its
-// constants and helpers, and live values (state S, canvas G, line boil, the wave stream RW, sound) through getters,
-// so this file never reaches into game.js's scope. Effect helpers are wrappers, so harness stubs still apply.
+// constants and helpers, and live values (state S, canvas G, line boil, the wave and combat streams RW and RC,
+// sound) through getters, so this file never reaches into game.js's scope. Effect helpers are wrappers, so harness
+// stubs still apply.
 var StickArmyUnits = function (w) {
   'use strict';
   var W = w.W, GROUND = w.GROUND, BK = w.BK, TUR = w.TUR, BALANCE = w.BALANCE;
@@ -232,7 +233,7 @@ var StickArmyUnits = function (w) {
     addDecal({ kind: 'scorch', x: tk.x, y: GROUND - 3, r: 26, color: INK, a: 0.25, seed: tk.id });
   }
   function fireShell(tk) {
-    var S = w.S, x = tk.x + tk.dir * 33, y = tk.y - 19, tx = BK.x + rr(-16, 16), ty = BK.top - 4, T = 0.9;
+    var S = w.S, x = tk.x + tk.dir * 33, y = tk.y - 19, tx = BK.x + between(w.RC, -16, 16), ty = BK.top - 4, T = 0.9;
     S.bombs.push({ id: w.id(), x: x, y: y, vx: (tx - x) / T, vy: (ty - y - 0.5 * 260 * T * T) / T, isBomb: true, shell: true, dead: false });
     puff(x + tk.dir * 4, y, 4, 0.6);
     w.sound.play('cannon');

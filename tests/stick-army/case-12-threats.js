@@ -8,8 +8,8 @@
   // New threats arrive on schedule, and pressure keeps rising after wave 7.
   check(!waveCfg(5).rushes && waveCfg(6).rushes >= 1 && waveCfg(12).rushes > waveCfg(6).rushes, 'rushers from wave 6, more later');
   check(!waveCfg(8).cargo && waveCfg(9).cargo >= 1 && waveCfg(15).cargo > waveCfg(9).cargo, 'tanks from wave 9, more later');
-  check(waveCfg(13).interval < waveCfg(7).interval && waveCfg(20).interval < waveCfg(13).interval, 'planes keep coming faster past wave 7');
-  check(waveCfg(21).bombers > waveCfg(9).bombers && waveCfg(41).bombers > waveCfg(31).bombers && waveCfg(20).fall > waveCfg(13).fall, 'bombers keep growing without a cap, and troopers fall faster');
+  check(waveCfg(11).interval === waveCfg(7).interval && waveCfg(13).interval < waveCfg(11).interval && waveCfg(20).interval < waveCfg(13).interval, 'planes hold their pace to wave 11, then keep coming faster');
+  check(waveCfg(11).bombers === waveCfg(6).bombers && waveCfg(21).bombers > waveCfg(12).bombers && waveCfg(41).bombers > waveCfg(31).bombers && waveCfg(20).fall > waveCfg(13).fall, 'from wave 12 bombers keep growing without a cap, and troopers fall faster');
 
   // A rush charges in from one edge along the ground, faster than a walker.
   RUN.force = 4; newGame(); startWave(6); quiet();
@@ -81,6 +81,16 @@
   syncStrikeBtn(); check(strikeBtn.disabled, 'button waits while a strike flies');
   emitHook = null;
 
+  // Shell aim comes from the combat stream, never from cosmetic randomness.
+  function shellVx(rand) {
+    var real = Math.random; Math.random = rand;
+    try {
+      RUN.force = 9; newGame(); startWave(9); quiet(); S.recruits = [];
+      S.tanks = [{ id: 97, x: BK.x1 - TANK.STOP, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 0.001, hitFlash: 0, tread: 0, dead: false }];
+      updateTanks(0.01); return S.bombs[0].vx;
+    } finally { Math.random = real; }
+  }
+  check(shellVx(function () { return 0; }) === shellVx(function () { return 0.99; }), 'shell aim ignores cosmetic randomness');
   // Armor from wave 12: a vest stops one body hit (two for heavies). Chutes still pop, and blasts still kill.
   check(!waveCfg(11).armorChance && waveCfg(12).armorChance > 0 && waveCfg(20).armorChance > waveCfg(12).armorChance && waveCfg(22).armorHits === 2, 'armor arrives at wave 12 and gets heavier');
   seen = []; emitHook = function (type) { seen.push(type); };
