@@ -37,14 +37,17 @@ jobs:
           python3 - <<'EOF'
           import json, re, time, urllib.request
           host = re.search(r'"pattern"\s*:\s*"([^"]+)"', open('scores/wrangler.jsonc').read()).group(1)
+          # Cloudflare's bot protection refuses Python's default user agent, so send a named one.
+          headers = {'User-Agent': 'jonniepeed-games-deploy-check/1 (GitHub Actions)', 'Accept': 'application/json'}
           for game in json.load(open('scores/games.json')):
               url = f'https://{host}/v1/top?game={game}&board=0'
               for attempt in range(5):
                   try:
-                      data = json.load(urllib.request.urlopen(url, timeout=10))
+                      data = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=10))
                       break
                   except Exception as error:
-                      if attempt == 4: raise SystemExit(f'{url} did not answer: {error}')
+                      body = error.read(300).decode('utf-8', 'replace') if hasattr(error, 'read') else ''
+                      if attempt == 4: raise SystemExit(f'{url} did not answer: {error} {body}')
                       time.sleep(5)
               if not data.get('ok'): raise SystemExit(f'{url} answered {data}')
               print('ok', game)
