@@ -13,7 +13,9 @@
   // Turret heat: each volley adds heat (scaled so fire-rate upgrades keep the same heat per second),
   // heat bleeds off continuously, and reaching 1 locks the gun. Each volley also costs SHOT_COST points.
   var BALANCE = { DROP_CHANCE: 0.15, PLANES_PER_WAVE: 2, FALL_PER_WAVE: 4, DROPS_PER_WAVE: 0.5, WALL_DAMAGE: 6,
-    FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1 };
+    FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1, BOSS_HP_PER_WAVE: 8 };
+  // Every BOSS_EVERY waves a zeppelin moves in (see the zeppelin section).
+  var BOSS_EVERY = 5;
   var ENEMIES = {
     medic: { minWave: Infinity, cooldown: 2, spread: 0.14, hp: 3.2 },
     rifle: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
@@ -193,9 +195,12 @@
   }
 
   function waveCfg(n) {
+    var boss = n % BOSS_EVERY === 0;
     return {
-      planes: Math.round(4 + BALANCE.PLANES_PER_WAVE * n),
-      bombers: n >= 2 ? Math.min(5, n - 1) : 0,
+      // Boss waves trade the bombers and half the planes for a zeppelin.
+      planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (boss ? 0.5 : 1)),
+      bombers: !boss && n >= 2 ? Math.min(5, n - 1) : 0,
+      boss: boss ? 1 : 0,
       bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.22, 0.10 + n * 0.015) : 0,
       interval: Math.max(0.85, 2.5 - 0.24 * n),
@@ -251,7 +256,8 @@
 
   function spawnPlane(kind) {
     var c = S.spawn.cfg, dir = R() < 0.5 ? 1 : -1;
-    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? rr(104, 128) : rr(98, 206));
+    // On boss waves the escort keeps to a high lane above the zeppelin.
+    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? rr(104, 128) : c.boss ? rr(98, 118) : rr(98, 206));
     p.speed = kind === 'bomber' ? c.speed * 0.62 : c.speed * rr(0.85, 1.25);
     if (kind === 'plane') {
       var n = 1 + Math.floor(R() * c.maxDrops);
@@ -277,9 +283,11 @@
     var c = S.spawn ? S.spawn.cfg : waveCfg(1), type = 'rifle';
     if (R() < c.sniperChance) type = 'sniper';
     else if (R() < c.special) type = S.wave < ENEMIES.bazooka.minWave ? 'engineer' : (R() < 0.5 ? 'bazooka' : 'engineer');
-    S.troopers.push({ id: nextId++, x: clamp(x, 14, W - 14), y: y, type: type, state: 'chute', open: 0,
+    var t = { id: nextId++, x: clamp(x, 14, W - 14), y: y, type: type, state: 'chute', open: 0,
       fall: c.fall * rr(0.9, 1.15), sway: R() * 6.28, vy: 0, rot: 0, spin: 0, dir: 1, walk: 0, thump: 0,
-      attacking: null, atWall: false, shotCD: 2.2, alone: 0, aim: 0, dead: false });
+      attacking: null, atWall: false, shotCD: 2.2, alone: 0, aim: 0, dead: false };
+    S.troopers.push(t);
+    return t;
   }
   function makeRecruit(slot, type, id) {
     var hx = SLOTS[slot];
@@ -303,9 +311,9 @@
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, timer: 2.4 };
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: 3.5, timer: 2.4 };
     S.waveState = 'active';
-    var sub = n === 1 ? 'here they come' : (n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : '');
+    var sub = c.boss ? 'zeppelin incoming!' : n === 1 ? 'here they come' : (n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : '');
     S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
     sound.play('bugle');
   }
@@ -321,8 +329,9 @@
         spawnPlane(kind);
         sp.timer = sp.cfg.interval * rr(0.7, 1.3);
       }
+      if (sp.boss > 0) { sp.bossT -= dt; if (sp.bossT <= 0) { sp.boss--; spawnZeppelin(); } }
       var enemies = S.troopers.some(function (t) { return !t.dead; });
-      if (sp.planes + sp.bombers === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
+      if (sp.planes + sp.bombers + (sp.boss || 0) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
         S.banner = { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
@@ -400,141 +409,15 @@
     if (S.mode === 'shop') { var next = S.shop.freeTaken ? document.getElementById('continueBtn') : shopScreen.querySelector('button:not(:disabled)'); next.focus({ preventScroll: true }); }
     return true;
   }
-  // Pencil icons for supplies, drawn with the battlefield pen in a 44×44 box.
-  var ICONS = {
-    fire: function () {
-      [[8, 34], [17, 26], [26, 18]].forEach(function (p) { G.beginPath(); L(p[0], p[1], p[0] + 8, p[1] - 8, 0.4); ink(INK, 3.4); G.stroke(); });
-      G.beginPath(); L(4, 26, 10, 20, 0.3); L(13, 38, 19, 32, 0.3); L(29, 32, 35, 26, 0.3); ink(INK2, 1.4); G.stroke();
-    },
-    cool: function () {
-      G.beginPath(); SP([15, 30, 15, 9, 17, 6, 21, 6, 23, 9, 23, 30], false, 0.3); ink(INK, 2.2); G.stroke();
-      G.beginPath(); G.arc(19, 35, 5.5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill(); G.beginPath(); Ci(19, 35, 5.5, 0.3); ink(INK, 2.2); G.stroke();
-      G.beginPath(); L(19, 30, 19, 21, 0.2); ink(BLUE, 3); G.stroke();
-      G.beginPath(); for (var i = 0; i < 3; i++) { var a = i * Math.PI / 3; L(34 - Math.cos(a) * 7, 13 - Math.sin(a) * 7, 34 + Math.cos(a) * 7, 13 + Math.sin(a) * 7, 0.3); } ink(BLUE, 2); G.stroke();
-    },
-    slot: function () {
-      G.save(); G.translate(14, 6); G.scale(0.85, 0.85); stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], BLUE, 3); G.restore();
-      G.beginPath(); L(33, 14, 33, 28, 0.3); L(26, 21, 40, 21, 0.3); ink(INK, 3); G.stroke();
-    },
-    repair: function () {
-      G.beginPath(); L(4, 22, 32, 22, 0.4); L(4, 30, 32, 30, 0.4); L(4, 38, 32, 38, 0.4); L(4, 22, 4, 38, 0.4); L(32, 22, 32, 38, 0.4);
-      L(13, 22, 13, 30, 0.3); L(23, 22, 23, 30, 0.3); L(9, 30, 9, 38, 0.3); L(19, 30, 19, 38, 0.3); L(28, 30, 28, 38, 0.3); ink(INK, 1.8); G.stroke();
-      G.beginPath(); L(22, 19, 35, 7, 0.3); ink(INK, 2.4); G.stroke();
-      G.beginPath(); L(31, 3, 40, 11, 0.3); ink(INK, 5); G.stroke();
-    },
-    mat: function () {
-      G.beginPath(); L(10, 27, 8, 37, 0.3); L(34, 27, 36, 37, 0.3); ink(INK, 2); G.stroke();
-      G.beginPath(); G.moveTo(9, 27); G.quadraticCurveTo(22, 33, 35, 27); ink(INK, 3); G.stroke();
-      G.beginPath(); L(2, 16, 15, 16, 0.3); L(2, 16, 6, 12, 0.2); L(2, 16, 6, 20, 0.2); L(29, 16, 42, 16, 0.3); L(42, 16, 38, 12, 0.2); L(42, 16, 38, 20, 0.2); ink(BLUE, 2.2); G.stroke();
-    },
-    aim: function () {
-      G.beginPath(); Ci(22, 22, 12, 0.4); L(22, 4, 22, 13, 0.3); L(22, 31, 22, 40, 0.3); L(4, 22, 13, 22, 0.3); L(31, 22, 40, 22, 0.3); ink(INK, 2.2); G.stroke();
-      G.beginPath(); G.arc(22, 22, 2.5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
-    },
-    sandbags: function () {
-      [[13, 32], [31, 32], [22, 21]].forEach(function (p) {
-        G.beginPath(); SP([p[0] - 10, p[1], p[0] - 8, p[1] - 6, p[0] + 8, p[1] - 6, p[0] + 10, p[1], p[0] + 8, p[1] + 6, p[0] - 8, p[1] + 6], true, 0.4);
-        G.fillStyle = '#efe6cf'; G.fill(); ink(INK, 2); G.stroke();
-        G.beginPath(); L(p[0] - 3, p[1] - 2, p[0] + 3, p[1] + 2, 0.2); ink(INK2, 1.2); G.stroke();
-      });
-    },
-    wire: function () {
-      G.beginPath(); L(6, 10, 6, 38, 0.3); L(38, 10, 38, 38, 0.3); ink(INK, 2.4); G.stroke();
-      G.beginPath(); SP([6, 18, 13, 24, 20, 17, 27, 24, 34, 17, 38, 21], false, 0.4); SP([6, 30, 13, 36, 20, 29, 27, 36, 34, 29, 38, 33], false, 0.4); ink(INK2, 1.6); G.stroke();
-      G.beginPath(); [[13, 24], [27, 24], [20, 29], [34, 29]].forEach(function (p) { L(p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3, 0.2); L(p[0] - 3, p[1] + 3, p[0] + 3, p[1] - 3, 0.2); }); ink(INK, 1.8); G.stroke();
-    },
-    double: function () {
-      G.save(); G.translate(18, 33); G.rotate(-0.8);
-      [-4.5, 4.5].forEach(function (o) { G.fillStyle = PAPER; G.fillRect(0, o - 3, 22, 6); G.beginPath(); L(0, o - 3, 22, o - 3, 0.3); L(0, o + 3, 22, o + 3, 0.3); L(22, o - 3.5, 22, o + 3.5, 0.2); ink(INK, 2); G.stroke(); });
-      G.restore();
-      G.beginPath(); G.moveTo(6, 39); G.arc(18, 39, 12, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2.2); G.stroke();
-    },
-    stash: function () {
-      [[15, 34], [15, 28], [15, 22], [29, 33]].forEach(function (p) { G.beginPath(); G.ellipse(p[0], p[1], 9, 4, 0, 0, Math.PI * 2); G.fillStyle = HAT; G.fill(); ink('#9b6a15', 1.8); G.stroke(); });
-      G.beginPath(); L(34, 7, 34, 18, 0.3); L(28.5, 12.5, 39.5, 12.5, 0.3); ink('#9b6a15', 2.4); G.stroke();
-    },
-    tramp: function () {
-      [11, 33].forEach(function (cx) {
-        G.beginPath(); L(cx - 8, 28, cx - 9, 38, 0.3); L(cx + 8, 28, cx + 9, 38, 0.3); ink(INK, 1.8); G.stroke();
-        G.beginPath(); G.moveTo(cx - 9, 28); G.quadraticCurveTo(cx, 33, cx + 9, 28); ink(INK, 2.6); G.stroke();
-        G.fillStyle = BLUE; G.fillRect(cx - 11, 25, 4, 4); G.fillRect(cx + 7, 25, 4, 4);
-      });
-      G.beginPath(); L(33, 6, 33, 18, 0.3); L(27, 12, 39, 12, 0.3); ink(INK, 2.4); G.stroke();
-    },
-    spread: function () {
-      G.beginPath(); [-0.45, 0, 0.45].forEach(function (a) { L(22, 39, 22 + Math.sin(a) * 27, 39 - Math.cos(a) * 27, 0.3); }); ink(INK, 2.4); G.stroke();
-      [-0.45, 0, 0.45].forEach(function (a) { G.beginPath(); G.arc(22 + Math.sin(a) * 30, 39 - Math.cos(a) * 30, 2.4, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); });
-    },
-    flak: function () {
-      G.beginPath(); for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4; L(22 + Math.cos(a) * 7, 22 + Math.sin(a) * 7, 22 + Math.cos(a) * 17, 22 + Math.sin(a) * 17, 0.4); } ink(INK, 2.2); G.stroke();
-      G.beginPath(); G.arc(22, 22, 5, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
-    },
-    rockets: function () {
-      G.save(); G.translate(23, 21); G.rotate(-0.8);
-      G.beginPath(); G.moveTo(-12, -4); G.lineTo(8, -4); G.lineTo(15, 0); G.lineTo(8, 4); G.lineTo(-12, 4); G.closePath(); G.fillStyle = PAPER; G.fill();
-      G.beginPath(); L(-12, -4, 8, -4, 0.3); L(8, -4, 15, 0, 0.2); L(15, 0, 8, 4, 0.2); L(8, 4, -12, 4, 0.3); L(-12, 4, -12, -4, 0.2); L(-12, -4, -16, -9, 0.2); L(-12, 4, -16, 9, 0.2); ink(INK, 2.2); G.stroke();
-      G.beginPath(); SP([-14, 0, -18, -3, -22, 0, -18, 3, -14, 0], false, 0.6); ink(RED, 2); G.stroke();
-      G.restore();
-    },
-    pierce: function () {
-      G.beginPath(); Ci(16, 28, 6, 0.3); Ci(28, 16, 6, 0.3); ink(INK2, 2); G.stroke();
-      G.beginPath(); L(5, 39, 39, 5, 0.3); L(39, 5, 31, 6, 0.2); L(39, 5, 38, 13, 0.2); ink(INK, 2.6); G.stroke();
-    },
-    mines: function () {
-      G.beginPath(); L(3, 35, 41, 35, 0.3); ink(INK, 2); G.stroke();
-      G.beginPath(); G.moveTo(10, 35); G.arc(22, 35, 12, Math.PI, 0); G.closePath(); G.fillStyle = '#d9d2c2'; G.fill(); ink(INK, 2.2); G.stroke();
-      G.beginPath(); L(22, 23, 22, 17, 0.2); L(13, 27, 9, 23, 0.2); L(31, 27, 35, 23, 0.2); ink(INK, 2); G.stroke();
-      G.beginPath(); G.arc(22, 15, 2.6, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
-    },
-    medic: function () {
-      G.beginPath(); Ci(22, 22, 16, 0.4); ink(INK, 2); G.stroke();
-      G.fillStyle = RED; G.fillRect(18, 11, 8, 22); G.fillRect(11, 18, 22, 8);
-    },
-    auto: function () {
-      G.save(); G.translate(22, 28); G.rotate(-0.7); G.fillStyle = PAPER; G.fillRect(0, -3, 17, 6); G.beginPath(); L(0, -3, 17, -3, 0.2); L(0, 3, 17, 3, 0.2); L(17, -3.5, 17, 3.5, 0.2); ink(INK, 2); G.stroke(); G.restore();
-      G.beginPath(); G.moveTo(13, 29); G.arc(22, 29, 9, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2); G.stroke();
-      G.beginPath(); L(10, 29, 34, 29, 0.3); L(11, 29, 11, 39, 0.3); L(33, 29, 33, 39, 0.3); L(10, 39, 34, 39, 0.3); ink(INK, 2); G.stroke();
-      G.beginPath(); G.arc(22, 29, 18, Math.PI * 1.08, Math.PI * 1.32); ink(BLUE, 1.6); G.stroke();
-      G.beginPath(); G.arc(22, 29, 18, Math.PI * 1.68, Math.PI * 1.92); ink(BLUE, 1.6); G.stroke();
-    },
-    catcher: function () {
-      G.beginPath(); L(5, 33, 4, 41, 0.3); L(21, 33, 22, 41, 0.3); ink(INK, 1.8); G.stroke();
-      G.beginPath(); G.moveTo(4, 33); G.quadraticCurveTo(13, 38, 22, 33); ink(INK, 2.6); G.stroke();
-      G.setLineDash([2, 3]); G.beginPath(); G.moveTo(13, 31); G.quadraticCurveTo(22, 2, 32, 17); ink(BLUE, 1.8); G.stroke(); G.setLineDash([]);
-      G.save(); G.translate(35, 17); G.scale(0.6, 0.6); stick(0, 0, [-9, 6, 9, 6, -5, 33, 5, 33], BLUE, 3.4); G.restore();
-    },
-    pizza: function () {
-      G.beginPath(); G.moveTo(6, 10); G.lineTo(38, 10); G.lineTo(22, 40); G.closePath(); G.fillStyle = '#f6d58a'; G.fill();
-      G.beginPath(); L(6, 10, 38, 10, 0.4); L(38, 10, 22, 40, 0.4); L(22, 40, 6, 10, 0.4); ink(INK, 2.2); G.stroke();
-      G.beginPath(); G.moveTo(5, 9); G.quadraticCurveTo(22, 3, 39, 9); ink('#9b6a15', 3.4); G.stroke();
-      [[16, 16], [27, 17], [22, 27]].forEach(function (p) { G.beginPath(); G.arc(p[0], p[1], 3, 0, Math.PI * 2); G.fillStyle = RED; G.fill(); });
-    },
-    trench: function () {
-      G.beginPath(); L(2, 30, 12, 30, 0.3); G.moveTo(12, 30); G.quadraticCurveTo(22, 42, 32, 30); L(32, 30, 42, 30, 0.3); ink(INK, 2.2); G.stroke();
-      [[10, 24], [22, 22], [34, 24]].forEach(function (p) {
-        G.beginPath(); SP([p[0] - 6, p[1], p[0] - 4, p[1] - 4, p[0] + 4, p[1] - 4, p[0] + 6, p[1], p[0] + 4, p[1] + 3, p[0] - 4, p[1] + 3], true, 0.3);
-        G.fillStyle = '#e7dcc0'; G.fill(); ink(INK, 1.8); G.stroke();
-      });
-      G.save(); G.translate(22, 30); G.scale(0.45, 0.45); stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], BLUE, 4); G.restore();
-    },
-    helmet: function () {
-      G.beginPath(); G.moveTo(7, 30); G.quadraticCurveTo(8, 10, 22, 10); G.quadraticCurveTo(36, 10, 37, 30); G.closePath(); G.fillStyle = '#7d8a64'; G.fill(); ink(INK, 2.2); G.stroke();
-      G.beginPath(); L(2, 31, 42, 31, 0.4); ink(INK, 3); G.stroke();
-      G.beginPath(); L(33, 6, 33, 16, 0.3); L(28, 11, 38, 11, 0.3); ink(BLUE, 2.4); G.stroke();
-    },
-    hire: function () {
-      G.save(); G.translate(16, 6); G.scale(0.85, 0.85); stick(0, 0, [8, 12, 13, 8, -5, 33, 5, 33], BLUE, 3); G.restore();
-      G.beginPath(); L(19, 16, 31, 2, 0.3); ink(INK, 2.6); G.stroke();
-      dogTag(34, 31, 0.3, 1.4);
-    },
-    fallback: function () { G.beginPath(); Ci(22, 22, 12, 0.5); L(22, 14, 22, 26, 0.3); ink(INK, 2.4); G.stroke(); G.beginPath(); G.arc(22, 31, 1.8, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
-  };
+  // Pencil icons for supplies live in icons.js; they draw with this file's pen.
+  var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag,
+    INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER });
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
     G = g; boil = 0;
     g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, 44, 44);
     pen(id.length * 131 + id.charCodeAt(0));
-    try { (ICONS[id] || ICONS.fallback)(); } finally { G = previous; boil = keepBoil; }
+    try { (ICONS[id] || ICONS.fallback)(g); } finally { G = previous; boil = keepBoil; }
   }
   function renderShop() {
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
@@ -761,8 +644,9 @@
     addDecal({ kind: 'splat', x: r.x, y: GROUND - 1, r: 4, color: BLUE, a: 0.22, seed: r.id + 99 });
     sound.play('noo');
   }
-  function damagePlane(p, dmg, owner) {
+  function damagePlane(p, dmg, owner, hx, hy) {
     if (p.state !== 'fly') return;
+    if (p.kind === 'zeppelin') { hurtZeppelin(p, dmg, owner, hx, hy); return; }
     p.hp -= dmg; p.hitFlash = 0.15;
     burst(p.x, p.y, 4, INK, 120);
     if (p.hp <= 0) {
@@ -796,7 +680,7 @@
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4); });
     }
     if (kind === 'rocket' || kind === 'flak') {
-      S.planes.forEach(function (p) { if (p.state === 'fly' && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally'); });
+      S.planes.forEach(function (p) { if (p.state === 'fly' && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally', x, y); });
       S.bombs.forEach(function (m) { if (!m.dead && Math.hypot(m.x-x,m.y-y) < r + 8) { m.dead=true; award(20,m.x,m.y-12,'bomb popped!',BLUE,true); puff(m.x,m.y,8,0.4); } });
     }
     sound.play(kind === 'rocket' || kind === 'air' ? 'hit' : 'boom');
@@ -815,8 +699,8 @@
     for (i = 0; i < S.planes.length; i++) {
       p = S.planes[i];
       if (seen.indexOf(p.id) >= 0) continue;
-      if (p.state === 'fly' && Math.abs(b.x - p.x) < p.hw + near && Math.abs(b.y - p.y) < p.hh + near) {
-        if (!projectileBurst(b)) { damagePlane(p, 1, b.owner); consumeBullet(b, p); }
+      if (p.state === 'fly' && planeHit(p, b.x, b.y, near)) {
+        if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y); consumeBullet(b, p); }
         return;
       }
     }
@@ -876,11 +760,14 @@
       var d = Math.hypot(t.x - ox, t.y - oy);
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
-    return best;
+    if (best) return best;
+    // Nothing closer to deal with: everyone plinks at the zeppelin.
+    return S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly' && zeppelinOnScreen(p); }) || null;
   }
   function aimPoint(r, tg) {
     var x, y, vx = 0, vy = 0, sp = r.type === 'bazooka' ? 300 : 520;
     if (tg.kind === 'plane' || tg.kind === 'bomber') { x = tg.x; y = tg.y; vx = tg.dir * tg.speed; }
+    else if (tg.kind === 'zeppelin') { x = tg.x; y = tg.y; vx = tg.face * tg.speed; }
     else if (tg.isBomb) { x = tg.x; y = tg.y; vx = tg.vx; vy = tg.vy; }
     else if (tg.state === 'ground') { x = tg.x; y = tg.y + 14; vx = (tg.type === 'sniper' || tg.atWall || tg.attacking) ? 0 : tg.dir * 22 * (S.mods.wire ? 0.5 : 1); }
     else {
@@ -954,6 +841,7 @@
   function updatePlanes(dt) {
     for (var i = S.planes.length - 1; i >= 0; i--) {
       var p = S.planes[i];
+      if (p.kind === 'zeppelin') { updateZeppelin(p, dt); if (p.gone) S.planes.splice(i, 1); continue; }
       p.hitFlash = Math.max(0, p.hitFlash - dt);
       if (p.state === 'fly') {
         p.x += p.dir * p.speed * dt;
@@ -988,6 +876,98 @@
       }
     });
   }
+  // ---------- zeppelin boss ----------
+  // Every BOSS_EVERY waves a zeppelin patrols the sky until it is shot down. It drops paratroopers from its gondola
+  // and bomb clusters from its belly, sinks as it loses gas, and turns angry (faster, busier) at half health.
+  // It lives in S.planes so flak, rockets, bazookas and the ambience treat it as an aircraft.
+  var ZEP = { HW: 78, HH: 25, Y: 172, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
+    DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5 };
+  function zeppelinHP(n) { return Math.round(30 + BALANCE.BOSS_HP_PER_WAVE * n); }
+  function spawnZeppelin() {
+    var dir = R() < 0.5 ? 1 : -1, p = makePlane('zeppelin', dir, dir > 0 ? -ZEP.HW - 20 : W + ZEP.HW + 20, ZEP.Y);
+    p.hp = p.maxHp = zeppelinHP(S.wave); p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
+    p.baseY = ZEP.Y; p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
+    S.planes.push(p);
+    sound.play('horn');
+    return p;
+  }
+  function zeppelinOnScreen(p) { return p.x > 40 && p.x < W - 40; }
+  // The hull is an ellipse (narrowed while it turns), plus the gondola underneath.
+  function planeHit(p, x, y, near) {
+    var dx = x - p.x, dy = y - p.y;
+    if (p.kind !== 'zeppelin') return Math.abs(dx) < p.hw + near && Math.abs(dy) < p.hh + near;
+    var f = Math.abs(p.face), hw = Math.max(16, p.hw * f) + near, hh = p.hh + near;
+    if (dx * dx / (hw * hw) + dy * dy / (hh * hh) < 1) return true;
+    return Math.abs(dx) < 24 * f + 4 + near && dy > p.hh - 3 && dy < p.hh + 17 + near;
+  }
+  function updateZeppelin(p, dt) {
+    p.hitFlash = Math.max(0, p.hitFlash - dt);
+    // Turning is a cartoon flip: the hull squashes through zero width, so it slows, stops and heads back.
+    p.face += clamp(p.dir - p.face, -dt * 2.6, dt * 2.6);
+    if (p.state === 'fly') {
+      if (!p.entered && p.x > ZEP.LEFT && p.x < ZEP.RIGHT) p.entered = true;
+      var want = !p.entered ? ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
+      p.speed += (want - p.speed) * Math.min(1, dt * 1.5);
+      if (p.entered && (p.dir > 0 ? p.x > ZEP.RIGHT : p.x < ZEP.LEFT)) p.dir = -p.dir;
+      p.x += p.face * p.speed * dt;
+      p.baseY += (ZEP.Y + ZEP.SINK * (1 - p.hp / p.maxHp) - p.baseY) * Math.min(1, dt * 0.8);
+      p.y = p.baseY + Math.sin(S.t * 1.1 + p.id) * 2.5;
+      if (zeppelinOnScreen(p)) {
+        p.dropT -= dt;
+        if (p.dropT <= 0) { p.dropT = p.angry ? ZEP.ANGRY_DROP_EVERY : ZEP.DROP_EVERY; spawnTrooper(p.x + rr(-8, 8), p.y + p.hh + 12).zep = p.id; }
+        p.bombT -= dt;
+        if (p.bombT <= 0) {
+          p.bombT = p.angry ? ZEP.ANGRY_BOMB_EVERY : ZEP.BOMB_EVERY;
+          [-1, 0, 1].forEach(function (k) { S.bombs.push({ id: nextId++, x: p.x + k * 10, y: p.y + p.hh - 2, vx: p.face * p.speed * 0.5 + k * 40, vy: 0, isBomb: true, dead: false }); });
+          sound.play('whistle');
+        }
+      }
+      p.holes.forEach(function (h) { if (R() < dt * 0.8) puff(p.x + h.x * p.face, p.y + h.y, 2, 0.5); });
+      return;
+    }
+    // Going down: nose-first, small blasts along the hull, then a big crash. Its own bailed crew are spared.
+    p.vy += 70 * dt; p.y += p.vy * dt; p.x += p.face * 16 * dt; p.rot = Math.min(0.42, p.rot + 0.22 * dt);
+    p.boomT -= dt;
+    if (p.boomT <= 0) {
+      p.boomT = rr(0.22, 0.4);
+      var ox = rr(-0.75, 0.75) * p.hw * p.face, oy = rr(-0.5, 0.5) * p.hh;
+      burst(p.x + ox, p.y + oy, 6, RED, 150); puff(p.x + ox, p.y + oy, 5, 0.8);
+      sound.play('hit');
+    }
+    p.smoke -= dt;
+    if (p.smoke <= 0) { p.smoke = 0.07; puff(p.x + rr(-0.6, 0.6) * p.hw, p.y - p.hh * 0.6, rr(3, 6), 0.9); }
+    S.troopers.forEach(function (t) {
+      if (t.dead || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
+      if (Math.abs(t.x - p.x) < p.hw && Math.abs(t.y + 10 - p.y) < p.hh + 8) { t.dead = true; killFx(t); S.stats.kills++; award(10, t.x, t.y, 'bonk!', INK, true); }
+    });
+    if (p.y + p.hh * 0.5 >= GROUND - 8) {
+      [-0.6, 0, 0.6].forEach(function (k) { explode(clamp(p.x + k * p.hw * p.face, 10, W - 10), GROUND - 4, 46, 'crash'); });
+      S.shake = Math.max(S.shake, 0.8);
+      p.gone = true;
+    }
+  }
+  function hurtZeppelin(p, dmg, owner, hx, hy) {
+    p.hp -= dmg; p.hitFlash = 0.1;
+    var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy;
+    burst(x, y, 3, INK, 90);
+    // Holes appear where hits land, more of them as it weakens. Stored unflipped so they turn with the hull.
+    var lx = (x - p.x) * (p.face < 0 ? -1 : 1), ly = y - p.y, e = Math.hypot(lx / p.hw, ly / p.hh);
+    if (e > 0.8) { lx *= 0.8 / e; ly *= 0.8 / e; }
+    if (p.holes.length < 2 + Math.floor((1 - Math.max(0, p.hp) / p.maxHp) * 10)) p.holes.push({ x: lx, y: ly, id: nextId++ });
+    if (p.hp <= 0) { zeppelinDown(p, owner); return; }
+    sound.play('thup');
+    if (!p.angry && p.hp <= p.maxHp / 2) { p.angry = true; addText("it's angry!", p.x, p.y - p.hh - 16, RED, 24); sound.play('horn'); }
+  }
+  function zeppelinDown(p, owner) {
+    p.state = 'fall'; p.hp = 0; p.vy = 0; p.rot = 0; p.smoke = 0; p.boomT = 0.15;
+    S.stats.planes++;
+    award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
+    S.banner = { s: 'zeppelin down!', sub: 'catch the crew!', t: 0, dur: 2.2 };
+    S.shake = Math.max(S.shake, 0.5);
+    sound.play('zepdown');
+    for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10).zep = p.id;
+  }
+
   function updateSniper(t, dt) {
     var live = S.recruits.filter(function (r) { return !r.dead; }), aimX, aimY;
     if (live.length) {
@@ -1339,6 +1319,65 @@
     G.beginPath(); L(-4, -6, -6, -12, 0.3); L(4, -6, 6, -12, 0.3); L(-6, -12, 6, -12, 0.3); ink(INK, 1.8); G.stroke();
     G.restore();
   }
+  function drawZeppelin(p) {
+    pen(p.id);
+    var hw = p.hw, hh = p.hh, f = p.face, i, fly = p.state === 'fly';
+    if (fly) { G.beginPath(); G.ellipse(p.x, GROUND - 2, hw * Math.max(0.2, Math.abs(f)) * 0.7, 3, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(46,46,51,0.07)'; G.fill(); }
+    G.save(); G.translate(p.x, p.y); G.scale(f, 1); if (p.rot) G.rotate(p.rot);
+    // Tail fins with enemy stripes. Local +x is the nose.
+    [-1, 1].forEach(function (sd) {
+      G.beginPath(); SP([-hw * 0.6, sd * hh * 0.55, -hw * 1.02, sd * hh * 1.3, -hw * 1.1, sd * hh * 1.25, -hw * 0.98, sd * 3], true, 0.5);
+      G.fillStyle = PAPER; G.fill(); ink(INK, 2.2); G.stroke();
+      G.beginPath(); L(-hw * 0.94, sd * hh * 1.08, -hw * 0.97, sd * hh * 0.3, 0.3); ink(RED, 3); G.stroke();
+    });
+    var pts = [];
+    for (i = 0; i < 20; i++) { var a = i / 20 * Math.PI * 2, c = Math.cos(a); pts.push(c * hw, Math.sin(a) * hh * (c < 0 ? 1 - 0.3 * c * c : 1)); }
+    G.beginPath(); SP(pts, true, 0.6);
+    G.fillStyle = PAPER; G.fill();
+    G.fillStyle = p.hitFlash > 0 ? 'rgba(200,67,58,0.28)' : p.angry ? RED_FILL : INK_FILL; G.fill();
+    ink(INK, 2.6); G.stroke();
+    // Gores and a seam give it some roundness.
+    G.beginPath();
+    [-0.62, -0.3, 0.02, 0.34, 0.64].forEach(function (k) {
+      var x = k * hw, h = hh * Math.sqrt(1 - k * k) * (k < 0 ? 1 - 0.3 * k * k : 1) - 1;
+      G.moveTo(x + jt(0.4), -h); G.quadraticCurveTo(x + 7 + jt(0.8), 0, x + jt(0.4), h);
+    });
+    ink('rgba(46,46,51,0.35)', 1.3); G.stroke();
+    G.beginPath(); L(-hw * 0.88, hh * 0.32, hw * 0.9, hh * 0.25, 0.6); ink('rgba(46,46,51,0.25)', 1.2); G.stroke();
+    G.beginPath(); G.arc(hw * 0.5, -hh * 0.18, 7, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
+    G.beginPath(); G.arc(hw * 0.5, -hh * 0.18, 2.6, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
+    p.holes.forEach(function (h) { pen(h.id); G.beginPath(); SP([h.x - 3, h.y, h.x - 1, h.y - 3, h.x + 3, h.y - 2, h.x + 2, h.y + 2, h.x - 2, h.y + 3], true, 0.6); G.fillStyle = INK; G.fill(); });
+    pen(p.id);
+    if (!fly) {
+      [-0.4, 0.1, 0.5].forEach(function (k, j) {
+        var fx = k * hw, fy = -hh * Math.sqrt(1 - k * k) + 2, fh = 10 + ((boil + j) % 3) * 4;
+        G.beginPath(); SP([fx - 7, fy, fx - 4, fy - fh * 0.6, fx - 1, fy - fh * 0.3, fx + 1, fy - fh, fx + 4, fy - fh * 0.4, fx + 7, fy], false, 0.8);
+        G.fillStyle = 'rgba(200,67,58,0.25)'; G.fill(); ink(RED, 2); G.stroke();
+      });
+    }
+    // Gondola, with a stick crew at the windows while it flies.
+    G.beginPath(); L(-16, hh - 3, -12, hh + 5, 0.3); L(16, hh - 3, 12, hh + 5, 0.3); ink(INK, 1.8); G.stroke();
+    G.beginPath(); SP([-24, hh + 4, 22, hh + 4, 26, hh + 9, 20, hh + 16, -22, hh + 16], true, 0.4); G.fillStyle = PAPER; G.fill(); ink(INK, 2.2); G.stroke();
+    [-14, -3, 8].forEach(function (wx) {
+      G.beginPath(); G.rect(wx, hh + 6.5, 6, 6); ink(INK, 1.3); G.stroke();
+      if (fly) { G.beginPath(); G.arc(wx + 3, hh + 9.5, 1.8, 0, Math.PI * 2); G.fillStyle = RED; G.fill(); }
+    });
+    var pl = boil % 2 ? 7 : 4;
+    G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
+    if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
+    G.restore();
+  }
+  // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry.
+  function drawBossBar() {
+    var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
+    if (!z) return;
+    var w = 96, x = clamp(z.x, 12 + w / 2, W - 12 - w / 2) - w / 2, y = z.y - z.hh - 12, f = clamp(z.hp / z.maxHp, 0, 1);
+    pen(4343);
+    G.fillStyle = PAPER; G.fillRect(x, y - 4, w, 8);
+    G.fillStyle = z.hitFlash > 0 ? 'rgba(200,67,58,0.75)' : 'rgba(200,67,58,0.45)'; G.fillRect(x + 1.5, y - 2.5, (w - 3) * f, 5);
+    G.beginPath(); L(x, y - 4, x + w, y - 4, 0.4); L(x + w, y - 4, x + w, y + 4, 0.3); L(x + w, y + 4, x, y + 4, 0.4); L(x, y + 4, x, y - 4, 0.3); ink(INK, 1.6); G.stroke();
+    G.beginPath(); L(x + w / 2, y - 6, x + w / 2, y + 6, 0.2); ink(INK2, 1.2); G.stroke();
+  }
   function drawGround() {
     pen(777);
     G.beginPath(); SP([0, 612, 70, 611, 140, 613, 210, 611.5, 280, 612.5, 350, 611, 400, 612], false, 0.4); ink(INK, 2.4); G.stroke();
@@ -1559,13 +1598,15 @@
     ctx.drawImage(dc, 0, 0, W, H);
     drawGround();
     activeTramps().forEach(drawTramp);
-    S.planes.forEach(drawPlane);
+    S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
+    S.planes.forEach(function (p) { if (p.kind !== 'zeppelin') drawPlane(p); });
     S.bombs.forEach(drawBomb);
     S.troopers.forEach(function (t) { if (!t.dead) drawTrooper(t); });
     if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawBunker(); drawDefenses(); }
     S.recruits.forEach(function (r) { if (!r.dead) drawRecruit(r); });
     drawBullets();
     drawCourier();
+    drawBossBar();
     drawParts();
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
@@ -1784,6 +1825,10 @@
         else if (key === 'RIFLE_SPREAD') ENEMIES.rifle.spread = value;
         else if (Object.prototype.hasOwnProperty.call(BALANCE, key)) BALANCE[key] = value;
         else return;
+        if (key === 'BOSS_HP_PER_WAVE') S.planes.forEach(function (p) {
+          if (p.kind !== 'zeppelin' || p.state !== 'fly') return;
+          var left = p.hp / p.maxHp; p.maxHp = zeppelinHP(S.wave); p.hp = Math.max(1, left * p.maxHp);
+        });
         if (before) {
           var after = waveCfg(Math.max(1, S.wave));
           if (S.waveState === 'active') S.spawn.planes = Math.max(0, S.spawn.planes + after.planes - before.planes);

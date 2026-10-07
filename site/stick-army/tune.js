@@ -15,7 +15,8 @@
     ['PLANES_PER_WAVE', 'Planes added per wave', 0, 5, 0.5, ''],
     ['FALL_PER_WAVE', 'Fall speed added per wave', 0, 12, 0.5, 'px/s'],
     ['DROPS_PER_WAVE', 'Drops added per wave', 0, 2, 0.1, ''],
-    ['WALL_DAMAGE', 'Lander wall damage', 0, 15, 0.5, 'HP/s']
+    ['WALL_DAMAGE', 'Lander wall damage', 0, 15, 0.5, 'HP/s'],
+    ['BOSS_HP_PER_WAVE', 'Zeppelin health per wave', 0, 20, 1, 'HP']
   ];
   var style = document.createElement('style');
   style.textContent = '#tunePanel{position:absolute;right:12px;top:12px;z-index:4;width:min(300px,calc(100% - 24px));max-height:calc(100% - 90px);overflow:auto;box-sizing:border-box;padding:10px 12px;background:#fbf8ef;color:#2e2e33;border:2px solid #2e2e33;border-radius:8px;box-shadow:3px 3px #2e2e3322;font:14px/1.25 "Atkinson Hyperlegible",sans-serif;touch-action:pan-y}#tunePanel summary{cursor:pointer;font:22px "Schoolbell",cursive}#tunePanel label{display:grid;grid-template-columns:1fr auto;gap:4px;margin-top:9px}#tunePanel input{grid-column:1 / -1;width:100%;margin:0;accent-color:#2f6fdc}#tunePanel button{margin-top:10px;min-height:36px;padding:5px 10px;background:#2f6fdc;color:white;border:2px solid #2e2e33;border-radius:5px;font:16px "Schoolbell",cursive;cursor:pointer}#tunePanel textarea{width:100%;box-sizing:border-box;height:100px;margin-top:8px;font:12px monospace}#tuneStatus{margin:6px 0 0}';
