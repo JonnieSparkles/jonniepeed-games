@@ -39,6 +39,7 @@ const lbBox = $('board');
 function clearLeaderboard() {
   if (lbEntry) lbEntry.destroy();
   lbEntry = null; lbRun = null; lbBox.replaceChildren(); lbBox.hidden = true;
+  lbBox.parentElement.classList.remove('lb-entering');
 }
 function resetLeaderboard() {
   clearLeaderboard();
@@ -61,9 +62,17 @@ function showLeaderboard() {
   const data = run.data;
   lbBox.hidden = false;
   if (typeof data.placement !== 'number') { drawLeaderboard(data.scores); return; }
-  const heading = document.createElement('h3'); heading.textContent = 'You made the board!';
+  const heading = document.createElement('h3'); heading.textContent = 'New high score!';
   const message = document.createElement('p'); message.className = 'lb-message'; message.setAttribute('role', 'status');
+  message.textContent = `You're #${data.placement}. Enter your initials.`;
   lbBox.append(heading, message);
+  // one decision at a time: the game's own buttons come back after OK or Skip
+  lbBox.parentElement.classList.add('lb-entering');
+  const finish = (rows, rank) => {
+    lbEntry.destroy(); lbEntry = null; lbBox.parentElement.classList.remove('lb-entering');
+    try { go.focus({ preventScroll: true }); } catch (_) {}
+    drawLeaderboard(rows, rank);
+  };
   lbEntry = Leaderboard.entry(lbBox, {
     initials: Leaderboard.initials(),
     async onDone(name) {
@@ -78,23 +87,31 @@ function showLeaderboard() {
       if (result?.error === 'name_not_allowed') {
         message.textContent = 'Try other initials'; picker.setBusy(false); return;
       }
-      picker.destroy(); lbEntry = null;
-      drawLeaderboard(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
+      finish(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
     },
-    onSkip() { if (run.busy) return; lbEntry.destroy(); lbEntry = null; drawLeaderboard(data.scores); }
+    onSkip() { if (run.busy) return; finish(data.scores, null); }
   });
 }
 function drawLeaderboard(scores, highlight = null, all = false) {
+  // Top 10 shows in full (no inner scroll). "See all" shows all 50 in a scrolling list.
+  // Your row is scrolled into view either way.
   lbBox.replaceChildren();
+  const cols = [['Rank', '#'], ['Name', 'Name'], ['Drops', 'Drops'], ['Input', '']];
   const title = document.createElement('h3'); title.textContent = 'High scores';
-  const list = document.createElement('div'); list.className = 'lb-list'; list.tabIndex = 0;
-  list.setAttribute('role', 'region'); list.setAttribute('aria-label', 'High scores, scroll to see more');
+  const list = document.createElement('div'); list.className = all ? 'lb-list lb-all' : 'lb-list';
+  if (all) { list.tabIndex = 0; list.setAttribute('role', 'region'); list.setAttribute('aria-label', 'All high scores, scroll to see more'); }
   const table = document.createElement('table'); table.className = 'lb-table';
   const head = table.createTHead().insertRow();
-  for (const label of ['Rank', 'Name', 'Drops', 'Input']) { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = label; head.append(cell); }
+  for (const [label, short] of cols) {
+    const cell = document.createElement('th'); cell.scope = 'col';
+    if (short === '') { const s = document.createElement('span'); s.className = 'lb-sr'; s.textContent = label; cell.append(s); }
+    else { cell.textContent = short; if (short !== label) cell.setAttribute('aria-label', label); }
+    head.append(cell);
+  }
   const body = table.createTBody();
+  let you = null;
   const addRow = row => {
-    const tr = body.insertRow(); if (row.rank === highlight) tr.className = 'lb-you';
+    const tr = body.insertRow(); if (row.rank === highlight) { tr.className = 'lb-you'; you = tr; }
     for (const value of [String(row.rank), row.name, String(row.score)]) { const cell = tr.insertCell(); cell.textContent = value; }
     const iconCell = tr.insertCell();
     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -107,13 +124,16 @@ function drawLeaderboard(scores, highlight = null, all = false) {
   (all ? scores : scores.slice(0, 10)).forEach(addRow);
   if (!all && highlight > 10) {
     const player = scores.find(row => row.rank === highlight);
-    if (player) { const gap = body.insertRow().insertCell(); gap.colSpan = ['Rank', 'Name', 'Drops', 'Input'].length; gap.textContent = '…'; addRow(player); }
+    if (player) { const gap = body.insertRow(); gap.className = 'lb-gap'; const cell = gap.insertCell(); cell.colSpan = cols.length; cell.textContent = '⋯'; addRow(player); }
   }
   list.append(table); lbBox.append(title, list);
   if (scores.length > 10) {
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more'; button.textContent = all ? 'Top 10' : 'See all';
-    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all); lbBox.querySelector('.lb-more').focus(); }); lbBox.append(button);
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more';
+    button.textContent = all ? 'Show top 10' : `See all ${scores.length}`;
+    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all); lbBox.querySelector('.lb-more').focus({ preventScroll: true }); });
+    lbBox.append(button);
   }
+  if (you) requestAnimationFrame(() => you.scrollIntoView({ block: 'nearest' }));
 }
 
 // ---------- UI ----------

@@ -81,7 +81,9 @@
         slots.append(slot);
       }
       const actions = document.createElement('div'); actions.className = 'lb-actions';
-      actions.append(button('OK', 'Save score', () => onDone(letters.join(''))), button('Skip', 'Skip score entry', onSkip));
+      const ok = button('OK', 'Save score', () => onDone(letters.join(''))), skip = button('Skip', 'Skip score entry', onSkip);
+      ok.classList.add('lb-ok'); skip.classList.add('lb-skip');
+      actions.append(ok, skip);
       root.append(actions);
       root.addEventListener('keydown', e => {
         if (e.ctrlKey || e.metaKey || e.altKey || e.key === 'Tab') return;
@@ -98,7 +100,9 @@
         else return;
         e.preventDefault();
       });
-      container.append(root); refresh(); displays[0].focus();
+      // focus the first letter, then bring the whole picker (OK and Skip included) into view
+      container.append(root); refresh(); displays[0].focus({ preventScroll: true });
+      requestAnimationFrame(() => root.scrollIntoView({ block: 'nearest' }));
       return {
         destroy() { root.remove(); },
         setBusy(value) { busy = value; root.setAttribute('aria-busy', String(value)); root.querySelectorAll('button').forEach(b => { b.disabled = value; }); if (!value) displays[current].focus(); }

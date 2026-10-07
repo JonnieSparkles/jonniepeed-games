@@ -23,7 +23,7 @@
 <link rel="icon" href="../favicon.ico?v=443c0101ac" sizes="any">
 <link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
-<link rel="stylesheet" href="../assets/fonts/fonts.css?v=3d3172a531">
+<link rel="stylesheet" href="../assets/fonts/fonts.css?v=1348facafd">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -91,26 +91,44 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .snd i{display:block;width:8px;height:8px;background:var(--drop)}
 .snd[aria-pressed="false"] i{background:var(--dusk-2)}
 
-/* Arcade board, styled for this game's end screen. */
-#board{width:100%;min-width:0;display:grid;gap:8px;margin:6px 0 12px}
-#board h3{font-family:var(--display);font-size:18px;margin:0;color:var(--sun)}
+/* Arcade board, styled for this game's end screen.
+   Top 10 shows in full; "See all" scrolls inside the card. While the initials picker is open,
+   the card's own buttons hide (.lb-entering) so there's one decision at a time. */
+#board{width:100%;max-width:340px;min-width:0;display:grid;gap:8px;justify-items:center;margin:2px auto 8px}
+#board h3{font-family:var(--display);font-weight:400;font-size:16px;margin:0;color:var(--sun);letter-spacing:.04em}
 #board .lb-message{font-size:14px;margin:0}
-.lb-slots{display:flex;justify-content:center;gap:12px}
-.lb-slot{display:grid;gap:4px}
-#board .lb-button{font:inherit;border:1px solid var(--muted);border-radius:5px;background:var(--dusk);color:var(--cream);padding:7px 12px;min-width:44px;min-height:44px;cursor:pointer;box-shadow:none}
-#board .lb-letter{font-family:var(--display);font-size:24px}
-#board .lb-current .lb-letter{outline:2px solid var(--sun);outline-offset:1px}
-.lb-actions{display:flex;justify-content:center;gap:12px;margin-top:10px}
-.lb-input{width:18px;height:18px;vertical-align:middle}
-.lb-list{max-height:210px;max-height:min(210px,36dvh);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
-.lb-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
-.lb-table th{font-size:11px;font-weight:400;color:var(--muted)}
-.lb-table td,.lb-table th{padding:5px 2px;text-align:right}
-.lb-table td:nth-child(2),.lb-table th:nth-child(2){text-align:left}
-.lb-table .lb-you{background:#63512b;color:var(--cream);font-weight:bold}
-#board .lb-more{font:inherit;min-height:44px;padding:7px 12px;background:var(--dusk);color:var(--cream);border:1px solid var(--muted);border-radius:5px;cursor:pointer;box-shadow:none}
+.lb-entry{display:grid;gap:12px;justify-items:center}
+.lb-slots{display:flex;justify-content:center;gap:10px}
+.lb-slot{display:grid;gap:3px;justify-items:center}
+#board .lb-button{font:inherit;font-size:12px;border:1px solid var(--muted);border-radius:5px;background:var(--dusk);color:var(--cream);padding:0;width:48px;min-height:36px;cursor:pointer;box-shadow:none}
+#board .lb-letter{font-family:var(--display);font-size:24px;min-height:48px}
+#board .lb-current .lb-letter{border-color:var(--sun);box-shadow:0 0 0 2px var(--sun)}
+.lb-actions{display:flex;justify-content:center;align-items:center;gap:14px}
+#board .lb-ok{width:auto;min-height:44px;padding:10px 26px;font-family:var(--display);font-size:14px;background:var(--sun);color:var(--dusk);border:0;box-shadow:0 3px 0 var(--sun-deep)}
+#board .lb-skip{width:auto;min-height:44px;padding:0 8px;font-family:var(--body);font-size:14px;background:none;border:0;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+#board .lb-button:not(.lb-ok):active,#board .lb-more:active{transform:none}
+.lb-entering>.btns,.lb-entering>#introBtn{display:none!important}
+.lb-list{width:100%}
+.lb-list.lb-all{max-height:min(280px,42dvh);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
+.lb-table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+.lb-table th{font-family:var(--display);font-size:10px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;padding:0 6px 4px}
+.lb-table td{padding:3px 6px;text-align:right}
+.lb-table td:first-child,.lb-table th:first-child{width:2.6em;color:var(--muted)}
+.lb-table td:nth-child(2),.lb-table th:nth-child(2){text-align:left;font-family:var(--display);font-size:14px;letter-spacing:.08em}
+.lb-table td:last-child,.lb-table th:last-child{width:30px;text-align:center}
+.lb-all thead th{position:sticky;top:0;background:var(--dusk-2)}
+.lb-table .lb-you td{background:#63512b;color:var(--cream)}
+.lb-table .lb-you td:first-child{color:var(--sun);border-radius:4px 0 0 4px}
+.lb-table .lb-you td:last-child{border-radius:0 4px 4px 0}
+.lb-gap td{text-align:center;color:var(--muted);padding:0;line-height:1}
+.lb-input{width:16px;height:16px;vertical-align:middle;color:var(--muted)}
+.lb-you .lb-input{color:var(--cream)}
+#board .lb-more{min-height:32px;padding:4px 8px;font-family:var(--body);font-size:14px;background:none;border:0;box-shadow:none;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+#board .lb-more:hover{color:var(--cream)}
+.lb-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 #board button:focus-visible,.lb-list:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
 #board button:disabled{opacity:.6;cursor:wait}
+.card p{text-wrap:pretty}
 
 .full .card{max-height:calc(100dvh - 100px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
 </style>
@@ -148,8 +166,8 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
   </section>
   <p class="hint" id="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, M to mute and F for full screen.</p>
 </main>
-<script src="audio.js?v=efbe24bef2"></script>
-<script src="../assets/leaderboard.js?v=6b0d9d0478"></script>
-<script src="game.js?v=412d2089e2"></script>
+<script src="audio.js?v=cd567a2e80"></script>
+<script src="../assets/leaderboard.js?v=8745bbbf93"></script>
+<script src="game.js?v=937bfab13c"></script>
 </body>
 </html>

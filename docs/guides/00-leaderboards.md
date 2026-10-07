@@ -147,6 +147,17 @@ async function finished(points, seconds) {
 
 Hide/reset the board and invalidate `run` when leaving an end screen. A game also guards or skips the client when `window.Leaderboard` is unavailable; see the existing integrations. The shared client bounds requests to about four seconds and retries a network-failed submit once using the same run ID. It resolves failures instead of throwing into game code. Initials use `jpg-initials` storage with an `AAA` default. Picker keys: letters/digits fill and advance, Left/Right select, Up/Down cycle A–Z then 0–9, Backspace selects the preceding slot, Enter confirms, Escape skips. Native buttons also support Tab and Space.
 
+### End-screen board conventions
+
+Both games follow these, so a new game should too. Copy from either game's `showLeaderboard` and `drawLeaderboard` and its `.lb-` CSS.
+
+- **Picker:** heading "New high score!" and a status line "You're #N. Enter your initials." OK is styled as the game's primary button (`.lb-ok`), Skip as a text link (`.lb-skip`). The shared client scrolls the whole picker into view when it opens.
+- **One decision at a time:** while the picker is open, add `lb-entering` to the end screen's container so its own buttons (play again and so on) are hidden. After OK or Skip, remove it and focus the main replay button with `preventScroll`.
+- **Top 10 in full:** no inner scroll for the top 10. "See all N" switches to a scrolling list of all 50 (`.lb-all`, sticky header), and "Show top 10" switches back.
+- **Your row:** highlighted (`.lb-you`) and scrolled into view with `scrollIntoView({ block: 'nearest' })`. Below 10th, a gap row then your row.
+- **Columns:** rank (narrow, muted), name (left), score, any extra columns, then the input icon. The icon column's header is visually hidden (`.lb-sr`) but still read by screen readers.
+- Check portrait, landscape (including a short landscape phone) and desktop, and the game's full screen mode.
+
 ## Changing an existing game
 
 | Change | Action |
