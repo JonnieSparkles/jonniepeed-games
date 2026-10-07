@@ -114,7 +114,8 @@ body {
 .shop-card h3 { margin: 2px 0 6px; font: 700 19px var(--font-display); }
 .shop-card .eyebrow { margin: 0; font-size: 18px; color: var(--enemy); }
 .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-#shopCoins { white-space: nowrap; border: 2px solid #b88d3d; border-radius: 50%; padding: 4px 10px; color: #80560d; background: #f9edc4; font-size: 19px; }
+#shopCoins { white-space: nowrap; border: 2px solid #7b8590; border-radius: 9px 9px 14px 14px; padding: 4px 10px; color: #3f4852; background: #e8ecef; font-size: 19px; }
+.tag-note { margin: -4px 0 8px; font: 14px/1.3 'Atkinson Hyperlegible', sans-serif; color: var(--ink-soft); }
 .supply-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .supply { text-align: left; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 4px 11px 5px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 5px; min-height: 128px; }
 .supply strong { font: 700 23px/1 var(--font-display); }
@@ -123,16 +124,16 @@ body {
 .supply:hover:not(:disabled), .supply:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
 .supply:disabled { cursor: default; border-color: #aaa395; color: #6d6962; }
 .supply:disabled em { color: #6d6962; }
-.supply .supply-head { display: flex; align-items: center; gap: 8px; font: inherit; min-width: 0; }
-.supply-head strong { min-width: 0; overflow-wrap: anywhere; }
-.supply-icon { width: 40px; height: 40px; flex: none; }
+.supply .supply-head { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font: inherit; min-width: 0; }
+.supply-head strong { min-width: 0; overflow-wrap: break-word; }
+.supply-icon { width: 36px; height: 36px; flex: none; }
 .supply:disabled .supply-icon { opacity: .45; }
 .btn:disabled { opacity: .5; cursor: default; }
 #loadout { border-top: 1px dashed #aaa395; padding-top: 8px; max-height: 38px; overflow-y: auto; font-size: 14px; }
 #shopReport { margin: 0; font-size: 17px; }
 #continueBtn { flex-shrink: 0; white-space: nowrap; padding-inline: 16px; }
 .shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-@media (max-width: 380px) { .shop-card { padding: 16px; } .supply { padding: 9px; } .supply strong { font-size: 21px; } .supply .supply-head { flex-direction: column; align-items: flex-start; gap: 4px; } .supply-icon { width: 30px; height: 30px; } }
+@media (max-width: 380px) { .shop-card { padding: 16px; } .supply { padding: 9px; } .supply strong { font-size: 21px; } .supply-icon { width: 30px; height: 30px; } }
 @media (max-height: 500px) and (min-width: 650px) { .shop-card { max-width: 760px; width: 100%; } .shop-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .shop-stock section + section { margin-top: 0; } }
 @media (max-width: 380px) and (max-height: 650px) { #shopReport, #loadout { display: none; } }
 @media (max-height: 500px) and (min-width: 650px) {
@@ -159,8 +160,8 @@ body {
       <p id="shopReport"></p>
       <p class="tag" id="shopHint" role="status"></p>
       <div class="shop-stock">
-        <section aria-labelledby="freeTitle"><h3 id="freeTitle">On the house · pick one</h3><div class="supply-grid" id="freeItems"></div></section>
-        <section aria-labelledby="premiumTitle"><h3 id="premiumTitle">A little extra</h3><div class="supply-grid" id="premiumItems"></div></section>
+        <section aria-labelledby="freeTitle"><h3 id="freeTitle">Free pick · choose one</h3><div class="supply-grid" id="freeItems"></div></section>
+        <section aria-labelledby="premiumTitle"><h3 id="premiumTitle">Spend your dog tags</h3><p class="tag-note">Fallen enemies and downed planes drop dog tags, and every cleared wave adds a bundle.</p><div class="supply-grid" id="premiumItems"></div></section>
       </div>
       <p class="keys" id="loadout"></p>
       <div class="shop-foot"><p class="keys">Keep your kit<br>until the wall falls.</p><button class="btn" type="button" id="continueBtn">Continue</button></div>
@@ -201,7 +202,7 @@ body {
             </li>
             <li>
               <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 25l9-12"/><path d="M12 8l9 6 3-4-9-6z"/></svg>
-              <span>Protect your recruits. Collect coins and choose supplies between waves.</span>
+              <span>Protect your recruits. Fallen enemies drop dog tags to spend on supplies between waves.</span>
             </li>
           </ul>
           <button class="btn" id="startBtn" type="button">Start</button>
@@ -242,6 +243,6 @@ body {
 </div>
 
 <script src="audio.js?v=ce06ee9bfe"></script>
-<script data-tune-src="tune.js?v=caad3f20ee" src="game.js?v=195fb5e241"></script>
+<script data-tune-src="tune.js?v=caad3f20ee" src="game.js?v=a8b32d545a"></script>
 </body>
 </html>
