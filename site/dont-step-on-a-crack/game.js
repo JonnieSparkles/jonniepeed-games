@@ -2275,6 +2275,29 @@ function closeScores(){
   scoresReq++; showScreen(scoresEl,false);
   try{scoresBtn.focus({preventScroll:true});}catch(_){}
 }
+/* What's new: the note for the latest board change (its text is in #news, its board in data-board). The button
+   has a dot until the note has been opened once on this device. It also shows your best from before, if any. */
+const newsEl=$('#news'), newsBtn=$('#newsBtn'), newsBack=$('#newsBack'), NEWS_BOARD=+newsEl.dataset.board;
+function syncNews(){
+  let seen=true; try{seen=(parseInt(localStorage.getItem('dsotc-news-seen'),10)||0)>=NEWS_BOARD;}catch(_){}
+  newsBtn.querySelector('.news-dot').hidden=seen; $('#newsUnread').hidden=seen;
+}
+function openNews(){
+  let old=0; for(let b=BOARD-1;b>=1&&!old;b--){try{old=parseInt(localStorage.getItem('dsotc-best-'+b),10)||0;}catch(_){}}
+  const o=$('#newsOld'), v=document.createElement('b'); v.textContent=`${old} ft`;
+  o.replaceChildren('Your best before: ',v); o.hidden=!old;
+  try{localStorage.setItem('dsotc-news-seen',String(NEWS_BOARD));}catch(_){}
+  syncNews(); showScreen(newsEl,true);
+  try{newsBack.focus({preventScroll:true});}catch(_){}
+}
+function closeNews(){
+  if(newsEl.hidden) return;
+  showScreen(newsEl,false);
+  try{newsBtn.focus({preventScroll:true});}catch(_){}
+}
+newsBtn.addEventListener('click',()=>{sfx.click(); openNews();});
+newsBack.addEventListener('click',()=>{sfx.click(); closeNews();});
+syncNews();
 if(window.Leaderboard) scoresBtn.hidden=false;
 scoresBtn.addEventListener('click',()=>{sfx.click(); openScores();});
 scoresBack.addEventListener('click',()=>{sfx.click(); closeScores();});
@@ -2362,6 +2385,7 @@ window.addEventListener('keydown',e=>{
   if(k==='KeyM'&&!e.repeat){toggleSound(); return;}
   if(k==='KeyF'&&!e.repeat){toggleFull(); return;}
   if(!scoresEl.hidden){if(k==='Escape'&&!e.repeat) closeScores(); return;}
+  if(!newsEl.hidden){if(k==='Escape'&&!e.repeat) closeNews(); return;}      // Enter/Space press the focused button
   if((k==='Escape'||k==='KeyP')&&!e.repeat){if(mode==='play') pauseGame(); else if(mode==='paused') resumeGame(); return;}
   if((k==='Space'||k==='Enter')&&onBtn) return;
   if(mode==='title'){if((k==='Space'||k==='Enter')&&!e.repeat){e.preventDefault(); startGame();} return;}

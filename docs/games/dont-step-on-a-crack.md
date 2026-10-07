@@ -71,6 +71,8 @@ Checked so far only by scripted runs in a headless browser: placement, tiptoe fo
 | 1 | Original game |
 | 2 | Squirrels knock you back, heelies land where they stop and stack by adding time, ballerina shoes, one pair of shoes per street (same scoring rules as 1) |
 
+**What's new** on the title screen explains the latest board change in a few lines. Only the latest; older changes live in the table above. It also shows your best from the previous board if this device has one. Its button has a dot until the note has been opened once on that device (`dsotc-news-seen`). The text is the `#news` card in `index.html`; when you bump the board, rewrite it in a few short lines and set its `data-board` to the new `BOARD`. That brings the dot back for everyone.
+
 At game over Mom calls. After the call is picked up, the results count up and the board shows inside the phone, with initials entry if you placed. The title screen has a **High scores** button that opens the board over the title. The board shows feet, time and streak.
 
 ## Code entry points
@@ -89,7 +91,7 @@ At game over Mom calls. After the call is picked up, the results count up and th
 | Power-ups | `shoePlan` (placement), `startPower`, `endPower`, `stopRolling`, `powUpdate`, `rollUpdate`, `rollStopAt`, `tiptoe`; durations in `POW`, tiptoe reach in `TIP` |
 | Shoe art | `sneakerArt` (palettes in `SNEAKER`), `wheelArt`, `moonArt`, `slipperArt`; `drawShoe` for your feet, `drawPickup` for pairs on the sidewalk, `drawRollStop` for the heelies stop |
 | Mom's texts | `momText`, `post`, `nextChat`; messages in `T`, `MOMTXT`, `ENDINGS` |
-| Leaderboard | `loadLeaderboard`, `showLeaderboard`, `drawLeaderboard`, `openScores` |
+| Leaderboard | `loadLeaderboard`, `showLeaderboard`, `drawLeaderboard`, `openScores`; What's new in `openNews`, `syncNews` |
 
 The title screen runs a demo walk: `botUpdate` drives the feet through the same input path as a player. Nothing counts outside play, and the title is quiet.
 
