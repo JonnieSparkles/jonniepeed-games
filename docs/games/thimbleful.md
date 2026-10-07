@@ -39,6 +39,7 @@ On the same ramp:
 - **The can:** plain at first, smug past 8%, manic past 55%, when its pupils follow the explorer.
 - **Music:** turns minor (Cm, Ab, Fm, G) past 25% and adds a gritty bass and drums past 60%, both changing at the top of the four-bar loop. The tempo also climbs.
 - **Catch sounds:** climb the notes of the chord that's playing, so they follow the music and turn minor with it. Longer streaks add a harmony (6 catches), an echo (12) and a sparkle (20).
+- **Title screen:** browsers only allow audio after a click, tap or key press, so the Sound button reads "Sound off" until audio is really playing; pressing it then turns sound on rather than muting. The first tap or key on the title (other than Start, intro or Just watch, which have their own sounds) plays a short jingle from the opening of the melody. The card's buttons blip on mouse hover or keyboard focus, and Just watch settles the music down.
 
 Earn-back was tried at 20 for board 3 and set back to 15. Late in the storm even a perfect tracking bot misses about one drop in seven, so a 20-catch streak almost never happened, just when a spill back matters most.
 
@@ -78,7 +79,7 @@ The game over card runs in steps so nothing changes under a finger about to tap:
 | HUD on the wall | `streakMeter`, `digits`, `plusThree`, `heartPop` |
 | Leaderboard | `loadLeaderboard`, `showLeaderboard`, `openPicker`, `drawLeaderboard`, `openScores` (title card) |
 | Full screen | the "full screen" section: `setFull`, `toggleFull`, wake lock |
-| Sound | `ThimbleSound.start`, `.intensity(seconds, edge)`, `.catch`, `.gold`, `.earn`, `.milestone`, `.spill`, `.over`, `.thunder`, `.toggle`, `.muted` |
+| Sound | `ThimbleSound.start`, `.intensity(seconds, edge)`, `.catch`, `.gold`, `.earn`, `.milestone`, `.spill`, `.over`, `.thunder`, `.title`, `.blip(i)`, `.press`, `.settle`, `.toggle`, `.muted`, `.ready`, `.onready` |
 
 ## Validation
 

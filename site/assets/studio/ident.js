@@ -64,14 +64,21 @@
   });
 
   // Sound. Browsers only allow audio after a click, tap or key press, so the first one unlocks it.
-  // Only the events browsers count as a gesture are used: a mouse press, a lifted finger or pen (a scroll
-  // cancels the pointer instead, so scrolling never unlocks or plays anything) and a key press.
+  // Browsers disagree on which event counts as the tap (Chromium: a lifted pointer; iPhones: touchend or
+  // click), so all of them try. A scroll's touchend can't start audio, so it stays quiet.
+  // When sound comes on right after a tap that isn't on a card or the egg, a soft hello says so:
+  // on a phone there's no hover, so otherwise you'd never know.
   const soundBtn = document.getElementById('sound');
+  let hinted = false, askedAt = -1e9;   // hinted: the hello has played (or been skipped) once sound is on
   const unlock = e => {
     if (soundBtn && soundBtn.contains(e.target)) return; // the button handles its own first press
-    if (e.type === 'keydown' || (e.type === 'pointerdown') === (e.pointerType === 'mouse')) sound.init();
+    if (e.type === 'pointerdown' && e.pointerType !== 'mouse') return;
+    const quiet = !e.target.closest || e.target.closest('a.card, #ident');
+    const was = sound.ready;
+    sound.init();
+    if (!was && !quiet) askedAt = performance.now();
   };
-  for (const type of ['pointerdown', 'pointerup', 'keydown']) addEventListener(type, unlock, { capture: true, passive: true });
+  for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(type, unlock, { capture: true, passive: true });
   // Cards get a quiet note on mouse hover or keyboard focus (each its own pitch), and a blip on a real click.
   // A same-tab click waits a beat before leaving so the blip is heard.
   let leaving = false;
@@ -110,10 +117,14 @@
       sound.init();
       greet = turnOn;
       showSound();
-      if (greet && sound.ready) { greet = false; sound.play('hello'); }
+      if (greet && sound.ready) { greet = false; hinted = true; sound.play('hello'); }
     });
     // A first press can take a moment to start audio; greet once it does.
-    sound.onready = () => { showSound(); if (greet && on) { greet = false; sound.play('hello'); } };
+    sound.onready = () => {
+      showSound();
+      if (greet && on) { greet = false; hinted = true; sound.play('hello'); }
+      else if (!hinted && on) { hinted = true; if (performance.now() - askedAt < 1000) sound.play('hello', true); }
+    };
     addEventListener('pageshow', showSound);
   }
   let W = 120, scale = 3, time = 0, last = 0, running = false, visible = true;
