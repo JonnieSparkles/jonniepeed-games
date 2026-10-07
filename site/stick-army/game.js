@@ -1749,7 +1749,7 @@
   function showOver() {
     S.mode = 'over';
     var isBest = S.score > best;
-    if (isBest) { best = S.score; save('stickarmy.best.2', best); }
+    if (isBest) { best = S.score; save('stickarmy.best.3', best); }
     document.getElementById('overScore').textContent = S.score.toLocaleString('en-US');
     document.getElementById('newBest').hidden = !isBest || S.score === 0;
     document.getElementById('stWave').textContent = String(S.wave);
@@ -1913,7 +1913,7 @@
 
   function start(data) {
     data = data || {};
-    best = typeof data.best === 'number' ? data.best : load('stickarmy.best.2', 0);
+    best = typeof data.best === 'number' ? data.best : load('stickarmy.best.3', 0);
     sound.muted = typeof data.muted === 'boolean' ? data.muted : load('stickarmy.muted', false);
     fit();
     titleScene();

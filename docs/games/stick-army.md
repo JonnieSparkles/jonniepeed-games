@@ -57,7 +57,7 @@ The shop is one priced list. **Supplies** shows three rotating supplies from one
 
 Pizza is a nod to the owner's remembered delivery Easter egg: a stick courier cycles onto the page, hands over a box, and rides away. At the handoff, the wall gains 25 health and every surviving recruit gains 1 health, capped at their maxima. Combat stays frozen, and the same shop returns afterward. Pizza does not resurrect fallen crew.
 
-The shop hint warns when the next wave brings a zeppelin. The pause card shows your kit as icons with names (`renderKit`; repeatable buys are left out). The game-over card names what brought the wall down, from the last source to hurt it (`OVER_CAUSE`: bombs, landers, snipers or tanks), and adds zeppelin and tank lines once one has been destroyed (`S.stats.zeppelins`, `S.stats.tanks`). All equipment, tags and recruits reset on a new run. Only mute preference and the local best score persist. The changed rules use a fresh local-best key, `stickarmy.best.2`. Online leaderboards remain deferred by SPEC-002; this game has no `BOARD` or Worker changes.
+The shop hint warns when the next wave brings a zeppelin. The pause card shows your kit as icons with names (`renderKit`; repeatable buys are left out). The game-over card names what brought the wall down, from the last source to hurt it (`OVER_CAUSE`: bombs, landers, snipers or tanks), and adds zeppelin and tank lines once one has been destroyed (`S.stats.zeppelins`, `S.stats.tanks`). All equipment, tags and recruits reset on a new run. Only mute preference and the local best score persist. The changed rules use a fresh local-best key, `stickarmy.best.3`. Online leaderboards remain deferred by SPEC-002; this game has no `BOARD` or Worker changes.
 
 ## Tuning and extending
 
@@ -109,6 +109,21 @@ What the bots found:
 - **Flak spoiled captures and then blocked trooper kills.** A flak round that hit a canopy burst harmlessly above the body, and bursts near planes killed troopers as they jumped. Both are fixed: bursts spare paratroopers, and direct hits act as bullets. With the old behaviour, decent and expert medians were 8 and 7.5 waves; they are now 9 and 46.
 - **Runs split in two.** Most runs end between waves 7 and 9, mostly to bombs, but runs that survive that stretch tend to last until the time cap. Pressure stops rising around wave 13: the spawn interval bottoms out at wave 7 and fall speed at wave 13, and later waves only get longer. A build whose kill rate beats the spawn rate (flak, spread, double barrel, the sentry) survives indefinitely. Expert runs that bought flak reached a median of wave 47; those that didn't, about 6 (correlation, not cause).
 - **A lander can stall a wave.** With only an engineer and a medic left, one lander at the wall matches the engineer's repairs (6 HP/s each way) and the wave never ends unless the player dips the barrel to shoot him.
+
+Round 4 (40 seeds per skill, 40-minute cap), compared with main on the same seeds. Main was played by its own bot (`--ref-bot own`) because the shop changed shape, so the differences include the bot's own changes:
+
+| Skill | Median wave (quartiles), main → round 4 | Alive at wave 10 / 20 / 30, round 4 | How round 4 runs end |
+| --- | --- | --- | --- |
+| casual | 7 (6–8) → 12 (8–19) | 60% / 25% / 5% | bombs 34, landers 5, sniper 1 |
+| decent | 9 (8–47) → 29 (26–32.2) | 95% / 95% / 40% | bombs 39, landers 1 |
+| expert | 46 (8.8–47) → 33 (31–41) | 90% / 88% / 78% | bombs 30, time cap 9, landers 1 |
+
+What the bots found:
+
+- **The split is gone.** On main, runs that got past waves 7–9 lasted to the time cap. Escalation from wave 12 means decent runs now end between waves 26 and 33, and only 9 of 40 expert runs reach the cap.
+- **Tanks barely fired at first.** A bullet stream melted them on the way down, and the bot shot every slow shell out of the air. With bullets doing a tenth of a point, faster and smaller shells and shelling on the move, tanks need rockets, bazookas or a strike. Bombs still end nearly every run, so threat variety is a playtest question.
+- **Tank shells took their aim from cosmetic randomness.** `--verify` caught it once tanks lived long enough to fire; shells now aim with `RC`.
+- **The bot starved its own squad.** It bought supplies before hiring and kept dying at wave 8 with no engineer. It now hires a rifleman when the squad is thin and hires before low-priority supplies, and it ranks bombers above troopers.
 
 ## Validation and generated assets
 
