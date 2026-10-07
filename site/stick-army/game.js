@@ -208,7 +208,7 @@
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
-      stats: { captured: 0, popped: 0, kills: 0, planes: 0 },
+      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0 },
       hint: false, slotRes: {}
     };
     resizeMats(); clearInput();
@@ -487,8 +487,7 @@
         button.append(head, desc, label); button.addEventListener('click', function () { takeItem(it.id); }); holder.append(button);
       });
     });
-    var equipped = ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; });
-    document.getElementById('loadout').textContent = equipped.length ? 'In your kit: ' + equipped.map(function (it) { return it.name + (S.mods.stacks[it.id] > 1 ? ' ×' + S.mods.stacks[it.id] : ''); }).join(' · ') : 'A fresh page. Make it yours.';
+    document.getElementById('loadout').textContent = kitText() || 'A fresh page. Make it yours.';
     if (S.shop.freeTaken) {
       var stock = shopScreen.querySelector('.shop-stock'), extras = document.getElementById('premiumItems').parentElement;
       stock.scrollTop += extras.getBoundingClientRect().top - stock.getBoundingClientRect().top;
@@ -687,6 +686,8 @@
   function land(t) {
     t.state = 'ground'; t.y = GROUND - 33; t.dir = t.x < 200 ? 1 : -1; t.walk = 0;
     emit('land', { x: t.x, type: t.type });
+    // Snipers sit below the firing arc and are easy to miss, so call them out as they land.
+    if (t.type === 'sniper') addText('sniper!', t.x, t.y - 14, RED, 22);
     S.parts.push({ k: 'deflate', x: t.x - t.dir * 14, y: GROUND - 2, life: 1.6, max: 1.6, dir: t.dir, id: nextId++ });
     sound.play('thud');
   }
@@ -1024,7 +1025,7 @@
   }
   function zeppelinDown(p, owner) {
     p.state = 'fall'; p.hp = 0; p.vy = 0; p.rot = 0; p.smoke = 0; p.boomT = 0.15;
-    S.stats.planes++;
+    S.stats.planes++; S.stats.zeppelins++;
     emit('plane_down', { kind: 'zeppelin', by: owner === 'ally' ? 'crew' : 'player' });
     award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
     S.banner = { s: 'zeppelin down!', sub: 'catch the crew!', t: 0, dur: 2.2 };
@@ -1710,6 +1711,9 @@
   function togglePause() {
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
+      var kit = kitText();
+      document.getElementById('pauseKit').textContent = kit;
+      document.getElementById('pauseKit').hidden = !kit;
       pauseScreen.hidden = false;
       document.getElementById('resumeBtn').focus({ preventScroll: true });
     } else if (S.mode === 'paused') {
@@ -1725,6 +1729,13 @@
     pauseBtn.hidden = true;
     sound.play('over');
   }
+  // What brought the wall down: the last source to hurt it (hurtWall).
+  var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.' };
+  // Owned upgrades for the shop and the pause card; repeatable buys like repairs and pizza aren't listed.
+  function kitText() {
+    var equipped = ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; });
+    return equipped.length ? 'In your kit: ' + equipped.map(function (it) { return it.name + (S.mods.stacks[it.id] > 1 ? ' ×' + S.mods.stacks[it.id] : ''); }).join(' · ') : '';
+  }
   function showOver() {
     S.mode = 'over';
     var isBest = S.score > best;
@@ -1735,6 +1746,11 @@
     document.getElementById('stCap').textContent = String(S.stats.captured);
     document.getElementById('stPop').textContent = String(S.stats.popped);
     document.getElementById('stPlanes').textContent = String(S.stats.planes);
+    document.getElementById('stZeps').textContent = String(S.stats.zeppelins);
+    document.getElementById('stZeps').hidden = document.getElementById('stZepsLabel').hidden = !S.stats.zeppelins;
+    var cause = OVER_CAUSE[S.lastHit];
+    document.getElementById('overCause').textContent = cause || '';
+    document.getElementById('overCause').hidden = !cause;
     document.getElementById('stBest').textContent = Number(best).toLocaleString('en-US');
     overScreen.hidden = false;
     document.getElementById('againBtn').focus({ preventScroll: true });
