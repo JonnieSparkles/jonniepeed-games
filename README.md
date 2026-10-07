@@ -18,7 +18,7 @@ tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in 
 tools/check_boards.py   checks game BOARD constants before deploying
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
-docs/guides/            operating guides (setup, deploying, how-to)
+docs/guides/            operating guides, one file each: 00-name.md, 01-name.md, ...
 brand/                  source logo files, not published
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
