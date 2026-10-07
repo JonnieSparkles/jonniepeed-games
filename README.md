@@ -6,20 +6,25 @@ Small browser games and pixel scenes. Plain static files, no build step.
 
 ```
 site/                   everything that gets published
-  index.html            studio page: logo, game shelf, pixel easter egg (assets/ident.js)
+  index.html            studio page: logo, game shelf, pixel easter egg (assets/studio/ident.js)
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (not yet on the shelf)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
-  assets/               logo, ident.js, pixel mark, thumbnails, favicons, preview cards
+  assets/               shared fonts, leaderboard client, dark mark and favicons
+  assets/studio/        logos, ident.js, light mark, og.png and external-game thumbnails
+  <slug>/og.png         game-owned social preview card
+  <slug>/thumb.<ext>    game-owned shelf thumbnail (retain its image format)
+  <slug>/audio.js       classic sound script loaded before game.js
   assets/fonts/         Silkscreen, Pixelify Sans, Cabin Sketch, Atkinson Hyperlegible, IBM Plex Mono (SIL OFL)
                         and Schoolbell (Apache 2.0), self-hosted
-  favicon.ico
 tools/og/make.py        builds the social preview cards (pixel canvases, or page screenshots for smooth games)
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 tools/check_boards.py   checks game BOARD constants before deploying
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
-docs/guides/            operating guides, one file each: 00-name.md, 01-name.md, ...
+docs/guides/            numbered repo operations guides: 00-name.md, 01-name.md, ...
+docs/games/             living game design docs: <slug>.md (unnumbered)
+tests/<slug>/           per-game browser harnesses; backend tests stay in scores/test/
 brand/                  source logo files, not published
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
@@ -38,7 +43,10 @@ These apply to every change:
 - **Full screen and every orientation.** Each game or scene has a full screen mode and works in portrait, landscape and on desktop. Exceptions are fine when noted. Thimbleful's "full screen" section in `thimbleful/game.js` is the reference.
 - **Cache busting.** Run `python3 tools/stamp.py` after any change in `site/`, so changed files get new `?v=` links.
 - **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games.
-- **Relative links, explicit `index.html`.** Needed for Arweave manifests.
+- **Relative links, clean directory URLs.** Player links use `<slug>/` from the studio and `../` from games back home, preserving the site mount. Assets remain relative; entry files remain `index.html`. No slashless aliases or `<base>` bootstrap. Arweave manifests need the directory entries described below.
+- **Asset ownership.** Only shared files belong at the top of `site/assets/`. Studio-only files belong in `assets/studio/`; game-owned files, including `og.png` and `thumb.<ext>`, belong in `site/<slug>/`. Keep image formats. Retiring a game removes its shelf and `GAMES` entries too; permanent scores API records remain.
+- **Documentation lifecycle.** Numbered operations guides live in `docs/guides/`; build specs in `specs/` remain historical once implemented. Current rules, tuning, code entry points and validation belong in an unnumbered `docs/games/<slug>.md` linked to the relevant specs. Player help stays inside the game. See [Stick Army](docs/games/stick-army.md).
+- **Scripts and tests.** Keep audio in game-local `audio.js` with a small `init/play/muted` API; best-score storage and run state stay in the game. Split around 2,000 lines or a clear seam. Use classic scripts and explicit globals, loading audio/data before `game.js`; no ES modules, so file previews keep working. Optional tuning scripts stay opt-in. Per-game harnesses live in `tests/<slug>/`; backend API tests stay in `scores/test/`.
 - **No backward compatibility.** Remove old pages and paths outright, with no redirects or shims.
 - **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). The scores API is the one exception to no backward compatibility: old published copies must keep working.
 - **Related, not identical.** Reuse what the other games already do (full screen, leaderboards, previews) so nothing starts from scratch, but each game is free to do things its own way.
@@ -48,13 +56,13 @@ These apply to every change:
 
 1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
 2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail.
-3. Copy one of the cards in `site/index.html` and point it at `yourgame/index.html`.
-4. Run `python3 tools/stamp.py`.
+3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Unlisted demos stay off the shelf until approved.
+4. Add a living `docs/games/yourgame.md` linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
 5. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
 
 ## Social previews
 
-Each page has Open Graph and Twitter tags pointing at a 1200×630 card in `site/assets/og/`. Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniesparkles.github.io/jonniepeed-games/`). Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
+Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (page screenshot). Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniesparkles.github.io/jonniepeed-games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
 
 Rebuild the cards and index thumbnails after changing a game's art or adding a game (add it to `GAMES` in the script first):
 
@@ -94,9 +102,15 @@ Manual only, and only after changes in `scores/`. In the Actions tab, open "Depl
 
 ## Publishing to Arweave / ArNS
 
-- Upload the `site/` folder as one path manifest with `index.html` as the index. `brand/` stays out.
-- Links point at `folder/index.html` explicitly, because manifest paths are exact and `folder/` on its own may not resolve.
-- Everything, fonts included, is served from the folder, so nothing depends on a third-party CDN.
+Arweave publishing is paused until a follow-up confirms the uploader and adds whatever manifest support it needs. This layout change adds no manifest generator. Publishing and ArNS updates remain manual.
+
+The new layout requires a path manifest (`manifest: "arweave/paths"`, version `0.1.0`) with:
+
+- Root `index: {"path": "index.html"}` and an `index.html` entry pointing to the uploaded studio page.
+- Exact, case-sensitive paths for every published file relative to `site/`, including moved images, fonts and scripts; no leading slash or `site/` prefix. Upload only `site/`; `brand/` stays out.
+- Every game folder's physical `<slug>/index.html` entry plus a `<slug>/` entry pointing to **the same transaction ID**. Include unlisted Stick Army; discover game folders rather than using shelf membership. Preserve the trailing slash. No slashless `<slug>` entries, old paths, duplicate uploads or missing-asset fallback to HTML.
+
+In the follow-up, confirm the uploader and receipt format, add any needed support, and validate missing IDs, collisions and exact asset paths. Run stamp before uploading files and build a fresh manifest from those exact upload receipts; upload the manifest with `application/x.arweave-manifest+json`. Test all clean game/home links, assets and `#tune` through an ar.io gateway at a manifest-ID mount and an ArNS root where available. Record the test manifest ID, gateway base URL and results before manually updating the production ArNS pointer. The gateway acceptance check is deferred to that follow-up. Old Arweave copies remain immutable history.
 
 ## License
 

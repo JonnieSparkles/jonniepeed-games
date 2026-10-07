@@ -1,4 +1,4 @@
-"""Browser regression tests. Serve site/ on port 8000, then run this file.
+"""Browser regression tests. Serve site/ on port 8000, then run python3 tests/stick-army/test.py.
 Requires Python Playwright; CHROMIUM selects a system browser.
 The test-only bridge is injected into the response, never shipped in the game.
 """
@@ -15,7 +15,7 @@ with sync_playwright() as p:
     source = (ROOT / 'site/stick-army/game.js').read_text()
     source = source.replace('  start();', "  window.armyTest = function (code) { return eval(code); };\n  start();")
     page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
-    page.goto(os.environ.get('SITE_URL', 'http://127.0.0.1:8000') + '/stick-army/index.html')
+    page.goto(os.environ.get('SITE_URL', 'http://127.0.0.1:8000') + '/stick-army/')
     page.clock.install()
     for case in sorted(Path(__file__).parent.glob('case-*.js')):
         page.evaluate('(code) => armyTest(code)', case.read_text())

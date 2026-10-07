@@ -8,7 +8,7 @@ Status: spec only. A hidden second shelf on the studio homepage for games in dev
 2. Resolve [SPEC-003](SPEC-003-repo-layout.md)'s open questions, then implement it in its own PR, with no other site changes in flight. Complete the layout, game-owned assets and clean trailing-slash navigation before starting Side B. The owner confirms the Arweave uploader; slashless aliases and a manifest helper remain undecided until then.
 3. Implement this spec after SPEC-003 in a separate PR. It relies on the moved `site/assets/studio/ident.js`, `site/stick-army/thumb.webp` and clean `stick-army/` link. Publish only by hand after review. Side B placement is not promotion to the public Side A shelf.
 
-Stick Army was built from [SPEC-002](SPEC-002-stick-army.md). Its living doc is currently `docs/guides/01-stick-army.md`; after SPEC-003 it is `docs/games/stick-army.md`. Update the living doc when Side B launches and when the game is promoted.
+Stick Army was built from [SPEC-002](SPEC-002-stick-army.md). Its living doc is [Stick Army](../docs/games/stick-army.md), moved by SPEC-003. Update the living doc when Side B launches and when the game is promoted.
 
 ## Discovery: let the rainbow overflow
 

@@ -1,8 +1,8 @@
-# 01: Stick Army
+# Stick Army
 
-Built from [SPEC-002](../../specs/SPEC-002-stick-army.md). The game is at `site/stick-army/index.html`; it stays off the studio shelf until Jonnie approves the listing. No build step or network service is required. The page carries `<meta name="robots" content="noindex">`; keep it until Stick Army is promoted to the public shelf, then remove it and update this doc.
+Built from [SPEC-002](../../specs/SPEC-002-stick-army.md), with layout from [SPEC-003](../../specs/SPEC-003-repo-layout.md). The game is at `site/stick-army/index.html`; it stays off the studio shelf until Jonnie approves the listing. No build step or network service is required. The page carries `<meta name="robots" content="noindex">`; keep it until Stick Army is promoted to the public shelf, then remove it and update this doc.
 
-## Playing
+## Rules and input contract
 
 Mouse, keyboard and touch all work. With a mouse, aim and hold the button to fire. On touch, touch and hold to fire, and drag to aim. Arrow keys (or A/D) aim, Space fires, P pauses, and F toggles full screen. The fullscreen button uses the native API where available and fills the window otherwise. The portrait notebook remains centred in landscape.
 
@@ -24,9 +24,9 @@ All equipment, coins and recruits reset on a new run. Only mute preference and t
 
 ## Tuning and extending
 
-`site/stick-army/game.js` contains the simulation and procedural audio. `index.html` contains layout, the title/pause/end cards and the responsive HTML shop.
+`site/stick-army/game.js` contains the simulation and saved preferences. `site/stick-army/audio.js` owns procedural sound through `StickArmySound.init()`, `.play(name)` and `.muted`; it loads before `game.js`. `index.html` contains layout, the title/pause/end cards and the responsive HTML shop.
 
-Open `site/stick-army/index.html#tune` to load the optional `tune.js` panel. Its eight sliders change capture speed, mat-drop chance, rifle cooldown/spread, wave growth and wall damage immediately. Collapse the panel to play; **Copy values** exports JSON, with selected text as a fallback when clipboard access fails. Values are session-only and reset on reload. The panel and its script are absent without the hash.
+Open `stick-army/#tune` on the local server (or `site/stick-army/index.html#tune` for a file preview) to load the optional `tune.js` panel. Its eight sliders change capture speed, mat-drop chance, rifle cooldown/spread, wave growth and wall damage immediately. Collapse the panel to play; **Copy values** exports JSON, with selected text as a fallback when clipboard access fails. Values are session-only and reset on reload. The panel and its script are absent without the hash.
 
 | Area | Entry points |
 | --- | --- |
@@ -55,9 +55,10 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory site
 With Python Playwright installed, run:
 
 ```sh
-CHROMIUM=/usr/bin/chromium python3 tools/stick-army/test.py
-CHROMIUM=/usr/bin/chromium python3 tools/stick-army/ui.py
-CHROMIUM=/usr/bin/chromium python3 tools/stick-army/perf.py --stress
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
+node --check site/stick-army/audio.js
 node --check site/stick-army/game.js
 node --check site/stick-army/tune.js
 CHROMIUM=/usr/bin/chromium SITE_URL=http://127.0.0.1:8000 python3 tools/og/make.py
@@ -66,7 +67,7 @@ python3 tools/stamp.py
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` is optional for the preview generator; it defaults to file URLs. The regression runners default to the local server above. `SCREENSHOTS` selects the UI runner's output directory (default `/tmp/stick-army-screenshots`). Test access to simulation internals is injected into the browser response and is never shipped with the game.
 
-The checks cover capture success/rips, slots, crew targeting, ink lifecycle, bomb payloads and damage, sniper pressure and retreat, shop transactions, pizza delivery, equipment combinations, death/restart and a real simulated wave clear. UI checks exercise fullscreen, touch/keyboard, pause and shop/delivery at desktop, portrait, short landscape and small-phone sizes. UI checks also verify live tuning and both clipboard paths. `perf.py` measures actual RAF intervals and update/render CPU time on wave 6 in a 390×844 touch viewport at DPR 2 with CDP CPU throttling at 4×. It warms up for five seconds and samples for fifteen; `--stress` adds 20 airborne enemies and 12 fresh corpses, with 500 retained ink marks. `--source-ref <commit>` compares old code without changing the checkout, and `--output <path>` saves JSON. Phone canvases use CSS-pixel resolution to reduce raster work; desktop artwork retains its high-DPI resolution.
+The checks cover capture success/rips, slots, crew targeting, ink lifecycle, bomb payloads and damage, sniper pressure and retreat, shop transactions, pizza delivery, equipment combinations, death/restart and a real simulated wave clear. UI checks exercise fullscreen, touch/keyboard, pause and shop/delivery at desktop, portrait, short landscape and small-phone sizes. UI checks also verify live tuning and both clipboard paths. `perf.py` measures actual RAF intervals and update/render CPU time on wave 6 in a 390×844 touch viewport at DPR 2 with CDP CPU throttling at 4×. It warms up for five seconds and samples for fifteen; `--stress` adds 20 airborne enemies and 12 fresh corpses, with 500 retained ink marks. `--source-ref <commit>` compares old game code without changing the checkout (the current audio script remains loaded), and `--output <path>` saves JSON. Phone canvases use CSS-pixel resolution to reduce raster work; desktop artwork retains its high-DPI resolution.
 
 Measured in headless Chromium on this workspace (15-second stress sample, 4× CPU throttle):
 
@@ -79,4 +80,6 @@ The ink regression is fixed, but this throttled stress workload still misses 60 
 
 Physical iPhone Safari and subjective difficulty still merit owner playtesting before featuring the game.
 
-Pages publishing remains a manual workflow. No Worker deploy is needed for this change.
+Game-owned previews are `site/stick-army/og.png` and `thumb.webp`. Shared fonts and the favicon remain in `site/assets/`. Clean player navigation uses `stick-army/` and `../` wherever a home link is offered.
+
+Pages publishing remains a manual workflow. Arweave publishing is paused pending the uploader/manifest follow-up in README. No Worker deploy is needed for this change.
