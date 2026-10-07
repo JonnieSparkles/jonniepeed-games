@@ -26,6 +26,8 @@
 <link rel="stylesheet" href="../assets/fonts/fonts.css?v=1348facafd">
 <style>
 *,*::before,*::after{box-sizing:border-box}
+/* iPhones zoom on a quick double tap, even on buttons. Pinch zoom still works, and stricter rules (none, pan-y) still win. */
+*{touch-action:manipulation}
 [hidden]{display:none!important}
 html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 body{margin:0}
@@ -191,7 +193,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
   <p class="hint" id="hint">Drag anywhere on the scene to move. On a keyboard, use the arrow keys, M to mute and F for full screen.</p>
 </main>
 <script src="audio.js?v=d996f0fce7"></script>
-<script src="../assets/leaderboard.js?v=a46c16093d"></script>
+<script src="../assets/leaderboard.js?v=8ad1e0bd57"></script>
 <script src="game.js?v=e53b71592b"></script>
 </body>
 </html>

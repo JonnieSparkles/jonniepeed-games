@@ -3,6 +3,7 @@
 Follow the **Standards** section in README.md on every change. In short:
 
 - Games and scenes: full screen mode, work in portrait, landscape and desktop.
+- Every page sets `*{touch-action:manipulation}` so quick taps don't zoom on iPhones.
 - After any change in `site/`: run `python3 tools/stamp.py`.
 - New or changed game art: run `python3 tools/og/make.py`.
 - No backward compatibility: delete old paths, no redirects.
