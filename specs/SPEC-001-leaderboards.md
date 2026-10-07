@@ -1,6 +1,6 @@
 # SPEC-001: Leaderboards
 
-Shared online high score boards for Thimbleful and Don't Step on the Crack, in the style of a classic arcade: top 50 per game, three initials, entered only when your run makes the table.
+Shared online high score boards for Thimbleful and Don't Step on a Crack, in the style of a classic arcade: top 50 per game, three initials, entered only when your run makes the table.
 
 Status: built in PR #1. Now that it's built, `docs/guides/leaderboards.md` and the code are the source of truth. This spec records the decisions and why, updated with the choices made during the build: per-board rules and negative test boards.
 
@@ -27,7 +27,7 @@ Cloudflare D1  (one table: scores)
 ## Decisions (already made, don't revisit)
 
 - One shared table with a `game` column, not a table per game. Extra per-game numbers go in a `meta` JSON column.
-- Game IDs are the folder names: `thimbleful`, `dont-step-on-the-crack`. Permanent.
+- Game IDs are the folder names: `thimbleful`, `dont-step-on-a-crack`. Permanent.
 - Boards hold the **top 50**. Every run counts, so one player can appear many times (arcade style). No accounts.
 - Names are exactly **3 characters**, A–Z and 0–9, entered with an arcade-style letter picker. No text box, so phones never open the keyboard.
 - **Each score records how the run was played:** `touch` if any touch or pen input drove the game during the run, otherwise `keys` (keyboard or mouse). This is the input used, not the device type. It's one board for everyone, with an icon on each row. No separate boards by input.
@@ -88,19 +88,16 @@ CREATE INDEX IF NOT EXISTS scores_by_board ON scores (game, board, score);
       }
     }
   },
-  "dont-step-on-the-crack": {
-    "boards": {
-      "1": {
-        "higherIsBetter": true,
-        "maxScore": 1000000,
-        "meta": {
-          "time_ms": { "min": 0, "max": 86400000 },
-          "steps":   { "min": 0, "max": 1000000 },
-          "streak":  { "min": 0, "max": 1000000 }
-        },
-        "tieBreak": [["time_ms", "asc"]]
-      }
-    }
+  "dont-step-on-a-crack": {
+    "boards": [1],
+    "higherIsBetter": true,
+    "maxScore": 1000000,
+    "meta": {
+      "time_ms": { "min": 0, "max": 86400000 },
+      "steps":   { "min": 0, "max": 1000000 },
+      "streak":  { "min": 0, "max": 1000000 }
+    },
+    "tieBreak": [["time_ms", "asc"]]
   }
 }
 ```
@@ -127,7 +124,7 @@ Optional: `&score=<n>&meta=<url-encoded JSON>` to ask where a finished run would
 ```json
 {
   "ok": true,
-  "game": "dont-step-on-the-crack",
+  "game": "dont-step-on-a-crack",
   "board": 1,
   "scores": [
     { "rank": 1, "name": "JON", "score": 412, "input": "touch", "meta": { "time_ms": 93000, "steps": 410, "streak": 61 } }
@@ -180,7 +177,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 5. If `load` returned `null`, show nothing extra. The end screen is exactly today's.
 6. Every row shows a small input icon (touch or keys), drawn in the game's own style, with an accessible label ("touch" / "keyboard").
 7. **The board view at game over** shows the top 10. If the player's row is below 10th, add a gap row ("…") and their row underneath. A **See all** button shows the full 50 in a scrollable list inside the same screen.
-8. While the picker is open, the game's own keyboard shortcuts must not fire. Both games have a window `keydown` handler (`thimbleful/game.js`, `dont-step-on-the-crack/game.js`) that has to ignore keys while entry is open.
+8. While the picker is open, the game's own keyboard shortcuts must not fire. Both games have a window `keydown` handler (`thimbleful/game.js`, `dont-step-on-a-crack/game.js`) that has to ignore keys while entry is open.
 
 ### Thimbleful (`site/thimbleful/`)
 
@@ -190,7 +187,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 - Rows show rank, initials, drops and the input icon.
 - Local best key becomes `'thimbleful-best-' + BOARD`. The old key isn't migrated (no backward compatibility).
 
-### Don't Step on the Crack (`site/dont-step-on-the-crack/`)
+### Don't Step on a Crack (`site/dont-step-on-a-crack/`)
 
 - Add `const BOARD=1;` near the other top constants in `game.js`.
 - Score: `runResult.ft`. Meta: `time_ms` (`runResult.time` × 1000, rounded), `steps`, `streak` (`runResult.streak`). Ties rank the faster time first (set in `games.json`).

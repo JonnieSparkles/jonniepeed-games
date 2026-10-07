@@ -1,6 +1,6 @@
 # Online leaderboards
 
-Shared arcade boards hold the top 50 runs for Thimbleful and Don't Step on the Crack. Each run has three initials, a score and an input icon. Every run counts; there are no accounts, rate limits or admin page. Games show their top 10 at game over, plus the player's row if it is lower. **See all** opens a scrollable list of 50 inside the end screen. The initials picker uses buttons and keyboard controls, never a phone text keyboard. Failed or timed-out API calls leave the game playable.
+Shared arcade boards hold the top 50 runs for each game in `scores/games.json`. Each run has three initials, a score and an input icon. Every run counts; there are no accounts, rate limits or admin page. Games show their top 10 at game over, plus the player's row if it is lower. **See all** opens a scrollable list of 50 inside the end screen. The initials picker uses buttons and keyboard controls, never a phone text keyboard. Failed or timed-out API calls leave the game playable.
 
 ```text
 game page (Pages, custom domain or Arweave)
@@ -18,9 +18,9 @@ The blocklist is intentionally empty for now (`[]`), so no otherwise-valid initi
 ## One-time setup (Jonnie's Cloudflare account)
 
 1. Install Node 22 or newer and Wrangler 4 (`npm install -g wrangler@4.148.0`). Run `wrangler login`.
-2. From `scores/`, run `wrangler d1 create jonniepeed-scores`. Replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` in `wrangler.jsonc` with the returned ID. Keep the binding named `DB`.
-3. Apply the schema: `wrangler d1 execute jonniepeed-scores --remote --file=schema.sql`.
-4. Run `wrangler deploy`. Confirm the Worker Custom Domain in Cloudflare's Workers dashboard and that `/v1/top?game=thimbleful&board=1` returns JSON. Cloudflare normally supplies the Custom Domain certificate. If the two-level name asks for a paid certificate product, fall back to the single-level `scores` name on the same zone, editing only `API` in `site/assets/leaderboard.js` and `routes` in `scores/wrangler.jsonc`, and tell Jonnie.
+2. From `scores/`, run `wrangler d1 create jonniepeed-games-scores`. Replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` in `wrangler.jsonc` with the returned ID. Keep the binding named `DB`.
+3. Apply the schema: `wrangler d1 execute jonniepeed-games-scores --remote --file=schema.sql`.
+4. Run `wrangler deploy`. Confirm the Worker Custom Domain in Cloudflare's Workers dashboard and that `/v1/top?game=<game-id>&board=1` returns JSON for a game id in `games.json`. Cloudflare normally supplies the Custom Domain certificate. If the two-level name asks for a paid certificate product, fall back to the single-level `scores` name on the same zone, editing only `API` in `site/assets/leaderboard.js` and `routes` in `scores/wrangler.jsonc`, and tell Jonnie.
 5. Run `BASE=https://<Worker-Custom-Domain> node test/smoke.mjs`. It writes only to a newly selected random negative test board, never a real board. All boards ≤ 0 are test boards; real games never display them.
 6. Run `python3 tools/check_boards.py` and `python3 tools/stamp.py` from the repository root. Deploy the site by manually running **Deploy to GitHub Pages**. Do not add automatic workflow triggers.
 
@@ -32,7 +32,7 @@ Use the existing checkout. A cloud task is already isolated; do not create a Git
 
 ```sh
 cd scores
-wrangler d1 execute jonniepeed-scores --local --file=schema.sql
+wrangler d1 execute jonniepeed-games-scores --local --file=schema.sql
 wrangler dev --local --port 8787
 ```
 
@@ -156,8 +156,8 @@ Test boards (all numbers ≤ 0) use the full rules of the newest positive board,
 - `boards`: object mapping each accepted positive board number (JSON string key, such as `"1"`) to its full rules. Every number ≤ 0 is also accepted for testing and uses the numerically newest positive board's rules. Never show test boards in real games. Keep every old entry. The following fields live inside each board entry:
 - `higherIsBetter`: true sorts scores descending; false sorts ascending.
 - `maxScore`: integer score range, inclusive 0 to this maximum.
-- `meta`: allowed optional integer keys, each with inclusive `min`/`max`. Sent unknown keys, non-integers or out-of-range values are refused. An omitted meta object is stored as NULL; a provided object may be empty. Thimbleful sends `time_ms` from play time. Crack sends `time_ms`, `steps` and best clean `streak` from its frozen result.
-- `tieBreak`: ordered `[metaKey, "asc"|"desc"]` pairs after score; absent values sort last. Crack sorts equal feet by fastest time. Thimbleful has no meta tie-break. After all ties, earlier creation time and ID win. A new run tying 50th never qualifies.
+- `meta`: allowed optional integer keys, each with inclusive `min`/`max`. Sent unknown keys, non-integers or out-of-range values are refused. An omitted meta object is stored as NULL; a provided object may be empty. A game sends only the keys declared on its board, frozen at game over.
+- `tieBreak`: ordered `[metaKey, "asc"|"desc"]` pairs after score; absent values sort last. An empty list means score is the only ranking field before time. After all ties, earlier creation time and ID win. A new run tying 50th never qualifies.
 
 ## API and validation
 
@@ -167,30 +167,28 @@ All responses are JSON with CORS `*`; any OPTIONS path allows GET/POST/OPTIONS a
 
 ## Admin recipes
 
-In Cloudflare dashboard, open **Workers & Pages → D1 → jonniepeed-scores → Console**, paste the SQL below and run it. Inspect selected IDs before deleting. The terminal equivalents run from `scores/` and require your Cloudflare login. Use `--local` instead of `--remote` for local test data. Nothing in the client deletes or edits rows.
+In Cloudflare dashboard, open **Workers & Pages → D1 → jonniepeed-games-scores → Console**, paste the SQL below and run it. Inspect selected IDs before deleting. The terminal equivalents run from `scores/` and require your Cloudflare login. Use `--local` instead of `--remote` for local test data. Nothing in the client deletes or edits rows.
 
 ### See a board with IDs
 
-Dashboard SQL (Crack board 1, same ordering as the Worker):
+Dashboard SQL. Replace `<game-id>` and the board number. Match `ORDER BY` to that board in `games.json`: `score DESC` when `higherIsBetter` is true, otherwise `ASC`; then one `json_extract(meta, '$.<key>')` term per `tieBreak` pair, with that direction and `NULLS LAST`; then `created_at ASC, id ASC`. The query below is higher-is-better with no meta tie-break.
 
 ```sql
 SELECT id, name, score, input, meta, created_at FROM scores
-WHERE game = 'dont-step-on-the-crack' AND board = 1
-ORDER BY score DESC, json_extract(meta, '$.time_ms') ASC NULLS LAST, created_at ASC, id ASC LIMIT 50;
+WHERE game = '<game-id>' AND board = 1
+ORDER BY score DESC, created_at ASC, id ASC LIMIT 50;
 ```
 
 ```sh
-wrangler d1 execute jonniepeed-scores --remote --command="SELECT id, name, score, input, meta, created_at FROM scores WHERE game = 'dont-step-on-the-crack' AND board = 1 ORDER BY score DESC, json_extract(meta, '\$.time_ms') ASC NULLS LAST, created_at ASC, id ASC LIMIT 50;"
+wrangler d1 execute jonniepeed-games-scores --remote --command="SELECT id, name, score, input, meta, created_at FROM scores WHERE game = '<game-id>' AND board = 1 ORDER BY score DESC, created_at ASC, id ASC LIMIT 50;"
 ```
-
-For Thimbleful, use `game = 'thimbleful'` and omit the `json_extract` term. Follow `games.json` for future games' sorting.
 
 ### Find by initials
 
 Dashboard: run `SELECT * FROM scores WHERE name = 'JON' ORDER BY created_at DESC;`.
 
 ```sh
-wrangler d1 execute jonniepeed-scores --remote --command="SELECT * FROM scores WHERE name = 'JON' ORDER BY created_at DESC;"
+wrangler d1 execute jonniepeed-games-scores --remote --command="SELECT * FROM scores WHERE name = 'JON' ORDER BY created_at DESC;"
 ```
 
 ### Delete one score
@@ -198,26 +196,26 @@ wrangler d1 execute jonniepeed-scores --remote --command="SELECT * FROM scores W
 Dashboard: first run `SELECT * FROM scores WHERE id = 123;`, then `DELETE FROM scores WHERE id = 123;` after confirming the row.
 
 ```sh
-wrangler d1 execute jonniepeed-scores --remote --command="SELECT * FROM scores WHERE id = 123;"
-wrangler d1 execute jonniepeed-scores --remote --command="DELETE FROM scores WHERE id = 123;"
+wrangler d1 execute jonniepeed-games-scores --remote --command="SELECT * FROM scores WHERE id = 123;"
+wrangler d1 execute jonniepeed-games-scores --remote --command="DELETE FROM scores WHERE id = 123;"
 ```
 
 ### Reset a board
 
-Dashboard: select the game's board first, then run `DELETE FROM scores WHERE game = 'thimbleful' AND board = 1;`.
+Dashboard: select the game's board first, then run `DELETE FROM scores WHERE game = '<game-id>' AND board = 1;`. Always constrain both game and board.
 
 ```sh
-wrangler d1 execute jonniepeed-scores --remote --command="DELETE FROM scores WHERE game = 'thimbleful' AND board = 1;"
+wrangler d1 execute jonniepeed-games-scores --remote --command="DELETE FROM scores WHERE game = '<game-id>' AND board = 1;"
 ```
 
-These concrete values stand for `DELETE ... WHERE game = ? AND board = ?`; always constrain both. Wipe when the same rules need a clean slate; no deploy is needed. Bump when scoring rules change; keep the old board and deploy Worker support first.
+Wipe when the same rules need a clean slate; no deploy is needed. Bump when scoring rules change; keep the old board and deploy Worker support first.
 
 ### Clear all test boards
 
 Dashboard: run `DELETE FROM scores WHERE board <= 0;`. This includes board 0 and every random negative smoke board; never use an unconstrained DELETE.
 
 ```sh
-wrangler d1 execute jonniepeed-scores --remote --command='DELETE FROM scores WHERE board <= 0;'
+wrangler d1 execute jonniepeed-games-scores --remote --command='DELETE FROM scores WHERE board <= 0;'
 ```
 
 ### Undo a database mistake
@@ -227,8 +225,8 @@ D1 Time Travel is always enabled on production D1. The Workers Free plan retains
 Dashboard: open the database's **Time Travel** tab, select a timestamp before the mistake, review the restore and confirm it. Terminal:
 
 ```sh
-wrangler d1 time-travel info jonniepeed-scores --timestamp='2026-10-06T12:00:00Z'
-wrangler d1 time-travel restore jonniepeed-scores --timestamp='2026-10-06T12:00:00Z'
+wrangler d1 time-travel info jonniepeed-games-scores --timestamp='2026-10-06T12:00:00Z'
+wrangler d1 time-travel restore jonniepeed-games-scores --timestamp='2026-10-06T12:00:00Z'
 ```
 
-Replace the sample timestamp. Save the previous bookmark printed by restore. To undo that restore, use `wrangler d1 time-travel restore jonniepeed-scores --bookmark=<previous-bookmark>`. Time Travel is not available for local D1; preserve local data separately if needed.
+Replace the sample timestamp. Save the previous bookmark printed by restore. To undo that restore, use `wrangler d1 time-travel restore jonniepeed-games-scores --bookmark=<previous-bookmark>`. Time Travel is not available for local D1; preserve local data separately if needed.

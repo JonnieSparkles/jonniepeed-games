@@ -1,4 +1,4 @@
-// Don't Step on the Crack: every sound is synthesized with Web Audio, no files.
+// Don't Step on a Crack: every sound is synthesized with Web Audio, no files.
 // The context starts on the first tap (browsers block audio before that).
 // `quiet` mutes game sounds but keeps the wind and birds, for the title screen's demo walk.
 'use strict';

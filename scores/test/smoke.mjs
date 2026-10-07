@@ -36,7 +36,7 @@ await test('preflight on any path', async () => {
   assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type');
 });
 await test('empty test boards (required before this run)', async () => {
-  for (const game of ['thimbleful', 'dont-step-on-the-crack']) {
+  for (const game of ['thimbleful', 'dont-step-on-a-crack']) {
     const data = await top(game);
     assert.deepEqual(data.scores, [], `${game} random negative test board must start empty`);
     assert.equal('placement' in data, false);
@@ -55,7 +55,7 @@ await test('Thimbleful keys submit and idempotent retry', async () => {
   assert.equal(again.scores.length, 1); assert.equal(again.scores[0].input, 'keys');
 });
 await test('Crack touch submit', async () => {
-  const data = await accepted(run('dont-step-on-the-crack', { score: 412, input: 'touch', meta: { time_ms: 93000, steps: 410, streak: 61 } }));
+  const data = await accepted(run('dont-step-on-a-crack', { score: 412, input: 'touch', meta: { time_ms: 93000, steps: 410, streak: 61 } }));
   assert.equal(data.rank, 1); assert.equal(data.scores[0].input, 'touch'); assert.equal(data.scores[0].meta.streak, 61);
 });
 await test('submit without meta', async () => {
@@ -63,14 +63,14 @@ await test('submit without meta', async () => {
   assert.equal(data.scores.find(row => row.name === 'OLD').meta, null);
 });
 await test('Crack time tie-break, absent time last, earlier exact tie wins', async () => {
-  await accepted(run('dont-step-on-the-crack', { name: 'NON', score: 700 }));
-  await accepted(run('dont-step-on-the-crack', { name: 'SLW', score: 700, meta: { time_ms: 2000 } }));
-  await accepted(run('dont-step-on-the-crack', { name: 'FST', score: 700, meta: { time_ms: 1000 } }));
-  await accepted(run('dont-step-on-the-crack', { name: 'TIE', score: 700, meta: { time_ms: 1000 } }));
-  const data = await top('dont-step-on-the-crack');
+  await accepted(run('dont-step-on-a-crack', { name: 'NON', score: 700 }));
+  await accepted(run('dont-step-on-a-crack', { name: 'SLW', score: 700, meta: { time_ms: 2000 } }));
+  await accepted(run('dont-step-on-a-crack', { name: 'FST', score: 700, meta: { time_ms: 1000 } }));
+  await accepted(run('dont-step-on-a-crack', { name: 'TIE', score: 700, meta: { time_ms: 1000 } }));
+  const data = await top('dont-step-on-a-crack');
   assert.deepEqual(data.scores.slice(0, 4).map(row => row.name), ['FST', 'TIE', 'SLW', 'NON']);
-  assert.equal((await top('dont-step-on-the-crack', 700, { time_ms: 1500 })).placement, 3);
-  assert.equal((await top('dont-step-on-the-crack', 700)).placement, 5);
+  assert.equal((await top('dont-step-on-a-crack', 700, { time_ms: 1500 })).placement, 3);
+  assert.equal((await top('dont-step-on-a-crack', 700)).placement, 5);
 });
 await test('full board: winning, losing, exact 50th tie, and rank outside 50', async () => {
   for (let i = 0; i < 50; i++) await accepted(run('thimbleful', { score: 500 + i }));
@@ -85,12 +85,12 @@ await test('full board: winning, losing, exact 50th tie, and rank outside 50', a
   assert.equal(retry.id, original.id); assert.equal(retry.rank, null);
 });
 await test('SQL and candidate comparator agree at Crack 50th boundary', async () => {
-  for (let i = 0; i < 50; i++) await accepted(run('dont-step-on-the-crack', { score: 900, meta: { time_ms: 1000 + i } }));
-  const full = await top('dont-step-on-the-crack'); assert.equal(full.scores.length, 50);
-  assert.equal((await top('dont-step-on-the-crack', 900, { time_ms: 1048 })).placement, 50);
-  assert.equal((await top('dont-step-on-the-crack', 900, { time_ms: 1049 })).placement, null);
-  assert.equal((await top('dont-step-on-the-crack', 900)).placement, null);
-  const winning = await accepted(run('dont-step-on-the-crack', { score: 900, meta: { time_ms: 1048 } }));
+  for (let i = 0; i < 50; i++) await accepted(run('dont-step-on-a-crack', { score: 900, meta: { time_ms: 1000 + i } }));
+  const full = await top('dont-step-on-a-crack'); assert.equal(full.scores.length, 50);
+  assert.equal((await top('dont-step-on-a-crack', 900, { time_ms: 1048 })).placement, 50);
+  assert.equal((await top('dont-step-on-a-crack', 900, { time_ms: 1049 })).placement, null);
+  assert.equal((await top('dont-step-on-a-crack', 900)).placement, null);
+  const winning = await accepted(run('dont-step-on-a-crack', { score: 900, meta: { time_ms: 1048 } }));
   assert.equal(winning.rank, 50);
 });
 
