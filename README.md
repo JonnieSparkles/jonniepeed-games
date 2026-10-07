@@ -86,9 +86,9 @@ Each backend service is a Cloudflare Worker in its own top-level folder, named t
 
 The feature itself can have a friendlier name in docs and buttons (leaderboards). Every new `*.games.sparklelabs.org` address needs three CAA records of its own, or its certificate won't issue: `games.sparklelabs.org` points to GitHub Pages, whose CAA records don't allow Cloudflare's certificate authorities. The [leaderboard guide](docs/guides/00-leaderboards.md#if-the-scores-certificate-wont-issue) has the records and the fix.
 
-## Deploying the leaderboard Worker
+## Deploying the Leaderboard Worker
 
-Manual only, and only after changes in `scores/`. In the Actions tab, open "Deploy leaderboard Worker" (it deploys `scores/`) and click Run workflow, or run `wrangler deploy` from `scores/`. Scores in the database are never touched. One-time secrets setup is in the [leaderboard guide](docs/guides/00-leaderboards.md#deploying-the-worker).
+Manual only, and only after changes in `scores/`. In the Actions tab, open "Deploy Leaderboard Worker" (it deploys `scores/`) and click Run workflow, or run `wrangler deploy` from `scores/`. Scores in the database are never touched. One-time secrets setup is in the [leaderboard guide](docs/guides/00-leaderboards.md#deploying-the-worker).
 
 ## Publishing to Arweave / ArNS
 
