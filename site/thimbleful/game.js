@@ -1,7 +1,7 @@
 // Thimbleful: a tiny explorer catches drips from a leaking watering can to grow a sunflower.
 // States: title (live windowsill scene) -> intro (first play only: plant the seed in the big pot) -> play -> over.
 // "Just watch" puts the scene in a passive mode with no game on top.
-const BOARD = 3;   // 2: wider catch to match the bigger drops. 3: earn-back at 20, and it keeps getting harder after the first minute
+const BOARD = 3;   // 2: wider catch to match the bigger drops. 3: it keeps getting harder after the first minute
 const c = document.getElementById('c'), g = c.getContext('2d');
 const W = 96, H = 72, MAXSPILL = 5, SUN_X = 10, SUN_BASE = 36, PLANT_STAND = 21, CAN_HOME = 52, CAN_AWAY = -14;
 const R = (a, b, w, h, k) => { g.fillStyle = k; g.fillRect(Math.round(a), Math.round(b), w, h); };
@@ -29,7 +29,7 @@ let drops = [], parts = [], wet = [], intro = null, seedFall = null;
 const GOLD_POINTS = 3, GOLD_AFTER = 8, GOLD_CHANCE = 0.11;
 let nextGold = false, popups = [];
 // earn-back: EARN_STREAK catches in a row without a spill wins a lost chance back, at most once per EARN_COOLDOWN seconds
-const EARN_STREAK = 20, EARN_COOLDOWN = 60;
+const EARN_STREAK = 15, EARN_COOLDOWN = 60;
 let streak = 0, lastEarn = -999, regained = -1;
 // dusk: the sky slowly turns to night over a run (0 = sunset, 1 = night)
 const DUSK_SECONDS = 150;
@@ -284,8 +284,8 @@ function leaveWatch() {
   hint.textContent = 'Drag anywhere on the scene to move. On a keyboard, use the arrow keys, M to mute and F for full screen.';
   state = 'title';
   showCard('Catch the drips', plant.planted
-    ? 'Plant a new seed and catch the drips to grow it. Gold drops are worth 3, and 20 in a row wins back a spill. Five spills ends the game.'
-    : 'Plant the seed, then catch the drips in your thimble to make it grow. Gold drops are worth 3, and 20 in a row wins back a spill. Five spills ends the game.', 'Start');
+    ? 'Plant a new seed and catch the drips to grow it. Gold drops are worth 3, and 15 in a row wins back a spill. Five spills ends the game.'
+    : 'Plant the seed, then catch the drips in your thimble to make it grow. Gold drops are worth 3, and 15 in a row wins back a spill. Five spills ends the game.', 'Start');
   if (location.hash === '#watch') history.replaceState(null, '', location.pathname);
 }
 
