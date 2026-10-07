@@ -19,7 +19,9 @@ SOURCE = (ROOT / 'site/assets/studio/ident.js').read_text().replace(
 def focus_outline(page, keyboard=False):
     heading = page.locator('#shelfHeading')
     expect(heading).to_be_focused()
-    assert heading.evaluate('(el) => el.matches(":focus-visible")') == keyboard
+    # A ring only after keyboard use. Chromium can match :focus-visible after a touch flip, which the page marks
+    # with data-pointer so no ring is drawn; the outline check below is what people see.
+    assert heading.evaluate('(el) => el.matches(":focus-visible") && !el.hasAttribute("data-pointer")') == keyboard
     expect(heading).to_have_css('outline-style', 'solid' if keyboard else 'none')
     box = heading.bounding_box()
     assert box['y'] >= 0 and box['y'] + box['height'] <= page.viewport_size['height']
@@ -30,8 +32,10 @@ def reload(page):
     page.wait_for_load_state('load')
 
 
-def follow(page, selector, path=''):
+def follow(page, selector, path='', card=False):
     page.locator(selector).click()
+    if card:
+        page.clock.run_for(200)  # with sound on, a card click waits a beat so its blip is heard
     expect(page).to_have_url(URL + path)
     page.wait_for_load_state('load')
 
@@ -211,7 +215,7 @@ with sync_playwright() as p:
     state(page, 'b')
     reload(page)
     expect(page.locator('#shelfHeading')).to_have_text('Side B')
-    follow(page, '[data-side="b"]', 'stick-army/')
+    follow(page, '[data-side="b"]', 'stick-army/', card=True)
     assert page.url == URL + 'stick-army/'
     assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
     for selector in ['link[rel="icon"][type="image/png"]', 'link[rel="apple-touch-icon"]']:
@@ -227,7 +231,7 @@ with sync_playwright() as p:
     state(page, 'a', focus=True)
     reload(page)
     expect(page.locator('#shelfHeading')).to_have_text('Games')
-    follow(page, 'a[href="thimbleful/"]', 'thimbleful/')
+    follow(page, 'a[href="thimbleful/"]', 'thimbleful/', card=True)
     follow(page, '.back')
     expect(page.locator('#shelfHeading')).to_have_text('Games')
     prepare(page, '?visit=demo#side-b')
@@ -246,6 +250,10 @@ with sync_playwright() as p:
     context, page = new_page(viewport={'width':1000, 'height':900})
     prepare(page)
     press(page)
+    # Holding the egg with a mouse focuses it without a keyboard ring.
+    expect(page.locator('#ident')).to_be_focused()
+    assert not page.locator('#ident').evaluate('(el) => el.matches(":focus-visible")')
+    expect(page.locator('#ident')).to_have_css('outline-style', 'none')
     page.clock.run_for(4900)
     release(page)
     focus_outline(page)

@@ -41,7 +41,12 @@
       grid.inert = false;
       sideA.disabled = false;
       flipping = false;
-      if (user) heading.focus({ focusVisible: keyboard });
+      if (user) {
+        // Chromium ignores focusVisible and rings a scripted focus that follows touch, so pointer flips are marked
+        // and the stylesheet leaves them unringed. Keyboard flips keep the ring.
+        heading.toggleAttribute('data-pointer', !keyboard);
+        heading.focus({ focusVisible: keyboard });
+      }
     }
     if (!user || calm) { apply(); finish(); return; }
     flipping = true;
@@ -304,12 +309,14 @@
   }
   cv.addEventListener('pointerdown', e => {
     if (e.button !== 0 || !e.isPrimary || holding) return;
-    e.preventDefault(); // Keep the later compatibility mouse event from stealing heading focus.
-    cv.focus({ preventScroll: true });
+    // A mouse focuses the egg natively, so no keyboard ring. Touch and pen skip the compatibility mouse events,
+    // which would arrive after a long hold and steal focus back from the heading.
+    if (e.pointerType !== 'mouse') e.preventDefault();
     press(e.pointerId);
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   });
   const pointerRelease = e => { if (input === e.pointerId) release(); };
+  heading.addEventListener('blur', () => heading.removeAttribute('data-pointer'));
   cv.addEventListener('pointerup', pointerRelease);
   cv.addEventListener('pointercancel', pointerRelease);
   cv.addEventListener('lostpointercapture', pointerRelease);
