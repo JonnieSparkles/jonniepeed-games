@@ -16,7 +16,7 @@
   const sideA = document.getElementById('sideA');
   const cards = Array.from(grid.querySelectorAll('.card'));
   // Sound is optional: if audio.js didn't load, the shelf and the egg still work.
-  const sound = typeof StudioSound === 'undefined' ? { init() {}, play() {}, muted: false, none: true } : StudioSound;
+  const sound = typeof StudioSound === 'undefined' ? { init() {}, play() {}, ready: false, muted: false, none: true } : StudioSound;
   const soundKey = 'jonniepeed.muted';
   let side = 'a', flipping = false;
   for (const card of cards) {
@@ -63,26 +63,58 @@
     setSide('a', true, e.detail === 0);
   });
 
-  // Sound. The audio context can only start from a gesture, so any press or key unlocks it.
-  // Cards get a quiet note on hover or keyboard focus (each its own pitch) and a blip when pressed.
-  for (const type of ['pointerdown', 'pointerup', 'keydown']) addEventListener(type, () => sound.init(), { capture: true, passive: true });
+  // Sound. Browsers only allow audio after a click, tap or key press, so the first one unlocks it.
+  // Only the events browsers count as a gesture are used: a mouse press, a lifted finger or pen (a scroll
+  // cancels the pointer instead, so scrolling never unlocks or plays anything) and a key press.
+  const soundBtn = document.getElementById('sound');
+  const unlock = e => {
+    if (soundBtn && soundBtn.contains(e.target)) return; // the button handles its own first press
+    if (e.type === 'keydown' || (e.type === 'pointerdown') === (e.pointerType === 'mouse')) sound.init();
+  };
+  for (const type of ['pointerdown', 'pointerup', 'keydown']) addEventListener(type, unlock, { capture: true, passive: true });
+  // Cards get a quiet note on mouse hover or keyboard focus (each its own pitch), and a blip on a real click.
+  // A same-tab click waits a beat before leaving so the blip is heard.
+  let leaving = false;
   cards.forEach((card, i) => {
     card.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sound.play('tick', i); });
     card.addEventListener('focus', () => { if (card.matches(':focus-visible')) sound.play('tick', i); });
-    card.addEventListener('pointerdown', () => sound.play('press'));
+    card.addEventListener('click', e => {
+      if (e.defaultPrevented || !sound.ready || sound.muted) return;
+      if (leaving) { e.preventDefault(); return; }
+      sound.play('press');
+      if (card.target === '_blank' || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      leaving = true;
+      setTimeout(() => { leaving = false; location.href = card.href; }, 120);
+    });
   });
-  const soundBtn = document.getElementById('sound');
+  // The footer button shows sound as on only when it's really playing: until the browser allows audio it
+  // reads "Sound off", and pressing it turns sound on (with a little hello) instead of muting.
   if (soundBtn && !sound.none && (window.AudioContext || window.webkitAudioContext)) {
     try { sound.muted = localStorage.getItem(soundKey) === '1'; } catch (_) {}
-    const showSound = () => { soundBtn.classList.toggle('off', sound.muted); soundBtn.setAttribute('aria-pressed', String(!sound.muted)); };
+    const label = soundBtn.querySelector('span');
+    let on = false;
+    const showSound = () => {
+      on = sound.ready && !sound.muted;
+      soundBtn.classList.toggle('off', !on);
+      soundBtn.setAttribute('aria-pressed', String(on));
+      label.textContent = on ? 'Sound on' : 'Sound off';
+    };
     showSound();
     soundBtn.hidden = false;
+    let greet = false;
     soundBtn.addEventListener('click', () => {
-      sound.muted = !sound.muted;
-      try { localStorage.setItem(soundKey, sound.muted ? '1' : '0'); } catch (_) {}
+      const turnOn = !on;
+      sound.muted = !turnOn;
+      try { localStorage.setItem(soundKey, turnOn ? '0' : '1'); } catch (_) {}
+      sound.init();
+      greet = turnOn;
       showSound();
-      sound.play('press'); // silent when it was just muted
+      if (greet && sound.ready) { greet = false; sound.play('hello'); }
     });
+    // A first press can take a moment to start audio; greet once it does.
+    sound.onready = () => { showSound(); if (greet && on) { greet = false; sound.play('hello'); } };
+    addEventListener('pageshow', showSound);
   }
   let W = 120, scale = 3, time = 0, last = 0, running = false, visible = true;
   let parts = [], stains = new Map(), power = 0, holding = false, splashT = 0;
@@ -199,8 +231,9 @@
     if (holding && !document.hidden) {
       const charging = (1 - power) * CHARGE_SECONDS;
       power = Math.min(1, power + elapsed / CHARGE_SECONDS);
-      if (!fired) {
-        // a held note climbs with the power, then a little further while the puddle grows
+      // a held note climbs with the power, then a little further while the puddle grows.
+      // It waits for a deliberate hold, so a finger that only brushes the egg on the way to a scroll stays quiet.
+      if (!fired && power > 0.12) {
         sound.play('charge', power + overflow / OVERFLOW_SECONDS * 0.25);
         if (power === 1 && !charged) { charged = true; sound.play('full'); }
       }
