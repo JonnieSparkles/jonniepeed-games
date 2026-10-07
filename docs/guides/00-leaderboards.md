@@ -34,7 +34,7 @@ Only changes in `scores/` need a Worker deploy: `games.json`, `blocklist.json` o
 
 Two ways, both by hand:
 
-- **GitHub:** Actions tab → **Deploy leaderboard Worker** → Run workflow. It runs `check_boards.py`, deploys from `scores/` with the pinned Wrangler version, then checks the live Worker answers for every game in `games.json` (read-only, test board 0).
+- **GitHub:** Actions tab → **Deploy Leaderboard Worker** → Run workflow. It runs `check_boards.py`, deploys from `scores/` with the pinned Wrangler version, then checks the live Worker answers for every game in `games.json` (read-only, test board 0).
 - **Terminal:** `wrangler deploy` from `scores/`.
 
 When a change touches both, deploy the Worker first, then the site.
