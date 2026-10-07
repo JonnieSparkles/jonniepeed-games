@@ -26,9 +26,13 @@ The rhyme did the rest ("Step on a crack, break your mother's back"): a first-pe
 - **Coupons** on the sidewalk heal one vertebra, or give a giant step if she's fine.
 - **Calzone**, the Shmookies' corgi, comes running if you stand still too long. That's 3.4 s on the first street, less on later ones. Two forward steps lose him. If he reaches you he herds you sideways and your streak resets.
 - **Obstacles** start 12–18 s in: a runaway skateboard, the neighbors' kickball, or Mrs. Shmookie's leash stretched across the path. Jump over them. A hit costs your streak and makes you stumble, which only hurts Mom if the stumble lands on a crack.
-- **Shoeboxes** on the sidewalk are power-ups:
-  - Heelies: 6 s of rolling, where cracks don't count and obstacles get knocked away.
+- **The squirrel** dashes across 2.4–5.6 ft ahead of your front foot every 26–44 s (16–34 s on Oak St), chittering as it comes, and stops once in the middle to stare. Step on it, land a jump on it, or let it run into a planted foot, and you jump back 1.6–2.2 ft: the streak goes, the feet walked go down with you, and the landing counts like any other. A lifted foot or a jump passes over it, and in heelies it hops your wheels.
+- **Power-up shoes** lie on the sidewalk in pairs. Step on them to put them on:
+  - Heelies: 6 s of rolling, where cracks don't count and obstacles get knocked away. Where the wheels stop, both feet land, like a two-foot jump: a crack under either breaks one vertebra. The stopping spot shows as two dashed footprints for the last 1.6 s (`ROLL_SHOW`), so you can lean onto clean concrete.
   - Moon shoes: 15 s of long, steerable jumps.
+  - Ballerina shoes: 10 s on tiptoe. Only a circle at the front of each shoe counts for cracks (the pink circle on the aiming outline), but reach and stride drop to 1.6 ft and 1.0 ft (`TIP`).
+  - Picking up the pair you're already wearing adds half its time (heelies +3 s) without restarting the roll. A different pair swaps; leaving heelies that way lands you where you are.
+  - There is exactly one pair per street from Linden St on, and one every 10 slabs on Quarry Ln, on a random slab of that stretch (`shoePlan`). The kinds are dealt from a shuffled set of three, so Linden St, Oak St and Old Mill Rd always get one of each. Luck decides where, not how many.
 
 ## Streets
 
@@ -46,15 +50,28 @@ Time between obstacles also shrinks by street (`OBS_GAP`).
 
 **Fairness guarantee:** `genSlab` checks every slab with `reach` to make sure there's a crack-free route from the last safe ground. The check uses more cautious step limits than the player has (0.6–2.0 ft forward, 1.4 ft sideways). If a slab fails, it retries with fewer cracks. The seventh try is joints only.
 
+## Board 2 playtest round
+
+Playtesters said the squirrels should do something, heelies were too strong (especially picking up a second pair, which restarted the full 6 s), the shoeboxes looked alike, and asked for ballerina shoes. Before board 2, shoeboxes were rolled per slab (about one a street on average, but a run could get none or three), and a second pair of heelies restarted the timer and the roll.
+
+Checked so far only by scripted runs in a headless browser: placement, tiptoe footprints, stacking, the heelies stop, and every way into a squirrel. Still needs a human: whether squirrel run-ins feel fair at that spawn distance, and whether heelies still feel worth grabbing.
+
 ## Leaderboard
 
 | | |
 | --- | --- |
-| Game ID | `dont-step-on-a-crack`, board 1 (`scores/games.json`), following [the leaderboard guide](../guides/00-leaderboards.md) |
+| Game ID | `dont-step-on-a-crack`, board 2 (`scores/games.json`), following [the leaderboard guide](../guides/00-leaderboards.md) |
 | Score | feet walked, up to 1,000,000 |
 | Meta | `time_ms`, `steps` and `streak` (the best clean streak in the run) |
 | Ranking | ties go to the lower `time_ms` |
-| Local bests | `dsotc-best-1` and `dsotc-best-streak-1` |
+| Local bests | `dsotc-best-<BOARD>` and `dsotc-best-streak-<BOARD>` |
+
+| Board | Change |
+| --- | --- |
+| 1 | Original game |
+| 2 | Squirrels knock you back, heelies land where they stop and stack by adding time, ballerina shoes, one pair of shoes per street (same scoring rules as 1) |
+
+**What's new** on the title screen explains the latest board change in a few lines. Only the latest; older changes live in the table above. It also shows your best from the previous board if this device has one. Its button has a dot until the note has been opened once on that device (`dsotc-news-seen`). The text is the `#news` card in `index.html`; when you bump the board, rewrite it in a few short lines and set its `data-board` to the new `BOARD`. That brings the dot back for everyone.
 
 At game over Mom calls. After the call is picked up, the results count up and the board shows inside the phone, with initials entry if you placed. The title screen has a **High scores** button that opens the board over the title. The board shows feet, time and streak.
 
@@ -67,12 +84,14 @@ At game over Mom calls. After the call is picked up, the results count up and th
 | Flow | `goTitle`, `startGame`, `pauseGame`, `resumeGame`, `reset`, `gameOver`, `showOver`, `update`, `render` |
 | Input | `press`, `release`, `keyJump`, `nextSide`, `clearInput` |
 | Steps | `beginSwing`, `tapStep`, `plant`, `snapBack`, `land`, `beginJump`, `landJump`, `toggleGiant`, `upgradeSwing` |
-| Sidewalk | `buildSlab`, `genSlab`, `reach`, `ensureSlabs`, `footHits`; tuning in `STAGES`, `STAGE_START` |
+| Sidewalk | `buildSlab`, `genSlab`, `reach`, `ensureSlabs`, `footHits` (its `tip` argument is the tiptoe footprint); tuning in `STAGES`, `STAGE_START` |
 | Mom and Dad | `breakVertebra`, `drawCam`, `startDad`, `dadUpdate`, `bankGiant`, `takeCoupon`; Mom's poses in `POSES` |
 | Hazards | `dogUpdate`, `herd`, `stumble`, `obsUpdate`, `hitBy`, `leashUpdate`; timing in `OBS_GAP` |
-| Power-ups | `startPower`, `endPower`, `powUpdate`, `rollUpdate`; durations in `POW` |
+| Squirrel | spawn and run-ins in `ambientUpdate`; `squirrelAt`, `startle`, `drawSquirrel`; size in `SQ_SIZE` |
+| Power-ups | `shoePlan` (placement), `startPower`, `endPower`, `stopRolling`, `powUpdate`, `rollUpdate`, `rollStopAt`, `tiptoe`; durations in `POW`, tiptoe reach in `TIP` |
+| Shoe art | `sneakerArt` (palettes in `SNEAKER`), `wheelArt`, `moonArt`, `slipperArt`; `drawShoe` for your feet, `drawPickup` for pairs on the sidewalk, `drawRollStop` for the heelies stop |
 | Mom's texts | `momText`, `post`, `nextChat`; messages in `T`, `MOMTXT`, `ENDINGS` |
-| Leaderboard | `loadLeaderboard`, `showLeaderboard`, `drawLeaderboard`, `openScores` |
+| Leaderboard | `loadLeaderboard`, `showLeaderboard`, `drawLeaderboard`, `openScores`; What's new in `openNews`, `syncNews` |
 
 The title screen runs a demo walk: `botUpdate` drives the feet through the same input path as a player. Nothing counts outside play, and the title is quiet.
 

@@ -178,6 +178,16 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .t-act{grid-area:act;display:grid;gap:14px;justify-items:start}
 .t-best{margin:0;font-size:13px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
 .t-best b{color:var(--ink)}
+/* What's new: a dot on the button until this board's note has been opened on this device */
+#newsBtn{position:relative}
+#newsBtn .news-dot{position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:var(--chalk-yellow);box-shadow:0 0 0 2px rgba(14,15,11,.9);animation:newsPulse 1.6s ease-in-out infinite}
+#newsBtn .news-dot[hidden]{display:none}
+@keyframes newsPulse{50%{box-shadow:0 0 0 2px rgba(14,15,11,.9),0 0 0 7px rgba(244,226,122,.28)}}
+.news-list{margin:0;padding:0;list-style:none;display:grid;gap:8px;width:100%;text-align:left;font-size:15px;line-height:1.35}
+.news-list li{display:grid;grid-template-columns:7px minmax(0,1fr);gap:10px;align-items:start}
+.news-list li::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--chalk-yellow);margin-top:.5em}
+#news .card p{margin:0}
+#news .card p b{color:var(--ink)}
 @media (min-aspect-ratio:5/4){
   .t-wrap{max-width:920px;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"head mom" "act how";column-gap:48px;row-gap:26px;align-items:center}
 }
@@ -250,7 +260,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .phone .stack .btn.primary{font-size:16px;padding:12px 22px}
 
 @media (prefers-reduced-motion:reduce){
-  .phone.ringing .av-wrap::before,.phone.ringing .av-wrap::after,.call-btns .yes i,#cam.hit,.typing i,.rec,#giant[aria-pressed="true"],#power.ending{animation:none}
+  .phone.ringing .av-wrap::before,.phone.ringing .av-wrap::after,.call-btns .yes i,#cam.hit,.typing i,.rec,#giant[aria-pressed="true"],#power.ending,#newsBtn .news-dot{animation:none}
   .av-wrap,.phone{transition:none}
   #msg,.cmsg,.hud,.screen{transition:none}
   .intro *{animation:none!important}
@@ -370,6 +380,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
           <button id="start" class="btn primary" type="button">Start walking</button>
           <div class="tools">
             <button class="btn ghost" id="scoresBtn" type="button" hidden>High scores</button>
+            <button class="btn ghost" id="newsBtn" type="button"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.6v.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>What's new</span><span class="lb-sr" id="newsUnread" hidden> (unread)</span><i class="news-dot" aria-hidden="true" hidden></i></button>
             <button class="btn ghost snd" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="w" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Sound on</span></button>
             <button class="btn ghost fsb" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path class="in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="out" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Full screen</span></button>
           </div>
@@ -402,6 +413,22 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
       </div>
     </div>
 
+    <!-- What's new: only the latest board change. On a board bump, rewrite it and set data-board to the new BOARD. -->
+    <div id="news" class="screen" data-board="2" hidden>
+      <div class="card" role="dialog" aria-modal="true" aria-labelledby="newsTitle">
+        <h2 class="chalky" id="newsTitle">What's new</h2>
+        <ul class="news-list">
+          <li>Squirrels make you jump back.</li>
+          <li>Heelies land where they stop.</li>
+          <li>New: ballerina shoes.</li>
+          <li>Power-ups are real shoes now.</li>
+        </ul>
+        <p>New rules, so the high scores start over.</p>
+        <p id="newsOld" hidden></p>
+        <button id="newsBack" class="btn ghost" type="button">Got it</button>
+      </div>
+    </div>
+
     <div id="over" class="over" hidden>
       <div class="phone" id="phone" role="dialog" aria-modal="true" aria-labelledby="caller">
         <div class="av-wrap"><canvas class="avatar" id="avatar" aria-hidden="true"></canvas></div>
@@ -428,8 +455,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
     </div>
   </div>
 </div>
-<script src="audio.js?v=ee24ca3134"></script>
+<script src="audio.js?v=d3d3d19443"></script>
 <script src="../assets/leaderboard.js?v=a46c16093d"></script>
-<script src="game.js?v=67eba4fdab"></script>
+<script src="game.js?v=401d2b8961"></script>
 </body>
 </html>
