@@ -5,7 +5,7 @@ The timing/render bridge is injected into the response, never shipped with the s
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/') + '/'
@@ -16,17 +16,35 @@ SOURCE = (ROOT / 'site/assets/studio/ident.js').read_text().replace(
     '  window.studioTest = function(code) { return eval(code); };\n  size(); draw(); start();')
 
 
-def state(page, side, focus=False):
-    assert page.locator('#shelfHeading').text_content() == ('Games' if side == 'a' else 'Side B')
+def focus_outline(page, keyboard=False):
+    heading = page.locator('#shelfHeading')
+    expect(heading).to_be_focused()
+    assert heading.evaluate('(el) => el.matches(":focus-visible")') == keyboard
+    expect(heading).to_have_css('outline-style', 'solid' if keyboard else 'none')
+    box = heading.bounding_box()
+    assert box['y'] >= 0 and box['y'] + box['height'] <= page.viewport_size['height']
+
+
+def reload(page):
+    page.reload(wait_until='load')
+    page.wait_for_load_state('load')
+
+
+def follow(page, selector, path=''):
+    page.locator(selector).click()
+    expect(page).to_have_url(URL + path)
+    page.wait_for_load_state('load')
+
+
+def state(page, side, focus=False, keyboard=False):
+    page.wait_for_load_state('load')
+    expect(page.locator('#shelfHeading')).to_have_text('Games' if side == 'a' else 'Side B')
     assert page.locator('.card:visible').count() == (3 if side == 'a' else 1)
     assert page.locator('#sideA').is_visible() == (side == 'b')
     assert page.locator('.card[hidden]').count() == (1 if side == 'a' else 3)
     assert page.locator('[data-side="b"]').is_visible() == (side == 'b')
     if focus:
-        assert page.locator('#shelfHeading').evaluate('(el) => el === document.activeElement')
-        assert page.locator('#shelfHeading').evaluate('(el) => getComputedStyle(el).outlineStyle') != 'none'
-        box = page.locator('#shelfHeading').bounding_box()
-        assert box['y'] >= 0 and box['y'] + box['height'] <= page.viewport_size['height']
+        focus_outline(page, keyboard)
     # Real Tab traversal and accessibility snapshot must exclude inactive cards/button.
     page.locator('#shelfHeading').focus()
     reached = []
@@ -44,9 +62,10 @@ def state(page, side, focus=False):
 
 
 def prepare(page, suffix=''):
-    response = page.goto(URL + suffix)
+    response = page.goto(URL + suffix, wait_until='load')
     if response is None:
-        page.reload()  # Hash entry is intentionally checked only on a fresh document.
+        reload(page)  # Hash entry is intentionally checked only on a fresh document.
+    page.wait_for_load_state('load')
     page.evaluate('document.fonts.ready')
     page.locator('#ident').scroll_into_view_if_needed()
     page.clock.run_for(100)
@@ -61,8 +80,8 @@ def press(page, key=None):
     egg = page.locator('#ident')
     egg.scroll_into_view_if_needed()
     page.clock.run_for(100)
-    egg.focus()
     if key:
+        egg.focus()
         page.keyboard.down(key)
     else:
         box = egg.bounding_box()
@@ -90,7 +109,7 @@ def hold_flip(page, key=None, calm=False):
     assert page.evaluate('studioTest("power === 1 && overflow > 0 && overflow < 0.3")')
     early = puddle_pixel(page)
     page.clock.run_for(2100)
-    assert page.locator('#shelfHeading').text_content() == 'Games'
+    expect(page.locator('#shelfHeading')).to_have_text('Games')
     assert puddle_pixel(page) == [138, 43, 226, 255] and early != [138, 43, 226, 255]
     if key:
         # Repeat events must prevent scrolling without starting another hold.
@@ -106,26 +125,33 @@ def hold_flip(page, key=None, calm=False):
     page.clock.run_for(300)
     assert not page.locator('.grid').evaluate('(el) => el.inert')
     assert page.evaluate('flips') == ['Side B']
-    assert page.locator('#shelfHeading').evaluate('(el) => el === document.activeElement')
+    focus_outline(page, keyboard=bool(key))
     page.clock.run_for(5000)  # A continuous hold cannot flip twice or toggle back.
     release(page, key)
     assert page.evaluate('flips') == ['Side B']
     state(page, 'b')
-    page.locator('#sideA').click()
+    if key:
+        page.locator('#sideA').focus()
+        page.keyboard.press('Enter')
+    else:
+        page.locator('#sideA').click()
     page.clock.run_for(450)
-    state(page, 'a', focus=True)
+    state(page, 'a', focus=True, keyboard=bool(key))
 
 
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'))
     errors = []
+    expect.set_options(timeout=15000)
     def new_page(**options):
         context = browser.new_context(**options)
         page = context.new_page()
+        page.set_default_navigation_timeout(60000)
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.on('console', lambda message: errors.append(message.text) if message.type == 'error' else None)
         page.on('response', lambda response: errors.append(str(response.status) + ' ' + response.url) if response.status >= 400 else None)
-        page.on('requestfailed', lambda request: errors.append(request.url + ' ' + str(request.failure)))
+        page.on('requestfailed', lambda request: errors.append(request.url + ' ' + str(request.failure))
+                if request.failure != 'net::ERR_ABORTED' else None)
         page.route('**/assets/studio/ident.js*', lambda route: route.fulfill(body=SOURCE, content_type='application/javascript'))
         page.clock.install(time=datetime(2026, 1, 1, tzinfo=timezone.utc))
         page.clock.pause_at(datetime(2026, 1, 1, 0, 0, 1, tzinfo=timezone.utc))
@@ -148,7 +174,7 @@ with sync_playwright() as p:
         if duration > 1400:
             assert page.evaluate('studioTest("splashT > 0 && parts.length >= 40")')
         page.clock.run_for(500)
-        assert page.locator('#shelfHeading').text_content() == 'Games'
+        expect(page.locator('#shelfHeading')).to_have_text('Games')
     print('PASS default, early releases, separate holds and existing splash')
     hold_flip(page)
     for key in ['Space', 'Enter']:
@@ -173,55 +199,67 @@ with sync_playwright() as p:
             page.evaluate("delete document.hidden; document.dispatchEvent(new Event('visibilitychange'))")
         release(page)
         page.clock.run_for(1000)
-        assert page.locator('#shelfHeading').text_content() == 'Games', cancel
+        expect(page.locator('#shelfHeading')).to_have_text('Games')
     print('PASS pointer cancellation/capture loss, element/window blur and background reset')
 
     # Hash wins over stored A, clears only itself on explicit A, and keeps the query.
     prepare(page, '?visit=demo#side-b')
-    assert page.locator('#shelfHeading').text_content() == 'Side B'
+    expect(page.locator('#shelfHeading')).to_have_text('Side B')
     assert page.evaluate('sessionStorage.getItem("jonniepeed.shelfSide")') == 'b'
     assert not page.evaluate('studioTest("flipping")')
     assert page.evaluate('document.activeElement === document.body')
     state(page, 'b')
-    page.reload()
-    assert page.locator('#shelfHeading').text_content() == 'Side B'
-    page.locator('[data-side="b"]').click()
+    reload(page)
+    expect(page.locator('#shelfHeading')).to_have_text('Side B')
+    follow(page, '[data-side="b"]', 'stick-army/')
     assert page.url == URL + 'stick-army/'
     assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
     for selector in ['link[rel="icon"][type="image/png"]', 'link[rel="apple-touch-icon"]']:
         assert page.locator(selector).count() == 1
     assert page.locator('#titleScreen .back img').evaluate('(el) => el.complete && el.naturalWidth > 0')
-    page.locator('#titleScreen .back').click()
+    follow(page, '#titleScreen .back')
     assert page.url == URL
-    assert page.locator('#shelfHeading').text_content() == 'Side B'
-    page.reload()
-    assert page.locator('#shelfHeading').text_content() == 'Side B'
+    expect(page.locator('#shelfHeading')).to_have_text('Side B')
+    reload(page)
+    expect(page.locator('#shelfHeading')).to_have_text('Side B')
     page.locator('#sideA').click()
     page.clock.run_for(450)
     state(page, 'a', focus=True)
-    page.reload()
-    assert page.locator('#shelfHeading').text_content() == 'Games'
-    page.locator('a[href="thimbleful/"]').click()
-    page.locator('.back').click()
-    assert page.locator('#shelfHeading').text_content() == 'Games'
+    reload(page)
+    expect(page.locator('#shelfHeading')).to_have_text('Games')
+    follow(page, 'a[href="thimbleful/"]', 'thimbleful/')
+    follow(page, '.back')
+    expect(page.locator('#shelfHeading')).to_have_text('Games')
     prepare(page, '?visit=demo#side-b')
     page.locator('#sideA').click()
     page.clock.run_for(450)
     assert page.url == URL + '?visit=demo'
-    page.reload()
-    assert page.locator('#shelfHeading').text_content() == 'Games'
+    reload(page)
+    expect(page.locator('#shelfHeading')).to_have_text('Games')
     prepare(page, '#other')
     hold_flip(page, 'Enter')
     assert page.url == URL + '#other'
     print('PASS hash priority, query/other fragment preservation, reload and Side A/B game round trips')
     context.close()
 
+    # A fresh mouse visit has focus movement without a keyboard outline.
+    context, page = new_page(viewport={'width':1000, 'height':900})
+    prepare(page)
+    press(page)
+    page.clock.run_for(4900)
+    release(page)
+    focus_outline(page)
+    assert not page.locator('#shelfHeading').evaluate('(el) => el.matches(":focus-visible")')
+    expect(page.locator('#shelfHeading')).to_have_css('outline-style', 'none')
+    context.close()
+    print('PASS mouse focus without outline; keyboard outline follows :focus-visible')
+
     # Layout, themes, touch hold, reduced motion (no idle RAF) and repeated keyboard input.
     for width, height, theme, calm in [(1440,900,'dark',False),(390,844,'light',False),(844,390,'dark',True),(320,568,'light',True)]:
         context, page = new_page(viewport={'width':width,'height':height}, has_touch=True,
                                  color_scheme=theme, reduced_motion='reduce' if calm else 'no-preference')
         prepare(page)
-        assert page.locator('#shelfHeading').text_content() == 'Games'
+        expect(page.locator('#shelfHeading')).to_have_text('Games')
         if calm:
             before = page.locator('#ident').evaluate('(el) => el.toDataURL()')
             page.clock.run_for(1000)
@@ -236,6 +274,9 @@ with sync_playwright() as p:
         page.clock.run_for(4900)
         cdp.send('Input.dispatchTouchEvent', {'type':'touchEnd','touchPoints':[]})
         assert page.url == URL  # Releasing the discovery touch must not click a card.
+        if not calm:
+            # These fresh contexts have not used the keyboard before touch.
+            expect(page.locator('#shelfHeading')).to_have_css('outline-style', 'none')
         state(page, 'b', focus=True)
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert page.locator('[data-side="b"] img').evaluate('(el) => el.complete && el.naturalWidth === 768')
@@ -266,15 +307,17 @@ with sync_playwright() as p:
     prepare(page)
     assert page.locator('.badge').text_content() == '<new label>'
     assert page.locator('.badge').evaluate('(el) => el.children.length') == 0
-    page.goto(URL + '#side-b')
-    page.reload()
+    page.goto(URL + '#side-b', wait_until='load')
+    page.wait_for_load_state('load')
+    reload(page)
     assert '<new label>' in page.locator('.grid').aria_snapshot()
     print('PASS unknown storage and visible/accessibility badge sourced from data-badge as text')
     context.close()
 
     context = browser.new_context(java_script_enabled=False)
     page = context.new_page()
-    page.goto(URL + '#side-b')
+    page.goto(URL + '#side-b', wait_until='load')
+    page.wait_for_load_state('load')
     assert page.locator('.card:visible').count() == 3
     assert page.locator('[data-side="b"]').is_hidden()
     assert page.locator('#sideA').is_hidden()

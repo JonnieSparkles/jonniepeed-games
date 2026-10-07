@@ -23,7 +23,7 @@
       badge.textContent = card.dataset.badge;
     }
   }
-  function setSide(next, user = false) {
+  function setSide(next, user = false, keyboard = false) {
     if (flipping || (user && side === next)) return;
     function apply() {
       side = next;
@@ -37,7 +37,7 @@
       grid.inert = false;
       sideA.disabled = false;
       flipping = false;
-      if (user) heading.focus();
+      if (user) heading.focus({ focusVisible: keyboard });
     }
     if (!user || calm) { apply(); finish(); return; }
     flipping = true;
@@ -53,10 +53,10 @@
   let savedSide;
   try { savedSide = sessionStorage.getItem(shelfKey); } catch (_) {}
   setSide(location.hash === '#side-b' || savedSide === 'b' ? 'b' : 'a');
-  sideA.addEventListener('click', () => {
+  sideA.addEventListener('click', e => {
     if (flipping) return;
     if (location.hash === '#side-b') history.replaceState(null, '', location.pathname + location.search);
-    setSide('a', true);
+    setSide('a', true, e.detail === 0);
   });
   let W = 120, scale = 3, time = 0, last = 0, running = false, visible = true;
   let parts = [], stains = new Map(), power = 0, holding = false, splashT = 0;
@@ -180,7 +180,7 @@
           fired = true;
           if (typeof input === 'number') flipPointer = input;
           if (!calm) { burst(W - 6, 60, 1.8); splashT = 0.25; }
-          setSide('b', true);
+          setSide('b', true, typeof input === 'string');
         }
       }
     }
