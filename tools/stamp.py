@@ -14,7 +14,7 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
-BASE = "https://jonniesparkles.github.io/jonniepeed-games/"
+BASE = "https://jonniepeed.games/"
 EXTS = (".js", ".css", ".png", ".webp", ".jpg", ".ico", ".woff2")
 
 ATTR = re.compile(r'(?P<attr>\b(?:src|href|content))="(?P<url>[^"#?]+)(?:\?v=[0-9a-f]+)?"')

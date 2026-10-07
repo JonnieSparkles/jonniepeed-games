@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const API = ['localhost', '127.0.0.1'].includes(location.hostname)
-    ? 'http://localhost:8787' : 'https://scores.games.sparklelabs.org';
+    ? 'http://localhost:8787' : 'https://scores.jonniepeed.games';
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   const validInitials = s => typeof s === 'string' && /^[A-Z0-9]{3}$/.test(s);
 
