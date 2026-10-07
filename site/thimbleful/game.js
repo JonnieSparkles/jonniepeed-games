@@ -45,10 +45,23 @@ const clouds = [[0, 10, 2.2], [40, 16, 1.4], [70, 8, 1.8]];
 /* ---------- online arcade board ---------- */
 let lbRun = null, lbEntry = null;
 const lbBox = $('board');
+// Game over runs in steps so nothing changes under a finger that's about to tap:
+//   checking  the card appears once, with "Checking the leaderboard…" where the buttons go (at least a short beat)
+//   asking    if you placed: "New high score! You're #N" with Enter initials / Skip; Play again waits until you choose
+//   entering  the initials picker opens only after you tap Enter initials
+//   done      Play again comes back and the board opens below the buttons, so they don't move
+// If the scores take longer than LB_WAIT the buttons come back anyway, and a late result offers initials inside the board.
+const LB_BEAT = 600, LB_WAIT = 2500;
+const card = lbBox.parentElement, lbRow = $('lbRow'), lbAsk = $('lbAsk'), lbNote = $('lbNote'), lbEnter = $('lbEnter'), lbSkip = $('lbSkip');
+function lbPhase(name) {
+  card.classList.remove('lb-checking', 'lb-asking', 'lb-entering');
+  if (name) card.classList.add('lb-' + name);
+}
 function clearLeaderboard() {
   if (lbEntry) lbEntry.destroy();
+  if (lbRun) clearTimeout(lbRun.waitTimer);
   lbEntry = null; lbRun = null; lbBox.replaceChildren(); lbBox.hidden = true;
-  lbBox.parentElement.classList.remove('lb-entering');
+  lbPhase(null);
 }
 function resetLeaderboard() {
   clearLeaderboard();
@@ -58,28 +71,55 @@ function loadLeaderboard(score, meta) {
   const run = lbRun;
   if (!run || !window.Leaderboard) return;
   run.score = score; run.meta = meta;
+  const began = performance.now();
+  lbPhase('checking');
+  run.waitTimer = setTimeout(() => {
+    if (lbRun !== run || run.shown) return;
+    run.late = true; lbPhase(null); try { go.focus({ preventScroll: true }); } catch (_) {}
+  }, LB_WAIT);
   Leaderboard.load('thimbleful', BOARD, score, meta).then(data => {
-    if (lbRun !== run || !(state === 'over')) return;
-    run.data = data;
-    showLeaderboard();
+    if (lbRun !== run || state !== 'over') return;
+    const after = Math.max(0, LB_BEAT - (performance.now() - began));
+    setTimeout(() => {
+      if (lbRun !== run || state !== 'over') return;
+      clearTimeout(run.waitTimer);
+      if (!data) { lbPhase(null); if (!run.late) try { go.focus({ preventScroll: true }); } catch (_) {} return; }
+      run.data = data;
+      showLeaderboard();
+    }, after);
   });
+}
+function backToButtons() {
+  lbPhase(null);
+  try { go.focus({ preventScroll: true }); } catch (_) {}
 }
 function showLeaderboard() {
   const run = lbRun;
-  if (!run || !run.data || run.shown || !(state === 'over')) return;
+  if (!run || !run.data || run.shown || state !== 'over') return;
   run.shown = true;
+  const data = run.data, placed = typeof data.placement === 'number';
+  if (!placed) { backToButtons(); drawLeaderboard(data.scores); return; }
+  if (run.late) {
+    // the buttons are already back, so offer initials inside the board instead of swapping them
+    drawLeaderboard(data.scores, null, false, () => openPicker(run));
+    return;
+  }
+  lbNote.textContent = `New high score! You're #${data.placement}.`;
+  lbPhase('asking');
+  try { lbEnter.focus({ preventScroll: true }); } catch (_) {}
+}
+lbEnter.addEventListener('click', () => { if (lbRun && lbRun.data) openPicker(lbRun); });
+lbSkip.addEventListener('click', () => { const run = lbRun; if (!run || !run.data) return; backToButtons(); drawLeaderboard(run.data.scores); });
+function openPicker(run) {
   const data = run.data;
-  lbBox.hidden = false;
-  if (typeof data.placement !== 'number') { drawLeaderboard(data.scores); return; }
+  lbBox.replaceChildren(); lbBox.hidden = false;
   const heading = document.createElement('h3'); heading.textContent = 'New high score!';
   const message = document.createElement('p'); message.className = 'lb-message'; message.setAttribute('role', 'status');
   message.textContent = `You're #${data.placement}. Enter your initials.`;
   lbBox.append(heading, message);
-  // one decision at a time: the game's own buttons come back after OK or Skip
-  lbBox.parentElement.classList.add('lb-entering');
+  lbPhase('entering');
   const finish = (rows, rank) => {
-    lbEntry.destroy(); lbEntry = null; lbBox.parentElement.classList.remove('lb-entering');
-    try { go.focus({ preventScroll: true }); } catch (_) {}
+    lbEntry.destroy(); lbEntry = null; backToButtons();
     drawLeaderboard(rows, rank);
   };
   lbEntry = Leaderboard.entry(lbBox, {
@@ -91,7 +131,7 @@ function showLeaderboard() {
       Leaderboard.saveInitials(name);
       const result = await Leaderboard.submit({game:'thimbleful',board:BOARD,run_id:run.id,name,
         score:run.score,input:run.input,meta:run.meta});
-      if (lbRun !== run || !(state === 'over')) return;
+      if (lbRun !== run || state !== 'over') return;
       run.busy = false;
       if (result?.error === 'name_not_allowed') {
         message.textContent = 'Try other initials'; picker.setBusy(false); return;
@@ -101,7 +141,7 @@ function showLeaderboard() {
     onSkip() { if (run.busy) return; finish(data.scores, null); }
   });
 }
-function drawLeaderboard(scores, highlight = null, all = false) {
+function drawLeaderboard(scores, highlight = null, all = false, addInitials = null) {
   // Top 10 shows in full (no inner scroll). "See all" shows all 50 in a scrolling list.
   // Your row is scrolled into view either way.
   lbBox.replaceChildren();
@@ -135,11 +175,17 @@ function drawLeaderboard(scores, highlight = null, all = false) {
     const player = scores.find(row => row.rank === highlight);
     if (player) { const gap = body.insertRow(); gap.className = 'lb-gap'; const cell = gap.insertCell(); cell.colSpan = cols.length; cell.textContent = '⋯'; addRow(player); }
   }
-  list.append(table); lbBox.append(title, list);
+  list.append(table); lbBox.hidden = false; lbBox.append(title);
+  if (addInitials && lbRun?.data) {
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'lb-more lb-add';
+    add.textContent = `You're #${lbRun.data.placement}. Add your initials`;
+    add.addEventListener('click', addInitials); lbBox.append(add);
+  }
+  lbBox.append(list);
   if (scores.length > 10) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more';
     button.textContent = all ? 'Show top 10' : `See all ${scores.length}`;
-    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all); lbBox.querySelector('.lb-more').focus({ preventScroll: true }); });
+    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all, addInitials); lbBox.querySelector('.lb-more:not(.lb-add)').focus({ preventScroll: true }); });
     lbBox.append(button);
   }
   if (you) requestAnimationFrame(() => you.scrollIntoView({ block: 'nearest' }));

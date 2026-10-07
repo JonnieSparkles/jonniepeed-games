@@ -167,10 +167,16 @@ Hide/reset the board and invalidate `run` when leaving an end screen. A game als
 
 ### End-screen board conventions
 
-Both games follow these, so a new game should too. Copy from either game's `showLeaderboard` and `drawLeaderboard` and its `.lb-` CSS.
+These are a starting point, not a template. Games should feel related so we don't rebuild the basics every time, but each one can do its end screen its own way. Copy from whichever game is closest (`showLeaderboard`, `drawLeaderboard` and the `.lb-` CSS), then change what suits the game.
+
+The one rule worth keeping everywhere:
+
+- **Nothing pops in under a finger.** Scores arrive a moment after game over. Never let the board or the initials picker appear in place of buttons someone may already be reaching for. Give the result a beat first. Don't Step on a Crack does it with Mom's call: the board only shows once the call is answered. Thimbleful shows "Checking the leaderboard…" where its buttons go, then asks "New high score! You're #N" with Enter initials and Skip, and only opens the picker when asked. If scores are slow, Thimbleful brings its buttons back after a couple of seconds and offers initials inside the board when it arrives.
+
+Defaults the current games share:
 
 - **Picker:** heading "New high score!" and a status line "You're #N. Enter your initials." OK is styled as the game's primary button (`.lb-ok`), Skip as a text link (`.lb-skip`). The shared client scrolls the whole picker into view when it opens.
-- **One decision at a time:** while the picker is open, add `lb-entering` to the end screen's container so its own buttons (play again and so on) are hidden. After OK or Skip, remove it and focus the main replay button with `preventScroll`.
+- **One decision at a time:** while the picker is open, add `lb-entering` to the end screen's container so its own buttons (play again and so on) are hidden. After OK or Skip, remove it and focus the main replay button with `preventScroll`. Thimbleful also places the board below its buttons, so the buttons stay put when the board opens.
 - **Top 10 in full:** no inner scroll for the top 10. "See all N" switches to a scrolling list of all 50 (`.lb-all`, sticky header), and "Show top 10" switches back.
 - **Your row:** highlighted (`.lb-you`) and scrolled into view with `scrollIntoView({ block: 'nearest' })`. Below 10th, a gap row then your row.
 - **Columns:** rank (narrow, muted), name (left), score, any extra columns, then the input icon. The icon column's header is visually hidden (`.lb-sr`) but still read by screen readers.

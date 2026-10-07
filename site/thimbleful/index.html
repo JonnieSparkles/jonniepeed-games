@@ -67,7 +67,7 @@ body.locked{overflow:hidden}
 .full .arena{position:relative;touch-action:none}
 @media (orientation:portrait){.full.playing .arena::after{content:"Drag anywhere here to move";position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:var(--display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);pointer-events:none}}
 .full .stage{width:min(100cqw,calc(100cqh * 4 / 3));max-width:none}
-.full .overlay{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:grid;place-items:center;padding-inline:12px;pointer-events:none}
+.full .overlay{position:absolute;inset:calc(env(safe-area-inset-top,0px) + 54px) 0 calc(env(safe-area-inset-bottom,0px) + 10px);display:grid;place-items:end center;padding-inline:12px;pointer-events:none}
 .full .card{pointer-events:auto;width:min(100%,460px);background:rgba(59,47,88,.95);padding:12px 14px 14px;gap:8px}
 .full .card h2{font-size:16px}
 .full .card p{font-size:14px}
@@ -110,7 +110,19 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 #board .lb-ok{width:auto;min-height:44px;padding:10px 26px;font-family:var(--display);font-size:14px;background:var(--sun);color:var(--dusk);border:0;box-shadow:0 3px 0 var(--sun-deep)}
 #board .lb-skip{width:auto;min-height:44px;padding:0 8px;font-family:var(--body);font-size:14px;background:none;border:0;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
 #board .lb-button:not(.lb-ok):active,#board .lb-more:active{transform:none}
-.lb-entering>.btns,.lb-entering>#introBtn{display:none!important}
+/* end-screen steps: see the comment above lbPhase() in game.js */
+.lb-row{display:none;justify-items:center;gap:8px}
+.lb-checking>.lb-row,.lb-asking>.lb-row{display:grid}
+.lb-wait{display:none;min-height:44px;margin:0;align-content:center;color:var(--muted);font-size:14px}
+.lb-checking .lb-wait{display:grid;animation:lb-in .25s ease-out}
+.lb-ask{display:none;gap:8px;justify-items:center}
+.lb-asking .lb-ask{display:grid;animation:lb-in .3s ease-out}
+.lb-note{margin:0;font-family:var(--display);font-size:15px;color:var(--sun)}
+.lb-checking>.btns,.lb-checking>#introBtn,.lb-asking>.btns,.lb-asking>#introBtn,.lb-entering>.btns,.lb-entering>#introBtn{display:none!important}
+.lb-entering #board{animation:lb-in .3s ease-out}
+#board .lb-add{color:var(--sun)}
+@keyframes lb-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.lb-checking .lb-wait,.lb-asking .lb-ask,.lb-entering #board{animation:none}}
 .lb-list{width:100%}
 .lb-list.lb-all{max-height:min(280px,42dvh);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
 .lb-table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
@@ -133,7 +145,8 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 #board button:disabled{opacity:.6;cursor:wait}
 .card p{text-wrap:pretty}
 
-.full .card{max-height:calc(100dvh - 100px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
+.full .card{max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
+.full .card:has(#board:not([hidden])),.full .card.lb-entering{align-self:center}
 </style>
 </head>
 <body>
@@ -161,9 +174,16 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
     <div class="card">
       <h2 id="ovTitle">Catch the drips</h2>
       <p id="ovText">Plant the seed, then catch the drips in your thimble to make it grow. Gold drops are worth 3, and 15 in a row wins back a spill. Five spills ends the game.</p>
-      <section id="board" aria-label="Online high scores" hidden></section>
       <div class="btns"><button id="go" type="button">Start</button><button id="watchBtn" class="ghost" type="button">Just watch</button></div>
+      <div class="lb-row" id="lbRow" aria-live="polite">
+        <p class="lb-wait">Checking the leaderboard…</p>
+        <div class="lb-ask" id="lbAsk">
+          <p class="lb-note" id="lbNote"></p>
+          <div class="btns"><button id="lbEnter" type="button">Enter initials</button><button id="lbSkip" class="link" type="button">Skip</button></div>
+        </div>
+      </div>
       <button id="introBtn" class="link" type="button" hidden>Play with the intro</button>
+      <section id="board" aria-label="Online high scores" hidden></section>
     </div>
   </div>
   </section>
@@ -171,6 +191,6 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 </main>
 <script src="audio.js?v=f8449e8012"></script>
 <script src="../assets/leaderboard.js?v=8745bbbf93"></script>
-<script src="game.js?v=3c970b1d54"></script>
+<script src="game.js?v=997e406219"></script>
 </body>
 </html>

@@ -40,6 +40,7 @@ These apply to every change:
 - **Relative links, explicit `index.html`.** Needed for Arweave manifests.
 - **No backward compatibility.** Remove old pages and paths outright, with no redirects or shims.
 - **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). The scores API is the one exception to no backward compatibility: old published copies must keep working.
+- **Related, not identical.** Reuse what the other games already do (full screen, leaderboards, previews) so nothing starts from scratch, but each game is free to do things its own way.
 - **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
 
 ## Adding a game

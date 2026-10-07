@@ -1,5 +1,6 @@
 """Local UI integration checks. Requires Playwright and a running Worker/site server."""
 import os
+import re
 import tempfile
 import http.client
 import json
@@ -27,6 +28,14 @@ def finish(page, game, score):
     else:
         page.evaluate('(s)=>{front.d=s+2.6; tStart=performance.now()/1000-12; gameOver(performance.now()/1000);}',score)
         page.locator('#after').wait_for(state='visible')
+
+def picker(page, game):
+    # Thimbleful asks first ("New high score! You're #N", Enter initials / Skip) and keeps Play again hidden until you choose
+    if game=='thimbleful':
+        page.locator('#lbEnter').wait_for()
+        assert page.locator('.lb-entry').count()==0 and page.locator('#go').is_hidden()
+        page.locator('#lbEnter').click()
+    page.locator('.lb-entry').wait_for()
 
 def start(page, game):
     if game=='thimbleful':
@@ -57,7 +66,7 @@ def suite(page, game, size, label):
     page.locator(area).dispatch_event('pointerup',{'pointerId':1,'pointerType':'pen'})
     assert page.evaluate('lbRun.input')=='touch'
     finish(page,game,5000)
-    page.locator('.lb-entry').wait_for()
+    picker(page,game)
     assert page.evaluate("document.activeElement.classList.contains('lb-letter')")
     # Shortcut letters must enter initials, not mute or full-screen the game.
     sound=page.evaluate('ThimbleSound.muted' if game=='thimbleful' else 'sfx.on')
@@ -71,17 +80,17 @@ def suite(page, game, size, label):
     assert page.locator('.lb-you [aria-label="touch"]').count()==1
     assert page.locator('.lb-table tbody tr').count()==10
     start(page,game); assert page.evaluate('lbRun.id')!=first_id; assert page.evaluate('lbRun.input')=='keys'
-    finish(page,game,6000); page.locator('.lb-entry').wait_for(); page.keyboard.type('skp'); page.get_by_role('button',name='Skip score entry').click()
+    finish(page,game,6000); picker(page,game); page.keyboard.type('skp'); page.get_by_role('button',name='Skip score entry').click()
     assert page.evaluate("localStorage.getItem('jpg-initials')")=='JON'
     assert page.locator('.lb-entry').count()==0
     assert api('/v1/top?'+urlencode({'game':game,'board':board}))['scores'][0]['score']==5000
     start(page,game); finish(page,game,0); page.locator('.lb-table').wait_for()
     assert page.locator('.lb-entry').count()==0
-    start(page,game); finish(page,game,2035); page.locator('.lb-entry').wait_for()
+    start(page,game); finish(page,game,2035); picker(page,game)
     page.keyboard.type('low'); page.keyboard.press('Enter'); page.locator('.lb-you').wait_for()
     rank=int(page.locator('.lb-you td').first.inner_text()); assert rank>10
     assert page.locator('.lb-table tbody tr').count()==12
-    page.get_by_role('button',name='See all',exact=True).click()
+    page.get_by_role('button',name=re.compile(r'^See all \d+$')).click()
     assert page.locator('.lb-table tbody tr').count()==50
     assert page.locator('.lb-you').count()==1
     metrics=page.locator('.lb-list').evaluate('(e)=>({scroll:e.scrollHeight,client:e.clientHeight,width:e.scrollWidth,box:e.clientWidth})')
