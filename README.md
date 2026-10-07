@@ -74,6 +74,10 @@ The Pages workflow runs it too. Run it before publishing to Arweave.
 
 Manual only. In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
 
+## Deploying the scores Worker
+
+Manual only, and only after changes in `scores/`. In the Actions tab, open "Deploy scores Worker" and click Run workflow, or run `wrangler deploy` from `scores/`. Scores in the database are never touched. One-time secrets setup is in the [leaderboard guide](docs/guides/00-leaderboards.md#deploying-the-worker).
+
 ## Publishing to Arweave / ArNS
 
 - Upload the `site/` folder as one path manifest with `index.html` as the index. `brand/` stays out.

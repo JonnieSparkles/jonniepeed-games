@@ -1,0 +1,51 @@
+# Deploys the scores Worker (scores/) to Cloudflare.
+# Manual only: run it from the Actions tab ("Deploy scores Worker" → Run workflow).
+# Only needed after changes in scores/ (games.json, blocklist.json, src/). Scores live in D1 and are never touched.
+# Needs repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see docs/guides/00-leaderboards.md).
+name: Deploy scores Worker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scores-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check every game's BOARD is allowed
+        run: python3 tools/check_boards.py
+      - uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: scores
+          wranglerVersion: "4.148.0"
+          command: deploy
+      - name: Check the live Worker answers for every game
+        # Reads the hostname from wrangler.jsonc so it stays configured in one place. Read-only: test board 0, no writes.
+        run: |
+          python3 - <<'EOF'
+          import json, re, time, urllib.request
+          host = re.search(r'"pattern"\s*:\s*"([^"]+)"', open('scores/wrangler.jsonc').read()).group(1)
+          for game in json.load(open('scores/games.json')):
+              url = f'https://{host}/v1/top?game={game}&board=0'
+              for attempt in range(5):
+                  try:
+                      data = json.load(urllib.request.urlopen(url, timeout=10))
+                      break
+                  except Exception as error:
+                      if attempt == 4: raise SystemExit(f'{url} did not answer: {error}')
+                      time.sleep(5)
+              if not data.get('ok'): raise SystemExit(f'{url} answered {data}')
+              print('ok', game)
+          EOF

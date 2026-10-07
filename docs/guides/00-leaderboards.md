@@ -28,6 +28,24 @@ The blocklist holds about 30 obvious profanities and slurs, plus a few look-alik
 
 The hostname is configured in exactly two places: `API` in the shared client and the Worker route. No other production hostname setting is needed. Cloudflare credentials belong in login/environment settings, never in repository files.
 
+## Deploying the Worker
+
+Only changes in `scores/` need a Worker deploy: `games.json`, `blocklist.json` or `src/`. Changes in `site/` (how boards look, game code) only need the Pages deploy. A deploy replaces the Worker's code; scores live in D1 and are never touched.
+
+Two ways, both by hand:
+
+- **GitHub:** Actions tab → **Deploy scores Worker** → Run workflow. It runs `check_boards.py`, deploys from `scores/` with the pinned Wrangler version, then checks the live Worker answers for every game in `games.json` (read-only, test board 0).
+- **Terminal:** `wrangler deploy` from `scores/`.
+
+When a change touches both, deploy the Worker first, then the site.
+
+One-time setup for the GitHub workflow (repository **Settings → Secrets and variables → Actions → New repository secret**):
+
+1. `CLOUDFLARE_API_TOKEN`: in Cloudflare, **My Profile → API Tokens → Create Token**, use the **Edit Cloudflare Workers** template, limit it to your account and the `sparklelabs.org` zone, and create it. Cloudflare shows the token once.
+2. `CLOUDFLARE_ACCOUNT_ID`: the Account ID shown in the Cloudflare dashboard (Workers & Pages overview, or the account home page).
+
+If a run fails with a permissions error, edit the token in Cloudflare rather than adding secrets anywhere in the repository. Never commit the token.
+
 ### If the scores certificate won't issue
 
 `games.sparklelabs.org` is a CNAME to GitHub Pages (`jonniesparkles.github.io`). When a certificate authority checks `scores.games.sparklelabs.org` and finds no CAA records on that exact name, it climbs to `games.sparklelabs.org`, follows the CNAME, and finds GitHub's CAA records. Those only allow DigiCert, Sectigo and Let's Encrypt, so a Cloudflare certificate from Google Trust Services fails with a "CAA records block issuance" error under **SSL/TLS → Edge Certificates**.
