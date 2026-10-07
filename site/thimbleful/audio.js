@@ -1,6 +1,8 @@
 // Thimbleful sound: everything is synthesized with Web Audio, no audio files.
 // Music is a cozy 4-bar loop (C, Am, F, G) that speeds up as the game gets harder. Once the storm is in it
 // turns minor (Cm, Ab, Fm, G), and later picks up a gritty bass and drums. Changes land at the top of the loop.
+// Browsers only allow audio after a click, tap or key press: `ready` is false until then, and `onready` is
+// called whenever that changes so the Sound button can show what's really happening.
 window.ThimbleSound = (function () {
   const KEY = 'thimbleful-muted';
   let ctx = null, master, musicBus, sfxBus, noiseBuf;
@@ -20,11 +22,21 @@ window.ThimbleSound = (function () {
   // E -> Eb and A -> Ab in minor; B stays as the leading tone over G
   const inKey = m => { if (!minor) return m; const pc = m % 12; return pc === 4 || pc === 9 ? m - 1 : m; };
 
+  const notify = () => { if (api.onready) api.onready(); };
+  // iPhones only start audio when a sound is started inside the tap itself, so each unlock attempt plays one silent sample.
+  function warm() {
+    try { const s = ctx.createBufferSource(); s.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); s.connect(ctx.destination); s.start(0); } catch (e) {}
+  }
+  function wake() { warm(); const p = ctx.resume(); if (p && p.then) p.then(notify, () => {}); }
+
   function init() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return true; }
+    if (ctx) { if (ctx.state !== 'running') wake(); return true; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     ctx = new AC();
+    ctx.onstatechange = notify;
+    if (ctx.state !== 'running') wake(); else warm();
+    setTimeout(notify, 0);
     master = ctx.createGain(); master.gain.value = muted ? 0 : 1; master.connect(ctx.destination);
     musicBus = ctx.createGain(); musicBus.gain.value = 0.13; musicBus.connect(master);
     sfxBus = ctx.createGain(); sfxBus.gain.value = 0.32; sfxBus.connect(master);
@@ -86,7 +98,36 @@ window.ThimbleSound = (function () {
   function stopMusic() { playing = false; clearInterval(timer); timer = null; }
 
   const api = {
+    init,
+    onready: null,
+    get ready() { return !!ctx && ctx.state === 'running'; },
     get muted() { return muted; },
+    // Title screen: the opening of the game's melody over a soft C chord, as a hello.
+    title() {
+      if (!ctx || playing) return;
+      const t = ctx.currentTime + 0.03, beat = 60 / 108 / 2;
+      [72, null, 76, 79, 76, null, 74, 72].forEach((m, i) => { if (m) tone(hz(m), t + i * beat, beat * 1.6, 'triangle', 0.32, sfxBus); });
+      tone(hz(48), t, beat * 6, 'square', 0.1, sfxBus);
+      tone(hz(64), t + beat * 2, beat * 1.2, 'sine', 0.12, sfxBus);
+      tone(hz(84), t + beat * 8, 0.5, 'sine', 0.18, sfxBus, hz(86));
+    },
+    // Card buttons: a quiet note on hover or keyboard focus (each button its own pitch), and a soft press.
+    blip(i = 0) {
+      if (!ctx) return;
+      tone(hz([84, 88, 91, 96][i % 4]), ctx.currentTime, 0.05, 'triangle', 0.18, sfxBus);
+    },
+    press() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      tone(hz(79), t, 0.05, 'square', 0.12, sfxBus); tone(hz(84), t + 0.03, 0.08, 'triangle', 0.2, sfxBus);
+    },
+    // Just watch: the music settles down and a drop plinks into the pot.
+    settle() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      [84, 79, 76].forEach((m, i) => tone(hz(m), t + i * 0.09, 0.2, 'sine', 0.22, sfxBus));
+      tone(hz(91), t + 0.36, 0.12, 'sine', 0.3, sfxBus, hz(86));
+    },
     start() {
       if (!init()) return;
       const t = ctx.currentTime + 0.02;

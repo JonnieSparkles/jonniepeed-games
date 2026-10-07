@@ -12,9 +12,14 @@ var StudioSound = (function () {
   function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
   function notify() { if (api && api.onready) api.onready(); }
 
+  // iPhones only start audio when a sound is started inside the tap itself, so each unlock attempt plays one silent sample.
+  function warm() {
+    try { var s = AC.createBufferSource(); s.buffer = AC.createBuffer(1, 1, AC.sampleRate); s.connect(AC.destination); s.start(0); } catch (e) {}
+  }
+
   function audioInit() {
     if (AC) {
-      if (AC.state === 'suspended') { var p = AC.resume(); if (p && p.then) p.then(notify, function () {}); }
+      if (AC.state !== 'running') { warm(); var p = AC.resume(); if (p && p.then) p.then(notify, function () {}); }
       return;
     }
     try {
@@ -24,7 +29,8 @@ var StudioSound = (function () {
       var d = noiseBuf.getChannelData(0);
       for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       AC.onstatechange = notify;
-      if (AC.state === 'suspended') { var q = AC.resume(); if (q && q.then) q.then(notify, function () {}); }
+      warm();
+      if (AC.state !== 'running') { var q = AC.resume(); if (q && q.then) q.then(notify, function () {}); }
       setTimeout(notify, 0);
     } catch (e) { AC = null; }
   }
@@ -75,8 +81,9 @@ var StudioSound = (function () {
     // card hover or keyboard focus; the argument is the card's position, so each card has its own note
     tick: function (i) { tone(hz(PENTA[(i || 0) % PENTA.length] + 12), 0.06, 'square', 0.05); },
     press: function () { tone(hz(79), 0.06, 'square', 0.08); tone(hz(84), 0.1, 'square', 0.08, null, 0.05); },
-    // sound switched on from the footer button
-    hello: function () {
+    // sound switched on from the footer button (or, softer, by a first tap elsewhere)
+    hello: function (soft) {
+      if (soft) { [79, 84].forEach(function (m, k) { tone(hz(m), 0.12, 'triangle', 0.08, null, k * 0.08); }); return; }
       [72, 79, 84].forEach(function (m, k) { tone(hz(m), 0.14, 'triangle', 0.16, null, k * 0.08); });
       tone(hz(88), 0.3, 'sine', 0.12, hz(91), 0.24);
     },

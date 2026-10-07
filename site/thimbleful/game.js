@@ -296,10 +296,51 @@ function syncIntroBtn() { introBtn.hidden = !introSeen; }
 watchBtn.addEventListener('click', watch);
 skipBtn.addEventListener('click', finishIntro);
 leaveBtn.addEventListener('click', () => { leaveWatch(); go.focus(); });
+// ---------- sound on the title screen ----------
+// Browsers only allow audio after a click, tap or key press. The Sound button reads "Sound off" until audio
+// is really playing, so pressing it then turns sound on instead of muting. The first tap or key on the
+// title screen plays a short jingle (unless it's Start, which has its own), and the card's buttons blip.
 const snd = $('snd');
-function sndLabel() { const on = !ThimbleSound.muted; snd.setAttribute('aria-pressed', String(on)); snd.lastElementChild.textContent = on ? 'Sound on' : 'Sound off'; }
-snd.addEventListener('click', () => { ThimbleSound.toggle(); sndLabel(); });
+let soundOn = false, jingle = false, askedAt = -1e9;   // jingle: played (or skipped) once sound is on
+function sndLabel() {
+  soundOn = ThimbleSound.ready && !ThimbleSound.muted;
+  snd.setAttribute('aria-pressed', String(soundOn)); snd.lastElementChild.textContent = soundOn ? 'Sound on' : 'Sound off';
+}
+// Only if sound starts right after the tap that asked for it: a scroll can't start audio, so it never jingles later.
+function playJingle() {
+  if (!soundOn || jingle) return;
+  jingle = true;
+  if (performance.now() - askedAt < 1000 && (state === 'title' || state === 'watch')) ThimbleSound.title();
+}
+ThimbleSound.onready = () => { sndLabel(); playJingle(); };
+function flipSound() {
+  if (soundOn) { ThimbleSound.toggle(); sndLabel(); return; }
+  if (ThimbleSound.muted) ThimbleSound.toggle();
+  ThimbleSound.init();
+  askedAt = performance.now();
+  sndLabel(); playJingle();
+}
+snd.addEventListener('click', flipSound);
 sndLabel();
+// Browsers disagree on which event counts as the tap (Chromium: a lifted pointer; iPhones: touchend or click),
+// so all of them try. A scroll's touchend can't start audio, so it stays quiet.
+const ownSound = [go, introBtn, watchBtn];   // these play their own sound instead of the jingle
+function unlockSound(e) {
+  if (snd.contains(e.target) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
+  if (e.type === 'keydown' && (e.key === 'm' || e.key === 'M')) return;   // M is the sound toggle: let it decide
+  const was = ThimbleSound.ready;
+  if (ThimbleSound.muted) return;
+  ThimbleSound.init();
+  if (!was && !ownSound.some(b => b.contains(e.target))) askedAt = performance.now();
+  if (ThimbleSound.ready) { sndLabel(); playJingle(); }
+}
+for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(type, unlockSound, { capture: true, passive: true });
+[go, watchBtn, introBtn, scoresBtn, lbEnter, lbSkip, leaveBtn].forEach((b, i) => {
+  b.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse' && soundOn) ThimbleSound.blip(i); });
+  b.addEventListener('focus', () => { if (b.matches(':focus-visible') && soundOn) ThimbleSound.blip(i); });
+});
+for (const b of [scoresBtn, lbEnter, lbSkip, leaveBtn]) b.addEventListener('click', () => { if (soundOn) ThimbleSound.press(); });
+watchBtn.addEventListener('click', () => { if (soundOn) ThimbleSound.settle(); });
 
 // ---------- full screen ----------
 // Uses the Fullscreen API where it exists; on phones without it (iPhone) the game just fills the window.
@@ -344,7 +385,7 @@ addEventListener('keydown', e => {
   if (lbEntry) return;
   if (isL(e.key)) { keys.l = true; target = null; }
   else if (isR(e.key)) { keys.r = true; target = null; }
-  else if ((e.key === 'm' || e.key === 'M') && !e.repeat) { ThimbleSound.toggle(); sndLabel(); return; }
+  else if ((e.key === 'm' || e.key === 'M') && !e.repeat) { flipSound(); return; }
   else if ((e.key === 'f' || e.key === 'F') && !e.repeat && !e.metaKey && !e.ctrlKey) { toggleFull(); return; }
   else if (e.key === 'Escape' && isFull() && !(document.fullscreenElement || document.webkitFullscreenElement)) { setFull(false); return; }
   else if (e.key === 'Escape' && state === 'watch') { leaveWatch(); go.focus(); return; }
