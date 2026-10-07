@@ -11,7 +11,8 @@
     return t;
   }
   check(drop(490).state === 'bounce', 'low cut captures');
-  check(drop(300).dead, 'high cut rips through');
+  check(drop(300).state === 'bounce', 'mid-sky cut still captures');
+  check(drop(140).dead, 'a cut right under the planes rips through');
   var r=makeRecruit(0,'rifle'); S.troopers=[]; spawnTrooper(56, 300); S.troopers[0].open=1;
   check(pickTarget(r)===null, 'crew leaves upper sky to player');
   S.troopers[0].y=490;

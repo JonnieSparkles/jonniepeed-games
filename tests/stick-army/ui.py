@@ -63,10 +63,10 @@ with sync_playwright() as p:
     page.add_init_script("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async function(){throw new Error('denied');}}});")
     page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000')+'/stick-army/#tune')
     page.wait_for_selector('#tunePanel')
-    assert page.locator('#tunePanel input').count()==8
+    assert page.locator('#tunePanel input').count()==13
     page.locator('#tunePanel summary').click(); page.click('#startBtn'); page.locator('#tunePanel summary').click()
     page.evaluate('armyTest("S.recruits=[makeRecruit(0,\'rifle\')]; S.recruits[0].cd=2; spawnTrooper(60,300);")')
-    changes={'CAPTURE_SPEED':420,'DROP_CHANCE':0.5,'RIFLE_COOLDOWN':0.5,'RIFLE_SPREAD':0.05,'PLANES_PER_WAVE':3,'FALL_PER_WAVE':6,'DROPS_PER_WAVE':1.5,'WALL_DAMAGE':9}
+    changes={'FIRE_COOLDOWN':0.3,'HEAT_PER_SHOT':0.2,'COOL_RATE':0.5,'OVERHEAT_LOCK':2,'SHOT_COST':2,'CAPTURE_SPEED':420,'DROP_CHANCE':0.5,'RIFLE_COOLDOWN':0.5,'RIFLE_SPREAD':0.05,'PLANES_PER_WAVE':3,'FALL_PER_WAVE':6,'DROPS_PER_WAVE':1.5,'WALL_DAMAGE':9}
     for key,value in changes.items():
         page.locator('#tune-'+key).evaluate('(el,value)=>{el.value=value;el.dispatchEvent(new Event("input",{bubbles:true}));}',value)
     assert page.evaluate('StickArmyTune.getValues()')==changes

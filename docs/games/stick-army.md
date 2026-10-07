@@ -10,9 +10,13 @@ After Jonnie approves promotion, remove `data-side="b"`, `data-badge="demo"`, th
 
 ## Rules and input contract
 
-Mouse, keyboard and touch all work. With a mouse, aim and hold the button to fire. On touch, touch and hold to fire, and drag to aim. Arrow keys (or A/D) aim, Space fires, P pauses, and F toggles full screen. The fullscreen button uses the native API where available and fills the window otherwise. The portrait notebook remains centred in landscape.
+Mouse, keyboard and touch all work. With a mouse, aim and hold the button to fire. On touch, touch and hold to fire, and drag to aim. Arrow keys (or A/D) aim, Space fires, P pauses, and F toggles full screen. The barrel sweeps continuously from slightly below horizontal on the left (`AIM_MIN`) to slightly below horizontal on the right (`AIM_MAX`, `AIM_DIP` = 0.3 rad). The dip is enough to shoot landers at the wall and in the near field, not the far field or snipers at the edges. When tipped down, the barrel draws in front of the bunker. The fullscreen button uses the native API where available and fills the window otherwise. The portrait notebook remains centred in landscape.
 
-Start with one left trampoline and four squad slots. Shoot a body to kill, or pop a chute in the band between the two dashed pencil lines above the mat to recruit. A falling trooper arriving faster than 380 logical pixels per second rips through instead. The band marks the **chute**, not the feet. Larger mats widen the catch area without relaxing the speed limit.
+Start with one left trampoline and four squad slots. Shoot a body to kill, or pop a chute over the mat to recruit. A falling trooper arriving faster than `CAPTURE_SPEED` (680 logical pixels per second) rips through instead, which in practice only happens to chutes popped right under the planes. There are no guide lines. Larger mats widen the catch area without relaxing the speed limit.
+
+A trooper falling without a chute squashes any enemy he lands on (`crush`), including snipers: 30 points each, with combo. This is the player's skill answer to landers, borrowed from the original Paratrooper.
+
+The turret overheats. Each volley adds `HEAT_PER_SHOT` heat, scaled by the fire-rate upgrade so heat per second stays the same, and heat bleeds off at `COOL_RATE` per second. Reaching full heat locks the gun for `OVERHEAT_LOCK` seconds ("too hot!", steam, a hiss), during which it cools to 35%. A dashed gauge arcs over the dome while the gun is warm, and the barrel reddens as it heats. Each volley also costs `SHOT_COST` points (1, as in Paratrooper), never taking the score below zero. Cooling fins (free supply, three stacks) cut heat per shot by 20% each.
 
 The baseline crew fires slowly and aims at bodies in the lower sky. Bazookas can target aircraft; engineers repair the wall. Wounded recruits have small health marks under their feet. Rifle recruits learn to pop low chutes only after buying Catcher training.
 
@@ -22,7 +26,7 @@ Carpet bombers begin in wave 2 and release 3–6 bombs across the trench, crew p
 
 Kills, captures, planes, intercepted bombs, combos and wave completion earn coins separately from score. After all enemies, aircraft, bombs and hostile shots are gone, a short wave-clear banner leads to the shop. Combat is frozen there.
 
-Take one of two random free items. A rotating premium equipment offer sits beside **Order a pizza**, which is always available for 25 coins. Each offer can be bought once per visit, and coins carry between waves. Capped upgrades leave the pool. Repeatable repairs and a 12-coin stash keep two free choices available in long runs.
+Take one of two random free items. Every supply has a pencil icon drawn with the battlefield pen (`ICONS`, `drawItemIcon`); add one when adding an item. A rotating premium equipment offer sits beside **Order a pizza**, which is always available for 25 coins. Each offer can be bought once per visit, and coins carry between waves. Capped upgrades leave the pool. Repeatable repairs and a 12-coin stash keep two free choices available in long runs.
 
 Pizza is a nod to the owner's remembered delivery Easter egg: a stick courier cycles onto the page, hands over a box, and rides away. At the handoff, the wall gains 25 health and every surviving recruit gains 1 health, capped at their maxima. Combat stays frozen, and the same shop returns afterward. Pizza does not resurrect fallen crew.
 
@@ -30,15 +34,17 @@ All equipment, coins and recruits reset on a new run. Only mute preference and t
 
 ## Tuning and extending
 
-`site/stick-army/game.js` contains the simulation and saved preferences. `site/stick-army/audio.js` owns procedural sound through `StickArmySound.init()`, `.play(name)` and `.muted`; it loads before `game.js`. `index.html` contains layout, the title/pause/end cards and the responsive HTML shop.
+`site/stick-army/game.js` contains the simulation and saved preferences. `site/stick-army/audio.js` owns procedural sound through `StickArmySound.init()`, `.play(name)`, `.ambience(state)` and `.muted`; it loads before `game.js`. The game calls `ambience` about every 80 ms with whether a wave is live, the flying planes and whether the wall is below 30%. Ambience is a wind bed, up to three propeller drones that follow and pan with the nearest planes, distant artillery thumps during waves, and a heartbeat while the wall is low, all on one bus that fades out outside active play and when muted. Cues: a bugle at wave start, the arpeggio at wave clear, a shop jingle, an overheat hiss, a ready ping when the gun unlocks, and a squash. `index.html` contains layout, the title/pause/end cards and the responsive HTML shop.
 
-Open `stick-army/#tune` on the local server (or `site/stick-army/index.html#tune` for a file preview) to load the optional `tune.js` panel. Its eight sliders change capture speed, mat-drop chance, rifle cooldown/spread, wave growth and wall damage immediately. Collapse the panel to play; **Copy values** exports JSON, with selected text as a fallback when clipboard access fails. Values are session-only and reset on reload. The panel and its script are absent without the hash.
+Open `stick-army/#tune` on the local server (or `site/stick-army/index.html#tune` for a file preview) to load the optional `tune.js` panel. Its thirteen sliders change turret fire cooldown, heat per shot, cooling, overheat lockout, points per shot, capture speed, mat-drop chance, rifle cooldown/spread, wave growth and wall damage immediately. Collapse the panel to play; **Copy values** exports JSON, with selected text as a fallback when clipboard access fails. Values are session-only and reset on reload. The panel and its script are absent without the hash.
 
 | Area | Entry points |
 | --- | --- |
 | Enemy definitions and crew stats | `ENEMIES` |
 | Wave size, speed, drops, bomb count, sniper chance | `waveCfg(n)` |
 | Capture speed, slots and mats | `CAPTURE_SPEED`, `SLOT_ORDER`, `activeTramps`, `resizeMats` |
+| Turret heat, shot cost and aim range | `BALANCE.FIRE_COOLDOWN`, `HEAT_PER_SHOT`, `COOL_RATE`, `OVERHEAT_LOCK`, `SHOT_COST`, `fireVolley`, `updateHeat`, `AIM_DIP` |
+| Landing on enemies | `crush` |
 | Item pool, costs and stack limits | `ITEMS`: `{ id, name, desc, tier, cost, maxStacks, apply(S) }`, optional `available()` |
 | Run upgrades and ownership counts | `S.mods`, `S.mods.stacks` |
 | Shop transitions and transaction guards | `openShop`, `takeItem`, `continueWave` |
@@ -48,7 +54,7 @@ Open `stick-army/#tune` on the local server (or `site/stick-army/index.html#tune
 
 Double barrel and spread combine into six bullets per volley. Rockets add a separate projectile every fourth volley. Piercing normal bullets can hit three distinct targets; flak detonates once on proximity, consuming the round even when piercing is equipped. Mines rearm at the start of each wave and spare allies. Medics occupy a normal squad slot, heal other nearby recruits, and can be replaced in the shop after death. The sentry fires ordinary ally bullets and does not inherit the player's weapon upgrades.
 
-Corpses use six red-ink line/circle pieces with gravity, bounce and a resting period. New marks stamp directly onto the ink canvas once. Only the latest 500 are retained for replay on resize; older marks stay in the current raster until resizing or starting a new run. Red flecks leave permanent ink only after landing on the ground. Reduced-motion preference disables screen shake and line boil.
+Corpses use six ink line/circle pieces with gravity, bounce and a resting period: red for enemies, blue for fallen recruits. Kills near the ground leave a permanent splat; midair kills leave a spatter that fades in about a second, so the sky stays clean. New marks stamp directly onto the ink canvas once. Only the latest 500 are retained for replay on resize; older marks stay in the current raster until resizing or starting a new run. Red flecks leave permanent ink only after landing on the ground. Reduced-motion preference disables screen shake and line boil.
 
 ## Validation and generated assets
 
@@ -74,7 +80,7 @@ python3 tools/stamp.py
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` is optional for the preview generator; it defaults to file URLs. The regression runners default to the local server above. `SCREENSHOTS` selects the UI runner's output directory (default `/tmp/stick-army-screenshots`). Test access to simulation internals is injected into the browser response and is never shipped with the game.
 
-The checks cover capture success/rips, slots, crew targeting, ink lifecycle, bomb payloads and damage, sniper pressure and retreat, shop transactions, pizza delivery, equipment combinations, death/restart and a real simulated wave clear. UI checks exercise fullscreen, touch/keyboard, pause and shop/delivery at desktop, portrait, short landscape and small-phone sizes. UI checks also verify live tuning and both clipboard paths. `perf.py` measures actual RAF intervals and update/render CPU time on wave 6 in a 390×844 touch viewport at DPR 2 with CDP CPU throttling at 4×. It warms up for five seconds and samples for fifteen; `--stress` adds 20 airborne enemies and 12 fresh corpses, with 500 retained ink marks. `--source-ref <commit>` compares old game code without changing the checkout (the current audio script remains loaded), and `--output <path>` saves JSON. Phone canvases use CSS-pixel resolution to reduce raster work; desktop artwork retains its high-DPI resolution.
+The checks cover capture success/rips, crush, the barrel dip, overheat and shot cost, midair ink, shop icons, slots, crew targeting, ink lifecycle, bomb payloads and damage, sniper pressure and retreat, shop transactions, pizza delivery, equipment combinations, death/restart and a real simulated wave clear. UI checks exercise fullscreen, touch/keyboard, pause and shop/delivery at desktop, portrait, short landscape and small-phone sizes. UI checks also verify live tuning and both clipboard paths. `perf.py` measures actual RAF intervals and update/render CPU time on wave 6 in a 390×844 touch viewport at DPR 2 with CDP CPU throttling at 4×. It warms up for five seconds and samples for fifteen; `--stress` adds 20 airborne enemies and 12 fresh corpses, with 500 retained ink marks. `--source-ref <commit>` compares old game code without changing the checkout (the current audio script remains loaded), and `--output <path>` saves JSON. Phone canvases use CSS-pixel resolution to reduce raster work; desktop artwork retains its high-DPI resolution.
 
 Measured in headless Chromium on this workspace (15-second stress sample, 4× CPU throttle):
 

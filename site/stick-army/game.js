@@ -8,8 +8,12 @@
   var SLOTS = [154, 139, 124, 109, 246, 261, 276, 291];
   var TRAMPS = [{ x1: 22, x2: 92, y: 596, dip: 0, v: 0 }, { x1: 308, x2: 378, y: 596, dip: 0, v: 0 }];
   var SLOT_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
-  var CAPTURE_SPEED = 380;
-  var BALANCE = { DROP_CHANCE: 0.15, PLANES_PER_WAVE: 2, FALL_PER_WAVE: 4, DROPS_PER_WAVE: 0.5, WALL_DAMAGE: 6 };
+  // A popped trooper arriving faster than this rips through the mat. 680 only rips pops right under the planes.
+  var CAPTURE_SPEED = 680;
+  // Turret heat: each volley adds heat (scaled so fire-rate upgrades keep the same heat per second),
+  // heat bleeds off continuously, and reaching 1 locks the gun. Each volley also costs SHOT_COST points.
+  var BALANCE = { DROP_CHANCE: 0.15, PLANES_PER_WAVE: 2, FALL_PER_WAVE: 4, DROPS_PER_WAVE: 0.5, WALL_DAMAGE: 6,
+    FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1 };
   var ENEMIES = {
     medic: { minWave: Infinity, cooldown: 2, spread: 0.14, hp: 3.2 },
     rifle: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
@@ -17,7 +21,10 @@
     bazooka: { minWave: 2, cooldown: 4, spread: 0.03, hp: 2.6 },
     sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 6 }
   };
-  var AIM_MIN = -Math.PI + 0.17, AIM_MAX = -0.17;
+  // The barrel can tip slightly below horizontal on either side: enough to hit landers near the wall,
+  // not enough to reach the far field. Angles run continuously from AIM_MIN (below left) to AIM_MAX (below right).
+  var AIM_DIP = 0.3;
+  var AIM_MIN = -Math.PI - AIM_DIP, AIM_MAX = AIM_DIP;
   var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   var css = getComputedStyle(document.documentElement);
@@ -168,7 +175,8 @@
   function reset() {
     S = {
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
-      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, mat: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, stacks: {} },
+      heat: 0, overheat: 0,
+      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, stacks: {} },
       coins: 0, volleys: 0, autoCD: 0, mines: [], shop: null, delivery: null, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
@@ -279,7 +287,7 @@
     S.waveState = 'active';
     var sub = n === 1 ? 'here they come' : (n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : '');
     S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
-    sound.play('wave');
+    sound.play('bugle');
   }
   function updateWave(dt) {
     var sp = S.spawn;
@@ -310,6 +318,7 @@
   // ---------- field supplies: all upgrades are run-local ----------
   var ITEMS = [
     { id: 'fire', name: 'Quick trigger', desc: 'Fire 18% faster. Stacks four times.', tier: 'free', cost: 0, maxStacks: 4, apply: function (s) { s.mods.fire++; } },
+    { id: 'cool', name: 'Cooling fins', desc: 'Each shot heats the gun 20% less. Stacks three times.', tier: 'free', cost: 0, maxStacks: 3, apply: function (s) { s.mods.cool++; } },
     { id: 'slot', name: 'Room for one more', desc: '+1 squad slot, up to eight.', tier: 'free', cost: 0, maxStacks: 4, apply: function (s) { s.mods.slots++; } },
     { id: 'repair', name: 'Patch the wall', desc: 'Restore 30 wall health.', tier: 'free', cost: 0, maxStacks: Infinity, apply: function (s) { s.wallHP = Math.min(s.mods.maxHP, s.wallHP + 30); } },
     { id: 'mat', name: 'Bigger bounce', desc: 'Widen both trampoline frames by 12. Timing still matters!', tier: 'free', cost: 0, maxStacks: 2, apply: function (s) { s.mods.mat++; resizeMats(); } },
@@ -348,6 +357,7 @@
     premiums.push(ITEMS.find(function (it) { return it.id === 'pizza'; }));
     S.shop = { free: sample(ITEMS.filter(function (it) { return it.tier === 'free' && eligible(it); }), 2), premium: premiums, freeTaken: false, bought: {} };
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
+    sound.play('shop');
     shopScreen.querySelector('button:not(:disabled)').focus({ preventScroll: true });
   }
   function takeItem(id) {
@@ -360,6 +370,124 @@
     sound.play('recruit'); renderShop();
     if (S.mode === 'shop') { var next = S.shop.freeTaken ? document.getElementById('continueBtn') : shopScreen.querySelector('button:not(:disabled)'); next.focus({ preventScroll: true }); }
     return true;
+  }
+  // Pencil icons for supplies, drawn with the battlefield pen in a 44×44 box.
+  var ICONS = {
+    fire: function () {
+      [[8, 34], [17, 26], [26, 18]].forEach(function (p) { G.beginPath(); L(p[0], p[1], p[0] + 8, p[1] - 8, 0.4); ink(INK, 3.4); G.stroke(); });
+      G.beginPath(); L(4, 26, 10, 20, 0.3); L(13, 38, 19, 32, 0.3); L(29, 32, 35, 26, 0.3); ink(INK2, 1.4); G.stroke();
+    },
+    cool: function () {
+      G.beginPath(); SP([15, 30, 15, 9, 17, 6, 21, 6, 23, 9, 23, 30], false, 0.3); ink(INK, 2.2); G.stroke();
+      G.beginPath(); G.arc(19, 35, 5.5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill(); G.beginPath(); Ci(19, 35, 5.5, 0.3); ink(INK, 2.2); G.stroke();
+      G.beginPath(); L(19, 30, 19, 21, 0.2); ink(BLUE, 3); G.stroke();
+      G.beginPath(); for (var i = 0; i < 3; i++) { var a = i * Math.PI / 3; L(34 - Math.cos(a) * 7, 13 - Math.sin(a) * 7, 34 + Math.cos(a) * 7, 13 + Math.sin(a) * 7, 0.3); } ink(BLUE, 2); G.stroke();
+    },
+    slot: function () {
+      G.save(); G.translate(14, 6); G.scale(0.85, 0.85); stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], BLUE, 3); G.restore();
+      G.beginPath(); L(33, 14, 33, 28, 0.3); L(26, 21, 40, 21, 0.3); ink(INK, 3); G.stroke();
+    },
+    repair: function () {
+      G.beginPath(); L(4, 22, 32, 22, 0.4); L(4, 30, 32, 30, 0.4); L(4, 38, 32, 38, 0.4); L(4, 22, 4, 38, 0.4); L(32, 22, 32, 38, 0.4);
+      L(13, 22, 13, 30, 0.3); L(23, 22, 23, 30, 0.3); L(9, 30, 9, 38, 0.3); L(19, 30, 19, 38, 0.3); L(28, 30, 28, 38, 0.3); ink(INK, 1.8); G.stroke();
+      G.beginPath(); L(22, 19, 35, 7, 0.3); ink(INK, 2.4); G.stroke();
+      G.beginPath(); L(31, 3, 40, 11, 0.3); ink(INK, 5); G.stroke();
+    },
+    mat: function () {
+      G.beginPath(); L(10, 27, 8, 37, 0.3); L(34, 27, 36, 37, 0.3); ink(INK, 2); G.stroke();
+      G.beginPath(); G.moveTo(9, 27); G.quadraticCurveTo(22, 33, 35, 27); ink(INK, 3); G.stroke();
+      G.beginPath(); L(2, 16, 15, 16, 0.3); L(2, 16, 6, 12, 0.2); L(2, 16, 6, 20, 0.2); L(29, 16, 42, 16, 0.3); L(42, 16, 38, 12, 0.2); L(42, 16, 38, 20, 0.2); ink(BLUE, 2.2); G.stroke();
+    },
+    aim: function () {
+      G.beginPath(); Ci(22, 22, 12, 0.4); L(22, 4, 22, 13, 0.3); L(22, 31, 22, 40, 0.3); L(4, 22, 13, 22, 0.3); L(31, 22, 40, 22, 0.3); ink(INK, 2.2); G.stroke();
+      G.beginPath(); G.arc(22, 22, 2.5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
+    },
+    sandbags: function () {
+      [[13, 32], [31, 32], [22, 21]].forEach(function (p) {
+        G.beginPath(); SP([p[0] - 10, p[1], p[0] - 8, p[1] - 6, p[0] + 8, p[1] - 6, p[0] + 10, p[1], p[0] + 8, p[1] + 6, p[0] - 8, p[1] + 6], true, 0.4);
+        G.fillStyle = '#efe6cf'; G.fill(); ink(INK, 2); G.stroke();
+        G.beginPath(); L(p[0] - 3, p[1] - 2, p[0] + 3, p[1] + 2, 0.2); ink(INK2, 1.2); G.stroke();
+      });
+    },
+    wire: function () {
+      G.beginPath(); L(6, 10, 6, 38, 0.3); L(38, 10, 38, 38, 0.3); ink(INK, 2.4); G.stroke();
+      G.beginPath(); SP([6, 18, 13, 24, 20, 17, 27, 24, 34, 17, 38, 21], false, 0.4); SP([6, 30, 13, 36, 20, 29, 27, 36, 34, 29, 38, 33], false, 0.4); ink(INK2, 1.6); G.stroke();
+      G.beginPath(); [[13, 24], [27, 24], [20, 29], [34, 29]].forEach(function (p) { L(p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3, 0.2); L(p[0] - 3, p[1] + 3, p[0] + 3, p[1] - 3, 0.2); }); ink(INK, 1.8); G.stroke();
+    },
+    double: function () {
+      G.save(); G.translate(18, 33); G.rotate(-0.8);
+      [-4.5, 4.5].forEach(function (o) { G.fillStyle = PAPER; G.fillRect(0, o - 3, 22, 6); G.beginPath(); L(0, o - 3, 22, o - 3, 0.3); L(0, o + 3, 22, o + 3, 0.3); L(22, o - 3.5, 22, o + 3.5, 0.2); ink(INK, 2); G.stroke(); });
+      G.restore();
+      G.beginPath(); G.moveTo(6, 39); G.arc(18, 39, 12, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2.2); G.stroke();
+    },
+    stash: function () {
+      [[15, 34], [15, 28], [15, 22], [29, 33]].forEach(function (p) { G.beginPath(); G.ellipse(p[0], p[1], 9, 4, 0, 0, Math.PI * 2); G.fillStyle = HAT; G.fill(); ink('#9b6a15', 1.8); G.stroke(); });
+      G.beginPath(); L(34, 7, 34, 18, 0.3); L(28.5, 12.5, 39.5, 12.5, 0.3); ink('#9b6a15', 2.4); G.stroke();
+    },
+    tramp: function () {
+      [11, 33].forEach(function (cx) {
+        G.beginPath(); L(cx - 8, 28, cx - 9, 38, 0.3); L(cx + 8, 28, cx + 9, 38, 0.3); ink(INK, 1.8); G.stroke();
+        G.beginPath(); G.moveTo(cx - 9, 28); G.quadraticCurveTo(cx, 33, cx + 9, 28); ink(INK, 2.6); G.stroke();
+        G.fillStyle = BLUE; G.fillRect(cx - 11, 25, 4, 4); G.fillRect(cx + 7, 25, 4, 4);
+      });
+      G.beginPath(); L(33, 6, 33, 18, 0.3); L(27, 12, 39, 12, 0.3); ink(INK, 2.4); G.stroke();
+    },
+    spread: function () {
+      G.beginPath(); [-0.45, 0, 0.45].forEach(function (a) { L(22, 39, 22 + Math.sin(a) * 27, 39 - Math.cos(a) * 27, 0.3); }); ink(INK, 2.4); G.stroke();
+      [-0.45, 0, 0.45].forEach(function (a) { G.beginPath(); G.arc(22 + Math.sin(a) * 30, 39 - Math.cos(a) * 30, 2.4, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); });
+    },
+    flak: function () {
+      G.beginPath(); for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4; L(22 + Math.cos(a) * 7, 22 + Math.sin(a) * 7, 22 + Math.cos(a) * 17, 22 + Math.sin(a) * 17, 0.4); } ink(INK, 2.2); G.stroke();
+      G.beginPath(); G.arc(22, 22, 5, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
+    },
+    rockets: function () {
+      G.save(); G.translate(23, 21); G.rotate(-0.8);
+      G.beginPath(); G.moveTo(-12, -4); G.lineTo(8, -4); G.lineTo(15, 0); G.lineTo(8, 4); G.lineTo(-12, 4); G.closePath(); G.fillStyle = PAPER; G.fill();
+      G.beginPath(); L(-12, -4, 8, -4, 0.3); L(8, -4, 15, 0, 0.2); L(15, 0, 8, 4, 0.2); L(8, 4, -12, 4, 0.3); L(-12, 4, -12, -4, 0.2); L(-12, -4, -16, -9, 0.2); L(-12, 4, -16, 9, 0.2); ink(INK, 2.2); G.stroke();
+      G.beginPath(); SP([-14, 0, -18, -3, -22, 0, -18, 3, -14, 0], false, 0.6); ink(RED, 2); G.stroke();
+      G.restore();
+    },
+    pierce: function () {
+      G.beginPath(); Ci(16, 28, 6, 0.3); Ci(28, 16, 6, 0.3); ink(INK2, 2); G.stroke();
+      G.beginPath(); L(5, 39, 39, 5, 0.3); L(39, 5, 31, 6, 0.2); L(39, 5, 38, 13, 0.2); ink(INK, 2.6); G.stroke();
+    },
+    mines: function () {
+      G.beginPath(); L(3, 35, 41, 35, 0.3); ink(INK, 2); G.stroke();
+      G.beginPath(); G.moveTo(10, 35); G.arc(22, 35, 12, Math.PI, 0); G.closePath(); G.fillStyle = '#d9d2c2'; G.fill(); ink(INK, 2.2); G.stroke();
+      G.beginPath(); L(22, 23, 22, 17, 0.2); L(13, 27, 9, 23, 0.2); L(31, 27, 35, 23, 0.2); ink(INK, 2); G.stroke();
+      G.beginPath(); G.arc(22, 15, 2.6, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
+    },
+    medic: function () {
+      G.beginPath(); Ci(22, 22, 16, 0.4); ink(INK, 2); G.stroke();
+      G.fillStyle = RED; G.fillRect(18, 11, 8, 22); G.fillRect(11, 18, 22, 8);
+    },
+    auto: function () {
+      G.save(); G.translate(22, 28); G.rotate(-0.7); G.fillStyle = PAPER; G.fillRect(0, -3, 17, 6); G.beginPath(); L(0, -3, 17, -3, 0.2); L(0, 3, 17, 3, 0.2); L(17, -3.5, 17, 3.5, 0.2); ink(INK, 2); G.stroke(); G.restore();
+      G.beginPath(); G.moveTo(13, 29); G.arc(22, 29, 9, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2); G.stroke();
+      G.beginPath(); L(10, 29, 34, 29, 0.3); L(11, 29, 11, 39, 0.3); L(33, 29, 33, 39, 0.3); L(10, 39, 34, 39, 0.3); ink(INK, 2); G.stroke();
+      G.beginPath(); G.arc(22, 29, 18, Math.PI * 1.08, Math.PI * 1.32); ink(BLUE, 1.6); G.stroke();
+      G.beginPath(); G.arc(22, 29, 18, Math.PI * 1.68, Math.PI * 1.92); ink(BLUE, 1.6); G.stroke();
+    },
+    catcher: function () {
+      G.beginPath(); L(5, 33, 4, 41, 0.3); L(21, 33, 22, 41, 0.3); ink(INK, 1.8); G.stroke();
+      G.beginPath(); G.moveTo(4, 33); G.quadraticCurveTo(13, 38, 22, 33); ink(INK, 2.6); G.stroke();
+      G.setLineDash([2, 3]); G.beginPath(); G.moveTo(13, 31); G.quadraticCurveTo(22, 2, 32, 17); ink(BLUE, 1.8); G.stroke(); G.setLineDash([]);
+      G.save(); G.translate(35, 17); G.scale(0.6, 0.6); stick(0, 0, [-9, 6, 9, 6, -5, 33, 5, 33], BLUE, 3.4); G.restore();
+    },
+    pizza: function () {
+      G.beginPath(); G.moveTo(6, 10); G.lineTo(38, 10); G.lineTo(22, 40); G.closePath(); G.fillStyle = '#f6d58a'; G.fill();
+      G.beginPath(); L(6, 10, 38, 10, 0.4); L(38, 10, 22, 40, 0.4); L(22, 40, 6, 10, 0.4); ink(INK, 2.2); G.stroke();
+      G.beginPath(); G.moveTo(5, 9); G.quadraticCurveTo(22, 3, 39, 9); ink('#9b6a15', 3.4); G.stroke();
+      [[16, 16], [27, 17], [22, 27]].forEach(function (p) { G.beginPath(); G.arc(p[0], p[1], 3, 0, Math.PI * 2); G.fillStyle = RED; G.fill(); });
+    },
+    fallback: function () { G.beginPath(); Ci(22, 22, 12, 0.5); L(22, 14, 22, 26, 0.3); ink(INK, 2.4); G.stroke(); G.beginPath(); G.arc(22, 31, 1.8, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
+  };
+  function drawItemIcon(canvas, id) {
+    var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
+    G = g; boil = 0;
+    g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, 44, 44);
+    pen(id.length * 131 + id.charCodeAt(0));
+    try { (ICONS[id] || ICONS.fallback)(); } finally { G = previous; boil = keepBoil; }
   }
   function renderShop() {
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
@@ -375,7 +503,10 @@
         var name = document.createElement('strong'); name.textContent = it.name;
         var desc = document.createElement('span'); desc.textContent = it.desc;
         var price = document.createElement('em'); price.textContent = bought ? 'Packed ✓' : tier === 'free' ? 'Choose free' : it.cost + ' coins' + (S.coins < it.cost ? ' · save ' + (it.cost - S.coins) + ' more' : '');
-        button.append(name, desc, price); button.addEventListener('click', function () { takeItem(it.id); }); holder.append(button);
+        var head = document.createElement('span'); head.className = 'supply-head';
+        var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
+        drawItemIcon(icon, it.id); head.append(icon, name);
+        button.append(head, desc, price); button.addEventListener('click', function () { takeItem(it.id); }); holder.append(button);
       });
     });
     var equipped = ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; });
@@ -451,22 +582,60 @@
     S.recoil = 1;
     sound.play('shoot');
   }
-  function killFx(t, force, squash) {
-    var power = force || 170, y = squash ? GROUND - 5 : t.y + 12;
-    burst(t.x, y, 14, RED, power);
-    addDecal({ kind: 'splat', x: t.x, y: y, r: squash ? 11 : 4, color: RED, a: 0.48, seed: nextId++ });
+  // One trigger pull: costs points, adds heat, and locks the gun when it boils over.
+  function fireVolley() {
+    shoot();
+    var rate = Math.pow(0.82, S.mods.fire);
+    S.fireCD = BALANCE.FIRE_COOLDOWN * rate;
+    S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool);
+    S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
+    if (S.heat >= 1) {
+      S.heat = 1; S.overheat = BALANCE.OVERHEAT_LOCK;
+      addText('too hot!', TUR.x, TUR.y - 52, RED, 23);
+      sound.play('overheat');
+    }
+  }
+  function updateHeat(dt) {
+    if (S.overheat > 0) {
+      // While locked, the barrel cools to a usable level by the time it unlocks.
+      S.overheat -= dt;
+      S.heat = Math.max(0.35, S.heat - 0.65 / Math.max(0.1, BALANCE.OVERHEAT_LOCK) * dt);
+      if (R() < dt * 9) { var c = Math.cos(S.aim), s = Math.sin(S.aim); puff(TUR.x + c * 30, TUR.y + s * 30, 2, 0.6); }
+      if (S.overheat <= 0) { S.overheat = 0; sound.play('ready'); }
+    } else {
+      S.heat = Math.max(0, S.heat - BALANCE.COOL_RATE * dt);
+    }
+  }
+  function killFx(t, force, squash, color) {
+    var power = force || 170, y = squash ? GROUND - 5 : t.y + 12, c = color || RED, i;
+    burst(t.x, y, 14, c, power);
+    // Permanent ink only near the ground. Midair hits leave a spatter that fades in about a second.
+    if (y > GROUND - 40) addDecal({ kind: 'splat', x: t.x, y: y, r: squash ? 11 : 4, color: c, a: 0.48, seed: nextId++ });
+    else for (i = 0; i < 6; i++) S.parts.push({ k: 'spatter', x: t.x + rr(-6, 6), y: y + rr(-6, 6), vx: rr(-30, 30), vy: rr(-20, 30), r: rr(1.2, 3), life: rr(0.6, 1.1), max: 1.1, c: c, id: nextId++ });
     // Six separate pen strokes: head, torso, two arms, two legs.
     [0, 1, 2, 3, 4, 5].forEach(function (part) {
       S.parts.push({ k: 'body', head: part === 0, len: part === 1 ? 16 : 12,
         x: t.x + rr(-4, 4), y: squash ? GROUND - 6 : t.y + (part === 0 ? 0 : part < 4 ? 12 : 26),
         vx: rr(-power, power), vy: -rr(50, power * 1.5), rot: rr(-3, 3), vr: rr(-10, 10),
-        life: 8, max: 8, rest: 0, c: RED, id: nextId++ });
+        life: 8, max: 8, rest: 0, c: c, id: nextId++ });
     });
   }
   function drawBodyPart(q) {
     pen(q.id || q.seed); G.save(); G.translate(q.x, q.y); G.rotate(q.rot);
     G.beginPath(); if (q.head) Ci(0, 0, 4.5); else L(-q.len / 2, 0, q.len / 2, 0, 0.35);
-    ink(RED, 2.3); G.stroke(); G.restore();
+    ink(q.c || RED, 2.3); G.stroke(); G.restore();
+  }
+  // Paratrooper rule: a trooper falling without a chute squashes any enemy he lands on.
+  function crush(t) {
+    var squashed = 0;
+    S.troopers.forEach(function (g) {
+      if (g === t || g.dead || g.state !== 'ground' || Math.abs(g.x - t.x) > 13) return;
+      g.dead = true; squashed++; S.stats.kills++;
+      killFx(g, 230, true);
+      award(30, g.x, GROUND - 74, 'squashed!', INK, true);
+    });
+    if (squashed) { sound.play('squash'); S.shake = Math.max(S.shake, 0.2); }
+    return squashed;
   }
   var OUCH = ['ow!', 'oof!', 'argh!', 'yikes!', 'eep!'];
   function killTrooper(t, owner) {
@@ -538,7 +707,7 @@
     if (r.dead) return;
     r.dead = true;
     addText('noo!', r.x, GROUND - 52, BLUE, 20);
-    killFx({ x: r.x, y: GROUND - 33 }, 190);
+    killFx({ x: r.x, y: GROUND - 33 }, 190, false, BLUE);
     addDecal({ kind: 'splat', x: r.x, y: GROUND - 1, r: 4, color: BLUE, a: 0.22, seed: r.id + 99 });
     sound.play('noo');
   }
@@ -846,7 +1015,7 @@
             if (t.x >= tr.x1 + 4 && t.x <= tr.x2 - 4 && previousFeet <= tr.y + 2 && t.y + 33 >= tr.y + 2) { if (t.vy <= CAPTURE_SPEED) { bounce(t, tr); bounced = true; } else { addText('rip!', t.x, tr.y - 28, RED, 25); splat(t); bounced = true; tr.v += 90; } break; }
           }
         }
-        if (!bounced && t.y + 33 >= GROUND) splat(t);
+        if (!bounced && t.y + 33 >= GROUND) { crush(t); splat(t); }
       } else if (t.state === 'bounce') {
         t.bt += dt / t.bdur;
         var u = Math.min(1, t.bt);
@@ -884,7 +1053,9 @@
             if (Math.abs(q.vy) < 28) { q.rest = dt; q.vx = q.vy = q.vr = 0; }
           }
         }
-        if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, seed: q.id, a: 0.6 });
+        if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, c: q.c, seed: q.id, a: 0.6 });
+      } else if (q.k === 'spatter') {
+        q.vy += 120 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
       } else if (q.k === 'fleck') {
         q.vy += 420 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
         if (q.y >= GROUND) { q.y = GROUND; q.vx *= 0.5; q.vy = 0; q.landed = true; }
@@ -915,7 +1086,8 @@
       if (keys.left) S.aim = Math.max(AIM_MIN, S.aim - 2.3 * dt);
       if (keys.right) S.aim = Math.min(AIM_MAX, S.aim + 2.3 * dt);
       S.fireCD -= dt;
-      if ((S.firing || keys.fire) && S.fireCD <= 0) { shoot(); S.fireCD = 0.2 * Math.pow(0.82, S.mods.fire); }
+      updateHeat(dt);
+      if ((S.firing || keys.fire) && S.fireCD <= 0 && S.overheat <= 0) fireVolley();
       updateWave(dt);
       if (S.mode === 'shop') return;
     }
@@ -1092,23 +1264,36 @@
   }
   function drawTramp(tr, i) {
     pen(500 + i);
-    if (S.mode === 'play') {
-      G.save();
-      G.setLineDash([3, 6]); G.beginPath(); L(tr.x1, 438, tr.x2, 438); L(tr.x1, 513, tr.x2, 513); ink('rgba(46,46,51,0.24)', 1); G.stroke(); G.restore();
-    }
     var a = tr.x1, b = tr.x2, y = tr.y, mid = (a + b) / 2, sag = 3 + tr.dip;
     G.beginPath(); L(a + 6, y, a + 1, GROUND, 0.5); L(b - 6, y, b - 1, GROUND, 0.5); L(a + 16, y + 2, a + 12, GROUND, 0.5); L(b - 16, y + 2, b - 12, GROUND, 0.5);
     ink(INK, 2.2); G.stroke();
     G.beginPath(); G.moveTo(a + jt(0.5), y + jt(0.5)); G.quadraticCurveTo(mid + jt(1), y + sag * 2, b + jt(0.5), y + jt(0.5)); ink(INK, 3.4); G.stroke();
     G.beginPath(); G.rect(a - 5, y - 4, 9, 7); G.rect(b - 4, y - 4, 9, 7); G.fillStyle = BLUE; G.fill(); ink(INK, 1.6); G.stroke();
   }
-  function drawBunker() {
-    pen(9001);
-    var len = 31 - S.recoil * 6, i;
+  function drawBarrel() {
+    var len = 31 - S.recoil * 6, hot = clamp((S.heat - 0.35) / 0.65, 0, 1);
+    if (S.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
     G.save(); G.translate(TUR.x, TUR.y); G.rotate(S.aim);
     G.fillStyle = PAPER; G.fillRect(2, -4, len - 2, 8);
-    G.beginPath(); L(2, -4, len, -4, 0.4); L(2, 4, len, 4, 0.4); L(len, -4.5, len, 4.5, 0.3); ink(INK, 2.4); G.stroke();
+    if (hot > 0) { G.globalAlpha = 0.45 * hot; G.fillStyle = RED; G.fillRect(2, -4, len - 2, 8); G.globalAlpha = 1; }
+    G.beginPath(); L(2, -4, len, -4, 0.4); L(2, 4, len, 4, 0.4); L(len, -4.5, len, 4.5, 0.3); ink(hot > 0.7 ? RED : INK, 2.4); G.stroke();
     G.restore();
+  }
+  // A thin gauge arcing over the dome: fills left to right as the gun heats, blinks red when locked.
+  function drawHeatRing() {
+    if (S.mode !== 'play' || (S.heat < 0.03 && S.overheat <= 0)) return;
+    var r = 25, start = Math.PI * 1.08, span = Math.PI * 0.84, end = start + span * S.heat;
+    G.save();
+    G.setLineDash([2, 4]); G.beginPath(); G.arc(BK.x, BK.top, r, start, start + span); ink('rgba(46,46,51,0.25)', 1.5); G.stroke(); G.setLineDash([]);
+    var col = S.overheat > 0 ? (Math.floor(S.t * 8) % 2 ? RED : INK) : S.heat > 0.7 ? RED : INK;
+    G.beginPath(); G.arc(BK.x, BK.top, r, start, end); ink(col, 3); G.stroke();
+    G.restore();
+  }
+  function drawBunker() {
+    pen(9001);
+    var i, dipping = S.aim > -0.05 || S.aim < -Math.PI + 0.05;
+    // Tipped down, the barrel leans out over the wall, so it draws in front of the bunker.
+    if (!dipping) drawBarrel();
     var dome = [];
     for (i = 0; i <= 10; i++) { var an = Math.PI + (i / 10) * Math.PI; dome.push(BK.x + Math.cos(an) * 19, BK.top + Math.sin(an) * 19); }
     G.beginPath(); G.moveTo(BK.x - 19, BK.top); G.arc(BK.x, BK.top, 19, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill();
@@ -1134,6 +1319,8 @@
       G.beginPath(); G.moveTo(ch[0], ch[1]); for (i = 2; i < ch.length; i += 2) G.lineTo(ch[i], ch[i + 1]); G.closePath(); G.fillStyle = PAPER; G.fill();
       G.beginPath(); SP([232, 595, 226, 590, 219, 586, 214, 581, 210, 576], false, 0.3); ink(INK, 2.2); G.stroke();
     }
+    if (dipping) drawBarrel();
+    drawHeatRing();
   }
   function drawRubble() {
     pen(9002);
@@ -1162,6 +1349,7 @@
       pen(q.id);
       G.save(); G.globalAlpha = a;
       if (q.k === 'body') { G.globalAlpha = 0.85; drawBodyPart(q); }
+      else if (q.k === 'spatter') { G.globalAlpha = a * 0.6; G.beginPath(); G.arc(q.x, q.y, q.r, 0, Math.PI * 2); G.fillStyle = q.c; G.fill(); }
       else if (q.k === 'fleck') { G.beginPath(); G.moveTo(q.x, q.y); G.lineTo(q.x - q.vx * 0.02, q.y - q.vy * 0.02); ink(q.c, 2); G.stroke(); }
       else if (q.k === 'shred') { G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.arc(0, 0, 6, Math.PI, Math.PI * 1.8); ink(RED, 1.8); G.stroke(); }
       else if (q.k === 'puff') { G.globalAlpha = a * 0.55; G.beginPath(); Ci(q.x, q.y, q.r, 0.6); ink(INK, 1.6); G.stroke(); }
@@ -1195,7 +1383,7 @@
   function drawHint() {
     G.save(); G.globalAlpha = 0.6 + 0.3 * Math.sin(S.t * 4);
     G.fillStyle = INK; G.textAlign = 'center'; G.font = '19px ' + HAND;
-    G.fillText('pop it low', 80, 468); G.fillText('catch, don’t rip!', 80, 490);
+    G.fillText('pop his chute', 80, 468); G.fillText('over the mat!', 80, 490);
     G.setLineDash([2, 6]); G.beginPath(); G.moveTo(64, 538); G.lineTo(58, 580); ink(INK, 2); G.stroke(); G.setLineDash([]);
     G.beginPath(); G.moveTo(52, 573); G.lineTo(58, 582); G.lineTo(64, 573); G.stroke();
     G.restore();
@@ -1382,7 +1570,8 @@
   }
   function aimAt(p) {
     var a = Math.atan2(p.y - TUR.y, p.x - TUR.x);
-    if (a > 0) a = p.x < TUR.x ? AIM_MIN : AIM_MAX;
+    // Below-left angles continue past -PI so the range stays one continuous sweep.
+    if (a > Math.PI / 2) a -= Math.PI * 2;
     S.aim = clamp(a, AIM_MIN, AIM_MAX);
   }
   cv.addEventListener('pointerdown', function (e) {
@@ -1444,7 +1633,16 @@
   });
 
   // ---------- loop ----------
-  var last = performance.now();
+  var last = performance.now(), lastAmbience = 0;
+  // What the ambience layer needs: whether a wave is live, where the planes are, and whether the wall is in trouble.
+  function ambienceState() {
+    return {
+      active: S.mode === 'play' && !document.hidden,
+      planes: S.planes.filter(function (p) { return p.state === 'fly' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
+      wave: S.waveState === 'active',
+      wallLow: S.wallHP < S.mods.maxHP * 0.3
+    };
+  }
   function loop(now) {
     var dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
@@ -1452,6 +1650,7 @@
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
     else if (S.mode === 'delivery' && !document.hidden) updateDelivery(dt);
     render();
+    if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
     requestAnimationFrame(loop);
   }
 
