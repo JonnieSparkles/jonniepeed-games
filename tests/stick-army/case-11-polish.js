@@ -32,6 +32,14 @@
   check(/Double barrel/.test(kit) && /Cooling fins ×2/.test(kit) && !/Patch/.test(kit), 'pause shows owned upgrades, not repeat buys');
   togglePause();
 
+  // The shop warns before a boss wave.
+  newGame(); S.wave = 4; openShop();
+  check(/zeppelin/.test(document.getElementById('shopHint').textContent), 'shop warns before the zeppelin wave');
+  S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
+  newGame(); S.wave = 5; openShop();
+  check(!/zeppelin/.test(document.getElementById('shopHint').textContent), 'no warning before an ordinary wave');
+  S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
+
   // Snipers are called out when they land.
   newGame(); spawnTrooper(18, GROUND - 40); var sn = S.troopers[0]; sn.type = 'sniper'; land(sn);
   check(S.texts.some(function (q) { return q.s === 'sniper!'; }), 'sniper callout');

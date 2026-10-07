@@ -470,7 +470,8 @@
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
     document.getElementById('shopCoins').textContent = S.coins + ' dog tags';
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
-    document.getElementById('shopHint').textContent = S.shop.freeTaken ? 'Packed! Spend dog tags on something extra, or save them.' : 'Take one free supply, then spend dog tags if you like.';
+    document.getElementById('shopHint').textContent = (S.shop.freeTaken ? 'Packed! Spend dog tags on something extra, or save them.' : 'Take one free supply, then spend dog tags if you like.') +
+      (waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
     ['free', 'premium'].forEach(function (tier) {
       var holder = document.getElementById(tier + 'Items'); holder.replaceChildren();
       S.shop[tier].forEach(function (it) {

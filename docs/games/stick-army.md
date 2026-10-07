@@ -40,7 +40,7 @@ Take one of two random free items ("Free pick"). The locked continue button read
 
 Pizza is a nod to the owner's remembered delivery Easter egg: a stick courier cycles onto the page, hands over a box, and rides away. At the handoff, the wall gains 25 health and every surviving recruit gains 1 health, capped at their maxima. Combat stays frozen, and the same shop returns afterward. Pizza does not resurrect fallen crew.
 
-The pause card lists the upgrades you own (`kitText`, shared with the shop's kit line; repeatable buys are left out). The game-over card names what brought the wall down, from the last source to hurt it (`OVER_CAUSE`: bombs, landers or snipers), and adds a zeppelins-downed line once one has fallen (`S.stats.zeppelins`). All equipment, tags and recruits reset on a new run. Only mute preference and the local best score persist. The changed rules use a fresh local-best key, `stickarmy.best.2`. Online leaderboards remain deferred by SPEC-002; this game has no `BOARD` or Worker changes.
+The shop hint warns when the next wave brings a zeppelin. The pause card lists the upgrades you own (`kitText`, shared with the shop's kit line; repeatable buys are left out). The game-over card names what brought the wall down, from the last source to hurt it (`OVER_CAUSE`: bombs, landers or snipers), and adds a zeppelins-downed line once one has fallen (`S.stats.zeppelins`). All equipment, tags and recruits reset on a new run. Only mute preference and the local best score persist. The changed rules use a fresh local-best key, `stickarmy.best.2`. Online leaderboards remain deferred by SPEC-002; this game has no `BOARD` or Worker changes.
 
 ## Tuning and extending
 
