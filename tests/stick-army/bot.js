@@ -20,6 +20,16 @@ window.__balanceBot = function (profile, seed) {
   }
   // Turret angles run continuously from aimMin (below left) to aimMax (below right), as the game's aimAt maps them.
   function angle(o, p) { var a = Math.atan2(p.y - o.turret.y, p.x - o.turret.x); return a > Math.PI / 2 ? a - Math.PI * 2 : a; }
+  // A trooper on the ground: aim at his middle, or as low as the barrel dips if that still crosses his body
+  // (the game's hit box runs from 7 px above his head to his feet).
+  function groundShot(o, t) {
+    var mid = { x: t.x, y: t.y + 14 }, a = angle(o, mid);
+    if (a >= o.aimMin && a <= o.aimMax) return mid;
+    a = a < o.aimMin ? o.aimMin + 1e-4 : o.aimMax - 1e-4; // just inside, so rounding can't push it out of reach
+    var reach = (t.x - o.turret.x) / Math.cos(a), y = o.turret.y + Math.sin(a) * reach;
+    if (reach < 30 || y < t.y - 6 || y > t.y + 33) return null;
+    return { x: o.turret.x + Math.cos(a) * reach, y: y };
+  }
   // Every target worth shooting, ranked: bombs bound for the bunker or crew, chutes over a mat to capture,
   // troopers about to land or at the wall, aircraft, then any other chute. New ones need noticing first.
   function candidates(o) {
@@ -42,7 +52,8 @@ window.__balanceBot = function (profile, seed) {
       } else if (t.state === 'chute' && t.y > 400) {
         consider(300 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id);
       } else if (t.state === 'ground' && t.type !== 'sniper') {
-        consider(320 - Math.abs(t.x - 200) / 10, { x: t.x, y: t.y + 16 }, t.id);
+        var shot = groundShot(o, t);
+        if (shot) consider(320 - Math.abs(t.x - 200) / 10, shot, t.id);
       } else if (t.state === 'chute' && t.open > 0.6) {
         consider(100 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id);
       }
@@ -55,7 +66,7 @@ window.__balanceBot = function (profile, seed) {
 
   // Like a hand on a mouse or a thumb on glass: the aim sweeps at a limited speed, stays on its target until
   // something clearly more urgent appears, and carries a small per-target offset plus tremor.
-  var aim = -Math.PI / 2, focus = null, offset = 0, lastT = 0;
+  var aim = -Math.PI / 2, focus = null, offset = 0, lastT = 0, readyAt = 0;
   function decide(o) {
     var dt = Math.min(0.1, Math.max(0, o.t - lastT)); lastT = o.t;
     if (profile.heat_stop < 1) { if (o.heat > profile.heat_stop) hot = true; else if (o.heat < profile.heat_resume) hot = false; }
@@ -63,12 +74,13 @@ window.__balanceBot = function (profile, seed) {
     list.forEach(function (c) { if (!best || c.rank > best.rank) best = c; if (focus && c.id === focus) current = c; });
     var target = current && (!best || best.rank < current.rank + 100) ? current : best;
     if (!target) { focus = null; return { fire: false }; }
-    if (target.id !== focus) { focus = target.id; offset = (rnd() * 2 - 1) * aimErr; }
-    var want = target.angle + offset + (rnd() * 2 - 1) * aimErr * 0.25, step = profile.aim_speed * dt;
+    // A new target takes a moment to pick up (switch_s).
+    if (target.id !== focus) { focus = target.id; offset = (rnd() * 2 - 1) * aimErr; readyAt = o.t + profile.switch_s; }
+    // The hand starts moving once the new target is picked up, then sweeps at aim_speed. Like most players,
+    // the bot keeps the trigger down while it has a target, and only heat discipline lets go.
+    var want = target.angle + offset + (rnd() * 2 - 1) * aimErr * 0.25, step = o.t >= readyAt ? profile.aim_speed * dt : 0;
     aim += Math.max(-step, Math.min(step, want - aim));
-    var onTarget = Math.abs(want - aim) < 0.05;
-    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 },
-      fire: o.overheat <= 0 && !hot && (profile.spray || onTarget) };
+    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot };
   }
 
   // Shop: one readable function. Free pick by situation, then premium spending by profile.

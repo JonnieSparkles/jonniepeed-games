@@ -41,6 +41,17 @@
   S.bullets = [{ x: para.x + 18, y: para.y + 10, vx: 0, vy: -700, owner: 'player', kind: 'bullet', flak: true, pierce: 1, hits: [], life: 1, dead: false }];
   hitTest(S.bullets[0]);
   check(!para.dead && !S.bullets[0].dead, 'flak ignores nearby paratroopers');
+  // ...and its bursts spare them, even troopers jumping right beside the plane it hits.
+  var jumper = S.troopers[0]; jumper.x = 200; jumper.y = 150; jumper.dead = false;
+  explode(200, 150, 24, 'flak', 'player');
+  check(!jumper.dead, 'flak bursts spare paratroopers');
+  // A direct hit is still a hit: flak rounds kill a body and pop a canopy like plain bullets.
+  newGame(); S.mods.flak = true; spawnTrooper(80, 300); var body = S.troopers[0]; body.open = 1;
+  var round = { x: body.x, y: body.y + 12, vx: 0, vy: -700, owner: 'player', kind: 'bullet', flak: true, pierce: 1, hits: [], life: 1, dead: false };
+  hitTest(round); check(body.dead && round.dead, 'a flak round kills on a direct hit');
+  spawnTrooper(300, 300); var canopy = S.troopers[S.troopers.length - 1]; canopy.open = 1;
+  hitTest({ x: canopy.x, y: canopy.y - 30, vx: 0, vy: -700, owner: 'player', kind: 'bullet', flak: true, pierce: 1, hits: [], life: 1, dead: false });
+  check(canopy.state === 'free', 'and pops a chute on a canopy hit');
 
   // Hiring: offered while a slot is free, price rises with each hire.
   newGame(); S.coins = 500; openShop();
