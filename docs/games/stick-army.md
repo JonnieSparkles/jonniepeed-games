@@ -22,7 +22,7 @@ The baseline crew fires slowly and aims at bodies in the lower sky. Bazookas can
 
 All crew damage goes through `hurtRecruit`. Bombs wound by distance (a direct hit still kills a bare recruit), landers punch, and snipers shoot. Two free supplies make the crew sturdier. **Dig in** (`S.mods.trench`, two stacks) cuts every kind of crew damage by 40%, then 60% (`TRENCH`), and draws sandbag rows in front of each crew group. **Helmets** (`S.mods.helmet`, three stacks) add 1 health to current and future recruits (`crewMax`), and are drawn on everyone but engineers and medics. Dug in with helmets, a recruit survives a direct bomb hit.
 
-Carpet bombers begin in wave 2 and release 3–6 bombs across the trench, crew positions and bunker. The whistle warns of a drop; bombs can be shot down. Snipers begin in wave 3, descend toward an edge, and fire at recruits from below the player's firing arc. With no crew left, they shoot the turret instead (`sniperHitsTurret`): each hit adds 0.25 heat (which can tip a hot gun into overheating) and chips 3 wall. Counters are the crew, mines, the sentry, or squashing him with a popped trooper. A sniper with no crew to target leaves after `abandonAfter` (14 s) without awarding points, so he can't stall a wave.
+Carpet bombers begin in wave 2 and release 3–6 bombs across the trench, crew positions and bunker. The whistle warns of a drop; bombs can be shot down. Snipers begin in wave 3, descend toward an edge, and fire at recruits from below the player's firing arc. With no crew left, they shoot the turret instead (`sniperHitsTurret`): each hit adds 0.25 heat (which can tip a hot gun into overheating) and chips 3 wall. A red "sniper!" callout marks each one as he lands. Counters are the crew, mines, the sentry, or squashing him with a popped trooper. A sniper with no crew to target leaves after `abandonAfter` (14 s) without awarding points, so he can't stall a wave.
 
 ## Zeppelin boss
 
@@ -40,7 +40,7 @@ Take one of two random free items ("Free pick"). The locked continue button read
 
 Pizza is a nod to the owner's remembered delivery Easter egg: a stick courier cycles onto the page, hands over a box, and rides away. At the handoff, the wall gains 25 health and every surviving recruit gains 1 health, capped at their maxima. Combat stays frozen, and the same shop returns afterward. Pizza does not resurrect fallen crew.
 
-All equipment, tags and recruits reset on a new run. Only mute preference and the local best score persist. The changed rules use a fresh local-best key, `stickarmy.best.2`. Online leaderboards remain deferred by SPEC-002; this game has no `BOARD` or Worker changes.
+The shop hint warns when the next wave brings a zeppelin. The pause card lists the upgrades you own (`kitText`, shared with the shop's kit line; repeatable buys are left out). The game-over card names what brought the wall down, from the last source to hurt it (`OVER_CAUSE`: bombs, landers or snipers), and adds a zeppelins-downed line once one has fallen (`S.stats.zeppelins`). All equipment, tags and recruits reset on a new run. Only mute preference and the local best score persist. The changed rules use a fresh local-best key, `stickarmy.best.2`. Online leaderboards remain deferred by SPEC-002; this game has no `BOARD` or Worker changes.
 
 ## Tuning and extending
 

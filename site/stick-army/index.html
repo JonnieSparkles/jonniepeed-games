@@ -133,7 +133,7 @@ body {
 #shopReport { margin: 0; font-size: 17px; }
 #continueBtn { flex-shrink: 0; white-space: nowrap; padding-inline: 16px; }
 .shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-@media (max-width: 380px) { .shop-card { padding: 16px; } .supply { padding: 9px; } .supply strong { font-size: 21px; } .supply-icon { width: 30px; height: 30px; } }
+@media (max-width: 380px) { .shop-card { padding: 16px; } .supply { padding: 9px; } .supply strong { font-size: 21px; } .supply-icon { width: 30px; height: 30px; } .shop-foot { justify-content: flex-end; } .shop-foot .keys { display: none; } }
 @media (max-height: 500px) and (min-width: 650px) { .shop-card { max-width: 760px; width: 100%; } .shop-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .shop-stock section + section { margin-top: 0; } }
 @media (max-width: 380px) and (max-height: 650px) { #shopReport, #loadout { display: none; } }
 @media (max-height: 500px) and (min-width: 650px) {
@@ -214,6 +214,7 @@ body {
       <div class="overlay" id="pauseScreen" hidden>
         <div class="card">
           <h2>Paused</h2>
+          <p class="keys" id="pauseKit" hidden></p>
           <div class="row">
             <button class="btn" id="resumeBtn" type="button">Resume</button>
             <button class="btn ghost" id="restartBtn" type="button">Restart</button>
@@ -225,6 +226,7 @@ body {
       <div class="overlay" id="overScreen" hidden>
         <div class="card">
           <h2>Wall down!</h2>
+          <p class="tag" id="overCause" hidden></p>
           <p class="big-score" id="overScore">0</p>
           <p class="flag" id="newBest" hidden>New best!</p>
           <dl class="stats">
@@ -232,6 +234,7 @@ body {
             <dt>Recruits captured</dt><dd id="stCap">0</dd>
             <dt>Chutes popped</dt><dd id="stPop">0</dd>
             <dt>Planes downed</dt><dd id="stPlanes">0</dd>
+            <dt id="stZepsLabel" hidden>Zeppelins downed</dt><dd id="stZeps" hidden>0</dd>
             <dt>Best</dt><dd id="stBest">0</dd>
           </dl>
           <button class="btn" id="againBtn" type="button">Play again</button>
@@ -244,6 +247,6 @@ body {
 
 <script src="audio.js?v=88456e9560"></script>
 <script src="icons.js?v=67d19bf272"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=d158000d57"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=cd7cfcff7c"></script>
 </body>
 </html>
