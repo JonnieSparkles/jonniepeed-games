@@ -71,7 +71,7 @@ Checked so far only by scripted runs in a headless browser: placement, tiptoe fo
 | 1 | Original game |
 | 2 | Squirrels knock you back, heelies land where they stop and stack by adding time, ballerina shoes, one pair of shoes per street (same scoring rules as 1) |
 
-**What's new** on the title screen explains the latest board change in a few lines. Only the latest; older changes live in the table above. It also shows your best from the previous board if this device has one. Its button has a dot until the note has been opened once on that device (`dsotc-news-seen`). The text is the `#news` card in `index.html`; when you bump the board, rewrite it in a few short lines and set its `data-board` to the new `BOARD`. That brings the dot back for everyone.
+**What's new** on the title screen explains the latest board change in a few lines. Only the latest; older changes live in the table above. It also shows your best from the previous board if this device has one. Its button has a dot until the note has been opened once on that device (`dsotc-news-seen`). The text is the `#news` card in `index.html`; when you bump the board, rewrite it in a few short lines, set its `data-board` to the new `BOARD`, and set its date to the day it goes live. That brings the dot back for everyone.
 
 At game over Mom calls. After the call is picked up, the results count up and the board shows inside the phone, with initials entry if you placed. The title screen has a **High scores** button that opens the board over the title. The board shows feet, time and streak.
 
