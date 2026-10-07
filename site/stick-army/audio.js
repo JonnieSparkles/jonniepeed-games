@@ -61,6 +61,10 @@ var StickArmySound = (function () {
     bugle: function () { brass(392, 0.14, 0.07); brass(523, 0.14, 0.07, 0.14); brass(659, 0.14, 0.07, 0.28); brass(784, 0.5, 0.08, 0.42); },
     wave: function () { tone(523, 0.12, 'triangle', 0.15); tone(659, 0.12, 'triangle', 0.15, null, 0.12); tone(784, 0.22, 'triangle', 0.15, null, 0.24); },
     shop: function () { [784, 988, 1175, 1568].forEach(function (f, i) { tone(f, 0.18, 'triangle', 0.07, null, i * 0.09); }); },
+    // Zeppelin: a low two-note horn on arrival and when it turns angry, a soft canvas thup per hit, a groan going down.
+    horn: function () { brass(98, 0.8, 0.09); brass(73.4, 1.2, 0.09, 0.7); },
+    thup: function () { noise(0.05, 0.1, 900); tone(210, 0.06, 'sine', 0.07, 120); },
+    zepdown: function () { tone(150, 1.8, 'sawtooth', 0.05, 40); noise(1.4, 0.32, 380); tone(70, 1.2, 'sine', 0.25, 30, 0.2); },
     over: function () { tone(392, 0.2, 'triangle', 0.15); tone(330, 0.2, 'triangle', 0.15, null, 0.2); tone(262, 0.45, 'triangle', 0.15, null, 0.4); }
   };
   function sfx(name) {
@@ -119,11 +123,11 @@ var StickArmySound = (function () {
       var p = planes[i];
       if (!on || !p) { v.g.gain.setTargetAtTime(0, now, 0.25); return; }
       // Slightly higher pitch while approaching the middle, lower while leaving.
-      var base = p.kind === 'bomber' ? 56 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
+      var zep = p.kind === 'zeppelin', base = zep ? 44 : p.kind === 'bomber' ? 56 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
       var near = 1 - Math.min(1, Math.abs(p.x - 200) / 260);
       v.o.frequency.setTargetAtTime(base * doppler, now, 0.25);
       v.o2.frequency.setTargetAtTime(base * doppler * 1.02, now, 0.25);
-      v.g.gain.setTargetAtTime(0.01 + 0.03 * near, now, 0.15);
+      v.g.gain.setTargetAtTime(zep ? 0.03 + 0.03 * near : 0.01 + 0.03 * near, now, 0.15);
       if (v.pan) v.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, (p.x - 200) / 220)), now, 0.1);
     });
     if (on && state.wave && now >= amb.nextThump) {
