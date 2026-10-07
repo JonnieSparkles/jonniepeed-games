@@ -1,6 +1,6 @@
 # 01: Stick Army
 
-Built from [SPEC-002](../../specs/SPEC-002-stick-army.md). The game is at `site/stick-army/index.html`; it stays off the studio shelf until Jonnie approves the listing. No build step or network service is required.
+Built from [SPEC-002](../../specs/SPEC-002-stick-army.md). The game is at `site/stick-army/index.html`; it stays off the studio shelf until Jonnie approves the listing. No build step or network service is required. The page carries `<meta name="robots" content="noindex">`; keep it until Stick Army is promoted to the public shelf, then remove it and update this doc.
 
 ## Playing
 

@@ -2,6 +2,13 @@
 
 Status: spec only. This records the agreed layout and the work for a later implementation PR. Layout moves, clean-link changes and manifest tooling are deferred to that implementation PR; Stick Army's visual/performance fixes and tuning panel are separate work on that branch.
 
+## Open questions
+
+Both questions must be decided before SPEC-003 is implemented. The slashless-bootstrap and manifest-tool requirements below are proposals pending these decisions.
+
+1. **Slashless aliases:** support `<slug>` (no trailing slash) alongside `<slug>/` using the `<base>` bootstrap, or support only `<slug>/` and drop the bootstrap. The simpler option is `<slug>/` only: slashless support matters mainly for hand-typed URLs. Record the choice before changing links or manifest entries.
+2. **Arweave manifest tool:** whether `tools/arweave_manifest.py` is needed depends on the uploader and whether it already builds a manifest and supports custom path entries. The owner will confirm the uploader. Use its existing manifest support if sufficient; add the proposed tool only if needed.
+
 ## Decisions
 
 ### Documentation
