@@ -2,7 +2,7 @@
 # Manual only: run it from the Actions tab ("Deploy leaderboard Worker" → Run workflow).
 # Only needed after changes in scores/ (games.json, blocklist.json, src/). Scores live in D1 and are never touched.
 # Needs repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see docs/guides/00-leaderboards.md).
-name: Deploy leaderboard Worker
+name: Deploy Leaderboard Worker
 
 on:
   workflow_dispatch:
