@@ -1,6 +1,7 @@
 (function () {
   'use strict';
-  if (location.hash !== '#tune' || !window.StickArmyTune) return;
+  // game.js loads this only in tune mode (#tune, alone or with other &-separated tokens such as seed=42).
+  if (!window.StickArmyTune) return;
   var tuning = window.StickArmyTune;
   var fields = [
     ['FIRE_COOLDOWN', 'Turret fire cooldown', 0.05, 0.6, 0.01, 's'],
