@@ -6,14 +6,7 @@ A tiny explorer on a windowsill catches drips from a leaky watering can in her t
 
 Jonnie saw a post saying Claude could make animated pixel-art scenes, so he asked for one. He was looking at a houseplant at the time and suggested a scene inspired by *George Shrinks*, William Joyce's picture book about a boy who wakes up tiny. Claude offered a windowsill, and that became the first scene: a sunset over the city, potted plants, and a tiny person living among them.
 
-Jonnie's next question was whether it could be a game. A thimble became the bucket, a leaky watering can became the hazard, and catching its drips grew a sunflower. From there the game grew by riffing:
-
-- **The windowsill scene was folded in** rather than kept as a separate page. The first play has a short intro (she walks to the big pot and tosses in a seed), and "Just watch" keeps the scene as a passive mode. The standalone scene was then deleted, in line with the no-backward-compatibility rule.
-- **Sound**: music and effects, all synthesized in the browser.
-- **Bigger drops** after playtesters found them hard to see, with a wider catch to match (board 2).
-- **The golden drop** stayed partly because it plays on the studio's name.
-- **Earn-back, the streak meter and dusk** gave long runs somewhere to go.
-- **Edgier as it gets harder** (board 3). Jonnie felt that a cozy game that slowly turns a bit unhinged suits the studio, so after the first minute a storm rolls in and the watering can grows a face.
+Jonnie's next question was whether it could be a game. A thimble became the bucket, a leaky watering can became the hazard, and catching its drips grew a sunflower. The original windowsill scene lives on as the first-play intro and the "Just watch" mode, and the golden drop is a nod to the studio's name.
 
 ## Rules
 

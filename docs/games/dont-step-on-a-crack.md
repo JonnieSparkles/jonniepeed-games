@@ -8,14 +8,7 @@ Jonnie and his wife were out for a walk, and he started wondering how to turn th
 
 ![A sneaker stepping onto the joint between two sidewalk slabs, autumn leaves on the grass either side](dont-step-on-a-crack-origin.jpg)
 
-The rhyme did the rest ("Step on a crack, break your mother's back"). It became a first-person view looking down at your own feet, with Mom paying for every misstep. From there it grew:
-
-- **Ambient life:** leaves, a squirrel, ants and a mower.
-- **The family:** Dad walks on Mom's back to fix her, and Mom texts you about it.
-- **Calzone:** the neighbors' corgi, who only turns up when you dawdle.
-- **Controls:** tap to walk, hold to aim.
-- **Game over** became an incoming call from Mom's home phone.
-- **The keyboard** was made easier later on.
+The rhyme did the rest ("Step on a crack, break your mother's back"): a first-person view looking down at your own feet, with Mom paying for every misstep.
 
 ## Rules
 
