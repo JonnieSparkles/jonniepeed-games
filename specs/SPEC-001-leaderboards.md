@@ -2,7 +2,7 @@
 
 Shared online high score boards for Thimbleful and Don't Step on a Crack, in the style of a classic arcade: top 50 per game, three initials, entered only when your run makes the table.
 
-Status: built in PR #1. Now that it's built, `docs/guides/leaderboards.md` and the code are the source of truth. This spec records the decisions and why, updated with the choices made during the build: per-board rules and negative test boards.
+Status: built in PR #1. Now that it's built, `docs/guides/00-leaderboards.md` and the code are the source of truth. This spec records the decisions and why, updated with the choices made during the build: per-board rules and negative test boards.
 
 ## Hostname
 
@@ -54,7 +54,7 @@ scores/                       the Worker. Not published (outside site/)
   test/games.py               local UI checks for both games (Playwright)
 site/assets/leaderboard.js    shared client: data calls + initials widget
 tools/check_boards.py         fails if a game's BOARD isn't allowed in scores/games.json
-docs/guides/leaderboards.md   operating guide (setup, deploy, add a game, bump a board, delete a score)
+docs/guides/00-leaderboards.md   operating guide (setup, deploy, add a game, bump a board, delete a score)
 ```
 
 ## Database (`scores/schema.sql`)
@@ -211,7 +211,7 @@ A plain script (the games don't use modules) that defines `window.Leaderboard`. 
 
 The goal: an agent (or Jonnie) who has never seen this spec can add a game to the leaderboard, or change an existing game's setup, from the docs alone. After this spec is built, the docs are the source of truth, not this spec.
 
-- **`docs/guides/leaderboards.md`**, the operating guide:
+- **`docs/guides/00-leaderboards.md`**, the operating guide:
   - What it is (the diagram above) and where each piece lives.
   - One-time setup: install Node and Wrangler, `wrangler login`, create the D1 database and put its ID in `wrangler.jsonc`, apply `schema.sql` to the remote database, deploy, confirm the custom domain, run the smoke test with `BASE` set to the live URL.
   - Local development: `wrangler dev`, apply the schema locally, serve `site/` on localhost so `leaderboard.js` uses the local Worker.
@@ -228,9 +228,9 @@ The goal: an agent (or Jonnie) who has never seen this spec can add a game to th
     - Reset a board (`DELETE ... WHERE game = ? AND board = ?`). Explain when to wipe (same rules, clean slate, no deploy) vs. bump the board (rules changed, old board kept).
     - Clear the test boards (board ≤ 0).
     - Undo a mistake with D1's restore-to-earlier-point feature. Check and state how far back the free plan goes.
-- **README.md**: add `scores/` to Layout (`specs/` and `docs/guides/` are already there). Add a Standards bullet: games with scores follow `docs/guides/leaderboards.md`, and the scores API is the one exception to "no backward compatibility". In "Adding a game", add a step pointing to the guide's checklist.
+- **README.md**: add `scores/` to Layout (`specs/` and `docs/guides/` are already there). Add a Standards bullet: games with scores follow `docs/guides/00-leaderboards.md`, and the scores API is the one exception to "no backward compatibility". In "Adding a game", add a step pointing to the guide's checklist.
 - **AGENTS.md**: short bullets matching the README ones:
-  - Before adding scores to a game, or changing a game's scoring, `BOARD` or `scores/games.json`, read `docs/guides/leaderboards.md`.
+  - Before adding scores to a game, or changing a game's scoring, `BOARD` or `scores/games.json`, read `docs/guides/00-leaderboards.md`.
   - Scoring or ranking changes bump the board, Worker deployed first.
   - The scores API stays backward compatible: never rename game IDs, remove boards or meta keys, or change `/v1/`.
   - Run `python3 tools/check_boards.py` after touching `BOARD` or `games.json`.

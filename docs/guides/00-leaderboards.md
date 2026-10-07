@@ -13,7 +13,7 @@ Cloudflare D1 (scores table)
 
 The Worker owns validation, board membership, limits and ranking. Each game owns its board's appearance. Permanent game IDs are folder names. `scores/games.json` defines rules, `scores/blocklist.json` is a JSON array of refused three-character names, `scores/schema.sql` defines storage, and `scores/src/index.js` serves the API. `scores/test/smoke.mjs` tests it with plain Node. `tools/check_boards.py` checks each game's `BOARD` and runs before the manual Pages upload.
 
-The blocklist is intentionally empty for now (`[]`), so no otherwise-valid initials are refused. Add three-character entries when needed and deploy the Worker. The smoke test reports its blocklisted-name case as SKIP while the list is empty; the isolated local regression below still verifies refusal using a test-only name.
+The blocklist holds about 30 obvious profanities and slurs, plus a few look-alike spellings. It deliberately leaves out ordinary words that some lists wrongly block (such as `GAY` or `JEW`). It stops casual abuse, not a determined troll: use the delete recipes below for anything that gets through. To change it, edit the array (uppercase, exactly three of A–Z/0–9) and deploy the Worker. The smoke test checks that its first entry is refused.
 
 ## One-time setup (Jonnie's Cloudflare account)
 
@@ -25,6 +25,12 @@ The blocklist is intentionally empty for now (`[]`), so no otherwise-valid initi
 6. Run `python3 tools/check_boards.py` and `python3 tools/stamp.py` from the repository root. Deploy the site by manually running **Deploy to GitHub Pages**. Do not add automatic workflow triggers.
 
 The hostname is configured in exactly two places: `API` in the shared client and the Worker route. No other production hostname setting is needed. Cloudflare credentials belong in login/environment settings, never in repository files.
+
+### If the scores certificate won't issue
+
+`games.sparklelabs.org` is a CNAME to GitHub Pages (`jonniesparkles.github.io`). When a certificate authority checks `scores.games.sparklelabs.org` and finds no CAA records on that exact name, it climbs to `games.sparklelabs.org`, follows the CNAME, and finds GitHub's CAA records. Those only allow DigiCert, Sectigo and Let's Encrypt, so a Cloudflare certificate from Google Trust Services fails with a "CAA records block issuance" error under **SSL/TLS → Edge Certificates**.
+
+The fix (already in place) is CAA records on `scores.games` itself, so the check stops there: three `CAA` records named `scores.games`, tag **Only allow specific hostnames** (`issue`), for `pki.goog`, `letsencrypt.org` and `ssl.com`. Cloudflare adds its own CAA records alongside them, which is what the dashboard's warning means. Don't delete them, or renewals can fail the same way. After adding them, a stuck certificate can take a while to retry. If it stays in error, delete the certificate, remove the Worker's custom domain and run `wrangler deploy` again to order a fresh one.
 
 ## Local development
 
