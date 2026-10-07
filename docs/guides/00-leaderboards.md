@@ -191,12 +191,26 @@ Defaults the current games share:
 | Change | Action |
 | --- | --- |
 | Raise `maxScore`, add an optional meta key, widen a meta range, restyle game rows | Safe without a board bump. Deploy Worker rule changes first. |
-| Change difficulty, score meaning, `higherIsBetter`, `tieBreak`, or lower `maxScore` | New board: copy the newest `boards` entry to the next positive number, edit the new entry, deploy Worker first, then bump the game's `BOARD`, run the checker and deploy site. |
+| Change difficulty, score meaning, `higherIsBetter`, `tieBreak`, or lower `maxScore` | New board: copy the newest `boards` entry to the next positive number, edit the new entry, deploy Worker first, then bump the game's `BOARD`, write its [What's new note](#whats-new-notes), run the checker and deploy site. |
 | Rename game ID, remove an accepted board or meta key, narrow a meta range, change an existing `/v1/` path's meaning | Never. Keep the existing contract; breaking API changes require `/v2/` alongside `/v1/`. |
 
-Old boards stay open, including old Arweave copies. This is the exception to the repository's no-backward-compatibility rule. Local best keys include BOARD and are not migrated. Each game has a `boards` object whose keys are positive board numbers and whose values contain that board's full rules. For example, to bump from 1 to 2, copy `boards["1"]` to `boards["2"]` and edit only the new entry. Keep board 1 and its scoring/ranking meaning intact. Deploy the Worker, then change the game's `BOARD` to 2, run the checker and local tests, stamp links, and deploy the site. If the game has a What's new note (Don't Step on a Crack does), rewrite it in a few short lines for the new board so returning players know why their scores reset. Never reuse an old number. Update tests for the new rules while retaining coverage for historical boards.
+Old boards stay open, including old Arweave copies. This is the exception to the repository's no-backward-compatibility rule. Local best keys include BOARD and are not migrated. Each game has a `boards` object whose keys are positive board numbers and whose values contain that board's full rules. For example, to bump from 1 to 2, copy `boards["1"]` to `boards["2"]` and edit only the new entry. Keep board 1 and its scoring/ranking meaning intact. Deploy the Worker, then change the game's `BOARD` to 2, run the checker and local tests, write the What's new note, stamp links, and deploy the site. Never reuse an old number. Update tests for the new rules while retaining coverage for historical boards.
 
 Test boards (all numbers ≤ 0) use the full rules of the newest positive board, chosen by numeric board number, independently for each game. Thus every new smoke run tests the current rules; test board 0 is still supported. Old positive boards always use their own entries, even when the newest board changes direction, limits, meta or tie-breaks.
+
+### What's new notes
+
+Every board bump resets the high scores, so it comes with a note that tells returning players why. A game without a note gets one at its next bump. Changes that keep the board get no note.
+
+- **Where:** a "What's new" button on the title screen, next to High scores. Anyone can open it.
+- **The dot:** the button has a dot until the note has been opened once on that device. Store the board it was opened for (for example `dsotc-news-seen`), so the next bump brings the dot back. If storage fails, show no dot rather than one that never goes away. With reduced motion, the dot doesn't pulse.
+- **What it says:** only the latest change, in a few short lines (about four), then one line saying the high scores start over because the rules changed. No history; older boards are listed in the game's living doc.
+- **The date:** a small line under the heading with the day the change goes live ("October 7, 2026", in a `<time>` element). Updates can be frequent, so the day matters, not just the month. If the merge slips, fix the date before deploying.
+- **Old best:** if the device has a local best from an earlier board, show it ("Your best before: 312 ft").
+- **Behaviour:** a dialog over the title screen with one button. Focus moves to the button, and Esc closes it. A key that would start the game closes the note instead of starting a run. It never appears during a run or on the end screen.
+- **Where the text lives:** in the game's own page, tagged with the board it describes (Crack uses `data-board` on its `#news` card), so a bump is one edit. Style it like the game.
+
+Don't Step on a Crack is the reference: `openNews` and `syncNews` in its `game.js`, and the `#news` card in its `index.html`.
 
 ## games.json field reference
 

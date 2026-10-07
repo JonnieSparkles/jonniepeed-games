@@ -187,6 +187,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .news-list li{display:grid;grid-template-columns:7px minmax(0,1fr);gap:10px;align-items:start}
 .news-list li::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--chalk-yellow);margin-top:.5em}
 #news .card p{margin:0}
+#news .card .news-date{margin-top:-8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
 #news .card p b{color:var(--ink)}
 @media (min-aspect-ratio:5/4){
   .t-wrap{max-width:920px;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"head mom" "act how";column-gap:48px;row-gap:26px;align-items:center}
@@ -413,10 +414,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
       </div>
     </div>
 
-    <!-- What's new: only the latest board change. On a board bump, rewrite it and set data-board to the new BOARD. -->
+    <!-- What's new: only the latest board change. On a board bump, rewrite it, set data-board to the new BOARD,
+         and set the date to the day it goes live. -->
     <div id="news" class="screen" data-board="2" hidden>
       <div class="card" role="dialog" aria-modal="true" aria-labelledby="newsTitle">
         <h2 class="chalky" id="newsTitle">What's new</h2>
+        <p class="news-date"><time datetime="2026-10-07">October 7, 2026</time></p>
         <ul class="news-list">
           <li>Squirrels make you jump back.</li>
           <li>Heelies land where they stop.</li>

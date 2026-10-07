@@ -8,6 +8,7 @@ Follow the **Standards** section in README.md on every change. In short:
 - No backward compatibility: delete old paths, no redirects.
 - Before adding scores to a game, or changing scoring, `BOARD` or `scores/games.json`, read `docs/guides/00-leaderboards.md`.
 - Scoring or ranking changes bump the board; deploy the Worker first.
+- Every board bump updates the game's What's new note, or adds one: the latest change only, in a few short lines. See "What's new notes" in `docs/guides/00-leaderboards.md`.
 - The scores API stays backward compatible: never rename game IDs, remove boards or meta keys, narrow meta ranges, or change `/v1/`.
 - Run `python3 tools/check_boards.py` after touching `BOARD` or `games.json`.
 - Studio name is JonniePeed Games (capital P).
