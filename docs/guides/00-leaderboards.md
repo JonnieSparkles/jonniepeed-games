@@ -1,4 +1,6 @@
-# Online leaderboards
+# 00: Online leaderboards
+
+Built from [SPEC-001](../../specs/SPEC-001-leaderboards.md), which records the decisions and why. This guide is the source of truth for how things work now.
 
 Shared arcade boards hold the top 50 runs for each game in `scores/games.json`. Each run has three initials, a score and an input icon. Every run counts; there are no accounts, rate limits or admin page. Games show their top 10 at game over, plus the player's row if it is lower. **See all** opens a scrollable list of 50 inside the end screen. The initials picker uses buttons and keyboard controls, never a phone text keyboard. Failed or timed-out API calls leave the game playable.
 
