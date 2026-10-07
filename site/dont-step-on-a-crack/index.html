@@ -259,19 +259,21 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 /* Arcade board, styled for this game's end screen.
    Top 10 shows in full; "See all" scrolls inside the phone. While the initials picker is open,
    the phone's own buttons hide (.lb-entering) so there's one decision at a time. */
-#board{width:100%;min-width:0;display:grid;gap:8px;justify-items:center;margin:0 0 14px}
-#board h3{font-family:var(--f-chalk);font-weight:400;font-size:22px;line-height:1.1;margin:0;color:var(--chalk-yellow)}
-#board .lb-message{font-size:14px;margin:0;color:var(--ink-dim)}
+.lb-box{width:100%;min-width:0;display:grid;gap:8px;justify-items:center;margin:0 0 14px}
+.lb-box h3{font-family:var(--f-chalk);font-weight:400;font-size:22px;line-height:1.1;margin:0;color:var(--chalk-yellow)}
+.lb-box .lb-message{font-size:14px;margin:0;color:var(--ink-dim)}
 .lb-entry{display:grid;gap:12px;justify-items:center}
 .lb-slots{display:flex;justify-content:center;gap:10px}
 .lb-slot{display:grid;gap:3px;justify-items:center}
-#board .lb-button{font:inherit;font-size:12px;border:1px solid rgba(243,239,230,.3);border-radius:10px;background:#282b23;color:var(--ink);padding:0;width:50px;min-height:36px;cursor:pointer;box-shadow:none}
-#board .lb-letter{font-family:var(--f-chalk);font-size:28px;min-height:50px}
-#board .lb-current .lb-letter{border-color:var(--chalk-yellow);box-shadow:0 0 0 2px var(--chalk-yellow)}
+.lb-box .lb-button{font:inherit;font-size:12px;border:1px solid rgba(243,239,230,.3);border-radius:10px;background:#282b23;color:var(--ink);padding:0;width:50px;min-height:36px;cursor:pointer;box-shadow:none}
+.lb-box .lb-letter{font-family:var(--f-chalk);font-size:28px;min-height:50px}
+.lb-box .lb-current .lb-letter{border-color:var(--chalk-yellow);box-shadow:0 0 0 2px var(--chalk-yellow)}
 .lb-actions{display:flex;justify-content:center;align-items:center;gap:14px}
-#board .lb-ok{width:auto;min-height:44px;padding:10px 30px;border:0;border-radius:999px;font-weight:700;font-size:16px;background:var(--leaf);color:#21160a;box-shadow:0 4px 0 var(--leaf-deep)}
-#board .lb-skip{width:auto;min-height:44px;padding:0 8px;border:0;background:none;color:var(--ink-dim);font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.lb-box .lb-ok{width:auto;min-height:44px;padding:10px 30px;border:0;border-radius:999px;font-weight:700;font-size:16px;background:var(--leaf);color:#21160a;box-shadow:0 4px 0 var(--leaf-deep)}
+.lb-box .lb-skip{width:auto;min-height:44px;padding:0 8px;border:0;background:none;color:var(--ink-dim);font-size:14px;text-decoration:underline;text-underline-offset:3px}
 #after.lb-entering>.stack{display:none}
+/* title-screen scores: centred when it fits, scrolls from the top when it doesn't */
+#scores{place-items:start center}#scores .card{margin:auto}#titleBoard>h3{display:none}
 .lb-list{width:100%}
 .lb-list.lb-all{max-height:min(280px,45dvh);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
 .lb-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
@@ -287,11 +289,11 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .lb-gap td{text-align:center;color:var(--ink-dim);padding:0;line-height:1}
 .lb-input{width:16px;height:16px;vertical-align:middle;color:var(--ink-dim)}
 .lb-you .lb-input{color:var(--ink)}
-#board .lb-more{min-height:32px;padding:4px 8px;border:0;background:none;box-shadow:none;color:var(--ink-dim);font:inherit;font-size:13px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-#board .lb-more:hover{color:var(--ink)}
+.lb-box .lb-more{min-height:32px;padding:4px 8px;border:0;background:none;box-shadow:none;color:var(--ink-dim);font:inherit;font-size:13px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.lb-box .lb-more:hover{color:var(--ink)}
 .lb-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-#board button:focus-visible,.lb-list:focus-visible{outline:2px solid var(--chalk-yellow);outline-offset:2px}
-#board button:disabled{opacity:.6;cursor:wait}
+.lb-box button:focus-visible,.lb-list:focus-visible{outline:2px solid var(--chalk-yellow);outline-offset:2px}
+.lb-box button:disabled{opacity:.6;cursor:wait}
 /* short landscape phones: stats in one row, smaller avatar, so the board fits */
 @media (orientation:landscape) and (max-height:500px){
   .phone{width:min(420px,100%);padding:16px 18px 14px}
@@ -367,6 +369,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
         <div class="t-act">
           <button id="start" class="btn primary" type="button">Start walking</button>
           <div class="tools">
+            <button class="btn ghost" id="scoresBtn" type="button" hidden>High scores</button>
             <button class="btn ghost snd" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="w" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Sound on</span></button>
             <button class="btn ghost fsb" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path class="in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="out" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Full screen</span></button>
           </div>
@@ -391,6 +394,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
       </div>
     </div>
 
+    <div id="scores" class="screen" hidden>
+      <div class="card" role="dialog" aria-modal="true" aria-labelledby="scoresTitle">
+        <h2 class="chalky" id="scoresTitle">High scores</h2>
+        <section id="titleBoard" class="lb-box" aria-label="Online high scores"></section>
+        <button id="scoresBack" class="btn ghost" type="button">Back</button>
+      </div>
+    </div>
+
     <div id="over" class="over" hidden>
       <div class="phone" id="phone" role="dialog" aria-modal="true" aria-labelledby="caller">
         <div class="av-wrap"><canvas class="avatar" id="avatar" aria-hidden="true"></canvas></div>
@@ -407,7 +418,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
           </dl>
           <p class="meta" id="sChat"></p>
           <p class="meta" id="sMeta"></p>
-          <section id="board" aria-label="Online high scores" hidden></section>
+          <section id="board" class="lb-box" aria-label="Online high scores" hidden></section>
       <div class="stack">
             <button id="again" class="btn primary" type="button">Walk it again</button>
             <button id="overTitle" class="btn ghost" type="button">Title screen</button>
@@ -419,6 +430,6 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 </div>
 <script src="audio.js?v=ee24ca3134"></script>
 <script src="../assets/leaderboard.js?v=8745bbbf93"></script>
-<script src="game.js?v=4b8514d392"></script>
+<script src="game.js?v=6d60ef5e78"></script>
 </body>
 </html>

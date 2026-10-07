@@ -118,7 +118,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .lb-ask{display:none;gap:8px;justify-items:center}
 .lb-asking .lb-ask{display:grid;animation:lb-in .3s ease-out}
 .lb-note{margin:0;font-family:var(--display);font-size:15px;color:var(--sun)}
-.lb-checking>.btns,.lb-checking>#introBtn,.lb-asking>.btns,.lb-asking>#introBtn,.lb-entering>.btns,.lb-entering>#introBtn{display:none!important}
+.lb-checking>.btns,.lb-checking>#introBtn,.lb-checking>#scoresBtn,.lb-asking>.btns,.lb-asking>#introBtn,.lb-asking>#scoresBtn,.lb-entering>.btns,.lb-entering>#introBtn,.lb-entering>#scoresBtn{display:none!important}
 .lb-entering #board{animation:lb-in .3s ease-out}
 #board .lb-add{color:var(--sun)}
 @keyframes lb-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
@@ -183,6 +183,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
         </div>
       </div>
       <button id="introBtn" class="link" type="button" hidden>Play with the intro</button>
+      <button id="scoresBtn" class="link" type="button" aria-expanded="false" aria-controls="board" hidden>High scores</button>
       <section id="board" aria-label="Online high scores" hidden></section>
     </div>
   </div>
@@ -191,6 +192,6 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 </main>
 <script src="audio.js?v=f8449e8012"></script>
 <script src="../assets/leaderboard.js?v=8745bbbf93"></script>
-<script src="game.js?v=997e406219"></script>
+<script src="game.js?v=c7c2fc74a0"></script>
 </body>
 </html>

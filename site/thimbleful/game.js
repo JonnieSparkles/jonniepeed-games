@@ -60,6 +60,7 @@ function lbPhase(name) {
 function clearLeaderboard() {
   if (lbEntry) lbEntry.destroy();
   if (lbRun) clearTimeout(lbRun.waitTimer);
+  if (scoresOpen) { scoresOpen = false; scoresReq++; }
   lbEntry = null; lbRun = null; lbBox.replaceChildren(); lbBox.hidden = true;
   lbPhase(null);
 }
@@ -198,9 +199,38 @@ function hud() {
   regained = -1;
 }
 function showCard(title, text, goLabel) {
+  closeScores(); syncScoresBtn();
   ovTitle.textContent = title; ovText.textContent = text; go.textContent = goLabel; syncIntroBtn();
   overlay.hidden = false; skipBtn.hidden = true; leaveBtn.hidden = true;
 }
+
+// High scores from the title card. The list opens below the buttons, so nothing moves under a finger.
+const scoresBtn = $('scoresBtn');
+let scoresReq = 0, scoresOpen = false;
+function syncScoresBtn() {
+  scoresBtn.hidden = state !== 'title' || !window.Leaderboard;
+  scoresBtn.textContent = scoresOpen ? 'Hide scores' : 'High scores';
+  scoresBtn.setAttribute('aria-expanded', String(scoresOpen));
+}
+function closeScores() {
+  if (!scoresOpen) return;
+  scoresOpen = false; scoresReq++;
+  if (state === 'title') { lbBox.replaceChildren(); lbBox.hidden = true; }
+  syncScoresBtn();
+}
+function openScores() {
+  const req = ++scoresReq;
+  scoresOpen = true; syncScoresBtn();
+  const say = text => { const p = document.createElement('p'); p.className = 'lb-message'; p.setAttribute('role', 'status'); p.textContent = text; lbBox.replaceChildren(p); lbBox.hidden = false; };
+  say('Loading the scores…');
+  Leaderboard.load('thimbleful', BOARD).then(data => {
+    if (req !== scoresReq || !scoresOpen) return;
+    if (!data) say('Couldn’t load the scores. Try again in a moment.');
+    else if (!data.scores.length) say('No scores yet. Be the first!');
+    else { drawLeaderboard(data.scores); lbBox.scrollIntoView({ block: 'nearest' }); }
+  });
+}
+scoresBtn.addEventListener('click', () => scoresOpen ? closeScores() : openScores());
 
 function start(withIntro) {
   resetLeaderboard();
@@ -659,6 +689,6 @@ function draw() {
 
 let lastT = 0;
 function loop(t) { const dt = Math.min(0.05, ((t - lastT) / 1000) || 0); lastT = t; update(dt); draw(); requestAnimationFrame(loop); }
-hud(); syncIntroBtn();
+hud(); syncIntroBtn(); syncScoresBtn();
 if (location.hash === '#watch') watch();
 requestAnimationFrame(loop);

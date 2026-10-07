@@ -73,10 +73,10 @@ function showLeaderboard() {
     onSkip() { if (run.busy) return; finish(data.scores, null); }
   });
 }
-function drawLeaderboard(scores, highlight = null, all = false) {
+function drawLeaderboard(scores, highlight = null, all = false, box = lbBox) {
   // Top 10 shows in full (no inner scroll). "See all" shows all 50 in a scrolling list.
   // Your row is scrolled into view either way.
-  lbBox.replaceChildren();
+  box.replaceChildren();
   const cols = [['Rank', '#'], ['Name', 'Name'], ['Feet', 'Feet'], ['Streak', 'Streak'], ['Input', '']];
   const title = document.createElement('h3'); title.textContent = 'High scores';
   const list = document.createElement('div'); list.className = all ? 'lb-list lb-all' : 'lb-list';
@@ -107,12 +107,12 @@ function drawLeaderboard(scores, highlight = null, all = false) {
     const player = scores.find(row => row.rank === highlight);
     if (player) { const gap = body.insertRow(); gap.className = 'lb-gap'; const cell = gap.insertCell(); cell.colSpan = cols.length; cell.textContent = '⋯'; addRow(player); }
   }
-  list.append(table); lbBox.append(title, list);
+  list.append(table); box.append(title, list);
   if (scores.length > 10) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more';
     button.textContent = all ? 'Show top 10' : `See all ${scores.length}`;
-    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all); lbBox.querySelector('.lb-more').focus({ preventScroll: true }); });
-    lbBox.append(button);
+    button.addEventListener('click', () => { drawLeaderboard(scores, highlight, !all, box); box.querySelector('.lb-more').focus({ preventScroll: true }); });
+    box.append(button);
   }
   if (you) requestAnimationFrame(() => you.scrollIntoView({ block: 'nearest' }));
 }
@@ -2053,7 +2053,7 @@ function goTitle(){
   showScreen(titleEl,true); syncBest(); releaseWake();
 }
 function startGame(){
-  resetLeaderboard();
+  resetLeaderboard(); titleBox.replaceChildren();
   afterEl.hidden=true;
   sfx.init(); sfx.quiet=false; sfx.start();
   overEl.hidden=true; showScreen(pauseEl,false);
@@ -2077,6 +2077,30 @@ function resumeGame(){
   if(phase==='roll'&&rl&&!rl.stop) rl.stop=sfx.glide();
   mode='play'; sfx.click(); showScreen(pauseEl,false); requestWake();
 }
+/* High scores from the title screen: its own screen over the title, with Back */
+const scoresEl=$('#scores'), titleBox=$('#titleBoard'), scoresBtn=$('#scoresBtn'), scoresBack=$('#scoresBack');
+let scoresReq=0;
+function openScores(){
+  const req=++scoresReq;
+  const say=t=>{const p=document.createElement('p'); p.className='lb-message'; p.setAttribute('role','status'); p.textContent=t; titleBox.replaceChildren(p);};
+  say('Loading the scores…');
+  showScreen(scoresEl,true);
+  try{scoresBack.focus({preventScroll:true});}catch(_){}
+  Leaderboard.load('dont-step-on-a-crack',BOARD).then(data=>{
+    if(req!==scoresReq||scoresEl.hidden) return;
+    if(!data) say('Couldn’t load the scores. Try again in a moment.');
+    else if(!data.scores.length) say('No scores yet. Be the first!');
+    else drawLeaderboard(data.scores,null,false,titleBox);
+  });
+}
+function closeScores(){
+  if(scoresEl.hidden) return;
+  scoresReq++; showScreen(scoresEl,false);
+  try{scoresBtn.focus({preventScroll:true});}catch(_){}
+}
+if(window.Leaderboard) scoresBtn.hidden=false;
+scoresBtn.addEventListener('click',()=>{sfx.click(); openScores();});
+scoresBack.addEventListener('click',()=>{sfx.click(); closeScores();});
 $('#start').addEventListener('click',startGame);
 $('#pauseBtn').addEventListener('pointerdown',e=>e.stopPropagation());
 $('#pauseBtn').addEventListener('click',e=>{pauseGame(); if(e.detail) e.currentTarget.blur();});
@@ -2153,6 +2177,7 @@ window.addEventListener('keydown',e=>{
   if(e.metaKey||e.ctrlKey||e.altKey) return;
   if(k==='KeyM'&&!e.repeat){toggleSound(); return;}
   if(k==='KeyF'&&!e.repeat){toggleFull(); return;}
+  if(!scoresEl.hidden){if(k==='Escape'&&!e.repeat) closeScores(); return;}
   if((k==='Escape'||k==='KeyP')&&!e.repeat){if(mode==='play') pauseGame(); else if(mode==='paused') resumeGame(); return;}
   if((k==='Space'||k==='Enter')&&onBtn) return;
   if(mode==='title'){if((k==='Space'||k==='Enter')&&!e.repeat){e.preventDefault(); startGame();} return;}

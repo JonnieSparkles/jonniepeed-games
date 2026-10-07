@@ -42,6 +42,34 @@ def start(page, game):
         page.evaluate('introSeen=true; start();')
     else: page.evaluate('startGame();')
 
+def title_scores(page, game, size, label):
+    # The title screen can show the board without starting a run, and nothing under the buttons moves.
+    assert page.evaluate('lbRun')is None
+    btn=page.locator('#scoresBtn'); btn.wait_for(state='visible')
+    if game=='thimbleful':
+        go=page.locator('#go'); pos=lambda: go.evaluate('(e)=>{const r=e.getBoundingClientRect(); return [r.left+scrollX, r.top+scrollY, r.width, r.height]}'); before=pos()
+        btn.click(); page.locator('#board .lb-table').wait_for()
+        assert page.locator('#board .lb-table tbody tr').count()==10
+        assert pos()==before,(label,before,pos()); assert btn.inner_text()=='Hide scores'
+        page.evaluate('setFull(true)')   # in full screen the card has to fit the screen (scrolling inside); inline, the page scrolls
+        box=page.locator('.card').bounding_box()
+        assert box['y']>=-1 and box['y']+box['height']<=size['height']+1,(label,box,size)
+        page.evaluate('setFull(false)')
+        btn.click(); assert page.locator('#board').is_hidden() and btn.inner_text()=='High scores'
+    else:
+        btn.click(); page.locator('#titleBoard .lb-table').wait_for()
+        assert page.locator('#titleBoard .lb-table tbody tr').count()==10
+        page.evaluate('document.activeElement.blur()')   # Enter on the focused Back button would just press Back
+        page.keyboard.press('Enter'); assert page.evaluate('mode')=='title'   # Enter must not start the game under the list
+        page.get_by_role('button',name=re.compile(r'^See all \d+$')).click()
+        assert page.locator('#titleBoard .lb-table tbody tr').count()==50
+        top=page.locator('#scores .card').evaluate('(e)=>e.offsetTop')
+        assert top>=0,(label,top)                                # the screen scrolls when the card is taller than the window; the top is never cut off
+        page.locator('#scoresBack').scroll_into_view_if_needed(); back=page.locator('#scoresBack').bounding_box()
+        assert back['y']>=0 and back['y']+back['height']<=size['height']+1,(label,back,size)
+        page.keyboard.press('Escape'); page.locator('#scores').wait_for(state='hidden')
+        assert page.evaluate('mode')=='title'
+
 def suite(page, game, size, label):
     board=-secrets.randbelow(2**45)-1
     seed(game,board)
@@ -57,6 +85,7 @@ def suite(page, game, size, label):
     errors=[]; page.on('pageerror',lambda e:errors.append(str(e)))
     page.goto(f'http://127.0.0.1:8000/{game}/index.html'); page.evaluate('document.fonts.ready')
     assert page.locator('#board').is_hidden()
+    title_scores(page,game,size,label)
     start(page,game)
     first_id=page.evaluate('lbRun.id')
     # Menu touches must not count; actual play-area pen input must count.
@@ -105,7 +134,7 @@ def suite(page, game, size, label):
     assert parent['y']+parent['height']<=size['height']+1,(label,parent,size)
     page.screenshot(path=str(ARTIFACTS/f'{game}-{label}.png'))
     assert not errors,errors
-    print(f'PASS {game} {label}: OK, Skip, nonqualification, input, shortcuts, gap row, 50-row scrolling and end-screen fit',flush=True)
+    print(f'PASS {game} {label}: OK, Skip, nonqualification, input, shortcuts, gap row, 50-row scrolling and end-screen fit, title-screen scores',flush=True)
 
 with sync_playwright() as p:
     browser=p.chromium.launch(**({'executable_path': os.environ['CHROMIUM']} if os.environ.get('CHROMIUM') else {}))
