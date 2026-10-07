@@ -1155,7 +1155,6 @@ const T={
   heelies:["are you wearing heelies. technically that's not stepping. I'll allow it","heelies?? what year is it","ROLL sweetie. roll"],
   moon:["moon shoes. MOON SHOES. I can feel every landing","those were recalled in 1994","you'll put your eye out. or my back out"],
   ballerina:["are you on your TOES. that's the nicest thing you've done for my back","tiptoe sweetie. like you're sneaking past my lumbar","I did ballet for one year. 1971. ask me about my hips"],
-  rolledStop:["you STOPPED on it. on purpose?? with wheels??","wheels stop somewhere sweetie. pick the somewhere"],
   squirrel:["was that a squirrel. did you scream","you jumped back so fast my coffee jumped","the squirrels have always had it out for this family","it's a squirrel. you're a person. be the bigger animal"],
   leash:["a leash is a line. lines are spines. I don't make the rules","tell mrs shmookie I said hi. and that I hate her dog","calzone AGAIN??"],
   couponFine:["a coupon? I'm fine. use it on your legs","save it. you'll need it on quarry ln"],
@@ -1491,19 +1490,22 @@ function drawDogDanger(){
 
 /* ---------- power-ups: a pair of shoes on the sidewalk, step on them to put them on ---------- */
 // Heelies: you roll for a few seconds. Wheels aren't steps, so cracks don't count, and things bounce off you.
-//   Hold a side (or slide your thumb, or the arrow keys) to lean that way. Where the wheels stop, you land:
-//   both feet count, so steer the stop onto clean concrete. Its footprints show for the last stretch.
-// Moon shoes: for a while every jump clears a whole slab, and you can see and steer where it lands.
+//   Hold a side (or slide your thumb, or the arrow keys) to lean that way. When time runs out the wheels glide to
+//   the nearest clean spot ahead (you can only steer sideways, and joints run the full width), and the stop never
+//   counts as a landing, so it never hurts Mom.
+// Moon shoes: for a while every jump clears a whole slab, and you aim it in the air: left, right, near or far.
 // Ballerina shoes: you walk on your toes, so only the front of each shoe counts, but your steps are shorter.
 // Picking up the pair you're already wearing adds half their time. A different pair swaps.
 const POW={heelies:{name:'Heelies',dur:6,col:'#9be15d'},moon:{name:'Moon shoes',dur:15,col:'#8fc7ff'},ballerina:{name:'Ballerina shoes',dur:10,col:'#f7a8c4'}};
-const ROLL_SHOW=1.6;                              // seconds before heelies stop that their stopping spot shows
+const COAST_MAX=2.5;                              // ft the wheels may roll on past the end to stop on clean ground
+const MOON={near:3,far:6,start:4.6,aim:4,dur:1.1};  // moon jump: landing range ahead of your front foot (ft), aim speed (ft/s), air time (s)
 let pow=null, pendingPow=null, rl=null;
 const powEl=$('#power'), powName=$('#powName'), powBar=$('#powBar');
 function powReset(){if(rl&&rl.stop) rl.stop(); pow=null; pendingPow=null; rl=null; powEl.hidden=true; powEl.classList.remove('ending');}
 function startPower(kind,now){
   if(pow&&pow.kind===kind){                       // another pair of the same: more time, not a fresh start
     const add=POW[kind].dur/2; pow.until+=add; pow.full=Math.max(pow.full,pow.until-now);
+    if(rl) rl.park=null;                          // picked up while gliding to a stop: keep rolling
     sfx.earn(); say(`More ${POW[kind].name.toLowerCase()}.`,`+${add} seconds.`,1100);
     return;
   }
@@ -1513,13 +1515,13 @@ function startPower(kind,now){
   sfx.earn();
   if(kind==='heelies'){
     const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0), d=Math.max(L.d,Rt.d);
-    rl={x:clamp((L.x+Rt.x)/2,0.8,WS-0.8),d,v:0,lean:0,joint:slabIdx(d),stop:sfx.glide()};
+    rl={x:clamp((L.x+Rt.x)/2,0.8,WS-0.8),d,v:0,lean:0,st:0.3,joint:slabIdx(d),stop:sfx.glide()};
     phase='roll'; input.q=[];
     if(dog.state==='chase'){dog.state='leave'; dog.leaveT=0;}
-    sayNow('Heelies!',coarse?"Wheels aren't steps. Hold a side to lean, and stop somewhere clean.":"Wheels aren't steps. Lean with the mouse or A and D, and stop somewhere clean.",1900);
+    sayNow('Heelies!',coarse?"Wheels aren't steps. Hold a side to lean.":"Wheels aren't steps. Lean with the mouse, or A and D.",1600);
     momText(T.heelies);
   } else if(kind==='moon'){
-    sayNow('Moon shoes!','Every jump clears a slab. Steer it in the air.',1700);
+    sayNow('Moon shoes!',coarse?'Jump, then slide your thumb to aim: left, right, near or far.':'Jump, then aim with the arrow keys: left, right, near or far.',1900);
     momText(T.moon);
   } else {
     sayNow('Ballerina shoes!','On your toes: only the front of your shoe counts. Shorter steps.',1900);
@@ -1529,23 +1531,27 @@ function startPower(kind,now){
 function endPower(now){
   const k=pow.kind; pow=null; powEl.hidden=true; powEl.classList.remove('ending'); sfx.disarm();
   if(k==='heelies'){
-    if(phase==='roll'&&!stopRolling(now)&&mode==='play') say('Heelies off.','Clean stop.',1100);
+    if(phase==='roll') stopRolling(now);
+    say('Heelies off.','Back to walking.',1100);
   } else say(k==='moon'?'Moon shoes off.':'Back on your heels.','',1000);
 }
-// The wheels stop and both feet come down where they are, like a two-foot landing: a crack under either counts once.
-// Returns true if that hurt Mom.
+// The wheels stop and you're standing where they stopped. Not a landing: it never hurts Mom.
 function stopRolling(now){
   if(rl&&rl.stop) rl.stop(); rl=null; phase='idle'; lastStepAt=now; input.q=[];
-  const was=hp, j={hurt:false,roll:true}; jp=j;
-  for(const f of [front,back]){
-    drop={foot:f,x:f.x,d:f.d,t:0,dur:0,fx:f.x,fd:f.d,fl:0,jump:true,roll:true};
-    land(now);
-    if(mode!=='play'||jp!==j) break;
+  for(const f of feet) puffs.push({x:f.x,d:f.d,t:now,r:Math.random()*6,s:0.8});
+  sfx.step();
+}
+// When time runs out, the nearest spot ahead (within COAST_MAX, drifting up to PARK_SIDE sideways) where both
+// feet are clear of every crack, line and pothole. Null if there's none, rare on Quarry Ln; then they stop straight ahead.
+const PARK_SIDE=1.5;
+function findPark(){
+  let best=null;
+  for(let dd=0;dd<=COAST_MAX+1e-9;dd+=0.1) for(let dx=-PARK_SIDE;dx<=PARK_SIDE+1e-9;dx+=0.25){
+    const x=clamp(rl.x+dx,0.75,WS-0.75), d=rl.d+dd, cost=dd+Math.abs(x-rl.x)*1.5, near=slabsNear(d);
+    if(best&&cost>=best.cost) continue;
+    if(!footHits(x-0.45,d,near).length&&!footHits(x+0.45,d,near).length) best={x,d,cost};   // feet side by side when stopped
   }
-  if(jp===j) jp=null;
-  const hurt=hp<was||mode!=='play';
-  if(hurt&&mode==='play') momText(T.rolledStop,{chance:0.5});
-  return hurt;
+  return best;
 }
 function powUpdate(dt,now){
   if(mode!=='play') return;
@@ -1556,23 +1562,28 @@ function powUpdate(dt,now){
   const left=pow.until-now;
   powBar.style.width=`${clamp(left/pow.full*100,0,100).toFixed(1)}%`;
   powEl.classList.toggle('ending',left<1.5);
-  if(left<=0&&(pow.kind==='heelies'||phase!=='jump')) endPower(now);   // moon shoes finish the jump you're in
-}
-// where the heelies will stop if you keep doing what you're doing (same easing as rollUpdate)
-function rollStopAt(left){
-  let v=rl.v, d=rl.d; const h=1/60;
-  for(let t=left;t>0;t-=h){v+=((t<0.8?2:7)-v)*(1-Math.exp(-h*4)); d+=v*h;}
-  return d;
+  if(left>0) return;
+  if(pow.kind==='heelies'&&phase==='roll'&&rl){
+    // out of time: glide to the nearest clean spot ahead (rollUpdate steers there), then stop
+    if(!rl.park) rl.park=findPark()||{x:rl.x,d:rl.d+COAST_MAX};
+    if(rl.d>=rl.park.d-1e-3&&Math.abs(rl.x-rl.park.x)<0.02&&rl.st<=0) endPower(now);
+  } else if(pow.kind==='heelies'||phase!=='jump') endPower(now);   // moon shoes finish the jump you're in
 }
 function rollUpdate(dt,now,left){
   input.q=[];                                              // taps don't step while you're rolling
   rl.v+=((left<0.8?2:7)-rl.v)*(1-Math.exp(-dt*4));          // they slow down at the end
-  const kd=(held(1)||input.keys.r?1:0)-(held(-1)||input.keys.l?1:0);
-  rl.lean+=(kd-rl.lean)*(1-Math.exp(-dt*8));
-  rl.x=clamp(rl.x+rl.lean*2.8*dt,0.75,WS-0.75);
-  rl.d+=rl.v*dt;
+  if(rl.park){                                             // out of time: gliding to the clean spot picked in powUpdate,
+    rl.x+=clamp(rl.park.x-rl.x,-2.5*dt,2.5*dt);            // and the back foot rolls up beside the front one
+    rl.d=Math.min(rl.park.d,rl.d+Math.max(1,rl.v)*dt);
+    rl.st=Math.max(0,rl.st-1.2*dt);
+  } else {
+    const kd=(held(1)||input.keys.r?1:0)-(held(-1)||input.keys.l?1:0);
+    rl.lean+=(kd-rl.lean)*(1-Math.exp(-dt*8));
+    rl.x=clamp(rl.x+rl.lean*2.8*dt,0.75,WS-0.75);
+    rl.d+=rl.v*dt;
+  }
   const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0);
-  L.x=rl.x-0.45; Rt.x=rl.x+0.45; L.d=rl.d+0.3; Rt.d=rl.d-0.3; front=L; back=Rt;    // one foot a little ahead
+  L.x=rl.x-0.45; Rt.x=rl.x+0.45; L.d=rl.d+rl.st; Rt.d=rl.d-rl.st; front=L; back=Rt;    // one foot a little ahead (rl.st)
   if(L.d>far) far=L.d;
   const j=slabIdx(rl.d); if(j>rl.joint){rl.joint=j; sfx.tick();}
   lastStepAt=now;
@@ -1598,14 +1609,11 @@ function nudge(dx){
   if(!jp.moon) cx=clamp(cx,jp.cx0-0.6,jp.cx0+0.6);
   jp.to[0].x=cx-0.45; jp.to[1].x=cx+0.45;
 }
-// heelies, for the last stretch: where the wheels will stop if you keep leaning the way you are. Both feet count there.
-function drawRollStop(now){
-  if(phase!=='roll'||!rl||!pow) return;
-  const left=pow.until-now; if(left>ROLL_SHOW||left<=0) return;
-  const d=rollStopAt(left);
-  ctx.save(); ctx.globalAlpha=Math.min(1,(ROLL_SHOW-left)/0.3);
-  drawOutline(rl.x-0.45,d+0.3,0,-1,false,false); drawOutline(rl.x+0.45,d-0.3,0,1,false,false);
-  ctx.restore();
+// moon shoes, in the air: push the landing spot farther or pull it nearer (MOON.near to MOON.far ahead of where you took off)
+function nudgeDepth(dd){
+  if(!jp||!jp.moon||jp.herd) return;
+  const d=clamp(jp.to[0].d+dd,jp.base+MOON.near,jp.base+MOON.far);
+  jp.to[0].d=jp.to[1].d=d;
 }
 // heelies: little speed lines past each shoe
 function drawRollLines(now){
@@ -1912,7 +1920,7 @@ try{best=parseInt(localStorage.getItem('dsotc-best-'+BOARD),10)||0; bestStreak=p
 // still up waits its turn, so thumbs can overlap; a foot comes down as soon as its own side is let go.
 // Both sides pressed within JUMP_WIN seconds of each other is a jump instead.
 const JUMP_WIN=0.075;
-const input={ptrs:new Map(),keySide:new Map(),q:[],bot:0,keys:{l:false,r:false},at:{'-1':-9,'1':-9}};
+const input={ptrs:new Map(),keySide:new Map(),q:[],bot:0,keys:{l:false,r:false,u:false,dn:false},at:{'-1':-9,'1':-9}};
 function held(side){
   if(input.bot===side) return true;
   for(const p of input.ptrs.values()) if(p.side===side) return true;
@@ -1945,7 +1953,7 @@ function release(side){
   const t=performance.now()/1000;
   for(const p of input.q) if(p.side===side&&!p.up) p.up=t;
 }
-function clearInput(){input.ptrs.clear(); input.keySide.clear(); input.q=[]; input.bot=0; input.keys.l=input.keys.r=false; input.at={'-1':-9,'1':-9};}
+function clearInput(){input.ptrs.clear(); input.keySide.clear(); input.q=[]; input.bot=0; input.keys.l=input.keys.r=input.keys.u=input.keys.dn=false; input.at={'-1':-9,'1':-9};}
 // Space / W / Up step with whichever foot is due next
 function nextSide(){
   if(phase==='swing') return -sw.foot.side;
@@ -2040,8 +2048,8 @@ const JUMP_DIST=1.5, JUMP_T=0.52;
 function beginJump(now){
   const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0);
   let cx=clamp((L.x+Rt.x)/2,0.75,WS-0.75); cx+=(WS/2-cx)*0.15;
-  const moon=!!(pow&&pow.kind==='moon'), d=Math.max(L.d,Rt.d)+(moon?4.6:JUMP_DIST);
-  jp={t:0,t0:performance.now()/1000,dur:moon?0.95:JUMP_T,moon,cx0:cx,feet:[L,Rt],from:[{x:L.x,d:L.d},{x:Rt.x,d:Rt.d}],to:[{x:cx-0.45,d},{x:cx+0.45,d}]};
+  const moon=!!(pow&&pow.kind==='moon'), base=Math.max(L.d,Rt.d), d=base+(moon?MOON.start:JUMP_DIST);
+  jp={t:0,t0:performance.now()/1000,dur:moon?MOON.dur:JUMP_T,moon,base,cx0:cx,feet:[L,Rt],from:[{x:L.x,d:L.d},{x:Rt.x,d:Rt.d}],to:[{x:cx-0.45,d},{x:cx+0.45,d}]};
   phase='jump'; if(moon) sfx.boing(); else sfx.jump();
   if(tStart===null){tStart=now; momText(T.open);}
 }
@@ -2087,7 +2095,7 @@ function land(now){
   if(feet[0].d>=feet[1].d){front=feet[0]; back=feet[1];} else {front=feet[1]; back=feet[0];}
   puffs.push({x:f.x,d:f.d,t:now,r:Math.random()*6,s:drop.giant?2:1});
   if(mode!=='play') return;                       // the title screen's demo walk counts nothing
-  if(!drop.roll) steps++;
+  steps++;
   // a foot coming down on the squirrel: it squeaks, you jump back (jumps check this before they land)
   if(!drop.jump&&squirrelAt(f.x,f.d)){startle(now); return;}
   // only a step that takes you somewhere new counts toward the clean streak
@@ -2110,7 +2118,7 @@ function land(now){
     const kind=hits.some(h=>h.h)?'hole':hits.some(h=>h.c&&h.c.kind==='line')?'line':'crack';
     const m={crack:['Crack.',"Mom's back."],line:['Line.',"Mom's spine."],hole:['Pothole.',"Mom's whole back."]}[kind];
     const where={crack:'a crack',line:'a line',hole:'a pothole'}[kind];
-    sayNow(drop.roll?`Stopped on ${where}.`:drop.startle?`Jumped back onto ${where}.`:drop.stumble?`Shoved onto ${where}.`:m[0],m[1],1100); kick(10);
+    sayNow(drop.startle?`Jumped back onto ${where}.`:drop.stumble?`Shoved onto ${where}.`:m[0],m[1],1100); kick(10);
     const vj=breakVertebra(now); sfx.static();
     if(kind==='hole') sfx.gravel(); else sfx.crack(kind);
     if(hp>0){
@@ -2355,25 +2363,25 @@ view.addEventListener('pointerdown',e=>{
   if(lbRun&&(e.pointerType==='touch'||e.pointerType==='pen')) lbRun.input='touch';
   sfx.init();
   const rect=view.getBoundingClientRect(), side=(e.clientX-rect.left)<rect.width/2?-1:1;
-  input.ptrs.set(e.pointerId,{side,lastX:e.clientX});
+  input.ptrs.set(e.pointerId,{side,lastX:e.clientX,lastY:e.clientY});
   press(side);
   try{view.setPointerCapture(e.pointerId);}catch(_){}
   e.preventDefault();
 });
 // Dragging a held side steers. A mouse steers just by moving, no button needed, so a keyboard player
 // can lift a foot with A or D and aim it with the mouse.
-function steerBy(dx,side){
-  if(mode!=='play'||!dx) return;
+function steerBy(dx,side,dy=0){
+  if(mode!=='play'||(!dx&&!dy)) return;
   if(phase==='swing'&&(!side||sw.foot.side===side)) sw.x+=dx/K*1.25;
   else if(phase==='roll') rl.x=clamp(rl.x+dx/K*1.25,0.75,WS-0.75);
-  else if(phase==='jump'&&!jp.herd) nudge(dx/K*1.25);
+  else if(phase==='jump'&&!jp.herd){if(dx) nudge(dx/K*1.25); if(dy) nudgeDepth(-dy/K*1.6);}   // moon shoes: up is farther
 }
-let hoverX=null;
+let hoverX=null, hoverY=null;
 view.addEventListener('pointermove',e=>{
   const p=input.ptrs.get(e.pointerId);
-  if(p){const dx=e.clientX-p.lastX; p.lastX=e.clientX; steerBy(dx,p.side); return;}
+  if(p){const dx=e.clientX-p.lastX, dy=e.clientY-p.lastY; p.lastX=e.clientX; p.lastY=e.clientY; steerBy(dx,p.side,dy); return;}
   if(e.pointerType!=='mouse') return;
-  const dx=hoverX===null?0:e.clientX-hoverX; hoverX=e.clientX; steerBy(dx,0);
+  const dx=hoverX===null?0:e.clientX-hoverX, dy=hoverY===null?0:e.clientY-hoverY; hoverX=e.clientX; hoverY=e.clientY; steerBy(dx,0,dy);
 });
 const up=e=>{const p=input.ptrs.get(e.pointerId); if(!p) return; input.ptrs.delete(e.pointerId); release(p.side);};
 for(const ev of ['pointerup','pointercancel','lostpointercapture']) view.addEventListener(ev,up);
@@ -2396,6 +2404,8 @@ window.addEventListener('keydown',e=>{
   if(mode!=='play') return;
   if((k==='KeyS'||k==='KeyG'||k==='ShiftLeft'||k==='ShiftRight')&&!e.repeat){toggleGiant(); return;}
   if(k==='Space'){e.preventDefault(); if(!e.repeat){sfx.init(); keyJump();} return;}
+  if(k==='ArrowUp'||k==='KeyW') input.keys.u=true;                     // also aims a moon jump farther
+  if(k==='ArrowDown'){e.preventDefault(); input.keys.dn=true; return;}   // aims a moon jump nearer
   const footKey={KeyA:-1,KeyD:1,KeyW:0,ArrowUp:0}[k];
   if(footKey!==undefined){
     e.preventDefault();
@@ -2408,13 +2418,15 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>{
   const k=e.code;
+  if(k==='ArrowUp'||k==='KeyW') input.keys.u=false;
+  if(k==='ArrowDown') input.keys.dn=false;
   if(input.keySide.has(k)){const s=input.keySide.get(k); input.keySide.delete(k); release(s);}
   else if(k==='ArrowLeft') input.keys.l=false;
   else if(k==='ArrowRight') input.keys.r=false;
 });
 window.addEventListener('blur',()=>{
   const sides=new Set([...[...input.ptrs.values()].map(p=>p.side),...input.keySide.values()]);
-  input.ptrs.clear(); input.keySide.clear(); input.keys.l=input.keys.r=false;
+  input.ptrs.clear(); input.keySide.clear(); input.keys.l=input.keys.r=input.keys.u=input.keys.dn=false;
   for(const s of sides) release(s);
 });
 
@@ -2455,6 +2467,7 @@ function update(dt,now){
   } else if(phase==='jump'){
     jp.t+=dt;
     if(!jp.herd){const kd=(heldSince(1,jp.t0)||input.keys.r?1:0)-(heldSince(-1,jp.t0)||input.keys.l?1:0); if(kd) nudge(kd*(jp.moon?2.6:1.6)*dt);}
+    if(jp.moon){const kz=(input.keys.u?1:0)-(input.keys.dn?1:0); if(kz) nudgeDepth(kz*MOON.aim*dt);}
     if(jp.t>=jp.dur) landJump(now);
   }
   obsUpdate(dt,now); powUpdate(dt,now);
@@ -2482,7 +2495,7 @@ function render(now){
   const lo=slabIdx(camD-(Hc-yAnchor)/K), hi=slabIdx(camD+yAnchor/K);
   for(let i=hi;i>=lo;i--){const sl=slabs.get(i); if(!sl) continue; const c=getTile(sl); ctx.drawImage(c,0,Y((i+1)*S),Wc,c.height/dpr);}
   drawFallen(lo,hi); drawAnts(now,lo,hi);
-  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(now); drawDog(now); drawObs(now); drawRollStop(now); drawRollLines(now); drawFeet();
+  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(now); drawDog(now); drawObs(now); drawRollLines(now); drawFeet();
   drawFalling(); drawCloud(); drawDogDanger(); drawObsWarn(now);
   drawCam(now);
 }
