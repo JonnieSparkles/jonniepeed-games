@@ -123,6 +123,13 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); G.arc(20, 18, 2.6, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
       [[12, 30], [20, 34], [28, 38]].forEach(function (b) { G.beginPath(); G.ellipse(b[0], b[1], 2.4, 3.6, 0, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill(); });
     },
+    fighter: function (G) {
+      // A small fast plane, nose left, guns blazing.
+      G.beginPath(); SP([11, 21, 30, 21, 35, 14, 39, 14, 36, 21, 42, 21, 42, 24, 36, 24, 39, 31, 35, 31, 30, 24, 11, 24], true, 0.3);
+      G.fillStyle = PAPER; G.fill(); ink(INK, 2); G.stroke();
+      G.beginPath(); G.arc(25, 22.5, 2.4, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
+      G.beginPath(); L(2, 20, 8, 21.5, 0.2); L(2, 25, 8, 23.5, 0.2); ink(HAT, 2.4); G.stroke();
+    },
     // Hiring roles: a blue recruit with the tool of his trade.
     'hire-rifle': function (G) {
       G.save(); G.translate(16, 6); G.scale(0.85, 0.85); stick(0, 0, [8, 12, 13, 8, -5, 33, 5, 33], BLUE, 3); G.restore();

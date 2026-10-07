@@ -65,6 +65,8 @@ var StickArmySound = (function () {
     // rising engine roar under a bright two-note horn).
     rush: function () { tone(2200, 0.12, 'square', 0.04, 1900); tone(2200, 0.18, 'square', 0.04, 1800, 0.16); noise(0.3, 0.08, 1400, 0.05, 'bandpass'); },
     cannon: function () { noise(0.3, 0.3, 300); tone(70, 0.3, 'sine', 0.22, 40); },
+    // Fighter cover: a fast engine whine that climbs as it dives in.
+    fighter: function () { tone(160, 0.9, 'sawtooth', 0.045, 480); noise(0.7, 0.05, 1800, 0, 'bandpass'); brass(784, 0.12, 0.06, 0.15); brass(988, 0.3, 0.07, 0.28); },
     strike: function () { tone(70, 1.6, 'sawtooth', 0.05, 140); noise(1.6, 0.06, 600); brass(587, 0.18, 0.07, 0.1); brass(784, 0.4, 0.08, 0.28); },
     // Zeppelin: a low two-note horn on arrival and when it turns angry, a soft canvas thup per hit, a groan going down.
     horn: function () { brass(98, 0.8, 0.09); brass(73.4, 1.2, 0.09, 0.7); },

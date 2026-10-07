@@ -224,7 +224,7 @@
       coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
-      tanks: [], strikes: 1, strike: null, strikeBombs: [],
+      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
@@ -385,8 +385,10 @@
     S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: 3.5, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
     S.waveState = 'active';
     var sub = c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
-      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === TANK.WAVE ? 'tanks inbound! (B: air strike)' : '';
+      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === TANK.WAVE ? 'tanks inbound! HQ sends an air strike' : '';
     S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
+    // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters.
+    if (n === TANK.WAVE) grantCall('bomber', 200, 380);
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
@@ -441,9 +443,13 @@
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
     { id: 'auto', name: 'Sentry tower', desc: 'A tower beside the bunker shoots down bombs and shells, then low chutes and landers.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
-    { id: 'strike', name: 'Air strike', desc: 'One more call for the bomber. Press B or the plane button.', tier: 'supply', cost: 45, maxStacks: Infinity, apply: function (s) { s.strikes++; } },
+    { id: 'strike', name: 'Air strike', desc: 'A bomber carpets the field and hits tanks hard. Press B or the bomber button.', tier: 'supply', cost: 45, maxStacks: Infinity,
+      available: function () { return callsHeld() < RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },
+    { id: 'fighter', name: 'Fighter cover', desc: 'A fighter makes two passes, gunning down planes and bombs. Press C or the fighter button.', tier: 'supply', cost: 50, maxStacks: Infinity,
+      available: function () { return callsHeld() < RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.fighter++; } },
     { id: 'pizza', name: 'Order a pizza', desc: 'Arrives as the next wave starts: +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function (s) { s.pizzaOrder = true; } }
   ];
+  function radioFull() { return callsHeld() >= RADIO.SLOTS ? 'Radio full' : ''; }
   // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
   [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
    ['engineer', 'Engineer', 40, 'Repairs the wall twice as fast as anyone.'],
@@ -474,10 +480,11 @@
   function costNow(it) { return onHouse(it) ? 0 : price(it); }
   function openShop() {
     S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null; S.delivery = null; washDecals();
-    // Three rotating supplies from one pool (one of them free), air strikes once tanks are near, pizza always,
+    // Three rotating supplies from one pool (one of them free), fighter cover from wave 3, air strikes once tanks
+    // are near, pizza always,
     // and every role for hire.
-    var items = offer(OFFERS, ['pizza', 'strike']), gift = Math.floor(RS() * Math.max(1, items.length));
-    var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= TANK.WAVE - 1); });
+    var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gift = Math.floor(RS() * Math.max(1, items.length));
+    var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= TANK.WAVE - 1) || (it.id === 'fighter' && S.wave >= FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
       gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
     emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
@@ -511,7 +518,7 @@
     makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz) { addText(t, x, y, c, sz); },
-    addDecal: function (d) { addDecal(d); }, id: function () { return nextId++; } };
+    addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } } });
@@ -520,7 +527,9 @@
     hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar,
     RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo,
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
-    STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike;
+    RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
+    STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
+    FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter;
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
     G = g; boil = 0;
@@ -538,6 +547,7 @@
     function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= costNow(it); }
     function costLabel(it) {
       if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
+      if (it.blocked && it.blocked() && !S.shop.bought[it.id]) return it.blocked();
       if (it.tier !== 'hire' && S.shop.bought[it.id]) return 'Packed ✓';
       if (onHouse(it)) return 'Free!';
       var cost = price(it);
@@ -1228,6 +1238,7 @@
     updateTroopers(dt);
     updateTanks(dt);
     updateStrike(dt);
+    updateFighter(dt);
     updateRecruits(dt);
     updateAutoTurret(dt);
     updateBullets(dt);
@@ -1679,6 +1690,7 @@
     S.troopers.forEach(function (t) { if (!t.dead) drawTrooper(t); });
     S.tanks.forEach(drawTank);
     drawStrike();
+    drawFighter();
     if (S.mode === 'dying' || S.mode === 'over') drawRubble(); else { drawSentry(); drawBunker(); drawDefenses(); }
     S.recruits.forEach(function (r) { if (!r.dead) drawRecruit(r); });
     drawBullets();
@@ -1696,7 +1708,7 @@
   // ---------- flow ----------
   var titleScreen = document.getElementById('titleScreen'), pauseScreen = document.getElementById('pauseScreen'), overScreen = document.getElementById('overScreen');
   var shopScreen = document.getElementById('shopScreen');
-  var pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn'), strikeBtn = document.getElementById('strikeBtn');
+  var pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn'), strikeBtn = document.getElementById('strikeBtn'), fighterBtn = document.getElementById('fighterBtn');
 
   function titleScene() {
     reset();
@@ -1791,7 +1803,7 @@
   var fullBtn = document.getElementById('fullBtn'), wakeLock = null;
   function setFull(on) {
     wrap.classList.toggle('full', on);
-    fullBtn.textContent = on ? 'Exit full screen' : 'Full screen';
+    fullBtn.querySelector('.full-label').textContent = on ? 'Exit full screen' : 'Full screen';
     fullBtn.setAttribute('aria-pressed', String(on));
     if (on && navigator.wakeLock && !wakeLock) navigator.wakeLock.request('screen').then(function (lock) {
       if (!wrap.classList.contains('full')) { lock.release().catch(function () {}); return; }
@@ -1865,6 +1877,7 @@
     else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
     else if (k === 'p' || k === 'P' || k === 'Escape') { togglePause(); }
     else if ((k === 'b' || k === 'B') && !e.repeat && S.mode === 'play') { callStrike(); }
+    else if ((k === 'c' || k === 'C') && !e.repeat && S.mode === 'play') { callFighter(); }
   });
   window.addEventListener('keyup', function (e) {
     var k = e.key;
@@ -1883,15 +1896,20 @@
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
   pauseBtn.addEventListener('click', togglePause);
   strikeBtn.addEventListener('click', function () { callStrike(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
-  // The strike button shows during play with the charges left; it only touches the DOM when something changed.
-  var strikeShown = '';
-  function syncStrikeBtn() {
-    var key = S.mode === 'play' ? S.strikes + (S.strike ? '*' : '') : '';
-    if (key === strikeShown) return;
-    strikeShown = key;
-    strikeBtn.hidden = S.mode !== 'play';
-    strikeBtn.disabled = S.strikes <= 0 || !!S.strike;
-    document.getElementById('strikeCount').textContent = String(S.strikes);
+  fighterBtn.addEventListener('click', function () { callFighter(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
+  // A call button shows during play while the radio holds that call, with the count; it waits while one is flying.
+  // Only touches the DOM when something changed.
+  var callsShown = '';
+  function syncCallBtns() {
+    var c = S.calls, key = S.mode === 'play' ? [c.bomber, c.fighter, !!S.strike, !!S.fighter].join() : '';
+    if (key === callsShown) return;
+    callsShown = key;
+    strikeBtn.hidden = S.mode !== 'play' || c.bomber <= 0;
+    strikeBtn.disabled = !!S.strike;
+    document.getElementById('strikeCount').textContent = String(c.bomber);
+    fighterBtn.hidden = S.mode !== 'play' || c.fighter <= 0;
+    fighterBtn.disabled = !!S.fighter;
+    document.getElementById('fighterCount').textContent = String(c.fighter);
   }
   muteBtn.addEventListener('click', function () {
     sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
@@ -1918,7 +1936,7 @@
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
     render();
-    syncStrikeBtn();
+    syncCallBtns();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
     requestAnimationFrame(loop);
   }

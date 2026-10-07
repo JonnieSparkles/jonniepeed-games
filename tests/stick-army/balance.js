@@ -50,7 +50,7 @@
         mats: activeTramps().map(function (m) { return { x1: m.x1, x2: m.x2, y: m.y }; }),
         troopers: [], planes: [], bombs: [], recruits: [], shop: null,
         tanks: S.tanks.map(function (tk) { return { id: tk.id, x: tk.x, y: tk.y, state: tk.state, dir: tk.dir, hp: tk.hp }; }),
-        strikes: S.strikes, strikeActive: !!S.strike
+        calls: { bomber: S.calls.bomber, fighter: S.calls.fighter }, strikeActive: !!S.strike, fighterActive: !!S.fighter
       };
       S.troopers.forEach(function (t) {
         if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy });
@@ -73,7 +73,8 @@
       if (S.mode === 'play') {
         if (a.aimAt) aimAt(a.aimAt);
         if ('fire' in a) keys.fire = !!a.fire;
-        if (a.strike) callStrike(); // the strike button and B key call this
+        if (a.strike) callStrike(); // the bomber button and B key call this
+        if (a.fighter) callFighter(); // the fighter button and C key call this
       } else if (S.mode === 'shop') {
         (a.take || []).forEach(function (id) { if (S.mode === 'shop') takeItem(id); });
         if (a.continue && S.mode === 'shop') continueWave();

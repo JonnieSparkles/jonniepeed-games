@@ -108,7 +108,7 @@ var StickArmyUnits = function (w) {
     emit('plane_down', { kind: 'zeppelin', by: owner === 'ally' ? 'crew' : 'player' });
     award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
     S.banner = { s: 'zeppelin down!', sub: 'catch the crew! +1 air strike', t: 0, dur: 2.4 };
-    S.strikes++;
+    grantCall('bomber', p.x, p.y - p.hh - 20);
     S.shake = Math.max(S.shake, 0.5);
     w.sound.play('zepdown');
     for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
@@ -304,21 +304,35 @@ var StickArmyUnits = function (w) {
     G.restore();
   }
 
-  // ---------- air strike ----------
-  // The player's special: a friendly bomber crosses the page and lays a carpet of bombs on the field, sparing the
-  // bunker and the crew. It kills troopers on and near the ground and hits tanks hard. Charges: one at the start of a
-  // run, one per zeppelin downed, and more from the shop.
+  // ---------- radio calls ----------
+  // The player's specials. A bomber run lays a carpet of bombs on the field, sparing the bunker and the crew: it kills
+  // troopers on and near the ground and hits tanks hard. Fighter cover makes two fast passes through the sky, gunning
+  // down planes and bombs. The radio holds RADIO.SLOTS calls of either kind. A run starts with none; HQ sends a
+  // bomber with the first tanks, each zeppelin downed earns one, and the shop sells both.
+  var RADIO = { SLOTS: 2, FULL_TAGS: 40 };
   var STRIKE = { SPEED: 230, Y: 92, BOMBS: 11, FALL: 520 };
+  var FIGHTER = { SPEED: 300, PASSES: [150, 235], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3 };
+  var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
+  function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
+  // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead.
+  function grantCall(kind, x, y) {
+    var S = w.S;
+    if (callsHeld() < RADIO.SLOTS) { S.calls[kind]++; addText(kind === 'bomber' ? '+1 air strike' : '+1 fighter cover', x, y, BLUE, 22); return true; }
+    S.coins += RADIO.FULL_TAGS; w.flyTags(x, y, RADIO.FULL_TAGS);
+    emit('coins', { amount: RADIO.FULL_TAGS, reason: 'radio full' });
+    addText('radio full +' + RADIO.FULL_TAGS + ' tags', x, y, BLUE, 20);
+    return false;
+  }
   function callStrike() {
     var S = w.S;
-    if (S.mode !== 'play' || S.strike || S.strikes <= 0) return false;
-    S.strikes--;
+    if (S.mode !== 'play' || S.strike || S.calls.bomber <= 0) return false;
+    S.calls.bomber--;
     var targets = [];
     for (var i = 0; i < STRIKE.BOMBS; i++) { var x = 24 + i * (W - 48) / (STRIKE.BOMBS - 1); if (Math.abs(x - BK.x) > 46) targets.push(x); }
     S.strike = { x: -90, drops: targets, id: w.id() };
     addText('air strike!', 200, 260, BLUE, 30);
     w.sound.play('strike');
-    emit('air_strike', { wave: S.wave, left: S.strikes });
+    emit('air_strike', { wave: S.wave, left: S.calls.bomber });
     return true;
   }
   function updateStrike(dt) {
@@ -333,6 +347,49 @@ var StickArmyUnits = function (w) {
       if (m.y >= GROUND - 6) { m.dead = true; explode(m.x, GROUND - 4, 36, 'strike', 'ally'); }
     });
     S.strikeBombs = S.strikeBombs.filter(function (m) { return !m.dead; });
+  }
+  function callFighter() {
+    var S = w.S;
+    if (S.mode !== 'play' || S.fighter || S.calls.fighter <= 0) return false;
+    S.calls.fighter--;
+    S.fighter = { pass: 0, dir: 1, x: -60, y: FIGHTER.PASSES[0], cd: 0.2, flash: 0, id: w.id() };
+    addText('fighter cover!', 200, 260, BLUE, 30);
+    w.sound.play('fighter');
+    emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });
+    return true;
+  }
+  // Ahead of the fighter and in range: bombs first (they threaten the bunker), then planes, the zeppelin last.
+  function fighterTarget(f) {
+    var S = w.S, best = null, bd = 1e9;
+    function consider(list, ok, bias) {
+      list.forEach(function (o) {
+        if (!ok(o)) return;
+        var dx = (o.x - f.x) * f.dir, d = Math.hypot(o.x - f.x, o.y - f.y) + bias;
+        if (dx > 10 && d < FIGHTER.RANGE + bias && d < bd) { bd = d; best = o; }
+      });
+    }
+    consider(S.bombs, function (m) { return !m.dead && m.y < GROUND - 70; }, 0);
+    consider(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin'; }, 40);
+    consider(S.planes, function (p) { return p.state === 'fly' && p.kind === 'zeppelin'; }, 200);
+    return best;
+  }
+  function updateFighter(dt) {
+    var S = w.S, f = S.fighter;
+    if (!f) return;
+    f.x += f.dir * FIGHTER.SPEED * dt; f.cd -= dt; f.flash = Math.max(0, f.flash - dt);
+    var tg = f.cd <= 0 && fighterTarget(f);
+    if (tg) {
+      var vx = tg.isBomb ? tg.vx : tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.dir * tg.speed, vy = tg.isBomb ? tg.vy : 0;
+      var nx = f.x + f.dir * 30, tt = Math.hypot(tg.x - nx, tg.y - f.y) / FIGHTER.BULLET;
+      var a = Math.atan2(tg.y + vy * tt - f.y, tg.x + vx * tt - nx) + (w.RC() * 2 - 1) * 0.02;
+      S.bullets.push({ x: nx, y: f.y, vx: Math.cos(a) * FIGHTER.BULLET, vy: Math.sin(a) * FIGHTER.BULLET, owner: 'ally', kind: 'bullet', pierce: 1, hits: [], life: 0.7, dead: false });
+      f.cd = FIGHTER.EVERY; f.flash = 0.04;
+      w.sound.play('ally');
+    }
+    if (f.dir > 0 ? f.x > W + 70 : f.x < -70) {
+      if (++f.pass >= FIGHTER.PASSES.length) { S.fighter = null; return; }
+      f.dir = -f.dir; f.x = f.dir > 0 ? -60 : W + 60; f.y = FIGHTER.PASSES[f.pass];
+    }
   }
   function drawStrike() {
     var S = w.S, G = w.G, st = S.strike;
@@ -350,11 +407,24 @@ var StickArmyUnits = function (w) {
     var pl = w.boil % 2 ? 11 : 6; G.beginPath(); L(-50, -pl, -50, pl, 0.4); ink(INK, 2.3); G.stroke();
     G.restore();
   }
+  function drawFighter() {
+    var f = w.S.fighter, G = w.G;
+    if (!f) return;
+    pen(f.id); G.save(); G.translate(f.x, f.y); G.scale(-f.dir * 0.72, 0.72);
+    G.beginPath(); SP(FIGHTER_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.16)'; G.fill(); ink(INK, 3); G.stroke();
+    G.beginPath(); L(-10, 2, 12, 3); ink(INK, 3.6); G.stroke();
+    G.beginPath(); G.arc(12, -2, 4, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
+    G.beginPath(); G.arc(12, -2, 1.6, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
+    var pl = w.boil % 2 ? 10 : 5; G.beginPath(); L(-38, -pl, -38, pl, 0.4); ink(INK, 2.6); G.stroke();
+    if (f.flash > 0) { G.beginPath(); L(-42, -1, -54, -1, 0.3); L(-42, 2, -52, 5, 0.3); ink(HAT, 3); G.stroke(); }
+    G.restore();
+  }
 
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
     updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, spawnCargo: spawnCargo, updateCargo: updateCargo, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
-    STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike };
+    RADIO: RADIO, callsHeld: callsHeld, grantCall: grantCall, STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike,
+    FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter };
 };

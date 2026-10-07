@@ -64,9 +64,8 @@
   quiet(); S.tanks = [{ id: 98, x: 110, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 9, hitFlash: 0, tread: 0, dead: false }];
   var crew = makeRecruit(4, 'rifle'), crewHp = crew.hp; S.recruits = [crew]; wall = S.wallHP;
   [30, 60, 90].forEach(function (x) { spawnTrooper(x, GROUND - 33); land(S.troopers[S.troopers.length - 1]); });
-  var tankHp = S.tanks[0].hp, charges = S.strikes;
-  check(charges === 1, 'a run starts with one air strike');
-  check(callStrike() && S.strikes === 0 && !callStrike(), 'a strike uses a charge, and only one flies at a time');
+  var tankHp = S.tanks[0].hp; S.calls.bomber = 1;
+  check(callStrike() && S.calls.bomber === 0 && !callStrike(), 'a strike uses a charge, and only one flies at a time');
   play(4);
   check(!S.strike && S.troopers.every(function (t) { return t.dead || t.state !== 'ground'; }), 'the strike clears the ground');
   check(!crew.dead && crew.hp === crewHp && S.wallHP === wall && (S.tanks.length === 0 || S.tanks[0].hp <= tankHp - TANK.BLAST.strike), 'it spares crew and wall and hits the tank');
@@ -74,11 +73,11 @@
   check(seen.indexOf('air_strike') >= 0, 'strikes are logged');
 
   // B calls a strike; the button shows during play with the charges left.
-  S.strikes = 2; S.mode = 'play'; syncStrikeBtn();
+  S.calls.bomber = 2; S.mode = 'play'; syncCallBtns();
   check(!strikeBtn.hidden && !strikeBtn.disabled && document.getElementById('strikeCount').textContent === '2', 'button shows charges');
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }));
-  check(S.strikes === 1 && S.strike, 'B calls a strike');
-  syncStrikeBtn(); check(strikeBtn.disabled, 'button waits while a strike flies');
+  check(S.calls.bomber === 1 && S.strike, 'B calls a strike');
+  syncCallBtns(); check(strikeBtn.disabled, 'button waits while a strike flies');
   emitHook = null;
 
   // Shell aim comes from the combat stream, never from cosmetic randomness.
@@ -105,15 +104,15 @@
   emitHook = null; render();
 
   // Downing a zeppelin earns a charge; the shop sells strikes once tanks are near.
-  newGame(); S.wave = 5; var z = spawnZeppelin(); z.x = 200; var before = S.strikes; z.hp = 1; damagePlane(z, 1, 'player', 200, z.y);
-  check(S.strikes === before + 1, 'a zeppelin earns an air strike');
+  newGame(); S.wave = 5; var z = spawnZeppelin(); z.x = 200; var before = S.calls.bomber; z.hp = 1; damagePlane(z, 1, 'player', 200, z.y);
+  check(S.calls.bomber === before + 1, 'a zeppelin earns an air strike');
   newGame(); S.wave = 4; openShop();
   check(!S.shop.items.some(function (it) { return it.id === 'strike'; }), 'no strikes for sale early');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   newGame(); S.wave = 8; openShop(); var strike = S.shop.items.find(function (it) { return it.id === 'strike'; });
-  S.coins = 100; var had = S.strikes;
-  check(strike && takeItem('strike') && S.strikes === had + 1, 'strikes for sale from wave 8');
+  S.coins = 100; var had = S.calls.bomber;
+  check(strike && takeItem('strike') && S.calls.bomber === had + 1, 'strikes for sale from wave 8');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 
-  RUN.force = null; reset(); syncStrikeBtn(); render();
+  RUN.force = null; reset(); syncCallBtns(); render();
 })();
