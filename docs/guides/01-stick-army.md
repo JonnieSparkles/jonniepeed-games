@@ -4,7 +4,7 @@ Built from [SPEC-002](../../specs/SPEC-002-stick-army.md). The game is at `site/
 
 ## Playing
 
-Aim with the mouse or drag on the page; hold to fire. Arrow keys (or A/D) aim, Space fires, P pauses, and F toggles full screen. The fullscreen button uses the native API where available and fills the window otherwise. The portrait notebook remains centred in landscape.
+Mouse, keyboard and touch all work. With a mouse, aim and hold the button to fire. On touch, touch and hold to fire, and drag to aim. Arrow keys (or A/D) aim, Space fires, P pauses, and F toggles full screen. The fullscreen button uses the native API where available and fills the window otherwise. The portrait notebook remains centred in landscape.
 
 Start with one left trampoline and four squad slots. Shoot a body to kill, or pop a chute in the faint blue band above the mat to recruit. A falling trooper arriving faster than 380 logical pixels per second rips through instead. The band marks the **chute**, not the feet. Larger mats widen the catch area without relaxing the speed limit.
 
