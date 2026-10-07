@@ -195,9 +195,9 @@ var StickArmyUnits = function (w) {
   // ---------- tanks ----------
   // From TANK.WAVE a cargo plane carries a tank on a pallet chute. Shoot the plane down first and the tank goes
   // with it. Landed, the tank rolls to TANK.STOP from the wall (just inside the barrel's dip) and lobs shells at the
-  // bunker. Shells fly like bombs, so they can be shot down. Turret and rifle hits chip it; rockets, mines, crashes
-  // and the air strike hit hard.
-  var TANK = { WAVE: 9, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 40, SHELL_EVERY: 3.6, SHELL_DAMAGE: 8,
+  // bunker. Shells fly like bombs, so they can be shot down. Turret and rifle hits chip it (BULLET each); rockets,
+  // mines, crashes and the air strike hit hard.
+  var TANK = { WAVE: 9, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.6, SHELL_DAMAGE: 8, BULLET: 0.1,
     BLAST: { rocket: 4, mine: 6, crash: 6, strike: 14 } };
   function tankHP(n) { return Math.round(10 + 0.8 * n); }
   function spawnCargo() {
@@ -212,7 +212,7 @@ var StickArmyUnits = function (w) {
     if (p.tankX == null || (p.dir > 0 ? p.x < p.tankX : p.x > p.tankX)) return;
     var S = w.S, hp = tankHP(S.wave);
     S.tanks.push({ id: w.id(), x: p.tankX, y: p.y + 24, state: 'chute', dir: p.tankX < BK.x ? 1 : -1, hp: hp, maxHp: hp,
-      shellT: 1.5, hitFlash: 0, tread: 0, dead: false });
+      shellT: 1, hitFlash: 0, tread: 0, dead: false });
     p.tankX = null;
     emit('tank_drop', { hp: hp });
   }
@@ -232,7 +232,7 @@ var StickArmyUnits = function (w) {
     addDecal({ kind: 'scorch', x: tk.x, y: GROUND - 3, r: 26, color: INK, a: 0.25, seed: tk.id });
   }
   function fireShell(tk) {
-    var S = w.S, x = tk.x + tk.dir * 33, y = tk.y - 19, tx = BK.x + rr(-16, 16), ty = BK.top - 4, T = 1.25;
+    var S = w.S, x = tk.x + tk.dir * 33, y = tk.y - 19, tx = BK.x + rr(-16, 16), ty = BK.top - 4, T = 0.9;
     S.bombs.push({ id: w.id(), x: x, y: y, vx: (tx - x) / T, vy: (ty - y - 0.5 * 260 * T * T) / T, isBomb: true, shell: true, dead: false });
     puff(x + tk.dir * 4, y, 4, 0.6);
     w.sound.play('cannon');
@@ -259,7 +259,8 @@ var StickArmyUnits = function (w) {
       var front = tk.x + tk.dir * TANK.HW, blocker = S.recruits.find(function (r) { return !r.dead && (r.x - front) * tk.dir > -4 && (r.x - front) * tk.dir < 6; });
       if (blocker) hurtRecruit(blocker, 2.5 * dt, 'tank');
       else if ((stopX - tk.x) * tk.dir > 0) { tk.x += tk.dir * Math.min(TANK.SPEED * (S.mods.wire ? 0.5 : 1) * dt, Math.abs(stopX - tk.x)); tk.tread += dt * 8; }
-      if (!blocker && (stopX - tk.x) * tk.dir <= 0.5) { tk.shellT -= dt; if (tk.shellT <= 0) { tk.shellT = TANK.SHELL_EVERY; fireShell(tk); } }
+      // Tanks shell on the move as well as parked; a crew member in the way keeps the crew busy instead.
+      if (!blocker) { tk.shellT -= dt; if (tk.shellT <= 0) { tk.shellT = TANK.SHELL_EVERY; fireShell(tk); } }
     });
     S.tanks = S.tanks.filter(function (tk) { return !tk.dead; });
   }

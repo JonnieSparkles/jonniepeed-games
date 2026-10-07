@@ -24,6 +24,9 @@
     // With no crew to hit, a sniper plinks at the turret for abandonAfter seconds, then slips away unrewarded.
     sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 14 }
   };
+  // From ARMOR.WAVE some troopers wear a flak vest that stops one body hit (two from ARMOR.HEAVY, with a helmet).
+  // Popping the chute, rockets and other blasts work as usual, so the turret copes better than the crew.
+  var ARMOR = { WAVE: 12, HEAVY: 22 };
   // The barrel can tip slightly below horizontal on either side: enough to hit landers near the wall,
   // not enough to reach the far field. Angles run continuously from AIM_MIN (below left) to AIM_MAX (below right).
   var AIM_DIP = 0.3;
@@ -228,7 +231,7 @@
     return {
       // Boss waves trade the bombers and half the planes for a zeppelin.
       planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (boss ? 0.5 : 1)),
-      bombers: !boss && n >= 2 ? Math.min(8, n - 1) : 0,
+      bombers: !boss && n >= 2 ? (n <= 9 ? n - 1 : 8 + Math.floor((n - 9) * 2 / 3)) : 0,
       boss: boss ? 1 : 0,
       // Rushers from wave 6 and tanks from wave 9 (units.js) keep adding pressure after the spawn rate settles.
       rushes: n >= RUSH.WAVE ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 2)) : 0,
@@ -236,11 +239,13 @@
       cargo: n >= TANK.WAVE ? Math.min(4, 1 + Math.floor((n - TANK.WAVE) / 3)) : 0,
       bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
+      armorChance: n >= ARMOR.WAVE ? Math.min(0.5, 0.08 + 0.03 * (n - ARMOR.WAVE)) : 0,
+      armorHits: n >= ARMOR.HEAVY ? 2 : 1,
       // Planes come faster until wave 7, then keep tightening slowly instead of flattening out.
-      interval: n <= 7 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.5, 0.82 - 0.025 * (n - 7)),
+      interval: n <= 7 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.82 - 0.025 * (n - 7)),
       speed: 65 + 8 * n,
       maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
-      fall: Math.min(100, 47 + BALANCE.FALL_PER_WAVE * n),
+      fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
       special: n === 1 ? 0.15 : Math.min(0.45, 0.16 + 0.06 * n)
     };
   }
@@ -324,14 +329,16 @@
     var c = S.spawn ? S.spawn.cfg : waveCfg(1), type = 'rifle';
     if (rnd() < c.sniperChance) type = 'sniper';
     else if (rnd() < c.special) type = S.wave < ENEMIES.bazooka.minWave ? 'engineer' : (rnd() < 0.5 ? 'bazooka' : 'engineer');
-    return { type: type, fall: between(rnd, 0.9, 1.15), sway: rnd() * 6.28 };
+    var kit = { type: type, fall: between(rnd, 0.9, 1.15), sway: rnd() * 6.28, armor: 0 };
+    if (c.armorChance && type !== 'sniper' && rnd() < c.armorChance) kit.armor = c.armorHits || 1;
+    return kit;
   }
   function spawnTrooper(x, y, kit) {
     var c = S.spawn ? S.spawn.cfg : waveCfg(1);
     kit = kit || rollTrooper(RW);
     var t = { id: nextId++, x: clamp(x, 14, W - 14), y: y, type: kit.type, state: 'chute', open: 0,
       fall: c.fall * kit.fall, sway: kit.sway, vy: 0, rot: 0, spin: 0, dir: 1, walk: 0, thump: 0,
-      attacking: null, atWall: false, shotCD: 2.2, alone: 0, aim: 0, dead: false };
+      attacking: null, atWall: false, shotCD: 2.2, alone: 0, aim: 0, armor: kit.armor || 0, pingT: -1, dead: false };
     S.troopers.push(t);
     emit('trooper_spawn', { x: t.x, type: t.type });
     return t;
@@ -674,6 +681,13 @@
     award(10, t.x, t.y - 6, OUCH[t.id % OUCH.length], owner === 'ally' ? BLUE : INK, true);
     sound.play('hit');
   }
+  function armorHit(t, owner) {
+    t.armor--; t.pingT = S.t;
+    burst(t.x, t.y + 12, 4, '#8a8f96', 120);
+    addText(t.armor ? 'clang!' : 'vest off!', t.x + 14, t.y - 4, INK2, 16);
+    emit('armor_hit', { by: owner === 'ally' ? 'crew' : 'player', left: t.armor });
+    sound.play('clank');
+  }
   function popChute(t) {
     t.state = 'free'; t.vy = Math.max(30, t.fall * 0.5); t.spin = rr(-2.5, 2.5);
     for (var i = 0; i < 4; i++) S.parts.push({ k: 'shred', x: t.x + rr(-16, 16), y: t.y - 30 + rr(-6, 6), vx: rr(-50, 50), vy: rr(-40, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.7, 1.1), max: 1.1, id: nextId++ });
@@ -823,7 +837,8 @@
     for (i = 0; i < S.bombs.length; i++) {
       m = S.bombs[i];
       if (seen.indexOf(m.id) >= 0) continue;
-      if (!m.dead && Math.hypot(b.x - m.x, b.y - m.y) < 9 + near) {
+      // Tank shells are smaller than bombs and harder to hit.
+      if (!m.dead && Math.hypot(b.x - m.x, b.y - m.y) < (m.shell ? 6 : 9) + near) {
         m.dead = true; emit('bomb_intercepted', { by: b.owner === 'ally' ? 'crew' : 'player' });
         award(20, m.x, m.y - 12, 'bomb popped!', b.owner === 'ally' ? BLUE : INK, true);
         if (!projectileBurst(b)) { consumeBullet(b, m); explode(m.x, m.y, 26, 'air', b.owner); }
@@ -833,7 +848,7 @@
     for (i = 0; i < S.tanks.length; i++) {
       var tk = S.tanks[i];
       if (tk.dead || seen.indexOf(tk.id) >= 0 || !tankHit(tk, b.x, b.y, 0)) continue;
-      if (b.kind !== 'rocket' || !projectileBurst(b)) { damageTank(tk, 1, b.owner); consumeBullet(b, tk); }
+      if (b.kind !== 'rocket' || !projectileBurst(b)) { damageTank(tk, TANK.BULLET, b.owner); consumeBullet(b, tk); }
       return;
     }
     for (i = 0; i < S.troopers.length; i++) {
@@ -842,7 +857,9 @@
       // Snipers sit at the edges, mostly beyond the barrel's dip; a shot that does reach one counts.
       // Rockets explode on contact; flak only bursts near aircraft and bombs, so a direct hit is a plain bullet.
       if (Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
-        if (b.kind !== 'rocket' || !projectileBurst(b)) { killTrooper(t, b.owner); consumeBullet(b, t); }
+        if (b.kind === 'rocket' && projectileBurst(b)) return;
+        if (t.armor > 0) armorHit(t, b.owner); else killTrooper(t, b.owner);
+        consumeBullet(b, t);
         return;
       }
       if (t.state === 'chute' && t.open > 0.6) {
@@ -1271,6 +1288,15 @@
     G.fillStyle = '#7d8a64'; G.fill(); ink(INK, 1.5); G.stroke();
     G.beginPath(); L(x - 10, y - 0.5, x + 10, y - 0.5, 0.4); ink(INK, 2); G.stroke();
   }
+  // Enemy armor: a grey flak vest over the chest, and a steel helmet on heavies. Both flash pale when hit.
+  function vest(x, y, flash) {
+    G.beginPath(); SP([x - 4.5, y + 7, x + 4.5, y + 7, x + 4, y + 19, x - 4, y + 19], true, 0.3);
+    G.fillStyle = flash ? PAPER : '#8a8f96'; G.fill(); ink(INK, 1.5); G.stroke();
+  }
+  function steelPot(x, y) {
+    G.beginPath(); G.moveTo(x - 7.5, y - 1); G.quadraticCurveTo(x - 7, y - 10, x, y - 10); G.quadraticCurveTo(x + 7, y - 10, x + 7.5, y - 1); G.closePath();
+    G.fillStyle = '#6b6f75'; G.fill(); ink(INK, 1.5); G.stroke();
+  }
   function hammer(hx, hy, d, idle) {
     var ex = hx + d * (idle ? 1 : 4), ey = hy - 9;
     G.beginPath(); L(hx, hy, ex, ey, 0.3); ink(INK, 2.2); G.stroke();
@@ -1301,7 +1327,9 @@
     if (t.type === 'bazooka') tube(x - 10, y + 20, x + 9, y + 4);
     stick(x, y, pose, RED);
     if (t.type === 'rifle') { G.beginPath(); L(x - 7, y + 17, x + 7, y + 8, 0.4); ink(INK, 2); G.stroke(); }
+    if (t.armor > 0) vest(x, y, S.t - t.pingT < 0.12);
     if (t.type === 'engineer') hat(x, y);
+    else if (t.armor > 1) steelPot(x, y);
     if (t.type === 'sniper') { drawScope(x, y, t.state === 'ground' ? t.dir : 1);
       if (t.state === 'ground' && t.shotCD < 0.8 && S.recruits.some(function (r) { return !r.dead; })) { G.save(); G.globalAlpha = 0.28; G.setLineDash([3, 5]); G.beginPath(); L(x + t.dir * 16, y + 11, x + t.dir * 160, y + 11); ink(RED, 1); G.stroke(); G.restore(); }
     }

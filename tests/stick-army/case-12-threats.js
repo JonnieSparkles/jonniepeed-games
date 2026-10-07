@@ -9,6 +9,7 @@
   check(!waveCfg(5).rushes && waveCfg(6).rushes >= 1 && waveCfg(12).rushes > waveCfg(6).rushes, 'rushers from wave 6, more later');
   check(!waveCfg(8).cargo && waveCfg(9).cargo >= 1 && waveCfg(15).cargo > waveCfg(9).cargo, 'tanks from wave 9, more later');
   check(waveCfg(13).interval < waveCfg(7).interval && waveCfg(20).interval < waveCfg(13).interval, 'planes keep coming faster past wave 7');
+  check(waveCfg(21).bombers > waveCfg(9).bombers && waveCfg(41).bombers > waveCfg(31).bombers && waveCfg(20).fall > waveCfg(13).fall, 'bombers keep growing without a cap, and troopers fall faster');
 
   // A rush charges in from one edge along the ground, faster than a walker.
   RUN.force = 4; newGame(); startWave(6); quiet();
@@ -35,12 +36,15 @@
   var shell = { id: 1, x: 200, y: 400, vx: 0, vy: 0, isBomb: true, shell: true, dead: false }; S.bombs = [shell];
   hitTest({ x: 200, y: 400, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
   check(shell.dead, 'shells can be shot down');
+  var near = { id: 2, x: 200, y: 400, vx: 0, vy: 0, isBomb: true, shell: true, dead: false }; S.bombs = [near];
+  hitTest({ x: 208, y: 400, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
+  check(!near.dead, 'but they are smaller than bombs');
 
   // The dipped barrel reaches a parked tank; bullets chip it, rockets hit hard, and it pays out when destroyed.
   var hp = tk.hp; S.bullets = []; S.fireCD = 0; S.heat = 0;
   aimAt({ x: tk.x + tk.dir * -20, y: tk.y }); shoot();
   for (i = 0; i < 120 && S.bullets.length; i++) updateBullets(1 / 60);
-  check(tk.hp < hp, 'a fully dipped shot reaches the parked tank');
+  check(tk.hp < hp && Math.abs(hp - tk.hp - TANK.BULLET) < 1e-9 && TANK.BULLET < 0.5, 'a fully dipped shot reaches the parked tank, and only chips it');
   hp = tk.hp; explode(tk.x, tk.y, 30, 'rocket', 'player');
   check(tk.hp === hp - TANK.BLAST.rocket, 'rockets hit hard');
   var score = S.score; tk.hp = 1; damageTank(tk, 1, 'player'); update(1 / 60);
@@ -76,6 +80,19 @@
   check(S.strikes === 1 && S.strike, 'B calls a strike');
   syncStrikeBtn(); check(strikeBtn.disabled, 'button waits while a strike flies');
   emitHook = null;
+
+  // Armor from wave 12: a vest stops one body hit (two for heavies). Chutes still pop, and blasts still kill.
+  check(!waveCfg(11).armorChance && waveCfg(12).armorChance > 0 && waveCfg(20).armorChance > waveCfg(12).armorChance && waveCfg(22).armorHits === 2, 'armor arrives at wave 12 and gets heavier');
+  seen = []; emitHook = function (type) { seen.push(type); };
+  quiet(); spawnTrooper(200, 300, { type: 'rifle', fall: 1, sway: 0, armor: 1 }); var vt = S.troopers[0];
+  function body() { return { x: vt.x, y: vt.y + 12, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false }; }
+  hitTest(body()); check(!vt.dead && vt.armor === 0 && seen.indexOf('armor_hit') >= 0, 'the vest stops the first hit');
+  hitTest(body()); check(vt.dead, 'the next hit kills');
+  quiet(); spawnTrooper(120, 300, { type: 'rifle', fall: 1, sway: 0, armor: 2 }); vt = S.troopers[0]; vt.open = 1;
+  hitTest({ x: vt.x, y: vt.y - 30, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
+  check(vt.state === 'free' && vt.armor === 2, 'a canopy hit pops an armored chute');
+  explode(vt.x, vt.y + 14, 30, 'rocket', 'player'); check(vt.dead, 'rockets ignore armor');
+  emitHook = null; render();
 
   // Downing a zeppelin earns a charge; the shop sells strikes once tanks are near.
   newGame(); S.wave = 5; var z = spawnZeppelin(); z.x = 200; var before = S.strikes; z.hp = 1; damagePlane(z, 1, 'player', 200, z.y);

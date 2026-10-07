@@ -10,6 +10,8 @@
     { "label": "wall dmg: landers", "key": "wall_damage.amount:source=lander" },
     { "label": "wall dmg: bombs", "key": "wall_damage.amount:source=bomb" },
     { "label": "wall dmg: snipers", "key": "wall_damage.amount:source=sniper" },
+    { "label": "wall dmg: tanks", "key": "wall_damage.amount:source=tank" },
+    { "label": "armor hits", "key": "armor_hit" },
     { "label": "repaired", "key": "wall_repair.amount" },
     { "label": "crew lost: bombs", "key": "recruit_lost:cause=bomb" },
     { "label": "crew lost: landers", "key": "recruit_lost:cause=lander" },

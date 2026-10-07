@@ -63,7 +63,7 @@ window.__balanceBot = function (profile, seed) {
     });
     // Tanks: on the way down, or parked within the barrel's dip.
     (o.tanks || []).forEach(function (tk) {
-      if (tk.state === 'chute') consider(240, lead(o, tk.x, tk.y, 0, 40), tk.id);
+      if (tk.state === 'chute') consider(240, lead(o, tk.x, tk.y, 0, 70), tk.id);
       else { var shot = groundShot(o, { x: tk.x - tk.dir * 18, y: tk.y - 14 }); if (shot) consider(330, shot, tk.id); }
     });
     return list;
