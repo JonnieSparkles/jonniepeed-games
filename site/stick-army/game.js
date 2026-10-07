@@ -9,6 +9,7 @@
   var TRAMPS = [{ x1: 22, x2: 92, y: 596, dip: 0, v: 0 }, { x1: 308, x2: 378, y: 596, dip: 0, v: 0 }];
   var SLOT_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
   var CAPTURE_SPEED = 380;
+  var BALANCE = { DROP_CHANCE: 0.15, PLANES_PER_WAVE: 2, FALL_PER_WAVE: 4, DROPS_PER_WAVE: 0.5, WALL_DAMAGE: 6 };
   var ENEMIES = {
     medic: { minWave: Infinity, cooldown: 2, spread: 0.14, hp: 3.2 },
     rifle: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
@@ -53,7 +54,9 @@
     var aw = Math.max(1, wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight));
     var ah = Math.max(1, wrap.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom));
     var s = Math.min(aw / W, ah / H);
-    var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    // Phone canvases use CSS-pixel resolution: high DPR quadruples raster work.
+    // Desktop previews retain the sharper notebook artwork.
+    var dpr = matchMedia('(pointer: coarse)').matches ? 1 : Math.min(window.devicePixelRatio || 1, 2.5);
     frameEl.style.width = (W * s) + 'px';
     frameEl.style.height = (H * s) + 'px';
     stage.style.transform = 'scale(' + s + ')';
@@ -82,9 +85,11 @@
   }
 
   // persistent ink on the page
-  var decals = [], decalsDirty = false;
-  function addDecal(d) { decals.push(d); if (decals.length > 500) { decals.shift(); decalsDirty = true; } else if (!decalsDirty) drawDecal(d); }
-  function redrawDecals() { decalsDirty = false; dcx.clearRect(0, 0, W, H); decals.forEach(drawDecal); }
+  var decals = [];
+  // Stamp each new mark once. The bounded history is only replayed after resize.
+  // Older marks stay in the current raster until the next resize or new run.
+  function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); }
+  function redrawDecals() { dcx.clearRect(0, 0, W, H); decals.forEach(drawDecal); }
   function drawDecal(d) {
     var g = dcx, rnd = mulberry(d.seed), i, t, r, x, y;
     g.save(); g.globalAlpha = d.a;
@@ -231,14 +236,14 @@
 
   function waveCfg(n) {
     return {
-      planes: 4 + 2 * n,
+      planes: Math.round(4 + BALANCE.PLANES_PER_WAVE * n),
       bombers: n >= 2 ? Math.min(5, n - 1) : 0,
       bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.22, 0.10 + n * 0.015) : 0,
       interval: Math.max(0.85, 2.5 - 0.24 * n),
       speed: 65 + 8 * n,
-      maxDrops: Math.min(6, 2 + Math.ceil(n / 2)),
-      fall: Math.min(100, 47 + 4 * n),
+      maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
+      fall: Math.min(100, 47 + BALANCE.FALL_PER_WAVE * n),
       special: n === 1 ? 0.15 : Math.min(0.45, 0.16 + 0.06 * n)
     };
   }
@@ -270,8 +275,8 @@
   }
   function pickDropX() {
     var tr = activeTramps();
-    if (R() < 0.15) { var mat = tr[Math.floor(R() * tr.length)]; return rr(mat.x1 + 12, mat.x2 - 12); }
-    // The remaining drops avoid mats: 15% is an actual opportunity rate.
+    if (R() < BALANCE.DROP_CHANCE) { var mat = tr[Math.floor(R() * tr.length)]; return rr(mat.x1 + 12, mat.x2 - 12); }
+    // The remaining drops avoid mats, preserving the configured opportunity rate.
     return R() < 0.5 ? rr(106, 146) : (S.mods.secondTramp ? rr(254, 294) : rr(254, 382));
   }
   function activeTramps() { return S.mods.secondTramp ? TRAMPS : [TRAMPS[0]]; }
@@ -864,7 +869,7 @@
       if (blk.hp <= 0) recruitDie(blk);
     } else if ((wallX - t.x) * t.dir <= 0) {
       t.atWall = true; t.x = wallX;
-      S.wallHP -= 6 * dt;
+      S.wallHP -= BALANCE.WALL_DAMAGE * dt;
       t.thump -= dt;
       if (t.thump <= 0) { t.thump = 0.6; S.parts.push({ k: 'tink', x: wallX + t.dir * 8, y: GROUND - 18, life: 0.25, max: 0.25, c: RED, id: nextId++ }); sfx('thump'); }
     } else {
@@ -933,8 +938,8 @@
         if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, seed: q.id, a: 0.6 });
       } else if (q.k === 'fleck') {
         q.vy += 420 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
-        if (q.y > GROUND) { q.y = GROUND; q.vx *= 0.5; q.vy = 0; }
-        if (q.c === RED && q.life <= 0) addDecal({ kind: 'splat', x: q.x, y: q.y, r: 1.8, color: RED, a: 0.45, seed: q.id });
+        if (q.y >= GROUND) { q.y = GROUND; q.vx *= 0.5; q.vy = 0; q.landed = true; }
+        if (q.c === RED && q.landed && q.life <= 0) addDecal({ kind: 'splat', x: q.x, y: q.y, r: 1.8, color: RED, a: 0.45, seed: q.id });
       } else if (q.k === 'shred') {
         q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= (1 - dt); q.vy = Math.min(60, q.vy + 80 * dt); q.rot += q.vr * dt;
       } else if (q.k === 'puff') {
@@ -1139,8 +1144,8 @@
   function drawTramp(tr, i) {
     pen(500 + i);
     if (S.mode === 'play') {
-      G.save(); G.fillStyle = 'rgba(47,111,220,0.06)'; G.fillRect(tr.x1, 438, tr.x2 - tr.x1, 75);
-      G.setLineDash([3, 6]); G.beginPath(); L(tr.x1, 438, tr.x2, 438); L(tr.x1, 513, tr.x2, 513); ink('rgba(47,111,220,0.25)', 1); G.stroke(); G.restore();
+      G.save();
+      G.setLineDash([3, 6]); G.beginPath(); L(tr.x1, 438, tr.x2, 438); L(tr.x1, 513, tr.x2, 513); ink('rgba(46,46,51,0.24)', 1); G.stroke(); G.restore();
     }
     var a = tr.x1, b = tr.x2, y = tr.y, mid = (a + b) / 2, sag = 3 + tr.dip;
     G.beginPath(); L(a + 6, y, a + 1, GROUND, 0.5); L(b - 6, y, b - 1, GROUND, 0.5); L(a + 16, y + 2, a + 12, GROUND, 0.5); L(b - 16, y + 2, b - 12, GROUND, 0.5);
@@ -1302,7 +1307,6 @@
   }
 
   function render() {
-    if (decalsDirty) redrawDecals();
     G = ctx;
     ctx.setTransform(K, 0, 0, K, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -1450,6 +1454,7 @@
   cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   window.addEventListener('keydown', function (e) {
+    if (e.target.closest && e.target.closest('#tunePanel')) return;
     var k = e.key;
     if ((k === 'f' || k === 'F') && !e.repeat && !e.ctrlKey && !e.metaKey) { toggleFull(); return; }
     if (k === 'Escape' && wrap.classList.contains('full') && !(document.fullscreenElement || document.webkitFullscreenElement)) { setFull(false); return; }
@@ -1512,4 +1517,43 @@
   }
 
   start();
+  // The tuning UI and its bridge exist only in opt-in development mode.
+  if (location.hash === '#tune') {
+    window.StickArmyTune = {
+      getValues: function () {
+        return Object.assign({ CAPTURE_SPEED: CAPTURE_SPEED, RIFLE_COOLDOWN: ENEMIES.rifle.cooldown, RIFLE_SPREAD: ENEMIES.rifle.spread }, BALANCE);
+      },
+      setValue: function (key, value) {
+        if (!Number.isFinite(value)) return;
+        var before = S.spawn && S.spawn.cfg;
+        if (key === 'CAPTURE_SPEED') CAPTURE_SPEED = value;
+        else if (key === 'RIFLE_COOLDOWN') { ENEMIES.rifle.cooldown = value; S.recruits.forEach(function (r) { if (r.type === 'rifle') r.cd = Math.min(r.cd, value); }); }
+        else if (key === 'RIFLE_SPREAD') ENEMIES.rifle.spread = value;
+        else if (Object.prototype.hasOwnProperty.call(BALANCE, key)) BALANCE[key] = value;
+        else return;
+        if (before) {
+          var after = waveCfg(Math.max(1, S.wave));
+          if (S.waveState === 'active') S.spawn.planes = Math.max(0, S.spawn.planes + after.planes - before.planes);
+          S.spawn.cfg = after;
+          S.troopers.forEach(function (t) { if (t.state === 'chute') t.fall *= after.fall / before.fall; });
+          if (key === 'DROP_CHANCE' || key === 'DROPS_PER_WAVE') {
+            S.planes.forEach(function (p) {
+              if (p.kind !== 'plane' || p.state !== 'fly' || !p.drops.length) return;
+              var count = Math.max(1, Math.min(6, p.drops.length + after.maxDrops - before.maxDrops));
+              p.drops = [];
+              for (var tries = 0; tries < count * 30 && p.drops.length < count; tries++) {
+                var x = pickDropX(); if ((x - p.x) * p.dir > 0) p.drops.push(x);
+              }
+              p.drops.sort(function (a, b) { return p.dir * (a - b); });
+            });
+          }
+        }
+      },
+      releaseInput: clearInput
+    };
+    var tuneScript = document.createElement('script');
+    tuneScript.src = document.currentScript.getAttribute('data-tune-src') || 'tune.js';
+    document.head.appendChild(tuneScript);
+  }
+
 })();

@@ -93,7 +93,7 @@ After migrating these files, remove the empty `site/assets/og/` directory. There
 | `tools/stick-army/ui.py` | `tests/stick-army/ui.py` | Move harness file |
 | `site/stick-army/index.html` | Same | Local OG URL, moved shared favicon; classic script order |
 | `site/stick-army/game.js` | Same, with audio extracted to new `site/stick-army/audio.js` | Extract audio seam; preserve behavior |
-| `site/stick-army/tune.js` | Same, if present when implementing | Game-local, conditional classic script; update bridge if audio/data are extracted |
+| `site/stick-army/tune.js` | Same | Game-local, conditional classic script; update bridge if audio/data are extracted |
 | `site/thimbleful/index.html` | Same | Update metadata and moved shared favicon; existing audio/game scripts remain local |
 | `site/thimbleful/game.js` | Same | No layout move |
 | `site/thimbleful/audio.js` | Same | Already split correctly |

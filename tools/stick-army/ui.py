@@ -12,10 +12,13 @@ with sync_playwright() as p:
     for width,height in [(1440,900),(390,844),(844,390),(320,568)]:
         context=browser.new_context(viewport={'width':width,'height':height}, has_touch=width<500)
         page=context.new_page(); page.on('pageerror',lambda e:errors.append(str(e)))
+        tune_requests=[]; page.on('request',lambda request:tune_requests.append(request.url) if '/tune.js' in request.url else None)
         source=(ROOT/'site/stick-army/game.js').read_text().replace('  start();', '  window.armyTest = function(code) { return eval(code); };\n  start();')
         page.route('**/stick-army/game.js*',lambda route:route.fulfill(body=source,content_type='application/javascript'))
         page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000')+'/stick-army/index.html')
         page.evaluate('document.fonts.ready')
+        assert not tune_requests and page.locator('#tunePanel').count()==0
+        assert page.evaluate('typeof window.StickArmyTune === "undefined"')
         page.screenshot(path=str(OUT/f'title-{width}.png'))
         page.click('#startBtn')
         if width==390:
@@ -54,6 +57,32 @@ with sync_playwright() as p:
         page.screenshot(path=str(OUT/f'battle-{width}.png'))
         print('PASS layout + input + shop + pizza', width,height)
         context.close()
+    context=browser.new_context(viewport={'width':390,'height':844})
+    page=context.new_page(); page.on('pageerror',lambda e:errors.append(str(e)))
+    page.route('**/stick-army/game.js*',lambda route:route.fulfill(body=source,content_type='application/javascript'))
+    page.add_init_script("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async function(){throw new Error('denied');}}});")
+    page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000')+'/stick-army/index.html#tune')
+    page.wait_for_selector('#tunePanel')
+    assert page.locator('#tunePanel input').count()==8
+    page.locator('#tunePanel summary').click(); page.click('#startBtn'); page.locator('#tunePanel summary').click()
+    page.evaluate('armyTest("S.recruits=[makeRecruit(0,\'rifle\')]; S.recruits[0].cd=2; spawnTrooper(60,300);")')
+    changes={'CAPTURE_SPEED':420,'DROP_CHANCE':0.5,'RIFLE_COOLDOWN':0.5,'RIFLE_SPREAD':0.05,'PLANES_PER_WAVE':3,'FALL_PER_WAVE':6,'DROPS_PER_WAVE':1.5,'WALL_DAMAGE':9}
+    for key,value in changes.items():
+        page.locator('#tune-'+key).evaluate('(el,value)=>{el.value=value;el.dispatchEvent(new Event("input",{bubbles:true}));}',value)
+    assert page.evaluate('StickArmyTune.getValues()')==changes
+    assert page.evaluate('armyTest("CAPTURE_SPEED===420 && S.spawn.cfg.planes===7 && S.spawn.cfg.fall===53 && S.spawn.cfg.maxDrops===4 && S.recruits[0].cd<=0.5")')
+    page.locator('#tune-CAPTURE_SPEED').focus(); page.keyboard.press('ArrowRight')
+    assert page.evaluate('armyTest("!keys.right && !keys.fire")')
+    page.locator('#tunePanel button').click()
+    text=page.locator('#tunePanel textarea'); assert text.is_visible()
+    assert text.evaluate('(el)=>el.selectionStart===0 && el.selectionEnd===el.value.length')
+    assert page.evaluate('JSON.parse(document.querySelector("#tunePanel textarea").value)')==page.evaluate('StickArmyTune.getValues()')
+    page.evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async function(text){window.tuneCopied=text;}}});")
+    page.locator('#tunePanel button').click(); assert text.is_hidden()
+    assert page.evaluate('JSON.parse(window.tuneCopied)')==page.evaluate('StickArmyTune.getValues()')
+    page.screenshot(path=str(OUT/'tune-390.png'))
+    print('PASS #tune: live values, isolated keyboard, clipboard success and fallback')
+    context.close()
     assert not errors,errors
     browser.close()
 print('Screenshots:', OUT)

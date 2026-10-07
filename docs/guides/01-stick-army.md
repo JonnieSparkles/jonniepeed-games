@@ -6,7 +6,7 @@ Built from [SPEC-002](../../specs/SPEC-002-stick-army.md). The game is at `site/
 
 Mouse, keyboard and touch all work. With a mouse, aim and hold the button to fire. On touch, touch and hold to fire, and drag to aim. Arrow keys (or A/D) aim, Space fires, P pauses, and F toggles full screen. The fullscreen button uses the native API where available and fills the window otherwise. The portrait notebook remains centred in landscape.
 
-Start with one left trampoline and four squad slots. Shoot a body to kill, or pop a chute in the faint blue band above the mat to recruit. A falling trooper arriving faster than 380 logical pixels per second rips through instead. The band marks the **chute**, not the feet. Larger mats widen the catch area without relaxing the speed limit.
+Start with one left trampoline and four squad slots. Shoot a body to kill, or pop a chute in the band between the two dashed pencil lines above the mat to recruit. A falling trooper arriving faster than 380 logical pixels per second rips through instead. The band marks the **chute**, not the feet. Larger mats widen the catch area without relaxing the speed limit.
 
 The baseline crew fires slowly and aims at bodies in the lower sky. Bazookas can target aircraft; engineers repair the wall. Wounded recruits have small health marks under their feet. Rifle recruits learn to pop low chutes only after buying Catcher training.
 
@@ -26,6 +26,8 @@ All equipment, coins and recruits reset on a new run. Only mute preference and t
 
 `site/stick-army/game.js` contains the simulation and procedural audio. `index.html` contains layout, the title/pause/end cards and the responsive HTML shop.
 
+Open `site/stick-army/index.html#tune` to load the optional `tune.js` panel. Its eight sliders change capture speed, mat-drop chance, rifle cooldown/spread, wave growth and wall damage immediately. Collapse the panel to play; **Copy values** exports JSON, with selected text as a fallback when clipboard access fails. Values are session-only and reset on reload. The panel and its script are absent without the hash.
+
 | Area | Entry points |
 | --- | --- |
 | Enemy definitions and crew stats | `ENEMIES` |
@@ -40,7 +42,7 @@ All equipment, coins and recruits reset on a new run. Only mute preference and t
 
 Double barrel and spread combine into six bullets per volley. Rockets add a separate projectile every fourth volley. Piercing normal bullets can hit three distinct targets; flak detonates once on proximity, consuming the round even when piercing is equipped. Mines rearm at the start of each wave and spare allies. Medics occupy a normal squad slot, heal other nearby recruits, and can be replaced in the shop after death. The sentry fires ordinary ally bullets and does not inherit the player's weapon upgrades.
 
-Corpses use six red-ink line/circle pieces with gravity, bounce and a resting period. Persistent marks are capped at 500 and redrawn once per frame when the cap rolls over, and on resize. Reduced-motion preference disables screen shake and line boil.
+Corpses use six red-ink line/circle pieces with gravity, bounce and a resting period. New marks stamp directly onto the ink canvas once. Only the latest 500 are retained for replay on resize; older marks stay in the current raster until resizing or starting a new run. Red flecks leave permanent ink only after landing on the ground. Reduced-motion preference disables screen shake and line boil.
 
 ## Validation and generated assets
 
@@ -55,13 +57,26 @@ With Python Playwright installed, run:
 ```sh
 CHROMIUM=/usr/bin/chromium python3 tools/stick-army/test.py
 CHROMIUM=/usr/bin/chromium python3 tools/stick-army/ui.py
+CHROMIUM=/usr/bin/chromium python3 tools/stick-army/perf.py --stress
 node --check site/stick-army/game.js
+node --check site/stick-army/tune.js
 CHROMIUM=/usr/bin/chromium SITE_URL=http://127.0.0.1:8000 python3 tools/og/make.py
 python3 tools/stamp.py
 ```
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` is optional for the preview generator; it defaults to file URLs. The regression runners default to the local server above. `SCREENSHOTS` selects the UI runner's output directory (default `/tmp/stick-army-screenshots`). Test access to simulation internals is injected into the browser response and is never shipped with the game.
 
-The checks cover capture success/rips, slots, crew targeting, ink lifecycle, bomb payloads and damage, sniper pressure and retreat, shop transactions, pizza delivery, equipment combinations, death/restart and a real simulated wave clear. UI checks exercise fullscreen, touch/keyboard, pause and shop/delivery at desktop, portrait, short landscape and small-phone sizes. Physical iPhone Safari and subjective difficulty still merit owner playtesting before featuring the game.
+The checks cover capture success/rips, slots, crew targeting, ink lifecycle, bomb payloads and damage, sniper pressure and retreat, shop transactions, pizza delivery, equipment combinations, death/restart and a real simulated wave clear. UI checks exercise fullscreen, touch/keyboard, pause and shop/delivery at desktop, portrait, short landscape and small-phone sizes. UI checks also verify live tuning and both clipboard paths. `perf.py` measures actual RAF intervals and update/render CPU time on wave 6 in a 390×844 touch viewport at DPR 2 with CDP CPU throttling at 4×. It warms up for five seconds and samples for fifteen; `--stress` adds 20 airborne enemies and 12 fresh corpses, with 500 retained ink marks. `--source-ref <commit>` compares old code without changing the checkout, and `--output <path>` saves JSON. Phone canvases use CSS-pixel resolution to reduce raster work; desktop artwork retains its high-DPI resolution.
+
+Measured in headless Chromium on this workspace (15-second stress sample, 4× CPU throttle):
+
+| Version | Mean RAF / FPS | RAF p95 / p99 | Mean loop CPU / p95 |
+| --- | --- | --- | --- |
+| Before fixes (`1e42859`) | 92.02 ms / 10.9 | 166.6 / 216.7 ms | 43.28 / 82.1 ms |
+| Direct stamping + phone resolution cap | 32.71 ms / 30.6 | 66.7 / 100 ms | 6.54 / 11.8 ms |
+
+The ink regression is fixed, but this throttled stress workload still misses 60 FPS. These are measured RAF intervals, not an FPS estimate from JavaScript execution time. Treat phone performance as an open playtest issue before featuring the game; the harness makes further renderer work reproducible.
+
+Physical iPhone Safari and subjective difficulty still merit owner playtesting before featuring the game.
 
 Pages publishing remains a manual workflow. No Worker deploy is needed for this change.
