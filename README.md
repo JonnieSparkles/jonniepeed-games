@@ -46,6 +46,7 @@ Unruggabull lives in its own repo and is linked from the shelf at https://unrugg
 These apply to every change:
 
 - **Full screen and every orientation.** Each game or scene has a full screen mode and works in portrait, landscape and on desktop. Exceptions are fine when noted. Thimbleful's "full screen" section in `thimbleful/game.js` is the reference.
+- **No double-tap zoom.** iPhones zoom on a quick double tap, and they ignore `user-scalable=no`. Every page sets `*{touch-action:manipulation}` near the top of its CSS; game surfaces use `touch-action:none` and scrolling cards `pan-y`. Pinch zoom still works.
 - **Cache busting.** Run `python3 tools/stamp.py` after any change in `site/`, so changed files get new `?v=` links.
 - **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games.
 - **Relative links, clean directory URLs.** Player links use `<slug>/` from the studio and `../` from games back home, preserving the site mount. Assets remain relative; entry files remain `index.html`. No slashless aliases or `<base>` bootstrap. Arweave manifests need the directory entries described below. The one exception is `site/404.html`: GitHub Pages serves it at whatever missing path was asked for, so its assets use absolute `https://jonniepeed.games/` URLs (which `stamp.py` still versions) and its home links use `/`.

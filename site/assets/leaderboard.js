@@ -61,6 +61,31 @@
       const button = (text, label, handler) => {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'lb-button';
         b.textContent = text; b.setAttribute('aria-label', label); b.addEventListener('click', () => { if (!busy) handler(); });
+        // quick repeat taps must not zoom the page on iPhones
+        b.style.touchAction = 'manipulation';
+        return b;
+      };
+      // An arrow steps once per tap. Hold it and, after a moment, it keeps stepping and speeds up.
+      // Taps still step on click, so dragging the card to scroll never changes a letter.
+      const stops = [];
+      const arrow = (text, label, i, delta) => {
+        let timer = 0, repeating = false, swallowUntil = 0;
+        const stop = () => {
+          clearTimeout(timer); timer = 0;
+          if (repeating) swallowUntil = performance.now() + 400; // the click that ends a hold isn't another step
+          repeating = false;
+        };
+        const repeat = wait => {
+          if (busy) return stop();
+          repeating = true; cycle(i, delta);
+          timer = setTimeout(repeat, wait, Math.max(70, wait * 0.85));
+        };
+        const b = button(text, label, () => { if (performance.now() >= swallowUntil) cycle(i, delta); });
+        b.style.userSelect = b.style.webkitUserSelect = 'none'; b.style.webkitTouchCallout = 'none';
+        b.addEventListener('pointerdown', e => { stop(); if (!busy && !e.button) timer = setTimeout(repeat, 350, 130); });
+        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(type, stop);
+        b.addEventListener('contextmenu', e => e.preventDefault()); // a long press is a hold, not a menu
+        stops.push(stop);
         return b;
       };
       const refresh = () => displays.forEach((d, i) => {
@@ -76,8 +101,8 @@
         const display = button(letters[i], `Initial ${i + 1}`, () => select(i));
         display.classList.add('lb-letter'); display.addEventListener('focus', () => { current = i; refresh(); });
         displays.push(display);
-        slot.append(button('▲', `Next character for initial ${i + 1}`, () => cycle(i, 1)), display,
-          button('▼', `Previous character for initial ${i + 1}`, () => cycle(i, -1)));
+        slot.append(arrow('▲', `Next character for initial ${i + 1}`, i, 1), display,
+          arrow('▼', `Previous character for initial ${i + 1}`, i, -1));
         slots.append(slot);
       }
       const actions = document.createElement('div'); actions.className = 'lb-actions';
@@ -104,7 +129,7 @@
       container.append(root); refresh(); displays[0].focus({ preventScroll: true });
       requestAnimationFrame(() => root.scrollIntoView({ block: 'nearest' }));
       return {
-        destroy() { root.remove(); },
+        destroy() { stops.forEach(stop => stop()); root.remove(); },
         setBusy(value) { busy = value; root.setAttribute('aria-busy', String(value)); root.querySelectorAll('button').forEach(b => { b.disabled = value; }); if (!value) displays[current].focus(); }
       };
     }

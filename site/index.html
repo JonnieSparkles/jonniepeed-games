@@ -34,6 +34,8 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16131e;--ink:#f6f2ec;--muted:#aaa3bb;--line:#2d2839;--card:#1f1a2a;--blue:#4cb0ff;--green:#8fd43c;--orange:#ff9a3d;--pink:#ff4fa8;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#16131e;--ink:#f6f2ec;--muted:#aaa3bb;--line:#2d2839;--card:#1f1a2a;--blue:#4cb0ff;--green:#8fd43c;--orange:#ff9a3d;--pink:#ff4fa8;color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box}
+/* iPhones zoom on a quick double tap, even on buttons. Pinch zoom still works, and stricter rules (none, pan-y) still win. */
+*{touch-action:manipulation}
 [hidden]{display:none!important}
 html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5}

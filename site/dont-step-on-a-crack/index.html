@@ -48,6 +48,8 @@
   color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:border-box}
+/* iPhones zoom on a quick double tap, even on buttons. Pinch zoom still works, and stricter rules (none, pan-y) still win. */
+*{touch-action:manipulation}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:var(--ink);font-family:var(--f-ui);font-size:14px}
 #game{position:fixed;inset:0;background:var(--ground)}
@@ -459,7 +461,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
   </div>
 </div>
 <script src="audio.js?v=d3d3d19443"></script>
-<script src="../assets/leaderboard.js?v=a46c16093d"></script>
+<script src="../assets/leaderboard.js?v=8ad1e0bd57"></script>
 <script src="game.js?v=3c52aee435"></script>
 </body>
 </html>
