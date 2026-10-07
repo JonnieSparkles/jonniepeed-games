@@ -155,59 +155,8 @@
   }
   function ink(c, w) { G.strokeStyle = c; G.lineWidth = w; G.lineCap = 'round'; G.lineJoin = 'round'; }
 
-  // ---------- sound ----------
-  var AC = null, master = null, noiseBuf = null, muted = false, best = 0, lastPlay = {};
-  function audioInit() {
-    if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
-    try {
-      AC = new (window.AudioContext || window.webkitAudioContext)();
-      master = AC.createGain(); master.gain.value = 0.32; master.connect(AC.destination);
-      noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.6), AC.sampleRate);
-      var d = noiseBuf.getChannelData(0);
-      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    } catch (e) { AC = null; }
-  }
-  function tone(f, dur, type, vol, f2, delay) {
-    var t0 = AC.currentTime + (delay || 0), o = AC.createOscillator(), g = AC.createGain();
-    o.type = type || 'square'; o.frequency.setValueAtTime(f, t0);
-    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
-    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.03);
-  }
-  function noise(dur, vol, freq, delay) {
-    var t0 = AC.currentTime + (delay || 0), s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
-    s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = freq;
-    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    s.connect(f); f.connect(g); g.connect(master); s.start(t0); s.stop(t0 + dur + 0.03);
-  }
-  var SFX = {
-    shoot: function () { noise(0.05, 0.08, 3000); tone(260, 0.05, 'square', 0.025, 120); },
-    ally: function () { noise(0.04, 0.05, 2200); },
-    rocket: function () { noise(0.25, 0.1, 900); },
-    pop: function () { tone(880, 0.09, 'triangle', 0.16, 320); },
-    boing: function () { tone(140, 0.16, 'sine', 0.32, 520); tone(520, 0.22, 'sine', 0.2, 260, 0.15); },
-    splat: function () { noise(0.2, 0.32, 650); },
-    hit: function () { noise(0.07, 0.18, 1600); tone(320, 0.06, 'square', 0.05, 160); },
-    boom: function () { noise(0.55, 0.45, 420); tone(90, 0.4, 'sine', 0.3, 40); },
-    clank: function () { tone(1300, 0.06, 'square', 0.06, 900); },
-    recruit: function () { tone(660, 0.1, 'triangle', 0.18); tone(990, 0.18, 'triangle', 0.18, null, 0.09); },
-    noo: function () { tone(420, 0.3, 'sawtooth', 0.06, 180); },
-    thud: function () { tone(110, 0.08, 'sine', 0.15, 70); },
-    thump: function () { noise(0.06, 0.12, 400); },
-    tink: function () { tone(1800, 0.04, 'triangle', 0.04); },
-    whistle: function () { tone(1500, 0.9, 'sine', 0.07, 180); },
-    pizza: function () { tone(660,0.12,'triangle',0.18); tone(880,0.12,'triangle',0.18,null,0.14); tone(1320,0.24,'triangle',0.18,null,0.28); },
-    sniper: function () { noise(0.06, 0.16, 3200); tone(900, 0.08, 'triangle', 0.08, 250); },
-    wave: function () { tone(523, 0.12, 'triangle', 0.15); tone(659, 0.12, 'triangle', 0.15, null, 0.12); tone(784, 0.22, 'triangle', 0.15, null, 0.24); },
-    over: function () { tone(392, 0.2, 'triangle', 0.15); tone(330, 0.2, 'triangle', 0.15, null, 0.2); tone(262, 0.45, 'triangle', 0.15, null, 0.4); }
-  };
-  function sfx(name) {
-    if (!AC || muted) return;
-    var now = performance.now();
-    if (lastPlay[name] && now - lastPlay[name] < 45) return;
-    lastPlay[name] = now;
-    try { SFX[name](); } catch (e) { /* ignore */ }
-  }
+  // ---------- sound and saved preferences ----------
+  var sound = window.StickArmySound, best = 0;
 
   function load(key, def) { try { var v = localStorage.getItem(key); return v == null ? def : JSON.parse(v); } catch (e) { return def; } }
   function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* ignore */ } }
@@ -330,7 +279,7 @@
     S.waveState = 'active';
     var sub = n === 1 ? 'here they come' : (n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : '');
     S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
-    sfx('wave');
+    sound.play('wave');
   }
   function updateWave(dt) {
     var sp = S.spawn;
@@ -350,7 +299,7 @@
         var bonus = 100 * S.wave; S.score += bonus; S.coins += 8 + S.wave * 2;
         S.banner = { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
         S.hint = false;
-        sfx('wave');
+        sound.play('wave');
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
@@ -408,7 +357,7 @@
     if (item.tier === 'free' ? S.shop.freeTaken : S.coins < item.cost) return false;
     if (item.tier === 'free') S.shop.freeTaken = true; else S.coins -= item.cost;
     S.shop.bought[id] = true; S.mods.stacks[id] = (S.mods.stacks[id] || 0) + 1; item.apply(S);
-    sfx('recruit'); renderShop();
+    sound.play('recruit'); renderShop();
     if (S.mode === 'shop') { var next = S.shop.freeTaken ? document.getElementById('continueBtn') : shopScreen.querySelector('button:not(:disabled)'); next.focus({ preventScroll: true }); }
     return true;
   }
@@ -457,7 +406,7 @@
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; S.wallHP = Math.min(S.mods.maxHP, S.wallHP + 25);
         S.recruits.forEach(function (r) { if (!r.dead) r.hp = Math.min(ENEMIES[r.type].hp, r.hp + 1); });
-        sfx('pizza'); addText('pizza time!', 200, GROUND - 65, BLUE, 26);
+        sound.play('pizza'); addText('pizza time!', 200, GROUND - 65, BLUE, 26);
       }
     } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
     else {
@@ -496,11 +445,11 @@
       });
     });
     if (S.mods.rockets && S.volleys % 4 === 0) {
-      S.bullets.push({ x: TUR.x + c * 32, y: TUR.y + s * 32, vx: c * 360, vy: s * 360, owner: 'player', kind: 'rocket', life: 2, dead: false }); sfx('rocket');
+      S.bullets.push({ x: TUR.x + c * 32, y: TUR.y + s * 32, vx: c * 360, vy: s * 360, owner: 'player', kind: 'rocket', life: 2, dead: false }); sound.play('rocket');
     }
     S.parts.push({ k: 'star', x: TUR.x + c * 34, y: TUR.y + s * 34, life: 0.07, max: 0.07, id: nextId++ });
     S.recoil = 1;
-    sfx('shoot');
+    sound.play('shoot');
   }
   function killFx(t, force, squash) {
     var power = force || 170, y = squash ? GROUND - 5 : t.y + 12;
@@ -524,21 +473,21 @@
     t.dead = true; killFx(t); S.stats.kills++;
     if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 9, color: RED, a: 0.45, seed: t.id });
     award(10, t.x, t.y - 6, OUCH[t.id % OUCH.length], owner === 'ally' ? BLUE : INK, true);
-    sfx('hit');
+    sound.play('hit');
   }
   function popChute(t) {
     t.state = 'free'; t.vy = Math.max(30, t.fall * 0.5); t.spin = rr(-2.5, 2.5);
     for (var i = 0; i < 4; i++) S.parts.push({ k: 'shred', x: t.x + rr(-16, 16), y: t.y - 30 + rr(-6, 6), vx: rr(-50, 50), vy: rr(-40, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.7, 1.1), max: 1.1, id: nextId++ });
     addText('pop!', t.x + 16, t.y - 34, RED, 18);
     S.stats.popped++;
-    sfx('pop');
+    sound.play('pop');
   }
   function splat(t) {
     t.dead = true; S.stats.kills++;
     addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 13, color: RED, a: 0.5, seed: t.id });
     killFx(t, 210, true);
     award(15, t.x, GROUND - 44, 'splat!', RED, true);
-    sfx('splat');
+    sound.play('splat');
   }
   function freeSlot(side) {
     var order = side === 0 ? [0, 1, 2, 3, 4, 5, 6, 7] : [4, 5, 6, 7, 0, 1, 2, 3];
@@ -554,7 +503,7 @@
   function bounce(t, tr) {
     tr.v += 180;
     addText('boing!', t.x, tr.y - 20, INK, 21);
-    sfx('boing');
+    sound.play('boing');
     var slot = freeSlot(tr.x1 < 200 ? 0 : 1);
     t.state = 'bounce'; t.bt = 0; t.bdur = 0.85; t.x0 = t.x; t.y0 = tr.y - 33; t.slot = slot;
     if (slot >= 0) { S.slotRes[slot] = true; t.x1 = SLOTS[slot]; t.y1 = GROUND - 33; t.bh = 120; }
@@ -572,18 +521,18 @@
       S.stats.captured++;
       var label = t.type === 'engineer' ? 'engineer joined!' : t.type === 'bazooka' ? 'bazooka joined!' : 'recruit!';
       award(25, r.x, GROUND - 64, label, BLUE, true);
-      sfx('recruit');
+      sound.play('recruit');
       if (S.recruits.filter(function (q) { return !q.dead; }).length === S.mods.slots) addText('squad full!', 200, 520, BLUE, 24);
       S.hint = false;
     } else {
       award(60, BK.x, BK.top - 44, 'squad full!', BLUE, true);
-      sfx('recruit');
+      sound.play('recruit');
     }
   }
   function land(t) {
     t.state = 'ground'; t.y = GROUND - 33; t.dir = t.x < 200 ? 1 : -1; t.walk = 0;
     S.parts.push({ k: 'deflate', x: t.x - t.dir * 14, y: GROUND - 2, life: 1.6, max: 1.6, dir: t.dir, id: nextId++ });
-    sfx('thud');
+    sound.play('thud');
   }
   function recruitDie(r) {
     if (r.dead) return;
@@ -591,7 +540,7 @@
     addText('noo!', r.x, GROUND - 52, BLUE, 20);
     killFx({ x: r.x, y: GROUND - 33 }, 190);
     addDecal({ kind: 'splat', x: r.x, y: GROUND - 1, r: 4, color: BLUE, a: 0.22, seed: r.id + 99 });
-    sfx('noo');
+    sound.play('noo');
   }
   function damagePlane(p, dmg, owner) {
     if (p.state !== 'fly') return;
@@ -602,12 +551,12 @@
       S.stats.planes++;
       award(p.kind === 'bomber' ? 120 : 50, p.x, p.y + 26, p.kind === 'bomber' ? 'bomber down!' : 'kaboom!', owner === 'ally' ? BLUE : INK, true);
       S.shake = Math.max(S.shake, 0.25);
-      sfx('boom');
+      sound.play('boom');
       p.drops.forEach(function () { spawnTrooper(p.x + rr(-16, 16), p.y + 10); });
       p.drops = [];
     } else {
       addText('clank!', p.x, p.y - 18, INK2, 16);
-      sfx('clank');
+      sound.play('clank');
     }
   }
   function explode(x, y, r, kind, owner) {
@@ -630,7 +579,7 @@
       S.planes.forEach(function (p) { if (p.state === 'fly' && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally'); });
       S.bombs.forEach(function (m) { if (!m.dead && Math.hypot(m.x-x,m.y-y) < r + 8) { m.dead=true; award(20,m.x,m.y-12,'bomb popped!',BLUE,true); puff(m.x,m.y,8,0.4); } });
     }
-    sfx(kind === 'rocket' || kind === 'air' ? 'hit' : 'boom');
+    sound.play(kind === 'rocket' || kind === 'air' ? 'hit' : 'boom');
   }
 
   function consumeBullet(b, target) {
@@ -729,7 +678,7 @@
     var baz = r.type === 'bazooka', a = ang + rr(-1, 1) * ENEMIES[r.type].spread * Math.pow(0.72, S.mods.aim), sp = baz ? 300 : 520;
     S.bullets.push({ x: r.x + Math.cos(a) * 16, y: GROUND - 23 + Math.sin(a) * 16, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
       owner: 'ally', kind: baz ? 'rocket' : 'bullet', life: 1.6, dead: false });
-    sfx(baz ? 'rocket' : 'ally');
+    sound.play(baz ? 'rocket' : 'ally');
   }
   function updateRecruits(dt) {
     var hp = S.wallHP / S.mods.maxHP * 100;
@@ -763,7 +712,7 @@
             r.sparkT = 0.42;
             var sd = r.homeX < 200 ? 1 : -1;
             S.parts.push({ k: 'tink', x: r.x + sd * 11, y: GROUND - 25 + rr(-4, 4), life: 0.22, max: 0.22, c: HAT, id: nextId++ });
-            sfx('tink');
+            sound.play('tink');
           }
         }
       } else if (r.role === 'heal') {
@@ -793,7 +742,7 @@
         while (p.bombRun.length && (p.dir > 0 ? p.x >= p.bombRun[0].x : p.x <= p.bombRun[0].x)) {
           var drop = p.bombRun.shift();
           S.bombs.push({ id: nextId++, x: drop.x, y: p.y + 14, vx: drop.vx, vy: 0, isBomb: true, dead: false });
-          sfx('whistle');
+          sound.play('whistle');
         }
         if (p.x < -90 || p.x > W + 90) S.planes.splice(i, 1);
       } else {
@@ -839,7 +788,7 @@
     if (t.shotCD <= 0) {
       t.shotCD = ENEMIES.sniper.cooldown;
       S.enemyShots.push({ x: t.x + t.dir * 16, y: t.y + 11, vx: Math.cos(t.aim) * 260, vy: Math.sin(t.aim) * 260, life: 2 });
-      sfx('sniper');
+      sound.play('sniper');
     }
   }
   function updateEnemyShots(dt) {
@@ -871,7 +820,7 @@
       t.atWall = true; t.x = wallX;
       S.wallHP -= BALANCE.WALL_DAMAGE * dt;
       t.thump -= dt;
-      if (t.thump <= 0) { t.thump = 0.6; S.parts.push({ k: 'tink', x: wallX + t.dir * 8, y: GROUND - 18, life: 0.25, max: 0.25, c: RED, id: nextId++ }); sfx('thump'); }
+      if (t.thump <= 0) { t.thump = 0.6; S.parts.push({ k: 'tink', x: wallX + t.dir * 8, y: GROUND - 18, life: 0.25, max: 0.25, c: RED, id: nextId++ }); sound.play('thump'); }
     } else {
       t.x += t.dir * 22 * (S.mods.wire ? 0.5 : 1) * dt; t.walk += dt * 9;
     }
@@ -1349,7 +1298,7 @@
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; pauseBtn.hidden = true;
   }
   function newGame() {
-    audioInit();
+    sound.init();
     reset();
     S.mode = 'play'; S.hint = true;
     startWave(1);
@@ -1371,7 +1320,7 @@
     explode(BK.x, BK.top + 10, 46, 'final');
     S.shake = 0.8;
     pauseBtn.hidden = true;
-    sfx('over');
+    sound.play('over');
   }
   function showOver() {
     S.mode = 'over';
@@ -1388,10 +1337,10 @@
     document.getElementById('againBtn').focus({ preventScroll: true });
   }
   function updateMuteBtn() {
-    muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
-    muteBtn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
-    document.getElementById('icoSound').hidden = muted;
-    document.getElementById('icoMuted').hidden = !muted;
+    muteBtn.setAttribute('aria-pressed', sound.muted ? 'true' : 'false');
+    muteBtn.setAttribute('aria-label', sound.muted ? 'Unmute sound' : 'Mute sound');
+    document.getElementById('icoSound').hidden = sound.muted;
+    document.getElementById('icoMuted').hidden = !sound.muted;
   }
 
   // Fullscreen API with a fill-window fallback (including iPhone).
@@ -1438,7 +1387,7 @@
   }
   cv.addEventListener('pointerdown', function (e) {
     if (S.mode !== 'play') return;
-    audioInit();
+    sound.init();
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     aimAt(toLogical(e)); S.firing = true;
     e.preventDefault();
@@ -1469,7 +1418,7 @@
     if (S.mode === 'delivery') return;
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; if (S.mode === 'play') e.preventDefault(); }
-    else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; audioInit(); e.preventDefault(); } }
+    else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
     else if (k === 'p' || k === 'P' || k === 'Escape') { togglePause(); }
   });
   window.addEventListener('keyup', function (e) {
@@ -1489,8 +1438,8 @@
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
   pauseBtn.addEventListener('click', togglePause);
   muteBtn.addEventListener('click', function () {
-    muted = !muted; save('stickarmy.muted', muted); updateMuteBtn();
-    if (!muted) audioInit();
+    sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
+    if (!sound.muted) sound.init();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   });
 
@@ -1509,7 +1458,7 @@
   function start(data) {
     data = data || {};
     best = typeof data.best === 'number' ? data.best : load('stickarmy.best.2', 0);
-    muted = typeof data.muted === 'boolean' ? data.muted : load('stickarmy.muted', false);
+    sound.muted = typeof data.muted === 'boolean' ? data.muted : load('stickarmy.muted', false);
     fit();
     titleScene();
     updateMuteBtn();

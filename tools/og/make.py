@@ -1,4 +1,4 @@
-"""Build 1200x630 social preview cards into site/assets/og/.
+"""Build 1200x630 cards into site/<slug>/og.png and site/assets/studio/og.png.
 
 Run from the repo root:
     python3 tools/og/make.py
@@ -8,9 +8,10 @@ Optional: CHROMIUM=/path/to/chromium and SITE_URL=http://127.0.0.1:8000
 
 Needs Playwright with Chromium (pip install playwright && python3 -m playwright install chromium).
 Pixel games are captured live from their own canvas, so the cards and the index thumbnails
-(site/assets/thumb-<slug>.png) stay in sync with the art. Games that aren't pixel art are captured
+(site/<slug>/thumb.png) stay in sync with the art. Games that aren't pixel art are captured
 as a page screenshot instead (pass {"screenshot": True} as the last field); their thumbnail is a WebP.
 To add a game: add an entry to GAMES below and run the script again.
+Entries without an existing game index are reported and skipped, never recreated.
 """
 import base64
 import pathlib
@@ -20,7 +21,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SITE = ROOT / "site"
-OUT = SITE / "assets" / "og"
+OUT = SITE / "assets" / "studio"
 FONT_DIR = SITE / "assets" / "fonts"
 
 
@@ -121,6 +122,9 @@ def main():
         page = browser.new_page(viewport={"width": 800, "height": 900})
         scenes = {}
         for slug, title, tagline, cta, setup, *more in GAMES:
+            if not (SITE / slug / "index.html").is_file():
+                print("skipped missing game", slug)
+                continue
             opts = more[0] if more else {}
             if opts.get("screenshot"):
                 scenes[slug] = capture_page(browser, slug, setup, opts.get("wait_ms", 1700))
@@ -129,7 +133,7 @@ def main():
                     const k = document.createElement('canvas'); k.width = 768; k.height = 576;
                     const x = k.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(i, 0, 0, k.width, k.height);
                     r(k.toDataURL('image/webp', 0.86)); }; i.src = u; })""", scenes[slug])
-                name = f"thumb-{slug}.webp"
+                name = "thumb.webp"
             else:
                 scenes[slug] = capture_canvas(page, slug, setup)
                 # 4x nearest-neighbour thumbnail for the index card
@@ -137,21 +141,23 @@ def main():
                     const k = document.createElement('canvas'); k.width = i.width * 4; k.height = i.height * 4;
                     const x = k.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(i, 0, 0, k.width, k.height);
                     r(k.toDataURL('image/png')); }; i.src = u; })""", scenes[slug])
-                name = f"thumb-{slug}.png"
-            (SITE / "assets" / name).write_bytes(base64.b64decode(thumb.split(",")[1]))
-            print("wrote", SITE / "assets" / name)
+                name = "thumb.png"
+            (SITE / slug / name).write_bytes(base64.b64decode(thumb.split(",")[1]))
+            print("wrote", SITE / slug / name)
         card = browser.new_page(viewport={"width": 1200, "height": 630})
         for slug, title, tagline, cta, _, *more in GAMES:
+            if slug not in scenes:
+                continue
             opts = more[0] if more else {}
             card.set_content(game_card(scenes[slug], title, tagline, cta, pixel=not opts.get("screenshot"), title_px=opts.get("title_px", 52)))
             card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
-            card.screenshot(path=str(OUT / f"{slug}.png"))
-            print("wrote", OUT / f"{slug}.png")
+            card.screenshot(path=str(SITE / slug / "og.png"))
+            print("wrote", SITE / slug / "og.png")
         logo_uri = "data:image/png;base64," + base64.b64encode((ROOT / "brand" / "logo.png").read_bytes()).decode()
         card.set_content(index_card().replace("{LOGO_URI}", logo_uri))
         card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
-        card.screenshot(path=str(OUT / "index.png"))
-        print("wrote", OUT / "index.png")
+        card.screenshot(path=str(OUT / "og.png"))
+        print("wrote", OUT / "og.png")
         browser.close()
 
 

@@ -1,4 +1,4 @@
-"""Layout and real input checks. Usage matches test.py; optional SCREENSHOTS directory."""
+"""Layout and real input checks. Run python3 tests/stick-army/ui.py with site/ on port 8000; optional SCREENSHOTS directory."""
 import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -15,7 +15,7 @@ with sync_playwright() as p:
         tune_requests=[]; page.on('request',lambda request:tune_requests.append(request.url) if '/tune.js' in request.url else None)
         source=(ROOT/'site/stick-army/game.js').read_text().replace('  start();', '  window.armyTest = function(code) { return eval(code); };\n  start();')
         page.route('**/stick-army/game.js*',lambda route:route.fulfill(body=source,content_type='application/javascript'))
-        page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000')+'/stick-army/index.html')
+        page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000')+'/stick-army/')
         page.evaluate('document.fonts.ready')
         assert not tune_requests and page.locator('#tunePanel').count()==0
         assert page.evaluate('typeof window.StickArmyTune === "undefined"')
@@ -61,7 +61,7 @@ with sync_playwright() as p:
     page=context.new_page(); page.on('pageerror',lambda e:errors.append(str(e)))
     page.route('**/stick-army/game.js*',lambda route:route.fulfill(body=source,content_type='application/javascript'))
     page.add_init_script("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async function(){throw new Error('denied');}}});")
-    page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000')+'/stick-army/index.html#tune')
+    page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000')+'/stick-army/#tune')
     page.wait_for_selector('#tunePanel')
     assert page.locator('#tunePanel input').count()==8
     page.locator('#tunePanel summary').click(); page.click('#startBtn'); page.locator('#tunePanel summary').click()

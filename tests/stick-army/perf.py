@@ -1,5 +1,5 @@
 """Measure real RAF intervals and game-loop CPU time in wave 6 at 4x CPU throttle.
-Serve site/ on localhost:8000. CHROMIUM chooses a browser; SITE_URL overrides URL.
+Run python3 tests/stick-army/perf.py with site/ on localhost:8000. CHROMIUM chooses a browser; SITE_URL overrides URL.
 --source-ref can compare historical game.js without modifying the checkout.
 The response-only fixture retains 500 ink marks and uses a full squad/upgraded
 turret. --stress adds an artificial backlog of enemies and fresh corpses. The wall is protected so the sample stays live.
@@ -50,13 +50,13 @@ with sync_playwright() as p:
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
-    page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000') + '/stick-army/index.html')
+    page.goto(os.environ.get('SITE_URL','http://127.0.0.1:8000') + '/stick-army/')
     page.evaluate('document.fonts.ready')
     page.click('#startBtn')
     cdp = context.new_cdp_session(page)
     cdp.send('Emulation.setCPUThrottlingRate', {'rate':4})
     page.evaluate('''stress => armyTest(`
-      R=mulberry(6); newGame(); muted=true; S.mods.slots=8;
+      R=mulberry(6); newGame(); StickArmySound.muted=true; if (typeof muted !== 'undefined') muted=true; S.mods.slots=8;
       ['double','spread','flak','rockets','auto','mines'].forEach(function(id){ ITEMS.find(function(it){return it.id===id;}).apply(S); });
       S.mods.fire=2;
       [0,4,1,5,2,6,3,7].forEach(function(slot,i){S.recruits.push(makeRecruit(slot,i<2?'engineer':i<4?'bazooka':'rifle'));});

@@ -2,7 +2,7 @@
 
 A Paratrooper-style turret game drawn on lined notebook paper. Planes drop stick-figure troopers. Shoot the trooper and he dies; pop his chute over a trampoline and he bounces into your squad, where he fights for you.
 
-Status: stages 0–4 implemented on `stick-army`, with the owner's added pizza-delivery shop homage. The static game now uses `site/stick-army/index.html` and `game.js`. See [01: Stick Army](../docs/guides/01-stick-army.md) for current behavior, tuning and validation commands. The studio shelf listing remains pending owner approval; online scores and the longer-form ideas below remain later work.
+Status: stages 0–4 implemented on `stick-army`, with the owner's added pizza-delivery shop homage. The static game now uses `site/stick-army/index.html` and `game.js`. See [Stick Army](../docs/games/stick-army.md) for current behavior, tuning and validation commands. The studio shelf listing remains pending owner approval; online scores and the longer-form ideas below remain later work.
 
 Implementation notes:
 
