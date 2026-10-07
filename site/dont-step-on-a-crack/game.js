@@ -5,7 +5,7 @@
 // Flow: title (a demo walk runs behind it) -> play <-> paused -> over (Mom calls) -> play or title.
 'use strict';
 'use strict';
-const BOARD=1;
+const BOARD=2;   // 2: squirrels knock you back, heelies stop where they stop, ballerina shoes, one pair of shoes per street
 const $=s=>document.querySelector(s);
 const view=$('#view'), cv=$('#world'), ctx=cv.getContext('2d');
 const msgEl=$('#msg'), msgM=msgEl.querySelector('.m'), msgS=msgEl.querySelector('.s');
@@ -122,6 +122,7 @@ const S=5, WS=5, R=0.18, DMIN=0.45, DMAX=2.25, LAT=1.7, MAXHP=6, LIFT=1.0;
 const WOB=0.85;                                  // seconds of wobble before the foot snaps back
 const TAP=0.16, TAP_STRIDE=1.35, TAP_GIANT=2.7;  // let go within TAP seconds and the foot takes a normal stride instead
 const GIANT={dmax:3.6,lat:2.2}, GIANT_MAX=3, STREAK_EVERY=10;
+const TIP={dmax:1.6,stride:1.0};                 // on tiptoe (ballerina shoes) your reach and stride are shorter
 const STAGE_START=[0,6,14,24,34];
 const STAGES=[
   {name:'Maple Ave',  note:'fresh pour',      stamp:'MAPLE AVE · 2024',  T:0.72},
@@ -160,10 +161,10 @@ function ssd(ax,ay,bx,by,cx,cy,dx,dy){
   if(((o1>0&&o2<0)||(o1<0&&o2>0))&&((o3>0&&o4<0)||(o3<0&&o4>0))) return 0;
   return Math.min(psd(ax,ay,cx,cy,dx,dy),psd(bx,by,cx,cy,dx,dy),psd(cx,cy,ax,ay,bx,by),psd(dx,dy,ax,ay,bx,by));
 }
-// sole = capsule from heel to toe, radius R
-function footHits(x,d,list,margin){
+// sole = capsule from heel to toe, radius R. On tiptoe (ballerina shoes) only the toe touches: a circle at the front.
+function footHits(x,d,list,margin,tip){
   margin=margin||0;
-  const ay=d-0.5+R, by=d+0.5-R, out=[];
+  const ay=tip?d+0.5-R:d-0.5+R, by=d+0.5-R, out=[];
   for(const sl of list){
     for(const c of sl.cracks){
       const bb=c.bb; if(x+R+margin<bb[0]||x-R>bb[1]||d+0.5<bb[2]||d-0.5>bb[3]) continue;
@@ -340,12 +341,32 @@ function genSlab(i,fr){
   }
   let nf=r.frontier;
   if(!nf.length){nf=[];for(let x=R+0.06;x<=WS-R-0.06;x+=0.2) nf.push({x,d:(i+1)*S-0.56});}
+  // a pair of shoes on its planned slab (or the next one with room), and no coupon on the same slab
+  const plan=shoePlan(i), shoesHere=plan&&!plan.placed&&i>=plan.at&&r.reachable.length>0;
+  if(shoesHere){
+    const rs=mulberry32((sl.seed^0xb0b5)>>>0), p=r.reachable[(rs()*r.reachable.length)|0];
+    sl.box={kind:plan.kind,x:p.x,d:p.d,a:(rs()-0.5)*0.5,taken:false,tt:0}; plan.placed=true;
+  }
   const rr=mulberry32((sl.seed^0x51ed)>>>0), prob=[0.07,0.12,0.1,0.08,0.06][sl.stage];
-  if(i>=3&&r.reachable.length&&rr()<prob){const p=r.reachable[(rr()*r.reachable.length)|0]; sl.coupon={x:p.x,d:p.d,a:(rr()-0.5)*0.8,taken:false,tt:0};}
-  // now and then a shoebox: heelies or moon shoes, about one a street
-  const bp=[0.08,0.1,0.11,0.11,0.1][sl.stage];
-  if(i>=4&&!sl.coupon&&r.reachable.length&&rr()<bp){const p=r.reachable[(rr()*r.reachable.length)|0]; sl.box={kind:rr()<0.5?'heelies':'moon',x:p.x,d:p.d,a:(rr()-0.5)*0.5,taken:false,tt:0};}
+  if(i>=3&&!shoesHere&&r.reachable.length&&rr()<prob){const p=r.reachable[(rr()*r.reachable.length)|0]; sl.coupon={x:p.x,d:p.d,a:(rr()-0.5)*0.8,taken:false,tt:0};}
   return {sl,frontier:nf};
+}
+// Power-up shoes: exactly one pair per street from Linden St on (every 10 slabs on Quarry Ln), on a random slab
+// of it, so every run gets the same number and luck only decides where. The kinds are dealt from a shuffled
+// set of three, so the first three streets always have one of each.
+const SHOE_KINDS=['heelies','moon','ballerina'], shoePlans=new Map();
+function shoePlan(i){
+  if(i<STAGE_START[1]) return null;
+  let n,a,b;
+  if(i<STAGE_START[4]){n=stageOf(i)-1; a=STAGE_START[n+1]; b=STAGE_START[n+2];}
+  else {const k=Math.floor((i-STAGE_START[4])/10); n=3+k; a=STAGE_START[4]+k*10; b=a+10;}
+  let p=shoePlans.get(n);
+  if(!p){
+    const r=mulberry32((seedBase^Math.imul(n+1,0x9e3779b1))>>>0), bag=mulberry32((seedBase^Math.imul(Math.floor(n/3)+1,0x85ebca6b))>>>0);
+    const kinds=SHOE_KINDS.slice(); for(let j=kinds.length-1;j>0;j--){const s=(bag()*(j+1))|0; [kinds[j],kinds[s]]=[kinds[s],kinds[j]];}
+    p={at:a+1+((r()*(b-a-2))|0),kind:kinds[n%3],placed:false}; shoePlans.set(n,p);
+  }
+  return p;
 }
 function ensureSlabs(upTo){while(genNext<=upTo){const r=genSlab(genNext,frontier);slabs.set(genNext,r.sl);frontier=r.frontier;genNext++;}}
 
@@ -562,25 +583,75 @@ function spline(g,pts){
   for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n]; g.bezierCurveTo(p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6,p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6,p2[0],p2[1]);}
   g.closePath();
 }
-function drawShoe(px,py,sc,side,shadowA){
-  const pts=side>0?SHOE_R:SHOE_L, s=K*sc;
-  ctx.save(); ctx.translate(px,py); ctx.scale(s,s);
-  if(pow&&pow.kind==='moon'&&mode==='play'){          // moon shoes: a bouncy platform strapped under the shoe
-    ctx.fillStyle='#8fc7ff'; ctx.beginPath(); ctx.ellipse(0,0.02,0.3,0.54,0,0,6.283); ctx.fill();
-    ctx.lineWidth=0.045; ctx.strokeStyle='#2f5f9e'; ctx.stroke();
-    ctx.fillStyle='#2f5f9e'; for(const [bx,by] of [[-0.23,-0.28],[0.23,-0.28],[-0.23,0.32],[0.23,0.32]]){ctx.beginPath(); ctx.arc(bx,by,0.045,0,6.283); ctx.fill();}
-  }
-  if(shadowA>0.01){ctx.save(); ctx.translate(0.04,0.05); spline(ctx,pts); ctx.fillStyle=`rgba(0,0,0,${(0.32*shadowA).toFixed(3)})`; ctx.fill(); ctx.restore();}
-  spline(ctx,pts); ctx.fillStyle='#d7d5ce'; ctx.fill(); ctx.lineWidth=1.2/s; ctx.strokeStyle='rgba(20,20,20,0.45)'; ctx.stroke();
-  ctx.save(); ctx.scale(0.85,0.93); spline(ctx,pts); ctx.fillStyle='#878b8d'; ctx.fill(); ctx.clip();
-  ctx.fillStyle='#48535a'; ctx.beginPath(); ctx.ellipse(0.005*side,-0.31,0.125,0.16,0,0,6.283); ctx.fill();
-  ctx.strokeStyle='#9da1a2'; ctx.lineWidth=0.03; ctx.beginPath(); ctx.ellipse(0.005*side,-0.31,0.125,0.16,0,Math.PI*1.1,Math.PI*1.9); ctx.stroke();
-  ctx.strokeStyle='#777b7d'; ctx.lineWidth=0.035; ctx.beginPath(); ctx.moveTo(-0.1,-0.15); ctx.lineTo(-0.11,0.26); ctx.moveTo(0.1,-0.15); ctx.lineTo(0.11,0.26); ctx.stroke();
-  ctx.fillStyle='#a3a7a8'; ctx.beginPath(); rrect(ctx,-0.075,-0.17,0.15,0.44,0.05); ctx.fill();
-  ctx.strokeStyle='#f3f2ec'; ctx.lineWidth=0.03; ctx.lineCap='round'; ctx.beginPath();
+// Shoe designs, drawn in shoe units (1 = 1 ft, toe up the sidewalk). 'plain' is your own sneakers. The power-up
+// pairs look the same lying on the sidewalk as on your feet while they last (the trousers hide the heels then).
+const SNEAKER={
+  plain:  {edge:'#d7d5ce',upper:'#878b8d',toe:'#48535a',rim:'#9da1a2',seam:'#777b7d',tongue:'#a3a7a8',lace:'#f3f2ec'},
+  heelies:{edge:'#55595d',upper:'#26282b',toe:'#141516',rim:'#9be15d',seam:'#3c3f43',tongue:'#34373b',lace:'#9be15d'}
+};
+const SLIPPER_R=SHOE_R.map(p=>[p[0]*0.84,p[1]*0.97]), SLIPPER_L=SLIPPER_R.map(p=>[-p[0],p[1]]);
+const tiptoe=()=>!!(pow&&pow.kind==='ballerina'&&mode==='play');
+function sneakerArt(pts,side,c,lw){
+  spline(ctx,pts); ctx.fillStyle=c.edge; ctx.fill(); ctx.lineWidth=lw; ctx.strokeStyle='rgba(20,20,20,0.45)'; ctx.stroke();
+  ctx.save(); ctx.scale(0.85,0.93); spline(ctx,pts); ctx.fillStyle=c.upper; ctx.fill(); ctx.clip();
+  ctx.fillStyle=c.toe; ctx.beginPath(); ctx.ellipse(0.005*side,-0.31,0.125,0.16,0,0,6.283); ctx.fill();
+  ctx.strokeStyle=c.rim; ctx.lineWidth=0.03; ctx.beginPath(); ctx.ellipse(0.005*side,-0.31,0.125,0.16,0,Math.PI*1.1,Math.PI*1.9); ctx.stroke();
+  if(c===SNEAKER.heelies){ctx.strokeStyle=c.rim; ctx.lineWidth=0.045; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(side*0.16,-0.12); ctx.quadraticCurveTo(side*0.09,0.12,side*0.17,0.4); ctx.stroke();}  // a lime stripe down the outside
+  ctx.strokeStyle=c.seam; ctx.lineWidth=0.035; ctx.beginPath(); ctx.moveTo(-0.1,-0.15); ctx.lineTo(-0.11,0.26); ctx.moveTo(0.1,-0.15); ctx.lineTo(0.11,0.26); ctx.stroke();
+  ctx.fillStyle=c.tongue; ctx.beginPath(); rrect(ctx,-0.075,-0.17,0.15,0.44,0.05); ctx.fill();
+  ctx.strokeStyle=c.lace; ctx.lineWidth=0.03; ctx.lineCap='round'; ctx.beginPath();
   for(let j=0;j<5;j++){const y=-0.13+j*0.085; ctx.moveTo(-0.1,y); ctx.lineTo(0.1,y+0.05); ctx.moveTo(0.1,y); ctx.lineTo(-0.1,y+0.05);}
   ctx.stroke();
-  ctx.restore(); ctx.restore();
+  ctx.restore();
+}
+// heelies: the wheel poking out behind the heel
+function wheelArt(){
+  ctx.fillStyle='#202124'; ctx.beginPath(); rrect(ctx,-0.095,0.32,0.19,0.38,0.08); ctx.fill();
+  ctx.fillStyle='#c9cdd0'; ctx.beginPath(); rrect(ctx,-0.07,0.42,0.14,0.25,0.06); ctx.fill();
+  ctx.fillStyle='#6d7276'; ctx.fillRect(-0.07,0.53,0.14,0.035);
+}
+// moon shoes: a bouncy blue platform. Lying loose (full) it shows its foot bed and straps; worn, your sneaker sits on it.
+function moonArt(full,lw){
+  if(full){ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0.05,0.08,0.3,0.54,0,0,6.283); ctx.fill();}
+  ctx.fillStyle='#8fc7ff'; ctx.beginPath(); ctx.ellipse(0,0.02,0.3,0.54,0,0,6.283); ctx.fill();
+  ctx.lineWidth=0.045; ctx.strokeStyle='#2f5f9e'; ctx.stroke();
+  if(full){
+    ctx.fillStyle='#5d8fca'; ctx.beginPath(); ctx.ellipse(0,0.02,0.17,0.38,0,0,6.283); ctx.fill();
+    ctx.fillStyle='#2f5f9e'; for(const y of [-0.2,0.16]){ctx.beginPath(); rrect(ctx,-0.25,y,0.5,0.09,0.03); ctx.fill();}
+    ctx.fillStyle='#f4e27a'; for(const y of [-0.2,0.16]) ctx.fillRect(0.13,y+0.015,0.06,0.06);
+    ctx.lineWidth=lw; ctx.strokeStyle='rgba(20,30,50,0.5)'; ctx.beginPath(); ctx.ellipse(0,0.02,0.3,0.54,0,0,6.283); ctx.stroke();
+  }
+  ctx.fillStyle='#2f5f9e'; for(const [bx,by] of [[-0.23,-0.28],[0.23,-0.28],[-0.23,0.32],[0.23,0.32]]){ctx.beginPath(); ctx.arc(bx,by,0.045,0,6.283); ctx.fill();}
+}
+// ballerina shoes: pink satin, a pleated toe, a little bow. Lying loose (full) the ribbons trail out of the opening.
+function slipperArt(pts,side,full,lw){
+  if(full){
+    ctx.strokeStyle='#e58aa6'; ctx.lineWidth=0.04; ctx.lineCap='round';
+    for(const k of [-1,1]){ctx.beginPath(); ctx.moveTo(k*0.09,0.18); ctx.bezierCurveTo(k*0.34,0.22,k*0.12,0.5,k*0.34+side*0.04,0.66); ctx.stroke();}
+  }
+  spline(ctx,pts); ctx.fillStyle='#f4b8ca'; ctx.fill(); ctx.lineWidth=lw; ctx.strokeStyle='rgba(150,60,90,0.6)'; ctx.stroke();
+  ctx.save(); spline(ctx,pts); ctx.clip();
+  ctx.fillStyle='rgba(255,255,255,0.38)'; ctx.beginPath(); ctx.ellipse(-0.06*side,-0.12,0.04,0.24,0,0,6.283); ctx.fill();   // satin sheen
+  if(full){ctx.fillStyle='#c96e8b'; ctx.beginPath(); ctx.ellipse(0,0.22,0.1,0.22,0,0,6.283); ctx.fill(); ctx.fillStyle='#f9dbe4'; ctx.beginPath(); ctx.ellipse(0,0.26,0.07,0.15,0,0,6.283); ctx.fill();}
+  ctx.strokeStyle='rgba(170,70,100,0.45)'; ctx.lineWidth=0.014; ctx.beginPath();
+  for(let j=-2;j<=2;j++){ctx.moveTo(j*0.022,-0.49); ctx.lineTo(j*0.04,-0.38);} ctx.stroke();                              // pleats at the toe
+  ctx.restore();
+  ctx.fillStyle='#e07a99'; for(const k of [-1,1]){ctx.beginPath(); ctx.ellipse(k*0.045,-0.02,0.045,0.028,k*0.3,0,6.283); ctx.fill();}
+  ctx.fillStyle='#c95f80'; ctx.beginPath(); ctx.arc(0,-0.02,0.02,0,6.283); ctx.fill();
+}
+function drawShoe(px,py,sc,side,shadowA){
+  const st=mode==='play'&&pow?pow.kind:'plain', slip=st==='ballerina', s=K*sc, lw=1.2/s;
+  const pts=slip?(side>0?SLIPPER_R:SLIPPER_L):(side>0?SHOE_R:SHOE_L);
+  ctx.save(); ctx.translate(px,py); ctx.scale(s,s);
+  if(st==='moon') moonArt(false,lw);
+  if(shadowA>0.01){
+    ctx.save(); ctx.fillStyle=`rgba(0,0,0,${(0.32*shadowA).toFixed(3)})`;
+    if(slip){ctx.beginPath(); ctx.ellipse(0.04,-(0.5-R)+0.05,R*1.05,R*1.2,0,0,6.283); ctx.fill();}   // on tiptoe only the toe touches
+    else {ctx.translate(0.04,0.05); spline(ctx,pts); ctx.fill();}
+    ctx.restore();
+  }
+  if(slip) slipperArt(pts,side,false,lw); else sneakerArt(pts,side,SNEAKER[st==='heelies'?'heelies':'plain'],lw);
+  ctx.restore();
 }
 function drawLeg(sx,sy,sc,hx,hy,shoeSc=sc){
   const hw=0.235*K*sc, hemY=sy+0.17*K*shoeSc, hipW=0.85*K;
@@ -605,6 +676,10 @@ function drawOutline(x,d,u,side,giant,wob){
     ctx.setLineDash([0.07,0.05]);
     ctx.lineWidth=2.4/K; ctx.strokeStyle='rgba(0,0,0,0.38)'; ctx.stroke();
     ctx.lineWidth=(wob?2:1.4)/K; ctx.strokeStyle=col; ctx.stroke();
+  }
+  if(tiptoe()){                                   // on tiptoe, the toe is the only part that counts
+    ctx.setLineDash([]); ctx.beginPath(); ctx.arc(0,-(0.5-R),R,0,6.283);
+    ctx.fillStyle='rgba(247,168,196,0.42)'; ctx.fill(); ctx.lineWidth=2/K; ctx.strokeStyle='#f7a8c4'; ctx.stroke();
   }
   ctx.restore();
 }
@@ -660,23 +735,28 @@ function drawCoupons(now,lo,hi){
   for(let i=lo;i<=hi;i++){
     const sl=slabs.get(i); if(!sl) continue;
     const bx=sl.box;
-    if(bx){if(bx.taken){const a=(now-bx.tt)/0.6; if(a<1) drawBox(bx,now,1-a,a*0.8*K);} else drawBox(bx,now,1,0);}
+    if(bx){if(bx.taken){const a=(now-bx.tt)/0.6; if(a<1) drawPickup(bx,now,1-a,a*0.8*K);} else drawPickup(bx,now,1,0);}
     if(!sl.coupon) continue; const cp=sl.coupon;
     if(cp.taken){const a=(now-cp.tt)/0.6; if(a<1) drawCoupon(cp.x,cp.d,cp.a,1-a,a*0.8*K);}
     else drawCoupon(cp.x,cp.d,cp.a,1,0);
   }
 }
-// a shoebox: black with a green stripe for heelies, blue with a moon for moon shoes. It glows a little so you notice it.
-function drawBox(b,now,alpha,lift){
-  const w=0.62*K, h=0.95*K, moon=b.kind==='moon';
+// a pair of power-up shoes lying on the sidewalk, with a soft glow so you notice them. Step on them to put them on.
+function drawPickup(b,now,alpha,lift){
   ctx.save(); ctx.translate(X(b.x),Y(b.d)-lift); ctx.rotate(b.a); ctx.globalAlpha=alpha;
-  if(!lift){const g=0.5+0.5*Math.sin(now*4); ctx.strokeStyle=`rgba(255,240,160,${(0.25+0.3*g).toFixed(2)})`; ctx.lineWidth=Math.max(2,0.07*K); ctx.beginPath(); rrect(ctx,-w/2-0.1*K,-h/2-0.1*K,w+0.2*K,h+0.2*K,0.12*K); ctx.stroke();}
-  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(-w/2+2,-h/2+3,w,h);
-  ctx.fillStyle=moon?'#2f5f9e':'#222222'; ctx.fillRect(-w/2,-h/2,w,h);
-  ctx.fillStyle=moon?'#3d74bd':'#333'; ctx.fillRect(-w/2,-h/2,w,h*0.22);                 // the lid's edge
-  if(moon){ctx.fillStyle='#f4e27a'; ctx.beginPath(); ctx.arc(0,h*0.12,w*0.24,0,6.283); ctx.fill(); ctx.fillStyle='#3d74bd'; ctx.beginPath(); ctx.arc(w*0.1,h*0.06,w*0.2,0,6.283); ctx.fill();
-    ctx.fillStyle='#fff'; for(const [sx,sy] of [[-0.3,-0.05],[0.28,0.32],[-0.22,0.36]]){ctx.beginPath(); ctx.arc(sx*w,sy*h,Math.max(1,0.025*K),0,6.283); ctx.fill();}}
-  else {ctx.fillStyle='#9be15d'; ctx.fillRect(-w/2,h*0.02,w,h*0.13); ctx.fillStyle='#9be15d'; ctx.beginPath(); ctx.arc(0,h*0.3,w*0.13,0,6.283); ctx.fill(); ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(0,h*0.3,w*0.06,0,6.283); ctx.fill();}
+  if(!lift){const g=0.5+0.5*Math.sin(now*4); ctx.strokeStyle=`rgba(255,240,160,${(0.25+0.3*g).toFixed(2)})`; ctx.lineWidth=Math.max(2,0.07*K); ctx.beginPath(); ctx.ellipse(0,0,0.62*K,0.66*K,0,0,6.283); ctx.stroke();}
+  const sc=0.8, lw=1.4/(K*sc), off=b.kind==='moon'?0.27:0.23;
+  ctx.scale(K,K);
+  for(const side of [-1,1]){
+    const slip=b.kind==='ballerina', pts=slip?(side>0?SLIPPER_R:SLIPPER_L):(side>0?SHOE_R:SHOE_L);
+    ctx.save(); ctx.translate(side*off,-side*0.04); ctx.rotate(side*0.14); ctx.scale(sc,sc);
+    if(b.kind==='moon') moonArt(true,lw);
+    else {
+      ctx.save(); ctx.translate(0.05,0.06); spline(ctx,pts); ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fill(); ctx.restore();
+      if(slip) slipperArt(pts,side,true,lw); else {wheelArt(); sneakerArt(pts,side,SNEAKER.heelies,lw);}
+    }
+    ctx.restore();
+  }
   ctx.restore();
 }
 // a soft dark dot, made once and drawn scaled (cheaper than a fresh radial gradient every frame)
@@ -1074,6 +1154,9 @@ const T={
   cleared:["you jumped it. I didn't feel a thing. proud of you","that's my kid. over the top"],
   heelies:["are you wearing heelies. technically that's not stepping. I'll allow it","heelies?? what year is it","ROLL sweetie. roll"],
   moon:["moon shoes. MOON SHOES. I can feel every landing","those were recalled in 1994","you'll put your eye out. or my back out"],
+  ballerina:["are you on your TOES. that's the nicest thing you've done for my back","tiptoe sweetie. like you're sneaking past my lumbar","I did ballet for one year. 1971. ask me about my hips"],
+  rolledStop:["you STOPPED on it. on purpose?? with wheels??","wheels stop somewhere sweetie. pick the somewhere"],
+  squirrel:["was that a squirrel. did you scream","you jumped back so fast my coffee jumped","the squirrels have always had it out for this family","it's a squirrel. you're a person. be the bigger animal"],
   leash:["a leash is a line. lines are spines. I don't make the rules","tell mrs shmookie I said hi. and that I hate her dog","calzone AGAIN??"],
   couponFine:["a coupon? I'm fine. use it on your legs","save it. you'll need it on quarry ln"],
   snap:["don't stretch like that. that's how this started for me","you looked just like me for a second","hamstrings aren't free sweetie"],
@@ -1406,17 +1489,26 @@ function drawDogDanger(){
   ctx.fillStyle=gr; ctx.fillRect(dog.side<0?0:Wc-w,0,w,Hc);
 }
 
-/* ---------- power-ups: a shoebox on the sidewalk, step on it to put them on ---------- */
+/* ---------- power-ups: a pair of shoes on the sidewalk, step on them to put them on ---------- */
 // Heelies: you roll for a few seconds. Wheels aren't steps, so cracks don't count, and things bounce off you.
-//   Hold a side (or slide your thumb, or the arrow keys) to lean that way. When they stop you're standing, safely.
+//   Hold a side (or slide your thumb, or the arrow keys) to lean that way. Where the wheels stop, you land:
+//   both feet count, so steer the stop onto clean concrete. Its footprints show for the last stretch.
 // Moon shoes: for a while every jump clears a whole slab, and you can see and steer where it lands.
-const POW={heelies:{name:'Heelies',dur:6,col:'#9be15d'},moon:{name:'Moon shoes',dur:15,col:'#8fc7ff'}};
+// Ballerina shoes: you walk on your toes, so only the front of each shoe counts, but your steps are shorter.
+// Picking up the pair you're already wearing adds half their time. A different pair swaps.
+const POW={heelies:{name:'Heelies',dur:6,col:'#9be15d'},moon:{name:'Moon shoes',dur:15,col:'#8fc7ff'},ballerina:{name:'Ballerina shoes',dur:10,col:'#f7a8c4'}};
+const ROLL_SHOW=1.6;                              // seconds before heelies stop that their stopping spot shows
 let pow=null, pendingPow=null, rl=null;
 const powEl=$('#power'), powName=$('#powName'), powBar=$('#powBar');
 function powReset(){if(rl&&rl.stop) rl.stop(); pow=null; pendingPow=null; rl=null; powEl.hidden=true; powEl.classList.remove('ending');}
 function startPower(kind,now){
-  if(rl){if(rl.stop) rl.stop(); rl=null; if(phase==='roll') phase='idle';}
-  pow={kind,until:now+POW[kind].dur};
+  if(pow&&pow.kind===kind){                       // another pair of the same: more time, not a fresh start
+    const add=POW[kind].dur/2; pow.until+=add; pow.full=Math.max(pow.full,pow.until-now);
+    sfx.earn(); say(`More ${POW[kind].name.toLowerCase()}.`,`+${add} seconds.`,1100);
+    return;
+  }
+  if(phase==='roll'){stopRolling(now); if(mode!=='play') return;}   // swapping out of heelies: they stop here first
+  pow={kind,until:now+POW[kind].dur,full:POW[kind].dur};
   powName.textContent=POW[kind].name; powEl.style.setProperty('--pw',POW[kind].col); powEl.hidden=false; powEl.classList.remove('ending');
   sfx.earn();
   if(kind==='heelies'){
@@ -1424,29 +1516,53 @@ function startPower(kind,now){
     rl={x:clamp((L.x+Rt.x)/2,0.8,WS-0.8),d,v:0,lean:0,joint:slabIdx(d),stop:sfx.glide()};
     phase='roll'; input.q=[];
     if(dog.state==='chase'){dog.state='leave'; dog.leaveT=0;}
-    sayNow('Heelies!',coarse?"Wheels aren't steps. Hold a side to lean.":"Wheels aren't steps. Lean with the mouse, or A and D.",1600);
+    sayNow('Heelies!',coarse?"Wheels aren't steps. Hold a side to lean, and stop somewhere clean.":"Wheels aren't steps. Lean with the mouse or A and D, and stop somewhere clean.",1900);
     momText(T.heelies);
-  } else {
+  } else if(kind==='moon'){
     sayNow('Moon shoes!','Every jump clears a slab. Steer it in the air.',1700);
     momText(T.moon);
+  } else {
+    sayNow('Ballerina shoes!','On your toes: only the front of your shoe counts. Shorter steps.',1900);
+    momText(T.ballerina);
   }
 }
 function endPower(now){
   const k=pow.kind; pow=null; powEl.hidden=true; powEl.classList.remove('ending'); sfx.disarm();
   if(k==='heelies'){
-    if(rl&&rl.stop) rl.stop(); rl=null; phase='idle'; lastStepAt=now; input.q=[];
-    say('Heelies off.','Back to walking.',1100);
-  } else say('Moon shoes off.','',1000);
+    if(phase==='roll'&&!stopRolling(now)&&mode==='play') say('Heelies off.','Clean stop.',1100);
+  } else say(k==='moon'?'Moon shoes off.':'Back on your heels.','',1000);
+}
+// The wheels stop and both feet come down where they are, like a two-foot landing: a crack under either counts once.
+// Returns true if that hurt Mom.
+function stopRolling(now){
+  if(rl&&rl.stop) rl.stop(); rl=null; phase='idle'; lastStepAt=now; input.q=[];
+  const was=hp, j={hurt:false,roll:true}; jp=j;
+  for(const f of [front,back]){
+    drop={foot:f,x:f.x,d:f.d,t:0,dur:0,fx:f.x,fd:f.d,fl:0,jump:true,roll:true};
+    land(now);
+    if(mode!=='play'||jp!==j) break;
+  }
+  if(jp===j) jp=null;
+  const hurt=hp<was||mode!=='play';
+  if(hurt&&mode==='play') momText(T.rolledStop,{chance:0.5});
+  return hurt;
 }
 function powUpdate(dt,now){
   if(mode!=='play') return;
-  if(pendingPow&&phase==='idle'){startPower(pendingPow,now); pendingPow=null;}
+  if(pendingPow&&phase==='idle'){const k=pendingPow; pendingPow=null; startPower(k,now);}
   if(!pow) return;
-  if(phase==='roll'&&rl) rollUpdate(dt,now,pow.until-now);      // may pick up another pair and switch
+  if(phase==='roll'&&rl) rollUpdate(dt,now,pow.until-now);      // may pick up another pair: more time, or a swap
+  if(!pow||mode!=='play') return;
   const left=pow.until-now;
-  powBar.style.width=`${Math.max(0,left/POW[pow.kind].dur*100).toFixed(1)}%`;
+  powBar.style.width=`${clamp(left/pow.full*100,0,100).toFixed(1)}%`;
   powEl.classList.toggle('ending',left<1.5);
   if(left<=0&&(pow.kind==='heelies'||phase!=='jump')) endPower(now);   // moon shoes finish the jump you're in
+}
+// where the heelies will stop if you keep doing what you're doing (same easing as rollUpdate)
+function rollStopAt(left){
+  let v=rl.v, d=rl.d; const h=1/60;
+  for(let t=left;t>0;t-=h){v+=((t<0.8?2:7)-v)*(1-Math.exp(-h*4)); d+=v*h;}
+  return d;
 }
 function rollUpdate(dt,now,left){
   input.q=[];                                              // taps don't step while you're rolling
@@ -1460,7 +1576,7 @@ function rollUpdate(dt,now,left){
   if(L.d>far) far=L.d;
   const j=slabIdx(rl.d); if(j>rl.joint){rl.joint=j; sfx.tick();}
   lastStepAt=now;
-  // rolling over a coupon or another shoebox picks it up
+  // rolling over a coupon or another pair of shoes picks it up
   for(const f of feet) for(const sl of slabsNear(f.d)){
     const cp=sl.coupon; if(cp&&!cp.taken&&psd(cp.x,cp.d,f.x,f.d-0.5+R,f.x,f.d+0.5-R)<R+0.24){cp.taken=true; cp.tt=now; if(hp>0) takeCoupon(); updateHUD();}
     const bx=sl.box; if(bx&&!bx.taken&&psd(bx.x,bx.d,f.x,f.d-0.5+R,f.x,f.d+0.5-R)<R+0.32){bx.taken=true; bx.tt=now; pendingPow=bx.kind;}
@@ -1482,6 +1598,15 @@ function nudge(dx){
   if(!jp.moon) cx=clamp(cx,jp.cx0-0.6,jp.cx0+0.6);
   jp.to[0].x=cx-0.45; jp.to[1].x=cx+0.45;
 }
+// heelies, for the last stretch: where the wheels will stop if you keep leaning the way you are. Both feet count there.
+function drawRollStop(now){
+  if(phase!=='roll'||!rl||!pow) return;
+  const left=pow.until-now; if(left>ROLL_SHOW||left<=0) return;
+  const d=rollStopAt(left);
+  ctx.save(); ctx.globalAlpha=Math.min(1,(ROLL_SHOW-left)/0.3);
+  drawOutline(rl.x-0.45,d+0.3,0,-1,false,false); drawOutline(rl.x+0.45,d-0.3,0,1,false,false);
+  ctx.restore();
+}
 // heelies: little speed lines past each shoe
 function drawRollLines(now){
   if(phase!=='roll') return;
@@ -1494,10 +1619,13 @@ function drawRollLines(now){
 }
 
 /* ---------- ambient life: falling leaves, a squirrel, ants on a crack, cloud shadows ---------- */
-// All cosmetic. The only thing that touches play is that a leaf landing on a crack hides it, like the ones already there.
-let falling=[], squirrel=null, cloud=null, nextLeaf=0, nextSquirrel=0, nextCloud=0, nextMower=0;
+// Mostly cosmetic: a leaf landing on a crack hides it, like the ones already there. The squirrel is the exception.
+// It dashes across a few feet ahead of you and stops once in the middle to stare. Step on it, or have it run into a
+// planted foot, and you jump back about 2 ft: the streak goes, the feet walked go down with you, and the landing
+// counts like any other. Jump over it, or in heelies it hops your wheels.
+let falling=[], squirrel=null, cloud=null, nextLeaf=0, nextSquirrel=0, nextCloud=0, nextMower=0, squirrelSeen=0;
 function ambientReset(now){
-  falling=[]; squirrel=null; cloud=null;
+  falling=[]; squirrel=null; cloud=null; squirrelSeen=0;
   nextLeaf=now+1.5; nextSquirrel=now+10+Math.random()*10; nextCloud=now+18+Math.random()*25; nextMower=now+25+Math.random()*40;
   soundscapeReset(now);
 }
@@ -1517,21 +1645,28 @@ function ambientUpdate(dt,now){
     const sl=slabs.get(slabIdx(L.d));
     if(sl){(sl.fallen||(sl.fallen=[])).push({x:L.x,d:L.d,s:L.s,a:L.a,c:L.c,t:L.ty}); if(sl.fallen.length>12) sl.fallen.shift();}
   }
-  // a squirrel dashes across ahead now and then, stopping once in the middle to stare at you
+  // a squirrel dashes across a few feet ahead now and then, stopping once in the middle to stare at you
   if(!squirrel&&now>nextSquirrel){
     nextSquirrel=now+(st===2?16:26)+Math.random()*18;
-    const dir=Math.random()<0.5?1:-1;
-    squirrel={x:dir>0?-3.2:WS+3.2,d:camD+3.5+Math.random()*5,dir,state:'run',t:0,seg:0.35,stopped:false,flick:0,hop:0};
+    const dir=Math.random()<0.5?1:-1, pan=-dir*0.8;
+    squirrel={x:dir>0?-3.2:WS+3.2,d:front.d+2.4+Math.random()*3.2,dir,state:'run',t:0,seg:0.35,stopped:false,flick:0,hop:0,hit:false,leap:-1};
+    if(mode==='play'){sfx.chitter(pan); if(squirrelSeen++<1) say('Squirrel!',"Don't step on it.",1200);}
   }
   if(squirrel){
     const q=squirrel; q.t+=dt;
-    if(q.state==='run'){
+    if(q.state==='flee'){q.x+=q.dir*9.5*dt; q.hop+=dt*22;}       // bolting off after a run-in
+    else if(q.state==='run'){
       q.x+=q.dir*6.5*dt; q.hop+=dt*16;
       const mid=q.dir>0?q.x>WS*0.42:q.x<WS*0.58;
       if(!q.stopped&&mid){q.stopped=true; q.state='pause'; q.t=0; q.seg=0.8+Math.random()*0.6; sfx.chitter(clamp((q.x-WS/2)/4,-0.8,0.8));}
       else if(q.t>q.seg){q.state='pause'; q.t=0; q.seg=0.12+Math.random()*0.25;}
     } else if(q.t>q.seg){q.state='run'; q.t=0; q.seg=0.3+Math.random()*0.35;}
     q.flick=q.state==='pause'?Math.sin(q.t*20)*Math.max(0,1-q.t*1.8):0;
+    // running into you: it hops heelies, and startles you off a planted foot (a foot in the air passes over it)
+    if(mode==='play'&&!q.hit){
+      if(phase==='roll'){if(feet.some(f=>squirrelAt(f.x,f.d))){q.hit=true; q.leap=now; q.state='flee'; sfx.chitter(clamp((q.x-WS/2)/4,-0.8,0.8)); say('The squirrel hopped your wheels.','',900);}}
+      else if((phase==='idle'||phase==='swing')&&plantedFeet().some(f=>squirrelAt(f.x,f.d))) startle(now);
+    }
     if(q.x<-4.5||q.x>WS+4.5) squirrel=null;
   }
   // a cloud's shadow slides over every so often
@@ -1608,23 +1743,48 @@ function drawAnts(now,lo,hi){
   }
   ctx.globalAlpha=1;
 }
-function drawSquirrel(){
+const SQ_SIZE=1.45;                               // drawing scale; the body and head are about 0.85 ft long
+// Is a foot at (x, d) touching the squirrel's body (not its tail)? Only in play, and only until it has run into you once.
+function squirrelAt(x,d){
+  const q=squirrel; if(!q||q.hit||mode!=='play') return false;
+  const ay=tiptoe()?d+0.5-R:d-0.5+R, by=d+0.5-R;
+  return ssd(x,ay,x,by,q.x-0.25*q.dir,q.d,q.x+0.35*q.dir,q.d)<R+0.14;
+}
+// Startled: both feet jump back about 2 ft, wherever that lands (a lifted foot comes down with them)
+function startle(now){
+  const q=squirrel, pan=q?clamp((q.x-WS/2)/4,-0.8,0.8):0;
+  if(q){q.hit=true; q.state='flee'; q.t=0;}
+  const had=streak; streak=0; kick(7); camFlinch=Math.max(camFlinch,0.6);
+  stopWobble();
+  const L=feet.find(f=>f.side<0), Rt=feet.find(f=>f.side>0);
+  const from=[L,Rt].map(f=>phase==='swing'&&f===sw.foot?{x:sw.dx,d:sw.dd}:{x:f.x,d:f.d});
+  sw=null; drop=null;
+  const fall=1.6+Math.random()*0.6, dx=clamp((Math.random()-0.5)*0.5,R+0.05-L.x,WS-R-0.05-Rt.x);
+  jp={t:0,t0:now,dur:0.34,herd:true,startle:true,moon:false,cx0:0,feet:[L,Rt],from,to:[{x:L.x+dx,d:L.d-fall},{x:Rt.x+dx,d:Rt.d-fall}]};
+  phase='jump'; lastStepAt=now; input.q=[];
+  updateHUD();
+  sayNow('Squirrel!',had>=3?`You jumped back. Streak of ${had} gone.`:'You jumped back.',1300);
+  sfx.squeak(pan); sfx.chitter(pan);
+  momText(T.squirrel,{chance:0.6});
+}
+function drawSquirrel(now){
   const q=squirrel; if(!q) return;
-  const s=K*1.2, hop=q.state==='run'?Math.abs(Math.sin(q.hop)):0;
+  const s=K*SQ_SIZE, hop=q.state==='run'||q.state==='flee'?Math.abs(Math.sin(q.hop)):0;
+  const lu=q.leap>=0?(now-q.leap)/0.45:1, leap=lu<1?Math.sin(Math.PI*lu):0;     // hopping over your heelies
   ctx.save(); ctx.translate(X(q.x),Y(q.d));
-  ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(-0.12*s,0.06*s,0.52*s,0.16*s,0,0,6.283); ctx.fill();
-  ctx.translate(0,-hop*0.06*s); ctx.scale(q.dir*(1+hop*0.06),1+hop*0.06);
+  ctx.fillStyle=`rgba(0,0,0,${(0.28*(1-leap*0.5)).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(-0.12*s,0.06*s,0.52*s,0.16*s,0,0,6.283); ctx.fill();
+  ctx.translate(0,-hop*0.06*s-leap*0.9*K); ctx.scale(q.dir*(1+hop*0.06+leap*0.25),1+hop*0.06+leap*0.25);
   // tail: a fluffy chain of puffs behind, waving side to side
   const wave=t=>Math.sin(q.hop*0.6+t*2)*0.05+q.flick*0.09*t;
   const puffs=[[-0.3,0.1],[-0.43,0.125],[-0.56,0.13],[-0.68,0.11]];
-  ctx.fillStyle='#a88d75'; for(const [px,r] of puffs){ctx.beginPath(); ctx.arc(px*s,wave(-px)*s,(r+0.03)*s,0,6.283); ctx.fill();}
-  ctx.fillStyle='#7a604c'; for(const [px,r] of puffs){ctx.beginPath(); ctx.arc(px*s,wave(-px)*s,r*s,0,6.283); ctx.fill();}
+  ctx.fillStyle='#b8946f'; for(const [px,r] of puffs){ctx.beginPath(); ctx.arc(px*s,wave(-px)*s,(r+0.03)*s,0,6.283); ctx.fill();}
+  ctx.fillStyle='#8a6243'; for(const [px,r] of puffs){ctx.beginPath(); ctx.arc(px*s,wave(-px)*s,r*s,0,6.283); ctx.fill();}
   // legs scrabble while running
-  if(q.state==='run'){ctx.fillStyle='#6e5644'; const l=Math.sin(q.hop)*0.04; for(const [lx,ly] of [[0.12+l,0.11],[0.12-l,-0.11],[-0.12-l,0.12],[-0.12+l,-0.12]]){ctx.beginPath(); ctx.arc(lx*s,ly*s,0.035*s,0,6.283); ctx.fill();}}
-  ctx.fillStyle='#735742'; ctx.beginPath(); ctx.ellipse(-0.02*s,0,0.24*s,0.12*s,0,0,6.283); ctx.fill();
+  if(q.state==='run'||q.state==='flee'){ctx.fillStyle='#6b4a32'; const l=Math.sin(q.hop)*0.04; for(const [lx,ly] of [[0.12+l,0.11],[0.12-l,-0.11],[-0.12-l,0.12],[-0.12+l,-0.12]]){ctx.beginPath(); ctx.arc(lx*s,ly*s,0.035*s,0,6.283); ctx.fill();}}
+  ctx.fillStyle='#80583a'; ctx.beginPath(); ctx.ellipse(-0.02*s,0,0.24*s,0.12*s,0,0,6.283); ctx.fill();
   ctx.fillStyle='rgba(60,42,30,0.35)'; ctx.beginPath(); ctx.ellipse(-0.04*s,0,0.18*s,0.035*s,0,0,6.283); ctx.fill();
-  ctx.fillStyle='#735742'; ctx.beginPath(); ctx.ellipse(0.23*s,0,0.1*s,0.085*s,0,0,6.283); ctx.fill();
-  ctx.fillStyle='#6a5141'; ctx.beginPath(); ctx.arc(0.2*s,0.072*s,0.026*s,0,6.283); ctx.arc(0.2*s,-0.072*s,0.026*s,0,6.283); ctx.fill();
+  ctx.fillStyle='#80583a'; ctx.beginPath(); ctx.ellipse(0.23*s,0,0.1*s,0.085*s,0,0,6.283); ctx.fill();
+  ctx.fillStyle='#6f4a31'; ctx.beginPath(); ctx.arc(0.2*s,0.072*s,0.026*s,0,6.283); ctx.arc(0.2*s,-0.072*s,0.026*s,0,6.283); ctx.fill();
   ctx.fillStyle='#120d0a'; ctx.beginPath(); ctx.arc(0.28*s,0.045*s,0.014*s,0,6.283); ctx.arc(0.28*s,-0.045*s,0.014*s,0,6.283); ctx.fill();
   ctx.restore();
 }
@@ -1798,7 +1958,7 @@ let nextBird=0, nextBeat=0, nextAmbient=0, lastStepAt=0, idleTexted=false, pause
 const elapsed=now=>tStart===null?0:((tEnd===null?now:tEnd)-tStart);
 
 function reset(){
-  seedBase=(Math.random()*1e9)|0; slabs.clear(); tiles.clear();
+  seedBase=(Math.random()*1e9)|0; slabs.clear(); tiles.clear(); shoePlans.clear();
   feet=[{side:-1,x:1.95,d:1.4},{side:1,x:3.05,d:2.6}]; back=feet[0]; front=feet[1];
   slabs.set(-2,buildSlab(-2,seedBase+11,0)); slabs.set(-1,buildSlab(-1,seedBase+13,0));
   frontier=[{x:front.x,d:front.d},{x:back.x,d:back.d}]; genNext=0; ensureSlabs(4);
@@ -1844,7 +2004,7 @@ function clampSw(){
 // Let go within TAP seconds and it's a tap instead: the foot takes a normal stride, so quick alternating taps walk.
 function beginSwing(side,now){
   const f=side?feet.find(q=>q.side===side):back, other=f===feet[0]?feet[1]:feet[0];
-  const g=armed&&giant>0&&mode==='play', dmax=g?GIANT.dmax:DMAX;
+  const g=armed&&giant>0&&mode==='play', dmax=g?GIANT.dmax:tiptoe()?TIP.dmax:DMAX;
   const start=clamp(f.d-other.d,-1.3,dmax-0.4);
   phase='swing';
   sw={foot:f,other,t:0,u:0,dmin:DMIN,dmax,lat:g?GIANT.lat:LAT,giant:g,x:f.x,ex:f.x,ahead:start,tx:f.x,td:other.d+start,dx:f.x,dd:f.d,lift:0,warned:false,full:-1,wob:0,stopWob:null,upgraded:false};
@@ -1864,7 +2024,7 @@ function upgradeSwing(){
 function tapStep(){
   stopWobble();
   const f=sw.foot, o=sw.other, side=f.side;
-  const ahead=Math.min(sw.dmax-0.1,Math.max(sw.ahead,sw.giant?TAP_GIANT:TAP_STRIDE));
+  const ahead=Math.min(sw.dmax-0.1,Math.max(sw.ahead,sw.giant?TAP_GIANT:tiptoe()?TIP.stride:TAP_STRIDE));
   let x=o.x+side*0.95;
   x+=(WS/2-(x+o.x)/2)*0.3;
   x=side<0?clamp(x,o.x-1.35,o.x-0.6):clamp(x,o.x+0.6,o.x+1.35);
@@ -1887,14 +2047,21 @@ function beginJump(now){
 }
 function landJump(now){
   if(jp.moon){sfx.moonLand(); kick(6);} else if(jp.herd){sfx.scuff();} else {sfx.jumpLand(); kick(4);}
-  for(let i=0;i<2;i++){
-    const f=jp.feet[i];
-    drop={foot:f,x:jp.to[i].x,d:jp.to[i].d,t:0,dur:0,fx:f.x,fd:f.d,fl:0,jump:true,stumble:!!jp.herd};
-    land(now);
-    if(mode!=='play') break;
+  // coming down on the squirrel: both feet land, it squeaks, you jump straight back off
+  if(mode==='play'&&!jp.herd&&jp.to.some(q=>squirrelAt(q.x,q.d))){
+    jp.feet.forEach((f,i)=>{f.x=jp.to[i].x; f.d=jp.to[i].d;}); jp=null; phase='idle';
+    if(feet[0].d>=feet[1].d){front=feet[0]; back=feet[1];} else {front=feet[1]; back=feet[0];}
+    steps+=2; startle(now); return;
   }
-  const wasHerd=jp.herd; jp=null;
-  if(mode==='play'&&!wasHerd) momText(T.jump,{chance:0.2});
+  const j=jp;
+  for(let i=0;i<2;i++){
+    const f=j.feet[i];
+    drop={foot:f,x:j.to[i].x,d:j.to[i].d,t:0,dur:0,fx:f.x,fd:f.d,fl:0,jump:true,stumble:!!j.herd,startle:!!j.startle};
+    land(now);
+    if(mode!=='play'||jp!==j) break;
+  }
+  if(jp===j) jp=null;
+  if(mode==='play'&&!j.herd) momText(T.jump,{chance:0.2});
 }
 function stopWobble(){if(sw&&sw.stopWob){sw.stopWob(); sw.stopWob=null;}}
 function plant(){
@@ -1920,11 +2087,13 @@ function land(now){
   if(feet[0].d>=feet[1].d){front=feet[0]; back=feet[1];} else {front=feet[1]; back=feet[0];}
   puffs.push({x:f.x,d:f.d,t:now,r:Math.random()*6,s:drop.giant?2:1});
   if(mode!=='play') return;                       // the title screen's demo walk counts nothing
-  steps++;
+  if(!drop.roll) steps++;
+  // a foot coming down on the squirrel: it squeaks, you jump back (jumps check this before they land)
+  if(!drop.jump&&squirrelAt(f.x,f.d)){startle(now); return;}
   // only a step that takes you somewhere new counts toward the clean streak
   const fwd=f.d>far+0.3&&!drop.stumble; if(f.d>far) far=f.d;
-  const ay=f.d-0.5+R, by=f.d+0.5-R;
-  const near=slabsNear(f.d), hits=footHits(f.x,f.d,near);
+  const tip=tiptoe(), ay=f.d-0.5+R, by=f.d+0.5-R;
+  const near=slabsNear(f.d), hits=footHits(f.x,f.d,near,0,tip);
   let got=false, leafy=false, gum=false;
   for(const sl of near){
     const cp=sl.coupon; if(cp&&!cp.taken&&psd(cp.x,cp.d,f.x,ay,f.x,by)<R+0.24){cp.taken=true; cp.tt=now; got=true;}
@@ -1940,7 +2109,8 @@ function land(now){
     hp--; streak=0; for(const h of hits) hitFx.push({c:h.c,h:h.h,t:now});
     const kind=hits.some(h=>h.h)?'hole':hits.some(h=>h.c&&h.c.kind==='line')?'line':'crack';
     const m={crack:['Crack.',"Mom's back."],line:['Line.',"Mom's spine."],hole:['Pothole.',"Mom's whole back."]}[kind];
-    sayNow(drop.stumble?`Shoved onto a ${{crack:'crack',line:'line',hole:'pothole'}[kind]}.`:m[0],m[1],1100); kick(10);
+    const where={crack:'a crack',line:'a line',hole:'a pothole'}[kind];
+    sayNow(drop.roll?`Stopped on ${where}.`:drop.startle?`Jumped back onto ${where}.`:drop.stumble?`Shoved onto ${where}.`:m[0],m[1],1100); kick(10);
     const vj=breakVertebra(now); sfx.static();
     if(kind==='hole') sfx.gravel(); else sfx.crack(kind);
     if(hp>0){
@@ -1954,9 +2124,10 @@ function land(now){
     if(!drop.giant){
       if(leafy){sfx.leaves(); momText(T.leaf,{chance:0.08});}
       else if(gum){sfx.gum(); if(!got) say('Gum.','',700); momText(T.gum,{chance:0.6});}
+      else if(tip) sfx.tip();
       else sfx.step();
     } else momText(T.giant,{chance:0.6});
-    if(footHits(f.x,f.d,near,0.1).length){camFlinch=Math.max(camFlinch,0.55); momText(T.near,{chance:0.35});}
+    if(footHits(f.x,f.d,near,0.1,tip).length){camFlinch=Math.max(camFlinch,0.55); momText(T.near,{chance:0.35});}
     // shuffling in place is safe, but only steps forward count toward Dad
     if(fwd){
       streak++; if(streak>runStreak) runStreak=streak;
@@ -2287,7 +2458,7 @@ function render(now){
   const lo=slabIdx(camD-(Hc-yAnchor)/K), hi=slabIdx(camD+yAnchor/K);
   for(let i=hi;i>=lo;i--){const sl=slabs.get(i); if(!sl) continue; const c=getTile(sl); ctx.drawImage(c,0,Y((i+1)*S),Wc,c.height/dpr);}
   drawFallen(lo,hi); drawAnts(now,lo,hi);
-  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(); drawDog(now); drawObs(now); drawRollLines(now); drawFeet();
+  drawCoupons(now,lo,hi); drawHitFx(now); drawShadows(now,lo-1,hi+1); drawPuffs(now); drawSquirrel(now); drawDog(now); drawObs(now); drawRollStop(now); drawRollLines(now); drawFeet();
   drawFalling(); drawCloud(); drawDogDanger(); drawObsWarn(now);
   drawCam(now);
 }

@@ -32,6 +32,16 @@
           "streak": { "min": 0, "max": 1000000 }
         },
         "tieBreak": [["time_ms", "asc"]]
+      },
+      "2": {
+        "higherIsBetter": true,
+        "maxScore": 1000000,
+        "meta": {
+          "time_ms": { "min": 0, "max": 86400000 },
+          "steps": { "min": 0, "max": 1000000 },
+          "streak": { "min": 0, "max": 1000000 }
+        },
+        "tieBreak": [["time_ms", "asc"]]
       }
     }
   }

@@ -72,6 +72,7 @@ const CrackSound = {
 
   // ---- feet
   step() { const p = 0.85 + Math.random() * 0.3; this.noise(0.08, 'lowpass', 460 * p, 0.8, 0.5); this.noise(0.06, 'lowpass', 380 * p, 0.8, 0.28, 0.055); this.noise(0.03, 'bandpass', 2400, 1.5, 0.05, 0.01); },
+  tip() { const p = 0.9 + Math.random() * 0.2; this.noise(0.035, 'bandpass', 1700 * p, 1.2, 0.14); this.tone(1150 * p, 1000 * p, 0.03, 0.025, 'triangle'); },   // a step on your toes
   leaves() { this.step(); for (let i = 0; i < 9; i++) this.noise(0.012 + Math.random() * 0.02, 'highpass', 2500 + Math.random() * 3500, 0.7, 0.12 + Math.random() * 0.2, Math.random() * 0.16); },
   gum() { this.step(); this.tone(260, 90, 0.16, 0.2, 'triangle', 0.03); this.noise(0.14, 'lowpass', 700, 2, 0.15, 0.04); },
   lift() { this.noise(0.16, 'bandpass', 900, 0.8, 0.07, 0, { f1: 2200, att: 0.06 }); },
@@ -151,6 +152,7 @@ const CrackSound = {
     s.start(t); s.stop(t + dur + 0.05);
   },
   // a squirrel scolding you from the middle of the sidewalk
+  squeak(pan) { this.tone(2300, 3600, 0.07, 0.07, 'sine', 0, { pan }); this.tone(3300, 2100, 0.1, 0.05, 'sine', 0.08, { pan }); this.noise(0.05, 'highpass', 3000, 0.7, 0.08, 0, { pan }); },
   chitter(pan) { for (let i = 0; i < 7; i++) this.tone(2600 + Math.random() * 900, 3400 + Math.random() * 600, 0.025, 0.03, 'triangle', i * 0.055 + Math.random() * 0.015, { pan, always: true }); },
   // a lawnmower a few houses over: fades in, drones, fades out
   mower() {
