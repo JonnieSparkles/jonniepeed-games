@@ -12,7 +12,7 @@
   check(/zeppelin/.test(S.banner.sub) && /gondola/.test(S.banner.sub), 'the boss wave is announced, with a hint');
   for (i = 0; i < 300; i++) update(1 / 60);
   var z = S.planes.find(function (p) { return p.kind === 'zeppelin'; });
-  check(z && z.maxHp === zeppelinHP(5) && z.hp === z.maxHp && z.maxHp === 42, 'it arrives with wave-scaled health');
+  check(z && z.maxHp === zeppelinHP(5) && z.hp === z.maxHp && z.maxHp === 60, 'it arrives with wave-scaled health');
   render();
 
   // Left alone, it patrols, drops troopers and bomb clusters, and holds the wave open.
@@ -48,7 +48,7 @@
   explode(z.x, z.y + z.hh + 4, 24, 'flak', 'player');
   check(z.hp === hp - 2, 'flak bursts hurt it (blasts never count as weak-spot hits)');
   hp = z.hp; hitTest({ x: z.x, y: z.y + z.hh + 8, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
-  check(z.hp === hp - 3 && inGondola(z, z.x, z.y + z.hh + 8), 'a direct shot on the gondola does triple damage');
+  check(z.hp === hp - ZEP.WEAK && ZEP.WEAK === 2 && inGondola(z, z.x, z.y + z.hh + 8), 'a direct shot on the gondola does double damage');
 
   // Half health makes it angry: faster, and it sinks toward the page.
   z.hp = z.maxHp / 2 + 0.5; hurtZeppelin(z, 1, 'player', 200, 160);

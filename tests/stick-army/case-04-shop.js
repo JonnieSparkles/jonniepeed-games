@@ -10,15 +10,15 @@
   check(costNow(ITEMS.find(it=>it.id===pick))===price(ITEMS.find(it=>it.id===pick)),'only one gift a visit');
   S.coins=0; check(!takeItem(other),'other supplies cost tags');
   S.coins=0; check(!takeItem('pizza'),'cannot overspend');
-  S.coins=100; S.wallHP=50; var r=makeRecruit(0,'rifle'); r.hp=1; S.recruits=[r];
-  var coins=S.coins, spawnTimer=S.spawn.timer;
-  check(takeItem('pizza') && S.mode==='delivery' && shopScreen.hidden,'courier intermission starts');
-  check(S.wallHP===50,'heal only at handoff');
-  for(var i=0;i<700 && S.mode==='delivery';i++) updateDelivery(1/120);
-  check(S.mode==='shop' && !shopScreen.hidden,'return to same shop');
-  check(S.wallHP===75 && r.hp===2 && S.coins===coins-25,'pizza restores wall and crew once');
-  check(S.spawn.timer===spawnTimer && !takeItem('pizza'),'delivery freezes combat; no duplicate order');
-  continueWave(); check(S.mode==='play' && S.wave===2 && shopScreen.hidden,'next wave');
+  S.coins=100; S.wallHP=50; var r=makeRecruit(0,'medic'); r.hp=1; S.recruits=[r]; // a medic never repairs, so only pizza moves the wall
+  var coins=S.coins;
+  check(takeItem('pizza') && S.mode==='shop' && !shopScreen.hidden && S.pizzaOrder,'ordering pizza keeps the shop open');
+  check(S.wallHP===50 && S.coins===coins-25 && !takeItem('pizza'),'no heal yet, and one order a visit');
+  check(/On its way/.test(document.querySelector('[data-item="pizza"]').textContent),'the shop says it is on its way');
+  continueWave(); check(S.mode==='play' && S.wave===2 && shopScreen.hidden && S.delivery && !S.pizzaOrder,'next wave, and the courier sets off');
+  S.spawn.timer=S.spawn.rushT=S.spawn.cargoT=99; S.planes=[]; // keep the wave quiet but running
+  for(var i=0;i<700 && S.delivery;i++) update(1/120);
+  check(!S.delivery && S.wallHP===75 && r.hp===2,'the pizza lands during the wave: wall and crew healed once');
   newGame();
   check(S.coins===0 && S.mods.slots===4 && !S.mods.stacks[pick] && S.recruits.length===0, 'new run resets progression');
   ITEMS.filter(it=>it.maxStacks!==Infinity).forEach(it=>S.mods.stacks[it.id]=it.maxStacks);

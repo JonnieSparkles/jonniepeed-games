@@ -13,7 +13,7 @@
   // Turret heat: each volley adds heat (scaled so fire-rate upgrades keep the same heat per second),
   // heat bleeds off continuously, and reaching 1 locks the gun. Each volley also costs SHOT_COST points.
   var BALANCE = { DROP_CHANCE: 0.15, PLANES_PER_WAVE: 2, FALL_PER_WAVE: 4, DROPS_PER_WAVE: 0.5, WALL_DAMAGE: 6,
-    FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1, BOSS_HP_PER_WAVE: 6 };
+    FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1, BOSS_HP_PER_WAVE: 8 };
   // Every BOSS_EVERY waves a zeppelin moves in (see the zeppelin section).
   var BOSS_EVERY = 5;
   var ENEMIES = {
@@ -84,15 +84,25 @@
   var bg = document.createElement('canvas'), bgx = bg.getContext('2d');
   var dc = document.createElement('canvas'), dcx = dc.getContext('2d');
   var G = ctx, K = 1;
+  // Canvas resolution follows the screen's pixel ratio, up to 2 on touch screens and 2.5 elsewhere. If frames run
+  // slow during play, it steps down half a ratio at a time (never below 1, never back up), so weak phones stay smooth
+  // and capable ones stay sharp.
+  var renderCap = matchMedia('(pointer: coarse)').matches ? 2 : 2.5, frameWatch = { sum: 0, n: 0 };
+  function noteFrame(ms) {
+    if (S.mode !== 'play' || document.hidden || ms > 100 || Math.min(window.devicePixelRatio || 1, renderCap) <= 1) return;
+    frameWatch.sum += ms; frameWatch.n++;
+    if (frameWatch.sum < 2000) return;
+    var mean = frameWatch.sum / frameWatch.n;
+    frameWatch.sum = frameWatch.n = 0;
+    if (mean > 24) { renderCap = Math.max(1, Math.min(renderCap, window.devicePixelRatio || 1) - 0.5); fit(); }
+  }
 
   function fit() {
     var padding = getComputedStyle(wrap);
     var aw = Math.max(1, wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight));
     var ah = Math.max(1, wrap.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom));
     var s = Math.min(aw / W, ah / H);
-    // Phone canvases use CSS-pixel resolution: high DPR quadruples raster work.
-    // Desktop previews retain the sharper notebook artwork.
-    var dpr = matchMedia('(pointer: coarse)').matches ? 1 : Math.min(window.devicePixelRatio || 1, 2.5);
+    var dpr = Math.min(window.devicePixelRatio || 1, renderCap);
     frameEl.style.width = (W * s) + 'px';
     frameEl.style.height = (H * s) + 'px';
     stage.style.transform = 'scale(' + s + ')';
@@ -211,7 +221,7 @@
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, stacks: {} },
-      coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, waveStart: { kills: 0, captured: 0 },
+      coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], strikes: 1, strike: null, strikeBombs: [],
@@ -432,7 +442,7 @@
     { id: 'auto', name: 'Sentry tower', desc: 'A tower beside the bunker shoots down bombs and shells, then low chutes and landers.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'One more call for the bomber. Press B or the plane button.', tier: 'supply', cost: 45, maxStacks: Infinity, apply: function (s) { s.strikes++; } },
-    { id: 'pizza', name: 'Order a pizza', desc: 'A courier brings +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function () { orderPizza(); } }
+    { id: 'pizza', name: 'Order a pizza', desc: 'Arrives as the next wave starts: +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function (s) { s.pizzaOrder = true; } }
   ];
   // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
   [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
@@ -463,7 +473,7 @@
   function onHouse(it) { return S.shop && it.id === S.shop.gift && !S.shop.giftTaken; }
   function costNow(it) { return onHouse(it) ? 0 : price(it); }
   function openShop() {
-    S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null; washDecals();
+    S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null; S.delivery = null; washDecals();
     // Three rotating supplies from one pool (one of them free), air strikes once tanks are near, pizza always,
     // and every role for hire.
     var items = offer(OFFERS, ['pizza', 'strike']), gift = Math.floor(RS() * Math.max(1, items.length));
@@ -472,6 +482,8 @@
       gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
     emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
+    // Every visit starts at the top of the list.
+    shopScreen.scrollTop = 0; shopScreen.querySelector('.shop-stock').scrollTop = 0;
     sound.play('shop');
     shopScreen.querySelector('button:not(:disabled)').focus({ preventScroll: true });
   }
@@ -525,6 +537,7 @@
     // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
     function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= costNow(it); }
     function costLabel(it) {
+      if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
       if (it.tier !== 'hire' && S.shop.bought[it.id]) return 'Packed ✓';
       if (onHouse(it)) return 'Free!';
       var cost = price(it);
@@ -555,17 +568,14 @@
   function continueWave() {
     if (S.mode !== 'shop') return;
     shopScreen.hidden = true; S.shop = null; clearInput(); S.mode = 'play'; pauseBtn.hidden = false; startWave(S.wave + 1);
+    // A pizza ordered in the shop rides in as the wave starts, so ordering never leaves the shop.
+    if (S.pizzaOrder) { S.pizzaOrder = false; S.delivery = { x: -30, phase: 'arrive', wait: 0 }; }
     document.activeElement.blur();
   }
-  function orderPizza() {
-    S.mode = 'delivery'; shopScreen.hidden = true; clearInput();
-    S.delivery = { x: -30, phase: 'arrive', wait: 0 };
-    S.banner = { s: 'special delivery!', sub: 'one large morale boost', t: 0, dur: 4.8 };
-  }
+  // The courier rides along the ground during play. Combat carries on; the pizza lands at the handoff.
   function updateDelivery(dt) {
     var d = S.delivery;
-    S.t += dt;
-    if (S.banner) { S.banner.t += dt; if (S.banner.t >= S.banner.dur) S.banner = null; }
+    if (!d) return;
     if (d.phase === 'arrive') {
       d.x = Math.min(200, d.x + dt * 145);
       if (d.x === 200) {
@@ -576,12 +586,8 @@
     } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
     else {
       d.x += dt * 145;
-      if (d.x > W + 35) {
-        S.delivery = null; S.banner = null; S.mode = 'shop'; shopScreen.hidden = false; renderShop();
-        shopScreen.querySelector('button:not(:disabled)').focus({ preventScroll: true });
-      }
+      if (d.x > W + 35) S.delivery = null;
     }
-    updateParts(dt);
   }
   function drawCourier() {
     var d = S.delivery; if (!d) return;
@@ -1214,6 +1220,7 @@
       if ((S.firing || keys.fire) && S.fireCD <= 0 && S.overheat <= 0) fireVolley();
       updateWave(dt);
       if (S.mode === 'shop') return;
+      updateDelivery(dt);
     }
     S.recoil = Math.max(0, S.recoil - dt * 8);
     updatePlanes(dt);
@@ -1581,26 +1588,32 @@
     G.beginPath(); G.moveTo(52, 573); G.lineTo(58, 582); G.lineTo(64, 573); G.stroke();
     G.restore();
   }
-  // The squad row doubles as a health readout: wounded crew slouch, badly hurt crew droop and fade.
+  // The squad row doubles as a health readout: a bar under each figure, wounded crew slouch with a bandage, and
+  // badly hurt crew droop further, fade and get a red cross. Figures are drawn near field size so roles read.
+  var MINI = 0.95;
   function miniFig(x, y, r, i) {
     pen(7000 + i);
-    G.save(); G.translate(x, y); G.scale(0.6, 0.6);
+    G.save(); G.translate(x, y); G.scale(MINI, MINI);
     if (r) {
       var h = clamp(r.hp / crewMax(r), 0, 1), state = h < 0.4 ? 2 : h < 0.7 ? 1 : 0;
       var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE;
+      G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(-8, 37, 16, 3);
+      G.fillStyle = h < 0.4 ? RED : BLUE; G.fillRect(-8, 37, 16 * h, 3);
+      G.save();
       if (state) { G.translate(0, 33); G.rotate(state === 2 ? 0.4 : 0.2); G.translate(0, -33); }
       if (state === 2) G.globalAlpha = 0.5;
       var pose = state ? [-3, 21, 3, 21, -5, 33, 5, 33] : [-6, 19, 6, 19, -5, 33, 5, 33];
       if (r.type === 'bazooka') tube(-8, 18, 7, 5);
-      stick(0, 0, pose, col, 3);
-      if (r.type === 'rifle') { G.beginPath(); L(-7, 17, 7, 8, 0.3); ink(INK, 2.2); G.stroke(); }
+      stick(0, 0, pose, col, 2.6);
+      if (r.type === 'rifle' || r.type === 'sniper') { G.beginPath(); L(-7, 17, 8, 7, 0.3); ink(INK, 2.2); G.stroke(); }
+      if (r.type === 'sniper') { G.beginPath(); SP([-7, -4, -3, -10, 7, -7, 6, -3], true, 0.3); G.fillStyle = INK; G.fill(); }
       if (r.type === 'engineer') hat(0, 0);
-      if (r.type === 'sniper') drawScope(0, 0, 1);
       if (r.type === 'medic') { G.beginPath(); L(-4, -9, 4, -9); L(0, -13, 0, -5); ink(BLUE, 2.6); G.stroke(); }
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
-      if (state === 2) { G.globalAlpha = 1; G.beginPath(); L(9, 4, 15, 4); L(12, 1, 12, 7); ink(RED, 2.6); G.stroke(); }
+      G.restore();
+      if (state === 2) { G.beginPath(); L(9, 2, 15, 2); L(12, -1, 12, 5); ink(RED, 2.6); G.stroke(); }
     } else {
-      G.setLineDash([2, 4]); stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], EMPTY, 2.4); G.setLineDash([]);
+      G.setLineDash([2, 4]); stick(0, 0, [-6, 19, 6, 19, -5, 33, 5, 33], EMPTY, 2.2); G.setLineDash([]);
     }
     G.restore();
   }
@@ -1633,8 +1646,8 @@
     var y2 = 690;
     G.fillStyle = INK; G.font = '21px ' + HAND; G.fillText('squad', 58, y2 + 6);
     var live = S.recruits.filter(function (r) { return !r.dead; }).sort(function (a, b) { return a.slot - b.slot; });
-    for (var i = 0; i < S.mods.slots; i++) miniFig(122 + i * 21, y2 - 13, live[i], i);
-    G.fillStyle = INK2; G.font = '17px ' + HAND; G.textAlign = 'left'; G.fillText(live.length + "/" + S.mods.slots, 300, y2 + 6);
+    for (var i = 0; i < S.mods.slots; i++) miniFig(124 + i * 24, y2 - 20, live[i], i);
+    G.fillStyle = INK2; G.font = '17px ' + HAND; G.textAlign = 'left'; G.fillText(live.length + "/" + S.mods.slots, bx + bw + 10, y2 + 6);
     G.restore();
   }
   function drawBanner() {
@@ -1847,7 +1860,6 @@
       }
       return;
     }
-    if (S.mode === 'delivery') return;
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
@@ -1901,10 +1913,10 @@
   }
   function loop(now) {
     var dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+    noteFrame(now - last);
     last = now;
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
-    else if (S.mode === 'delivery' && !document.hidden) updateDelivery(dt);
     render();
     syncStrikeBtn();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }

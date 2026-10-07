@@ -40,7 +40,6 @@
     // Game logic only, mirroring what the frame loop would run in each mode. Never draws.
     step: function (dt) {
       if (S.mode === 'play' || S.mode === 'dying') update(dt);
-      else if (S.mode === 'delivery') updateDelivery(dt);
     },
     observe: function () {
       var o = {
