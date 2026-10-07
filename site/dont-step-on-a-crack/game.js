@@ -929,6 +929,7 @@ function drawKitchen(g,R_,now){
   if(hp<=1){const sx=head.x+15; g.fillStyle=INK; g.beginPath(); g.moveTo(sx-6,FLOOR); g.lineTo(sx-2.6,FLOOR-14); g.lineTo(sx+2.6,FLOOR-14); g.lineTo(sx+6,FLOOR); g.closePath(); g.fill(); g.fillStyle='#f2c230'; g.beginPath(); g.moveTo(sx-4.8,FLOOR-0.6); g.lineTo(sx-1.8,FLOOR-13); g.lineTo(sx+1.8,FLOOR-13); g.lineTo(sx+4.8,FLOOR-0.6); g.closePath(); g.fill(); g.fillStyle=INK; g.fillRect(sx-0.6,FLOOR-10.5,1.3,5); g.fillRect(sx-0.6,FLOOR-4,1.3,1.3);}
   g.fillStyle='rgba(0,0,0,0.15)'; g.beginPath(); g.ellipse(hip.x+6,FLOOR+2,26,3,0,0,6.283); g.fill();
   drawMom(g,R_,now);
+  if(mode==='over') drawCordedPhone(g,R_,now);
   const catOnTop=hp<=2&&!dadA.on;
   if(catOnTop){const top=topPoint(R_); drawCat(g,top.x,top.y-11,1);}
   if(dadA.on){const d=dadPose(R_); drawDad(g,d.x,d.y,d.face,d.b,d.arms,d.walk);}
@@ -938,6 +939,30 @@ function drawKitchen(g,R_,now){
     g.globalAlpha=a; g.font='700 11px "IBM Plex Mono", ui-monospace, monospace'; g.fillStyle='#ffffff'; g.strokeStyle=INK; g.lineWidth=2.5;
     g.strokeText('POP',top.x-24,top.y-30-(1-a)*6); g.fillText('POP',top.x-24,top.y-30-(1-a)*6); g.globalAlpha=1;
   }
+}
+// the harvest-gold kitchen wall phone, pulled down to the floor by its curly cord, receiver wedged against her ear
+function phoneBase(R_){return {x:R_.head.x-16,y:FLOOR-38};}
+function drawCordedPhone(g,R_,now){
+  const {head,nk}=R_, F=dirv(nk+90,1), U=dirv(nk,1), b=phoneBase(R_);
+  const at=(a,u)=>({x:head.x+F.x*a+U.x*u,y:head.y+F.y*a+U.y*u});
+  const ear=at(-1.2,4.2), mouth=at(2.2,-6.6), GOLD='#e0a526';
+  // the curly cord: from the base, sagging, to the mouthpiece
+  const c0={x:b.x+1,y:b.y+8}, c2=mouth, c1={x:(c0.x+c2.x)/2-4,y:Math.max(c0.y,c2.y)+10};
+  const pts=[]; for(let i=0;i<=60;i++){const t=i/60, u=1-t;
+    const x=u*u*c0.x+2*u*t*c1.x+t*t*c2.x, y=u*u*c0.y+2*u*t*c1.y+t*t*c2.y;
+    const dx=2*u*(c1.x-c0.x)+2*t*(c2.x-c1.x), dy=2*u*(c1.y-c0.y)+2*t*(c2.y-c1.y), l=Math.hypot(dx,dy)||1, w=Math.sin(t*Math.PI*2*11)*1.5;
+    pts.push({x:x-dy/l*w,y:y+dx/l*w});}
+  g.lineCap='round'; g.lineJoin='round';
+  g.strokeStyle=INK; g.lineWidth=2.2; line(g,pts); g.strokeStyle=GOLD; g.lineWidth=1; line(g,pts);
+  // the base on the wall: an empty cradle, a keypad
+  g.fillStyle=INK; g.beginPath(); rrect(g,b.x-6.2,b.y-9.2,12.4,18.4,2.6); g.fill();
+  g.fillStyle=GOLD; g.beginPath(); rrect(g,b.x-5,b.y-8,10,16,2); g.fill();
+  g.fillStyle='rgba(0,0,0,0.3)'; g.fillRect(b.x-3.6,b.y-6.5,7.2,2.2);
+  g.fillStyle='#7a5410'; for(let r=0;r<3;r++) for(let c=0;c<3;c++) g.fillRect(b.x-3.3+c*2.6,b.y-1.6+r*2.6,1.4,1.4);
+  // the receiver, ringing hard enough to rattle
+  const sh=(Math.sin(now*60)*0.35)*(phoneEl.classList.contains('ringing')?1:0);
+  const e2={x:ear.x+sh,y:ear.y}, m2={x:mouth.x+sh,y:mouth.y};
+  limb(g,[e2,m2],3.6,GOLD); blob(g,e2.x,e2.y,3.4,GOLD); blob(g,m2.x,m2.y,3.4,GOLD);
 }
 function drawXray(g,R_,now){
   const {hip,sp,sh,head,front,back,farm,barm}=R_, bone='#e8f1ff';
@@ -969,6 +994,7 @@ function drawXray(g,R_,now){
 function camTarget(R_){
   if(dadA.on) return {z:0.98,x:66,y:52};
   const pts=[R_.hip,...R_.sp,R_.front.ank,R_.back.ank,R_.farm.hn,R_.barm.hn,{x:R_.head.x-HEAD-4,y:R_.head.y-HEAD-4},{x:R_.head.x+HEAD+2,y:R_.head.y+HEAD}];
+  if(mode==='over'){const b=phoneBase(R_); pts.push({x:b.x-8,y:b.y-11});}       // keep the wall phone in the shot
   let x0=1e9,x1=-1e9,y0=1e9,y1=FLOOR+3;
   for(const p of pts){x0=Math.min(x0,p.x); x1=Math.max(x1,p.x); y0=Math.min(y0,p.y); y1=Math.max(y1,p.y);}
   const z=clamp(Math.min(CW/(x1-x0+34),CH/(y1-y0+28)),1.1,1.75);
@@ -987,6 +1013,7 @@ function drawCam(now){
   cc.setTransform(dp*z,0,0,dp*z,dp*(CW/2-camView.x*z),dp*(CH/2-camView.y*z));
   if(now<xrayUntil) drawXray(cc,R_,now); else drawKitchen(cc,R_,now);
   if(now<xrayUntil){cc.setTransform(dp,0,0,dp,0,0); cc.font='700 8px "IBM Plex Mono", ui-monospace, monospace'; cc.fillStyle='rgba(232,241,255,0.6)'; cc.fillText('X-RAY',CW-34,CH-6);}
+  if(mode==='over'&&!overEl.hidden) avCtx.drawImage(camCv,0,0,camCv.width,camCv.height,0,0,avatarEl.width,avatarEl.height);
   if(mode==='title'&&tcamCtx){
     if(tcamCv.width!==camCv.width){tcamCv.width=camCv.width; tcamCv.height=camCv.height;}
     tcamCtx.drawImage(camCv,0,0);
@@ -1971,21 +1998,26 @@ function countUp(el,to,fmt,badge){
   const t0=performance.now(), dur=800;
   (function tick(t){const k=Math.min(1,Math.max(0,(t-t0)/dur)), e=1-Math.pow(1-k,3); el.textContent=fmt(to*e); if(k<1) requestAnimationFrame(tick); else done();})(t0);
 }
+// The game-over call: Mom's home phone rings (she's on the kitchen floor with the corded phone, on the Mom Cam),
+// then it picks itself up and becomes the results and the scoreboard. A tap or Enter picks up early.
+let pickUp=null, pickUpT=0;
+const avatarEl=$('#avatar'), avCtx=avatarEl.getContext('2d');
 function showOver(){
   if(mode!=='over') return;
   clearMsgs();
+  const dpa=Math.min(2,window.devicePixelRatio||1); avatarEl.width=avatarEl.height=Math.round(118*dpa);
   overEl.hidden=false; phoneEl.classList.add('ringing'); callerEl.textContent='Mom'; callingEl.hidden=false; afterEl.hidden=true;
   sfx.ring();
   const endedRun=lbRun;
-  setTimeout(()=>{
+  clearTimeout(pickUpT);
+  pickUp=()=>{
+    clearTimeout(pickUpT); pickUp=null;
     if(mode!=='over'||lbRun!==endedRun) return;
     const r=runResult;
     phoneEl.classList.remove('ringing'); callerEl.textContent='…Mom?'; callingEl.hidden=true; sfx.click();
     $('#line').textContent=ENDINGS[(Math.random()*ENDINGS.length)|0];
     afterEl.hidden=false;
     showLeaderboard();
-    const av=$('#avatar'), dpa=Math.min(2,window.devicePixelRatio||1); av.width=av.height=Math.round(72*dpa);
-    av.getContext('2d').drawImage(camCv,0,0,camCv.width,camCv.height,0,0,av.width,av.height);
     countUp($('#sFt'),r.ft,v=>Math.round(v)+' ft',r.ftBest);
     countUp($('#sTime'),r.time,v=>fmtTime(v,true),false);
     countUp($('#sSteps'),r.steps,v=>String(Math.round(v)),false);
@@ -1995,8 +2027,11 @@ function showOver(){
     $('#sChat').textContent=chatStats.mom?`Mom texted you ${times(chatStats.mom)}.`:'';
     if(r.ftBest||r.stBest) setTimeout(()=>sfx.newbest(),reduceMotion?0:820);
     if(!lbEntry) try{$('#again').focus({preventScroll:true});}catch(_){}
-  },reduceMotion?400:1500);
+  };
+  pickUpT=setTimeout(pickUp,reduceMotion?400:1900);
 }
+// click, not pointerdown: the results appear after the click is done, so it can't land on "Walk it again"
+overEl.addEventListener('click',()=>{if(pickUp&&phoneEl.classList.contains('ringing')) pickUp();});
 
 /* ---------- screens: title, pause ---------- */
 const titleEl=$('#title'), pauseEl=$('#pause'), tcamCv=$('#tcam'), tcamCtx=tcamCv.getContext('2d'), tBest=$('#tBest');
@@ -2121,7 +2156,10 @@ window.addEventListener('keydown',e=>{
   if((k==='Escape'||k==='KeyP')&&!e.repeat){if(mode==='play') pauseGame(); else if(mode==='paused') resumeGame(); return;}
   if((k==='Space'||k==='Enter')&&onBtn) return;
   if(mode==='title'){if((k==='Space'||k==='Enter')&&!e.repeat){e.preventDefault(); startGame();} return;}
-  if(mode==='over'){if(k==='Enter'&&!afterEl.hidden) startGame(); return;}
+  if(mode==='over'){
+    if(afterEl.hidden&&pickUp&&(k==='Enter'||k==='Space')&&!e.repeat){e.preventDefault(); pickUp(); return;}
+    if(k==='Enter'&&!afterEl.hidden) startGame(); return;
+  }
   if(mode!=='play') return;
   if((k==='KeyG'||k==='ShiftLeft'||k==='ShiftRight')&&!e.repeat){toggleGiant(); return;}
   const footKey={KeyA:-1,KeyD:1,Space:0,KeyW:0,ArrowUp:0}[k];
