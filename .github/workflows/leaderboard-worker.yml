@@ -1,8 +1,8 @@
-# Deploys the scores Worker (scores/) to Cloudflare.
-# Manual only: run it from the Actions tab ("Deploy scores Worker" → Run workflow).
+# Deploys the leaderboard Worker (scores/) to Cloudflare.
+# Manual only: run it from the Actions tab ("Deploy leaderboard Worker" → Run workflow).
 # Only needed after changes in scores/ (games.json, blocklist.json, src/). Scores live in D1 and are never touched.
 # Needs repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see docs/guides/00-leaderboards.md).
-name: Deploy scores Worker
+name: Deploy leaderboard Worker
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: scores-worker
+  group: leaderboard-worker
   cancel-in-progress: false
 
 jobs:
