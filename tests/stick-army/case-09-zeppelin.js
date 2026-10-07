@@ -1,7 +1,7 @@
 // Playtest round 3: a zeppelin boss every fifth wave.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
-  var originalRandom = R; R = mulberry(5);
+  RUN.force = 5;
   var i;
 
   // Boss waves come every fifth wave and trade the bombers and half the planes for one zeppelin.
@@ -76,5 +76,5 @@
   check(S.mode === 'shop' && S.wave === 5, 'the boss wave clears once it is down');
 
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
-  R = originalRandom; reset(); render();
+  RUN.force = null; reset(); render();
 })();
