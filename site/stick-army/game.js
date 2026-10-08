@@ -1888,6 +1888,8 @@
   }
   function newGame() {
     sound.init();
+    // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
+    if (window.PlayStats) statsRun = PlayStats.start('stick-army', { progress: runReport });
     // A run seed: forced by a harness, fixed by #seed=, or random.
     var fixed = RUN.force != null ? RUN.force : hashSeed();
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));
@@ -1934,6 +1936,7 @@
     dive: "A dive bomber's bomb brought the wall down.", balloon: "A balloon's bomb brought the wall down.", heli: 'Helicopter fire chipped the wall away.' };
   function showOver() {
     S.mode = 'over';
+    if (statsRun) { PlayStats.end(statsRun, runReport()); statsRun = null; }
     var isBest = S.score > best;
     if (isBest) { best = S.score; save('stickarmy.best.3', best); }
     document.getElementById('overScore').textContent = S.score.toLocaleString('en-US');
@@ -1960,6 +1963,20 @@
     document.getElementById('stBest').textContent = Number(best).toLocaleString('en-US');
     overScreen.hidden = false;
     document.getElementById('againBtn').focus({ preventScroll: true });
+  }
+  // What a run reports to play stats (site/assets/stats.js), at game over or when the page is left mid-run.
+  // A run counts as won once S.won is set (the campaign's victory); a winner who keeps going reports again at the end.
+  var statsRun = null;
+  function runReport() {
+    var st = {
+      wave: S.wave, kills: S.stats.kills, captured: S.stats.captured, popped: S.stats.popped, planes: S.stats.planes,
+      zeppelins: S.stats.zeppelins, tanks: S.stats.tanks,
+      crew: S.recruits.filter(function (r) { return !r.dead; }).length, fallen: S.fallen.length, tags: S.coins
+    };
+    if ((S.mode === 'over' || S.mode === 'dying') && S.lastHit) st.cause = S.lastHit;
+    if (S.won) st.won_at = S.wonAt;
+    if (S.endless) st.endless = true;
+    return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, stats: st };
   }
   function updateMuteBtn() {
     muteBtn.setAttribute('aria-pressed', sound.muted ? 'true' : 'false');

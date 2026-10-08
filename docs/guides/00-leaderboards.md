@@ -122,7 +122,8 @@ Checklist, in this order:
 5. At game over, freeze the score/meta (with `time_ms`) and await the run's token. With a token, load placement and show the result in the game's end screen: a qualifying run gets the picker, other runs get the board. Without one, load the board only (no score), so the game never asks for initials it can't save. A null load adds nothing. Guard asynchronous responses against restarts, and prevent game keyboard shortcuts while the picker is open.
 6. On OK, save initials, submit the frozen run with its token, and draw the returned board with `rank` highlighted. On `name_not_allowed`, keep the picker open with “Try other initials.” Any other refusal draws the original board, saying nothing. On Skip, display the original board without submitting. Keep the same token for retries. Destroy the picker on restart.
 7. Draw rank, initials, score, any game-specific meta and a touch/keyboard icon with an accessible label. Show 10 rows, then “…” and the player's row when below 10; See all must show up to 50 in a scrollable region. Style `.lb-` picker elements to match the game; the shared script adds no CSS.
-8. Run `python3 tools/check_boards.py`. Test against the local Worker and verify all end-screen flows and orientations. Rebuild social cards after game-art changes with `python3 tools/og/make.py`, then run `python3 tools/stamp.py`. Deploy the site after the Worker.
+8. Report runs to play stats too, passing the run's `Leaderboard.start` promise as `token` so saved runs can be matched to their row; see [03: Play stats](03-play-stats.md#adding-a-game).
+9. Run `python3 tools/check_boards.py`. Test against the local Worker and verify all end-screen flows and orientations. Rebuild social cards after game-art changes with `python3 tools/og/make.py`, then run `python3 tools/stamp.py`. Deploy the site after the Worker.
 
 ### Worked example: pebble-hop
 

@@ -256,6 +256,10 @@ On 60 more seeds, expert won 50% against round 9's 62%. What the bots found:
 - Bots pop balloons out over the field and catch about one crate in ten: most pops come from spray, too high to catch. Casual bots hit the Red Cross plane about two times in three; decent and expert bots, which hold fire when it's in the line, about one in seven.
 - **`--verify` caught the helicopter's hover bob using its id,** which cosmetic effects shift. It now uses a seeded phase, and 15 runs match.
 
+## Play stats
+
+Each run reports to [play stats](../guides/03-play-stats.md) from `newGame` and at `showOver`, through `runReport`; a restart from pause reports the old run as quit. Stick Army has no online board, so its runs have no initials. The score is `S.score` and the time is `S.played`. `stats` are `wave`, `kills`, `captured`, `popped`, `planes`, `zeppelins`, `tanks`, `crew` (alive), `fallen`, `tags` (dog tags in hand), and `cause` (what brought the wall down) at game over. Once the campaign sets `S.won`, the run reports as won with `won_at`, and `endless` when it kept going; a winner who keeps going reports again at the final game over. Harness and bot runs report nothing (automated browsers are skipped).
+
 ## Validation and generated assets
 
 Serve `site/` locally:

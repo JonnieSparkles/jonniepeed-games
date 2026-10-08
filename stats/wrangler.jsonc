@@ -1,0 +1,35 @@
+{
+  "name": "jonniepeed-games-stats",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-06",
+  "routes": [
+    { "pattern": "stats.jonniepeed.games", "custom_domain": true }
+  ],
+  // Only the custom domain, where Cloudflare Access guards /dash. No workers.dev address or preview URLs.
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jonniepeed-games-stats",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+    },
+    // The leaderboard database. The dashboards only read it (initials, board saves); nothing here writes to it.
+    {
+      "binding": "SCORES",
+      "database_name": "jonniepeed-games-scores",
+      "database_id": "3827767d-ef17-4746-bc98-760e6610c9c4"
+    }
+  ],
+  // Reports per connection, counted per Cloudflare location. The ID is unique in the account (scores uses 1001).
+  "ratelimits": [{
+    "name": "REPORTS",
+    "namespace_id": "1002",
+    "simple": { "limit": 120, "period": 60 }
+  }],
+  // The dashboard page is bundled as text.
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  "observability": { "enabled": true }
+  // ACCESS_TEAM_DOMAIN and ACCESS_AUD are set with `wrangler secret put` once Cloudflare Access is set up.
+  // Until both are set, the dashboards stay locked. See docs/guides/03-play-stats.md.
+}
