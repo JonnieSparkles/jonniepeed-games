@@ -82,7 +82,7 @@ Each board that takes new scores gets a `plausible` rule:
 - Older boards without it stay readable through `/v2/top` but take no new scores. After a future bump, the previous board keeps its rule, so stale copies can still post there.
 - **Starting values,** from the scoring code:
   - `thimbleful` board 3: `perSecond: 4.5, grace: 15`. At full storm a drop comes about every 0.38 s and about 1 in 9 is gold (3 points), so perfect play tops out near 3.2 points/s. The best real run is 1.7.
-  - `dont-step-on-a-crack` board 2: `perSecond: 4, grace: 100`. Heelies roll at 7 ft/s for 6 s and moon shoes jump up to 6 ft per 1.1 s for 15 s, so one pair of shoes can add up to about 80 ft in a burst. The grace covers a full burst on a short run. The best real run is 1.9 ft/s.
+  - `dont-step-on-a-crack` board 2: `perSecond: 8, grace: 100`. The fastest movement is tap-walking: a 1.35 ft stride about every 0.18 s, about 7.5 ft/s, and that's on a sidewalk with no cracks at all. Heelies (7 ft/s for 6 s) and moon shoes (up to 6 ft per 1.1 s for 15 s) are slower, though a pair can add about 80 ft in a burst; the grace covers that on a short run. The best real run is 1.9 ft/s. (The draft said 4 ft/s; the review found tap-walking, which an expert could exceed it with on a clear stretch.)
 - Before shipping, confirm these against the scoring code once more and against every row on the current boards. Nothing real should fail:
 
   ```sql

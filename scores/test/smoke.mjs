@@ -107,7 +107,9 @@ await test('refused runs say only "rejected"', async () => {
   const fresh = { game: 'thimbleful', board: TEST_BOARD, token, name: 'BAD', score: 10, input: 'keys', meta: { time_ms: 1000 } };
   await rejected({ ...fresh, token: undefined });
   await rejected({ ...fresh, token: 'not-a-token' });
-  await rejected({ ...fresh, token: token.slice(0, -1) + (token.endsWith('A') ? 'B' : 'A') });
+  const flip = (text, i) => text.slice(0, i) + (text[i] === 'A' ? 'B' : 'A') + text.slice(i + 1);
+  await rejected({ ...fresh, token: flip(token, token.length - 10) });        // altered signature
+  await rejected({ ...fresh, token: token.slice(0, -1) + (token.endsWith('A') ? 'B' : 'A') }); // non-canonical last character
   await rejected({ ...fresh, game: 'dont-step-on-a-crack' });                // signed for another game
   await rejected({ ...fresh, board: TEST_BOARD - 1 });                       // signed for another board
   await rejected({ ...fresh, meta: { time_ms: 60000 } });                    // longer than the token has existed

@@ -27,7 +27,8 @@ const accepting = rules => object(rules.plausible) && owns(rules.meta, 'time_ms'
 
 // Run tokens: "<run_id>.<issued ms>.<HMAC>", signed for one game and board. Nothing is stored.
 const encoder = new TextEncoder();
-const TOKEN = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(\d{13})\.([A-Za-z0-9_-]{43})$/;
+// The signature's last character must be canonical (its two spare bits zero), so each token has exactly one spelling.
+const TOKEN = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(\d{13})\.([A-Za-z0-9_-]{42}[AEIMQUYcgkosw048])$/;
 const hmacKey = secret => crypto.subtle.importKey('raw', encoder.encode(secret),
   { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 const signed = (game, board, runId, issued) => encoder.encode(`${game}|${board}|${runId}|${issued}`);

@@ -39,8 +39,8 @@ If the Worker has no `RUN_SECRET`, `start` and `submit` answer `unavailable` and
 Each board that takes new runs has `"plausible": { "perSecond": N, "grace": N }` and a `time_ms` meta key. A cap is sized from the game's code, not from players, so no honest run can reach it:
 
 1. Work out the fastest a perfect player could score, with every power-up and bonus. Thimbleful: at full storm a drop every 0.38 s, about 1 in 9 gold (3 points), so about 3.2 points/s.
-2. Set `perSecond` about 40% above that.
-3. Set `grace` to cover the biggest single burst on a short run. Crack: moon shoes (up to 6 ft per 1.1 s jump for 15 s) or heelies (7 ft/s for 6 s) add up to about 80 ft, so `grace` is 100.
+2. Set `perSecond` about 40% above that. Where the ceiling you worked out already ignores something that slows every real run, it can sit closer. Crack's fastest movement is tap-walking: a 1.35 ft stride about every 0.18 s, about 7.5 ft/s, on a sidewalk with no cracks at all. Heelies (7 ft/s) and moon shoes (about 5.5 ft/s) are slower. Real streets have a joint every 5 ft, so `perSecond` is 8.
+3. Set `grace` to cover the biggest single burst on a short run. Crack: a pair of shoes can add about 80 ft, so `grace` is 100.
 4. Where the code gives no clear ceiling, use the expert balance bot's best rate, doubled.
 
 A cap is set once, when a board is created. A change that makes a game score faster is a scoring change, which bumps the board, and whoever makes it rechecks the cap on the new board. Raising a cap is always safe and needs no bump; before lowering one, run [Check the score caps](#check-the-score-caps).
