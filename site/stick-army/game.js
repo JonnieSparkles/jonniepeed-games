@@ -266,10 +266,10 @@
       road: n >= TANK.ROAD_WAVE && !dreadWave ? Math.min(4, 1 + Math.floor((n - TANK.ROAD_WAVE) / 2)) : 0,
       bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
-      armorChance: n >= ARMOR.WAVE ? Math.min(0.5, 0.1 + 0.05 * (n - ARMOR.WAVE)) : 0,
+      armorChance: n >= ARMOR.WAVE ? Math.min(0.6, 0.15 + 0.07 * (n - ARMOR.WAVE)) : 0,
       armorHits: n >= ARMOR.HEAVY ? 2 : 1,
-      // Planes come faster until wave 7, hold until wave 9, then keep tightening to a 0.3 s gap by wave 20.
-      interval: n <= 9 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.05 * (n - 9)),
+      // Planes come faster until wave 7, hold until wave 9, then keep tightening to a 0.3 s gap by wave 17.
+      interval: n <= 9 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.07 * (n - 9)),
       speed: 65 + 8 * n,
       maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
@@ -431,7 +431,7 @@
   function spawnPlane(kind) {
     var c = S.spawn.cfg, rnd = substream(RW), dir = rnd() < 0.5 ? 1 : -1;
     // On boss waves the escort keeps to a high lane above the zeppelin, and to a low one under the Dreadnought.
-    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? between(rnd, 104, 128) : c.bossKind === 'dread' ? between(rnd, 244, 302) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
+    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? between(rnd, 104, 128) : c.bossKind === 'dread' ? between(rnd, 276, 330) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
     p.rng = rnd;
     p.speed = kind === 'bomber' ? c.speed * 0.62 : c.speed * between(rnd, 0.85, 1.25);
     if (kind === 'plane') {
@@ -710,12 +710,14 @@
     S.recoil = 1;
     sound.play('shoot');
   }
-  // One trigger pull: costs points, adds heat, and locks the gun when it boils over.
+  // One trigger pull: costs points, adds heat, and locks the gun when it boils over. From wave 10 the gun runs hotter
+  // (heatScale), so even with cooling fins, holding the trigger down stops working late in the run.
+  function heatScale(n) { return Math.min(1.6, 1 + 0.07 * Math.max(0, n - 9)); }
   function fireVolley() {
     shoot();
     var rate = Math.pow(0.82, S.mods.fire);
     S.fireCD = BALANCE.FIRE_COOLDOWN * rate;
-    S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool);
+    S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool) * heatScale(S.wave);
     S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
     if (S.heat >= 1) triggerOverheat();
   }

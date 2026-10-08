@@ -308,7 +308,7 @@ var StickArmySound = (function () {
     if (on && state.wave) {
       if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
       // The Dreadnought brings its own march once it's through the page.
-      var dreadOn = state.dread === 'guns' || state.dread === 'bridge', bridge = state.dread === 'bridge';
+      var dreadOn = !!state.dread && state.dread !== 'sinking', bridge = state.dread === 'hangar' || state.dread === 'bridge';
       var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {

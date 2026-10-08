@@ -24,77 +24,93 @@
   check(shoot(gunner.id) && gunner.kills === 1, 'his own kill counts');
   check(shoot(null) && gunner.kills === 1, 'yours does not');
 
-  // The final wave. The Dreadnought shows through the page, can't be hurt there, then bursts through.
+  // The final wave. The Dreadnought sails in from one side and can't be hurt until it takes its station.
   RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(FINAL); S.spawn.timer = 99;
   check(S.banner.s === 'final wave' && /Dreadnought/.test(S.banner.sub), 'the final wave is announced');
   run(DREAD.ARRIVE + 0.05);
   var p = CAMPAIGN.dread();
-  check(p && p.phase === 'emerge' && seen.indexOf('plane_spawn') >= 0, 'it starts behind the page');
+  check(p && p.phase === 'arrive' && (p.x < 0 || p.x > W) && seen.indexOf('plane_spawn') >= 0, 'it sails in from the side');
   var g0 = p.turrets[0];
-  damagePlane(p, 50, 'player', p.x + g0.lx, p.y + DREAD.GUN_Y, true);
-  check(g0.hp === g0.max && !dreadHit(p, p.x, p.y, 0), "it can't be hurt behind the page");
+  damagePlane(p, 50, 'player', p.x + p.dir * g0.lx, p.y + DREAD.GUN_Y, true);
+  check(g0.hp === g0.max && !dreadHit(p, p.x, p.y, 0), "it can't be hurt on the way in");
   render();
-  run(DREAD.EMERGE);
-  check(p.phase === 'guns' && seen.indexOf('dread_arrive') >= 0, 'then it bursts through');
+  for (var f = 0; f < 60 * 15 && p.phase === 'arrive'; f++) update(1 / 60);
+  check(p.phase === 'guns' && seen.indexOf('dread_arrive') >= 0, 'then it takes station');
   render();
 
-  // The hull and the plated bridge only clang while its guns fire.
-  var b0 = p.bridge.hp;
-  damagePlane(p, 50, 'player', p.x + p.bridge.lx, p.y + DREAD.BRIDGE_Y, true); damagePlane(p, 50, 'player', p.x - 60, p.y - 10, true);
-  check(p.bridge.hp === b0 && p.turrets.every(function (t) { return t.hp === t.max; }), 'armor clangs');
+  // Armor: the hull, the closed hangar and the plated bridge only clang while its guns fire.
+  var b0 = p.bridge.hp, h0 = p.hangar.hp;
+  damagePlane(p, 50, 'player', p.x + p.dir * p.bridge.lx, p.y + DREAD.BRIDGE_Y, true);
+  damagePlane(p, 50, 'player', p.x + p.dir * DREAD.HANGAR, p.y + DREAD.HANGAR_Y, true);
+  damagePlane(p, 50, 'player', p.x - 60, p.y - 10, true);
+  check(p.bridge.hp === b0 && p.hangar.hp === h0 && p.turrets.every(function (t) { return t.hp === t.max; }), 'armor clangs');
 
-  // A gun over the page marks a target with a flare, then fires; what it hits is gone for good.
+  // A gun over the page aims, then fires a volley of three; what the middle shell hits is gone for good.
   p.turrets.forEach(function (t) { t.cd = 99; });
-  p.x = DREAD.X0; p.move = -1; S.mods.auto = true; S.mods.stacks.auto = 1; S.recruits = [];
+  p.x = 200; p.move = 0; S.mods.auto = true; S.mods.stacks.auto = 1; S.recruits = [];
+  var onPage = p.turrets.filter(function (t) { var x = p.x + p.dir * t.lx; return x > 24 && x < W - 24; });
+  g0 = onPage[0]; var gB = onPage[1];
   g0.mark = { kind: 'sentry', x: SENTRY.x, t: 0 };
-  run(DREAD.MARK + DREAD.SHELL + 0.1);
-  check(!S.mods.auto && !S.mods.stacks.auto && seen.indexOf('dread_hit') >= 0, 'the sentry tower is destroyed, and the shop sells it again');
+  run(DREAD.AIM + 0.05);
+  check(!g0.mark && p.shells.length === DREAD.VOLLEY.length, 'it fires a volley of three');
+  render();
+  run(2 * DREAD.SHELL_GAP + DREAD.SHELL + 0.1);
+  check(!S.mods.auto && !S.mods.stacks.auto && seen.indexOf('dread_hit') >= 0 && g0.recoil >= 0, 'the sentry tower is destroyed, and the shop sells it again');
   render();
   // Natural marks come from a loaded gun over the page.
   g0.cd = 0; run(0.05);
-  check(g0.mark && seen.indexOf('dread_mark') >= 0, 'a loaded gun marks a target');
+  check(g0.mark && seen.indexOf('dread_mark') >= 0, 'a loaded gun aims');
   // Two guns can aim at once, never at the same thing.
-  var gB = p.turrets[1]; S.mods.wire = true; S.recruits = [makeRecruit(0, 'rifle')]; gB.cd = 0; run(0.05);
+  S.mods.wire = true; S.recruits = [makeRecruit(0, 'rifle')]; gB.cd = 0; run(0.05);
   check(gB.mark && (gB.mark.kind + (gB.mark.id || '')) !== (g0.mark.kind + (g0.mark.id || '')), 'a second gun takes a different target');
   gB.mark = null; gB.cd = 99; S.recruits = [];
   render();
-  // Knock the gun out while it aims, and the shot never comes.
-  var wall = S.wallHP; g0.mark.kind = 'wall'; g0.mark.x = BK.x;
-  damagePlane(p, 999, 'player', p.x + g0.lx, p.y + DREAD.GUN_Y, true);
+  // Knock the gun out while it aims, and the volley never comes.
+  var wall = S.wallHP; g0.mark.kind = 'wall'; g0.mark.x = BK.x; g0.mark.t = 0;
+  damagePlane(p, 999, 'player', p.x + p.dir * g0.lx, p.y + DREAD.GUN_Y, true);
   check(g0.dead && !g0.mark && seen.indexOf('dread_saved') >= 0 && S.texts.some(function (q) { return q.s === 'saved!'; }), 'saved!');
-  run(DREAD.MARK + DREAD.SHELL);
+  run(DREAD.AIM + DREAD.SHELL + 0.5);
   check(S.wallHP === wall, 'and the wall is spared');
   // A marked soldier who goes down first spares the gun the trouble.
-  var g1 = p.turrets[1], vet = makeRecruit(0, 'rifle'); S.recruits = [vet];
-  g1.mark = { kind: 'recruit', id: vet.id, x: vet.x, t: 0 }; hurtRecruit(vet, 99, 'bomb'); run(0.05);
-  check(!g1.mark && !vet.dead, 'no shot at the wounded');
+  var vet = makeRecruit(0, 'rifle'); S.recruits = [vet];
+  gB.mark = { kind: 'recruit', id: vet.id, x: vet.x, t: 0 }; hurtRecruit(vet, 99, 'bomb'); run(0.05);
+  check(!gB.mark && !vet.dead, 'no shot at the wounded');
   S.recruits = [];
   // The crew go for its guns: bazookas first.
   var baz = makeRecruit(4, 'bazooka'); S.recruits = [baz];
-  p.x = 200; var tg = pickTarget(baz);
+  var tg = pickTarget(baz);
   check(tg && tg.kind === 'dreadpart' && tg.part === 'gun', 'bazookas shoot at its guns');
   S.recruits = [];
   // The air strike's bombs hit a gun they fall past.
-  var g2 = p.turrets[2], hp2 = g2.hp;
-  S.strikeBombs = [{ id: 9001, x: p.x + g2.lx, y: p.y + DREAD.GUN_Y - 2, vy: 10, dead: false }]; update(1 / 60);
-  check(g2.hp === hp2 - 14, 'the air strike hits its guns: ' + g2.hp);
+  var gx = p.x + p.dir * gB.lx, hpB = gB.hp;
+  S.strikeBombs = [{ id: 9001, x: gx, y: p.y + DREAD.GUN_Y - 2, vy: 10, dead: false }]; update(1 / 60);
+  check(gB.hp === hpB - 14, 'the air strike hits its guns: ' + gB.hp);
 
-  // With every gun down the bridge is exposed and the bay drops bombs at the bunker.
-  p.turrets.forEach(function (t) { if (!t.dead) damagePlane(p, 999, 'player', p.x + t.lx, p.y + DREAD.GUN_Y, true); });
-  check(p.phase === 'bridge' && seen.indexOf('dread_bridge') >= 0, 'the bridge is exposed');
-  p.x = DREAD.X_END + 20; S.bombs = []; p.bombT = 0; run(0.05);
-  check(S.bombs.length === DREAD.BAY_BOMBS, 'the bomb bay opens');
+  // With every gun down the hangar opens: it launches dive bombers and drops troops.
+  p.turrets.forEach(function (t) { if (!t.dead) damagePlane(p, 999, 'player', p.x + p.dir * t.lx, p.y + DREAD.GUN_Y, true); });
+  check(p.phase === 'hangar' && seen.indexOf('dread_hangar') >= 0, 'the hangar opens');
+  var troops = S.troopers.length;
+  run(2.1);
+  check(seen.indexOf('dread_launch') >= 0 && S.planes.some(function (q) { return q.kind === 'diver'; }) && S.troopers.length > troops, 'it launches dive bombers and drops troops');
   render();
-  S.bombs = [];
+  // Shoot the hangar to pieces and the bridge is exposed: the bomb bay opens and the bridge gunner fires.
+  damagePlane(p, 9999, 'player', p.x + p.dir * DREAD.HANGAR, p.y + DREAD.HANGAR_Y, true);
+  check(p.phase === 'bridge' && seen.indexOf('dread_bridge') >= 0, 'the bridge is exposed');
+  S.planes = S.planes.filter(function (q) { return q.kind === 'dread'; }); S.troopers = []; S.bombs = [];
+  p.x = 200 + p.dir * 120 - p.dir * DREAD.BRIDGE; p.bombT = 0; run(0.05);
+  check(S.bombs.length === DREAD.BAY_BOMBS, 'the bomb bay opens');
+  S.recruits = [makeRecruit(1, 'rifle')]; p.gunT = 0; run(0.5);
+  check(S.enemyShots.some(function (b) { return b.cause === 'dreadnought'; }), 'the bridge gunner fires at the crew');
+  render();
+  S.bombs = []; S.enemyShots = []; S.recruits = [];
   // Downing the bridge downs the ship; on the final wave everyone left surrenders and nothing more comes.
   spawnTrooper(300, 300); spawnTrooper(80, 450);
-  damagePlane(p, 9999, 'player', p.x + p.bridge.lx, p.y + DREAD.BRIDGE_Y, true);
+  damagePlane(p, 9999, 'player', p.x + p.dir * p.bridge.lx, p.y + DREAD.BRIDGE_Y, true);
   check(p.phase === 'sinking' && S.finalWon && seen.indexOf('surrender') >= 0, 'down it goes, and they surrender');
   check(S.troopers.every(function (t) { return t.dead; }) && S.spawn.planes === 0 && S.spawn.boss === 0, 'nothing left, nothing more coming');
   render();
-  run(DREAD.SINK + 0.1); check(p.phase === 'retreat', 'it falls back through the page'); render();
-  run(DREAD.FALL + 0.2);
-  check(!CAMPAIGN.dread() && S.waveState === 'clear' && S.banner.s === 'victory!', 'victory');
+  run(DREAD.SINK + 0.2);
+  check(!CAMPAIGN.dread() && S.waveState === 'clear' && S.banner.s === 'victory!', 'it sinks off the page: victory');
   run(3.4);
 
   // The victory card: the score, the record and the roll call; wins are saved.

@@ -51,9 +51,8 @@
         troopers: [], planes: [], bombs: [], recruits: [], shop: null,
         tanks: S.tanks.map(function (tk) { return { id: tk.id, x: tk.x, y: tk.y, state: tk.state, dir: tk.dir, hp: tk.hp }; }),
         calls: { bomber: S.calls.bomber, fighter: S.calls.fighter }, strikeActive: !!S.strike, fighterActive: !!S.fighter, spread: !!S.mods.spread,
-        // On your side (sky.js): the Red Cross plane, not to be hit, and HQ's crates, to pop and catch.
-        medevac: S.medevac.filter(function (m) { return !m.hit; }).map(function (m) { return { x: m.x, y: m.y, vx: m.dir * m.speed, hw: SKY.MEDEVAC.HW, hh: SKY.MEDEVAC.HH }; }),
-        crates: S.crates.map(function (c) { return { id: c.id, x: c.x, y: c.y, state: c.state, fall: SKY.CRATE.FALL }; })
+        // The Red Cross plane (sky.js), not to be hit.
+        medevac: S.medevac.filter(function (m) { return !m.hit; }).map(function (m) { return { x: m.x, y: m.y, vx: m.dir * m.speed, hw: SKY.MEDEVAC.HW, hh: SKY.MEDEVAC.HH }; })
       };
       S.troopers.forEach(function (t) {
         if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy });

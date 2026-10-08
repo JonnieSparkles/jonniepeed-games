@@ -71,17 +71,15 @@ window.__balanceBot = function (profile, seed) {
         p.kind === 'diver' ? (p.phase === 'dive' ? 470 : 300) : 200 + p.y / 10;
       consider(rank, lead(o, p.x, p.y, p.vx, p.vy || 0), p.id);
     });
-    // HQ crates: pop the chute low over a mat, on the canopy's outer edge, well clear of the crate.
-    (o.crates || []).forEach(function (c) {
-      if (c.state === 'chute' && overMat(c, o) && c.y > 380 && c.y < 530) consider(390 + c.y / 10, lead(o, c.x + (c.x < 200 ? -11 : 11), c.y - 26, 0, c.fall), c.id);
-    });
-    // The Dreadnought: the gun that's aiming comes before anything, then the bridge, then its other guns.
+
+    // The Dreadnought: the gun that's aiming comes before anything, then the hangar or the bridge, then its other guns.
     (o.dread || []).forEach(function (q) {
-      consider(q.marking ? 560 : q.part === 'bridge' ? 380 : 360, lead(o, q.x, q.y, q.vx, 0), q.id);
+      consider(q.marking ? 560 : q.part === 'gun' ? 360 : 380, lead(o, q.x, q.y, q.vx, 0), q.id);
     });
     // Tanks: on the way down, or parked within the barrel's dip.
     (o.tanks || []).forEach(function (tk) {
-      if (tk.state === 'chute') consider(240, lead(o, tk.x, tk.y, 0, 70), tk.id);
+      // A tank on its chutes shrugs off bullets; wait for it to land.
+      if (tk.state === 'chute') return;
       else { var shot = groundShot(o, { x: tk.x - tk.dir * 18, y: tk.y - 14 }); if (shot) consider(330, shot, tk.id); }
     });
     return list;

@@ -41,7 +41,7 @@ var StickArmySky = function (w) {
   // Pure in n, folded into waveCfg. None of the enemies come with the Dreadnought; HQ's crates still do.
   function counts(n, dread) {
     return {
-      medevac: n >= MEDEVAC.WAVE && !dread ? (n < 12 ? 1 : 2) : 0,
+      medevac: n >= MEDEVAC.WAVE && !dread ? (n < 10 ? 1 : n < 13 ? 2 : 3) : 0,
       balloons: n >= BALLOON.WAVE && !dread ? Math.min(6, 2 + Math.floor((n - BALLOON.WAVE) / 2)) : 0,
       crates: n >= CRATE.WAVE ? (n < 12 ? 1 : 2) : 0,
       divers: n >= DIVE.WAVE && !dread ? Math.min(8, 3 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
@@ -57,7 +57,7 @@ var StickArmySky = function (w) {
   function tick(sp, dt) {
     var k = sp.sky;
     if (!k) return;
-    if (k.medevac > 0 && (k.medevacT -= dt) <= 0) { k.medevac--; spawnMedevac(k.rnd); k.medevacT = between(k.rnd, 14, 22); }
+    if (k.medevac > 0 && (k.medevacT -= dt) <= 0) { k.medevac--; spawnMedevac(k.rnd); k.medevacT = between(k.rnd, 10, 16); }
     if (k.balloons > 0 && (k.balloonT -= dt) <= 0) { k.balloons--; spawnBalloon(k.rnd); k.balloonT = between(k.rnd, 5, 9); }
     if (k.crates > 0 && (k.crateT -= dt) <= 0) { k.crates--; spawnCrate(k.rnd); k.crateT = between(k.rnd, 12, 18); }
     if (k.divers > 0 && (k.diverT -= dt) <= 0) { k.divers--; spawnDiver(k.rnd); k.diverT = between(k.rnd, 6, 10); }
@@ -214,22 +214,24 @@ var StickArmySky = function (w) {
   }
 
   // ---------- dive bombers ----------
-  function spawnDiver(rnd) {
+  // from (optional): where it starts, level, instead of an edge at DIVE.Y: the Dreadnought launches them from its hangar.
+  function spawnDiver(rnd, from) {
     var S = w.S, r = substream(rnd), dir = r() < 0.5 ? 1 : -1, target = BK.x + between(r, -8, 8);
     var crew = S.recruits.filter(w.standing);
     if (crew.length && r() < 0.35) target = crew[Math.floor(r() * crew.length)].x;
     // Where to tip over so the bomb, let go at RELEASE_Y with the plane's speed, lands on the target.
-    var vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE);
+    var y0 = from ? from.y : DIVE.Y, vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE);
     var floor = Math.abs(target - BK.x) < 36 ? BK.top - 8 : GROUND - 6, fall = floor - (DIVE.RELEASE_Y + 8);
-    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, lead = (DIVE.RELEASE_Y - DIVE.Y) / Math.tan(DIVE.ANGLE) + vx * tf;
+    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, lead = (DIVE.RELEASE_Y - y0) / Math.tan(DIVE.ANGLE) + vx * tf;
     // Come in from whichever side leaves room for some level flight first.
-    if ((target - dir * lead - (dir > 0 ? 0 : W)) * dir < 50) dir = -dir;
-    var p = w.makePlane('diver', dir, dir > 0 ? -50 : W + 50, DIVE.Y);
+    var x0 = function (d) { return from ? from.x : d > 0 ? -50 : W + 50; }, room = function (d) { return (target - d * lead - x0(d)) * d; };
+    if (room(dir) < (from ? 20 : 50) && room(-dir) > room(dir)) dir = -dir;
+    var p = w.makePlane('diver', dir, x0(dir), y0);
     p.rng = r; p.hp = DIVE.HP; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.CRUISE; p.ang = 0; p.drawAng = 0;
-    p.diveX = target - dir * lead; p.phase = 'level'; p.vx = dir * DIVE.CRUISE; p.vy = 0; p.target = target; p.spin = 0;
+    p.diveX = room(dir) > 0 ? target - dir * lead : p.x; p.phase = 'level'; p.vx = dir * DIVE.CRUISE; p.vy = 0; p.target = target; p.spin = 0;
     S.planes.push(p);
-    emit('plane_spawn', { kind: 'diver', dir: dir, target: target });
-    if (!S.diverTold) { S.diverTold = true; addText('dive bomber!', dir > 0 ? 80 : W - 80, DIVE.Y + 36, RED, 22); }
+    emit('plane_spawn', { kind: 'diver', dir: dir, target: target, launched: !!from });
+    if (!S.diverTold) { S.diverTold = true; addText('dive bomber!', clamp(p.x + dir * 80, 60, W - 60), y0 + 36, RED, 22); }
     return p;
   }
   function updateDiver(p, dt) {
