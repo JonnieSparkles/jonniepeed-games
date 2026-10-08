@@ -241,6 +241,21 @@ A winning run takes about 9 simulated minutes, plus shopping. What the bots foun
 - **The Dreadnought only threatened once it aimed at the wall.** With shells mostly aimed at soldiers it cost bots three or four crew but never the run. Weighting the wall, two guns aiming at once and splash on the repairers made it a fight; the open muzzle (2.5× damage while aiming) keeps it beatable by focused fire.
 - **Decent still wins more than the third the spec aims for,** and the decent and expert profiles stay close. The early game (waves 6–9) is where most casual and decent runs end. Playtesting decides the next step.
 
+Round 10 (SPEC-007 stages 2–3: the Red Cross plane, bomb balloons, HQ crates, the armored zeppelin, dive bombers and helicopters) against round 9, each played by its own bot, 40 seeds per skill:
+
+| Skill | Won, round 9 → round 10 | Alive at wave 10 / 12 / 15, round 10 | How round 10 runs end |
+| --- | --- | --- | --- |
+| casual | 0% → 0% | 38 / 28 / 5% | bombs 29, landers 5, dive bombers 3, the Dreadnought 2, sniper 1 |
+| decent | 58% → 58% | 88 / 75 / 62% | won 23, bombs 11, landers 2, the Dreadnought 2, dive bombers 2 |
+| expert | 65% → 42% | 72 / 68 / 48% | won 17, bombs 11, landers 6, the Dreadnought 2, dive bombers 2, sniper 1, tank 1 |
+
+On 60 more seeds, expert won 50% against round 9's 62%. What the bots found:
+
+- **The new threats add damage late but end few runs.** At waves 12–14 dive bombs do 13–17 wall damage a wave and helicopters land a trooper or two, against 60–80 from carpet bombers, and crews repair about as fast. Most losses still come from bombs between waves 7 and 11. Experts feel waves 10–15 more than decent bots do.
+- **Helicopters went down before dropping anyone** at four health. At ten, they lower a trooper or two first.
+- Bots pop balloons out over the field and catch about one crate in ten: most pops come from spray, too high to catch. Casual bots hit the Red Cross plane about two times in three; decent and expert bots, which hold fire when it's in the line, about one in seven.
+- **`--verify` caught the helicopter's hover bob using its id,** which cosmetic effects shift. It now uses a seeded phase, and 15 runs match.
+
 ## Validation and generated assets
 
 Serve `site/` locally:
