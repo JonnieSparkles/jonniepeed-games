@@ -21,17 +21,21 @@ var StickArmyUnits = function (w) {
   // PLATE_W wide either side) cover the hull and clang until shot off, and the gondola is plated until half health.
   var ZEP = { HW: 78, HH: 25, Y: 172, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
     DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2, ARRIVE: 9, WARN: 2.5,
-    ARMOR_WAVE: 10, PLATES: [-0.72, -0.36, 0, 0.36, 0.72], PLATE_W: 0.18, PLATE_HP: 6 };
+    ARMOR_WAVE: 10, PLATES: [-0.72, -0.36, 0, 0.36, 0.72], PLATE_W: 0.18, PLATE_HP: 6,
+    // From TWIN_WAVE the fives bring two at once, one TWIN_DY above the other, each with TWIN_HP of a single one's health.
+    TWIN_WAVE: 15, TWIN_DY: 48, TWIN_HP: 0.6 };
   var STEEL = 'rgba(112,120,130,0.5)';
   function zeppelinHP(n) { return Math.round(20 + BALANCE.BOSS_HP_PER_WAVE * n); }
   // The gondola is the weak spot: direct shots there do ZEP.WEAK times the damage.
   function inGondola(p, x, y) { var dx = x - p.x, dy = y - p.y; return dy > p.hh - 3 && Math.abs(dx) < 24 * Math.abs(p.face) + 4; }
-  function spawnZeppelin() {
-    var S = w.S;
-    var rnd = substream(w.RW), dir = rnd() < 0.5 ? 1 : -1, p = makePlane('zeppelin', dir, dir > 0 ? -ZEP.HW - 20 : W + ZEP.HW + 20, ZEP.Y);
-    p.rng = rnd;
-    p.hp = p.maxHp = zeppelinHP(S.wave); p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
-    p.baseY = ZEP.Y; p.bob = between(rnd, 0, 6.28); p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
+  // opts (optional): { dir, twin: 0 or 1 } for the pair, upper (0) and lower (1).
+  function spawnZeppelin(opts) {
+    var S = w.S, twin = opts && opts.twin != null;
+    var rnd = substream(w.RW), roll = rnd(), dir = opts && opts.dir ? opts.dir : roll < 0.5 ? 1 : -1;
+    var homeY = twin ? ZEP.Y + (opts.twin ? 1 : -1) * ZEP.TWIN_DY : ZEP.Y, p = makePlane('zeppelin', dir, dir > 0 ? -ZEP.HW - 20 : W + ZEP.HW + 20, homeY);
+    p.rng = rnd; p.homeY = homeY; p.twin = twin;
+    p.hp = p.maxHp = Math.round(zeppelinHP(S.wave) * (twin ? ZEP.TWIN_HP : 1)); p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
+    p.baseY = homeY; p.bob = between(rnd, 0, 6.28); p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
     if (S.wave >= ZEP.ARMOR_WAVE) {
       p.armored = true; p.shield = true;
       p.plates = ZEP.PLATES.map(function (k) { return { k: k, hp: ZEP.PLATE_HP, flash: 0, id: w.id() }; });
@@ -89,7 +93,7 @@ var StickArmyUnits = function (w) {
       p.speed += (want - p.speed) * Math.min(1, dt * 1.5);
       if (p.entered && (p.dir > 0 ? p.x > ZEP.RIGHT : p.x < ZEP.LEFT)) p.dir = -p.dir;
       p.x += p.face * p.speed * dt;
-      p.baseY += (ZEP.Y + ZEP.SINK * (1 - p.hp / p.maxHp) - p.baseY) * Math.min(1, dt * 0.8);
+      p.baseY += ((p.homeY || ZEP.Y) + ZEP.SINK * (1 - p.hp / p.maxHp) - p.baseY) * Math.min(1, dt * 0.8);
       p.y = p.baseY + Math.sin(S.t * 1.1 + p.bob) * 2.5;
       if (zeppelinOnScreen(p)) {
         p.dropT -= dt;
@@ -234,9 +238,10 @@ var StickArmyUnits = function (w) {
   // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry. It comes
   // in with the hull, and is only held on the page once the zeppelin has fully arrived.
   function drawBossBar() {
-    var S = w.S, G = w.G; // w is the world; bw is the bar width
-    var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
-    if (!z) return;
+    w.S.planes.forEach(function (z) { if (z.kind === 'zeppelin' && z.state === 'fly') bossBar(z); });
+  }
+  function bossBar(z) {
+    var G = w.G; // bw is the bar width
     var bw = 96, cx = z.entered ? clamp(z.x, 12 + bw / 2, W - 12 - bw / 2) : z.x;
     var x = cx - bw / 2, y = z.y - z.hh - 12, f = clamp(z.hp / z.maxHp, 0, 1);
     pen(4343);
@@ -259,7 +264,7 @@ var StickArmyUnits = function (w) {
       t.x = side < 0 ? -14 - i * 24 : W + 14 + i * 24; t.state = 'ground'; t.open = 1; t.dir = -side; t.speed = RUSH.SPEED; t.rusher = true;
     }
     addText('rush!', side < 0 ? 60 : W - 60, GROUND - 74, RED, 24);
-    w.sound.play('rush'); w.say('charge!', 900 + n, true);
+    w.sound.play('rush'); w.say('charge!', 900 + n, true, 0, side < 0 ? 40 : W - 40, GROUND - 60);
     emit('rush', { side: side < 0 ? 'left' : 'right', count: n });
   }
 
@@ -271,10 +276,12 @@ var StickArmyUnits = function (w) {
   var TANK = { WAVE: 9, ROAD_WAVE: 11, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.6, SHELL_DAMAGE: 8, BULLET: 0.1,
     BLAST: { rocket: 4, mine: 6, crash: 6, strike: 14 } };
   function tankHP(n) { return Math.round(10 + 0.8 * n); }
+  // Cargo planes are armored too, so a steady stream doesn't stop every tank in the air.
+  function cargoHP(n) { return 8 + Math.floor(Math.max(0, n - TANK.WAVE) / 2); }
   function spawnCargo() {
     var S = w.S, rnd = substream(w.RW), dir = rnd() < 0.5 ? 1 : -1;
     var p = makePlane('cargo', dir, dir > 0 ? -80 : W + 80, between(rnd, 104, 124));
-    p.rng = rnd; p.speed = S.spawn.cfg.speed * 0.5; p.hp = 4; p.sc = 0.95; p.hw = 50; p.hh = 16; p.kits = [];
+    p.rng = rnd; p.speed = S.spawn.cfg.speed * 0.5; p.hp = p.maxHp = cargoHP(S.wave); p.sc = 0.95; p.hw = 50; p.hh = 16; p.kits = [];
     p.tankX = rnd() < 0.5 ? between(rnd, 34, 80) : between(rnd, 320, 366);
     S.planes.push(p);
     emit('plane_spawn', { kind: 'cargo', dir: dir, y: p.y, speed: p.speed, tankX: p.tankX });
@@ -416,8 +423,8 @@ var StickArmyUnits = function (w) {
       .sort(function (a, b) { return (b.rank || 0) - (a.rank || 0) || Math.abs(a.x - BK.x) - Math.abs(b.x - BK.x); });
     var r = crew[0];
     S.radio = { rid: r ? r.id : null, x: r ? r.x : BK.x, t: 0, dur: RADIO.TALK + 0.6 };
-    addText(label, r ? r.x : BK.x, GROUND - (r ? 74 : 104), BLUE, 24);
-    w.sound.play('radio'); w.say(label, r ? r.id : 77, false, 0.25);
+    // The call is said aloud, in a speech bubble over whoever makes it.
+    w.sound.play('radio'); w.say(label, r ? r.id : 77, false, 0.25, BK.x, BK.top - 40);
   }
   function updateRadio(dt) {
     var S = w.S, rc = S.radio;
@@ -586,7 +593,7 @@ var StickArmyUnits = function (w) {
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
     updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
-    TANK: TANK, tankHP: tankHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
+    TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
     RADIO: RADIO, callsHeld: callsHeld, grantCall: grantCall, STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike,
     FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, updateRadio: updateRadio, drawRadio: drawRadio };

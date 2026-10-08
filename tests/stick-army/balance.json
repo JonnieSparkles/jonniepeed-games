@@ -12,6 +12,8 @@
     { "label": "wall dmg: snipers", "key": "wall_damage.amount:source=sniper" },
     { "label": "wall dmg: dive bombers", "key": "wall_damage.amount:source=dive" },
     { "label": "wall dmg: balloons", "key": "wall_damage.amount:source=balloon" },
+    { "label": "wall dmg: heavy bombers", "key": "wall_damage.amount:source=heavy" },
+    { "label": "wall dmg: Dreadnought", "key": "wall_damage.amount:source=dreadnought" },
     { "label": "wall dmg: tanks", "key": "wall_damage.amount:source=tank" },
     { "label": "armor hits", "key": "armor_hit" },
     { "label": "repaired", "key": "wall_repair.amount" },

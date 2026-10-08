@@ -1,5 +1,5 @@
-// SPEC-008 stages 2-3: the Red Cross plane (4), bomb balloons (7), HQ crates (8), the armored zeppelin (10), dive
-// bombers (12), helicopters (13), and the little voices.
+// SPEC-008 stages 2-3, on the 20-wave schedule: bomb balloons (4), the Red Cross plane (6), helicopters (7), HQ
+// drops (8), the armored zeppelin (10), dive bombers (12), and the little voices. Heavy bombers (13): case-21.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var seen = [];
@@ -10,23 +10,24 @@
   function quiet(n) {
     newGame(); startWave(n); S.mods.maxHP = S.wallHP = 1e6; S.banner = null;
     var sp = S.spawn; sp.timer = sp.rushT = sp.cargoT = sp.roadT = sp.bossT = 99;
-    var k = sp.sky; k.medevacT = k.balloonT = k.crateT = k.diverT = k.heliT = 99;
+    var k = sp.sky; k.medevacT = k.balloonT = k.crateT = k.diverT = k.heliT = k.heavyT = 99;
     S.recruits = []; S.mods.auto = false; S.texts = []; seen = [];
   }
   function playerShot(x, y) { return { x: x, y: y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false }; }
   function allyShot(x, y) { return { x: x, y: y, vx: 0, vy: -1, owner: 'ally', kind: 'bullet', life: 1, dead: false }; }
 
   // The schedule: something new every couple of waves, more of each later, none of the enemies with the Dreadnought.
-  check(!waveCfg(3).medevac && waveCfg(4).medevac === 1 && waveCfg(12).medevac === 2, 'the Red Cross plane from wave 4');
-  check(!waveCfg(6).balloons && waveCfg(7).balloons >= 2 && waveCfg(13).balloons > waveCfg(7).balloons, 'bomb balloons from wave 7');
+  check(!waveCfg(3).balloons && waveCfg(4).balloons >= 2 && waveCfg(13).balloons > waveCfg(4).balloons, 'bomb balloons from wave 4');
+  check(!waveCfg(5).medevac && waveCfg(6).medevac === 1 && waveCfg(12).medevac === 2 && waveCfg(17).medevac === 3, 'the Red Cross plane from wave 6');
   check(!waveCfg(7).crates && waveCfg(8).crates === 1 && waveCfg(DREAD.WAVE).crates >= 1, 'HQ crates from wave 8, even on the final wave');
-  check(!waveCfg(11).divers && waveCfg(12).divers >= 2 && waveCfg(20).divers > waveCfg(14).divers, 'dive bombers from wave 12');
-  check(!waveCfg(12).helis && waveCfg(13).helis === 1 && waveCfg(21).helis > waveCfg(13).helis, 'helicopters from wave 13');
-  check(['medevac', 'balloons', 'divers', 'helis'].every(function (k) { return !waveCfg(DREAD.WAVE)[k] && !waveCfg(DREAD.WAVE + DREAD.EVERY)[k]; }), 'none of them with the Dreadnought');
-  check(waveCfg(30).divers + waveCfg(30).helis + waveCfg(30).bombers > waveCfg(20).divers + waveCfg(20).helis + waveCfg(20).bombers, 'endless keeps ramping');
+  check(!waveCfg(11).divers && waveCfg(12).divers >= 2 && waveCfg(19).divers > waveCfg(14).divers, 'dive bombers from wave 12');
+  check(!waveCfg(6).helis && waveCfg(7).helis === 1 && waveCfg(15).helis > waveCfg(7).helis, 'helicopters from wave 7');
+  check(!waveCfg(12).heavies && waveCfg(13).heavies === 1 && waveCfg(21).heavies > waveCfg(13).heavies, 'heavy bombers from wave 13');
+  check(['medevac', 'balloons', 'divers', 'helis', 'heavies'].every(function (k) { return !waveCfg(DREAD.WAVE)[k] && !waveCfg(DREAD.WAVE + DREAD.EVERY)[k]; }), 'none of them with the Dreadnought');
+  check(waveCfg(29).divers + waveCfg(29).helis + waveCfg(29).bombers > waveCfg(19).divers + waveCfg(19).helis + waveCfg(19).bombers, 'endless keeps ramping');
 
   // The Red Cross plane: the crew's fire passes it by; your turret's first hit costs tags and the combo, once.
-  RUN.force = 61; quiet(4); S.coins = 100; S.combo = 3; S.comboT = 1;
+  RUN.force = 61; quiet(6); S.coins = 100; S.combo = 3; S.comboT = 1;
   var med = SKY.spawnMedevac(RW); med.x = 200;
   check(S.texts.some(function (q) { return /Red Cross/.test(q.s); }), 'the first one says so');
   var b = allyShot(med.x, med.y); S.bullets = [b]; hitTest(b);
@@ -41,7 +42,7 @@
   check(!S.planes.length, 'it is not an enemy plane');
 
   // Bomb balloons drift to the bunker and let go over it.
-  RUN.force = 62; quiet(7);
+  RUN.force = 62; quiet(4);
   var bal = SKY.spawnBalloon(RW); bal.x = bal.targetX - bal.dir * 30; bal.baseY = bal.y = 400;
   run(30 / SKY.BALLOON.SPEED + 0.2);
   check(!S.planes.length && S.bombs.some(function (m) { return m.balloon; }) && S.skyFx.length === 1, 'it lets go over the bunker and floats off');
@@ -49,7 +50,7 @@
   run(1.6);
   check(heard('wall_damage', function (d) { return d.source === 'balloon'; }), 'its bomb hits the wall');
   // Popped over the enemy, its bomb lands on them.
-  RUN.force = 63; quiet(7);
+  RUN.force = 63; quiet(4);
   bal = SKY.spawnBalloon(RW); bal.x = 330; bal.baseY = bal.y = 470;
   var foe = spawnTrooper(330, GROUND - 33); land(foe);
   damagePlane(bal, 1, 'player', bal.x, bal.y, true);
@@ -57,33 +58,35 @@
   run(1.2);
   check(foe.dead && S.wallHP === 1e6, 'on whoever is under it');
   // The crew and the sentry leave balloons alone.
-  RUN.force = 64; quiet(7); S.mods.auto = true;
+  RUN.force = 64; quiet(4); S.mods.auto = true;
   bal = SKY.spawnBalloon(RW); bal.x = 160; bal.baseY = bal.y = 400; var rifle = makeRecruit(1, 'bazooka'); S.recruits = [rifle];
   check(pickTarget(rifle) !== bal && sentryTarget() !== bal, 'nobody pops a balloon over the squad');
 
-  // HQ crates: pop the chute low over a mat and catch it; shoot the crate and it's lost; leave it and they take it.
+  // HQ supply drops: a blue plane flies low and drops a crate beside the bunker; nothing can shoot either; the nearest
+  // free soldier runs out and fetches it.
   RUN.force = 65; quiet(8);
-  var c = SKY.spawnCrate(RW); c.kind = 'tags'; c.y = 470; var tags = S.coins;
-  check(activeTramps().some(function (m) { return c.x > m.x1 && c.x < m.x2; }), 'it comes down over a mat');
-  b = allyShot(c.x, c.y - 22); hitTest(b);
-  check(!b.dead && c.state === 'chute', "the crew's fire passes it by");
-  b = playerShot(c.x, c.y - 22); hitTest(b);
-  check(b.dead && c.state === 'free', 'pop its chute');
-  run(1);
-  check(!S.crates.length && heard('crate_caught') && S.coins >= tags + SKY.CRATE.TAGS, 'caught on the mat: tags');
-  c = SKY.spawnCrate(RW); c.kind = 'wall'; c.y = 470; S.wallHP = S.mods.maxHP - 100;
-  hitTest(playerShot(c.x, c.y - 22)); run(1);
-  check(S.wallHP === S.mods.maxHP - 100 + SKY.CRATE.WALL, 'a wall patch');
-  c = SKY.spawnCrate(RW); c.kind = 'call'; c.call = 'fighter'; c.y = 470; S.calls = { bomber: 0, fighter: 0 };
-  hitTest(playerShot(c.x, c.y - 22)); run(1);
+  var hq = SKY.spawnCrate(RW); hq.kind = 'tags';
+  check(S.hq.length === 1 && !S.crates.length, "HQ's plane comes in");
+  for (var f = 0; f < 600 && !S.crates.length; f++) update(1 / 60);
+  var c = S.crates[0];
+  check(c && c.state === 'chute' && Math.abs(c.x - BK.x) > 40 && c.kind === 'tags', 'it drops a crate beside the bunker');
+  b = playerShot(c.x, c.y - 18); hitTest(b); var b2 = playerShot(hq.x, hq.y); hitTest(b2);
+  check(!b.dead && !b2.dead && c.state === 'chute', 'shots pass them by');
+  render();
+  var fetcher = makeRecruit(c.x < BK.x ? 0 : 4, 'rifle'), tags = S.coins; S.recruits = [fetcher];
+  for (f = 0; f < 900 && S.crates.length; f++) { update(1 / 60); if (fetcher.role === 'fetch') var ran = true; }
+  check(ran && heard('crate_caught', function (d) { return d.by === 'crew'; }) && S.coins >= tags + SKY.CRATE.TAGS, 'a soldier runs out and fetches it');
+  run(4); check(Math.abs(fetcher.x - fetcher.homeX) < 1, 'and goes back to his post');
+  // With no squad, it's collected where it lands: here a wall patch.
+  quiet(8); hq = SKY.spawnCrate(RW); hq.kind = 'wall'; S.wallHP = S.mods.maxHP - 100;
+  run(10);
+  check(S.wallHP === S.mods.maxHP - 100 + SKY.CRATE.WALL && heard('crate_caught', function (d) { return d.by === 'none'; }), 'with no squad it is collected where it lands');
+  // A radio call.
+  quiet(8); hq = SKY.spawnCrate(RW); hq.kind = 'call'; hq.call = 'fighter'; S.calls = { bomber: 0, fighter: 0 }; run(10);
   check(S.calls.fighter === 1, 'a radio call');
-  c = SKY.spawnCrate(RW); c.y = 300; hitTest(playerShot(c.x, c.y));
-  check(c.dead && heard('crate_lost', function (d) { return d.why === 'shot'; }), 'shot, the crate is lost');
-  c = SKY.spawnCrate(RW); c.y = GROUND - 30; run(1);
-  check(!S.crates.length && heard('crate_lost', function (d) { return d.why === 'landed'; }), 'left alone, they take it');
-  // The wave waits for a crate in the air.
-  c = SKY.spawnCrate(RW); S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.sky.balloons = 0; S.planes = []; S.troopers = []; update(1 / 60);
-  check(S.waveState === 'active' && S.spawn.sky.crates === 0, 'a falling crate holds the wave open');
+  // The wave waits for a drop in the air.
+  quiet(8); hq = SKY.spawnCrate(RW); S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.sky.balloons = S.spawn.sky.helis = 0; S.planes = []; S.troopers = []; update(1 / 60);
+  check(S.waveState === 'active' && S.spawn.sky.crates === 0, 'a drop on its way holds the wave open');
   render();
 
   // The armored zeppelin: plates clang until shot off, and the gondola is plated until half health.
@@ -123,15 +126,18 @@
   run(4); check(!S.planes.length, 'and it crashes');
 
   // Helicopters: hover near an edge, lower troopers on ropes, and the door gunner fires at the crew.
-  RUN.force = 68; quiet(13);
+  RUN.force = 68; quiet(7);
   var medic = makeRecruit(4, 'medic'); S.recruits = [medic];
   var h = SKY.spawnHeli(RW), kits = h.kits.length;
-  check(kits >= 4 && kits <= 5 && h.hp === SKY.heliHP(13) && (h.hoverX < 100 || h.hoverX > 300), 'it heads for a hover near an edge');
-  run(6);
+  check(kits >= 4 && kits <= 5 && h.hp === SKY.heliHP(7) && SKY.heliHP(15) > SKY.heliHP(7) && (h.hoverX < 100 || h.hoverX > 300), 'it heads for a hover near an edge');
+  for (var hf = 0; hf < 600 && h.phase === 'in'; hf++) update(1 / 60);
+  check(hf < 180, 'it comes in quickly: ' + hf);
+  run(0.6);
   check(h.phase === 'drop' && S.troopers.some(function (t) { return t.state === 'rope'; }), 'it lowers troopers on a rope');
-  check(medic.hp < crewMax(medic) || medic.down || S.enemyShots.length > 0, 'the door gunner fires at the crew');
   render();
-  run(6);
+  run(0.5);
+  check(medic.hp < crewMax(medic) || medic.down || S.enemyShots.length > 0, 'the door gunner fires at the crew');
+  run(3.5);
   check(heard('land') && !S.troopers.some(function (t) { return t.state === 'rope'; }) && (h.phase === 'wait' || h.phase === 'out' || h.gone), 'they reach the ground, and it leaves');
   // Shoot it down and anyone on the rope falls; over a mat, that's a catch.
   RUN.force = 69; quiet(13); S.mods.slots = 4;

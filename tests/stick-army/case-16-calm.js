@@ -62,7 +62,7 @@
   // Every banner subtitle fits the page.
   G = ctx; ctx.save(); ctx.font = '24px ' + HAND;
   var subs = ['tanks! +1 air strike from HQ', 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags', 'catch the crew! +1 air strike', 'catch the crew! +' + RADIO.FULL_TAGS + ' tags'];
-  for (var n = 1; n <= 16; n++) { newGame(); startWave(n); subs.push(S.banner.sub); }
+  for (var n = 1; n <= 21; n++) { newGame(); startWave(n); subs.push(S.banner.sub); }
   var widest = Math.max.apply(null, subs.map(function (s) { return ctx.measureText(s).width; }));
   ctx.restore();
   check(widest < W - 30, 'banner subtitles fit: ' + widest);
@@ -140,7 +140,7 @@
   check(takeItem(pick.id), 'buy one');
   S.coins = 0; renderShop(); document.activeElement.blur();
   var packed = document.querySelector('#supplyItems [data-item="' + pick.id + '"]'), grey = deals().find(function (b) { return b.disabled && !b.classList.contains('bought'); });
-  check(packed.classList.contains('bought') && /Packed/.test(packed.textContent) && packed.disabled, 'a bought supply says it is packed');
+  check(packed.classList.contains('bought') && /Packed/.test(packed.textContent) && /put back/.test(packed.textContent) && !packed.disabled, 'a bought supply says it is packed, and can go back');
   check(grey && getComputedStyle(packed).color !== getComputedStyle(grey).color && getComputedStyle(packed).borderTopColor !== getComputedStyle(grey).borderTopColor, 'and does not look unavailable');
   var tag = grey.querySelector('em'), more = tag.querySelector('small');
   check(/^\d+ tags$/.test(tag.firstChild.textContent) && more && /^need \d+ more$/.test(more.textContent) && getComputedStyle(more).display === 'block', 'what you still need sits on its own line under the price');

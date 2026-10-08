@@ -68,7 +68,7 @@ var StickArmyShop = function (w) {
     var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gift = Math.floor(w.RS() * Math.max(1, items.length));
     var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
-      gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
+      gift: items.length ? items[gift].id : null, giftTaken: false, bought: {}, base: snapshot(S), log: [] };
     w.emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
     // Every visit starts at the top of the list.
@@ -78,18 +78,52 @@ var StickArmyShop = function (w) {
   }
   function takeItem(id) {
     var S = w.S;
-    if (S.mode !== 'shop' || !S.shop) return false;
-    var item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
+    if (S.mode !== 'shop' || !S.shop || !buy(id, false)) return false;
+    w.sound.play('recruit'); renderShop();
+    if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    return true;
+  }
+  // replay: buying again after a put-back, so the purchase isn't reported twice.
+  function buy(id, replay) {
+    var S = w.S, item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
     // Supplies sell once per visit; hiring repeats while slots and tags last.
     if (!item || (S.shop.bought[id] && item.tier !== 'hire') || !eligible(item)) return false;
     var gift = onHouse(item), cost = costNow(item);
     if (S.coins < cost) return false;
     S.coins -= cost; if (gift) S.shop.giftTaken = true;
-    w.emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
+    if (!replay) w.emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
     S.shop.bought[id] = true; S.mods.stacks[id] = (S.mods.stacks[id] || 0) + 1; item.apply(S);
-    w.sound.play('recruit'); renderShop();
-    if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    S.shop.log.push(id);
     return true;
+  }
+  // Putting something back: the shop remembers what you had when it opened (snapshot) and what you took since, in
+  // order. It restores that and takes the rest again, so prices, the gift and hiring stay consistent. Anything that
+  // only worked because of what went back (a hire into a slot you returned) goes back too.
+  function snapshot(S) {
+    return { coins: S.coins, wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
+      pizzaOrder: S.pizzaOrder, recruits: S.recruits.map(function (r) { return Object.assign({}, r); }) };
+  }
+  function putBack(id) {
+    var S = w.S;
+    if (S.mode !== 'shop' || !S.shop) return false;
+    var at = S.shop.log.lastIndexOf(id);
+    if (at < 0) return false;
+    var keep = S.shop.log.slice(), b = S.shop.base;
+    keep.splice(at, 1);
+    S.coins = b.coins; S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
+    S.pizzaOrder = b.pizzaOrder; S.recruits = b.recruits.map(function (r) { return Object.assign({}, r); }); w.resizeMats();
+    S.shop.bought = {}; S.shop.giftTaken = false; S.shop.log = [];
+    keep.forEach(function (k) { buy(k, true); });
+    w.emit('refund', { item: id });
+    w.sound.play('tink'); renderShop();
+    var again = shopScreen.querySelector('[data-item="' + id + '"]:not(:disabled)');
+    (again || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    return true;
+  }
+  function undo() { var S = w.S; return !!(S.shop && S.shop.log.length) && putBack(S.shop.log[S.shop.log.length - 1]); }
+  function bossHint(c) {
+    if (!c.boss) return c.night ? ' Heads up: a night raid is coming.' : '';
+    return ' Heads up: ' + (c.bossKind === 'dread' ? 'the Dreadnought is' : c.twin ? 'two zeppelins are' : 'a zeppelin is') + ' coming.';
   }
   function renderShop() {
     var S = w.S;
@@ -98,7 +132,7 @@ var StickArmyShop = function (w) {
     var news = document.getElementById('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
     document.getElementById('shopHint').textContent = (S.shop.gift && !S.shop.giftTaken ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
-      (w.waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
+      bossHint(w.waveCfg(S.wave + 1));
     // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
     function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= costNow(it); }
     function costLabel(it) {
@@ -114,9 +148,11 @@ var StickArmyShop = function (w) {
       return it.tier !== 'hire' && !S.shop.bought[it.id] && !onHouse(it) && eligible(it) && S.coins < price(it) ? price(it) - S.coins : 0;
     }
     function itemButton(it, cls, withDesc) {
-      var button = document.createElement('button'); button.type = 'button'; button.dataset.item = it.id;
-      button.className = cls + (onHouse(it) ? ' gift' : '') + (it.tier !== 'hire' && S.shop.bought[it.id] ? ' bought' : '');
-      button.disabled = !canBuy(it);
+      var button = document.createElement('button'), packed = it.tier !== 'hire' && S.shop.bought[it.id];
+      button.type = 'button'; button.dataset.item = it.id;
+      button.className = cls + (onHouse(it) ? ' gift' : '') + (packed ? ' bought' : '');
+      // A packed supply stays live: tapping it again puts it back.
+      button.disabled = !packed && !canBuy(it);
       var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
       w.drawItemIcon(icon, it.id);
       var name = document.createElement('strong'); name.textContent = it.name;
@@ -126,15 +162,37 @@ var StickArmyShop = function (w) {
       else button.title = it.desc;
       if (onHouse(it)) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
       if (needMore(it)) { var more = document.createElement('small'); more.textContent = 'need ' + needMore(it) + ' more'; label.append(more); }
+      if (packed) { var back = document.createElement('small'); back.textContent = 'tap to put back'; label.append(back); }
       button.append(label);
-      button.addEventListener('click', function () { takeItem(it.id); });
+      button.addEventListener('click', function () {
+        if (packed) { putBack(it.id); return; }
+        // On a phone the hired row can sit just below the fold; bring it up so the send-back chip is in sight.
+        if (takeItem(it.id) && it.tier === 'hire') document.getElementById('hiredItems').scrollIntoView({ block: 'nearest' });
+      });
       return button;
     }
     document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
-    var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || w.freeSlot(0) < 0; });
+    // The medic shows only while you can hire one, or greyed with the rest when the squad is full and has no medic.
+    var hasMedic = S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; });
+    var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || (w.freeSlot(0) < 0 && !hasMedic); });
     document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), roles.map(function (it) { return itemButton(it, 'hire', false); }));
+    // Who you hired this visit: tap one to send him back and get the tags back.
+    var hired = document.getElementById('hiredItems'), hires = S.shop.log.filter(function (id) { return /^hire-/.test(id); });
+    hired.replaceChildren.apply(hired, hires.map(function (id) {
+      var it = ITEMS.find(function (q) { return q.id === id; }), chip = document.createElement('button'), icon = document.createElement('canvas'), name = document.createElement('span');
+      chip.type = 'button'; chip.className = 'hired-chip'; chip.dataset.hired = id; chip.title = 'Send back';
+      icon.width = icon.height = 88; icon.setAttribute('aria-hidden', 'true'); w.drawItemIcon(icon, id);
+      name.textContent = it.name + ' ↩'; chip.setAttribute('aria-label', 'Send back the ' + it.name.toLowerCase());
+      chip.append(icon, name); chip.addEventListener('click', function () { putBack(id); });
+      return chip;
+    }));
+    hired.hidden = !hires.length;
     document.getElementById('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire.';
     renderKit(document.getElementById('loadout'), false);
+    // Undo puts back the last thing taken, hires included.
+    var undoBtn = document.getElementById('undoBtn'), last = S.shop.log[S.shop.log.length - 1];
+    undoBtn.hidden = !last;
+    if (last) undoBtn.textContent = '↩ Undo ' + ITEMS.find(function (it) { return it.id === last; }).name.toLowerCase();
     document.getElementById('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
   }
   function continueWave() {
@@ -161,7 +219,7 @@ var StickArmyShop = function (w) {
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.nextWave || S.wave });
         S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(w.crewMax(r), r.hp + 1); if (r.down) w.standUp(r, 'pizza'); } });
-        w.sound.play('pizza'); w.say('pizza time!', 4242, false, 0.3); w.addText('pizza time!', 200, GROUND - 65, BLUE, 26);
+        w.sound.play('pizza'); w.say('pizza time!', 4242, false, 0.1, 200, GROUND - 60);
       }
     } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
     else {
@@ -208,6 +266,6 @@ var StickArmyShop = function (w) {
   }
 
   return { ITEMS: ITEMS, price: price, eligible: eligible, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
-    openShop: openShop, takeItem: takeItem, renderShop: renderShop, continueWave: continueWave,
+    openShop: openShop, takeItem: takeItem, putBack: putBack, undo: undo, renderShop: renderShop, continueWave: continueWave,
     updateDelivery: updateDelivery, drawCourier: drawCourier, kitItems: kitItems, renderKit: renderKit };
 };

@@ -41,7 +41,7 @@
   RUN.force = 43; newGame(); startWave(6); S.spawn.timer = S.spawn.rushT = S.spawn.cargoT = 99; S.mods.maxHP = S.wallHP = 1e6;
   var rook = makeRecruit(0, 'rifle'), cpl = makeRecruit(5, 'rifle'); cpl.rank = 2; cpl.name = 'Inky'; S.recruits = [rook, cpl]; S.texts = [];
   S.calls.bomber = 1; callStrike();
-  check(S.radio && S.radio.rid === cpl.id && S.texts.some(function (q) { return q.s === 'air strike!' && Math.abs(q.x - cpl.x) < 60; }), 'the corporal calls it in');
+  check(S.radio && S.radio.rid === cpl.id && S.bubbles.some(function (q) { return q.s === 'Air strike!' && q.rid === cpl.id; }), 'the corporal calls it in, in a speech bubble');
   render();
   for (var f = 0; f < Math.ceil((RADIO.TALK + 0.7) * 60); f++) update(1 / 60);
   check(!S.radio, 'and puts the radio away');

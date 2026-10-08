@@ -90,15 +90,25 @@ var StickArmySound = (function () {
     broadside: function () { noise(0.7, 0.5, 280); tone(56, 0.7, 'sine', 0.38, 28); noise(0.1, 0.25, 2200); },
     klaxon: function () { [0, 0.32, 0.64, 0.96].forEach(function (d, i) { tone(i % 2 ? 350 : 440, 0.28, 'square', 0.045, null, d); }); },
     // The sky (sky.js): a dive bomber's rising siren, a helicopter's chop, and a sour buzz for hitting the Red Cross.
+    // A dive bomber tipping over: a short, low, rising howl (two detuned saws through a lowpass) rather than a whistle.
     siren: function () {
-      var t0 = AC.currentTime, o = AC.createOscillator(), wob = AC.createOscillator(), depth = AC.createGain(), g = AC.createGain();
-      o.type = 'triangle'; o.frequency.setValueAtTime(380, t0); o.frequency.exponentialRampToValueAtTime(1150, t0 + 1.7);
-      wob.frequency.value = 7; depth.gain.value = 18; wob.connect(depth); depth.connect(o.frequency);
-      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.3); g.gain.setValueAtTime(0.07, t0 + 1.5); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2);
-      o.connect(g); g.connect(master); o.start(t0); wob.start(t0); o.stop(t0 + 2.05); wob.stop(t0 + 2.05);
+      var t0 = AC.currentTime, f = AC.createBiquadFilter(), g = AC.createGain();
+      f.type = 'lowpass'; f.frequency.setValueAtTime(700, t0); f.frequency.linearRampToValueAtTime(1300, t0 + 0.9);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.06, t0 + 0.15); g.gain.setValueAtTime(0.06, t0 + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+      [1, 1.012].forEach(function (k) {
+        var o = AC.createOscillator(); o.type = 'sawtooth';
+        o.frequency.setValueAtTime(170 * k, t0); o.frequency.exponentialRampToValueAtTime(330 * k, t0 + 0.9);
+        o.connect(f); o.start(t0); o.stop(t0 + 1.15);
+      });
+      f.connect(g); g.connect(master);
     },
+    // The Red Cross plane coming in: a soft two-tone chime. HQ's supply plane: an engine and a bright little horn.
+    medevac: function () { tone(988, 0.22, 'sine', 0.09); tone(784, 0.3, 'sine', 0.09, null, 0.24); tone(988, 0.22, 'sine', 0.07, null, 0.6); tone(784, 0.3, 'sine', 0.07, null, 0.84); },
+    hq: function () { tone(90, 1.1, 'sawtooth', 0.035, 150); brass(659, 0.12, 0.06, 0.2); brass(880, 0.25, 0.065, 0.34); },
+    // A heavy bomber: a deep, beating drone of four engines.
+    drone: function () { tone(52, 2.4, 'sawtooth', 0.045, 58); tone(55.5, 2.4, 'sawtooth', 0.04, 61); noise(2, 0.07, 220); },
     chopper: function () { for (var i = 0; i < 12; i++) { noise(0.07, 0.16 - i * 0.008, 260, i * 0.11); tone(58, 0.06, 'sine', 0.12 - i * 0.006, 44, i * 0.11); } },
-    wrong: function () { tone(196, 0.16, 'square', 0.09); tone(147, 0.32, 'square', 0.09, null, 0.17); },
+    wrong: function () { tone(196, 0.18, 'square', 0.1); tone(139, 0.45, 'square', 0.1, null, 0.19); noise(0.3, 0.06, 500, 0.19); },
     victory: function () {
       [523, 659, 784, 1047].forEach(function (f, i) { brass(f, i === 3 ? 0.5 : 0.15, 0.08, i * 0.17); });
       brass(880, 0.15, 0.07, 1.05); brass(988, 0.15, 0.07, 1.2); brass(1047, 1.1, 0.08, 1.35);
@@ -107,10 +117,11 @@ var StickArmySound = (function () {
     over: function () { tone(392, 0.2, 'triangle', 0.15); tone(330, 0.2, 'triangle', 0.15, null, 0.2); tone(262, 0.45, 'triangle', 0.15, null, 0.4); }
   };
   // ---------- little voices ----------
-  // Gibberish chatter: a syllable for each vowel in the line (up to four), each a buzzy pitch through the formants of
-  // that vowel, so "medic!" and "air strike!" sound like themselves. Every speaker keeps his own pitch (from his id);
-  // the enemy's voices are lower and gruffer. A line ending in "!" lifts at the end. Lines closer than SAY.GAP apart
-  // are dropped, so a busy moment doesn't turn into a crowd.
+  // Gibberish chatter to go with the game's speech bubbles: a syllable for each vowel in the line (up to four), each a
+  // buzzy pitch through the formants of that vowel, so "medic!" and "air strike!" sound like themselves. Every speaker
+  // keeps his own pitch (from his id); the enemy's voices are lower and gruffer. A line ending in "!" lifts at the end.
+  // Lines closer than SAY.GAP apart are dropped, so a busy moment doesn't turn into a crowd. (The browser's own speech
+  // was tried and sounded bad on phones.)
   var SAY = { GAP: 0.2, VOL: 0.12 }, lastSay = -1;
   // Formants per vowel, and a level for each so they come out about equally loud.
   var VOWELS = { a: [730, 1090, 0.65], e: [530, 1840, 0.85], i: [300, 2200, 1.2], o: [570, 840, 1], u: [320, 900, 1.2], y: [300, 2200, 1.2] };
@@ -254,7 +265,7 @@ var StickArmySound = (function () {
       var p = planes[i];
       if (!on || !p) { v.g.gain.setTargetAtTime(0, now, 0.25); return; }
       // Slightly higher pitch while approaching the middle, lower while leaving.
-      var zep = p.kind === 'zeppelin' || p.kind === 'dread' || p.kind === 'heli', base = p.kind === 'dread' ? 34 : p.kind === 'heli' ? 38 : zep ? 44 : p.kind === 'cargo' ? 50 : p.kind === 'bomber' ? 56 : p.kind === 'diver' ? 96 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
+      var zep = p.kind === 'zeppelin' || p.kind === 'dread' || p.kind === 'heli', base = p.kind === 'dread' ? 34 : p.kind === 'heli' ? 38 : zep ? 44 : p.kind === 'cargo' ? 50 : p.kind === 'bomber' ? 56 : p.kind === 'diver' ? 96 : p.kind === 'heavy' ? 48 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
       var near = 1 - Math.min(1, Math.abs(p.x - 200) / 260);
       v.o.frequency.setTargetAtTime(base * doppler, now, 0.25);
       v.o2.frequency.setTargetAtTime(base * doppler * 1.02, now, 0.25);
@@ -265,7 +276,7 @@ var StickArmySound = (function () {
     if (on && state.wave) {
       if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
       // The Dreadnought brings its own march once it's through the page.
-      var dreadOn = state.dread === 'guns' || state.dread === 'bridge', bridge = state.dread === 'bridge';
+      var dreadOn = !!state.dread && state.dread !== 'sinking', bridge = state.dread === 'hangar' || state.dread === 'bridge';
       var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {
