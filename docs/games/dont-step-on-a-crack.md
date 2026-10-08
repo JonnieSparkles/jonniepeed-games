@@ -107,4 +107,4 @@ python3 tools/check_boards.py
 
 The browser runner `scores/test/games.py` covers Crack's end screen and title-screen High scores in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../guides/00-leaderboards.md#local-development). There is no `tests/dont-step-on-a-crack/` harness yet. [SPEC-005](../../specs/SPEC-005-balance-bots.md) lists a Crack balance bot as follow-up work.
 
-The preview card and thumbnail (`site/dont-step-on-a-crack/og.png`, `thumb.webp`) are page screenshots taken by `python3 tools/og/make.py`. Run `python3 tools/stamp.py` last after any change in `site/`.
+The preview card and thumbnail (`site/dont-step-on-a-crack/og.png`, `thumb.webp`) come from the cover art in `brand/covers/dont-step-on-a-crack.png`: `python3 tools/og/make.py` crops it to 4:3 near the left edge, so the Mom Cam in the corner stays in, and puts the crop beside the tagline on the card. The chalked title is part of the art, so the card leaves its own title out. Run `python3 tools/stamp.py` last after any change in `site/`.

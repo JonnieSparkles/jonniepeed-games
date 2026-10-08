@@ -10,6 +10,9 @@ Needs Playwright with Chromium (pip install playwright && python3 -m playwright 
 Pixel games are captured live from their own canvas, so the cards and the index thumbnails
 (site/<slug>/thumb.png) stay in sync with the art. Games that aren't pixel art are captured
 as a page screenshot instead (pass {"screenshot": True} as the last field); their thumbnail is a WebP.
+Games with cover art use it instead of a capture (pass {"cover": (file, position)}, with the file in
+brand/covers/). One 4:3 crop of the cover makes both the WebP thumbnail and the card's picture, and the
+card leaves out the title because the cover already has it lettered in.
 Use --game stick-army to regenerate only that game's thumbnail and card.
 To add a game: add an entry to GAMES below and run the script again.
 Entries without an existing game index are reported and skipped, never recreated.
@@ -25,6 +28,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SITE = ROOT / "site"
 OUT = SITE / "assets" / "studio"
 FONT_DIR = SITE / "assets" / "fonts"
+COVERS = ROOT / "brand" / "covers"
 
 
 def font_uri(name):
@@ -37,6 +41,8 @@ def font_uri(name):
 #   selector/crop: capture a region of an element; crop is (x, y, width, height), fractions of its bounds
 #   viewport: screenshot viewport (width, height), before device scale factor 2
 #   title_px:   card title size, for long names
+#   cover: (file in brand/covers/, position) uses cover art instead of a capture, so setup can be None.
+#          The 4:3 crop sits at position across the cover: 0 the left edge, 0.5 centred, 1 the right edge.
 GAMES = [
     ("stick-army", "Stick Army", "Pop chutes. Catch recruits. Defend the notebook.", "Play in your browser",
      "document.getElementById('startBtn').click();",
@@ -45,14 +51,10 @@ GAMES = [
      {"screenshot": True, "selector": "#game", "crop": (0, 380 / 720, 1, 300 / 720),
       "viewport": (432, 800), "wait_ms": 10000}),
     ("thimbleful", "Thimbleful", "Plant a seed. Catch the drips. Grow a sunflower.", "Play in your browser",
-     "introSeen=true; document.getElementById('go').click(); score=18; plant.size=18; el=20; hud();"),
+     None, {"cover": ("thimbleful.png", 0.5)}),
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
-     # a few steps in: Mom bent into an L on the Mom Cam, texting about it, the next step mid-swing
-     "startGame(); setTimeout(() => { hp=4; kinks=[{j:1},{j:3}]; curPose=clonePose(POSES[4]);"
-     " steps=23; streak=7; tStart=performance.now()/1000-42; updateHUD(); document.getElementById('ft').textContent='61';"
-     " momText('I am now shaped like the letter L'); }, 400);"
-     " setTimeout(() => { input.bot=1; press(1); }, 1250);",
-     {"screenshot": True, "title_px": 40}),
+     # the Mom Cam is in the cover's top-left corner, so the crop sits near the left edge
+     None, {"cover": ("dont-step-on-a-crack.png", 0.18)}),
 ]
 
 BASE_CSS = f"""
@@ -104,6 +106,18 @@ def capture_page(browser, slug, setup, wait_ms=1700, selector=None, crop=None, v
     return "data:image/png;base64," + base64.b64encode(png).decode()
 
 
+def crop_cover(page, name, position):
+    """Crop cover art from brand/covers/ to 4:3 at full resolution. position runs from 0 (left edge) to 1 (right edge)."""
+    path = COVERS / name
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}[path.suffix.lower()]
+    src = f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
+    return page.evaluate("""([u, pos]) => new Promise(r => { const i = new Image(); i.onload = () => {
+        const w = Math.min(i.width, Math.round(i.height * 4 / 3)), h = Math.round(w * 3 / 4);
+        const k = document.createElement('canvas'); k.width = w; k.height = h;
+        k.getContext('2d').drawImage(i, Math.round((i.width - w) * pos), Math.round((i.height - h) / 2), w, h, 0, 0, w, h);
+        r(k.toDataURL('image/png')); }; i.src = u; })""", [src, position])
+
+
 def game_card(scene_uri, title, tagline, cta, pixel=True, title_px=52):
     mark = data_uri(SITE / "assets" / "mark-pixel-dark.png")
     return f"""<!doctype html><html><head><style>{BASE_CSS}
@@ -116,7 +130,7 @@ p{{font-size:32px;line-height:1.3;color:#f6e7c8}}
 .play{{font-family:'Silkscreen',monospace;font-size:20px;letter-spacing:.08em;text-transform:uppercase;color:#7fd0ff}}
 .scene{{width:672px;height:504px;image-rendering:{'pixelated' if pixel else 'auto'};border-radius:16px;box-shadow:0 0 0 4px #3b2f58}}
 </style></head><body>
-<div class="txt"><div class="studio"><img src="{mark}">JonniePeed Games</div><h1>{title}</h1><p>{tagline}</p><div class="play">{cta}</div></div>
+<div class="txt"><div class="studio"><img src="{mark}">JonniePeed Games</div>{f'<h1>{title}</h1>' if title else ''}<p>{tagline}</p><div class="play">{cta}</div></div>
 <img class="scene" src="{scene_uri}">
 </body></html>"""
 
@@ -151,10 +165,13 @@ def main():
                 print("skipped missing game", slug)
                 continue
             opts = more[0] if more else {}
-            if opts.get("screenshot"):
-                scenes[slug] = capture_page(browser, slug, setup, wait_ms=opts.get("wait_ms", 1700),
-                                            selector=opts.get("selector"), crop=opts.get("crop"),
-                                            viewport=opts.get("viewport", (640, 480)))
+            if opts.get("cover") or opts.get("screenshot"):
+                if opts.get("cover"):
+                    scenes[slug] = crop_cover(page, *opts["cover"])
+                else:
+                    scenes[slug] = capture_page(browser, slug, setup, wait_ms=opts.get("wait_ms", 1700),
+                                                selector=opts.get("selector"), crop=opts.get("crop"),
+                                                viewport=opts.get("viewport", (640, 480)))
                 # 768x576 WebP thumbnail for the index card
                 thumb = page.evaluate("""(u) => new Promise(r => { const i = new Image(); i.onload = () => {
                     const k = document.createElement('canvas'); k.width = 768; k.height = 576;
@@ -176,7 +193,9 @@ def main():
             if slug not in scenes:
                 continue
             opts = more[0] if more else {}
-            card.set_content(game_card(scenes[slug], title, tagline, cta, pixel=not opts.get("screenshot"), title_px=opts.get("title_px", 52)))
+            # a cover already has the title lettered in, so the card leaves it out
+            card.set_content(game_card(scenes[slug], None if opts.get("cover") else title, tagline, cta,
+                                       pixel=not (opts.get("screenshot") or opts.get("cover")), title_px=opts.get("title_px", 52)))
             card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
             card.screenshot(path=str(SITE / slug / "og.png"))
             print("wrote", SITE / slug / "og.png")
