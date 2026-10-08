@@ -325,8 +325,9 @@ var StickArmyUnits = function (w) {
   // for TALK seconds, then the plane is sketched in at the left edge of the page (HOLD seconds), then it flies.
   var RADIO = { SLOTS: 2, FULL_TAGS: 40, TALK: 0.6 };
   var STRIKE = { SPEED: 230, Y: 92, BOMBS: 11, FALL: 520, START: 56, HOLD: 0.45 };
-  // Fighter cover swoops in from DIVE px above its lane over DIVE_T seconds, trailing a contrail, firing tracers.
-  var FIGHTER = { SPEED: 300, PASSES: [190], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35, DIVE: 70, DIVE_T: 0.5 };
+  // Fighter cover swoops in from DIVE px above its lane over DIVE_T seconds, trailing contrails, strafing with tracers.
+  // Fighter cover is a flight of two, the wingman WING_X behind and WING_Y above the lead.
+  var FIGHTER = { SPEED: 250, PASSES: [190], EVERY: 0.08, RANGE: 320, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35, DIVE: 70, DIVE_T: 0.5, WING_X: 46, WING_Y: 24 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
   // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead. Quiet when a banner says it.
@@ -402,18 +403,23 @@ var StickArmyUnits = function (w) {
     var S = w.S;
     if (S.mode !== 'play' || S.fighter || S.calls.fighter <= 0) return false;
     S.calls.fighter--;
-    S.fighter = { pass: 0, dir: 1, x: FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, cd: 0.2, flash: 0, fly: 0, dive: FIGHTER.DIVE, trail: [], id: w.id() };
+    // A lead and a wingman, flying in echelon. Each has its own guns, contrail and muzzle flash.
+    S.fighter = { pass: 0, dir: 1, x: FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, fly: 0, dive: FIGHTER.DIVE, id: w.id(),
+      wing: [{ dx: 0, dy: 0, cd: 0.1, flash: 0, trail: [] }, { dx: -FIGHTER.WING_X, dy: -FIGHTER.WING_Y, cd: 0.16, flash: 0, trail: [] }] };
     radioCall('fighter cover!');
     emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });
     return true;
   }
-  // Ahead of the fighter and in range: bombs first (they threaten the bunker), then planes, the zeppelin last.
-  function fighterTarget(f) {
+  // Where a plane of the flight is now.
+  function wingAt(f, q) { return { x: f.x + f.dir * q.dx, y: f.y - f.dive + q.dy }; }
+  // Ahead of a plane and in range: bombs first (they threaten the bunker), then planes, the Dreadnought's guns, the
+  // zeppelin last.
+  function fighterTarget(x, y, dir) {
     var S = w.S, best = null, bd = 1e9;
     function consider(list, ok, bias) {
       list.forEach(function (o) {
         if (!ok(o)) return;
-        var dx = (o.x - f.x) * f.dir, d = Math.hypot(o.x - f.x, o.y - (f.y - f.dive)) + bias;
+        var dx = (o.x - x) * dir, d = Math.hypot(o.x - x, o.y - y) + bias;
         if (dx > 10 && d < FIGHTER.RANGE + bias && d < bd) { bd = d; best = o; }
       });
     }
@@ -423,27 +429,35 @@ var StickArmyUnits = function (w) {
     consider(w.dreadTargets ? w.dreadTargets() : [], function () { return true; }, 100);
     return best;
   }
+  // The flight strafes the sky: each plane fires a steady stream of tracers, aimed at what's ahead, or raking
+  // forward and a little down when nothing is.
   function updateFighter(dt) {
     var S = w.S, f = S.fighter;
     if (!f) return;
     if (f.hold > 0) { var was = f.hold; f.hold -= dt; if (was > FIGHTER.HOLD && f.hold <= FIGHTER.HOLD) w.sound.play('fighter'); return; }
     // It swoops down into its lane: the dive is a height above the lane that eases to zero.
     f.fly += dt; var u = Math.min(1, f.fly / FIGHTER.DIVE_T); f.dive = FIGHTER.DIVE * (1 - u) * (1 - u);
-    f.x += f.dir * FIGHTER.SPEED * dt; f.cd -= dt; f.flash = Math.max(0, f.flash - dt);
-    var fy = f.y - f.dive;
-    f.trail.push({ x: f.x - f.dir * 26, y: fy + 1 }); if (f.trail.length > 14) f.trail.shift();
-    var tg = f.cd <= 0 && fighterTarget(f);
-    if (tg) {
-      var vx = tg.isBomb ? tg.vx : tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.kind === 'dreadpart' ? tg.vx : tg.dir * tg.speed, vy = tg.isBomb ? tg.vy : 0;
-      var nx = f.x + f.dir * 30, tt = Math.hypot(tg.x - nx, tg.y - fy) / FIGHTER.BULLET;
-      var a = Math.atan2(tg.y + vy * tt - fy, tg.x + vx * tt - nx) + (w.RC() * 2 - 1) * 0.02;
-      S.bullets.push({ x: nx, y: fy, vx: Math.cos(a) * FIGHTER.BULLET, vy: Math.sin(a) * FIGHTER.BULLET, owner: 'ally', kind: 'bullet', tracer: true, pierce: 1, hits: [], life: 0.7, dead: false });
-      f.cd = FIGHTER.EVERY; f.flash = 0.04;
+    f.x += f.dir * FIGHTER.SPEED * dt;
+    f.wing.forEach(function (q, i) {
+      var at = wingAt(f, q);
+      q.cd -= dt; q.flash = Math.max(0, q.flash - dt);
+      q.trail.push({ x: at.x - f.dir * 26, y: at.y + 1 }); if (q.trail.length > 14) q.trail.shift();
+      if (q.cd > 0 || at.x < -20 || at.x > W + 20) return;
+      var nx = at.x + f.dir * 30, a, tg = fighterTarget(at.x, at.y, f.dir);
+      if (tg) {
+        var vx = tg.isBomb ? tg.vx : tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.kind === 'dreadpart' ? tg.vx : tg.dir * tg.speed, vy = tg.isBomb ? tg.vy : 0;
+        var tt = Math.hypot(tg.x - nx, tg.y - at.y) / FIGHTER.BULLET;
+        a = Math.atan2(tg.y + vy * tt - at.y, tg.x + vx * tt - nx) + (w.RC() * 2 - 1) * 0.02;
+      } else a = (f.dir > 0 ? 0 : Math.PI) + f.dir * (0.1 + 0.08 * Math.sin(f.fly * 9 + i * 2));
+      S.bullets.push({ x: nx, y: at.y, vx: Math.cos(a) * FIGHTER.BULLET, vy: Math.sin(a) * FIGHTER.BULLET, owner: 'ally', kind: 'bullet', tracer: true, pierce: 1, hits: [], life: 0.7, dead: false });
+      q.cd = FIGHTER.EVERY; q.flash = 0.05;
+      // Spent casings fall from the guns.
+      w.burst(at.x - f.dir * 4, at.y + 4, 1, HAT, 50);
       w.sound.play('ally');
-    }
-    if (f.dir > 0 ? f.x > W + 70 : f.x < -70) {
+    });
+    if (f.dir > 0 ? f.x > W + 70 + FIGHTER.WING_X : f.x < -70 - FIGHTER.WING_X) {
       if (++f.pass >= FIGHTER.PASSES.length) { S.fighter = null; return; }
-      f.dir = -f.dir; f.x = f.dir > 0 ? -60 : W + 60; f.y = FIGHTER.PASSES[f.pass]; f.trail = [];
+      f.dir = -f.dir; f.x = f.dir > 0 ? -60 : W + 60; f.y = FIGHTER.PASSES[f.pass]; f.wing.forEach(function (q) { q.trail = []; });
     }
   }
   function drawStrike() {
@@ -468,25 +482,35 @@ var StickArmyUnits = function (w) {
   function drawFighter() {
     var f = w.S.fighter, G = w.G;
     if (!f) return;
-    var fy = f.y - f.dive;
-    if (f.hold > 0) { w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [f.x - 32, fy - 16, f.x + 32, fy + 8], 'right', function () { fighterBody(f, G); }); return; }
-    // The contrail: a pencil line that fades behind it.
-    for (var i = 1; i < f.trail.length; i++) {
-      var p0 = f.trail[i - 1], p1 = f.trail[i];
-      G.globalAlpha = i / f.trail.length * 0.45; G.beginPath(); L(p0.x, p0.y, p1.x, p1.y, 0.2); ink(INK2, 1.6); G.stroke();
+    if (f.hold > 0) {
+      var lead = wingAt(f, f.wing[0]);
+      w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [lead.x - 32 - FIGHTER.WING_X, lead.y - 16 - FIGHTER.WING_Y, lead.x + 32, lead.y + 8], 'right', function () { f.wing.forEach(function (q) { fighterBody(f, q, G); }); });
+      return;
     }
-    G.globalAlpha = 1;
-    fighterBody(f, G);
+    f.wing.forEach(function (q) {
+      // The contrail: a pencil line that fades behind it.
+      for (var i = 1; i < q.trail.length; i++) {
+        var p0 = q.trail[i - 1], p1 = q.trail[i];
+        G.globalAlpha = i / q.trail.length * 0.45; G.beginPath(); L(p0.x, p0.y, p1.x, p1.y, 0.2); ink(INK2, 1.6); G.stroke();
+      }
+      G.globalAlpha = 1;
+      fighterBody(f, q, G);
+    });
   }
-  function fighterBody(f, G) {
-    var tilt = f.dive > 0 ? f.dive / FIGHTER.DIVE * 0.5 : 0;
-    pen(f.id); G.save(); G.translate(f.x, f.y - f.dive); G.rotate(f.dir * tilt); G.scale(-f.dir * 0.72, 0.72);
+  function fighterBody(f, q, G) {
+    var tilt = f.dive > 0 ? f.dive / FIGHTER.DIVE * 0.5 : 0, at = wingAt(f, q);
+    pen(f.id + q.dx); G.save(); G.translate(at.x, at.y); G.rotate(f.dir * tilt); G.scale(-f.dir * 0.72, 0.72);
     G.beginPath(); SP(FIGHTER_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.16)'; G.fill(); ink(INK, 3); G.stroke();
     G.beginPath(); L(-10, 2, 12, 3); ink(INK, 3.6); G.stroke();
     G.beginPath(); G.arc(12, -2, 4, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
     G.beginPath(); G.arc(12, -2, 1.6, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
     var pl = w.boil % 2 ? 10 : 5; G.beginPath(); L(-38, -pl, -38, pl, 0.4); ink(INK, 2.6); G.stroke();
-    if (f.flash > 0) { G.beginPath(); L(-42, -1, -58, -1, 0.3); L(-42, 2, -55, 7, 0.3); L(-42, -3, -55, -8, 0.3); ink('#d99a00', 3.4); G.stroke(); ink(HAT, 1.6); G.stroke(); }
+    if (q.flash > 0) {
+      // A big muzzle flash at both wing guns.
+      G.beginPath(); L(-42, -1, -62, -1, 0.3); L(-42, 2, -58, 8, 0.3); L(-42, -3, -58, -9, 0.3); L(-24, 6, -40, 7, 0.3);
+      ink('#d99a00', 4); G.stroke(); ink(HAT, 2); G.stroke();
+      G.beginPath(); G.arc(-46, -1, 5, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.9)'; G.fill();
+    }
     G.restore();
   }
 

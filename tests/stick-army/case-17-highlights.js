@@ -52,8 +52,12 @@
   for (f = 0; f < Math.ceil((FIGHTER.HOLD + RADIO.TALK) * 60) + 2; f++) update(1 / 60);
   check(fighter.dive > 0 && fighter.dive < FIGHTER.DIVE, 'it dives in from above its lane: ' + fighter.dive);
   for (f = 0; f < 30; f++) update(1 / 60);
-  check(fighter.dive === 0 && fighter.trail.length > 5, 'levels out, trailing a contrail');
+  check(fighter.dive === 0 && fighter.wing.length === 2 && fighter.wing.every(function (q) { return q.trail.length > 5; }), 'a flight of two levels out, trailing contrails');
   check(S.bullets.some(function (b) { return b.tracer; }) || planeB.state !== 'fly', 'and fires tracers');
+  // With nothing ahead it still strafes the sky.
+  S.planes = []; S.bombs = []; S.bullets = [];
+  for (f = 0; f < 20; f++) update(1 / 60);
+  check(S.bullets.filter(function (b) { return b.tracer; }).length >= 6, 'it strafes the sky even with nothing to aim at');
   render();
 
   emitHook = null; RUN.force = null; reset(); render();
