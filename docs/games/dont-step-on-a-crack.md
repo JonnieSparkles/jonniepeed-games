@@ -77,6 +77,10 @@ The same day, playtesters pointed out that ending heelies on a crack was unavoid
 
 At game over Mom calls. After the call is picked up, the results count up and the board shows inside the phone, with initials entry if you placed. The title screen has a **High scores** button that opens the board over the title. The board shows feet, time and streak.
 
+## Play stats
+
+Each walk reports to [play stats](../guides/03-play-stats.md) from `startGame` and at `gameOver`, through `walkReport`. Leaving from pause (Title screen or Restart) reports a quit. The score is feet walked; `stats` are `steps`, `streak` (best clean streak), `street` (1–6) and `giants` (giant steps used). Play time leaves out pauses. The title screen's demo walk reports nothing.
+
 ## Code entry points
 
 `site/dont-step-on-a-crack/game.js` holds the game. `audio.js` is `CrackSound` (also `sfx` in the game), everything synthesized with Web Audio, and loads before `game.js`. The game logic is plain 2D in feet; the canvas is drawn flat and tilted back with a CSS 3D transform.

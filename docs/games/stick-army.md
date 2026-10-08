@@ -293,6 +293,10 @@ What the bots found:
 - **The night raid is drawing only,** so the bots don't feel it; playtesting decides how hard it is.
 - `--verify` matches on 15 runs.
 
+## Play stats
+
+Each run reports to [play stats](../guides/03-play-stats.md) from `newGame` and at `showOver`, through `runReport`; a restart from pause reports the old run as quit. Stick Army has no online board, so its runs have no initials. The score is `S.score` and the time is `S.played`. `stats` are `wave`, `kills`, `captured`, `popped`, `planes`, `zeppelins`, `tanks`, `crew` (alive), `fallen`, `tags` (dog tags in hand), and `cause` (what brought the wall down) at game over. A win reports as soon as the victory card shows (`reportWin`, called with `showWin`), with `won_at`. **Keep going** resumes the same run, so it reports again if the page is hidden mid-run and at the final game over, with `endless`; it stays won. Harness and bot runs report nothing (automated browsers are skipped).
+
 ## Validation and generated assets
 
 Serve `site/` locally:
