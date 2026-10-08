@@ -262,8 +262,38 @@
     };
   }
 
-  function addText(s, x, y, color, size) {
-    S.texts.push({ s: s, x: clamp(x, 44, W - 44), y: clamp(y, 96, GROUND - 6), color: color, size: size || 19, life: 0.95, max: 0.95, rot: rr(-0.14, 0.1), vy: -38 });
+  // Floating text comes in kinds, so the busy moments stay readable:
+  //   alert: threats in red ("sniper!", "rush!", "wall -18"), bigger, longer, always shown, drawn on top;
+  //   story: the squad and the radio in blue ("Pfc. Inky!", "man down!", "+1 air strike"), always shown;
+  //   big:   large awards (tank down, zeppelin down), always shown;
+  //   score: routine kill labels, small, soft and short; kills close together merge ("bonk! ×5 +250");
+  //   minor: little reactions ("clank!", "pop!", "+").
+  // Score and minor labels share a budget (TEXT.BUDGET on screen); over it, new ones are skipped. The combo
+  // counter and the dog tags still show the reward. Labels stay below the HUD band.
+  var TEXT = { BUDGET: 5, MERGE_S: 0.35, MERGE_PX: 44, TOP: 112,
+    KIND: { alert: { size: 23, life: 1.3 }, story: { size: 20, life: 1.2 }, big: { size: 22, life: 1.1 }, score: { size: 17, life: 0.6 }, minor: { size: 16, life: 0.55 } },
+    ORDER: { score: 0, minor: 1, big: 2, story: 3, alert: 4 } };
+  // merge (optional): { key, pts, fmt(n, pts), window } folds repeats near the same spot into the label already there.
+  function addText(s, x, y, color, size, kind, merge) {
+    kind = kind || (color === RED ? 'alert' : 'story');
+    var spec = TEXT.KIND[kind], routine = kind === 'score' || kind === 'minor';
+    x = clamp(x, 44, W - 44); y = clamp(y, TEXT.TOP + 18, GROUND - 6);
+    if (merge) {
+      var near = S.texts.find(function (q) { return q.key === merge.key && S.t - q.lastT < (merge.window || TEXT.MERGE_S) && Math.abs(q.x - x) < TEXT.MERGE_PX && Math.abs(q.y - y) < TEXT.MERGE_PX; });
+      if (near) { near.n++; near.pts += merge.pts; near.s = near.fmt(near.n, near.pts); near.lastT = S.t; near.life = near.max; return; }
+    }
+    if (routine && S.texts.filter(function (q) { return q.kind === 'score' || q.kind === 'minor'; }).length >= TEXT.BUDGET) return;
+    // Step out of the way of labels already there: try a line above, below, then two lines.
+    var sz = size || spec.size, wide = s.length * sz * 0.5;
+    var clear = function (yy) { return !S.texts.some(function (q) { return Math.abs(q.x - x) < (wide + q.s.length * q.size * 0.5) / 2 && Math.abs(q.y - yy) < (sz + q.size) * 0.45; }); };
+    var tries = [0, -1, 1, -2, 2], slot = tries.find(function (k) { var yy = y + k * sz * 1.1; return yy >= TEXT.TOP + 10 && yy <= GROUND - 6 && clear(yy); });
+    if (slot !== undefined) y += slot * sz * 1.1;
+    S.texts.push({ s: s, key: merge && merge.key, fmt: merge && merge.fmt, n: 1, pts: merge ? merge.pts : 0, lastT: S.t, kind: kind, x: x, y: y, color: color,
+      size: sz, life: spec.life, max: spec.life, rot: rr(-0.14, 0.1), vy: routine ? -30 : -38 });
+  }
+  // Wall damage from one burst reads as one running total.
+  function wallText(amount) {
+    addText('wall -' + amount, BK.x, BK.top - 36, RED, 20, 'alert', { key: 'wall', pts: amount, window: 0.8, fmt: function (n, p) { return 'wall -' + Math.round(p); } });
   }
   function award(base, x, y, label, color, useCombo) {
     var mult = 1;
@@ -273,14 +303,19 @@
     var tags = Math.max(1, Math.round(base / 15)) + Math.floor(mult / 3);
     S.coins += tags; flyTags(x, y, tags);
     emit('coins', { amount: tags, reason: OUCH.indexOf(label) >= 0 ? 'kill' : label.replace(/!+$/, '') });
-    addText(label + ' +' + pts, x, y, mult > 1 ? BLUE : (color || INK), mult > 1 ? 22 : 19);
+    // Every kind of trooper cry merges with the others, under the first one's word.
+    if (base >= 100) addText(label + ' +' + pts, x, y, color === BLUE ? BLUE : INK, null, 'big');
+    else addText(label + ' +' + pts, x, y, color === BLUE ? BLUE : INK2, null, 'score',
+      { key: OUCH.indexOf(label) >= 0 ? 'ouch' : label, pts: pts, fmt: function (n, p) { return label + ' ×' + n + ' +' + p; } });
   }
   // S.coins is the dog-tag balance. Earned tags fly from the kill to the counter so their source is obvious.
   var TAG_HUD = { x: 290, y: 47 };
   function flyTags(x, y, n) {
-    // In a big pile-up, fold new tags into one already in flight rather than drawing dozens.
+    // Tags from one burst of kills fly as one; in a big pile-up, new tags fold into one already in flight.
     var flying = S.parts.filter(function (q) { return q.k === 'tag'; });
-    if (flying.length >= 10) { flying[flying.length - 1].n += n; return; }
+    var near = flying.find(function (q) { return q.t < 0.2 && Math.abs(q.x0 - x) < 50 && Math.abs(q.y0 - y) < 50; });
+    if (near) { near.n += n; return; }
+    if (flying.length >= 6) { flying[flying.length - 1].n += n; return; }
     S.parts.push({ k: 'tag', x0: x, y0: y, x: x, y: y, n: n, t: 0, dur: rr(0.55, 0.75), life: 1, max: 1, rot: rr(-0.6, 0.6), id: nextId++ });
   }
   function burst(x, y, n, color, speed) {
@@ -440,7 +475,7 @@
     L: L, SP: SP, Ci: Ci, ink: ink, pen: pen, jt: jt, stick: stick, tube: tube, clamp: clamp, between: between, rr: rr, substream: substream,
     makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
-    killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz) { addText(t, x, y, c, sz); },
+    killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
     crewMax: function (r) { return crewMax(r); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
@@ -601,14 +636,14 @@
   function armorHit(t, owner) {
     t.armor--; t.pingT = S.t;
     burst(t.x, t.y + 12, 4, '#8a8f96', 120);
-    addText(t.armor ? 'clang!' : 'vest off!', t.x + 14, t.y - 4, INK2, 16);
+    addText(t.armor ? 'clang!' : 'vest off!', t.x + 14, t.y - 4, INK2, 16, 'minor');
     emit('armor_hit', { by: owner === 'ally' ? 'crew' : 'player', left: t.armor });
     sound.play('clank');
   }
   function popChute(t) {
     t.state = 'free'; t.vy = Math.max(30, t.fall * 0.5); t.spin = rr(-2.5, 2.5);
     for (var i = 0; i < 4; i++) S.parts.push({ k: 'shred', x: t.x + rr(-16, 16), y: t.y - 30 + rr(-6, 6), vx: rr(-50, 50), vy: rr(-40, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.7, 1.1), max: 1.1, id: nextId++ });
-    addText('pop!', t.x + 16, t.y - 34, RED, 18);
+    addText('pop!', t.x + 16, t.y - 34, RED, 18, 'minor');
     S.stats.popped++;
     emit('chute_pop', { x: t.x, y: t.y, overMat: activeTramps().some(function (m) { return t.x >= m.x1 + 4 && t.x <= m.x2 - 4; }) });
     sound.play('pop');
@@ -698,7 +733,7 @@
       p.drops.forEach(function (x, i) { spawnTrooper(p.x + between(p.rng, -16, 16), p.y + 10, p.kits[i]); });
       p.drops = []; p.kits = [];
     } else {
-      addText('clank!', p.x, p.y - 18, INK2, 16);
+      addText('clank!', p.x, p.y - 18, INK2, 16, 'minor');
       sound.play('clank');
     }
   }
@@ -717,12 +752,12 @@
       }
     });
     if (kind === 'bomb') {
-      if (Math.abs(x - BK.x) < 48) { hurtWall(18, 'bomb'); addText('wall -18', BK.x, BK.top - 36, RED, 20); }
+      if (Math.abs(x - BK.x) < 48) { hurtWall(18, 'bomb'); wallText(18); }
       // A direct hit still kills a bare recruit; near misses wound. Helmets and trenches help.
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4, 'bomb'); });
     } else if (kind === 'shell') {
       // Tank shells: lighter than bombs, aimed at the bunker.
-      if (Math.abs(x - BK.x) < 44) { hurtWall(TANK.SHELL_DAMAGE, 'tank'); addText('wall -' + TANK.SHELL_DAMAGE, BK.x, BK.top - 36, RED, 18); }
+      if (Math.abs(x - BK.x) < 44) { hurtWall(TANK.SHELL_DAMAGE, 'tank'); wallText(TANK.SHELL_DAMAGE); }
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 26) hurtRecruit(q, 1.6 * (1 - d / 26) + 0.2, 'tank'); });
     }
     blastTanks(x, y, r, kind, owner);
@@ -890,7 +925,7 @@
         var patient = wounded.filter(near).sort(function (a, b) { return a.downAt - b.downAt; })[0] ||
           live.filter(function (q) { return near(q) && q.hp < crewMax(q); }).sort(function (a, b) { return a.hp - b.hp; })[0];
         if (patient && r.cd <= 0) {
-          patient.hp = Math.min(crewMax(patient), patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20);
+          patient.hp = Math.min(crewMax(patient), patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20, 'minor');
           if (patient.down && patient.hp >= 1) standUp(patient, 'medic');
         }
       } else if (r.role === 'shoot') {
@@ -976,7 +1011,7 @@
     S.heat = Math.min(1, S.heat + 0.25);
     if (S.heat >= 1) triggerOverheat();
     hurtWall(3, 'sniper');
-    addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20);
+    addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20, 'minor');
     S.parts.push({ k: 'tink', x: TUR.x, y: TUR.y - 6, life: 0.25, max: 0.25, c: RED, id: nextId++ });
     sound.play('clank');
   }
@@ -1095,7 +1130,7 @@
       }
     });
     S.parts = S.parts.filter(function (q) { return q.life > 0; });
-    S.texts.forEach(function (q) { q.life -= dt; q.y += q.vy * dt; q.vy *= 0.97; });
+    S.texts.forEach(function (q) { q.life -= dt; q.y = Math.max(TEXT.TOP, q.y + q.vy * dt); q.vy *= 0.97; });
     S.texts = S.texts.filter(function (q) { return q.life > 0; });
   }
 
@@ -1486,7 +1521,7 @@
       pen(q.id);
       G.save(); G.globalAlpha = a;
       if (q.k === 'body') { G.globalAlpha = 0.85; drawBodyPart(q); }
-      else if (q.k === 'tag') { G.globalAlpha = 1; dogTag(q.x, q.y, q.rot, 1); if (q.n > 1) { G.font = '15px ' + HAND; G.fillStyle = '#56606b'; G.fillText('+' + q.n, q.x + 8, q.y - 6); } }
+      else if (q.k === 'tag') { G.globalAlpha = 1; dogTag(q.x, q.y, q.rot, 1); }
       else if (q.k === 'spatter') { G.globalAlpha = a * 0.6; G.beginPath(); G.arc(q.x, q.y, q.r, 0, Math.PI * 2); G.fillStyle = q.c; G.fill(); }
       else if (q.k === 'fleck') { G.beginPath(); G.moveTo(q.x, q.y); G.lineTo(q.x - q.vx * 0.02, q.y - q.vy * 0.02); ink(q.c, 2); G.stroke(); }
       else if (q.k === 'shred') { G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.arc(0, 0, 6, Math.PI, Math.PI * 1.8); ink(RED, 1.8); G.stroke(); }
@@ -1502,7 +1537,7 @@
     });
   }
   function drawTexts() {
-    S.texts.forEach(function (q) {
+    S.texts.slice().sort(function (a, b) { return TEXT.ORDER[a.kind] - TEXT.ORDER[b.kind]; }).forEach(function (q) {
       var age = q.max - q.life, a = Math.min(1, q.life / 0.3), sc = age < 0.1 ? 1 + (0.1 - age) * 5 : 1;
       G.save(); G.globalAlpha = a; G.translate(q.x, q.y); G.rotate(q.rot); G.scale(sc, sc);
       G.font = q.size + 'px ' + HAND; G.textAlign = 'center';
