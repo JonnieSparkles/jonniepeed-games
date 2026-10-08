@@ -208,7 +208,8 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     const plotW = width - pad.l - pad.r, plotH = height - pad.t - pad.b;
     const totals = labels.map((_, i) => series.reduce((s, ser) => s + ser.values[i], 0));
     const max = Math.max(1, ...totals);
-    const step = niceStep(max, 4), top = Math.ceil(max / step) * step;
+    // Columns count runs, so the axis steps in whole runs.
+    const step = Math.max(1, Math.ceil(niceStep(max, 4))), top = Math.ceil(max / step) * step;
     const band = plotW / labels.length, gap = band > 8 ? 2 : 1, barW = Math.max(1, Math.min(24, band - gap));
     const y = v => pad.t + plotH - (v / top) * plotH;
     const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, height, role: 'img', tabindex: 0, 'aria-label': opts.title + '. Arrow keys step through the columns.' });
@@ -414,7 +415,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     if (!tot.runs) { out.push(el('p', { class: 'empty' }, `No runs in the last ${data.days} days yet.`)); return out; }
     const series = ids.map((id, i) => ({ name: data.names[id], color: SERIES[i % SERIES.length], pick: row => (row.game === id ? row.runs : 0) }));
     out.push(dailyCard('Runs per day', 'Every run started, by game.', data.hourly, data.since, series));
-    const head = ['Game', 'Runs', 'Sittings', 'Runs per sitting', 'Finished', 'Quit', 'Median run', 'Time played', 'Board saves', 'Names', 'Back another day'];
+    const head = ['Game', 'Runs', 'Sittings', 'Runs per sitting', 'Finished', 'Quit', 'Median run', 'Time played', 'Saved to the board', 'Names', 'Back another day'];
     out.push(el('section', { class: 'card' }, el('h2', null, 'By game'),
       el('p', { class: 'desc' }, 'Quit means the page was closed or hidden mid-run and never came back. Names come from the leaderboards, so only saved runs have them.'),
       el('div', { class: 'scroll' }, el('table', null,

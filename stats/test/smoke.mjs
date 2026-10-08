@@ -161,10 +161,13 @@ await test('a saved run shows its initials', async () => {
   const run = start({ game: 'thimbleful', board });
   await ok('/v1/start', run);
   await ok('/v1/end', end(run, { score: 9, score_run: token.split('.')[0], stats: { golds: 1, spills: 5, earned: 0, storm: 0 } }));
+  const before = (await detail('thimbleful')).summary;
   const row = (await detail('thimbleful')).recent.find(r => r.score === 9 && r.name === 'ZQX');
   assert.ok(row, 'run with initials not found');
   assert.equal(row.saved, true);
   assert.deepEqual(row.stats, { golds: 1, spills: 5, earned: 0, storm: 0 });
+  // Saves count only runs the dashboard saw, never more than the runs themselves.
+  assert.ok(before.saves >= 1 && before.saves <= before.runs, JSON.stringify(before));
 }, LOCAL ? null : LOCAL_ONLY);
 
 await test('the overview and game pages load', async () => {
