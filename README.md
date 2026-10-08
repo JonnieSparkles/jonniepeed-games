@@ -54,7 +54,7 @@ These apply to every change:
 - **Documentation lifecycle.** Numbered operations guides live in `docs/guides/`; build specs in `specs/` remain historical once implemented. Current rules, tuning, code entry points and validation belong in an unnumbered `docs/games/<slug>.md` linked to the relevant specs. Player help stays inside the game. See [Stick Army](docs/games/stick-army.md).
 - **Scripts and tests.** Keep audio in game-local `audio.js` with a small `init/play/muted` API; best-score storage and run state stay in the game. Split around 2,000 lines or a clear seam. Use classic scripts and explicit globals, loading audio/data before `game.js`; no ES modules, so file previews keep working. Optional tuning scripts stay opt-in. Per-game harnesses live in `tests/<slug>/`; backend API tests stay in `scores/test/`.
 - **No backward compatibility.** Remove old pages and paths outright, with no redirects or shims.
-- **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). The scores API is the one exception to no backward compatibility: old published copies must keep working.
+- **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). The scores API stays compatible within a version (`/v2/`). A new version may retire the old one, as long as old published copies lose only the board, never the game ([API versions](docs/guides/00-leaderboards.md#api-versions)). Every board that takes runs has a score cap, rechecked whenever a game's scoring gets faster.
 - **What's new when scores reset.** A board bump comes with a short What's new note on the title screen explaining the latest change. The note's button has a dot until it's opened once on that device. See [What's new notes](docs/guides/00-leaderboards.md#whats-new-notes).
 - **Related, not identical.** Reuse what the other games already do (full screen, leaderboards, previews) so nothing starts from scratch, but each game is free to do things its own way.
 - **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
@@ -131,7 +131,7 @@ The Pages workflow runs it too. Run it before publishing to Arweave.
 - The `jonniepeed-games-scores` Worker uses a Cloudflare Custom Domain at `scores.jonniepeed.games`.
 - `games.sparklelabs.org` redirects to the new domain through a Cloudflare redirect rule.
 
-Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, the scores address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point.
+Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, the scores address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point, along with the API version those copies call.
 
 ## Publishing to GitHub Pages
 
@@ -151,7 +151,7 @@ The feature itself can have a friendlier name in docs and buttons (leaderboards)
 
 ## Deploying the Leaderboard Worker
 
-Manual only, and only after changes in `scores/`. In the Actions tab, open "Deploy Leaderboard Worker" (it deploys `scores/`) and click Run workflow, or run `wrangler deploy` from `scores/`. Scores in the database are never touched. One-time secrets setup is in the [leaderboard guide](docs/guides/00-leaderboards.md#deploying-the-worker).
+Manual only, and only after changes in `scores/`. In the Actions tab, open "Deploy Leaderboard Worker" (it deploys `scores/`) and click Run workflow, or run `wrangler deploy` from `scores/`. Scores in the database are never touched. One-time secrets setup is in the leaderboard guide: the workflow's GitHub secrets under [Deploying the Worker](docs/guides/00-leaderboards.md#deploying-the-worker), and the Worker's own `RUN_SECRET` under [One-time setup](docs/guides/00-leaderboards.md#one-time-setup-jonnies-cloudflare-account).
 
 ## Publishing to Arweave / ArNS
 

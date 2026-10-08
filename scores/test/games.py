@@ -2,9 +2,13 @@
 import os
 import re
 import tempfile
+import base64
+import hashlib
+import hmac
 import http.client
 import json
 import secrets
+import time
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
@@ -12,21 +16,33 @@ from playwright.sync_api import sync_playwright
 
 ARTIFACTS=Path(os.environ.get('SCREENSHOTS', tempfile.mkdtemp(prefix='jpg-boards-')))
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
+# The local Worker runs with `--var RUN_SECRET:local-dev-only`, so the test can sign backdated run tokens.
+SECRET=os.environ.get('RUN_SECRET','local-dev-only')
+
+def forge(game, board, age=3600):
+    run_id=str(uuid.uuid4()); issued=int(time.time()*1000)-age*1000
+    sig=hmac.new(SECRET.encode(),f'{game}|{board}|{run_id}|{issued}'.encode(),hashlib.sha256).digest()
+    return f"{run_id}.{issued}.{base64.urlsafe_b64encode(sig).rstrip(b'=').decode()}"
+
+def any_ip():
+    # Locally each request can claim its own connection, so the rate limit stays out of the way.
+    return f'10.{secrets.randbelow(256)}.{secrets.randbelow(256)}.{1+secrets.randbelow(254)}'
 
 def api(path, payload=None):
     c=http.client.HTTPConnection('127.0.0.1',8787, timeout=10)
-    c.request('POST' if payload else 'GET',path,body=json.dumps(payload) if payload else None,headers={'Content-Type':'application/json'})
+    c.request('POST' if payload else 'GET',path,body=json.dumps(payload) if payload else None,headers={'Content-Type':'application/json','cf-connecting-ip':any_ip()})
     r=c.getresponse(); data=json.loads(r.read()); assert r.status==200,(r.status,data); c.close(); return data
 
 def seed(game, board):
     for i in range(50):
-        api('/v1/submit',{'game':game,'board':board,'run_id':str(uuid.uuid4()),'name':'BOT','score':2000+i,'input':'keys','meta':{'time_ms':10000}})
+        api('/v2/submit',{'game':game,'board':board,'token':forge(game,board),'name':'BOT','score':2000+i,'input':'keys','meta':{'time_ms':2000000}})
 
 def finish(page, game, score):
+    # Each finished run lasted 2,000 s, so the scores used here are under each board's cap.
     if game=='thimbleful':
-        page.evaluate('(s)=>{score=s; el=12; end();}',score)
+        page.evaluate('(s)=>{score=s; el=2000; end();}',score)
     else:
-        page.evaluate('(s)=>{front.d=s+2.6; tStart=performance.now()/1000-12; gameOver(performance.now()/1000);}',score)
+        page.evaluate('(s)=>{front.d=s+2.6; tStart=performance.now()/1000-2000; gameOver(performance.now()/1000);}',score)
         page.locator('#after').wait_for(state='visible')
 
 def picker(page, game):
@@ -73,21 +89,29 @@ def title_scores(page, game, size, label):
 def suite(page, game, size, label):
     board=-secrets.randbelow(2**45)-1
     seed(game,board)
+    # 'start' False refuses run tokens (Worker down at run start). 'sign' False sends the game's own token,
+    # which the Worker refuses because these runs claim 2,000 s of play.
+    api_mode={'start':True,'sign':True}
     def route(r):
         u=urlsplit(r.request.url)
+        headers={**r.request.headers,'cf-connecting-ip':any_ip()}
+        if u.path=='/v2/start' and not api_mode['start']:
+            r.fulfill(status=503,content_type='application/json',body='{"ok":false,"error":"unavailable"}'); return
         if r.request.method=='POST':
             d=json.loads(r.request.post_data); d['board']=board
-            response=r.fetch(post_data=json.dumps(d)); r.fulfill(response=response)
+            if u.path=='/v2/submit' and api_mode['sign']: d['token']=forge(d['game'],board)
+            response=r.fetch(post_data=json.dumps(d),headers=headers); r.fulfill(response=response)
         else:
             q=parse_qs(u.query); q['board']=[str(board)]
-            response=r.fetch(url=urlunsplit((u.scheme,u.netloc,u.path,urlencode(q,doseq=True),u.fragment))); r.fulfill(response=response)
-    page.route('http://localhost:8787/v1/**',route)
+            response=r.fetch(url=urlunsplit((u.scheme,u.netloc,u.path,urlencode(q,doseq=True),u.fragment)),headers=headers); r.fulfill(response=response)
+    page.route('http://localhost:8787/v2/**',route)
     errors=[]; page.on('pageerror',lambda e:errors.append(str(e)))
     page.goto(f'http://127.0.0.1:8000/{game}/index.html'); page.evaluate('document.fonts.ready')
     assert page.locator('#board').is_hidden()
     title_scores(page,game,size,label)
     start(page,game)
-    first_id=page.evaluate('lbRun.id')
+    first_token=page.evaluate('lbRun.start')   # waits for the run's token
+    assert first_token
     # Menu touches must not count; actual play-area pen input must count.
     assert page.evaluate('lbRun.input')=='keys'
     area='.arena' if game=='thimbleful' else '#view'
@@ -108,11 +132,11 @@ def suite(page, game, size, label):
     assert page.locator('.lb-you').inner_text().split()[1]=='JON'
     assert page.locator('.lb-you [aria-label="touch"]').count()==1
     assert page.locator('.lb-table tbody tr').count()==10
-    start(page,game); assert page.evaluate('lbRun.id')!=first_id; assert page.evaluate('lbRun.input')=='keys'
+    start(page,game); assert page.evaluate('lbRun.start')!=first_token; assert page.evaluate('lbRun.input')=='keys'
     finish(page,game,6000); picker(page,game); page.keyboard.type('skp'); page.get_by_role('button',name='Skip score entry').click()
     assert page.evaluate("localStorage.getItem('jpg-initials')")=='JON'
     assert page.locator('.lb-entry').count()==0
-    assert api('/v1/top?'+urlencode({'game':game,'board':board}))['scores'][0]['score']==5000
+    assert api('/v2/top?'+urlencode({'game':game,'board':board}))['scores'][0]['score']==5000
     start(page,game); finish(page,game,0); page.locator('.lb-table').wait_for()
     assert page.locator('.lb-entry').count()==0
     start(page,game); finish(page,game,2035); picker(page,game)
@@ -133,8 +157,24 @@ def suite(page, game, size, label):
     assert parent['y']>=-1,(label,parent,size)
     assert parent['y']+parent['height']<=size['height']+1,(label,parent,size)
     page.screenshot(path=str(ARTIFACTS/f'{game}-{label}.png'))
+    if game=='thimbleful': page.evaluate('setFull(false)')
+    # No token (Worker down at run start): a winning run shows the board only, never asks for initials.
+    api_mode['start']=False
+    start(page,game); assert page.evaluate('lbRun.start') is None
+    finish(page,game,5500); page.locator('.lb-table').wait_for()
+    assert page.locator('.lb-entry').count()==0 and page.locator('.lb-you').count()==0
+    if game=='thimbleful': assert page.locator('#lbEnter').is_hidden() and page.locator('#go').is_visible()
+    api_mode['start']=True
+    # A refused submit: the board comes back without the run's row, and nothing says why.
+    api_mode['sign']=False
+    start(page,game); finish(page,game,5600); picker(page,game)
+    page.keyboard.type('ref'); page.get_by_role('button',name='Save score',exact=True).click()
+    page.locator('.lb-entry').wait_for(state='detached'); page.locator('.lb-table').wait_for()
+    assert page.locator('.lb-you').count()==0
+    assert 'REF' not in [row['name'] for row in api('/v2/top?'+urlencode({'game':game,'board':board}))['scores']]
+    api_mode['sign']=True
     assert not errors,errors
-    print(f'PASS {game} {label}: OK, Skip, nonqualification, input, shortcuts, gap row, 50-row scrolling and end-screen fit, title-screen scores',flush=True)
+    print(f'PASS {game} {label}: OK, Skip, nonqualification, input, shortcuts, gap row, 50-row scrolling and end-screen fit, title-screen scores, no token, refused run',flush=True)
 
 with sync_playwright() as p:
     browser=p.chromium.launch(**({'executable_path': os.environ['CHROMIUM']} if os.environ.get('CHROMIUM') else {}))

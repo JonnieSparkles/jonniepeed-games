@@ -32,23 +32,29 @@ jobs:
           wranglerVersion: "4.148.0"
           command: deploy
       - name: Check the live Worker answers for every game
-        # Reads the hostname from wrangler.jsonc so it stays configured in one place. Read-only: test board 0, no writes.
+        # Reads the hostname from wrangler.jsonc so it stays configured in one place. No writes: test board 0 only.
+        # Asking for a run token also proves RUN_SECRET is set; without it, games quietly run without boards.
         run: |
           python3 - <<'EOF'
           import json, re, time, urllib.request
           host = re.search(r'"pattern"\s*:\s*"([^"]+)"', open('scores/wrangler.jsonc').read()).group(1)
           # Cloudflare's bot protection refuses Python's default user agent, so send a named one.
           headers = {'User-Agent': 'jonniepeed-games-deploy-check/1 (GitHub Actions)', 'Accept': 'application/json'}
-          for game in json.load(open('scores/games.json')):
-              url = f'https://{host}/v1/top?game={game}&board=0'
+          def ask(url, body=None, hint=''):
               for attempt in range(5):
                   try:
-                      data = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=10))
-                      break
+                      request = urllib.request.Request(url, headers={**headers, 'Content-Type': 'application/json'} if body else headers,
+                                                       data=json.dumps(body).encode() if body else None)
+                      return json.load(urllib.request.urlopen(request, timeout=10))
                   except Exception as error:
-                      body = error.read(300).decode('utf-8', 'replace') if hasattr(error, 'read') else ''
-                      if attempt == 4: raise SystemExit(f'{url} did not answer: {error} {body}')
+                      text = error.read(300).decode('utf-8', 'replace') if hasattr(error, 'read') else ''
+                      if attempt == 4: raise SystemExit(f'{url} did not answer: {error} {text} {hint}')
                       time.sleep(5)
-              if not data.get('ok'): raise SystemExit(f'{url} answered {data}')
+          for game in json.load(open('scores/games.json')):
+              data = ask(f'https://{host}/v2/top?game={game}&board=0')
+              if not data.get('ok'): raise SystemExit(f'{game} top answered {data}')
+              data = ask(f'https://{host}/v2/start', {'game': game, 'board': 0}, 'Is RUN_SECRET set? See the leaderboard guide.')
+              if not data.get('ok') or not data.get('token'):
+                  raise SystemExit(f'{game} start answered {data}. Is RUN_SECRET set? See the leaderboard guide.')
               print('ok', game)
           EOF

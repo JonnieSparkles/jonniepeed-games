@@ -2,7 +2,7 @@
 
 Make the boards harder to spoil without turning them into a security project. Each run gets a signed token from the Worker when it starts. Submits need a valid token, a believable time and a believable score, and they are rate limited. The API moves to `/v2/` and `/v1/` is retired. Old copies of the games keep playing; they just stop showing boards.
 
-Status: draft, not built. Once built, `docs/guides/00-leaderboards.md` and the code are the source of truth, as with [SPEC-001](SPEC-001-leaderboards.md).
+Status: built on the `leaderboard-v2` branch. Now that it's built, `docs/guides/00-leaderboards.md` and the code are the source of truth, as with [SPEC-001](SPEC-001-leaderboards.md). This spec records the decisions and why, updated with the choices made during the build (see [Build notes](#build-notes)).
 
 ## Why
 
@@ -55,13 +55,13 @@ Same as `/v1/top` today, including `placement`.
 
 Body `{game, board, token, name, score, input, meta}`. `run_id` is gone; it comes from the token. Checks in this order:
 
-1. **Rate limit:** more than 20 submits per 60 s from one IP (`cf-connecting-ip`) → `429 rate_limited`. Each submit needs a finished run that made the board, so one player can't come close. The headroom is for players who share a connection: a school, an office, or phones on one carrier.
-2. **Fields:** as `/v1/submit` today (`bad_game`, `bad_board`, `bad_score`, `bad_meta`, `bad_name`, `name_not_allowed`, `bad_input`). `meta.time_ms` is required.
-3. **Token:** parses, signature matches this game and board, and `issued` is no more than 24 h old.
-4. **Time:** Worker `now − issued ≥ time_ms − 5000`. The run can't have lasted longer than the token has existed. Pauses only add real time. The 5 s slack covers a start request that's retried a few seconds into the run on a flaky connection.
-5. **Score:** `score ≤ perSecond × time_ms / 1000 + grace`, from the board's `plausible` rule.
+1. **Fields:** as `/v1/submit` did (`bad_game`, `bad_board`, `bad_score`, `bad_meta`, `bad_name`, `name_not_allowed`, `bad_input`). `meta.time_ms` is required.
+2. **Token:** parses, signature matches this game and board, and `issued` is no more than 24 h old.
+3. **Time:** Worker `now − issued ≥ time_ms − 5000`. The run can't have lasted longer than the token has existed. Pauses only add real time. The 5 s slack covers a start request that's retried a few seconds into the run on a flaky connection.
+4. **Score:** `score ≤ perSecond × time_ms / 1000 + grace`, from the board's `plausible` rule.
+5. **Rate limit:** more than 20 saved runs per 60 s from one IP (`cf-connecting-ip`) → `429 rate_limited`. Each save needs a finished run that made the board, so one player can't come close. The headroom is for players who share a connection: a school, an office, or phones on one carrier. It comes last so only runs that would be saved count; refusals cost no database writes anyway.
 
-Failures of 3–5 all answer `400 {ok:false, error:'rejected'}`, with no reason given. The Worker logs one line per rejection: game, board, score, time_ms and which check failed. It never logs the IP. Turn on Workers Logs (`"observability": {"enabled": true}`) if the plan includes it, so "why didn't my score save?" can be answered.
+Failures of 2–4 all answer `400 {ok:false, error:'rejected'}`, with no reason given. The Worker logs one line per rejection: game, board, score, time_ms and which check failed. It never logs the IP. Turn on Workers Logs (`"observability": {"enabled": true}`) if the plan includes it, so "why didn't my score save?" can be answered.
 
 A valid submit inserts with the token's `run_id`. Posting the same token again returns the original row, as now.
 
@@ -104,7 +104,7 @@ Each board that takes new scores gets a `plausible` rule:
   ```
 
   Confirm the binding works on the account's plan (it needs Wrangler 4.36+). It counts per Cloudflare location and is approximate, which is fine here. If the plan doesn't have it, fall back to a per-board cap: refuse a submit when the board already has 20 rows from the last minute.
-- `RUN_SECRET` is a Worker secret (`wrangler secret put RUN_SECRET`), never in the repo. For local development use `scores/.dev.vars` (`RUN_SECRET=local-dev-only`) and add `.dev.vars` to `.gitignore`.
+- `RUN_SECRET` is a Worker secret (`wrangler secret put RUN_SECRET`), never in the repo. For local development run `wrangler dev --var RUN_SECRET:local-dev-only`. `.dev.vars` is git-ignored in case anyone uses one.
 - Rotating the secret is optional. Runs in progress at that moment just don't save.
 
 ## Client (`site/assets/leaderboard.js`)
@@ -126,31 +126,32 @@ Each board that takes new scores gets a `plausible` rule:
 
 ## Tests
 
-- **`scores/test/smoke.mjs`** (live, test boards only), moved to `/v2/`, plus:
-  - `/v1/top` and `/v1/submit` answer 410.
+- **`scores/test/smoke.mjs`** (test boards only), moved to `/v2/`, plus:
+  - `/v1/` paths answer 410.
   - Each of these is `rejected`: a missing token, a tampered token, a token for another game, a token for another board, and `time_ms` longer than the token's age.
   - A score over the rate is `rejected`.
   - A valid run: start, wait about 1.5 s, submit `time_ms: 1000` with a small score, and it saves. The same token again returns the same row.
-- **`scores/test/versions.mjs`:** run its local instance with a test `RUN_SECRET`. Use a short token lifetime there, set by a test-only variable, to cover expiry.
-- **Rate limit:** test locally if `wrangler dev` simulates the binding: the 21st submit in a minute gets 429. Otherwise note it in the guide as checked by hand once.
-- **`scores/test/games.py`:** seed full boards straight into local D1 with SQL, since the API now needs real waits. Add:
+- **`scores/test/versions.mjs`:** run its local instance with a test `RUN_SECRET`.
+- **Rate limit:** the local Worker enforces the binding, so test it locally: the 21st saved run in a minute gets 429.
+- **`scores/test/games.py`:** seed full boards with the long runs these tests need. Add:
   - Worker stopped at run start → no picker, the game ends normally.
   - A refused submit → the board shows without the row, and no error.
 - **`tools/check_boards.py`:** fails when the newest board lacks `plausible` or `time_ms`.
-- **Old client by hand:** serve `main`'s `leaderboard.js` against the new local Worker. Both games play and end normally, show no board, and log nothing to the console.
+- **Old client by hand:** serve `main`'s site against the new local Worker. Both games play and end normally and show no board.
 
 ## Docs
 
 - **`docs/guides/00-leaderboards.md`:**
   - Overview: replace "no accounts, rate limits or admin page" with a short **Protection** section that says what's stopped and what isn't, as above.
   - One-time setup: `wrangler secret put RUN_SECRET`.
-  - Local development: `.dev.vars`.
+  - Local development: `--var RUN_SECRET:local-dev-only`.
   - Adding a game: `start` at run start, `plausible` on the board, and the token-aware end screen. Update the worked example.
   - Changing a game: add `plausible` to the table.
   - Replace the "Never" row and the "old boards stay open, including old Arweave copies" paragraph with the new version rule.
   - API reference: `/v2/`.
-- **`.github/workflows/leaderboard-worker.yml`:** the post-deploy check calls `/v2/top`.
+- **`.github/workflows/leaderboard-worker.yml`:** the post-deploy check calls `/v2/top`, and asks `/v2/start` for a token, which fails loudly if `RUN_SECRET` was never set.
 - **README.md** "Online scores" bullet and **AGENTS.md** API bullet: within a version, never rename game IDs, remove boards or meta keys, or narrow meta ranges. A new version may retire the old one; old copies must lose only the board, never the game.
+- **AGENTS.md** board-bump bullet: any change to how fast a game can score (pace, bonuses, power-ups) is a scoring change, so it bumps the board, and whoever makes it rechecks the new board's cap against the code. That's what keeps the caps from needing anyone to remember them.
 - **Arweave note in the guide:** the version live at the first Arweave upload is baked into those copies. Retiring it later silently removes their boards, which the new rule allows.
 
 ## Deploy order
@@ -179,8 +180,20 @@ Each board that takes new scores gets a `plausible` rule:
 - An admin page.
 - Turnstile.
 
+## Build notes
+
+Choices made while building:
+
+- **Tests sign their own tokens.** Tests that need long runs or full boards can't wait out real time. Against the local Worker (known secret `local-dev-only`) or an isolated fixture, they sign tokens backdated by an hour. That also covers expiry (a token signed 25 h ago), so there's no test-only lifetime setting. Against the live Worker, `smoke.mjs` skips those cases and plays one real run end to end.
+- **The local Worker honours a client-sent `cf-connecting-ip`, and Cloudflare replaces it in production.** Local tests give each request its own connection, so the rate limit stays out of the way except in its own test.
+- **The rate limit comes last** (see the check order above), so refusals and validation errors never count toward it.
+- **`games.py` seeds through the API** with signed tokens rather than raw SQL. Its finished runs claim 2,000 s of play, so their test scores sit under the caps.
+- **The deploy workflow asks for a token**, so a missing `RUN_SECRET` fails the deploy check instead of quietly switching boards off.
+- **The per-board fallback rate limit isn't built.** The binding worked locally. If the first deploy refuses it on the plan, the fallback goes in then.
+- **Old copies against the new Worker:** both games played and ended normally and showed no board. The browser's own "Failed to load resource" console line for the 410 is the same one a down Worker produces.
+
 ## Jonnie does
 
 1. `wrangler secret put RUN_SECRET` from `scores/` (any long random string; `openssl rand -base64 32`).
-2. Confirm the rate limit binding deployed. If it was refused on the plan, say so and the fallback goes in.
-3. Deploy the Worker, then the site, then run the live smoke test.
+2. Deploy the Worker. The deploy itself fails if the plan refuses the rate limit binding (say so and the fallback goes in), and the workflow's check fails if the secret is missing.
+3. Deploy the site straight after, then run the live smoke test: `BASE=https://scores.jonniepeed.games node test/smoke.mjs` from `scores/`.

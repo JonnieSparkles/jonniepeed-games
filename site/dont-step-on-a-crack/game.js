@@ -24,13 +24,18 @@ function clearLeaderboard() {
 }
 function resetLeaderboard() {
   clearLeaderboard();
-  if (window.Leaderboard) lbRun = { id: Leaderboard.newRunId(), input: 'keys', data: null, shown: false };
+  // the run's token is fetched in the background; play never waits for it
+  if (window.Leaderboard) lbRun = { start: Leaderboard.start('dont-step-on-a-crack', BOARD), token: null, input: 'keys', data: null, shown: false };
 }
 function loadLeaderboard(score, meta) {
   const run = lbRun;
   if (!run || !window.Leaderboard) return;
   run.score = score; run.meta = meta;
-  Leaderboard.load('dont-step-on-a-crack', BOARD, score, meta).then(data => {
+  // without a token the run can't be saved, so ask for the board only: no placement, no picker
+  run.start.then(token => {
+    run.token = token;
+    return token ? Leaderboard.load('dont-step-on-a-crack', BOARD, score, meta) : Leaderboard.load('dont-step-on-a-crack', BOARD);
+  }).then(data => {
     if (lbRun !== run || !(mode === 'over')) return;
     run.data = data;
     if (!afterEl.hidden) showLeaderboard();
@@ -61,7 +66,7 @@ function showLeaderboard() {
       if (!picker || run.busy) return;
       run.busy = true; picker.setBusy(true); message.textContent = 'Saving…';
       Leaderboard.saveInitials(name);
-      const result = await Leaderboard.submit({game:'dont-step-on-a-crack',board:BOARD,run_id:run.id,name,
+      const result = await Leaderboard.submit({game:'dont-step-on-a-crack',board:BOARD,token:run.token,name,
         score:run.score,input:run.input,meta:run.meta});
       if (lbRun !== run || !(mode === 'over')) return;
       run.busy = false;

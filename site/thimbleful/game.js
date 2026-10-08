@@ -70,7 +70,8 @@ function clearLeaderboard() {
 }
 function resetLeaderboard() {
   clearLeaderboard();
-  if (window.Leaderboard) lbRun = { id: Leaderboard.newRunId(), input: 'keys', data: null, shown: false };
+  // the run's token is fetched in the background; play never waits for it
+  if (window.Leaderboard) lbRun = { start: Leaderboard.start('thimbleful', BOARD), token: null, input: 'keys', data: null, shown: false };
 }
 function loadLeaderboard(score, meta) {
   const run = lbRun;
@@ -82,7 +83,11 @@ function loadLeaderboard(score, meta) {
     if (lbRun !== run || run.shown) return;
     run.late = true; lbPhase(null); try { go.focus({ preventScroll: true }); } catch (_) {}
   }, LB_WAIT);
-  Leaderboard.load('thimbleful', BOARD, score, meta).then(data => {
+  // without a token the run can't be saved, so ask for the board only: no placement, no picker
+  run.start.then(token => {
+    run.token = token;
+    return token ? Leaderboard.load('thimbleful', BOARD, score, meta) : Leaderboard.load('thimbleful', BOARD);
+  }).then(data => {
     if (lbRun !== run || state !== 'over') return;
     const after = Math.max(0, LB_BEAT - (performance.now() - began));
     setTimeout(() => {
@@ -134,7 +139,7 @@ function openPicker(run) {
       if (!picker || run.busy) return;
       run.busy = true; picker.setBusy(true); message.textContent = 'Saving…';
       Leaderboard.saveInitials(name);
-      const result = await Leaderboard.submit({game:'thimbleful',board:BOARD,run_id:run.id,name,
+      const result = await Leaderboard.submit({game:'thimbleful',board:BOARD,token:run.token,name,
         score:run.score,input:run.input,meta:run.meta});
       if (lbRun !== run || state !== 'over') return;
       run.busy = false;

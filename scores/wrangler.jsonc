@@ -9,5 +9,14 @@
     "binding": "DB",
     "database_name": "jonniepeed-games-scores",
     "database_id": "3827767d-ef17-4746-bc98-760e6610c9c4"
-  }]
+  }],
+  // Saved scores per connection, counted per Cloudflare location. The ID is unique in the account.
+  "ratelimits": [{
+    "name": "SUBMITS",
+    "namespace_id": "1001",
+    "simple": { "limit": 20, "period": 60 }
+  }],
+  // Rejected submits log one line each (never the IP), so "why didn't my score save?" can be answered.
+  "observability": { "enabled": true }
+  // RUN_SECRET is a Worker secret: `wrangler secret put RUN_SECRET`. Never put it in this file.
 }

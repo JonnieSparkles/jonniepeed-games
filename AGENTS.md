@@ -8,9 +8,10 @@ Follow the **Standards** section in README.md on every change. In short:
 - New or changed game art: run `python3 tools/og/make.py`.
 - No backward compatibility: delete old paths, no redirects.
 - Before adding scores to a game, or changing scoring, `BOARD` or `scores/games.json`, read `docs/guides/00-leaderboards.md`.
-- Scoring or ranking changes bump the board; deploy the Worker first.
+- Scoring or ranking changes bump the board; deploy the Worker first. Any change to how fast a game can score (pace, bonuses, power-ups) is a scoring change: recheck the new board's score cap (`plausible`) against the code. See "Score caps" in `docs/guides/00-leaderboards.md`.
 - Every board bump updates the game's What's new note, or adds one: the latest change only, in a few short lines. See "What's new notes" in `docs/guides/00-leaderboards.md`.
-- The scores API stays backward compatible: never rename game IDs, remove boards or meta keys, narrow meta ranges, or change `/v1/`.
+- The scores API (`/v2/`) stays compatible within a version: never rename game IDs, remove boards or meta keys, narrow meta ranges, or change what a path means. A new version may retire the old one; old copies must lose only the board, never the game. See "API versions" in the leaderboard guide.
+- `RUN_SECRET` lives only in Cloudflare (`wrangler secret put`). Never put it in the repo; local runs use `--var RUN_SECRET:local-dev-only`.
 - Run `python3 tools/check_boards.py` after touching `BOARD` or `games.json`.
 - Studio name is JonniePeed Games (capital P).
 - Don't commit or push to `main` unless the user says to in the conversation. Deliverables go in the repo, not zip files.

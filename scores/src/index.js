@@ -2,6 +2,8 @@ import games from '../games.json';
 import blocklist from '../blocklist.json';
 
 const LIMIT = 50;
+const TOKEN_TTL = 24 * 60 * 60 * 1000; // a token is good for one run of up to a day
+const TIME_SLACK = 5000;               // covers a start request retried a few seconds into the run
 const headers = {
   'Content-Type': 'application/json; charset=utf-8',
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +21,40 @@ function rulesFor(game, board) {
   // Test boards follow the latest positive board without changing historical rules.
   const number = board <= 0 ? Math.max(...Object.keys(boards).map(Number)) : board;
   return boards[number];
+}
+// Only boards with a score cap take new runs. Older boards stay readable.
+const accepting = rules => object(rules.plausible) && owns(rules.meta, 'time_ms');
+
+// Run tokens: "<run_id>.<issued ms>.<HMAC>", signed for one game and board. Nothing is stored.
+const encoder = new TextEncoder();
+const TOKEN = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(\d{13})\.([A-Za-z0-9_-]{43})$/;
+const hmacKey = secret => crypto.subtle.importKey('raw', encoder.encode(secret),
+  { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+const signed = (game, board, runId, issued) => encoder.encode(`${game}|${board}|${runId}|${issued}`);
+const toBase64Url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromBase64Url = text => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+
+async function issueToken(secret, game, board) {
+  const runId = crypto.randomUUID(), issued = Date.now();
+  const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), signed(game, board, runId, issued));
+  return `${runId}.${issued}.${toBase64Url(sig)}`;
+}
+
+// Returns the run ID, or the name of the check that failed.
+async function checkRun(secret, data, rules) {
+  const match = typeof data.token === 'string' && TOKEN.exec(data.token);
+  if (!match) return { reason: 'token' };
+  const [, runId, issuedText, sig] = match, issued = Number(issuedText);
+  // verify() compares in constant time
+  if (!await crypto.subtle.verify('HMAC', await hmacKey(secret), fromBase64Url(sig), signed(data.game, data.board, runId, issued))) {
+    return { reason: 'token' };
+  }
+  const age = Date.now() - issued, ms = data.meta.time_ms, cap = rules.plausible;
+  if (age > TOKEN_TTL) return { reason: 'expired' };
+  if (age < ms - TIME_SLACK) return { reason: 'time' };   // the run can't outlast its token
+  if (data.score > cap.perSecond * ms / 1000 + cap.grace) return { reason: 'score' };
+  return { runId };
 }
 
 function validate(game, board, score, meta, withScore) {
@@ -89,7 +125,9 @@ async function readBody(request) {
 async function handle(request, env) {
   if (request.method === 'OPTIONS') return reply({ ok: true });
   const url = new URL(request.url);
-  if (request.method === 'GET' && url.pathname === '/v1/top') {
+  // v1 is retired. Old copies of leaderboard.js treat this like the Worker being down: the game carries on without a board.
+  if (url.pathname.startsWith('/v1/')) return fail('gone', 410);
+  if (request.method === 'GET' && url.pathname === '/v2/top') {
     const q = url.searchParams, game = q.get('game');
     const board = /^-?\d+$/.test(q.get('board') || '') ? Number(q.get('board')) : NaN;
     const withScore = q.has('score');
@@ -108,21 +146,44 @@ async function handle(request, env) {
     }
     return reply(result);
   }
-  if (request.method === 'POST' && url.pathname === '/v1/submit') {
+  if (request.method === 'POST' && url.pathname === '/v2/start') {
+    const body = await readBody(request);
+    if (body.error) return fail(body.error);
+    const { game, board } = body.data;
+    const error = validate(game, board, undefined, undefined, false);
+    if (error) return fail(error);
+    if (!accepting(rulesFor(game, board))) return fail('bad_board');
+    if (!env.RUN_SECRET) return fail('unavailable', 503);
+    return reply({ ok: true, token: await issueToken(env.RUN_SECRET, game, board) });
+  }
+  if (request.method === 'POST' && url.pathname === '/v2/submit') {
     const body = await readBody(request);
     if (body.error) return fail(body.error);
     const data = body.data;
     const error = validate(data.game, data.board, data.score, data.meta, true);
     if (error) return fail(error);
-    if (typeof data.run_id !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(data.run_id)) return fail('bad_run_id');
+    const rules = rulesFor(data.game, data.board);
+    if (!accepting(rules)) return fail('bad_board');
+    if (!Number.isInteger(data.meta?.time_ms)) return fail('bad_meta');
     if (typeof data.name !== 'string' || !/^[A-Z0-9]{3}$/.test(data.name)) return fail('bad_name');
     if (blocklist.includes(data.name)) return fail('name_not_allowed');
     if (!['touch', 'keys'].includes(data.input)) return fail('bad_input');
+    if (!env.RUN_SECRET) return fail('unavailable', 503);
+    const run = await checkRun(env.RUN_SECRET, data, rules);
+    if (run.reason) {
+      // The player isn't told why. The log is for Jonnie; it never includes the IP.
+      console.log(JSON.stringify({ rejected: run.reason, game: data.game, board: data.board, score: data.score, time_ms: data.meta.time_ms }));
+      return fail('rejected');
+    }
+    // Counted only for runs that would be saved, keyed on the connection in memory only.
+    if (env.SUBMITS) {
+      const { success } = await env.SUBMITS.limit({ key: request.headers.get('cf-connecting-ip') || 'unknown' });
+      if (!success) return fail('rate_limited', 429);
+    }
     await env.DB.prepare(`INSERT INTO scores (game, board, run_id, name, score, input, meta)
       VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(run_id) DO NOTHING`)
-      .bind(data.game, data.board, data.run_id, data.name, data.score, data.input,
-        data.meta === undefined ? null : JSON.stringify(data.meta)).run();
-    const row = await env.DB.prepare('SELECT id, game, board FROM scores WHERE run_id = ?').bind(data.run_id).first();
+      .bind(data.game, data.board, run.runId, data.name, data.score, data.input, JSON.stringify(data.meta)).run();
+    const row = await env.DB.prepare('SELECT id, game, board FROM scores WHERE run_id = ?').bind(run.runId).first();
     const rows = await top(env.DB, row.game, row.board);
     return reply({ ok: true, id: row.id, rank: rows.find(r => r.id === row.id)?.rank ?? null, scores: publicRows(rows) });
   }
