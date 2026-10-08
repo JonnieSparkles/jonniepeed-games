@@ -145,6 +145,20 @@ What the bots found:
 
 Round 5 (tougher zeppelin, pizza at the next wave's start, same bot, 40 seeds per skill) against round 4: casual 12 → 13.5, decent 29 → 27, expert 33 → 34 median waves, with no difference beyond run-to-run noise. Two decent runs now end to tank shells.
 
+Round 6 (radio calls, ranks, the wounded and the field hospital; 40 seeds per skill, 40-minute cap) against main, which was played by its own bot (`--ref-bot own`, because the bot now reads the radio):
+
+| Skill | Median wave (quartiles), main → round 6 | Alive at wave 10 / 20 / 30, main → round 6 |
+| --- | --- | --- |
+| casual | 13.5 (8–19) → 8 (8–16) | 65 / 22 / 2% → 42 / 8 / 0% |
+| decent | 27 (24–29) → 28 (22.5–31) | 95 / 88 / 22% → 80 / 78 / 30% |
+| expert | 34 (30.5–41) → 32 (12–37.2) | 90 / 88 / 75% → 75 / 70 / 58% |
+
+What the bots found:
+
+- **Full rank perks made long-lived squads unbeatable.** With faster repairs and a 12% quicker trigger per stripe, most expert runs that got past wave 10 reached the time cap. Without perks they ended between waves 26 and 38. Ranks now add 0.5 health and an 8% quicker trigger.
+- **Two fighter passes were too strong.** One pass brought decent runs back to main's median.
+- **Waves 6–9 are harder.** Runs no longer start with a free strike, and calls and the hospital now compete with upgrades for early tags. Casual runs feel it most. If playtesting agrees, HQ's first bomber could come earlier than wave 9.
+
 ## Validation and generated assets
 
 Serve `site/` locally:
