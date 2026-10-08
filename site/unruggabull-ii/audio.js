@@ -307,7 +307,11 @@ window.UnrugSound = (function () {
     jump: t => osc(sfxBus, 'p25', 320, t, .12, .08, { to: 760 }),
     // a big whoosh, a steel ring and a low swing
     slash: t => { noiseHit(sfxBus, t, .18, .75, 'bandpass', 5200, 1.1, 900); noiseHit(sfxBus, t, .08, .35, 'highpass', 6500); osc(sfxBus, 'triangle', 420, t, .12, .22, { to: 140 }); osc(sfxBus, 'p12', 2600, t + .02, .22, .06, { to: 2300, sustain: .5 }); osc(sfxBus, 'p12', 3900, t + .02, .16, .035, { sustain: .4 }); },
-    deflect: t => { osc(sfxBus, 'p50', 1480, t, .05, .09); osc(sfxBus, 'p50', 2220, t + .045, .09, .08, { sustain: .4 }); },
+    // a bright ping; in a rally each return rings a step higher
+    deflect: (t, n) => { const up = Math.pow(2, Math.min(12, (n || 0) * 2) / 12); osc(sfxBus, 'p50', 1480 * up, t, .05, .1); osc(sfxBus, 'p50', 2220 * up, t + .045, .09, .09, { sustain: .4 }); noiseHit(sfxBus, t, .04, .25, 'highpass', 4000); },
+    // the Shredder bats the bundle back: a hollow thwock that climbs with the rally
+    volley: (t, n) => { const f = 180 * Math.pow(2, Math.min(12, (n || 0) * 2) / 12); osc(sfxBus, 'square', f, t, .09, .14, { to: f * .6 }); noiseHit(sfxBus, t, .07, .35, 'bandpass', 900, 1.5); },
+    smash: t => { noiseHit(sfxBus, t, .6, .7, 'lowpass', 3000, 1, 120); osc(sfxBus, 'sine', 160, t, .5, .5, { to: 40, sustain: .5 }); [72, 79, 84].forEach((m, i) => osc(sfxBus, 'p25', hz(m + 12), t + .1 + i * .06, .1, .08)); },
     hit: t => { noiseHit(sfxBus, t, .08, .3, 'lowpass', 1800); osc(sfxBus, 'square', 230, t, .08, .07, { to: 110 }); },
     poof: t => noiseHit(sfxBus, t, .07, .18, 'highpass', 3000),
     soul: (t, n) => { const up = Math.min(12, n || 0); [76, 80, 83, 88].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12 + up), t + i * .045, .09, .12, { sustain: .5 })); },

@@ -67,7 +67,8 @@ A corridor floor of about two minutes, then the Shredder.
 - **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner.
   - Phase 1: it spits bundles of shredded paper (deflect them into its mouth for heavy damage) and pulls the runner.
   - Phase 2: staple fans you have to dodge or deflect, and longer pulls.
-  - Phase 3 (jammed): every cut of the rug jams it for a moment, and blaster shots do triple damage while it's jammed.
+  - Phase 3 (the rally): it serves a gold bundle and bats your deflects back, quicker each time, until it misses for a smash. It braces against the blaster, so the rally is how you finish it. Cutting the rug still jams it, and blaster shots do triple damage while it's jammed.
+  - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
 - **Clear.** "FLOOR 13 CLEAR", the souls float up, and a card shows souls freed, time and best. The elevator to floor 42 is the next stage.
 - **Dying.** Five hearts. At zero: "RUGGED. CONTINUE?" restarts the floor. (Lives across a full run are still open; see below.)

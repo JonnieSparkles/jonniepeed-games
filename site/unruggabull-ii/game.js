@@ -41,7 +41,10 @@
     pullSpeed: .3, recover: .5, mouth: .85,
     goal: 60,               // souls that wake the Shredder
     wadTime: 1.1, wadLead: .2, throwChance: .6, eventT: 6, auditT: 8,
-    bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13
+    bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,
+    deflectCharge: 3,       // each deflect gives the blaster this many charges back
+    // the phase 3 rally: each return is quicker (dur × speedUp, down to fastest); the miss hits for smash + smashPer × returns
+    rally: { serve: 1.7, speedUp: .8, fastest: .6, back: .45, smash: 10, smashPer: 4, stun: 1.6 }
   };
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
@@ -285,15 +288,18 @@
     const t = dur || TUNE.wadTime, at = posOf(tp), aim = clamp(bull.u + moveDir() * TUNE.move * t * (dur ? 0 : TUNE.wadLead), -TUNE.aisle, TUNE.aisle);
     launch('wad', { u: at.u, z: at.z, h: at.h + .04 }, { u: aim, z: bull.bz, h: .13 }, t, { src: tp });
   }
+  // A deflect sends the paper back where it came from and gives the blaster charges back.
   function deflect(p) {
     p.friendly = true;
     let to = { u: 0, z: .98, h: .12 };
     if (p.kind === 'wad') to = p.src && !p.src.dead ? posOf(p.src) : { u: p.u, z: 1.1, h: p.h };
-    const dur = .45;
+    const rl = R.boss.rally, dur = p.rally && rl ? Math.max(.28, TUNE.rally.back * Math.pow(TUNE.rally.speedUp, rl.count)) : .45;
     p.vu = (to.u - p.u) / dur; p.vz = (to.z - p.z) / dur; p.vh = (to.h - p.h) / dur; p.gv = 0;
     R.events.deflects = (R.events.deflects || 0) + 1;
-    Snd.play('deflect');
-    popText('DEFLECT!', PX(p.u, p.z), YH(p.z, p.h) - 6, '#7fd4ff');
+    const before = R.charge;
+    R.charge = Math.min(TUNE.charges, R.charge + TUNE.deflectCharge); R.chargeFlash = .3; R.freeze = Math.max(R.freeze, .04);
+    Snd.play('deflect', p.rally && rl ? rl.count : 0);
+    popText(R.charge > before ? 'DEFLECT! +' + (R.charge - before) : 'DEFLECT!', PX(p.u, p.z), YH(p.z, p.h) - 6, '#7fd4ff');
   }
   function updateProjs(dt) {
     for (const p of R.projs) {
@@ -306,16 +312,32 @@
           for (const f of R.flies) if (!f.dead && Math.abs(f.u - p.u) < .1 && Math.abs(f.z - p.z) < .05) { p.dead = true; killFly(f, 'shot'); break; }
           if (p.z > 1.05) p.dead = true;
         } else if (p.z >= .955) {
+          const b = R.boss, rl = b.rally;
+          if (p.rally && rl && b.st === 'fight' && b.jam <= 0 && rl.count < rl.target) {
+            // the Shredder bats it back at you, quicker every time
+            rl.count++; b.spit = .2;
+            const dur = Math.max(TUNE.rally.fastest, TUNE.rally.serve * Math.pow(TUNE.rally.speedUp, rl.count));
+            p.friendly = false; p.vu = (bull.u - p.u) / dur; p.vz = (bull.bz - p.z) / dur; p.vh = (.12 - p.h) / dur;
+            Snd.play('volley', rl.count); popText('RALLY x' + rl.count, 120, BACK.y0 - 2, '#ffd44a');
+            continue;
+          }
           p.dead = true;
-          if (R.boss.st === 'fight') { const dmg = p.kind === 'bundle' ? TUNE.bundleDmg : TUNE.stapleDmg; bossDamage(dmg); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), '#ffd44a'); }
+          if (p.rally && rl && b.st === 'fight') {
+            // it misses: a smash, and the Shredder reels
+            const dmg = TUNE.rally.smash + TUNE.rally.smashPer * rl.count;
+            b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
+            bossDamage(dmg); Snd.play('smash');
+            popText('SMASH! -' + dmg, 120, BACK.y0 - 2, '#ffd44a'); live('Smash! The Shredder misses the return.');
+            for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: rr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: rr(-40, 40), vy: rr(-70, -20), t: 0, dur: rr(.6, 1.1) });
+          } else if (b.st === 'fight') { const dmg = p.kind === 'bundle' ? TUNE.bundleDmg : TUNE.stapleDmg; bossDamage(dmg); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), '#ffd44a'); }
           poof(p.u, .97, p.h);
         }
         continue;
       }
       if (Math.abs(p.z - bull.bz) < .045 && Math.abs(p.u - bull.u) < .1 + p.w && overlaps(p.h, p.hh)) {
-        if (hurtBull(1)) { p.dead = true; poof(p.u, p.z, p.h); continue; }
+        if (hurtBull(1)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) R.boss.rally = null; continue; }
       }
-      if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) p.dead = true;
+      if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) R.boss.rally = null; }
     }
     R.projs = R.projs.filter(p => !p.dead);
   }
@@ -417,7 +439,8 @@
       if (s.dead) continue;
       if (s.z >= .965) {
         s.dead = true;
-        if (R.boss.st === 'fight' && Math.abs(s.u) < .8) { bossDamage(TUNE.shotDmg * (R.boss.jam > 0 ? TUNE.jamMult : 1)); sparks(s.u, .96, s.h, R.boss.jam > 0 ? '#ffd44a' : '#fff6e2'); }
+        // in phase 3 it braces: half damage from the blaster unless it's jammed or reeling from a smash
+        if (R.boss.st === 'fight' && Math.abs(s.u) < .8) { bossDamage(TUNE.shotDmg * (R.boss.jam > 0 ? TUNE.jamMult : R.boss.ph === 3 ? .5 : 1)); sparks(s.u, .96, s.h, R.boss.jam > 0 ? '#ffd44a' : '#fff6e2'); }
         else poof(s.u, .97, s.h, 3);
       }
     }
@@ -450,7 +473,7 @@
     const P = R.pull;
     P.t += dt;
     const can = (R.phase === 'hall' && beat().pulls && !R.event) ||
-      (R.phase === 'boss' && R.boss.st === 'fight' && R.boss.jam <= 0);
+      (R.phase === 'boss' && R.boss.st === 'fight' && R.boss.jam <= 0 && !R.boss.rally);
     if (P.st === 'idle') {
       if (can && R.t >= P.next) { P.st = 'warn'; P.t = 0; Snd.play('warn'); }
     } else if (!can && P.st !== 'cut') {
@@ -493,6 +516,14 @@
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, dur, { w: .08, hh: .05 });
     b.spit = .25; Snd.play('spit');
   }
+  // Phase 3's rally: a gold bundle the Shredder keeps batting back, quicker each time, until it misses.
+  function serveRally() {
+    const b = R.boss;
+    b.rally = { count: 0, target: 3 + Math.floor(rnd() * 3) };
+    launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.rally.serve, { w: .09, hh: .06, rally: true });
+    b.spit = .25; Snd.play('spit');
+    if (!R.events.rallyHint) { R.events.rallyHint = true; talk('RETURN TO SENDER.', 'shredder'); R.banner = { text: 'RALLY!', sub: 'KEEP KNOCKING IT BACK', t: 0, dur: 2.4, pull: true }; live('Rally! Keep knocking the gold bundle back until the Shredder misses.'); }
+  }
   function spitFan() {
     const gap = Math.floor(rnd() * 5);
     [-.5, -.25, 0, .25, .5].forEach((o, i) => {
@@ -531,11 +562,12 @@
       if (rnd() < dt * 8) R.fx.push({ k: 'smoke', x: rr(BACK.x0 + 10, BACK.x1 - 10), y: BACK.y0 + 4, t: 0, dur: 1 });
       return;
     }
-    if (R.pull.st === 'warn' || (ph === 1 && R.pull.st === 'on')) return;
+    if (R.pull.st === 'warn' || (ph === 1 && R.pull.st === 'on') || b.rally) return;
     b.atk -= dt;
     if (b.atk <= 0) {
       if (ph === 1) { spitBundle(); b.atk = 2.3; }
-      else { if (b.atkN++ % 2) spitBundle(); else spitFan(); b.atk = ph === 2 ? 2.1 : 1.8; }
+      else if (ph === 2) { if (b.atkN++ % 2) spitBundle(); else spitFan(); b.atk = 2.1; }
+      else { if (b.atkN++ % 2) spitFan(); else serveRally(); b.atk = 1.8; }
     }
   }
   function defeat() {
@@ -608,7 +640,7 @@
     // hit-stop: a few frames' pause when something dies, so kills land
     if (R.freeze > 0) { R.freeze -= dt; return; }
     R.t += dt; R.phaseT += dt;
-    R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.spread = Math.max(0, R.spread - dt);
+    R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.chargeFlash = Math.max(0, (R.chargeFlash || 0) - dt); R.spread = Math.max(0, R.spread - dt);
     if (R.charge < TUNE.charges) { R.rechargeT += dt; while (R.rechargeT >= TUNE.recharge && R.charge < TUNE.charges) { R.rechargeT -= TUNE.recharge; R.charge++; } }
     else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt);
@@ -804,6 +836,7 @@
       rect(g, PX(p.u, p.z) - 5 * ks, FY(p.z) - 1, 10 * ks, Math.max(1, Math.round(2 * ks)), Math.floor(R.t * 8) % 2 ? '#d63428' : '#961e16');
       disc(g, x, y, Math.max(2, Math.round(Math.max(w, h) * .75)), Math.floor(R.t * 10 + p.spin) % 2 ? 'rgba(255,80,64,.55)' : 'rgba(255,150,40,.4)');
     } else shadow(p.u, p.z, img.width * .8);
+    if (p.rally) disc(g, x, y, Math.max(3, Math.round(Math.max(w, h) * .8)), Math.floor(R.t * 12) % 2 ? 'rgba(255,212,74,.7)' : 'rgba(255,240,170,.5)');
     g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
     if (p.friendly) { const k = Math.floor(p.spin) % 2; rect(g, x - w / 2 - 1 - k, y - 1, 1, 1, '#bfefff'); rect(g, x + w / 2 + k, y, 1, 1, '#bfefff'); }
   }
@@ -893,7 +926,7 @@
     // blaster charge under the hearts: blue when ready, red and blinking when empty, gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
-    rect(g, 4, 14, Math.round(49 * ch), 3, R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
+    rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
     if (dry && (R.empty > 0 || blink)) rect(g, 4, 14, 49, 3, '#d63428');
     if (R.spread > 0 && (R.spread > 2 || blink)) otxt(g, 'SPREAD', 4, 20, '#ffd44a');
     if (R.phase === 'hall') {
