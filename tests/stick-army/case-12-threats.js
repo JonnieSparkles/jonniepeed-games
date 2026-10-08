@@ -106,12 +106,12 @@
   // Downing a zeppelin earns a charge; the shop sells strikes once tanks are near.
   newGame(); S.wave = 5; var z = spawnZeppelin(); z.x = 200; var before = S.calls.bomber; z.hp = 1; damagePlane(z, 1, 'player', 200, z.y);
   check(S.calls.bomber === before + 1, 'a zeppelin earns an air strike');
-  newGame(); S.wave = 4; openShop();
-  check(!S.shop.items.some(function (it) { return it.id === 'strike'; }), 'no strikes for sale early');
+  newGame(); S.wave = 2; openShop();
+  check(!S.shop.items.some(function (it) { return it.id === 'strike'; }), 'no strikes for sale at first');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   newGame(); S.wave = 8; openShop(); var strike = S.shop.items.find(function (it) { return it.id === 'strike'; });
   S.coins = 100; var had = S.calls.bomber;
-  check(strike && takeItem('strike') && S.calls.bomber === had + 1, 'strikes for sale from wave 8');
+  check(strike && takeItem('strike') && S.calls.bomber === had + 1, 'strikes for sale later on');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 
   RUN.force = null; reset(); syncCallBtns(); render();

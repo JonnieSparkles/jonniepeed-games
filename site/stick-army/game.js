@@ -874,7 +874,7 @@
       r.x = r.tx;
       if (r.role === 'repair') {
         if (S.wallHP < S.mods.maxHP && S.mode === 'play') {
-          repairWall((r.type === 'engineer' ? 6 : 3) * (1 + RANK.WORK * (r.rank || 0)) * dt, 'crew');
+          repairWall((r.type === 'engineer' ? 6 : 3) * dt, 'crew');
           r.sparkT -= dt;
           if (r.sparkT <= 0) {
             r.sparkT = 0.42;
@@ -890,7 +890,7 @@
         var patient = wounded.filter(near).sort(function (a, b) { return a.downAt - b.downAt; })[0] ||
           live.filter(function (q) { return near(q) && q.hp < crewMax(q); }).sort(function (a, b) { return a.hp - b.hp; })[0];
         if (patient && r.cd <= 0) {
-          patient.hp = Math.min(crewMax(patient), patient.hp + 0.45 * (1 + RANK.WORK * (r.rank || 0))); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20);
+          patient.hp = Math.min(crewMax(patient), patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20);
           if (patient.down && patient.hp >= 1) standUp(patient, 'medic');
         }
       } else if (r.role === 'shoot') {

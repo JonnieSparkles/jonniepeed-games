@@ -17,7 +17,7 @@
   var coins = S.coins; grantCall('bomber', 200, 300);
   check(S.calls.bomber === 1 && S.coins === coins + RADIO.FULL_TAGS, 'a full radio turns a free call into tags');
 
-  // Fighter cover: two passes at different heights that gun down planes and bombs, ignoring the ground.
+  // Fighter cover: one fast pass across the sky that guns down planes and bombs, ignoring the ground.
   quiet(); S.calls = { bomber: 0, fighter: 1 };
   var planes = [makePlane('plane', 1, 140, 150), makePlane('bomber', -1, 260, 230), makePlane('plane', -1, 330, 160)];
   planes.forEach(function (p) { p.speed = 0; p.drops = []; p.kits = []; p.bombRun = []; S.planes.push(p); });
@@ -26,7 +26,7 @@
   check(callFighter() && S.calls.fighter === 0 && S.fighter && !callFighter(), 'a fighter uses a call, and one flies at a time');
   var passes = {};
   for (var i = 0; i < 60 * 8 && S.fighter; i++) { passes[S.fighter.y] = true; update(1 / 60); S.bombs.forEach(function (m) { if (m === bomb) { m.vy = 0; } }); }
-  check(!S.fighter && Object.keys(passes).length === 2, 'it makes two passes and leaves');
+  check(!S.fighter && Object.keys(passes).length === FIGHTER.PASSES.length, 'it makes its pass and leaves');
   check(planes.every(function (p) { return p.state !== 'fly'; }), 'it shoots down the planes in its path');
   check(bomb.dead, 'and the bombs');
   check(!walker.dead, 'it leaves the ground to the crew and the bomber');
@@ -42,12 +42,12 @@
   syncCallBtns(); check(fighterBtn.hidden, 'the button goes once the call is used');
   S.fighter = null;
 
-  // The shop sells fighter cover from wave 3 and air strikes before the first tanks, while the radio has room.
+  // The shop sells both calls from wave 3, while the radio has room.
   newGame(); S.wave = 2; openShop();
   check(!S.shop.items.some(function (it) { return it.id === 'fighter'; }), 'no fighters for sale at first');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   newGame(); S.wave = 3; S.coins = 500; openShop();
-  check(S.shop.items.some(function (it) { return it.id === 'fighter'; }) && !S.shop.items.some(function (it) { return it.id === 'strike'; }), 'fighter cover from wave 3');
+  check(S.shop.items.some(function (it) { return it.id === 'fighter'; }) && S.shop.items.some(function (it) { return it.id === 'strike'; }), 'both calls for sale from wave 3');
   check(takeItem('fighter') && S.calls.fighter === 1, 'buying fighter cover puts it on the radio');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   newGame(); S.wave = 9; S.coins = 500; S.calls = { bomber: 1, fighter: 1 }; openShop();

@@ -109,14 +109,22 @@ window.__balanceBot = function (profile, seed) {
 
   // Shop: one readable function. The gift first, a rifleman if the squad is down to one or none, the top of the
   // supply list, then hiring, then the rest of the supplies within the budget, and pizza last when the wall is low.
-  var PRIORITY = ['strike', 'fighter', 'spread', 'double', 'tramp', 'fire', 'rockets', 'auto', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
+  var PRIORITY = ['strike', 'spread', 'double', 'fighter', 'tramp', 'fire', 'rockets', 'auto', 'hospital', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
     'mines', 'catcher', 'mat', 'aim', 'sandbags', 'wire', 'repair'];
   function shop(o) {
     var sh = o.shop, take = [];
     if (shopped === o.wave) return { continue: true };
     shopped = o.wave;
     var coins = o.coins, wallLow = o.wall < o.maxWall * 0.45, cushion = profile.shop === 'save' ? 40 : 0;
-    function buy(it) { if (it && it.can && it.cost <= coins) { take.push(it.id); coins -= it.cost; return true; } return false; }
+    // Calls compete with upgrades: early on keep one in hand, and fill the radio once tanks are near. A field hospital
+    // waits until there's a squad worth saving.
+    var held = o.calls.bomber + o.calls.fighter, callCap = o.wave >= 8 ? 2 : 1;
+    function isCall(it) { return it.id === 'strike' || it.id === 'fighter'; }
+    function wanted(it) { return isCall(it) ? held < callCap : it.id === 'hospital' ? o.recruits.length >= 4 : true; }
+    function buy(it) {
+      if (!it || !it.can || it.cost > coins || !wanted(it)) return false;
+      take.push(it.id); coins -= it.cost; if (isCall(it)) held++; return true;
+    }
     var items = sh.items.filter(function (it) { return it.can || it.cost > coins; });
     var gift = items.find(function (it) { return it.gift; });
     buy(gift);
@@ -130,7 +138,6 @@ window.__balanceBot = function (profile, seed) {
     var pizza = items.find(function (it) { return it.id === 'pizza'; });
     var wantPizza = pizza && pizza.can && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
     if (wantPizza) coins -= pizza.cost;
-    // The radio caps calls, so a call that can be bought always has room.
     var rest = items.filter(function (it) { return it !== gift && it.id !== 'pizza'; }), later = [];
     if (profile.shop === 'random') {
       if (rest.length && rnd() < 0.5) buy(rest[Math.floor(rnd() * rest.length)]);

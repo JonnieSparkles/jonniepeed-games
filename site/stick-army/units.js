@@ -306,13 +306,13 @@ var StickArmyUnits = function (w) {
 
   // ---------- radio calls ----------
   // The player's specials. A bomber run lays a carpet of bombs on the field, sparing the bunker and the crew: it kills
-  // troopers on and near the ground and hits tanks hard. Fighter cover makes two fast passes through the sky, gunning
+  // troopers on and near the ground and hits tanks hard. Fighter cover makes one fast pass through the sky, gunning
   // down planes and bombs. The radio holds RADIO.SLOTS calls of either kind. A run starts with none; HQ sends a
   // bomber with the first tanks, each zeppelin downed earns one, and the shop sells both.
   var RADIO = { SLOTS: 2, FULL_TAGS: 40 };
   // Called planes are sketched in at the left edge of the page (HOLD seconds), then fly.
   var STRIKE = { SPEED: 230, Y: 92, BOMBS: 11, FALL: 520, START: 56, HOLD: 0.45 };
-  var FIGHTER = { SPEED: 300, PASSES: [150, 235], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35 };
+  var FIGHTER = { SPEED: 300, PASSES: [190], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
   // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead.

@@ -31,7 +31,7 @@ var StickArmyShop = function (w) {
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'A bomber carpets the field and hits tanks hard. Press B or the bomber button.', tier: 'supply', cost: 45, maxStacks: Infinity,
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },
-    { id: 'fighter', name: 'Fighter cover', desc: 'A fighter makes two passes, gunning down planes and bombs. Press C or the fighter button.', tier: 'supply', cost: 50, maxStacks: Infinity,
+    { id: 'fighter', name: 'Fighter cover', desc: 'A fighter sweeps the sky once, gunning down planes and bombs. Press C or the fighter button.', tier: 'supply', cost: 50, maxStacks: Infinity,
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.fighter++; } },
     { id: 'pizza', name: 'Order a pizza', desc: 'Arrives as the next wave starts: +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function (s) { s.pizzaOrder = true; } }
   ];
@@ -63,11 +63,10 @@ var StickArmyShop = function (w) {
   function openShop() {
     var S = w.S;
     S.mode = 'shop'; S.waveState = 'shop'; w.clearInput(); S.bullets = []; S.banner = null; S.delivery = null; w.washDecals();
-    // Three rotating supplies from one pool (one of them free), fighter cover from wave 3, air strikes once tanks
-    // are near, pizza always,
+    // Three rotating supplies from one pool (one of them free), both radio calls from wave 3, pizza always,
     // and every role for hire.
     var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gift = Math.floor(w.RS() * Math.max(1, items.length));
-    var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.TANK.WAVE - 1) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
+    var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
       gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
     w.emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });

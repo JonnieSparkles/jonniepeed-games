@@ -9,14 +9,14 @@ var StickArmySquad = function (w) {
 
   // ---------- names and ranks ----------
   // Rookies are nameless. Standing at the end of a wave counts as a wave served; enough waves earn a name and a
-  // stripe, then more stripes. Each stripe adds health, a quicker trigger and faster repairs or healing.
+  // stripe, then more stripes. Each stripe adds a little health and a quicker trigger.
   var RANKS = [
     { waves: 0, short: '', title: 'rookie' },
     { waves: 3, short: 'Pfc.', title: 'Private First Class' },
     { waves: 6, short: 'Cpl.', title: 'Corporal' },
     { waves: 10, short: 'Sgt.', title: 'Sergeant' }
   ];
-  var RANK = { HP: 0.6, FIRE: 0.88, WORK: 0.15 };
+  var RANK = { HP: 0.5, FIRE: 0.92 };
   var NAMES = ['Doodle', 'Squiggle', 'Scribbles', 'Inky', 'Smudge', 'Sketch', 'Nib', 'Graphite', 'Crayon', 'Margins',
     'Stubby', 'Pip', 'Biro', 'Quill', 'Tally', 'Dash', 'Dot', 'Scrawl', 'Loopy', 'Zigzag', 'Chalky', 'Noodle', 'Blot',
     'Jot', 'Hatch', 'Swoosh', 'Twig', 'Pencils', 'Lefty', 'Ruler'];
