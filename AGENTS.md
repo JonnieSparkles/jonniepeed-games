@@ -6,7 +6,8 @@ Follow the **Standards** section in README.md on every change. In short:
 - Every page sets `*{touch-action:manipulation}` so quick taps don't zoom on iPhones.
 - After any change in `site/`: run `python3 tools/stamp.py`.
 - New or changed game art: run `python3 tools/og/make.py`.
-- No backward compatibility: delete old paths, no redirects.
+- No backward compatibility for pages and paths: delete old paths, no redirects. Shared code and the scores API are the exceptions.
+- Shared code in `site/` (anything more than one page loads, like `site/assets/leaderboard.js`) stays backward compatible: add, don't rename or remove, and don't change what an existing call does unless the same change updates every page that uses it. Check every page that loads it; games with harnesses must still pass them.
 - Before adding scores to a game, or changing scoring, `BOARD` or `scores/games.json`, read `docs/guides/00-leaderboards.md`.
 - Scoring or ranking changes bump the board; deploy the Worker first.
 - Every board bump updates the game's What's new note, or adds one: the latest change only, in a few short lines. See "What's new notes" in `docs/guides/00-leaderboards.md`.
