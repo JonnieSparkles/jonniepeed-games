@@ -42,7 +42,7 @@ Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 Five inputs, the same on every floor, laid out like an old game pad:
 
 - **Move** left and right and **jump** on a D-pad (the up arrow jumps). Keys: A/D or the arrows, W, Up or Space.
-- **Shoot** (hold to keep firing). Keys: J or Z.
+- **Shoot** (hold to keep firing). Keys: J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
 - **Slash** (K, X or Enter). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 
 M toggles sound, F full screen, P or Escape pause.
@@ -59,6 +59,9 @@ A corridor floor of about two minutes, then the Shredder.
   - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap, a snake).
   - **Lights out**: only monitors, eyes and blaster bolts show.
   - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
+  - Rows that span the aisle (office chairs, a paper jam's sheet) give jumping a job.
+  - Pickups float at jump height: coffee (a heart back) and the Spread Shot.
+  - Each beat has its own music, with stings for the events.
   - Paper blows down the corridor the whole time.
 - **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, or slash while standing on it to cut the rug and stop it. The first pull shows a prompt.
 - **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner.
@@ -77,7 +80,7 @@ A corridor floor of about two minutes, then the Shredder.
 
 `audio.js` with the usual small API (`init`, `play`, `muted`, plus `music(name)` and `say(text)` for blip talk).
 
-- **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. Floor 13 plays "RugCo Tower".
+- **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. Floor 13 changes tune by section: "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room, and a heavier version for the Shredder.
 - **Blip talk:** everyone except Unruggabull and p(Loom) talks in blips while their line types out.
 - **Unruggabull's voice:** Jonnie's recordings, crushed to 8-bit, shipped as small data in the code rather than audio files. Until lines are recorded, he talks in blips too.
 - **p(Loom)'s voice** (roof stage): the only synth voice. SAM was used for the storyboard but has no license, so the options are a small formant synth of our own, pre-rendered SAM shipped as crushed audio, or sam-js as is. Decide when the roof is built.

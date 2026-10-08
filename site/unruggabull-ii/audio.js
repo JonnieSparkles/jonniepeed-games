@@ -179,6 +179,33 @@ window.UnrugSound = (function () {
       bass: { wave: 'triangle', vol: .3, gate: .8, pat: 'R R O R R R O R R R O R R O F O' },
       drums: { pat: 'k.hhs.hhk.hhs.hh', fills: { 3: 'k.hhs.hhk.s.ssss', 7: 'k.hhs.hhk.s.ssss' }, crash: [0, 4] }
     }] },
+    // All Staff: Alley Redux, the first game's alley tune at full tilt.
+    staff: { sections: [{
+      bpm: 168, chords: ['Am', 'F', 'C', 'G', 'Am', 'F', 'C', 'G'],
+      lead: { wave: 'p50', vol: .1, gate: .9, vib: true, notes: 'A4 - - C5 - E5 - - A5 - - G5 - E5 - - | F5 - - E5 - C5 - - A4 - - C5 - F5 - - | G5 - - E5 - C5 - - G4 - - C5 - E5 - - | D5 - - B4 - G4 - - D5 - E5 - G5 - - - | A5 . A5 . G5 . E5 . A5 - - - C6 - B5 - | A5 . A5 . G5 . F5 . A5 - - - C6 - A5 - | G5 . G5 . E5 . C5 . G5 - - - E5 - G5 - | B5 - - - A5 - - - G5 - - - B5 - D6 -' },
+      leads: [{ wave: 'p25', vol: .045, gate: .9, vib: true, harm: -2 }],
+      scale: [9, 11, 0, 2, 4, 5, 7],
+      arp: { wave: 'p12', vol: .04, gate: .6, mode: 'up' },
+      bass: { wave: 'triangle', vol: .3, gate: .85, pat: 'R - R O R - R O R - R O F - O -' },
+      drums: { pat: 'k.h.s.h.k.k.s.hh', fills: { 7: 'k.h.s.h.k.k.ssss' }, crash: [0, 4] }
+    }] },
+    // Lights out: just a bass line, a far-off arpeggio and a heartbeat.
+    dark: { sections: [{
+      bpm: 96, chords: ['Em', 'Em', 'C', 'B'],
+      arp: { wave: 'p12', vol: .018, gate: .3, mode: 'up' },
+      bass: { wave: 'triangle', vol: .3, gate: .5, pat: 'R . . . . . . . R . . . . . F .' },
+      drums: { pat: 'k..k............' }
+    }] },
+    // Copy Room: the tower tune three steps up and faster, with the saw chugging under it.
+    copy: { sections: [{
+      bpm: 164, transpose: 3, scale: E_MINOR, chords: ['Em', 'C', 'D', 'Em', 'Em', 'C', 'D', 'B'],
+      lead: { wave: 'p25', vol: .1, gate: .9, vib: true, notes: TOWER_LEAD },
+      leads: [{ wave: 'p12', vol: .04, gate: .9, shift: -12 }],
+      riff: { wave: 'sawtooth', vol: .028, gate: .9, drive: true, pats: ['M . . M . . M . M . . M . M M .'] },
+      arp: { wave: 'p12', vol: .03, gate: .5, mode: 'updown' },
+      bass: { wave: 'triangle', vol: .3, gate: .8, pat: 'R R O R R R O R R R O R R O F O' },
+      drums: { pat: 'k.hhs.hkk.hhs.hh', fills: { 3: 'k.hhs.hhk.s.ssss', 7: 'k.s.s.s.ssssssss' }, crash: [0, 4] }
+    }] },
     // The Shredder: the tower tune a half step up, faster, with a chugging saw and heavy drums.
     shred: { sections: [{
       bpm: 168, transpose: 1, scale: E_MINOR, chords: ['Em', 'C', 'D', 'Em', 'Em', 'C', 'D', 'B'],
@@ -268,13 +295,18 @@ window.UnrugSound = (function () {
 
   // ---------- sound effects ----------
   const SFX = {
-    shot: t => osc(sfxBus, 'p25', 1250, t, .05, .035, { to: 700 }),
+    // a layered zap with a little random pitch, so steady fire doesn't drone; Spread Shot adds a lower buzz
+    shot: (t, spread) => { const f = 1150 + Math.random() * 260; osc(sfxBus, 'p25', f, t, .07, .05, { to: f * .45 }); noiseHit(sfxBus, t, .035, .07, 'highpass', 5000); if (spread) osc(sfxBus, 'sawtooth', f * .5, t, .06, .025, { to: f * .25 }); },
+    empty: t => { osc(sfxBus, 'square', 90, t, .03, .06); noiseHit(sfxBus, t, .02, .12, 'bandpass', 2500, 6); },
+    coffee: t => { [60, 64, 67].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12), t + i * .06, .08, .12)); osc(sfxBus, 'p50', hz(84), t + .2, .25, .07, { vib: true }); },
+    power: t => { for (let i = 0; i < 8; i++) osc(sfxBus, 'p25', hz(64 + i * 3), t + i * .035, .06, .07); osc(sfxBus, 'p50', hz(88), t + .3, .3, .07, { vib: true }); },
+    audit: t => { for (let i = 0; i < 4; i++) osc(sfxBus, 'p50', i % 2 ? 660 : 880, t + i * .16, .14, .09, { sustain: .9 }); for (let i = 0; i < 10; i++) noiseHit(sfxBus, t + .64 + i * .04, .05, .25, 'bandpass', 1600, .8); },
     jump: t => osc(sfxBus, 'p25', 320, t, .12, .08, { to: 760 }),
     slash: t => { noiseHit(sfxBus, t, .13, .32, 'bandpass', 4200, 1.2, 1100); osc(sfxBus, 'p12', 1600, t, .06, .04, { to: 900 }); },
     deflect: t => { osc(sfxBus, 'p50', 1480, t, .05, .09); osc(sfxBus, 'p50', 2220, t + .045, .09, .08, { sustain: .4 }); },
     hit: t => { noiseHit(sfxBus, t, .08, .3, 'lowpass', 1800); osc(sfxBus, 'square', 230, t, .08, .07, { to: 110 }); },
     poof: t => noiseHit(sfxBus, t, .07, .18, 'highpass', 3000),
-    soul: t => { [76, 80, 83, 88].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12), t + i * .045, .09, .12, { sustain: .5 })); },
+    soul: (t, n) => { const up = Math.min(12, n || 0); [76, 80, 83, 88].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12 + up), t + i * .045, .09, .12, { sustain: .5 })); },
     hurt: t => { osc(sfxBus, 'square', 170, t, .26, .12, { to: 55 }); noiseHit(sfxBus, t, .18, .3, 'lowpass', 900); },
     warn: t => { for (let i = 0; i < 6; i++) noiseHit(sfxBus, t + i * .11, .03, .3, 'bandpass', 2600, 5); osc(sfxBus, 'p50', 220, t, .5, .05, { to: 330 }); },
     pull: t => { osc(sfxBus, 'sawtooth', 62, t, .5, .1, { to: 70, sustain: .9 }); noiseHit(sfxBus, t, .5, .14, 'bandpass', 500, 2); },
@@ -298,8 +330,8 @@ window.UnrugSound = (function () {
     onready: null,
     get ready() { return !!ctx && ctx.state === 'running'; },
     get muted() { return muted; },
-    play(name) { if (!ctx || ctx.state !== 'running' || !SFX[name]) return; SFX[name](ctx.currentTime + .005); },
-    // Switch the music: 'theme', 'tower', 'shred' or null for silence. Remembered until sound can start.
+    play(name, arg) { if (!ctx || ctx.state !== 'running' || !SFX[name]) return; SFX[name](ctx.currentTime + .005, arg); },
+    // Switch the music: 'theme', 'tower', 'staff', 'dark', 'copy', 'shred' or null. Remembered until sound can start.
     music(id) {
       id = id || null;
       if (id === want && (P.id === id || !ctx)) return;
