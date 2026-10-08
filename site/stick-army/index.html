@@ -165,6 +165,13 @@ body {
 #shopReport { margin: 0; font-size: 17px; }
 #shopNews { margin: 2px 0 0; font-size: 17px; color: var(--ally); }
 .squad-line { margin: 4px 0 0; font-size: 18px; color: var(--ink-soft); }
+/* The victory card: the roll call of who made it, top gun starred. Scrolls on short screens. */
+.win-card { max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+.win-card h2 { font-size: 40px; }
+.won-line { color: var(--ally); }
+.roll-title { margin: 2px 0 -6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
+.roll { margin: 0; padding: 0 0 0 18px; font-size: 18px; line-height: 1.25; }
+.roll b { color: var(--ally); font-weight: 400; white-space: nowrap; }
 #continueBtn { flex-shrink: 0; white-space: nowrap; padding-inline: 16px; }
 .shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 @media (max-width: 380px) { .shop-card { padding: 16px; } .deal { padding: 5px 8px; } .deal strong { font-size: 18px; } }
@@ -251,6 +258,7 @@ body {
           <button class="btn" id="startBtn" type="button">Start</button>
           <p class="keys">Mouse or touch. On a keyboard, arrows aim, space fires, B calls an air strike, C calls fighter cover, P pauses and F toggles full screen.</p>
           <p class="keys" id="bestLine" hidden></p>
+          <p class="keys won-line" id="winLine" hidden></p>
         </div>
       </div>
 
@@ -272,6 +280,7 @@ body {
         <div class="card">
           <h2>Wall down!</h2>
           <p class="tag" id="overCause" hidden></p>
+          <p class="tag won-line" id="overWon" hidden></p>
           <p class="big-score" id="overScore">0</p>
           <p class="flag" id="newBest" hidden>New best!</p>
           <dl class="stats">
@@ -289,15 +298,40 @@ body {
           <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
+
+      <div class="overlay" id="winScreen" hidden>
+        <div class="card win-card">
+          <h2>The page is <span class="pen">yours!</span></h2>
+          <p class="tag">The Dreadnought is down and the enemy has surrendered.</p>
+          <p class="big-score" id="winScore">0</p>
+          <p class="flag" id="winBest" hidden>New best!</p>
+          <dl class="stats">
+            <dt>Time played</dt><dd id="winTime">0:00</dd>
+            <dt>Planes downed</dt><dd id="winPlanes">0</dd>
+            <dt>Zeppelins downed</dt><dd id="winZeps">0</dd>
+            <dt>Tanks destroyed</dt><dd id="winTanks">0</dd>
+          </dl>
+          <h3 class="roll-title">Roll call</h3>
+          <ul class="roll" id="winRoll"></ul>
+          <p class="squad-line" id="winFallen" hidden></p>
+          <p class="keys" id="winCount"></p>
+          <div class="row">
+            <button class="btn" id="keepBtn" type="button">Keep going</button>
+            <button class="btn ghost" id="winAgainBtn" type="button">Play again</button>
+          </div>
+          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<script src="audio.js?v=7b782380a2"></script>
+<script src="audio.js?v=89304908cb"></script>
 <script src="icons.js?v=9c4217883a"></script>
-<script src="units.js?v=097f28186f"></script>
+<script src="units.js?v=18c7615c85"></script>
 <script src="squad.js?v=f32806af90"></script>
+<script src="campaign.js?v=1c5a705ede"></script>
 <script src="shop.js?v=b80daf3fc2"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=6c92fd007b"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=2a5e4dd89e"></script>
 </body>
 </html>

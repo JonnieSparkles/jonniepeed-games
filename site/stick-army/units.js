@@ -409,8 +409,9 @@ var StickArmyUnits = function (w) {
       });
     }
     consider(S.bombs, function (m) { return !m.dead && m.y < GROUND - 70; }, 0);
-    consider(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin'; }, 40);
+    consider(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread'; }, 40);
     consider(S.planes, function (p) { return p.state === 'fly' && p.kind === 'zeppelin'; }, 200);
+    consider(w.dreadTargets ? w.dreadTargets() : [], function () { return true; }, 100);
     return best;
   }
   function updateFighter(dt) {
@@ -424,7 +425,7 @@ var StickArmyUnits = function (w) {
     f.trail.push({ x: f.x - f.dir * 26, y: fy + 1 }); if (f.trail.length > 14) f.trail.shift();
     var tg = f.cd <= 0 && fighterTarget(f);
     if (tg) {
-      var vx = tg.isBomb ? tg.vx : tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.dir * tg.speed, vy = tg.isBomb ? tg.vy : 0;
+      var vx = tg.isBomb ? tg.vx : tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.kind === 'dreadpart' ? tg.vx : tg.dir * tg.speed, vy = tg.isBomb ? tg.vy : 0;
       var nx = f.x + f.dir * 30, tt = Math.hypot(tg.x - nx, tg.y - fy) / FIGHTER.BULLET;
       var a = Math.atan2(tg.y + vy * tt - fy, tg.x + vx * tt - nx) + (w.RC() * 2 - 1) * 0.02;
       S.bullets.push({ x: nx, y: fy, vx: Math.cos(a) * FIGHTER.BULLET, vy: Math.sin(a) * FIGHTER.BULLET, owner: 'ally', kind: 'bullet', tracer: true, pierce: 1, hits: [], life: 0.7, dead: false });

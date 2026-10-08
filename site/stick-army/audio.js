@@ -81,6 +81,18 @@ var StickArmySound = (function () {
     horn: function () { brass(98, 0.8, 0.09); brass(73.4, 1.2, 0.09, 0.7); },
     thup: function () { noise(0.05, 0.1, 900); tone(210, 0.06, 'sine', 0.07, 120); },
     zepdown: function () { tone(150, 1.8, 'sawtooth', 0.05, 40); noise(1.4, 0.32, 380); tone(70, 1.2, 'sine', 0.25, 30, 0.2); },
+    // The Dreadnought: a deep rumble as it shows through the page, the paper tearing as it bursts through, a hissing
+    // flare on each target, the heavy gun, and a klaxon when the bridge is exposed. Beating it plays a fanfare.
+    rumble: function () { noise(2.6, 0.22, 150); tone(42, 2.6, 'sine', 0.22, 31); },
+    rip: function () { for (var i = 0; i < 10; i++) noise(0.06, 0.13, 3200 - i * 220, i * 0.035, 'bandpass'); noise(0.45, 0.12, 1200, 0.05, 'highpass'); },
+    flare: function () { noise(0.7, 0.07, 4200, 0, 'highpass'); tone(900, 0.45, 'sine', 0.025, 1500); },
+    broadside: function () { noise(0.7, 0.5, 280); tone(56, 0.7, 'sine', 0.38, 28); noise(0.1, 0.25, 2200); },
+    klaxon: function () { [0, 0.32, 0.64, 0.96].forEach(function (d, i) { tone(i % 2 ? 350 : 440, 0.28, 'square', 0.045, null, d); }); },
+    victory: function () {
+      [523, 659, 784, 1047].forEach(function (f, i) { brass(f, i === 3 ? 0.5 : 0.15, 0.08, i * 0.17); });
+      brass(880, 0.15, 0.07, 1.05); brass(988, 0.15, 0.07, 1.2); brass(1047, 1.1, 0.08, 1.35);
+      [523, 659, 784].forEach(function (f) { brass(f, 1.1, 0.045, 1.35); });
+    },
     over: function () { tone(392, 0.2, 'triangle', 0.15); tone(330, 0.2, 'triangle', 0.15, null, 0.2); tone(262, 0.45, 'triangle', 0.15, null, 0.4); }
   };
   function sfx(name) {
@@ -138,6 +150,32 @@ var StickArmySound = (function () {
     o.connect(g); g.connect(amb.drums); o.start(t); o.stop(t + dur + 0.03);
   }
   function heart(t) { drum(t, 62, 52, 0.14, 0.2); drum(t + 0.22, 54, 46, 0.16, 0.15); }
+  // A brass note at time t on the ambience bus: sawtooth through a lowpass that opens as it swells.
+  function brassAt(t, f, dur, vol) {
+    var o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t);
+    fl.type = 'lowpass'; fl.frequency.setValueAtTime(f * 4, t); fl.frequency.linearRampToValueAtTime(f * 9, t + 0.08);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.04); g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(fl); fl.connect(g); g.connect(amb.drums); o.start(t); o.stop(t + dur + 0.03);
+  }
+  function timp(t, f, vol) { drum(t, f * 1.06, f, 0.9, vol); drum(t, f * 2.02, f * 2, 0.35, vol * 0.25); }
+
+  // The Dreadnought's march, original to this game: a minor-key low brass figure over two bars, timpani on the
+  // downbeats, a horn call every fourth bar, and snares. Once the bridge is exposed it speeds up, the horn calls
+  // come every other bar and the snares fill in. Steps are sixteenths; notes are [step, Hz, length in steps].
+  var D2 = 73.42, E2 = 82.41, F2 = 87.31, G2 = 98, A1 = 55, CS2 = 69.3, A3 = 220, CS4 = 277.18, D4 = 293.66, E4 = 329.63, F4 = 349.23;
+  var DREAD_BASS = [[[0, D2, 3], [3, D2, 3], [6, F2, 2], [8, E2, 3], [11, D2, 3], [14, A1, 2]],
+    [[0, D2, 3], [3, D2, 3], [6, G2, 2], [8, F2, 3], [11, E2, 2], [13, CS2, 3]]];
+  var DREAD_CALL = [[[0, A3, 6], [6, D4, 2], [8, F4, 4], [12, E4, 4]], [[0, D4, 4], [4, CS4, 4], [8, A3, 8]]];
+  function dreadStep(i, bar, t, dt, bridge) {
+    DREAD_BASS[bar % 2].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, 0.05); });
+    var callBar = bridge ? bar % 2 : bar % 4 - 2;
+    if (callBar === 0 || callBar === 1) DREAD_CALL[callBar].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, 0.032); });
+    if (i === 0) timp(t, D2, 0.24); else if (i === 8) timp(t, A1, 0.2); else if (bridge && i === 12) timp(t, D2, 0.12);
+    if (i === 4 || i === 12) { snare(t - 0.02, 0.03); snare(t, 0.1); }
+    else if (bridge && i % 2 === 1) snare(t, 0.026);
+    if ((bridge || bar % 4 === 3) && i >= 13) { snare(t, 0.04 + (i - 13) * 0.02); snare(t + dt / 2, 0.035); }
+  }
 
   // One sixteenth of the march. Waves 1-3 keep a plain left-right step with a backbeat and a roll every
   // fourth bar; from wave 4 ghost notes and a roll every other bar; from wave 9 a pickup kick, steady
@@ -155,7 +193,8 @@ var StickArmySound = (function () {
     else if (tier === 1 && (i === 2 || i === 10)) snare(t, 0.03);
   }
 
-  // state: { active, planes: [{ x, dir, kind }], wave (true while a wave is running), number (the wave), wallLow }
+  // state: { active, planes: [{ x, dir, kind }], wave (true while a wave is running), number (the wave), wallLow,
+  //   dread (the Dreadnought's phase, or null) }
   function ambience(state) {
     if (!AC) return;
     ambInit();
@@ -167,7 +206,7 @@ var StickArmySound = (function () {
       var p = planes[i];
       if (!on || !p) { v.g.gain.setTargetAtTime(0, now, 0.25); return; }
       // Slightly higher pitch while approaching the middle, lower while leaving.
-      var zep = p.kind === 'zeppelin', base = zep ? 44 : p.kind === 'cargo' ? 50 : p.kind === 'bomber' ? 56 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
+      var zep = p.kind === 'zeppelin' || p.kind === 'dread', base = p.kind === 'dread' ? 34 : zep ? 44 : p.kind === 'cargo' ? 50 : p.kind === 'bomber' ? 56 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
       var near = 1 - Math.min(1, Math.abs(p.x - 200) / 260);
       v.o.frequency.setTargetAtTime(base * doppler, now, 0.25);
       v.o2.frequency.setTargetAtTime(base * doppler * 1.02, now, 0.25);
@@ -177,10 +216,13 @@ var StickArmySound = (function () {
     // The march is scheduled a little ahead of the clock. After a stall it restarts on a fresh bar.
     if (on && state.wave) {
       if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
-      var n = state.number || 1, bpm = Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
+      // The Dreadnought brings its own march once it's through the page.
+      var dreadOn = state.dread === 'guns' || state.dread === 'bridge', bridge = state.dread === 'bridge';
+      var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {
-        marchStep(amb.step, amb.bar, n, amb.nextStep, dt, !!state.wallLow, boss);
+        if (dreadOn) dreadStep(amb.step, amb.bar, amb.nextStep, dt, bridge);
+        else marchStep(amb.step, amb.bar, n, amb.nextStep, dt, !!state.wallLow, boss);
         amb.nextStep += dt;
         if (++amb.step === 16) { amb.step = 0; amb.bar++; }
       }

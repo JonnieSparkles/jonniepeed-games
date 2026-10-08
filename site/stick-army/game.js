@@ -240,8 +240,8 @@
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
-      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
-      hint: false, slotRes: {}
+      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0 },
+      hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false
     };
     resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
@@ -250,17 +250,18 @@
   }
 
   function waveCfg(n) {
-    var boss = n % BOSS_EVERY === 0;
+    var boss = n % BOSS_EVERY === 0, dreadWave = boss && isDreadWave(n);
     return {
-      // Boss waves trade the bombers and half the planes for a zeppelin.
-      planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (boss ? 0.5 : 1)),
+      // Boss waves trade the bombers and half the planes for a zeppelin. The Dreadnought (wave 20, then every tenth)
+      // brings a light escort and nothing on the ground, so the fight is with the ship.
+      planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (dreadWave ? 0.4 : boss ? 0.5 : 1)),
       bombers: !boss && n >= 2 ? (n <= 11 ? Math.min(5, n - 1) : n - 6) : 0,
-      boss: boss ? 1 : 0,
+      boss: boss ? 1 : 0, bossKind: dreadWave ? 'dread' : boss ? 'zeppelin' : null,
       // Rushers from wave 6 and tanks from wave 9 (units.js) add variety mid-run. From wave 12 bombers grow by one a
       // wave with no cap and planes come ever faster, so pressure keeps rising instead of flattening out.
-      rushes: n >= RUSH.WAVE ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 2)) : 0,
+      rushes: n >= RUSH.WAVE && !dreadWave ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 2)) : 0,
       rushSize: Math.min(6, 2 + Math.floor((n - RUSH.WAVE) / 3)),
-      cargo: n >= TANK.WAVE ? Math.min(4, 1 + Math.floor((n - TANK.WAVE) / 3)) : 0,
+      cargo: n >= TANK.WAVE && !dreadWave ? Math.min(4, 1 + Math.floor((n - TANK.WAVE) / 3)) : 0,
       bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
       armorChance: n >= ARMOR.WAVE ? Math.min(0.5, 0.08 + 0.03 * (n - ARMOR.WAVE)) : 0,
@@ -383,8 +384,8 @@
 
   function spawnPlane(kind) {
     var c = S.spawn.cfg, rnd = substream(RW), dir = rnd() < 0.5 ? 1 : -1;
-    // On boss waves the escort keeps to a high lane above the zeppelin.
-    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? between(rnd, 104, 128) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
+    // On boss waves the escort keeps to a high lane above the zeppelin, and to a low one under the Dreadnought.
+    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? between(rnd, 104, 128) : c.bossKind === 'dread' ? between(rnd, 244, 302) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
     p.rng = rnd;
     p.speed = kind === 'bomber' ? c.speed * 0.62 : c.speed * between(rnd, 0.85, 1.25);
     if (kind === 'plane') {
@@ -466,12 +467,14 @@
     var c = waveCfg(n);
     S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
     S.waveState = 'active';
-    var sub = c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
+    var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
       n === RUSH.WAVE ? 'troops rushing the flanks!' : '';
     // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters. The banner
     // says so, rather than a label of its own.
     if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
-    S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
+    // The Dreadnought needs no horn: it shows through the page first.
+    if (c.bossKind === 'dread') { S.spawn.bossT = DREAD.ARRIVE; S.spawn.bossWarned = true; }
+    S.banner = { s: n === DREAD.WAVE && !S.won ? 'final wave' : 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
@@ -500,7 +503,7 @@
         sp.bossT -= dt;
         // The horn and a red callout warn that the zeppelin is coming.
         if (!sp.bossWarned && sp.bossT <= ZEP.WARN) { sp.bossWarned = true; sound.play('horn'); addText('zeppelin incoming!', 200, ZEP.Y, RED); emit('zeppelin_warning', { wave: S.wave }); }
-        if (sp.bossT <= 0) { sp.boss--; spawnZeppelin(); }
+        if (sp.bossT <= 0) { sp.boss--; if (sp.cfg.bossKind === 'dread') spawnDread(); else spawnZeppelin(); }
       }
       if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14); } }
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15); } }
@@ -510,13 +513,14 @@
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave }); emit('coins', { amount: waveTags, reason: 'wave' });
         S.news = []; serveWave(S.news); careAtWaveEnd(S.news);
-        S.banner = { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
+        S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
+        if (victoryDue()) S.waveTimer = 3.2;
         S.hint = false;
         sound.play('wave');
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
-      if (S.waveTimer <= 0) openShop();
+      if (S.waveTimer <= 0) { if (victoryDue()) showWin(); else openShop(); }
     }
   }
 
@@ -561,6 +565,18 @@
   var SHOP = StickArmyShop(world), ITEMS = SHOP.ITEMS, price = SHOP.price, eligible = SHOP.eligible, OFFERS = SHOP.OFFERS, offer = SHOP.offer,
     onHouse = SHOP.onHouse, costNow = SHOP.costNow, openShop = SHOP.openShop, takeItem = SHOP.takeItem, renderShop = SHOP.renderShop,
     continueWave = SHOP.continueWave, kitItems = SHOP.kitItems, renderKit = SHOP.renderKit, updateDelivery = SHOP.updateDelivery, drawCourier = SHOP.drawCourier;
+  // The Dreadnought, the victory card and endless live in campaign.js.
+  world.HAND = HAND; world.DISPLAY = DISPLAY; world.TENT = SQUAD.TENT; world.SQUAD = SQUAD; world.load = load; world.save = save; world.clock = clock;
+  world.recruitDie = function (r, cause) { recruitDie(r, cause); }; world.hurtWall = hurtWall; world.wallText = function (n) { wallText(n); };
+  world.openShop = function () { openShop(); }; world.hidePause = function () { pauseBtn.hidden = true; };
+  world.saveBest = function () { if (S.score <= best) return false; best = S.score; save('stickarmy.best.3', best); return true; };
+  world.saveBestWave = function (n) { if (n > load('stickarmy.bestWave', 0)) save('stickarmy.bestWave', n); };
+  Object.defineProperty(world, 'SENTRY', { get: function () { return SENTRY; } });
+  var CAMPAIGN = StickArmyCampaign(world), DREAD = CAMPAIGN.DREAD, isDreadWave = CAMPAIGN.isDreadWave, spawnDread = CAMPAIGN.spawnDread,
+    dreadHit = CAMPAIGN.dreadHit, hurtDread = CAMPAIGN.hurtDread, updateDread = CAMPAIGN.updateDread, drawDread = CAMPAIGN.drawDread,
+    drawDreadBar = CAMPAIGN.drawDreadBar, dreadTargets = CAMPAIGN.dreadTargets, victoryDue = CAMPAIGN.victoryDue, showWin = CAMPAIGN.showWin,
+    keepGoing = CAMPAIGN.keepGoing, rollCall = CAMPAIGN.rollCall, recordLine = CAMPAIGN.recordLine;
+  world.dreadTargets = dreadTargets;
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
     G = g; boil = 0;
@@ -783,6 +799,7 @@
   function damagePlane(p, dmg, owner, hx, hy, direct) {
     if (p.state !== 'fly') return;
     if (p.kind === 'zeppelin') { hurtZeppelin(p, dmg, owner, hx, hy, direct); return; }
+    if (p.kind === 'dread') { hurtDread(p, dmg, owner, hx == null ? p.x : hx, hy == null ? p.y : hy, direct); return; }
     p.hp -= dmg; p.hitFlash = 0.15;
     burst(p.x, p.y, 4, INK, 120);
     if (p.hp <= 0) {
@@ -806,7 +823,7 @@
     if (HL.POW_KINDS[kind]) pow(x, y, r * 0.8 * HL.POW_KINDS[kind]);
     for (var i = 0; i < 7; i++) puff(x + rr(-r, r) * 0.4, y + rr(-r, r) * 0.3, rr(3, 7), rr(0.4, 0.7));
     burst(x, y, 10, INK, 220);
-    S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' ? 0.55 : kind === 'crash' || kind === 'wreck' ? 0.35 : kind === 'strike' || kind === 'shell' ? 0.25 : 0.15);
+    S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' || kind === 'broadside' ? 0.55 : kind === 'crash' || kind === 'wreck' ? 0.35 : kind === 'strike' || kind === 'shell' ? 0.25 : 0.15);
     if (y > GROUND - 30) addDecal({ kind: 'scorch', x: x, y: GROUND - 3, r: r * 0.55, color: INK, a: 0.2, seed: nextId++ });
     var col = kind === 'rocket' || kind === 'strike' ? BLUE : INK;
     // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
@@ -847,7 +864,7 @@
     for (i = 0; i < S.planes.length; i++) {
       p = S.planes[i];
       if (seen.indexOf(p.id) >= 0) continue;
-      if (p.state === 'fly' && planeHit(p, b.x, b.y, near)) {
+      if (p.state === 'fly' && (p.kind === 'dread' ? dreadHit(p, b.x, b.y, near) : planeHit(p, b.x, b.y, near))) {
         if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
         return;
       }
@@ -908,9 +925,12 @@
       if (d < 320 && d < bd) { bd = d; best = m; }
     });
     if (best) return best;
+    var parts = dreadTargets();
     if (r.type === 'bazooka') {
+      // Bazookas go for the Dreadnought's guns (the one aiming first), then other aircraft.
+      if (parts.length) return parts[0];
       S.planes.forEach(function (p) {
-        if (p.state !== 'fly' || p.x < 10 || p.x > W - 10) return;
+        if (p.state !== 'fly' || p.kind === 'dread' || p.x < 10 || p.x > W - 10) return;
         var d = Math.hypot(p.x - ox, p.y - oy);
         if (d < bd) { bd = d; best = p; }
       });
@@ -922,13 +942,15 @@
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
     if (best) return best;
-    // Nothing closer to deal with: everyone plinks at the zeppelin.
+    // Nothing closer to deal with: everyone plinks at the Dreadnought's guns or the zeppelin.
+    if (parts.length) return parts[0];
     return S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly' && zeppelinOnScreen(p); }) || null;
   }
   function aimPoint(r, tg) {
     var x, y, vx = 0, vy = 0, sp = r.type === 'bazooka' ? 300 : 520;
     if (tg.kind === 'plane' || tg.kind === 'bomber') { x = tg.x; y = tg.y; vx = tg.dir * tg.speed; }
     else if (tg.kind === 'zeppelin') { x = tg.x; y = tg.y; vx = tg.face * tg.speed; }
+    else if (tg.kind === 'dreadpart') { x = tg.x; y = tg.y; vx = tg.vx; }
     else if (tg.tread !== undefined) { x = tg.x; y = tg.y - 2; vx = 0; }
     else if (tg.isBomb) { x = tg.x; y = tg.y; vx = tg.vx; vy = tg.vy; }
     else if (tg.state === 'ground') { x = tg.x; y = tg.y + 14; vx = (tg.type === 'sniper' || tg.atWall || tg.attacking) ? 0 : tg.dir * 22 * (S.mods.wire ? 0.5 : 1); }
@@ -1011,6 +1033,7 @@
     for (var i = S.planes.length - 1; i >= 0; i--) {
       var p = S.planes[i];
       if (p.kind === 'zeppelin') { updateZeppelin(p, dt); if (p.gone) S.planes.splice(i, 1); continue; }
+      if (p.kind === 'dread') { updateDread(p, dt); if (p.gone) S.planes.splice(i, 1); continue; }
       p.hitFlash = Math.max(0, p.hitFlash - dt);
       if (p.state === 'fly') {
         p.x += p.dir * p.speed * dt;
@@ -1203,6 +1226,8 @@
         q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= (1 - dt); q.vy = Math.min(60, q.vy + 80 * dt); q.rot += q.vr * dt;
       } else if (q.k === 'puff') {
         q.r += q.vr * dt; q.y -= 10 * dt;
+      } else if (q.k === 'scrap') {
+        q.vy += 140 * dt; q.vx *= (1 - dt); q.x += q.vx * dt; q.y += q.vy * dt; q.rot += q.vr * dt;
       }
     });
     S.parts = S.parts.filter(function (q) { return q.life > 0; });
@@ -1223,7 +1248,7 @@
       nearest(S.troopers, function (t) { return !t.dead && t.state === 'chute' && t.open >= 1 && t.y > SENTRY.low; }) ||
       nearest(S.troopers, function (t) { return !t.dead && t.state === 'ground'; }) ||
       nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute'; }) ||
-      nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.x > 10 && p.x < W - 10; });
+      nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.x > 10 && p.x < W - 10; });
   }
   function updateAutoTurret(dt) {
     if (!S.mods.auto || S.mode !== 'play') return;
@@ -1619,7 +1644,17 @@
       } else if (q.k === 'deflate') { G.beginPath(); SP([q.x - 14, q.y, q.x - 8, q.y - 6, q.x - 2, q.y - 2, q.x + 4, q.y - 7, q.x + 10, q.y - 2, q.x + 15, q.y], false, 0.5); G.fillStyle = RED_FILL; G.fill(); ink(RED, 1.8); G.stroke(); }
       else if (q.k === 'tink') { G.beginPath(); L(q.x, q.y, q.x + 6, q.y - 5, 0.4); L(q.x, q.y, q.x + 7, q.y + 2, 0.4); L(q.x, q.y, q.x - 6, q.y - 6, 0.4); L(q.x, q.y, q.x - 5, q.y + 3, 0.4); ink(q.c === HAT ? '#d29a00' : q.c, 2); G.stroke(); }
       else if (q.k === 'ring') { G.beginPath(); Ci(q.x, q.y, 8 + (1 - a) * 24, 0.6); ink(BLUE, 2.4); G.stroke(); }
-      else if (q.k === 'pow') {
+      else if (q.k === 'scrap') {
+        // A scrap of torn paper.
+        G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.moveTo(-q.s, -q.s * 0.6); G.lineTo(q.s, -q.s * 0.3); G.lineTo(q.s * 0.2, q.s * 0.7); G.closePath();
+        G.fillStyle = PAPER; G.fill(); ink(INK2, 1.1); G.stroke();
+      } else if (q.k === 'flag') {
+        // A white flag: surrender.
+        var up = (1 - a) * 14; G.globalAlpha = Math.min(1, a * 2);
+        G.beginPath(); L(q.x, q.y - up, q.x, q.y - up - 18, 0.2); ink(INK, 1.6); G.stroke();
+        G.beginPath(); G.moveTo(q.x, q.y - up - 18); G.lineTo(q.x + 11, q.y - up - 15 + Math.sin(S.t * 9) * 1.5); G.lineTo(q.x, q.y - up - 11); G.closePath();
+        G.fillStyle = PAPER; G.fill(); ink(INK, 1.2); G.stroke();
+      } else if (q.k === 'pow') {
         // A comic starburst that pops out fast, then fades.
         var out = q.r * (0.55 + 0.45 * Math.min(1, (1 - a) * 5)), spikes = 9;
         G.globalAlpha = Math.min(1, a * 2); G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath();
@@ -1719,7 +1754,8 @@
         G.fillStyle = BLUE; G.font = '22px ' + HAND; G.fillText('combo x' + Math.min(5, S.combo), 200, 76);
         var cw = 70 * (S.comboT / 1.4);
         G.beginPath(); L(200 - cw / 2, 82, 200 + cw / 2, 82, 0.4); ink(BLUE, 2.4); G.stroke();
-      }
+      } else if (S.endless) { G.fillStyle = BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
+      else if (S.wave === DREAD.WAVE) { G.fillStyle = RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
     }
     var y1 = 648, bx = 112, bw = 186, hp = Math.max(0, S.wallHP);
     G.textAlign = 'left'; G.fillStyle = INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
@@ -1759,8 +1795,9 @@
     ctx.drawImage(dc, 0, 0, W, H);
     drawGround();
     activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
+    S.planes.forEach(function (p) { if (p.kind === 'dread') drawDread(p); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
-    S.planes.forEach(function (p) { if (p.kind !== 'zeppelin') drawPlane(p); });
+    S.planes.forEach(function (p) { if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });
     S.bombs.forEach(drawBomb);
     S.troopers.forEach(function (t) { if (!t.dead) drawTrooper(t); });
     S.tanks.forEach(drawTank);
@@ -1777,6 +1814,7 @@
     drawBullets();
     drawCourier();
     drawBossBar();
+    drawDreadBar();
     drawParts();
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
@@ -1788,7 +1826,7 @@
 
   // ---------- flow ----------
   var titleScreen = document.getElementById('titleScreen'), pauseScreen = document.getElementById('pauseScreen'), overScreen = document.getElementById('overScreen');
-  var shopScreen = document.getElementById('shopScreen');
+  var shopScreen = document.getElementById('shopScreen'), winScreen = document.getElementById('winScreen');
   var pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn'), strikeBtn = document.getElementById('strikeBtn'), fighterBtn = document.getElementById('fighterBtn');
 
   function titleScene() {
@@ -1799,7 +1837,9 @@
     var bl = document.getElementById('bestLine');
     bl.hidden = !(best > 0);
     bl.textContent = 'Best so far: ' + Number(best).toLocaleString('en-US');
-    titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; pauseBtn.hidden = true;
+    var record = recordLine(), wl = document.getElementById('winLine');
+    wl.textContent = record; wl.hidden = !record;
+    titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
   }
   function newGame() {
     sound.init();
@@ -1809,7 +1849,7 @@
     reset();
     S.mode = 'play'; S.hint = true;
     startWave(1);
-    titleScreen.hidden = true; pauseScreen.hidden = true; overScreen.hidden = true; shopScreen.hidden = true; pauseBtn.hidden = false;
+    titleScreen.hidden = true; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; shopScreen.hidden = true; pauseBtn.hidden = false;
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
   // The named squad for the pause card: veterans by rank with their waves, a rookie count, and who's in the tent.
@@ -1845,7 +1885,7 @@
     sound.play('over');
   }
   // What brought the wall down: the last source to hurt it (hurtWall).
-  var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.' };
+  var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.', dreadnought: "The Dreadnought's guns brought the wall down." };
   function showOver() {
     S.mode = 'over';
     var isBest = S.score > best;
@@ -1854,6 +1894,10 @@
     document.getElementById('newBest').hidden = !isBest || S.score === 0;
     document.getElementById('stWave').textContent = String(S.wave);
     document.getElementById('stTime').textContent = clock(S.played);
+    var wonLine = document.getElementById('overWon');
+    wonLine.textContent = S.won ? 'You won at wave ' + S.wonAt + ', then held to wave ' + S.wave + '.' : '';
+    wonLine.hidden = !S.won;
+    world.saveBestWave(S.wave);
     document.getElementById('stCap').textContent = String(S.stats.captured);
     document.getElementById('stPop').textContent = String(S.stats.popped);
     document.getElementById('stPlanes').textContent = String(S.stats.planes);
@@ -1971,6 +2015,7 @@
   document.getElementById('continueBtn').addEventListener('click', continueWave);
   document.getElementById('startBtn').addEventListener('click', newGame);
   document.getElementById('againBtn').addEventListener('click', newGame);
+  document.getElementById('winAgainBtn').addEventListener('click', newGame);
   document.getElementById('restartBtn').addEventListener('click', newGame);
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
   pauseBtn.addEventListener('click', togglePause);
@@ -2005,7 +2050,8 @@
       planes: S.planes.filter(function (p) { return p.state === 'fly' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
       wave: S.waveState === 'active',
       number: S.wave,
-      wallLow: S.wallHP < S.mods.maxHP * 0.3
+      wallLow: S.wallHP < S.mods.maxHP * 0.3,
+      dread: CAMPAIGN.dreadPhase()
     };
   }
   // Time played counts waves and the shop, not pauses or the title. It's shown on the pause and game-over cards
