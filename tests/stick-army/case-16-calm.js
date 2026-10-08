@@ -97,5 +97,27 @@
   z.entered = true; z.x = 200; check(Math.abs(barX() - 200) < 0.01, 'over the field, it rides on the hull');
   z.x = 20; check(barX() >= 60, 'once arrived, it stays on the page while the hull turns');
 
+  // A busy page thins its effects: fewer flecks, every other puff, fewer pieces per kill.
+  RUN.force = 35; newGame(); startWave(5); S.spawn.timer = S.spawn.rushT = S.spawn.cargoT = S.spawn.bossT = 99;
+  S.parts = []; burst(200, 300, 12, INK, 100);
+  check(S.parts.length === 12, 'a quiet page gets the full burst');
+  var filler = []; for (var q = 0; q <= FX.BUSY; q++) filler.push({ k: 'star', x: 0, y: 0, life: 9, max: 9, id: -q });
+  S.parts = filler.slice(); burst(200, 300, 12, INK, 100);
+  check(S.parts.length - filler.length === 4, 'a busy page gets a third');
+  S.parts = filler.slice(); for (q = 0; q < 10; q++) puff(200, 300, 4, 0.5);
+  check(S.parts.length - filler.length === 5, 'and every other puff');
+  S.parts = filler.slice(); spawnTrooper(200, 300); killTrooper(S.troopers[0], 'player');
+  check(S.parts.filter(function (p) { return p.k === 'body'; }).length === 4, 'and a kill in four pieces, not six');
+
+  // Ground ink fades a little during a wave, not only in the shop.
+  S.parts = []; addDecal({ kind: 'splat', x: 100, y: GROUND, r: 3, color: RED, a: 0.36, seed: 1 });
+  var mark = decals[decals.length - 1], clears = 0, realClear = dcx.clearRect;
+  dcx.clearRect = function () { clears++; return realClear.apply(dcx, arguments); };
+  try { for (f = 0; f < Math.ceil(DECAL.EVERY * 60) + 2; f++) update(1 / 60); } finally { dcx.clearRect = realClear; }
+  check(Math.abs(mark.a - 0.36 * DECAL.FADE) < 1e-9, 'ink fades during the wave: ' + mark.a);
+  check(clears === 0, 'in one pass, without redrawing every mark');
+  for (f = 0; f < Math.ceil(DECAL.EVERY * 60) * 6; f++) update(1 / 60);
+  check(decals.indexOf(mark) < 0, 'and old marks go');
+
   emitHook = null; RUN.force = null; reset(); render();
 })();

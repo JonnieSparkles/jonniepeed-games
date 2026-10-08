@@ -11,8 +11,10 @@
   reset();
   S.parts=[{k:'fleck',x:80,y:200,vx:0,vy:0,life:0.01,c:RED,id:1}]; updateParts(0.02);
   check(decals.length===0,'expired airborne fleck leaves no sky decal');
-  S.parts=[{k:'fleck',x:80,y:GROUND-1,vx:0,vy:100,life:0.01,c:RED,id:2}]; updateParts(0.02);
+  S.parts=[{k:'fleck',x:80,y:GROUND-1,vx:0,vy:100,life:0.01,c:RED,id:3}]; updateParts(0.02);
   check(decals.length===1 && decals[0].y===GROUND,'landed fleck stamps ground ink');
+  S.parts=[{k:'fleck',x:90,y:GROUND-1,vx:0,vy:100,life:0.01,c:RED,id:4},{k:'fleck',x:95,y:GROUND-1,vx:0,vy:100,life:0.01,c:RED,id:5}]; updateParts(0.02);
+  check(decals.length===1,'only one landed fleck in three leaves a mark');
   // A cap rollover must never clear/redraw the current raster during play.
   var clears=0, originalClear=dcx.clearRect;
   dcx.clearRect=function(){ clears++; return originalClear.apply(dcx,arguments); };

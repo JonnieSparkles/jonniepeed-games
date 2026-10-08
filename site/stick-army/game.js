@@ -132,14 +132,26 @@
 
   // persistent ink on the page
   var decals = [];
-  // Stamp each new mark once. The bounded history is only replayed after resize.
-  // Older marks stay in the current raster until the next resize or new run.
+  // Stamp each new mark once. The bounded history is only replayed after a resize or the wipe between waves.
+  // Older marks stay in the current raster until then, or a new run.
   function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); }
   function redrawDecals() { dcx.clearRect(0, 0, W, H); decals.forEach(drawDecal); }
-  // Between waves the page gets a wipe: old ink fades, and the faintest marks go.
-  function washDecals() {
-    for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= 0.45; if (decals[i].a < 0.06) decals.splice(i, 1); }
+  // Between waves the page gets a wipe: old ink fades, and the faintest marks go. During a wave the ink fades a
+  // little every DECAL.EVERY seconds, so the ground never builds into a solid band.
+  var DECAL = { EVERY: 4, FADE: 0.7, WASH: 0.45, GONE: 0.06 }, inkT = 0;
+  function washDecals(k) {
+    k = k || DECAL.WASH;
+    for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= k; if (decals[i].a < DECAL.GONE) decals.splice(i, 1); }
     redrawDecals();
+  }
+  // The in-wave fade thins the whole ink layer in one pass instead of redrawing every mark, so it costs no frame time.
+  function fadeInk(dt) {
+    inkT += dt;
+    if (inkT < DECAL.EVERY || !decals.length) return;
+    inkT = 0;
+    dcx.save(); dcx.setTransform(1, 0, 0, 1, 0, 0); dcx.globalCompositeOperation = 'destination-out';
+    dcx.fillStyle = 'rgba(0,0,0,' + (1 - DECAL.FADE) + ')'; dcx.fillRect(0, 0, dc.width, dc.height); dcx.restore();
+    for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= DECAL.FADE; if (decals[i].a < DECAL.GONE) decals.splice(i, 1); }
   }
   function drawDecal(d) {
     var g = dcx, rnd = mulberry(d.seed), i, t, r, x, y;
@@ -233,7 +245,7 @@
     };
     resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
-    decals.length = 0;
+    decals.length = 0; inkT = 0;
     redrawDecals();
   }
 
@@ -318,13 +330,21 @@
     if (flying.length >= 6) { flying[flying.length - 1].n += n; return; }
     S.parts.push({ k: 'tag', x0: x, y0: y, x: x, y: y, n: n, t: 0, dur: rr(0.55, 0.75), life: 1, max: 1, rot: rr(-0.6, 0.6), id: nextId++ });
   }
+  // Effects thin out when the page is busy: past FX.BUSY particles, bursts throw a third of the flecks, every other
+  // puff is skipped, kills break into fewer pieces and smoke trails thin. All cosmetic, so no game stream is touched.
+  var FX = { BUSY: 200 }, puffN = 0;
+  function busy() { return S.parts.length > FX.BUSY; }
   function burst(x, y, n, color, speed) {
+    if (busy()) n = Math.ceil(n / 3);
     for (var i = 0; i < n; i++) {
       var a = rr(0, Math.PI * 2), v = rr(0.4, 1) * speed;
       S.parts.push({ k: 'fleck', x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.4, life: rr(0.3, 0.6), max: 0.6, c: color, id: nextId++ });
     }
   }
-  function puff(x, y, r, life) { S.parts.push({ k: 'puff', x: x, y: y, r: r, vr: rr(14, 30), life: life, max: life, id: nextId++ }); }
+  function puff(x, y, r, life) {
+    if (busy() && (puffN++ & 1)) return;
+    S.parts.push({ k: 'puff', x: x, y: y, r: r, vr: rr(14, 30), life: life, max: life, id: nextId++ });
+  }
 
   // ---------- spawning ----------
   function makePlane(kind, dir, x, y) {
@@ -603,13 +623,13 @@
     }
   }
   function killFx(t, force, squash, color) {
-    var power = force || 170, y = squash ? GROUND - 5 : t.y + 12, c = color || RED, i;
-    burst(t.x, y, 14, c, power);
+    var power = force || 170, y = squash ? GROUND - 5 : t.y + 12, c = color || RED, i, crowded = busy();
+    burst(t.x, y, 10, c, power);
     // Permanent ink only near the ground. Midair hits leave a spatter that fades in about a second.
-    if (y > GROUND - 40) addDecal({ kind: 'splat', x: t.x, y: y, r: squash ? 11 : 4, color: c, a: 0.48, seed: nextId++ });
-    else for (i = 0; i < 6; i++) S.parts.push({ k: 'spatter', x: t.x + rr(-6, 6), y: y + rr(-6, 6), vx: rr(-30, 30), vy: rr(-20, 30), r: rr(1.2, 3), life: rr(0.6, 1.1), max: 1.1, c: c, id: nextId++ });
-    // Six separate pen strokes: head, torso, two arms, two legs.
-    [0, 1, 2, 3, 4, 5].forEach(function (part) {
+    if (y > GROUND - 40) addDecal({ kind: 'splat', x: t.x, y: y, r: squash ? 9 : 4, color: c, a: 0.36, seed: nextId++ });
+    else for (i = 0; i < (crowded ? 3 : 6); i++) S.parts.push({ k: 'spatter', x: t.x + rr(-6, 6), y: y + rr(-6, 6), vx: rr(-30, 30), vy: rr(-20, 30), r: rr(1.2, 3), life: rr(0.6, 1.1), max: 1.1, c: c, id: nextId++ });
+    // Separate pen strokes: head, torso, two arms, two legs. On a busy page, one arm and one leg.
+    (crowded ? [0, 1, 2, 4] : [0, 1, 2, 3, 4, 5]).forEach(function (part) {
       S.parts.push({ k: 'body', head: part === 0, len: part === 1 ? 16 : 12,
         x: t.x + rr(-4, 4), y: squash ? GROUND - 6 : t.y + (part === 0 ? 0 : part < 4 ? 12 : 26),
         vx: rr(-power, power), vy: -rr(50, power * 1.5), rot: rr(-3, 3), vr: rr(-10, 10),
@@ -638,7 +658,7 @@
   function killTrooper(t, owner) {
     t.dead = true; killFx(t); S.stats.kills++;
     emit('kill', { by: owner === 'ally' ? 'crew' : 'player', type: t.type, state: t.state });
-    if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 9, color: RED, a: 0.45, seed: t.id });
+    if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 8, color: RED, a: 0.34, seed: t.id });
     award(10, t.x, t.y - 6, OUCH[t.id % OUCH.length], owner === 'ally' ? BLUE : INK, true);
     sound.play('hit');
   }
@@ -660,7 +680,7 @@
   function splat(t, ripped) {
     t.dead = true; S.stats.kills++;
     emit(ripped ? 'rip' : 'splat', { x: t.x, type: t.type });
-    addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 13, color: RED, a: 0.5, seed: t.id });
+    addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 12, color: RED, a: 0.4, seed: t.id });
     killFx(t, 210, true);
     award(15, t.x, GROUND - 44, 'splat!', RED, true);
     sound.play('splat');
@@ -969,7 +989,7 @@
       } else {
         p.vy += 320 * dt; p.x += p.dir * p.speed * 0.6 * dt; p.y += p.vy * dt; p.rot = Math.min(1.25, p.rot + 1.7 * dt);
         p.smoke -= dt;
-        if (p.smoke <= 0) { p.smoke = 0.05; puff(p.x - p.dir * 18, p.y - 4, 4, 0.7); }
+        if (p.smoke <= 0) { p.smoke = busy() ? 0.14 : 0.07; puff(p.x - p.dir * 18, p.y - 4, 4, 0.7); }
         S.troopers.forEach(function (t) {
           if (!t.dead && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
             t.dead = true; killFx(t); S.stats.kills++;
@@ -1112,7 +1132,7 @@
     S.parts.forEach(function (q) {
       q.life -= dt;
       if (q.k === 'body') {
-        if (q.rest) { q.rest += dt; if (q.rest > 3) q.life = 0; }
+        if (q.rest) { q.rest += dt; if (q.rest > 2) q.life = 0; }
         else {
           q.vy += 650 * dt; q.x = clamp(q.x + q.vx * dt, 3, W - 3); q.y += q.vy * dt; q.rot += q.vr * dt;
           if (q.y >= GROUND - 4) {
@@ -1120,7 +1140,7 @@
             if (Math.abs(q.vy) < 28) { q.rest = dt; q.vx = q.vy = q.vr = 0; }
           }
         }
-        if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, c: q.c, seed: q.id, a: 0.6 });
+        if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, c: q.c, seed: q.id, a: 0.38 });
       } else if (q.k === 'tag') {
         q.t += dt; var u = Math.min(1, q.t / q.dur), e = u * u;
         q.x = q.x0 + (TAG_HUD.x - q.x0) * e; q.y = q.y0 + (TAG_HUD.y - q.y0) * e - Math.sin(u * Math.PI) * 40;
@@ -1131,7 +1151,7 @@
       } else if (q.k === 'fleck') {
         q.vy += 420 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
         if (q.y >= GROUND) { q.y = GROUND; q.vx *= 0.5; q.vy = 0; q.landed = true; }
-        if (q.c === RED && q.landed && q.life <= 0) addDecal({ kind: 'splat', x: q.x, y: q.y, r: 1.8, color: RED, a: 0.45, seed: q.id });
+        if (q.c === RED && q.landed && q.life <= 0 && q.id % 3 === 0) addDecal({ kind: 'splat', x: q.x, y: q.y, r: 1.8, color: RED, a: 0.32, seed: q.id });
       } else if (q.k === 'shred') {
         q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= (1 - dt); q.vy = Math.min(60, q.vy + 80 * dt); q.rot += q.vr * dt;
       } else if (q.k === 'puff') {
@@ -1182,6 +1202,7 @@
       updateWave(dt);
       if (S.mode === 'shop') return;
       updateDelivery(dt);
+      fadeInk(dt);
     }
     S.recoil = Math.max(0, S.recoil - dt * 8);
     updatePlanes(dt);
