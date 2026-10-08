@@ -186,6 +186,8 @@ What the bots found:
 
 Round 7 (a calmer page: labels, wave-start pacing, effects and ink) changes no rules; the pizza courier now arrives about two seconds later in the wave. The zeppelin also arrives later, at 9 s instead of 3.5 s. Decent bots on the same 40 seeds: median 28 (22.5–31) on main, 27.5 (21–29.5) on round 7, with no difference beyond run-to-run noise. `--verify` matches with effects on.
 
+Round 8 (pizza before the wave, no dead air before a rush or zeppelin, calls going out on the radio first, fighter cover aiming from its swoop) against round 7, each played by its own bot, 40 seeds: decent median 26 (22–28.2) against 27.5 (21–29.5), with no difference beyond run-to-run noise; late waves are a touch harder. A median run is 18.8 simulated minutes against about 23, because waves no longer idle waiting for a rush. `--verify` matches.
+
 ## Validation and generated assets
 
 Serve `site/` locally:
