@@ -140,14 +140,15 @@ var StickArmyShop = function (w) {
   function continueWave() {
     var S = w.S;
     if (S.mode !== 'shop') return;
-    var bought = S.shop.bought;
+    w.queueSketches(S.shop.bought);
     shopScreen.hidden = true; S.shop = null; w.clearInput(); S.mode = 'play'; pauseBtn.hidden = false;
     // A pizza ordered in the shop is its own little scene before the wave: the courier rides in, everyone is fed,
-    // and the wave starts as he rides off (updateWave). Without one, the wave starts now.
+    // and the wave starts as he rides off (updateWave). New purchases wait, undrawn, until then. Without a pizza,
+    // the wave starts now.
     if (S.pizzaOrder) {
-      S.pizzaOrder = false; S.waveState = 'pizza'; S.nextWave = { wave: S.wave + 1, bought: bought };
+      S.pizzaOrder = false; S.waveState = 'pizza'; S.nextWave = S.wave + 1;
       S.delivery = { x: -30, phase: 'arrive', wait: 0 };
-    } else { w.queueSketches(bought); w.startWave(S.wave + 1); }
+    } else w.startWave(S.wave + 1);
     document.activeElement.blur();
   }
   // The courier rides along the ground before the wave; the pizza lands at the handoff in the middle of the page.
@@ -158,7 +159,7 @@ var StickArmyShop = function (w) {
     if (d.phase === 'arrive') {
       d.x = Math.min(200, d.x + dt * 145);
       if (d.x === 200) {
-        d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.nextWave ? S.nextWave.wave : S.wave });
+        d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.nextWave || S.wave });
         S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(w.crewMax(r), r.hp + 1); if (r.down) w.standUp(r, 'pizza'); } });
         w.sound.play('pizza'); w.addText('pizza time!', 200, GROUND - 65, BLUE, 26);
       }

@@ -71,8 +71,10 @@
   RUN.force = 33; newGame(); S.wave = 4; S.coins = 999; openShop();
   takeItem('pizza'); ITEMS.find(function (x) { return x.id === 'wire'; }).apply(S); S.shop.bought.wire = true;
   continueWave();
-  check(S.waveState === 'pizza' && !S.banner && !S.sketches.length, 'the courier comes first');
+  check(S.waveState === 'pizza' && !S.banner && sketchProgress('wire') === 0, 'the courier comes first; new purchases wait undrawn');
+  var waitT = S.sketches[0].t;
   for (f = 0; f < 600 && S.waveState === 'pizza'; f++) update(1 / 60);
+  check(S.sketches[0].t <= waitT + 1 / 60 + 1e-9, 'and the sketches only start once the wave does');
   check(S.wave === 5 && S.banner && S.banner.s === 'wave 5' && S.sketches.length && sketchProgress('wire') === 0 && S.delivery.phase === 'leave', 'then the banner and the sketches, as he rides off');
 
   // No dead air: once the planes are done and the field is clear, a rush still due comes in quickly.

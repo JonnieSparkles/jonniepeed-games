@@ -478,7 +478,7 @@
   function updateWave(dt) {
     if (S.waveState === 'pizza') {
       // The wave starts as the courier rides off.
-      if (!S.delivery || S.delivery.phase === 'leave') { var next = S.nextWave; S.nextWave = null; queueSketches(next.bought); startWave(next.wave); }
+      if (!S.delivery || S.delivery.phase === 'leave') { var next = S.nextWave; S.nextWave = null; startWave(next); }
       return;
     }
     var sp = S.spawn;
@@ -578,7 +578,7 @@
     S.sketches = keys.map(function (key, i) { return { key: key, t: -SKETCH.DELAY - i * SKETCH.GAP }; });
   }
   function updateSketches(dt) {
-    if (!S.sketches.length) return;
+    if (!S.sketches.length || S.waveState === 'pizza') return;
     S.sketches.forEach(function (k) { var was = k.t; k.t += dt; if (was < 0 && k.t >= 0) sound.play('scribble'); });
     S.sketches = S.sketches.filter(function (k) { return k.t < SKETCH.DUR; });
   }
