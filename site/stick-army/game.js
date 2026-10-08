@@ -427,92 +427,9 @@
     }
   }
 
-  // ---------- field supplies: all upgrades are run-local ----------
-  var ITEMS = [
-    { id: 'fire', name: 'Quick trigger', desc: 'Fire 18% faster. Stacks four times.', tier: 'supply', cost: 25, maxStacks: 4, apply: function (s) { s.mods.fire++; } },
-    { id: 'cool', name: 'Cooling fins', desc: 'Each shot heats the gun 20% less. Stacks three times.', tier: 'supply', cost: 20, maxStacks: 3, apply: function (s) { s.mods.cool++; } },
-    { id: 'slot', name: 'Room for one more', desc: '+1 squad slot, up to eight.', tier: 'supply', cost: 30, maxStacks: 4, apply: function (s) { s.mods.slots++; } },
-    { id: 'repair', name: 'Patch the wall', desc: 'Restore 30 wall health.', tier: 'supply', cost: 15, maxStacks: Infinity, apply: function () { repairWall(30, 'supply'); } },
-    { id: 'mat', name: 'Bigger bounce', desc: 'Widen both trampoline frames by 12. Timing still matters!', tier: 'supply', cost: 20, maxStacks: 2, apply: function (s) { s.mods.mat++; resizeMats(); } },
-    { id: 'aim', name: 'Steady hands', desc: 'Recruit spread is 28% tighter.', tier: 'supply', cost: 15, maxStacks: 3, apply: function (s) { s.mods.aim++; } },
-    { id: 'sandbags', name: 'Sandbags', desc: '+25 maximum wall health, filled immediately.', tier: 'supply', cost: 20, maxStacks: 4, apply: function (s) { s.mods.maxHP += 25; repairWall(25, 'supply'); } },
-    { id: 'wire', name: 'Barbed wire', desc: 'Marching enemies walk half as fast.', tier: 'supply', cost: 25, maxStacks: 1, apply: function (s) { s.mods.wire = true; } },
-    { id: 'double', name: 'Double barrel', desc: 'Two parallel shots with each trigger pull.', tier: 'supply', cost: 40, maxStacks: 1, apply: function (s) { s.mods.double = true; } },
-    { id: 'trench', name: 'Dig in', desc: 'Your crew take 40% less damage. A second trench makes it 60%.', tier: 'supply', cost: 25, maxStacks: 2, apply: function (s) { s.mods.trench++; } },
-    { id: 'helmet', name: 'Helmets', desc: '+1 health for every recruit, now and later. Stacks three times.', tier: 'supply', cost: 20, maxStacks: 3, apply: function (s) { s.mods.helmet++; s.recruits.forEach(function (r) { if (!r.dead) r.hp += 1; }); } },
-    { id: 'tramp', name: 'Second trampoline', desc: 'Open the right-hand mat. Twice the places to catch.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
-    { id: 'spread', name: 'Spread shot', desc: 'Add two angled shots to every volley.', tier: 'supply', cost: 65, maxStacks: 1, apply: function (s) { s.mods.spread = true; } },
-    { id: 'flak', name: 'Flak rounds', desc: 'Rounds burst near planes and bombs. Paratroopers are left to you.', tier: 'supply', cost: 80, maxStacks: 1, apply: function (s) { s.mods.flak = true; } },
-    { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'supply', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
-    { id: 'pierce', name: 'Piercing rounds', desc: 'Each bullet passes through up to three targets.', tier: 'supply', cost: 70, maxStacks: 1, apply: function (s) { s.mods.pierce = true; } },
-    { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
-    { id: 'auto', name: 'Sentry tower', desc: 'A tower beside the bunker shoots down bombs and shells, then low chutes and landers.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
-    { id: 'hospital', name: 'Field hospital', desc: 'A tent with one bed. When a wave ends, your most decorated wounded soldier is carried in and back after a wave.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.hospital = true; } },
-    { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
-    { id: 'strike', name: 'Air strike', desc: 'A bomber carpets the field and hits tanks hard. Press B or the bomber button.', tier: 'supply', cost: 45, maxStacks: Infinity,
-      available: function () { return callsHeld() < RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },
-    { id: 'fighter', name: 'Fighter cover', desc: 'A fighter makes two passes, gunning down planes and bombs. Press C or the fighter button.', tier: 'supply', cost: 50, maxStacks: Infinity,
-      available: function () { return callsHeld() < RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.fighter++; } },
-    { id: 'pizza', name: 'Order a pizza', desc: 'Arrives as the next wave starts: +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function (s) { s.pizzaOrder = true; } }
-  ];
-  function radioFull() { return callsHeld() >= RADIO.SLOTS ? 'Radio full' : ''; }
-  // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
-  [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
-   ['engineer', 'Engineer', 40, 'Repairs the wall twice as fast as anyone.'],
-   ['bazooka', 'Bazooka', 55, 'Slow rockets for tanks and aircraft.'],
-   ['sniper', 'Sniper', 50, 'Slow, precise shots.'],
-   ['medic', 'Medic', 55, 'Heals nearby crew. One at a time.']].forEach(function (h) {
-    ITEMS.push({ id: 'hire-' + h[0], role: h[0], name: h[1], desc: h[3], tier: 'hire', maxStacks: Infinity,
-      cost: function () { return h[2] + 15 * S.mods.hired; },
-      available: function () { return freeSlot(0) >= 0 && (h[0] !== 'medic' || !S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; })); },
-      apply: function (s) { s.mods.hired++; var r = makeRecruit(freeSlot(0), h[0]); r.fresh = true; s.recruits.push(r); } });
-  });
   function resizeMats() {
     TRAMPS[0].x1 = 22 - S.mods.mat * 6; TRAMPS[0].x2 = 92 + S.mods.mat * 6;
     TRAMPS[1].x1 = 308 - S.mods.mat * 6; TRAMPS[1].x2 = 378 + S.mods.mat * 6;
-  }
-  function price(item) { return typeof item.cost === 'function' ? item.cost() : item.cost; }
-  function eligible(item) { return (S.mods.stacks[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
-  // Offers walk a seeded shuffle of every supply and take the first eligible ones, so for a given seed
-  // the offers change only when eligibility does.
-  var OFFERS = 3;
-  function offer(n, skip) {
-    var order = ITEMS.filter(function (it) { return it.tier === 'supply' && skip.indexOf(it.id) < 0; }), i, j, tmp;
-    for (i = order.length - 1; i > 0; i--) { j = Math.floor(RS() * (i + 1)); tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
-    return order.filter(eligible).slice(0, n);
-  }
-  // One random offer each visit is on the house.
-  function onHouse(it) { return S.shop && it.id === S.shop.gift && !S.shop.giftTaken; }
-  function costNow(it) { return onHouse(it) ? 0 : price(it); }
-  function openShop() {
-    S.mode = 'shop'; S.waveState = 'shop'; clearInput(); S.bullets = []; S.banner = null; S.delivery = null; washDecals();
-    // Three rotating supplies from one pool (one of them free), fighter cover from wave 3, air strikes once tanks
-    // are near, pizza always,
-    // and every role for hire.
-    var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gift = Math.floor(RS() * Math.max(1, items.length));
-    var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= TANK.WAVE - 1) || (it.id === 'fighter' && S.wave >= FIGHTER.SHOP_WAVE); });
-    S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
-      gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
-    emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
-    shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
-    // Every visit starts at the top of the list.
-    shopScreen.scrollTop = 0; shopScreen.querySelector('.shop-stock').scrollTop = 0;
-    sound.play('shop');
-    shopScreen.querySelector('button:not(:disabled)').focus({ preventScroll: true });
-  }
-  function takeItem(id) {
-    if (S.mode !== 'shop' || !S.shop) return false;
-    var item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
-    // Supplies sell once per visit; hiring repeats while slots and tags last.
-    if (!item || (S.shop.bought[id] && item.tier !== 'hire') || !eligible(item)) return false;
-    var gift = onHouse(item), cost = costNow(item);
-    if (S.coins < cost) return false;
-    S.coins -= cost; if (gift) S.shop.giftTaken = true;
-    emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
-    S.shop.bought[id] = true; S.mods.stacks[id] = (S.mods.stacks[id] || 0) + 1; item.apply(S);
-    sound.play('recruit'); renderShop();
-    if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
-    return true;
   }
   // Pencil icons for supplies live in icons.js; they draw with this file's pen.
   var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag, hat: hat, tube: tube,
@@ -541,59 +458,21 @@
   var SQUAD = StickArmySquad(world), RANK = SQUAD.RANK, RANKS = SQUAD.RANKS, rankName = SQUAD.rankName, serveWave = SQUAD.serveWave,
     knockDown = SQUAD.knockDown, standUp = SQUAD.standUp, fallen = SQUAD.fallen, careAtWaveEnd = SQUAD.careAtWaveEnd, bedSlot = SQUAD.bedSlot,
     chevrons = SQUAD.chevrons, drawTent = SQUAD.drawTent;
+  // The item list, the shop, the kit display and the pizza courier live in shop.js.
+  Object.defineProperty(world, 'RS', { get: function () { return RS; } });
+  world.repairWall = repairWall; world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
+  world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.queueSketches = queueSketches;
+  world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp;
+  world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
+  var SHOP = StickArmyShop(world), ITEMS = SHOP.ITEMS, price = SHOP.price, eligible = SHOP.eligible, OFFERS = SHOP.OFFERS, offer = SHOP.offer,
+    onHouse = SHOP.onHouse, costNow = SHOP.costNow, openShop = SHOP.openShop, takeItem = SHOP.takeItem, renderShop = SHOP.renderShop,
+    continueWave = SHOP.continueWave, kitItems = SHOP.kitItems, renderKit = SHOP.renderKit, updateDelivery = SHOP.updateDelivery, drawCourier = SHOP.drawCourier;
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
     G = g; boil = 0;
     g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, 44, 44);
     pen(id.length * 131 + id.charCodeAt(0));
     try { (ICONS[id] || ICONS.fallback)(g); } finally { G = previous; boil = keepBoil; }
-  }
-  function renderShop() {
-    document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
-    document.getElementById('shopCoins').textContent = S.coins + ' dog tags';
-    var news = document.getElementById('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
-    document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
-    document.getElementById('shopHint').textContent = (S.shop.gift && !S.shop.giftTaken ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
-      (waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
-    // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
-    function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= costNow(it); }
-    function costLabel(it) {
-      if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
-      if (it.blocked && it.blocked() && !S.shop.bought[it.id]) return it.blocked();
-      if (it.tier !== 'hire' && S.shop.bought[it.id]) return 'Packed ✓';
-      if (onHouse(it)) return 'Free!';
-      var cost = price(it);
-      return cost + ' tags' + (S.coins < cost && eligible(it) ? ' · need ' + (cost - S.coins) + ' more' : '');
-    }
-    function itemButton(it, cls, withDesc) {
-      var button = document.createElement('button'); button.type = 'button'; button.className = cls + (onHouse(it) ? ' gift' : ''); button.dataset.item = it.id;
-      button.disabled = !canBuy(it);
-      var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
-      drawItemIcon(icon, it.id);
-      var name = document.createElement('strong'); name.textContent = it.name;
-      var label = document.createElement('em'); label.textContent = it.tier === 'hire' ? String(price(it)) : costLabel(it);
-      button.append(icon, name);
-      if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
-      else button.title = it.desc;
-      if (onHouse(it)) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
-      button.append(label);
-      button.addEventListener('click', function () { takeItem(it.id); });
-      return button;
-    }
-    document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
-    var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || freeSlot(0) < 0; });
-    document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), roles.map(function (it) { return itemButton(it, 'hire', false); }));
-    document.getElementById('hireNote').textContent = freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire.';
-    renderKit(document.getElementById('loadout'), false);
-    document.getElementById('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
-  }
-  function continueWave() {
-    if (S.mode !== 'shop') return;
-    queueSketches(S.shop.bought);
-    shopScreen.hidden = true; S.shop = null; clearInput(); S.mode = 'play'; pauseBtn.hidden = false; startWave(S.wave + 1);
-    // A pizza ordered in the shop rides in as the wave starts, so ordering never leaves the shop.
-    if (S.pizzaOrder) { S.pizzaOrder = false; S.delivery = { x: -30, phase: 'arrive', wait: 0 }; }
-    document.activeElement.blur();
   }
   // ---------- drawn in ----------
   // You're the commander drawing your army: as a wave starts, whatever you just bought is sketched onto the page
@@ -634,37 +513,6 @@
     G.beginPath(); G.moveTo(0, 0); G.lineTo(5, -2.5); G.lineTo(24, -2.5); G.lineTo(24, 2.5); G.lineTo(5, 2.5); G.closePath(); ink(INK, 1.2); G.stroke();
     G.restore();
   }
-  // The courier rides along the ground during play. Combat carries on; the pizza lands at the handoff.
-  function updateDelivery(dt) {
-    var d = S.delivery;
-    if (!d) return;
-    if (d.phase === 'arrive') {
-      d.x = Math.min(200, d.x + dt * 145);
-      if (d.x === 200) {
-        d.phase = 'serve'; d.wait = 1.2; repairWall(25, 'pizza'); emit('pizza', { wave: S.wave });
-        S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(crewMax(r), r.hp + 1); if (r.down) standUp(r, 'pizza'); } });
-        sound.play('pizza'); addText('pizza time!', 200, GROUND - 65, BLUE, 26);
-      }
-    } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
-    else {
-      d.x += dt * 145;
-      if (d.x > W + 35) S.delivery = null;
-    }
-  }
-  function drawCourier() {
-    var d = S.delivery; if (!d) return;
-    var x = d.x, y = GROUND - 17; pen(8080);
-    G.beginPath(); Ci(x - 13, y + 12, 8); Ci(x + 16, y + 12, 8); ink(INK, 2.3); G.stroke();
-    G.beginPath(); SP([x - 13,y + 12,x - 5,y - 4,x + 9,y + 12,x - 13,y + 12],false); L(x - 5,y - 4,x + 11,y - 4); L(x + 11,y - 8,x + 16,y + 12); ink(BLUE,2.4); G.stroke();
-    stick(x - 5, y - 30, [7,17,18,17,3,33,-5,29], INK, 2.3);
-    G.beginPath(); L(x - 12,y - 34,x + 2,y - 34); ink(RED,4); G.stroke();
-    var bx = d.phase === 'serve' ? x + 26 : x - 27, by = d.phase === 'serve' ? y - 28 : y - 9;
-    if (d.phase !== 'leave') {
-      G.fillStyle=PAPER; G.fillRect(bx-10,by-5,22,9); G.beginPath(); L(bx-10,by-5,bx+12,by-5,0.3); L(bx+12,by-5,bx+12,by+4,0.3); L(bx+12,by+4,bx-10,by+4,0.3); L(bx-10,by+4,bx-10,by-5,0.3); ink(RED,1.7); G.stroke();
-      G.beginPath(); Ci(bx,by,2); ink(RED,1.2); G.stroke();
-    }
-  }
-
   // ---------- combat ----------
   function shoot() {
     var c = Math.cos(S.aim), s = Math.sin(S.aim);
@@ -1856,24 +1704,6 @@
   }
   // What brought the wall down: the last source to hurt it (hurtWall).
   var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.' };
-  // Owned upgrades as pencil icons: icon-only with counts in the shop, icon and name on the pause card.
-  // Repeatable buys (repairs, pizza, hires) aren't kit.
-  function kitItems() { return ITEMS.filter(function (it) { return S.mods.stacks[it.id] && it.maxStacks !== Infinity; }); }
-  function renderKit(holder, named) {
-    var items = kitItems();
-    holder.replaceChildren();
-    if (!items.length) { var none = document.createElement('span'); none.className = 'kit-empty'; none.textContent = 'No kit yet. A fresh page.'; holder.append(none); }
-    items.forEach(function (it) {
-      var n = S.mods.stacks[it.id], chip = document.createElement('span'), icon = document.createElement('canvas'), text = document.createElement('span');
-      chip.className = 'kit-item'; chip.title = it.name + (n > 1 ? ' ×' + n : '');
-      icon.width = icon.height = 88; icon.setAttribute('aria-hidden', 'true'); drawItemIcon(icon, it.id);
-      text.className = named ? 'kit-name' : 'sr'; text.textContent = it.name + (n > 1 ? ' ×' + n : '');
-      chip.append(icon, text);
-      if (!named && n > 1) { var count = document.createElement('b'); count.setAttribute('aria-hidden', 'true'); count.textContent = '×' + n; chip.append(count); }
-      holder.append(chip);
-    });
-    return items.length;
-  }
   function showOver() {
     S.mode = 'over';
     var isBest = S.score > best;
