@@ -54,6 +54,7 @@ window.UnrugSound = (function () {
     g.gain.linearRampToValueAtTime(vol * (o.sustain == null ? .7 : o.sustain), Math.max(t + a, end - .015)); g.gain.linearRampToValueAtTime(.0001, end);
     if (o.vib && dur > .15) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 5.5; lg.gain.value = f * .012; l.connect(lg); lg.connect(s.frequency); l.start(t + .1); l.stop(end + .02); }
     s.connect(g); g.connect(dest); s.start(t); s.stop(end + .03);
+    return s;
   }
   function noiseHit(dest, t, dur, vol, type, freq, q = 1, to) {
     const s = ctx.createBufferSource(); s.buffer = NOISE;
@@ -228,6 +229,7 @@ window.UnrugSound = (function () {
 
   // ---------- blip talk ----------
   const VOICES = {
+    narrator: { f: 392, wave: 'triangle', ms: 40 },
     shredder: { f: 140, wave: 'sawtooth', ms: 40 },
     announcer: { f: 620, wave: 'p25', ms: 38 },
     bull: { f: 165, wave: 'p50', ms: 46 }
@@ -243,16 +245,25 @@ window.UnrugSound = (function () {
     }
     return { times, total: t + .18 };
   }
+  let talking = [];
   function say(text, who) {
     if (!ctx) return;
     const V = VOICES[who] || VOICES.announcer, plan = talkTimes(text, who), t0 = ctx.currentTime + .02;
     [...text].forEach((ch, i) => {
       if (!/[a-z0-9]/i.test(ch)) return;
       const k = (ch.toLowerCase().charCodeAt(0) * 7) % 5;
-      osc(voiceBus, V.wave, V.f * (1 + k * .08), t0 + plan.times[i], V.ms / 1000 * .75, .085, { sustain: .6 });
+      if (talking.length > 200) talking = talking.slice(-100);
+      talking.push(osc(voiceBus, V.wave, V.f * (1 + k * .08), t0 + plan.times[i], V.ms / 1000 * .75, .085, { sustain: .6 }));
     });
     musicBus.gain.setTargetAtTime(DUCKED, ctx.currentTime, .05);
     duckUntil = t0 + plan.total;
+  }
+  // Stop whatever line is being said, for skipping ahead.
+  function hush() {
+    if (!ctx) return;
+    for (const s of talking) { try { s.stop(); } catch (e) {} }
+    talking = [];
+    duckUntil = ctx.currentTime;
   }
 
   // ---------- sound effects ----------
@@ -272,6 +283,8 @@ window.UnrugSound = (function () {
     bosshit: t => osc(sfxBus, 'triangle', 140, t, .07, .2, { to: 70 }),
     spit: t => { noiseHit(sfxBus, t, .12, .25, 'lowpass', 2400, 1, 600); osc(sfxBus, 'p12', 500, t, .1, .05, { to: 200 }); },
     chomp: t => { for (let i = 0; i < 8; i++) { noiseHit(sfxBus, t + i * .07, .06, .35, 'bandpass', 800 + (i % 2) * 600, 1.5); osc(sfxBus, 'square', 70, t + i * .07, .05, .1); } },
+    dark: t => { osc(sfxBus, 'sawtooth', 320, t, .6, .12, { to: 40, sustain: .8 }); noiseHit(sfxBus, t, .3, .3, 'lowpass', 1200, 1, 100); },
+    lights: t => { for (let i = 0; i < 3; i++) noiseHit(sfxBus, t + i * .07, .03, .3, 'bandpass', 3000, 4); osc(sfxBus, 'p25', 200, t + .2, .3, .06, { to: 900 }); },
     wake: t => { for (let i = 0; i < 4; i++) osc(sfxBus, 'p50', i % 2 ? 660 : 880, t + i * .18, .16, .08, { sustain: .9 }); },
     explode: t => { noiseHit(sfxBus, t, 1.4, .7, 'lowpass', 2600, 1, 70); osc(sfxBus, 'sine', 120, t, .9, .4, { to: 30, sustain: .5 }); for (let i = 1; i < 5; i++) noiseHit(sfxBus, t + i * .22, .3, .35, 'lowpass', 1800, 1, 200); },
     clear: t => { [60, 64, 67, 72, 67, 72, 76, 79, 84].forEach((m, i) => osc(sfxBus, 'p50', hz(m + 12), t + i * .085, i === 8 ? .6 : .12, .09, { vib: i === 8 })); [48, 55, 60].forEach((m, i) => osc(sfxBus, 'triangle', hz(m), t + i * .25, .3, .25)); },
@@ -295,7 +308,7 @@ window.UnrugSound = (function () {
       if (id) playTrack(id); else stopTrack();
     },
     get track() { return want; },
-    say, talkTimes,
+    say, talkTimes, hush,
     toggle() {
       muted = !muted;
       try { localStorage.setItem(KEY, muted ? '1' : '0'); } catch (e) {}

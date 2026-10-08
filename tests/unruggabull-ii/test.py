@@ -45,12 +45,15 @@ with sync_playwright() as p:
         assert page.locator('#go').is_visible(), f'{name}: Start is visible'
         page.locator('#go').click()
         page.wait_for_timeout(300)
+        assert page.locator('#crawl').is_visible(), f'{name}: the first Start tells the story'
+        page.locator('#skip').click()
+        page.wait_for_timeout(300)
         stage = page.locator('.stage').bounding_box()
         assert stage['x'] >= 0 and stage['x'] + stage['width'] <= size[0] + 1, f'{name}: stage fits across'
         if touch:
             assert page.evaluate("document.getElementById('game').classList.contains('full')"), f'{name}: Start goes full screen'
             assert stage['y'] >= 0 and stage['y'] + stage['height'] <= size[1] + 1, f'{name}: stage fits in the screen'
-            for k in ('left', 'right', 'jump', 'slash'):
+            for k in ('left', 'right', 'jump', 'shoot', 'slash'):
                 pad = page.locator(f'.pad[data-k="{k}"]')
                 assert pad.is_visible(), f'{name}: {k} pad shows'
                 box = pad.bounding_box()
@@ -70,6 +73,12 @@ with sync_playwright() as p:
             assert page.evaluate("unrugTest('bull.u')") < moved, f'{name}: sliding onto the left pad moves left'
             touch_event('touchEnd', 0, 0)
             assert not page.evaluate("unrugTest('keys.padLeft || keys.padRight')"), f'{name}: lifting the finger stops'
+            shoot = page.locator('.pad[data-k="shoot"]').bounding_box()
+            page.evaluate("unrugTest('R.events.shots = 0; R.fireT = 0')")
+            touch_event('touchStart', shoot['x'] + shoot['width'] / 2, shoot['y'] + shoot['height'] / 2)
+            page.wait_for_timeout(500)
+            touch_event('touchEnd', 0, 0)
+            assert page.evaluate("unrugTest('R.events.shots')") >= 2, f'{name}: holding Shoot keeps firing'
         else:
             assert not page.locator('#pads').is_visible(), f'{name}: no pads without touch'
             page.keyboard.press('f')

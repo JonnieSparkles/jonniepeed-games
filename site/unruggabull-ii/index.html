@@ -72,16 +72,25 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .link{background:none;box-shadow:none;padding:4px 6px;color:var(--muted);font-family:var(--body);font-size:14px;text-decoration:underline;text-underline-offset:3px}
 .link:hover{color:var(--cream)}
 .link:active{transform:none;box-shadow:none}
-/* Touch pads: shown while playing on a touch screen. Move on the left, jump and slash on the right. */
+/* Touch pads: shown while playing on a touch screen. A D-pad on the left (up jumps), Shoot and Slash on the right. */
 .pads{display:none;width:100%;justify-content:space-between;align-items:end;gap:12px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
 .touch .playing .pads{display:flex}
 .playing .card{display:none}
-.pad-group{display:flex;gap:10px;touch-action:none}
+.pad-group{display:flex;align-items:end;gap:10px;touch-action:none}
+.dpad{display:grid;grid-template-columns:auto auto;gap:8px;justify-items:center}
+.dpad .up{grid-column:1 / span 2}
 .pad{display:grid;place-items:center;width:76px;height:64px;padding:0;border-radius:12px;background:rgba(58,47,88,.85);border:2px solid #5a4c86;box-shadow:none;color:var(--cream);font-size:12px;letter-spacing:.06em;text-transform:uppercase;touch-action:none;-webkit-tap-highlight-color:transparent}
 .pad:active{transform:none;box-shadow:none}
 .pad.on{background:#5a4c86;border-color:var(--gold)}
 .pad.slash{background:rgba(150,30,22,.85);border-color:#d63428}
 .pad.slash.on{background:#d63428;border-color:var(--gold)}
+.pad.shoot{background:rgba(36,82,140,.85);border-color:#3aa8e0}
+.pad.shoot.on{background:#3aa8e0;border-color:var(--gold)}
+/* The story so far, typed over the tower. Tap to move on. */
+.crawl{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;padding:10px 12px;background:rgba(9,7,11,.84);cursor:pointer}
+.crawl p{margin:0;font-size:clamp(13px,2.4vw,18px);line-height:1.35;min-height:2.7em;text-wrap:pretty}
+.skip{font-size:11px;padding:6px 10px;background:transparent;color:var(--cream);border:2px solid var(--edge);box-shadow:none}
+.skip:active{transform:none;box-shadow:none}
 .pad svg{width:22px;height:22px;fill:currentColor}
 .hint{margin:0;color:var(--muted);font-size:14px}
 .hint .touch-only{display:none}
@@ -105,8 +114,9 @@ body.locked{overflow:hidden}
   .full .card{pointer-events:auto;max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:rgba(34,26,54,.95)}
   .full .pads{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
   .full .pad-group{pointer-events:auto}
-  .full .pad{width:min(11vw,84px);height:min(17vh,70px);background:rgba(58,47,88,.55)}
+  .full .pad{width:min(11vw,80px);height:min(15vh,60px);background:rgba(58,47,88,.55)}
   .full .pad.slash{background:rgba(150,30,22,.6)}
+  .full .pad.shoot{background:rgba(36,82,140,.6)}
 }
 @media (prefers-reduced-motion:reduce){button:active{transform:none}}
 </style>
@@ -124,8 +134,9 @@ body.locked{overflow:hidden}
       </div>
     </header>
     <div class="arena">
-      <div class="stage">
+      <div class="stage" id="stage">
         <canvas id="c" width="240" height="135" tabindex="-1" aria-label="Title screen: Unruggabull, katana on his back, faces RugCo Tower at sunset while souls drift up to a beacon on its roof."></canvas>
+        <div class="crawl" id="crawl" hidden><p id="crawlText" aria-hidden="true"></p><button class="skip" id="skip" type="button">Skip</button></div>
       </div>
       <div class="deck">
         <div class="card" id="card">
@@ -136,12 +147,13 @@ body.locked{overflow:hidden}
           <p class="note" id="cardNote">Demo: the first floor of the climb.</p>
         </div>
         <div class="pads" id="pads">
-          <div class="pad-group">
+          <div class="pad-group dpad">
+            <button class="pad up" type="button" data-k="jump" tabindex="-1" aria-label="Jump"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 7 5 2l4 5z"/></svg></button>
             <button class="pad" type="button" data-k="left" tabindex="-1" aria-label="Move left"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M7 1 2 5l5 4z"/></svg></button>
             <button class="pad" type="button" data-k="right" tabindex="-1" aria-label="Move right"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1l5 4-5 4z"/></svg></button>
           </div>
           <div class="pad-group">
-            <button class="pad" type="button" data-k="jump" tabindex="-1">Jump</button>
+            <button class="pad shoot" type="button" data-k="shoot" tabindex="-1">Shoot</button>
             <button class="pad slash" type="button" data-k="slash" tabindex="-1">Slash</button>
           </div>
         </div>
@@ -149,10 +161,10 @@ body.locked{overflow:hidden}
     </div>
     <p class="sr" id="live" aria-live="polite"></p>
   </section>
-  <p class="hint"><span class="keys-only">Move with A and D or the arrow keys, jump with Space, slash with J. Slash knocks paper back where it came from. M sound, F full screen, P pause.</span><span class="touch-only">Move with the arrows, then jump and slash on the right. Slash knocks paper back where it came from.</span></p>
+  <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space. Hold J to shoot, press K to slash. Slash cuts carpshits up close and knocks paper back at whoever threw it. M sound, F full screen, P pause.</span><span class="touch-only">Arrows move, the up arrow jumps. Hold Shoot to fire. Slash cuts carpshits up close and knocks paper back at whoever threw it.</span></p>
 </main>
-<script src="art.js?v=6309a4b120"></script>
-<script src="audio.js?v=53115a130b"></script>
-<script src="game.js?v=6cf7f7915b"></script>
+<script src="art.js?v=e7e3331469"></script>
+<script src="audio.js?v=7fe407c895"></script>
+<script src="game.js?v=3280e508ca"></script>
 </body>
 </html>

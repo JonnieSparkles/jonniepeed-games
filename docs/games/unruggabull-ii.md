@@ -8,29 +8,36 @@ Open Side B on the studio page (hold the rainbow egg, or `#side-b`) and choose t
 
 ## Floor 13 rules
 
-- **Controls.** Move left and right, jump, slash; the blaster fires on its own and leans toward the nearest temp or carpshit in a cone ahead. Keys: A/D or arrows, Space/W/Up, J/K/Enter. M sound, F full screen, P or Escape pause. On touch screens, Start goes full screen and four pads appear under the scene (in landscape, in the bottom corners). A finger can slide between the arrow pads.
-- **Slash** cuts carpshits in two, catches temps as you pass their cubicle, knocks paper wads, bundles and staples back where they came from (a deflect), and on a pulling runner cuts the rug.
-- **The hall.** Cubicles scroll past. Temps pop up and throw paper wads, leading you a little if you're moving. Flying carpshits come down the hall and bite. From 20 seconds, file boxes sit on the floor: jump them or step around. Every kill frees one soul; the score is souls freed.
-- **The runner.** From 35 seconds or 20 souls, the red runner warns (its edges flash) and then pulls toward the Shredder for 2.2 seconds. Standing on it drags you deeper; step off, jump, or slash to cut it. The first pull shows a prompt. Riding it all the way into the mouth costs two hearts and spits you back out.
-- **The Shredder** wakes at 60 souls (or 150 seconds): the hall stops, it says its line, the fight starts. Health 100. Blaster hits 0.3; a deflected bundle 6; a deflected staple 2.
+- **Title and story.** The title screen is RugCo Tower at sunset, souls drifting up to p(Loom)'s beacon. The first Start on a device tells the story so far over it, typed out in narrator blips: a tap shows the whole line, another moves on, Skip or Escape ends it. After that, Start goes straight to the floor and the title card has a **Watch the story** link.
+- **Controls.** A D-pad on the left (the up arrow jumps) and Shoot and Slash on the right. Hold Shoot to keep firing (five shots a second) or tap for one; shots lean toward the nearest temp or carpshit in a cone ahead. Keys: A/D or arrows to move, W, Up or Space to jump, J or Z to shoot, K, X or Enter to slash. M sound, F full screen, P or Escape pause. On touch screens, Start goes full screen and the pads appear under the scene (in landscape, in the bottom corners). A finger can slide between pads.
+- **Slash** cuts carpshits in two, catches temps as you pass their station, knocks paper wads, bundles and staples back where they came from (a deflect), and on a pulling runner cuts the rug. Shots go straight through paper, so slashing it back or dodging are the only answers.
+- **The goal.** The floor opens with "FREE 60 SOULS TO WAKE THE SHREDDER", and a meter at the top fills toward it. Every kill frees one soul; the score is souls freed.
+- **The hall** comes in three beats, each announced by a sign hanging from the ceiling:
+  1. **Accounts Payable** (26 seconds): cubicles with temps who pop up and throw paper wads, leading you a little if you're moving; single carpshits that chase you; file boxes on the floor to jump or step around. Posters and water coolers on the walls.
+  2. **AUDIT!** (6 seconds): cubicles on both sides, and every temp in view stands up at once.
+  3. **All Staff** (20 seconds): carpshits arrive in formations (a V, a line with one gap, a snake), one hit each. Red streamers on the walls.
+  4. **Lights out** (6 seconds): only monitors, carpshit eyes and blaster bolts show, and a snake comes down the hall.
+  5. **Copy Room**: temps behind copiers, file boxes, and the runner rug. It ends when you reach the goal (after at least 18 seconds) or after 60 seconds regardless.
+- **The runner.** In the copy room and the boss fight, the red runner warns (its edges flash) and then pulls toward the Shredder. Standing on it drags you deeper; step off, jump, or slash to cut it. The first pull shows a prompt. Riding it all the way into the mouth costs two hearts and spits you back out.
+- **The Shredder** wakes at the end of the copy room: the hall stops, it says its line, the fight starts. Health 100. Blaster hits 0.3; a deflected bundle 6; a deflected staple 2.
   - Phase 1 (above 66): bundles every 2 seconds, pulls of 2.4 seconds every 8.
   - Phase 2 (above 33): staple fans of four with one gap, alternating with bundles; pulls of 3.2 seconds every 6.5.
   - Phase 3: faster, pulls of 3.8 seconds every 5. Cutting the rug jams it for 2.6 seconds: no attacks or pulls, and blaster hits do triple damage. The first phase 3 pull shows a prompt.
 - **Clear.** Thirteen souls come out of the Shredder, "FLOOR 13 CLEAR", then a card with souls freed, time and best.
 - **Rugged.** Five hearts, a short flash after each hit. At zero, "Rugged. Continue?" starts the floor over.
 
-Best souls and fastest clear are kept in `localStorage` (`unruggabull-ii-best`); sound mute in `unruggabull-ii-muted`.
+Best souls and fastest clear are kept in `localStorage` (`unruggabull-ii-best`), whether the story has been seen in `unruggabull-ii-story`, and sound mute in `unruggabull-ii-muted`.
 
 ## Code entry points
 
 - `art.js` (`UnrugArt`): palette, 3x5 font, sprites as text grids, and the bull's poses from behind, cached once.
-- `audio.js` (`UnrugSound`): `init`, `play(name)`, `muted`, `toggle`, `music('theme' | 'tower' | 'shred' | null)`, `say(text, who)` for blip talk and `talkTimes` so captions type out in step with it. The chip sequencer and the three tracks live here.
-- `game.js`: `TUNE` holds every number above. `newRun`, `update(dt)` and `draw()` are the core; `updatePull`, `updateBoss` and `updatePhase` run the runner, the Shredder and the floor's flow. The corridor projection (`PX`, `FY`, `YH`) and the far-wall box `BACK` are at the top.
+- `audio.js` (`UnrugSound`): `init`, `play(name)`, `muted`, `toggle`, `music('theme' | 'tower' | 'shred' | null)`, `say(text, who)` for blip talk, `hush()` to cut a line short, and `talkTimes` so captions type out in step with it. The chip sequencer and the three tracks live here.
+- `game.js`: `TUNE` holds the numbers and `BEATS` the hall's three beats. `newRun`, `update(dt)` and `draw()` are the core; `updateHall` runs the beats and events, `updatePull`, `updateBoss` and `updatePhase` the runner, the Shredder and the floor's flow, and `STORY` with `startIntro` the opening. The corridor projection (`PX`, `FY`, `YH`) and the far-wall box `BACK` are at the top; `drawTower` is the title scene. Stations, decor and signs are drawn before anything that moves, so they never cut through it.
 
 ## Validation
 
-Serve `site/` on port 8000 and run `python3 tests/unruggabull-ii/test.py`. The cases step the game tick by tick through a test-only bridge (injected into the response, never shipped): the hall, the runner, the Shredder's phases and jams, the clear and rugged cards, pause and the keyboard. Then it checks layout at desktop, phone portrait and phone landscape, including full screen on Start and real touch on the pads. The studio harness covers the Side B card.
+Serve `site/` on port 8000 and run `python3 tests/unruggabull-ii/test.py`. The cases step the game tick by tick through a test-only bridge (injected into the response, never shipped): shooting and slashing in the hall, the three beats and their events, the runner, the Shredder's phases and jams, the story, the clear and rugged cards, pause and the keyboard. Then it checks layout at desktop, phone portrait and phone landscape, including the story and full screen on Start, and real touch on the pads (sliding between arrows, holding Shoot). The studio harness covers the Side B card.
 
-Difficulty was checked with a scripted player, not people: it clears the floor in about two minutes, waking the Shredder after about 65 seconds. It still needs playtesting on real phones, and playtesting wins.
+Difficulty was checked with a scripted player, not people: it clears the floor in about two minutes, waking the Shredder after about 76 seconds, and plays every beat. It still needs playtesting on real phones, and playtesting wins.
 
 `python3 tools/og/make.py --game unruggabull-ii` rebuilds the share card and shelf thumbnail from the title screen.

@@ -1,4 +1,4 @@
-// The hall: auto-fire, temps, paper wads, deflects, carpshits and file boxes.
+// The hall: the blaster, temps, paper wads, deflects, carpshits and file boxes.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -8,19 +8,23 @@
   seed = 101; startRun();
   check(state === 'play' && R.phase === 'hall' && R.hearts === 5 && R.souls === 0, 'a run starts in the hall with five hearts');
   check(card.hidden && gameEl.classList.contains('playing'), 'the card hides while playing');
-  step(3);
-  check(R.shots.length > 0, 'the blaster fires on its own');
+  step(2);
+  check(R.shots.length === 0, 'the blaster waits for you');
+  keys.kbShoot = true; step(1); keys.kbShoot = false;
+  check(R.events.shots === 5, 'holding shoot fires five times a second (' + R.events.shots + ')');
+  step(1); press('shoot'); step(.5);
+  check(R.events.shots === 6, 'a tap fires once');
 
   quiet(); bull.u = .6;
   const t1 = temp(.5), souls = R.souls;
-  step(1);
-  check(t1.dead && R.souls === souls + 1, 'the blaster finds a temp in a cubicle and frees a soul');
+  keys.kbShoot = true; step(1); keys.kbShoot = false;
+  check(t1.dead && R.souls === souls + 1, 'the blaster leans toward a temp in a cubicle and frees a soul');
 
-  quiet(); bull.u = 0; bull.inv = 0; R.fireT = 1e9;
+  quiet(); bull.u = 0; bull.inv = 0;
   const hearts = R.hearts;
   launch('wad', { u: 0, z: .3, h: .13 }, { u: 0, z: bull.bz, h: .13 }, .5);
-  step(.8);
-  check(R.hearts === hearts - 1 && bull.inv > 0, 'a paper wad costs a heart');
+  keys.kbShoot = true; step(.8); keys.kbShoot = false;
+  check(R.hearts === hearts - 1 && bull.inv > 0, 'shots go through paper, and a wad costs a heart');
   launch('wad', { u: 0, z: .2, h: .13 }, { u: 0, z: bull.bz, h: .13 }, .3);
   step(.4);
   check(R.hearts === hearts - 1, 'no second hit while flashing');

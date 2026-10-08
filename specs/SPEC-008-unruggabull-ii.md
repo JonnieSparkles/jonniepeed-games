@@ -39,12 +39,11 @@ Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 
 ## Controls
 
-Four inputs, the same on every floor:
+Five inputs, the same on every floor, laid out like an old game pad:
 
-- **Move** left and right (touch pads, A/D or the arrow keys).
-- **Jump** (touch pad, Space, W or Up).
-- **Slash** (touch pad, J, K or Enter). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free.
-- The blaster fires on its own.
+- **Move** left and right and **jump** on a D-pad (the up arrow jumps). Keys: A/D or the arrows, W, Up or Space.
+- **Shoot** (hold to keep firing). Keys: J or Z.
+- **Slash** (K, X or Enter). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 
 M toggles sound, F full screen, P or Escape pause.
 
@@ -52,9 +51,17 @@ M toggles sound, F full screen, P or Escape pause.
 
 A corridor floor of about two minutes, then the Shredder.
 
-- **The office.** Cubicle walls line the hall with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be shot, dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around. Paper blows down the corridor the whole time.
-- **The runner.** A red runner rug runs down the middle of the hall. From the second half of the floor it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, or slash while standing on it to cut the rug and stop it. The first pull shows a prompt.
-- **The Shredder.** Once enough souls are freed, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner.
+- **The story.** The first Start tells the opening crawl over the tower title screen, skippable.
+- **The goal.** "Free 60 souls to wake the Shredder", with a meter at the top.
+- **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
+  - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
+  - **AUDIT!**: every temp in view stands up at once.
+  - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap, a snake).
+  - **Lights out**: only monitors, eyes and blaster bolts show.
+  - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
+  - Paper blows down the corridor the whole time.
+- **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, or slash while standing on it to cut the rug and stop it. The first pull shows a prompt.
+- **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner.
   - Phase 1: it spits bundles of shredded paper (deflect them into its mouth for heavy damage) and pulls the runner.
   - Phase 2: staple fans you have to dodge or deflect, and longer pulls.
   - Phase 3 (jammed): every cut of the rug jams it for a moment, and blaster shots do triple damage while it's jammed.

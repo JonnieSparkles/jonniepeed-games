@@ -4,8 +4,12 @@
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const near = (a, b) => Math.abs(a - b) < 1e-6;
   seed = 303; startRun();
-  R.souls = TUNE.wakeSouls; update(1 / 60);
-  check(R.phase === 'wake' && R.noPops, 'enough souls wake the far wall');
+  R.souls = TUNE.goal; step(.5);
+  check(R.phase === 'hall', 'the goal alone does not wake it before the copy room');
+  R.beat = 2; R.beatT = 1; step(.5);
+  check(R.phase === 'hall', 'nor in the first moments of the copy room');
+  R.beatT = BEATS[2].minT; update(1 / 60);
+  check(R.phase === 'wake' && R.noPops, 'enough souls in the copy room wake the far wall');
   step(1.6);
   check(R.boss.st === 'awake' && R.speed < .02, 'the hall stops and its eyes light up');
   step(6);
@@ -13,10 +17,10 @@
 
   const b = R.boss;
   R.projs = []; R.flies = []; R.shots = []; bull.u = 0; bull.inv = 99; R.pull.next = 1e9; b.atk = 1e9;
-  const hp0 = b.hp; R.fireT = 0; step(1);
+  const hp0 = b.hp; keys.kbShoot = true; step(1); keys.kbShoot = false;
   check(b.hp < hp0 && b.hp > hp0 - 3, 'the blaster chips at it');
 
-  R.fireT = 1e9; step(.5); R.shots = [];
+  step(.5); R.shots = [];
   const hp1 = b.hp, bundle = launch('bundle', { u: 0, z: .4, h: .1 }, { u: 0, z: bull.bz, h: .12 }, .8, { w: .08, hh: .05 });
   for (let i = 0; i < 60 && bundle.z > bull.bz + .15; i++) update(1 / 60);
   bull.cd = 0; press('slash'); step(1.2);

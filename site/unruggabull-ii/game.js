@@ -32,15 +32,22 @@
     aisle: .6,              // how far from the middle he can go
     runner: .3,             // half-width of the runner rug
     jumpH: .12, jumpT: .55, // jump height (of the hall) and airtime
-    fireEvery: .28, shotSpeed: 2.2, aimCone: .38,
+    fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
     slashT: .2, slashCd: .32, slashReach: .24, slashWide: .34, deflectWindow: .12,
     hurtInv: 1.3,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, recover: .5, mouth: .85,
-    boxesFrom: 20, pullsFrom: 35, pullSoulsFrom: 20, wakeSouls: 60, wakeTime: 150,
-    wadTime: .9, wadLead: .5,
+    goal: 60,               // souls that wake the Shredder
+    wadTime: .9, wadLead: .5, eventT: 6,
     bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13
   };
+  // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
+  // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
+  const BEATS = [
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.6, boxes: true, decor: 'poster', after: 'audit' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, decor: 'streamer', after: 'dark' },
+    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, pulls: true, decor: 'stack' }
+  ];
   const JUMP_V = 4 * TUNE.jumpH / TUNE.jumpT, GRAV = 8 * TUNE.jumpH / (TUNE.jumpT * TUNE.jumpT);
 
   // ---------- random ----------
@@ -49,49 +56,110 @@
   const rr = (a, b) => a + (b - a) * rnd();
 
   // ---------- run state ----------
-  // state: title, play, pause or over. R.phase inside a run: hall, wake, boss, win or dead.
+  // state: title, intro, play, pause or over. R.phase inside a run: hall, wake, boss, win or dead.
   let state = 'title', R = null, bull = null;
   function newRun() {
     R = {
       t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
-      cubs: [], flies: [], boxes: [], shots: [], projs: [], fx: [],
-      nextCubW: 1.1, nextFly: 5, nextBox: TUNE.boxesFrom, fireT: .4, noPops: false,
+      beat: 0, beatT: 0, event: null,
+      cubs: [], decor: [], signs: [], flies: [], boxes: [], shots: [], projs: [], fx: [],
+      nextCubW: 1.1, nextDecorW: .6, nextFly: 5, nextForm: 2, formN: 0, nextBox: 12, fireT: 0, noPops: false,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0 },
       banner: null, talk: null, shake: 0, red: 0, endT: 0, events: {}
     };
-    bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0, cutDone: false };
+    bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0 };
     for (let w = .2; w < 1.05; w += .36) addCubs(w, false);
+    addSign(.95, BEATS[0].sign);
   }
+  const beat = () => BEATS[R.beat];
 
-  // ---------- the hall: cubicles, temps and flying carpshits ----------
+  // ---------- the hall: stations (cubicles or copiers) with temps, signs, decor ----------
   const cubZ = cb => cb.w - R.dist;
-  function addCubs(w, temps) {
-    const sides = rnd() < .35 ? [-1, 1] : [rnd() < .5 ? -1 : 1];
+  const STATION_TOP = { cub: .38, copier: .32 };
+  function addCubs(w, temps, both, chance) {
+    const kind = R.event && R.event.kind === 'audit' ? 'cub' : beat().station;
+    const sides = both || rnd() < .35 ? [-1, 1] : [rnd() < .5 ? -1 : 1];
     for (const s of sides) {
-      const cb = { w, s, temp: null };
-      if (temps && rnd() < Math.min(.9, .55 + R.t / 120)) cb.temp = { cub: cb, st: 'hidden', t: 0, pop: 0, trig: rr(.45, .8), pops: 0, threw: false, dead: false };
+      const cb = { w, s, kind, top: STATION_TOP[kind], temp: null };
+      if (temps && rnd() < (chance == null ? beat().temps : chance)) cb.temp = { cub: cb, st: 'hidden', t: 0, pop: 0, trig: rr(.45, .8), pops: 0, threw: false, dead: false };
       R.cubs.push(cb);
     }
   }
-  // Where a target is, for aiming and hits. Temps live in their cubicle.
+  // Where a target is, for aiming and hits. Temps live behind their station.
   function posOf(o) {
-    if (o.cub) return { u: o.cub.s * .8, z: cubZ(o.cub) + .06, h: .31 + o.pop * .17 };
+    if (o.cub) return { u: o.cub.s * .8, z: cubZ(o.cub) + .06, h: o.cub.top - .07 + o.pop * .17 };
     return o;
   }
+  // A sign hangs from the ceiling at the start of each beat, so you can read where you are.
+  function addSign(w, text) {
+    const img = A.canvas(A.textWidth(text) + 8, 11), b = img.getContext('2d');
+    rect(b, 0, 0, img.width, 11, '#1a1418'); rect(b, 1, 1, img.width - 2, 9, '#2a3c6a'); txt(b, text, 4, 3, '#fff6e2');
+    R.signs.push({ w: R.dist + w, img });
+  }
   function spawnHall(dt) {
-    while (R.dist + 1.05 >= R.nextCubW) { addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38); }
-    R.nextFly -= dt;
-    if (R.nextFly <= 0) {
-      R.flies.push({ u: rr(-.5, .5), z: 1, h: .42, hp: 2, ph: rnd() * 6, hit: 0, dead: false });
-      R.nextFly = Math.max(1.3, 3.4 - R.t * .02) * rr(.8, 1.2);
+    const B = beat(), ev = R.event && R.event.kind;
+    while (R.dist + 1.05 >= R.nextCubW) {
+      if (ev === 'audit') { addCubs(R.nextCubW, true, true, 1); R.nextCubW += rr(.2, .26); }
+      else { addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38); }
+    }
+    while (R.dist + 1.05 >= R.nextDecorW) {
+      R.decor.push({ w: R.nextDecorW, s: rnd() < .5 ? -1 : 1, kind: rnd() < .25 && B.decor === 'poster' ? 'cooler' : B.decor, col: rnd() });
+      R.nextDecorW += rr(.35, .6);
+    }
+    if (B.fly && !ev) {
+      R.nextFly -= dt;
+      if (R.nextFly <= 0) {
+        R.flies.push({ u: rr(-.5, .5), z: 1, h: .42, hp: 2, ph: rnd() * 6, hit: 0, dead: false });
+        R.nextFly = Math.max(1.4, B.fly - R.beatT * .03) * rr(.8, 1.2);
+      }
+    }
+    if (B.formations && !ev) {
+      R.nextForm -= dt;
+      if (R.nextForm <= 0) { spawnFormation(['v', 'line', 'snake'][R.formN++ % 3]); R.nextForm = rr(3.8, 4.8); }
     }
     // File boxes sit on the floor: jump them or step around.
-    R.nextBox -= dt;
-    if (R.nextBox <= 0) {
-      R.boxes.push({ w: R.dist + 1.05, u: [-.45, -.15, .15, .45][Math.floor(rnd() * 4)], hit: 0 });
-      R.nextBox = rr(3.5, 5.5);
+    if (B.boxes && !ev) {
+      R.nextBox -= dt;
+      if (R.nextBox <= 0) {
+        R.boxes.push({ w: R.dist + 1.05, u: [-.45, -.15, .15, .45][Math.floor(rnd() * 4)], hit: 0 });
+        R.nextBox = rr(3.5, 5.5);
+      }
     }
+  }
+  // Carpshits from the all-staff list arrive in formations: a V, a line with one gap, or a snake.
+  function spawnFormation(kind) {
+    const add = (u, dz, extra) => R.flies.push(Object.assign({ u, z: 1 + dz, h: .36, hp: 1, ph: rnd() * 6, hit: 0, dead: false, form: kind }, extra));
+    if (kind === 'v') { const c0 = rr(-.3, .3); [[0, 0], [-.18, .07], [.18, .07], [-.36, .14], [.36, .14]].forEach(([o, dz]) => add(clamp(c0 + o, -.75, .75), dz)); }
+    else if (kind === 'line') { const gap = Math.floor(rnd() * 5); [-.6, -.3, 0, .3, .6].forEach((u, i) => { if (i !== gap) add(u, 0); }); }
+    else { const ph = rnd() * 6; for (let i = 0; i < 6; i++) add(0, i * .08, { snake: ph - i * .7 }); }
+  }
+  // Between beats: an AUDIT (every temp stands up at once) or the lights go out.
+  function startEvent(kind) {
+    R.event = { kind, t: 0, dur: TUNE.eventT };
+    if (kind === 'audit') {
+      R.banner = { text: 'AUDIT!', sub: 'EVERYONE STAND UP', t: 0, dur: 2.2, col: '#ff5040' };
+      Snd.play('wake'); live('Audit! Every temp stands up at once.');
+    } else {
+      R.banner = { text: 'LIGHTS OUT', t: 0, dur: 1.6, col: '#7fd4ff' };
+      Snd.play('dark'); live('Lights out.');
+      spawnFormation('snake');
+    }
+  }
+  function updateHall(dt) {
+    R.beatT += dt;
+    const B = beat();
+    if (R.event) {
+      R.event.t += dt;
+      if (R.event.t >= R.event.dur) {
+        if (R.event.kind === 'dark') Snd.play('lights');
+        R.event = null; R.beat++; R.beatT = 0;
+        addSign(1, beat().sign);
+        if (beat().pulls) R.pull.next = R.t + 3;
+      }
+    } else if (B.after && R.beatT >= B.time) startEvent(B.after);
+    else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
+    spawnHall(dt);
   }
   const BOX_H = .06;
   function updateBoxes(dt) {
@@ -103,27 +171,36 @@
     R.boxes = R.boxes.filter(bx => bx.w - R.dist > ZN && bx.hit < .5);
   }
   function updateTemps(dt) {
+    const audit = R.event && R.event.kind === 'audit';
     for (const cb of R.cubs) {
       const tp = cb.temp, z = cubZ(cb);
       if (!tp || tp.dead) continue;
       tp.t += dt;
       if (tp.st === 'hidden') {
-        if (!R.noPops && z < tp.trig && z > .3) { tp.st = 'up'; tp.t = 0; tp.threw = false; }
+        if (!R.noPops && ((z < tp.trig && z > .3) || (audit && z > .25 && z < .95))) { tp.st = 'up'; tp.t = audit ? rr(0, .3) : 0; tp.threw = false; }
       } else if (tp.st === 'up') {
         tp.pop = Math.min(1, tp.pop + dt * 7);
-        if (!tp.threw && tp.t > .55 && z > .22 && !R.noPops) { throwWad(tp); tp.threw = true; }
-        if (tp.t > 1.25) { tp.st = 'down'; tp.t = 0; }
+        if (!tp.threw && tp.t > .55 && z > .22 && !R.noPops && (!audit || rnd() < .5)) { throwWad(tp); tp.threw = true; }
+        if (tp.t > (audit ? 1.8 : 1.25)) { tp.st = 'down'; tp.t = 0; tp.threw = true; }
       } else if (tp.st === 'down') {
         tp.pop = Math.max(0, tp.pop - dt * 7);
         if (tp.pop <= 0) { tp.st = 'hidden'; tp.pops++; tp.trig = tp.pops < 2 ? z - .2 : -1; }
       }
     }
     R.cubs = R.cubs.filter(cb => cubZ(cb) > ZN - .16);
+    R.decor = R.decor.filter(d => d.w - R.dist > ZN - .3);
+    R.signs = R.signs.filter(sg => sg.w - R.dist > ZN);
   }
   function updateFlies(dt) {
     for (const f of R.flies) {
-      f.z -= (.34 + R.speed * .4) * dt;
-      f.u = clamp(f.u + clamp(bull.u - f.u, -.3, .3) * dt * .9 + Math.sin(R.t * 3 + f.ph) * .12 * dt, -.75, .75);
+      if (f.form) {
+        // formations keep their shape instead of chasing you
+        f.z -= (.3 + R.speed * .4) * dt;
+        if (f.snake != null) f.u = .55 * Math.sin(f.snake + R.t * 2.2);
+      } else {
+        f.z -= (.34 + R.speed * .4) * dt;
+        f.u = clamp(f.u + clamp(bull.u - f.u, -.3, .3) * dt * .9 + Math.sin(R.t * 3 + f.ph) * .12 * dt, -.75, .75);
+      }
       if (f.z < .45) f.h += (.12 - f.h) * Math.min(1, dt * 2.5);
       f.hit = Math.max(0, f.hit - dt);
       if (!f.dead && Math.abs(f.z - bull.bz) < .045 && Math.abs(f.u - bull.u) < .15 && overlaps(f.h, .05)) {
@@ -171,7 +248,7 @@
           if (p.z > 1.05) p.dead = true;
         } else if (p.z >= .955) {
           p.dead = true;
-          if (R.boss.st === 'fight') { bossDamage(p.kind === 'bundle' ? TUNE.bundleDmg : TUNE.stapleDmg); popText(p.kind === 'bundle' ? '-7' : '-2', PX(p.u, .95), YH(.95, .3), '#ffd44a'); }
+          if (R.boss.st === 'fight') { const dmg = p.kind === 'bundle' ? TUNE.bundleDmg : TUNE.stapleDmg; bossDamage(dmg); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), '#ffd44a'); }
           poof(p.u, .97, p.h);
         }
         continue;
@@ -185,14 +262,15 @@
   }
 
   // ---------- Unruggabull ----------
-  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false };
-  const input = { jump: 0, slash: 0 };   // buffered presses, in seconds left
+  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false };
+  const input = { jump: 0, slash: 0, shoot: 0 };   // buffered presses, in seconds left
   const moveDir = () => ((keys.kbRight || keys.padRight) ? 1 : 0) - ((keys.kbLeft || keys.padLeft) ? 1 : 0);
-  function press(k) { if (state !== 'play') return; if (k === 'jump') input.jump = .12; else if (k === 'slash') input.slash = .12; }
+  const shooting = () => keys.kbShoot || keys.padShoot;
+  function press(k) { if (state !== 'play') return; if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12; }
   const onRunner = () => Math.abs(bull.u) < TUNE.runner && bull.jh < .03 && !bull.mouth && !bull.spat;
   function updateBull(dt) {
     const b = bull;
-    input.jump = Math.max(0, input.jump - dt); input.slash = Math.max(0, input.slash - dt);
+    input.jump = Math.max(0, input.jump - dt); input.slash = Math.max(0, input.slash - dt); input.shoot = Math.max(0, input.shoot - dt);
     b.inv = Math.max(0, b.inv - dt); b.cd = Math.max(0, b.cd - dt);
     if (b.slash >= 0) { b.slash += dt; if (b.slash >= TUNE.slashT) b.slash = -1; }
     if (R.phase === 'dead') return;
@@ -207,11 +285,12 @@
     if (R.pull.st === 'on' && onRunner()) { b.bz += TUNE.pullSpeed * dt; if (b.bz >= TUNE.mouth) draggedIn(); }
     else b.bz = Math.max(0, b.bz - TUNE.recover * dt);
     if (R.speed > .02 || dir || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
+    // the blaster: hold Shoot to keep firing, or tap for one shot
     R.fireT -= dt;
-    if (R.fireT <= 0 && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { fire(); R.fireT = TUNE.fireEvery; }
+    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; fire(); R.fireT = TUNE.fireEvery; }
   }
   function slash() {
-    bull.slash = 0; bull.cd = TUNE.slashCd; bull.cutDone = false;
+    bull.slash = 0; bull.cd = TUNE.slashCd;
     Snd.play('slash');
     slashHits();
     if (R.pull.st === 'on' && onRunner()) cutRug();
@@ -238,6 +317,7 @@
     for (const cb of R.cubs) if (cb.temp && !cb.temp.dead && cb.temp.pop > .3) consider(cb.temp, posOf(cb.temp), TUNE.aimCone);
     for (const f of R.flies) consider(f, f, .3);
     R.shots.push({ u: bull.u, z: bull.bz + .03, h: bull.jh + .12, tgt: best, dead: false });
+    R.events.shots = (R.events.shots || 0) + 1;
     Snd.play('shot');
   }
   function updateShots(dt) {
@@ -257,12 +337,6 @@
         if (f.dead || Math.abs(s.u - f.u) > .11 || Math.abs(s.z - f.z) > .06) continue;
         s.dead = true; f.hp--; f.hit = .1; Snd.play('hit');
         if (f.hp <= 0) killFly(f, 'shot');
-        break;
-      }
-      if (s.dead) continue;
-      for (const p of R.projs) {
-        if (p.dead || p.friendly || p.kind !== 'wad' || Math.abs(s.u - p.u) > .09 || Math.abs(s.z - p.z) > .06) continue;
-        s.dead = true; p.dead = true; poof(p.u, p.z, p.h); Snd.play('poof');
         break;
       }
       if (s.dead) continue;
@@ -300,7 +374,7 @@
   function updatePull(dt) {
     const P = R.pull;
     P.t += dt;
-    const can = (R.phase === 'hall' && (R.t >= TUNE.pullsFrom || R.souls >= TUNE.pullSoulsFrom)) ||
+    const can = (R.phase === 'hall' && beat().pulls && !R.event) ||
       (R.phase === 'boss' && R.boss.st === 'fight' && R.boss.jam <= 0);
     if (P.st === 'idle') {
       if (can && R.t >= P.next) { P.st = 'warn'; P.t = 0; Snd.play('warn'); }
@@ -442,9 +516,9 @@
 
   // ---------- one tick ----------
   function update(dt) {
+    if (state === 'intro') { R.t += dt; updateIntro(dt); return; }
     if (state === 'title' || state === 'over') {
       R.t += dt;
-      if (state === 'title') { R.dist += .08 * dt; R.roff -= .08 * dt; bull.step += dt * 6; }
       updateFx(dt);
       if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
       return;
@@ -452,10 +526,10 @@
     if (state !== 'play') return;
     R.t += dt; R.phaseT += dt;
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt);
-    if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = null; }
+    if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
     R.dist += R.speed * dt;
-    if (R.phase === 'hall') spawnHall(dt);
+    if (R.phase === 'hall') updateHall(dt);
     updateBull(dt);
     updatePull(dt);
     updateTemps(dt);
@@ -469,9 +543,7 @@
   }
   function updatePhase(dt) {
     const b = R.boss;
-    if (R.phase === 'hall') {
-      if (R.souls >= TUNE.wakeSouls || R.t >= TUNE.wakeTime) startWake();
-    } else if (R.phase === 'wake') {
+    if (R.phase === 'wake') {
       R.speed = Math.max(0, R.speed - dt * .15);
       if (R.phaseT > 1.4 && b.st === 'sleep') { b.st = 'awake'; R.shake = .3; Snd.play('wake'); }
       if (R.phaseT > 2 && !R.events.bossAt) R.events.bossAt = R.phaseT + talk('YOUR RUG HAS BEEN PROCESSED.', 'shredder') + .3;
@@ -564,18 +636,55 @@
     rect(g, PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
     if (b.st === 'sleep') for (let i = 0; i < 3; i++) { const k = mod1(t * .4 + i / 3); txt(g, 'Z', x1 - 8 + Math.round(Math.sin(k * 6) * 2), Math.round(y0 + 2 - k * 16), k > .8 ? '#5a5670' : '#a8a0c0'); }
   }
+  // A station is a cubicle (grey partition and a green monitor) or, in the copy room, a beige copier.
+  // The temp hides behind it and pops up over the top.
   function drawCub(cb, z) {
-    const s = cb.s, zb = z + .12;
-    poly(g, '#4a4e5a', [[PX(s * .64, z), FY(z)], [PX(s * .64, zb), FY(zb)], [PX(s * .64, zb), YH(zb, .38)], [PX(s * .64, z), YH(z, .38)]]);
+    const s = cb.s, zb = z + .12, top = cb.top, copier = cb.kind === 'copier';
+    const side = copier ? '#9a917c' : '#4a4e5a', face = copier ? '#c8bfa8' : '#5e6270', lip = copier ? '#2a2a32' : '#8a8e9c', u0 = copier ? .66 : .64;
+    poly(g, side, [[PX(s * u0, z), FY(z)], [PX(s * u0, zb), FY(zb)], [PX(s * u0, zb), YH(zb, top)], [PX(s * u0, z), YH(z, top)]]);
     if (cb.temp && !cb.temp.dead && cb.temp.pop > 0) drawTemp(cb.temp, z + .06);
-    poly(g, '#5e6270', [[PX(s, z), FY(z)], [PX(s * .64, z), FY(z)], [PX(s * .64, z), YH(z, .38)], [PX(s, z), YH(z, .38)]]);
-    rect(g, Math.min(PX(s, z), PX(s * .64, z)), YH(z, .38), Math.abs(PX(s, z) - PX(s * .64, z)), Math.max(1, Math.round(2 * sc(z))), '#8a8e9c');
-    const mx = PX(s * .93, z), my = YH(z, .38), mw = Math.max(2, Math.round(10 * sc(z))), mh = Math.max(2, Math.round(7 * sc(z)));
-    rect(g, mx - mw / 2, my - mh, mw, mh, '#1a1418'); rect(g, mx - mw / 2 + 1, my - mh + 1, Math.max(1, mw - 2), Math.max(1, mh - 2), '#5ac08a');
+    poly(g, face, [[PX(s, z), FY(z)], [PX(s * u0, z), FY(z)], [PX(s * u0, z), YH(z, top)], [PX(s, z), YH(z, top)]]);
+    const x0 = Math.min(PX(s, z), PX(s * u0, z)), wd = Math.abs(PX(s, z) - PX(s * u0, z)), k = sc(z);
+    rect(g, x0, YH(z, top), wd, Math.max(1, Math.round(2 * k)), lip);
+    if (copier) {
+      // paper tray, a status light and a seam
+      rect(g, x0 + wd * .2, YH(z, top * .55), wd * .6, Math.max(1, Math.round(2 * k)), '#fff6e2');
+      rect(g, x0 + wd * .15, YH(z, top * .85), Math.max(1, Math.round(2 * k)), Math.max(1, Math.round(2 * k)), Math.floor(R.t * 2 + cb.w * 9) % 2 ? '#5ac08a' : '#2a6a4a');
+      rect(g, x0, YH(z, top * .35), wd, 1, '#9a917c');
+    } else {
+      const mx = PX(s * .93, z), my = YH(z, top), mw = Math.max(2, Math.round(10 * k)), mh = Math.max(2, Math.round(7 * k));
+      rect(g, mx - mw / 2, my - mh, mw, mh, '#1a1418'); rect(g, mx - mw / 2 + 1, my - mh + 1, Math.max(1, mw - 2), Math.max(1, mh - 2), '#5ac08a');
+    }
+  }
+  // Wall and floor dressing for each beat: posters and water coolers, all-staff streamers, paper stacks.
+  const POSTERS = ['#ffd44a', '#7fd4ff', '#ff7050', '#5ac08a'];
+  function drawDecor(d, z) {
+    const s = d.s, k = sc(z);
+    if (d.kind === 'poster') {
+      const z1 = z + .07, col = POSTERS[Math.floor(d.col * 4)];
+      poly(g, '#e8e4d8', [[PX(s, z), YH(z, .66)], [PX(s, z1), YH(z1, .66)], [PX(s, z1), YH(z1, .46)], [PX(s, z), YH(z, .46)]]);
+      poly(g, col, [[PX(s, z + .008), YH(z + .008, .63)], [PX(s, z1 - .008), YH(z1 - .008, .63)], [PX(s, z1 - .008), YH(z1 - .008, .52)], [PX(s, z + .008), YH(z + .008, .52)]]);
+    } else if (d.kind === 'streamer') {
+      const z1 = z + .3;
+      poly(g, '#961e16', [[PX(s, z), YH(z, .74)], [PX(s, z1), YH(z1, .74)], [PX(s, z1), YH(z1, .68)], [PX(s, z), YH(z, .68)]]);
+      for (let i = 0; i < 4; i++) { const zz = z + i * .08; rect(g, PX(s, zz) - (s > 0 ? 1 : 0), YH(zz, .68), 1, Math.max(1, Math.round(6 * sc(zz))), '#ffd44a'); }
+    } else if (d.kind === 'cooler') {
+      const w = Math.max(2, Math.round(A.COOLER.width * k)), h = Math.max(3, Math.round(A.COOLER.height * k));
+      g.drawImage(A.COOLER, Math.round(PX(s * .93, z) - w / 2), Math.round(FY(z) - h), w, h);
+    } else if (d.kind === 'stack') {
+      const w = Math.max(2, Math.round(A.STACK.width * k)), h = Math.max(2, Math.round(A.STACK.height * k));
+      g.drawImage(A.STACK, Math.round(PX(s * .93, z) - w / 2), Math.round(FY(z) - h), w, h);
+    }
+  }
+  function drawSign(sg, z) {
+    // drawn at 1x so the 3x5 lettering stays crisp, hung high so it passes over the action
+    const w = sg.img.width, h = sg.img.height, y = YH(z, .93);
+    line(g, 120 - w * .35, CY(z), 120 - w * .35, y, '#4c4856'); line(g, 120 + w * .35, CY(z), 120 + w * .35, y, '#4c4856');
+    g.drawImage(sg.img, Math.round(120 - w / 2), Math.round(y), w, h);
   }
   function drawTemp(tp, zt) {
     const s = sc(zt) * .85, w = Math.max(2, Math.round(26 * s)), h = Math.max(2, Math.round(15 * s));
-    const x = Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb = YH(zt, .26 + tp.pop * .17);
+    const x = Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb = YH(zt, tp.cub.top - .12 + tp.pop * .17);
     g.drawImage(A.TEMP, x, Math.round(yb - h), w, h);
     if (tp.st === 'up' && tp.t > .25 && !tp.threw) g.drawImage(A.WAD, Math.round(x + w * .75), Math.round(yb - h - 4 * s), Math.max(2, Math.round(5 * s)), Math.max(2, Math.round(5 * s)));
   }
@@ -645,9 +754,17 @@
   }
   function drawHUD() {
     for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 4);
-    const n = String(R.souls), tw = textWidth(n);
-    g.drawImage(A.GHOST, W - 4 - tw - 12, 3);
-    otxt(g, n, W - 4, 5, '#fff6e2', 1, 'right');
+    if (R.phase === 'hall') {
+      // the goal: free enough souls and the Shredder wakes
+      const k = Math.min(1, R.souls / TUNE.goal), full = k >= 1 && Math.floor(R.t * 6) % 2;
+      g.drawImage(A.GHOST, 74, 3);
+      rect(g, 86, 4, 64, 7, '#1a1418'); rect(g, 87, 5, 62, 5, '#3a2f5e'); rect(g, 87, 5, Math.round(62 * k), 5, full ? '#ffd44a' : '#7fd4ff');
+      otxt(g, R.souls + '/' + TUNE.goal, 154, 5, '#fff6e2');
+    } else {
+      const n = String(R.souls), tw = textWidth(n);
+      g.drawImage(A.GHOST, W - 4 - tw - 12, 3);
+      otxt(g, n, W - 4, 5, '#fff6e2', 1, 'right');
+    }
     const b = R.boss;
     if (b.st === 'fight' || (b.st === 'dead' && R.phaseT < 1.2)) {
       otxt(g, 'SHRED-O', 86, 5, '#ffd44a', 1, 'right');
@@ -725,6 +842,7 @@
   }
   function drawTitle() {
     drawTower(R.t);
+    if (state === 'intro') return;
     // the logo: orange with a gold II, a red lip under each stroke and a dark outline
     const s = 'UNRUGGABULL II', x = Math.round(120 - textWidth(s, 3) / 2), y = 4;
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [-1, 1], [1, 1], [0, 2], [1, 2], [-1, 2]]) txt(g, s, x + dx, y + dy, '#1a1418', 3);
@@ -732,8 +850,30 @@
     txt(g, 'UNRUGGABULL', x, y, '#ff9a3c', 3); txt(g, 'II', x + 12 * 12, y, '#ffd44a', 3);
     otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 23, '#fff6e2', 1, 'center');
   }
+  // How dark the hall is during the lights-out event: it flickers off, stays dark, then flickers back.
+  function darkness() {
+    const E = R.event;
+    if (!E || E.kind !== 'dark') return 0;
+    if (E.t < .5) return Math.floor(E.t * 14) % 2 ? .82 : .25;
+    if (E.t > E.dur - .6) return Math.floor(E.t * 14) % 2 ? .82 : .3;
+    return .82;
+  }
+  // In the dark only glowing things show: monitors, carpshit eyes, blaster bolts, and you, faintly.
+  function drawGlows() {
+    for (const cb of R.cubs) {
+      const z = cubZ(cb); if (z > 1.02 || cb.kind !== 'cub') continue;
+      const k = sc(z), mx = PX(cb.s * .93, z), my = YH(z, cb.top), mw = Math.max(2, Math.round(10 * k)), mh = Math.max(2, Math.round(7 * k));
+      rect(g, mx - mw / 2 + 1, my - mh + 1, Math.max(1, mw - 2), Math.max(1, mh - 2), '#5ac08a');
+    }
+    for (const f of R.flies) {
+      const k = sc(f.z), w = 26 * k, x = PX(f.u, f.z), y = YH(f.z, f.h), e = Math.max(1, Math.round(2 * k));
+      rect(g, x - w * .23, y - 1, e, e, '#fff0aa'); rect(g, x + w * .19, y - 1, e, e, '#fff0aa');
+    }
+    for (const sh of R.shots) drawShot(sh);
+    g.save(); g.globalAlpha = .45; drawBull(); for (const p of R.projs) drawProj(p); g.restore();
+  }
   function draw() {
-    if (state === 'title') { g.setTransform(1, 0, 0, 1, 0, 0); drawTitle(); return; }
+    if (state === 'title' || state === 'intro') { g.setTransform(1, 0, 0, 1, 0, 0); drawTitle(); return; }
     const sh = R.shake > 0 ? Math.round((rnd() - .5) * 6 * Math.min(1, R.shake * 4)) : 0;
     g.setTransform(1, 0, 0, 1, 0, 0);
     rect(g, 0, 0, W, H, '#09070b');
@@ -741,8 +881,14 @@
     drawHall();
     drawShredder();
     drawPaper();
+    // Fixed things beside and above the aisle go down first, far to near, so nothing moving is ever cut by them.
+    const back = [];
+    for (const d of R.decor) { const z = d.w - R.dist; if (z < 1.02) back.push([z, () => drawDecor(d, z)]); }
+    for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02) back.push([z, () => drawCub(cb, z)]); }
+    for (const sg of R.signs) { const z = sg.w - R.dist; if (z < 1.02 && z > .05) back.push([z, () => drawSign(sg, z)]); }
+    back.sort((a, b) => b[0] - a[0]);
+    for (const e of back) e[1]();
     const list = [];
-    for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02) list.push([z, () => drawCub(cb, z)]); }
     for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) list.push([z, () => drawBox(bx, z)]); }
     for (const f of R.flies) list.push([f.z, () => drawFly(f)]);
     for (const p of R.projs) list.push([p.z, () => drawProj(p)]);
@@ -751,6 +897,8 @@
     list.sort((a, b) => b[0] - a[0]);
     for (const e of list) e[1]();
     drawFx();
+    const dk = darkness();
+    if (dk) { g.save(); g.globalAlpha = dk; rect(g, -4, -4, W + 8, H + 8, '#05040a'); g.restore(); if (dk > .5) drawGlows(); }
     g.setTransform(1, 0, 0, 1, 0, 0);
     if (R.red > 0) { g.save(); g.globalAlpha = R.red * 1.6; rect(g, 0, 0, W, H, '#d63428'); g.restore(); }
     drawHUD(); drawWords();
@@ -774,10 +922,11 @@
     altBtn.hidden = true; cardNote.hidden = true;
     if (kind === 'title') {
       cardTitle.textContent = 'Floor 13: Accounting';
-      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Climb up and set them free. Your blaster fires on its own.';
+      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on floor 13 to wake the Shredder, then beat it.';
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
+      if (storySeen()) { altBtn.textContent = 'Watch the story'; altBtn.hidden = false; }
       cardNote.textContent = 'Demo: the first floor of the climb.'; cardNote.hidden = false;
     } else if (kind === 'pause') {
       cardTitle.textContent = 'Paused';
@@ -804,7 +953,7 @@
   };
   function setState(s) {
     state = s;
-    c.setAttribute('aria-label', s === 'title' ? LABELS.title : LABELS.play);
+    c.setAttribute('aria-label', s === 'title' || s === 'intro' ? LABELS.title : LABELS.play);
     gameEl.classList.toggle('playing', s === 'play');
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
@@ -813,12 +962,57 @@
     newRun();
     setState('play');
     card.hidden = true;
-    R.banner = { text: 'FLOOR 13', sub: 'ACCOUNTING', t: 0, dur: 2.6 };
-    live('Floor 13. Accounting.');
+    R.banner = { text: 'FLOOR 13', sub: 'ACCOUNTING', t: 0, dur: 2.2, then: { text: 'FREE ' + TUNE.goal + ' SOULS', sub: 'TO WAKE THE SHREDDER', t: 0, dur: 2.6 } };
+    live('Floor 13, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
     Snd.play('start'); Snd.music('tower');
-    if (document.body.classList.contains('touch') && !isFull()) toggleFull();
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
+  // Phones go full screen when you start; it has to happen inside the tap.
+  function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
+
+  // ---------- the story so far ----------
+  // Told in blips over the tower on the first Start; a tap shows the whole line, another moves on, Skip ends it.
+  const STORY = [
+    'When we last saw our hero, he had just unrugged the Rugfather behind a garage door that took thirteen seconds to open.',
+    'But the Rugfather was only middle management.',
+    'Every carpshit our hero unrugged left a soul behind: the Unrugged. Small, fringed and very polite, they drifted up to the roof of RugCo Tower and did not come back down.',
+    'Something up there has been catching them and weaving them back into carpshits. RugCo calls it p(Loom). It puts your odds of stopping it at one percent.',
+    'Our hero would like to discuss those odds. He will need a sword.'
+  ];
+  const STORY_KEY = 'unruggabull-ii-story';
+  const crawl = $('crawl'), crawlText = $('crawlText'), skipBtn = $('skip');
+  let intro = null;
+  function storySeen() { try { return localStorage.getItem(STORY_KEY) === '1'; } catch (e) { return false; } }
+  function startIntro() {
+    setState('intro'); card.hidden = true; crawl.hidden = false;
+    introLine(0);
+    try { skipBtn.focus({ preventScroll: true }); } catch (e) {}
+  }
+  function introLine(i) {
+    const text = STORY[i], plan = Snd.talkTimes(text, 'narrator');
+    Snd.hush(); Snd.say(text, 'narrator');
+    intro = { i, t: 0, text, times: plan.times, total: plan.total };
+    crawlText.textContent = ''; live(text);
+  }
+  function updateIntro(dt) {
+    if (!intro) return;
+    intro.t += dt;
+    let n = 0; while (n < intro.text.length && intro.times[n] <= intro.t) n++;
+    if (crawlText.textContent.length !== n) crawlText.textContent = intro.text.slice(0, n);
+    if (intro.t > intro.total + 1.8) nextLine();
+  }
+  function nextLine() { if (intro.i + 1 < STORY.length) introLine(intro.i + 1); else endIntro(); }
+  function advanceIntro() {
+    if (!intro) return;
+    if (intro.t < intro.total) { intro.t = intro.total; Snd.hush(); } else nextLine();
+  }
+  function endIntro() {
+    Snd.hush(); intro = null; crawl.hidden = true;
+    try { localStorage.setItem(STORY_KEY, '1'); } catch (e) {}
+    startRun();
+  }
+  skipBtn.addEventListener('click', e => { e.stopPropagation(); if (state === 'intro') endIntro(); });
+  $('stage').addEventListener('click', e => { if (state === 'intro' && !skipBtn.contains(e.target)) advanceIntro(); });
   function pauseGame() {
     if (state !== 'play') return;
     setState('pause'); clearHeld();
@@ -842,9 +1036,14 @@
     goBtn.focus({ preventScroll: true });
   }
   goBtn.addEventListener('click', () => {
-    if (cardKind === 'pause') resumeGame(); else startRun();
+    if (cardKind === 'pause') { resumeGame(); return; }
+    goFull();
+    if (cardKind === 'title' && !storySeen()) startIntro(); else startRun();
   });
-  altBtn.addEventListener('click', () => { if (cardKind === 'pause') { Snd.resume(); startRun(); } });
+  altBtn.addEventListener('click', () => {
+    if (cardKind === 'pause') { Snd.resume(); startRun(); }
+    else if (cardKind === 'title') { goFull(); startIntro(); }
+  });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
 
   // Sound: on unless muted, but browsers only let it start after a tap or key press.
@@ -896,14 +1095,25 @@
   fsBtn.addEventListener('click', toggleFull);
 
   // ---------- input ----------
-  const KEYS = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ' ': 'jump', w: 'jump', W: 'jump', ArrowUp: 'jump', j: 'slash', J: 'slash', k: 'slash', K: 'slash', Enter: 'slash' };
-  function clearHeld() { keys.kbLeft = keys.kbRight = keys.padLeft = keys.padRight = false; padPointers.clear(); padSync(); }
+  const KEYS = {
+    ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
+    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump',
+    j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
+    k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
+  };
+  function clearHeld() { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = false; padPointers.clear(); padSync(); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = KEYS[e.key];
     if (state === 'play' && k) {
       e.preventDefault();
-      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (!e.repeat) press(k);
+      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true;
+      else { if (k === 'shoot') keys.kbShoot = true; if (!e.repeat) press(k); }
+      return;
+    }
+    if (state === 'intro' && (k === 'jump' || k === 'slash' || k === 'shoot' || e.key === 'Escape')) {
+      e.preventDefault();
+      if (!e.repeat) { if (e.key === 'Escape') endIntro(); else advanceIntro(); }
       return;
     }
     if (e.repeat) return;
@@ -915,15 +1125,16 @@
       else if (e.key === 'Escape' && isFull() && !nativeFull()) setFull(false);
     }
   });
-  addEventListener('keyup', e => { const k = KEYS[e.key]; if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; });
-  addEventListener('blur', () => { keys.kbLeft = keys.kbRight = false; });
+  addEventListener('keyup', e => { const k = KEYS[e.key]; if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; });
+  addEventListener('blur', () => { keys.kbLeft = keys.kbRight = keys.kbShoot = false; });
 
-  // Touch pads: each finger is tracked, so a thumb can slide from left to right, and jump or slash fire as a finger lands on them.
+  // Touch pads: a D-pad on the left (jump is the up arrow) and Shoot and Slash on the right. Each finger is tracked,
+  // so a thumb can slide between pads; jump, slash and shoot act as a finger lands on them, and Shoot keeps firing while held.
   const pads = $('pads'), padPointers = new Map();
   function padAt(x, y) { const el = document.elementFromPoint(x, y), p = el && el.closest && el.closest('.pad'); return p && pads.contains(p) ? p.dataset.k : null; }
   function padSync() {
     const held = new Set(padPointers.values());
-    keys.padLeft = held.has('left'); keys.padRight = held.has('right');
+    keys.padLeft = held.has('left'); keys.padRight = held.has('right'); keys.padShoot = held.has('shoot');
     for (const p of pads.querySelectorAll('.pad')) p.classList.toggle('on', held.has(p.dataset.k));
   }
   pads.addEventListener('pointerdown', e => {
@@ -932,7 +1143,7 @@
     e.preventDefault();
     try { pads.setPointerCapture(e.pointerId); } catch (_) {}
     padPointers.set(e.pointerId, k);
-    if (k === 'jump' || k === 'slash') press(k);
+    if (k === 'jump' || k === 'slash' || k === 'shoot') press(k);
     padSync();
   });
   pads.addEventListener('pointermove', e => {
@@ -940,7 +1151,7 @@
     const k = padAt(e.clientX, e.clientY);
     if (k === padPointers.get(e.pointerId)) return;
     padPointers.set(e.pointerId, k);
-    if (k === 'jump' || k === 'slash') press(k);
+    if (k === 'jump' || k === 'slash' || k === 'shoot') press(k);
     padSync();
   });
   const lift = e => { if (padPointers.delete(e.pointerId)) padSync(); };
