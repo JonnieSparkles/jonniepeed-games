@@ -312,10 +312,12 @@ var StickArmyUnits = function (w) {
   // troopers on and near the ground and hits tanks hard. Fighter cover makes one fast pass through the sky, gunning
   // down planes and bombs. The radio holds RADIO.SLOTS calls of either kind. A run starts with none; HQ sends a
   // bomber with the first tanks, each zeppelin downed earns one, and the shop sells both.
-  var RADIO = { SLOTS: 2, FULL_TAGS: 40 };
-  // Called planes are sketched in at the left edge of the page (HOLD seconds), then fly.
+  // A call starts on the radio: someone in the squad (or the bunker, with no squad) raises a buzzing walkie-talkie
+  // for TALK seconds, then the plane is sketched in at the left edge of the page (HOLD seconds), then it flies.
+  var RADIO = { SLOTS: 2, FULL_TAGS: 40, TALK: 0.6 };
   var STRIKE = { SPEED: 230, Y: 92, BOMBS: 11, FALL: 520, START: 56, HOLD: 0.45 };
-  var FIGHTER = { SPEED: 300, PASSES: [190], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35 };
+  // Fighter cover swoops in from DIVE px above its lane over DIVE_T seconds, trailing a contrail, firing tracers.
+  var FIGHTER = { SPEED: 300, PASSES: [190], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35, DIVE: 70, DIVE_T: 0.5 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
   // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead. Quiet when a banner says it.
@@ -331,21 +333,51 @@ var StickArmyUnits = function (w) {
     if (!quiet) addText('radio full +' + RADIO.FULL_TAGS + ' tags', x, y, BLUE, 20);
     return false;
   }
+  // The caller: the most decorated soldier standing, nearest the bunker on a tie; with no squad, the bunker itself.
+  function radioCall(label) {
+    var S = w.S, crew = S.recruits.filter(function (r) { return !r.dead && !r.down; })
+      .sort(function (a, b) { return (b.rank || 0) - (a.rank || 0) || Math.abs(a.x - BK.x) - Math.abs(b.x - BK.x); });
+    var r = crew[0];
+    S.radio = { rid: r ? r.id : null, x: r ? r.x : BK.x, t: 0, dur: RADIO.TALK + 0.6 };
+    addText(label, r ? r.x : BK.x, GROUND - (r ? 74 : 104), BLUE, 24);
+    w.sound.play('radio');
+  }
+  function updateRadio(dt) {
+    var S = w.S, rc = S.radio;
+    if (!rc) return;
+    var r = rc.rid != null && S.recruits.find(function (q) { return q.id === rc.rid; });
+    if (r) rc.x = r.x;
+    if ((rc.t += dt) > rc.dur || (rc.rid != null && (!r || r.dead || r.down))) S.radio = null;
+  }
+  // A walkie-talkie by the caller's head, antenna up, buzzing.
+  function drawRadio() {
+    var S = w.S, G = w.G, rc = S.radio;
+    if (!rc) return;
+    var cx = rc.x + 10, cy = rc.rid != null ? GROUND - 38 : BK.top - 24, a = Math.min(1, (rc.dur - rc.t) / 0.25), x = 0, y = 0;
+    pen(rc.rid || 77); G.save(); G.globalAlpha = a; G.translate(cx, cy); G.scale(1.5, 1.5);
+    G.beginPath(); SP([x - 3, y - 5, x + 3, y - 5, x + 3, y + 6, x - 3, y + 6], true, 0.2); G.fillStyle = INK; G.fill();
+    G.beginPath(); L(x + 1.8, y - 5, x + 2.4, y - 12, 0.2); ink(INK, 1.6); G.stroke();
+    G.fillStyle = PAPER; G.fillRect(x - 1.8, y - 3, 3.6, 2.6);
+    if (rc.t < RADIO.TALK + 0.3 && w.boil % 2) {
+      G.beginPath(); SP([x + 6, y - 8, x + 9, y - 5, x + 7, y - 2, x + 10, y + 1], false, 0.3); SP([x - 6, y - 8, x - 9, y - 5, x - 7, y - 2, x - 10, y + 1], false, 0.3);
+      ink(BLUE, 1.6); G.stroke();
+    }
+    G.restore();
+  }
   function callStrike() {
     var S = w.S;
     if (S.mode !== 'play' || S.strike || S.calls.bomber <= 0) return false;
     S.calls.bomber--;
     var targets = [];
     for (var i = 0; i < STRIKE.BOMBS; i++) { var x = 24 + i * (W - 48) / (STRIKE.BOMBS - 1); if (Math.abs(x - BK.x) > 46) targets.push(x); }
-    S.strike = { x: STRIKE.START, hold: STRIKE.HOLD, drops: targets, id: w.id() };
-    addText('air strike!', 200, 260, BLUE, 30);
-    w.sound.play('strike');
+    S.strike = { x: STRIKE.START, hold: STRIKE.HOLD + RADIO.TALK, drops: targets, id: w.id() };
+    radioCall('air strike!');
     emit('air_strike', { wave: S.wave, left: S.calls.bomber });
     return true;
   }
   function updateStrike(dt) {
     var S = w.S, st = S.strike;
-    if (st && st.hold > 0) st.hold -= dt;
+    if (st && st.hold > 0) { var was = st.hold; st.hold -= dt; if (was > STRIKE.HOLD && st.hold <= STRIKE.HOLD) w.sound.play('strike'); }
     else if (st) {
       st.x += STRIKE.SPEED * dt;
       while (st.drops.length && st.x >= st.drops[0]) S.strikeBombs.push({ id: w.id(), x: st.drops.shift(), y: STRIKE.Y + 12, vy: 80, dead: false });
@@ -361,9 +393,8 @@ var StickArmyUnits = function (w) {
     var S = w.S;
     if (S.mode !== 'play' || S.fighter || S.calls.fighter <= 0) return false;
     S.calls.fighter--;
-    S.fighter = { pass: 0, dir: 1, x: FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD, cd: 0.2, flash: 0, id: w.id() };
-    addText('fighter cover!', 200, 260, BLUE, 30);
-    w.sound.play('fighter');
+    S.fighter = { pass: 0, dir: 1, x: FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, cd: 0.2, flash: 0, fly: 0, dive: FIGHTER.DIVE, trail: [], id: w.id() };
+    radioCall('fighter cover!');
     emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });
     return true;
   }
@@ -373,7 +404,7 @@ var StickArmyUnits = function (w) {
     function consider(list, ok, bias) {
       list.forEach(function (o) {
         if (!ok(o)) return;
-        var dx = (o.x - f.x) * f.dir, d = Math.hypot(o.x - f.x, o.y - f.y) + bias;
+        var dx = (o.x - f.x) * f.dir, d = Math.hypot(o.x - f.x, o.y - (f.y - f.dive)) + bias;
         if (dx > 10 && d < FIGHTER.RANGE + bias && d < bd) { bd = d; best = o; }
       });
     }
@@ -385,20 +416,24 @@ var StickArmyUnits = function (w) {
   function updateFighter(dt) {
     var S = w.S, f = S.fighter;
     if (!f) return;
-    if (f.hold > 0) { f.hold -= dt; return; }
+    if (f.hold > 0) { var was = f.hold; f.hold -= dt; if (was > FIGHTER.HOLD && f.hold <= FIGHTER.HOLD) w.sound.play('fighter'); return; }
+    // It swoops down into its lane: the dive is a height above the lane that eases to zero.
+    f.fly += dt; var u = Math.min(1, f.fly / FIGHTER.DIVE_T); f.dive = FIGHTER.DIVE * (1 - u) * (1 - u);
     f.x += f.dir * FIGHTER.SPEED * dt; f.cd -= dt; f.flash = Math.max(0, f.flash - dt);
+    var fy = f.y - f.dive;
+    f.trail.push({ x: f.x - f.dir * 26, y: fy + 1 }); if (f.trail.length > 14) f.trail.shift();
     var tg = f.cd <= 0 && fighterTarget(f);
     if (tg) {
       var vx = tg.isBomb ? tg.vx : tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.dir * tg.speed, vy = tg.isBomb ? tg.vy : 0;
-      var nx = f.x + f.dir * 30, tt = Math.hypot(tg.x - nx, tg.y - f.y) / FIGHTER.BULLET;
-      var a = Math.atan2(tg.y + vy * tt - f.y, tg.x + vx * tt - nx) + (w.RC() * 2 - 1) * 0.02;
-      S.bullets.push({ x: nx, y: f.y, vx: Math.cos(a) * FIGHTER.BULLET, vy: Math.sin(a) * FIGHTER.BULLET, owner: 'ally', kind: 'bullet', pierce: 1, hits: [], life: 0.7, dead: false });
+      var nx = f.x + f.dir * 30, tt = Math.hypot(tg.x - nx, tg.y - fy) / FIGHTER.BULLET;
+      var a = Math.atan2(tg.y + vy * tt - fy, tg.x + vx * tt - nx) + (w.RC() * 2 - 1) * 0.02;
+      S.bullets.push({ x: nx, y: fy, vx: Math.cos(a) * FIGHTER.BULLET, vy: Math.sin(a) * FIGHTER.BULLET, owner: 'ally', kind: 'bullet', tracer: true, pierce: 1, hits: [], life: 0.7, dead: false });
       f.cd = FIGHTER.EVERY; f.flash = 0.04;
       w.sound.play('ally');
     }
     if (f.dir > 0 ? f.x > W + 70 : f.x < -70) {
       if (++f.pass >= FIGHTER.PASSES.length) { S.fighter = null; return; }
-      f.dir = -f.dir; f.x = f.dir > 0 ? -60 : W + 60; f.y = FIGHTER.PASSES[f.pass];
+      f.dir = -f.dir; f.x = f.dir > 0 ? -60 : W + 60; f.y = FIGHTER.PASSES[f.pass]; f.trail = [];
     }
   }
   function drawStrike() {
@@ -423,17 +458,25 @@ var StickArmyUnits = function (w) {
   function drawFighter() {
     var f = w.S.fighter, G = w.G;
     if (!f) return;
-    if (f.hold > 0) { w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [f.x - 32, f.y - 16, f.x + 32, f.y + 8], 'right', function () { fighterBody(f, G); }); return; }
+    var fy = f.y - f.dive;
+    if (f.hold > 0) { w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [f.x - 32, fy - 16, f.x + 32, fy + 8], 'right', function () { fighterBody(f, G); }); return; }
+    // The contrail: a pencil line that fades behind it.
+    for (var i = 1; i < f.trail.length; i++) {
+      var p0 = f.trail[i - 1], p1 = f.trail[i];
+      G.globalAlpha = i / f.trail.length * 0.45; G.beginPath(); L(p0.x, p0.y, p1.x, p1.y, 0.2); ink(INK2, 1.6); G.stroke();
+    }
+    G.globalAlpha = 1;
     fighterBody(f, G);
   }
   function fighterBody(f, G) {
-    pen(f.id); G.save(); G.translate(f.x, f.y); G.scale(-f.dir * 0.72, 0.72);
+    var tilt = f.dive > 0 ? f.dive / FIGHTER.DIVE * 0.5 : 0;
+    pen(f.id); G.save(); G.translate(f.x, f.y - f.dive); G.rotate(f.dir * tilt); G.scale(-f.dir * 0.72, 0.72);
     G.beginPath(); SP(FIGHTER_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.16)'; G.fill(); ink(INK, 3); G.stroke();
     G.beginPath(); L(-10, 2, 12, 3); ink(INK, 3.6); G.stroke();
     G.beginPath(); G.arc(12, -2, 4, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
     G.beginPath(); G.arc(12, -2, 1.6, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
     var pl = w.boil % 2 ? 10 : 5; G.beginPath(); L(-38, -pl, -38, pl, 0.4); ink(INK, 2.6); G.stroke();
-    if (f.flash > 0) { G.beginPath(); L(-42, -1, -54, -1, 0.3); L(-42, 2, -52, 5, 0.3); ink(HAT, 3); G.stroke(); }
+    if (f.flash > 0) { G.beginPath(); L(-42, -1, -58, -1, 0.3); L(-42, 2, -55, 7, 0.3); L(-42, -3, -55, -8, 0.3); ink('#d99a00', 3.4); G.stroke(); ink(HAT, 1.6); G.stroke(); }
     G.restore();
   }
 
@@ -443,5 +486,5 @@ var StickArmyUnits = function (w) {
     TANK: TANK, tankHP: tankHP, spawnCargo: spawnCargo, updateCargo: updateCargo, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
     RADIO: RADIO, callsHeld: callsHeld, grantCall: grantCall, STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike,
-    FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter };
+    FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, updateRadio: updateRadio, drawRadio: drawRadio };
 };

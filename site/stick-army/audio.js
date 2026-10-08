@@ -72,6 +72,8 @@ var StickArmySound = (function () {
     cannon: function () { noise(0.3, 0.3, 300); tone(70, 0.3, 'sine', 0.22, 40); },
     // A pen sketching something onto the page: a few quick scratches.
     scribble: function () { for (var i = 0; i < 4; i++) noise(0.06, 0.05, 5200, i * 0.11, 'highpass'); },
+    // A walkie-talkie: a burst of static, then two beeps.
+    radio: function () { noise(0.22, 0.12, 2600, 0, 'bandpass'); tone(1400, 0.05, 'square', 0.035, null, 0.24); tone(1400, 0.05, 'square', 0.035, null, 0.32); noise(0.12, 0.06, 2600, 0.42, 'bandpass'); },
     // Fighter cover: a fast engine whine that climbs as it dives in.
     fighter: function () { tone(160, 0.9, 'sawtooth', 0.045, 480); noise(0.7, 0.05, 1800, 0, 'bandpass'); brass(784, 0.12, 0.06, 0.15); brass(988, 0.3, 0.07, 0.28); },
     strike: function () { tone(70, 1.6, 'sawtooth', 0.05, 140); noise(1.6, 0.06, 600); brass(587, 0.18, 0.07, 0.1); brass(784, 0.4, 0.08, 0.28); },

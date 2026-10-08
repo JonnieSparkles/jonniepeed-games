@@ -36,5 +36,25 @@
   pow(200, 300, 30); render();
   check(ctx.globalCompositeOperation === 'source-over', 'drawing leaves the canvas as it found it');
 
+  // Calls go out on the radio: the most decorated soldier standing raises a buzzing walkie-talkie, or the bunker
+  // does with no squad. The plane is sketched in once the call is made.
+  RUN.force = 43; newGame(); startWave(6); S.spawn.timer = S.spawn.rushT = S.spawn.cargoT = 99; S.mods.maxHP = S.wallHP = 1e6;
+  var rook = makeRecruit(0, 'rifle'), cpl = makeRecruit(5, 'rifle'); cpl.rank = 2; cpl.name = 'Inky'; S.recruits = [rook, cpl]; S.texts = [];
+  S.calls.bomber = 1; callStrike();
+  check(S.radio && S.radio.rid === cpl.id && S.texts.some(function (q) { return q.s === 'air strike!' && Math.abs(q.x - cpl.x) < 60; }), 'the corporal calls it in');
+  render();
+  for (var f = 0; f < Math.ceil((RADIO.TALK + 0.7) * 60); f++) update(1 / 60);
+  check(!S.radio, 'and puts the radio away');
+  S.strike = null; S.recruits = []; S.calls.fighter = 1; callFighter();
+  check(S.radio && S.radio.rid === null && S.radio.x === BK.x, 'with no squad, the bunker calls it in');
+  // Fighter cover swoops into its lane, trails a contrail and fires tracers.
+  var fighter = S.fighter, planeB = makePlane('plane', -1, 260, 170); planeB.speed = 0; S.planes = [planeB];
+  for (f = 0; f < Math.ceil((FIGHTER.HOLD + RADIO.TALK) * 60) + 2; f++) update(1 / 60);
+  check(fighter.dive > 0 && fighter.dive < FIGHTER.DIVE, 'it dives in from above its lane: ' + fighter.dive);
+  for (f = 0; f < 30; f++) update(1 / 60);
+  check(fighter.dive === 0 && fighter.trail.length > 5, 'levels out, trailing a contrail');
+  check(S.bullets.some(function (b) { return b.tracer; }) || planeB.state !== 'fly', 'and fires tracers');
+  render();
+
   emitHook = null; RUN.force = null; reset(); render();
 })();
