@@ -4,12 +4,17 @@ var StickArmySound = (function () {
   'use strict';
 
   // ---------- sound ----------
-  var AC = null, master = null, noiseBuf = null, muted = false, lastPlay = {};
+  var AC = null, master = null, noiseBuf = null, muted = false, lastPlay = {}, LEVEL = 0.8;
   function audioInit() {
     if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
     try {
       AC = new (window.AudioContext || window.webkitAudioContext)();
-      master = AC.createGain(); master.gain.value = 0.32; master.connect(AC.destination);
+      // Phones played it quietly, so the mix runs hotter, through a gentle soft clip that rounds off the rare peak
+      // when many sounds stack up instead of distorting. (A compressor node squashed short hits.)
+      var soft = AC.createWaveShaper(), curve = new Float32Array(1025);
+      for (var k = 0; k < curve.length; k++) { var x = k / 512 - 1; curve[k] = Math.tanh(1.4 * x) / Math.tanh(1.4); }
+      soft.curve = curve; soft.connect(AC.destination);
+      master = AC.createGain(); master.gain.value = LEVEL; master.connect(soft);
       noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.6), AC.sampleRate);
       var d = noiseBuf.getChannelData(0);
       for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -67,6 +72,8 @@ var StickArmySound = (function () {
     cannon: function () { noise(0.3, 0.3, 300); tone(70, 0.3, 'sine', 0.22, 40); },
     // A pen sketching something onto the page: a few quick scratches.
     scribble: function () { for (var i = 0; i < 4; i++) noise(0.06, 0.05, 5200, i * 0.11, 'highpass'); },
+    // A walkie-talkie: a burst of static, then two beeps.
+    radio: function () { noise(0.22, 0.12, 2600, 0, 'bandpass'); tone(1400, 0.05, 'square', 0.035, null, 0.24); tone(1400, 0.05, 'square', 0.035, null, 0.32); noise(0.12, 0.06, 2600, 0.42, 'bandpass'); },
     // Fighter cover: a fast engine whine that climbs as it dives in.
     fighter: function () { tone(160, 0.9, 'sawtooth', 0.045, 480); noise(0.7, 0.05, 1800, 0, 'bandpass'); brass(784, 0.12, 0.06, 0.15); brass(988, 0.3, 0.07, 0.28); },
     strike: function () { tone(70, 1.6, 'sawtooth', 0.05, 140); noise(1.6, 0.06, 600); brass(587, 0.18, 0.07, 0.1); brass(784, 0.4, 0.08, 0.28); },

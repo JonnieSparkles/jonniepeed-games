@@ -236,8 +236,8 @@
       coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
-      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null,
-      bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0,
+      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null,
+      bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
@@ -289,10 +289,17 @@
   function addText(s, x, y, color, size, kind, merge) {
     kind = kind || (color === RED ? 'alert' : 'story');
     var spec = TEXT.KIND[kind], routine = kind === 'score' || kind === 'minor';
-    x = clamp(x, 44, W - 44); y = clamp(y, TEXT.TOP + 18, GROUND - 6);
+    // Long labels stay on the page: x is clamped by the label's rough width.
+    function onPage(xx, str, size) { var half = str.length * size * 0.25 + 4; return clamp(xx, Math.min(W / 2, half), Math.max(W / 2, W - half)); }
+    x = onPage(x, s, size || spec.size); y = clamp(y, TEXT.TOP + 18, GROUND - 6);
     if (merge) {
       var near = S.texts.find(function (q) { return q.key === merge.key && S.t - q.lastT < (merge.window || TEXT.MERGE_S) && Math.abs(q.x - x) < TEXT.MERGE_PX && Math.abs(q.y - y) < TEXT.MERGE_PX; });
-      if (near) { near.n++; near.pts += merge.pts; near.s = near.fmt(near.n, near.pts); near.lastT = S.t; near.life = near.max; return; }
+      if (near) {
+        near.n++; near.pts += merge.pts; near.s = near.fmt(near.n, near.pts); near.lastT = S.t; near.life = near.max;
+        near.size = near.size0 + Math.min(HL.GROW_MAX, (near.n - 1) * HL.GROW); near.x = onPage(near.x, near.s, near.size);
+        if (!near.hl && near.pts >= HL.PTS) { near.hl = true; near.hlT = S.t; near.color = near.color === INK2 ? INK : near.color; }
+        return;
+      }
     }
     if (routine && S.texts.filter(function (q) { return q.kind === 'score' || q.kind === 'minor'; }).length >= TEXT.BUDGET) return;
     // Step out of the way of labels already there: try a line above, below, then two lines.
@@ -300,8 +307,9 @@
     var clear = function (yy) { return !S.texts.some(function (q) { return Math.abs(q.x - x) < (wide + q.s.length * q.size * 0.5) / 2 && Math.abs(q.y - yy) < (sz + q.size) * 0.45; }); };
     var tries = [0, -1, 1, -2, 2], slot = tries.find(function (k) { var yy = y + k * sz * 1.1; return yy >= TEXT.TOP + 10 && yy <= GROUND - 6 && clear(yy); });
     if (slot !== undefined) y += slot * sz * 1.1;
-    S.texts.push({ s: s, key: merge && merge.key, fmt: merge && merge.fmt, n: 1, pts: merge ? merge.pts : 0, lastT: S.t, kind: kind, x: x, y: y, color: color,
-      size: sz, life: spec.life, max: spec.life, rot: rr(-0.14, 0.1), vy: routine ? -30 : -38 });
+    var hl = kind === 'big' || (merge && merge.pts >= HL.PTS);
+    S.texts.push({ s: s, key: merge && merge.key, fmt: merge && merge.fmt, n: 1, pts: merge ? merge.pts : 0, lastT: S.t, kind: kind, x: x, y: y,
+      color: hl && color === INK2 ? INK : color, size: sz, size0: sz, hl: hl, hlT: S.t, life: spec.life, max: spec.life, rot: rr(-0.14, 0.1), vy: routine ? -30 : -38 });
   }
   // Wall damage from one burst reads as one running total.
   function wallText(amount) {
@@ -344,6 +352,17 @@
   function puff(x, y, r, life) {
     if (busy() && (puffN++ & 1)) return;
     S.parts.push({ k: 'puff', x: x, y: y, r: r, vr: rr(14, 30), life: life, max: life, id: nextId++ });
+  }
+  // ---------- the highlighter ----------
+  // The page's third pen, after your blue and their red: a yellow highlighter, kept for your big moments so routine
+  // kills stay quiet. Downing a plane, tank or zeppelin, a mine and your air strike's bombs flash a comic starburst
+  // (pow). Labels worth HL.PTS or more, and big awards, get a highlighter swipe behind them, and merged labels grow
+  // as their count climbs. Purely cosmetic.
+  var HL = { COLOR: 'rgba(255, 221, 51, 0.7)', POW: 'rgba(255, 214, 38, 0.95)', PTS: 300, SWIPE: 0.14, POW_LIFE: 0.32, GROW: 1.5, GROW_MAX: 9,
+    POW_KINDS: { wreck: 1, mine: 0.9, strike: 0.6 } };
+  function pow(x, y, r) {
+    if (busy()) r *= 0.75;
+    S.parts.push({ k: 'pow', x: x, y: y, r: r, life: HL.POW_LIFE, max: HL.POW_LIFE, rot: rr(0, 1.2), id: nextId++ });
   }
 
   // ---------- spawning ----------
@@ -436,9 +455,10 @@
   }
 
   // ---------- waves ----------
-  // A wave opens one thing at a time: the banner, then the sketches of what you bought (SKETCH.DELAY in), then the
-  // pizza courier once both are done.
-  var WAVE_BANNER = 2.2;
+  // A wave opens one thing at a time: a pizza ordered in the shop is delivered first (S.waveState 'pizza'), then the
+  // banner, then the sketches of what you bought (SKETCH.DELAY in), then the enemies. Once the planes are done and the
+  // field is clear, anything still due (a rush, a cargo plane, the zeppelin) comes in after WAVE_HURRY seconds.
+  var WAVE_BANNER = 2.2, WAVE_HURRY = 1.5;
   function startWave(n) {
     S.wave = n; seedWave(n);
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
@@ -456,9 +476,18 @@
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
   function updateWave(dt) {
+    if (S.waveState === 'pizza') {
+      // The wave starts as the courier rides off.
+      if (!S.delivery || S.delivery.phase === 'leave') { var next = S.nextWave; S.nextWave = null; startWave(next); }
+      return;
+    }
     var sp = S.spawn;
     if (!sp) return;
     if (S.waveState === 'active') {
+      // No dead air: with the planes done and nothing left on the field, what's still due comes in soon.
+      if (sp.planes + sp.bombers === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !S.tanks.length && !S.troopers.some(function (t) { return !t.dead; })) {
+        sp.rushT = Math.min(sp.rushT, WAVE_HURRY); sp.cargoT = Math.min(sp.cargoT, WAVE_HURRY); sp.bossT = Math.min(sp.bossT, ZEP.WARN + WAVE_HURRY);
+      }
       sp.timer -= dt;
       if (sp.timer <= 0 && sp.planes + sp.bombers > 0) {
         var kind = 'plane';
@@ -496,14 +525,14 @@
     TRAMPS[1].x1 = 308 - S.mods.mat * 6; TRAMPS[1].x2 = 378 + S.mods.mat * 6;
   }
   // Pencil icons for supplies live in icons.js; they draw with this file's pen.
-  var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag, hat: hat, tube: tube,
+  var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag, hat: hat, medicHelmet: medicHelmet, tube: tube,
     INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER });
   // Units beyond troopers and planes live in units.js; this is everything they may use.
   var world = { W: W, H: H, GROUND: GROUND, BK: BK, TUR: TUR, BALANCE: BALANCE,
     INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER, RED_FILL: RED_FILL, INK_FILL: INK_FILL,
     L: L, SP: SP, Ci: Ci, ink: ink, pen: pen, jt: jt, stick: stick, tube: tube, clamp: clamp, between: between, rr: rr, substream: substream,
     makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
-    puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
+    puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); }, pow: function (x, y, r) { pow(x, y, r); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
     crewMax: function (r) { return crewMax(r); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
@@ -517,7 +546,8 @@
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
     RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
     STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
-    FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter;
+    FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
+    updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio;
   // Names, ranks, the wounded and the field hospital live in squad.js.
   var SQUAD = StickArmySquad(world), RANK = SQUAD.RANK, RANKS = SQUAD.RANKS, rankName = SQUAD.rankName, serveWave = SQUAD.serveWave,
     knockDown = SQUAD.knockDown, standUp = SQUAD.standUp, fallen = SQUAD.fallen, careAtWaveEnd = SQUAD.careAtWaveEnd, bedSlot = SQUAD.bedSlot,
@@ -548,7 +578,7 @@
     S.sketches = keys.map(function (key, i) { return { key: key, t: -SKETCH.DELAY - i * SKETCH.GAP }; });
   }
   function updateSketches(dt) {
-    if (!S.sketches.length) return;
+    if (!S.sketches.length || S.waveState === 'pizza') return;
     S.sketches.forEach(function (k) { var was = k.t; k.t += dt; if (was < 0 && k.t >= 0) sound.play('scribble'); });
     S.sketches = S.sketches.filter(function (k) { return k.t < SKETCH.DUR; });
   }
@@ -757,6 +787,7 @@
     burst(p.x, p.y, 4, INK, 120);
     if (p.hp <= 0) {
       p.state = 'fall'; p.vy = -20; p.rot = 0; p.smoke = 0;
+      pow(p.x, p.y, p.kind === 'plane' ? 22 : 30);
       S.stats.planes++;
       emit('plane_down', { kind: p.kind, by: owner === 'ally' ? 'crew' : 'player' });
       // A cargo plane downed before its drop takes its tank with it.
@@ -772,6 +803,7 @@
     }
   }
   function explode(x, y, r, kind, owner) {
+    if (HL.POW_KINDS[kind]) pow(x, y, r * 0.8 * HL.POW_KINDS[kind]);
     for (var i = 0; i < 7; i++) puff(x + rr(-r, r) * 0.4, y + rr(-r, r) * 0.3, rr(3, 7), rr(0.4, 0.7));
     burst(x, y, 10, INK, 220);
     S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' ? 0.55 : kind === 'crash' || kind === 'wreck' ? 0.35 : kind === 'strike' || kind === 'shell' ? 0.25 : 0.15);
@@ -1216,6 +1248,7 @@
     updateTanks(dt);
     updateStrike(dt);
     updateFighter(dt);
+    updateRadio(dt);
     updateRecruits(dt);
     updateAutoTurret(dt);
     updateBullets(dt);
@@ -1284,6 +1317,13 @@
     G.beginPath(); G.moveTo(x - 7.5, y - 1); G.quadraticCurveTo(x - 7, y - 10, x, y - 10); G.quadraticCurveTo(x + 7, y - 10, x + 7.5, y - 1); G.closePath();
     G.fillStyle = '#7d8a64'; G.fill(); ink(INK, 1.5); G.stroke();
     G.beginPath(); L(x - 10, y - 0.5, x + 10, y - 0.5, 0.4); ink(INK, 2); G.stroke();
+  }
+  // Medics wear a white helmet with a red cross on the front.
+  function medicHelmet(x, y) {
+    G.beginPath(); G.moveTo(x - 7.5, y - 1); G.quadraticCurveTo(x - 7, y - 10.5, x, y - 10.5); G.quadraticCurveTo(x + 7, y - 10.5, x + 7.5, y - 1); G.closePath();
+    G.fillStyle = PAPER; G.fill(); ink(INK, 1.6); G.stroke();
+    G.beginPath(); L(x - 10, y - 0.5, x + 10, y - 0.5, 0.4); ink(INK, 2); G.stroke();
+    G.beginPath(); L(x - 2.8, y - 5.5, x + 2.8, y - 5.5); L(x, y - 8.3, x, y - 2.7); ink(RED, 2); G.stroke();
   }
   // Enemy armor: a grey flak vest over the chest, and a steel helmet on heavies. Both flash pale when hit.
   function vest(x, y, flash) {
@@ -1366,9 +1406,9 @@
     }
     if (tool) hammer(tool.hx, tool.hy, side, tool.idle);
     if (r.type === 'engineer') hat(x, y);
-    else if (S.mods.helmet > 0 && r.type !== 'medic') helmet(x, y);
+    else if (r.type === 'medic') medicHelmet(x, y);
+    else if (S.mods.helmet > 0) helmet(x, y);
     if (r.type === 'sniper') drawScope(x, y, Math.cos(r.aim) < 0 ? -1 : 1);
-    if (r.type === 'medic') { G.beginPath(); L(x-5,y-7,x+5,y-7); L(x,y-12,x,y-2); ink(BLUE,3); G.stroke(); }
     chevrons(x - 7, y + 9, r.rank || 0);
     // Crew health makes the cost of leaving a sniper alive visible.
     G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(x-6, GROUND+4, 12, 2);
@@ -1547,6 +1587,7 @@
       var sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
       G.beginPath();
       if (b.kind === 'rocket') { G.moveTo(b.x - ux * 9, b.y - uy * 9); G.lineTo(b.x, b.y); ink(INK, 6); G.stroke(); ink(BLUE, 3); G.stroke(); }
+      else if (b.tracer) { G.moveTo(b.x - ux * 20, b.y - uy * 20); G.lineTo(b.x, b.y); ink('#d99a00', 3); G.stroke(); ink(HAT, 1.4); G.stroke(); }
       else { G.moveTo(b.x - ux * 7, b.y - uy * 7); G.lineTo(b.x, b.y); ink(b.owner === 'ally' ? BLUE : INK, 2.6); G.stroke(); }
     });
   }
@@ -1568,14 +1609,33 @@
       } else if (q.k === 'deflate') { G.beginPath(); SP([q.x - 14, q.y, q.x - 8, q.y - 6, q.x - 2, q.y - 2, q.x + 4, q.y - 7, q.x + 10, q.y - 2, q.x + 15, q.y], false, 0.5); G.fillStyle = RED_FILL; G.fill(); ink(RED, 1.8); G.stroke(); }
       else if (q.k === 'tink') { G.beginPath(); L(q.x, q.y, q.x + 6, q.y - 5, 0.4); L(q.x, q.y, q.x + 7, q.y + 2, 0.4); L(q.x, q.y, q.x - 6, q.y - 6, 0.4); L(q.x, q.y, q.x - 5, q.y + 3, 0.4); ink(q.c === HAT ? '#d29a00' : q.c, 2); G.stroke(); }
       else if (q.k === 'ring') { G.beginPath(); Ci(q.x, q.y, 8 + (1 - a) * 24, 0.6); ink(BLUE, 2.4); G.stroke(); }
+      else if (q.k === 'pow') {
+        // A comic starburst that pops out fast, then fades.
+        var out = q.r * (0.55 + 0.45 * Math.min(1, (1 - a) * 5)), spikes = 9;
+        G.globalAlpha = Math.min(1, a * 2); G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath();
+        for (var j = 0; j < spikes * 2; j++) {
+          var an = j / (spikes * 2) * Math.PI * 2, rad = j % 2 ? out * 0.48 : out * (0.82 + 0.18 * ((q.id + j) % 3) / 2);
+          if (j) G.lineTo(Math.cos(an) * rad, Math.sin(an) * rad); else G.moveTo(rad, 0);
+        }
+        G.closePath(); G.globalCompositeOperation = 'multiply'; G.fillStyle = HL.POW; G.fill();
+        G.globalCompositeOperation = 'source-over'; ink(INK, 1.4); G.stroke();
+      }
       G.restore();
     });
+  }
+  // A highlighter swipe behind a label, drawn left to right as u goes from 0 to 1, with a slightly uneven edge.
+  function highlight(w, size, u, seed) {
+    var x0 = -w / 2 - 6, x1 = x0 + (w + 12) * u, top = -size * 0.72, bot = size * 0.12, j = (seed % 5) * 0.4;
+    G.save(); G.globalCompositeOperation = 'multiply'; G.fillStyle = HL.COLOR;
+    G.beginPath(); G.moveTo(x0, top + 2); G.lineTo(x1, top - 1 + j); G.lineTo(x1 - 2, bot + 1); G.lineTo(x0 + 1, bot - j); G.closePath(); G.fill();
+    G.restore();
   }
   function drawTexts() {
     S.texts.slice().sort(function (a, b) { return TEXT.ORDER[a.kind] - TEXT.ORDER[b.kind]; }).forEach(function (q) {
       var age = q.max - q.life, a = Math.min(1, q.life / 0.3), sc = age < 0.1 ? 1 + (0.1 - age) * 5 : 1;
       G.save(); G.globalAlpha = a; G.translate(q.x, q.y); G.rotate(q.rot); G.scale(sc, sc);
       G.font = q.size + 'px ' + HAND; G.textAlign = 'center';
+      if (q.hl) highlight(G.measureText(q.s).width, q.size, Math.min(1, (S.t - q.hlT) / HL.SWIPE), q.id || q.size0);
       G.lineWidth = 4; G.lineJoin = 'round'; G.strokeStyle = PAPER; G.strokeText(q.s, 0, 0);
       G.fillStyle = q.color; G.fillText(q.s, 0, 0);
       G.restore();
@@ -1622,7 +1682,7 @@
       if (r.type === 'rifle' || r.type === 'sniper') { G.beginPath(); L(-7, 17, 8, 7, 0.3); ink(INK, 2.2); G.stroke(); }
       if (r.type === 'sniper') { G.beginPath(); SP([-7, -4, -3, -10, 7, -7, 6, -3], true, 0.3); G.fillStyle = INK; G.fill(); }
       if (r.type === 'engineer') hat(0, 0);
-      if (r.type === 'medic') { G.beginPath(); L(-4, -9, 4, -9); L(0, -13, 0, -5); ink(BLUE, 2.6); G.stroke(); }
+      if (r.type === 'medic') medicHelmet(0, 0);
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
       chevrons(-8, 9, r.rank || 0);
       G.restore();
@@ -1696,6 +1756,7 @@
     S.tanks.forEach(drawTank);
     drawStrike();
     drawFighter();
+    drawRadio();
     if (S.mode === 'dying' || S.mode === 'over') drawRubble();
     else {
       sketched('auto', [SENTRY.x - 12, SENTRY.y - 16, SENTRY.x + 14, GROUND], 'up', drawSentry);

@@ -20,9 +20,9 @@
   sound = { init: NOOP, play: NOOP, ambience: NOOP, muted: true };
   // Fast mode also skips cosmetic effects. Runs with effects on put the originals back; run.py --verify and
   // case-10-seeds.js check that effects and drawing never change outcomes.
-  var EFFECTS = { addDecal: addDecal, puff: puff, burst: burst, killFx: killFx, addText: addText, flyTags: flyTags };
+  var EFFECTS = { addDecal: addDecal, puff: puff, burst: burst, pow: pow, killFx: killFx, addText: addText, flyTags: flyTags };
   function effects(on) {
-    addDecal = on ? EFFECTS.addDecal : NOOP; puff = on ? EFFECTS.puff : NOOP; burst = on ? EFFECTS.burst : NOOP;
+    addDecal = on ? EFFECTS.addDecal : NOOP; puff = on ? EFFECTS.puff : NOOP; burst = on ? EFFECTS.burst : NOOP; pow = on ? EFFECTS.pow : NOOP;
     killFx = on ? EFFECTS.killFx : NOOP; addText = on ? EFFECTS.addText : NOOP; flyTags = on ? EFFECTS.flyTags : NOOP;
   }
   function item(it) {

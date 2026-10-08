@@ -2,7 +2,7 @@
 // game.js passes its pen kit once; each icon is then called with the icon canvas context as G.
 var StickArmyIcons = function (kit) {
   'use strict';
-  var L = kit.L, SP = kit.SP, Ci = kit.Ci, ink = kit.ink, stick = kit.stick, dogTag = kit.dogTag, hat = kit.hat, tube = kit.tube;
+  var L = kit.L, SP = kit.SP, Ci = kit.Ci, ink = kit.ink, stick = kit.stick, dogTag = kit.dogTag, hat = kit.hat, medicHelmet = kit.medicHelmet, tube = kit.tube;
   var INK = kit.INK, INK2 = kit.INK2, RED = kit.RED, BLUE = kit.BLUE, HAT = kit.HAT, PAPER = kit.PAPER;
   return {
     fire: function (G) {
@@ -154,8 +154,10 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); Ci(29, 11, 3, 0.2); ink(INK, 1.8); G.stroke();
     },
     'hire-medic': function (G) {
-      G.beginPath(); Ci(22, 22, 16, 0.4); ink(INK, 2); G.stroke();
-      G.fillStyle = RED; G.fillRect(18, 11, 8, 22); G.fillRect(11, 18, 22, 8);
+      // In his white helmet with the red cross, carrying a first-aid kit.
+      G.save(); G.translate(15, 9); G.scale(0.85, 0.85); stick(0, 0, [-6, 19, 12, 19, -5, 33, 5, 33], BLUE, 3); medicHelmet(0, 0); G.restore();
+      G.fillStyle = PAPER; G.fillRect(26, 22, 13, 10); G.beginPath(); SP([26, 22, 39, 22, 39, 32, 26, 32], true, 0.3); ink(INK, 1.8); G.stroke();
+      G.beginPath(); L(29.5, 27, 35.5, 27); L(32.5, 24, 32.5, 30); ink(RED, 2); G.stroke();
     },
     fallback: function (G) { G.beginPath(); Ci(22, 22, 12, 0.5); L(22, 14, 22, 26, 0.3); ink(INK, 2.4); G.stroke(); G.beginPath(); G.arc(22, 31, 1.8, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
   };

@@ -15,10 +15,12 @@
   check(takeItem('pizza') && S.mode==='shop' && !shopScreen.hidden && S.pizzaOrder,'ordering pizza keeps the shop open');
   check(S.wallHP===50 && S.coins===coins-25 && !takeItem('pizza'),'no heal yet, and one order a visit');
   check(/On its way/.test(document.querySelector('[data-item="pizza"]').textContent),'the shop says it is on its way');
-  continueWave(); check(S.mode==='play' && S.wave===2 && shopScreen.hidden && S.delivery && !S.pizzaOrder,'next wave, and the courier sets off');
+  continueWave(); check(S.mode==='play' && S.waveState==='pizza' && S.wave===1 && shopScreen.hidden && S.delivery && !S.pizzaOrder,'pizza comes first, before the next wave');
+  for(var i=0;i<1000 && S.waveState==='pizza';i++) { update(1/120); check(!S.planes.length,'no enemies during the pizza'); }
+  check(S.wave===2 && S.waveState==='active' && S.wallHP===75 && r.hp===2 && S.delivery.phase==='leave','everyone is fed, then the wave starts as he rides off');
   S.spawn.timer=S.spawn.rushT=S.spawn.cargoT=99; S.planes=[]; // keep the wave quiet but running
-  for(var i=0;i<1000 && S.delivery;i++) update(1/120);
-  check(!S.delivery && S.wallHP===75 && r.hp===2,'the pizza lands during the wave: wall and crew healed once');
+  for(i=0;i<1000 && S.delivery;i++) update(1/120);
+  check(!S.delivery && S.wallHP===75 && r.hp===2,'healed once');
   newGame();
   check(S.coins===0 && S.mods.slots===4 && !S.mods.stacks[pick] && S.recruits.length===0, 'new run resets progression');
   ITEMS.filter(it=>it.maxStacks!==Infinity).forEach(it=>S.mods.stacks[it.id]=it.maxStacks);

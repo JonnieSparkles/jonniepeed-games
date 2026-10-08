@@ -114,7 +114,7 @@
   // Called planes are sketched in at the page edge, then fly.
   S.calls.bomber = 1; callStrike(); var x0 = S.strike.x;
   update(0.2); check(S.strike.x === x0 && x0 > 0, 'the bomber is drawn in place first');
-  for (s1 = 0; s1 < 30; s1++) update(1 / 60);
+  for (s1 = 0; s1 < Math.ceil((STRIKE.HOLD + RADIO.TALK) * 60); s1++) update(1 / 60);
   check(S.strike.x > x0, 'then it flies');
   render();
 
