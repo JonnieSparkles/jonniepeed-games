@@ -13,7 +13,7 @@ Anyone can post to `/v1/submit` today. The Worker checks the score cap, meta ran
 Stops:
 - Floods: too many submits from one connection are refused.
 - Posting without playing: a submit needs a token issued at least as long ago as the run claims to have lasted.
-- Obvious fakes: a score faster than a strong player could earn it is refused.
+- Obvious fakes: a score faster than a perfect player could earn it is refused, like 9999 in a few seconds.
 - Replays: a token saves one row, ever.
 
 Doesn't stop:
@@ -55,10 +55,10 @@ Same as `/v1/top` today, including `placement`.
 
 Body `{game, board, token, name, score, input, meta}`. `run_id` is gone; it comes from the token. Checks in this order:
 
-1. **Rate limit:** more than 10 submits per 60 s from one IP (`cf-connecting-ip`) → `429 rate_limited`.
+1. **Rate limit:** more than 20 submits per 60 s from one IP (`cf-connecting-ip`) → `429 rate_limited`. Each submit needs a finished run that made the board, so one player can't come close. The headroom is for players who share a connection: a school, an office, or phones on one carrier.
 2. **Fields:** as `/v1/submit` today (`bad_game`, `bad_board`, `bad_score`, `bad_meta`, `bad_name`, `name_not_allowed`, `bad_input`). `meta.time_ms` is required.
 3. **Token:** parses, signature matches this game and board, and `issued` is no more than 24 h old.
-4. **Time:** Worker `now − issued ≥ time_ms − 2000`. The run can't have lasted longer than the token has existed. Pauses only add real time, so honest runs always pass.
+4. **Time:** Worker `now − issued ≥ time_ms − 5000`. The run can't have lasted longer than the token has existed. Pauses only add real time. The 5 s slack covers a start request that's retried a few seconds into the run on a flaky connection.
 5. **Score:** `score ≤ perSecond × time_ms / 1000 + grace`, from the board's `plausible` rule.
 
 Failures of 3–5 all answer `400 {ok:false, error:'rejected'}`, with no reason given. The Worker logs one line per rejection: game, board, score, time_ms and which check failed. It never logs the IP. Turn on Workers Logs (`"observability": {"enabled": true}`) if the plan includes it, so "why didn't my score save?" can be answered.
@@ -74,15 +74,16 @@ A valid submit inserts with the token's `run_id`. Posting the same token again r
 Each board that takes new scores gets a `plausible` rule:
 
 ```json
-"plausible": { "perSecond": 3, "grace": 10 }
+"plausible": { "perSecond": 4.5, "grace": 15 }
 ```
 
+- **Set once, never tuned.** The rule is sized from the scoring code, not from players, so no honest run can hit it. It's set when a board is created. Anything that makes a game score faster is a scoring change, which already bumps the board, so the rule only gets revisited at a bump. Jonnie never touches it.
 - It's required on each game's newest board. `tools/check_boards.py` fails if it's missing, or if that board has no `time_ms` meta.
 - Older boards without it stay readable through `/v2/top` but take no new scores. After a future bump, the previous board keeps its rule, so stale copies can still post there.
-- **Starting values,** from the live boards on Oct 8 (best real rate in brackets):
-  - `thimbleful` board 3: `perSecond: 3, grace: 10` (1.7 points/s)
-  - `dont-step-on-a-crack` board 2: `perSecond: 3.5, grace: 10` (1.9 ft/s)
-- Before shipping, check them against the scoring code (the most a perfect player can earn per second, including gold drops and jumps) and against every row on the current boards. Nothing real should fail:
+- **Starting values,** from the scoring code:
+  - `thimbleful` board 3: `perSecond: 4.5, grace: 15`. At full storm a drop comes about every 0.38 s and about 1 in 9 is gold (3 points), so perfect play tops out near 3.2 points/s. The best real run is 1.7.
+  - `dont-step-on-a-crack` board 2: `perSecond: 4, grace: 100`. Heelies roll at 7 ft/s for 6 s and moon shoes jump up to 6 ft per 1.1 s for 15 s, so one pair of shoes can add up to about 80 ft in a burst. The grace covers a full burst on a short run. The best real run is 1.9 ft/s.
+- Before shipping, confirm these against the scoring code once more and against every row on the current boards. Nothing real should fail:
 
   ```sql
   SELECT game, board, name, score, json_extract(meta,'$.time_ms') AS ms,
@@ -91,7 +92,7 @@ Each board that takes new scores gets a `plausible` rule:
   ```
 
 - Changing `plausible` never needs a board bump; it doesn't change ranking. Raising it is always safe. Before lowering it, run the query above.
-- New games: set it from the expert balance bot's best rate plus about 50%, or about twice the best playtest rate.
+- New games: work out the fastest a perfect player could score from the code, including power-ups and bonuses. Set `perSecond` about 40% above that, and `grace` to cover the biggest single burst. Where the code doesn't give a clear ceiling, use the expert balance bot's best rate, doubled.
 
 ## Worker (`scores/`)
 
@@ -99,7 +100,7 @@ Each board that takes new scores gets a `plausible` rule:
 - `wrangler.jsonc`: add a rate limit binding:
 
   ```jsonc
-  "ratelimits": [{ "name": "SUBMITS", "namespace_id": "<unused positive integer>", "simple": { "limit": 10, "period": 60 } }]
+  "ratelimits": [{ "name": "SUBMITS", "namespace_id": "<unused positive integer>", "simple": { "limit": 20, "period": 60 } }]
   ```
 
   Confirm the binding works on the account's plan (it needs Wrangler 4.36+). It counts per Cloudflare location and is approximate, which is fine here. If the plan doesn't have it, fall back to a per-board cap: refuse a submit when the board already has 20 rows from the last minute.
@@ -131,7 +132,7 @@ Each board that takes new scores gets a `plausible` rule:
   - A score over the rate is `rejected`.
   - A valid run: start, wait about 1.5 s, submit `time_ms: 1000` with a small score, and it saves. The same token again returns the same row.
 - **`scores/test/versions.mjs`:** run its local instance with a test `RUN_SECRET`. Use a short token lifetime there, set by a test-only variable, to cover expiry.
-- **Rate limit:** test locally if `wrangler dev` simulates the binding: the 11th submit in a minute gets 429. Otherwise note it in the guide as checked by hand once.
+- **Rate limit:** test locally if `wrangler dev` simulates the binding: the 21st submit in a minute gets 429. Otherwise note it in the guide as checked by hand once.
 - **`scores/test/games.py`:** seed full boards straight into local D1 with SQL, since the API now needs real waits. Add:
   - Worker stopped at run start → no picker, the game ends normally.
   - A refused submit → the board shows without the row, and no error.
