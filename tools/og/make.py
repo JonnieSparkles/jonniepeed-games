@@ -45,11 +45,7 @@ def font_uri(name):
 #          The 4:3 crop sits at position across the cover: 0 the left edge, 0.5 centred, 1 the right edge.
 GAMES = [
     ("stick-army", "Stick Army", "Pop chutes. Catch recruits. Defend the notebook.", "Play in your browser",
-     "document.getElementById('startBtn').click();",
-     # A 4:3 close-up of the notebook's lower battlefield: catch band, turret,
-     # and wall. Keep the art's proportions, without desk or HUD buttons.
-     {"screenshot": True, "selector": "#game", "crop": (0, 380 / 720, 1, 300 / 720),
-      "viewport": (432, 800), "wait_ms": 10000}),
+     None, {"cover": ("stick-army.png", 0.5)}),
     ("thimbleful", "Thimbleful", "Plant a seed. Catch the drips. Grow a sunflower.", "Play in your browser",
      "introSeen=true; document.getElementById('go').click(); score=18; plant.size=18; el=20; hud();"),
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",

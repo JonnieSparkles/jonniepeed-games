@@ -222,6 +222,6 @@ Canvas resolution now follows the screen's pixel ratio, up to 2 on touch screens
 
 Physical iPhone Safari and subjective difficulty still merit owner playtesting before featuring the game.
 
-Game-owned previews are `site/stick-army/og.png` and `thumb.webp`. Shared fonts, favicons, apple-touch icon and home-link mark remain in `site/assets/`. Clean player navigation uses `stick-army/` and `../` wherever a home link is offered.
+Game-owned previews are `site/stick-army/og.png` and `thumb.webp`. Both come from the cover art in `brand/covers/stick-army.png`: `tools/og/make.py` crops it to 4:3, centred, and puts the crop beside the tagline on the card, leaving out the title the art already has. Shared fonts, favicons, apple-touch icon and home-link mark remain in `site/assets/`. Clean player navigation uses `stick-army/` and `../` wherever a home link is offered.
 
 Pages publishing remains a manual workflow. Arweave publishing is paused pending the uploader/manifest follow-up in README. No Worker deploy is needed for this change.
