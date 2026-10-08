@@ -19,7 +19,7 @@ site/                   everything that gets published
   <slug>/audio.js       classic sound script loaded before game.js
   assets/fonts/         Silkscreen, Pixelify Sans, Cabin Sketch, Atkinson Hyperlegible, IBM Plex Mono (SIL OFL)
                         and Schoolbell (Apache 2.0), self-hosted
-tools/og/make.py        builds the social preview cards (pixel canvases, or page screenshots for smooth games)
+tools/og/make.py        builds the social preview cards and shelf thumbnails (cover art, pixel canvases, or page screenshots)
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 tools/check_boards.py   checks game BOARD constants before deploying
 tools/balance/          balance bots: seeded headless runs at several skill levels, with reports
@@ -30,7 +30,8 @@ docs/games/             living game design docs: <slug>.md (unnumbered)
 tests/<slug>/           per-game browser harnesses, plus balance.js, bot.js and balance.json for games with balance bots;
                         backend tests stay in scores/test/
 work/                   local tool output such as work/balance/ (git-ignored, never committed)
-brand/                  source logo files, not published
+brand/                  source logo and cover art files, not published
+  covers/<slug>.png               game cover art, full size, title lettered in (make.py crops it)
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
   mark-pixel*.png                 pixel-art mark (1x and 8x)
@@ -53,8 +54,9 @@ These apply to every change:
 - **Asset ownership.** Only shared files belong at the top of `site/assets/`. Studio-only files belong in `assets/studio/`; game-owned files, including `og.png` and `thumb.<ext>`, belong in `site/<slug>/`. Keep image formats. Retiring a game removes its shelf and `GAMES` entries too; permanent scores API records remain.
 - **Documentation lifecycle.** Numbered operations guides live in `docs/guides/`; build specs in `specs/` remain historical once implemented. Current rules, tuning, code entry points and validation belong in an unnumbered `docs/games/<slug>.md` linked to the relevant specs. Player help stays inside the game. See [Stick Army](docs/games/stick-army.md).
 - **Scripts and tests.** Keep audio in game-local `audio.js` with a small `init/play/muted` API; best-score storage and run state stay in the game. Split around 2,000 lines or a clear seam. Use classic scripts and explicit globals, loading audio/data before `game.js`; no ES modules, so file previews keep working. Optional tuning scripts stay opt-in. Per-game harnesses live in `tests/<slug>/`; backend API tests stay in `scores/test/`.
-- **No backward compatibility.** Remove old pages and paths outright, with no redirects or shims.
-- **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). The scores API stays compatible within a version (`/v2/`). A new version may retire the old one, as long as old published copies lose only the board, never the game ([API versions](docs/guides/00-leaderboards.md#api-versions)). Every board that takes runs has a score cap, rechecked whenever a game's scoring gets faster.
+- **No backward compatibility for pages and paths.** Remove old pages and paths outright, with no redirects or shims. Shared code and the scores API are the exceptions below.
+- **Shared code stays compatible.** Code in `site/` that more than one page loads, such as `site/assets/leaderboard.js`, only grows: add functions and options, but don't rename or remove anything or change what an existing call does unless the same change updates every page that uses it. Check every page that loads it before merging; games with harnesses in `tests/<slug>/` must still pass them.
+- **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). The scores API is also exempt from no backward compatibility: old published copies must keep working.
 - **What's new when scores reset.** A board bump comes with a short What's new note on the title screen explaining the latest change. The note's button has a dot until it's opened once on that device. See [What's new notes](docs/guides/00-leaderboards.md#whats-new-notes).
 - **Related, not identical.** Reuse what the other games already do (full screen, leaderboards, previews) so nothing starts from scratch, but each game is free to do things its own way.
 - **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
@@ -62,7 +64,7 @@ These apply to every change:
 ## Adding a game
 
 1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
-2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail.
+2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture (see [02: Cover art](docs/guides/02-cover-art.md)).
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
 4. Add a living `docs/games/yourgame.md` linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
 5. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
@@ -106,7 +108,7 @@ Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game i
 
 ## Social previews
 
-Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (page screenshot). Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniepeed.games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
+Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (cover art or page screenshot). A game with cover art in `brand/covers/` uses one 4:3 crop of it for both: the 768×576 thumbnail, and the picture on its card, where the card leaves out the title because the cover has it lettered in. [02: Cover art](docs/guides/02-cover-art.md) explains how to make one. Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniepeed.games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
 
 Rebuild the cards and index thumbnails after changing a game's art or adding a game (add it to `GAMES` in the script first):
 
