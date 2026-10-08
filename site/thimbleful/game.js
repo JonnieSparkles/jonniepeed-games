@@ -31,6 +31,8 @@ let nextGold = false, popups = [];
 // earn-back: EARN_STREAK catches in a row without a spill wins a lost chance back, at most once per EARN_COOLDOWN seconds
 const EARN_STREAK = 15, EARN_COOLDOWN = 60;
 let streak = 0, lastEarn = -999, regained = -1;
+// play stats (site/assets/stats.js): gold drops caught and spills won back this run
+let golds = 0, earned = 0, statsRun = null;
 // dusk: the sky slowly turns to night over a run (0 = sunset, 1 = night)
 const DUSK_SECONDS = 150;
 let dusk = 0, duskTarget = 0;
@@ -72,6 +74,11 @@ function resetLeaderboard() {
   clearLeaderboard();
   // the run's token is fetched in the background; play never waits for it
   if (window.Leaderboard) lbRun = { start: Leaderboard.start('thimbleful', BOARD), token: null, input: 'keys', data: null, shown: false };
+}
+// What a run reports to play stats, at game over or when the page is left mid-run.
+function runReport() {
+  return { score, time_ms: Math.round(el * 1000), input: lbRun ? lbRun.input : undefined,
+    stats: { golds, spills, earned, storm: Math.round(edge * 100) } };
 }
 function loadLeaderboard(score, meta) {
   const run = lbRun;
@@ -243,6 +250,8 @@ scoresBtn.addEventListener('click', () => scoresOpen ? closeScores() : openScore
 
 function start(withIntro) {
   resetLeaderboard();
+  golds = 0; earned = 0;
+  if (window.PlayStats) statsRun = PlayStats.start('thimbleful', { board: BOARD, token: lbRun && lbRun.start, progress: runReport });
   if (withIntro === true) introSeen = false;
   ThimbleSound.start();
   score = 0; spills = 0; el = 0; target = null; drops = []; parts = []; wet = []; flash = 0; nextGold = false;
@@ -275,6 +284,7 @@ function end() {
   showCard('The sill is soaked', `You caught ${score} drop${score === 1 ? '' : 's'} and grew your sunflower. Best: ${best}.`, 'Play again');
   go.focus();
   loadLeaderboard(score, { time_ms: Math.round(el * 1000) });
+  if (statsRun) { PlayStats.end(statsRun, runReport()); statsRun = null; }
 }
 function watch() {
   clearLeaderboard();
@@ -494,11 +504,11 @@ function update(dt) {
     if (py < 38 && d.y >= 38 && Math.abs(d.x - mid) <= CATCH) {
       const before = score;
       d.done = true; score += d.gold ? GOLD_POINTS : 1; plant.size = score; flash = 0.3; hop = d.gold ? 0.2 : 0.12; hud();
-      if (d.gold) { burst(d.x, 37, 12, 50, 28, '#ffd84a'); burst(d.x, 37, 4, 30, 20, '#ffffff'); popups.push({ x: d.x, y: 33, t: 0.9 }); ThimbleSound.gold(); }
+      if (d.gold) { golds++; burst(d.x, 37, 12, 50, 28, '#ffd84a'); burst(d.x, 37, 4, 30, 20, '#ffffff'); popups.push({ x: d.x, y: 33, t: 0.9 }); ThimbleSound.gold(); }
       else { burst(d.x, 37, 4, 30, 20); ThimbleSound.catch(); }
       streak++;
       if (streak % EARN_STREAK === 0 && spills > 0 && el - lastEarn >= EARN_COOLDOWN) {
-        spills--; lastEarn = el; regained = spills; hud();
+        spills--; earned++; lastEarn = el; regained = spills; hud();
         burst(Math.round(ex), 40, 16, 60, 30, '#7fd0ff'); burst(Math.round(ex), 40, 6, 40, 24, '#ffffff');
         popups.push({ x: Math.round(ex), y: 30, t: 1.1, kind: 'heart' });
         ThimbleSound.earn();

@@ -65,6 +65,10 @@ Game ID `thimbleful`, rules in `scores/games.json`, following [the leaderboard g
 
 The game over card runs in steps so nothing changes under a finger about to tap: checking, then (if placed) Enter initials or Skip, then the board below the buttons. The title card has a **High scores** link that opens the current board below the buttons without starting a run.
 
+## Play stats
+
+Each run reports to [play stats](../guides/03-play-stats.md) from `start` (including the first-play intro) and at `end`, through `runReport`. The score is drops caught; `stats` are `golds` (gold drops caught), `spills`, `earned` (spills won back) and `storm` (0–100, how far `edge` got). Saved runs carry their board run ID, so the dashboards show their initials. Watch mode reports nothing.
+
 ## Code entry points
 
 `site/thimbleful/game.js` holds the simulation, drawing and leaderboard flow. `site/thimbleful/audio.js` is `ThimbleSound`, everything synthesized with Web Audio, and loads before `game.js`.
@@ -78,6 +82,7 @@ The game over card runs in steps so nothing changes under a finger about to tap:
 | Characters | `wateringCan` (including its face), `explorer`, `drawExplorer` |
 | HUD on the wall | `streakMeter`, `digits`, `plusThree`, `heartPop` |
 | Leaderboard | `loadLeaderboard`, `showLeaderboard`, `openPicker`, `drawLeaderboard`, `openScores` (title card) |
+| Play stats | `runReport`, `statsRun`, and the `golds`/`earned` counters |
 | Full screen | the "full screen" section: `setFull`, `toggleFull`, wake lock |
 | Sound | `ThimbleSound.start`, `.intensity(seconds, edge)`, `.catch`, `.gold`, `.earn`, `.milestone`, `.spill`, `.over`, `.thunder`, `.title`, `.blip(i)`, `.press`, `.settle`, `.toggle`, `.muted`, `.ready`, `.onready` |
 
