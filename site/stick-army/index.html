@@ -142,7 +142,12 @@ body {
 .deal:disabled, .hire:disabled { cursor: default; border-color: #aaa395; color: #6d6962; }
 .deal:disabled em, .hire:disabled em, .deal:disabled span { color: #6d6962; }
 .deal:disabled .supply-icon, .hire:disabled .supply-icon { opacity: .45; }
-.deal.gift { border-color: var(--ally); background: #eef4ff; box-shadow: 3px 3px 0 #2f6fdc33; }
+/* The gift looks like any other row, so it never reads as already chosen; the tag and "Free!" mark it. */
+/* Bought supplies keep their ink and say "Packed ✓"; only what you can't afford or use goes grey. */
+.deal.bought:disabled { border-color: var(--ink); color: var(--ink); }
+.deal.bought:disabled span { color: var(--ink-soft); }
+.deal.bought:disabled em { color: var(--ally); }
+.deal.bought:disabled .supply-icon { opacity: 1; }
 .deal.gift::before { content: "On the house"; position: absolute; top: -9px; right: 12px; padding: 0 6px; font: 14px var(--font-hand); color: var(--paper); background: var(--ally); border-radius: 6px 3px 7px 3px; transform: rotate(2deg); }
 .deal { position: relative; }
 .deal em s { color: var(--ink-soft); font-size: 15px; }
@@ -287,9 +292,9 @@ body {
 
 <script src="audio.js?v=9bc5bf1ec1"></script>
 <script src="icons.js?v=5ed5f3c868"></script>
-<script src="units.js?v=d02599da8d"></script>
+<script src="units.js?v=c55e562c03"></script>
 <script src="squad.js?v=f432f263f4"></script>
-<script src="shop.js?v=1cc384e513"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=e6ecf6ae6e"></script>
+<script src="shop.js?v=8a4ca9bafd"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=98a84677a6"></script>
 </body>
 </html>

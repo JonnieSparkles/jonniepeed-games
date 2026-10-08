@@ -110,7 +110,8 @@ var StickArmyShop = function (w) {
       return cost + ' tags' + (S.coins < cost && eligible(it) ? ' · need ' + (cost - S.coins) + ' more' : '');
     }
     function itemButton(it, cls, withDesc) {
-      var button = document.createElement('button'); button.type = 'button'; button.className = cls + (onHouse(it) ? ' gift' : ''); button.dataset.item = it.id;
+      var button = document.createElement('button'); button.type = 'button'; button.dataset.item = it.id;
+      button.className = cls + (onHouse(it) ? ' gift' : '') + (it.tier !== 'hire' && S.shop.bought[it.id] ? ' bought' : '');
       button.disabled = !canBuy(it);
       var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
       w.drawItemIcon(icon, it.id);

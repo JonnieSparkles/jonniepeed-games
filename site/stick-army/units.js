@@ -16,8 +16,9 @@ var StickArmyUnits = function (w) {
   // Every BOSS_EVERY waves a zeppelin patrols the sky until it is shot down. It drops paratroopers from its gondola
   // and bomb clusters from its belly, sinks as it loses gas, and turns angry (faster, busier) at half health.
   // It lives in S.planes so flak, rockets, bazookas and the ambience treat it as an aircraft.
+  // It arrives ARRIVE seconds into the wave, after a few escort planes; its horn sounds WARN seconds before.
   var ZEP = { HW: 78, HH: 25, Y: 172, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
-    DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2 };
+    DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2, ARRIVE: 9, WARN: 2.5 };
   function zeppelinHP(n) { return Math.round(20 + BALANCE.BOSS_HP_PER_WAVE * n); }
   // The gondola is the weak spot: direct shots there do ZEP.WEAK times the damage.
   function inGondola(p, x, y) { var dx = x - p.x, dy = y - p.y; return dy > p.hh - 3 && Math.abs(dx) < 24 * Math.abs(p.face) + 4; }
@@ -29,7 +30,6 @@ var StickArmyUnits = function (w) {
     p.baseY = ZEP.Y; p.bob = between(rnd, 0, 6.28); p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'zeppelin', dir: dir, y: p.y, hp: p.maxHp });
-    w.sound.play('horn');
     return p;
   }
   function zeppelinOnScreen(p) { return p.x > 40 && p.x < W - 40; }

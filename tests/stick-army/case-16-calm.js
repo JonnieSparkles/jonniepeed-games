@@ -119,5 +119,19 @@
   for (f = 0; f < Math.ceil(DECAL.EVERY * 60) * 6; f++) update(1 / 60);
   check(decals.indexOf(mark) < 0, 'and old marks go');
 
+  // In the shop, the gift looks like any other row until it's taken, and bought supplies don't look unavailable.
+  RUN.force = 36; newGame(); S.wave = 4; S.coins = 999; openShop(); document.activeElement.blur();
+  function look(b) { var c = getComputedStyle(b); return [c.backgroundColor, c.borderTopColor, c.color, c.boxShadow].join(' / '); }
+  var deals = function () { return [].slice.call(document.querySelectorAll('#supplyItems .deal')); };
+  var gift = deals().find(function (b) { return b.classList.contains('gift'); }), plain = deals().find(function (b) { return !b.classList.contains('gift') && !b.disabled; });
+  check(gift && plain && look(gift) === look(plain), 'the gift is not highlighted as if chosen: ' + (gift && look(gift)) + ' vs ' + (plain && look(plain)));
+  var pick = S.shop.items.find(function (it) { return it.id !== S.shop.gift && it.id !== 'pizza' && eligible(it) && costNow(it) <= S.coins; });
+  check(takeItem(pick.id), 'buy one');
+  S.coins = 0; renderShop(); document.activeElement.blur();
+  var packed = document.querySelector('#supplyItems [data-item="' + pick.id + '"]'), grey = deals().find(function (b) { return b.disabled && !b.classList.contains('bought'); });
+  check(packed.classList.contains('bought') && /Packed/.test(packed.textContent) && packed.disabled, 'a bought supply says it is packed');
+  check(grey && getComputedStyle(packed).color !== getComputedStyle(grey).color && getComputedStyle(packed).borderTopColor !== getComputedStyle(grey).borderTopColor, 'and does not look unavailable');
+  shopScreen.hidden = true; S.shop = null; S.mode = 'play';
+
   emitHook = null; RUN.force = null; reset(); render();
 })();
