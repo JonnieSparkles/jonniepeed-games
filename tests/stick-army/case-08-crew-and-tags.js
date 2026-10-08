@@ -6,7 +6,9 @@
   newGame();
   var near = makeRecruit(0, 'rifle'), far = makeRecruit(1, 'rifle'); S.recruits = [near, far];
   explode(near.x, GROUND - 4, 42, 'bomb');
-  check(near.dead, 'direct bomb hit kills a bare recruit');
+  check(near.down && !near.dead, 'a direct bomb hit knocks a bare recruit down');
+  explode(near.x, GROUND - 4, 42, 'bomb');
+  check(near.dead, 'and another blast finishes him');
   newGame(); var wounded = makeRecruit(0, 'rifle'); S.recruits = [wounded];
   explode(wounded.x + 18, GROUND - 4, 42, 'bomb');
   check(!wounded.dead && wounded.hp < ENEMIES.rifle.hp, 'a near miss wounds instead of killing');
@@ -24,7 +26,7 @@
   check(makeRecruit(1, 'rifle').hp === ENEMIES.rifle.hp + 1, 'and future crew');
   newGame(); S.mods.trench = 2; S.mods.helmet = 3; var tough = makeRecruit(0, 'rifle'); S.recruits = [tough];
   explode(tough.x, GROUND - 4, 42, 'bomb');
-  check(!tough.dead, 'dug in with helmets, a recruit survives a direct hit');
+  check(!tough.dead && !tough.down, 'dug in with helmets, a recruit survives a direct hit on his feet');
 
   // With no crew, a sniper's shot jolts the turret's heat and chips the wall.
   newGame(); S.recruits = []; S.heat = 0;
