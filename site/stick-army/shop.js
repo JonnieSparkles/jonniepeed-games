@@ -106,8 +106,12 @@ var StickArmyShop = function (w) {
       if (it.blocked && it.blocked() && !S.shop.bought[it.id]) return it.blocked();
       if (it.tier !== 'hire' && S.shop.bought[it.id]) return 'Packed ✓';
       if (onHouse(it)) return 'Free!';
-      var cost = price(it);
-      return cost + ' tags' + (S.coins < cost && eligible(it) ? ' · need ' + (cost - S.coins) + ' more' : '');
+      return price(it) + ' tags';
+    }
+    // How many more tags an unaffordable supply needs. It sits on its own line under the price, so the row keeps
+    // its width and doesn't jump when the balance changes.
+    function needMore(it) {
+      return it.tier !== 'hire' && !S.shop.bought[it.id] && !onHouse(it) && eligible(it) && S.coins < price(it) ? price(it) - S.coins : 0;
     }
     function itemButton(it, cls, withDesc) {
       var button = document.createElement('button'); button.type = 'button'; button.dataset.item = it.id;
@@ -121,6 +125,7 @@ var StickArmyShop = function (w) {
       if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
       else button.title = it.desc;
       if (onHouse(it)) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
+      if (needMore(it)) { var more = document.createElement('small'); more.textContent = 'need ' + needMore(it) + ' more'; label.append(more); }
       button.append(label);
       button.addEventListener('click', function () { takeItem(it.id); });
       return button;

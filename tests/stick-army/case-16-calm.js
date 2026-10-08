@@ -131,6 +131,8 @@
   var packed = document.querySelector('#supplyItems [data-item="' + pick.id + '"]'), grey = deals().find(function (b) { return b.disabled && !b.classList.contains('bought'); });
   check(packed.classList.contains('bought') && /Packed/.test(packed.textContent) && packed.disabled, 'a bought supply says it is packed');
   check(grey && getComputedStyle(packed).color !== getComputedStyle(grey).color && getComputedStyle(packed).borderTopColor !== getComputedStyle(grey).borderTopColor, 'and does not look unavailable');
+  var tag = grey.querySelector('em'), more = tag.querySelector('small');
+  check(/^\d+ tags$/.test(tag.firstChild.textContent) && more && /^need \d+ more$/.test(more.textContent) && getComputedStyle(more).display === 'block', 'what you still need sits on its own line under the price');
   shopScreen.hidden = true; S.shop = null; S.mode = 'play';
 
   emitHook = null; RUN.force = null; reset(); render();
