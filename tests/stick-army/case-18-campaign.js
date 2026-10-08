@@ -1,4 +1,4 @@
-// Round 9 (SPEC-007 stage 1): kill counts, the Dreadnought at wave 20, victory with the roll call, then endless.
+// Round 9 (SPEC-007 stage 1): kill counts, the Dreadnought on the final wave (DREAD.WAVE), victory with the roll call, then endless.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var seen = [];
@@ -6,10 +6,11 @@
   function run(sec) { for (var i = 0; i < Math.ceil(sec * 60); i++) update(1 / 60); }
   try { localStorage.removeItem('stickarmy.wins'); localStorage.removeItem('stickarmy.bestWave'); } catch (e) { /* ignore */ }
 
-  // Boss rotation: the Dreadnought at 20 and every tenth wave after; zeppelins on the other fifths.
-  check(waveCfg(5).bossKind === 'zeppelin' && waveCfg(15).bossKind === 'zeppelin' && waveCfg(20).bossKind === 'dread' &&
-    waveCfg(25).bossKind === 'zeppelin' && waveCfg(30).bossKind === 'dread' && !waveCfg(19).bossKind, 'the Dreadnought at 20, then every tenth');
-  check(waveCfg(20).rushes === 0 && waveCfg(20).cargo === 0 && waveCfg(20).planes < waveCfg(19).planes / 2, 'a light escort and nothing on the ground');
+  // Boss rotation: the Dreadnought on the final wave and every tenth wave after; zeppelins on the other fifths.
+  var FINAL = DREAD.WAVE;
+  check(FINAL === 15 && waveCfg(5).bossKind === 'zeppelin' && waveCfg(10).bossKind === 'zeppelin' && waveCfg(FINAL).bossKind === 'dread' &&
+    waveCfg(FINAL + 5).bossKind === 'zeppelin' && waveCfg(FINAL + 10).bossKind === 'dread' && !waveCfg(FINAL - 1).bossKind, 'the Dreadnought on wave 15, then every tenth');
+  check(waveCfg(FINAL).rushes === 0 && waveCfg(FINAL).cargo === 0 && !waveCfg(FINAL).road && waveCfg(FINAL).planes < waveCfg(FINAL - 1).planes / 2, 'a light escort and nothing on the ground');
 
   // Kill counts: a soldier's own bullet kills are his; the turret's and the sentry's are nobody's.
   RUN.force = 51; newGame(); startWave(4); S.spawn.timer = S.spawn.rushT = S.spawn.cargoT = 99;
@@ -23,8 +24,8 @@
   check(shoot(gunner.id) && gunner.kills === 1, 'his own kill counts');
   check(shoot(null) && gunner.kills === 1, 'yours does not');
 
-  // Wave 20: the final wave. The Dreadnought shows through the page, can't be hurt there, then bursts through.
-  RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(20); S.spawn.timer = 99;
+  // The final wave. The Dreadnought shows through the page, can't be hurt there, then bursts through.
+  RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(FINAL); S.spawn.timer = 99;
   check(S.banner.s === 'final wave' && /Dreadnought/.test(S.banner.sub), 'the final wave is announced');
   run(DREAD.ARRIVE + 0.05);
   var p = CAMPAIGN.dread();
@@ -45,24 +46,28 @@
   // A gun over the page marks a target with a flare, then fires; what it hits is gone for good.
   p.turrets.forEach(function (t) { t.cd = 99; });
   p.x = DREAD.X0; p.move = -1; S.mods.auto = true; S.mods.stacks.auto = 1; S.recruits = [];
-  p.mark = { turret: g0, kind: 'sentry', x: SENTRY.x, t: 0 };
+  g0.mark = { kind: 'sentry', x: SENTRY.x, t: 0 };
   run(DREAD.MARK + DREAD.SHELL + 0.1);
   check(!S.mods.auto && !S.mods.stacks.auto && seen.indexOf('dread_hit') >= 0, 'the sentry tower is destroyed, and the shop sells it again');
   render();
   // Natural marks come from a loaded gun over the page.
   g0.cd = 0; run(0.05);
-  check(p.mark && p.mark.turret === g0 && seen.indexOf('dread_mark') >= 0, 'a loaded gun marks a target');
+  check(g0.mark && seen.indexOf('dread_mark') >= 0, 'a loaded gun marks a target');
+  // Two guns can aim at once, never at the same thing.
+  var gB = p.turrets[1]; S.mods.wire = true; S.recruits = [makeRecruit(0, 'rifle')]; gB.cd = 0; run(0.05);
+  check(gB.mark && (gB.mark.kind + (gB.mark.id || '')) !== (g0.mark.kind + (g0.mark.id || '')), 'a second gun takes a different target');
+  gB.mark = null; gB.cd = 99; S.recruits = [];
   render();
   // Knock the gun out while it aims, and the shot never comes.
-  var wall = S.wallHP; p.mark.kind = 'wall'; p.mark.x = BK.x;
+  var wall = S.wallHP; g0.mark.kind = 'wall'; g0.mark.x = BK.x;
   damagePlane(p, 999, 'player', p.x + g0.lx, p.y + DREAD.GUN_Y, true);
-  check(g0.dead && !p.mark && seen.indexOf('dread_saved') >= 0 && S.texts.some(function (q) { return q.s === 'saved!'; }), 'saved!');
+  check(g0.dead && !g0.mark && seen.indexOf('dread_saved') >= 0 && S.texts.some(function (q) { return q.s === 'saved!'; }), 'saved!');
   run(DREAD.MARK + DREAD.SHELL);
   check(S.wallHP === wall, 'and the wall is spared');
   // A marked soldier who goes down first spares the gun the trouble.
   var g1 = p.turrets[1], vet = makeRecruit(0, 'rifle'); S.recruits = [vet];
-  p.mark = { turret: g1, kind: 'recruit', id: vet.id, x: vet.x, t: 0 }; hurtRecruit(vet, 99, 'bomb'); run(0.05);
-  check(!p.mark && !vet.dead, 'no shot at the wounded');
+  g1.mark = { kind: 'recruit', id: vet.id, x: vet.x, t: 0 }; hurtRecruit(vet, 99, 'bomb'); run(0.05);
+  check(!g1.mark && !vet.dead, 'no shot at the wounded');
   S.recruits = [];
   // The crew go for its guns: bazookas first.
   var baz = makeRecruit(4, 'bazooka'); S.recruits = [baz];
@@ -78,7 +83,7 @@
   p.turrets.forEach(function (t) { if (!t.dead) damagePlane(p, 999, 'player', p.x + t.lx, p.y + DREAD.GUN_Y, true); });
   check(p.phase === 'bridge' && seen.indexOf('dread_bridge') >= 0, 'the bridge is exposed');
   p.x = DREAD.X_END + 20; S.bombs = []; p.bombT = 0; run(0.05);
-  check(S.bombs.length === 3, 'the bomb bay opens');
+  check(S.bombs.length === DREAD.BAY_BOMBS, 'the bomb bay opens');
   render();
   S.bombs = [];
   // Downing the bridge downs the ship; on the final wave everyone left surrenders and nothing more comes.
@@ -93,7 +98,7 @@
   run(3.4);
 
   // The victory card: the score, the record and the roll call; wins are saved.
-  check(S.mode === 'won' && !winScreen.hidden && seen.indexOf('victory') >= 0 && S.won && S.wonAt === 20, 'the victory card');
+  check(S.mode === 'won' && !winScreen.hidden && seen.indexOf('victory') >= 0 && S.won && S.wonAt === FINAL, 'the victory card');
   check(load('stickarmy.wins', 0) === 1 && /Won once/.test(recordLine()), 'the win is saved');
 
   // The roll call: survivors with ranks, waves and kills, the top gun starred; the fallen listed.
@@ -102,19 +107,19 @@
   var roll = rollCall();
   check(roll.length === 2 && roll[0].text === 'Sgt. Doodle (14 waves, 40 kills)' && roll[1].top && !roll[0].top, 'the roll call');
 
-  // Keep going: the shop, then wave 21 in endless.
+  // Keep going: the shop, then the next wave in endless.
   keepGoing();
   check(S.mode === 'shop' && S.endless && winScreen.hidden, 'keep going opens the shop');
   continueWave(); S.spawn.timer = 99;
-  check(S.wave === 21 && S.mode === 'play' && S.banner.s === 'wave 21', 'endless from wave 21');
+  check(S.wave === FINAL + 1 && S.mode === 'play' && S.banner.s === 'wave ' + (FINAL + 1), 'endless after the final wave');
   render();
   // A loss after winning says so, and the best wave is kept.
   hurtWall(S.wallHP + 1, 'bomb'); update(1 / 60); run(2);
-  check(S.mode === 'over' && !document.getElementById('overWon').hidden && /won at wave 20/.test(document.getElementById('overWon').textContent), 'the game-over card remembers the win');
-  check(load('stickarmy.bestWave', 0) === 21, 'best wave saved');
+  check(S.mode === 'over' && !document.getElementById('overWon').hidden && document.getElementById('overWon').textContent.indexOf('won at wave ' + FINAL) >= 0, 'the game-over card remembers the win');
+  check(load('stickarmy.bestWave', 0) === FINAL + 1, 'best wave saved');
   overScreen.hidden = true;
   titleScene();
-  check(!document.getElementById('winLine').hidden && /Won once · best wave 21/.test(document.getElementById('winLine').textContent), 'the title card shows the record');
+  check(!document.getElementById('winLine').hidden && document.getElementById('winLine').textContent.indexOf('Won once · best wave ' + (FINAL + 1)) >= 0, 'the title card shows the record');
 
   try { localStorage.removeItem('stickarmy.wins'); localStorage.removeItem('stickarmy.bestWave'); } catch (e) { /* ignore */ }
   emitHook = null; RUN.force = null; reset(); render();

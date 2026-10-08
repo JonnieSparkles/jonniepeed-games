@@ -201,7 +201,7 @@ var StickArmyUnits = function (w) {
   // with it. Landed, the tank rolls to TANK.STOP from the wall (just inside the barrel's dip) and lobs shells at the
   // bunker. Shells fly like bombs, so they can be shot down. Turret and rifle hits chip it (BULLET each); rockets,
   // mines, crashes and the air strike hit hard.
-  var TANK = { WAVE: 9, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.6, SHELL_DAMAGE: 8, BULLET: 0.1,
+  var TANK = { WAVE: 9, ROAD_WAVE: 11, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.6, SHELL_DAMAGE: 8, BULLET: 0.1,
     BLAST: { rocket: 4, mine: 6, crash: 6, strike: 14 } };
   function tankHP(n) { return Math.round(10 + 0.8 * n); }
   function spawnCargo() {
@@ -219,6 +219,15 @@ var StickArmyUnits = function (w) {
       shellT: 1, hitFlash: 0, tread: 0, dead: false });
     p.tankX = null;
     emit('tank_drop', { hp: hp });
+  }
+  // A tank by road rolls in from one edge of the page and stops, like a dropped one, within the barrel's dip.
+  function spawnRoadTank() {
+    var S = w.S, rnd = substream(w.RW), side = rnd() < 0.5 ? -1 : 1, hp = tankHP(S.wave);
+    S.tanks.push({ id: w.id(), x: side < 0 ? -TANK.HW - 10 : W + TANK.HW + 10, y: GROUND - 1 - TANK.HH, state: 'roll', road: true, dir: -side, hp: hp, maxHp: hp,
+      shellT: 2.5, hitFlash: 0, tread: 0, dead: false });
+    addText('tank!', side < 0 ? 48 : W - 48, GROUND - 70, RED, 22);
+    emit('tank_drop', { hp: hp, road: true });
+    w.sound.play('cannon');
   }
   function tankHit(tk, x, y, near) {
     return Math.abs(x - tk.x) < TANK.HW + near && y > tk.y - TANK.HH - 10 - near && y < tk.y + TANK.HH + near;
@@ -264,7 +273,7 @@ var StickArmyUnits = function (w) {
       if (blocker) hurtRecruit(blocker, 2.5 * dt, 'tank');
       else if ((stopX - tk.x) * tk.dir > 0) { tk.x += tk.dir * Math.min(TANK.SPEED * (S.mods.wire ? 0.5 : 1) * dt, Math.abs(stopX - tk.x)); tk.tread += dt * 8; }
       // Tanks shell on the move as well as parked; a crew member in the way keeps the crew busy instead.
-      if (!blocker) { tk.shellT -= dt; if (tk.shellT <= 0) { tk.shellT = TANK.SHELL_EVERY; fireShell(tk); } }
+      if (!blocker && tk.x > 0 && tk.x < W) { tk.shellT -= dt; if (tk.shellT <= 0) { tk.shellT = TANK.SHELL_EVERY; fireShell(tk); } }
     });
     S.tanks = S.tanks.filter(function (tk) { return !tk.dead; });
   }
@@ -484,7 +493,7 @@ var StickArmyUnits = function (w) {
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
     updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
-    TANK: TANK, tankHP: tankHP, spawnCargo: spawnCargo, updateCargo: updateCargo, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
+    TANK: TANK, tankHP: tankHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
     RADIO: RADIO, callsHeld: callsHeld, grantCall: grantCall, STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike,
     FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, updateRadio: updateRadio, drawRadio: drawRadio };

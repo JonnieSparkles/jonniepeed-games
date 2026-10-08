@@ -26,7 +26,7 @@
   };
   // From ARMOR.WAVE some troopers wear a flak vest that stops one body hit (two from ARMOR.HEAVY, with a helmet).
   // Popping the chute, rockets and other blasts work as usual, so the turret copes better than the crew.
-  var ARMOR = { WAVE: 12, HEAVY: 22 };
+  var ARMOR = { WAVE: 10, HEAVY: 14 };
   // The barrel can tip slightly below horizontal on either side: enough to hit landers near the wall,
   // not enough to reach the far field. Angles run continuously from AIM_MIN (below left) to AIM_MAX (below right).
   var AIM_DIP = 0.3;
@@ -255,19 +255,21 @@
       // Boss waves trade the bombers and half the planes for a zeppelin. The Dreadnought (wave 20, then every tenth)
       // brings a light escort and nothing on the ground, so the fight is with the ship.
       planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (dreadWave ? 0.4 : boss ? 0.5 : 1)),
-      bombers: !boss && n >= 2 ? (n <= 11 ? Math.min(5, n - 1) : n - 6) : 0,
+      bombers: !boss && n >= 2 ? (n <= 9 ? Math.min(5, n - 1) : n - 4 + Math.floor((n - 10) / 2)) : 0,
       boss: boss ? 1 : 0, bossKind: dreadWave ? 'dread' : boss ? 'zeppelin' : null,
       // Rushers from wave 6 and tanks from wave 9 (units.js) add variety mid-run. From wave 12 bombers grow by one a
       // wave with no cap and planes come ever faster, so pressure keeps rising instead of flattening out.
       rushes: n >= RUSH.WAVE && !dreadWave ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 2)) : 0,
       rushSize: Math.min(6, 2 + Math.floor((n - RUSH.WAVE) / 3)),
-      cargo: n >= TANK.WAVE && !dreadWave ? Math.min(4, 1 + Math.floor((n - TANK.WAVE) / 3)) : 0,
+      cargo: n >= TANK.WAVE && !dreadWave ? (n < 11 ? 1 : Math.min(4, 2 + Math.floor((n - 11) / 2))) : 0,
+      // From TANK.ROAD_WAVE some tanks roll in from the page edge instead, so they can't all be stopped in the air.
+      road: n >= TANK.ROAD_WAVE && !dreadWave ? Math.min(4, 1 + Math.floor((n - TANK.ROAD_WAVE) / 2)) : 0,
       bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
-      armorChance: n >= ARMOR.WAVE ? Math.min(0.5, 0.08 + 0.03 * (n - ARMOR.WAVE)) : 0,
+      armorChance: n >= ARMOR.WAVE ? Math.min(0.5, 0.1 + 0.05 * (n - ARMOR.WAVE)) : 0,
       armorHits: n >= ARMOR.HEAVY ? 2 : 1,
-      // Planes come faster until wave 7, hold until wave 11, then keep tightening to a 0.3 s gap by wave 29.
-      interval: n <= 11 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.03 * (n - 11)),
+      // Planes come faster until wave 7, hold until wave 9, then keep tightening to a 0.3 s gap by wave 20.
+      interval: n <= 9 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.05 * (n - 9)),
       speed: 65 + 8 * n,
       maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
@@ -465,10 +467,10 @@
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: 11 };
     S.waveState = 'active';
     var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
-      n === RUSH.WAVE ? 'troops rushing the flanks!' : '';
+      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === ARMOR.WAVE ? 'armored troops! two hits' : n === TANK.ROAD_WAVE ? 'tanks rolling in by road!' : '';
     // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters. The banner
     // says so, rather than a label of its own.
     if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
@@ -489,7 +491,7 @@
     if (S.waveState === 'active') {
       // No dead air: with the planes done and nothing left on the field, what's still due comes in soon.
       if (sp.planes + sp.bombers === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !S.tanks.length && !S.troopers.some(function (t) { return !t.dead; })) {
-        sp.rushT = Math.min(sp.rushT, WAVE_HURRY); sp.cargoT = Math.min(sp.cargoT, WAVE_HURRY); sp.bossT = Math.min(sp.bossT, ZEP.WARN + WAVE_HURRY);
+        sp.rushT = Math.min(sp.rushT, WAVE_HURRY); sp.cargoT = Math.min(sp.cargoT, WAVE_HURRY); sp.roadT = Math.min(sp.roadT, WAVE_HURRY); sp.bossT = Math.min(sp.bossT, ZEP.WARN + WAVE_HURRY);
       }
       sp.timer -= dt;
       if (sp.timer <= 0 && sp.planes + sp.bombers > 0) {
@@ -507,8 +509,9 @@
       }
       if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14); } }
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15); } }
+      if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, 11, 16); } }
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
-      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
+      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave }); emit('coins', { amount: waveTags, reason: 'wave' });
@@ -546,7 +549,7 @@
   var UNITS = StickArmyUnits(world), ZEP = UNITS.ZEP, zeppelinHP = UNITS.zeppelinHP, spawnZeppelin = UNITS.spawnZeppelin,
     zeppelinOnScreen = UNITS.zeppelinOnScreen, planeHit = UNITS.planeHit, updateZeppelin = UNITS.updateZeppelin,
     hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar,
-    RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo,
+    RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo, spawnRoadTank = UNITS.spawnRoadTank,
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
     RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
     STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
@@ -970,6 +973,8 @@
       owner: 'ally', by: r.id, kind: baz ? 'rocket' : 'bullet', life: 1.6, dead: false });
     sound.play(baz ? 'rocket' : 'ally');
   }
+  // Wall health a second for a soldier repairing: engineers are the specialists.
+  var REPAIR = { ENGINEER: 4, OTHER: 2 };
   function updateRecruits(dt) {
     var hp = S.wallHP / S.mods.maxHP * 100;
     var lvl = hp < 15 ? 3 : hp < 40 ? 2 : hp < 70 ? 1 : 0, exitAt = [0, 85, 55, 30];
@@ -997,7 +1002,7 @@
       r.x = r.tx;
       if (r.role === 'repair') {
         if (S.wallHP < S.mods.maxHP && S.mode === 'play') {
-          repairWall((r.type === 'engineer' ? 6 : 3) * dt, 'crew');
+          repairWall((r.type === 'engineer' ? REPAIR.ENGINEER : REPAIR.OTHER) * dt, 'crew');
           r.sparkT -= dt;
           if (r.sparkT <= 0) {
             r.sparkT = 0.42;

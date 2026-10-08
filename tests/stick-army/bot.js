@@ -62,6 +62,10 @@ window.__balanceBot = function (profile, seed) {
       // Bombers get priority over troopers: downing one saves chasing its whole bomb run.
       if (p.state === 'fly' && p.x > 20 && p.x < 380) consider(p.kind === 'zeppelin' ? 150 : p.kind === 'bomber' ? 340 : p.kind === 'cargo' ? 260 : 200 + p.y / 10, lead(o, p.x, p.y, p.vx, 0), p.id);
     });
+    // The Dreadnought: the gun that's aiming comes before anything, then the bridge, then its other guns.
+    (o.dread || []).forEach(function (q) {
+      consider(q.marking ? 560 : q.part === 'bridge' ? 380 : 360, lead(o, q.x, q.y, q.vx, 0), q.id);
+    });
     // Tanks: on the way down, or parked within the barrel's dip.
     (o.tanks || []).forEach(function (tk) {
       if (tk.state === 'chute') consider(240, lead(o, tk.x, tk.y, 0, 70), tk.id);

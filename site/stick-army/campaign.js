@@ -1,4 +1,4 @@
-// Stick Army campaign (SPEC-007): the Dreadnought, the final boss at wave 20; the victory card with the squad's roll
+// Stick Army campaign (SPEC-007): the Dreadnought, the final boss at wave 15; the victory card with the squad's roll
 // call; and endless play after it. Classic script; load after shop.js and before game.js. game.js calls
 // StickArmyCampaign(world) once with the same world object it gives units.js, squad.js and shop.js.
 var StickArmyCampaign = function (w) {
@@ -16,15 +16,15 @@ var StickArmyCampaign = function (w) {
   // guns gone the bridge car under the bow is exposed and the bomb bay opens. Downing the bridge downs the ship.
   // It lives in S.planes as kind 'dread', so bullets, rockets, flak, bazookas and the ambience all see it.
   var DREAD = {
-    WAVE: 20, EVERY: 10, Y: 166, HW: 300, HH: 30, ARRIVE: 3, EMERGE: 4.5, TEAR: 1.1,
+    WAVE: 15, EVERY: 10, Y: 166, HW: 300, HH: 30, ARRIVE: 3, EMERGE: 4.5, TEAR: 1.1,
     X0: 330, X_END: 100, DRIFT: 7, BACK: 14, SWAY: 18,
     TURRETS: [-235, -120, 0, 115], BRIDGE: 200, BAY: -60, GUN_Y: 37, BRIDGE_Y: 40,
-    MARK: 2.2, RELOAD: [3.4, 5.4], SHELL: 0.45, WALL_HIT: 22, TROOPS_EVERY: 6.5, BOMBS_EVERY: 4.2,
+    MARK: 2, MARKS: 2, EXPOSED: 2.5, SPLASH: 46, RELOAD: [2.6, 4.2], SHELL: 0.45, WALL_HIT: 45, TROOPS_EVERY: 5.5, BOMBS_EVERY: 3, BAY_BOMBS: 4,
     SINK: 2.4, FALL: 2.6
   };
-  function turretHP(n) { return Math.round(18 + 0.8 * n); }
-  function bridgeHP(n) { return Math.round(60 + 4 * n); }
-  // Wave 20, then every tenth wave in endless.
+  function turretHP(n) { return Math.round(30 + 1.5 * n); }
+  function bridgeHP(n) { return Math.round(90 + 6.5 * n); }
+  // Wave 15, then every tenth wave in endless.
   function isDreadWave(n) { return n >= DREAD.WAVE && (n - DREAD.WAVE) % DREAD.EVERY === 0; }
   function dread() { return w.S.planes.find(function (p) { return p.kind === 'dread'; }) || null; }
   function fighting(p) { return p.phase === 'guns' || p.phase === 'bridge'; }
@@ -34,11 +34,11 @@ var StickArmyCampaign = function (w) {
     var p = w.makePlane('dread', -1, DREAD.X0, DREAD.Y);
     p.rng = rnd; p.hw = DREAD.HW; p.hh = DREAD.HH; p.speed = 0; p.phase = 'emerge'; p.t = 0; p.move = -1; p.rot = 0;
     p.turrets = DREAD.TURRETS.map(function (lx) {
-      return { lx: lx, hp: turretHP(n), max: turretHP(n), cd: between(rnd, 1, 2.4), aim: Math.PI / 2, flash: 0, dead: false, id: w.id() };
+      return { lx: lx, hp: turretHP(n), max: turretHP(n), cd: between(rnd, 1, 2.4), aim: Math.PI / 2, flash: 0, dead: false, mark: null, id: w.id() };
     });
     p.bridge = { lx: DREAD.BRIDGE, hp: bridgeHP(n), max: bridgeHP(n), flash: 0, id: w.id() };
     p.hp = p.maxHp = p.turrets.length * turretHP(n) + bridgeHP(n);
-    p.mark = null; p.shells = []; p.troopT = 3; p.bombT = 2; p.boomT = 0; p.tear = 0; p.cracks = []; p.clankT = 0;
+    p.shells = []; p.troopT = 3; p.bombT = 2; p.boomT = 0; p.tear = 0; p.cracks = []; p.clankT = 0;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'dread', hp: p.maxHp });
     w.sound.play('rumble');
@@ -74,9 +74,10 @@ var StickArmyCampaign = function (w) {
     p.clankT -= 1;
     if (p.clankT <= 0) { p.clankT = 6; w.sound.play('clank'); w.S.parts.push({ k: 'tink', x: hx, y: hy, life: 0.22, max: 0.22, c: INK2, id: w.id() }); }
   }
+  // A gun that's aiming has its muzzle open: it takes DREAD.EXPOSED times the damage, so quick, focused fire saves the target.
   function hurtGun(p, t, dmg, owner, hx, hy) {
     var S = w.S, g = gunAt(p, t);
-    t.hp -= dmg; t.flash = 0.1; w.burst(hx, hy, 3, INK, 90);
+    t.hp -= dmg * (t.mark ? DREAD.EXPOSED : 1); t.flash = 0.1; w.burst(hx, hy, 3, INK, 90);
     if (t.hp > 0) { w.sound.play('thup'); return; }
     t.dead = true; t.hp = 0;
     w.pow(g.x, g.y, 30); w.burst(g.x, g.y, 10, RED, 160);
@@ -84,12 +85,12 @@ var StickArmyCampaign = function (w) {
     emit('dread_gun', { by: owner === 'ally' ? 'crew' : 'player', left: p.turrets.filter(function (q) { return !q.dead; }).length });
     w.sound.play('boom'); S.shake = Math.max(S.shake, 0.3);
     // Knocked out while aiming: the shot never comes.
-    if (p.mark && p.mark.turret === t) { addText('saved!', p.mark.x, GROUND - 70, BLUE, 26); emit('dread_saved', { target: p.mark.kind }); p.mark = null; }
+    if (t.mark) { addText('saved!', t.mark.x, GROUND - 70, BLUE, 26); emit('dread_saved', { target: t.mark.kind }); t.mark = null; }
     if (p.turrets.every(function (q) { return q.dead; })) exposeBridge(p);
   }
   function exposeBridge(p) {
     var S = w.S;
-    p.phase = 'bridge'; p.t = 0; p.mark = null;
+    p.phase = 'bridge'; p.t = 0; clearMarks(p);
     addText('the bridge is exposed!', 200, 250, RED, 24, 'alert');
     emit('dread_bridge', { wave: S.wave });
     w.sound.play('klaxon'); S.shake = Math.max(S.shake, 0.4);
@@ -101,7 +102,7 @@ var StickArmyCampaign = function (w) {
   }
   function dreadDown(p, owner) {
     var S = w.S, b = bridgeAt(p), final = S.wave === DREAD.WAVE && !S.won;
-    p.phase = 'sinking'; p.t = 0; p.mark = null;
+    p.phase = 'sinking'; p.t = 0; clearMarks(p);
     S.stats.planes++; S.stats.dreads = (S.stats.dreads || 0) + 1;
     emit('plane_down', { kind: 'dread', by: owner === 'ally' ? 'crew' : 'player' });
     w.pow(b.x, b.y, 70);
@@ -118,6 +119,7 @@ var StickArmyCampaign = function (w) {
     if (sp) { sp.planes = sp.bombers = sp.rushes = sp.cargo = sp.boss = 0; }
     S.troopers.forEach(function (t) { if (!t.dead) { t.dead = true; flag(t.x, t.state === 'ground' ? t.y : t.y + 6); } });
     S.tanks.forEach(function (tk) { flag(tk.x, tk.y - 22); }); S.tanks = [];
+    if (sp) sp.road = 0;
     S.bombs.forEach(function (m) { w.puff(m.x, m.y, 6, 0.5); }); S.bombs = []; S.enemyShots = [];
     S.planes.forEach(function (q) { if (q !== p && q.state === 'fly') { q.drops = []; q.kits = []; q.bombRun = []; q.tankX = null; q.speed = Math.max(q.speed, 1) * 1.8; } });
     addText('they surrender!', 200, 440, BLUE, 26);
@@ -163,7 +165,7 @@ var StickArmyCampaign = function (w) {
         p.bombT -= dt;
         if (p.bombT <= 0) {
           p.bombT = DREAD.BOMBS_EVERY;
-          [-1, 0, 1].forEach(function (k) { S.bombs.push({ id: w.id(), x: bay + k * 10, y: by, vx: (BK.x - bay) * 0.42 + k * 30, vy: 0, isBomb: true, dead: false }); emit('bomb_dropped', { by: 'dreadnought' }); });
+          for (var k = 0; k < DREAD.BAY_BOMBS; k++) { var o = k - (DREAD.BAY_BOMBS - 1) / 2; S.bombs.push({ id: w.id(), x: bay + o * 10, y: by, vx: (BK.x - bay) * 0.42 + o * 28, vy: 0, isBomb: true, dead: false }); emit('bomb_dropped', { by: 'dreadnought' }); }
           w.sound.play('whistle');
         }
       }
@@ -197,53 +199,57 @@ var StickArmyCampaign = function (w) {
     emit('dread_arrive', { wave: S.wave });
   }
 
-  // Guns: one marks a target at a time. A gun over the page counts down its reload, then marks.
+  function clearMarks(p) { p.turrets.forEach(function (t) { t.mark = null; }); }
+  function marks(p) { return p.turrets.filter(function (t) { return t.mark; }).length; }
+  // Guns: up to DREAD.MARKS aim at once, at different targets. A gun over the page counts down its reload, then marks.
   function updateGuns(p, dt) {
     var S = w.S;
     p.turrets.forEach(function (t) {
       if (t.dead) return;
-      var g = gunAt(p, t), marking = p.mark && p.mark.turret === t;
-      var want = marking ? Math.atan2(GROUND - 14 - g.y, p.mark.x - g.x) : Math.PI / 2 + Math.sin(S.t * 0.8 + t.lx) * 0.5;
+      var g = gunAt(p, t), m = t.mark;
+      var want = m ? Math.atan2(GROUND - 14 - g.y, m.x - g.x) : Math.PI / 2 + Math.sin(S.t * 0.8 + t.lx) * 0.5;
       t.aim += clamp(want - t.aim, -2.4 * dt, 2.4 * dt);
-      if (p.mark || g.x < 24 || g.x > W - 24) return;
+      if (m) {
+        m.t += dt;
+        if (m.kind === 'recruit') {
+          var r = S.recruits.find(function (q) { return q.id === m.id; });
+          // A marked soldier who goes down first spares the gun the trouble; it picks again soon.
+          if (!r || r.dead || r.down) { t.mark = null; t.cd = 1; return; }
+          m.x = r.x;
+        }
+        if (m.t >= DREAD.MARK) fire(p, t);
+        return;
+      }
+      if (g.x < 24 || g.x > W - 24 || marks(p) >= DREAD.MARKS) return;
       t.cd -= dt;
       if (t.cd <= 0) startMark(p, t);
     });
-    var m = p.mark;
-    if (!m) return;
-    m.t += dt;
-    if (m.kind === 'recruit') {
-      var r = S.recruits.find(function (q) { return q.id === m.id; });
-      // A marked soldier who goes down first spares the gun the trouble; it picks again soon.
-      if (!r || r.dead || r.down) { p.mark = null; m.turret.cd = 1; return; }
-      m.x = r.x;
-    }
-    if (m.t >= DREAD.MARK) fire(p, m);
   }
   // What a gun can aim at: soldiers standing, the sentry tower, the wire, a trench row, the second mat, the tent (empty)
   // and the wall. Picked with the ship's own stream, so it's the same for a seed.
   function targets(p, gx) {
-    var S = w.S, list = [];
+    var S = w.S, list = [], taken = p.turrets.filter(function (t) { return t.mark; }).map(function (t) { return t.mark.kind + (t.mark.id || ''); });
     S.recruits.forEach(function (r) { if (!r.dead && !r.down) list.push({ kind: 'recruit', id: r.id, x: r.x, weight: 1.4 }); });
     if (S.mods.auto) list.push({ kind: 'sentry', x: w.SENTRY.x, weight: 1 });
     if (S.mods.wire) list.push({ kind: 'wire', x: gx < 200 ? 104 : 296, weight: 1 });
     if (S.mods.trench > 0) list.push({ kind: 'trench', x: gx < 200 ? 130 : 270, weight: 1 });
     if (S.mods.secondTramp) list.push({ kind: 'mat', x: 343, weight: 0.8 });
     if (S.mods.hospital && !S.bed) list.push({ kind: 'tent', x: w.TENT.x, weight: 0.8 });
-    list.push({ kind: 'wall', x: BK.x, weight: 1.6 });
-    return list;
+    list.push({ kind: 'wall', x: BK.x, weight: 5 });
+    return list.filter(function (q) { return taken.indexOf(q.kind + (q.id || '')) < 0; });
   }
   function startMark(p, t) {
     var list = targets(p, gunAt(p, t).x), total = list.reduce(function (s, q) { return s + q.weight; }, 0), roll = p.rng() * total;
+    if (!list.length) { t.cd = 1; return; }
     var pick = list.find(function (q) { roll -= q.weight; return roll <= 0; }) || list[list.length - 1];
-    p.mark = { turret: t, kind: pick.kind, id: pick.id, x: pick.x, t: 0 };
+    t.mark = { kind: pick.kind, id: pick.id, x: pick.x, t: 0 };
     w.sound.play('flare');
     emit('dread_mark', { target: pick.kind });
   }
-  function fire(p, m) {
-    var S = w.S, t = m.turret, g = gunAt(p, t);
+  function fire(p, t) {
+    var S = w.S, m = t.mark, g = gunAt(p, t);
     t.cd = between(p.rng, DREAD.RELOAD[0], DREAD.RELOAD[1]);
-    p.mark = null;
+    t.mark = null;
     p.shells.push({ x0: g.x + Math.cos(t.aim) * 16, y0: g.y + Math.sin(t.aim) * 16, x1: m.x, y1: GROUND - 14, t: 0, m: m });
     t.flash = 0.12; S.shake = Math.max(S.shake, 0.2);
     w.sound.play('broadside');
@@ -256,6 +262,8 @@ var StickArmyCampaign = function (w) {
   function impact(p, m) {
     var S = w.S, x = m.x, gone = null;
     w.explode(x, GROUND - 8, 30, 'broadside');
+    // The blast wounds anyone standing close by, including whoever is repairing the wall.
+    S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && q.id !== m.id && d < DREAD.SPLASH) w.hurtRecruit(q, 3 * (1 - d / DREAD.SPLASH) + 0.4, 'dreadnought'); });
     if (m.kind === 'recruit') {
       var r = S.recruits.find(function (q) { return q.id === m.id; });
       if (r && !r.dead) w.recruitDie(r, 'dreadnought');
@@ -277,7 +285,7 @@ var StickArmyCampaign = function (w) {
     G.save(); G.translate(p.x, p.y); if (p.rot) G.rotate(p.rot);
     drawBody(p, false);
     G.restore();
-    if (p.mark) drawMark(p, p.mark);
+    p.turrets.forEach(function (t) { if (t.mark) drawMark(p, t, t.mark); });
     p.shells.forEach(function (s) {
       var u = s.t / DREAD.SHELL, x = s.x0 + (s.x1 - s.x0) * u, y = s.y0 + (s.y1 - s.y0) * u - Math.sin(u * Math.PI) * 18;
       G.beginPath(); G.ellipse(x, y, 5, 3, Math.atan2(s.y1 - s.y0, s.x1 - s.x0), 0, Math.PI * 2); G.fillStyle = INK; G.fill();
@@ -361,7 +369,7 @@ var StickArmyCampaign = function (w) {
     }
     // The gun turrets: steel casemates under the hull, each barrel turning to its target.
     p.turrets.forEach(function (t) {
-      var gx = t.lx, gy = DREAD.GUN_Y, marking = p.mark && p.mark.turret === t;
+      var gx = t.lx, gy = DREAD.GUN_Y, marking = !!t.mark;
       G.beginPath(); SP([gx - 13, gy - 9, gx + 13, gy - 9, gx + 11, gy + 6, gx - 11, gy + 6], true, 0.3);
       if (!ghost) { G.fillStyle = t.dead ? 'rgba(46,46,51,0.55)' : t.flash > 0 ? PAPER : '#8a8f96'; G.fill(); }
       ink(marking && Math.floor(S.t * 8) % 2 ? RED : col, 2); G.stroke();
@@ -372,8 +380,8 @@ var StickArmyCampaign = function (w) {
     });
   }
   // The mark: a red smoke flare on the target, a pulsing ring, and a dashed line from the gun turning to it.
-  function drawMark(p, m) {
-    var G = w.G, S = w.S, g = gunAt(p, m.turret), x = m.x, u = m.t / DREAD.MARK;
+  function drawMark(p, t, m) {
+    var G = w.G, S = w.S, g = gunAt(p, t), x = m.x, u = m.t / DREAD.MARK;
     G.save();
     G.setLineDash([3, 6]); G.globalAlpha = 0.35 + 0.4 * u;
     G.beginPath(); L(g.x, g.y, x, GROUND - 14, 0); ink(RED, 1.6); G.stroke();
@@ -417,7 +425,7 @@ var StickArmyCampaign = function (w) {
     p.turrets.forEach(function (t) {
       if (t.dead) return;
       var g = gunAt(p, t);
-      if (g.x > 6 && g.x < W - 6) out.push({ kind: 'dreadpart', part: 'gun', x: g.x, y: g.y, vx: p.phase === 'guns' ? p.move * (p.move < 0 ? DREAD.DRIFT : DREAD.BACK) : 0, marking: !!(p.mark && p.mark.turret === t), id: t.id });
+      if (g.x > 6 && g.x < W - 6) out.push({ kind: 'dreadpart', part: 'gun', x: g.x, y: g.y, vx: p.phase === 'guns' ? p.move * (p.move < 0 ? DREAD.DRIFT : DREAD.BACK) : 0, marking: !!t.mark, id: t.id });
     });
     if (p.phase === 'bridge') { var b = bridgeAt(p); if (b.x > 6 && b.x < W - 6) out.push({ kind: 'dreadpart', part: 'bridge', x: b.x, y: b.y, vx: 0, marking: false, id: p.bridge.id }); }
     return out.sort(function (a, b) { return (b.marking ? 1 : 0) - (a.marking ? 1 : 0); });
@@ -426,7 +434,7 @@ var StickArmyCampaign = function (w) {
   function dreadPhase() { var p = dread(); return p ? p.phase : null; }
 
   // ---------- victory and endless ----------
-  // Beating the Dreadnought on wave 20 wins the run. When the field is clear the victory card shows the score, the
+  // Beating the Dreadnought on wave 15 wins the run. When the field is clear the victory card shows the score, the
   // time, the record and the roll call; Keep going opens the shop and plays on from wave 21 (S.endless).
   var winScreen = document.getElementById('winScreen');
   function victoryDue() { var S = w.S; return S.finalWon && !S.won; }
@@ -436,7 +444,7 @@ var StickArmyCampaign = function (w) {
     crew.sort(function (a, b) { return (b.rank || 0) - (a.rank || 0) || (b.kills || 0) - (a.kills || 0); });
     var top = crew.reduce(function (m, r) { return (r.kills || 0) > (m ? m.kills || 0 : 0) ? r : m; }, null);
     return crew.map(function (r) {
-      return { text: w.SQUAD.record({ name: r.name ? w.SQUAD.rankName(r) : 'A rookie', waves: r.waves || 0, kills: r.kills }), top: r === top };
+      return { text: w.SQUAD.record({ name: r.rank ? w.SQUAD.rankName(r) : 'A rookie', waves: r.waves || 0, kills: r.kills }), top: r === top };
     });
   }
   function showWin() {

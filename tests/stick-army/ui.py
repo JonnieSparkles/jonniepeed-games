@@ -60,7 +60,19 @@ with sync_playwright() as p:
         page.evaluate('armyTest("S.shop = null; shopScreen.hidden = true; S.mode = \'play\'; S.wave = 2;")')
         page.evaluate('armyTest("S.mode=\'paused\'; S.banner=null; S.planes=[]; spawnPlane(\'bomber\'); S.planes[0].x=220; [180,320,470].forEach(function(y){ spawnTrooper(70,y); S.troopers[S.troopers.length-1].open=1; }); render();")')
         page.screenshot(path=str(OUT/f'battle-{width}.png'))
-        print('PASS layout + input + shop + pizza', width,height)
+        # The victory card fits the width, scrolls on short screens, and both buttons can be reached and pressed.
+        page.evaluate('armyTest("S.mode=\'play\'; S.wave=15; S.finalWon=true; S.recruits=[0,1,4,5].map(function(s,i){ var r=makeRecruit(s,\'rifle\'); r.rank=i%3; r.name=SQUAD.NAMES[i]; r.waves=8+i; r.kills=10*i; return r; }); S.fallen=[{name:\'Cpl. Doodle\',waves:9,kills:30}]; showWin();")')
+        card=page.locator('#winScreen .card'); assert card.is_visible()
+        cb=card.bounding_box(); assert cb['x']>=-1 and cb['x']+cb['width']<=width+1, cb
+        assert card.evaluate('(el)=>el.scrollWidth<=el.clientWidth+1')
+        page.locator('#winAgainBtn').scroll_into_view_if_needed(); assert page.locator('#winAgainBtn').is_visible()
+        page.screenshot(path=str(OUT/f'win-{width}.png'))
+        page.locator('#keepBtn').scroll_into_view_if_needed(); page.click('#keepBtn')
+        assert page.locator('#shopScreen').is_visible() and page.evaluate('armyTest("S.endless && S.mode===\'shop\'")')
+        page.evaluate('armyTest("S.shop = null; shopScreen.hidden = true; S.mode = \'play\';")')
+        try: page.evaluate("localStorage.removeItem('stickarmy.wins'); localStorage.removeItem('stickarmy.bestWave')")
+        except Exception: pass
+        print('PASS layout + input + shop + pizza + victory', width,height)
         context.close()
     context=browser.new_context(viewport={'width':390,'height':844})
     page=context.new_page(); page.on('pageerror',lambda e:errors.append(str(e)))
