@@ -26,7 +26,7 @@ Anyone can call the API, so the Worker checks every save. None of this needs loo
 - **Run tokens.** When real play begins, the game asks `POST /v2/start` for a token. The token is signed with `RUN_SECRET` for that game and board and carries its own run ID and start time. Nothing is stored. A token saves one row, ever.
 - **Time.** A run can't claim more play time than its token has existed (`time_ms` up to the token's age plus 5 s). Tokens last 24 hours.
 - **Score caps.** A score can't come faster than a perfect player could earn it: at most `perSecond × seconds + grace`, from the board's `plausible` rule. See [Score caps](#score-caps).
-- **Rate limit.** Twenty saved runs a minute per connection, counted per Cloudflare location (the `SUBMITS` binding in `wrangler.jsonc`). The IP is used in memory only and never stored.
+- **Rate limit.** Twenty new rows a minute per connection, counted per Cloudflare location (the `SUBMITS` binding in `wrangler.jsonc`). Refusals and retries of a run that already saved don't count. The IP is used in memory only and never stored.
 
 Refused saves answer `rejected` with no reason, and the game says nothing: the board comes back without the row. Each refusal logs one line (game, board, score, time and the check that failed, never the IP), so "why didn't my score save?" can be answered; see [Why didn't a score save?](#why-didnt-a-score-save).
 
@@ -262,7 +262,7 @@ Don't Step on a Crack is the reference: `openNews` and `syncNews` in its `game.j
 
 `GET /v2/top?game=<id>&board=<integer>` returns `{ok, game, board, scores}` for any accepted board, including read-only ones. Add `score` and URL-encoded JSON `meta` for `placement` (1–50 or null). A row has rank, name, score, input and meta.
 
-`POST /v2/submit` accepts game, board, token, name, score, input and meta (with `time_ms`); returns `{ok, id, rank, scores}`. The run ID comes from the token. Repeating a token returns the original row, even if another valid payload is sent; it does not change that run. Rows outside 50 are stored with null rank. Checks run in this order: the fields, then the token, time and score cap, then the rate limit.
+`POST /v2/submit` accepts game, board, token, name, score, input and meta (with `time_ms`); returns `{ok, id, rank, scores}`. The run ID comes from the token. Repeating a token returns the original row, even if another valid payload is sent; it does not change that run. Rows outside 50 are stored with null rank. Checks run in this order: the fields, then the token, time and score cap. A token that already saved returns its row there; only a new row goes on to the rate limit.
 
 All responses are JSON with CORS `*`; any OPTIONS path allows GET/POST/OPTIONS and Content-Type. There are no cookies. Bodies above 2048 bytes fail with `body_too_large`; malformed JSON fails with `bad_json`. Input failures use status 400 and `{ok:false,error}`: `bad_game`, `bad_board` (also a board without a score cap, on start and submit), `bad_name` (exactly three A–Z/0–9), `name_not_allowed`, `bad_score`, `bad_input` (touch or keys), `bad_meta` (also a missing `time_ms`). A missing, altered, expired or mismatched token, too much claimed time, or a score over the cap all answer 400 `rejected`, with no reason. Too many saves from one connection answer 429 `rate_limited`. Every `/v1/` path answers 410 `gone`. Unknown paths/methods return 404 `not_found`; a database failure or missing `RUN_SECRET` returns 503 `unavailable` with the same JSON/CORS format.
 

@@ -176,15 +176,20 @@ async function handle(request, env) {
       console.log(JSON.stringify({ rejected: run.reason, game: data.game, board: data.board, score: data.score, time_ms: data.meta.time_ms }));
       return fail('rejected');
     }
-    // Counted only for runs that would be saved, keyed on the connection in memory only.
-    if (env.SUBMITS) {
-      const { success } = await env.SUBMITS.limit({ key: request.headers.get('cf-connecting-ip') || 'unknown' });
-      if (!success) return fail('rate_limited', 429);
+    const saved = () => env.DB.prepare('SELECT id, game, board FROM scores WHERE run_id = ?').bind(run.runId).first();
+    // A repeat of a saved run (say, a retry after a lost response) returns that row and costs nothing.
+    let row = await saved();
+    if (!row) {
+      // Counted only for new rows, keyed on the connection in memory only.
+      if (env.SUBMITS) {
+        const { success } = await env.SUBMITS.limit({ key: request.headers.get('cf-connecting-ip') || 'unknown' });
+        if (!success) return fail('rate_limited', 429);
+      }
+      await env.DB.prepare(`INSERT INTO scores (game, board, run_id, name, score, input, meta)
+        VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(run_id) DO NOTHING`)
+        .bind(data.game, data.board, run.runId, data.name, data.score, data.input, JSON.stringify(data.meta)).run();
+      row = await saved();
     }
-    await env.DB.prepare(`INSERT INTO scores (game, board, run_id, name, score, input, meta)
-      VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(run_id) DO NOTHING`)
-      .bind(data.game, data.board, run.runId, data.name, data.score, data.input, JSON.stringify(data.meta)).run();
-    const row = await env.DB.prepare('SELECT id, game, board FROM scores WHERE run_id = ?').bind(run.runId).first();
     const rows = await top(env.DB, row.game, row.board);
     return reply({ ok: true, id: row.id, rank: rows.find(r => r.id === row.id)?.rank ?? null, scores: publicRows(rows) });
   }

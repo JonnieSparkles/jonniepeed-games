@@ -153,19 +153,23 @@ await test('SQL and candidate comparator agree at Crack 50th boundary', async ()
   const winning = await accepted(run('dont-step-on-a-crack', { score: 102, meta: { time_ms: 1048 } }));
   assert.equal(winning.rank, 50);
 }, !SECRET && LOCAL_ONLY);
-await test('rate limit: 20 saved runs a minute per connection, refusals not counted', async () => {
+await test('rate limit: 20 new rows a minute per connection; refusals and repeats not counted', async () => {
   const ip = randomIp();
-  let saved = 0, limited = null;
+  let saved = 0, limited = null, first = null;
   // Up to 41 tries, in case the burst straddles the limiter's one-minute window.
   for (let i = 0; i < 41 && !limited; i++) {
-    const { response, data } = await submit(run('thimbleful', { score: 1 }), ip);
-    if (response.status === 200) saved++;
+    const payload = run('thimbleful', { score: 1 });
+    const { response, data } = await submit(payload, ip);
+    if (response.status === 200) { saved++; first ??= { payload, id: data.id }; }
     else limited = { status: response.status, data };
   }
   assert.ok(saved >= 20, `only ${saved} saved before the limit`);
   assert.deepEqual(limited, { status: 429, data: { ok: false, error: 'rate_limited' } });
-  const { response, data } = await submit(run('thimbleful', { token: 'not-a-token' }), ip);
-  assert.equal(response.status, 400); assert.equal(data.error, 'rejected');
+  const refused = await submit(run('thimbleful', { token: 'not-a-token' }), ip);
+  assert.equal(refused.response.status, 400); assert.equal(refused.data.error, 'rejected');
+  // A retry of a run that already saved still gets its row back over the limit.
+  const repeat = await submit(first.payload, ip);
+  assert.equal(repeat.response.status, 200); assert.equal(repeat.data.id, first.id);
 }, !SECRET && LOCAL_ONLY);
 
 for (const [code, changes] of [
