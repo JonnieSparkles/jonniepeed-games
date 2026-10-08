@@ -21,13 +21,14 @@ var StickArmySky = function (w) {
   // it and it lands in no-man's land, where the enemy takes it. Inside: dog tags, a wall patch or a radio call.
   var CRATE = { WAVE: 8, Y: 98, FALL: 50, TAGS: 35, WALL: 25 };
   // A dive bomber comes in level with its siren wailing, tips over at ANGLE below level, lets its heavy bomb go at
-  // RELEASE_Y so it carries on to the target, then pulls out and climbs away. Two hits down it.
-  var DIVE = { WAVE: 12, Y: 112, CRUISE: 150, SPEED: 230, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 2, HW: 26, HH: 11, WALL: 26 };
+  // RELEASE_Y so it carries on to the target, then pulls out and climbs away. Three hits down it.
+  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 26, HH: 11, WALL: 30 };
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
-  // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). Four hits down it, and anyone
-  // still on the rope falls.
-  var HELI = { WAVE: 13, SPEED: 72, Y: 118, HOVER: [300, 340], HP: 4, ROPE_EVERY: 0.9, ROPE: 85, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
-    SHOT: 260, HURT: 0.5, WAIT: 1.4, HW: 36, HH: 17 };
+  // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
+  // it goes down anyone still on the rope falls.
+  var HELI = { WAVE: 13, SPEED: 72, Y: 118, HOVER: [300, 340], TROOPS: [4, 5], ROPE_EVERY: 0.8, ROPE: 85, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
+    SHOT: 260, HURT: 0.6, WAIT: 1.4, HW: 36, HH: 17 };
+  function heliHP(n) { return Math.round(10 + 0.5 * (n - HELI.WAVE)); }
   var KINDS = { balloon: true, diver: true, heli: true };
 
   // ---------- the wave's schedule ----------
@@ -37,8 +38,8 @@ var StickArmySky = function (w) {
       medevac: n >= MEDEVAC.WAVE && !dread ? (n < 12 ? 1 : 2) : 0,
       balloons: n >= BALLOON.WAVE && !dread ? Math.min(6, 2 + Math.floor((n - BALLOON.WAVE) / 2)) : 0,
       crates: n >= CRATE.WAVE ? (n < 12 ? 1 : 2) : 0,
-      divers: n >= DIVE.WAVE && !dread ? Math.min(8, 2 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
-      helis: n >= HELI.WAVE && !dread ? Math.min(5, 1 + Math.floor((n - HELI.WAVE) / 2)) : 0
+      divers: n >= DIVE.WAVE && !dread ? Math.min(8, 3 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
+      helis: n >= HELI.WAVE && !dread ? Math.min(5, 1 + Math.floor((n - HELI.WAVE + 1) / 2)) : 0
     };
   }
   // Timers come from one draw of the wave stream, so what happens in the fight never shifts them.
@@ -228,12 +229,12 @@ var StickArmySky = function (w) {
 
   // ---------- helicopters ----------
   function spawnHeli(rnd) {
-    var S = w.S, r = substream(rnd), side = r() < 0.5 ? -1 : 1, n = r() < 0.5 ? 3 : 4;
+    var S = w.S, r = substream(rnd), side = r() < 0.5 ? -1 : 1, n = r() < 0.5 ? HELI.TROOPS[0] : HELI.TROOPS[1];
     var p = w.makePlane('heli', -side, side < 0 ? -50 : W + 50, HELI.Y);
-    p.rng = r; p.hp = HELI.HP; p.hw = HELI.HW; p.hh = HELI.HH; p.sc = 1; p.speed = HELI.SPEED; p.side = side;
+    p.rng = r; p.hp = p.maxHp = heliHP(S.wave); p.hw = HELI.HW; p.hh = HELI.HH; p.sc = 1; p.speed = HELI.SPEED; p.side = side;
     p.hoverX = side < 0 ? between(r, 52, 96) : between(r, 304, 348); p.hoverY = between(r, HELI.HOVER[0], HELI.HOVER[1]);
     p.phase = 'in'; p.kits = []; for (var i = 0; i < n; i++) p.kits.push(w.rollTrooper(r));
-    p.ropeT = 0.7; p.gunT = 1.1; p.burst = 0; p.burstT = 0; p.wait = HELI.WAIT; p.vx = 0; p.vy = 0; p.aim = Math.PI / 2; p.flash = 0; p.tilt = 0;
+    p.ropeT = 0.7; p.gunT = 1.1; p.burst = 0; p.burstT = 0; p.wait = HELI.WAIT; p.vx = 0; p.vy = 0; p.aim = Math.PI / 2; p.flash = 0; p.tilt = 0; p.bob = r() * 6.28;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'heli', dir: p.dir, troopers: n });
     w.sound.play('chopper');
@@ -255,7 +256,7 @@ var StickArmySky = function (w) {
     if (p.state !== 'fly') { fallDown(p, dt); return; }
     if (p.phase === 'in') { if (moveTo(p, p.hoverX, p.hoverY, dt)) { p.phase = 'drop'; w.say('go go go!', p.id, true); } return; }
     if (p.phase === 'out') { moveTo(p, p.side < 0 ? -90 : W + 90, 80, dt); if (p.x < -70 || p.x > W + 70) p.gone = true; return; }
-    moveTo(p, p.hoverX, p.hoverY + Math.sin(S.t * 2 + p.id) * 2, dt);
+    moveTo(p, p.hoverX, p.hoverY + Math.sin(S.t * 2 + p.bob) * 2, dt);
     if (p.phase === 'drop') {
       p.ropeT -= dt;
       if (p.ropeT <= 0 && p.kits.length) {
@@ -427,6 +428,13 @@ var StickArmySky = function (w) {
       if (p.flash > 0) { G.beginPath(); G.arc(4 + Math.cos(a) * 15, 3 + Math.sin(a) * 15, 3.5, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.9)'; G.fill(); }
     }
     G.restore();
+    // A health bar once it's been hit, like a tank's.
+    if (fly && p.hp < p.maxHp) {
+      var f = Math.max(0, p.hp / p.maxHp);
+      G.fillStyle = PAPER; G.fillRect(p.x - 17, p.y - 34, 34, 5);
+      G.fillStyle = 'rgba(200,67,58,0.55)'; G.fillRect(p.x - 16, p.y - 33, 32 * f, 3);
+      G.beginPath(); L(p.x - 17, p.y - 34, p.x + 17, p.y - 34, 0.2); L(p.x - 17, p.y - 29, p.x + 17, p.y - 29, 0.2); ink(INK, 1); G.stroke();
+    }
     // The rope, from the door to below the lowest man on it.
     if (fly && (p.phase === 'drop' || p.phase === 'wait')) {
       var d = door(p), low = d.y + 40;
@@ -477,7 +485,7 @@ var StickArmySky = function (w) {
   }
   function draw() { w.S.medevac.forEach(drawMedevac); w.S.crates.forEach(drawCrate); }
 
-  return { MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
+  return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
     spawnHeli: spawnHeli, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };

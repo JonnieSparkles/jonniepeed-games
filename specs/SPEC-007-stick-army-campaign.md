@@ -2,7 +2,7 @@
 
 Fifteen waves, three bosses, a victory screen, then optional endless play. Something new arrives every couple of waves on the way, and each boss wave is different.
 
-Status: stage 1 (the ending) is built; stages 2–4 are planned. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
+Status: stages 1–3 are built (the ending, the armored zeppelin, the new threats), plus balloons, the Red Cross plane and little voices from the second playtest; stage 4 (endless extras) is planned. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
 
 ## Why
 
@@ -21,6 +21,8 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 - **The final boss is the Dreadnought** (Oct 8), staying military. It comes forward from behind the page, and the fight has the feel of the airship stages in Super Mario Bros. 3: the ship is bigger than the page and slides past overhead while you fight it section by section, to its own ominous march. The music is original, in that spirit, not that theme.
 - **What the Dreadnought destroys stays destroyed** for the rest of the run, which matters in endless; the shop sells it again.
 - **One best score,** plus runs won and best wave. A separate endless board waits for online scores.
+- **If Stick Army gets a leaderboard** (Oct 8), its score is the score when the Dreadnought goes down on wave 15, or at game over for a run that lost before that. Endless points don't count toward it. Endless keeps ramping regardless.
+- **From the second playtest** (Oct 8, all built): bomb balloons, a Red Cross plane that costs tags to hit, HQ crates you lose if you shoot them, and little voices.
 
 ## The waves
 
@@ -28,18 +30,20 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 
 | Wave | What arrives | Notes |
 | --- | --- | --- |
-| 1–4 | planes, bombers (2), snipers (3) | built |
+| 1–3 | planes, bombers (2), snipers (3) | built |
+| 4 | **new: the Red Cross plane** | built. A white plane crosses slowly; your turret's first hit costs 30 tags and your combo. The crew never shoot it. |
 | 5 | **boss:** zeppelin | built: arrives at 9 s after a horn |
 | 6 | rushers | built |
-| 8 | **new:** HQ airdrops | planned. A friendly blue crate on a chute now and then; pop it low over a mat to catch it for tags, a wall patch or a free call. Shoot it and it's lost. |
+| 7 | **new: bomb balloons** | built. They drift to the bunker and drop a bomb on it. Popped anywhere else, the bomb falls there: on the enemy, or on your crew. |
+| 8 | **new:** HQ airdrops | built. A crate on a blue chute over a mat: pop it low and catch it for tags, a wall patch or a free call. Shoot the crate and it's lost; leave it and the enemy takes it. |
 | 9 | tanks by cargo plane, HQ air strike | built |
-| 10 | **boss: armored zeppelin**, armored troopers | Armored troopers built (heavy armor from 14). The armored zeppelin is planned: grey plates over the hull that clang until shot off, the gondola plated until half health, two escort planes close by. |
+| 10 | **boss: armored zeppelin**, armored troopers | built. Steel plates cover the hull and clang until shot off; the gondola is plated until half health. Heavy armor on troopers from 14. |
 | 11 | **new: tanks by road** | built: some tanks roll in from the page edge, so they can't all be stopped in the air |
-| 12 | **new: dive bombers** | planned. A siren, then a steep dive at the bunker with one heavy bomb at the bottom. Two hits down it mid-dive; or shoot the bomb. |
-| 13 | **new: helicopters** | planned. Hover near an edge and lower three or four troopers on ropes, no chutes (so no catches). A door gunner shoots at crew. Four hits. |
+| 12 | **new: dive bombers** | built. A siren, then a steep dive at the bunker with one heavy bomb at the bottom. Three hits down it; or shoot the bomb. |
+| 13 | **new: helicopters** | built. Hover near an edge and lower four or five troopers on a rope, no chutes. A door gunner shoots at crew. Armored (10 health), with a bar; down it and anyone on the rope falls, onto a mat for a catch. |
 | 14 | the big push | everything so far, at full strength |
 | 15 | **final boss: the Dreadnought** | built; see below |
-| 16+ | endless | everything mixed; twin zeppelins and a night raid are candidates here |
+| 16+ | endless | built: everything mixed, counts climbing to their caps. Twin zeppelins and a night raid are candidates here |
 
 ## The final boss
 
@@ -80,16 +84,14 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 Do these in order and playtest after each.
 
 1. **The ending** (built): the Dreadnought, the victory card and roll call, kill counts, endless, saved wins, tanks by road and the difficulty retune to 15.
-2. **Boss variety:** the armored zeppelin (10).
-3. **New threats:** dive bombers (12), helicopters (13), HQ airdrops (8).
+2. **Boss variety** (built): the armored zeppelin (10). The two close escort planes were left out: the plates alone make it a longer fight.
+3. **New threats** (built): dive bombers (12), helicopters (13), HQ airdrops (8), with bomb balloons (7), the Red Cross plane (4) and little voices from the second playtest.
 4. **Endless extras:** twin zeppelins and a night raid, the riskiest for readability, last.
 
 Each stage updates `docs/games/stick-army.md`, the harness (`tests/stick-army/`), the bot and adapter, and the What's new note if a board exists by then.
 
 ## Open questions
 
-The first six were answered on Oct 8; see Decisions. Playtesting may reopen the win targets and the night raid. New from the second playtest, not decided yet:
+All answered on Oct 8; see Decisions. Playtesting may reopen the win targets and the night raid.
 
-1. **Balloons:** barrage balloons or bomb balloons as another enemy type.
-2. **Things you shouldn't shoot:** a target with a penalty for hitting it, such as a Red Cross plane or HQ's supply crates.
-3. **Little voices:** the soldiers barking short lines (calling in the radio, "medic!", cheering a promotion).
+The second playtest's three ideas are built: bomb balloons (wave 7); things you shouldn't shoot (the Red Cross plane from wave 4, and HQ's crates); and little voices, gibberish lines in each soldier's own pitch for radio calls, "medic!", promotions, cheers and the enemy charging.

@@ -51,6 +51,9 @@ window.__balanceBot = function (profile, seed) {
         consider(400 + t.y / 10, lead(o, t.x + side * 11, t.y - 25, 0, t.fall), t.id);
       } else if (t.state === 'chute' && t.y > 400) {
         consider(300 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id);
+      } else if (t.state === 'rope') {
+        // Sliding down a helicopter's rope: no chute, so shoot him off it.
+        consider(310 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id);
       } else if (t.state === 'ground' && t.type !== 'sniper') {
         var shot = groundShot(o, t);
         if (shot) consider(320 - Math.abs(t.x - 200) / 10, shot, t.id);
@@ -59,8 +62,18 @@ window.__balanceBot = function (profile, seed) {
       }
     });
     o.planes.forEach(function (p) {
-      // Bombers get priority over troopers: downing one saves chasing its whole bomb run.
-      if (p.state === 'fly' && p.x > 20 && p.x < 380) consider(p.kind === 'zeppelin' ? 150 : p.kind === 'bomber' ? 340 : p.kind === 'cargo' ? 260 : 200 + p.y / 10, lead(o, p.x, p.y, p.vx, 0), p.id);
+      if (p.state !== 'fly' || p.x < 20 || p.x > 380) return;
+      // Balloons only while they're out over the field: popped over the squad, the bomb would land on it.
+      if (p.kind === 'balloon') { if (p.x < 100 || p.x > 300) consider(250, lead(o, p.x, p.y, p.vx, p.vy), p.id); return; }
+      // Bombers get priority over troopers: downing one saves chasing its whole bomb run. A dive bomber in its dive
+      // comes before nearly everything.
+      var rank = p.kind === 'zeppelin' ? 150 : p.kind === 'bomber' ? 340 : p.kind === 'cargo' ? 260 : p.kind === 'heli' ? 330 :
+        p.kind === 'diver' ? (p.phase === 'dive' ? 470 : 300) : 200 + p.y / 10;
+      consider(rank, lead(o, p.x, p.y, p.vx, p.vy || 0), p.id);
+    });
+    // HQ crates: pop the chute low over a mat, on the canopy's outer edge, well clear of the crate.
+    (o.crates || []).forEach(function (c) {
+      if (c.state === 'chute' && overMat(c, o) && c.y > 380 && c.y < 530) consider(390 + c.y / 10, lead(o, c.x + (c.x < 200 ? -11 : 11), c.y - 26, 0, c.fall), c.id);
     });
     // The Dreadnought: the gun that's aiming comes before anything, then the bridge, then its other guns.
     (o.dread || []).forEach(function (q) {
@@ -74,6 +87,15 @@ window.__balanceBot = function (profile, seed) {
     return list;
   }
 
+  // Hold fire while the Red Cross plane is in the line of fire (wider with the spread gun). Casual players don't check.
+  function clear(o, a) {
+    if (profile.shop === 'random') return true;
+    var cone = (o.spread ? 0.13 : 0) + 0.04;
+    return !(o.medevac || []).some(function (m) {
+      var p = lead(o, m.x, m.y, m.vx, 0), half = Math.atan2(m.hw, Math.hypot(p.x - o.turret.x, p.y - o.turret.y));
+      return Math.abs(angle(o, p) - a) < cone + half;
+    });
+  }
   // Like a hand on a mouse or a thumb on glass: the aim sweeps at a limited speed, stays on its target until
   // something clearly more urgent appears, and carries a small per-target offset plus tremor.
   var aim = -Math.PI / 2, focus = null, offset = 0, lastT = 0, readyAt = 0;
@@ -89,7 +111,7 @@ window.__balanceBot = function (profile, seed) {
   // Fighter cover: when the sky fills with bombers or bombs. Casual players wait until the wall is low.
   function wantFighter(o) {
     if (!o.calls.fighter || o.fighterActive) return false;
-    var bombers = o.planes.filter(function (p) { return p.state === 'fly' && p.kind === 'bomber' && p.x > 0 && p.x < 400; }).length;
+    var bombers = o.planes.filter(function (p) { return p.state === 'fly' && (p.kind === 'bomber' || p.kind === 'diver') && p.x > 0 && p.x < 400; }).length;
     var falling = o.bombs.filter(function (m) { return m.y < o.ground - 150; }).length;
     if (profile.shop === 'random') return o.wall < o.maxWall * 0.3 && (bombers || falling);
     return bombers >= 2 || falling >= 4;
@@ -108,7 +130,7 @@ window.__balanceBot = function (profile, seed) {
     // the bot keeps the trigger down while it has a target, and only heat discipline lets go.
     var want = target.angle + offset + (rnd() * 2 - 1) * aimErr * 0.25, step = o.t >= readyAt ? profile.aim_speed * dt : 0;
     aim += Math.max(-step, Math.min(step, want - aim));
-    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot, strike: strike, fighter: fighter };
+    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot && clear(o, aim), strike: strike, fighter: fighter };
   }
 
   // Shop: one readable function. The gift first, a rifleman if the squad is down to one or none, the top of the

@@ -468,6 +468,7 @@
   var WAVE_BANNER = 2.2, WAVE_HURRY = 1.5;
   function startWave(n) {
     S.wave = n; seedWave(n);
+    S.medevac = []; S.skyFx = [];
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);

@@ -513,7 +513,8 @@ var StickArmyUnits = function (w) {
       if (q.cd > 0 || at.x < -20 || at.x > W + 20) return;
       var nx = at.x + f.dir * 30, a, tg = fighterTarget(at.x, at.y, f.dir);
       if (tg) {
-        var vx = tg.isBomb ? tg.vx : tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.kind === 'dreadpart' ? tg.vx : tg.dir * tg.speed, vy = tg.isBomb ? tg.vy : 0;
+        // Bombs, Dreadnought parts and the sky's planes (sky.js) carry their own velocity.
+        var vx = tg.kind === 'zeppelin' ? tg.face * tg.speed : tg.vx != null ? tg.vx : tg.dir * tg.speed, vy = tg.isBomb || tg.kind === 'diver' ? tg.vy : 0;
         var tt = Math.hypot(tg.x - nx, tg.y - at.y) / FIGHTER.BULLET;
         a = Math.atan2(tg.y + vy * tt - at.y, tg.x + vx * tt - nx) + (w.RC() * 2 - 1) * 0.02;
       } else a = (f.dir > 0 ? 0 : Math.PI) + f.dir * (0.1 + 0.08 * Math.sin(f.fly * 9 + i * 2));
