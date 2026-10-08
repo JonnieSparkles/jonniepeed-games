@@ -416,6 +416,9 @@
   }
 
   // ---------- waves ----------
+  // A wave opens one thing at a time: the banner, then the sketches of what you bought (SKETCH.DELAY in), then the
+  // pizza courier once both are done.
+  var WAVE_BANNER = 2.2;
   function startWave(n) {
     S.wave = n; seedWave(n);
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
@@ -424,10 +427,11 @@
     S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: 3.5, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
     S.waveState = 'active';
     var sub = c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
-      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === TANK.WAVE ? 'tanks inbound! HQ sends an air strike' : '';
-    S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
-    // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters.
-    if (n === TANK.WAVE) grantCall('bomber', 200, 380);
+      n === RUSH.WAVE ? 'troops rushing the flanks!' : '';
+    // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters. The banner
+    // says so, rather than a label of its own.
+    if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
+    S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
@@ -510,13 +514,13 @@
     try { (ICONS[id] || ICONS.fallback)(g); } finally { G = previous; boil = keepBoil; }
   }
   // ---------- drawn in ----------
-  // You're the commander drawing your army: as a wave starts, whatever you just bought is sketched onto the page
-  // with a pencil, one at a time. Purely a reveal: everything works from the first frame.
-  var SKETCH = { DUR: 0.45, GAP: 0.45, DRAWN: ['auto', 'hospital', 'trench', 'wire', 'tramp'] };
+  // You're the commander drawing your army: once the wave banner has been read, whatever you just bought is sketched
+  // onto the page in blue ballpoint, one at a time. Purely a reveal: everything works from the first frame.
+  var SKETCH = { DELAY: 0.9, DUR: 0.45, GAP: 0.45, DRAWN: ['auto', 'hospital', 'trench', 'wire', 'tramp'] };
   function queueSketches(bought) {
     var keys = SKETCH.DRAWN.filter(function (id) { return bought[id]; });
     S.recruits.forEach(function (r) { if (r.fresh) { r.fresh = false; keys.push('r' + r.id); } });
-    S.sketches = keys.map(function (key, i) { return { key: key, t: -i * SKETCH.GAP }; });
+    S.sketches = keys.map(function (key, i) { return { key: key, t: -SKETCH.DELAY - i * SKETCH.GAP }; });
   }
   function updateSketches(dt) {
     if (!S.sketches.length) return;
@@ -527,8 +531,8 @@
     var k = S.sketches.find(function (q) { return q.key === key; });
     return k ? clamp(k.t / SKETCH.DUR, 0, 1) : 1;
   }
-  // Draws fn inside box [x0, y0, x1, y1], revealed bottom-up ('up') or left to right ('right'), with the pencil at
-  // the edge of what's drawn so far.
+  // Draws fn inside box [x0, y0, x1, y1], revealed bottom-up ('up') or left to right ('right'), with the pen at the
+  // edge of what's drawn so far.
   function sketched(key, box, dir, fn) { sketchReveal(sketchProgress(key), box, dir, fn); }
   function sketchReveal(p, box, dir, fn) {
     if (p >= 1) { fn(); return; }
@@ -538,14 +542,19 @@
     if (dir === 'up') { var top = y1 - (y1 - y0) * p; G.rect(x0 - 6, top, x1 - x0 + 12, y1 - top + 6); px = x0 + (x1 - x0) * wob; py = top; }
     else { var edge = x0 + (x1 - x0) * p; G.rect(x0 - 6, y0 - 6, edge - x0 + 6, y1 - y0 + 12); px = edge; py = y0 + (y1 - y0) * wob; }
     G.clip(); fn(); G.restore();
-    drawPencil(px, py);
+    drawPen(px, py);
   }
-  function drawPencil(x, y) {
+  // A blue ballpoint, the same ink as your army: steel tip, blue grip, clear barrel showing the ink tube, cap and clip.
+  function drawPen(x, y) {
     G.save(); G.translate(x, y); G.rotate(-0.7);
-    G.beginPath(); G.moveTo(0, 0); G.lineTo(5, -2.5); G.lineTo(5, 2.5); G.closePath(); G.fillStyle = '#e7c9a0'; G.fill();
-    G.beginPath(); G.moveTo(0, 0); G.lineTo(1.6, -0.8); G.lineTo(1.6, 0.8); G.closePath(); G.fillStyle = INK; G.fill();
-    G.fillStyle = HAT; G.fillRect(5, -2.5, 15, 5); G.fillStyle = '#d98a8a'; G.fillRect(20, -2.5, 4, 5);
-    G.beginPath(); G.moveTo(0, 0); G.lineTo(5, -2.5); G.lineTo(24, -2.5); G.lineTo(24, 2.5); G.lineTo(5, 2.5); G.closePath(); ink(INK, 1.2); G.stroke();
+    G.beginPath(); G.moveTo(0, 0); G.lineTo(4, -1.4); G.lineTo(4, 1.4); G.closePath(); G.fillStyle = '#b9bcc4'; G.fill();
+    G.beginPath(); G.moveTo(4, -1.4); G.lineTo(9, -2.6); G.lineTo(9, 2.6); G.lineTo(4, 1.4); G.closePath(); G.fillStyle = BLUE; G.fill();
+    G.fillStyle = PAPER; G.fillRect(9, -2.6, 16, 5.2);
+    G.beginPath(); G.moveTo(9, 0); G.lineTo(25, 0); ink(BLUE, 1.3); G.stroke();
+    G.fillStyle = BLUE; G.fillRect(25, -2.6, 4, 5.2);
+    G.beginPath(); G.moveTo(0, 0); G.lineTo(4, -1.4); G.lineTo(9, -2.6); G.lineTo(29, -2.6); G.lineTo(29, 2.6); G.lineTo(9, 2.6); G.lineTo(4, 1.4); G.closePath(); ink(INK, 1.1); G.stroke();
+    G.beginPath(); G.moveTo(27, -2.6); G.lineTo(27, -4); G.lineTo(17, -4); ink(BLUE, 1.4); G.stroke();
+    G.beginPath(); G.arc(0.6, 0, 0.9, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
     G.restore();
   }
   // ---------- combat ----------

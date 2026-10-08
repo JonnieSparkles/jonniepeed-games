@@ -107,8 +107,8 @@ var StickArmyUnits = function (w) {
     S.stats.planes++; S.stats.zeppelins++;
     emit('plane_down', { kind: 'zeppelin', by: owner === 'ally' ? 'crew' : 'player' });
     award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
-    S.banner = { s: 'zeppelin down!', sub: 'catch the crew! +1 air strike', t: 0, dur: 2.4 };
-    grantCall('bomber', p.x, p.y - p.hh - 20);
+    var got = grantCall('bomber', p.x, p.y - p.hh - 20, true);
+    S.banner = { s: 'zeppelin down!', sub: 'catch the crew! ' + (got ? '+1 air strike' : '+' + RADIO.FULL_TAGS + ' tags'), t: 0, dur: 2.4 };
     S.shake = Math.max(S.shake, 0.5);
     w.sound.play('zepdown');
     for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
@@ -163,12 +163,14 @@ var StickArmyUnits = function (w) {
     if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
     G.restore();
   }
-  // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry.
+  // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry. It comes
+  // in with the hull, and is only held on the page once the zeppelin has fully arrived.
   function drawBossBar() {
     var S = w.S, G = w.G; // w is the world; bw is the bar width
     var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
     if (!z) return;
-    var bw = 96, x = clamp(z.x, 12 + bw / 2, W - 12 - bw / 2) - bw / 2, y = z.y - z.hh - 12, f = clamp(z.hp / z.maxHp, 0, 1);
+    var bw = 96, cx = z.entered ? clamp(z.x, 12 + bw / 2, W - 12 - bw / 2) : z.x;
+    var x = cx - bw / 2, y = z.y - z.hh - 12, f = clamp(z.hp / z.maxHp, 0, 1);
     pen(4343);
     G.fillStyle = PAPER; G.fillRect(x, y - 4, bw, 8);
     G.fillStyle = z.hitFlash > 0 ? 'rgba(200,67,58,0.75)' : 'rgba(200,67,58,0.45)'; G.fillRect(x + 1.5, y - 2.5, (bw - 3) * f, 5);
@@ -315,13 +317,17 @@ var StickArmyUnits = function (w) {
   var FIGHTER = { SPEED: 300, PASSES: [190], EVERY: 0.07, RANGE: 300, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
-  // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead.
-  function grantCall(kind, x, y) {
+  // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead. Quiet when a banner says it.
+  function grantCall(kind, x, y, quiet) {
     var S = w.S;
-    if (callsHeld() < RADIO.SLOTS) { S.calls[kind]++; addText(kind === 'bomber' ? '+1 air strike' : '+1 fighter cover', x, y, BLUE, 22); return true; }
+    if (callsHeld() < RADIO.SLOTS) {
+      S.calls[kind]++;
+      if (!quiet) addText(kind === 'bomber' ? '+1 air strike' : '+1 fighter cover', x, y, BLUE, 22);
+      return true;
+    }
     S.coins += RADIO.FULL_TAGS; w.flyTags(x, y, RADIO.FULL_TAGS);
     emit('coins', { amount: RADIO.FULL_TAGS, reason: 'radio full' });
-    addText('radio full +' + RADIO.FULL_TAGS + ' tags', x, y, BLUE, 20);
+    if (!quiet) addText('radio full +' + RADIO.FULL_TAGS + ' tags', x, y, BLUE, 20);
     return false;
   }
   function callStrike() {

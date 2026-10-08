@@ -136,8 +136,9 @@ var StickArmyShop = function (w) {
     if (S.mode !== 'shop') return;
     w.queueSketches(S.shop.bought);
     shopScreen.hidden = true; S.shop = null; w.clearInput(); S.mode = 'play'; pauseBtn.hidden = false; w.startWave(S.wave + 1);
-    // A pizza ordered in the shop rides in as the wave starts, so ordering never leaves the shop.
-    if (S.pizzaOrder) { S.pizzaOrder = false; S.delivery = { x: -30, phase: 'arrive', wait: 0 }; }
+    // A pizza ordered in the shop rides in early in the wave, so ordering never leaves the shop. The courier waits
+    // off the page until the wave banner and the sketches are done.
+    if (S.pizzaOrder) { S.pizzaOrder = false; S.delivery = { x: -30, phase: 'queue', wait: 0 }; }
     document.activeElement.blur();
   }
   // The courier rides along the ground during play. Combat carries on; the pizza lands at the handoff.
@@ -145,7 +146,8 @@ var StickArmyShop = function (w) {
     var S = w.S;
     var d = S.delivery;
     if (!d) return;
-    if (d.phase === 'arrive') {
+    if (d.phase === 'queue') { if (!S.banner && !S.sketches.length) d.phase = 'arrive'; }
+    else if (d.phase === 'arrive') {
       d.x = Math.min(200, d.x + dt * 145);
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.wave });
@@ -160,7 +162,7 @@ var StickArmyShop = function (w) {
   }
   function drawCourier() {
     var S = w.S, G = w.G, d = S.delivery;
-    if (!d) return;
+    if (!d || d.phase === 'queue') return;
     var x = d.x, y = GROUND - 17; pen(8080);
     G.beginPath(); Ci(x - 13, y + 12, 8); Ci(x + 16, y + 12, 8); ink(INK, 2.3); G.stroke();
     G.beginPath(); SP([x - 13,y + 12,x - 5,y - 4,x + 9,y + 12,x - 13,y + 12],false); L(x - 5,y - 4,x + 11,y - 4); L(x + 11,y - 8,x + 16,y + 12); ink(BLUE,2.4); G.stroke();

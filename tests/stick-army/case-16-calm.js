@@ -51,5 +51,51 @@
   tags = S.parts.filter(function (q) { return q.k === 'tag'; });
   check(tags.length <= 6 && tags.reduce(function (n, q) { return n + q.n; }, 0) === 17, 'a pile-up folds tags without losing any');
 
+  // The wave start comes one thing at a time. HQ's bomber at the first tank wave is in the banner, not a label.
+  RUN.force = 32; newGame(); S.texts = []; startWave(TANK.WAVE);
+  check(S.calls.bomber === 1 && S.banner.sub === 'tanks! +1 air strike from HQ' && !S.texts.length, 'the HQ call is in the banner');
+  newGame(); S.calls.bomber = 1; S.calls.fighter = 1; var tags0 = S.coins; startWave(TANK.WAVE);
+  check(/radio full/.test(S.banner.sub) && S.coins === tags0 + RADIO.FULL_TAGS && !S.texts.length, 'a full radio is in the banner too');
+  // So is the zeppelin's.
+  newGame(); startWave(5); S.texts = []; var zep = spawnZeppelin(); zep.x = 200; zeppelinDown(zep, 'player');
+  check(S.banner.sub === 'catch the crew! +1 air strike' && !S.texts.some(function (q) { return /air strike/.test(q.s); }), 'the zeppelin reward is in its banner');
+  // Every banner subtitle fits the page.
+  G = ctx; ctx.save(); ctx.font = '24px ' + HAND;
+  var subs = ['tanks! +1 air strike from HQ', 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags', 'catch the crew! +1 air strike', 'catch the crew! +' + RADIO.FULL_TAGS + ' tags'];
+  for (var n = 1; n <= 12; n++) { newGame(); startWave(n); subs.push(S.banner.sub); }
+  var widest = Math.max.apply(null, subs.map(function (s) { return ctx.measureText(s).width; }));
+  ctx.restore();
+  check(widest < W - 30, 'banner subtitles fit: ' + widest);
+
+  // Pizza waits for the banner and the sketches, then rides in.
+  RUN.force = 33; newGame(); S.wave = 4; S.coins = 999; openShop();
+  takeItem('pizza'); ITEMS.find(function (x) { return x.id === 'wire'; }).apply(S); S.shop.bought.wire = true;
+  continueWave(); S.spawn.timer = S.spawn.rushT = S.spawn.cargoT = 99;
+  var queued = 0;
+  for (f = 0; f < 600 && S.delivery && S.delivery.phase === 'queue'; f++) { update(1 / 60); queued += 1 / 60; }
+  check(queued >= WAVE_BANNER - 0.05 && !S.banner && !S.sketches.length && S.delivery.phase === 'arrive', 'the courier comes last: ' + queued.toFixed(2));
+  for (f = 0; f < 600 && S.delivery.phase === 'arrive'; f++) update(1 / 60);
+  check(S.delivery.phase === 'serve', 'and still delivers');
+
+  // The sketch tool is a blue ballpoint.
+  var fills = [], proto = Object.getPrototypeOf(ctx), fillDesc = Object.getOwnPropertyDescriptor(proto, 'fillStyle');
+  Object.defineProperty(ctx, 'fillStyle', { configurable: true, get: function () { return fillDesc.get.call(ctx); }, set: function (v) { fills.push(v); fillDesc.set.call(ctx, v); } });
+  try { G = ctx; sketchReveal(0.5, [100, 400, 160, 460], 'right', function () {}); } finally { delete ctx.fillStyle; }
+  check(fills.indexOf(BLUE) >= 0 && fills.indexOf(HAT) < 0, 'blue pen, not a yellow pencil');
+
+  // The zeppelin's health bar comes in with the hull instead of waiting at the page edge.
+  RUN.force = 34; newGame(); startWave(5); S.planes = [];
+  var z = spawnZeppelin(); z.x = -60; z.entered = false;
+  function barX() {
+    var at = null, real = ctx.fillRect;
+    ctx.fillRect = function (x, y, w2) { if (at === null && w2 === 96) at = x + 48; return real.apply(ctx, arguments); };
+    try { G = ctx; drawBossBar(); } finally { ctx.fillRect = real; }
+    return at;
+  }
+  check(Math.abs(barX() - z.x) < 0.01, 'off the page, the bar is off the page with it');
+  z.x = 30; check(Math.abs(barX() - 30) < 0.01, 'sliding in, it rides on the hull');
+  z.entered = true; z.x = 200; check(Math.abs(barX() - 200) < 0.01, 'over the field, it rides on the hull');
+  z.x = 20; check(barX() >= 60, 'once arrived, it stays on the page while the hull turns');
+
   emitHook = null; RUN.force = null; reset(); render();
 })();
