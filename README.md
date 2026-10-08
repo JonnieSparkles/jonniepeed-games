@@ -133,7 +133,7 @@ The Pages workflow runs it too. Run it before publishing to Arweave.
 - The `jonniepeed-games-scores` Worker uses a Cloudflare Custom Domain at `scores.jonniepeed.games`.
 - `games.sparklelabs.org` redirects to the new domain through a Cloudflare redirect rule.
 
-Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, the scores address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point.
+Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, the scores address in `site/assets/leaderboard.js` is baked into immutable copies, so `scores.jonniepeed.games` becomes permanent at that point, along with the API version those copies call.
 
 ## Publishing to GitHub Pages
 
@@ -153,7 +153,7 @@ The feature itself can have a friendlier name in docs and buttons (leaderboards)
 
 ## Deploying the Leaderboard Worker
 
-Manual only, and only after changes in `scores/`. In the Actions tab, open "Deploy Leaderboard Worker" (it deploys `scores/`) and click Run workflow, or run `wrangler deploy` from `scores/`. Scores in the database are never touched. One-time secrets setup is in the [leaderboard guide](docs/guides/00-leaderboards.md#deploying-the-worker).
+Manual only, and only after changes in `scores/`. In the Actions tab, open "Deploy Leaderboard Worker" (it deploys `scores/`) and click Run workflow, or run `wrangler deploy` from `scores/`. Scores in the database are never touched. One-time secrets setup is in the leaderboard guide: the workflow's GitHub secrets under [Deploying the Worker](docs/guides/00-leaderboards.md#deploying-the-worker), and the Worker's own `RUN_SECRET` under [One-time setup](docs/guides/00-leaderboards.md#one-time-setup-jonnies-cloudflare-account).
 
 ## Publishing to Arweave / ArNS
 

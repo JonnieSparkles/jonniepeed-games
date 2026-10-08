@@ -6,7 +6,8 @@
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   const validInitials = s => typeof s === 'string' && /^[A-Z0-9]{3}$/.test(s);
 
-  async function request(path, options, retry) {
+  // Resolves to the response data, a 400 refusal ({ok:false, error}), or null. Never throws.
+  async function request(path, options, retry, valid = data => Array.isArray(data.scores)) {
     const deadline = Date.now() + 4000;
     for (let attempt = 0; attempt <= (retry ? 1 : 0); attempt++) {
       const remaining = deadline - Date.now();
@@ -17,7 +18,7 @@
         const response = await fetch(API + path, { ...options, signal: controller.signal });
         const data = await response.json();
         if (response.status === 400 && data?.ok === false) return data;
-        return response.ok && data?.ok === true && Array.isArray(data.scores) ? data : null;
+        return response.ok && data?.ok === true && valid(data) ? data : null;
       } catch (error) {
         if (!(error instanceof TypeError) || attempt === (retry ? 1 : 0) || controller.signal.aborted) return null;
       } finally { clearTimeout(timer); }
@@ -26,22 +27,29 @@
   }
 
   const api = {
-    newRunId() {
-      try { if (crypto.randomUUID) return crypto.randomUUID(); } catch (_) {}
-      return 'run-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+    // Call when real play begins and don't wait for it. Resolves to the run's token, or null:
+    // a run without a token can't be saved, so the game shows the board without the picker.
+    async start(game, board) {
+      try {
+        const data = await request('/v2/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game, board })
+        }, true, data => typeof data.token === 'string');
+        return data?.ok ? data.token : null;
+      } catch (_) { return null; }
     },
     async load(game, board, score, meta) {
       try {
         const query = new URLSearchParams({ game, board });
         if (score !== undefined) query.set('score', score);
         if (meta !== undefined) query.set('meta', JSON.stringify(meta));
-        const data = await request('/v1/top?' + query, {}, false);
+        const data = await request('/v2/top?' + query, {}, false);
         return data?.ok ? data : null;
       } catch (_) { return null; }
     },
+    // data: { game, board, token, name, score, input, meta }. A refused run resolves like a failed one.
     async submit(data) {
       try {
-        return await request('/v1/submit', {
+        return await request('/v2/submit', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
         }, true);
       } catch (_) { return null; }
