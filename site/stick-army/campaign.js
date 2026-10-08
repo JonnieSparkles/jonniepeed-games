@@ -25,7 +25,7 @@ var StickArmyCampaign = function (w) {
     WAVE: 15, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 2, ENTER: 90,
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
-    AIM: 0.9, MARKS: 2, EXPOSED: 2, RELOAD: [2.8, 3.8], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 12, SPLASH: 26,
+    AIM: 0.9, MARKS: 2, EXPOSED: 2, RELOAD: [3, 4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 8, SPLASH: 26, DIRECT: 4,
     LAUNCH_EVERY: 4, TROOPS_EVERY: 5, BOMBS_EVERY: 3, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
     SINK: 3.2
   };
@@ -272,7 +272,7 @@ var StickArmyCampaign = function (w) {
   // and the wall. Picked with the ship's own stream, so it's the same for a seed.
   function targets(p, gx) {
     var S = w.S, list = [], taken = p.turrets.filter(function (t) { return t.mark; }).map(function (t) { return t.mark.kind + (t.mark.id || ''); });
-    S.recruits.forEach(function (r) { if (!r.dead && !r.down) list.push({ kind: 'recruit', id: r.id, x: r.x, weight: 1 }); });
+    S.recruits.forEach(function (r) { if (!r.dead && !r.down) list.push({ kind: 'recruit', id: r.id, x: r.x, weight: 0.7 }); });
     if (S.mods.auto) list.push({ kind: 'sentry', x: w.SENTRY.x, weight: 1 });
     if (S.mods.wire) list.push({ kind: 'wire', x: gx < 200 ? 104 : 296, weight: 1 });
     if (S.mods.trench > 0) list.push({ kind: 'trench', x: gx < 200 ? 130 : 270, weight: 1 });
@@ -321,8 +321,9 @@ var StickArmyCampaign = function (w) {
     S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && (!m || q.id !== m.id) && d < DREAD.SPLASH) w.hurtRecruit(q, 1.6 * (1 - d / DREAD.SPLASH) + 0.2, 'dreadnought'); });
     if (!m) return;
     if (m.kind === 'recruit') {
+      // A direct hit puts a soldier down, wounded: a medic, a pizza or the tent can still save him.
       var r = S.recruits.find(function (q) { return q.id === m.id; });
-      if (r && !r.dead) w.recruitDie(r, 'dreadnought');
+      if (r && !r.dead) w.hurtRecruit(r, DREAD.DIRECT, 'dreadnought');
     } else if (m.kind === 'sentry' && S.mods.auto) { S.mods.auto = false; S.mods.stacks.auto = 0; gone = 'sentry tower lost!'; }
     else if (m.kind === 'wire' && S.mods.wire) { S.mods.wire = false; S.mods.stacks.wire = 0; gone = 'wire lost!'; }
     else if (m.kind === 'trench' && S.mods.trench > 0) { S.mods.trench--; S.mods.stacks.trench = Math.max(0, (S.mods.stacks.trench || 1) - 1); gone = 'trench hit!'; }

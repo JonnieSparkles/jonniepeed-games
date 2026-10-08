@@ -268,8 +268,8 @@
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
       armorChance: n >= ARMOR.WAVE ? Math.min(0.6, 0.15 + 0.07 * (n - ARMOR.WAVE)) : 0,
       armorHits: n >= ARMOR.HEAVY ? 2 : 1,
-      // Planes come faster until wave 7, hold until wave 9, then keep tightening to a 0.3 s gap by wave 17.
-      interval: n <= 9 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.07 * (n - 9)),
+      // Planes come faster until wave 7, hold until wave 9, then keep tightening to a 0.3 s gap by wave 19.
+      interval: n <= 9 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.06 * (n - 9)),
       speed: 65 + 8 * n,
       maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
@@ -712,7 +712,7 @@
   }
   // One trigger pull: costs points, adds heat, and locks the gun when it boils over. From wave 10 the gun runs hotter
   // (heatScale), so even with cooling fins, holding the trigger down stops working late in the run.
-  function heatScale(n) { return Math.min(1.6, 1 + 0.07 * Math.max(0, n - 9)); }
+  function heatScale(n) { return Math.min(1.5, 1 + 0.05 * Math.max(0, n - 9)); }
   function fireVolley() {
     shoot();
     var rate = Math.pow(0.82, S.mods.fire);
@@ -1921,6 +1921,7 @@
       sketched('hospital', [SQUAD.TENT.x - SQUAD.TENT.hw, GROUND - SQUAD.TENT.h - 10, SQUAD.TENT.x + SQUAD.TENT.hw, GROUND], 'up', drawTent);
     }
     S.recruits.forEach(function (r) { if (!r.dead) sketched('r' + r.id, [r.x - 12, GROUND - 46, r.x + 12, GROUND + 6], 'up', function () { drawRecruit(r); }); });
+    SKY.drawMarks();
     drawBullets();
     drawCourier();
     drawBossBar();

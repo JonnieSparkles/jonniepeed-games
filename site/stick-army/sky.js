@@ -529,10 +529,12 @@ var StickArmySky = function (w) {
     var G = w.G;
     w.S.skyFx.forEach(function (q) { G.save(); G.globalAlpha = Math.min(1, q.life / 1.5) * 0.8; balloonBody(q.x, q.y, false, q.id); G.restore(); });
   }
-  function draw() { var S = w.S; S.planes.forEach(drawDiveMark); S.medevac.forEach(drawMedevac); S.hq.forEach(drawHQ); S.crates.forEach(drawCrate); }
+  function draw() { var S = w.S; S.medevac.forEach(drawMedevac); S.hq.forEach(drawHQ); S.crates.forEach(drawCrate); }
+  // Over the bunker and the crew, so a crosshair on the wall shows.
+  function drawMarks() { w.S.planes.forEach(drawDiveMark); }
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

@@ -39,7 +39,7 @@
   // The gun runs hotter from wave 10, so holding the trigger stops working late.
   RUN.force = 83; newGame(); startWave(4); S.heat = 0; S.fireCD = 0; fireVolley(); var early = S.heat;
   startWave(15); S.heat = 0; S.fireCD = 0; fireVolley();
-  check(S.heat > early * 1.3 && heatScale(9) === 1, 'the gun runs hotter late: ' + early + ' -> ' + S.heat);
+  check(S.heat > early * 1.25 && heatScale(9) === 1, 'the gun runs hotter late: ' + early + ' -> ' + S.heat);
 
   // Tanks: armored cargo planes, and a tank on its chutes shrugs off bullets.
   RUN.force = 84; newGame(); startWave(12); S.spawn.timer = S.spawn.cargoT = S.spawn.roadT = S.spawn.rushT = 99;
