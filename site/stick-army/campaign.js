@@ -1,4 +1,4 @@
-// Stick Army campaign (SPEC-007): the Dreadnought, the final boss at wave 15; the victory card with the squad's roll
+// Stick Army campaign (SPEC-008): the Dreadnought, the final boss at wave 15; the victory card with the squad's roll
 // call; and endless play after it. Classic script; load after shop.js and before game.js. game.js calls
 // StickArmyCampaign(world) once with the same world object it gives units.js, squad.js and shop.js.
 var StickArmyCampaign = function (w) {
