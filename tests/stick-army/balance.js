@@ -50,14 +50,22 @@
         mats: activeTramps().map(function (m) { return { x1: m.x1, x2: m.x2, y: m.y }; }),
         troopers: [], planes: [], bombs: [], recruits: [], shop: null,
         tanks: S.tanks.map(function (tk) { return { id: tk.id, x: tk.x, y: tk.y, state: tk.state, dir: tk.dir, hp: tk.hp }; }),
-        calls: { bomber: S.calls.bomber, fighter: S.calls.fighter }, strikeActive: !!S.strike, fighterActive: !!S.fighter
+        calls: { bomber: S.calls.bomber, fighter: S.calls.fighter }, strikeActive: !!S.strike, fighterActive: !!S.fighter, spread: !!S.mods.spread,
+        // On your side (sky.js): the Red Cross plane, not to be hit, and HQ's crates, to pop and catch.
+        medevac: S.medevac.filter(function (m) { return !m.hit; }).map(function (m) { return { x: m.x, y: m.y, vx: m.dir * m.speed, hw: SKY.MEDEVAC.HW, hh: SKY.MEDEVAC.HH }; }),
+        crates: S.crates.map(function (c) { return { id: c.id, x: c.x, y: c.y, state: c.state, fall: SKY.CRATE.FALL }; })
       };
       S.troopers.forEach(function (t) {
         if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy });
       });
       S.planes.forEach(function (p) {
-        o.planes.push({ id: p.id, kind: p.kind, x: p.x, y: p.y, vx: p.state === 'fly' ? (p.face || p.dir) * p.speed : 0, state: p.state, hw: p.hw, hh: p.hh, hp: p.hp });
+        if (p.kind === 'dread') return; // seen through its parts below
+        var fly = p.state === 'fly';
+        o.planes.push({ id: p.id, kind: p.kind, x: p.x, y: p.y, vx: fly ? (p.vx != null ? p.vx : (p.face || p.dir) * p.speed) : 0, vy: fly && p.vy ? p.vy : 0,
+          state: p.state, phase: p.phase || null, armed: !!p.armed, hw: p.hw, hh: p.hh, hp: p.hp });
       });
+      // The Dreadnought: its guns over the page (the one aiming first) and, once exposed, its bridge.
+      o.dread = dreadTargets().map(function (q) { return { id: q.id, part: q.part, x: q.x, y: q.y, vx: q.vx, marking: q.marking }; });
       S.bombs.forEach(function (m) { if (!m.dead) o.bombs.push({ id: m.id, x: m.x, y: m.y, vx: m.vx, vy: m.vy }); });
       S.recruits.forEach(function (r) { if (!r.dead) o.recruits.push({ id: r.id, type: r.type, x: r.x, hp: r.hp, max: crewMax(r) }); });
       if (S.mode === 'shop' && S.shop) {
@@ -80,7 +88,8 @@
         if (a.continue && S.mode === 'shop') continueWave();
       }
     },
-    status: function () { return { over: S.mode === 'dying' || S.mode === 'over', wave: S.wave, score: S.score, t: S.t, mode: S.mode }; },
+    // A win ends the run too (the victory card); the bot doesn't play on into endless.
+    status: function () { return { over: S.mode === 'dying' || S.mode === 'over' || S.mode === 'won', wave: S.wave, score: S.score, t: S.t, mode: S.mode }; },
     drain: function () { var out = log; log = []; return out; }
   };
 })();

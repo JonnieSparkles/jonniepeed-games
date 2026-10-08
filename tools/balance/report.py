@@ -91,6 +91,11 @@ def skill_section(name, runs, columns, ref_runs=None):
         # Both: a full wave of movement and a rank test beyond noise (outcomes are often bimodal, so medians wobble).
         flag = ' **changed**' if abs(med - rmed) >= 1 and abs(rank_z(waves, [r['wave'] for r in ref_runs])) >= Z_FLAG else ''
         lines.append('Ref: median %s (quartiles %s–%s).%s' % (fmt(rmed), fmt(rq1), fmt(rq3), flag))
+    # Games with an ending: how many runs won.
+    def won(rs): return sum(1 for r in rs if (r.get('end') or {}).get('cause') == 'won')
+    if won(runs) or (ref_runs and won(ref_runs)):
+        lines.append('**Won:** %d of %d runs (%d%%)%s.' % (won(runs), len(runs), round(100 * won(runs) / len(runs)),
+            ('; ref %d of %d' % (won(ref_runs), len(ref_runs))) if ref_runs else ''))
     lines.append('')
 
     top = max(waves + ([r['wave'] for r in ref_runs] if ref_runs else []))

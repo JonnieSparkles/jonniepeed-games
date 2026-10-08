@@ -7,9 +7,10 @@
 
   // New threats arrive on schedule, and pressure keeps rising after wave 7.
   check(!waveCfg(5).rushes && waveCfg(6).rushes >= 1 && waveCfg(12).rushes > waveCfg(6).rushes, 'rushers from wave 6, more later');
-  check(!waveCfg(8).cargo && waveCfg(9).cargo >= 1 && waveCfg(15).cargo > waveCfg(9).cargo, 'tanks from wave 9, more later');
-  check(waveCfg(11).interval === waveCfg(7).interval && waveCfg(13).interval < waveCfg(11).interval && waveCfg(20).interval < waveCfg(13).interval, 'planes hold their pace to wave 11, then keep coming faster');
-  check(waveCfg(11).bombers === waveCfg(6).bombers && waveCfg(21).bombers > waveCfg(12).bombers && waveCfg(41).bombers > waveCfg(31).bombers && waveCfg(20).fall > waveCfg(13).fall, 'from wave 12 bombers keep growing without a cap, and troopers fall faster');
+  check(!waveCfg(8).cargo && waveCfg(9).cargo >= 1 && waveCfg(14).cargo > waveCfg(9).cargo, 'tanks from wave 9, more later');
+  check(!waveCfg(10).road && waveCfg(11).road >= 1 && waveCfg(14).road > waveCfg(11).road && !waveCfg(15).road, 'tanks by road from wave 11, more later, none with the Dreadnought');
+  check(waveCfg(9).interval === waveCfg(7).interval && waveCfg(11).interval < waveCfg(9).interval && waveCfg(19).interval < waveCfg(11).interval, 'planes hold their pace to wave 9, then keep coming faster');
+  check(waveCfg(9).bombers === waveCfg(6).bombers && waveCfg(21).bombers > waveCfg(12).bombers && waveCfg(41).bombers > waveCfg(31).bombers && waveCfg(20).fall > waveCfg(13).fall, 'from wave 10 bombers keep growing without a cap, and troopers fall faster');
 
   // A rush charges in from one edge along the ground, faster than a walker.
   RUN.force = 4; newGame(); startWave(6); quiet();
@@ -91,7 +92,7 @@
   }
   check(shellVx(function () { return 0; }) === shellVx(function () { return 0.99; }), 'shell aim ignores cosmetic randomness');
   // Armor from wave 12: a vest stops one body hit (two for heavies). Chutes still pop, and blasts still kill.
-  check(!waveCfg(11).armorChance && waveCfg(12).armorChance > 0 && waveCfg(20).armorChance > waveCfg(12).armorChance && waveCfg(22).armorHits === 2, 'armor arrives at wave 12 and gets heavier');
+  check(!waveCfg(9).armorChance && waveCfg(10).armorChance > 0 && waveCfg(14).armorChance > waveCfg(11).armorChance && waveCfg(13).armorHits === 1 && waveCfg(14).armorHits === 2, 'armor arrives at wave 10 and gets heavier from 14');
   seen = []; emitHook = function (type) { seen.push(type); };
   quiet(); spawnTrooper(200, 300, { type: 'rifle', fall: 1, sway: 0, armor: 1 }); var vt = S.troopers[0];
   function body() { return { x: vt.x, y: vt.y + 12, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false }; }

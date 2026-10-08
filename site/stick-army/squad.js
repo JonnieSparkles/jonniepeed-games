@@ -21,6 +21,10 @@ var StickArmySquad = function (w) {
     'Stubby', 'Pip', 'Biro', 'Quill', 'Tally', 'Dash', 'Dot', 'Scrawl', 'Loopy', 'Zigzag', 'Chalky', 'Noodle', 'Blot',
     'Jot', 'Hatch', 'Swoosh', 'Twig', 'Pencils', 'Lefty', 'Ruler'];
   function rankName(r) { return r.rank ? RANKS[r.rank].short + ' ' + r.name : 'a rookie'; }
+  // Kill counts (r.kills) come from each soldier's own shots, credited in game.js.
+  function killsText(n) { n = n || 0; return n + (n === 1 ? ' kill' : ' kills'); }
+  // "Sgt. Doodle (12 waves, 140 kills)" for the pause card, the fallen list and the roll call.
+  function record(f) { return f.name + ' (' + f.waves + (f.waves === 1 ? ' wave, ' : ' waves, ') + killsText(f.kills) + ')'; }
   // Names come from the run seed and the recruit's id, never from a game stream, so they can't change outcomes.
   function pickName(r) {
     var S = w.S, h = (Math.imul(w.seed ^ 0x9e3779b9, 31) + Math.imul(r.id, 2654435761)) >>> 0;
@@ -38,9 +42,10 @@ var StickArmySquad = function (w) {
       var next = RANKS[(r.rank || 0) + 1];
       if (!next || r.waves < next.waves) return;
       r.rank = (r.rank || 0) + 1; r.hp += RANK.HP;
-      if (!r.name) { r.name = pickName(r); news.push('A rookie earns a name: ' + rankName(r) + '.'); }
-      else news.push(r.name + ' makes ' + RANKS[r.rank].title + '.');
-      addText(rankName(r) + '!', r.x, GROUND - 60, BLUE, 22);
+      if (!r.name) { r.name = pickName(r); news.push('A rookie earns a name: ' + rankName(r) + ', ' + killsText(r.kills) + '.'); }
+      else news.push(r.name + ' makes ' + RANKS[r.rank].title + ', ' + killsText(r.kills) + '.');
+      addText(rankName(r) + '!' + (r.kills ? ' ' + killsText(r.kills) : ''), r.x, GROUND - 60, BLUE, 22);
+      w.say('yes sir!', r.id, false, 1.1);
       emit('rank_up', { rank: r.rank, type: r.type });
     });
   }
@@ -54,14 +59,19 @@ var StickArmySquad = function (w) {
     r.down = true; r.hp = 0; r.downAt = S.t; r.downCause = cause || 'unknown'; r.role = 'down'; r.tx = r.x;
     addText(r.name ? r.name + ' is down!' : 'man down!', r.x, GROUND - 52, BLUE, 20);
     emit('recruit_down', { type: r.type, cause: r.downCause, rank: r.rank || 0 });
-    w.sound.play('noo');
+    w.say('medic!', r.id);
   }
   function standUp(r, by) {
     r.down = false; r.hp = Math.max(r.hp, 1); r.role = 'shoot';
     addText('back up!', r.x, GROUND - 52, BLUE, 20);
     emit('recruit_revived', { by: by, rank: r.rank || 0 });
+    w.say('thanks!', r.id);
   }
-  function fallen(r) { if (r.name) w.S.fallen.push({ name: rankName(r), waves: r.waves || 0 }); }
+  // The squad cheers a cleared wave, a few voices one after another.
+  function cheer(line) {
+    w.S.recruits.filter(function (r) { return !r.dead && !r.down; }).slice(0, 4).forEach(function (r, i) { w.say(line, r.id, false, 0.25 + i * 0.22); });
+  }
+  function fallen(r) { if (r.name) w.S.fallen.push({ name: rankName(r), waves: r.waves || 0, kills: r.kills || 0 }); }
 
   // ---------- field hospital ----------
   var TENT = { x: 318, hw: 21, h: 30 };
@@ -120,6 +130,6 @@ var StickArmySquad = function (w) {
     }
   }
 
-  return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, serveWave: serveWave, knockDown: knockDown, standUp: standUp,
+  return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, killsText: killsText, record: record, serveWave: serveWave, knockDown: knockDown, standUp: standUp, cheer: cheer,
     fallen: fallen, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
 };

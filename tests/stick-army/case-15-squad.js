@@ -90,11 +90,11 @@
   RUN.force = 27; newGame(); startWave(4);
   var star = makeRecruit(0, 'rifle'); star.rank = 1; star.name = 'Nib'; star.waves = 4; S.recruits = [star, makeRecruit(4, 'rifle')];
   togglePause();
-  check(/Pfc\. Nib \(4\)/.test(document.getElementById('pauseSquad').textContent) && /1 rookie/.test(document.getElementById('pauseSquad').textContent), 'the pause card names the squad');
+  check(/Pfc\. Nib \(4 waves, 0 kills\)/.test(document.getElementById('pauseSquad').textContent) && /1 rookie/.test(document.getElementById('pauseSquad').textContent), 'the pause card names the squad');
   togglePause();
-  S.fallen = [{ name: 'Sgt. Doodle', waves: 12 }]; hurtWall(S.wallHP + 1, 'bomb'); update(1 / 60);
+  S.fallen = [{ name: 'Sgt. Doodle', waves: 12, kills: 140 }]; hurtWall(S.wallHP + 1, 'bomb'); update(1 / 60);
   for (var j = 0; j < 200 && S.mode !== 'over'; j++) update(1 / 60);
-  check(/Sgt\. Doodle \(12 waves\)/.test(document.getElementById('overFallen').textContent) && !document.getElementById('overFallen').hidden, 'the game-over card lists the fallen');
+  check(/Sgt\. Doodle \(12 waves, 140 kills\)/.test(document.getElementById('overFallen').textContent) && !document.getElementById('overFallen').hidden, 'the game-over card lists the fallen');
   overScreen.hidden = true;
 
   // Drawn in: as a wave starts, what you just bought is sketched onto the page one piece at a time.
