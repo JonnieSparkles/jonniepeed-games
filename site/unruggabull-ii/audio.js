@@ -297,12 +297,16 @@ window.UnrugSound = (function () {
   const SFX = {
     // a layered zap with a little random pitch, so steady fire doesn't drone; Spread Shot adds a lower buzz
     shot: (t, spread) => { const f = 1150 + Math.random() * 260; osc(sfxBus, 'p25', f, t, .07, .05, { to: f * .45 }); noiseHit(sfxBus, t, .035, .07, 'highpass', 5000); if (spread) osc(sfxBus, 'sawtooth', f * .5, t, .06, .025, { to: f * .25 }); },
-    empty: t => { osc(sfxBus, 'square', 90, t, .03, .06); noiseHit(sfxBus, t, .02, .12, 'bandpass', 2500, 6); },
+    // out of charge: a dry double click; the last shot powers down; full again chirps
+    empty: t => { for (const d of [0, .06]) { osc(sfxBus, 'square', 110, t + d, .03, .14); noiseHit(sfxBus, t + d, .025, .3, 'bandpass', 2600, 5); } },
+    drained: t => { osc(sfxBus, 'p25', 900, t, .4, .1, { to: 90, sustain: .8 }); osc(sfxBus, 'square', 220, t + .05, .3, .06, { to: 55 }); },
+    ready: t => { [76, 83].forEach((m, i) => osc(sfxBus, 'p25', hz(m + 12), t + i * .07, .08, .07)); },
     coffee: t => { [60, 64, 67].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12), t + i * .06, .08, .12)); osc(sfxBus, 'p50', hz(84), t + .2, .25, .07, { vib: true }); },
     power: t => { for (let i = 0; i < 8; i++) osc(sfxBus, 'p25', hz(64 + i * 3), t + i * .035, .06, .07); osc(sfxBus, 'p50', hz(88), t + .3, .3, .07, { vib: true }); },
     audit: t => { for (let i = 0; i < 4; i++) osc(sfxBus, 'p50', i % 2 ? 660 : 880, t + i * .16, .14, .09, { sustain: .9 }); for (let i = 0; i < 10; i++) noiseHit(sfxBus, t + .64 + i * .04, .05, .25, 'bandpass', 1600, .8); },
     jump: t => osc(sfxBus, 'p25', 320, t, .12, .08, { to: 760 }),
-    slash: t => { noiseHit(sfxBus, t, .13, .32, 'bandpass', 4200, 1.2, 1100); osc(sfxBus, 'p12', 1600, t, .06, .04, { to: 900 }); },
+    // a big whoosh, a steel ring and a low swing
+    slash: t => { noiseHit(sfxBus, t, .18, .75, 'bandpass', 5200, 1.1, 900); noiseHit(sfxBus, t, .08, .35, 'highpass', 6500); osc(sfxBus, 'triangle', 420, t, .12, .22, { to: 140 }); osc(sfxBus, 'p12', 2600, t + .02, .22, .06, { to: 2300, sustain: .5 }); osc(sfxBus, 'p12', 3900, t + .02, .16, .035, { sustain: .4 }); },
     deflect: t => { osc(sfxBus, 'p50', 1480, t, .05, .09); osc(sfxBus, 'p50', 2220, t + .045, .09, .08, { sustain: .4 }); },
     hit: t => { noiseHit(sfxBus, t, .08, .3, 'lowpass', 1800); osc(sfxBus, 'square', 230, t, .08, .07, { to: 110 }); },
     poof: t => noiseHit(sfxBus, t, .07, .18, 'highpass', 3000),

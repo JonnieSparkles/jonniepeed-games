@@ -34,20 +34,20 @@
     jumpH: .12, jumpT: .55, // jump height (of the hall) and airtime
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
     charges: 20, recharge: .5, // the blaster holds 20 shots and gets one back every half second, like the first game's
-    spreadT: 10, coffeeDrop: .12, rowH: .055,
+    spreadT: 10, coffeeDrop: .2, rowH: .055,
     slashT: .2, slashCd: .32, slashReach: .24, slashWide: .34, deflectWindow: .12,
-    hurtInv: 1.3,
+    hurtInv: 1.7,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, recover: .5, mouth: .85,
     goal: 60,               // souls that wake the Shredder
-    wadTime: .9, wadLead: .5, eventT: 6,
+    wadTime: 1.1, wadLead: .2, throwChance: .6, eventT: 6, auditT: 8,
     bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13
   };
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
   const BEATS = [
-    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.6, boxes: true, rows: 'chairs', decor: 'poster', music: 'tower', after: 'audit' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, decor: 'streamer', music: 'staff', after: 'dark' },
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: 'poster', music: 'tower', after: 'audit' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: 'streamer', music: 'staff', after: 'dark' },
     { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: 'stack', music: 'copy' }
   ];
   const JUMP_V = 4 * TUNE.jumpH / TUNE.jumpT, GRAV = 8 * TUNE.jumpH / (TUNE.jumpT * TUNE.jumpT);
@@ -65,7 +65,7 @@
       t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
       beat: 0, beatT: 0, event: null,
       cubs: [], decor: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
-      nextCubW: 1.1, nextDecorW: .6, nextFly: 5, nextForm: 2, formN: 0, nextBox: 12, nextRow: 9, fireT: 0, noPops: false,
+      nextCubW: 1.1, nextDecorW: .6, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
       charge: TUNE.charges, rechargeT: 0, empty: 0, spread: 0, streak: 0, streakT: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0 },
@@ -119,7 +119,7 @@
     }
     if (B.formations && !ev) {
       R.nextForm -= dt;
-      if (R.nextForm <= 0) { spawnFormation(['v', 'line', 'snake'][R.formN++ % 3]); R.nextForm = rr(3.8, 4.8); }
+      if (R.nextForm <= 0 && R.beatT < B.time - 5) { spawnFormation(['v', 'line', 'snake'][R.formN++ % 3]); R.nextForm = rr(3.8, 4.8); }
     }
     // Rows of rolling office chairs (or a paper jam's sheet) span the whole aisle: the only way past is over.
     if (B.rows && !ev) {
@@ -146,8 +146,11 @@
   function startEvent(kind) {
     R.event = { kind, t: 0, dur: TUNE.eventT };
     if (kind === 'audit') {
-      R.banner = { text: 'AUDIT!', sub: 'EVERYONE STAND UP', t: 0, dur: 2.2, col: '#ff5040' };
-      Snd.play('audit'); live('Audit! Every temp stands up at once.');
+      // a deflect round: the temps all stand and lob paperwork, and every one you knock back counts double
+      R.event.dur = TUNE.auditT; R.event.nextThrow = 1.2;
+      for (const cb of R.cubs) { const z = cubZ(cb); if (z > .3 && (!cb.temp || cb.temp.dead)) cb.temp = { cub: cb, st: 'hidden', t: 0, pop: 0, trig: 0, pops: 0, threw: true, dead: false }; }
+      R.banner = { text: 'AUDIT!', sub: 'KNOCK THE PAPERWORK BACK: x2 SOULS', t: 0, dur: 2.6, col: '#ff5040' };
+      Snd.play('audit'); live('Audit! The temps lob paperwork. Slash it back for double souls.');
     } else {
       R.banner = { text: 'LIGHTS OUT', t: 0, dur: 1.6, col: '#7fd4ff' };
       Snd.play('dark'); Snd.music('dark'); live('Lights out.');
@@ -168,7 +171,7 @@
         // a coffee after each event, then a Spread Shot to try out
         addPickup('coffee', .9, rr(-.4, .4)); addPickup('spread', 1.3, rr(-.4, .4));
       }
-    } else if (B.after && R.beatT >= B.time) startEvent(B.after);
+    } else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) startEvent(B.after);
     else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
     spawnHall(dt);
   }
@@ -220,6 +223,14 @@
   }
   function updateTemps(dt) {
     const audit = R.event && R.event.kind === 'audit';
+    if (audit) {
+      // the audit throws on a steady beat, one temp at a time, slow enough to read
+      R.event.nextThrow -= dt;
+      if (R.event.nextThrow <= 0 && R.event.t < R.event.dur - 1.2) {
+        const up = R.cubs.filter(cb => { const z = cubZ(cb); return cb.temp && !cb.temp.dead && cb.temp.pop > .6 && z > .35 && z < .9; });
+        if (up.length) { throwWad(up[Math.floor(rnd() * up.length)].temp, 1.35); R.event.nextThrow = .55; }
+      }
+    }
     for (const cb of R.cubs) {
       const tp = cb.temp, z = cubZ(cb);
       if (!tp || tp.dead) continue;
@@ -228,7 +239,7 @@
         if (!R.noPops && ((z < tp.trig && z > .3) || (audit && z > .25 && z < .95))) { tp.st = 'up'; tp.t = audit ? rr(0, .3) : 0; tp.threw = false; }
       } else if (tp.st === 'up') {
         tp.pop = Math.min(1, tp.pop + dt * 7);
-        if (!tp.threw && tp.t > .55 && z > .22 && !R.noPops && (!audit || rnd() < .5)) { throwWad(tp); tp.threw = true; }
+        if (!tp.threw && tp.t > .55 && z > .22 && !R.noPops && !audit) { tp.threw = true; if (rnd() < TUNE.throwChance) throwWad(tp); }
         if (tp.t > (audit ? 1.8 : 1.25)) { tp.st = 'down'; tp.t = 0; tp.threw = true; }
       } else if (tp.st === 'down') {
         tp.pop = Math.max(0, tp.pop - dt * 7);
@@ -251,7 +262,7 @@
       }
       if (f.z < .45) f.h += (.12 - f.h) * Math.min(1, dt * 2.5);
       f.hit = Math.max(0, f.hit - dt);
-      if (!f.dead && Math.abs(f.z - bull.bz) < .045 && Math.abs(f.u - bull.u) < .15 && overlaps(f.h, .05)) {
+      if (!f.dead && Math.abs(f.z - bull.bz) < .045 && Math.abs(f.u - bull.u) < .12 && overlaps(f.h, .05)) {
         if (hurtBull(1)) { f.dead = true; poof(f.u, f.z, f.h); }
       }
       if (f.z < bull.bz - .12 || f.z < ZN) f.dead = true;
@@ -270,9 +281,9 @@
     return p;
   }
   // Temps lead their throws a little: they aim where you're heading.
-  function throwWad(tp) {
-    const at = posOf(tp), aim = clamp(bull.u + moveDir() * TUNE.move * TUNE.wadTime * TUNE.wadLead, -TUNE.aisle, TUNE.aisle);
-    launch('wad', { u: at.u, z: at.z, h: at.h + .04 }, { u: aim, z: bull.bz, h: .13 }, TUNE.wadTime, { src: tp });
+  function throwWad(tp, dur) {
+    const t = dur || TUNE.wadTime, at = posOf(tp), aim = clamp(bull.u + moveDir() * TUNE.move * t * (dur ? 0 : TUNE.wadLead), -TUNE.aisle, TUNE.aisle);
+    launch('wad', { u: at.u, z: at.z, h: at.h + .04 }, { u: aim, z: bull.bz, h: .13 }, t, { src: tp });
   }
   function deflect(p) {
     p.friendly = true;
@@ -319,7 +330,7 @@
   function updateBull(dt) {
     const b = bull;
     input.jump = Math.max(0, input.jump - dt); input.slash = Math.max(0, input.slash - dt); input.shoot = Math.max(0, input.shoot - dt);
-    b.inv = Math.max(0, b.inv - dt); b.cd = Math.max(0, b.cd - dt);
+    b.inv = Math.max(0, b.inv - dt); b.cd = Math.max(0, b.cd - dt); b.aimT = Math.max(0, (b.aimT || 0) - dt);
     if (b.slash >= 0) { b.slash += dt; if (b.slash >= TUNE.slashT) b.slash = -1; }
     if (R.phase === 'dead') return;
     if (b.mouth > 0) { b.mouth -= dt; if (b.mouth <= 0) { b.mouth = 0; b.spat = .45; b.inv = Math.max(b.inv, 1.6); } return; }
@@ -327,7 +338,10 @@
     const dir = R.phase === 'win' ? 0 : moveDir();
     b.u = clamp(b.u + dir * TUNE.move * dt, -TUNE.aisle, TUNE.aisle);
     if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; Snd.play('jump'); }
-    if (b.jh > 0) { b.jv -= GRAV * dt; b.jh += b.jv * dt; if (b.jh <= 0) { b.jh = 0; b.jv = 0; } }
+    if (b.jh > 0) {
+      b.jv -= GRAV * dt; b.jh += b.jv * dt;
+      if (b.jh <= 0) { b.jh = 0; b.jv = 0; R.fx.push({ k: 'dust', x: PX(b.u, b.bz), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .3 }); }
+    }
     if (input.slash > 0 && b.cd <= 0) { input.slash = 0; slash(); }
     if (b.slash >= 0 && b.slash < TUNE.deflectWindow) slashHits();
     if (R.pull.st === 'on' && onRunner()) { b.bz += TUNE.pullSpeed * dt; if (b.bz >= TUNE.mouth) draggedIn(); }
@@ -343,12 +357,12 @@
     slashHits();
     if (R.pull.st === 'on' && onRunner()) cutRug();
   }
-  // While the blade is out: knock projectiles back, cut carpshits in two, catch temps passing by.
+  // While the blade is out: knock projectiles back and cut carpshits in two. Temps stay safe behind their partitions:
+  // the blaster or their own paper knocked back gets them.
   function slashHits() {
     const near = (u, z) => z > bull.bz - .04 && z < bull.bz + TUNE.slashReach && Math.abs(u - bull.u) < TUNE.slashWide;
     for (const p of R.projs) if (!p.dead && !p.friendly && near(p.u, p.z)) deflect(p);
     for (const f of R.flies) if (!f.dead && near(f.u, f.z)) killFly(f, 'slash');
-    for (const cb of R.cubs) { const tp = cb.temp; if (tp && !tp.dead && tp.pop > .4) { const at = posOf(tp); if (near(at.u, at.z)) killTemp(tp, 'slash'); } }
   }
   function cutRug() {
     const P = R.pull;
@@ -363,15 +377,20 @@
   function fire() {
     if (R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
     R.charge--;
+    if (R.charge < 1) { R.dry = true; Snd.play('drained'); popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
+    bull.aimT = .22;
     let best = null, bz = Infinity;
     const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < .97 && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
     for (const cb of R.cubs) if (cb.temp && !cb.temp.dead && cb.temp.pop > .3) consider(cb.temp, posOf(cb.temp), TUNE.aimCone);
     for (const f of R.flies) consider(f, f, .3);
-    const shot = du => R.shots.push({ u: bull.u, z: bull.bz + .03, h: bull.jh + .12, du, tgt: du ? null : best, dead: false, spread: !!du });
+    // bolts leave the muzzle of the blaster he holds up beside his head
+    const mu = bull.u + A.MUZZLE.x / HW, mh = bull.jh - A.MUZZLE.y / (FN - CN);
+    const shot = du => R.shots.push({ u: mu, z: bull.bz + .03, h: mh, du, tgt: du ? null : best, dead: false, spread: !!du });
     shot(0);
     if (R.spread > 0) { shot(-.6); shot(.6); }
     R.events.shots = (R.events.shots || 0) + 1;
-    R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz), y: YH(bull.bz, bull.jh + .14), t: 0, dur: .07 });
+    const k = sc(bull.bz);
+    R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k, t: 0, dur: .08 });
     Snd.play('shot', R.spread > 0);
     return true;
   }
@@ -470,7 +489,7 @@
     Snd.music('shred');
   }
   function spitBundle() {
-    const b = R.boss, dur = b.ph === 1 ? 1.7 : 1.45;
+    const b = R.boss, dur = b.ph === 1 ? 1.9 : 1.6;
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, dur, { w: .08, hh: .05 });
     b.spit = .25; Snd.play('spit');
   }
@@ -515,7 +534,7 @@
     if (R.pull.st === 'warn' || (ph === 1 && R.pull.st === 'on')) return;
     b.atk -= dt;
     if (b.atk <= 0) {
-      if (ph === 1) { spitBundle(); b.atk = 2; }
+      if (ph === 1) { spitBundle(); b.atk = 2.3; }
       else { if (b.atkN++ % 2) spitBundle(); else spitFan(); b.atk = ph === 2 ? 2.1 : 1.8; }
     }
   }
@@ -545,6 +564,7 @@
     const at = posOf(tp), x = PX(at.u, at.z), y = YH(at.z, at.h), s = sc(at.z) * .85;
     if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.TEMP }); else poof(at.u, at.z, at.h);
     free(x, y - 4);
+    if (how === 'deflect' && R.event && R.event.kind === 'audit') { free(x + 4, y - 2); popText('x2', x, y - 12, '#ffd44a'); }
   }
   function killFly(f, how) {
     if (f.dead) return;
@@ -590,7 +610,7 @@
     R.t += dt; R.phaseT += dt;
     R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.spread = Math.max(0, R.spread - dt);
     if (R.charge < TUNE.charges) { R.rechargeT += dt; while (R.rechargeT >= TUNE.recharge && R.charge < TUNE.charges) { R.rechargeT -= TUNE.recharge; R.charge++; } }
-    else R.rechargeT = 0;
+    else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt);
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
@@ -767,13 +787,23 @@
   function drawFly(f) {
     const s = sc(f.z), w = Math.max(3, Math.round(26 * s)), h = Math.max(2, Math.round(11 * s)), x = PX(f.u, f.z), y = YH(f.z, f.h);
     shadow(f.u, f.z, 18);
-    g.drawImage(A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+    wavy(A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], x - w / 2, y - h / 2, w, h, R.t * 14 + f.ph, Math.max(1, 1.6 * s));
     if (f.hit > 0) { g.save(); g.globalAlpha = .6; rect(g, x - w / 2, y - h / 2, w, h, '#ffffff'); g.restore(); }
   }
+  // A rug in flight ripples: the sprite is drawn in thin vertical strips, each bobbing on a wave.
+  function wavy(img, x, y, w, h, ph, amp) {
+    const n = 13, sw = img.width / n, dw = w / n;
+    for (let i = 0; i < n; i++) g.drawImage(img, i * sw, 0, sw, img.height, Math.round(x + i * dw), Math.round(y + Math.sin(ph + i * .75) * amp), Math.ceil(dw), Math.round(h));
+  }
+  // Incoming paper glows red and throws a red shadow on the floor, so you can see where it will land.
   function drawProj(p) {
-    const s = sc(p.z), img = p.kind === 'wad' ? A.WAD : p.kind === 'bundle' ? A.BUNDLE : A.STAPLE;
-    const w = Math.max(2, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s)), x = PX(p.u, p.z), y = YH(p.z, p.h);
-    shadow(p.u, p.z, img.width * .8);
+    const s = sc(p.z), img = p.kind === 'wad' ? A.WAD : p.kind === 'bundle' ? A.BUNDLE : A.STAPLE, big = p.friendly ? 1 : 1.35;
+    const w = Math.max(2, Math.round(img.width * s * big)), h = Math.max(1, Math.round(img.height * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
+    if (!p.friendly) {
+      const ks = Math.max(1, sc(p.z));
+      rect(g, PX(p.u, p.z) - 5 * ks, FY(p.z) - 1, 10 * ks, Math.max(1, Math.round(2 * ks)), Math.floor(R.t * 8) % 2 ? '#d63428' : '#961e16');
+      disc(g, x, y, Math.max(2, Math.round(Math.max(w, h) * .75)), Math.floor(R.t * 10 + p.spin) % 2 ? 'rgba(255,80,64,.55)' : 'rgba(255,150,40,.4)');
+    } else shadow(p.u, p.z, img.width * .8);
     g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
     if (p.friendly) { const k = Math.floor(p.spin) % 2; rect(g, x - w / 2 - 1 - k, y - 1, 1, 1, '#bfefff'); rect(g, x + w / 2 + k, y, 1, 1, '#bfefff'); }
   }
@@ -819,11 +849,15 @@
     const s = sc(b.bz), x = PX(b.u, b.bz), feet = YH(b.bz, b.jh);
     shadow(b.u, b.bz, 14);
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
-    const air = b.jh > 0 || b.spat > 0;
-    let p = A.POSES.stand;
-    if (b.slash >= 0) p = b.slash < .07 ? (air ? A.POSES.jumpWind : A.POSES.wind) : (air ? A.POSES.jumpCut : A.POSES.cut);
-    else if (air) p = A.POSES.jump;
-    else if (R.phase !== 'dead' && (R.speed > .02 || moveDir() || state === 'title' || (R.pull.st === 'on' && onRunner()))) p = Math.floor(b.step) % 2 ? A.POSES.runA : A.POSES.runB;
+    // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
+    const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
+    const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
+    let p = P.stand;
+    if (b.slash >= 0) p = b.slash < .07 ? (air ? P.jumpWind : P.wind) : (air ? P.jumpCut : P.cut);
+    else if (b.inv > TUNE.hurtInv - .3 && R.phase !== 'win') p = P.hurt;
+    else if (air) p = aim ? P.jumpAim : P.jump;
+    else if (aim) p = kick ? P.kick : running ? (stride ? P.runAimA : P.runAimB) : P.aim;
+    else if (running) p = stride ? P.runA : P.runB;
     if (R.phase === 'dead') { g.save(); g.globalAlpha = Math.max(0, 1 - R.phaseT / 1.6); }
     const sink = R.phase === 'dead' ? Math.min(10, R.phaseT * 8) : 0;
     g.drawImage(p, Math.round(x - A.POSE_W / 2 * s), Math.round(feet - 38 * s + sink), Math.round(A.POSE_W * s), Math.round(A.POSE_H * s));
@@ -849,7 +883,8 @@
       } else if (f.k === 'pop') otxt(g, f.text, f.x, Math.round(f.y), f.col, 1, 'center');
       else if (f.k === 'bit') rect(g, f.x, f.y, 2, 1, (Math.floor(f.t * 10) + f.vx) % 2 > 0 ? '#fff6e2' : '#b8b4a8');
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
-      else if (f.k === 'muzzle') { g.drawImage(A.FLASH, Math.round(f.x - 3), Math.round(f.y - 3), 7, 7); }
+      else if (f.k === 'muzzle') { const m = k < .5 ? 9 : 7; g.drawImage(A.FLASH, Math.round(f.x - m / 2), Math.round(f.y - m / 2), m, m); }
+      else if (f.k === 'dust') for (const d of [-1, 1]) rect(g, f.x + d * (4 + k * 8) * f.s, f.y - 1 - k * 2, 2, 1, '#8a8094');
       else if (f.k === 'spark') for (let i = 0; i < 5; i++) { const a = f.a + i * 1.26, r = (2 + k * 10) * f.s; rect(g, f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * .8, 1, 1, k < .6 ? f.col : '#ff9628'); }
     }
   }
@@ -945,7 +980,7 @@
       g.drawImage(A.GHOST, Math.round(x + (BEACON.x - 4 - x) * k + Math.sin(t * 2 + i) * 3), Math.round(y + (BEACON.y - 6 - y) * k));
     });
     g.restore();
-    [[66, 60], [160, 50], [84, 46], [150, 74], [40, 72]].forEach(([x, y], i) => g.drawImage(A.CARPF[(Math.floor(t * 8) + i) % 2], x, Math.round(y + Math.sin(t * 2.5 + i) * 2), 13, 6));
+    [[66, 60], [160, 50], [84, 46], [150, 74], [40, 72]].forEach(([x, y], i) => wavy(A.CARPF[(Math.floor(t * 8) + i) % 2], x, Math.round(y + Math.sin(t * 2.5 + i) * 2), 13, 6, t * 12 + i, 1));
   }
   function drawTitle() {
     drawTower(R.t);
@@ -1204,16 +1239,24 @@
   fsBtn.addEventListener('click', toggleFull);
 
   // ---------- input ----------
-  const KEYS = {
+  // Physical keys first (so Shift doesn't change what a key does), then the key's name as a fallback.
+  // Right hand: Shift or ' shoots, Enter slashes, with J/K and Z/X as alternatives.
+  const CODES = {
+    ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
+    ShiftLeft: 'shoot', ShiftRight: 'shoot', Quote: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot',
+    Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash'
+  };
+  const NAMES = {
     ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
     ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump',
-    j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
+    Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
     k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };
+  const KEYS = { get: e => CODES[e.code] || NAMES[e.key] };
   function clearHeld() { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = false; padPointers.clear(); padSync(); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    const k = KEYS[e.key];
+    const k = KEYS.get(e);
     if (state === 'play' && k) {
       e.preventDefault();
       if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true;
@@ -1234,7 +1277,7 @@
       else if (e.key === 'Escape' && isFull() && !nativeFull()) setFull(false);
     }
   });
-  addEventListener('keyup', e => { const k = KEYS[e.key]; if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; });
+  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; });
   addEventListener('blur', () => { keys.kbLeft = keys.kbRight = keys.kbShoot = false; });
 
   // Touch pads: a D-pad on the left (jump is the up arrow) and Shoot and Slash on the right. Each finger is tracked,

@@ -42,8 +42,8 @@ Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 Five inputs, the same on every floor, laid out like an old game pad:
 
 - **Move** left and right and **jump** on a D-pad (the up arrow jumps). Keys: A/D or the arrows, W, Up or Space.
-- **Shoot** (hold to keep firing). Keys: J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
-- **Slash** (K, X or Enter). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
+- **Shoot** (hold to keep firing). Keys: Shift or ', or J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
+- **Slash** (Enter, or K or X). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 
 M toggles sound, F full screen, P or Escape pause.
 
@@ -55,11 +55,11 @@ A corridor floor of about two minutes, then the Shredder.
 - **The goal.** "Free 60 souls to wake the Shredder", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
-  - **AUDIT!**: every temp in view stands up at once.
+  - **AUDIT!**: a deflect round. The temps all stand and lob paperwork; each one knocked back counts double.
   - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap, a snake).
   - **Lights out**: only monitors, eyes and blaster bolts show.
   - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
-  - Rows that span the aisle (office chairs, a paper jam's sheet) give jumping a job.
+  - Rows that span the aisle (office chairs from All Staff on, a paper jam's sheet) give jumping a job, after the first section.
   - Pickups float at jump height: coffee (a heart back) and the Spread Shot.
   - Each beat has its own music, with stings for the events.
   - Paper blows down the corridor the whole time.

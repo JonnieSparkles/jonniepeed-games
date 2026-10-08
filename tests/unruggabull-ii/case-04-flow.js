@@ -52,6 +52,16 @@
   check(R.events.shots === 0, 'and stops on release');
   key('keydown', 'ArrowUp'); step(.1);
   check(bull.jh > 0, 'Up jumps');
+  step(1);
+  const code = (type, k, c) => dispatchEvent(new KeyboardEvent(type, { key: k, code: c, bubbles: true }));
+  R.events.shots = 0; R.fireT = 0; R.charge = TUNE.charges; code('keydown', 'Shift', 'ShiftLeft'); step(.5); code('keyup', 'Shift', 'ShiftLeft');
+  check(R.events.shots >= 2, 'Shift shoots');
+  R.events.shots = 0; R.fireT = 0; code('keydown', "'", 'Quote'); step(.3); code('keyup', "'", 'Quote');
+  check(R.events.shots >= 1, "' shoots");
+  bull.cd = 0; bull.slash = -1; code('keydown', 'Enter', 'Enter'); update(1 / 60);
+  check(bull.slash >= 0, 'Enter slashes');
+  bull.cd = 0; bull.slash = -1; code('keydown', 'K', 'KeyK'); update(1 / 60);
+  check(bull.slash >= 0, 'K slashes even with Shift held');
   pauseGame(); altBtn.click();
   check(state === 'play' && R.t < .1, 'restart floor from the pause card');
 })();

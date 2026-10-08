@@ -60,10 +60,10 @@
 
   // each section has its own music
   R.event = null; R.beat = 0; R.beatT = BEATS[0].time; update(1 / 60);
-  step(TUNE.eventT + .2);
+  step(TUNE.auditT + .2);
   check(R.beat === 1 && Snd.track === 'staff', 'All Staff plays Alley Redux');
   check(R.pickups.some(pk => pk.kind === 'coffee') && R.pickups.some(pk => pk.kind === 'spread'), 'a coffee and a Spread Shot follow the audit');
-  R.beatT = BEATS[1].time; update(1 / 60); step(.2);
+  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
   check(R.event && R.event.kind === 'dark' && Snd.track === 'dark', 'lights out drops to a heartbeat');
   step(TUNE.eventT);
   check(R.beat === 2 && Snd.track === 'copy', 'the copy room has its own tune');
