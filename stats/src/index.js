@@ -274,6 +274,8 @@ async function dashboard(request, env, url) {
   const gate = await allowed(request, env, url);
   if (gate.locked) return isApi ? json({ ok: false, error: 'locked' }, 503)
     : html(note('Play stats are locked', 'Cloudflare Access isn’t set up for this Worker yet. See docs/guides/03-play-stats.md.'), 503);
+  // Why a sign-in was refused goes to the Worker logs (`wrangler tail`), never the token or who it was.
+  if (!gate.user) console.log(JSON.stringify({ dash_denied: gate.reason || 'unknown', path: url.pathname }));
   if (!gate.user) return isApi ? json({ ok: false, error: 'forbidden' }, 403)
     : html(note('Sign in first', 'Open this page through Cloudflare Access.'), 403);
   if (url.pathname === '/dash') return Response.redirect(url.origin + '/dash/' + url.search, 302);

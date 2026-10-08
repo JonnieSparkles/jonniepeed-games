@@ -26,7 +26,7 @@ const fetcher = async url => {
   fetches++;
   return new Response(JSON.stringify({ keys: published }), { headers: { 'Content-Type': 'application/json' } });
 };
-const check = (token, e = env) => checkAccess(request(token), e, fetcher);
+const check = (token, e = env) => checkAccess(request(token), e, fetcher).then(r => (r.denied ? { denied: true } : r));
 
 let failures = 0;
 async function test(name, fn) {
@@ -50,8 +50,12 @@ await test('a missing or malformed token is denied', async () => {
 });
 await test('another application, issuer or algorithm is denied', async () => {
   assert.deepEqual(await check(await sign(current, claims({ aud: ['some-other-app'] }))), { denied: true });
-  assert.deepEqual(await check(await sign(current, claims({ iss: 'https://evil.cloudflareaccess.com' }))), { denied: true });
+  // The issuer must be a cloudflareaccess.com team address; the refusal says why.
+  assert.deepEqual(await checkAccess(request(await sign(current, claims({ iss: 'https://evil.example.com' }))), env, fetcher), { denied: true, reason: 'issuer' });
   assert.deepEqual(await check(await sign(current, claims(), { alg: 'HS256' })), { denied: true });
+});
+await test('a token from before a team rename is accepted, if this team signed it', async () => {
+  assert.deepEqual(await check(await sign(current, claims({ iss: 'https://super-hall-d326.cloudflareaccess.com' }))), { user: 'jonnie@example.com' });
 });
 await test('expired and not-yet-valid tokens are denied', async () => {
   assert.deepEqual(await check(await sign(current, claims({ exp: now() - 120 }))), { denied: true });
@@ -74,7 +78,9 @@ await test('an unreachable key endpoint denies rather than throws', async () => 
   const down = async () => new Response('no', { status: 500 });
   const other = { ACCESS_TEAM_DOMAIN: 'other.cloudflareaccess.com', ACCESS_AUD: AUD };
   const token = await sign(current, claims({ iss: 'https://other.cloudflareaccess.com' }));
-  assert.deepEqual(await checkAccess(request(token), other, down), { denied: true });
+  const result = await checkAccess(request(token), other, down);
+  assert.equal(result.denied, true);
+  assert.match(result.reason, /Access keys unavailable/);
 });
 
 console.log(failures ? `${failures} failed` : 'all passed');

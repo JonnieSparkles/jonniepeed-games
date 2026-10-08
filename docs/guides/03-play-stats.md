@@ -63,8 +63,8 @@ What the dashboard page says tells you where it's stuck:
 | --- | --- | --- |
 | "Play stats are locked", with no Cloudflare sign-in first | Access isn't guarding the page, or the Worker has no Access values yet | Check the application exists with path `dash` (step 4), then set both values (step 6) |
 | A Cloudflare sign-in, then "Play stats are locked" | Access works; the Worker is missing one of the two values | Run both `wrangler secret put` commands (step 6) |
-| A Cloudflare sign-in, then "Sign in first" | The Worker didn't accept the sign-in: the team domain or AUD tag doesn't match | Check the AUD tag against `kid=` in the sign-in address, and the team domain against the sign-in address. Then sign out of just this page at `https://stats.jonniepeed.games/cdn-cgi/access/logout` and open `/dash/` again |
-| "Unable to find your Access organization" | A team rename hasn't settled yet | Wait 10–15 minutes and try again. If it doesn't clear, rename the team back and set `ACCESS_TEAM_DOMAIN` to match |
+| A Cloudflare sign-in, then "Sign in first" | The Worker didn't accept the sign-in | Run `wrangler tail` in `stats/` and load the page: a `dash_denied` line names the reason. `audience`: re-enter the AUD tag (check it against `kid=` in the sign-in address). `unknown_key` or an `error`: `ACCESS_TEAM_DOMAIN` is wrong or its team isn't answering yet (open `https://<team domain>/cdn-cgi/access/certs`; it should show `{"keys":[`) |
+| "Unable to find your Access organization" | A team rename hasn't settled yet | Wait and try again; it can take a while. The Worker accepts sign-ins issued under either name meanwhile, as long as `ACCESS_TEAM_DOMAIN` is the name whose `/cdn-cgi/access/certs` page works |
 
 "Sign in with Cloudflare" uses your Cloudflare account, so in a browser already signed in to Cloudflare it goes straight through. One-time PIN (a code by email) is the other option, under Zero Trust's login methods.
 
