@@ -121,7 +121,12 @@ var StickArmyCampaign = function (w) {
     S.tanks.forEach(function (tk) { flag(tk.x, tk.y - 22); }); S.tanks = [];
     if (sp) sp.road = 0;
     S.bombs.forEach(function (m) { w.puff(m.x, m.y, 6, 0.5); }); S.bombs = []; S.enemyShots = [];
-    S.planes.forEach(function (q) { if (q !== p && q.state === 'fly') { q.drops = []; q.kits = []; q.bombRun = []; q.tankX = null; q.speed = Math.max(q.speed, 1) * 1.8; } });
+    S.planes.forEach(function (q) {
+      if (q === p || q.state !== 'fly') return;
+      if (w.SKY.KINDS[q.kind]) { w.SKY.flee(q); return; }
+      q.drops = []; q.kits = []; q.bombRun = []; q.tankX = null; q.speed = Math.max(q.speed, 1) * 1.8;
+    });
+    if (sp) w.SKY.settle(sp, true);
     addText('they surrender!', 200, 440, BLUE, 26);
     emit('surrender', { wave: S.wave });
   }
@@ -244,6 +249,7 @@ var StickArmyCampaign = function (w) {
     var pick = list.find(function (q) { roll -= q.weight; return roll <= 0; }) || list[list.length - 1];
     t.mark = { kind: pick.kind, id: pick.id, x: pick.x, t: 0 };
     w.sound.play('flare');
+    if (pick.kind === 'recruit') w.say('incoming!', pick.id, false, 0.3);
     emit('dread_mark', { target: pick.kind });
   }
   function fire(p, t) {

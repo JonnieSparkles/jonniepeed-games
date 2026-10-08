@@ -161,7 +161,7 @@ var StickArmyShop = function (w) {
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.nextWave || S.wave });
         S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(w.crewMax(r), r.hp + 1); if (r.down) w.standUp(r, 'pizza'); } });
-        w.sound.play('pizza'); w.addText('pizza time!', 200, GROUND - 65, BLUE, 26);
+        w.sound.play('pizza'); w.say('pizza time!', 4242, false, 0.3); w.addText('pizza time!', 200, GROUND - 65, BLUE, 26);
       }
     } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
     else {

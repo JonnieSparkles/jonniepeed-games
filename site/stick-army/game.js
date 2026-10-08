@@ -236,7 +236,7 @@
       coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
-      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null,
+      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [],
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
@@ -251,7 +251,7 @@
 
   function waveCfg(n) {
     var boss = n % BOSS_EVERY === 0, dreadWave = boss && isDreadWave(n);
-    return {
+    var c = {
       // Boss waves trade the bombers and half the planes for a zeppelin. The Dreadnought (wave 20, then every tenth)
       // brings a light escort and nothing on the ground, so the fight is with the ship.
       planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (dreadWave ? 0.4 : boss ? 0.5 : 1)),
@@ -275,6 +275,10 @@
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
       special: n === 1 ? 0.15 : Math.min(0.45, 0.16 + 0.06 * n)
     };
+    // The Red Cross plane (4), bomb balloons (7), HQ crates (8), dive bombers (12) and helicopters (13): sky.js.
+    var extra = SKY.counts(n, dreadWave);
+    for (var k in extra) c[k] = extra[k];
+    return c;
   }
 
   // Floating text comes in kinds, so the busy moments stay readable:
@@ -468,9 +472,13 @@
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);
     S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: 11 };
+    SKY.start(S.spawn, c);
     S.waveState = 'active';
-    var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
-      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === ARMOR.WAVE ? 'armored troops! two hits' : n === TANK.ROAD_WAVE ? 'tanks rolling in by road!' : '';
+    var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.boss && n >= ZEP.ARMOR_WAVE ? 'armored zeppelin! strip its plates' : c.boss ? 'zeppelin! aim for the gondola' :
+      n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : n === SKY.MEDEVAC.WAVE ? "don't shoot the Red Cross plane!" :
+      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === SKY.BALLOON.WAVE ? 'bomb balloons! pop them early' : n === SKY.CRATE.WAVE ? 'HQ airdrops! catch the blue crates' :
+      n === TANK.ROAD_WAVE ? 'tanks rolling in by road!' : n === SKY.DIVE.WAVE ? 'dive bombers! listen for the siren' : n === SKY.HELI.WAVE ? 'choppers! shoot them off the ropes' :
+      n === DREAD.WAVE - 1 && !S.won ? 'the big push!' : '';
     // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters. The banner
     // says so, rather than a label of its own.
     if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
@@ -492,6 +500,7 @@
       // No dead air: with the planes done and nothing left on the field, what's still due comes in soon.
       if (sp.planes + sp.bombers === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !S.tanks.length && !S.troopers.some(function (t) { return !t.dead; })) {
         sp.rushT = Math.min(sp.rushT, WAVE_HURRY); sp.cargoT = Math.min(sp.cargoT, WAVE_HURRY); sp.roadT = Math.min(sp.roadT, WAVE_HURRY); sp.bossT = Math.min(sp.bossT, ZEP.WARN + WAVE_HURRY);
+        SKY.hurry(sp, WAVE_HURRY);
       }
       sp.timer -= dt;
       if (sp.timer <= 0 && sp.planes + sp.bombers > 0) {
@@ -510,8 +519,10 @@
       if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14); } }
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15); } }
       if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, 11, 16); } }
+      SKY.tick(sp, dt);
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
-      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) {
+      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) SKY.settle(sp);
+      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies && !SKY.waiting()) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave }); emit('coins', { amount: waveTags, reason: 'wave' });
@@ -519,7 +530,7 @@
         S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
         if (victoryDue()) S.waveTimer = 3.2;
         S.hint = false;
-        sound.play('wave');
+        sound.play('wave'); SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
@@ -542,7 +553,9 @@
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); }, pow: function (x, y, r) { pow(x, y, r); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
-    crewMax: function (r) { return crewMax(r); }, credit: function () { credit(); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
+    crewMax: function (r) { return crewMax(r); }, credit: function () { credit(); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); },
+    // Little voices (audio.js): a line of gibberish in the speaker's own pitch.
+    say: function (text, id, enemy, delay) { if (sound.say) sound.say(text, id, enemy, delay); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
@@ -555,13 +568,19 @@
     STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
     FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio;
+  // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
+  world.grantCall = grantCall; world.activeTramps = activeTramps; world.standing = standing; world.repairWall = repairWall;
+  world.dogTag = function (x, y, rot, sc) { dogTag(x, y, rot, sc); };
+  Object.defineProperties(world, { CAPTURE_SPEED: { get: function () { return CAPTURE_SPEED; } }, PLANE_PTS: { get: function () { return PLANE_PTS; } } });
+  var SKY = StickArmySky(world);
+  world.SKY = SKY;
   // Names, ranks, the wounded and the field hospital live in squad.js.
   var SQUAD = StickArmySquad(world), RANK = SQUAD.RANK, RANKS = SQUAD.RANKS, rankName = SQUAD.rankName, serveWave = SQUAD.serveWave,
     knockDown = SQUAD.knockDown, standUp = SQUAD.standUp, fallen = SQUAD.fallen, careAtWaveEnd = SQUAD.careAtWaveEnd, bedSlot = SQUAD.bedSlot,
     chevrons = SQUAD.chevrons, drawTent = SQUAD.drawTent;
   // The item list, the shop, the kit display and the pizza courier live in shop.js.
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
-  world.repairWall = repairWall; world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
+  world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
   world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.queueSketches = queueSketches;
   world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp;
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
@@ -772,7 +791,7 @@
       emit('capture', { type: t.type, slot: t.slot });
       var label = t.type === 'engineer' ? 'engineer joined!' : t.type === 'bazooka' ? 'bazooka joined!' : 'recruit!';
       award(25, r.x, GROUND - 64, label, BLUE, true);
-      sound.play('recruit');
+      sound.play('recruit'); world.say('ready!', r.id, false, 0.15);
       if (S.recruits.filter(function (q) { return !q.dead; }).length === S.mods.slots) addText('squad full!', 200, 520, BLUE, 24);
       S.hint = false;
     } else {
@@ -786,7 +805,7 @@
     emit('land', { x: t.x, type: t.type });
     // Snipers sit below the firing arc and are easy to miss, so call them out as they land.
     if (t.type === 'sniper') addText('sniper!', t.x, t.y - 14, RED, 22);
-    S.parts.push({ k: 'deflate', x: t.x - t.dir * 14, y: GROUND - 2, life: 1.6, max: 1.6, dir: t.dir, id: nextId++ });
+    if (t.open) S.parts.push({ k: 'deflate', x: t.x - t.dir * 14, y: GROUND - 2, life: 1.6, max: 1.6, dir: t.dir, id: nextId++ });
     sound.play('thud');
   }
   function recruitDie(r, cause) {
@@ -803,6 +822,7 @@
     if (p.state !== 'fly') return;
     if (p.kind === 'zeppelin') { hurtZeppelin(p, dmg, owner, hx, hy, direct); return; }
     if (p.kind === 'dread') { hurtDread(p, dmg, owner, hx == null ? p.x : hx, hy == null ? p.y : hy, direct); return; }
+    if (SKY.KINDS[p.kind]) { SKY.hurt(p, dmg, owner); return; }
     p.hp -= dmg; p.hitFlash = 0.15;
     burst(p.x, p.y, 4, INK, 120);
     if (p.hp <= 0) {
@@ -822,11 +842,12 @@
       sound.play('clank');
     }
   }
-  function explode(x, y, r, kind, owner) {
+  // source: who to blame for wall damage, when it isn't the kind (a balloon's bomb).
+  function explode(x, y, r, kind, owner, source) {
     if (HL.POW_KINDS[kind]) pow(x, y, r * 0.8 * HL.POW_KINDS[kind]);
     for (var i = 0; i < 7; i++) puff(x + rr(-r, r) * 0.4, y + rr(-r, r) * 0.3, rr(3, 7), rr(0.4, 0.7));
     burst(x, y, 10, INK, 220);
-    S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' || kind === 'broadside' ? 0.55 : kind === 'crash' || kind === 'wreck' ? 0.35 : kind === 'strike' || kind === 'shell' ? 0.25 : 0.15);
+    S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'dive' || kind === 'final' || kind === 'broadside' ? 0.55 : kind === 'crash' || kind === 'wreck' ? 0.35 : kind === 'strike' || kind === 'shell' ? 0.25 : 0.15);
     if (y > GROUND - 30) addDecal({ kind: 'scorch', x: x, y: GROUND - 3, r: r * 0.55, color: INK, a: 0.2, seed: nextId++ });
     var col = kind === 'rocket' || kind === 'strike' ? BLUE : INK;
     // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
@@ -838,9 +859,13 @@
       }
     });
     if (kind === 'bomb') {
-      if (Math.abs(x - BK.x) < 48) { hurtWall(18, 'bomb'); wallText(18); }
+      if (Math.abs(x - BK.x) < 48) { hurtWall(18, source || 'bomb'); wallText(18); }
       // A direct hit still kills a bare recruit; near misses wound. Helmets and trenches help.
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4, 'bomb'); });
+    } else if (kind === 'dive') {
+      // A dive bomber's heavy bomb.
+      if (Math.abs(x - BK.x) < 50) { hurtWall(SKY.DIVE.WALL, 'dive'); wallText(SKY.DIVE.WALL); }
+      S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 40) hurtRecruit(q, 4 * (1 - d / 40) + 0.5, 'bomb'); });
     } else if (kind === 'shell') {
       // Tank shells: lighter than bombs, aimed at the bunker.
       if (Math.abs(x - BK.x) < 44) { hurtWall(TANK.SHELL_DAMAGE, 'tank'); wallText(TANK.SHELL_DAMAGE); }
@@ -864,10 +889,11 @@
   }
   function hitTest(b) {
     var i, p, m, t, seen = b.hits || [], near = b.flak ? 14 : 0;
+    if (SKY.shot(b)) return;
     for (i = 0; i < S.planes.length; i++) {
       p = S.planes[i];
       if (seen.indexOf(p.id) >= 0) continue;
-      if (p.state === 'fly' && (p.kind === 'dread' ? dreadHit(p, b.x, b.y, near) : planeHit(p, b.x, b.y, near))) {
+      if (p.state === 'fly' && (p.kind === 'dread' ? dreadHit(p, b.x, b.y, near) : SKY.KINDS[p.kind] ? SKY.hit(p, b.x, b.y, near) : planeHit(p, b.x, b.y, near))) {
         if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
         return;
       }
@@ -876,7 +902,7 @@
       m = S.bombs[i];
       if (seen.indexOf(m.id) >= 0) continue;
       // Tank shells are smaller than bombs and harder to hit.
-      if (!m.dead && Math.hypot(b.x - m.x, b.y - m.y) < (m.shell ? 6 : 9) + near) {
+      if (!m.dead && Math.hypot(b.x - m.x, b.y - m.y) < (m.shell ? 6 : m.heavy ? 11 : 9) + near) {
         m.dead = true; emit('bomb_intercepted', { by: b.owner === 'ally' ? 'crew' : 'player' });
         award(20, m.x, m.y - 12, 'bomb popped!', b.owner === 'ally' ? BLUE : INK, true);
         if (!projectileBurst(b)) { consumeBullet(b, m); explode(m.x, m.y, 26, 'air', b.owner); }
@@ -933,18 +959,21 @@
       // Bazookas go for the Dreadnought's guns (the one aiming first), then other aircraft.
       if (parts.length) return parts[0];
       S.planes.forEach(function (p) {
-        if (p.state !== 'fly' || p.kind === 'dread' || p.x < 10 || p.x > W - 10) return;
+        if (p.state !== 'fly' || p.kind === 'dread' || p.kind === 'balloon' || p.x < 10 || p.x > W - 10) return;
         var d = Math.hypot(p.x - ox, p.y - oy);
         if (d < bd) { bd = d; best = p; }
       });
       if (best) return best;
     }
     S.troopers.forEach(function (t) {
-      if (t.dead || t.state !== 'chute' || t.open < 1 || t.y < 380) return;
+      if (t.dead || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380) return;
       var d = Math.hypot(t.x - ox, t.y - oy);
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
     if (best) return best;
+    // A helicopter hovering low is everyone's business. (Never balloons: their bombs would fall on the crew.)
+    var heli = S.planes.find(function (p) { return p.kind === 'heli' && p.state === 'fly' && (p.phase === 'drop' || p.phase === 'wait'); });
+    if (heli) return heli;
     // Nothing closer to deal with: everyone plinks at the Dreadnought's guns or the zeppelin.
     if (parts.length) return parts[0];
     return S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly' && zeppelinOnScreen(p); }) || null;
@@ -954,12 +983,13 @@
     if (tg.kind === 'plane' || tg.kind === 'bomber') { x = tg.x; y = tg.y; vx = tg.dir * tg.speed; }
     else if (tg.kind === 'zeppelin') { x = tg.x; y = tg.y; vx = tg.face * tg.speed; }
     else if (tg.kind === 'dreadpart') { x = tg.x; y = tg.y; vx = tg.vx; }
+    else if (SKY.KINDS[tg.kind]) { x = tg.x; y = tg.y; vx = tg.vx || 0; vy = tg.vy || 0; }
     else if (tg.tread !== undefined) { x = tg.x; y = tg.y - 2; vx = 0; }
     else if (tg.isBomb) { x = tg.x; y = tg.y; vx = tg.vx; vy = tg.vy; }
     else if (tg.state === 'ground') { x = tg.x; y = tg.y + 14; vx = (tg.type === 'sniper' || tg.atWall || tg.attacking) ? 0 : tg.dir * 22 * (S.mods.wire ? 0.5 : 1); }
     else {
       x = tg.x; y = tg.y + 12; vy = tg.fall;
-      if (S.mods.catcher && r.type !== 'bazooka' && slotsAvailable() && tg.y > 475) {
+      if (S.mods.catcher && r.type !== 'bazooka' && tg.state === 'chute' && slotsAvailable() && tg.y > 475) {
         var over = activeTramps().some(function (q) { return tg.x > q.x1 + 8 && tg.x < q.x2 - 8; });
         if (over) { y = tg.y - 28; x = tg.x + (r.x > tg.x ? 15 : -15); }
       }
@@ -1039,6 +1069,7 @@
       var p = S.planes[i];
       if (p.kind === 'zeppelin') { updateZeppelin(p, dt); if (p.gone) S.planes.splice(i, 1); continue; }
       if (p.kind === 'dread') { updateDread(p, dt); if (p.gone) S.planes.splice(i, 1); continue; }
+      if (SKY.KINDS[p.kind]) { SKY.updatePlane(p, dt); if (p.gone) S.planes.splice(i, 1); continue; }
       p.hitFlash = Math.max(0, p.hitFlash - dt);
       if (p.state === 'fly') {
         p.x += p.dir * p.speed * dt;
@@ -1072,7 +1103,7 @@
       m.vy += 260 * dt; m.x += m.vx * dt; m.y += m.vy * dt;
       if (m.y >= GROUND - 6 || (m.x > BK.x1 - 4 && m.x < BK.x2 + 4 && m.y >= BK.top - 8)) {
         m.dead = true;
-        explode(m.x, Math.min(m.y, GROUND - 4), m.shell ? 28 : 42, m.shell ? 'shell' : 'bomb');
+        explode(m.x, Math.min(m.y, GROUND - 4), m.shell ? 28 : m.heavy ? 50 : 42, m.shell ? 'shell' : m.heavy ? 'dive' : 'bomb', null, m.balloon ? 'balloon' : null);
       }
     });
   }
@@ -1101,10 +1132,10 @@
       sound.play('sniper');
     }
   }
-  function sniperHitsTurret() {
+  function sniperHitsTurret(cause) {
     S.heat = Math.min(1, S.heat + 0.25);
     if (S.heat >= 1) triggerOverheat();
-    hurtWall(3, 'sniper');
+    hurtWall(3, cause || 'sniper');
     addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20, 'minor');
     S.parts.push({ k: 'tink', x: TUR.x, y: TUR.y - 6, life: 0.25, max: 0.25, c: RED, id: nextId++ });
     sound.play('clank');
@@ -1113,15 +1144,15 @@
     S.enemyShots.forEach(function (b) {
       b.life -= dt; var x0 = b.x; b.x += b.vx * dt; b.y += b.vy * dt;
       if (b.turret) {
-        if (b.life > 0 && Math.hypot(b.x - TUR.x, b.y - (TUR.y + 3)) < 18) { b.life = 0; sniperHitsTurret(); }
+        if (b.life > 0 && Math.hypot(b.x - TUR.x, b.y - (TUR.y + 3)) < 18) { b.life = 0; sniperHitsTurret(b.cause); }
         return;
       }
       S.recruits.forEach(function (r) {
         if (b.life <= 0 || !standing(r) || r.x < Math.min(x0, b.x) - 6 || r.x > Math.max(x0, b.x) + 6 || Math.abs(b.y - (GROUND - 22)) > 18) return;
-        b.life = 0; hurtRecruit(r, ENEMIES.sniper.damage, 'sniper'); r.hurt = 0.3;
+        b.life = 0; hurtRecruit(r, b.dmg || ENEMIES.sniper.damage, b.cause || 'sniper'); r.hurt = 0.3;
       });
     });
-    S.enemyShots = S.enemyShots.filter(function (b) { return b.life > 0 && b.x > -20 && b.x < W + 20; });
+    S.enemyShots = S.enemyShots.filter(function (b) { return b.life > 0 && b.x > -20 && b.x < W + 20 && b.y < GROUND + 4; });
   }
   function updateLander(t, dt) {
     if (t.type === 'sniper') { updateSniper(t, dt); return; }
@@ -1177,6 +1208,10 @@
         if (u >= 1) becomeRecruit(t);
       } else if (t.state === 'ground') {
         updateLander(t, dt);
+      } else if (t.state === 'rope') {
+        // Sliding down a helicopter's rope (sky.js): no chute to pop, so no catching.
+        t.y += t.fall * dt;
+        if (t.y + 33 >= GROUND) land(t);
       }
     });
   }
@@ -1250,10 +1285,10 @@
       return best;
     }
     return nearest(S.bombs, function (m) { return !m.dead && m.y > 200; }) ||
-      nearest(S.troopers, function (t) { return !t.dead && t.state === 'chute' && t.open >= 1 && t.y > SENTRY.low; }) ||
+      nearest(S.troopers, function (t) { return !t.dead && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low; }) ||
       nearest(S.troopers, function (t) { return !t.dead && t.state === 'ground'; }) ||
       nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute'; }) ||
-      nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.x > 10 && p.x < W - 10; });
+      nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon' && p.x > 10 && p.x < W - 10; });
   }
   function updateAutoTurret(dt) {
     if (!S.mods.auto || S.mode !== 'play') return;
@@ -1284,6 +1319,7 @@
     S.recoil = Math.max(0, S.recoil - dt * 8);
     updatePlanes(dt);
     updateBombs(dt);
+    SKY.update(dt);
     updateTroopers(dt);
     updateTanks(dt);
     updateStrike(dt);
@@ -1398,6 +1434,7 @@
     G.save();
     if (t.rot) { G.translate(x, y + 14); G.rotate(t.rot); G.translate(-x, -(y + 14)); }
     if (t.state === 'chute') { chute(t); pose = [-5, 1, 5, 1, -4, 33, 4, 33]; }
+    else if (t.state === 'rope') pose = [-1, -6, 1, -9, -3, 33, 3, 32];
     else if (t.state === 'free' || t.state === 'bounce') { s = Math.sin(S.t * 22 + t.id); pose = [-11, 1 + s * 4, 11, 1 - s * 4, -7 + s * 3, 32, 7 + s * 3, 31]; }
     else if (t.attacking || t.atWall) { s = Math.max(0, Math.sin(S.t * 13 + t.id)); pose = [t.dir * (6 + 7 * s), 8, t.dir * 5, 17, -5, 33, 6, 33]; }
     else { s = Math.sin(t.walk); pose = [-s * 5, 19, s * 5, 19, s * 6, 33, -s * 6, 33]; }
@@ -1498,7 +1535,7 @@
   function drawBomb(m) {
     pen(m.id);
     var a = Math.atan2(m.vy, m.vx) - Math.PI / 2;
-    G.save(); G.translate(m.x, m.y); G.rotate(a);
+    G.save(); G.translate(m.x, m.y); G.rotate(a); if (m.heavy) G.scale(1.45, 1.45);
     if (m.shell) { G.beginPath(); G.ellipse(0, 0, 3, 5, 0, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); G.restore(); return; }
     G.beginPath(); G.ellipse(0, 0, 4.5, 7.5, 0, 0, Math.PI * 2); G.fillStyle = INK; G.fill();
     G.beginPath(); L(-4, -6, -6, -12, 0.3); L(4, -6, 6, -12, 0.3); L(-6, -12, 6, -12, 0.3); ink(INK, 1.8); G.stroke();
@@ -1622,7 +1659,7 @@
     G.restore();
   }
   function drawBullets() {
-    S.enemyShots.forEach(function (b) { G.beginPath(); L(b.x, b.y, b.x - Math.sign(b.vx) * 12, b.y, 0.3); ink(RED, 2); G.stroke(); });
+    S.enemyShots.forEach(function (b) { var sp = Math.hypot(b.vx, b.vy) || 1; G.beginPath(); L(b.x, b.y, b.x - b.vx / sp * 12, b.y - b.vy / sp * 12, 0.3); ink(RED, 2); G.stroke(); });
     S.bullets.forEach(function (b) {
       var sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
       G.beginPath();
@@ -1652,7 +1689,7 @@
       else if (q.k === 'scrap') {
         // A scrap of torn paper.
         G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.moveTo(-q.s, -q.s * 0.6); G.lineTo(q.s, -q.s * 0.3); G.lineTo(q.s * 0.2, q.s * 0.7); G.closePath();
-        G.fillStyle = PAPER; G.fill(); ink(INK2, 1.1); G.stroke();
+        G.fillStyle = q.c || PAPER; G.fill(); ink(INK2, 1.1); G.stroke();
       } else if (q.k === 'flag') {
         // A white flag: surrender.
         var up = (1 - a) * 14; G.globalAlpha = Math.min(1, a * 2);
@@ -1800,9 +1837,11 @@
     ctx.drawImage(dc, 0, 0, W, H);
     drawGround();
     activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
+    SKY.drawBehind();
     S.planes.forEach(function (p) { if (p.kind === 'dread') drawDread(p); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
-    S.planes.forEach(function (p) { if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });
+    S.planes.forEach(function (p) { if (SKY.KINDS[p.kind]) SKY.drawPlane(p); else if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });
+    SKY.draw();
     S.bombs.forEach(drawBomb);
     S.troopers.forEach(function (t) { if (!t.dead) drawTrooper(t); });
     S.tanks.forEach(drawTank);
@@ -1890,7 +1929,8 @@
     sound.play('over');
   }
   // What brought the wall down: the last source to hurt it (hurtWall).
-  var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.', dreadnought: "The Dreadnought's guns brought the wall down." };
+  var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.', dreadnought: "The Dreadnought's guns brought the wall down.",
+    dive: "A dive bomber's bomb brought the wall down.", balloon: "A balloon's bomb brought the wall down.", heli: 'Helicopter fire chipped the wall away.' };
   function showOver() {
     S.mode = 'over';
     var isBest = S.score > best;
@@ -2052,7 +2092,7 @@
   function ambienceState() {
     return {
       active: S.mode === 'play' && !document.hidden,
-      planes: S.planes.filter(function (p) { return p.state === 'fly' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
+      planes: S.planes.filter(function (p) { return p.state === 'fly' && p.kind !== 'balloon' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
       wave: S.waveState === 'active',
       number: S.wave,
       wallLow: S.wallHP < S.mods.maxHP * 0.3,

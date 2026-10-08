@@ -17,8 +17,12 @@ var StickArmyUnits = function (w) {
   // and bomb clusters from its belly, sinks as it loses gas, and turns angry (faster, busier) at half health.
   // It lives in S.planes so flak, rockets, bazookas and the ambience treat it as an aircraft.
   // It arrives ARRIVE seconds into the wave, after a few escort planes; its horn sounds WARN seconds before.
+  // From ARMOR_WAVE it comes armored: steel plates (PLATES, centred at those fractions of its half-length, each
+  // PLATE_W wide either side) cover the hull and clang until shot off, and the gondola is plated until half health.
   var ZEP = { HW: 78, HH: 25, Y: 172, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
-    DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2, ARRIVE: 9, WARN: 2.5 };
+    DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2, ARRIVE: 9, WARN: 2.5,
+    ARMOR_WAVE: 10, PLATES: [-0.72, -0.36, 0, 0.36, 0.72], PLATE_W: 0.18, PLATE_HP: 6 };
+  var STEEL = 'rgba(112,120,130,0.5)';
   function zeppelinHP(n) { return Math.round(20 + BALANCE.BOSS_HP_PER_WAVE * n); }
   // The gondola is the weak spot: direct shots there do ZEP.WEAK times the damage.
   function inGondola(p, x, y) { var dx = x - p.x, dy = y - p.y; return dy > p.hh - 3 && Math.abs(dx) < 24 * Math.abs(p.face) + 4; }
@@ -28,9 +32,41 @@ var StickArmyUnits = function (w) {
     p.rng = rnd;
     p.hp = p.maxHp = zeppelinHP(S.wave); p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
     p.baseY = ZEP.Y; p.bob = between(rnd, 0, 6.28); p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
+    if (S.wave >= ZEP.ARMOR_WAVE) {
+      p.armored = true; p.shield = true;
+      p.plates = ZEP.PLATES.map(function (k) { return { k: k, hp: ZEP.PLATE_HP, flash: 0, id: w.id() }; });
+    }
     S.planes.push(p);
-    emit('plane_spawn', { kind: 'zeppelin', dir: dir, y: p.y, hp: p.maxHp });
+    emit('plane_spawn', { kind: 'zeppelin', dir: dir, y: p.y, hp: p.maxHp, armored: !!p.armored });
     return p;
+  }
+  // The plate over a point on the hull, if one is still on. Turning edge-on, every hit lands on the middle plate.
+  function plateAt(p, x) {
+    var f = p.face, k = Math.abs(f) < 0.15 ? 0 : clamp((x - p.x) / (p.hw * f), -1, 1);
+    return p.plates.find(function (q) { return q.hp > 0 && Math.abs(k - q.k) <= ZEP.PLATE_W; }) || null;
+  }
+  function clang(x, y) { burst(x, y, 3, '#8a8f96', 110); w.sound.play('clank'); }
+  // Armor takes the hit instead of the hull. Returns true when it did.
+  function armorTakes(p, dmg, x, y, gondola) {
+    if (!p.armored) return false;
+    if (gondola) {
+      if (!p.shield) return false;
+      clang(x, y);
+      if (!p.shieldShown) { p.shieldShown = true; addText('plated!', x, y + 26, INK2, 18, 'minor'); }
+      return true;
+    }
+    var q = plateAt(p, x);
+    if (!q) return false;
+    q.hp -= dmg; q.flash = 0.1;
+    clang(x, y);
+    if (q.hp <= 0) {
+      q.hp = 0;
+      w.S.parts.push({ k: 'scrap', x: x, y: y, vx: rr(-40, 40), vy: rr(-30, 10), rot: rr(0, 6), vr: rr(-5, 5), s: 9, c: '#9aa0a8', life: 1.6, max: 1.6, id: w.id() });
+      addText('plate off!', x, y - 20, INK2, 18, 'minor');
+      emit('zeppelin_plate', { left: p.plates.filter(function (o) { return o.hp > 0; }).length });
+      w.sound.play('thud');
+    }
+    return true;
   }
   function zeppelinOnScreen(p) { return p.x > 40 && p.x < W - 40; }
   // The hull is an ellipse (narrowed while it turns), plus the gondola underneath.
@@ -44,6 +80,7 @@ var StickArmyUnits = function (w) {
   function updateZeppelin(p, dt) {
     var S = w.S;
     p.hitFlash = Math.max(0, p.hitFlash - dt);
+    if (p.plates) p.plates.forEach(function (q) { q.flash = Math.max(0, q.flash - dt); });
     // Turning is a cartoon flip: the hull squashes through zero width, so it slows, stops and heads back.
     p.face += clamp(p.dir - p.face, -dt * 2.6, dt * 2.6);
     if (p.state === 'fly') {
@@ -89,7 +126,8 @@ var StickArmyUnits = function (w) {
     }
   }
   function hurtZeppelin(p, dmg, owner, hx, hy, direct) {
-    var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy, weak = direct && inGondola(p, x, y);
+    var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy, gondola = inGondola(p, x, y), weak = direct && gondola;
+    if (armorTakes(p, dmg, x, y, gondola)) return;
     if (weak) { dmg *= ZEP.WEAK; if (!p.weakShown) { p.weakShown = true; addText('weak spot!', x, y + 26, BLUE, 22); } }
     p.hp -= dmg; p.hitFlash = 0.1;
     burst(x, y, weak ? 7 : 3, weak ? RED : INK, weak ? 140 : 90);
@@ -99,7 +137,15 @@ var StickArmyUnits = function (w) {
     if (p.holes.length < 2 + Math.floor((1 - Math.max(0, p.hp) / p.maxHp) * 10)) p.holes.push({ x: lx, y: ly, id: w.id() });
     if (p.hp <= 0) { zeppelinDown(p, owner); return; }
     w.sound.play(weak ? 'clank' : 'thup');
-    if (!p.angry && p.hp <= p.maxHp / 2) { p.angry = true; addText("it's angry!", p.x, p.y - p.hh - 16, RED, 24); w.sound.play('horn'); }
+    if (!p.angry && p.hp <= p.maxHp / 2) {
+      p.angry = true; addText("it's angry!", p.x, p.y - p.hh - 16, RED, 24); w.sound.play('horn');
+      // The armored one sheds its gondola plate as it turns angry: the weak spot is open.
+      if (p.shield) {
+        p.shield = false; addText('gondola open!', p.x, p.y + p.hh + 34, BLUE, 22);
+        w.S.parts.push({ k: 'scrap', x: p.x, y: p.y + p.hh + 10, vx: rr(-30, 30), vy: 0, rot: 0, vr: rr(-4, 4), s: 12, c: '#9aa0a8', life: 1.8, max: 1.8, id: w.id() });
+        emit('zeppelin_open', {});
+      }
+    }
   }
   function zeppelinDown(p, owner) {
     var S = w.S;
@@ -141,6 +187,22 @@ var StickArmyUnits = function (w) {
     });
     ink('rgba(46,46,51,0.35)', 1.3); G.stroke();
     G.beginPath(); L(-hw * 0.88, hh * 0.32, hw * 0.9, hh * 0.25, 0.6); ink('rgba(46,46,51,0.25)', 1.2); G.stroke();
+    // Steel plates, riveted, cracking as they take hits.
+    if (p.plates) {
+      var hullH = function (k) { return hh * Math.sqrt(Math.max(0, 1 - k * k)) * (k < 0 ? 1 - 0.3 * k * k : 1); };
+      p.plates.forEach(function (q) {
+        if (q.hp <= 0) return;
+        pen(q.id);
+        var xs = [q.k - ZEP.PLATE_W + 0.025, q.k, q.k + ZEP.PLATE_W - 0.025].map(function (k) { return clamp(k, -0.96, 0.96); }), pts = [];
+        xs.forEach(function (k) { pts.push(k * hw, -hullH(k) * 0.9); });
+        xs.slice().reverse().forEach(function (k) { pts.push(k * hw, hullH(k) * 0.9); });
+        G.beginPath(); SP(pts, true, 0.4); G.fillStyle = q.flash > 0 ? 'rgba(230,234,238,0.95)' : STEEL; G.fill(); ink(INK, 1.8); G.stroke();
+        G.fillStyle = INK;
+        [xs[0] + 0.05, xs[2] - 0.05].forEach(function (k) { [-1, 1].forEach(function (sy) { G.beginPath(); G.arc(k * hw, sy * hullH(k) * 0.66, 1.3, 0, Math.PI * 2); G.fill(); }); });
+        if (q.hp <= ZEP.PLATE_HP / 2) { G.beginPath(); SP([(q.k - 0.09) * hw, -7, (q.k - 0.02) * hw, 1, (q.k + 0.04) * hw, -3, (q.k + 0.1) * hw, 6], false, 0.3); ink(INK, 1.3); G.stroke(); }
+      });
+      pen(p.id);
+    }
     G.beginPath(); G.arc(hw * 0.5, -hh * 0.18, 7, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
     G.beginPath(); G.arc(hw * 0.5, -hh * 0.18, 2.6, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
     p.holes.forEach(function (h) { pen(h.id); G.beginPath(); SP([h.x - 3, h.y, h.x - 1, h.y - 3, h.x + 3, h.y - 2, h.x + 2, h.y + 2, h.x - 2, h.y + 3], true, 0.6); G.fillStyle = INK; G.fill(); });
@@ -159,6 +221,11 @@ var StickArmyUnits = function (w) {
       G.beginPath(); G.rect(wx, hh + 6.5, 6, 6); ink(INK, 1.3); G.stroke();
       if (fly) { G.beginPath(); G.arc(wx + 3, hh + 9.5, 1.8, 0, Math.PI * 2); G.fillStyle = RED; G.fill(); }
     });
+    // The plated gondola: a steel shutter over the windows until it turns angry.
+    if (p.shield) {
+      G.beginPath(); SP([-25, hh + 4.5, 23, hh + 4.5, 25, hh + 15, -23, hh + 15], true, 0.3); G.fillStyle = 'rgba(112,120,130,0.8)'; G.fill(); ink(INK, 1.8); G.stroke();
+      G.fillStyle = INK; [-20, -6, 8, 19].forEach(function (rx) { G.beginPath(); G.arc(rx, hh + 9.8, 1.2, 0, Math.PI * 2); G.fill(); });
+    }
     var pl = w.boil % 2 ? 7 : 4;
     G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
     if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
@@ -192,7 +259,7 @@ var StickArmyUnits = function (w) {
       t.x = side < 0 ? -14 - i * 24 : W + 14 + i * 24; t.state = 'ground'; t.open = 1; t.dir = -side; t.speed = RUSH.SPEED; t.rusher = true;
     }
     addText('rush!', side < 0 ? 60 : W - 60, GROUND - 74, RED, 24);
-    w.sound.play('rush');
+    w.sound.play('rush'); w.say('charge!', 900 + n, true);
     emit('rush', { side: side < 0 ? 'left' : 'right', count: n });
   }
 
@@ -350,7 +417,7 @@ var StickArmyUnits = function (w) {
     var r = crew[0];
     S.radio = { rid: r ? r.id : null, x: r ? r.x : BK.x, t: 0, dur: RADIO.TALK + 0.6 };
     addText(label, r ? r.x : BK.x, GROUND - (r ? 74 : 104), BLUE, 24);
-    w.sound.play('radio');
+    w.sound.play('radio'); w.say(label, r ? r.id : 77, false, 0.25);
   }
   function updateRadio(dt) {
     var S = w.S, rc = S.radio;
@@ -424,7 +491,8 @@ var StickArmyUnits = function (w) {
       });
     }
     consider(S.bombs, function (m) { return !m.dead && m.y < GROUND - 70; }, 0);
-    consider(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread'; }, 40);
+    // Not balloons: popped from up here, a balloon's bomb could fall anywhere, the crew included.
+    consider(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon'; }, 40);
     consider(S.planes, function (p) { return p.state === 'fly' && p.kind === 'zeppelin'; }, 200);
     consider(w.dreadTargets ? w.dreadTargets() : [], function () { return true; }, 100);
     return best;
