@@ -67,15 +67,24 @@
   ctx.restore();
   check(widest < W - 30, 'banner subtitles fit: ' + widest);
 
-  // Pizza waits for the banner and the sketches, then rides in.
+  // Pizza is its own scene before the wave: no banner, sketches or enemies until he has served.
   RUN.force = 33; newGame(); S.wave = 4; S.coins = 999; openShop();
   takeItem('pizza'); ITEMS.find(function (x) { return x.id === 'wire'; }).apply(S); S.shop.bought.wire = true;
-  continueWave(); S.spawn.timer = S.spawn.rushT = S.spawn.cargoT = 99;
-  var queued = 0;
-  for (f = 0; f < 600 && S.delivery && S.delivery.phase === 'queue'; f++) { update(1 / 60); queued += 1 / 60; }
-  check(queued >= WAVE_BANNER - 0.05 && !S.banner && !S.sketches.length && S.delivery.phase === 'arrive', 'the courier comes last: ' + queued.toFixed(2));
-  for (f = 0; f < 600 && S.delivery.phase === 'arrive'; f++) update(1 / 60);
-  check(S.delivery.phase === 'serve', 'and still delivers');
+  continueWave();
+  check(S.waveState === 'pizza' && !S.banner && !S.sketches.length, 'the courier comes first');
+  for (f = 0; f < 600 && S.waveState === 'pizza'; f++) update(1 / 60);
+  check(S.wave === 5 && S.banner && S.banner.s === 'wave 5' && S.sketches.length && sketchProgress('wire') === 0 && S.delivery.phase === 'leave', 'then the banner and the sketches, as he rides off');
+
+  // No dead air: once the planes are done and the field is clear, a rush still due comes in quickly.
+  RUN.force = 38; newGame(); startWave(8); S.mods.maxHP = S.wallHP = 1e6;
+  S.spawn.planes = S.spawn.bombers = 0; S.spawn.cargo = 0; S.spawn.rushT = 12; S.planes = []; S.troopers = [];
+  var rushes = S.spawn.rushes;
+  for (f = 0; f < Math.ceil(WAVE_HURRY * 60) + 2; f++) update(1 / 60);
+  check(S.spawn.rushes === rushes - 1 && S.troopers.some(function (t) { return t.rusher; }), 'a rush due on a clear field comes in soon');
+  RUN.force = 39; newGame(); startWave(10); S.mods.maxHP = S.wallHP = 1e6;
+  S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.cargo = 0; S.planes = []; S.troopers = [];
+  for (f = 0; f < Math.ceil((ZEP.WARN + WAVE_HURRY) * 60) + 2; f++) update(1 / 60);
+  check(S.planes.some(function (p) { return p.kind === 'zeppelin'; }) && S.spawn.bossWarned, 'so does the zeppelin, after its horn');
 
   // The sketch tool is a blue ballpoint.
   var fills = [], proto = Object.getPrototypeOf(ctx), fillDesc = Object.getOwnPropertyDescriptor(proto, 'fillStyle');

@@ -237,7 +237,7 @@
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null,
-      bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0,
+      bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
@@ -436,9 +436,10 @@
   }
 
   // ---------- waves ----------
-  // A wave opens one thing at a time: the banner, then the sketches of what you bought (SKETCH.DELAY in), then the
-  // pizza courier once both are done.
-  var WAVE_BANNER = 2.2;
+  // A wave opens one thing at a time: a pizza ordered in the shop is delivered first (S.waveState 'pizza'), then the
+  // banner, then the sketches of what you bought (SKETCH.DELAY in), then the enemies. Once the planes are done and the
+  // field is clear, anything still due (a rush, a cargo plane, the zeppelin) comes in after WAVE_HURRY seconds.
+  var WAVE_BANNER = 2.2, WAVE_HURRY = 1.5;
   function startWave(n) {
     S.wave = n; seedWave(n);
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
@@ -456,9 +457,18 @@
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
   function updateWave(dt) {
+    if (S.waveState === 'pizza') {
+      // The wave starts as the courier rides off.
+      if (!S.delivery || S.delivery.phase === 'leave') { var next = S.nextWave; S.nextWave = null; queueSketches(next.bought); startWave(next.wave); }
+      return;
+    }
     var sp = S.spawn;
     if (!sp) return;
     if (S.waveState === 'active') {
+      // No dead air: with the planes done and nothing left on the field, what's still due comes in soon.
+      if (sp.planes + sp.bombers === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !S.tanks.length && !S.troopers.some(function (t) { return !t.dead; })) {
+        sp.rushT = Math.min(sp.rushT, WAVE_HURRY); sp.cargoT = Math.min(sp.cargoT, WAVE_HURRY); sp.bossT = Math.min(sp.bossT, ZEP.WARN + WAVE_HURRY);
+      }
       sp.timer -= dt;
       if (sp.timer <= 0 && sp.planes + sp.bombers > 0) {
         var kind = 'plane';

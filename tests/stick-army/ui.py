@@ -44,12 +44,12 @@ with sync_playwright() as p:
         assert page.locator('.shop-stock').evaluate('(el) => el.scrollWidth <= el.clientWidth + 1')
         gift=page.locator('#supplyItems button.gift'); gift_id=gift.get_attribute('data-item'); gift.click()
         assert page.locator('#supplyItems button.gift').count()==0 and page.locator(f'#supplyItems [data-item="{gift_id}"]').is_disabled()
-        # Pizza is ordered without leaving the shop; the courier rides in as the next wave starts.
+        # Pizza is ordered without leaving the shop; the courier rides in before the next wave starts.
         page.locator('[data-item="pizza"]').click()
         assert page.locator('#shopScreen').is_visible() and page.locator('[data-item="pizza"]').is_disabled()
         page.click('#continueBtn')
         assert page.locator('#shopScreen').is_hidden()
-        assert page.evaluate('armyTest("S.mode===\'play\' && S.wave===2 && !!S.delivery")')
+        assert page.evaluate('armyTest("S.mode===\'play\' && S.waveState===\'pizza\' && S.wave===1 && !!S.delivery")')
         page.wait_for_timeout(1800)
         page.screenshot(path=str(OUT/f'pizza-{width}.png'))
         # Every shop visit starts at the top of its list, wherever the last one was scrolled.
