@@ -51,14 +51,10 @@ GAMES = [
      {"screenshot": True, "selector": "#game", "crop": (0, 380 / 720, 1, 300 / 720),
       "viewport": (432, 800), "wait_ms": 10000}),
     ("thimbleful", "Thimbleful", "Plant a seed. Catch the drips. Grow a sunflower.", "Play in your browser",
-     "introSeen=true; document.getElementById('go').click(); score=18; plant.size=18; el=20; hud();"),
+     None, {"cover": ("thimbleful.png", 0.5)}),
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
-     # a few steps in: Mom bent into an L on the Mom Cam, texting about it, the next step mid-swing
-     "startGame(); setTimeout(() => { hp=4; kinks=[{j:1},{j:3}]; curPose=clonePose(POSES[4]);"
-     " steps=23; streak=7; tStart=performance.now()/1000-42; updateHUD(); document.getElementById('ft').textContent='61';"
-     " momText('I am now shaped like the letter L'); }, 400);"
-     " setTimeout(() => { input.bot=1; press(1); }, 1250);",
-     {"screenshot": True, "title_px": 40}),
+     # the Mom Cam is in the cover's top-left corner, so the crop sits near the left edge
+     None, {"cover": ("dont-step-on-a-crack.png", 0.18)}),
 ]
 
 BASE_CSS = f"""

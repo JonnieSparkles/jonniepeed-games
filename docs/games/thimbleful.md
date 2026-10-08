@@ -91,4 +91,4 @@ python3 tools/check_boards.py
 
 The browser runner `scores/test/games.py` covers both scored games, including Thimbleful's end screen, its title-card High scores and full screen, in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../guides/00-leaderboards.md#local-development).
 
-The preview card and index thumbnail (`site/thimbleful/og.png`, `thumb.png`) are captured from the live canvas a few seconds into a run by `python3 tools/og/make.py`. Run `python3 tools/stamp.py` last after any change in `site/`.
+The preview card and index thumbnail (`site/thimbleful/og.png`, `thumb.webp`) come from the cover art in `brand/covers/thimbleful.png`: `python3 tools/og/make.py` crops it to 4:3, centred, and puts the crop beside the tagline on the card. The cross-stitch title is part of the art, so the card leaves its own title out. Run `python3 tools/stamp.py` last after any change in `site/`.
