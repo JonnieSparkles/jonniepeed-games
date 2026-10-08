@@ -137,9 +137,12 @@ def stick_army(browser):
     page.goto(SITE + '/stick-army/')
     page.click('#startBtn')
     start = check_start(beacons(page)[0], 'stick-army', None)
-    page.evaluate("armyTest(\"S.score = 420; S.wave = 3; S.stats.kills = 9; S.lastHit = 'bomb'; S.mode = 'dying'; showOver();\")")
+    # A recruit in the field hospital (S.bed) still counts as crew.
+    alive = page.evaluate("armyTest('S.recruits.filter(function (r) { return !r.dead; }).length')")
+    page.evaluate("armyTest(\"S.bed = { r: { name: 'Doodle' }, since: 3 }; S.score = 420; S.wave = 3; S.stats.kills = 9; S.lastHit = 'bomb'; S.mode = 'dying'; showOver();\")")
     end = check_end(beacons(page)[1], start, 'over', ['wave', 'kills', 'captured', 'crew', 'fallen', 'tags', 'cause'])
     assert end['score'] == 420 and end['stats']['wave'] == 3 and end['stats']['cause'] == 'bomb', end
+    assert end['stats']['crew'] == alive + 1, (alive, end['stats'])
     assert 'score_run' not in end, end
     # A win reports as soon as the victory card shows, as the wave-end code calls it.
     page.click('#againBtn')

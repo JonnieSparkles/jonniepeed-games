@@ -143,7 +143,7 @@ D1 Time Travel works here as it does for scores; see [Undo a database mistake](0
 
 ## Limits
 
-- Bodies over 2,048 bytes are refused, and 120 reports a minute per connection (counted per Cloudflare location). A run sends two or three.
+- Bodies over 8 KB are refused (well above the largest valid report), and 120 reports a minute per connection (counted per Cloudflare location). A run sends two or three.
 - A run's stats: 24 keys, numbers within ±10¹², text up to 40 characters. Play time up to 24 hours.
 - On the Workers Free plan, D1 allows 100,000 rows written and 5 million read a day. Index updates count as writes, so a run costs about five (the start and its three indexes, then the end): roughly 15,000 runs a day before it matters. Each dashboard load reads every run in its window a few times.
 

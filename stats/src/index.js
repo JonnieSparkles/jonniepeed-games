@@ -5,7 +5,7 @@ import page from './dash.html';
 import { checkAccess } from './access.js';
 
 const TEST = 'test';                      // accepted for smoke tests and deploy checks, never shown on a dashboard
-const MAX_BODY = 2048;
+const MAX_BODY = 8192;                    // above the largest valid report (24 long keys, 40 escaped characters each)
 const MAX_TIME = 24 * 60 * 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
 const REPORT_CAP = 2000;                  // runs a per-game dashboard reads for its spreads
@@ -161,12 +161,15 @@ async function boardNames(env, since, game) {
   try {
     const where = `board > 0 AND created_at >= ?1${game ? ' AND game = ?2' : ''}`;
     const bind = s => game ? s.bind(since, game) : s.bind(since);
-    const [saves, names] = await env.SCORES.batch([
+    const [saves, names, people] = await env.SCORES.batch([
       bind(env.SCORES.prepare(`SELECT game, COUNT(*) AS saves FROM scores WHERE ${where} GROUP BY game`)),
       bind(env.SCORES.prepare(`SELECT game, name, COUNT(*) AS runs, COUNT(DISTINCT substr(created_at, 1, 10)) AS days,
-        MAX(created_at) AS last, MAX(score) AS best FROM scores WHERE ${where} GROUP BY game, name`))
+        MAX(created_at) AS last, MAX(score) AS best FROM scores WHERE ${where} GROUP BY game, name`)),
+      // Each set of initials across every game: saved on how many dates, in how many games.
+      bind(env.SCORES.prepare(`SELECT name, COUNT(DISTINCT substr(created_at, 1, 10)) AS days, COUNT(DISTINCT game) AS games
+        FROM scores WHERE ${where} AND name <> 'AAA' GROUP BY name`))
     ]);
-    return { saves: saves.results, names: names.results };
+    return { saves: saves.results, names: names.results, people: people.results };
   } catch (_) { return null; }
 }
 
@@ -189,17 +192,12 @@ async function overview(env, url) {
   let names = null;
   if (board) {
     for (const row of board.saves) if (games[row.game]) games[row.game].saves = row.saves;
-    const people = new Map();
     for (const row of board.names) {
-      if (games[row.game] && row.name !== 'AAA') {
-        const g = games[row.game]; g.names = (g.names || 0) + 1; if (row.days > 1) g.returning = (g.returning || 0) + 1;
-      }
-      if (row.name === 'AAA') continue;
-      const p = people.get(row.name) || { days: 0, games: 0 };
-      p.days = Math.max(p.days, row.days); p.games++; people.set(row.name, p);
+      if (!games[row.game] || row.name === 'AAA') continue;
+      const g = games[row.game]; g.names = (g.names || 0) + 1; if (row.days > 1) g.returning = (g.returning || 0) + 1;
     }
-    names = { total: people.size, returning: [...people.values()].filter(p => p.days > 1).length,
-      several: [...people.values()].filter(p => p.games > 1).length };
+    names = { total: board.people.length, returning: board.people.filter(p => p.days > 1).length,
+      several: board.people.filter(p => p.games > 1).length };
   }
   return { ok: true, days, since, names: gameNames(), hourly, games, devices, sources: topSources(sources),
     median_ms: overall[0]?.time_ms ?? null, people: names };

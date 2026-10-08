@@ -38,7 +38,7 @@
       if (n >= 24 || !KEY.test(key)) continue;
       if (typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 1e12) out[key] = value;
       else if (typeof value === 'boolean') out[key] = value;
-      else if (typeof value === 'string') out[key] = value.slice(0, 40);
+      else if (typeof value === 'string') out[key] = value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 40);
       else continue;
       n++;
     }

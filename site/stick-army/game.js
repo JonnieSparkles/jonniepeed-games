@@ -1965,13 +1965,14 @@
     document.getElementById('againBtn').focus({ preventScroll: true });
   }
   // What a run reports to play stats (site/assets/stats.js), at game over or when the page is left mid-run.
+  // The crew count includes a recruit in the field hospital (S.bed), as the roll call does.
   // A run counts as won once S.won is set (the campaign's victory); a winner who keeps going reports again at the end.
   var statsRun = null;
   function runReport() {
     var st = {
       wave: S.wave, kills: S.stats.kills, captured: S.stats.captured, popped: S.stats.popped, planes: S.stats.planes,
       zeppelins: S.stats.zeppelins, tanks: S.stats.tanks,
-      crew: S.recruits.filter(function (r) { return !r.dead; }).length, fallen: S.fallen.length, tags: S.coins
+      crew: S.recruits.filter(function (r) { return !r.dead; }).length + (S.bed ? 1 : 0), fallen: S.fallen.length, tags: S.coins
     };
     if ((S.mode === 'over' || S.mode === 'dying') && S.lastHit) st.cause = S.lastHit;
     if (S.won) st.won_at = S.wonAt;

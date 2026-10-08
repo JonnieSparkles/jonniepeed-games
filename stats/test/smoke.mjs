@@ -53,6 +53,13 @@ await test('a test run starts and ends', async () => {
   await ok('/v1/end', end(run, { score_run: randomUUID() }));
 });
 await test('an end without its start is still recorded', () => ok('/v1/end', end(start())));
+await test('the largest valid report fits', async () => {
+  // 24 keys of 32 characters, each with 40 characters that JSON escapes or encodes as several bytes.
+  const stats = Object.fromEntries(Array.from({ length: 24 }, (_, i) => ['k' + String(i).padStart(31, '_'), (i % 2 ? '\u0001' : '漢').repeat(40)]));
+  const body = end(start({ host: 'a'.repeat(100), from: 'b'.repeat(100) }), { stats, score: Number.MAX_SAFE_INTEGER, score_run: randomUUID() });
+  assert.ok(new TextEncoder().encode(JSON.stringify(body)).length > 4096);
+  await ok('/v1/end', body);
+});
 await test('bad starts are refused by field', async () => {
   await refused('/v1/start', start({ run: 'nope' }), 'bad_run');
   await refused('/v1/start', start({ visit: 42 }), 'bad_visit');
@@ -79,7 +86,7 @@ await test('bad ends are refused by field', async () => {
 await test('bodies are checked', async () => {
   await refused('/v1/start', 'not json', 'bad_json');
   await refused('/v1/start', '[]', 'bad_json');
-  await refused('/v1/start', JSON.stringify({ pad: 'x'.repeat(2100) }), 'body_too_large');
+  await refused('/v1/start', JSON.stringify({ pad: 'x'.repeat(8200) }), 'body_too_large');
   const r = await fetch(BASE + '/v1/nothing', { method: 'POST', body: '{}', headers: UA });
   assert.equal(r.status, 404);
 });
