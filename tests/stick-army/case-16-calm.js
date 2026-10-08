@@ -8,7 +8,7 @@
   // Kills close together in time and place read as one running label.
   award(10, 200, 400, OUCH[0], INK, true); award(10, 210, 405, OUCH[1], INK, true); award(10, 190, 398, OUCH[2], INK, true);
   check(S.texts.length === 1 && S.texts[0].s === OUCH[0] + ' ×3 +60', 'three quick kills, one label: ' + says());
-  check(S.texts[0].kind === 'score' && S.texts[0].size < TEXT.KIND.story.size, 'routine kills are small');
+  check(S.texts[0].kind === 'score' && S.texts[0].size0 < TEXT.KIND.story.size && S.texts[0].size > S.texts[0].size0, 'routine kills start small and grow as they merge');
   award(10, 420, 400, 'bonk!', INK, true);
   check(S.texts.length === 2, 'a kill elsewhere gets its own label');
   // Later at the same spot it is a new label, stepped clear of the old one.

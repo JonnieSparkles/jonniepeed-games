@@ -106,6 +106,7 @@ var StickArmyUnits = function (w) {
     p.state = 'fall'; p.hp = 0; p.vy = 0; p.rot = 0; p.smoke = 0; p.boomT = 0.15;
     S.stats.planes++; S.stats.zeppelins++;
     emit('plane_down', { kind: 'zeppelin', by: owner === 'ally' ? 'crew' : 'player' });
+    w.pow(p.x, p.y, 60);
     award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
     var got = grantCall('bomber', p.x, p.y - p.hh - 20, true);
     S.banner = { s: 'zeppelin down!', sub: 'catch the crew! ' + (got ? '+1 air strike' : '+' + RADIO.FULL_TAGS + ' tags'), t: 0, dur: 2.4 };

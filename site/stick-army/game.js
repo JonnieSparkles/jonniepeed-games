@@ -289,10 +289,17 @@
   function addText(s, x, y, color, size, kind, merge) {
     kind = kind || (color === RED ? 'alert' : 'story');
     var spec = TEXT.KIND[kind], routine = kind === 'score' || kind === 'minor';
-    x = clamp(x, 44, W - 44); y = clamp(y, TEXT.TOP + 18, GROUND - 6);
+    // Long labels stay on the page: x is clamped by the label's rough width.
+    function onPage(xx, str, size) { var half = str.length * size * 0.25 + 4; return clamp(xx, Math.min(W / 2, half), Math.max(W / 2, W - half)); }
+    x = onPage(x, s, size || spec.size); y = clamp(y, TEXT.TOP + 18, GROUND - 6);
     if (merge) {
       var near = S.texts.find(function (q) { return q.key === merge.key && S.t - q.lastT < (merge.window || TEXT.MERGE_S) && Math.abs(q.x - x) < TEXT.MERGE_PX && Math.abs(q.y - y) < TEXT.MERGE_PX; });
-      if (near) { near.n++; near.pts += merge.pts; near.s = near.fmt(near.n, near.pts); near.lastT = S.t; near.life = near.max; return; }
+      if (near) {
+        near.n++; near.pts += merge.pts; near.s = near.fmt(near.n, near.pts); near.lastT = S.t; near.life = near.max;
+        near.size = near.size0 + Math.min(HL.GROW_MAX, (near.n - 1) * HL.GROW); near.x = onPage(near.x, near.s, near.size);
+        if (!near.hl && near.pts >= HL.PTS) { near.hl = true; near.hlT = S.t; near.color = near.color === INK2 ? INK : near.color; }
+        return;
+      }
     }
     if (routine && S.texts.filter(function (q) { return q.kind === 'score' || q.kind === 'minor'; }).length >= TEXT.BUDGET) return;
     // Step out of the way of labels already there: try a line above, below, then two lines.
@@ -300,8 +307,9 @@
     var clear = function (yy) { return !S.texts.some(function (q) { return Math.abs(q.x - x) < (wide + q.s.length * q.size * 0.5) / 2 && Math.abs(q.y - yy) < (sz + q.size) * 0.45; }); };
     var tries = [0, -1, 1, -2, 2], slot = tries.find(function (k) { var yy = y + k * sz * 1.1; return yy >= TEXT.TOP + 10 && yy <= GROUND - 6 && clear(yy); });
     if (slot !== undefined) y += slot * sz * 1.1;
-    S.texts.push({ s: s, key: merge && merge.key, fmt: merge && merge.fmt, n: 1, pts: merge ? merge.pts : 0, lastT: S.t, kind: kind, x: x, y: y, color: color,
-      size: sz, life: spec.life, max: spec.life, rot: rr(-0.14, 0.1), vy: routine ? -30 : -38 });
+    var hl = kind === 'big' || (merge && merge.pts >= HL.PTS);
+    S.texts.push({ s: s, key: merge && merge.key, fmt: merge && merge.fmt, n: 1, pts: merge ? merge.pts : 0, lastT: S.t, kind: kind, x: x, y: y,
+      color: hl && color === INK2 ? INK : color, size: sz, size0: sz, hl: hl, hlT: S.t, life: spec.life, max: spec.life, rot: rr(-0.14, 0.1), vy: routine ? -30 : -38 });
   }
   // Wall damage from one burst reads as one running total.
   function wallText(amount) {
@@ -344,6 +352,17 @@
   function puff(x, y, r, life) {
     if (busy() && (puffN++ & 1)) return;
     S.parts.push({ k: 'puff', x: x, y: y, r: r, vr: rr(14, 30), life: life, max: life, id: nextId++ });
+  }
+  // ---------- the highlighter ----------
+  // The page's third pen, after your blue and their red: a yellow highlighter, kept for your big moments so routine
+  // kills stay quiet. Downing a plane, tank or zeppelin, a mine and your air strike's bombs flash a comic starburst
+  // (pow). Labels worth HL.PTS or more, and big awards, get a highlighter swipe behind them, and merged labels grow
+  // as their count climbs. Purely cosmetic.
+  var HL = { COLOR: 'rgba(255, 221, 51, 0.7)', POW: 'rgba(255, 214, 38, 0.95)', PTS: 300, SWIPE: 0.14, POW_LIFE: 0.32, GROW: 1.5, GROW_MAX: 9,
+    POW_KINDS: { wreck: 1, mine: 0.9, strike: 0.6 } };
+  function pow(x, y, r) {
+    if (busy()) r *= 0.75;
+    S.parts.push({ k: 'pow', x: x, y: y, r: r, life: HL.POW_LIFE, max: HL.POW_LIFE, rot: rr(0, 1.2), id: nextId++ });
   }
 
   // ---------- spawning ----------
@@ -513,7 +532,7 @@
     INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER, RED_FILL: RED_FILL, INK_FILL: INK_FILL,
     L: L, SP: SP, Ci: Ci, ink: ink, pen: pen, jt: jt, stick: stick, tube: tube, clamp: clamp, between: between, rr: rr, substream: substream,
     makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
-    puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
+    puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); }, pow: function (x, y, r) { pow(x, y, r); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
     crewMax: function (r) { return crewMax(r); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
@@ -767,6 +786,7 @@
     burst(p.x, p.y, 4, INK, 120);
     if (p.hp <= 0) {
       p.state = 'fall'; p.vy = -20; p.rot = 0; p.smoke = 0;
+      pow(p.x, p.y, p.kind === 'plane' ? 22 : 30);
       S.stats.planes++;
       emit('plane_down', { kind: p.kind, by: owner === 'ally' ? 'crew' : 'player' });
       // A cargo plane downed before its drop takes its tank with it.
@@ -782,6 +802,7 @@
     }
   }
   function explode(x, y, r, kind, owner) {
+    if (HL.POW_KINDS[kind]) pow(x, y, r * 0.8 * HL.POW_KINDS[kind]);
     for (var i = 0; i < 7; i++) puff(x + rr(-r, r) * 0.4, y + rr(-r, r) * 0.3, rr(3, 7), rr(0.4, 0.7));
     burst(x, y, 10, INK, 220);
     S.shake = Math.max(S.shake, kind === 'bomb' || kind === 'final' ? 0.55 : kind === 'crash' || kind === 'wreck' ? 0.35 : kind === 'strike' || kind === 'shell' ? 0.25 : 0.15);
@@ -1585,14 +1606,33 @@
       } else if (q.k === 'deflate') { G.beginPath(); SP([q.x - 14, q.y, q.x - 8, q.y - 6, q.x - 2, q.y - 2, q.x + 4, q.y - 7, q.x + 10, q.y - 2, q.x + 15, q.y], false, 0.5); G.fillStyle = RED_FILL; G.fill(); ink(RED, 1.8); G.stroke(); }
       else if (q.k === 'tink') { G.beginPath(); L(q.x, q.y, q.x + 6, q.y - 5, 0.4); L(q.x, q.y, q.x + 7, q.y + 2, 0.4); L(q.x, q.y, q.x - 6, q.y - 6, 0.4); L(q.x, q.y, q.x - 5, q.y + 3, 0.4); ink(q.c === HAT ? '#d29a00' : q.c, 2); G.stroke(); }
       else if (q.k === 'ring') { G.beginPath(); Ci(q.x, q.y, 8 + (1 - a) * 24, 0.6); ink(BLUE, 2.4); G.stroke(); }
+      else if (q.k === 'pow') {
+        // A comic starburst that pops out fast, then fades.
+        var out = q.r * (0.55 + 0.45 * Math.min(1, (1 - a) * 5)), spikes = 9;
+        G.globalAlpha = Math.min(1, a * 2); G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath();
+        for (var j = 0; j < spikes * 2; j++) {
+          var an = j / (spikes * 2) * Math.PI * 2, rad = j % 2 ? out * 0.48 : out * (0.82 + 0.18 * ((q.id + j) % 3) / 2);
+          if (j) G.lineTo(Math.cos(an) * rad, Math.sin(an) * rad); else G.moveTo(rad, 0);
+        }
+        G.closePath(); G.globalCompositeOperation = 'multiply'; G.fillStyle = HL.POW; G.fill();
+        G.globalCompositeOperation = 'source-over'; ink(INK, 1.4); G.stroke();
+      }
       G.restore();
     });
+  }
+  // A highlighter swipe behind a label, drawn left to right as u goes from 0 to 1, with a slightly uneven edge.
+  function highlight(w, size, u, seed) {
+    var x0 = -w / 2 - 6, x1 = x0 + (w + 12) * u, top = -size * 0.72, bot = size * 0.12, j = (seed % 5) * 0.4;
+    G.save(); G.globalCompositeOperation = 'multiply'; G.fillStyle = HL.COLOR;
+    G.beginPath(); G.moveTo(x0, top + 2); G.lineTo(x1, top - 1 + j); G.lineTo(x1 - 2, bot + 1); G.lineTo(x0 + 1, bot - j); G.closePath(); G.fill();
+    G.restore();
   }
   function drawTexts() {
     S.texts.slice().sort(function (a, b) { return TEXT.ORDER[a.kind] - TEXT.ORDER[b.kind]; }).forEach(function (q) {
       var age = q.max - q.life, a = Math.min(1, q.life / 0.3), sc = age < 0.1 ? 1 + (0.1 - age) * 5 : 1;
       G.save(); G.globalAlpha = a; G.translate(q.x, q.y); G.rotate(q.rot); G.scale(sc, sc);
       G.font = q.size + 'px ' + HAND; G.textAlign = 'center';
+      if (q.hl) highlight(G.measureText(q.s).width, q.size, Math.min(1, (S.t - q.hlT) / HL.SWIPE), q.id || q.size0);
       G.lineWidth = 4; G.lineJoin = 'round'; G.strokeStyle = PAPER; G.strokeText(q.s, 0, 0);
       G.fillStyle = q.color; G.fillText(q.s, 0, 0);
       G.restore();
