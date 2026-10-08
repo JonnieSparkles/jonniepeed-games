@@ -2,7 +2,7 @@
 
 Twenty waves, a final boss, a victory screen, then optional endless play. Something new arrives every couple of waves on the way, and each boss wave is different.
 
-Status: draft, not built. Answer the open questions at the end before building. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
+Status: stage 1 (the ending) is being built. The open questions are answered under Decisions. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
 
 ## Why
 
@@ -17,6 +17,11 @@ Playtest on Oct 8: wave 14 at 8 minutes 30, still feeling strong and willing to 
 - **Each boss wave is different:** 5, 10 and 15 are zeppelin variants, and 20 is the final boss.
 - **Wave 20 should be a fight.** Difficulty from about wave 12 is retuned so the run ends with tension, not a victory lap. Targets with the bots: decent wins about a third of runs, expert about two thirds, casual rarely. Playtesting has the final say.
 - **Squads become more personal.** Each soldier keeps a kill count, shown on promotion, in the shop news, the pause card, the fallen list and the roll call.
+- **The final boss is the Dreadnought** (Oct 8), staying military. It comes forward from behind the page, and the fight has the feel of the airship stages in Super Mario Bros. 3: the ship is bigger than the page and slides past overhead while you fight it section by section, to its own ominous march. The music is original, in that spirit, not that theme.
+- **What the Dreadnought destroys stays destroyed** for the rest of the run, which matters in endless; the shop sells it again.
+- **Night raid:** wave 18 only, cut if it hurts readability.
+- **One best score,** plus runs won and best wave. A separate endless board waits for online scores.
+- **Twenty waves.** The win targets above stand until playtesting says otherwise.
 
 ## The waves
 
@@ -41,20 +46,23 @@ New things marked **new**. Waves not listed keep today's mix, growing as now.
 
 ## The final boss
 
-**The Eraser.** You've been drawing your army all game; the enemy brings an eraser. A huge hand-drawn eraser, red-pen enemy colors, crosses the page high up while troopers jump from it and crumbs fall like bombs.
+**The Dreadnought.** The enemy's flagship, a huge armored airship in red-pen colors, the big brother of the zeppelins.
 
-- **It rubs things out.** Every few seconds it picks a target: a recruit, the sentry tower, the wire, a trench row, a mat or a chunk of wall. A dashed outline shows the target for about two seconds, then the Eraser dips down and rubs it out, leaving a grey smudge.
-- **The dip is the weak spot.** Its worn rubbing edge only shows while it dips, and it's in range of the barrel. Enough damage during the dip knocks it back up before it erases anything.
-- **At half health it gets angry:** faster dips, and two targets a pass.
-- **Going down,** it crumbles into eraser shavings, and the victory card follows.
-- Air strikes and fighter cover work on it; bazookas and rockets hit hard.
-- Its health bar comes in with it and sits above it, like the zeppelin's.
+- **It comes forward from behind the page.** First its outline shows faintly through the paper, mirrored, like ink bleeding through from the back of the sheet. It grows and darkens as it comes closer, then the paper buckles and it bursts through in full ink, with a tearing sound, scraps of paper and a shake. It can't be hurt until it's through.
+- **It's bigger than the page.** The hull slides slowly overhead, stern first, so its guns come into range a section at a time, ending at the bridge near the bow. If guns are still firing when it reaches the end, it backs up and comes again.
+- **Its guns mark a target, then fire.** Each gun turret hangs under the hull. When one is over the page and loaded, it picks a target: a soldier, the sentry tower, the wire, a trench row, the second mat or a chunk of wall. A red smoke flare marks the target for about two seconds while the gun turns to it, then it fires a heavy shell. Knock the turret out in time and the shot never comes; miss it and that target is destroyed for good.
+- **Its belly drops troops** through the fight, so catches still matter.
+- **With the guns gone, the bridge is exposed.** A klaxon sounds, the ship turns angry, the bomb bay opens and drops clusters at the bunker, and the ship moves to bring its bridge over the page. Its armored bridge car can now be hurt.
+- **Going down,** explosions run along the hull and it falls back through the page in flames. Every enemy left on the page surrenders, and the victory card follows.
+- Air strikes and fighter cover work on it; bazookas, rockets and flak hit hard. Its hull is armored: hits elsewhere clang.
+- **Its health shows at the top of the page:** a pip for each gun and a bar for the bridge, under its name.
+- **Its own music:** an original ominous march, low brass over pounding timpani, that replaces the drums for the fight and builds when the bridge is exposed.
 
 ## Victory and endless
 
 - **Victory card:** "The page is yours!", the score, time played, waves, zeppelins and tanks downed, then the roll call. Buttons: **Keep going** and **Play again**, plus Back to games.
 - **Keep going** opens the shop as after any wave and continues from wave 21. A small "endless" tag shows next to the wave number.
-- Endless waves mix every threat. Every fifth wave is a boss, cycling the zeppelin variants, with the Eraser returning every tenth.
+- Endless waves mix every threat. Every fifth wave is a boss, cycling the zeppelin variants, with the Dreadnought returning every tenth.
 - **Saved locally:** best score (one, across both), runs won, and best wave. The title card shows "Won N times" once you've won.
 - Online scores remain later work. If they come, wins and endless waves fit a separate board per [the leaderboard guide](../docs/guides/00-leaderboards.md).
 
@@ -83,9 +91,4 @@ Each stage updates `docs/games/stick-army.md`, the harness (`tests/stick-army/`)
 
 ## Open questions
 
-1. **Final boss:** the Eraser, or a more classic flagship (a giant red airship with turrets)?
-2. **What the Eraser rubs out:** gone for the rest of the run (it matters in endless), or redrawn after the fight?
-3. **Night raid:** in, or leave it out?
-4. **Endless scoring:** one best score, or a separate best for endless waves?
-5. **How hard should winning be?** The targets above (decent bots a third, expert two thirds) are a starting point.
-6. **Twenty waves:** right length, or try 15 first?
+Answered on Oct 8; see Decisions. Playtesting may reopen the win targets and the night raid.

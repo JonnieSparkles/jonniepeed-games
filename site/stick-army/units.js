@@ -104,7 +104,7 @@ var StickArmyUnits = function (w) {
   function zeppelinDown(p, owner) {
     var S = w.S;
     p.state = 'fall'; p.hp = 0; p.vy = 0; p.rot = 0; p.smoke = 0; p.boomT = 0.15;
-    S.stats.planes++; S.stats.zeppelins++;
+    S.stats.planes++; S.stats.zeppelins++; w.credit();
     emit('plane_down', { kind: 'zeppelin', by: owner === 'ally' ? 'crew' : 'player' });
     w.pow(p.x, p.y, 60);
     award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
@@ -229,7 +229,7 @@ var StickArmyUnits = function (w) {
     tk.hp -= dmg; tk.hitFlash = 0.12;
     burst(tk.x, tk.y - 4, 4, INK, 100);
     if (tk.hp > 0) { w.sound.play('clank'); return; }
-    tk.dead = true; S.stats.tanks++;
+    tk.dead = true; S.stats.tanks++; w.credit();
     emit('tank_down', { by: owner === 'ally' ? 'crew' : 'player' });
     award(150, tk.x, tk.y - 34, 'tank down!', owner === 'ally' ? BLUE : INK, true);
     explode(tk.x, Math.min(GROUND - 6, tk.y), 40, 'wreck');

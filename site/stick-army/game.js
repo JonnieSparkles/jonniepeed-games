@@ -535,7 +535,7 @@
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); }, pow: function (x, y, r) { pow(x, y, r); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
-    crewMax: function (r) { return crewMax(r); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
+    crewMax: function (r) { return crewMax(r); }, credit: function () { credit(); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
@@ -691,7 +691,7 @@
   }
   var OUCH = ['ow!', 'oof!', 'argh!', 'yikes!', 'eep!'];
   function killTrooper(t, owner) {
-    t.dead = true; killFx(t); S.stats.kills++;
+    t.dead = true; killFx(t); S.stats.kills++; credit();
     emit('kill', { by: owner === 'ally' ? 'crew' : 'player', type: t.type, state: t.state });
     if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 8, color: RED, a: 0.34, seed: t.id });
     award(10, t.x, t.y - 6, OUCH[t.id % OUCH.length], owner === 'ally' ? BLUE : INK, true);
@@ -788,7 +788,7 @@
     if (p.hp <= 0) {
       p.state = 'fall'; p.vy = -20; p.rot = 0; p.smoke = 0;
       pow(p.x, p.y, p.kind === 'plane' ? 22 : 30);
-      S.stats.planes++;
+      S.stats.planes++; credit();
       emit('plane_down', { kind: p.kind, by: owner === 'ally' ? 'crew' : 'player' });
       // A cargo plane downed before its drop takes its tank with it.
       award(p.kind === 'cargo' ? 150 : p.kind === 'bomber' ? 120 : 50, p.x, p.y + 26, p.kind === 'cargo' ? (p.tankX != null ? 'tank and all!' : 'cargo down!') : p.kind === 'bomber' ? 'bomber down!' : 'kaboom!', owner === 'ally' ? BLUE : INK, true);
@@ -812,7 +812,7 @@
     // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
     S.troopers.forEach(function (t) {
       if (kind !== 'flak' && !t.dead && t.state !== 'bounce' && Math.hypot(t.x - x, t.y + 14 - y) < r) {
-        t.dead = true; killFx(t, kind === 'bomb' || kind === 'crash' ? 320 : 240); S.stats.kills++;
+        t.dead = true; killFx(t, kind === 'bomb' || kind === 'crash' ? 320 : 240); S.stats.kills++; if (kind === 'rocket') credit();
         emit('kill', { by: kind === 'crash' ? 'crash' : kind === 'strike' ? 'strike' : 'explosion', source: kind, type: t.type });
         award(10, t.x, t.y - 4, 'boom!', col, true);
       }
@@ -945,7 +945,7 @@
   function fireRecruit(r, ang) {
     var baz = r.type === 'bazooka', a = ang + (RC() * 2 - 1) * ENEMIES[r.type].spread * Math.pow(0.72, S.mods.aim), sp = baz ? 300 : 520;
     S.bullets.push({ x: r.x + Math.cos(a) * 16, y: GROUND - 23 + Math.sin(a) * 16, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-      owner: 'ally', kind: baz ? 'rocket' : 'bullet', life: 1.6, dead: false });
+      owner: 'ally', by: r.id, kind: baz ? 'rocket' : 'bullet', life: 1.6, dead: false });
     sound.play(baz ? 'rocket' : 'ally');
   }
   function updateRecruits(dt) {
@@ -1155,15 +1155,25 @@
   function updateBullets(dt) {
     S.bullets.forEach(function (b) {
       if (b.dead) return;
+      shooter = b.by != null ? b.by : null;
       b.life -= dt;
       for (var s = 0; s < 3 && !b.dead; s++) { b.x += b.vx * dt / 3; b.y += b.vy * dt / 3; hitTest(b); }
-      if (b.dead) return;
-      if (b.kind === 'rocket' && R() < 0.6) puff(b.x - b.vx * 0.03, b.y - b.vy * 0.03, 2, 0.35);
-      if (b.life <= 0 || b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > GROUND) {
-        b.dead = true;
-        if (b.kind === 'rocket' && b.y > GROUND - 2) explode(b.x, GROUND - 4, 24, 'rocket', b.owner);
+      if (!b.dead) {
+        if (b.kind === 'rocket' && R() < 0.6) puff(b.x - b.vx * 0.03, b.y - b.vy * 0.03, 2, 0.35);
+        if (b.life <= 0 || b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > GROUND) {
+          b.dead = true;
+          if (b.kind === 'rocket' && b.y > GROUND - 2) explode(b.x, GROUND - 4, 24, 'rocket', b.owner);
+        }
       }
+      shooter = null;
     });
+  }
+  // Kill counts: while a recruit's own bullet or rocket is being resolved, its kills are his (credit).
+  var shooter = null;
+  function credit() {
+    if (shooter == null) return;
+    var r = S.recruits.find(function (q) { return q.id === shooter; });
+    if (r && !r.dead) r.kills = (r.kills || 0) + 1;
   }
   function updateParts(dt) {
     S.parts.forEach(function (q) {
@@ -1805,7 +1815,7 @@
   // The named squad for the pause card: veterans by rank with their waves, a rookie count, and who's in the tent.
   function squadLine() {
     var vets = S.recruits.filter(function (r) { return !r.dead && r.name; }).sort(function (a, b) { return b.rank - a.rank || b.waves - a.waves; });
-    var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return rankName(r) + ' (' + r.waves + ')'; });
+    var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return SQUAD.record({ name: rankName(r), waves: r.waves, kills: r.kills }); });
     if (rookies) parts.push(rookies + (rookies > 1 ? ' rookies' : ' rookie'));
     var line = parts.length ? 'Squad: ' + parts.join(', ') + '.' : '';
     if (S.bed) line += (line ? ' ' : '') + 'In the tent: ' + (S.bed.r.name ? rankName(S.bed.r) : 'a rookie') + '.';
@@ -1853,7 +1863,7 @@
     document.getElementById('stTanks').hidden = document.getElementById('stTanksLabel').hidden = !S.stats.tanks;
     var cause = OVER_CAUSE[S.lastHit];
     var lost = document.getElementById('overFallen');
-    lost.textContent = S.fallen.length ? 'Fallen: ' + S.fallen.map(function (f) { return f.name + ' (' + f.waves + ' waves)'; }).join(', ') + '.' : '';
+    lost.textContent = S.fallen.length ? 'Fallen: ' + S.fallen.map(SQUAD.record).join(', ') + '.' : '';
     lost.hidden = !S.fallen.length;
     document.getElementById('overCause').textContent = cause || '';
     document.getElementById('overCause').hidden = !cause;
