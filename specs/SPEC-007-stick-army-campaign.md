@@ -2,7 +2,7 @@
 
 Fifteen waves, three bosses, a victory screen, then optional endless play. Something new arrives every couple of waves on the way, and each boss wave is different.
 
-Status: stages 1–3 are built (the ending, the armored zeppelin, the new threats), plus balloons, the Red Cross plane and little voices from the second playtest; stage 4 (endless extras) is planned. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
+Status: stages 1–3 are built (the ending, the armored zeppelin, the new threats), with the second and third playtests' changes; stage 4 (endless extras) and a full audio pass are planned. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
 
 ## Why
 
@@ -18,11 +18,20 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 - **Something new every couple of waves up to 15,** each introduced with its own banner line, like the waves today. After 15 they mix.
 - **The run-up should be a fight.** Waves 10–14 bring more and stronger enemies, so the run ends with tension, not a rout. Targets with the bots: decent wins about a third of runs, expert about two thirds, casual rarely. Playtesting has the final say.
 - **Squads become more personal.** Each soldier keeps a kill count, shown on promotion, in the shop news, the pause card, the fallen list and the roll call.
-- **The final boss is the Dreadnought** (Oct 8), staying military. It comes forward from behind the page, and the fight has the feel of the airship stages in Super Mario Bros. 3: the ship is bigger than the page and slides past overhead while you fight it section by section, to its own ominous march. The music is original, in that spirit, not that theme.
+- **The final boss is the Dreadnought** (Oct 8), staying military. The fight has the feel of the airship stages in Super Mario Bros. 3: the ship is bigger than the page and you fight it section by section, to its own ominous march. The music is original, in that spirit, not that theme. After the third playtest ("rather boring", "it could look a lot cooler") it sails in from the side instead of through the page, looks busier, and fights in three faster stages.
 - **What the Dreadnought destroys stays destroyed** for the rest of the run, which matters in endless; the shop sells it again.
 - **One best score,** plus runs won and best wave. A separate endless board waits for online scores.
 - **If Stick Army gets a leaderboard** (Oct 8), its score is the score when the Dreadnought goes down on wave 15, or at game over for a run that lost before that. Endless points don't count toward it. Endless keeps ramping regardless.
-- **From the second playtest** (Oct 8, all built): bomb balloons, a Red Cross plane that costs tags to hit, HQ crates you lose if you shoot them, and little voices.
+- **From the second playtest** (Oct 8, all built): bomb balloons, a Red Cross plane that costs tags to hit, HQ crates, and little voices.
+- **From the third playtest** (Oct 8: "overall fun, but I beat it pretty easily", "could just hold down fire"; all built):
+  - Waves 10–15 are harder, and spraying costs more: more Red Cross planes with a bigger penalty, and a gun that runs hotter late.
+  - The voices say real words, with speech bubbles; they were "just bloop bloop bloop".
+  - HQ crates arrive by a fly-by drop that always lands, since a stream of fire popped every chute.
+  - The Red Cross plane is easier to spot, and its penalty is easy to see.
+  - Dive bombers are easier to read, and helicopters are quicker.
+  - Tanks land: cargo planes are armored, and a tank on its chutes shrugs off bullets.
+  - The shop lets you put things back.
+  - A full audio pass is left for the end of the campaign work.
 
 ## The waves
 
@@ -31,33 +40,32 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 | Wave | What arrives | Notes |
 | --- | --- | --- |
 | 1–3 | planes, bombers (2), snipers (3) | built |
-| 4 | **new: the Red Cross plane** | built. A white plane crosses slowly; your turret's first hit costs 30 tags and your combo. The crew never shoot it. |
+| 4 | **new: the Red Cross plane** | built. A white plane with a blinking light and a Red Cross pennant crosses slowly; your turret's first hit costs 30 tags (50 from wave 10) and your combo, and you see the tags fly out of the counter. The crew never shoot it. Two a wave from 10, three from 13. |
 | 5 | **boss:** zeppelin | built: arrives at 9 s after a horn |
 | 6 | rushers | built |
 | 7 | **new: bomb balloons** | built. They drift to the bunker and drop a bomb on it. Popped anywhere else, the bomb falls there: on the enemy, or on your crew. |
-| 8 | **new:** HQ airdrops | built. A crate on a blue chute over a mat: pop it low and catch it for tags, a wall patch or a free call. Shoot the crate and it's lost; leave it and the enemy takes it. |
-| 9 | tanks by cargo plane, HQ air strike | built |
+| 8 | **new:** HQ airdrops | built. A blue HQ plane flies low and drops a crate beside the bunker: tags, a wall patch or a free call. Nothing can shoot it, and a soldier runs out to fetch it. |
+| 9 | tanks by cargo plane, HQ air strike | built. Cargo planes are armored, and tanks on their chutes shrug off bullets, so some land. |
 | 10 | **boss: armored zeppelin**, armored troopers | built. Steel plates cover the hull and clang until shot off; the gondola is plated until half health. Heavy armor on troopers from 14. |
 | 11 | **new: tanks by road** | built: some tanks roll in from the page edge, so they can't all be stopped in the air |
-| 12 | **new: dive bombers** | built. A siren, then a steep dive at the bunker with one heavy bomb at the bottom. Three hits down it; or shoot the bomb. |
-| 13 | **new: helicopters** | built. Hover near an edge and lower four or five troopers on a rope, no chutes. A door gunner shoots at crew. Armored (10 health), with a bar; down it and anyone on the rope falls, onto a mat for a catch. |
-| 14 | the big push | everything so far, at full strength |
+| 12 | **new: dive bombers** | built. A red crosshair marks where it's aiming, then a howl and a steep dive at the bunker with one heavy bomb at the bottom. Three hits down it; or shoot the bomb. |
+| 13 | **new: helicopters** | built. Fly in fast, hover near an edge and quickly lower four or five troopers on a rope, no chutes. A door gunner shoots at crew. Armored (10 health), with a bar; down it and anyone on the rope falls, onto a mat for a catch. |
+| 14 | the big push | everything so far, at full strength. From 10, planes come faster, armor is commoner, and the gun runs hotter. |
 | 15 | **final boss: the Dreadnought** | built; see below |
 | 16+ | endless | built: everything mixed, counts climbing to their caps. Twin zeppelins and a night raid are candidates here |
 
 ## The final boss
 
-**The Dreadnought.** The enemy's flagship, a huge armored airship in red-pen colors, the big brother of the zeppelins.
+**The Dreadnought.** The enemy's flagship, a huge armored airship in red-pen colors, the big brother of the zeppelins: three spinning propellers, smokestacks pouring smoke, a conning tower, the enemy flag, lit portholes, "DN-1" on its red nose, and two searchlights sweeping the ground.
 
-- **It comes forward from behind the page.** First its outline shows faintly through the paper, mirrored, like ink bleeding through from the back of the sheet. It grows and darkens as it comes closer, then the paper buckles and it bursts through in full ink, with a tearing sound, scraps of paper and a shake. It can't be hurt until it's through.
-- **It's bigger than the page.** The hull slides slowly overhead, stern first, so its guns come into range a section at a time, ending at the bridge near the bow. If guns are still firing when it reaches the end, it backs up and comes again.
-- **Its guns mark a target, then fire.** Each gun turret hangs under the hull. When one is over the page and loaded, it picks a target: a soldier, the sentry tower, the wire, a trench row, the second mat or a chunk of wall. A red smoke flare marks the target for about two seconds while the gun turns to it, then it fires a heavy shell. Knock the turret out in time and the shot never comes; miss it and that target is destroyed for good.
-- **Its belly drops troops** through the fight, so catches still matter.
-- **With the guns gone, the bridge is exposed.** A klaxon sounds, the ship turns angry, the bomb bay opens and drops clusters at the bunker, and the ship moves to bring its bridge over the page. Its armored bridge car can now be hurt.
-- **Going down,** explosions run along the hull and it falls back through the page in flames. Every enemy left on the page surrenders, and the victory card follows.
-- Air strikes and fighter cover work on it; bazookas, rockets and flak hit hard. Its hull is armored: hits elsewhere clang. A gun that's aiming has its muzzle open and takes extra damage, so quick, focused fire saves its target.
-- **Its health shows at the top of the page:** a pip for each gun and a bar for the bridge, under its name.
-- **Its own music:** an original ominous march, low brass over pounding timpani, that replaces the drums for the fight and builds when the bridge is exposed.
+- **It sails in from the side,** bow first, with its horn, and can't be hurt until it takes station. It's bigger than the page, so only part of it is ever over you.
+- **Stage 1, the guns.** It patrols back and forth so its four underside gun turrets take turns over the page. A loaded gun aims for under a second (its barrel glows, crosshairs mark the ground), then fires a volley of three shells, kicking back with each. They hurt the wall and anyone close; the middle one destroys what it was aimed at for good: a soldier, the sentry tower, the wire, a trench row, the second mat or the tent. Knock the gun out while it aims and the volley never comes ("saved!").
+- **Stage 2, the hangar.** With the guns gone, a klaxon sounds and the hangar in its belly opens. It launches dive bombers and drops troops until the hangar is shot to pieces.
+- **Stage 3, the bridge.** The bridge car under the bow is exposed and the ship turns angry. The gutted hangar drops bomb clusters at the bunker, and a gunner on the bridge fires at the crew.
+- **Going down,** explosions run along it as it lists and sinks off the page. Every enemy left surrenders, and the victory card follows.
+- Air strikes and fighter cover work on it; bazookas, rockets and flak hit hard. Its hull is armored: only the stage's part can be hurt. A gun that's aiming takes double damage, so quick, focused fire saves its target.
+- **Its health shows at the top of the page:** a pip for each gun, then bars for the hangar and the bridge, under its name.
+- **Its own music:** an original ominous march, low brass over pounding timpani, from the moment it sails in, building from the hangar stage.
 
 ## Victory and endless
 
