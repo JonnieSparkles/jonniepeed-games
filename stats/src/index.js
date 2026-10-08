@@ -189,16 +189,32 @@ async function boardNames(env, since, game) {
   } catch (_) { return null; }
 }
 
+// How many of these runs were saved to a board, matched by the run ID from the leaderboard token. Only runs the
+// dashboards saw count, so the share of runs saved never includes saves from before play stats existed.
+async function savedRuns(env, ids) {
+  if (!env.SCORES || !ids.length) return new Set();
+  const saved = new Set();
+  try {
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 90) chunks.push(ids.slice(i, i + 90));
+    const results = await env.SCORES.batch(chunks.map(c =>
+      env.SCORES.prepare(`SELECT run_id FROM scores WHERE run_id IN (${c.map(() => '?').join(',')})`).bind(...c)));
+    for (const r of results) for (const row of r.results) saved.add(row.run_id);
+  } catch (_) { /* counts as none saved */ }
+  return saved;
+}
+
 async function overview(env, url) {
   const { days, since } = windowFor(url);
   const where = `started_at >= ?1 AND game <> '${TEST}'`;
-  const [hourly, perGame, devices, sources, medians, overall] = (await env.DB.batch([
+  const [hourly, perGame, devices, sources, medians, overall, linked] = (await env.DB.batch([
     env.DB.prepare(`SELECT game, ${HOURLY} FROM runs WHERE ${where} GROUP BY hour, game`).bind(since),
     env.DB.prepare(`SELECT game, ${TALLY} FROM runs WHERE ${where} GROUP BY game`).bind(since),
     env.DB.prepare(`SELECT device, orientation, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY device, orientation`).bind(since),
     env.DB.prepare(`SELECT source, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY source ORDER BY n DESC`).bind(since),
     env.DB.prepare(median(where, 'game')).bind(since),
-    env.DB.prepare(median(where)).bind(since)
+    env.DB.prepare(median(where)).bind(since),
+    env.DB.prepare(`SELECT game, score_run FROM runs WHERE ${where} AND score_run IS NOT NULL`).bind(since)
   ])).map(r => r.results);
   const board = await boardNames(env, since);
   const games = {};
@@ -207,7 +223,9 @@ async function overview(env, url) {
   for (const row of medians) if (games[row.game]) games[row.game].median_ms = row.time_ms;
   let names = null;
   if (board) {
-    for (const row of board.saves) if (games[row.game]) games[row.game].saves = row.saves;
+    const saved = await savedRuns(env, linked.map(r => r.score_run));
+    for (const row of board.saves) if (games[row.game]) games[row.game].saves = 0;
+    for (const row of linked) if (games[row.game] && saved.has(row.score_run)) games[row.game].saves = (games[row.game].saves || 0) + 1;
     for (const row of board.names) {
       if (!games[row.game] || row.name === 'AAA') continue;
       const g = games[row.game]; g.names = (g.names || 0) + 1; if (row.days > 1) g.returning = (g.returning || 0) + 1;
@@ -222,7 +240,7 @@ async function overview(env, url) {
 async function gameDetail(env, url, game) {
   const { days, since } = windowFor(url);
   const where = 'game = ?1 AND started_at >= ?2';
-  const [hourly, summary, devices, inputs, sources, mid, reports, recent] = (await env.DB.batch([
+  const [hourly, summary, devices, inputs, sources, mid, reports, recent, linked] = (await env.DB.batch([
     env.DB.prepare(`SELECT ${HOURLY} FROM runs WHERE ${where} GROUP BY hour`).bind(game, since),
     env.DB.prepare(`SELECT ${TALLY}, COUNT(board) AS boarded FROM runs WHERE ${where}`).bind(game, since),
     env.DB.prepare(`SELECT device, orientation, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY device, orientation`).bind(game, since),
@@ -232,13 +250,15 @@ async function gameDetail(env, url, game) {
     env.DB.prepare(`SELECT time_ms, score, outcome, stats FROM runs WHERE ${where} AND outcome IS NOT NULL
       ORDER BY started_at DESC LIMIT ${REPORT_CAP + 1}`).bind(game, since),
     env.DB.prepare(`SELECT started_at, device, orientation, source, outcome, time_ms, score, input, score_run, stats
-      FROM runs WHERE ${where} ORDER BY started_at DESC LIMIT 50`).bind(game, since)
+      FROM runs WHERE ${where} ORDER BY started_at DESC LIMIT 50`).bind(game, since),
+    env.DB.prepare(`SELECT score_run FROM runs WHERE ${where} AND score_run IS NOT NULL`).bind(game, since)
   ])).map(r => r.results);
   // A game without a leaderboard (no run reports a board, nothing saved) shows no board figures at all.
   const found = await boardNames(env, since, game);
   const board = found && (summary[0].boarded || found.saves.length) ? found : null;
-  let names = null;
+  let names = null, saves = null;
   if (board) {
+    saves = (await savedRuns(env, linked.map(r => r.score_run))).size;
     names = board.names.map(({ game: _, ...row }) => row)
       .sort((a, b) => b.days - a.days || b.runs - a.runs || (a.last < b.last ? 1 : -1)).slice(0, 100);
     // Initials for the recent runs that were saved, matched by the run ID from the leaderboard token.
@@ -253,7 +273,7 @@ async function gameDetail(env, url, game) {
   }
   return {
     ok: true, game, days, since, names: gameNames(), hourly,
-    summary: { ...summary[0], boarded: undefined, median_ms: mid[0]?.time_ms ?? null, saves: board ? board.saves[0]?.saves || 0 : null },
+    summary: { ...summary[0], boarded: undefined, median_ms: mid[0]?.time_ms ?? null, saves },
     devices, inputs, sources: topSources(sources),
     capped: reports.length > REPORT_CAP,
     reports: reports.slice(0, REPORT_CAP).map(r => [r.time_ms, r.score, r.outcome, parseStats(r.stats)]),
