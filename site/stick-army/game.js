@@ -132,14 +132,26 @@
 
   // persistent ink on the page
   var decals = [];
-  // Stamp each new mark once. The bounded history is only replayed after resize.
-  // Older marks stay in the current raster until the next resize or new run.
+  // Stamp each new mark once. The bounded history is only replayed after a resize or the wipe between waves.
+  // Older marks stay in the current raster until then, or a new run.
   function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); }
   function redrawDecals() { dcx.clearRect(0, 0, W, H); decals.forEach(drawDecal); }
-  // Between waves the page gets a wipe: old ink fades, and the faintest marks go.
-  function washDecals() {
-    for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= 0.45; if (decals[i].a < 0.06) decals.splice(i, 1); }
+  // Between waves the page gets a wipe: old ink fades, and the faintest marks go. During a wave the ink fades a
+  // little every DECAL.EVERY seconds, so the ground never builds into a solid band.
+  var DECAL = { EVERY: 4, FADE: 0.7, WASH: 0.45, GONE: 0.06 }, inkT = 0;
+  function washDecals(k) {
+    k = k || DECAL.WASH;
+    for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= k; if (decals[i].a < DECAL.GONE) decals.splice(i, 1); }
     redrawDecals();
+  }
+  // The in-wave fade thins the whole ink layer in one pass instead of redrawing every mark, so it costs no frame time.
+  function fadeInk(dt) {
+    inkT += dt;
+    if (inkT < DECAL.EVERY || !decals.length) return;
+    inkT = 0;
+    dcx.save(); dcx.setTransform(1, 0, 0, 1, 0, 0); dcx.globalCompositeOperation = 'destination-out';
+    dcx.fillStyle = 'rgba(0,0,0,' + (1 - DECAL.FADE) + ')'; dcx.fillRect(0, 0, dc.width, dc.height); dcx.restore();
+    for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= DECAL.FADE; if (decals[i].a < DECAL.GONE) decals.splice(i, 1); }
   }
   function drawDecal(d) {
     var g = dcx, rnd = mulberry(d.seed), i, t, r, x, y;
@@ -225,7 +237,7 @@
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null,
-      bed: null, fallen: [], usedNames: {}, news: [], sketches: [],
+      bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
@@ -233,7 +245,7 @@
     };
     resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
-    decals.length = 0;
+    decals.length = 0; inkT = 0;
     redrawDecals();
   }
 
@@ -262,8 +274,38 @@
     };
   }
 
-  function addText(s, x, y, color, size) {
-    S.texts.push({ s: s, x: clamp(x, 44, W - 44), y: clamp(y, 96, GROUND - 6), color: color, size: size || 19, life: 0.95, max: 0.95, rot: rr(-0.14, 0.1), vy: -38 });
+  // Floating text comes in kinds, so the busy moments stay readable:
+  //   alert: threats in red ("sniper!", "rush!", "wall -18"), bigger, longer, always shown, drawn on top;
+  //   story: the squad and the radio in blue ("Pfc. Inky!", "man down!", "+1 air strike"), always shown;
+  //   big:   large awards (tank down, zeppelin down), always shown;
+  //   score: routine kill labels, small, soft and short; kills close together merge ("bonk! ×5 +250");
+  //   minor: little reactions ("clank!", "pop!", "+").
+  // Score and minor labels share a budget (TEXT.BUDGET on screen); over it, new ones are skipped. The combo
+  // counter and the dog tags still show the reward. Labels stay below the HUD band.
+  var TEXT = { BUDGET: 5, MERGE_S: 0.35, MERGE_PX: 44, TOP: 112,
+    KIND: { alert: { size: 23, life: 1.3 }, story: { size: 20, life: 1.2 }, big: { size: 22, life: 1.1 }, score: { size: 17, life: 0.6 }, minor: { size: 16, life: 0.55 } },
+    ORDER: { score: 0, minor: 1, big: 2, story: 3, alert: 4 } };
+  // merge (optional): { key, pts, fmt(n, pts), window } folds repeats near the same spot into the label already there.
+  function addText(s, x, y, color, size, kind, merge) {
+    kind = kind || (color === RED ? 'alert' : 'story');
+    var spec = TEXT.KIND[kind], routine = kind === 'score' || kind === 'minor';
+    x = clamp(x, 44, W - 44); y = clamp(y, TEXT.TOP + 18, GROUND - 6);
+    if (merge) {
+      var near = S.texts.find(function (q) { return q.key === merge.key && S.t - q.lastT < (merge.window || TEXT.MERGE_S) && Math.abs(q.x - x) < TEXT.MERGE_PX && Math.abs(q.y - y) < TEXT.MERGE_PX; });
+      if (near) { near.n++; near.pts += merge.pts; near.s = near.fmt(near.n, near.pts); near.lastT = S.t; near.life = near.max; return; }
+    }
+    if (routine && S.texts.filter(function (q) { return q.kind === 'score' || q.kind === 'minor'; }).length >= TEXT.BUDGET) return;
+    // Step out of the way of labels already there: try a line above, below, then two lines.
+    var sz = size || spec.size, wide = s.length * sz * 0.5;
+    var clear = function (yy) { return !S.texts.some(function (q) { return Math.abs(q.x - x) < (wide + q.s.length * q.size * 0.5) / 2 && Math.abs(q.y - yy) < (sz + q.size) * 0.45; }); };
+    var tries = [0, -1, 1, -2, 2], slot = tries.find(function (k) { var yy = y + k * sz * 1.1; return yy >= TEXT.TOP + 10 && yy <= GROUND - 6 && clear(yy); });
+    if (slot !== undefined) y += slot * sz * 1.1;
+    S.texts.push({ s: s, key: merge && merge.key, fmt: merge && merge.fmt, n: 1, pts: merge ? merge.pts : 0, lastT: S.t, kind: kind, x: x, y: y, color: color,
+      size: sz, life: spec.life, max: spec.life, rot: rr(-0.14, 0.1), vy: routine ? -30 : -38 });
+  }
+  // Wall damage from one burst reads as one running total.
+  function wallText(amount) {
+    addText('wall -' + amount, BK.x, BK.top - 36, RED, 20, 'alert', { key: 'wall', pts: amount, window: 0.8, fmt: function (n, p) { return 'wall -' + Math.round(p); } });
   }
   function award(base, x, y, label, color, useCombo) {
     var mult = 1;
@@ -273,23 +315,36 @@
     var tags = Math.max(1, Math.round(base / 15)) + Math.floor(mult / 3);
     S.coins += tags; flyTags(x, y, tags);
     emit('coins', { amount: tags, reason: OUCH.indexOf(label) >= 0 ? 'kill' : label.replace(/!+$/, '') });
-    addText(label + ' +' + pts, x, y, mult > 1 ? BLUE : (color || INK), mult > 1 ? 22 : 19);
+    // Every kind of trooper cry merges with the others, under the first one's word.
+    if (base >= 100) addText(label + ' +' + pts, x, y, color === BLUE ? BLUE : INK, null, 'big');
+    else addText(label + ' +' + pts, x, y, color === BLUE ? BLUE : INK2, null, 'score',
+      { key: OUCH.indexOf(label) >= 0 ? 'ouch' : label, pts: pts, fmt: function (n, p) { return label + ' ×' + n + ' +' + p; } });
   }
   // S.coins is the dog-tag balance. Earned tags fly from the kill to the counter so their source is obvious.
   var TAG_HUD = { x: 290, y: 47 };
   function flyTags(x, y, n) {
-    // In a big pile-up, fold new tags into one already in flight rather than drawing dozens.
+    // Tags from one burst of kills fly as one; in a big pile-up, new tags fold into one already in flight.
     var flying = S.parts.filter(function (q) { return q.k === 'tag'; });
-    if (flying.length >= 10) { flying[flying.length - 1].n += n; return; }
+    var near = flying.find(function (q) { return q.t < 0.2 && Math.abs(q.x0 - x) < 50 && Math.abs(q.y0 - y) < 50; });
+    if (near) { near.n += n; return; }
+    if (flying.length >= 6) { flying[flying.length - 1].n += n; return; }
     S.parts.push({ k: 'tag', x0: x, y0: y, x: x, y: y, n: n, t: 0, dur: rr(0.55, 0.75), life: 1, max: 1, rot: rr(-0.6, 0.6), id: nextId++ });
   }
+  // Effects thin out when the page is busy: past FX.BUSY particles, bursts throw a third of the flecks, every other
+  // puff is skipped, kills break into fewer pieces and smoke trails thin. All cosmetic, so no game stream is touched.
+  var FX = { BUSY: 200 }, puffN = 0;
+  function busy() { return S.parts.length > FX.BUSY; }
   function burst(x, y, n, color, speed) {
+    if (busy()) n = Math.ceil(n / 3);
     for (var i = 0; i < n; i++) {
       var a = rr(0, Math.PI * 2), v = rr(0.4, 1) * speed;
       S.parts.push({ k: 'fleck', x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.4, life: rr(0.3, 0.6), max: 0.6, c: color, id: nextId++ });
     }
   }
-  function puff(x, y, r, life) { S.parts.push({ k: 'puff', x: x, y: y, r: r, vr: rr(14, 30), life: life, max: life, id: nextId++ }); }
+  function puff(x, y, r, life) {
+    if (busy() && (puffN++ & 1)) return;
+    S.parts.push({ k: 'puff', x: x, y: y, r: r, vr: rr(14, 30), life: life, max: life, id: nextId++ });
+  }
 
   // ---------- spawning ----------
   function makePlane(kind, dir, x, y) {
@@ -381,18 +436,22 @@
   }
 
   // ---------- waves ----------
+  // A wave opens one thing at a time: the banner, then the sketches of what you bought (SKETCH.DELAY in), then the
+  // pizza courier once both are done.
+  var WAVE_BANNER = 2.2;
   function startWave(n) {
     S.wave = n; seedWave(n);
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: 3.5, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6 };
     S.waveState = 'active';
     var sub = c.boss ? 'zeppelin! aim for the gondola' : n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' :
-      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === TANK.WAVE ? 'tanks inbound! HQ sends an air strike' : '';
-    S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: 2.2 };
-    // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters.
-    if (n === TANK.WAVE) grantCall('bomber', 200, 380);
+      n === RUSH.WAVE ? 'troops rushing the flanks!' : '';
+    // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters. The banner
+    // says so, rather than a label of its own.
+    if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
+    S.banner = { s: 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
@@ -408,7 +467,12 @@
         spawnPlane(kind);
         sp.timer = sp.cfg.interval * between(RW, 0.7, 1.3);
       }
-      if (sp.boss > 0) { sp.bossT -= dt; if (sp.bossT <= 0) { sp.boss--; spawnZeppelin(); } }
+      if (sp.boss > 0) {
+        sp.bossT -= dt;
+        // The horn and a red callout warn that the zeppelin is coming.
+        if (!sp.bossWarned && sp.bossT <= ZEP.WARN) { sp.bossWarned = true; sound.play('horn'); addText('zeppelin incoming!', 200, ZEP.Y, RED); emit('zeppelin_warning', { wave: S.wave }); }
+        if (sp.bossT <= 0) { sp.boss--; spawnZeppelin(); }
+      }
       if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14); } }
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15); } }
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
@@ -440,7 +504,7 @@
     L: L, SP: SP, Ci: Ci, ink: ink, pen: pen, jt: jt, stick: stick, tube: tube, clamp: clamp, between: between, rr: rr, substream: substream,
     makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); },
-    killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz) { addText(t, x, y, c, sz); },
+    killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
     crewMax: function (r) { return crewMax(r); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
@@ -475,13 +539,13 @@
     try { (ICONS[id] || ICONS.fallback)(g); } finally { G = previous; boil = keepBoil; }
   }
   // ---------- drawn in ----------
-  // You're the commander drawing your army: as a wave starts, whatever you just bought is sketched onto the page
-  // with a pencil, one at a time. Purely a reveal: everything works from the first frame.
-  var SKETCH = { DUR: 0.45, GAP: 0.45, DRAWN: ['auto', 'hospital', 'trench', 'wire', 'tramp'] };
+  // You're the commander drawing your army: once the wave banner has been read, whatever you just bought is sketched
+  // onto the page in blue ballpoint, one at a time. Purely a reveal: everything works from the first frame.
+  var SKETCH = { DELAY: 0.9, DUR: 0.45, GAP: 0.45, DRAWN: ['auto', 'hospital', 'trench', 'wire', 'tramp'] };
   function queueSketches(bought) {
     var keys = SKETCH.DRAWN.filter(function (id) { return bought[id]; });
     S.recruits.forEach(function (r) { if (r.fresh) { r.fresh = false; keys.push('r' + r.id); } });
-    S.sketches = keys.map(function (key, i) { return { key: key, t: -i * SKETCH.GAP }; });
+    S.sketches = keys.map(function (key, i) { return { key: key, t: -SKETCH.DELAY - i * SKETCH.GAP }; });
   }
   function updateSketches(dt) {
     if (!S.sketches.length) return;
@@ -492,8 +556,8 @@
     var k = S.sketches.find(function (q) { return q.key === key; });
     return k ? clamp(k.t / SKETCH.DUR, 0, 1) : 1;
   }
-  // Draws fn inside box [x0, y0, x1, y1], revealed bottom-up ('up') or left to right ('right'), with the pencil at
-  // the edge of what's drawn so far.
+  // Draws fn inside box [x0, y0, x1, y1], revealed bottom-up ('up') or left to right ('right'), with the pen at the
+  // edge of what's drawn so far.
   function sketched(key, box, dir, fn) { sketchReveal(sketchProgress(key), box, dir, fn); }
   function sketchReveal(p, box, dir, fn) {
     if (p >= 1) { fn(); return; }
@@ -503,14 +567,19 @@
     if (dir === 'up') { var top = y1 - (y1 - y0) * p; G.rect(x0 - 6, top, x1 - x0 + 12, y1 - top + 6); px = x0 + (x1 - x0) * wob; py = top; }
     else { var edge = x0 + (x1 - x0) * p; G.rect(x0 - 6, y0 - 6, edge - x0 + 6, y1 - y0 + 12); px = edge; py = y0 + (y1 - y0) * wob; }
     G.clip(); fn(); G.restore();
-    drawPencil(px, py);
+    drawPen(px, py);
   }
-  function drawPencil(x, y) {
+  // A blue ballpoint, the same ink as your army: steel tip, blue grip, clear barrel showing the ink tube, cap and clip.
+  function drawPen(x, y) {
     G.save(); G.translate(x, y); G.rotate(-0.7);
-    G.beginPath(); G.moveTo(0, 0); G.lineTo(5, -2.5); G.lineTo(5, 2.5); G.closePath(); G.fillStyle = '#e7c9a0'; G.fill();
-    G.beginPath(); G.moveTo(0, 0); G.lineTo(1.6, -0.8); G.lineTo(1.6, 0.8); G.closePath(); G.fillStyle = INK; G.fill();
-    G.fillStyle = HAT; G.fillRect(5, -2.5, 15, 5); G.fillStyle = '#d98a8a'; G.fillRect(20, -2.5, 4, 5);
-    G.beginPath(); G.moveTo(0, 0); G.lineTo(5, -2.5); G.lineTo(24, -2.5); G.lineTo(24, 2.5); G.lineTo(5, 2.5); G.closePath(); ink(INK, 1.2); G.stroke();
+    G.beginPath(); G.moveTo(0, 0); G.lineTo(4, -1.4); G.lineTo(4, 1.4); G.closePath(); G.fillStyle = '#b9bcc4'; G.fill();
+    G.beginPath(); G.moveTo(4, -1.4); G.lineTo(9, -2.6); G.lineTo(9, 2.6); G.lineTo(4, 1.4); G.closePath(); G.fillStyle = BLUE; G.fill();
+    G.fillStyle = PAPER; G.fillRect(9, -2.6, 16, 5.2);
+    G.beginPath(); G.moveTo(9, 0); G.lineTo(25, 0); ink(BLUE, 1.3); G.stroke();
+    G.fillStyle = BLUE; G.fillRect(25, -2.6, 4, 5.2);
+    G.beginPath(); G.moveTo(0, 0); G.lineTo(4, -1.4); G.lineTo(9, -2.6); G.lineTo(29, -2.6); G.lineTo(29, 2.6); G.lineTo(9, 2.6); G.lineTo(4, 1.4); G.closePath(); ink(INK, 1.1); G.stroke();
+    G.beginPath(); G.moveTo(27, -2.6); G.lineTo(27, -4); G.lineTo(17, -4); ink(BLUE, 1.4); G.stroke();
+    G.beginPath(); G.arc(0.6, 0, 0.9, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
     G.restore();
   }
   // ---------- combat ----------
@@ -559,13 +628,13 @@
     }
   }
   function killFx(t, force, squash, color) {
-    var power = force || 170, y = squash ? GROUND - 5 : t.y + 12, c = color || RED, i;
-    burst(t.x, y, 14, c, power);
+    var power = force || 170, y = squash ? GROUND - 5 : t.y + 12, c = color || RED, i, crowded = busy();
+    burst(t.x, y, 10, c, power);
     // Permanent ink only near the ground. Midair hits leave a spatter that fades in about a second.
-    if (y > GROUND - 40) addDecal({ kind: 'splat', x: t.x, y: y, r: squash ? 11 : 4, color: c, a: 0.48, seed: nextId++ });
-    else for (i = 0; i < 6; i++) S.parts.push({ k: 'spatter', x: t.x + rr(-6, 6), y: y + rr(-6, 6), vx: rr(-30, 30), vy: rr(-20, 30), r: rr(1.2, 3), life: rr(0.6, 1.1), max: 1.1, c: c, id: nextId++ });
-    // Six separate pen strokes: head, torso, two arms, two legs.
-    [0, 1, 2, 3, 4, 5].forEach(function (part) {
+    if (y > GROUND - 40) addDecal({ kind: 'splat', x: t.x, y: y, r: squash ? 9 : 4, color: c, a: 0.36, seed: nextId++ });
+    else for (i = 0; i < (crowded ? 3 : 6); i++) S.parts.push({ k: 'spatter', x: t.x + rr(-6, 6), y: y + rr(-6, 6), vx: rr(-30, 30), vy: rr(-20, 30), r: rr(1.2, 3), life: rr(0.6, 1.1), max: 1.1, c: c, id: nextId++ });
+    // Separate pen strokes: head, torso, two arms, two legs. On a busy page, one arm and one leg.
+    (crowded ? [0, 1, 2, 4] : [0, 1, 2, 3, 4, 5]).forEach(function (part) {
       S.parts.push({ k: 'body', head: part === 0, len: part === 1 ? 16 : 12,
         x: t.x + rr(-4, 4), y: squash ? GROUND - 6 : t.y + (part === 0 ? 0 : part < 4 ? 12 : 26),
         vx: rr(-power, power), vy: -rr(50, power * 1.5), rot: rr(-3, 3), vr: rr(-10, 10),
@@ -594,21 +663,21 @@
   function killTrooper(t, owner) {
     t.dead = true; killFx(t); S.stats.kills++;
     emit('kill', { by: owner === 'ally' ? 'crew' : 'player', type: t.type, state: t.state });
-    if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 9, color: RED, a: 0.45, seed: t.id });
+    if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 8, color: RED, a: 0.34, seed: t.id });
     award(10, t.x, t.y - 6, OUCH[t.id % OUCH.length], owner === 'ally' ? BLUE : INK, true);
     sound.play('hit');
   }
   function armorHit(t, owner) {
     t.armor--; t.pingT = S.t;
     burst(t.x, t.y + 12, 4, '#8a8f96', 120);
-    addText(t.armor ? 'clang!' : 'vest off!', t.x + 14, t.y - 4, INK2, 16);
+    addText(t.armor ? 'clang!' : 'vest off!', t.x + 14, t.y - 4, INK2, 16, 'minor');
     emit('armor_hit', { by: owner === 'ally' ? 'crew' : 'player', left: t.armor });
     sound.play('clank');
   }
   function popChute(t) {
     t.state = 'free'; t.vy = Math.max(30, t.fall * 0.5); t.spin = rr(-2.5, 2.5);
     for (var i = 0; i < 4; i++) S.parts.push({ k: 'shred', x: t.x + rr(-16, 16), y: t.y - 30 + rr(-6, 6), vx: rr(-50, 50), vy: rr(-40, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.7, 1.1), max: 1.1, id: nextId++ });
-    addText('pop!', t.x + 16, t.y - 34, RED, 18);
+    addText('pop!', t.x + 16, t.y - 34, RED, 18, 'minor');
     S.stats.popped++;
     emit('chute_pop', { x: t.x, y: t.y, overMat: activeTramps().some(function (m) { return t.x >= m.x1 + 4 && t.x <= m.x2 - 4; }) });
     sound.play('pop');
@@ -616,7 +685,7 @@
   function splat(t, ripped) {
     t.dead = true; S.stats.kills++;
     emit(ripped ? 'rip' : 'splat', { x: t.x, type: t.type });
-    addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 13, color: RED, a: 0.5, seed: t.id });
+    addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 12, color: RED, a: 0.4, seed: t.id });
     killFx(t, 210, true);
     award(15, t.x, GROUND - 44, 'splat!', RED, true);
     sound.play('splat');
@@ -698,7 +767,7 @@
       p.drops.forEach(function (x, i) { spawnTrooper(p.x + between(p.rng, -16, 16), p.y + 10, p.kits[i]); });
       p.drops = []; p.kits = [];
     } else {
-      addText('clank!', p.x, p.y - 18, INK2, 16);
+      addText('clank!', p.x, p.y - 18, INK2, 16, 'minor');
       sound.play('clank');
     }
   }
@@ -717,12 +786,12 @@
       }
     });
     if (kind === 'bomb') {
-      if (Math.abs(x - BK.x) < 48) { hurtWall(18, 'bomb'); addText('wall -18', BK.x, BK.top - 36, RED, 20); }
+      if (Math.abs(x - BK.x) < 48) { hurtWall(18, 'bomb'); wallText(18); }
       // A direct hit still kills a bare recruit; near misses wound. Helmets and trenches help.
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4, 'bomb'); });
     } else if (kind === 'shell') {
       // Tank shells: lighter than bombs, aimed at the bunker.
-      if (Math.abs(x - BK.x) < 44) { hurtWall(TANK.SHELL_DAMAGE, 'tank'); addText('wall -' + TANK.SHELL_DAMAGE, BK.x, BK.top - 36, RED, 18); }
+      if (Math.abs(x - BK.x) < 44) { hurtWall(TANK.SHELL_DAMAGE, 'tank'); wallText(TANK.SHELL_DAMAGE); }
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 26) hurtRecruit(q, 1.6 * (1 - d / 26) + 0.2, 'tank'); });
     }
     blastTanks(x, y, r, kind, owner);
@@ -890,7 +959,7 @@
         var patient = wounded.filter(near).sort(function (a, b) { return a.downAt - b.downAt; })[0] ||
           live.filter(function (q) { return near(q) && q.hp < crewMax(q); }).sort(function (a, b) { return a.hp - b.hp; })[0];
         if (patient && r.cd <= 0) {
-          patient.hp = Math.min(crewMax(patient), patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20);
+          patient.hp = Math.min(crewMax(patient), patient.hp + 0.45); r.cd = 2; addText('+', patient.x, GROUND - 44, BLUE, 20, 'minor');
           if (patient.down && patient.hp >= 1) standUp(patient, 'medic');
         }
       } else if (r.role === 'shoot') {
@@ -925,7 +994,7 @@
       } else {
         p.vy += 320 * dt; p.x += p.dir * p.speed * 0.6 * dt; p.y += p.vy * dt; p.rot = Math.min(1.25, p.rot + 1.7 * dt);
         p.smoke -= dt;
-        if (p.smoke <= 0) { p.smoke = 0.05; puff(p.x - p.dir * 18, p.y - 4, 4, 0.7); }
+        if (p.smoke <= 0) { p.smoke = busy() ? 0.14 : 0.07; puff(p.x - p.dir * 18, p.y - 4, 4, 0.7); }
         S.troopers.forEach(function (t) {
           if (!t.dead && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
             t.dead = true; killFx(t); S.stats.kills++;
@@ -976,7 +1045,7 @@
     S.heat = Math.min(1, S.heat + 0.25);
     if (S.heat >= 1) triggerOverheat();
     hurtWall(3, 'sniper');
-    addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20);
+    addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20, 'minor');
     S.parts.push({ k: 'tink', x: TUR.x, y: TUR.y - 6, life: 0.25, max: 0.25, c: RED, id: nextId++ });
     sound.play('clank');
   }
@@ -1068,7 +1137,7 @@
     S.parts.forEach(function (q) {
       q.life -= dt;
       if (q.k === 'body') {
-        if (q.rest) { q.rest += dt; if (q.rest > 3) q.life = 0; }
+        if (q.rest) { q.rest += dt; if (q.rest > 2) q.life = 0; }
         else {
           q.vy += 650 * dt; q.x = clamp(q.x + q.vx * dt, 3, W - 3); q.y += q.vy * dt; q.rot += q.vr * dt;
           if (q.y >= GROUND - 4) {
@@ -1076,7 +1145,7 @@
             if (Math.abs(q.vy) < 28) { q.rest = dt; q.vx = q.vy = q.vr = 0; }
           }
         }
-        if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, c: q.c, seed: q.id, a: 0.6 });
+        if (q.life <= 0) addDecal({ kind: 'body', x: q.x, y: q.y, rot: q.rot, head: q.head, len: q.len, c: q.c, seed: q.id, a: 0.38 });
       } else if (q.k === 'tag') {
         q.t += dt; var u = Math.min(1, q.t / q.dur), e = u * u;
         q.x = q.x0 + (TAG_HUD.x - q.x0) * e; q.y = q.y0 + (TAG_HUD.y - q.y0) * e - Math.sin(u * Math.PI) * 40;
@@ -1087,7 +1156,7 @@
       } else if (q.k === 'fleck') {
         q.vy += 420 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
         if (q.y >= GROUND) { q.y = GROUND; q.vx *= 0.5; q.vy = 0; q.landed = true; }
-        if (q.c === RED && q.landed && q.life <= 0) addDecal({ kind: 'splat', x: q.x, y: q.y, r: 1.8, color: RED, a: 0.45, seed: q.id });
+        if (q.c === RED && q.landed && q.life <= 0 && q.id % 3 === 0) addDecal({ kind: 'splat', x: q.x, y: q.y, r: 1.8, color: RED, a: 0.32, seed: q.id });
       } else if (q.k === 'shred') {
         q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= (1 - dt); q.vy = Math.min(60, q.vy + 80 * dt); q.rot += q.vr * dt;
       } else if (q.k === 'puff') {
@@ -1095,7 +1164,7 @@
       }
     });
     S.parts = S.parts.filter(function (q) { return q.life > 0; });
-    S.texts.forEach(function (q) { q.life -= dt; q.y += q.vy * dt; q.vy *= 0.97; });
+    S.texts.forEach(function (q) { q.life -= dt; q.y = Math.max(TEXT.TOP, q.y + q.vy * dt); q.vy *= 0.97; });
     S.texts = S.texts.filter(function (q) { return q.life > 0; });
   }
 
@@ -1138,6 +1207,7 @@
       updateWave(dt);
       if (S.mode === 'shop') return;
       updateDelivery(dt);
+      fadeInk(dt);
     }
     S.recoil = Math.max(0, S.recoil - dt * 8);
     updatePlanes(dt);
@@ -1486,7 +1556,7 @@
       pen(q.id);
       G.save(); G.globalAlpha = a;
       if (q.k === 'body') { G.globalAlpha = 0.85; drawBodyPart(q); }
-      else if (q.k === 'tag') { G.globalAlpha = 1; dogTag(q.x, q.y, q.rot, 1); if (q.n > 1) { G.font = '15px ' + HAND; G.fillStyle = '#56606b'; G.fillText('+' + q.n, q.x + 8, q.y - 6); } }
+      else if (q.k === 'tag') { G.globalAlpha = 1; dogTag(q.x, q.y, q.rot, 1); }
       else if (q.k === 'spatter') { G.globalAlpha = a * 0.6; G.beginPath(); G.arc(q.x, q.y, q.r, 0, Math.PI * 2); G.fillStyle = q.c; G.fill(); }
       else if (q.k === 'fleck') { G.beginPath(); G.moveTo(q.x, q.y); G.lineTo(q.x - q.vx * 0.02, q.y - q.vy * 0.02); ink(q.c, 2); G.stroke(); }
       else if (q.k === 'shred') { G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.arc(0, 0, 6, Math.PI, Math.PI * 1.8); ink(RED, 1.8); G.stroke(); }
@@ -1502,7 +1572,7 @@
     });
   }
   function drawTexts() {
-    S.texts.forEach(function (q) {
+    S.texts.slice().sort(function (a, b) { return TEXT.ORDER[a.kind] - TEXT.ORDER[b.kind]; }).forEach(function (q) {
       var age = q.max - q.life, a = Math.min(1, q.life / 0.3), sc = age < 0.1 ? 1 + (0.1 - age) * 5 : 1;
       G.save(); G.globalAlpha = a; G.translate(q.x, q.y); G.rotate(q.rot); G.scale(sc, sc);
       G.font = q.size + 'px ' + HAND; G.textAlign = 'center';
@@ -1683,6 +1753,7 @@
   function togglePause() {
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
+      document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
       var kit = document.getElementById('pauseKit');
       kit.hidden = !renderKit(kit, true);
       var squad = document.getElementById('pauseSquad'), line = squadLine();
@@ -1711,6 +1782,7 @@
     document.getElementById('overScore').textContent = S.score.toLocaleString('en-US');
     document.getElementById('newBest').hidden = !isBest || S.score === 0;
     document.getElementById('stWave').textContent = String(S.wave);
+    document.getElementById('stTime').textContent = clock(S.played);
     document.getElementById('stCap').textContent = String(S.stats.captured);
     document.getElementById('stPop').textContent = String(S.stats.popped);
     document.getElementById('stPlanes').textContent = String(S.stats.planes);
@@ -1865,11 +1937,19 @@
       wallLow: S.wallHP < S.mods.maxHP * 0.3
     };
   }
+  // Time played counts waves and the shop, not pauses or the title. It's shown on the pause and game-over cards
+  // and never feeds the simulation.
+  function notePlayed(dt) { if (S.mode === 'play' || S.mode === 'shop' || S.mode === 'dying') S.played += dt; }
+  function clock(sec) {
+    var t = Math.floor(sec), h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s2 = t % 60;
+    return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (s2 < 10 ? '0' : '') + s2;
+  }
   function loop(now) {
     var dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     noteFrame(now - last);
     last = now;
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
+    notePlayed(dt);
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
     render();
     syncCallBtns();

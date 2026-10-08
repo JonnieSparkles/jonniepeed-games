@@ -106,11 +106,16 @@ var StickArmyShop = function (w) {
       if (it.blocked && it.blocked() && !S.shop.bought[it.id]) return it.blocked();
       if (it.tier !== 'hire' && S.shop.bought[it.id]) return 'Packed ✓';
       if (onHouse(it)) return 'Free!';
-      var cost = price(it);
-      return cost + ' tags' + (S.coins < cost && eligible(it) ? ' · need ' + (cost - S.coins) + ' more' : '');
+      return price(it) + ' tags';
+    }
+    // How many more tags an unaffordable supply needs. It sits on its own line under the price, so the row keeps
+    // its width and doesn't jump when the balance changes.
+    function needMore(it) {
+      return it.tier !== 'hire' && !S.shop.bought[it.id] && !onHouse(it) && eligible(it) && S.coins < price(it) ? price(it) - S.coins : 0;
     }
     function itemButton(it, cls, withDesc) {
-      var button = document.createElement('button'); button.type = 'button'; button.className = cls + (onHouse(it) ? ' gift' : ''); button.dataset.item = it.id;
+      var button = document.createElement('button'); button.type = 'button'; button.dataset.item = it.id;
+      button.className = cls + (onHouse(it) ? ' gift' : '') + (it.tier !== 'hire' && S.shop.bought[it.id] ? ' bought' : '');
       button.disabled = !canBuy(it);
       var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
       w.drawItemIcon(icon, it.id);
@@ -120,6 +125,7 @@ var StickArmyShop = function (w) {
       if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
       else button.title = it.desc;
       if (onHouse(it)) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
+      if (needMore(it)) { var more = document.createElement('small'); more.textContent = 'need ' + needMore(it) + ' more'; label.append(more); }
       button.append(label);
       button.addEventListener('click', function () { takeItem(it.id); });
       return button;
@@ -136,8 +142,9 @@ var StickArmyShop = function (w) {
     if (S.mode !== 'shop') return;
     w.queueSketches(S.shop.bought);
     shopScreen.hidden = true; S.shop = null; w.clearInput(); S.mode = 'play'; pauseBtn.hidden = false; w.startWave(S.wave + 1);
-    // A pizza ordered in the shop rides in as the wave starts, so ordering never leaves the shop.
-    if (S.pizzaOrder) { S.pizzaOrder = false; S.delivery = { x: -30, phase: 'arrive', wait: 0 }; }
+    // A pizza ordered in the shop rides in early in the wave, so ordering never leaves the shop. The courier waits
+    // off the page until the wave banner and the sketches are done.
+    if (S.pizzaOrder) { S.pizzaOrder = false; S.delivery = { x: -30, phase: 'queue', wait: 0 }; }
     document.activeElement.blur();
   }
   // The courier rides along the ground during play. Combat carries on; the pizza lands at the handoff.
@@ -145,7 +152,8 @@ var StickArmyShop = function (w) {
     var S = w.S;
     var d = S.delivery;
     if (!d) return;
-    if (d.phase === 'arrive') {
+    if (d.phase === 'queue') { if (!S.banner && !S.sketches.length) d.phase = 'arrive'; }
+    else if (d.phase === 'arrive') {
       d.x = Math.min(200, d.x + dt * 145);
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.wave });
@@ -160,7 +168,7 @@ var StickArmyShop = function (w) {
   }
   function drawCourier() {
     var S = w.S, G = w.G, d = S.delivery;
-    if (!d) return;
+    if (!d || d.phase === 'queue') return;
     var x = d.x, y = GROUND - 17; pen(8080);
     G.beginPath(); Ci(x - 13, y + 12, 8); Ci(x + 16, y + 12, 8); ink(INK, 2.3); G.stroke();
     G.beginPath(); SP([x - 13,y + 12,x - 5,y - 4,x + 9,y + 12,x - 13,y + 12],false); L(x - 5,y - 4,x + 11,y - 4); L(x + 11,y - 8,x + 16,y + 12); ink(BLUE,2.4); G.stroke();

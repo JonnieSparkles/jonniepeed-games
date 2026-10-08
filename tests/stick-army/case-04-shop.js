@@ -17,7 +17,7 @@
   check(/On its way/.test(document.querySelector('[data-item="pizza"]').textContent),'the shop says it is on its way');
   continueWave(); check(S.mode==='play' && S.wave===2 && shopScreen.hidden && S.delivery && !S.pizzaOrder,'next wave, and the courier sets off');
   S.spawn.timer=S.spawn.rushT=S.spawn.cargoT=99; S.planes=[]; // keep the wave quiet but running
-  for(var i=0;i<700 && S.delivery;i++) update(1/120);
+  for(var i=0;i<1000 && S.delivery;i++) update(1/120);
   check(!S.delivery && S.wallHP===75 && r.hp===2,'the pizza lands during the wave: wall and crew healed once');
   newGame();
   check(S.coins===0 && S.mods.slots===4 && !S.mods.stacks[pick] && S.recruits.length===0, 'new run resets progression');

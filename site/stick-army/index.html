@@ -7,16 +7,19 @@
 <title>Stick Army — JonniePeed Games</title>
 <meta name="description" content="Defend your notebook bunker. Pop chutes low, recruit a stick army, and kit out your turret between waves.">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="JonniePeed Games">
 <meta property="og:title" content="Stick Army — JonniePeed Games">
 <meta property="og:description" content="Pop chutes. Catch recruits. Defend the notebook.">
 <meta property="og:url" content="https://jonniepeed.games/stick-army/">
-<meta property="og:image" content="https://jonniepeed.games/stick-army/og.png?v=29f72ba063">
+<meta property="og:image" content="https://jonniepeed.games/stick-army/og.png?v=7aaa6f08cd">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Stick Army cover art: a ballpoint doodle of a stick-figure turret blasting at paratroopers and planes, with the title hand-lettered in blue and red, beside the tagline">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Stick Army — JonniePeed Games">
 <meta name="twitter:description" content="Pop chutes. Catch recruits. Defend the notebook.">
-<meta name="twitter:image" content="https://jonniepeed.games/stick-army/og.png?v=29f72ba063">
+<meta name="twitter:image" content="https://jonniepeed.games/stick-army/og.png?v=7aaa6f08cd">
+<meta name="twitter:image:alt" content="Stick Army cover art: a ballpoint doodle of a stick-figure turret blasting at paratroopers and planes, with the title hand-lettered in blue and red, beside the tagline">
 <link rel="icon" href="../assets/favicon.ico?v=443c0101ac" sizes="any">
 <link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
@@ -129,7 +132,8 @@ body {
 .deal .supply-icon { width: 30px; height: 30px; grid-row: 1 / span 2; }
 .deal strong { font: 700 19px/1.1 var(--font-display); }
 .deal span { grid-column: 2; font: 13px/1.25 'Atkinson Hyperlegible', sans-serif; color: var(--ink-soft); }
-.deal em { grid-column: 3; grid-row: 1 / span 2; color: var(--ally); font: 18px var(--font-hand); white-space: nowrap; }
+.deal em { grid-column: 3; grid-row: 1 / span 2; color: var(--ally); font: 18px var(--font-hand); white-space: nowrap; text-align: right; }
+.deal em small { display: block; font-size: 14px; line-height: 1.1; }
 .hire-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }
 .hire { display: flex; align-items: center; gap: 4px; padding: 3px 10px 3px 4px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; font: 17px var(--font-hand); }
 .hire .supply-icon { width: 28px; height: 28px; }
@@ -139,7 +143,12 @@ body {
 .deal:disabled, .hire:disabled { cursor: default; border-color: #aaa395; color: #6d6962; }
 .deal:disabled em, .hire:disabled em, .deal:disabled span { color: #6d6962; }
 .deal:disabled .supply-icon, .hire:disabled .supply-icon { opacity: .45; }
-.deal.gift { border-color: var(--ally); background: #eef4ff; box-shadow: 3px 3px 0 #2f6fdc33; }
+/* The gift looks like any other row, so it never reads as already chosen; the tag and "Free!" mark it. */
+/* Bought supplies keep their ink and say "Packed ✓"; only what you can't afford or use goes grey. */
+.deal.bought:disabled { border-color: var(--ink); color: var(--ink); }
+.deal.bought:disabled span { color: var(--ink-soft); }
+.deal.bought:disabled em { color: var(--ally); }
+.deal.bought:disabled .supply-icon { opacity: 1; }
 .deal.gift::before { content: "On the house"; position: absolute; top: -9px; right: 12px; padding: 0 6px; font: 14px var(--font-hand); color: var(--paper); background: var(--ally); border-radius: 6px 3px 7px 3px; transform: rotate(2deg); }
 .deal { position: relative; }
 .deal em s { color: var(--ink-soft); font-size: 15px; }
@@ -248,6 +257,7 @@ body {
       <div class="overlay" id="pauseScreen" hidden>
         <div class="card">
           <h2>Paused</h2>
+          <p class="tag" id="pauseTime"></p>
           <div class="kit kit-named" id="pauseKit" aria-label="Your kit" hidden></div>
           <p class="squad-line" id="pauseSquad" hidden></p>
           <div class="row">
@@ -266,6 +276,7 @@ body {
           <p class="flag" id="newBest" hidden>New best!</p>
           <dl class="stats">
             <dt>Reached wave</dt><dd id="stWave">1</dd>
+            <dt>Time played</dt><dd id="stTime">0:00</dd>
             <dt>Recruits captured</dt><dd id="stCap">0</dd>
             <dt>Chutes popped</dt><dd id="stPop">0</dd>
             <dt>Planes downed</dt><dd id="stPlanes">0</dd>
@@ -282,11 +293,11 @@ body {
   </div>
 </div>
 
-<script src="audio.js?v=f23e34d459"></script>
+<script src="audio.js?v=9bc5bf1ec1"></script>
 <script src="icons.js?v=5ed5f3c868"></script>
-<script src="units.js?v=3c02786000"></script>
-<script src="squad.js?v=833b4bea48"></script>
-<script src="shop.js?v=1b07ff437c"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=02c6875ca8"></script>
+<script src="units.js?v=c55e562c03"></script>
+<script src="squad.js?v=f432f263f4"></script>
+<script src="shop.js?v=5cea39dc66"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=cde2dddb1e"></script>
 </body>
 </html>

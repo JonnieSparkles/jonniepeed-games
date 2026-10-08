@@ -104,11 +104,13 @@
   continueWave(); S.spawn.timer = 99;
   check(S.sketches.map(function (k) { return k.key; }).join() === 'auto,hospital,r' + hire.id && !hire.fresh, 'purchases and hires queue up to be drawn');
   check(sketchProgress('auto') === 0 && sketchProgress('hospital') === 0 && sketchProgress('wire') === 1, 'nothing is drawn yet; what was never bought is not waiting');
-  for (var s1 = 0; s1 < 20; s1++) update(1 / 60);
-  check(sketchProgress('auto') > 0 && sketchProgress('auto') < 1 && sketchProgress('hospital') === 0, 'one at a time');
+  for (var s1 = 0; s1 < 30; s1++) update(1 / 60);
+  check(sketchProgress('auto') === 0, 'the wave banner comes first');
+  for (s1 = 0; s1 < 44; s1++) update(1 / 60);
+  check(sketchProgress('auto') > 0 && sketchProgress('auto') < 1 && sketchProgress('hospital') === 0, 'then one at a time');
   render();
   for (s1 = 0; s1 < 120; s1++) update(1 / 60);
-  check(!S.sketches.length && sketchProgress('r' + hire.id) === 1, 'all drawn within a couple of seconds');
+  check(!S.sketches.length && sketchProgress('r' + hire.id) === 1, 'all drawn within a few seconds');
   // Called planes are sketched in at the page edge, then fly.
   S.calls.bomber = 1; callStrike(); var x0 = S.strike.x;
   update(0.2); check(S.strike.x === x0 && x0 > 0, 'the bomber is drawn in place first');

@@ -10,8 +10,16 @@
 
   newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(5);
   check(/zeppelin/.test(S.banner.sub) && /gondola/.test(S.banner.sub), 'the boss wave is announced, with a hint');
-  for (i = 0; i < 300; i++) update(1 / 60);
-  var z = S.planes.find(function (p) { return p.kind === 'zeppelin'; });
+  // A few escort planes come first; the horn and a red callout warn before it arrives.
+  function zep() { return S.planes.find(function (p) { return p.kind === 'zeppelin'; }); }
+  var heard = [], hook = emitHook; emitHook = function (type) { heard.push(type); };
+  for (i = 0; i < Math.round((ZEP.ARRIVE - ZEP.WARN) * 60) - 6; i++) update(1 / 60);
+  check(!zep() && heard.indexOf('zeppelin_warning') < 0 && waveCfg(5).planes - S.spawn.planes >= 3, 'escort planes come first');
+  for (i = 0; i < 12; i++) update(1 / 60);
+  check(!zep() && heard.indexOf('zeppelin_warning') >= 0 && S.texts.some(function (q) { return q.s === 'zeppelin incoming!' && q.kind === 'alert'; }), 'a horn and a callout warn of it');
+  for (i = 0; i < Math.round((ZEP.WARN + 1.5) * 60); i++) update(1 / 60);
+  emitHook = hook;
+  var z = zep();
   check(z && z.maxHp === zeppelinHP(5) && z.hp === z.maxHp && z.maxHp === 60, 'it arrives with wave-scaled health');
   render();
 

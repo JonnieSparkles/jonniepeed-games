@@ -5,7 +5,7 @@ var StickArmySquad = function (w) {
   'use strict';
   var GROUND = w.GROUND, INK = w.INK, BLUE = w.BLUE, RED = w.RED, HAT = w.HAT, PAPER = w.PAPER;
   var L = w.L, SP = w.SP, ink = w.ink, pen = w.pen, emit = w.emit;
-  function addText(s, x, y, c, sz) { w.addText(s, x, y, c, sz); }
+  function addText(s, x, y, c, sz, kind) { w.addText(s, x, y, c, sz, kind); }
 
   // ---------- names and ranks ----------
   // Rookies are nameless. Standing at the end of a wave counts as a wave served; enough waves earn a name and a
