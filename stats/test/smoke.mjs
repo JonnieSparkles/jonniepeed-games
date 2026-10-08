@@ -121,6 +121,16 @@ await test('test runs never show on the dashboards', async () => {
   assert.ok(!('test' in after.games));
 }, LOCAL ? null : LOCAL_ONLY);
 
+await test('sources add up to every run, with the long tail folded into one row', async () => {
+  for (let i = 0; i < 14; i++) await ok('/v1/start', start({ game: 'stick-army', from: `site${i}.example.com` }));
+  const data = (await dash('/dash/api/overview?days=1')).data;
+  const runs = Object.values(data.games).reduce((t, g) => t + g.runs, 0);
+  assert.equal(data.sources.reduce((t, s) => t + s.n, 0), runs);
+  assert.ok(data.sources.length <= 13 && data.sources.at(-1).other === true, JSON.stringify(data.sources.at(-1)));
+  const game = await detail('stick-army');
+  assert.equal(game.sources.reduce((t, s) => t + s.n, 0), game.summary.runs);
+}, LOCAL ? null : LOCAL_ONLY);
+
 await test('a saved run shows its initials', async () => {
   // Save a score on a negative test board of the local scores Worker, then report the run with its token's run ID.
   const board = -randomInt(1, 2 ** 40), token = forge(process.env.RUN_SECRET || LOCAL_SECRET, 'thimbleful', board);

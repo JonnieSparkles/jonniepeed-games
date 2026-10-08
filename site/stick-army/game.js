@@ -535,7 +535,7 @@
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
-      if (S.waveTimer <= 0) { if (victoryDue()) showWin(); else openShop(); }
+      if (S.waveTimer <= 0) { if (victoryDue()) { showWin(); reportWin(); } else openShop(); }
     }
   }
 
@@ -1978,6 +1978,10 @@
     if (S.endless) st.endless = true;
     return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, stats: st };
   }
+  // A win is reported as soon as the victory card shows. The handle stays, so a winner who keeps going is reported
+  // again if the page is hidden mid-run, and once more at the final game over.
+  function reportWin() { if (statsRun) PlayStats.end(statsRun, runReport()); }
+  document.getElementById('keepBtn').addEventListener('click', function () { if (statsRun && S.endless) PlayStats.resume(statsRun); });
   function updateMuteBtn() {
     muteBtn.setAttribute('aria-pressed', sound.muted ? 'true' : 'false');
     muteBtn.setAttribute('aria-label', sound.muted ? 'Unmute sound' : 'Mute sound');

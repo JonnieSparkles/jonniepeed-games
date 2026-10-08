@@ -136,6 +136,11 @@ function windowFor(url) {
   const days = Number.isInteger(asked) && asked >= 1 && asked <= 365 ? asked : 30;
   return { days, since: new Date(Date.now() - days * DAY).toISOString() };
 }
+// Referring sites, most first. Past the top 12 the rest fold into one row, so the shares still add up to every run.
+function topSources(rows) {
+  const top = rows.slice(0, 12), rest = rows.slice(12).reduce((t, r) => t + r.n, 0);
+  return rest ? top.concat({ source: null, other: true, n: rest }) : top;
+}
 const parseStats = text => { try { const v = JSON.parse(text); return object(v) ? v : null; } catch (_) { return null; } };
 const all = async statement => (await statement.all()).results;
 
@@ -172,7 +177,7 @@ async function overview(env, url) {
     env.DB.prepare(`SELECT game, ${HOURLY} FROM runs WHERE ${where} GROUP BY hour, game`).bind(since),
     env.DB.prepare(`SELECT game, ${TALLY} FROM runs WHERE ${where} GROUP BY game`).bind(since),
     env.DB.prepare(`SELECT device, orientation, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY device, orientation`).bind(since),
-    env.DB.prepare(`SELECT source, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY source ORDER BY n DESC LIMIT 12`).bind(since),
+    env.DB.prepare(`SELECT source, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY source ORDER BY n DESC`).bind(since),
     env.DB.prepare(median(where, 'game')).bind(since),
     env.DB.prepare(median(where)).bind(since)
   ])).map(r => r.results);
@@ -196,7 +201,7 @@ async function overview(env, url) {
     names = { total: people.size, returning: [...people.values()].filter(p => p.days > 1).length,
       several: [...people.values()].filter(p => p.games > 1).length };
   }
-  return { ok: true, days, since, names: gameNames(), hourly, games, devices, sources,
+  return { ok: true, days, since, names: gameNames(), hourly, games, devices, sources: topSources(sources),
     median_ms: overall[0]?.time_ms ?? null, people: names };
 }
 
@@ -208,7 +213,7 @@ async function gameDetail(env, url, game) {
     env.DB.prepare(`SELECT ${TALLY}, COUNT(board) AS boarded FROM runs WHERE ${where}`).bind(game, since),
     env.DB.prepare(`SELECT device, orientation, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY device, orientation`).bind(game, since),
     env.DB.prepare(`SELECT input, COUNT(*) AS n FROM runs WHERE ${where} AND outcome IS NOT NULL GROUP BY input`).bind(game, since),
-    env.DB.prepare(`SELECT source, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY source ORDER BY n DESC LIMIT 12`).bind(game, since),
+    env.DB.prepare(`SELECT source, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY source ORDER BY n DESC`).bind(game, since),
     env.DB.prepare(median(where)).bind(game, since),
     env.DB.prepare(`SELECT time_ms, score, outcome, stats FROM runs WHERE ${where} AND outcome IS NOT NULL
       ORDER BY started_at DESC LIMIT ${REPORT_CAP + 1}`).bind(game, since),
@@ -235,7 +240,7 @@ async function gameDetail(env, url, game) {
   return {
     ok: true, game, days, since, names: gameNames(), hourly,
     summary: { ...summary[0], boarded: undefined, median_ms: mid[0]?.time_ms ?? null, saves: board ? board.saves[0]?.saves || 0 : null },
-    devices, inputs, sources,
+    devices, inputs, sources: topSources(sources),
     capped: reports.length > REPORT_CAP,
     reports: reports.slice(0, REPORT_CAP).map(r => [r.time_ms, r.score, r.outcome, parseStats(r.stats)]),
     recent: recent.map(({ score_run, stats, ...r }) => ({ ...r, saved: Boolean(score_run && r.name), stats: parseStats(stats) })),

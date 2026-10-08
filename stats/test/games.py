@@ -141,22 +141,33 @@ def stick_army(browser):
     end = check_end(beacons(page)[1], start, 'over', ['wave', 'kills', 'captured', 'crew', 'fallen', 'tags', 'cause'])
     assert end['score'] == 420 and end['stats']['wave'] == 3 and end['stats']['cause'] == 'bomb', end
     assert 'score_run' not in end, end
-    # A win (from the campaign) counts as won, even when the page is left on the victory card.
+    # A win reports as soon as the victory card shows, as the wave-end code calls it.
     page.click('#againBtn')
     second = check_start(beacons(page)[2], 'stick-army', None)
-    page.evaluate("armyTest('S.won = true; S.wonAt = 15; S.wave = 15;')")
-    page.evaluate('__hide()')
+    page.evaluate("armyTest('S.wave = 15; showWin(); reportWin();')")
     won = check_end(beacons(page)[3], second, 'won', ['wave', 'won_at'])
-    assert 'cause' not in won['stats'], won
-    # Restart from pause: the run reports as won (it was), then a new run starts.
-    page.evaluate("armyTest(\"S.mode = 'play'\")")
+    assert won['stats']['won_at'] == 15 and 'cause' not in won['stats'] and 'endless' not in won['stats'], won
+    # Keep going: the same run carries on, so hiding the page reports it again with the endless progress.
+    page.click('#keepBtn')
+    page.evaluate("armyTest('S.wave = 17;')")
+    page.evaluate('__hide()')
+    deeper = check_end(beacons(page)[4], second, 'won', ['wave', 'won_at', 'endless'])
+    assert deeper['stats']['wave'] == 17 and deeper['stats']['endless'] is True, deeper
+    # Restart from pause in the next wave: the run reports once more (still won), then a new run starts.
+    page.click('#continueBtn')
     page.click('#pauseBtn')
     page.click('#restartBtn')
-    check_end(beacons(page)[4], second, 'won', ['wave'])
-    check_start(beacons(page)[5], 'stick-army', None)
+    check_end(beacons(page)[5], second, 'won', ['wave', 'endless'])
+    check_start(beacons(page)[6], 'stick-army', None)
+    # A win left on the victory card needs nothing more: it was reported when the card appeared.
+    third = beacons(page)[6]['body']
+    page.evaluate("armyTest('S.wave = 15; showWin(); reportWin();')")
+    check_end(beacons(page)[7], third, 'won', ['won_at'])
+    page.evaluate('__hide()')
+    assert len(beacons(page)) == 8, [b['body'].get('outcome') for b in beacons(page)]
     assert not errors, errors
     context.close()
-    print('PASS stick-army: start, game over with cause, won on leaving, restart from pause')
+    print('PASS stick-army: start, game over with cause, win at the victory card, keep going, restart from pause')
 
 
 def automated_is_quiet(browser):

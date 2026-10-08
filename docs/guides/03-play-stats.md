@@ -67,7 +67,7 @@ It uses the same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository s
 - **Run length** is play time as each game counts it (Crack and Stick Army leave out pauses), including quits. Medians, not averages: a few very long runs would pull an average up.
 - **Score** and the game's own stats show a median, the middle half and a histogram, or the most common values for text. Per-game spreads read the latest 2,000 runs in the window.
 - **Names** come from saved runs on the boards. "Back another day" counts initials saved on more than one (UTC) day. AAA is the picker's default, so it's left out of the counts and is likely several people.
-- **Where runs came from** is the referring site's hostname. Direct covers typed links, apps that don't pass a referrer, and reloads. `jonniepeed.games` means the studio shelf.
+- **Where runs came from** is the referring site's hostname. Direct covers typed links, apps that don't pass a referrer, and reloads. `jonniepeed.games` means the studio shelf. Past the top 12, the rest share one "Other sites" row, so the shares add up to every run.
 - Days are Eastern time. The window buttons are 7, 30 and 90 days; `?days=` takes 1–365.
 
 ## Adding a game
@@ -79,7 +79,7 @@ It uses the same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository s
    statsRun = window.PlayStats ? PlayStats.start('pebble-hop', { board: BOARD, token: lbRun && lbRun.start, progress: runReport }) : null;
    ```
    `token` is the promise from `Leaderboard.start`, if the game has a board. `progress` returns the same shape as an end report, for a run left mid-way; read live state in it, and call `PlayStats.start` before resetting that state, so a run still open reports its real progress.
-4. At game over, report: `PlayStats.end(statsRun, runReport())`, where `runReport()` returns `{ score, time_ms, input, won, stats }`. `input` is `lbRun.input` where the game tracks it; otherwise `stats.js` uses touch if a touch landed during the run. `won: true` makes the outcome `won`. `end` can be called again for the same run (a winner who keeps playing); the last report wins.
+4. At game over, report: `PlayStats.end(statsRun, runReport())`, where `runReport()` returns `{ score, time_ms, input, won, stats }`. `input` is `lbRun.input` where the game tracks it; otherwise `stats.js` uses touch if a touch landed during the run. `won: true` makes the outcome `won`. `end` can be called again for the same run; the last report wins. If a run carries on after an end (a winner who keeps going), call `PlayStats.resume(statsRun)` so hiding the page mid-run reports it again.
 5. When the player leaves a run from a menu, call `PlayStats.quit(statsRun)` before the state is reset.
 6. Pick a few `stats` that answer "how far did they get": up to 24 short lowercase keys (`a-z`, digits, `_`), each a number, a boolean or text up to 40 characters. Numbers get histograms; text gets its most common values. Anything else is dropped in the client so one bad stat never loses the run.
 7. List the stats in the game's living doc and in SPEC-009's table, run `python3 tools/stamp.py`, and add the game to `stats/test/games.py`.

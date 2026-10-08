@@ -119,6 +119,16 @@
         setTimeout(send, 1500);
       } catch (_) { /* never reaches the game */ }
     },
+    // Call when a run already reported with end() carries on (a winner keeps going). Hiding the page reports its
+    // progress again, and the next end() replaces the earlier report.
+    resume(run) {
+      try {
+        if (!run) return;
+        if (active && active !== run && !active.ended) api.quit(active);
+        run.ended = false;
+        active = run;
+      } catch (_) { /* never reaches the game */ }
+    },
     // Call when the player leaves a run without finishing it, such as back to the title from pause.
     quit(run) {
       try {

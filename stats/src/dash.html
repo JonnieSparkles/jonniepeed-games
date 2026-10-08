@@ -380,7 +380,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   function sourcesCard(sources) {
     const total = sources.reduce((s, d) => s + d.n, 0);
     return sharesCard('Where runs came from', 'The site that linked to the game. Direct covers typed links, apps that hide where they came from, and reloads.',
-      sources.map(s => ({ name: s.source || 'Direct or unknown', n: s.n })), total);
+      sources.map(s => ({ name: s.other ? 'Other sites' : s.source || 'Direct or unknown', n: s.n })), total);
   }
 
   function draw() {

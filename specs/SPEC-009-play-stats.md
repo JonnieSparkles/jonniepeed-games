@@ -52,7 +52,7 @@ No IP address, user agent, cookie or device ID is stored. The rate limiter keys 
 | Don't Step on a Crack | feet walked | `steps`, `streak`, `street` (1–6), `giants` (giant steps used) |
 | Stick Army | score | `wave`, `kills`, `captured`, `popped`, `planes`, `zeppelins`, `tanks`, `crew`, `fallen`, `tags`, `cause`; after a campaign win, also `won_at`, and `endless` once it kept going |
 
-Stick Army reports `won: true` once the campaign sets `S.won`, so a win counts even if the player leaves on the victory card. A winner who keeps going reports again at the final game over, and the last report wins.
+Stick Army reports a win as soon as the victory card shows. A winner who keeps going reports again (if the page is hidden mid-run, and at the final game over), and the last report wins.
 
 ## Dashboards
 
