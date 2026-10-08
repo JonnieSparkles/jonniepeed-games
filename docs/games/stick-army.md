@@ -210,6 +210,20 @@ Round 7 (a calmer page: labels, wave-start pacing, effects and ink) changes no r
 
 Round 8 (pizza before the wave, no dead air before a rush or zeppelin, calls going out on the radio first, fighter cover aiming from its swoop) against round 7, each played by its own bot, 40 seeds: decent median 26 (22–28.2) against 27.5 (21–29.5), with no difference beyond run-to-run noise; late waves are a touch harder. A median run is 18.8 simulated minutes against about 23, because waves no longer idle waiting for a rush. `--verify` matches.
 
+Round 9 (the 15-wave campaign with the Dreadnought, road tanks, armor from 10, slower repairs, a harder run-up and the fighter flight) against main, each played by its own bot, 40 seeds per skill. Runs now end in a win or a loss by wave 15; main had no ending.
+
+| Skill | Won | Alive at wave 10 / 12 / 15 | How runs end |
+| --- | --- | --- | --- |
+| casual | 0% | 40 / 25 / 2% | bombs 30, landers 6, snipers 3, the Dreadnought 1 |
+| decent | 58% | 82 / 75 / 60% | won 23, bombs 15, the Dreadnought 1, landers 1 |
+| expert | 65% | 82 / 80 / 75% | won 26, bombs 8, the Dreadnought 4, sniper 1, lander 1 |
+
+A winning run takes about 9 simulated minutes, plus shopping. What the bots found:
+
+- **Survive wave 9 and you won.** Before the retune, no decent or expert bot died between waves 10 and 19, and every one that reached the final boss beat it. Engineers out-repaired almost any damage (6 HP/s each), so only burst damage mattered. Slower repairs, the harder run-up and a tougher Dreadnought put losses back into waves 11–15.
+- **The Dreadnought only threatened once it aimed at the wall.** With shells mostly aimed at soldiers it cost bots three or four crew but never the run. Weighting the wall, two guns aiming at once and splash on the repairers made it a fight; the open muzzle (2.5× damage while aiming) keeps it beatable by focused fire.
+- **Decent still wins more than the third the spec aims for,** and the decent and expert profiles stay close. The early game (waves 6–9) is where most casual and decent runs end. Playtesting decides the next step.
+
 ## Validation and generated assets
 
 Serve `site/` locally:
