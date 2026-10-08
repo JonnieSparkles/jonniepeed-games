@@ -12,6 +12,7 @@ site/                   everything that gets published
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
+  unruggabull-ii/        8-bit sequel to Unruggabull, floor 13 so far: corridor shooter, katana, the Shredder (Side B demo, noindexed)
   assets/               shared fonts, leaderboard client, dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
@@ -40,7 +41,7 @@ brand/                  source logo and cover art files, not published
   logo-animated-original.mp4      the original animated logo as made, with audio
 ```
 
-Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io.
+Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io. Its 8-bit sequel, Unruggabull II, is built here ([living doc](docs/games/unruggabull-ii.md)).
 
 ## Standards
 
@@ -73,7 +74,7 @@ These apply to every change:
 
 [Side B](specs/SPEC-004-side-b.md) is the development shelf. Hold the studio's rainbow egg with a pointer, Space or Enter: about 1.4 seconds to full power, then three more seconds as the puddle grows. Or enter `#side-b` directly. The **Side A** button returns to Games. The selected shelf lasts for this tab's visit in `sessionStorage`, including reloads and game/home round trips; a new session defaults to Side A. Side B is discoverable, not private.
 
-Stick Army is the only launch card, labelled **demo**, with local scores only. To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
+Side B holds two cards, both labelled **demo** with local scores only: Stick Army and Unruggabull II. To promote one after approval, remove its card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
 
 ## Browser checks
 
@@ -91,6 +92,7 @@ CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
+CHROMIUM=/usr/bin/chromium python3 tests/unruggabull-ii/test.py
 ```
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army.md#validation-and-generated-assets).

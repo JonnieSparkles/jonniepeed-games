@@ -51,6 +51,9 @@ GAMES = [
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
      # the Mom Cam is in the cover's top-left corner, so the crop sits near the left edge
      None, {"cover": ("dont-step-on-a-crack.png", 0.18)}),
+    # the title screen, cropped from the 16:9 canvas to the middle 4:3
+    ("unruggabull-ii", "Unruggabull II", "Climb RugCo Tower. Free the Unrugged. Beat the Shredder.", "Play in your browser",
+     None, {"screenshot": True, "selector": "#c", "crop": (0.125, 0, 0.75, 1), "viewport": (1280, 900), "title_px": 34}),
 ]
 
 BASE_CSS = f"""

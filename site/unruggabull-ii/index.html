@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Unruggabull II · JonniePeed Games</title>
+<meta name="description" content="Unruggabull II: Salvation for the Unrugged. Climb RugCo Tower with a blaster and a katana, free the souls of the unrugged, and beat the Shredder on floor 13. An 8-bit game for phone or desktop.">
+<meta name="theme-color" content="#120d1f">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="JonniePeed Games">
+<meta property="og:title" content="Unruggabull II · JonniePeed Games">
+<meta property="og:description" content="Climb RugCo Tower. Free the Unrugged. Beat the Shredder.">
+<meta property="og:url" content="https://jonniepeed.games/unruggabull-ii/">
+<meta property="og:image" content="https://jonniepeed.games/unruggabull-ii/og.png?v=da88e35073">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Unruggabull II title screen: the 8-bit bull hero runs down a RugCo office hallway toward a sleeping shredder, beside the tagline">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Unruggabull II · JonniePeed Games">
+<meta name="twitter:description" content="Climb RugCo Tower. Free the Unrugged. Beat the Shredder.">
+<meta name="twitter:image" content="https://jonniepeed.games/unruggabull-ii/og.png?v=da88e35073">
+<meta name="twitter:image:alt" content="Unruggabull II title screen: the 8-bit bull hero runs down a RugCo office hallway toward a sleeping shredder, beside the tagline">
+<link rel="icon" href="../assets/favicon.ico?v=443c0101ac" sizes="any">
+<link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
+<link rel="stylesheet" href="../assets/fonts/fonts.css?v=1348facafd">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+/* iPhones zoom on a quick double tap, even on buttons. Pinch zoom still works, and stricter rules (none, pan-y) still win. */
+*{touch-action:manipulation}
+[hidden]{display:none!important}
+:root{--bg:#120d1f;--panel:#221a36;--edge:#3a2f58;--cream:#fff6e2;--muted:#a89cc4;--gold:#ffd44a;--gold-deep:#b8861a;--red:#d63428;--display:'Silkscreen',ui-monospace,monospace;--body:'Pixelify Sans',system-ui,sans-serif;color-scheme:dark}
+html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+html,body{background:var(--bg);color:var(--cream)}
+body{margin:0;font-family:var(--body);font-size:16px}
+/* Pixelify Sans draws "fi" and "fl" as odd ligatures ("Aoor" for "floor") */
+body,button{font-variant-ligatures:none}
+/* Layout: one centred column; header, 16:9 pixel stage, then the deck under it (the card, or the touch pads while playing).
+   Full screen: header on top, stage fitted to the rest; in landscape the card floats over the stage and the pads sit in the corners. */
+main{max-width:760px;margin:0 auto;padding:20px 16px 28px;display:grid;gap:14px}
+.back{justify-self:start;display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-family:var(--display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+.back img{width:20px;height:22px;image-rendering:pixelated}
+.back:hover,.back:focus-visible{color:var(--cream)}
+.back:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
+.game{display:grid;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px}
+h1{font-family:var(--display);font-weight:400;font-size:22px;margin:0;color:var(--gold);letter-spacing:.02em}
+h1 span{display:block;font-family:var(--body);font-size:14px;color:var(--muted);letter-spacing:0;margin-top:2px}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+button{font-family:var(--display);font-size:14px;background:var(--gold);color:var(--bg);border:0;border-radius:4px;padding:10px 18px;box-shadow:0 3px 0 var(--gold-deep);cursor:pointer}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-deep)}
+button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
+.tool{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--cream);box-shadow:none;border:2px solid var(--edge);padding:8px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.tool:active{transform:none;box-shadow:none}
+.snd i{display:block;width:8px;height:8px;background:var(--gold)}
+.snd[aria-pressed="false"] i{background:var(--edge)}
+.fs-ico{display:block;width:10px;height:10px;border:2px solid var(--cream)}
+.full .fs-ico{border-style:dashed}
+.arena{display:grid;gap:12px}
+.stage{position:relative;width:min(100%,max(300px,calc((100svh - 250px) * 16 / 9)));margin-inline:auto;aspect-ratio:16/9;border-radius:8px;overflow:hidden;box-shadow:0 0 0 2px var(--edge);background:#09070b}
+canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;outline:none}
+.deck{display:grid;gap:12px;justify-items:center}
+.card{display:grid;gap:10px;justify-items:center;text-align:center;background:var(--panel);border-radius:10px;padding:16px 18px 18px;width:min(100%,520px)}
+.card h2{font-family:var(--display);font-weight:400;font-size:20px;margin:0;color:var(--gold);text-wrap:balance}
+.card p{margin:0;line-height:1.4;max-width:46ch;text-wrap:pretty}
+.card .note{font-size:14px;color:var(--muted)}
+.card dl{display:grid;grid-template-columns:auto auto;gap:4px 16px;margin:0;font-variant-numeric:tabular-nums}
+.card dt{font-family:var(--display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;align-self:center}
+.card dd{margin:0;text-align:left;font-size:18px}
+.btns{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px}
+.link{background:none;box-shadow:none;padding:4px 6px;color:var(--muted);font-family:var(--body);font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.link:hover{color:var(--cream)}
+.link:active{transform:none;box-shadow:none}
+/* Touch pads: shown while playing on a touch screen. Move on the left, jump and slash on the right. */
+.pads{display:none;width:100%;justify-content:space-between;align-items:end;gap:12px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
+.touch .playing .pads{display:flex}
+.playing .card{display:none}
+.pad-group{display:flex;gap:10px;touch-action:none}
+.pad{display:grid;place-items:center;width:76px;height:64px;padding:0;border-radius:12px;background:rgba(58,47,88,.85);border:2px solid #5a4c86;box-shadow:none;color:var(--cream);font-size:12px;letter-spacing:.06em;text-transform:uppercase;touch-action:none;-webkit-tap-highlight-color:transparent}
+.pad:active{transform:none;box-shadow:none}
+.pad.on{background:#5a4c86;border-color:var(--gold)}
+.pad.slash{background:rgba(150,30,22,.85);border-color:#d63428}
+.pad.slash.on{background:#d63428;border-color:var(--gold)}
+.pad svg{width:22px;height:22px;fill:currentColor}
+.hint{margin:0;color:var(--muted);font-size:14px}
+.hint .touch-only{display:none}
+.touch .hint .touch-only{display:inline}
+.touch .hint .keys-only{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+body.locked{overflow:hidden}
+.game.full{position:fixed;inset:0;z-index:10;background:var(--bg);grid-template-rows:auto minmax(0,1fr);gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-right,0px) + 12px) calc(env(safe-area-inset-bottom,0px) + 10px) calc(env(safe-area-inset-left,0px) + 12px)}
+.game.full h1{font-size:16px}
+.game.full h1 span{display:none}
+.game.full .tool{padding:6px 10px}
+.full .arena{min-height:0;grid-template-rows:auto minmax(0,1fr);position:relative}
+.full .stage{width:100%;max-width:calc((100dvh - 120px) * 16 / 9)}
+.full .deck{align-content:start;min-height:0;overflow:auto}
+.full.playing .deck{align-content:end;overflow:visible}
+.full .pad{width:min(22vw,92px);height:min(16vw,76px)}
+@media (orientation:landscape){
+  .full .arena{container-type:size;display:grid;place-items:center;grid-template-rows:minmax(0,1fr)}
+  .full .stage{width:min(100cqw,calc(100cqh * 16 / 9));max-width:none}
+  .full .deck{position:absolute;inset:0;display:grid;place-items:center;padding:8px;pointer-events:none;overflow:visible}
+  .full .card{pointer-events:auto;max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:rgba(34,26,54,.95)}
+  .full .pads{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
+  .full .pad-group{pointer-events:auto}
+  .full .pad{width:min(11vw,84px);height:min(17vh,70px);background:rgba(58,47,88,.55)}
+  .full .pad.slash{background:rgba(150,30,22,.6)}
+}
+@media (prefers-reduced-motion:reduce){button:active{transform:none}}
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">JonniePeed Games</a>
+  <section class="game" id="game" aria-label="Unruggabull II">
+    <header>
+      <h1>Unruggabull II<span>Salvation for the Unrugged</span></h1>
+      <div class="tools">
+        <button class="tool" id="pause" type="button" hidden>Pause</button>
+        <button class="tool snd" id="snd" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Sound off</span></button>
+        <button class="tool" id="fs" type="button" aria-pressed="false"><i class="fs-ico" aria-hidden="true"></i><span>Full screen</span></button>
+      </div>
+    </header>
+    <div class="arena">
+      <div class="stage">
+        <canvas id="c" width="240" height="135" tabindex="-1" aria-label="Unruggabull, seen from behind, in an office hallway on floor 13 of RugCo Tower. Cubicles line the hall, a red runner rug leads to a shredder at the far end."></canvas>
+      </div>
+      <div class="deck">
+        <div class="card" id="card">
+          <h2 id="cardTitle">Floor 13: Accounting</h2>
+          <p id="cardText">Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Climb up and set them free. Your blaster fires on its own.</p>
+          <dl id="cardStats" hidden></dl>
+          <div class="btns"><button id="go" type="button">Start</button><button id="alt" class="link" type="button" hidden>Restart floor</button></div>
+          <p class="note" id="cardNote">Demo: the first floor of the climb.</p>
+        </div>
+        <div class="pads" id="pads">
+          <div class="pad-group">
+            <button class="pad" type="button" data-k="left" tabindex="-1" aria-label="Move left"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M7 1 2 5l5 4z"/></svg></button>
+            <button class="pad" type="button" data-k="right" tabindex="-1" aria-label="Move right"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1l5 4-5 4z"/></svg></button>
+          </div>
+          <div class="pad-group">
+            <button class="pad" type="button" data-k="jump" tabindex="-1">Jump</button>
+            <button class="pad slash" type="button" data-k="slash" tabindex="-1">Slash</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="sr" id="live" aria-live="polite"></p>
+  </section>
+  <p class="hint"><span class="keys-only">Move with A and D or the arrow keys, jump with Space, slash with J. Slash knocks paper back where it came from. M sound, F full screen, P pause.</span><span class="touch-only">Move with the arrows, then jump and slash on the right. Slash knocks paper back where it came from.</span></p>
+</main>
+<script src="art.js?v=6309a4b120"></script>
+<script src="audio.js?v=53115a130b"></script>
+<script src="game.js?v=8a39e07469"></script>
+</body>
+</html>
