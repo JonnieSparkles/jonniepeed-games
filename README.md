@@ -63,7 +63,7 @@ These apply to every change:
 ## Adding a game
 
 1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
-2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture.
+2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture (see [02: Cover art](docs/guides/02-cover-art.md)).
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
 4. Add a living `docs/games/yourgame.md` linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
 5. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
@@ -107,7 +107,7 @@ Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game i
 
 ## Social previews
 
-Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (cover art or page screenshot). A game with cover art in `brand/covers/` uses one 4:3 crop of it for both: the 768×576 thumbnail, and the picture on its card, where the card leaves out the title because the cover has it lettered in. Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniepeed.games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
+Each page has Open Graph and Twitter tags pointing at a 1200×630 game card at `site/<slug>/og.png` or the generic studio card at `site/assets/studio/og.png`. Shelf thumbnails live at `site/<slug>/thumb.png` (pixel canvas) or `thumb.webp` (cover art or page screenshot). A game with cover art in `brand/covers/` uses one 4:3 crop of it for both: the 768×576 thumbnail, and the picture on its card, where the card leaves out the title because the cover has it lettered in. [02: Cover art](docs/guides/02-cover-art.md) explains how to make one. Image URLs must be absolute, so they point at the GitHub Pages copy (`https://jonniepeed.games/`). Page `og:url` values use the clean trailing-slash URL. Run the Pages workflow at least once so those images exist. To use another domain, find and replace that base URL in the pages.
 
 Rebuild the cards and index thumbnails after changing a game's art or adding a game (add it to `GAMES` in the script first):
 
