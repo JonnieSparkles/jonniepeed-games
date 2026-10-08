@@ -1,4 +1,4 @@
-// Stick Army campaign (SPEC-008): the Dreadnought, the final boss at wave 15; the victory card with the squad's roll
+// Stick Army campaign (SPEC-008): the Dreadnought, the final boss at wave 20; the victory card with the squad's roll
 // call; and endless play after it. Classic script; load after shop.js and before game.js. game.js calls
 // StickArmyCampaign(world) once with the same world object it gives units.js, squad.js and shop.js.
 var StickArmyCampaign = function (w) {
@@ -22,17 +22,17 @@ var StickArmyCampaign = function (w) {
   // armored throughout; only the part for the stage can be hurt. It lives in S.planes as kind 'dread', so bullets,
   // rockets, flak, bazookas and the ambience all see it. Local x runs stern to bow; on the page, x = p.x + p.dir * lx.
   var DREAD = {
-    WAVE: 15, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 2, ENTER: 90,
+    WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 2, ENTER: 90,
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
-    AIM: 0.9, MARKS: 2, EXPOSED: 2, RELOAD: [3, 4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 8, SPLASH: 26, DIRECT: 4,
+    AIM: 0.9, MARKS: 2, EXPOSED: 2, RELOAD: [2.8, 3.6], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 16, SPLASH: 26, DIRECT: 4,
     LAUNCH_EVERY: 4, TROOPS_EVERY: 5, BOMBS_EVERY: 3, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
     SINK: 3.2
   };
-  function turretHP(n) { return Math.round(30 + 1.5 * n); }
-  function hangarHP(n) { return Math.round(70 + 3.5 * n); }
-  function bridgeHP(n) { return Math.round(80 + 4.5 * n); }
-  // Wave 15, then every tenth wave in endless.
+  function turretHP(n) { return Math.round(30 + 2.5 * n); }
+  function hangarHP(n) { return Math.round(70 + 5 * n); }
+  function bridgeHP(n) { return Math.round(80 + 6 * n); }
+  // Wave 20, then every tenth wave in endless.
   function isDreadWave(n) { return n >= DREAD.WAVE && (n - DREAD.WAVE) % DREAD.EVERY === 0; }
   function dread() { return w.S.planes.find(function (p) { return p.kind === 'dread'; }) || null; }
   function fighting(p) { return p.phase === 'guns' || p.phase === 'hangar' || p.phase === 'bridge'; }
@@ -98,7 +98,9 @@ var StickArmyCampaign = function (w) {
     t.hp -= dmg * (t.mark ? DREAD.EXPOSED : 1); t.flash = 0.1; w.burst(hx, hy, 3, INK, 90);
     if (t.hp > 0) { w.sound.play('thup'); return; }
     t.dead = true; t.hp = 0;
-    w.pow(g.x, g.y, 32); w.burst(g.x, g.y, 10, RED, 160);
+    // It blows apart: a flash, flame, and the turret's pieces tumbling off. A scorched hole is left in the hull.
+    w.pow(g.x, g.y, 40); w.burst(g.x, g.y, 14, RED, 190); w.burst(g.x, g.y, 8, INK, 150); w.puff(g.x, g.y, 9, 1);
+    for (var k = 0; k < 5; k++) S.parts.push({ k: 'scrap', x: g.x + rr(-12, 12), y: g.y + rr(-6, 6), vx: rr(-90, 90), vy: rr(-120, -20), rot: rr(0, 6), vr: rr(-8, 8), s: rr(4, 8), c: '#8a8f96', life: 1.6, max: 1.6, id: w.id() });
     w.award(200, g.x, g.y + 34, 'gun down!', owner === 'ally' ? BLUE : INK, true); w.credit();
     emit('dread_gun', { by: owner === 'ally' ? 'crew' : 'player', left: p.turrets.filter(function (q) { return !q.dead; }).length });
     w.sound.play('boom'); S.shake = Math.max(S.shake, 0.3);
@@ -447,15 +449,24 @@ var StickArmyCampaign = function (w) {
     }
     // The gun turrets: steel casemates under the hull; each barrel turns, glows while aiming, and kicks back on firing.
     p.turrets.forEach(function (t) {
-      var gx = t.lx, gy = DREAD.GUN_Y, marking = !!t.mark, a = t.dead ? Math.PI / 2 + 0.9 : t.aim, la = Math.atan2(Math.sin(a), Math.cos(a) * p.dir);
+      var gx = t.lx, gy = DREAD.GUN_Y, marking = !!t.mark, a = t.aim, la = Math.atan2(Math.sin(a), Math.cos(a) * p.dir);
+      if (t.dead) {
+        // Gone: a scorched, torn hole where the turret hung, still smoking.
+        G.beginPath(); SP([gx - 13, hh - 4, gx - 6, hh + 3, gx + 2, hh - 1, gx + 9, hh + 4, gx + 14, hh - 4], true, 0.5); G.fillStyle = 'rgba(46,46,51,0.75)'; G.fill(); ink(INK, 1.6); G.stroke();
+        G.beginPath(); L(gx - 8, hh + 2, gx - 10, hh + 8, 0.3); L(gx + 6, hh + 3, gx + 9, hh + 9, 0.3); ink(INK, 1.3); G.stroke();
+        for (var k = 0; k < 3; k++) {
+          var age = (S.t * 0.9 + k / 3 + t.id * 0.17) % 1;
+          G.globalAlpha = (1 - age) * 0.5; G.beginPath(); w.Ci(gx + 3 - age * 14, hh - 4 - age * 30, 3 + age * 7, 0.6); ink(INK, 1.3); G.stroke(); G.globalAlpha = 1;
+        }
+        return;
+      }
       G.beginPath(); SP([gx - 16, gy - 11, gx + 16, gy - 11, gx + 13, gy + 7, gx - 13, gy + 7], true, 0.3);
-      G.fillStyle = t.dead ? 'rgba(46,46,51,0.55)' : t.flash > 0 ? PAPER : '#8a8f96'; G.fill();
+      G.fillStyle = t.flash > 0 ? PAPER : '#8a8f96'; G.fill();
       ink(marking && Math.floor(S.t * 10) % 2 ? RED : INK, 2.2); G.stroke();
-      var len = t.dead ? 10 : 21 - t.recoil * 7, ex = gx + Math.cos(la) * len, ey = gy + Math.sin(la) * len;
-      G.beginPath(); L(gx, gy, ex, ey, 0.2); ink(INK, t.dead ? 3.4 : 6); G.stroke();
-      if (!t.dead) { G.beginPath(); L(gx, gy, ex, ey, 0.2); ink(marking ? 'rgba(220,60,40,0.9)' : '#8a8f96', 2.2); G.stroke(); }
+      var len = 21 - t.recoil * 7, ex = gx + Math.cos(la) * len, ey = gy + Math.sin(la) * len;
+      G.beginPath(); L(gx, gy, ex, ey, 0.2); ink(INK, 6); G.stroke();
+      G.beginPath(); L(gx, gy, ex, ey, 0.2); ink(marking ? 'rgba(220,60,40,0.9)' : '#8a8f96', 2.2); G.stroke();
       if (t.recoil > 0.6) { G.beginPath(); G.arc(ex + Math.cos(la) * 6, ey + Math.sin(la) * 6, 6 * t.recoil, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.9)'; G.fill(); }
-      if (t.dead && w.boil === (t.id % 3)) { G.globalAlpha = 0.4; G.beginPath(); w.Ci(gx + 4, gy - 16, 6, 0.6); ink(INK, 1.4); G.stroke(); G.globalAlpha = 1; }
     });
   }
   // The aim: a red crosshair on the ground for each shell of the volley, the middle one marked with a smoke flare,
@@ -524,7 +535,7 @@ var StickArmyCampaign = function (w) {
   function dreadPhase() { var p = dread(); return p ? p.phase : null; }
 
   // ---------- victory and endless ----------
-  // Beating the Dreadnought on wave 15 wins the run. When the field is clear the victory card shows the score, the
+  // Beating the Dreadnought on wave 20 wins the run. When the field is clear the victory card shows the score, the
   // time, the record and the roll call; Keep going opens the shop and plays on from wave 21 (S.endless).
   var winScreen = document.getElementById('winScreen');
   function victoryDue() { var S = w.S; return S.finalWon && !S.won; }

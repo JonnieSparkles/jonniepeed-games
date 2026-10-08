@@ -7,7 +7,6 @@ var StickArmySound = (function () {
   // ---------- sound ----------
   var AC = null, master = null, noiseBuf = null, muted = false, lastPlay = {}, LEVEL = 0.8;
   function audioInit() {
-    unlockSpeech();
     if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
     try {
       AC = new (window.AudioContext || window.webkitAudioContext)();
@@ -106,6 +105,8 @@ var StickArmySound = (function () {
     // The Red Cross plane coming in: a soft two-tone chime. HQ's supply plane: an engine and a bright little horn.
     medevac: function () { tone(988, 0.22, 'sine', 0.09); tone(784, 0.3, 'sine', 0.09, null, 0.24); tone(988, 0.22, 'sine', 0.07, null, 0.6); tone(784, 0.3, 'sine', 0.07, null, 0.84); },
     hq: function () { tone(90, 1.1, 'sawtooth', 0.035, 150); brass(659, 0.12, 0.06, 0.2); brass(880, 0.25, 0.065, 0.34); },
+    // A heavy bomber: a deep, beating drone of four engines.
+    drone: function () { tone(52, 2.4, 'sawtooth', 0.045, 58); tone(55.5, 2.4, 'sawtooth', 0.04, 61); noise(2, 0.07, 220); },
     chopper: function () { for (var i = 0; i < 12; i++) { noise(0.07, 0.16 - i * 0.008, 260, i * 0.11); tone(58, 0.06, 'sine', 0.12 - i * 0.006, 44, i * 0.11); } },
     wrong: function () { tone(196, 0.18, 'square', 0.1); tone(139, 0.45, 'square', 0.1, null, 0.19); noise(0.3, 0.06, 500, 0.19); },
     victory: function () {
@@ -116,53 +117,20 @@ var StickArmySound = (function () {
     over: function () { tone(392, 0.2, 'triangle', 0.15); tone(330, 0.2, 'triangle', 0.15, null, 0.2); tone(262, 0.45, 'triangle', 0.15, null, 0.4); }
   };
   // ---------- little voices ----------
-  // Real words in tiny voices: the browser's own speech (speechSynthesis), pitched up and quick for the squad, low
-  // and slow for the enemy, each speaker a little different (from his id). The game shows a speech bubble with the
-  // line, so you see who's talking. Speech can't overlap, so a line is dropped while another is still being said or
-  // within SPEECH.GAP seconds of the last. Phones and browsers each have their own voices, so it sounds a bit different
-  // on each. Where speech isn't available (or has no voices) the old gibberish chatter stands in: a syllable for each
-  // vowel in the line through that vowel's formants (VOWELS), lines closer than SAY.GAP dropped.
+  // Gibberish chatter to go with the game's speech bubbles: a syllable for each vowel in the line (up to four), each a
+  // buzzy pitch through the formants of that vowel, so "medic!" and "air strike!" sound like themselves. Every speaker
+  // keeps his own pitch (from his id); the enemy's voices are lower and gruffer. A line ending in "!" lifts at the end.
+  // Lines closer than SAY.GAP apart are dropped, so a busy moment doesn't turn into a crowd. (The browser's own speech
+  // was tried and sounded bad on phones.)
   var SAY = { GAP: 0.2, VOL: 0.12 }, lastSay = -1;
-  var SPEECH = { GAP: 0.5, VOLUME: 0.9 }, synth = window.speechSynthesis || null, speechVoice = null, lastSpeech = -9, unlocked = false;
-  function pickVoice() {
-    var list = synth ? synth.getVoices() : [];
-    if (!list.length) return;
-    var en = list.filter(function (v) { return /^en/i.test(v.lang); });
-    speechVoice = en.find(function (v) { return v.localService; }) || en[0] || list[0];
-  }
-  if (synth) { pickVoice(); if (synth.addEventListener) synth.addEventListener('voiceschanged', pickVoice); }
-  // iPhones only speak after speech has started inside a tap: a silent line on the first tap opens it up.
-  function unlockSpeech() {
-    if (!synth || unlocked) return;
-    unlocked = true;
-    try { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); } catch (e) { /* ignore */ }
-  }
   // Formants per vowel, and a level for each so they come out about equally loud.
   var VOWELS = { a: [730, 1090, 0.65], e: [530, 1840, 0.85], i: [300, 2200, 1.2], o: [570, 840, 1], u: [320, 900, 1.2], y: [300, 2200, 1.2] };
   function say(text, voice, enemy, delay) {
-    if (muted) return;
-    var h = Math.imul((voice | 0) + 7, 2654435761) >>> 0;
-    if (synth && speechVoice) {
-      var at = performance.now() / 1000 + (delay || 0);
-      if (at - lastSpeech < SPEECH.GAP || synth.pending) return;
-      lastSpeech = at;
-      setTimeout(function () {
-        if (muted || document.hidden) return;
-        try {
-          var u = new SpeechSynthesisUtterance(String(text));
-          u.voice = speechVoice; u.volume = SPEECH.VOLUME;
-          u.pitch = enemy ? 0.3 + (h % 3) * 0.1 : 1.6 + (h % 5) * 0.1;
-          u.rate = enemy ? 1.25 : 1.55 + (h % 3) * 0.1;
-          synth.speak(u);
-        } catch (e) { /* ignore */ }
-      }, (delay || 0) * 1000);
-      return;
-    }
-    if (!AC) return;
+    if (!AC || muted) return;
     var t = AC.currentTime + (delay || 0);
     if (Math.abs(t - lastSay) < SAY.GAP) return;
     lastSay = t;
-    var base = enemy ? 118 + (h % 5) * 11 : 220 + (h % 7) * 22;
+    var h = Math.imul((voice | 0) + 7, 2654435761) >>> 0, base = enemy ? 118 + (h % 5) * 11 : 220 + (h % 7) * 22;
     var vowels = (String(text).toLowerCase().match(/[aeiouy]/g) || ['a']).slice(0, 4), lift = /!$/.test(text);
     try {
       vowels.forEach(function (v, i) {
@@ -297,7 +265,7 @@ var StickArmySound = (function () {
       var p = planes[i];
       if (!on || !p) { v.g.gain.setTargetAtTime(0, now, 0.25); return; }
       // Slightly higher pitch while approaching the middle, lower while leaving.
-      var zep = p.kind === 'zeppelin' || p.kind === 'dread' || p.kind === 'heli', base = p.kind === 'dread' ? 34 : p.kind === 'heli' ? 38 : zep ? 44 : p.kind === 'cargo' ? 50 : p.kind === 'bomber' ? 56 : p.kind === 'diver' ? 96 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
+      var zep = p.kind === 'zeppelin' || p.kind === 'dread' || p.kind === 'heli', base = p.kind === 'dread' ? 34 : p.kind === 'heli' ? 38 : zep ? 44 : p.kind === 'cargo' ? 50 : p.kind === 'bomber' ? 56 : p.kind === 'diver' ? 96 : p.kind === 'heavy' ? 48 : 80, doppler = (200 - p.x) * p.dir > 0 ? 1.04 : 0.96;
       var near = 1 - Math.min(1, Math.abs(p.x - 200) / 260);
       v.o.frequency.setTargetAtTime(base * doppler, now, 0.25);
       v.o2.frequency.setTargetAtTime(base * doppler * 1.02, now, 0.25);
@@ -329,6 +297,6 @@ var StickArmySound = (function () {
     say: say,
     ambience: ambience,
     get muted() { return muted; },
-    set muted(value) { muted = !!value; if (muted && synth) synth.cancel(); }
+    set muted(value) { muted = !!value; }
   };
 })();

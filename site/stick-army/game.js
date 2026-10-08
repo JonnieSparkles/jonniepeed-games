@@ -26,7 +26,7 @@
   };
   // From ARMOR.WAVE some troopers wear a flak vest that stops one body hit (two from ARMOR.HEAVY, with a helmet).
   // Popping the chute, rockets and other blasts work as usual, so the turret copes better than the crew.
-  var ARMOR = { WAVE: 10, HEAVY: 14 };
+  var ARMOR = { WAVE: 10, HEAVY: 17 };
   // The barrel can tip slightly below horizontal on either side: enough to hit landers near the wall,
   // not enough to reach the far field. Angles run continuously from AIM_MIN (below left) to AIM_MAX (below right).
   var AIM_DIP = 0.3;
@@ -236,7 +236,7 @@
       coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
-      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [],
+      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [], night: 0,
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
@@ -249,34 +249,38 @@
     redrawDecals();
   }
 
+  // A run is 20 waves. Bosses every fifth: a zeppelin (5), the armored zeppelin (10), two zeppelins at once (15) and
+  // the Dreadnought (20); in endless the twins return on the fives and the Dreadnought on the tens. Something new
+  // arrives on most waves (startWave says what), and the curves below keep climbing through 19 and on into endless.
   function waveCfg(n) {
-    var boss = n % BOSS_EVERY === 0, dreadWave = boss && isDreadWave(n);
+    var boss = n % BOSS_EVERY === 0, dreadWave = boss && isDreadWave(n), twin = boss && !dreadWave && n >= ZEP.TWIN_WAVE && n % 10 === 5;
     var c = {
-      // Boss waves trade the bombers and half the planes for a zeppelin. The Dreadnought (wave 20, then every tenth)
-      // brings a light escort and nothing on the ground, so the fight is with the ship.
-      planes: Math.round((4 + BALANCE.PLANES_PER_WAVE * n) * (dreadWave ? 0.4 : boss ? 0.5 : 1)),
-      bombers: !boss && n >= 2 ? (n <= 9 ? Math.min(5, n - 1) : n - 4 + Math.floor((n - 10) / 2)) : 0,
-      boss: boss ? 1 : 0, bossKind: dreadWave ? 'dread' : boss ? 'zeppelin' : null,
-      // Rushers from wave 6 and tanks from wave 9 (units.js) add variety mid-run. From wave 12 bombers grow by one a
-      // wave with no cap and planes come ever faster, so pressure keeps rising instead of flattening out.
-      rushes: n >= RUSH.WAVE && !dreadWave ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 2)) : 0,
-      rushSize: Math.min(6, 2 + Math.floor((n - RUSH.WAVE) / 3)),
-      cargo: n >= TANK.WAVE && !dreadWave ? (n < 11 ? 1 : Math.min(4, 2 + Math.floor((n - 11) / 2))) : 0,
+      // Boss waves trade the bombers and half the planes for the boss. The Dreadnought brings a light escort and nothing
+      // on the ground, so the fight is with the ship.
+      planes: Math.round((5 + BALANCE.PLANES_PER_WAVE * n) * (dreadWave ? 0.4 : boss ? 0.5 : 1)),
+      bombers: !boss && n >= 2 ? (n <= 9 ? Math.min(5, n - 1) : 6 + Math.floor((n - 10) * 0.7)) : 0,
+      boss: boss ? (twin ? 2 : 1) : 0, bossKind: dreadWave ? 'dread' : boss ? 'zeppelin' : null, twin: twin,
+      rushes: n >= RUSH.WAVE && !dreadWave ? Math.min(6, 1 + Math.floor((n - RUSH.WAVE) / 3)) : 0,
+      rushSize: Math.min(6, 2 + Math.floor((n - RUSH.WAVE) / 4)),
+      cargo: n >= TANK.WAVE && !dreadWave ? Math.min(4, 1 + Math.floor((n - TANK.WAVE) / 3)) : 0,
       // From TANK.ROAD_WAVE some tanks roll in from the page edge instead, so they can't all be stopped in the air.
-      road: n >= TANK.ROAD_WAVE && !dreadWave ? Math.min(4, 1 + Math.floor((n - TANK.ROAD_WAVE) / 2)) : 0,
-      bombCount: Math.min(6, 3 + Math.floor((n - 2) / 2)),
+      road: n >= TANK.ROAD_WAVE && !dreadWave ? Math.min(4, 1 + Math.floor((n - TANK.ROAD_WAVE) / 3)) : 0,
+      // Each bomber carries up to six bombs, then one more from 14 and another from 18.
+      bombCount: Math.min(6 + Math.floor(Math.max(0, n - 10) / 4), 3 + Math.floor((n - 2) / 2)),
       sniperChance: n >= ENEMIES.sniper.minWave ? Math.min(0.3, 0.10 + n * 0.015) : 0,
-      armorChance: n >= ARMOR.WAVE ? Math.min(0.6, 0.15 + 0.07 * (n - ARMOR.WAVE)) : 0,
+      armorChance: n >= ARMOR.WAVE ? Math.min(0.6, 0.1 + 0.04 * (n - ARMOR.WAVE)) : 0,
       armorHits: n >= ARMOR.HEAVY ? 2 : 1,
-      // Planes come faster until wave 7, hold until wave 9, then keep tightening to a 0.3 s gap by wave 19.
-      interval: n <= 9 ? Math.max(0.85, 2.5 - 0.24 * n) : Math.max(0.3, 0.85 - 0.06 * (n - 9)),
-      speed: 65 + 8 * n,
+      // Planes come quickly from the start, hold a 0.85 s gap from wave 5 to 9, then keep tightening to 0.3 s.
+      interval: n <= 4 ? 1.7 - 0.18 * n : n <= 9 ? 0.85 : Math.max(0.3, 0.85 - 0.045 * (n - 9)),
+      speed: n <= 10 ? 65 + 8 * n : 145 + 5 * (n - 10),
       maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
-      special: n === 1 ? 0.15 : Math.min(0.45, 0.16 + 0.06 * n)
+      special: n === 1 ? 0.15 : Math.min(0.45, 0.16 + 0.06 * n),
+      // The night raid: the page goes dark (sky.js drawNight).
+      night: n >= SKY.NIGHT.WAVE && (n - SKY.NIGHT.WAVE) % 10 === 0 && !boss
     };
-    // The Red Cross plane (4), bomb balloons (7), HQ crates (8), dive bombers (12) and helicopters (13): sky.js.
-    var extra = SKY.counts(n, dreadWave);
+    // Balloons (4), the Red Cross plane (6), helicopters (7), HQ drops (8), dive bombers (12), heavy bombers (13): sky.js.
+    var extra = SKY.counts(n, dreadWave, boss);
     for (var k in extra) c[k] = extra[k];
     return c;
   }
@@ -512,14 +516,15 @@
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 2.4, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: 11 };
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: 11 };
     SKY.start(S.spawn, c);
     S.waveState = 'active';
-    var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.boss && n >= ZEP.ARMOR_WAVE ? 'armored zeppelin! strip its plates' : c.boss ? 'zeppelin! aim for the gondola' :
-      n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : n === SKY.MEDEVAC.WAVE ? "don't shoot the Red Cross plane!" :
-      n === RUSH.WAVE ? 'troops rushing the flanks!' : n === SKY.BALLOON.WAVE ? 'bomb balloons! pop them early' : n === SKY.CRATE.WAVE ? 'HQ airdrops! catch the blue crates' :
-      n === TANK.ROAD_WAVE ? 'tanks rolling in by road!' : n === SKY.DIVE.WAVE ? 'dive bombers! listen for the siren' : n === SKY.HELI.WAVE ? 'choppers! shoot them off the ropes' :
-      n === DREAD.WAVE - 1 && !S.won ? 'the big push!' : '';
+    var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.twin ? 'two zeppelins at once!' : c.boss && n >= ZEP.ARMOR_WAVE ? 'armored zeppelin! strip its plates' :
+      c.boss ? 'zeppelin! aim for the gondola' : c.night ? 'night raid! follow your searchlight' :
+      n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : n === SKY.BALLOON.WAVE ? 'bomb balloons! pop them early' :
+      n === SKY.MEDEVAC.WAVE ? "don't shoot the Red Cross plane!" : n === SKY.HELI.WAVE ? 'choppers! shoot them off the ropes' : n === SKY.CRATE.WAVE ? 'supplies from HQ!' :
+      n === TANK.ROAD_WAVE ? 'tanks rolling in by road!' : n === SKY.DIVE.WAVE ? 'dive bombers! watch the crosshair' : n === SKY.HEAVY.WAVE ? 'heavy bombers! they take a beating' :
+      n === ARMOR.HEAVY ? 'heavy armor! two hits' : n === DREAD.WAVE - 1 && !S.won ? 'the big push!' : '';
     // With the first tanks, HQ puts a bomber on the radio, so everyone learns the button when it matters. The banner
     // says so, rather than a label of its own.
     if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
@@ -554,8 +559,13 @@
       if (sp.boss > 0) {
         sp.bossT -= dt;
         // The horn and a red callout warn that the zeppelin is coming.
-        if (!sp.bossWarned && sp.bossT <= ZEP.WARN) { sp.bossWarned = true; sound.play('horn'); addText('zeppelin incoming!', 200, ZEP.Y, RED); emit('zeppelin_warning', { wave: S.wave }); }
-        if (sp.bossT <= 0) { sp.boss--; if (sp.cfg.bossKind === 'dread') spawnDread(); else spawnZeppelin(); }
+        if (!sp.bossWarned && sp.bossT <= ZEP.WARN) { sp.bossWarned = true; sound.play('horn'); addText(sp.cfg.twin ? 'two zeppelins incoming!' : 'zeppelin incoming!', 200, ZEP.Y, RED); emit('zeppelin_warning', { wave: S.wave }); }
+        if (sp.bossT <= 0) {
+          if (sp.cfg.bossKind === 'dread') { sp.boss--; spawnDread(); }
+          // The twins come in together, one from each side, one above the other.
+          else if (sp.cfg.twin) { sp.boss = 0; spawnZeppelin({ dir: 1, twin: 0 }); spawnZeppelin({ dir: -1, twin: 1 }); }
+          else { sp.boss--; spawnZeppelin(); }
+        }
       }
       if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14); } }
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15); } }
@@ -710,14 +720,13 @@
     S.recoil = 1;
     sound.play('shoot');
   }
-  // One trigger pull: costs points, adds heat, and locks the gun when it boils over. From wave 10 the gun runs hotter
-  // (heatScale), so even with cooling fins, holding the trigger down stops working late in the run.
-  function heatScale(n) { return Math.min(1.5, 1 + 0.05 * Math.max(0, n - 9)); }
+  // One trigger pull: costs points, adds heat, and locks the gun when it boils over. Heat per shot never changes with
+  // the wave, so cooling fins always pay off.
   function fireVolley() {
     shoot();
     var rate = Math.pow(0.82, S.mods.fire);
     S.fireCD = BALANCE.FIRE_COOLDOWN * rate;
-    S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool) * heatScale(S.wave);
+    S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool);
     S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
     if (S.heat >= 1) triggerOverheat();
   }
@@ -906,8 +915,8 @@
       // A direct hit still kills a bare recruit; near misses wound. Helmets and trenches help.
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4, 'bomb'); });
     } else if (kind === 'dive') {
-      // A dive bomber's heavy bomb.
-      if (Math.abs(x - BK.x) < 50) { hurtWall(SKY.DIVE.WALL, 'dive'); wallText(SKY.DIVE.WALL); }
+      // A heavy bomb: a dive bomber's, or the one a heavy bomber saves for the bunker.
+      if (Math.abs(x - BK.x) < 50) { hurtWall(SKY.DIVE.WALL, source || 'dive'); wallText(SKY.DIVE.WALL); }
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 40) hurtRecruit(q, 4 * (1 - d / 40) + 0.5, 'bomb'); });
     } else if (kind === 'shell') {
       // Tank shells: lighter than bombs, aimed at the bunker.
@@ -1154,7 +1163,7 @@
       m.vy += 260 * dt; m.x += m.vx * dt; m.y += m.vy * dt;
       if (m.y >= GROUND - 6 || (m.x > BK.x1 - 4 && m.x < BK.x2 + 4 && m.y >= BK.top - 8)) {
         m.dead = true;
-        explode(m.x, Math.min(m.y, GROUND - 4), m.shell ? 28 : m.heavy ? 50 : 42, m.shell ? 'shell' : m.heavy ? 'dive' : 'bomb', null, m.balloon ? 'balloon' : null);
+        explode(m.x, Math.min(m.y, GROUND - 4), m.shell ? 28 : m.heavy ? 50 : 42, m.shell ? 'shell' : m.heavy ? 'dive' : 'bomb', null, m.balloon ? 'balloon' : m.src || null);
       }
     });
   }
@@ -1927,6 +1936,7 @@
     drawBossBar();
     drawDreadBar();
     drawParts();
+    SKY.drawNight();
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
     drawTexts();
@@ -1999,7 +2009,8 @@
   }
   // What brought the wall down: the last source to hurt it (hurtWall).
   var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.', dreadnought: "The Dreadnought's guns brought the wall down.",
-    dive: "A dive bomber's bomb brought the wall down.", balloon: "A balloon's bomb brought the wall down.", heli: 'Helicopter fire chipped the wall away.' };
+    dive: "A dive bomber's bomb brought the wall down.", balloon: "A balloon's bomb brought the wall down.", heli: 'Helicopter fire chipped the wall away.',
+    heavy: "A heavy bomber's carpet brought the wall down." };
   function showOver() {
     S.mode = 'over';
     var isBest = S.score > best;
@@ -2216,7 +2227,7 @@
         else return;
         if (key === 'BOSS_HP_PER_WAVE') S.planes.forEach(function (p) {
           if (p.kind !== 'zeppelin' || p.state !== 'fly') return;
-          var left = p.hp / p.maxHp; p.maxHp = zeppelinHP(S.wave); p.hp = Math.max(1, left * p.maxHp);
+          var left = p.hp / p.maxHp; p.maxHp = Math.round(zeppelinHP(S.wave) * (p.twin ? ZEP.TWIN_HP : 1)); p.hp = Math.max(1, left * p.maxHp);
         });
         if (before) {
           var after = waveCfg(Math.max(1, S.wave));

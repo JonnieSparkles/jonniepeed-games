@@ -121,6 +121,10 @@ var StickArmyShop = function (w) {
     return true;
   }
   function undo() { var S = w.S; return !!(S.shop && S.shop.log.length) && putBack(S.shop.log[S.shop.log.length - 1]); }
+  function bossHint(c) {
+    if (!c.boss) return c.night ? ' Heads up: a night raid is coming.' : '';
+    return ' Heads up: ' + (c.bossKind === 'dread' ? 'the Dreadnought is' : c.twin ? 'two zeppelins are' : 'a zeppelin is') + ' coming.';
+  }
   function renderShop() {
     var S = w.S;
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
@@ -128,7 +132,7 @@ var StickArmyShop = function (w) {
     var news = document.getElementById('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
     document.getElementById('shopHint').textContent = (S.shop.gift && !S.shop.giftTaken ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
-      (w.waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
+      bossHint(w.waveCfg(S.wave + 1));
     // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
     function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= costNow(it); }
     function costLabel(it) {
@@ -160,12 +164,29 @@ var StickArmyShop = function (w) {
       if (needMore(it)) { var more = document.createElement('small'); more.textContent = 'need ' + needMore(it) + ' more'; label.append(more); }
       if (packed) { var back = document.createElement('small'); back.textContent = 'tap to put back'; label.append(back); }
       button.append(label);
-      button.addEventListener('click', function () { if (packed) putBack(it.id); else takeItem(it.id); });
+      button.addEventListener('click', function () {
+        if (packed) { putBack(it.id); return; }
+        // On a phone the hired row can sit just below the fold; bring it up so the send-back chip is in sight.
+        if (takeItem(it.id) && it.tier === 'hire') document.getElementById('hiredItems').scrollIntoView({ block: 'nearest' });
+      });
       return button;
     }
     document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
-    var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || w.freeSlot(0) < 0; });
+    // The medic shows only while you can hire one, or greyed with the rest when the squad is full and has no medic.
+    var hasMedic = S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; });
+    var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || (w.freeSlot(0) < 0 && !hasMedic); });
     document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), roles.map(function (it) { return itemButton(it, 'hire', false); }));
+    // Who you hired this visit: tap one to send him back and get the tags back.
+    var hired = document.getElementById('hiredItems'), hires = S.shop.log.filter(function (id) { return /^hire-/.test(id); });
+    hired.replaceChildren.apply(hired, hires.map(function (id) {
+      var it = ITEMS.find(function (q) { return q.id === id; }), chip = document.createElement('button'), icon = document.createElement('canvas'), name = document.createElement('span');
+      chip.type = 'button'; chip.className = 'hired-chip'; chip.dataset.hired = id; chip.title = 'Send back';
+      icon.width = icon.height = 88; icon.setAttribute('aria-hidden', 'true'); w.drawItemIcon(icon, id);
+      name.textContent = it.name + ' ↩'; chip.setAttribute('aria-label', 'Send back the ' + it.name.toLowerCase());
+      chip.append(icon, name); chip.addEventListener('click', function () { putBack(id); });
+      return chip;
+    }));
+    hired.hidden = !hires.length;
     document.getElementById('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire.';
     renderKit(document.getElementById('loadout'), false);
     // Undo puts back the last thing taken, hires included.

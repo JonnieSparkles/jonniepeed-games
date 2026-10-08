@@ -62,7 +62,7 @@
   // Every banner subtitle fits the page.
   G = ctx; ctx.save(); ctx.font = '24px ' + HAND;
   var subs = ['tanks! +1 air strike from HQ', 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags', 'catch the crew! +1 air strike', 'catch the crew! +' + RADIO.FULL_TAGS + ' tags'];
-  for (var n = 1; n <= 16; n++) { newGame(); startWave(n); subs.push(S.banner.sub); }
+  for (var n = 1; n <= 21; n++) { newGame(); startWave(n); subs.push(S.banner.sub); }
   var widest = Math.max.apply(null, subs.map(function (s) { return ctx.measureText(s).width; }));
   ctx.restore();
   check(widest < W - 30, 'banner subtitles fit: ' + widest);

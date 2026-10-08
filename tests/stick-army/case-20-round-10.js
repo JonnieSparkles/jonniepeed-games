@@ -1,5 +1,5 @@
-// Round 10 playtest fixes: shop put-back and undo, the Red Cross penalty you feel, a hotter gun late, armored cargo
-// and tanks that land, and speech bubbles.
+// Round 10 playtest fixes: shop put-back and undo, the Red Cross penalty you feel, armored cargo and tanks that land,
+// and speech bubbles. Round 11 kept the gun's heat the same all run.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   function run(sec) { for (var i = 0; i < Math.ceil(sec * 60); i++) update(1 / 60); }
@@ -30,16 +30,18 @@
 
   // The Red Cross plane: the tags fly out of the counter, which flashes red, and late in the run it costs more.
   RUN.force = 82; newGame(); startWave(12); S.coins = 200; S.combo = 4; S.comboT = 1; S.parts = [];
-  check(waveCfg(9).medevac === 1 && waveCfg(10).medevac === 2 && waveCfg(13).medevac === 3, 'more Red Cross planes late');
+  check(waveCfg(11).medevac === 1 && waveCfg(12).medevac === 2 && waveCfg(17).medevac === 3, 'more Red Cross planes late');
   var med = SKY.spawnMedevac(RW); med.x = 200;
   hitTest({ x: med.x, y: med.y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false });
   check(S.coins === 200 - SKY.medevacTags(12) && SKY.medevacTags(12) > SKY.MEDEVAC.TAGS && S.tagLoss > 0 && S.parts.some(function (q) { return q.k === 'tagout'; }), 'tags fly out of the counter');
   render(); run(0.3); render();
 
-  // The gun runs hotter from wave 10, so holding the trigger stops working late.
+  // The gun heats the same on every wave, so cooling fins always pay off.
   RUN.force = 83; newGame(); startWave(4); S.heat = 0; S.fireCD = 0; fireVolley(); var early = S.heat;
-  startWave(15); S.heat = 0; S.fireCD = 0; fireVolley();
-  check(S.heat > early * 1.25 && heatScale(9) === 1, 'the gun runs hotter late: ' + early + ' -> ' + S.heat);
+  startWave(19); S.heat = 0; S.fireCD = 0; fireVolley();
+  check(early > 0 && S.heat === early, 'the same heat late: ' + early + ' -> ' + S.heat);
+  S.mods.cool = 1; S.heat = 0; S.fireCD = 0; fireVolley();
+  check(S.heat < early, 'fins cool it');
 
   // Tanks: armored cargo planes, and a tank on its chutes shrugs off bullets.
   RUN.force = 84; newGame(); startWave(12); S.spawn.timer = S.spawn.cargoT = S.spawn.roadT = S.spawn.rushT = 99;

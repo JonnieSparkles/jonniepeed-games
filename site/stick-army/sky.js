@@ -1,10 +1,11 @@
-// Stick Army sky (SPEC-008 stages 2-3): what else crosses the page on the way to wave 15. The Red Cross plane you
-// mustn't shoot (from wave 4), bomb balloons (7), HQ supply crates (8), dive bombers (12) and helicopters (13).
+// Stick Army sky (SPEC-008): what else crosses the page on the way to wave 20. Bomb balloons (from wave 4), the Red
+// Cross plane you mustn't shoot (6), helicopters (7), HQ supply drops (8), dive bombers (12), heavy bombers (13), and
+// the night raid (16).
 // Classic script; load before game.js. game.js calls StickArmySky(world) once with the same world object it gives
-// units.js, after units.js. Balloons, dive bombers and helicopters are enemies and live in S.planes, so the turret,
-// rockets, flak, the sentry and fighter cover all treat them as aircraft. The Red Cross plane (S.medevac) is neutral:
-// only your own turret's shots touch it. HQ's supply planes and crates (S.hq, S.crates) are yours, and no shot touches
-// them.
+// units.js, after units.js. Balloons, dive bombers, helicopters and heavy bombers are enemies and live in S.planes,
+// so the turret, rockets, flak, the sentry and fighter cover all treat them as aircraft. The Red Cross plane
+// (S.medevac) is neutral: only your own turret's shots touch it. HQ's supply planes and crates (S.hq, S.crates) are
+// yours, and no shot touches them.
 var StickArmySky = function (w) {
   'use strict';
   var W = w.W, GROUND = w.GROUND, BK = w.BK, TUR = w.TUR;
@@ -16,11 +17,11 @@ var StickArmySky = function (w) {
   // The Red Cross plane crosses slowly, trailing a Red Cross pennant, with a blinking light and a two-tone chime as
   // it comes in. A hit from your turret costs TAGS dog tags (more late in the run, medevacTags) and your combo, then it
   // flees.
-  var MEDEVAC = { WAVE: 4, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
-  function medevacTags(n) { return n >= 10 ? MEDEVAC.LATE : MEDEVAC.TAGS; }
+  var MEDEVAC = { WAVE: 6, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
+  function medevacTags(n) { return n >= MEDEVAC.LATE_WAVE ? MEDEVAC.LATE : MEDEVAC.TAGS; }
   // A bomb balloon drifts in from an edge toward the bunker and lets its bomb go over it at DROP_Y. Popped anywhere
   // else, its bomb falls where it is: on the enemy, or on your crew.
-  var BALLOON = { WAVE: 7, SPEED: 17, Y: [150, 230], DROP_Y: 410, HW: 13, HH: 24 };
+  var BALLOON = { WAVE: 4, SPEED: 17, Y: [150, 230], DROP_Y: 410, HW: 13, HH: 24 };
   // HQ's supply plane: a blue transport flies low across the page (Y, SPEED) and drops a crate on a blue chute beside
   // the bunker. Nothing can shoot it or the crate. Once it lands, the nearest free soldier runs out and fetches it
   // (errand, collect); with no squad it's collected where it lands. Inside: dog tags, a wall patch or a radio call.
@@ -32,27 +33,37 @@ var StickArmySky = function (w) {
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
   // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
-  var HELI = { WAVE: 13, SPEED: 160, Y: 150, HOVER: [310, 350], TROOPS: [4, 5], ROPE_EVERY: 0.4, ROPE: 150, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
+  var HELI = { WAVE: 7, SPEED: 160, Y: 150, HOVER: [310, 350], TROOPS: [4, 5], ROPE_EVERY: 0.4, ROPE: 150, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
     SHOT: 260, HURT: 0.6, WAIT: 0.8, HW: 36, HH: 17 };
-  function heliHP(n) { return Math.round(10 + 0.5 * (n - HELI.WAVE)); }
-  var KINDS = { balloon: true, diver: true, heli: true };
+  function heliHP(n) { return Math.round(6 + 0.4 * Math.max(0, n - HELI.WAVE)); }
+  // A heavy bomber: a big, slow, armored four-engine plane (heavyHP, with a health bar) laying a long carpet of BOMBS
+  // across the field, a heavy one on the bunker.
+  var HEAVY = { WAVE: 13, SPEED: 42, Y: [132, 156], BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
+  function heavyHP(n) { return Math.round(45 + 3 * Math.max(0, n - HEAVY.WAVE)); }
+  // The night raid (drawNight): the page goes dark, lit by your searchlight along the barrel, a lamp over the bunker,
+  // explosions and burning planes. Planes show their blinking lights; bombs glint.
+  var NIGHT = { WAVE: 16, DARK: 0.8, GROUND: 0.55, FADE: 2, BEAM: 0.2, LAMP: 120 };
+  var KINDS = { balloon: true, diver: true, heli: true, heavy: true };
 
   // ---------- the wave's schedule ----------
   // Pure in n, folded into waveCfg. None of the enemies come with the Dreadnought; HQ's crates still do.
-  function counts(n, dread) {
+  function counts(n, dread, boss) {
     return {
-      medevac: n >= MEDEVAC.WAVE && !dread ? (n < 10 ? 1 : n < 13 ? 2 : 3) : 0,
-      balloons: n >= BALLOON.WAVE && !dread ? Math.min(6, 2 + Math.floor((n - BALLOON.WAVE) / 2)) : 0,
-      crates: n >= CRATE.WAVE ? (n < 12 ? 1 : 2) : 0,
-      divers: n >= DIVE.WAVE && !dread ? Math.min(8, 3 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
-      helis: n >= HELI.WAVE && !dread ? Math.min(5, 1 + Math.floor((n - HELI.WAVE + 1) / 2)) : 0
+      medevac: n >= MEDEVAC.WAVE && !dread ? (n < 12 ? 1 : n < 17 ? 2 : 3) : 0,
+      balloons: n >= BALLOON.WAVE && !dread ? Math.min(6, 2 + Math.floor((n - BALLOON.WAVE) / 3)) : 0,
+      crates: n >= CRATE.WAVE ? (n < 14 ? 1 : 2) : 0,
+      divers: n >= DIVE.WAVE && !dread ? Math.min(8, 2 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
+      helis: n >= HELI.WAVE && !dread ? Math.min(4, 1 + Math.floor((n - HELI.WAVE) / 4)) : 0,
+      // Like the other bombers, heavies sit out the boss waves.
+      heavies: n >= HEAVY.WAVE && !boss ? Math.min(4, 1 + Math.floor((n - HEAVY.WAVE) / 3)) : 0
     };
   }
   // Timers come from one draw of the wave stream, so what happens in the fight never shifts them.
   function start(sp, c) {
     var rnd = substream(w.RW);
     sp.sky = { rnd: rnd, medevac: c.medevac, medevacT: c.medevac ? between(rnd, 6, 14) : 99, balloons: c.balloons, balloonT: between(rnd, 4, 7),
-      crates: c.crates, crateT: between(rnd, 7, 13), divers: c.divers, diverT: between(rnd, 6, 9), helis: c.helis, heliT: between(rnd, 8, 11) };
+      crates: c.crates, crateT: between(rnd, 7, 13), divers: c.divers, diverT: between(rnd, 6, 9), helis: c.helis, heliT: between(rnd, 8, 11),
+      heavies: c.heavies, heavyT: between(rnd, 5, 8) };
   }
   function tick(sp, dt) {
     var k = sp.sky;
@@ -62,22 +73,24 @@ var StickArmySky = function (w) {
     if (k.crates > 0 && (k.crateT -= dt) <= 0) { k.crates--; spawnCrate(k.rnd); k.crateT = between(k.rnd, 12, 18); }
     if (k.divers > 0 && (k.diverT -= dt) <= 0) { k.divers--; spawnDiver(k.rnd); k.diverT = between(k.rnd, 6, 10); }
     if (k.helis > 0 && (k.heliT -= dt) <= 0) { k.helis--; spawnHeli(k.rnd); k.heliT = between(k.rnd, 13, 18); }
+    if (k.heavies > 0 && (k.heavyT -= dt) <= 0) { k.heavies--; spawnHeavy(k.rnd); k.heavyT = between(k.rnd, 14, 20); }
   }
   // Enemies still due: the wave isn't over until they've come.
-  function pending(sp) { var k = sp && sp.sky; return k ? k.balloons + k.divers + k.helis : 0; }
+  function pending(sp) { var k = sp && sp.sky; return k ? k.balloons + k.divers + k.helis + (k.heavies || 0) : 0; }
   // No dead air: with the field clear, the next one comes soon.
-  function hurry(sp, t) { var k = sp && sp.sky; if (k) { k.balloonT = Math.min(k.balloonT, t); k.diverT = Math.min(k.diverT, t); k.heliT = Math.min(k.heliT, t); } }
+  function hurry(sp, t) { var k = sp && sp.sky; if (k) { k.balloonT = Math.min(k.balloonT, t); k.diverT = Math.min(k.diverT, t); k.heliT = Math.min(k.heliT, t); k.heavyT = Math.min(k.heavyT, t); } }
   // When the fighting's done, the friendly extras still due are called off; a crate already falling is waited for.
   // all: everything still due is called off (the enemy has surrendered).
   function settle(sp, all) {
     var k = sp && sp.sky;
-    if (k) { k.medevac = 0; k.crates = 0; if (all) k.balloons = k.divers = k.helis = 0; }
+    if (k) { k.medevac = 0; k.crates = 0; if (all) k.balloons = k.divers = k.helis = k.heavies = 0; }
     w.S.crates.forEach(function (c) { if (c.state === 'ground') collect(c, null); });
   }
   // On surrender: balloons are let go unarmed, dive bombers climb away, helicopters leave.
   function flee(p) {
     if (p.kind === 'balloon') { p.armed = false; p.gone = true; w.S.skyFx.push({ k: 'loose', x: p.x, y: p.y, vx: p.dir * 12, vy: -70, life: 4, id: p.id }); }
     else if (p.kind === 'diver') { p.phase = 'climb'; p.ang = DIVE.CLIMB; p.speed = DIVE.SPEED; }
+    else if (p.kind === 'heavy') { p.run = []; p.vx *= 1.8; }
     else { p.phase = 'out'; p.kits = []; p.burst = 0; }
   }
   // Only a crate still in the air holds the wave open; one on the ground is collected when the wave clears (settle).
@@ -309,6 +322,41 @@ var StickArmySky = function (w) {
     w.sound.play('sniper');
   }
 
+  // ---------- heavy bombers ----------
+  function spawnHeavy(rnd) {
+    var S = w.S, r = substream(rnd), dir = r() < 0.5 ? 1 : -1;
+    var p = w.makePlane('heavy', dir, dir > 0 ? -90 : W + 90, between(r, HEAVY.Y[0], HEAVY.Y[1]));
+    p.rng = r; p.hp = p.maxHp = heavyHP(S.wave); p.hw = HEAVY.HW; p.hh = HEAVY.HH; p.sc = HEAVY.SC; p.speed = HEAVY.SPEED;
+    p.vx = dir * HEAVY.SPEED; p.vy = 0;
+    // A long carpet across the field: each bomb let go where it will land on its mark, the one nearest the bunker heavy.
+    var marks = [];
+    for (var j = 0; j < HEAVY.BOMBS; j++) marks.push(30 + j * 340 / (HEAVY.BOMBS - 1));
+    var mid = marks.reduce(function (b, x, i) { return Math.abs(x - BK.x) < Math.abs(marks[b] - BK.x) ? i : b; }, 0);
+    marks[mid] = BK.x + between(r, -6, 6);
+    p.run = marks.map(function (x, i) {
+      var floor = x > BK.x1 && x < BK.x2 ? BK.top - 8 : GROUND - 6, vx = dir * HEAVY.SPEED * 0.35, tf = Math.sqrt(2 * (floor - (p.y + 16)) / 260);
+      return { x: x - vx * tf, vx: vx, heavy: i === mid };
+    }).sort(function (a, b) { return dir * (a.x - b.x); });
+    S.planes.push(p);
+    emit('plane_spawn', { kind: 'heavy', dir: dir, hp: p.hp, bombs: p.run.length });
+    w.sound.play('drone');
+    if (!S.heavyTold) { S.heavyTold = true; addText('heavy bomber!', dir > 0 ? 90 : W - 90, p.y + 46, RED, 22); }
+    return p;
+  }
+  function updateHeavy(p, dt) {
+    var S = w.S;
+    p.hitFlash = Math.max(0, p.hitFlash - dt);
+    if (p.state !== 'fly') { fallDown(p, dt); return; }
+    p.x += p.vx * dt;
+    while (p.run.length && (p.dir > 0 ? p.x >= p.run[0].x : p.x <= p.run[0].x)) {
+      var d = p.run.shift();
+      S.bombs.push({ id: w.id(), x: p.x, y: p.y + 16, vx: d.vx, vy: 0, isBomb: true, heavy: d.heavy, src: 'heavy', dead: false });
+      emit('bomb_dropped', { by: 'heavy' });
+      w.sound.play('whistle');
+    }
+    if (p.x < -110 || p.x > W + 110) p.gone = true;
+  }
+
   // ---------- hits ----------
   // Hit boxes: a dive bomber's box turns with it; the others are upright boxes.
   function hit(p, x, y, near) {
@@ -331,7 +379,8 @@ var StickArmySky = function (w) {
     S.stats.planes++; w.credit();
     emit('plane_down', { kind: p.kind, by: owner === 'ally' ? 'crew' : 'player' });
     w.pow(p.x, p.y, 30);
-    w.award(p.kind === 'heli' ? 150 : 120, p.x, p.y + 28, p.kind === 'heli' ? 'chopper down!' : 'dive bomber down!', owner === 'ally' ? BLUE : INK, true);
+    w.award(p.kind === 'heavy' ? 300 : p.kind === 'heli' ? 150 : 120, p.x, p.y + 28, p.kind === 'heavy' ? 'heavy bomber down!' : p.kind === 'heli' ? 'chopper down!' : 'dive bomber down!', owner === 'ally' ? BLUE : INK, true);
+    if (p.kind === 'heavy') { p.run = []; w.pow(p.x, p.y, 50); }
     S.shake = Math.max(S.shake, 0.3);
     w.sound.play('boom');
     // Anyone on its rope drops: over a mat, that's a catch.
@@ -341,7 +390,7 @@ var StickArmySky = function (w) {
   function fallDown(p, dt) {
     var S = w.S;
     p.vy += 320 * dt; p.vx *= 1 - dt * 0.4; p.x += p.vx * dt; p.y += p.vy * dt;
-    if (p.kind === 'diver') p.drawAng = Math.atan2(p.vy, Math.abs(p.vx) + 1); else p.rot += dt * 5;
+    if (p.kind === 'diver') p.drawAng = Math.atan2(p.vy, Math.abs(p.vx) + 1); else if (p.kind === 'heavy') p.rot = Math.min(0.6, p.rot + dt * 0.5); else p.rot += dt * 5;
     p.smoke -= dt;
     if (p.smoke <= 0) { p.smoke = 0.08; w.puff(p.x, p.y - 4, 4, 0.7); }
     S.troopers.forEach(function (t) {
@@ -349,11 +398,12 @@ var StickArmySky = function (w) {
         t.dead = true; w.killFx(t); S.stats.kills++; emit('kill', { by: 'crash', type: t.type }); w.award(10, t.x, t.y, 'bonk!', INK, true);
       }
     });
-    if (p.y >= GROUND - 10) { w.explode(clamp(p.x, 10, W - 10), GROUND - 4, 42, 'crash'); p.gone = true; }
+    if (p.y >= GROUND - 10) { w.explode(clamp(p.x, 10, W - 10), GROUND - 4, p.kind === 'heavy' ? 58 : 42, 'crash'); p.gone = true; }
   }
   function updatePlane(p, dt) {
     if (p.kind === 'balloon') updateBalloon(p, dt);
     else if (p.kind === 'diver') updateDiver(p, dt);
+    else if (p.kind === 'heavy') updateHeavy(p, dt);
     else updateHeli(p, dt);
   }
   // Your turret's shots (bullets, flak and rockets alike) against the Red Cross plane. Returns true when the shot was
@@ -370,6 +420,9 @@ var StickArmySky = function (w) {
   function update(dt) {
     var S = w.S;
     updateMedevac(dt); updateHQ(dt); updateCrates(dt);
+    // The night raid fades in as its wave starts and out as it clears. Cosmetic only.
+    var dark = S.spawn && S.spawn.cfg && S.spawn.cfg.night && S.waveState === 'active';
+    S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });
   }
@@ -455,7 +508,46 @@ var StickArmySky = function (w) {
   function drawPlane(p) {
     if (p.kind === 'balloon') balloonBody(p.x, p.y, p.armed, p.id);
     else if (p.kind === 'diver') drawDiver(p);
+    else if (p.kind === 'heavy') drawHeavy(p);
     else drawHeli(p);
+  }
+  // A big four-engine bomber in olive drab: the far wing's engines faint behind, the near ones with spinning props,
+  // a glazed nose, a row of windows, gun turrets on its back and tail, a red roundel, and a health bar once hit.
+  var HEAVY_PTS = [-60, 4, -56, -12, -40, -16, 40, -14, 54, -16, 64, -34, 76, -34, 74, 2, 34, 15, -44, 16];
+  function drawHeavy(p) {
+    var G = w.G, sc = p.sc, fly = p.state === 'fly', spin = fly ? (w.boil % 2 ? 1 : 0.6) : 0.2;
+    pen(p.id);
+    G.save(); G.translate(p.x, p.y); G.scale(-p.dir * sc, sc); if (p.rot) G.rotate(-p.rot);
+    function nacelle(ex, ey, k, a) {
+      G.globalAlpha = a;
+      G.beginPath(); G.ellipse(ex, ey, 9 * k, 4.2 * k, 0, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(70,86,60,0.45)'; G.fill(); ink(INK, 1.6 / sc); G.stroke();
+      G.beginPath(); G.ellipse(ex - 10 * k, ey, 1.6 * k, 9 * k * spin, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(46,46,51,0.18)'; G.fill(); ink(INK, 1.2 / sc); G.stroke();
+      G.globalAlpha = 1;
+    }
+    // The far wing's engines peek over the fuselage.
+    nacelle(-4, -15, 0.75, 0.45); nacelle(22, -14, 0.75, 0.45);
+    G.beginPath(); SP(HEAVY_PTS, true, 0.6); G.fillStyle = PAPER; G.fill(); G.fillStyle = p.hitFlash > 0 ? 'rgba(200,67,58,0.35)' : 'rgba(70,86,60,0.42)'; G.fill(); ink(INK, 2.8 / sc); G.stroke();
+    // Glazed nose, windows, turrets.
+    G.beginPath(); G.moveTo(-58, 2); G.quadraticCurveTo(-60, -10, -48, -13); G.lineTo(-46, 4); G.closePath(); G.fillStyle = 'rgba(190,214,236,0.85)'; G.fill(); ink(INK, 1.4 / sc); G.stroke();
+    G.beginPath(); L(-53, -10, -53, 3, 0.1); L(-58, -4, -46, -5, 0.1); ink(INK, 1 / sc); G.stroke();
+    for (var wx = -36; wx <= 8; wx += 9) { G.beginPath(); G.rect(wx, -9, 4, 3.5); G.fillStyle = 'rgba(46,46,51,0.55)'; G.fill(); }
+    G.beginPath(); G.arc(-20, -15, 6, Math.PI, 0); G.fillStyle = 'rgba(190,214,236,0.85)'; G.fill(); ink(INK, 1.6 / sc); G.stroke();
+    G.beginPath(); L(-20, -19, -28, -23, 0.1); ink(INK, 2 / sc); G.stroke();
+    G.beginPath(); G.arc(75, -3, 4.5, -Math.PI / 2, Math.PI / 2); G.fillStyle = 'rgba(190,214,236,0.85)'; G.fill(); ink(INK, 1.4 / sc); G.stroke();
+    G.beginPath(); L(62, -30, 70, -6, 0.2); ink(RED, 3 / sc); G.stroke();
+    G.beginPath(); G.arc(30, -4, 5.5, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
+    G.beginPath(); G.arc(30, -4, 2.2, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
+    // The near wing, edge on, with its two engines hanging under it.
+    G.beginPath(); L(-28, 12, 38, 13); ink(INK, 4 / sc); G.stroke();
+    nacelle(-16, 17, 1, 1); nacelle(18, 18, 1, 1);
+    if (fly && p.run.length) { G.beginPath(); L(-4, 16, 8, 16, 0.2); ink(RED, 2.4 / sc); G.stroke(); }
+    G.restore();
+    if (fly && p.hp < p.maxHp) {
+      var f = Math.max(0, p.hp / p.maxHp);
+      G.fillStyle = PAPER; G.fillRect(p.x - 24, p.y - 42, 48, 6);
+      G.fillStyle = 'rgba(200,67,58,0.55)'; G.fillRect(p.x - 23, p.y - 41, 46 * f, 4);
+      G.beginPath(); L(p.x - 24, p.y - 42, p.x + 24, p.y - 42, 0.2); L(p.x - 24, p.y - 36, p.x + 24, p.y - 36, 0.2); ink(INK, 1); G.stroke();
+    }
   }
   // A white plane with big red crosses, a blinking light on the tail, and a Red Cross pennant trailing behind it.
   function drawMedevac(m) {
@@ -524,6 +616,57 @@ var StickArmySky = function (w) {
     else { G.beginPath(); G.rect(-2.5, -0.5, 5, 7); G.fillStyle = BLUE; G.fill(); G.beginPath(); L(1.5, -0.5, 2.2, -4.5, 0.1); ink(BLUE, 1.4); G.stroke(); }
     G.restore();
   }
+  // ---------- the night raid ----------
+  // The dark is drawn on its own canvas, then light cuts holes in it: the searchlight along the barrel, a lamp over the
+  // bunker, every explosion, and planes going down in flames. It's laid over the battlefield (not the HUD, labels or
+  // bubbles), and then the lights that show through any dark: planes' blinking lights and a glint on each bomb.
+  var nightCv = null;
+  function drawNight() {
+    var S = w.S, G = w.G, a = S.night || 0;
+    if (a <= 0.01) return;
+    var cv = nightCv || (nightCv = document.createElement('canvas'));
+    if (cv.width !== G.canvas.width || cv.height !== G.canvas.height) { cv.width = G.canvas.width; cv.height = G.canvas.height; }
+    var g = cv.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+    g.setTransform(G.getTransform());
+    var sky = g.createLinearGradient(0, 0, 0, GROUND + 20);
+    sky.addColorStop(0, 'rgba(14,20,44,' + NIGHT.DARK + ')'); sky.addColorStop(1, 'rgba(14,20,44,' + NIGHT.GROUND + ')');
+    g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
+    g.globalCompositeOperation = 'destination-out';
+    function glow(x, y, r, k) {
+      var rg = g.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0, 'rgba(0,0,0,' + k + ')'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = rg; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    var ang = S.aim, len = 780, hb = NIGHT.BEAM;
+    g.beginPath(); g.moveTo(TUR.x, TUR.y);
+    g.lineTo(TUR.x + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); g.lineTo(TUR.x + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); g.closePath();
+    var beam = g.createRadialGradient(TUR.x, TUR.y, 20, TUR.x, TUR.y, len); beam.addColorStop(0, 'rgba(0,0,0,0.95)'); beam.addColorStop(1, 'rgba(0,0,0,0.55)');
+    g.fillStyle = beam; g.fill();
+    glow(BK.x, GROUND - 24, NIGHT.LAMP, 0.85);
+    S.parts.forEach(function (q) { if (q.k === 'pow') glow(q.x, q.y, q.r * 3, Math.min(1, q.life / q.max * 1.5)); });
+    S.planes.forEach(function (p) { if (p.state !== 'fly') glow(p.x, p.y, 60, 0.8); });
+    g.globalCompositeOperation = 'source-over';
+    G.save(); G.setTransform(1, 0, 0, 1, 0, 0); G.globalAlpha = a; G.drawImage(cv, 0, 0); G.restore();
+    // A warm tint in the beam, so it reads as light.
+    G.save(); G.globalAlpha = a * 0.08; G.beginPath(); G.moveTo(TUR.x, TUR.y);
+    G.lineTo(TUR.x + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); G.lineTo(TUR.x + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); G.closePath();
+    G.fillStyle = '#ffe27a'; G.fill(); G.restore();
+    // What shows through the dark anyway.
+    G.save(); G.globalAlpha = a;
+    function light(x, y, r, c) { G.beginPath(); G.arc(x, y, r * 2.2, 0, Math.PI * 2); G.fillStyle = c.replace('1)', '0.25)'); G.fill(); G.beginPath(); G.arc(x, y, r, 0, Math.PI * 2); G.fillStyle = c; G.fill(); }
+    S.planes.forEach(function (p) {
+      if (p.state !== 'fly' || p.kind === 'dread' || p.kind === 'zeppelin') return;
+      var on = Math.floor(S.t * 2.5 + p.id * 0.37) % 2 === 0, tail = p.x - (p.dir || 1) * p.hw * 0.7;
+      if (p.kind === 'balloon') { light(p.x, p.y + 18, 1.6, 'rgba(255,150,60,1)'); return; }
+      light(p.x + (p.dir || 1) * p.hw * 0.2, p.y + 4, 2.4, 'rgba(255,70,60,1)');
+      if (on) light(tail, p.y - p.hh * 0.6, 2.2, 'rgba(255,255,255,1)');
+    });
+    S.medevac.forEach(function (m) { if (Math.floor(S.t * 3) % 2 === 0) light(m.x - m.dir * 38, m.y - 18, 3, 'rgba(255,60,60,1)'); light(m.x, m.y, 2, 'rgba(255,255,255,1)'); });
+    S.hq.forEach(function (h) { light(h.x, h.y, 2.6, 'rgba(90,150,255,1)'); });
+    S.bombs.forEach(function (m) { if (!m.dead) light(m.x, m.y - 4, 1.8, 'rgba(255,170,60,1)'); });
+    G.restore();
+  }
   // Below the planes: the empty balloons drifting off; above them, the Red Cross plane and the crates.
   function drawBehind() {
     var G = w.G;
@@ -535,6 +678,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

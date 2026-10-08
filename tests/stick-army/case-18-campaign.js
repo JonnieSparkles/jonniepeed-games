@@ -8,8 +8,8 @@
 
   // Boss rotation: the Dreadnought on the final wave and every tenth wave after; zeppelins on the other fifths.
   var FINAL = DREAD.WAVE;
-  check(FINAL === 15 && waveCfg(5).bossKind === 'zeppelin' && waveCfg(10).bossKind === 'zeppelin' && waveCfg(FINAL).bossKind === 'dread' &&
-    waveCfg(FINAL + 5).bossKind === 'zeppelin' && waveCfg(FINAL + 10).bossKind === 'dread' && !waveCfg(FINAL - 1).bossKind, 'the Dreadnought on wave 15, then every tenth');
+  check(FINAL === 20 && waveCfg(5).bossKind === 'zeppelin' && waveCfg(10).bossKind === 'zeppelin' && waveCfg(15).bossKind === 'zeppelin' && waveCfg(15).twin && waveCfg(FINAL).bossKind === 'dread' &&
+    waveCfg(FINAL + 5).bossKind === 'zeppelin' && waveCfg(FINAL + 5).twin && waveCfg(FINAL + 10).bossKind === 'dread' && !waveCfg(FINAL - 1).bossKind, 'the Dreadnought on wave 20, then every tenth');
   check(waveCfg(FINAL).rushes === 0 && waveCfg(FINAL).cargo === 0 && !waveCfg(FINAL).road && waveCfg(FINAL).planes < waveCfg(FINAL - 1).planes / 2, 'a light escort and nothing on the ground');
 
   // Kill counts: a soldier's own bullet kills are his; the turret's and the sentry's are nobody's.

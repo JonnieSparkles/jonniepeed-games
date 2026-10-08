@@ -67,7 +67,7 @@ window.__balanceBot = function (profile, seed) {
       if (p.kind === 'balloon') { if (p.x < 100 || p.x > 300) consider(250, lead(o, p.x, p.y, p.vx, p.vy), p.id); return; }
       // Bombers get priority over troopers: downing one saves chasing its whole bomb run. A dive bomber in its dive
       // comes before nearly everything.
-      var rank = p.kind === 'zeppelin' ? 150 : p.kind === 'bomber' ? 340 : p.kind === 'cargo' ? 260 : p.kind === 'heli' ? 330 :
+      var rank = p.kind === 'zeppelin' ? 150 : p.kind === 'bomber' ? 340 : p.kind === 'heavy' ? 345 : p.kind === 'cargo' ? 260 : p.kind === 'heli' ? 330 :
         p.kind === 'diver' ? (p.phase === 'dive' ? 470 : 300) : 200 + p.y / 10;
       consider(rank, lead(o, p.x, p.y, p.vx, p.vy || 0), p.id);
     });
