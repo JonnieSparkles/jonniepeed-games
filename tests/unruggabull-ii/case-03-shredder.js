@@ -3,7 +3,7 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const near = (a, b) => Math.abs(a - b) < 1e-6;
-  seed = 303; startRun();
+  RUN.force = 303; startRun();
   R.souls = TUNE.goal; step(.5);
   check(R.phase === 'hall', 'the goal alone does not wake it before the copy room');
   R.beat = 2; R.beatT = 1; step(.5);

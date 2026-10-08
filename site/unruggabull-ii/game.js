@@ -56,14 +56,26 @@
   const JUMP_V = 4 * TUNE.jumpH / TUNE.jumpT, GRAV = 8 * TUNE.jumpH / (TUNE.jumpT * TUNE.jumpT);
 
   // ---------- random ----------
-  let seed = (Date.now() ^ 0x9e3779b9) >>> 0;
+  // Everything that decides a run comes from one seeded stream, so a seed replays it exactly: #seed=42 in the
+  // address, or the balance bots (tests/unruggabull-ii/). Cosmetic jitter (debris, sparks, decor, screen shake)
+  // uses Math.random through fxr, so drawing or not drawing never changes a run.
+  let seed = 0;
   function rnd() { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
   const rr = (a, b) => a + (b - a) * rnd();
+  const fxr = (a, b) => a + (b - a) * Math.random();
+  const RUN = { force: null, seed: 0 };   // force: the seed for the next run (tests and bots)
+  const hashTokens = () => location.hash.replace(/^#/, '').split('&').filter(Boolean);
+  function hashSeed() { for (const tk of hashTokens()) { const m = /^seed=(\d+)$/.exec(tk); if (m) return +m[1]; } return null; }
+  function pickSeed() { const h = hashSeed(); return (RUN.force != null ? RUN.force : h != null ? h : (Date.now() ^ Math.floor(Math.random() * 4294967296))) >>> 0; }
+  // Balance bots listen here; in play it does nothing.
+  let emitHook = null;
+  const emit = (type, data) => { if (emitHook) emitHook(type, data || {}); };
 
   // ---------- run state ----------
   // state: title, intro, play, pause or over. R.phase inside a run: hall, wake, boss, win or dead.
   let state = 'title', R = null, bull = null;
   function newRun() {
+    RUN.seed = seed = pickSeed();
     R = {
       t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
       beat: 0, beatT: 0, event: null,
@@ -110,8 +122,8 @@
       else { addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38); }
     }
     while (R.dist + 1.05 >= R.nextDecorW) {
-      R.decor.push({ w: R.nextDecorW, s: rnd() < .5 ? -1 : 1, kind: rnd() < .25 && B.decor === 'poster' ? 'cooler' : B.decor, col: rnd() });
-      R.nextDecorW += rr(.35, .6);
+      R.decor.push({ w: R.nextDecorW, s: Math.random() < .5 ? -1 : 1, kind: Math.random() < .25 && B.decor === 'poster' ? 'cooler' : B.decor, col: Math.random() });
+      R.nextDecorW += fxr(.35, .6);
     }
     if (B.fly && !ev) {
       R.nextFly -= dt;
@@ -188,6 +200,7 @@
       if (!pk.got && Math.abs(z - bull.bz) < .05 && Math.abs(pk.u - bull.u) < .15 && overlaps(pk.h, .04) && !bull.mouth) {
         pk.got = true;
         const x = PX(pk.u, z), y = YH(z, pk.h);
+        emit('pickup', { item: pk.kind });
         if (pk.kind === 'coffee') {
           const full = R.hearts >= TUNE.hearts;
           R.hearts = Math.min(TUNE.hearts, R.hearts + 1);
@@ -211,7 +224,7 @@
       if (!R.events.jumpHint && z < .6 && R.phase === 'hall') {
         R.events.jumpHint = true; R.banner = { text: 'JUMP!', sub: 'UP ARROW, W OR SPACE', t: 0, dur: 2.2, pull: true };
       }
-      if (Math.abs(z - bull.bz) < .02 && bull.jh < TUNE.rowH && hurtBull(1)) { row.hit = .001; R.events.rowHits = (R.events.rowHits || 0) + 1; }
+      if (Math.abs(z - bull.bz) < .02 && bull.jh < TUNE.rowH && hurtBull(1, row.kind)) { row.hit = .001; R.events.rowHits = (R.events.rowHits || 0) + 1; }
     }
     R.rows = R.rows.filter(row => row.w - R.dist > ZN && row.hit < .6);
   }
@@ -220,7 +233,7 @@
     for (const bx of R.boxes) {
       const z = bx.w - R.dist;
       if (bx.hit) { bx.hit += dt; continue; }
-      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && bull.jh < BOX_H && hurtBull(1)) bx.hit = .001;
+      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && bull.jh < BOX_H && hurtBull(1, 'box')) bx.hit = .001;
     }
     R.boxes = R.boxes.filter(bx => bx.w - R.dist > ZN && bx.hit < .5);
   }
@@ -266,7 +279,7 @@
       if (f.z < .45) f.h += (.12 - f.h) * Math.min(1, dt * 2.5);
       f.hit = Math.max(0, f.hit - dt);
       if (!f.dead && Math.abs(f.z - bull.bz) < .045 && Math.abs(f.u - bull.u) < .12 && overlaps(f.h, .05)) {
-        if (hurtBull(1)) { f.dead = true; poof(f.u, f.z, f.h); }
+        if (hurtBull(1, f.form ? 'formation' : 'carpshit')) { f.dead = true; poof(f.u, f.z, f.h); }
       }
       if (f.z < bull.bz - .12 || f.z < ZN) f.dead = true;
     }
@@ -279,7 +292,7 @@
   function launch(kind, from, to, dur, extra) {
     const gv = kind === 'wad' ? .6 : 0;
     const p = Object.assign({ kind, u: from.u, z: from.z, h: from.h, vu: (to.u - from.u) / dur, vz: (to.z - from.z) / dur,
-      vh: (to.h - from.h + .5 * gv * dur * dur) / dur, gv, w: .05, hh: .04, friendly: false, src: null, dead: false, spin: rnd() * 4 }, extra || {});
+      vh: (to.h - from.h + .5 * gv * dur * dur) / dur, gv, w: .05, hh: .04, friendly: false, src: null, dead: false, spin: Math.random() * 4 }, extra || {});
     R.projs.push(p);
     return p;
   }
@@ -296,6 +309,7 @@
     const rl = R.boss.rally, dur = p.rally && rl ? Math.max(.28, TUNE.rally.back * Math.pow(TUNE.rally.speedUp, rl.count)) : .45;
     p.vu = (to.u - p.u) / dur; p.vz = (to.z - p.z) / dur; p.vh = (to.h - p.h) / dur; p.gv = 0;
     R.events.deflects = (R.events.deflects || 0) + 1;
+    emit('deflect', { kind: p.rally ? 'rally' : p.kind });
     const before = R.charge;
     R.charge = Math.min(TUNE.charges, R.charge + TUNE.deflectCharge); R.chargeFlash = .3; R.freeze = Math.max(R.freeze, .04);
     Snd.play('deflect', p.rally && rl ? rl.count : 0);
@@ -315,7 +329,7 @@
           const b = R.boss, rl = b.rally;
           if (p.rally && rl && b.st === 'fight' && b.jam <= 0 && rl.count < rl.target) {
             // the Shredder bats it back at you, quicker every time
-            rl.count++; b.spit = .2;
+            rl.count++; b.spit = .2; emit('rally_return', { amount: 1 });
             const dur = Math.max(TUNE.rally.fastest, TUNE.rally.serve * Math.pow(TUNE.rally.speedUp, rl.count));
             p.friendly = false; p.vu = (bull.u - p.u) / dur; p.vz = (bull.bz - p.z) / dur; p.vh = (.12 - p.h) / dur;
             Snd.play('volley', rl.count); popText('RALLY x' + rl.count, 120, BACK.y0 - 2, '#ffd44a');
@@ -326,18 +340,18 @@
             // it misses: a smash, and the Shredder reels
             const dmg = TUNE.rally.smash + TUNE.rally.smashPer * rl.count;
             b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
-            bossDamage(dmg); Snd.play('smash');
+            emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash');
             popText('SMASH! -' + dmg, 120, BACK.y0 - 2, '#ffd44a'); live('Smash! The Shredder misses the return.');
-            for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: rr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: rr(-40, 40), vy: rr(-70, -20), t: 0, dur: rr(.6, 1.1) });
-          } else if (b.st === 'fight') { const dmg = p.kind === 'bundle' ? TUNE.bundleDmg : TUNE.stapleDmg; bossDamage(dmg); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), '#ffd44a'); }
+            for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
+          } else if (b.st === 'fight') { const dmg = p.kind === 'bundle' ? TUNE.bundleDmg : TUNE.stapleDmg; bossDamage(dmg, 'deflect'); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), '#ffd44a'); }
           poof(p.u, .97, p.h);
         }
         continue;
       }
       if (Math.abs(p.z - bull.bz) < .045 && Math.abs(p.u - bull.u) < .1 + p.w && overlaps(p.h, p.hh)) {
-        if (hurtBull(1)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) R.boss.rally = null; continue; }
+        if (hurtBull(1, p.rally ? 'rally' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); } continue; }
       }
-      if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) R.boss.rally = null; }
+      if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) { R.boss.rally = null; emit('rally_lost'); } }
     }
     R.projs = R.projs.filter(p => !p.dead);
   }
@@ -390,7 +404,7 @@
     const P = R.pull;
     P.st = 'cut'; P.t = 0;
     R.cut = { z: bull.bz + .04, t: 0 };
-    R.events.cuts = (R.events.cuts || 0) + 1;
+    R.events.cuts = (R.events.cuts || 0) + 1; emit('cut');
     Snd.play('cut');
     popText('CUT!', PX(bull.u, bull.bz), YH(bull.bz, .3), '#ffd44a');
     if (R.boss.st === 'fight' && R.boss.ph === 3) jam();
@@ -399,7 +413,7 @@
   function fire() {
     if (R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
     R.charge--;
-    if (R.charge < 1) { R.dry = true; Snd.play('drained'); popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
+    if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
     bull.aimT = .22;
     let best = null, bz = Infinity;
     const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < .97 && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
@@ -416,7 +430,7 @@
     Snd.play('shot', R.spread > 0);
     return true;
   }
-  function sparks(u, z, h, col) { R.fx.push({ k: 'spark', x: PX(u, z), y: YH(z, h), s: Math.max(.5, sc(z)), col: col || '#ffd44a', t: 0, dur: .22, a: rnd() * 6 }); }
+  function sparks(u, z, h, col) { R.fx.push({ k: 'spark', x: PX(u, z), y: YH(z, h), s: Math.max(.5, sc(z)), col: col || '#ffd44a', t: 0, dur: .22, a: Math.random() * 6 }); }
   function updateShots(dt) {
     for (const s of R.shots) {
       s.z += TUNE.shotSpeed * dt; s.u += (s.du || 0) * dt;
@@ -440,15 +454,16 @@
       if (s.z >= .965) {
         s.dead = true;
         // in phase 3 it braces: half damage from the blaster unless it's jammed or reeling from a smash
-        if (R.boss.st === 'fight' && Math.abs(s.u) < .8) { bossDamage(TUNE.shotDmg * (R.boss.jam > 0 ? TUNE.jamMult : R.boss.ph === 3 ? .5 : 1)); sparks(s.u, .96, s.h, R.boss.jam > 0 ? '#ffd44a' : '#fff6e2'); }
+        if (R.boss.st === 'fight' && Math.abs(s.u) < .8) { bossDamage(TUNE.shotDmg * (R.boss.jam > 0 ? TUNE.jamMult : R.boss.ph === 3 ? .5 : 1), 'blaster'); sparks(s.u, .96, s.h, R.boss.jam > 0 ? '#ffd44a' : '#fff6e2'); }
         else poof(s.u, .97, s.h, 3);
       }
     }
     R.shots = R.shots.filter(s => !s.dead && Math.abs(s.u) < 1.1);
   }
-  function hurtBull(n) {
+  function hurtBull(n, cause) {
     if (bull.inv > 0 || bull.mouth > 0 || bull.spat > 0 || R.phase === 'dead' || R.phase === 'win') return false;
     R.hearts = Math.max(0, R.hearts - n); bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15;
+    R.lastCause = cause || 'unknown'; emit('hit', { amount: n, cause: R.lastCause });
     Snd.play('hurt');
     if (R.hearts <= 0) die();
     return true;
@@ -457,10 +472,11 @@
     const b = bull;
     b.bz = TUNE.mouth; b.mouth = .8; b.slash = -1;
     R.hearts = Math.max(0, R.hearts - 2); R.shake = .35; R.boss.chomp = .8;
+    R.lastCause = 'rug'; emit('hit', { amount: 2, cause: 'rug' });
     R.events.dragged = (R.events.dragged || 0) + 1;
     endPull();
     Snd.play('chomp');
-    for (let i = 0; i < 14; i++) R.fx.push({ k: 'bit', x: rr(BACK.x0 + 14, BACK.x1 - 14), y: BACK.y1 - 9, vx: rr(-30, 30), vy: rr(-60, -20), t: 0, dur: rr(.7, 1.2) });
+    for (let i = 0; i < 14; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 14, BACK.x1 - 14), y: BACK.y1 - 9, vx: fxr(-30, 30), vy: fxr(-60, -20), t: 0, dur: fxr(.7, 1.2) });
     popText('PROCESSED!', 120, BACK.y0 - 2, '#ff7050');
     if (R.hearts <= 0) die();
   }
@@ -535,13 +551,14 @@
   function jam() {
     const b = R.boss;
     b.jam = TUNE.jamT; endPull();
-    R.events.jams = (R.events.jams || 0) + 1;
+    R.events.jams = (R.events.jams || 0) + 1; emit('jam');
     Snd.play('jam');
     popText('JAMMED! x3', 120, BACK.y0 - 2, '#ffd44a');
   }
-  function bossDamage(n) {
+  function bossDamage(n, by) {
     const b = R.boss;
     if (b.st !== 'fight') return;
+    emit('boss_damage', { amount: n, by: by || 'blaster' });
     b.hp = Math.max(0, b.hp - n);
     if (n >= 2) b.flash = .07; else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
     if (b.hitSnd <= 0) { Snd.play('bosshit'); b.hitSnd = .09; }
@@ -559,7 +576,7 @@
     }
     if (b.jam > 0) {
       b.jam -= dt;
-      if (rnd() < dt * 8) R.fx.push({ k: 'smoke', x: rr(BACK.x0 + 10, BACK.x1 - 10), y: BACK.y0 + 4, t: 0, dur: 1 });
+      if (Math.random() < dt * 8) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 10, BACK.x1 - 10), y: BACK.y0 + 4, t: 0, dur: 1 });
       return;
     }
     if (R.pull.st === 'warn' || (ph === 1 && R.pull.st === 'on') || b.rally) return;
@@ -583,10 +600,11 @@
 
   // ---------- souls, effects and words ----------
   // Each soul in a quick streak rings a step higher.
-  function free(x, y) {
+  function free(x, y, source, by) {
     R.souls++;
+    emit('soul', { amount: 1, source: source || 'temp', by: by || 'shot' });
     R.streak = R.streakT > 0 ? R.streak + 1 : 0; R.streakT = 1.6;
-    R.fx.push({ k: 'wisp', x, y, t: 0, dur: 1.6, dx: rr(-8, 8) });
+    R.fx.push({ k: 'wisp', x, y, t: 0, dur: 1.6, dx: fxr(-8, 8) });
     Snd.play('soul', R.streak);
   }
   function killTemp(tp, how) {
@@ -595,15 +613,15 @@
     if (R.hearts < TUNE.hearts && rnd() < TUNE.coffeeDrop) addPickup('coffee', tp.cub.w - R.dist + .06, tp.cub.s * .5);
     const at = posOf(tp), x = PX(at.u, at.z), y = YH(at.z, at.h), s = sc(at.z) * .85;
     if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.TEMP }); else poof(at.u, at.z, at.h);
-    free(x, y - 4);
-    if (how === 'deflect' && R.event && R.event.kind === 'audit') { free(x + 4, y - 2); popText('x2', x, y - 12, '#ffd44a'); }
+    free(x, y - 4, 'temp', how);
+    if (how === 'deflect' && R.event && R.event.kind === 'audit') { free(x + 4, y - 2, 'temp', 'audit'); popText('x2', x, y - 12, '#ffd44a'); }
   }
   function killFly(f, how) {
     if (f.dead) return;
     f.dead = true; R.freeze = how === 'slash' ? .07 : .035;
     const x = PX(f.u, f.z), y = YH(f.z, f.h), s = sc(f.z);
     if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.CARPF[0] }); else poof(f.u, f.z, f.h);
-    free(x, y - 4);
+    free(x, y - 4, f.form ? 'formation' : 'carpshit', how);
   }
   function poof(u, z, h, n = 6) { R.fx.push({ k: 'poof', x: PX(u, z), y: YH(z, h), s: Math.max(.4, sc(z)), n, t: 0, dur: .35 }); }
   function popText(text, x, y, col) { R.fx.push({ k: 'pop', text, x, y, col, t: 0, dur: .8 }); }
@@ -670,9 +688,9 @@
       if (R.events.bossAt && R.phaseT > R.events.bossAt) startBoss();
     } else if (R.phase === 'win') {
       // the souls inside come out one at a time, then the card
-      if (R.phaseT < 1.5 && rnd() < dt * 14) R.fx.push({ k: 'bit', x: rr(BACK.x0 + 6, BACK.x1 - 6), y: rr(BACK.y0 + 6, BACK.y1 - 6), vx: rr(-50, 50), vy: rr(-70, -10), t: 0, dur: rr(.8, 1.4) });
+      if (R.phaseT < 1.5 && Math.random() < dt * 14) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-50, 50), vy: fxr(-70, -10), t: 0, dur: fxr(.8, 1.4) });
       const due = Math.min(TUNE.bossSouls, Math.floor(Math.max(0, R.phaseT - .8) / .1));
-      while (b.freed < due) { b.freed++; free(rr(BACK.x0 + 10, BACK.x1 - 10), BACK.y1 - 8); }
+      while (b.freed < due) { b.freed++; free(fxr(BACK.x0 + 10, BACK.x1 - 10), BACK.y1 - 8, 'shredder', 'clear'); }
       if (R.phaseT > 2.1 && !R.events.clearBanner) {
         R.events.clearBanner = true;
         R.banner = { text: 'FLOOR 13 CLEAR', sub: 'SOULS FREED: ' + R.souls, t: 0, dur: 99 };
@@ -686,6 +704,7 @@
   }
   function die() {
     R.phase = 'dead'; R.phaseT = 0; R.hearts = 0;
+    emit('game_over', { cause: R.lastCause || 'unknown', score: R.souls });
     endPull();
     R.banner = { text: 'RUGGED.', t: 0, dur: 99, col: '#ff7050' };
     Snd.music(null); Snd.play('over');
@@ -1049,10 +1068,10 @@
   }
   function draw() {
     if (state === 'title' || state === 'intro') { g.setTransform(1, 0, 0, 1, 0, 0); drawTitle(); return; }
-    const sh = R.shake > 0 ? Math.round((rnd() - .5) * 6 * Math.min(1, R.shake * 4)) : 0;
+    const sh = R.shake > 0 ? Math.round((Math.random() - .5) * 6 * Math.min(1, R.shake * 4)) : 0;
     g.setTransform(1, 0, 0, 1, 0, 0);
     rect(g, 0, 0, W, H, '#09070b');
-    g.setTransform(1, 0, 0, 1, sh, sh ? Math.round((rnd() - .5) * 4) : 0);
+    g.setTransform(1, 0, 0, 1, sh, sh ? Math.round((Math.random() - .5) * 4) : 0);
     drawHall();
     drawShredder();
     drawPaper();
@@ -1204,6 +1223,7 @@
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
   function endRun(kind) {
+    if (kind === 'clear') emit('game_over', { cause: 'cleared', score: R.souls });
     setState('over');
     const newBest = R.souls > best.souls;
     best.souls = Math.max(best.souls, R.souls);
@@ -1347,8 +1367,10 @@
   addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); }, { capture: true, passive: true });
 
   // ---------- loop ----------
-  let last = 0;
+  // The balance harness sets looping to false and drives update() itself.
+  let last = 0, looping = true;
   function frame(now) {
+    if (!looping) return;
     const dt = last ? Math.min(.05, Math.max(0, (now - last) / 1000)) : 0;
     last = now;
     update(dt); draw();

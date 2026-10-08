@@ -2,7 +2,7 @@
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
-  seed = 202; startRun();
+  RUN.force = 202; startRun();
   R.cubs = []; R.nextCubW = 1e9; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.fireT = 1e9;
   step(2);
   check(R.pull.st === 'idle', 'no pulls before the copy room');

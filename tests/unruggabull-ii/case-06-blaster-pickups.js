@@ -3,7 +3,7 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; };
-  seed = 606; startRun(); quiet(); bull.inv = 1e9;
+  RUN.force = 606; startRun(); quiet(); bull.inv = 1e9;
   check(Snd.track === 'tower', 'Accounts Payable plays RugCo Tower');
 
   // charges: 20 shots, then a click and a wait; one back every half second

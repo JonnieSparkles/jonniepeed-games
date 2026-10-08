@@ -23,7 +23,7 @@
   goBtn.click();
   check(state === 'play', 'later Starts go straight to the floor');
 
-  seed = 404; startRun();
+  RUN.force = 404; startRun();
   for (let i = 0; i < 5; i++) { bull.inv = 0; hurtBull(1); }
   check(R.phase === 'dead' && R.hearts === 0, 'five hits and you are rugged');
   step(2.2);

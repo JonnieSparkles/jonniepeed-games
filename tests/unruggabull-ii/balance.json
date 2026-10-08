@@ -1,0 +1,32 @@
+{
+  "page": "unruggabull-ii/",
+  "script": "unruggabull-ii/game.js",
+  "inject_before": "  start();",
+  "columns": [
+    { "label": "souls", "key": "soul.amount" },
+    { "label": "souls: blaster", "key": "soul.amount:by=shot" },
+    { "label": "souls: katana", "key": "soul.amount:by=slash" },
+    { "label": "souls: deflect", "key": "soul.amount:by=deflect" },
+    { "label": "audit bonus", "key": "soul.amount:by=audit" },
+    { "label": "deflects", "key": "deflect" },
+    { "label": "hearts lost", "key": "hit.amount" },
+    { "label": "lost: paper", "key": "hit.amount:cause=wad" },
+    { "label": "lost: carpshits", "key": "hit.amount:cause=carpshit" },
+    { "label": "lost: formations", "key": "hit.amount:cause=formation" },
+    { "label": "lost: boxes", "key": "hit.amount:cause=box" },
+    { "label": "lost: chairs", "key": "hit.amount:cause=chairs" },
+    { "label": "lost: sheets", "key": "hit.amount:cause=sheet" },
+    { "label": "lost: rug", "key": "hit.amount:cause=rug" },
+    { "label": "lost: bundles", "key": "hit.amount:cause=bundle" },
+    { "label": "lost: staples", "key": "hit.amount:cause=staple" },
+    { "label": "lost: rally", "key": "hit.amount:cause=rally" },
+    { "label": "coffee", "key": "pickup:item=coffee" },
+    { "label": "spread", "key": "pickup:item=spread" },
+    { "label": "blaster empty", "key": "empty" },
+    { "label": "rally returns", "key": "rally_return" },
+    { "label": "smashes", "key": "smash" },
+    { "label": "boss dmg: blaster", "key": "boss_damage.amount:by=blaster" },
+    { "label": "boss dmg: deflects", "key": "boss_damage.amount:by=deflect" },
+    { "label": "boss dmg: smash", "key": "boss_damage.amount:by=smash" }
+  ]
+}

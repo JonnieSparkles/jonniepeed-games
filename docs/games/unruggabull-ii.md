@@ -39,10 +39,20 @@ Best souls and fastest clear are kept in `localStorage` (`unruggabull-ii-best`),
 - `audio.js` (`UnrugSound`): `init`, `play(name)`, `muted`, `toggle`, `music('theme' | 'tower' | 'staff' | 'dark' | 'copy' | 'shred' | null)`, `say(text, who)` for blip talk, `hush()` to cut a line short, and `talkTimes` so captions type out in step with it. The chip sequencer and all six tracks live here.
 - `game.js`: `TUNE` holds the numbers (charges, recharge, Spread Shot time) and `BEATS` the hall's three beats with their music. `newRun`, `update(dt)` and `draw()` are the core; `updateHall` runs the beats and events, `updatePull`, `updateBoss` and `updatePhase` the runner, the Shredder and the floor's flow, and `STORY` with `startIntro` the opening. The corridor projection (`PX`, `FY`, `YH`) and the far-wall box `BACK` are at the top; `drawTower` is the title scene. Stations, decor and signs are drawn before anything that moves, so they never cut through it.
 
+## Balance bots
+
+The game is opted in to the shared balance bots ([01: Balance bots](../guides/01-balance-bots.md)): `tests/unruggabull-ii/balance.js` (the hookup), `bot.js` and `profiles.json`, and `balance.json` (report columns). Run `python3 tools/balance/run.py unruggabull-ii --runs 100`; add `--skills decent --ref main` for a before/after on a tuning change, which tuning PRs need from now on.
+
+- **Stages** stand in for the report's waves: 1 Accounts Payable, 2 Audit, 3 All Staff, 4 Lights out, 5 Copy Room, 6 to 8 the Shredder's phases, 9 cleared. "How runs end" names what took the last heart (`wad`, `formation`, `chairs`, `sheet`, `box`, `rug`, `bundle`, `staple`, `rally`), or `cleared`.
+- **Columns:** souls by blaster, katana, deflect and audit bonus; deflects; hearts lost by cause; coffee and Spread Shots grabbed; times the blaster ran dry; rally returns and smashes; and Shredder damage by blaster, deflects and smashes.
+- **The bot** plays through the same inputs a person does and sees the game `reaction_ms` late. Per profile: `notice_s` (how long before something new registers), `depth_err` (how far off its sense of depth is), `deflect_try`, `fly_slash`, `dodge`, `jump_try` and `pickup` (how often it tries each move), `jump_err`, `charge_floor` (charges it keeps back) and `anticipate` (how much of its reaction delay it leads its timing by).
+- **The game's side:** outcomes come from one seeded stream and cosmetics from `Math.random`, `#seed=42` replays a run, `emit()` reports events (a no-op in play), and `looping = false` stops the frame loop. `case-08-seeds.js` and `--verify` check that drawing never changes a run.
+- **Calibration, first pass** (30 seeds each): casual reaches All Staff (median stage 3, 27 souls); decent reaches the Copy Room (median stage 5, 52 souls, 1 in 30 clears, a third die to the Shredder's first-phase bundles); expert clears 70% of runs (77 souls). Decent is set near the owner's playtests (a best of 46 souls on the build before last). Recalibrate when real runs say otherwise: playtesting wins.
+
 ## Validation
 
 Serve `site/` on port 8000 and run `python3 tests/unruggabull-ii/test.py`. The cases step the game tick by tick through a test-only bridge (injected into the response, never shipped): shooting and slashing in the hall, blaster charges, pickups, rows to jump, streaks, the three beats with their events and music, the runner, the Shredder's phases and jams, the story, the clear and rugged cards, pause and the keyboard. Then it checks layout at desktop, phone portrait and phone landscape, including the story and full screen on Start, and real touch on the pads (sliding between arrows, holding Shoot). The studio harness covers the Side B card.
 
-Difficulty was checked with a scripted player, not people: it clears the floor in about two minutes and plays every beat. People find it harder than the scripted player does. It still needs playtesting on real phones, and playtesting wins.
+Difficulty is measured with the balance bots above; a full clear takes about two minutes. It still needs playtesting on real phones, and playtesting wins.
 
 `python3 tools/og/make.py --game unruggabull-ii` rebuilds the share card and shelf thumbnail from the title screen.

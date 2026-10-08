@@ -1,6 +1,6 @@
 # 01: Balance bots
 
-Built from [SPEC-005](../../specs/SPEC-005-balance-bots.md). Stick Army is the only game opted in so far.
+Built from [SPEC-005](../../specs/SPEC-005-balance-bots.md). Opted in: Stick Army and [Unruggabull II](../games/unruggabull-ii.md#balance-bots).
 
 Balance bots play many seeded runs headless, at several skill levels, and report how far they get, what ends them, and what they capture and buy. Use them to check a tuning change against the same seeds before and after. They measure difficulty, not fun: feel, readability and phone performance still come from playtesting, and when the bots and a playtest disagree, the playtest wins.
 
@@ -37,7 +37,7 @@ python3 tools/balance/run.py stick-army --runs 10 --verify
 - **How runs end:** the game-over cause (the last thing to hurt the wall), timeouts, and runs stuck in the shop, each with its median wave.
 - **Per wave:** the mean per run that reached the wave for each column the game lists in its `balance.json`.
 - **Shop:** how often each item was offered and taken, and the median wave of runs that took it. That is correlation, not cause: good runs buy more.
-- **Odd:** timeouts, stuck runs, or no captures at all.
+- **Odd:** timeouts, stuck runs, or (for games that track captures) no captures at all.
 
 With `--ref`, the old numbers sit beside the new ones. "changed" marks only differences clearly beyond run-to-run noise: a median wave that moves by a full wave or more and also differs on a rank test (Mann-Whitney), or survival at a wave that differs (two-proportion test), each at about 99% confidence (z of 2.58). Outcomes are often bimodal, so a median alone can jump on noise.
 
@@ -48,6 +48,8 @@ With `--ref`, the old numbers sit beside the new ones. "changed" marks only diff
 - Recalibrate the profiles when they drift from the owner's own runs. The current calibration puts decent near the owner's wave-12 run.
 
 ## Profiles
+
+The shared profiles below are Stick Army's. A game can add or override fields in `tests/<slug>/profiles.json`; Unruggabull II uses its own fields (see its living doc).
 
 | Profile | Reaction | Aim error | Notices new targets | Picks up a target | Aim speed | Heat discipline | Shop |
 | --- | --- | --- | --- | --- | --- | --- | --- |

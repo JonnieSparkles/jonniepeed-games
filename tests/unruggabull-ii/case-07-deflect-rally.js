@@ -3,7 +3,7 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const near = (a, b) => Math.abs(a - b) < 1e-6;
-  seed = 707; startRun();
+  RUN.force = 707; startRun();
   R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9;
   bull.u = 0; bull.inv = 0;
 

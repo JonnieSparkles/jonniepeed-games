@@ -5,7 +5,7 @@
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextCubW = R.dist + 1e9; };
   const temp = z => { const cb = { w: R.dist + z, s: 1, temp: null }; cb.temp = { cub: cb, st: 'up', t: 0, pop: 1, trig: 0, pops: 0, threw: true, dead: false }; R.cubs.push(cb); return cb.temp; };
 
-  seed = 101; startRun();
+  RUN.force = 101; startRun();
   check(state === 'play' && R.phase === 'hall' && R.hearts === 5 && R.souls === 0, 'a run starts in the hall with five hearts');
   check(card.hidden && gameEl.classList.contains('playing'), 'the card hides while playing');
   step(2);

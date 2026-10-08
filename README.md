@@ -99,11 +99,12 @@ Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the lo
 
 ## Balance bots
 
-Stick Army has balance bots ([SPEC-005](specs/SPEC-005-balance-bots.md); see [the guide](docs/guides/01-balance-bots.md)). They play seeded runs headless at casual, decent and expert skill and report survival, causes of death, per-wave events and shop picks. Run them by hand; the runner serves `site/` itself:
+Stick Army and Unruggabull II have balance bots ([SPEC-005](specs/SPEC-005-balance-bots.md); see [the guide](docs/guides/01-balance-bots.md)). They play seeded runs headless at casual, decent and expert skill and report survival, causes of death, per-wave (or per-stage) events and shop picks. Run them by hand; the runner serves `site/` itself:
 
 ```sh
 python3 tools/balance/run.py stick-army --runs 200
 python3 tools/balance/run.py stick-army --runs 200 --skills decent --ref main
+python3 tools/balance/run.py unruggabull-ii --runs 100
 ```
 
 Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game includes a before/after summary for at least the decent profile. Bots measure difficulty, not fun; playtesting wins.

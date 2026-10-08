@@ -2,16 +2,16 @@
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
-  seed = 505; startRun(); bull.inv = 1e9;
+  RUN.force = 505; startRun(); bull.inv = 1e9;
   check(R.beat === 0 && R.signs.length === 1 && beat().sign === 'ACCOUNTS PAYABLE', 'the floor opens in Accounts Payable with its sign');
   check(R.cubs.every(cb => cb.kind === 'cub'), 'cubicles line the hall');
   step(BEATS[0].time - .1);
   check(R.decor.some(d => d.kind === 'poster' || d.kind === 'cooler'), 'posters and water coolers dress the walls');
   step(.2);
   check(R.event && R.event.kind === 'audit' && R.banner.text === 'AUDIT!', 'then an audit');
-  step(1.5);
-  const up = R.cubs.filter(cb => { const z = cubZ(cb); return cb.temp && !cb.temp.dead && z > .3 && z < .9 && cb.temp.st !== 'hidden'; }).length;
-  check(up >= 3, 'every temp in view stands up (' + up + ')');
+  step(3);
+  const inView = R.cubs.filter(cb => { const z = cubZ(cb); return z > .35 && z < .85; });
+  check(inView.length >= 2 && inView.every(cb => cb.temp && !cb.temp.dead && cb.temp.st !== 'hidden'), 'every desk in view is staffed and its temp stands up (' + inView.length + ')');
   step(.6);
   const lob = R.projs.find(pr => pr.kind === 'wad' && !pr.friendly);
   check(lob, 'and they lob paperwork on a beat');
