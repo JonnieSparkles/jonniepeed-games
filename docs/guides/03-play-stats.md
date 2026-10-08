@@ -31,25 +31,42 @@ A report carries the fields in [SPEC-009](../../specs/SPEC-009-play-stats.md#wha
 
 ## One-time setup (Jonnie's Cloudflare account)
 
-1. From `stats/`, run `wrangler d1 create jonniepeed-games-stats`. Replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` in `stats/wrangler.jsonc` with the returned ID and commit it.
-2. Apply the schema: `wrangler d1 execute jonniepeed-games-stats --remote --file=schema.sql`.
-3. Deploy the Worker (see below). Confirm the Worker Custom Domain `stats.jonniepeed.games` in the Workers dashboard. The [certificate notes](00-leaderboards.md#if-the-scores-certificate-wont-issue) in the leaderboard guide apply here too.
-4. Set up Cloudflare Access, which is free for up to 50 users:
-   1. In the Cloudflare dashboard open **Zero Trust**. The first time, pick a team name (for example `jonniepeed`) and the Free plan. Your team domain is then `<team>.cloudflareaccess.com`.
-   2. **Access → Applications → Add an application → Self-hosted.** Name it "Play stats". Add the public hostname `stats.jonniepeed.games` with path `dash`. Sub-paths (`/dash/thimbleful/` and the data behind them) inherit it. Don't protect the whole hostname: games must be able to post to `/v1/`.
-   3. Add a policy: action **Allow**, include **Emails**, and list your own address (and anyone else who should see the numbers). Login with **One-time PIN** is on by default; Google works too if you add it under **Settings → Authentication**.
-   4. Save, then copy the application's **Audience (AUD) tag** from its overview.
-5. Give the Worker those two values. They're settings, not passwords, but they live in Cloudflare so a deploy never overwrites them:
+Done once, in order. Run the terminal steps from the `stats/` folder.
+
+1. **Create the database:** `wrangler d1 create jonniepeed-games-stats`. Wrangler then offers to add it to the config for you: answer **no**. The config already has a `DB` entry waiting; a second entry under another name would leave the Worker without its database. Copy the `database_id` it prints into the `DB` entry in `stats/wrangler.jsonc` (replacing `REPLACE_WITH_YOUR_D1_DATABASE_ID`) and commit it. If you answered yes by mistake, `git checkout wrangler.jsonc` undoes it; `wrangler d1 list` shows the ID again. If Wrangler asks whether local development should use the remote database, answer **no**.
+2. **Create the table:** `wrangler d1 execute jonniepeed-games-stats --remote --file=schema.sql`, and answer yes when it asks to proceed. It ends with "Executed 3 queries".
+3. **Put the Worker online:** `wrangler deploy` (or the GitHub workflow below). It ends with `stats.jonniepeed.games (custom domain)`. The [certificate notes](00-leaderboards.md#if-the-scores-certificate-wont-issue) in the leaderboard guide apply if the address doesn't work.
+4. **Lock the dashboards with Cloudflare Access** (free for up to 50 users). In the Cloudflare dashboard, open **Zero Trust**. An Access setup has two parts: a **policy** says who may in, and an **application** says which address to guard. Saving a policy alone guards nothing.
+   1. **Access controls → Policies:** create a policy with action **Allow**, include **Emails**, and your address. Leave MFA and just-in-time access off; the remote desktop (RDP) settings don't apply to a web page.
+   2. **Access controls → Applications → Add an application → Self-hosted and private → Public DNS → Continue.** Destination: subdomain `stats`, domain `jonniepeed.games`, path `dash`. Don't leave the path empty: games must still be able to post to `/v1/`. Pages under `/dash/` are covered. Leave browser rendering off.
+   3. Under **Access policies**, add the existing policy from step 1. Keep "Accept all available identity providers" on. Save the application.
+   4. Check it in the list under **Applications**: it should show destination `stats.jonniepeed.games/dash` and your policy.
+5. **Find the two values the Worker needs.**
+   - **Team domain:** Zero Trust makes a team name for you (something like `super-hall-d326`); you can rename it in Zero Trust settings. The team domain is `<team name>.cloudflareaccess.com`. The surest way to see it: open `https://stats.jonniepeed.games/dash/`; the Cloudflare sign-in page's address starts with it. A rename takes a while to settle (see "If you can't get in" below), so rename before this step, not after.
+   - **AUD tag:** open the application → **Additional settings** tab, and copy the **Application Audience (AUD) Tag**, a 64-character string. Not the Application ID beside it. It's also the `kid=` value in the sign-in page's address.
+6. **Give them to the Worker.** They're settings, not passwords, but they live in Cloudflare so a deploy never overwrites them. Each command asks for the value; paste it and press Enter:
    ```sh
-   wrangler secret put ACCESS_TEAM_DOMAIN   # e.g. jonniepeed.cloudflareaccess.com
-   wrangler secret put ACCESS_AUD           # the AUD tag from step 4.4
+   wrangler secret put ACCESS_TEAM_DOMAIN   # e.g. sparklelabs.cloudflareaccess.com
+   wrangler secret put ACCESS_AUD           # the AUD tag
    ```
-   Until both are set, the dashboards answer "locked" to everyone.
-6. Open https://stats.jonniepeed.games/dash/, sign in, and check that it loads.
-7. Run `BASE=https://stats.jonniepeed.games node test/smoke.mjs` from `stats/`. It writes only rows for the hidden `test` game and checks the dashboards don't answer without Access.
-8. Deploy the site with **Deploy to GitHub Pages**, so the games start reporting.
+7. **Open https://stats.jonniepeed.games/dash/** and sign in. You should see the Play stats page, empty until the games report.
+8. Optionally run `BASE=https://stats.jonniepeed.games node test/smoke.mjs` from `stats/`. It writes only rows for the hidden `test` game.
+9. **Put the games online:** Actions tab → **Deploy to GitHub Pages** → Run workflow. From then on every run reports.
 
 Do this a few days before announcing anything, so the dashboards have ordinary days to compare against.
+
+### If you can't get in
+
+What the dashboard page says tells you where it's stuck:
+
+| You see | It means | Fix |
+| --- | --- | --- |
+| "Play stats are locked", with no Cloudflare sign-in first | Access isn't guarding the page, or the Worker has no Access values yet | Check the application exists with path `dash` (step 4), then set both values (step 6) |
+| A Cloudflare sign-in, then "Play stats are locked" | Access works; the Worker is missing one of the two values | Run both `wrangler secret put` commands (step 6) |
+| A Cloudflare sign-in, then "Sign in first" | The Worker didn't accept the sign-in: the team domain or AUD tag doesn't match | Check the AUD tag against `kid=` in the sign-in address, and the team domain against the sign-in address. Then sign out of just this page at `https://stats.jonniepeed.games/cdn-cgi/access/logout` and open `/dash/` again |
+| "Unable to find your Access organization" | A team rename hasn't settled yet | Wait 10–15 minutes and try again. If it doesn't clear, rename the team back and set `ACCESS_TEAM_DOMAIN` to match |
+
+"Sign in with Cloudflare" uses your Cloudflare account, so in a browser already signed in to Cloudflare it goes straight through. One-time PIN (a code by email) is the other option, under Zero Trust's login methods.
 
 ## Deploying the Worker
 
