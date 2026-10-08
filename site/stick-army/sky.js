@@ -1,4 +1,4 @@
-// Stick Army sky (SPEC-007 stages 2-3): what else crosses the page on the way to wave 15. The Red Cross plane you
+// Stick Army sky (SPEC-008 stages 2-3): what else crosses the page on the way to wave 15. The Red Cross plane you
 // mustn't shoot (from wave 4), bomb balloons (7), HQ supply crates (8), dive bombers (12) and helicopters (13).
 // Classic script; load before game.js. game.js calls StickArmySky(world) once with the same world object it gives
 // units.js, after units.js. Balloons, dive bombers and helicopters are enemies and live in S.planes, so the turret,
