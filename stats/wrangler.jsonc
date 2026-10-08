@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "jonniepeed-games-stats",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+      "database_id": "a9d93b7d-1681-427c-9209-acbcf81056c0"
     },
     // The leaderboard database. The dashboards only read it (initials, board saves); nothing here writes to it.
     {
