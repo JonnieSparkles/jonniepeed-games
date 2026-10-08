@@ -506,7 +506,7 @@
     TRAMPS[1].x1 = 308 - S.mods.mat * 6; TRAMPS[1].x2 = 378 + S.mods.mat * 6;
   }
   // Pencil icons for supplies live in icons.js; they draw with this file's pen.
-  var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag, hat: hat, tube: tube,
+  var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag, hat: hat, medicHelmet: medicHelmet, tube: tube,
     INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER });
   // Units beyond troopers and planes live in units.js; this is everything they may use.
   var world = { W: W, H: H, GROUND: GROUND, BK: BK, TUR: TUR, BALANCE: BALANCE,
@@ -1295,6 +1295,13 @@
     G.fillStyle = '#7d8a64'; G.fill(); ink(INK, 1.5); G.stroke();
     G.beginPath(); L(x - 10, y - 0.5, x + 10, y - 0.5, 0.4); ink(INK, 2); G.stroke();
   }
+  // Medics wear a white helmet with a red cross on the front.
+  function medicHelmet(x, y) {
+    G.beginPath(); G.moveTo(x - 7.5, y - 1); G.quadraticCurveTo(x - 7, y - 10.5, x, y - 10.5); G.quadraticCurveTo(x + 7, y - 10.5, x + 7.5, y - 1); G.closePath();
+    G.fillStyle = PAPER; G.fill(); ink(INK, 1.6); G.stroke();
+    G.beginPath(); L(x - 10, y - 0.5, x + 10, y - 0.5, 0.4); ink(INK, 2); G.stroke();
+    G.beginPath(); L(x - 2.8, y - 5.5, x + 2.8, y - 5.5); L(x, y - 8.3, x, y - 2.7); ink(RED, 2); G.stroke();
+  }
   // Enemy armor: a grey flak vest over the chest, and a steel helmet on heavies. Both flash pale when hit.
   function vest(x, y, flash) {
     G.beginPath(); SP([x - 4.5, y + 7, x + 4.5, y + 7, x + 4, y + 19, x - 4, y + 19], true, 0.3);
@@ -1376,9 +1383,9 @@
     }
     if (tool) hammer(tool.hx, tool.hy, side, tool.idle);
     if (r.type === 'engineer') hat(x, y);
-    else if (S.mods.helmet > 0 && r.type !== 'medic') helmet(x, y);
+    else if (r.type === 'medic') medicHelmet(x, y);
+    else if (S.mods.helmet > 0) helmet(x, y);
     if (r.type === 'sniper') drawScope(x, y, Math.cos(r.aim) < 0 ? -1 : 1);
-    if (r.type === 'medic') { G.beginPath(); L(x-5,y-7,x+5,y-7); L(x,y-12,x,y-2); ink(BLUE,3); G.stroke(); }
     chevrons(x - 7, y + 9, r.rank || 0);
     // Crew health makes the cost of leaving a sniper alive visible.
     G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(x-6, GROUND+4, 12, 2);
@@ -1632,7 +1639,7 @@
       if (r.type === 'rifle' || r.type === 'sniper') { G.beginPath(); L(-7, 17, 8, 7, 0.3); ink(INK, 2.2); G.stroke(); }
       if (r.type === 'sniper') { G.beginPath(); SP([-7, -4, -3, -10, 7, -7, 6, -3], true, 0.3); G.fillStyle = INK; G.fill(); }
       if (r.type === 'engineer') hat(0, 0);
-      if (r.type === 'medic') { G.beginPath(); L(-4, -9, 4, -9); L(0, -13, 0, -5); ink(BLUE, 2.6); G.stroke(); }
+      if (r.type === 'medic') medicHelmet(0, 0);
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
       chevrons(-8, 9, r.rank || 0);
       G.restore();

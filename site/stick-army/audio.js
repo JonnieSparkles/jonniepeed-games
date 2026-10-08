@@ -4,12 +4,17 @@ var StickArmySound = (function () {
   'use strict';
 
   // ---------- sound ----------
-  var AC = null, master = null, noiseBuf = null, muted = false, lastPlay = {};
+  var AC = null, master = null, noiseBuf = null, muted = false, lastPlay = {}, LEVEL = 0.8;
   function audioInit() {
     if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
     try {
       AC = new (window.AudioContext || window.webkitAudioContext)();
-      master = AC.createGain(); master.gain.value = 0.32; master.connect(AC.destination);
+      // Phones played it quietly, so the mix runs hotter, through a gentle soft clip that rounds off the rare peak
+      // when many sounds stack up instead of distorting. (A compressor node squashed short hits.)
+      var soft = AC.createWaveShaper(), curve = new Float32Array(1025);
+      for (var k = 0; k < curve.length; k++) { var x = k / 512 - 1; curve[k] = Math.tanh(1.4 * x) / Math.tanh(1.4); }
+      soft.curve = curve; soft.connect(AC.destination);
+      master = AC.createGain(); master.gain.value = LEVEL; master.connect(soft);
       noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.6), AC.sampleRate);
       var d = noiseBuf.getChannelData(0);
       for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
