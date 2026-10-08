@@ -68,7 +68,7 @@ It uses the same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository s
 - **Score** and the game's own stats show a median, the middle half and a histogram, or the most common values for text. Per-game spreads read the latest 2,000 runs in the window.
 - **Names** come from saved runs on the boards. "Back another day" counts initials saved on more than one (UTC) day. AAA is the picker's default, so it's left out of the counts and is likely several people.
 - **Where runs came from** is the referring site's hostname. Direct covers typed links, apps that don't pass a referrer, and reloads. `jonniepeed.games` means the studio shelf. Past the top 12, the rest share one "Other sites" row, so the shares add up to every run.
-- Days are Eastern time. The window buttons are 7, 30 and 90 days; `?days=` takes 1–365.
+- Days are Eastern time. The window buttons are 7, 30 and 90 days; `?days=` takes 1–365. A window is whole Eastern days: 7 days is today and the six before it, from midnight.
 
 ## Adding a game
 

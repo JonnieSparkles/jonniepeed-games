@@ -133,9 +133,23 @@ await test('sources add up to every run, with the long tail folded into one row'
   const data = (await dash('/dash/api/overview?days=1')).data;
   const runs = Object.values(data.games).reduce((t, g) => t + g.runs, 0);
   assert.equal(data.sources.reduce((t, s) => t + s.n, 0), runs);
-  assert.ok(data.sources.length <= 13 && data.sources.at(-1).other === true, JSON.stringify(data.sources.at(-1)));
+  assert.ok(data.sources.length <= 14 && data.sources.at(-1).other === true, JSON.stringify(data.sources.at(-1)));
+  // Direct traffic keeps its own row, however many sites outrank it.
+  for (let i = 0; i < 3; i++) await ok('/v1/start', start({ game: 'stick-army' }));
+  assert.ok((await dash('/dash/api/overview?days=1')).data.sources.some(s => s.source == null && !s.other));
   const game = await detail('stick-army');
   assert.equal(game.sources.reduce((t, s) => t + s.n, 0), game.summary.runs);
+}, LOCAL ? null : LOCAL_ONLY);
+
+await test('windows start at Eastern midnight', async () => {
+  const eastern = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const today = Date.parse(eastern.format(new Date()).slice(0, 10) + 'T00:00:00Z');
+  for (const days of [1, 7, 30]) {
+    const { since } = (await dash(`/dash/api/overview?days=${days}`)).data;
+    const at = eastern.format(new Date(since));
+    assert.match(at, /, 00:00$/, `${days} days starts at ${at}`);
+    assert.equal(Date.parse(at.slice(0, 10) + 'T00:00:00Z'), today - (days - 1) * 86400000, `${days} days starts on ${at}`);
+  }
 }, LOCAL ? null : LOCAL_ONLY);
 
 await test('a saved run shows its initials', async () => {

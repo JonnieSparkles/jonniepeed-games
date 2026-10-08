@@ -131,15 +131,31 @@ async function report(request, env, end) {
 /* ---------- dashboards ---------- */
 
 const gameNames = () => Object.fromEntries(Object.entries(games).map(([id, g]) => [id, g.name]));
+// Windows are whole Eastern calendar days: "7 days" is today and the six before it, from Eastern midnight.
+const EASTERN = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23',
+  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit' });
+function eastern(ms) {
+  const p = Object.fromEntries(EASTERN.formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+  return { date: Date.UTC(+p.year, +p.month - 1, +p.day), hour: +p.hour % 24 };
+}
 function windowFor(url) {
   const asked = Number(url.searchParams.get('days'));
   const days = Number.isInteger(asked) && asked >= 1 && asked <= 365 ? asked : 30;
+  const first = eastern(Date.now()).date - (days - 1) * DAY;   // the first Eastern date in the window
+  // Midnight that date is 4 hours after UTC midnight in daylight time, 5 in standard time.
+  for (const offset of [4, 5]) {
+    const t = first + offset * 3600000, e = eastern(t);
+    if (e.hour === 0 && e.date === first) return { days, since: new Date(t).toISOString() };
+  }
   return { days, since: new Date(Date.now() - days * DAY).toISOString() };
 }
-// Referring sites, most first. Past the top 12 the rest fold into one row, so the shares still add up to every run.
+// Referring sites, most first. Past the top 12 sites the rest fold into one row, so the shares still add up to every
+// run. Direct traffic (no referrer) always keeps its own row.
 function topSources(rows) {
-  const top = rows.slice(0, 12), rest = rows.slice(12).reduce((t, r) => t + r.n, 0);
-  return rest ? top.concat({ source: null, other: true, n: rest }) : top;
+  const direct = rows.filter(r => r.source == null), sites = rows.filter(r => r.source != null);
+  const rest = sites.slice(12).reduce((t, r) => t + r.n, 0);
+  const shown = sites.slice(0, 12).concat(direct).sort((a, b) => b.n - a.n);
+  return rest ? shown.concat({ source: null, other: true, n: rest }) : shown;
 }
 const parseStats = text => { try { const v = JSON.parse(text); return object(v) ? v : null; } catch (_) { return null; } };
 const all = async statement => (await statement.all()).results;
