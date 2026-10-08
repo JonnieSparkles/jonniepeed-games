@@ -189,6 +189,7 @@ Choices made while building:
 - **The rate limit comes last** (see the check order above), so refusals and validation errors never count toward it.
 - **`games.py` seeds through the API** with signed tokens rather than raw SQL. Its finished runs claim 2,000 s of play, so their test scores sit under the caps.
 - **The deploy workflow asks for a token**, so a missing `RUN_SECRET` fails the deploy check instead of quietly switching boards off.
+- **Simultaneous repeats can both count.** Two copies of the same token arriving at once can both pass the "already saved?" lookup and both count toward the rate limit, though only one row is saved (Codex, second review). Left as is on purpose. The only honest case is the client's single network retry racing its own first request, which costs one extra slot of 20. Deliberate parallel replays only spend the sender's own connection's quota, which fresh tokens would do just as easily. A real fix needs a per-run lock (a Durable Object) or insert-then-charge-then-delete, both more machinery and more writes than this is worth.
 - **The per-board fallback rate limit isn't built.** The binding worked locally. If the first deploy refuses it on the plan, the fallback goes in then.
 - **Old copies against the new Worker:** both games played and ended normally and showed no board. The browser's own "Failed to load resource" console line for the 410 is the same one a down Worker produces.
 
