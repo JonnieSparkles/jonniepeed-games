@@ -237,7 +237,7 @@
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null,
-      bed: null, fallen: [], usedNames: {}, news: [], sketches: [],
+      bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0 },
@@ -1753,6 +1753,7 @@
   function togglePause() {
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
+      document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
       var kit = document.getElementById('pauseKit');
       kit.hidden = !renderKit(kit, true);
       var squad = document.getElementById('pauseSquad'), line = squadLine();
@@ -1781,6 +1782,7 @@
     document.getElementById('overScore').textContent = S.score.toLocaleString('en-US');
     document.getElementById('newBest').hidden = !isBest || S.score === 0;
     document.getElementById('stWave').textContent = String(S.wave);
+    document.getElementById('stTime').textContent = clock(S.played);
     document.getElementById('stCap').textContent = String(S.stats.captured);
     document.getElementById('stPop').textContent = String(S.stats.popped);
     document.getElementById('stPlanes').textContent = String(S.stats.planes);
@@ -1935,11 +1937,19 @@
       wallLow: S.wallHP < S.mods.maxHP * 0.3
     };
   }
+  // Time played counts waves and the shop, not pauses or the title. It's shown on the pause and game-over cards
+  // and never feeds the simulation.
+  function notePlayed(dt) { if (S.mode === 'play' || S.mode === 'shop' || S.mode === 'dying') S.played += dt; }
+  function clock(sec) {
+    var t = Math.floor(sec), h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s2 = t % 60;
+    return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (s2 < 10 ? '0' : '') + s2;
+  }
   function loop(now) {
     var dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     noteFrame(now - last);
     last = now;
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
+    notePlayed(dt);
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
     render();
     syncCallBtns();

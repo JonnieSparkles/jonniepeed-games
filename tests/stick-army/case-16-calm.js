@@ -135,5 +135,18 @@
   check(/^\d+ tags$/.test(tag.firstChild.textContent) && more && /^need \d+ more$/.test(more.textContent) && getComputedStyle(more).display === 'block', 'what you still need sits on its own line under the price');
   shopScreen.hidden = true; S.shop = null; S.mode = 'play';
 
+  // Time played counts waves and the shop, not pauses or the title, and shows on the pause and game-over cards.
+  check(clock(0) === '0:00' && clock(65.9) === '1:05' && clock(23 * 60 + 41) === '23:41' && clock(3723) === '1:02:03', 'times read as m:ss');
+  RUN.force = 37; newGame(); startWave(3); S.mods.maxHP = S.wallHP = 1e6;
+  S.mode = 'play'; notePlayed(60); S.mode = 'shop'; notePlayed(30); S.mode = 'paused'; notePlayed(999); S.mode = 'title'; notePlayed(999);
+  check(S.played === 90, 'waves and the shop count, pauses and the title do not');
+  S.mode = 'play'; togglePause();
+  check(document.getElementById('pauseTime').textContent === 'Wave 3 · 1:30 played', 'the pause card says how long');
+  togglePause();
+  showOver();
+  check(document.getElementById('stTime').textContent === '1:30', 'so does the game-over card');
+  overScreen.hidden = true;
+  newGame(); check(S.played === 0, 'a new run starts the clock over');
+
   emitHook = null; RUN.force = null; reset(); render();
 })();
