@@ -1,4 +1,4 @@
-# SPEC-007: Stick Army campaign
+# SPEC-008: Stick Army campaign
 
 Fifteen waves, three bosses, a victory screen, then optional endless play. Something new arrives every couple of waves on the way, and each boss wave is different.
 

@@ -52,11 +52,12 @@ These apply to every change:
 - **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games.
 - **Relative links, clean directory URLs.** Player links use `<slug>/` from the studio and `../` from games back home, preserving the site mount. Assets remain relative; entry files remain `index.html`. No slashless aliases or `<base>` bootstrap. Arweave manifests need the directory entries described below. The one exception is `site/404.html`: GitHub Pages serves it at whatever missing path was asked for, so its assets use absolute `https://jonniepeed.games/` URLs (which `stamp.py` still versions) and its home links use `/`.
 - **Asset ownership.** Only shared files belong at the top of `site/assets/`. Studio-only files belong in `assets/studio/`; game-owned files, including `og.png` and `thumb.<ext>`, belong in `site/<slug>/`. Keep image formats. Retiring a game removes its shelf and `GAMES` entries too; permanent scores API records remain.
-- **Documentation lifecycle.** Numbered operations guides live in `docs/guides/`; build specs in `specs/` remain historical once implemented. Current rules, tuning, code entry points and validation belong in an unnumbered `docs/games/<slug>.md` linked to the relevant specs. Player help stays inside the game. See [Stick Army](docs/games/stick-army.md).
+- **Game docs first.** Each game's current rules, tuning, code entry points and validation live in its unnumbered `docs/games/<slug>.md`, linked to its specs. Read it before changing the game, and update it in the same change. Player help stays inside the game.
+- **Specs and guides.** Build specs live in `specs/` as `SPEC-NNN-name.md` and stay historical once built; take the next number not already used on `main`. Operations guides live in `docs/guides/` as `NN-name.md`, numbered from `00`. Each title starts with its number (`# SPEC-001: Name`, `# 00: Name`), and a guide built from a spec links to it at the top.
 - **Scripts and tests.** Keep audio in game-local `audio.js` with a small `init/play/muted` API; best-score storage and run state stay in the game. Split around 2,000 lines or a clear seam. Use classic scripts and explicit globals, loading audio/data before `game.js`; no ES modules, so file previews keep working. Optional tuning scripts stay opt-in. Per-game harnesses live in `tests/<slug>/`; backend API tests stay in `scores/test/`.
 - **No backward compatibility for pages and paths.** Remove old pages and paths outright, with no redirects or shims. Shared code and the scores API are the exceptions below.
 - **Shared code stays compatible.** Code in `site/` that more than one page loads, such as `site/assets/leaderboard.js`, only grows: add functions and options, but don't rename or remove anything or change what an existing call does unless the same change updates every page that uses it. Check every page that loads it before merging; games with harnesses in `tests/<slug>/` must still pass them.
-- **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). The scores API is also exempt from no backward compatibility: old published copies must keep working.
+- **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). Read it before adding scores or changing scoring, `BOARD` or `scores/games.json`; anything that changes how fast a game can score (pace, bonuses, power-ups) counts as a scoring change. Run `python3 tools/check_boards.py` after touching either. The scores API is also exempt from no backward compatibility: old published copies must keep working.
 - **What's new when scores reset.** A board bump comes with a short What's new note on the title screen explaining the latest change. The note's button has a dot until it's opened once on that device. See [What's new notes](docs/guides/00-leaderboards.md#whats-new-notes).
 - **Related, not identical.** Reuse what the other games already do (full screen, leaderboards, previews) so nothing starts from scratch, but each game is free to do things its own way.
 - **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
@@ -66,7 +67,7 @@ These apply to every change:
 1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
 2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture (see [02: Cover art](docs/guides/02-cover-art.md)).
 3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
-4. Add a living `docs/games/yourgame.md` linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
+4. Add a living `docs/games/yourgame.md` ([Thimbleful's](docs/games/thimbleful.md) is a good model) linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
 5. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
 
 ## Side B and promotion
@@ -137,7 +138,7 @@ Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, 
 
 ## Publishing to GitHub Pages
 
-Manual only. In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
+Manual only, like the Worker deploy below; don't add automatic triggers to either workflow. In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
 
 ## Backend services
 

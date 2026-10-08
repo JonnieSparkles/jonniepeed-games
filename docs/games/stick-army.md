@@ -1,6 +1,6 @@
 # Stick Army
 
-Built from [SPEC-002](../../specs/SPEC-002-stick-army.md), with layout from [SPEC-003](../../specs/SPEC-003-repo-layout.md) and the development shelf from [SPEC-004](../../specs/SPEC-004-side-b.md). The game is at `site/stick-army/index.html`. [SPEC-007](../../specs/SPEC-007-stick-army-campaign.md) plans the 20-wave campaign; stage 1 is built: 15 waves, the Dreadnought on wave 15, a victory screen with the squad's roll call, and endless play after it. It appears only as the **demo** card on Side B; there is no public Side A card. No build step or network service is required. The page keeps `<meta name="robots" content="noindex">` until promotion.
+Built from [SPEC-002](../../specs/SPEC-002-stick-army.md), with layout from [SPEC-003](../../specs/SPEC-003-repo-layout.md) and the development shelf from [SPEC-004](../../specs/SPEC-004-side-b.md). The game is at `site/stick-army/index.html`. [SPEC-008](../../specs/SPEC-008-stick-army-campaign.md) is the 15-wave campaign. Stages 1–3 are built: the Dreadnought on wave 15, a victory screen with the squad's roll call, endless play after it, the armored zeppelin and the new threats. Stage 4 (endless extras) is planned. It appears only as the **demo** card on Side B; there is no public Side A card. No build step or network service is required. The page keeps `<meta name="robots" content="noindex">` until promotion.
 
 ## Finding and promoting the demo
 
@@ -241,7 +241,7 @@ A winning run takes about 9 simulated minutes, plus shopping. What the bots foun
 - **The Dreadnought only threatened once it aimed at the wall.** With shells mostly aimed at soldiers it cost bots three or four crew but never the run. Weighting the wall, two guns aiming at once and splash on the repairers made it a fight; the open muzzle (2.5× damage while aiming) keeps it beatable by focused fire.
 - **Decent still wins more than the third the spec aims for,** and the decent and expert profiles stay close. The early game (waves 6–9) is where most casual and decent runs end. Playtesting decides the next step.
 
-Round 10 (SPEC-007 stages 2–3: the Red Cross plane, bomb balloons, HQ crates, the armored zeppelin, dive bombers and helicopters) against round 9, each played by its own bot, 40 seeds per skill:
+Round 10 (SPEC-008 stages 2–3: the Red Cross plane, bomb balloons, HQ crates, the armored zeppelin, dive bombers and helicopters) against round 9, each played by its own bot, 40 seeds per skill:
 
 | Skill | Won, round 9 → round 10 | Alive at wave 10 / 12 / 15, round 10 | How round 10 runs end |
 | --- | --- | --- | --- |

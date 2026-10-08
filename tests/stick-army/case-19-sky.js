@@ -1,4 +1,4 @@
-// SPEC-007 stages 2-3: the Red Cross plane (4), bomb balloons (7), HQ crates (8), the armored zeppelin (10), dive
+// SPEC-008 stages 2-3: the Red Cross plane (4), bomb balloons (7), HQ crates (8), the armored zeppelin (10), dive
 // bombers (12), helicopters (13), and the little voices.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
