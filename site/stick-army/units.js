@@ -259,7 +259,7 @@ var StickArmyUnits = function (w) {
       t.x = side < 0 ? -14 - i * 24 : W + 14 + i * 24; t.state = 'ground'; t.open = 1; t.dir = -side; t.speed = RUSH.SPEED; t.rusher = true;
     }
     addText('rush!', side < 0 ? 60 : W - 60, GROUND - 74, RED, 24);
-    w.sound.play('rush'); w.say('charge!', 900 + n, true);
+    w.sound.play('rush'); w.say('charge!', 900 + n, true, 0, side < 0 ? 40 : W - 40, GROUND - 60);
     emit('rush', { side: side < 0 ? 'left' : 'right', count: n });
   }
 
@@ -271,10 +271,12 @@ var StickArmyUnits = function (w) {
   var TANK = { WAVE: 9, ROAD_WAVE: 11, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.6, SHELL_DAMAGE: 8, BULLET: 0.1,
     BLAST: { rocket: 4, mine: 6, crash: 6, strike: 14 } };
   function tankHP(n) { return Math.round(10 + 0.8 * n); }
+  // Cargo planes are armored too, so a steady stream doesn't stop every tank in the air.
+  function cargoHP(n) { return 8 + Math.floor(Math.max(0, n - TANK.WAVE) / 2); }
   function spawnCargo() {
     var S = w.S, rnd = substream(w.RW), dir = rnd() < 0.5 ? 1 : -1;
     var p = makePlane('cargo', dir, dir > 0 ? -80 : W + 80, between(rnd, 104, 124));
-    p.rng = rnd; p.speed = S.spawn.cfg.speed * 0.5; p.hp = 4; p.sc = 0.95; p.hw = 50; p.hh = 16; p.kits = [];
+    p.rng = rnd; p.speed = S.spawn.cfg.speed * 0.5; p.hp = p.maxHp = cargoHP(S.wave); p.sc = 0.95; p.hw = 50; p.hh = 16; p.kits = [];
     p.tankX = rnd() < 0.5 ? between(rnd, 34, 80) : between(rnd, 320, 366);
     S.planes.push(p);
     emit('plane_spawn', { kind: 'cargo', dir: dir, y: p.y, speed: p.speed, tankX: p.tankX });
@@ -416,8 +418,8 @@ var StickArmyUnits = function (w) {
       .sort(function (a, b) { return (b.rank || 0) - (a.rank || 0) || Math.abs(a.x - BK.x) - Math.abs(b.x - BK.x); });
     var r = crew[0];
     S.radio = { rid: r ? r.id : null, x: r ? r.x : BK.x, t: 0, dur: RADIO.TALK + 0.6 };
-    addText(label, r ? r.x : BK.x, GROUND - (r ? 74 : 104), BLUE, 24);
-    w.sound.play('radio'); w.say(label, r ? r.id : 77, false, 0.25);
+    // The call is said aloud, in a speech bubble over whoever makes it.
+    w.sound.play('radio'); w.say(label, r ? r.id : 77, false, 0.25, BK.x, BK.top - 40);
   }
   function updateRadio(dt) {
     var S = w.S, rc = S.radio;
@@ -586,7 +588,7 @@ var StickArmyUnits = function (w) {
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
     updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
-    TANK: TANK, tankHP: tankHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
+    TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
     RADIO: RADIO, callsHeld: callsHeld, grantCall: grantCall, STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike,
     FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, updateRadio: updateRadio, drawRadio: drawRadio };

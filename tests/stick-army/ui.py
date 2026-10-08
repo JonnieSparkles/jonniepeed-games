@@ -43,10 +43,15 @@ with sync_playwright() as p:
         assert footer['y']>=0 and footer['y']+footer['height']<=height, footer
         assert page.locator('.shop-stock').evaluate('(el) => el.scrollWidth <= el.clientWidth + 1')
         gift=page.locator('#supplyItems button.gift'); gift_id=gift.get_attribute('data-item'); gift.click()
-        assert page.locator('#supplyItems button.gift').count()==0 and page.locator(f'#supplyItems [data-item="{gift_id}"]').is_disabled()
+        packed=page.locator(f'#supplyItems [data-item="{gift_id}"]')
+        assert page.locator('#supplyItems button.gift').count()==0 and 'bought' in packed.get_attribute('class') and page.locator('#undoBtn').is_visible()
+        # A packed supply goes back with a tap (and the gift is free again), or with Undo.
+        packed.click(); assert page.locator('#supplyItems button.gift').count()==1 and page.locator('#undoBtn').is_hidden()
+        page.locator('#supplyItems button.gift').click(); page.click('#undoBtn'); assert page.locator('#supplyItems button.gift').count()==1
+        page.locator('#supplyItems button.gift').click()
         # Pizza is ordered without leaving the shop; the courier rides in before the next wave starts.
         page.locator('[data-item="pizza"]').click()
-        assert page.locator('#shopScreen').is_visible() and page.locator('[data-item="pizza"]').is_disabled()
+        assert page.locator('#shopScreen').is_visible() and 'bought' in page.locator('[data-item="pizza"]').get_attribute('class')
         page.click('#continueBtn')
         assert page.locator('#shopScreen').is_hidden()
         assert page.evaluate('armyTest("S.mode===\'play\' && S.waveState===\'pizza\' && S.wave===1 && !!S.delivery")')

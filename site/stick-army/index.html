@@ -145,10 +145,9 @@ body {
 .deal:disabled .supply-icon, .hire:disabled .supply-icon { opacity: .45; }
 /* The gift looks like any other row, so it never reads as already chosen; the tag and "Free!" mark it. */
 /* Bought supplies keep their ink and say "Packed ✓"; only what you can't afford or use goes grey. */
-.deal.bought:disabled { border-color: var(--ink); color: var(--ink); }
-.deal.bought:disabled span { color: var(--ink-soft); }
-.deal.bought:disabled em { color: var(--ally); }
-.deal.bought:disabled .supply-icon { opacity: 1; }
+.deal.bought em small { color: var(--ink-soft); }
+.undo { margin-right: auto; min-height: 44px; padding: 4px 10px; font: 18px var(--font-hand); color: var(--ink-soft); background: none; border: 0; border-bottom: 2px dashed var(--rule); cursor: pointer; max-width: 55%; text-align: left; }
+.undo:hover, .undo:focus-visible { color: var(--ink); outline: 2px solid var(--ally); outline-offset: 2px; }
 .deal.gift::before { content: "On the house"; position: absolute; top: -9px; right: 12px; padding: 0 6px; font: 14px var(--font-hand); color: var(--paper); background: var(--ally); border-radius: 6px 3px 7px 3px; transform: rotate(2deg); }
 .deal { position: relative; }
 .deal em s { color: var(--ink-soft); font-size: 15px; }
@@ -169,6 +168,9 @@ body {
 .win-card { max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
 .win-card h2 { font-size: 40px; }
 .won-line { color: var(--ally); }
+/* The title card has the most to say: it sits higher and tighter so it fits the page with a record line. */
+#titleScreen { padding-top: 22px; }
+#titleScreen .card { gap: 10px; }
 .roll-title { margin: 2px 0 -6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
 .roll { margin: 0; padding: 0 0 0 18px; font-size: 18px; line-height: 1.25; }
 .roll b { color: var(--ally); font-weight: 400; white-space: nowrap; }
@@ -206,7 +208,7 @@ body {
         <section aria-labelledby="hireTitle"><h3 id="hireTitle">Hire</h3><p class="tag-note" id="hireNote"></p><div class="hire-row" id="hireItems"></div></section>
       </div>
       <div class="kit" id="loadout" aria-label="Your kit"></div>
-      <div class="shop-foot"><button class="btn" type="button" id="continueBtn">Continue</button></div>
+      <div class="shop-foot"><button class="undo" type="button" id="undoBtn" hidden>Undo</button><button class="btn" type="button" id="continueBtn">Continue</button></div>
     </div>
   </section>
   <div class="hud-btns">
@@ -248,7 +250,7 @@ body {
             </li>
             <li>
               <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20q2-6 7-4 3-5 7-1 5 0 4 5z"/><path d="M4 12l2 2M24 11l-2 3M14 7v3"/></svg>
-              <span>Pop it right under the plane and he rips through. Anywhere else he goes splat, squashing whoever he lands on.</span>
+              <span>Pop it too high and he rips through. Anywhere else he goes splat on whoever's below.</span>
             </li>
             <li>
               <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 25l9-12"/><path d="M12 8l9 6 3-4-9-6z"/></svg>
@@ -256,9 +258,8 @@ body {
             </li>
           </ul>
           <button class="btn" id="startBtn" type="button">Start</button>
-          <p class="keys">Mouse or touch. On a keyboard, arrows aim, space fires, B calls an air strike, C calls fighter cover, P pauses and F toggles full screen.</p>
-          <p class="keys" id="bestLine" hidden></p>
-          <p class="keys won-line" id="winLine" hidden></p>
+          <p class="keys">Mouse or touch. Keys: arrows aim, space fires, B air strike, C fighter cover, P pause, F full screen.</p>
+          <p class="keys" id="recordLine" hidden><span id="bestLine" hidden></span> <span class="won-line" id="winLine" hidden></span></p>
         </div>
       </div>
 

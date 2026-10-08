@@ -236,7 +236,7 @@
       coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
-      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [],
+      tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [],
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
@@ -344,6 +344,46 @@
     if (near) { near.n += n; return; }
     if (flying.length >= 6) { flying[flying.length - 1].n += n; return; }
     S.parts.push({ k: 'tag', x0: x, y0: y, x: x, y: y, n: n, t: 0, dur: rr(0.55, 0.75), life: 1, max: 1, rot: rr(-0.6, 0.6), id: nextId++ });
+  }
+  // ---------- little voices ----------
+  // Who's talking: a small speech bubble with the line, over a recruit (followed as he moves) or at a given spot, for
+  // BUBBLE.LIFE seconds after any delay. The line itself is spoken in audio.js (say). At most BUBBLE.MAX at once.
+  var BUBBLE = { LIFE: 1.3, MAX: 3 };
+  function speak(text, id, enemy, delay, x, y) {
+    var r = id != null && S.recruits.find(function (q) { return q.id === id && !q.dead; });
+    if (r || x != null) {
+      if (S.bubbles.length >= BUBBLE.MAX) S.bubbles.shift();
+      S.bubbles.push({ s: text.charAt(0).toUpperCase() + text.slice(1), rid: r ? r.id : null, x: r ? r.x : x, y: r ? GROUND - (r.down ? 40 : 62) : y,
+        t: -(delay || 0), life: BUBBLE.LIFE, enemy: !!enemy, id: nextId++ });
+    }
+    if (sound.say) sound.say(text, id, enemy, delay);
+  }
+  function updateBubbles(dt) {
+    S.bubbles.forEach(function (b) {
+      b.t += dt; if (b.t >= 0) b.life -= dt;
+      var r = b.rid != null && S.recruits.find(function (q) { return q.id === b.rid; });
+      if (r) b.x = r.x;
+    });
+    S.bubbles = S.bubbles.filter(function (b) { return b.life > 0; });
+  }
+  function drawBubbles() {
+    S.bubbles.forEach(function (b) {
+      if (b.t < 0) return;
+      var a = Math.min(1, b.life / 0.3, b.t / 0.08 + 0.2), col = b.enemy ? RED : BLUE;
+      G.save(); G.globalAlpha = a; G.font = '16px ' + HAND;
+      var tw = G.measureText(b.s).width, bw = tw + 14, bh = 22, cx = clamp(b.x, bw / 2 + 4, W - bw / 2 - 4), top = Math.max(TEXT.TOP, b.y - bh - 10);
+      pen(b.id);
+      G.beginPath(); SP([cx - bw / 2, top, cx + bw / 2, top, cx + bw / 2, top + bh, b.x + 6, top + bh, b.x, top + bh + 8, b.x - 3, top + bh, cx - bw / 2, top + bh], true, 0.4);
+      G.fillStyle = PAPER; G.fill(); ink(col, 1.8); G.stroke();
+      G.fillStyle = col; G.textAlign = 'center'; G.fillText(b.s, cx, top + 16);
+      G.restore();
+    });
+  }
+  // Losing tags (the Red Cross plane): they fly out of the counter toward what cost them, and the counter flashes red
+  // with the amount under it (drawHUD).
+  function loseTags(n, x, y) {
+    S.tagLoss = 1.2; S.tagLost = n;
+    for (var i = 0; i < Math.min(6, Math.ceil(n / 8)); i++) S.parts.push({ k: 'tagout', x0: TAG_HUD.x, y0: TAG_HUD.y, x1: x + rr(-20, 20), y1: y + rr(-10, 20), x: TAG_HUD.x, y: TAG_HUD.y, t: -i * 0.06, dur: rr(0.5, 0.7), life: 1, max: 1, rot: rr(-0.6, 0.6), id: nextId++ });
   }
   // Effects thin out when the page is busy: past FX.BUSY particles, bursts throw a third of the flecks, every other
   // puff is skipped, kills break into fewer pieces and smoke trails thin. All cosmetic, so no game stream is touched.
@@ -555,8 +595,8 @@
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
     crewMax: function (r) { return crewMax(r); }, credit: function () { credit(); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); },
-    // Little voices (audio.js): a line of gibberish in the speaker's own pitch.
-    say: function (text, id, enemy, delay) { if (sound.say) sound.say(text, id, enemy, delay); } };
+    // Little voices: a speech bubble over the speaker (a recruit by id, or at x, y) and the line in his voice.
+    say: function (text, id, enemy, delay, x, y) { speak(text, id, enemy, delay, x, y); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
@@ -570,7 +610,7 @@
     FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio;
   // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
-  world.grantCall = grantCall; world.activeTramps = activeTramps; world.standing = standing; world.repairWall = repairWall;
+  world.grantCall = grantCall; world.activeTramps = activeTramps; world.loseTags = function (n, x, y) { loseTags(n, x, y); }; world.standing = standing; world.repairWall = repairWall;
   world.dogTag = function (x, y, rot, sc) { dogTag(x, y, rot, sc); };
   Object.defineProperties(world, { CAPTURE_SPEED: { get: function () { return CAPTURE_SPEED; } }, PLANE_PTS: { get: function () { return PLANE_PTS; } } });
   var SKY = StickArmySky(world);
@@ -913,7 +953,11 @@
     for (i = 0; i < S.tanks.length; i++) {
       var tk = S.tanks[i];
       if (tk.dead || seen.indexOf(tk.id) >= 0 || !tankHit(tk, b.x, b.y, 0)) continue;
-      if (b.kind !== 'rocket' || !projectileBurst(b)) { damageTank(tk, TANK.BULLET, b.owner); consumeBullet(b, tk); }
+      if (b.kind === 'rocket' && projectileBurst(b)) return;
+      // Coming down on its chutes, the tank is crated on its pallet: bullets only ping off.
+      if (tk.state === 'chute') { if (R() < 0.3) S.parts.push({ k: 'tink', x: b.x, y: b.y, life: 0.2, max: 0.2, c: INK2, id: nextId++ }); }
+      else damageTank(tk, TANK.BULLET, b.owner);
+      consumeBullet(b, tk);
       return;
     }
     for (i = 0; i < S.troopers.length; i++) {
@@ -1025,12 +1069,16 @@
       if (r.role === 'repair') { r.tx = side === 0 ? BK.x1 - 7 - stack[0] * 10 : BK.x2 + 7 + stack[1] * 10; stack[side]++; }
       else r.tx = r.homeX;
     });
+    // An HQ crate on the ground: the nearest free soldier runs out to fetch it (sky.js).
+    var job = S.mode === 'play' ? SKY.errand(live) : null;
+    if (job) { job.r.role = 'fetch'; job.r.tx = job.x; }
     wounded.forEach(function (r) { r.hurt = Math.max(0, r.hurt - dt); });
     live.forEach(function (r) {
       r.hurt = Math.max(0, r.hurt - dt);
       var d = r.tx - r.x;
-      if (Math.abs(d) > 0.8) { r.x += Math.sign(d) * Math.min(Math.abs(d), 48 * dt); r.walk += dt * 12; return; }
+      if (Math.abs(d) > 0.8) { r.x += Math.sign(d) * Math.min(Math.abs(d), (r.role === 'fetch' ? 70 : 48) * dt); r.walk += dt * 12; return; }
       r.x = r.tx;
+      if (r.role === 'fetch') { SKY.collect(job.crate, r); return; }
       if (r.role === 'repair') {
         if (S.wallHP < S.mods.maxHP && S.mode === 'play') {
           repairWall((r.type === 'engineer' ? REPAIR.ENGINEER : REPAIR.OTHER) * dt, 'crew');
@@ -1257,6 +1305,10 @@
         q.x = q.x0 + (TAG_HUD.x - q.x0) * e; q.y = q.y0 + (TAG_HUD.y - q.y0) * e - Math.sin(u * Math.PI) * 40;
         q.life = u < 1 ? 1 : 0;
         if (u >= 1) S.tagPulse = 0.25;
+      } else if (q.k === 'tagout') {
+        q.t += dt; var v = clamp(q.t / q.dur, 0, 1);
+        q.x = q.x0 + (q.x1 - q.x0) * v; q.y = q.y0 + (q.y1 - q.y0) * v - Math.sin(v * Math.PI) * 30; q.rot += dt * 6;
+        q.life = v < 1 ? 1 : 0;
       } else if (q.k === 'spatter') {
         q.vy += 120 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
       } else if (q.k === 'fleck') {
@@ -1331,11 +1383,13 @@
     updateBullets(dt);
     updateEnemyShots(dt);
     updateParts(dt);
+    updateBubbles(dt);
     updateSketches(dt);
     TRAMPS.forEach(function (tr) { tr.v += (-240 * tr.dip - 9 * tr.v) * dt; tr.dip += tr.v * dt; });
     if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
     S.shake = Math.max(0, S.shake - dt * 1.8);
     if (S.tagPulse > 0) S.tagPulse = Math.max(0, S.tagPulse - dt);
+    if (S.tagLoss > 0) S.tagLoss = Math.max(0, S.tagLoss - dt);
     if (S.banner) { S.banner.t += dt; if (S.banner.t >= S.banner.dur) S.banner = null; }
     if (S.wallHP < 30 && S.mode === 'play') {
       S.smokeT -= dt;
@@ -1528,6 +1582,12 @@
     if (p.state === 'fly') {
       G.globalAlpha = 0.5; G.beginPath();
       var tx = bomber ? 66 : 56;
+      if (p.kind === 'cargo' && p.maxHp && p.hp < p.maxHp) {
+        // An armored cargo plane shows its health once hit, like a tank.
+        G.globalAlpha = 1; var f = Math.max(0, p.hp / p.maxHp);
+        G.fillStyle = PAPER; G.fillRect(-18, -38, 36, 5); G.fillStyle = 'rgba(200,67,58,0.55)'; G.fillRect(-17, -37, 34 * f, 3);
+        G.beginPath(); L(-18, -38, 18, -38, 0.2); L(-18, -33, 18, -33, 0.2); ink(INK, 1 / sc); G.stroke(); G.globalAlpha = 0.5; G.beginPath();
+      }
       L(tx, -10, tx + 14, -10); L(tx + 2, -2, tx + 20, -2); L(tx, 6, tx + 10, 6);
       ink(INK2, 1.5 / sc); G.stroke(); G.globalAlpha = 1;
     }
@@ -1676,6 +1736,7 @@
       G.save(); G.globalAlpha = a;
       if (q.k === 'body') { G.globalAlpha = 0.85; drawBodyPart(q); }
       else if (q.k === 'tag') { G.globalAlpha = 1; dogTag(q.x, q.y, q.rot, 1); }
+      else if (q.k === 'tagout') { if (q.t >= 0) { G.globalAlpha = 1 - 0.6 * clamp(q.t / q.dur, 0, 1); dogTag(q.x, q.y, q.rot, 1.1); } }
       else if (q.k === 'spatter') { G.globalAlpha = a * 0.6; G.beginPath(); G.arc(q.x, q.y, q.r, 0, Math.PI * 2); G.fillStyle = q.c; G.fill(); }
       else if (q.k === 'fleck') { G.beginPath(); G.moveTo(q.x, q.y); G.lineTo(q.x - q.vx * 0.02, q.y - q.vy * 0.02); ink(q.c, 2); G.stroke(); }
       else if (q.k === 'shred') { G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.arc(0, 0, 6, Math.PI, Math.PI * 1.8); ink(RED, 1.8); G.stroke(); }
@@ -1789,8 +1850,10 @@
       G.fillStyle = INK; G.font = '34px ' + HAND; G.fillText(S.score.toLocaleString('en-US'), 58, 58);
       G.fillStyle = '#56606b'; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
       dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
-      G.save(); G.translate(302, 58); var pulse = 1 + (S.tagPulse || 0) * 0.9; G.scale(pulse, pulse);
-      G.fillStyle = '#56606b'; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(S.coins), 0, 0); G.restore();
+      var lose = S.tagLoss > 0, jig = lose ? Math.sin(S.t * 60) * 2.5 * Math.min(1, S.tagLoss) : 0;
+      G.save(); G.translate(302 + jig, 58); var pulse = 1 + (S.tagPulse || 0) * 0.9; G.scale(pulse, pulse);
+      G.fillStyle = lose ? RED : '#56606b'; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(S.coins), 0, 0); G.restore();
+      if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }
       G.fillStyle = INK;
       G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
       if (S.combo >= 2 && S.comboT > 0) {
@@ -1864,6 +1927,7 @@
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
     drawTexts();
+    drawBubbles();
     ctx.restore();
     drawHUD();
     if (S.banner) drawBanner();
@@ -1881,9 +1945,10 @@
     [[0, 'rifle'], [1, 'bazooka'], [4, 'engineer'], [5, 'rifle']].forEach(function (d) { S.recruits.push(makeRecruit(d[0], d[1])); });
     var bl = document.getElementById('bestLine');
     bl.hidden = !(best > 0);
-    bl.textContent = 'Best so far: ' + Number(best).toLocaleString('en-US');
+    bl.textContent = 'Best so far: ' + Number(best).toLocaleString('en-US') + '.';
     var record = recordLine(), wl = document.getElementById('winLine');
     wl.textContent = record; wl.hidden = !record;
+    document.getElementById('recordLine').hidden = bl.hidden && wl.hidden;
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
   }
   function newGame() {
@@ -2059,6 +2124,7 @@
   window.addEventListener('resize', fit);
 
   document.getElementById('continueBtn').addEventListener('click', continueWave);
+  document.getElementById('undoBtn').addEventListener('click', function () { SHOP.undo(); });
   document.getElementById('startBtn').addEventListener('click', newGame);
   document.getElementById('againBtn').addEventListener('click', newGame);
   document.getElementById('winAgainBtn').addEventListener('click', newGame);

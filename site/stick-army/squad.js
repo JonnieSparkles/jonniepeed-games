@@ -69,7 +69,7 @@ var StickArmySquad = function (w) {
   }
   // The squad cheers a cleared wave, a few voices one after another.
   function cheer(line) {
-    w.S.recruits.filter(function (r) { return !r.dead && !r.down; }).slice(0, 4).forEach(function (r, i) { w.say(line, r.id, false, 0.25 + i * 0.22); });
+    w.S.recruits.filter(function (r) { return !r.dead && !r.down; }).slice(0, 2).forEach(function (r, i) { w.say(line, r.id, false, 0.25 + i * 0.55); });
   }
   function fallen(r) { if (r.name) w.S.fallen.push({ name: rankName(r), waves: r.waves || 0, kills: r.kills || 0 }); }
 

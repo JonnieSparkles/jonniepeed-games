@@ -2,8 +2,9 @@
 // mustn't shoot (from wave 4), bomb balloons (7), HQ supply crates (8), dive bombers (12) and helicopters (13).
 // Classic script; load before game.js. game.js calls StickArmySky(world) once with the same world object it gives
 // units.js, after units.js. Balloons, dive bombers and helicopters are enemies and live in S.planes, so the turret,
-// rockets, flak, the sentry and fighter cover all treat them as aircraft. The Red Cross plane (S.medevac) and the
-// crates (S.crates) are on your side: only your own turret's shots touch them.
+// rockets, flak, the sentry and fighter cover all treat them as aircraft. The Red Cross plane (S.medevac) is neutral:
+// only your own turret's shots touch it. HQ's supply planes and crates (S.hq, S.crates) are yours, and no shot touches
+// them.
 var StickArmySky = function (w) {
   'use strict';
   var W = w.W, GROUND = w.GROUND, BK = w.BK, TUR = w.TUR;
@@ -12,22 +13,27 @@ var StickArmySky = function (w) {
   var clamp = w.clamp, between = w.between, rr = w.rr, R = Math.random, substream = w.substream, emit = w.emit;
   function addText(s, x, y, c, sz, kind) { w.addText(s, x, y, c, sz, kind); }
 
-  // The Red Cross plane crosses slowly; a hit from your turret costs TAGS dog tags and your combo, then it flees.
-  var MEDEVAC = { WAVE: 4, SPEED: 58, Y: [128, 196], TAGS: 30, HW: 30, HH: 12, FLEE: 2.4 };
+  // The Red Cross plane crosses slowly, trailing a Red Cross pennant, with a blinking light and a two-tone chime as
+  // it comes in. A hit from your turret costs TAGS dog tags (more late in the run, medevacTags) and your combo, then it
+  // flees.
+  var MEDEVAC = { WAVE: 4, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
+  function medevacTags(n) { return n >= 10 ? MEDEVAC.LATE : MEDEVAC.TAGS; }
   // A bomb balloon drifts in from an edge toward the bunker and lets its bomb go over it at DROP_Y. Popped anywhere
   // else, its bomb falls where it is: on the enemy, or on your crew.
   var BALLOON = { WAVE: 7, SPEED: 17, Y: [150, 230], DROP_Y: 410, HW: 13, HH: 24 };
-  // HQ drops a blue crate over a mat. Pop its chute low and catch it on the mat; shoot the crate and it's lost; leave
-  // it and it lands in no-man's land, where the enemy takes it. Inside: dog tags, a wall patch or a radio call.
-  var CRATE = { WAVE: 8, Y: 98, FALL: 50, TAGS: 35, WALL: 25 };
-  // A dive bomber comes in level with its siren wailing, tips over at ANGLE below level, lets its heavy bomb go at
-  // RELEASE_Y so it carries on to the target, then pulls out and climbs away. Three hits down it.
-  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 26, HH: 11, WALL: 30 };
+  // HQ's supply plane: a blue transport flies low across the page (Y, SPEED) and drops a crate on a blue chute beside
+  // the bunker. Nothing can shoot it or the crate. Once it lands, the nearest free soldier runs out and fetches it
+  // (errand, collect); with no squad it's collected where it lands. Inside: dog tags, a wall patch or a radio call.
+  var CRATE = { WAVE: 8, Y: 250, SPEED: 150, FALL: 85, TAGS: 35, WALL: 25 };
+  // A dive bomber comes in level, marking its target on the ground with a red crosshair, tips over at ANGLE below
+  // level with a howl, lets its heavy bomb go at RELEASE_Y so it carries on to the target, then pulls out and climbs
+  // away. Three hits down it.
+  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
   // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
-  var HELI = { WAVE: 13, SPEED: 72, Y: 118, HOVER: [300, 340], TROOPS: [4, 5], ROPE_EVERY: 0.8, ROPE: 85, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
-    SHOT: 260, HURT: 0.6, WAIT: 1.4, HW: 36, HH: 17 };
+  var HELI = { WAVE: 13, SPEED: 160, Y: 150, HOVER: [310, 350], TROOPS: [4, 5], ROPE_EVERY: 0.4, ROPE: 150, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
+    SHOT: 260, HURT: 0.6, WAIT: 0.8, HW: 36, HH: 17 };
   function heliHP(n) { return Math.round(10 + 0.5 * (n - HELI.WAVE)); }
   var KINDS = { balloon: true, diver: true, heli: true };
 
@@ -63,14 +69,19 @@ var StickArmySky = function (w) {
   function hurry(sp, t) { var k = sp && sp.sky; if (k) { k.balloonT = Math.min(k.balloonT, t); k.diverT = Math.min(k.diverT, t); k.heliT = Math.min(k.heliT, t); } }
   // When the fighting's done, the friendly extras still due are called off; a crate already falling is waited for.
   // all: everything still due is called off (the enemy has surrendered).
-  function settle(sp, all) { var k = sp && sp.sky; if (k) { k.medevac = 0; k.crates = 0; if (all) k.balloons = k.divers = k.helis = 0; } }
+  function settle(sp, all) {
+    var k = sp && sp.sky;
+    if (k) { k.medevac = 0; k.crates = 0; if (all) k.balloons = k.divers = k.helis = 0; }
+    w.S.crates.forEach(function (c) { if (c.state === 'ground') collect(c, null); });
+  }
   // On surrender: balloons are let go unarmed, dive bombers climb away, helicopters leave.
   function flee(p) {
     if (p.kind === 'balloon') { p.armed = false; p.gone = true; w.S.skyFx.push({ k: 'loose', x: p.x, y: p.y, vx: p.dir * 12, vy: -70, life: 4, id: p.id }); }
     else if (p.kind === 'diver') { p.phase = 'climb'; p.ang = DIVE.CLIMB; p.speed = DIVE.SPEED; }
     else { p.phase = 'out'; p.kits = []; p.burst = 0; }
   }
-  function waiting() { return w.S.crates.length > 0; }
+  // Only a crate still in the air holds the wave open; one on the ground is collected when the wave clears (settle).
+  function waiting() { return w.S.hq.length > 0 || w.S.crates.some(function (c) { return c.state === 'chute'; }); }
 
   // ---------- the Red Cross plane ----------
   function spawnMedevac(rnd) {
@@ -80,7 +91,8 @@ var StickArmySky = function (w) {
     S.medevac.push(m);
     emit('medevac', { dir: dir, y: m.y });
     // The first two of a run say so.
-    if ((S.medevacTold = (S.medevacTold || 0) + 1) <= 2) addText("Red Cross: don't shoot!", dir > 0 ? 110 : W - 110, m.y + 34, BLUE, 20);
+    if ((S.medevacTold = (S.medevacTold || 0) + 1) <= 2) addText("Red Cross: don't shoot!", dir > 0 ? 110 : W - 110, m.y + 40, BLUE, 20);
+    w.sound.play('medevac');
     return m;
   }
   function updateMedevac(dt) {
@@ -92,12 +104,15 @@ var StickArmySky = function (w) {
     });
     S.medevac = S.medevac.filter(function (m) { return !m.gone; });
   }
+  // The penalty you feel: the tags fly out of the counter toward the plane (loseTags), the counter flashes red, and
+  // the combo is gone.
   function hurtMedevac(m) {
-    var S = w.S, lost = Math.min(S.coins, MEDEVAC.TAGS);
+    var S = w.S, lost = Math.min(S.coins, medevacTags(S.wave)), had = S.combo >= 2;
     m.hit = true; m.speed *= MEDEVAC.FLEE;
     S.coins -= lost; S.combo = 0; S.comboT = 0;
-    addText('Red Cross hit!' + (lost ? ' -' + lost + ' tags' : ''), m.x, m.y + 32, RED, 22);
-    w.burst(m.x, m.y, 5, INK, 100);
+    w.loseTags(lost, m.x, m.y);
+    addText('Red Cross hit!' + (lost ? ' -' + lost + ' tags' : '') + (had ? ', combo lost' : ''), m.x, m.y + 36, RED, 24);
+    w.burst(m.x, m.y, 6, RED, 110);
     emit('redcross_hit', { lost: lost });
     w.sound.play('wrong');
   }
@@ -139,52 +154,61 @@ var StickArmySky = function (w) {
     w.sound.play('pop');
   }
 
-  // ---------- HQ supply crates ----------
+  // ---------- HQ supply drops ----------
   function spawnCrate(rnd) {
-    var S = w.S, r = substream(rnd), mats = w.activeTramps(), mat = mats[Math.floor(r() * mats.length)], roll = r();
-    var c = { id: w.id(), x: between(r, mat.x1 + 10, mat.x2 - 10), y: CRATE.Y, state: 'chute', kind: roll < 0.4 ? 'tags' : roll < 0.7 ? 'wall' : 'call',
-      call: r() < 0.6 ? 'bomber' : 'fighter', vy: 0, sway: r() * 6.28, rot: 0, spin: 0, told: !!S.crateTold, dead: false };
-    S.crateTold = true;
-    S.crates.push(c);
-    emit('crate_drop', { kind: c.kind, x: c.x });
-    w.sound.play('ready');
-    return c;
+    var S = w.S, r = substream(rnd), dir = r() < 0.5 ? 1 : -1, roll = r();
+    // The drop lands beside the bunker, clear of it, on either side.
+    var side = r() < 0.5 ? -1 : 1, x = BK.x + side * between(r, 62, 130);
+    var h = { id: w.id(), x: dir > 0 ? -70 : W + 70, y: CRATE.Y, dir: dir, dropX: x - dir * CRATE.SPEED * 0.12,
+      kind: roll < 0.4 ? 'tags' : roll < 0.7 ? 'wall' : 'call', call: r() < 0.6 ? 'bomber' : 'fighter', dropped: false };
+    S.hq.push(h);
+    emit('crate_drop', { kind: h.kind, x: x });
+    w.sound.play('hq');
+    return h;
   }
-  function crateLost(c, why) {
+  function updateHQ(dt) {
+    var S = w.S;
+    S.hq.forEach(function (h) {
+      h.x += h.dir * CRATE.SPEED * dt;
+      if (!h.dropped && (h.x - h.dropX) * h.dir >= 0) {
+        h.dropped = true;
+        S.crates.push({ id: w.id(), x: clamp(h.x, 20, W - 20), y: h.y + 18, state: 'chute', kind: h.kind, call: h.call, vx: h.dir * 30, open: 0, wait: 0, dead: false });
+        if (!S.crateTold) { S.crateTold = true; addText('supplies from HQ!', h.x, h.y + 46, BLUE, 20); }
+      }
+      if (h.x < -90 || h.x > W + 90) h.gone = true;
+    });
+    S.hq = S.hq.filter(function (h) { return !h.gone; });
+  }
+  // A landed crate, and the soldier who'll fetch it: the nearest one standing, preferring anyone not on the wall.
+  function errand(live) {
+    var c = w.S.crates.find(function (q) { return q.state === 'ground' && !q.dead; });
+    if (!c || !live.length) return null;
+    var pick = live.filter(function (r) { return r.role !== 'repair' && r.role !== 'heal'; });
+    if (!pick.length) pick = live;
+    var r = pick.slice().sort(function (a, b) { return Math.abs(a.x - c.x) - Math.abs(b.x - c.x); })[0];
+    return { r: r, x: c.x, crate: c };
+  }
+  // The crate's reward, collected by a soldier (by) or, with no squad, where it lies.
+  function collect(c, by) {
+    var S = w.S, x = c.x, y = GROUND - 60;
+    if (c.dead) return;
     c.dead = true;
-    w.burst(c.x, c.y, 8, '#a8844f', 120);
-    addText(why === 'landed' ? 'they took it!' : 'crate lost!', c.x, c.y - 24, why === 'landed' ? RED : INK2, 18, 'minor');
-    emit('crate_lost', { why: why });
-    w.sound.play(why === 'landed' ? 'thud' : 'hit');
-  }
-  function catchCrate(c, tr) {
-    var S = w.S, x = c.x, y = tr.y - 30;
-    c.dead = true; tr.v += 180;
-    w.award(40, x, y - 26, 'supplies!', BLUE, true);
+    w.award(40, x, y - 24, 'supplies!', BLUE, false);
     if (c.kind === 'wall' && S.wallHP < S.mods.maxHP) { w.repairWall(CRATE.WALL, 'crate'); addText('+' + CRATE.WALL + ' wall', x, y, BLUE, 22); }
     else if (c.kind === 'call') w.grantCall(c.call, x, y);
     else { S.coins += CRATE.TAGS; w.flyTags(x, y, CRATE.TAGS); emit('coins', { amount: CRATE.TAGS, reason: 'crate' }); addText('+' + CRATE.TAGS + ' tags', x, y, BLUE, 22); }
-    emit('crate_caught', { kind: c.kind });
-    w.sound.play('boing'); w.sound.play('recruit');
+    emit('crate_caught', { kind: c.kind, by: by ? 'crew' : 'none' });
+    if (by) w.say('got it!', by.id);
+    w.sound.play('recruit');
   }
   function updateCrates(dt) {
-    var S = w.S, mats = w.activeTramps();
+    var S = w.S, crew = S.recruits.some(w.standing);
     S.crates.forEach(function (c) {
       if (c.state === 'chute') {
-        c.y += CRATE.FALL * dt; c.x = clamp(c.x + Math.sin(S.t * 1.2 + c.sway) * 6 * dt, 14, W - 14);
-        if (!c.told && c.y > 300) { c.told = true; addText('pop it over the mat!', c.x, c.y - 50, BLUE, 19); }
-        if (c.y + 9 >= GROUND) crateLost(c, 'landed');
-        return;
-      }
-      var feet = c.y + 9;
-      c.vy += 650 * dt; c.y += c.vy * dt; c.rot += c.spin * dt;
-      for (var i = 0; i < mats.length && !c.dead; i++) {
-        var tr = mats[i];
-        if (c.x >= tr.x1 + 2 && c.x <= tr.x2 - 2 && feet <= tr.y + 2 && c.y + 9 >= tr.y + 2) {
-          if (c.vy <= w.CAPTURE_SPEED) catchCrate(c, tr); else { tr.v += 90; crateLost(c, 'smashed'); }
-        }
-      }
-      if (!c.dead && c.y + 9 >= GROUND) crateLost(c, 'smashed');
+        c.open = Math.min(1, c.open + dt * 3); c.vx *= 1 - dt * 1.5;
+        c.y += CRATE.FALL * dt; c.x = clamp(c.x + c.vx * dt, 20, W - 20);
+        if (c.y + 8 >= GROUND) { c.y = GROUND - 8; c.state = 'ground'; w.sound.play('thud'); emit('crate_land', { x: c.x }); }
+      } else if (!crew && (c.wait += dt) > 0.6) collect(c, null);
     });
     S.crates = S.crates.filter(function (c) { return !c.dead; });
   }
@@ -201,18 +225,17 @@ var StickArmySky = function (w) {
     // Come in from whichever side leaves room for some level flight first.
     if ((target - dir * lead - (dir > 0 ? 0 : W)) * dir < 50) dir = -dir;
     var p = w.makePlane('diver', dir, dir > 0 ? -50 : W + 50, DIVE.Y);
-    p.rng = r; p.hp = DIVE.HP; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = 0.8; p.speed = DIVE.CRUISE; p.ang = 0; p.drawAng = 0;
+    p.rng = r; p.hp = DIVE.HP; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.CRUISE; p.ang = 0; p.drawAng = 0;
     p.diveX = target - dir * lead; p.phase = 'level'; p.vx = dir * DIVE.CRUISE; p.vy = 0; p.target = target; p.spin = 0;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'diver', dir: dir, target: target });
-    w.sound.play('siren');
     if (!S.diverTold) { S.diverTold = true; addText('dive bomber!', dir > 0 ? 80 : W - 80, DIVE.Y + 36, RED, 22); }
     return p;
   }
   function updateDiver(p, dt) {
     var S = w.S;
     if (p.state !== 'fly') { fallDown(p, dt); return; }
-    if (p.phase === 'level' && (p.x - p.diveX) * p.dir >= 0) { p.phase = 'dive'; p.ang = DIVE.ANGLE; p.speed = DIVE.SPEED; emit('dive', { x: p.x }); }
+    if (p.phase === 'level' && (p.x - p.diveX) * p.dir >= 0) { p.phase = 'dive'; p.ang = DIVE.ANGLE; p.speed = DIVE.SPEED; emit('dive', { x: p.x }); w.sound.play('siren'); }
     if (p.phase === 'dive' && p.y >= DIVE.RELEASE_Y) {
       p.phase = 'pull';
       S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, dead: false });
@@ -234,7 +257,7 @@ var StickArmySky = function (w) {
     p.rng = r; p.hp = p.maxHp = heliHP(S.wave); p.hw = HELI.HW; p.hh = HELI.HH; p.sc = 1; p.speed = HELI.SPEED; p.side = side;
     p.hoverX = side < 0 ? between(r, 52, 96) : between(r, 304, 348); p.hoverY = between(r, HELI.HOVER[0], HELI.HOVER[1]);
     p.phase = 'in'; p.kits = []; for (var i = 0; i < n; i++) p.kits.push(w.rollTrooper(r));
-    p.ropeT = 0.7; p.gunT = 1.1; p.burst = 0; p.burstT = 0; p.wait = HELI.WAIT; p.vx = 0; p.vy = 0; p.aim = Math.PI / 2; p.flash = 0; p.tilt = 0; p.bob = r() * 6.28;
+    p.ropeT = 0.25; p.gunT = 0.8; p.burst = 0; p.burstT = 0; p.wait = HELI.WAIT; p.vx = 0; p.vy = 0; p.aim = Math.PI / 2; p.flash = 0; p.tilt = 0; p.bob = r() * 6.28;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'heli', dir: p.dir, troopers: n });
     w.sound.play('chopper');
@@ -244,7 +267,7 @@ var StickArmySky = function (w) {
   function door(p) { return { x: p.x + p.dir * 7, y: p.y + 7 }; }
   function onRope(p) { return w.S.troopers.filter(function (t) { return !t.dead && t.state === 'rope' && t.heli === p.id; }); }
   function moveTo(p, x, y, dt) {
-    var dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy), v = Math.min(HELI.SPEED, d * 1.6);
+    var dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy), v = Math.min(HELI.SPEED, d * 3);
     p.vx = d > 0.1 ? dx / d * v : 0; p.vy = d > 0.1 ? dy / d * v : 0;
     p.x += p.vx * dt; p.y += p.vy * dt;
     p.tilt += (clamp(p.vx / HELI.SPEED, -1, 1) * 0.18 - p.tilt) * Math.min(1, dt * 4);
@@ -254,7 +277,7 @@ var StickArmySky = function (w) {
     var S = w.S;
     p.flash = Math.max(0, p.flash - dt); p.hitFlash = Math.max(0, p.hitFlash - dt);
     if (p.state !== 'fly') { fallDown(p, dt); return; }
-    if (p.phase === 'in') { if (moveTo(p, p.hoverX, p.hoverY, dt)) { p.phase = 'drop'; w.say('go go go!', p.id, true); } return; }
+    if (p.phase === 'in') { if (moveTo(p, p.hoverX, p.hoverY, dt)) { p.phase = 'drop'; w.say('go go go!', p.id, true, 0, p.x, p.y + 22); } return; }
     if (p.phase === 'out') { moveTo(p, p.side < 0 ? -90 : W + 90, 80, dt); if (p.x < -70 || p.x > W + 70) p.gone = true; return; }
     moveTo(p, p.hoverX, p.hoverY + Math.sin(S.t * 2 + p.bob) * 2, dt);
     if (p.phase === 'drop') {
@@ -331,8 +354,8 @@ var StickArmySky = function (w) {
     else if (p.kind === 'diver') updateDiver(p, dt);
     else updateHeli(p, dt);
   }
-  // Your turret's shots (bullets, flak and rockets alike) against the Red Cross plane and the crates. Returns true
-  // when the shot was used up. The crew's and the sentry's fire passes them by.
+  // Your turret's shots (bullets, flak and rockets alike) against the Red Cross plane. Returns true when the shot was
+  // used up. The crew's and the sentry's fire passes it by.
   function shot(b) {
     var S = w.S, i;
     if (b.owner !== 'player') return false;
@@ -340,26 +363,11 @@ var StickArmySky = function (w) {
       var m = S.medevac[i];
       if (!m.hit && Math.abs(b.x - m.x) < MEDEVAC.HW && Math.abs(b.y - m.y) < MEDEVAC.HH) { hurtMedevac(m); b.dead = true; return true; }
     }
-    for (i = 0; i < S.crates.length; i++) {
-      var c = S.crates[i];
-      if (c.dead) continue;
-      if (Math.abs(b.x - c.x) < 10 && Math.abs(b.y - c.y) < 9) { crateLost(c, 'shot'); b.dead = true; return true; }
-      if (c.state !== 'chute') continue;
-      var dx = (b.x - c.x) / 22, dy = (b.y - (c.y - 17)) / 20;
-      if (dy < 0.15 && dy > -1 && dx * dx + dy * dy < 1) {
-        c.state = 'free'; c.vy = 30; c.spin = rr(-1.5, 1.5); b.dead = true;
-        for (var k = 0; k < 4; k++) S.parts.push({ k: 'shred', x: c.x + rr(-16, 16), y: c.y - 26 + rr(-6, 6), vx: rr(-50, 50), vy: rr(-40, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.7, 1.1), max: 1.1, id: w.id() });
-        addText('pop!', c.x + 16, c.y - 30, BLUE, 18, 'minor');
-        emit('crate_pop', { x: c.x, y: c.y });
-        w.sound.play('pop');
-        return true;
-      }
-    }
     return false;
   }
   function update(dt) {
     var S = w.S;
-    updateMedevac(dt); updateCrates(dt);
+    updateMedevac(dt); updateHQ(dt); updateCrates(dt);
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });
   }
@@ -384,7 +392,7 @@ var StickArmySky = function (w) {
     var G = w.G, sc = p.sc;
     pen(p.id);
     G.save(); G.translate(p.x, p.y); G.scale(p.dir, 1); G.rotate(p.drawAng); G.scale(sc, sc);
-    G.beginPath(); SP(DIVER_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); G.fillStyle = p.hitFlash > 0 ? 'rgba(200,67,58,0.3)' : 'rgba(46,46,51,0.14)'; G.fill(); ink(INK, 2.4 / sc); G.stroke();
+    G.beginPath(); SP(DIVER_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); G.fillStyle = p.hitFlash > 0 ? 'rgba(200,67,58,0.4)' : 'rgba(46,46,51,0.32)'; G.fill(); ink(INK, 2.8 / sc); G.stroke();
     // Inverted gull wing, canopy, tail fin with a red stripe, and fixed legs in spats.
     G.beginPath(); SP([-8, 2, 2, 9, 10, 6, 20, 4], false, 0.3); ink(INK, 3.2 / sc); G.stroke();
     G.beginPath(); SP([4, -8, 8, -14, 22, -13, 26, -7], false, 0.3); ink(INK, 1.8 / sc); G.stroke();
@@ -447,29 +455,65 @@ var StickArmySky = function (w) {
     else if (p.kind === 'diver') drawDiver(p);
     else drawHeli(p);
   }
+  // A white plane with big red crosses, a blinking light on the tail, and a Red Cross pennant trailing behind it.
   function drawMedevac(m) {
-    var G = w.G, sc = 0.8;
+    var G = w.G, sc = MEDEVAC.SC, blink = !m.hit && Math.floor(w.S.t * 3) % 2 === 0;
     pen(m.id);
     G.save(); G.translate(m.x, m.y); G.scale(-m.dir * sc, sc);
-    G.beginPath(); SP(w.PLANE_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); ink(INK2, 2.2 / sc); G.stroke();
-    G.beginPath(); L(-12, 2, 14, 4); ink(INK2, 2.6 / sc); G.stroke();
-    G.beginPath(); G.arc(4, -1, 7.5, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill(); ink(INK2, 1.4 / sc); G.stroke();
-    G.beginPath(); L(0, -1, 8, -1, 0.1); L(4, -5, 4, 3, 0.1); ink(RED, 3 / sc); G.stroke();
-    G.beginPath(); L(41, -17, 47, -17, 0.1); L(44, -20, 44, -14, 0.1); ink(RED, 2.2 / sc); G.stroke();
+    // The pennant on a towline behind the tail (local +x is the tail).
+    var wave = Math.sin(w.S.t * 8 + m.id) * 2;
+    G.beginPath(); L(50, -8, 62, -6, 0.2); ink(INK2, 1.2); G.stroke();
+    G.beginPath(); G.moveTo(62, -13); G.lineTo(88, -12 + wave); G.lineTo(86, 2 + wave); G.lineTo(62, 1); G.closePath();
+    G.fillStyle = PAPER; G.fill(); ink(INK2, 1.4); G.stroke();
+    G.beginPath(); L(70, -6 + wave * 0.5, 80, -6 + wave * 0.8, 0.1); L(75, -10 + wave * 0.6, 75, -1 + wave * 0.6, 0.1); ink(RED, 3); G.stroke();
+    G.beginPath(); SP(w.PLANE_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); ink(INK2, 2.4 / sc); G.stroke();
+    G.beginPath(); L(-12, 2, 14, 4); ink(INK2, 2.8 / sc); G.stroke();
+    G.beginPath(); G.arc(4, -1, 9, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill(); ink(RED, 1.6 / sc); G.stroke();
+    G.beginPath(); L(-1, -1, 9, -1, 0.1); L(4, -6, 4, 4, 0.1); ink(RED, 4 / sc); G.stroke();
+    G.beginPath(); L(40, -17, 48, -17, 0.1); L(44, -21, 44, -13, 0.1); ink(RED, 2.6 / sc); G.stroke();
+    // The blinking light on the fin.
+    G.beginPath(); G.arc(48, -22, blink ? 4 : 2.2, 0, Math.PI * 2); G.fillStyle = blink ? 'rgba(220,40,40,0.95)' : 'rgba(200,67,58,0.35)'; G.fill();
+    if (blink) { G.beginPath(); G.arc(48, -22, 8, 0, Math.PI * 2); G.fillStyle = 'rgba(220,40,40,0.18)'; G.fill(); }
     var pl = w.boil % 2 ? 10 : 6; G.beginPath(); L(-42, -pl, -42, pl, 0.4); ink(INK2, 2 / sc); G.stroke();
+    G.restore();
+  }
+  // HQ's supply plane: the friendly blue transport, low over the page, a crate under its belly until the drop.
+  function drawHQ(h) {
+    var G = w.G;
+    pen(h.id); G.save(); G.translate(h.x, h.y); G.scale(-h.dir * 0.8, 0.8);
+    G.beginPath(); SP(w.BOMBER_PTS, true, 0.6); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.14)'; G.fill(); ink(INK, 2.8); G.stroke();
+    G.beginPath(); L(-16, 4, 22, 6); ink(INK, 3.6); G.stroke();
+    G.beginPath(); G.arc(18, -3, 5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
+    G.beginPath(); G.arc(18, -3, 2, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
+    if (!h.dropped) { G.beginPath(); G.rect(-10, 14, 20, 12); G.fillStyle = '#e7dcc0'; G.fill(); ink(INK, 2.2); G.stroke(); }
+    var pl = w.boil % 2 ? 11 : 6; G.beginPath(); L(-50, -pl, -50, pl, 0.4); ink(INK, 2.4); G.stroke();
+    G.restore();
+  }
+  // Where a dive bomber is going to put its bomb: a red crosshair on the ground, pulsing, until it lets go.
+  function drawDiveMark(p) {
+    if (p.kind !== 'diver' || p.state !== 'fly' || (p.phase !== 'level' && p.phase !== 'dive')) return;
+    var G = w.G, x = p.target, y = Math.abs(p.target - BK.x) < 36 ? BK.top - 4 : GROUND - 6, k = 1 + 0.15 * Math.sin(w.S.t * 10);
+    pen(p.id + 3);
+    G.save(); G.globalAlpha = p.phase === 'dive' ? 0.95 : 0.6;
+    G.beginPath(); Ci(x, y, 13 * k, 0.6); ink(RED, 2.2); G.stroke();
+    G.beginPath(); L(x - 19 * k, y, x - 7, y, 0.2); L(x + 7, y, x + 19 * k, y, 0.2); L(x, y - 19 * k, x, y - 7, 0.2); ink(RED, 2); G.stroke();
+    if (p.phase === 'dive') { G.setLineDash([4, 6]); G.beginPath(); L(p.x, p.y, x, y, 0.2); ink(RED, 1.4); G.stroke(); G.setLineDash([]); }
     G.restore();
   }
   function drawCrate(c) {
     var G = w.G;
     pen(c.id);
     if (c.state === 'chute') {
-      var x = c.x, base = c.y - 17, top = base - 20;
-      G.beginPath(); G.moveTo(x - 20 + jt(0.6), base); G.bezierCurveTo(x - 20, top, x + 20, top, x + 20 + jt(0.6), base);
-      G.quadraticCurveTo(x + 10, base - 5, x, base); G.quadraticCurveTo(x - 10, base - 5, x - 20, base); G.closePath();
-      G.fillStyle = 'rgba(47,111,220,0.16)'; G.fill(); ink(BLUE, 2.2); G.stroke();
-      G.beginPath(); L(x - 20, base, x - 8, c.y - 7, 0.4); L(x + 20, base, x + 8, c.y - 7, 0.4); ink(BLUE, 1.3); G.stroke();
+      var x = c.x, o = 0.4 + 0.6 * c.open, base = c.y - 15, top = base - 22 * o, hw = 21 * o;
+      G.beginPath(); G.moveTo(x - hw + jt(0.6), base); G.bezierCurveTo(x - hw, top, x + hw, top, x + hw + jt(0.6), base);
+      G.quadraticCurveTo(x + hw / 2, base - 5, x, base); G.quadraticCurveTo(x - hw / 2, base - 5, x - hw, base); G.closePath();
+      G.fillStyle = 'rgba(47,111,220,0.22)'; G.fill(); ink(BLUE, 2.2); G.stroke();
+      G.beginPath(); L(x - hw, base, x - 8, c.y - 7, 0.4); L(x + hw, base, x + 8, c.y - 7, 0.4); ink(BLUE, 1.3); G.stroke();
+    } else {
+      // On the ground: the spent chute lies beside it.
+      G.beginPath(); SP([c.x + 10, GROUND - 1, c.x + 15, GROUND - 6, c.x + 21, GROUND - 3, c.x + 27, GROUND - 6, c.x + 31, GROUND - 1], false, 0.4); G.fillStyle = 'rgba(47,111,220,0.18)'; G.fill(); ink(BLUE, 1.6); G.stroke();
     }
-    G.save(); G.translate(c.x, c.y); G.rotate(c.rot);
+    G.save(); G.translate(c.x, c.y);
     G.beginPath(); G.rect(-9, -7, 18, 15); G.fillStyle = '#e7dcc0'; G.fill(); ink(INK, 1.8); G.stroke();
     G.beginPath(); L(-9, -2, 9, -2, 0.2); ink(INK2, 1); G.stroke();
     // What's inside, stencilled on the side: a dog tag, a wall cross or a radio.
@@ -483,10 +527,10 @@ var StickArmySky = function (w) {
     var G = w.G;
     w.S.skyFx.forEach(function (q) { G.save(); G.globalAlpha = Math.min(1, q.life / 1.5) * 0.8; balloonBody(q.x, q.y, false, q.id); G.restore(); });
   }
-  function draw() { w.S.medevac.forEach(drawMedevac); w.S.crates.forEach(drawCrate); }
+  function draw() { var S = w.S; S.planes.forEach(drawDiveMark); S.medevac.forEach(drawMedevac); S.hq.forEach(drawHQ); S.crates.forEach(drawCrate); }
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };
