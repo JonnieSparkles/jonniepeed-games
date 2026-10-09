@@ -121,7 +121,7 @@ python3 tools/trailer/make.py dont-step-on-a-crack --dry
 python3 tools/trailer/make.py dont-step-on-a-crack
 ```
 
-Output goes to `work/trailer/` (git-ignored). Trailer videos stay out of the repo, so clones and deploys stay light: post the cut from `work/trailer/<slug>/trailer.mp4` to YouTube and social platforms. The same command rebuilds the exact cut from the repo.
+Output goes to `work/trailer/` (git-ignored). Trailer videos stay out of the repo, so clones and deploys stay light: post the cut from `work/trailer/<slug>/<slug>-trailer.mp4` to YouTube and social platforms. The same command rebuilds the exact cut from the repo.
 
 ## Social previews
 

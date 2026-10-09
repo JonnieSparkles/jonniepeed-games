@@ -9,7 +9,8 @@ Run by hand. Serves site/ itself and launches Chromium like the other harnesses 
 browser). A game opts in with tests/<slug>/trailer/: trailer.json (page, framing, sound object, frame hook),
 takes.json (seeded plans), director.js (plays the game), trailer.css, layers.html, shots.py and, for new music,
 music.py.
-Output goes to work/trailer/<slug>/ (git-ignored): trailer.mp4, sheet.jpg, the takes, music and layers.
+Output goes to work/trailer/<slug>/ (git-ignored): <slug>-trailer.mp4 (named by game, so a
+downloaded or uploaded copy says what it is), sheet.jpg, the takes, music and layers.
 See docs/guides/04-trailers.md.
 """
 import argparse
@@ -160,8 +161,9 @@ def main():
         render(music, **({'site': site_dir(cfg)} if 'site' in inspect.signature(render).parameters else {}))
     c.sheet(out / 'sheet.jpg')
     c.mix(out / 'mix.wav', music, score)
-    c.encode(out / 'trailer.mp4', out / 'mix.wav', crf=cfg.get('crf', 17))
-    print('wrote %s and sheet.jpg in %.0fs' % (out / 'trailer.mp4', time.time() - t0))
+    video = out / (args.slug + '-trailer.mp4')   # always named by game
+    c.encode(video, out / 'mix.wav', crf=cfg.get('crf', 17))
+    print('wrote %s and sheet.jpg in %.0fs' % (video, time.time() - t0))
 
 
 if __name__ == '__main__':

@@ -21,7 +21,7 @@ python3 tools/trailer/make.py dont-step-on-a-crack --cut-only   # re-cut from th
 | `--jobs N` | Takes shot at once (default 3). |
 | `--out DIR` | Output folder, default `work/trailer/<slug>/` (git-ignored). |
 
-The output folder gets `trailer.mp4`, `sheet.jpg` (three frames from every shot and the end card), `music.wav`, `mix.wav`, `layers/` and one folder per take with its frames, markers and `game.wav`. `CHROMIUM` selects a system browser, as in the other harnesses.
+The output folder gets the trailer, named by game (`<slug>-trailer.mp4`, so a copy says what it is), `sheet.jpg` (three frames from every shot and the end card), `music.wav`, `mix.wav`, `layers/` and one folder per take with its frames, markers and `game.wav`. `CHROMIUM` selects a system browser, as in the other harnesses.
 
 On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 minutes filmed, three at a time; the cut itself takes about a minute.
 
@@ -44,7 +44,7 @@ On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 mi
 3. **Dry-run until it's clean.** Most of the time on Crack's trailer went into re-shoots: the scripted player stepped on cracks, ran out of giant steps or let Mom die before the shot. A dry run shows that from the printed markers, in about a third of the time a filmed run takes.
 4. **Shoot, then look at `sheet.jpg`.** Adjust offsets in `shots.py` and re-cut with `--cut-only`, which takes about a minute. Re-shoot a single take with `--takes` when a plan has to change.
 5. **Listen before you post.** The music is synthesized (`tools/trailer/synth.py`), and its timing and levels can be checked by script, but not how it sounds. Crack's first cue, in D minor with a diminished stab, came out sounding like Halloween; D major fixed it.
-6. **Post it from `work/`.** Upload `work/trailer/<slug>/trailer.mp4` to YouTube and social platforms. The video stays out of the repo ([Trailers](../../README.md#trailers) in the README), and the same command rebuilds the exact cut.
+6. **Post it from `work/`.** Upload `work/trailer/<slug>/<slug>-trailer.mp4` to YouTube and social platforms. The video stays out of the repo ([Trailers](../../README.md#trailers) in the README), and the same command rebuilds the exact cut.
 
 Stage what the camera doesn't see. Crack's takes turn off random skateboards and squirrels, and the long walk to Quarry Ln keeps Mom's back from breaking below three vertebrae (`D.floorHp`) so she reaches the finale alive. Nothing staged is on screen; the filmed part plays normally from there.
 
