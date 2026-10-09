@@ -93,8 +93,9 @@ var StickArmyCampaign = function (w) {
     p.shells = []; p.launchT = 1.5; p.troopT = 2.5; p.bombT = 2; p.gunT = 1.5; p.burst = 0; p.burstT = 0; p.boomT = 0; p.clankT = 0;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'dread', hp: p.maxHp, dir: dir });
+    // No callout yet: the rumbling, smoke and searchlights announce it, a soldier wonders, and its name across the page
+    // is the one formal notice (the playtest found the callout and the banner said the same thing twice).
     w.sound.play('horn'); w.sound.play('rumble');
-    addText('the Dreadnought is coming!', dir > 0 ? 130 : W - 130, 250, RED, 24, 'alert');
     return p;
   }
 
@@ -377,6 +378,7 @@ var StickArmyCampaign = function (w) {
       var k = 1 - p.wait / DREAD.APPROACH, ex = p.dir > 0 ? 6 : W - 6;
       if (p.smokeT <= 0) { p.smokeT = 0.25; w.puff(ex + p.dir * rr(0, 30), DREAD.Y - 50 + rr(-12, 12), rr(5, 9), 1.4); }
       if (p.rumbleT <= 0) { p.rumbleT = 1.3; S.shake = Math.max(S.shake, 0.12 + 0.2 * k); w.sound.play('rumble'); }
+      if (!p.wondered && k > 0.3) { p.wondered = true; var ear = S.recruits.filter(w.standing)[0]; if (ear) w.say("what's that rumbling?", ear.id, false, 0); }
       if (p.wait <= 0) {
         // The payoff: its name across the page, a brass sting, and the squad realizing what it is.
         w.sound.play('horn'); w.sound.play('sting'); S.shake = Math.max(S.shake, 0.45);

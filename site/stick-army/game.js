@@ -593,12 +593,17 @@
         if (spotter) world.say('oh no, here it is!', spotter.id); else addText('oh no, here it is!', 200, 420, BLUE, 24, 'story');
       }
       // The decoy down: a soldier wonders "that's it?", a few seconds of quiet, then the Dreadnought, once its sign has
-      // fluttered all the way down (and lain there SIGN_BEAT seconds).
+      // fluttered all the way down (and lain there SIGN_BEAT seconds). As the sign nears the ground, another soldier
+      // calls it: "that was lame".
       if (sp.decoy && !sp.decoyDone && sp.decoy.state !== 'fly') {
         sp.decoyDone = true; sp.bossT = DREAD.TEASE_GAP;
         var asker = S.recruits.filter(standing)[0];
         if (asker) world.say("that's it?", asker.id, false, 1.2); else addText("that's it?", 200, 420, BLUE, 26, 'story');
         emit('dread_tease', {});
+      }
+      if (sp.decoyDone && !sp.lameSaid && S.parts.some(function (q) { return q.k === 'sticker' && q.y > GROUND - 110; })) {
+        sp.lameSaid = true; var crew = S.recruits.filter(standing), critic = crew[1] || crew[0];
+        if (critic) world.say('that was lame', critic.id); else addText('that was lame', 200, 420, BLUE, 24, 'story');
       }
       if (sp.boss > 0) {
         sp.bossT -= dt;
