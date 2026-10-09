@@ -8,3 +8,4 @@ Only for agents:
 
 - Don't commit or push to `main` unless the user says to in the conversation.
 - Deliverables go in the repo, not zip files.
+- One open pull request per conversation. Don't open a new one on top of the conversation's unmerged branch: until it's merged, add new work to it; once it's merged, start the next from an up-to-date `main`. (Squash merging breaks a stacked PR.) A conversation working on something else opens its own.
