@@ -504,7 +504,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       el('p', { class: 'desc' }, 'The 50 most recent' + (names ? ', all games' : '') + '. Initials show when the run was saved to the board. ' +
         '“Board only” runs were saved to the leaderboard but never reported to play stats, usually because of an ad blocker.'));
     if (!rows || !rows.length) { card.append(el('p', { class: 'empty' }, 'No runs yet.')); return card; }
-    const outcome = r => (r.board_only ? 'Saved' : r.outcome === 'won' ? 'Won' : r.outcome === 'over' ? 'Finished' : r.outcome === 'quit' ? 'Quit' : 'No end yet');
+    const outcome = r => (r.outcome === 'won' ? 'Won' : r.outcome === 'over' ? 'Finished' : r.outcome === 'quit' ? 'Quit' : 'No end yet');
     const statLine = st => (st ? Object.entries(st).map(([k, v]) => `${label(k).toLowerCase()} ${typeof v === 'number' ? compact(v) : v}`).join(' · ') : '');
     const items = rows.map(r => el('li', null,
       el('div', { class: 'head' }, el('span', null, when(r.started_at)),
