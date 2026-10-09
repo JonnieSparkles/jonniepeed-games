@@ -120,6 +120,8 @@ class Cut:
         end0, end = self.spec['end']
         if t >= end0:
             return end(t - end0)
+        if 'open' in self.spec and t < self.spec['open'][0]:   # an opening card (cover art, a title screen) before the shots
+            return self.spec.get('overlay', lambda t, im: im)(t, self.spec['open'][1](t))
         for s0, s1, take, src0, cam in self.spec['shots']:
             if s0 <= t < s1:
                 im = self.game_frame(take, src0 + t - s0, cam(t - s0))
@@ -130,6 +132,8 @@ class Cut:
 
     def sheet(self, path):
         times = []
+        if 'open' in self.spec:
+            times += [0.02, self.spec['open'][0] / 2, self.spec['open'][0] - 0.04]
         for s0, s1, *_ in self.spec['shots']:
             times += [s0 + 0.02, (s0 + s1) / 2, s1 - 0.04]
         e0 = self.spec['end'][0]

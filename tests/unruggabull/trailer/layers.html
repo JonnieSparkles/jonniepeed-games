@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- The trailer's text layers. tools/trailer/layers.py renders each <template> to a transparent 1920x1080 PNG;
+     shots.py places and animates them. Unruggabull's own lettering is in its art, so the text here stays plain:
+     white capitals, like a film trailer, and the logo's orange for the address. -->
+<link rel="stylesheet" href="{{SITE}}assets/fonts/fonts.css">
+<style>
+html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hidden}
+#L{position:absolute;inset:0}
+.cap{position:absolute;left:0;right:0;bottom:120px;margin:0;text-align:center;font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;
+  font-size:68px;letter-spacing:.14em;text-transform:uppercase;color:#fff;text-shadow:0 4px 0 #000,0 0 40px rgba(0,0,0,.9),0 0 90px rgba(0,0,0,.8)}
+.pill{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;align-items:center;gap:24px;white-space:nowrap;
+  background:rgba(14,12,20,.9);color:#ff9a2e;border-radius:999px;padding:12px 44px 12px 22px;box-shadow:0 10px 40px rgba(0,0,0,.5);
+  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:44px;letter-spacing:.005em}
+.pill img{width:80px;height:88px;image-rendering:pixelated}
+</style></head><body>
+<div id="L"></div>
+<template id="cap1"><p class="cap">One bull was not like the rest&hellip;</p></template>
+<template id="pill"><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>unruggabull.ar.io</span></div></template>
+</body></html>

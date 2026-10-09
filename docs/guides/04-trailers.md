@@ -1,10 +1,10 @@
 # 04: Trailers
 
-A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music) and Thimbleful (16.1 s, the game's own music) have one.
+A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) and Unruggabull (30.7 s, the game's own theme, from its own repo) have one.
 
 ## Running
 
-Install Python Playwright and Chromium as for the browser checks in the README, plus `numpy`, `scipy`, `pillow` and `ffmpeg`. The tool serves `site/` itself, so no local server is needed.
+Install Python Playwright and Chromium as for the browser checks in the README, plus `numpy`, `scipy`, `pillow` and `ffmpeg`. The tool serves `site/` itself, so no local server is needed. A game kept in its own repo is served from a checkout of that repo, named by `site` in its `trailer.json`: Unruggabull's is `../unruggabull-the-game`, so clone [unruggabull-the-game](https://github.com/JonnieSparkles/unruggabull-the-game) next to this repo first. Its art, sound and music are read from there; nothing is copied here.
 
 ```sh
 python3 tools/trailer/make.py dont-step-on-a-crack --dry        # play every take without filming; check the cut
@@ -34,6 +34,8 @@ On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 mi
 - **Capture at 4/3 scale.** Frames are captured at 2560×1440 for a 1920×1080 trailer, so the cut can push in up to a third and stay sharp.
 - **Or the canvas's own pixels.** A pixel-art game can save its canvas instead of screenshots (`canvas` in `trailer.json`). Thimbleful's 96×72 frames are scaled up 40× whole before the cut crops them, so any push-in stays crisp, and filming costs almost nothing: its 130-second storm take films in under a minute.
 - **The game's own music, in one pass.** A game that plays its own music from timers (Thimbleful's loop is scheduled from `setInterval`) can't be cut from separate takes without the music jumping at every cut. With `audio.score`, shots.py steers the game's music itself (Thimbleful: `start()`, then `intensity()` at the cozy and storm tempos) and `cut.score_calls` moves every shot's sound effects to the trailer's time. Both are replayed into one sound object, so the music runs straight through and the catch notes still follow its chords. In the replay, the page's timers run on the audio clock (`audio.timers`).
+- **`<audio>` elements.** Games that play files (`new Audio('ow.mp3').play()`, Unruggabull) get `audio.media`: the harness logs every element's plays, pauses, seeks and rate and volume changes, and `media.py` mixes the same files back in at those times. `audio.exclude` leaves the music out, so `music.py` can cut it to the trailer instead (Unruggabull: the theme's intro, its drop, silence for the boss's entrance like the game, then 1.5x for the fight, like the game).
+- **ES modules.** The bridge (`script`, `inject_before`) also works on a module: injected into Unruggabull's `src/controller.js`, its eval sees that module's imports (`state`, `player`, the enemies), and the director reaches other modules with `import()`. A game whose loop only runs during play uses `"hook": "@frame"`: the harness runs the plan from an animation frame of its own, title screen included.
 
 ## Making one
 
@@ -57,8 +59,8 @@ Add `tests/<slug>/trailer/`:
 | `director.js` | The scripted player, evaluated in the game's scope after the shared harness. |
 | `trailer.css` | Framing for the trailer: Crack makes the Mom Cam 446 px and hides buttons and stats. |
 | `layers.html` | Text layers. Each `<template id>` becomes a transparent PNG; `{{SITE}}` is the local site's address, for the game's fonts. |
-| `music.py` | Optional: `render(path)` for new music, written with `tools/trailer/synth.py`. Without it, the game's own sound is the whole soundtrack. |
-| `shots.py` | `build(takes, layer, repo)` returns the cut: `dur`, `shots`, `overlay`, `end` and `mix`, made with `tools/trailer/cut.py`. |
+| `music.py` | Optional: `render(path)` for new music, written with `tools/trailer/synth.py`, or `render(path, site)` to cut the game's own music from its folder. Without it, the game's own sound is the whole soundtrack. |
+| `shots.py` | `build(takes, layer, repo)` returns the cut: `dur`, `shots`, `overlay`, `end` and `mix`, made with `tools/trailer/cut.py`, and optionally `open`, a card before the first shot (Unruggabull's title screen). `build(takes, layer, repo, site)` also gets the game's folder, for art kept there. |
 
 A plan is a list of items, played one at a time, once per game frame. The shared harness provides `start`, `capture` (`on`), `wait` (`dur` or `until`, a JavaScript condition in the game's scope), `js` (`code`, run once with `now` and `D`), `mark` and `end`. Any item can have a `name`, which leaves a marker when it starts. The director adds the game's own items; Crack's are `walk`, `crack`, `shoes`, `roll` and `jump` (see the top of its `director.js`).
 
@@ -78,7 +80,7 @@ D.markCalls(['breakVertebra', 'gameOver']);   // a marker each time the game cal
 The game needs:
 
 1. **A frame loop on `requestAnimationFrame`, and a per-frame function the harness can wrap**, reachable by name (a global, or through the bridge).
-2. **A sound object called through its methods**, like `CrackSound`, that creates its `AudioContext` with `new AudioContext()`.
+2. **A sound object called through its methods**, like `CrackSound`, that creates its `AudioContext` with `new AudioContext()`; or `<audio>` elements (`audio.media`).
 3. **A director that plays through the player's input path.** Crack's presses and holds sides, steers with the arrow-key flags and jumps with `keyJump()`, the same paths as touch and keys, so the footage shows real play.
 
 Nothing here ships. The harness and director are injected at capture time only.
