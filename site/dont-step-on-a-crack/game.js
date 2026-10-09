@@ -2542,7 +2542,7 @@ function frame(t){
 /* ---------- boot ---------- */
 if(!coarse){
   $('#howMove').innerHTML='Tap <b>A</b> and <b>D</b> (or either half of the screen) in turn to walk. Hold one to lift that foot, steer it with the <b>mouse</b> (or the arrow keys), let go to put it down. <b>Space</b> (or A and D together) jumps.';
-  $('#howGiant').innerHTML="Dawdle and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: press <b>S</b> for a <b>giant step</b> to save it.";
+  $('#howGiant').innerHTML="Loiter and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: press <b>S</b> for a <b>giant step</b> to save it.";
   const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>Space jump · S giant step · Esc pauses · F full screen · M sound</span>';
   $('.t-how').appendChild(li);
 }
