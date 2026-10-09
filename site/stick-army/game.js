@@ -415,14 +415,14 @@
   // Bubbles count their own ids, apart from nextId: some speech is cosmetic small talk on Math.random (SQUAD.smallTalk),
   // so it must never shift the ids of things in the fight.
   var bubbleId = 1;
-  function speak(text, id, enemy, delay, x, y) {
+  function speak(text, id, enemy, delay, x, y, mood) {
     var r = id != null && S.recruits.find(function (q) { return q.id === id && !q.dead; });
     if (r || x != null) {
       if (S.bubbles.length >= BUBBLE.MAX) S.bubbles.shift();
       S.bubbles.push({ s: text.charAt(0).toUpperCase() + text.slice(1), rid: r ? r.id : null, x: r ? r.x : x, y: r ? GROUND - (r.down ? 40 : 62) : y,
         t: -(delay || 0), life: BUBBLE.LIFE, enemy: !!enemy, id: bubbleId++ });
     }
-    if (sound.say) sound.say(text, id, enemy, delay);
+    if (sound.say) sound.say(text, id, enemy, delay, mood);
   }
   function updateBubbles(dt) {
     S.bubbles.forEach(function (b) {
@@ -686,7 +686,9 @@
         S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
         if (victoryDue()) S.waveTimer = 3.2;
         S.hint = false;
-        sound.play('wave'); SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
+        // The final wave's own fanfare plays with the victory card, so its banner gets only the cheer.
+        if (!victoryDue()) sound.play(untouched ? 'untouched' : 'wave');
+        SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
@@ -711,7 +713,7 @@
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
     crewMax: function (r) { return crewMax(r); }, credit: function () { credit(); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); },
     // Little voices: a speech bubble over the speaker (a recruit by id, or at x, y) and the line in his voice.
-    say: function (text, id, enemy, delay, x, y) { speak(text, id, enemy, delay, x, y); } };
+    say: function (text, id, enemy, delay, x, y, mood) { speak(text, id, enemy, delay, x, y, mood); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });

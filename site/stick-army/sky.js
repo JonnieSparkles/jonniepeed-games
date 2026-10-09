@@ -151,7 +151,7 @@ var StickArmySky = function (w) {
     addText('safe passage! +' + pts.toLocaleString('en-US'), x, m.y + 30, BLUE, 22);
     emit('redcross_safe', { tags: tags, pts: pts });
     emit('coins', { amount: tags, reason: 'safe passage' });
-    w.sound.play('medevac');
+    w.sound.play('safe');
   }
   // The penalty you feel: the tags fly out of the counter toward the plane (loseTags), the counter flashes red, and
   // the combo is gone.

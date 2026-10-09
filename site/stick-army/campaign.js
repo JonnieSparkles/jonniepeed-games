@@ -241,7 +241,7 @@ var StickArmyCampaign = function (w) {
     emit('sneak', { side: side < 0 ? 'left' : 'right', count: n });
     if (p.sneaks === 1) {
       var crew = S.recruits.filter(w.standing).sort(function (a, b) { return side * (a.x - b.x); });
-      if (crew.length) w.say("they're sneaking in!", crew[0].id, false, 1.2);
+      if (crew.length) w.say("they're sneaking in!", crew[0].id, false, 1.2, null, null, 'alarm');
     }
   }
   // The smoke pots: fired from the hull one at a time with a thunk, each arcs out to its spot on the field, trailing
@@ -744,7 +744,7 @@ var StickArmyCampaign = function (w) {
     var pick = list.find(function (q) { roll -= q.weight; return roll <= 0; }) || list[list.length - 1];
     t.mark = { kind: pick.kind, id: pick.id, x: pick.x, t: 0 };
     w.sound.play('flare');
-    if (pick.kind === 'recruit') w.say('incoming!', pick.id, false, 0.1);
+    if (pick.kind === 'recruit') w.say('incoming!', pick.id, false, 0.1, null, null, 'alarm');
     emit('dread_mark', { target: pick.kind });
   }
   // A volley: three shells around the target, one after another; the gun kicks back with each.

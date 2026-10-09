@@ -5,7 +5,7 @@ var StickArmySound = (function () {
   'use strict';
 
   // ---------- sound ----------
-  var AC = null, master = null, noiseBuf = null, muted = false, lastPlay = {}, LEVEL = 0.8;
+  var AC = null, master = null, noiseBuf = null, muted = false, lastPlay = {}, LEVEL = 0.8, NOISE_LEN = 3;
   function audioInit() {
     if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
     try {
@@ -15,8 +15,10 @@ var StickArmySound = (function () {
       var soft = AC.createWaveShaper(), curve = new Float32Array(1025);
       for (var k = 0; k < curve.length; k++) { var x = k / 512 - 1; curve[k] = Math.tanh(1.4 * x) / Math.tanh(1.4); }
       soft.curve = curve; soft.connect(AC.destination);
-      master = AC.createGain(); master.gain.value = LEVEL; master.connect(soft);
-      noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.6), AC.sampleRate);
+      master = AC.createGain(); master.gain.value = muted ? 0 : LEVEL; master.connect(soft);
+      // Three seconds of noise, longer than any noise layer asks for (the Dreadnought's rumble wants 2.6 s). It was
+      // 0.6 s, which cut the noise out of every longer sound early.
+      noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * NOISE_LEN), AC.sampleRate);
       var d = noiseBuf.getChannelData(0);
       for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     } catch (e) { AC = null; }
@@ -82,6 +84,8 @@ var StickArmySound = (function () {
     // Wave start: a short bugle call. Wave clear keeps the bright arpeggio.
     bugle: function () { brass(392, 0.14, 0.07); brass(523, 0.14, 0.07, 0.14); brass(659, 0.14, 0.07, 0.28); brass(784, 0.5, 0.08, 0.42); },
     wave: function () { tone(523, 0.12, 'triangle', 0.15); tone(659, 0.12, 'triangle', 0.15, null, 0.12); tone(784, 0.22, 'triangle', 0.15, null, 0.24); },
+    // A wave that never touched the wall: the same arpeggio, then two higher notes on top.
+    untouched: function () { SFX.wave(); tone(1047, 0.1, 'triangle', 0.11, null, 0.42); tone(1319, 0.3, 'triangle', 0.11, null, 0.52); },
     shop: function () { [784, 988, 1175, 1568].forEach(function (f, i) { tone(f, 0.18, 'triangle', 0.07, null, i * 0.09); }); },
     // New threats: a rush (a sharp whistle and a yell), tank cannon (a dull thump), and the friendly bomber (a
     // rising engine roar under a bright two-note horn).
@@ -98,10 +102,9 @@ var StickArmySound = (function () {
     horn: function () { brass(98, 0.8, 0.09); brass(73.4, 1.2, 0.09, 0.7); },
     thup: function () { noise(0.05, 0.1, 900); tone(210, 0.06, 'sine', 0.07, 120); },
     zepdown: function () { tone(150, 1.8, 'sawtooth', 0.05, 40); noise(1.4, 0.32, 380); tone(70, 1.2, 'sine', 0.25, 30, 0.2); },
-    // The Dreadnought: a deep rumble as it shows through the page, the paper tearing as it bursts through, a hissing
-    // flare on each target, the heavy gun, and a klaxon when the bridge is exposed. Beating it plays a fanfare.
+    // The Dreadnought: a deep rumble as it shows through the page, a hissing flare on each target, the heavy gun, and
+    // a klaxon when the bridge is exposed. Beating it plays a fanfare.
     rumble: function () { noise(2.6, 0.22, 150); tone(42, 2.6, 'sine', 0.22, 31); },
-    rip: function () { for (var i = 0; i < 10; i++) noise(0.06, 0.13, 3200 - i * 220, i * 0.035, 'bandpass'); noise(0.45, 0.12, 1200, 0.05, 'highpass'); },
     flare: function () { noise(0.7, 0.07, 4200, 0, 'highpass'); tone(900, 0.45, 'sine', 0.025, 1500); },
     broadside: function () { noise(0.7, 0.5, 280); tone(56, 0.7, 'sine', 0.38, 28); noise(0.1, 0.25, 2200); },
     klaxon: function () { honk(0); honk(0.78); honk(1.56); honk(2.34); },
@@ -135,6 +138,8 @@ var StickArmySound = (function () {
     },
     // The Red Cross plane coming in: a soft two-tone chime. HQ's supply plane: an engine and a bright little horn.
     medevac: function () { tone(988, 0.22, 'sine', 0.09); tone(784, 0.3, 'sine', 0.09, null, 0.24); tone(988, 0.22, 'sine', 0.07, null, 0.6); tone(784, 0.3, 'sine', 0.07, null, 0.84); },
+    // It got across: the same soft chime, rising this time and coming to rest, "all clear".
+    safe: function () { tone(784, 0.18, 'sine', 0.09); tone(988, 0.18, 'sine', 0.09, null, 0.18); tone(1175, 0.5, 'sine', 0.08, null, 0.36); tone(1568, 0.5, 'sine', 0.03, null, 0.36); },
     hq: function () { tone(90, 1.1, 'sawtooth', 0.035, 150); brass(659, 0.12, 0.06, 0.2); brass(880, 0.25, 0.065, 0.34); },
     // A heavy bomber: a deep, beating drone of four engines.
     drone: function () { tone(52, 2.4, 'sawtooth', 0.045, 58); tone(55.5, 2.4, 'sawtooth', 0.04, 61); noise(2, 0.07, 220); },
@@ -151,21 +156,35 @@ var StickArmySound = (function () {
   // Gibberish chatter to go with the game's speech bubbles: a syllable for each vowel in the line (up to four), each a
   // buzzy pitch through the formants of that vowel, so "medic!" and "air strike!" sound like themselves. Every speaker
   // keeps his own pitch (from his id); the enemy's voices are lower and gruffer. A line ending in "!" lifts at the end.
-  // Lines closer than SAY.GAP apart are dropped, so a busy moment doesn't turn into a crowd. (The browser's own speech
-  // was tried and sounded bad on phones.)
-  var SAY = { GAP: 0.2, VOL: 0.12 }, lastSay = -1;
+  // (The browser's own speech was tried and sounded bad on phones.)
+  // Lines don't talk over each other: one that would overlap a line already playing waits until it ends (up to
+  // SAY.WAIT), except an alarm ("medic!", "incoming!"), which always plays at once, and small talk (mood 'chat'),
+  // which is simply dropped. Before, any line within 0.2 s of another was dropped, alarms included.
+  var SAY = { VOL: 0.12, WAIT: 0.6, SPACE: 0.04 }, saying = [];
   // Formants per vowel, and a level for each so they come out about equally loud.
   var VOWELS = { a: [730, 1090, 0.65], e: [530, 1840, 0.85], i: [300, 2200, 1.2], o: [570, 840, 1], u: [320, 900, 1.2], y: [300, 2200, 1.2] };
-  function say(text, voice, enemy, delay) {
+  // mood: 'alarm' (urgent, always heard), 'chat' (small talk, gives way), or left out for everything else.
+  function say(text, voice, enemy, delay, mood) {
     if (!AC || muted) return;
-    var t = AC.currentTime + (delay || 0);
-    if (Math.abs(t - lastSay) < SAY.GAP) return;
-    lastSay = t;
+    var now = AC.currentTime, t = now + (delay || 0);
     var h = Math.imul((voice | 0) + 7, 2654435761) >>> 0, base = enemy ? 118 + (h % 5) * 11 : 220 + (h % 7) * 22;
     var vowels = (String(text).toLowerCase().match(/[aeiouy]/g) || ['a']).slice(0, 4), lift = /!$/.test(text);
+    var lens = vowels.map(function (v, i) { return 0.07 + ((h >>> (i * 3)) & 3) * 0.012; });
+    var len = lens.reduce(function (a, d) { return a + d + 0.035; }, 0);
+    saying = saying.filter(function (q) { return q.end > now; });
+    if (mood !== 'alarm') {
+      var clash = saying.filter(function (q) { return q.start < t + len && q.end + SAY.SPACE > t; });
+      if (clash.length) {
+        if (mood === 'chat') return;
+        var after = Math.max.apply(null, clash.map(function (q) { return q.end; })) + SAY.SPACE;
+        if (after - t > SAY.WAIT) return;
+        t = after;
+      }
+    }
+    saying.push({ start: t, end: t + len });
     try {
       vowels.forEach(function (v, i) {
-        var d = 0.07 + ((h >>> (i * 3)) & 3) * 0.012, f = base * (1 + ((h >>> (i * 2 + 9)) & 3) * 0.07) * (lift && i === vowels.length - 1 ? 1.3 : 1);
+        var d = lens[i], f = base * (1 + ((h >>> (i * 2 + 9)) & 3) * 0.07) * (lift && i === vowels.length - 1 ? 1.3 : 1);
         syllable(t, f, d, VOWELS[v], enemy);
         t += d + 0.035;
       });
@@ -239,7 +258,18 @@ var StickArmySound = (function () {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(amb.drums); o.start(t); o.stop(t + dur + 0.03);
   }
-  function heart(t) { drum(t, 62, 52, 0.14, 0.2); drum(t + 0.22, 54, 46, 0.16, 0.15); }
+  // The low-wall heartbeat: a deep lub-dub, with a soft knock higher up on each beat (knock), since a phone's
+  // speaker plays almost nothing under 100 Hz.
+  function heart(t) { drum(t, 62, 52, 0.14, 0.2); knock(t, 0.17); drum(t + 0.22, 54, 46, 0.16, 0.15); knock(t + 0.22, 0.12); }
+  function knock(t, vol) {
+    var o = AC.createOscillator(), g = AC.createGain(), s = AC.createBufferSource(), f = AC.createBiquadFilter(), ng = AC.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.06);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    o.connect(g); g.connect(amb.drums); o.start(t); o.stop(t + 0.11);
+    s.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 1.2;
+    ng.gain.setValueAtTime(vol * 0.5, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    s.connect(f); f.connect(ng); ng.connect(amb.drums); s.start(t, Math.random() * 2); s.stop(t + 0.05);
+  }
   // A brass note at time t on the ambience bus: sawtooth through a lowpass that opens as it swells.
   function brassAt(t, f, dur, vol) {
     var o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
@@ -309,9 +339,11 @@ var StickArmySound = (function () {
     if (on && state.wave) {
       if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
       // The Dreadnought brings its own march once it's through the page.
-      // The final wave opens with it thin (teaser) and goes quiet (hush) before the real one arrives.
-      var dreadOn = !!state.dread && state.dread !== 'sinking' && state.dread !== 'wreck', bridge = state.dread === 'hangar' || state.dread === 'bridge';
-      var thin = state.dread === 'teaser', hush = state.dread === 'hush';
+      // The final wave opens with it thin (teaser) and goes quiet (hush) before the real one arrives. Going down, the
+      // music stops (it used to drop back into the wave's own march) and the crash carries it to the end of the wave.
+      var down = state.dread === 'sinking' || state.dread === 'wreck';
+      var dreadOn = !!state.dread && !down, bridge = state.dread === 'hangar' || state.dread === 'bridge';
+      var thin = state.dread === 'teaser', hush = state.dread === 'hush' || down;
       var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {
@@ -333,6 +365,11 @@ var StickArmySound = (function () {
     say: say,
     ambience: ambience,
     get muted() { return muted; },
-    set muted(value) { muted = !!value; }
+    // Muting fades the whole mix out in a few hundredths of a second, so a long sound already playing (a klaxon, the
+    // wreck's crash) stops too; unmuting brings it back.
+    set muted(value) {
+      muted = !!value;
+      if (master) master.gain.setTargetAtTime(muted ? 0 : LEVEL, AC.currentTime, 0.015);
+    }
   };
 })();
