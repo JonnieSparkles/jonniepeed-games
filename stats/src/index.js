@@ -239,8 +239,9 @@ async function overview(env, url) {
     names = { total: board.people.length, returning: board.people.filter(p => p.days > 1).length,
       several: board.people.filter(p => p.games > 1).length };
   }
+  const latest = await latestRuns(env, { since });
   return { ok: true, days, since, names: gameNames(), hourly, games, devices, sources: topSources(sources),
-    median_ms: overall[0]?.time_ms ?? null, people: names };
+    median_ms: overall[0]?.time_ms ?? null, people: names, recent: latest.recent, unseen: latest.unseen, unseen_capped: latest.unseen_capped };
 }
 
 // The leaderboard as players see it: the top 50 of one board, ranked by that board's rules in scores/games.json
@@ -267,13 +268,68 @@ async function leaderboard(env, game, board) {
   } catch (_) { return null; }
 }
 
+// The 50 latest runs for one game (or all games), newest first, with initials for runs saved to a board.
+// Players whose blocker stops the stats report still reach the leaderboard (a different address), so saves with
+// no matching stats run are listed too, marked board_only, and counted as `unseen`. Only saves made since play
+// stats first saw a run count, so older saves aren't taken for blocked players. Run totals elsewhere stay
+// play-stats-only.
+const SAVE_CAP = 5000;
+async function latestRuns(env, { since, game, board }) {
+  let where = `started_at >= ?1 AND game <> '${TEST}'`;
+  const args = [since];
+  if (game) { args.push(game); where += ` AND game = ?${args.length}`; }
+  if (board != null) { args.push(board); where += ` AND board = ?${args.length}`; }
+  const recent = await all(env.DB.prepare(`SELECT game, started_at, device, orientation, source, outcome, time_ms, score, input,
+    score_run, stats FROM runs WHERE ${where} ORDER BY started_at DESC LIMIT 50`).bind(...args));
+  let boardOnly = [], unseen = null, capped = false;
+  if (env.SCORES) {
+    try {
+      // Initials for listed runs that were saved, matched by the run ID from the leaderboard token.
+      const ids = [...new Set(recent.map(r => r.score_run).filter(Boolean))];
+      if (ids.length) {
+        const saved = await all(env.SCORES.prepare(`SELECT run_id, name FROM scores WHERE run_id IN (${ids.map(() => '?').join(',')})`).bind(...ids));
+        const byRun = new Map(saved.map(r => [r.run_id, r.name]));
+        for (const r of recent) if (byRun.has(r.score_run)) r.name = byRun.get(r.score_run);
+      }
+      const first = await env.DB.prepare(`SELECT MIN(started_at) AS t FROM runs WHERE game <> '${TEST}'`).first();
+      if (first?.t) {
+        const from = first.t > since ? first.t : since;
+        const known = game ? [game] : Object.keys(games);
+        let sw = `board > 0 AND created_at >= ? AND game IN (${known.map(() => '?').join(',')})`;
+        const sa = [from, ...known];
+        if (board != null) { sw += ' AND board = ?'; sa.push(board); }
+        const saves = await all(env.SCORES.prepare(`SELECT run_id, game, board, name, score, input, meta, created_at FROM scores
+          WHERE ${sw} ORDER BY created_at DESC LIMIT ${SAVE_CAP + 1}`).bind(...sa));
+        capped = saves.length > SAVE_CAP;
+        // Runs play stats saw that carry a board run ID, from a day before the window so a run that started
+        // just before it still matches its save.
+        const seen = new Set((await all(env.DB.prepare('SELECT score_run FROM runs WHERE score_run IS NOT NULL AND started_at >= ?')
+          .bind(new Date(Date.parse(from) - DAY).toISOString()))).map(r => r.score_run));
+        const missing = saves.slice(0, SAVE_CAP).filter(save => !seen.has(save.run_id));
+        unseen = missing.length;
+        boardOnly = missing.slice(0, 50).map(save => {
+          const meta = parseStats(save.meta), ms = Number.isInteger(meta?.time_ms) ? meta.time_ms : null;
+          return { game: save.game, board_only: true, started_at: new Date(Date.parse(save.created_at) - (ms || 0)).toISOString(),
+            device: null, orientation: null, source: null, outcome: 'over', time_ms: ms, score: save.score, input: save.input,
+            name: save.name, saved: true, stats: null };
+        });
+      }
+    } catch (_) { /* the stats runs still show */ }
+  }
+  const listed = recent.map(({ score_run, stats, ...r }) => ({ ...r, saved: Boolean(score_run && r.name), stats: parseStats(stats) }));
+  return {
+    recent: listed.concat(boardOnly).sort((a, b) => (a.started_at < b.started_at ? 1 : a.started_at > b.started_at ? -1 : 0)).slice(0, 50),
+    unseen, unseen_capped: capped
+  };
+}
+
 async function gameDetail(env, url, game, board) {
   const { days, since } = windowFor(url);
   // The board filter narrows every figure; the list of boards and the per-board table always cover them all.
   const inGame = 'game = ?1 AND started_at >= ?2';
   const where = board != null ? inGame + ' AND board = ?3' : inGame;
   const args = board != null ? [game, since, board] : [game, since];
-  const [hourly, summary, devices, inputs, sources, mid, reports, recent, linked, boards, boardMedians] = (await env.DB.batch([
+  const [hourly, summary, devices, inputs, sources, mid, reports, linked, boards, boardMedians] = (await env.DB.batch([
     env.DB.prepare(`SELECT ${HOURLY} FROM runs WHERE ${where} GROUP BY hour`).bind(...args),
     env.DB.prepare(`SELECT ${TALLY}, COUNT(board) AS boarded FROM runs WHERE ${where}`).bind(...args),
     env.DB.prepare(`SELECT device, orientation, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY device, orientation`).bind(...args),
@@ -282,8 +338,6 @@ async function gameDetail(env, url, game, board) {
     env.DB.prepare(median(where)).bind(...args),
     env.DB.prepare(`SELECT time_ms, score, outcome, stats FROM runs WHERE ${where} AND outcome IS NOT NULL
       ORDER BY started_at DESC LIMIT ${REPORT_CAP + 1}`).bind(...args),
-    env.DB.prepare(`SELECT started_at, device, orientation, source, outcome, time_ms, score, input, score_run, stats
-      FROM runs WHERE ${where} ORDER BY started_at DESC LIMIT 50`).bind(...args),
     env.DB.prepare(`SELECT score_run FROM runs WHERE ${where} AND score_run IS NOT NULL`).bind(...args),
     // Leaderboard test boards (0 and below) never show.
     env.DB.prepare(`SELECT board, ${TALLY} FROM runs WHERE ${inGame} AND board > 0 GROUP BY board ORDER BY board DESC`).bind(game, since),
@@ -309,16 +363,8 @@ async function gameDetail(env, url, game, board) {
       const savedIds = await savedRuns(env, ids.results.map(r => r.score_run));
       for (const b of boards) b.saves = ids.results.filter(r => r.board === b.board && savedIds.has(r.score_run)).length;
     }
-    // Initials for the recent runs that were saved, matched by the run ID from the leaderboard token.
-    const ids = [...new Set(recent.map(r => r.score_run).filter(Boolean))];
-    if (ids.length) {
-      try {
-        const saved = await all(env.SCORES.prepare(`SELECT run_id, name FROM scores WHERE run_id IN (${ids.map(() => '?').join(',')})`).bind(...ids));
-        const byRun = new Map(saved.map(r => [r.run_id, r.name]));
-        for (const r of recent) if (byRun.has(r.score_run)) r.name = byRun.get(r.score_run);
-      } catch (_) { /* the runs still show, without initials */ }
-    }
   }
+  const latest = await latestRuns(env, { since, game, board });
   return {
     ok: true, game, board, days, since, names: gameNames(), hourly,
     boards: boards.map(b => ({ ...b, median_ms: boardMedians.find(m => m.board === b.board)?.time_ms ?? null })),
@@ -326,7 +372,9 @@ async function gameDetail(env, url, game, board) {
     devices, inputs, sources: topSources(sources),
     capped: reports.length > REPORT_CAP,
     reports: reports.slice(0, REPORT_CAP).map(r => [r.time_ms, r.score, r.outcome, parseStats(r.stats)]),
-    recent: recent.map(({ score_run, stats, ...r }) => ({ ...r, saved: Boolean(score_run && r.name), stats: parseStats(stats) })),
+    recent: latest.recent,
+    // Board saves play stats didn't see: only meaningful for a game with a board.
+    unseen: onBoards ? latest.unseen : null, unseen_capped: latest.unseen_capped,
     board_names: names,
     leaderboard: await leaderboard(env, game, board)
   };
