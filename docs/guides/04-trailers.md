@@ -1,6 +1,6 @@
 # 04: Trailers
 
-A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) and Unruggabull (30.7 s, the game's own theme, from its own repo) have one.
+A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) and Unruggabull (33 s, the game's own theme, from its own repo) have one.
 
 ## Running
 
