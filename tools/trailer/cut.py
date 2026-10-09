@@ -188,7 +188,7 @@ class Cover:
     """An end card from cover art: a 16:9 window of it, pushing in slowly."""
 
     def __init__(self, path, size=(1920, 1080), top=0, push=0.055, drift=8, dur=3.75):
-        self.img = Image.open(path).convert('RGB')
+        self.img = (path if isinstance(path, Image.Image) else Image.open(path)).convert('RGB')   # a file, or an image made in shots.py
         self.size, self.top, self.push, self.drift, self.dur = size, top, push, drift, dur
 
     def frame(self, u):

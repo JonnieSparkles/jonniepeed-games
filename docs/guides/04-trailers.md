@@ -39,7 +39,7 @@ On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 mi
 
 ## Making one
 
-1. **Write the cut on a beat grid first.** Pick a tempo and length (Crack: 128 BPM, 8 bars, 15 s) and decide what lands on which beat in `shots.py` before shooting anything. Write `music.py` to the same grid. Put the game's name on the very first frame: share previews and feeds show it before anything plays. End on the game's cover with the studio mark and jonniepeed.games.
+1. **Write the cut on a beat grid first.** Pick a tempo and length (Crack: 128 BPM, 8 bars, 15 s) and decide what lands on which beat in `shots.py` before shooting anything. Write `music.py` to the same grid. Put the game's name on the very first frame: share previews and feeds show it before anything plays. End on the game's cover with the studio mark and jonniepeed.games, big (84 px, outlined, on a dark shade) so it reads on a phone.
 2. **Write the takes.** Each take in `takes.json` is a seed and a plan. Film only the windows the cut needs (`capture` on and off) and walk between them unfilmed.
 3. **Dry-run until it's clean.** Most of the time on Crack's trailer went into re-shoots: the scripted player stepped on cracks, ran out of giant steps or let Mom die before the shot. A dry run shows that from the printed markers, in about a third of the time a filmed run takes.
 4. **Shoot, then look at `sheet.jpg`.** Adjust offsets in `shots.py` and re-cut with `--cut-only`, which takes about a minute. Re-shoot a single take with `--takes` when a plan has to change.

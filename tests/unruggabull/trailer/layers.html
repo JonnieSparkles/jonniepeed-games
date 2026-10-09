@@ -8,12 +8,14 @@ html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hi
 #L{position:absolute;inset:0}
 .cap{position:absolute;left:0;right:0;bottom:120px;margin:0;text-align:center;font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;
   font-size:68px;letter-spacing:.14em;text-transform:uppercase;color:#fff;text-shadow:0 4px 0 #000,0 0 40px rgba(0,0,0,.9),0 0 90px rgba(0,0,0,.8)}
-.pill{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;align-items:center;gap:24px;white-space:nowrap;
-  background:rgba(14,12,20,.9);color:#ff9a2e;border-radius:999px;padding:12px 44px 12px 22px;box-shadow:0 10px 40px rgba(0,0,0,.5);
-  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:44px;letter-spacing:.005em}
-.pill img{width:80px;height:88px;image-rendering:pixelated}
+/* end card: the studio mark and address, big enough to read on a phone, on a dark shade so it never sinks into the art */
+.shade{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.62))}
+.pill{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;white-space:nowrap;
+  background:rgba(14,12,20,.94);color:#fff;border:6px solid #ff9a2e;border-radius:999px;padding:18px 70px 18px 36px;box-shadow:0 14px 50px rgba(0,0,0,.6);
+  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:84px;letter-spacing:.005em}
+.pill img{width:120px;height:132px;image-rendering:pixelated}
 </style></head><body>
 <div id="L"></div>
 <template id="cap1"><p class="cap">One bull was not like the rest&hellip;</p></template>
-<template id="pill"><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>unruggabull.ar.io</span></div></template>
+<template id="pill"><div class="shade"></div><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
 </body></html>

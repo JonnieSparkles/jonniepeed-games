@@ -25,17 +25,19 @@ html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hi
 .t-title .fissure path{fill:none;stroke:#1d1914;stroke-width:4;stroke-linejoin:round;vector-effect:non-scaling-stroke;opacity:.85}
 :root{--chalk-pink:#f7a8c4}
 /* end card: the studio mark and address on the game's dark panel style */
-.pill{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;align-items:center;gap:24px;white-space:nowrap;
-  background:rgba(20,22,17,.88);color:#f4e27a;border-radius:999px;padding:12px 44px 12px 22px;box-shadow:0 10px 40px rgba(0,0,0,.45);
-  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:44px;letter-spacing:.005em}
-.pill img{width:80px;height:88px;image-rendering:pixelated}
+/* end card: the studio mark and address, big enough to read on a phone, on a dark shade so it never sinks into the art */
+.shade{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.62))}
+.pill{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;white-space:nowrap;
+  background:rgba(20,22,17,.94);color:#fff;border:6px solid #f4e27a;border-radius:999px;padding:18px 70px 18px 36px;box-shadow:0 14px 50px rgba(0,0,0,.6);
+  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:84px;letter-spacing:.005em}
+.pill img{width:120px;height:132px;image-rendering:pixelated}
 </style></head><body>
 <div id="L"></div>
 
 <template id="title"><h1 class="t-title chalk"><span class="l1">Don't step</span><span class="l2">on a</span><span class="l3">crack<svg class="fissure" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M4 30 L18 44 L15 52 L31 58 L36 70 L52 64 L60 78 L74 72 L83 86 L97 80"/></svg><svg class="scrib" viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M3 12 C 28 3, 52 19, 78 10 S 124 3, 150 12 S 184 17, 197 7"/></svg></span></h1></template>
 <template id="cap1"><div class="cap chalk" style="top:318px">Step on a crack&hellip;</div></template>
 <template id="cap2"><div class="cap chalk y" style="top:418px">&hellip;break your mother&rsquo;s back.</div></template>
-<template id="pill"><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
+<template id="pill"><div class="shade"></div><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
 
 <script>
 // the same chalk texture as the game's title lettering (makeChalkMask in game.js), at a larger scale

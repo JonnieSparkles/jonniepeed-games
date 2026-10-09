@@ -5,7 +5,7 @@
 14.00  the music stops, as it does in the game: the white flash and "Flawless victory", the garage door opens,
        a laugh in the dark, the whole "Hello, Unruggabull."
 22.00  FIGHT! The theme comes back at 1.5x, like the game plays it: flaming carpets, "Heat things up", he burns
-29.00  end card: the poster's last line, "...he was Unruggabull", "Goodbye, Rugfather.", and unruggabull.ar.io
+29.00  end card: the poster's last line, "...he was Unruggabull", "Goodbye, Rugfather.", and jonniepeed.games
 """
 from cut import Cover, ease, fade, full, push
 
@@ -55,7 +55,7 @@ def build(T, L, repo, site=None):
 
     cap1, pill = L('cap1'), L('pill')
     title = Cover(site / 'assets/images/title-screen.png', top=0, push=0.035, drift=0, dur=DROP)
-    poster = Cover(site / 'assets/gallery/he-was-unruggabull.png', top=960, push=0.03, drift=0, dur=DUR - END)
+    poster = Cover(pad_bottom(site / 'assets/gallery/he-was-unruggabull.png', 120), top=1010, push=0.03, drift=0, dur=DUR - END)
 
     def opening(t):
         im = title.frame(t)
@@ -77,6 +77,15 @@ def build(T, L, repo, site=None):
 
     return {'dur': DUR, 'open': (DROP, opening), 'shots': shots, 'overlay': overlay, 'end': (END, end),
             'mix': {'game': 0.6, 'music': 0.85, 'drive': 1.6}}
+
+
+def pad_bottom(path, px):
+    """The poster with its dark grass carried on below the title, so the callout fits under the lettering."""
+    from PIL import Image, ImageFilter
+    im = Image.open(path).convert('RGB')
+    strip = im.crop((0, im.height - 24, im.width, im.height)).filter(ImageFilter.GaussianBlur(30)).resize((im.width, px))
+    out = Image.new('RGB', (im.width, im.height + px)); out.paste(im, (0, 0)); out.paste(strip, (0, im.height))
+    return out
 
 
 def white(size, k):
