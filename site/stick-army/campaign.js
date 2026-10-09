@@ -11,13 +11,13 @@ var StickArmyCampaign = function (w) {
   // ---------- the Dreadnought ----------
   // The enemy flagship: an armored airship 600 px long, wider than the page. It announces itself first (APPROACH
   // seconds off the page: a horn, rumbling, smoke and its searchlights sweeping in from that edge), then sails in bow
-  // first (ENTER px/s, easing to a stop) and fights in three stages. Night falls for the hangar and the bridge, and its
-  // searchlights cut through it (sky.js drawNight, dreadBeams).
+  // first (ENTER px/s, easing to a stop) and fights in three stages. Its smoke screen darkens the page for the hangar,
+  // and its searchlights cut through it (sky.js drawNight, dreadBeams).
   //   guns:   it patrols back and forth (DRIFT px/s between PATROL) so its four underside gun turrets take turns over
   //           the page. A loaded gun aims at a target for AIM seconds (a red crosshair on the ground, its barrel
   //           glowing), then fires a volley of three shells around it. What the middle shell hits is gone for good.
-  //   hangar: with the guns gone, the hangar doors in its belly open. It launches dive bombers and drops troops until
-  //           the hangar is shot to pieces.
+  //   hangar: with the guns gone, it lays a smoke screen and the hangar doors in its belly open. It launches dive
+  //           bombers and drops troops until the hangar is shot to pieces.
   //   bridge: then the bridge car under the bow is exposed. The ship turns angry, brings the bridge over the page,
   //           its bomb bay drops clusters at the bunker and a gunner on the bridge fires at the crew.
   // Downing the bridge downs the ship: it falls bow first, explosions running along it, crashes across the field,
@@ -37,8 +37,10 @@ var StickArmyCampaign = function (w) {
     // side) to thin music; once it's down, quiet for at least TEASE_GAP seconds and until its sign has landed and lain
     // there SIGN_BEAT seconds, then the real thing.
     DECOY_HP: 0.75, TEASE_GAP: 3, SIGN_BEAT: 1, DECOY_BUILD: 4.5, DECOY_SPEED: 16,
-    // When the last gun goes, explosions run along the hull for CHAIN seconds and it lurches.
-    CHAIN: 1.4,
+    // When the last gun goes, explosions run along the hull for CHAIN seconds and it lurches. It lobs smoke bombs that
+    // burst SMOKE_FUSE seconds out, one every SMOKE_GAP seconds over the page (SMOKE_AT), and its smoke screen rolls in
+    // from them (sky.js); it blows away when the hangar goes down.
+    CHAIN: 1.4, SMOKE_AT: [60, 150, 250, 340], SMOKE_GAP: 0.3, SMOKE_FUSE: 0.55,
     // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
     SAG: 140, LIST: 0.06,
     // The bridge stage's main gun, a big turret in the belly amidships (at LX) with a BARREL-long gun: when the stage
@@ -169,7 +171,7 @@ var StickArmyCampaign = function (w) {
     if (t.mark) { addText('saved!', t.mark.x, GROUND - 70, BLUE, 26); emit('dread_saved', { target: t.mark.kind }); t.mark = null; }
     if (p.turrets.every(function (q) { return q.dead; })) openHangar(p);
   }
-  // The last gun gone: explosions run along the hull and it lurches, then the hangar opens (and the lights go out).
+  // The last gun gone: explosions run along the hull and it lurches, then the hangar opens, behind a smoke screen.
   function chain(p, dt) {
     p.chainT -= dt; p.boomT -= dt;
     p.rot = Math.sin(p.chainT * 9) * 0.035 * Math.min(1, p.chainT);
@@ -187,6 +189,25 @@ var StickArmyCampaign = function (w) {
     addText('the hangar opens!', 200, 260, RED, 24, 'alert');
     emit('dread_hangar', { wave: S.wave });
     w.sound.play('klaxon'); S.shake = Math.max(S.shake, 0.4);
+    // Smoke bombs, in a cosmetic order, then the screen rolls in from where they burst.
+    var at0 = DREAD.SMOKE_AT.slice();
+    for (var q = at0.length - 1; q > 0; q--) { var j = Math.floor(rr(0, q + 1)), tmp = at0[q]; at0[q] = at0[j]; at0[j] = tmp; }
+    p.canisters = at0.map(function (x, i) { return { tx: x, t: -(0.2 + i * DREAD.SMOKE_GAP), fired: false, done: false, x: 0, y: 0, vx: 0, vy: 0, puffT: 0 }; });
+    w.SKY.smokeStart(p.dir);
+  }
+  // The smoke bombs: dropped from the hull, trailing smoke, each bursting into a cloud the screen spreads from.
+  function smokeBombs(p, dt) {
+    p.canisters.forEach(function (c) {
+      if (c.done || (c.t += dt) < 0) return;
+      if (!c.fired) { c.fired = true; c.x = c.tx; c.y = p.y + DREAD.HH * 0.8; c.vx = rr(-25, 25); c.vy = 30; w.sound.play('thump'); }
+      c.vy += 260 * dt; c.x += c.vx * dt; c.y += c.vy * dt;
+      if ((c.puffT -= dt) <= 0) { c.puffT = 0.05; w.puff(c.x, c.y, 3, 0.5); }
+      if (c.t < DREAD.SMOKE_FUSE) return;
+      c.done = true; w.SKY.smokeBurst(c.x, c.y);
+      for (var k = 0; k < 6; k++) w.puff(c.x + rr(-24, 24), c.y + rr(-18, 18), rr(14, 24), rr(1.2, 1.8));
+      w.burst(c.x, c.y, 8, INK2, 120); w.sound.play('flare');
+      if (!p.smokeTold) { p.smokeTold = true; addText('smoke screen!', 200, 300, RED, 24, 'alert'); }
+    });
   }
   function hurtHangar(p, dmg, owner, hx, hy) {
     var S = w.S, h = p.hangar, at0 = hangarAt(p);
@@ -198,6 +219,7 @@ var StickArmyCampaign = function (w) {
     w.award(400, at0.x, at0.y + 40, 'hangar down!', owner === 'ally' ? BLUE : INK, true); w.credit();
     S.shake = Math.max(S.shake, 0.5); w.sound.play('boom');
     p.phase = 'bridge'; p.t = 0; p.bombT = 1.5; p.gunT = 1.2;
+    w.SKY.smokeClear();
     p.cannon = { t: DREAD.CANNON.FIRST, charge: 0, hp: p.cannonMax, max: p.cannonMax, dead: false, shell: null, flash: 0, recoil: 0, hitT: 0, deploy: 0, n: 0, id: w.id() };
     p.boardT = 3; p.ropes = [];
     w.sound.play('clank');
@@ -321,6 +343,7 @@ var StickArmyCampaign = function (w) {
     p.bridge.flash = Math.max(0, p.bridge.flash - dt); p.hangar.flash = Math.max(0, p.hangar.flash - dt);
     p.hangar.open = clamp(p.hangar.open + (p.phase === 'hangar' || p.phase === 'bridge' ? dt : -dt) * 1.5, 0, 1);
     updateShells(p, dt);
+    if (p.canisters) smokeBombs(p, dt);
     if (p.phase === 'sinking') { fall(p, dt); return; }
     if (p.phase === 'wreck') { wreck(p, dt); return; }
     // Going down by the bridge's health: it sinks and lists, bow first, gradually.
@@ -672,6 +695,12 @@ var StickArmyCampaign = function (w) {
     // Boarding ropes from the hull to the ground.
     (p.ropes || []).forEach(function (r) { G.beginPath(); SP([r.x, p.y + DREAD.HH, r.x + 2, (p.y + GROUND) / 2, r.x, GROUND - 26], false, 0.3); ink('#8b6b3e', 1.7); G.stroke(); });
     if (p.cannon && p.phase === 'bridge') { drawCharge(p); drawCannonBar(p); }
+    (p.canisters || []).forEach(function (c) {
+      if (!c.fired || c.done) return;
+      G.save(); G.translate(c.x, c.y); G.rotate(Math.atan2(c.vy, c.vx));
+      G.fillStyle = '#8a8f96'; G.fillRect(-6, -3.5, 12, 7); G.fillStyle = RED; G.fillRect(-1, -3.5, 3, 7);
+      G.beginPath(); G.rect(-6, -3.5, 12, 7); ink(INK, 1.4); G.stroke(); G.restore();
+    });
     if (p.deckFlash && p.deckFlash.t > 0) { G.beginPath(); G.arc(p.deckFlash.x, p.deckFlash.y + 3, 5, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     p.turrets.forEach(function (t) { if (t.mark) drawMark(p, t, t.mark); });
     p.shells.forEach(function (s) {

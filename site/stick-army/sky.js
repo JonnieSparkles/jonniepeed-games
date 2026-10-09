@@ -67,6 +67,7 @@ var StickArmySky = function (w) {
   // Timers come from one draw of the wave stream, so what happens in the fight never shifts them.
   function start(sp, c) {
     var rnd = substream(w.RW);
+    w.S.smoke = null;
     sp.sky = { rnd: rnd, medevac: c.medevac, medevacT: c.medevac ? between(rnd, 6, 14) : 99, balloons: c.balloons, balloonT: between(rnd, 4, 7),
       crates: c.crates, crateT: between(rnd, 7, 13), divers: c.divers, diverT: between(rnd, 6, 9), helis: c.helis, heliT: between(rnd, 8, 11),
       heavies: c.heavies, heavyT: between(rnd, 5, 8) };
@@ -469,10 +470,11 @@ var StickArmySky = function (w) {
     var S = w.S;
     updateMedevac(dt); updateHQ(dt); updateCrates(dt);
     // The night raid fades in as its wave starts and out as it clears. Cosmetic only.
-    // Night for the night raid, and lights out while the Dreadnought's hangar launches its dive bombers.
+    // Night for the night raid, and the Dreadnought's smoke screen while its hangar launches its dive bombers.
     var dp = w.dreadPhase && w.dreadPhase();
     var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar');
     S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
+    if (S.smoke) { S.smoke.t += dt; if (S.smoke.clearing) { S.smoke.clear += dt; if (S.night <= 0) S.smoke = null; } }
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });
   }
@@ -667,6 +669,43 @@ var StickArmySky = function (w) {
     else { G.beginPath(); G.rect(-2.5, -0.5, 5, 7); G.fillStyle = BLUE; G.fill(); G.beginPath(); L(1.5, -0.5, 2.2, -4.5, 0.1); ink(BLUE, 1.4); G.stroke(); }
     G.restore();
   }
+  // ---------- the Dreadnought's smoke screen ----------
+  // When its hangar opens, campaign.js has it lob smoke bombs that burst under it (smokeBurst). The dark then rolls in
+  // from the bursts as billows of smoke that grow outward (SPREAD px/s, each filling out over GROW seconds) instead of
+  // the page fading evenly, with wisps drifting through it; when the hangar goes down it blows off one side of the page
+  // (WIND px/s) as it fades. It's drawn by drawNight in place of the night's even fill, so the lights cut through it the
+  // same way. S.smoke is cosmetic.
+  var SMOKE = { COL: 62, ROW: 66, R: 58, GROW: 0.8, SPREAD: 240, WIND: 260, TOP: 'rgba(58,51,46,0.84)', LOW: 'rgba(44,40,37,0.62)' };
+  function smokeStart(wind) {
+    var billows = [];
+    for (var y = 100, row = 0; y < GROUND + 50; y += SMOKE.ROW, row++) {
+      for (var x = -40 + (row % 2) * SMOKE.COL / 2; x < W + 60; x += SMOKE.COL) billows.push({ x: x + rr(-14, 14), y: y + rr(-12, 12), r: SMOKE.R * rr(0.9, 1.25), t0: 1e9 });
+    }
+    w.S.smoke = { t: 0, billows: billows, wind: wind, clear: 0, clearing: false };
+  }
+  function smokeBurst(x, y) {
+    var sm = w.S.smoke;
+    if (sm) sm.billows.forEach(function (b) { b.t0 = Math.min(b.t0, sm.t + Math.hypot(b.x - x, b.y - y) / SMOKE.SPREAD); });
+  }
+  function smokeClear() { if (w.S.smoke) w.S.smoke.clearing = true; }
+  function grown(sm, b) { var k = clamp((sm.t - b.t0) / SMOKE.GROW, 0, 1); return k * (2 - k); }
+  // Over the smoke: the rolling front outlined in pen while it spreads, and pale wisps drifting through it.
+  function drawSmoke(sm, a) {
+    var G = w.G, S = w.S, dx = sm.wind * sm.clear * SMOKE.WIND, full = 0, i;
+    G.save();
+    sm.billows.forEach(function (b, j) {
+      var k = grown(sm, b); full += k;
+      if (k <= 0 || k >= 1) return;
+      pen(900 + j); G.globalAlpha = a * 0.55 * (1 - k * 0.6); G.beginPath(); Ci(b.x + dx, b.y, b.r * k, 0.8); ink('rgba(30,26,24,0.9)', 1.6); G.stroke();
+    });
+    full /= sm.billows.length;
+    for (i = 0; i < 12; i++) {
+      var m = W + 160, v = (i * 97 + S.t * (10 + (i * 7) % 13) * (i % 2 ? 1 : -1)) % m, x = (v + m) % m - 80 + dx, y = 130 + (i * 53) % 430, r = 26 + (i * 17) % 30;
+      pen(950 + i); G.globalAlpha = a * 0.32 * full; G.beginPath(); Ci(x, y, r, 0.8); G.fillStyle = 'rgba(150,140,130,0.25)'; G.fill(); ink('rgba(214,204,192,0.85)', 1.6); G.stroke();
+    }
+    G.restore();
+  }
+
   // ---------- the night raid ----------
   // The dark is drawn on its own canvas, then light cuts holes in it: the searchlight along the barrel, a lamp over the
   // bunker, every explosion, and planes going down in flames. It's laid over the battlefield (not the HUD, labels or
@@ -680,9 +719,18 @@ var StickArmySky = function (w) {
     var g = cv.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
     g.setTransform(G.getTransform());
-    var sky = g.createLinearGradient(0, 0, 0, GROUND + 20);
-    sky.addColorStop(0, 'rgba(14,20,44,' + NIGHT.DARK + ')'); sky.addColorStop(1, 'rgba(14,20,44,' + NIGHT.GROUND + ')');
-    g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
+    var sky = g.createLinearGradient(0, 0, 0, GROUND + 20), sm = S.smoke;
+    if (sm) {
+      // The smoke screen: only where its billows have reached, drifting off with the wind as it clears.
+      sky.addColorStop(0, SMOKE.TOP); sky.addColorStop(1, SMOKE.LOW);
+      var sdx = sm.wind * sm.clear * SMOKE.WIND;
+      g.fillStyle = sky; g.beginPath();
+      sm.billows.forEach(function (b) { var r = b.r * grown(sm, b); if (r > 0) { g.moveTo(b.x + sdx + r, b.y); g.arc(b.x + sdx, b.y, r, 0, Math.PI * 2); } });
+      g.fill();
+    } else {
+      sky.addColorStop(0, 'rgba(14,20,44,' + NIGHT.DARK + ')'); sky.addColorStop(1, 'rgba(14,20,44,' + NIGHT.GROUND + ')');
+      g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
+    }
     g.globalCompositeOperation = 'destination-out';
     // The HUD bands stay light, so the score, tags, wall and squad read at night.
     var top = g.createLinearGradient(0, 96, 0, 114); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
@@ -715,6 +763,7 @@ var StickArmySky = function (w) {
     G.save(); G.globalAlpha = a * 0.08; G.beginPath(); G.moveTo(TUR.x, TUR.y);
     G.lineTo(TUR.x + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); G.lineTo(TUR.x + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); G.closePath();
     G.fillStyle = '#ffe27a'; G.fill(); G.restore();
+    if (sm) drawSmoke(sm, a);
     // What shows through the dark anyway.
     G.save(); G.globalAlpha = a;
     function light(x, y, r, c) { G.beginPath(); G.arc(x, y, r * 2.2, 0, Math.PI * 2); G.fillStyle = c.replace('1)', '0.25)'); G.fill(); G.beginPath(); G.arc(x, y, r, 0, Math.PI * 2); G.fillStyle = c; G.fill(); }
@@ -741,6 +790,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokeBurst: smokeBurst, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

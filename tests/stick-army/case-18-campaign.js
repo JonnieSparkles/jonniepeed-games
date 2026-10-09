@@ -124,7 +124,9 @@
   check(p.chainT > 0, 'explosions run along the hull first');
   run(2.1 + DREAD.CHAIN);
   check(seen.indexOf('dread_launch') >= 0 && S.planes.filter(function (q) { return q.kind === 'diver'; }).length === 2 && S.troopers.length > troops, 'it launches dive bombers in pairs and drops troops');
-  check(S.night > 0.5, 'lights out while the hangar launches');
+  check(S.night > 0.5, 'dark while the hangar launches');
+  check(p.canisters.length === DREAD.SMOKE_AT.length && p.canisters.every(function (c) { return c.done; }) && S.smoke &&
+    S.smoke.billows.filter(function (b) { return b.t0 < S.smoke.t; }).length > S.smoke.billows.length * 0.8, 'a smoke screen, rolled in from its smoke bombs');
   check(S.planes.filter(function (q) { return q.kind === 'diver'; }).every(function (q) { return q.sortie && q.hp === SKY.DIVE.SORTIE_HP; }), 'sorties are tougher');
   var ab = { id: 9301, x: 120, y: 420, vx: 0, vy: 0, isBomb: true, heavy: true, armored: true, dead: false }; S.bombs.push(ab);
   hitTest({ x: 120, y: 420, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
@@ -133,7 +135,7 @@
   render();
   // Shoot the hangar to pieces and the bridge is exposed: the bomb bay opens and the bridge gunner fires.
   damagePlane(p, 9999, 'player', p.x + p.dir * DREAD.HANGAR, p.y + DREAD.HANGAR_Y, true);
-  check(p.phase === 'bridge' && seen.indexOf('dread_bridge') >= 0, 'the bridge is exposed');
+  check(p.phase === 'bridge' && seen.indexOf('dread_bridge') >= 0 && S.smoke.clearing, 'the bridge is exposed, and the smoke blows away');
   S.planes = S.planes.filter(function (q) { return q.kind === 'dread'; }); S.troopers = []; S.bombs = [];
   p.x = 200 + p.dir * 120 - p.dir * DREAD.BRIDGE; p.bombT = 0; run(0.05);
   check(S.bombs.length === DREAD.BAY_BOMBS, 'the bomb bay opens');
@@ -179,7 +181,7 @@
   damagePlane(p, p.bridge.max / 2, 'player', p.x + p.dir * p.bridge.lx, p.y + DREAD.BRIDGE_Y, true);
   run(0.1); var y1 = p.y; run(3);
   check(p.y > y1 + 20 && y1 - y0 < 20 && Math.abs(p.sag - DREAD.SAG / 2) < 5 && p.rot !== 0, 'it sinks as the bridge is hurt, gradually: ' + Math.round(p.sag));
-  check(S.night === 0, 'and the lights are back on');
+  check(S.night === 0 && !S.smoke, 'and the smoke is gone');
   render();
   // Downing the bridge downs the ship; on the final wave everyone left surrenders and nothing more comes.
   spawnTrooper(300, 300); spawnTrooper(80, 450);
