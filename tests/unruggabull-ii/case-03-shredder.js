@@ -48,7 +48,7 @@
   b.jam = 0; b.hp = .1;
   R.shots.push({ u: 0, z: .95, h: .2, tgt: null, dead: false }); update(1 / 60);
   check(R.phase === 'win' && b.st === 'dead', 'out of health, the Shredder is beaten');
-  const souls = R.souls; step(5);
+  const souls = R.souls; step(6.5);
   check(R.souls === souls + TUNE.bossSouls, 'its souls come out one at a time');
   check(state === 'over' && !card.hidden && cardTitle.textContent === 'Floor 13 clear' && goBtn.textContent === 'Play again', 'the clear card shows');
   check(JSON.parse(localStorage.getItem('unruggabull-ii-best')).souls === R.souls, 'the best is saved');

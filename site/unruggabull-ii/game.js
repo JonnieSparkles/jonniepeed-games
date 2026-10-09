@@ -31,7 +31,7 @@
     move: 1.5,              // lanes a second
     aisle: .6,              // how far from the middle he can go
     runner: .3,             // half-width of the runner rug
-    jumpH: .12, jumpT: .55, // jump height (of the hall) and airtime
+    jumpH: .2, jumpT: .65,  // jump height (of the hall) and airtime
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
     charges: 20, recharge: .5, // the blaster holds 20 shots and gets one back every half second, like the first game's
     spreadT: 10, coffeeDrop: .2, rowH: .055,
@@ -39,13 +39,15 @@
     hurtInv: 1.7,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, recover: .5, mouth: .85,
-    goal: 60,               // souls that wake the Shredder
+    goal: 90,               // souls that wake the Shredder
     wadTime: 1.25, wadLead: .2, throwChance: .6, auditT: 8,
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
     bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,
     bundleT: [2.2, 1.6],    // how long a bundle takes to reach you: phase 1, then later phases
+    tell: .45,              // the Shredder's mouth glows this long before each attack
+    finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
     attackEvery: [2.6, 2.1, 1.8], // seconds between the Shredder's attacks in each phase
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
@@ -221,8 +223,9 @@
         addSign(1, beat().sign);
         Snd.music(beat().music);
         if (beat().pulls) R.pull.next = R.t + 3;
-        // a coffee after each event, then a Spread Shot to try out
-        addPickup('coffee', .9, rr(-.4, .4)); addPickup('spread', 1.3, rr(-.4, .4));
+        // a coffee after each event, and a Spread Shot to try out after the audit
+        addPickup('coffee', .9, rr(-.4, .4));
+        if (E.kind === 'audit') addPickup('spread', 1.3, rr(-.4, .4));   // lights out nearly always pays a streak drop instead
       }
     } else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) startEvent(B.after);
     else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
@@ -374,6 +377,7 @@
           if (p.rally && rl && b.st === 'fight' && b.jam <= 0 && rl.count < rl.target) {
             // the Shredder bats it back at you, quicker every time
             rl.count++; b.spit = .2; emit('rally_return', { amount: 1 });
+            if (!R.events.rallyLine) { R.events.rallyLine = true; if (R.banner && R.banner.text === 'RALLY!') R.banner = null; talk('RETURN TO SENDER.', 'shredder'); }
             const dur = Math.max(TUNE.rally.fastest, TUNE.rally.serve * Math.pow(TUNE.rally.speedUp, rl.count));
             p.friendly = false; p.vu = (bull.u - p.u) / dur; p.vz = (bull.bz - p.z) / dur; p.vh = (.12 - p.h) / dur;
             Snd.play('volley', rl.count); popText('RALLY x' + rl.count, 120, BACK.y0 - 2, '#ffd44a');
@@ -417,10 +421,11 @@
     if (b.spat > 0) { b.spat = Math.max(0, b.spat - dt); b.bz = Math.max(0, b.bz - dt * 2); b.jh = Math.sin(b.spat / .45 * Math.PI) * .1; return; }
     const dir = R.phase === 'win' ? 0 : moveDir();
     b.u = clamp(b.u + dir * TUNE.move * dt, -TUNE.aisle, TUNE.aisle);
-    if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; Snd.play('jump'); }
+    if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; Snd.play('jump'); }
+    b.sq = (b.sq || 0) > 0 ? Math.max(0, b.sq - dt) : Math.min(0, (b.sq || 0) + dt);   // squash on landing, stretch on takeoff
     if (b.jh > 0) {
       b.jv -= GRAV * dt; b.jh += b.jv * dt;
-      if (b.jh <= 0) { b.jh = 0; b.jv = 0; R.fx.push({ k: 'dust', x: PX(b.u, b.bz), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .3 }); }
+      if (b.jh <= 0) { b.jh = 0; b.jv = 0; b.sq = .12; R.fx.push({ k: 'dust', x: PX(b.u, b.bz), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .3 }); }
     }
     if (input.slash > 0 && b.cd <= 0) { input.slash = 0; slash(); }
     if (b.slash >= 0 && b.slash < TUNE.deflectWindow) slashHits();
@@ -578,13 +583,13 @@
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, dur, { w: .08, hh: .05 });
     b.spit = .25; Snd.play('spit');
   }
-  // Phase 3's rally: a gold bundle the Shredder keeps batting back, quicker each time, until it misses.
+  // Phase 3's rally: a white-hot bundle the Shredder keeps batting back, quicker each time, until it misses.
   function serveRally() {
     const b = R.boss;
     b.rally = { count: 0, target: 1 + Math.floor(rnd() * TUNE.rally.most) };
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.rally.serve, { w: .09, hh: .06, rally: true });
     b.spit = .25; Snd.play('spit');
-    if (!R.events.rallyHint) { R.events.rallyHint = true; talk('RETURN TO SENDER.', 'shredder'); R.banner = { text: 'RALLY!', sub: 'KEEP KNOCKING IT BACK', t: 0, dur: 2.4, pull: true }; live('Rally! Keep knocking the gold bundle back until the Shredder misses.'); }
+    if (!R.events.rallyHint) { R.events.rallyHint = true; R.banner = { text: 'RALLY!', sub: 'KEEP KNOCKING IT BACK', t: 0, dur: 2, pull: true }; live('Rally! Keep knocking the glowing bundle back until the Shredder misses.'); }
   }
   function spitFan() {
     const gap = Math.floor(rnd() * 5);
@@ -612,7 +617,7 @@
   }
   function updateBoss(dt) {
     const b = R.boss;
-    b.flash = Math.max(0, b.flash - dt); b.tick = Math.max(0, (b.tick || 0) - dt); b.spit = Math.max(0, b.spit - dt); b.chomp = Math.max(0, b.chomp - dt); b.hitSnd -= dt;
+    b.flash = Math.max(0, b.flash - dt); b.tick = Math.max(0, (b.tick || 0) - dt); b.spit = Math.max(0, b.spit - dt); b.chomp = Math.max(0, b.chomp - dt); b.hitSnd -= dt; b.rev = Math.max(0, (b.rev || 0) - dt);
     if (b.dark) {
       b.dark.t += dt;
       if (b.dark.t >= b.dark.dur) { b.dark = null; Snd.play('lights'); if (b.st === 'fight') Snd.music('shred'); }
@@ -638,7 +643,9 @@
     // no attacks while the runner warns; in phase 1 none while it pulls either, and a rally waits for the pull to end
     const rallyNext = ph === 3 && b.atkN % 2 === 0;
     if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (ph === 1 || rallyNext)) || b.rally) return;
+    const was = b.atk;
     b.atk -= dt;
+    if (was > TUNE.tell && b.atk <= TUNE.tell) { b.rev = TUNE.tell; Snd.play('rev'); }   // its mouth glows: something's coming
     if (b.atk <= 0) {
       if (ph === 1) spitBundle();
       else if (ph === 2) { if (b.atkN++ % 2) spitBundle(); else spitFan(); }
@@ -646,14 +653,20 @@
       b.atk = TUNE.attackEvery[ph - 1];
     }
   }
+  // The final hit: a white flash and a beat of stillness, slow motion while it shudders, then it blows.
   function defeat() {
     const b = R.boss;
-    b.st = 'dead'; R.phase = 'win'; R.phaseT = 0; R.endT = R.t; b.dark = null;
+    b.st = 'dead'; R.phase = 'win'; R.phaseT = 0; R.endT = R.t; b.dark = null; b.rev = 0;
     endPull();
     for (const p of R.projs) { p.dead = true; poof(p.u, p.z, p.h); }
     for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
-    R.banner = null; R.shake = .6;
-    Snd.music(null); Snd.play('explode');
+    R.banner = null; R.talk = null; R.shake = .3; R.white = .25; R.freeze = .2; R.slow = TUNE.finish.slow;
+    Snd.music(null); Snd.hush(); Snd.play('smash');
+  }
+  function blowUp() {
+    R.shake = .6; R.white = .15;
+    for (let i = 0; i < 24; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-70, 70), vy: fxr(-90, -10), t: 0, dur: fxr(.8, 1.4) });
+    Snd.play('explode');
     talk('RUG NOT FOUND.', 'shredder');
   }
 
@@ -666,7 +679,9 @@
     if (by !== 'clear') R.bestStreak = Math.max(R.bestStreak, R.streak + 1);   // the Shredder's own souls don't count
     R.fx.push({ k: 'wisp', x, y, t: 0, dur: 1.6, dx: fxr(-8, 8) });
     Snd.play('soul', R.streak);
-    if (R.streak + 1 === TUNE.streakDrop && R.phase === 'hall') {
+    const section = R.beat + (R.event ? R.event.kind : '');
+    if (R.streak + 1 === TUNE.streakDrop && R.phase === 'hall' && R.dropAt !== section) {
+      R.dropAt = section;   // one per section
       addPickup('spread', bull.bz + .4, bull.u);
       emit('streak_drop'); popText(TUNE.streakDrop + ' STREAK!', PX(bull.u, bull.bz), YH(bull.bz, .42), '#ffd44a');
       live(TUNE.streakDrop + ' in a row: a Spread Shot drops.');
@@ -727,8 +742,15 @@
       return;
     }
     if (state !== 'play') return;
+    R.white = Math.max(0, (R.white || 0) - dt);
     // hit-stop: a few frames' pause when something dies, so kills land
     if (R.freeze > 0) { R.freeze -= dt; return; }
+    // slow motion after the final hit: real time counts down, the game runs slow, then the Shredder blows
+    if (R.slow > 0) {
+      R.slow -= dt; dt *= TUNE.finish.rate;
+      R.boss.flash = Math.floor(R.slow * 14) % 2 ? .05 : 0;
+      if (R.slow <= 0) { R.slow = 0; R.boss.flash = 0; blowUp(); }
+    }
     R.t += dt; R.phaseT += dt;
     R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.chargeFlash = Math.max(0, (R.chargeFlash || 0) - dt); R.spread = Math.max(0, R.spread - dt);
     if (R.charge < TUNE.charges) { R.rechargeT += dt; while (R.rechargeT >= TUNE.recharge && R.charge < TUNE.charges) { R.rechargeT -= TUNE.recharge; R.charge++; } }
@@ -858,6 +880,8 @@
   }
   function shredderTeeth() {
     const b = R.boss, x0 = BACK.x0, x1 = BACK.x1, my = BACK.y1 - 13, open = b.spit > 0 ? 2 : 0, awake = b.st === 'awake' || b.st === 'fight';
+    // the tell: its mouth glows red just before it spits
+    if (b.rev > 0 && b.st === 'fight') rect(g, x0 + 10, my - open, x1 - x0 - 20, 9 + open, Math.floor(R.t * 16) % 2 ? '#d63428' : '#7a1010');
     const fast = b.chomp > 0 || R.pull.st === 'on', moving = (awake && b.jam <= 0) || b.chomp > 0;
     const ch = moving ? Math.floor(R.t * (fast ? 24 : 10)) % 2 : 0;
     for (let x = x0 + 11; x < x1 - 12; x += 4) { rect(g, x, my - open, 2, 3 + ch, '#d8dde8'); rect(g, x + 2, my + 6 - ch, 2, 3 + ch, '#d8dde8'); }
@@ -936,14 +960,25 @@
     const n = 13, sw = img.width / n, dw = w / n;
     for (let i = 0; i < n; i++) g.drawImage(img, i * sw, 0, sw, img.height, Math.round(x + i * dw), Math.round(y + Math.sin(ph + i * .75) * amp), Math.ceil(dw), Math.round(h));
   }
-  // Incoming paper glows red; paper you knocked back throws a plain shadow.
+  // Incoming paper has a jagged edge that blinks red and orange, never a round glow, so it can't pass for a pickup.
+  // The Shredder's wads of shredded paper spin in quarter turns and shed strips behind them; the rally's wad has a
+  // white-hot edge inside the red. Paper you knocked back loses the edge, throws a shadow and sparkles blue.
   function drawProj(p) {
-    const s = sc(p.z), img = p.kind === 'wad' ? A.WAD : p.kind === 'bundle' ? A.BUNDLE : A.STAPLE, big = p.friendly ? 1 : 1.35;
+    const s = sc(p.z), bundle = p.kind === 'bundle', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : A.STAPLE;
+    const big = p.friendly ? 1 : bundle ? (p.rally ? 1.4 : 1.2) : 1.35, blink = Math.floor(R.t * 10 + p.spin) % 2;
     const w = Math.max(2, Math.round(img.width * s * big)), h = Math.max(1, Math.round(img.height * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
-    if (!p.friendly) disc(g, x, y, Math.max(2, Math.round(Math.max(w, h) * .75)), Math.floor(R.t * 10 + p.spin) % 2 ? 'rgba(255,80,64,.55)' : 'rgba(255,150,40,.4)');
-    else shadow(p.u, p.z, img.width * .8);
-    if (p.rally) disc(g, x, y, Math.max(3, Math.round(Math.max(w, h) * .8)), Math.floor(R.t * 12) % 2 ? 'rgba(255,212,74,.7)' : 'rgba(255,240,170,.5)');
-    g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+    if (p.friendly) shadow(p.u, p.z, img.width * .8);
+    else if (bundle) for (let k = 1; k <= 3; k++) {
+      const tz = p.z - p.vz * k * .05, tu = p.u - p.vu * k * .05, j = (k * 7 + Math.floor(p.spin)) % 5 - 2;
+      rect(g, PX(tu, tz) + j, YH(tz, p.h) + ((k * 3) % 4) - 2, Math.max(1, Math.round(3 * sc(tz))), 1, k === 1 ? '#f2eee2' : '#b8b4a8');
+    }
+    const rot = bundle ? Math.floor(p.spin * .8) % 4 : 0, ix = -Math.round(w / 2), iy = -Math.round(h / 2);
+    g.save(); g.translate(Math.round(x), Math.round(y)); if (rot) g.rotate(rot * Math.PI / 2);
+    const ring = (col, d) => { const sil = tinted(img, col); for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d]]) g.drawImage(sil, ix + dx, iy + dy, w, h); };
+    if (p.rally && !p.friendly) { ring('#d63428', 2); ring(blink ? '#ffffff' : '#ffb080', 1); }
+    else if (!p.friendly) ring(blink ? '#ff3020' : '#ff9628', 1);
+    g.drawImage(img, ix, iy, w, h);
+    g.restore();
     if (p.friendly) { const k = Math.floor(p.spin) % 2; rect(g, x - w / 2 - 1 - k, y - 1, 1, 1, '#bfefff'); rect(g, x + w / 2 + k, y, 1, 1, '#bfefff'); }
   }
   // A blaster bolt: a long two-tone tail, a flickering glow ring and a white-hot core. Spread bolts are gold.
@@ -974,18 +1009,20 @@
     }
     if (row.hit) g.restore();
   }
-  // Pickups are made to be seen: a beam of light from the ceiling, a glow on the floor, a halo, an outline that
-  // flashes white and back, and sparkles going round.
+  // A sprite's silhouette in one colour, for outlines; made once per sprite and colour.
   const TINTS = new Map();
   function tinted(img, col) {
-    const key = img.width + 'x' + img.height + col + (img === A.COFFEE ? 'c' : 's');
-    if (!TINTS.has(key)) {
+    if (!TINTS.has(img)) TINTS.set(img, new Map());
+    const byCol = TINTS.get(img);
+    if (!byCol.has(col)) {
       const cv = A.canvas(img.width, img.height), b = cv.getContext('2d');
       b.drawImage(img, 0, 0); b.globalCompositeOperation = 'source-in'; b.fillStyle = col; b.fillRect(0, 0, img.width, img.height);
-      TINTS.set(key, cv);
+      byCol.set(col, cv);
     }
-    return TINTS.get(key);
+    return byCol.get(col);
   }
+  // Pickups are made to be seen: a beam of light from the ceiling, a glow on the floor, a halo, an outline that
+  // flashes white and back, and sparkles going round.
   function drawPickup(pk, z) {
     const coffee = pk.kind === 'coffee', img = coffee ? A.COFFEE : A.SPREAD, k = sc(z), bob = Math.sin(pk.t * 4) * .015;
     const w = Math.max(4, Math.round(img.width * k * 1.8)), h = Math.max(4, Math.round(img.height * k * 1.8)), x = PX(pk.u, z), y = YH(z, pk.h + bob);
@@ -1007,12 +1044,13 @@
     const b = bull;
     if (b.mouth > 0) return;
     const s = sc(b.bz), x = PX(b.u, b.bz), feet = YH(b.bz, b.jh);
-    shadow(b.u, b.bz, 14);
+    shadow(b.u, b.bz, 14 * (1 - .5 * Math.min(1, b.jh / TUNE.jumpH)));   // the shadow shrinks as he rises
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
     // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
     const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
     const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
     let p = P.stand;
+    const cheer = R.phase === 'win' && !(R.slow > 0) && R.phaseT > .5 && !air;
     if (b.slash >= 0) p = b.slash < .07 ? (air ? P.jumpWind : P.wind) : (air ? P.jumpCut : P.cut);
     else if (b.inv > TUNE.hurtInv - .3 && R.phase !== 'win') p = P.hurt;
     else if (air) p = aim ? P.jumpAim : P.jump;
@@ -1020,7 +1058,9 @@
     else if (running) p = stride ? P.runA : P.runB;
     if (R.phase === 'dead') { g.save(); g.globalAlpha = Math.max(0, 1 - R.phaseT / 1.6); }
     const sink = R.phase === 'dead' ? Math.min(10, R.phaseT * 8) : 0;
-    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s), Math.round(feet - 38 * s + sink), Math.round(A.POSE_W * s), Math.round(A.POSE_H * s));
+    if (cheer) p = Math.floor(R.t * 4) % 2 ? P.win : P.winB;   // horns up at the clear
+    const sx = 1 + (b.sq || 0), sy = 1 - (b.sq || 0);
+    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s * sx), Math.round(feet - 38 * s * sy + sink), Math.round(A.POSE_W * s * sx), Math.round(A.POSE_H * s * sy));
     if (R.phase === 'dead') g.restore();
   }
   function drawPaper() {
@@ -1242,6 +1282,7 @@
     if (dk) { g.drawImage(darkLayer(dk), -4, -4); if (dk > .5) drawGlows(); }
     g.setTransform(1, 0, 0, 1, 0, 0);
     if (R.red > 0) { g.save(); g.globalAlpha = R.red * 1.6; rect(g, 0, 0, W, H, '#d63428'); g.restore(); }
+    if (R.white > 0) { g.save(); g.globalAlpha = Math.min(1, R.white * 4); rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
     drawHUD(); drawWords();
   }
 
@@ -1499,7 +1540,18 @@
   // Touch pads: a D-pad on the left (jump is the up arrow) and Shoot and Slash on the right. Each finger is tracked,
   // so a thumb can slide between pads; jump, slash and shoot act as a finger lands on them, and Shoot keeps firing while held.
   const pads = $('pads'), padPointers = new Map();
-  function padAt(x, y) { const el = document.elementFromPoint(x, y), p = el && el.closest && el.closest('.pad'); return p && pads.contains(p) ? p.dataset.k : null; }
+  // A thumb a little off a pad, in the gap between two, still counts: the nearest pad within reach.
+  const PAD_REACH = 18;
+  function padAt(x, y) {
+    const el = document.elementFromPoint(x, y), p = el && el.closest && el.closest('.pad');
+    if (p && pads.contains(p)) return p.dataset.k;
+    let best = null, bd = PAD_REACH;
+    for (const q of pads.querySelectorAll('.pad')) {
+      const r = q.getBoundingClientRect(), d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+      if (d < bd) { bd = d; best = q; }
+    }
+    return best ? best.dataset.k : null;
+  }
   function padSync() {
     const held = new Set(padPointers.values());
     keys.padLeft = held.has('left'); keys.padRight = held.has('right'); keys.padShoot = held.has('shoot');

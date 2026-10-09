@@ -98,7 +98,12 @@ var UnrugArt = (function () {
   };
   // Where the blaster's muzzle is, relative to his feet, when aiming: the game fires bolts from here.
   const MUZZLE = { x: BX + 20 - 24, y: BY + 2 - 38 };
-  function pose(legs, l, r, sword, bob = 0) {
+  // Horns up: index and little finger raised over a raised hand.
+  function horns(g, hx, hy) {
+    for (const x of [hx - 2, hx, hx + 2]) rect(g, x, hy - 4, 1, 3, '#1a1418');
+    for (const x of [hx - 1, hx + 1]) { px(g, x, hy - 4, '#1a1418'); rect(g, x, hy - 3, 1, 2, '#543424'); }
+  }
+  function pose(legs, l, r, sword, bob = 0, rock = false) {
     const cv = canvas(POSE_W, POSE_H), g = cv.getContext('2d');
     rows(g, LEGS_B[legs], BX, BY + 21);
     rows(g, TORSO_BARE, BX, BY + 12 + bob);
@@ -118,6 +123,7 @@ var UnrugArt = (function () {
       line(g, rh[0], rh[1] + 1, rh[0] + 9, rh[1] - 4, '#8a93a6'); line(g, rh[0], rh[1], rh[0] + 9, rh[1] - 5, '#e8edf6');
     }
     arm(g, ...sh('R'), rh[0], rh[1]);
+    if (rock) { horns(g, lh[0], lh[1]); horns(g, rh[0], rh[1]); }
     if (sword === 'wind' || sword === 'cut') rect(g, rh[0] - 1, rh[1] - 1, 3, 2, '#e8b030');
     if (r === 'aim' || r === 'kick') {
       // the blaster from behind: a gold block pointing into the screen, with a bright muzzle
@@ -134,7 +140,9 @@ var UnrugArt = (function () {
     jumpAim: pose('jump', 'up', 'aim', 'back'),
     wind: pose('stand', 'down', 'wind', 'wind'), cut: pose('stand', 'fwd', 'cut', 'cut'),
     jumpWind: pose('jump', 'up', 'wind', 'wind'), jumpCut: pose('jump', 'up', 'cut', 'cut'),
-    hurt: pose('stand', 'up', 'up', 'back', 1)
+    hurt: pose('stand', 'up', 'up', 'back', 1),
+    // the clear: horns up, bobbing
+    win: pose('stand', 'up', 'up', 'back', 0, true), winB: pose('stand', 'up', 'up', 'back', -1, true)
   };
 
   // ---------- carpshits ----------
@@ -148,7 +156,21 @@ var UnrugArt = (function () {
   const HEART = spr(['.KK...KK.', 'KRRK.KRRK', 'KRLRKRRRK', 'KRRRRRRRK', '.KRRRRRK.', '..KRRRK..', '...KRK...', '....K....']);
   const HEART_EMPTY = spr(['.KK...KK.', 'KEEK.KEEK', 'KEEEKEEEK', 'KEEEEEEEK', '.KEEEEEK.', '..KEEEK..', '...KEK...', '....K....']);
   const WAD = spr(['.PPP.', 'PPpPP', 'PpPPp', 'PPPpP', '.PPP.']);
-  const BUNDLE = spr(['P.P.P.P.P.P.', 'PpPpPpPpPpPp', 'PPPPPPPPPPPP', 'RRRRRRRRRRRR', 'PpPpPpPpPpPp', 'PPPPPPPPPPPP', '.P.P.P.P.P.P']);
+  // What the Shredder spits: a wad of shredded paper, strips sticking out every way, a few with red ink.
+  // The game spins it in quarter turns and gives it a jagged red edge, so it never reads as a pickup.
+  const BUNDLE = spr([
+    '.....P......',
+    '..P..P...R..',
+    '...P.P..P...',
+    '....PPPPP...',
+    'PP.PpPPpPP.P',
+    '..PPPyPPpPPP',
+    '.RPPpPPyPP..',
+    'P..PPPpPPP..',
+    '...PPPPPP.P.',
+    '..P..R.P..P.',
+    '.P...P..P...',
+    '.....P......']);
   const STAPLE = spr(['YYYYYYYYY', 'Yy.....yY', 'Y.......Y']);
   // Hall dressing: a water cooler and a stack of copy paper
   const COOLER = spr(['..KKKKK..', '.KcggggK.', 'KcgggggcK', 'KcgMggggK', 'KcgMggggK', 'KcgggggcK', '.KcccccK.', '..KKKKK..', '.KPPPPPK.', '.KPpRpPK.', '.KPPPPPK.', '.KPPPPPK.', '.KpPPPpK.', '.KPPPPPK.', '.KPPPPPK.', '.KKKKKKK.']);

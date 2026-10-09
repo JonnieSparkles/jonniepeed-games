@@ -107,6 +107,15 @@ body.locked{overflow:hidden}
 .full .deck{align-content:start;min-height:0;overflow:auto}
 .full.playing .deck{align-content:end;overflow:visible}
 .full .pad{width:min(22vw,92px);height:min(16vw,76px)}
+/* Portrait, playing: the stage sits right on top of the pads, near your thumbs, and the pads grow: the D-pad on the
+   left with jump across its top, Shoot over Slash on the right. */
+@media (orientation:portrait){
+  .full.playing .arena{grid-template-rows:auto auto;align-content:end}
+  .full.playing .deck{align-content:start}
+  .full .pad{width:min(29vw,120px);height:min(21vw,92px)}
+  .full .dpad .up{justify-self:stretch;width:auto}
+  .full .pad-group:not(.dpad){flex-direction:column;gap:8px}
+}
 @media (orientation:landscape){
   .full .arena{container-type:size;display:grid;place-items:center;grid-template-rows:minmax(0,1fr)}
   .full .stage{width:min(100cqw,calc(100cqh * 16 / 9));max-width:none}
@@ -163,8 +172,8 @@ body.locked{overflow:hidden}
   </section>
   <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space. Hold Shift or ' to shoot (watch the charge bar), press Enter to slash (J and K work too). Slash cuts carpshits up close and knocks paper back at whoever threw it; temps behind their desks need the blaster or their own paper. Jump for coffee and power-ups. M sound, F full screen, P pause.</span><span class="touch-only">Arrows move, the up arrow jumps. Hold Shoot to fire, but watch the charge bar. Slash cuts carpshits up close and knocks paper back at whoever threw it. Jump for coffee and power-ups.</span></p>
 </main>
-<script src="art.js?v=5a64959fc1"></script>
-<script src="audio.js?v=80c4d0e043"></script>
-<script src="game.js?v=401ab477f2"></script>
+<script src="art.js?v=b4010f5a95"></script>
+<script src="audio.js?v=653bd3ffc1"></script>
+<script src="game.js?v=5138d2a6bd"></script>
 </body>
 </html>

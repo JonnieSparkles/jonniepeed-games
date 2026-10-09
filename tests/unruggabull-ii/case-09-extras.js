@@ -72,7 +72,15 @@
   const bestTime = (JSON.parse(localStorage.getItem('unruggabull-ii-best') || '{}').time) || 0;
   R.events.deflects = 7; R.events.smashes = 2; R.bestStreak = 9;
   R.boss.hp = .1; R.shots.push({ u: 0, z: .95, h: .2, tgt: null, dead: false }); update(1 / 60);
-  step(5);
+  check(R.phase === 'win' && R.white > 0 && R.slow > 0, 'the final hit flashes white and slows time');
+  step(.4); const p0 = R.phaseT; step(.5);
+  check(R.phaseT - p0 < .25, 'time runs slow for a moment');
+  step(TUNE.finish.slow);
+  check(!R.slow && R.talk && R.talk.text === 'RUG NOT FOUND.', 'then it blows');
+  step(1.2);
+  draw();   // the cheer draws
+  check(R.phase === 'win', 'still clearing');
+  step(4);
   const text = cardStats.textContent;
   check(state === 'over' && cardTitle.textContent === 'Floor 13 clear', 'cleared');
   check(text.includes('Deflects7') && text.includes('Best streak9') && text.includes('Smashes2') && text.includes('Continues1'), 'the clear card shows deflects, best streak, smashes and continues: ' + text);

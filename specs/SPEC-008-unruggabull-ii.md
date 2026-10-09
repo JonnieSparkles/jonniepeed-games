@@ -52,7 +52,7 @@ M toggles sound, F full screen, P or Escape pause.
 A corridor floor of about two minutes, then the Shredder.
 
 - **The story.** The first Start tells the opening crawl over the tower title screen, skippable.
-- **The goal.** "Free 60 souls to wake the Shredder", with a meter at the top.
+- **The goal.** "Free 90 souls to wake the Shredder", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
   - **AUDIT!**: a deflect round. The temps all stand and lob paperwork; each one knocked back counts double.
@@ -66,12 +66,13 @@ A corridor floor of about two minutes, then the Shredder.
 - **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, or slash while standing on it to cut the rug and stop it. The first pull shows a prompt.
 - **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner. An old-school card names it while its health bar fills.
   - In every phase the runner pulls on a steady beat, and cutting the rug jams it: blaster shots do triple damage while it's jammed.
-  - Phase 1: it spits bundles of shredded paper (deflect them into its mouth for heavy damage).
+  - Its mouth glows red just before every attack.
+  - Phase 1: it spits wads of shredded paper (deflect them into its mouth for heavy damage).
   - Phase 2: staple fans you have to dodge or deflect, and longer pulls.
-  - Phase 3 (the rally) opens with the lights out ("power saving mode"). It serves a gold bundle and bats your deflects back, quicker each time, until it misses for a smash. It braces against the blaster, so the rally and jams are how you finish it.
+  - Phase 3 (the rally) opens with the lights out ("power saving mode"). It serves a white-hot bundle and bats your deflects back, quicker each time, until it misses for a smash. It braces against the blaster, so the rally and jams are how you finish it.
   - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
-- **Clear.** "FLOOR 13 CLEAR", the souls float up, and a card shows souls freed, time, deflects, best streak, smashes and best. The elevator to floor 42 is the next stage.
+- **Clear.** The final hit runs in slow motion before the Shredder blows. "FLOOR 13 CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. The elevator to floor 42 is the next stage.
 - **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by the Shredder, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
 
 ## Look

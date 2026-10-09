@@ -73,6 +73,18 @@ with sync_playwright() as p:
             assert page.evaluate("unrugTest('bull.u')") < moved, f'{name}: sliding onto the left pad moves left'
             touch_event('touchEnd', 0, 0)
             assert not page.evaluate("unrugTest('keys.padLeft || keys.padRight')"), f'{name}: lifting the finger stops'
+            # a thumb in the gap between two pads still counts
+            gap_x = (left['x'] + left['width'] + right['x']) / 2
+            touch_event('touchStart', gap_x, left['y'] + left['height'] / 2)
+            page.wait_for_timeout(100)
+            assert page.evaluate("unrugTest('keys.padLeft || keys.padRight')"), f'{name}: a touch between pads counts'
+            touch_event('touchEnd', 0, 0)
+            if name == 'phone portrait':
+                # the stage sits right on top of the pads, and the pads are big
+                stage = page.locator('.stage').bounding_box()
+                top = min(page.locator(f'.pad[data-k="{k}"]').bounding_box()['y'] for k in ('jump', 'shoot'))
+                assert 0 <= top - (stage['y'] + stage['height']) <= 40, f'{name}: the stage sits just above the pads'
+                assert all(page.locator(f'.pad[data-k="{k}"]').bounding_box()['width'] >= 100 for k in ('left', 'right', 'shoot', 'slash')), f'{name}: big pads'
             shoot = page.locator('.pad[data-k="shoot"]').bounding_box()
             page.evaluate("unrugTest('R.events.shots = 0; R.fireT = 0')")
             touch_event('touchStart', shoot['x'] + shoot['width'] / 2, shoot['y'] + shoot['height'] / 2)
