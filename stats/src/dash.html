@@ -83,6 +83,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .runs .head b { font-weight: 600; }
 .runs .meta, .runs .st { color: var(--ink-2); margin-top: 2px; }
 .runs .st { color: var(--muted); }
+.runs .tag { color: var(--ink-2); border: 1px solid var(--ring); border-radius: 999px; padding: 0 7px; font-size: 12px; }
 .more { margin-top: 8px; }
 .key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
 .empty, .message { color: var(--ink-2); padding: 24px 0; }
@@ -414,8 +415,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       tile('Finished', pct(tot.finished, tot.runs), 'reached the end screen'),
       tile('Median run', dur(data.median_ms)),
       tile('Time played', dur(tot.time_ms)),
-      p ? tile('Names on the boards', compact(p.total), `${num(p.returning)} back on another day · ${num(p.several)} in more than one game`) : null));
-    if (!tot.runs) { out.push(el('p', { class: 'empty' }, `No runs in the last ${data.days} days yet.`)); return out; }
+      p ? tile('Names on the boards', compact(p.total), `${num(p.returning)} back on another day · ${num(p.several)} in more than one game`) : null,
+      unseenTile(data)));
+    if (!tot.runs) { out.push(el('p', { class: 'empty' }, `No runs in the last ${data.days} days yet.`)); if (data.recent?.length) out.push(runsCard(data.recent, data.names)); return out; }
     const series = ids.map((id, i) => ({ name: data.names[id], color: SERIES[i % SERIES.length], pick: row => (row.game === id ? row.runs : 0) }));
     out.push(dailyCard('Runs per day', 'Every run started, by game.', data.hourly, data.since, series));
     const head = ['Game', 'Runs', 'Sittings', 'Runs per sitting', 'Finished', 'Quit', 'Median run', 'Time played', 'Saved to the board', 'Names', 'Back another day'];
@@ -434,6 +436,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
             el('td', { class: 'n' }, g.names == null ? '–' : num(g.names)), el('td', { class: 'n' }, g.returning == null ? '–' : num(g.returning)));
         }))))));
     out.push(el('div', { class: 'grid' }, devicesCards(data.devices), sourcesCard(data.sources)));
+    out.push(runsCard(data.recent, data.names));
     return out;
   }
 
@@ -494,6 +497,38 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     return card;
   }
 
+  // The 50 latest runs. On the homepage each row names its game. A "board only" row is a run saved to the
+  // leaderboard that play stats never saw (a blocker, or a page from before play stats).
+  function runsCard(rows, names) {
+    const card = el('section', { class: 'card' }, el('h2', null, 'Latest runs'),
+      el('p', { class: 'desc' }, 'The 50 most recent' + (names ? ', all games' : '') + '. Initials show when the run was saved to the board. ' +
+        '“Board only” runs were saved to the leaderboard but never reported to play stats, usually because of an ad blocker.'));
+    if (!rows || !rows.length) { card.append(el('p', { class: 'empty' }, 'No runs yet.')); return card; }
+    const outcome = r => (r.board_only ? 'Saved' : r.outcome === 'won' ? 'Won' : r.outcome === 'over' ? 'Finished' : r.outcome === 'quit' ? 'Quit' : 'No end yet');
+    const statLine = st => (st ? Object.entries(st).map(([k, v]) => `${label(k).toLowerCase()} ${typeof v === 'number' ? compact(v) : v}`).join(' · ') : '');
+    const items = rows.map(r => el('li', null,
+      el('div', { class: 'head' }, el('span', null, when(r.started_at)),
+        names ? el('span', null, names[r.game] || r.game) : null,
+        el('b', null, outcome(r)),
+        r.time_ms == null ? null : el('span', null, dur(r.time_ms)), r.score == null ? null : el('span', null, 'score ' + num(r.score)),
+        r.name ? el('b', null, r.name) : null,
+        r.board_only ? el('span', { class: 'tag' }, 'board only') : null),
+      el('div', { class: 'meta' }, r.board_only
+        ? ['not seen by play stats', r.input === 'touch' ? 'touch' : r.input ? 'keys' : null].filter(Boolean).join(' · ')
+        : [r.device, r.orientation, r.input === 'touch' ? 'touch' : r.input ? 'keys' : null, r.source ? 'from ' + r.source : null].filter(Boolean).join(' · ')),
+      r.stats ? el('div', { class: 'st' }, statLine(r.stats)) : null));
+    const list = el('ul', { class: 'runs' }, items.slice(0, 15));
+    card.append(list);
+    if (items.length > 15) {
+      const more = el('button', { class: 'pill more', type: 'button' }, `Show ${items.length - 15} more`);
+      more.addEventListener('click', () => { list.append(...items.slice(15)); more.remove(); });
+      card.append(more);
+    }
+    return card;
+  }
+  const unseenTile = data => (data.unseen == null ? null
+    : tile('Not seen by play stats', compact(data.unseen) + (data.unseen_capped ? '+' : ''), 'saved to the board by players play stats missed'));
+
   function renderGame(data) {
     const s = data.summary, out = [];
     out.push(boardPills(data));
@@ -505,8 +540,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       tile('Quit', pct(s.quit, s.runs), 'left mid-run'),
       tile('Median run', dur(s.median_ms)),
       tile('Time played', dur(s.time_ms)),
-      s.saves == null ? null : tile('Saved to the board', compact(s.saves), pct(s.saves, s.runs) + ' of runs')));
-    if (!s.runs) { out.push(el('p', { class: 'empty' }, `No runs${board != null ? ' on board ' + board : ''} in the last ${data.days} days yet.`)); return out.filter(Boolean); }
+      s.saves == null ? null : tile('Saved to the board', compact(s.saves), pct(s.saves, s.runs) + ' of runs'),
+      unseenTile(data)));
+    if (!s.runs) { out.push(el('p', { class: 'empty' }, `No runs${board != null ? ' on board ' + board : ''} in the last ${data.days} days yet.`)); if (data.recent?.length) out.push(runsCard(data.recent, null)); return out.filter(Boolean); }
     out.push(boardsCard(data));
     const series = [
       { name: 'Finished', color: SERIES[0], pick: r => r.finished },
@@ -561,23 +597,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     }
     out.push(boardCard(data.leaderboard));
     out.push(names);
-    const recent = el('section', { class: 'card' }, el('h2', null, 'Latest runs'),
-      el('p', { class: 'desc' }, 'The 50 most recent. Initials show when the run was saved to the board.'));
-    const outcome = r => (r.outcome === 'won' ? 'Won' : r.outcome === 'over' ? 'Finished' : r.outcome === 'quit' ? 'Quit' : 'No end yet');
-    const statLine = st => (st ? Object.entries(st).map(([k, v]) => `${label(k).toLowerCase()} ${typeof v === 'number' ? compact(v) : v}`).join(' · ') : '');
-    const items = data.recent.map(r => el('li', null,
-      el('div', { class: 'head' }, el('span', null, when(r.started_at)), el('b', null, outcome(r)),
-        r.time_ms == null ? null : el('span', null, dur(r.time_ms)), r.score == null ? null : el('span', null, 'score ' + num(r.score)),
-        r.name ? el('b', null, r.name) : null),
-      el('div', { class: 'meta' }, [r.device, r.orientation, r.input === 'touch' ? 'touch' : r.input ? 'keys' : null, r.source ? 'from ' + r.source : null].filter(Boolean).join(' · ')),
-      r.stats ? el('div', { class: 'st' }, statLine(r.stats)) : null));
-    const list = el('ul', { class: 'runs' }, items.slice(0, 15));
-    recent.append(list);
-    if (items.length > 15) {
-      const more = el('button', { class: 'pill more', type: 'button' }, `Show ${items.length - 15} more`);
-      more.addEventListener('click', () => { list.append(...items.slice(15)); more.remove(); });
-      recent.append(more);
-    }
+    const recent = runsCard(data.recent, null);
     out.push(recent);
     return out;
   }

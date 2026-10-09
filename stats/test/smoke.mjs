@@ -190,6 +190,25 @@ await test('a game page shows its leaderboard, ranked as in the game', async () 
   assert.equal((await detail('stick-army')).leaderboard, null);   // no board, no card
 }, LOCAL ? null : LOCAL_ONLY);
 
+await test('a save play stats never saw shows as board only, on the game page and the homepage', async () => {
+  // Save a Crack walk straight to the local scores Worker on a real board, with no stats report: what a blocker does.
+  const board = 2, token = forge(process.env.RUN_SECRET || LOCAL_SECRET, 'dont-step-on-a-crack', board);
+  const before = (await detail('dont-step-on-a-crack')).unseen;
+  const saved = await fetch(SCORES + '/v2/submit', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': randomIp() },
+    body: JSON.stringify({ game: 'dont-step-on-a-crack', board, token, name: 'BLK', score: 3, input: 'touch', meta: { time_ms: 600000, steps: 3, streak: 1 } }) }).then(r => r.json());
+  assert.equal(saved.ok, true, JSON.stringify(saved));
+  const page = await detail('dont-step-on-a-crack');
+  assert.equal(page.unseen, before + 1);
+  const row = page.recent.find(r => r.board_only && r.name === 'BLK');
+  assert.ok(row, 'board-only run not listed');
+  assert.equal(row.time_ms, 600000); assert.equal(row.input, 'touch');
+  const home = (await dash('/dash/api/overview?days=1')).data;
+  assert.ok(home.recent.some(r => r.board_only && r.name === 'BLK' && r.game === 'dont-step-on-a-crack'));
+  assert.ok(home.unseen >= page.unseen);
+  // A run play stats did see, and saved, is never counted as unseen.
+  assert.ok(!home.recent.some(r => r.board_only && r.name === 'ZQX'));
+}, LOCAL ? null : LOCAL_ONLY);
+
 await test('the overview and game pages load', async () => {
   for (const path of ['/dash/', '/dash/thimbleful/', '/dash/stick-army/']) {
     const response = await fetch(BASE + path);
