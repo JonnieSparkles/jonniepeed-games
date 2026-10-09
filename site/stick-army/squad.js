@@ -64,7 +64,7 @@ var StickArmySquad = function (w) {
       if (!r.name) { r.name = pickName(r); news.push('A rookie earns a name: ' + rankName(r) + ', ' + killsText(r.kills) + '.'); }
       else news.push(r.name + ' makes ' + RANKS[r.rank].title + ', ' + killsText(r.kills) + '.');
       addText(rankName(r) + '!' + (r.kills ? ' ' + killsText(r.kills) : ''), r.x, GROUND - 60, BLUE, 22);
-      w.say('yes sir!', r.id, false, 1.1);
+      w.say(r.rank === RANKS.length - 1 ? 'Master Sergeant of the page!' : 'yes sir!', r.id, false, 1.1);
       emit('rank_up', { rank: r.rank, type: r.type });
     });
   }
@@ -91,6 +91,47 @@ var StickArmySquad = function (w) {
     w.S.recruits.filter(function (r) { return !r.dead && !r.down; }).slice(0, 2).forEach(function (r, i) { w.say(line, r.id, false, 0.25 + i * 0.55); });
   }
   function fallen(r) { if (r.name) w.S.fallen.push({ name: rankName(r), waves: r.waves || 0, kills: r.kills || 0 }); }
+
+  // ---------- small talk ----------
+  // Round 14 (the sixth playtest: "easter eggs: just more small talk"). When a wave goes quiet (nothing on the page for
+  // TALK.QUIET seconds), a soldier now and then says something, and sometimes another answers. At most one every
+  // TALK.GAP seconds or so, each line once until they've all been said. The night raid gets a line as it gets dark,
+  // and an overheated gun one now and then (heat), at most every TALK.HEAT seconds; making Master Sergeant gets its
+  // own (serveWave). Cosmetic: Math.random and speech bubbles only, nothing reads it.
+  var TALK = { QUIET: 2.5, GAP: [35, 55], FIRST: 20, CHANCE: 0.6, RETRY: 8, REPLY: 1.6, HEAT: 60, HEAT_CHANCE: 0.35,
+    LINES: [['who keeps erasing my legs?'], ['I miss the margins'], ['smells like pencil shavings'], ['anyone got a sharpener?'],
+      ['quiet... too quiet'], ['I was a doodle once'], ["hold still, I'm being redrawn"], ["my helmet's just a scribble"],
+      ["think they'll turn the page?", 'not on my watch'], ["you're smudged", "you're smudged"],
+      ['why are they always in red?', "red pen. they're the teacher's"], ["I'm hungry", 'order a pizza then'],
+      ['is this pen or pencil?', "don't ask"], ["what's on the next page?", 'homework, probably']],
+    NIGHT: 'who turned off the lamp?', HOT: 'easy on the trigger!' };
+  function talkState() { var S = w.S; return S.talk || (S.talk = { quiet: 0, next: TALK.FIRST, used: [], heatT: -1e9, night: 0 }); }
+  function smallTalk(dt) {
+    var S = w.S, k = talkState(), R = Math.random;
+    var crew = S.recruits.filter(w.standing);
+    if (S.waveState !== 'active' || !crew.length) { k.quiet = 0; return; }
+    if (S.spawn && S.spawn.cfg.night && S.night > 0.9 && k.night !== S.wave) { k.night = S.wave; w.say(TALK.NIGHT, crew[Math.floor(R() * crew.length)].id, false, 0.4); return; }
+    k.next -= dt;
+    var busy = S.planes.length || S.bombs.length || S.tanks.length || S.bubbles.length || S.troopers.some(function (t) { return !t.dead; });
+    k.quiet = busy ? 0 : k.quiet + dt;
+    if (k.quiet < TALK.QUIET || k.next > 0) return;
+    k.quiet = 0;
+    if (R() > TALK.CHANCE) { k.next = TALK.RETRY; return; }
+    k.next = TALK.GAP[0] + R() * (TALK.GAP[1] - TALK.GAP[0]);
+    var fresh = TALK.LINES.filter(function (l, i) { return k.used.indexOf(i) < 0; });
+    if (!fresh.length) { k.used = []; fresh = TALK.LINES; }
+    var line = fresh[Math.floor(R() * fresh.length)], a = crew[Math.floor(R() * crew.length)], others = crew.filter(function (r) { return r !== a; });
+    k.used.push(TALK.LINES.indexOf(line));
+    w.say(line[0], a.id);
+    if (line[1] && others.length) w.say(line[1], others[Math.floor(R() * others.length)].id, false, TALK.REPLY);
+  }
+  // The gun just overheated: now and then someone says so.
+  function heat() {
+    var S = w.S, k = talkState(), crew = S.recruits.filter(w.standing);
+    if (!crew.length || S.t - k.heatT < TALK.HEAT || Math.random() > TALK.HEAT_CHANCE) return;
+    k.heatT = S.t;
+    w.say(TALK.HOT, crew.sort(function (a, b) { return Math.abs(a.x - w.BK.x) - Math.abs(b.x - w.BK.x); })[0].id, false, 0.3);
+  }
 
   // ---------- field hospital ----------
   var TENT = { x: 318, hw: 21, h: 30 };
@@ -150,5 +191,5 @@ var StickArmySquad = function (w) {
   }
 
   return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, stripes: stripes, train: train, killsText: killsText, record: record, serveWave: serveWave, knockDown: knockDown, standUp: standUp, cheer: cheer,
-    fallen: fallen, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
+    TALK: TALK, smallTalk: smallTalk, heat: heat, fallen: fallen, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
 };

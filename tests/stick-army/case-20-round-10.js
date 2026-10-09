@@ -33,7 +33,7 @@
   check(waveCfg(8).medevac === 1 && waveCfg(9).medevac === 2 && waveCfg(14).medevac === 3, 'more Red Cross planes late');
   var med = SKY.spawnMedevac(RW); med.x = 200;
   hitTest({ x: med.x, y: med.y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false });
-  check(S.coins === 200 - SKY.medevacTags(12) && SKY.medevacTags(12) > SKY.MEDEVAC.TAGS && S.tagLoss > 0 && S.parts.some(function (q) { return q.k === 'tagout'; }), 'tags fly out of the counter');
+  check(S.coins === 200 - Math.round(SKY.medevacTags(12) * SKY.MEDEVAC.HIT) && SKY.medevacTags(12) > SKY.MEDEVAC.TAGS && S.tagLoss > 0 && S.parts.some(function (q) { return q.k === 'tagout'; }), 'tags fly out of the counter');
   render(); run(0.3); render();
 
   // The gun heats the same on every wave, so cooling fins always pay off.

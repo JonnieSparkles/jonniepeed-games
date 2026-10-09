@@ -33,9 +33,9 @@
   var b = allyShot(med.x, med.y); S.bullets = [b]; hitTest(b);
   check(!b.dead && S.coins === 100 && !med.hit, "the crew's fire passes it by");
   b = playerShot(med.x, med.y); hitTest(b);
-  check(b.dead && med.hit && S.coins === 100 - SKY.MEDEVAC.TAGS && S.combo === 0 && heard('redcross_hit'), 'your hit costs tags and the combo');
+  check(b.dead && med.hit && S.coins === 100 - Math.round(SKY.MEDEVAC.TAGS * SKY.MEDEVAC.HIT) && S.combo === 0 && heard('redcross_hit'), 'your hit costs tags and the combo');
   b = playerShot(med.x, med.y); hitTest(b);
-  check(!b.dead && S.coins === 100 - SKY.MEDEVAC.TAGS, 'only once');
+  check(!b.dead && S.coins === 100 - Math.round(SKY.MEDEVAC.TAGS * SKY.MEDEVAC.HIT), 'only once');
   var x0 = med.x; run(0.5);
   check(Math.abs(med.x - x0) > SKY.MEDEVAC.SPEED * 0.5 * 2, 'then it flees');
   render();

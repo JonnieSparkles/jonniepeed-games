@@ -218,6 +218,10 @@ var StickArmyShop = function (w) {
     }));
     hired.hidden = !hires.length;
     document.getElementById('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire. Catch them on the mat for free.';
+    // The squad as it stands, redrawn as you hire, train or put things back (round 14: "show squad status on store"):
+    // every slot as in the HUD, with roles, stripes and health, and names, waves and kills.
+    w.drawSquadRow(document.getElementById('shopSquadRow'), true);
+    document.getElementById('shopSquad').textContent = w.squadLine(true) || 'Nobody yet. Catch them on the mat, or hire.';
     renderKit(document.getElementById('loadout'), false);
     // Undo puts back the last thing taken, hires included.
     var undoBtn = document.getElementById('undoBtn'), last = S.shop.log[S.shop.log.length - 1];

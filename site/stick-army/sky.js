@@ -15,12 +15,14 @@ var StickArmySky = function (w) {
   function addText(s, x, y, c, sz, kind) { w.addText(s, x, y, c, sz, kind); }
 
   // The Red Cross plane crosses slowly, trailing a Red Cross pennant, with a blinking light and a two-tone chime as
-  // it comes in. A hit from your turret costs TAGS dog tags (more late in the run, medevacTags) and your combo, then it
-  // flees.
-  // One that gets across untouched pays SAFE points and half its penalty in tags (safePassage).
+  // it comes in. One that gets across untouched pays PTS points a wave (as much as the wave-clear bonus) and TAGS dog
+  // tags (LATE from LATE_WAVE, medevacTags; safePassage). A hit from your turret costs the same points, HIT times the
+  // tags and your combo, then it flees. Round 14 ("red cross = more points/more penalty"): it paid 200 points and half
+  // the tags, and a hit cost only the tags.
   // One a wave from WAVE, two from TWO and three from THREE (round 13: "more red cross flights"; it was 12 and 17).
-  var MEDEVAC = { WAVE: 6, TWO: 9, THREE: 14, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, SAFE: 200, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
+  var MEDEVAC = { WAVE: 6, TWO: 9, THREE: 14, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, PTS: 100, HIT: 1.5, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
   function medevacTags(n) { return n >= MEDEVAC.LATE_WAVE ? MEDEVAC.LATE : MEDEVAC.TAGS; }
+  function medevacPts(n) { return MEDEVAC.PTS * n; }
   // A bomb balloon drifts in from an edge toward the bunker and lets its bomb go over it at DROP_Y. Popped anywhere
   // else, its bomb falls where it is: on the enemy, or on your crew.
   var BALLOON = { WAVE: 4, SPEED: 17, Y: [150, 230], DROP_Y: 410, HW: 13, HH: 24 };
@@ -30,27 +32,32 @@ var StickArmySky = function (w) {
   var CRATE = { WAVE: 8, Y: 250, SPEED: 150, FALL: 85, TAGS: 35, WALL: 25 };
   // A dive bomber comes in level, marking its target on the ground with a red crosshair, tips over at ANGLE below
   // level with a howl, lets its heavy bomb go at RELEASE_Y so it carries on to the target, then pulls out and climbs
-  // away. Three hits down it.
+  // away. Three hits down it. Round 14: it lets go at 320 (it was 392), as the sixth playtest couldn't tell whether
+  // they did anything; for the bots, about half were shot down before letting go and half the bombs were popped, so
+  // only a quarter landed one. A dive bomb that lands on the wall says so ("direct hit!", game.js explode).
   // A sortie from the Dreadnought's hangar zooms out at LAUNCH px/s, climbing at LAUNCH_ANGLE, so it's off the page
   // before the squad can down it.
   // Sorties are tougher (SORTIE_HP) and their bomb is armored: bullets, flak and the sentry can't stop it, so the
-  // plane has to go down before it lets go.
-  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, SORTIE_HP: 5, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
+  // plane has to go down before it lets go; so they still let go low, at SORTIE_RELEASE_Y (releaseY).
+  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, SORTIE_HP: 5, ANGLE: 1.25, RELEASE_Y: 320, SORTIE_RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
   // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
   var HELI = { WAVE: 7, SPEED: 160, Y: 150, HOVER: [310, 350], TROOPS: [4, 5], ROPE_EVERY: 0.4, ROPE: 150, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
     SHOT: 260, HURT: 0.6, WAIT: 0.8, HW: 36, HH: 17,
     // From SWEEP.WAVE half the helicopters make a low, fast run instead (round 13): in from either side at Y, across
-    // at SPEED, troopers hopping out on the move every so often (clear of the bunker), dropping FALL px/s to the
-    // ground, and gone out the other side. Its door gunner fires all the way.
-    SWEEP: { WAVE: 9, SHARE: 0.5, Y: [440, 476], SPEED: 115, TROOPS: [3, 4], FALL: 240 } };
+    // at SPEED, troopers hopping out on the move, dropping FALL px/s to the ground, and gone out the other side. Its
+    // door gunner fires all the way. Round 14 ("should release guys earlier quicker"): the first hops out FIRST px in
+    // from its edge and the rest every GAP px after (about 0.35 s apart), over the near half of the page and never on
+    // the bunker; they used to be spread across the whole page.
+    SWEEP: { WAVE: 9, SHARE: 0.5, Y: [440, 476], SPEED: 115, TROOPS: [3, 4], FALL: 240, FIRST: [26, 44], GAP: [38, 46] } };
   function heliHP(n) { return Math.round(6 + 0.4 * Math.max(0, n - HELI.WAVE)); }
   // A heavy bomber: a big, slow, armored four-engine plane (heavyHP, with a health bar) laying a long carpet of BOMBS
   // across the field, a heavy one on the bunker.
   // From LOW_WAVE some fly low (LOW_Y): a lone one half the time, and the second of each pair.
   var HEAVY = { WAVE: 13, PAIR: 16, LOW_WAVE: 14, SPEED: 42, Y: [136, 160], PAIR_Y: [136, 198], LOW_Y: 252, BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
-  function heavyHP(n) { return Math.round(45 + 3 * Math.max(0, n - HEAVY.WAVE)); }
+  // Round 14: about an eighth tougher (it was 45 + 3 a wave): 50 at wave 13, 61 at 16, 71 at 19.
+  function heavyHP(n) { return Math.round(50 + 3.5 * Math.max(0, n - HEAVY.WAVE)); }
   // The night raid (drawNight): the page goes dark, lit by your searchlight along the barrel, a lamp over the bunker,
   // explosions and burning planes. Planes show their blinking lights; bombs glint.
   var NIGHT = { WAVE: 16, DARK: 0.8, GROUND: 0.55, FADE: 2, BEAM: 0.2, LAMP: 120 };
@@ -138,23 +145,25 @@ var StickArmySky = function (w) {
     S.medevac = S.medevac.filter(function (m) { return !m.gone; });
   }
   function safePassage(m) {
-    var S = w.S, x = clamp(m.x, 40, W - 40), tags = Math.round(medevacTags(S.wave) / 2);
-    S.score += MEDEVAC.SAFE; S.coins += tags; w.flyTags(x, m.y, tags);
-    addText('safe passage! +' + MEDEVAC.SAFE, x, m.y + 30, BLUE, 22);
-    emit('redcross_safe', { tags: tags });
+    var S = w.S, x = clamp(m.x, 40, W - 40), tags = medevacTags(S.wave), pts = medevacPts(S.wave);
+    S.score += pts; S.coins += tags; w.flyTags(x, m.y, tags);
+    addText('safe passage! +' + pts.toLocaleString('en-US'), x, m.y + 30, BLUE, 22);
+    emit('redcross_safe', { tags: tags, pts: pts });
     emit('coins', { amount: tags, reason: 'safe passage' });
     w.sound.play('medevac');
   }
   // The penalty you feel: the tags fly out of the counter toward the plane (loseTags), the counter flashes red, and
   // the combo is gone.
+  // The tags lost show under the counter (loseTags), so the line over the plane gives the points.
   function hurtMedevac(m) {
-    var S = w.S, lost = Math.min(S.coins, medevacTags(S.wave)), had = S.combo >= 2;
+    var S = w.S, lost = Math.min(S.coins, Math.round(medevacTags(S.wave) * MEDEVAC.HIT)), pts = Math.min(S.score, medevacPts(S.wave)), had = S.combo >= 2;
     m.hit = true; m.speed *= MEDEVAC.FLEE;
-    S.coins -= lost; S.combo = 0; S.comboT = 0;
+    S.coins -= lost; S.score -= pts; S.combo = 0; S.comboT = 0;
     w.loseTags(lost, m.x, m.y);
-    addText('Red Cross hit!' + (lost ? ' -' + lost + ' tags' : '') + (had ? ', combo lost' : ''), m.x, m.y + 36, RED, 24);
+    addText('Red Cross hit!' + (pts ? ' -' + pts.toLocaleString('en-US') : ''), m.x, m.y + 36, RED, 24);
+    if (had) addText('combo lost', m.x, m.y + 62, RED, 18);
     w.burst(m.x, m.y, 6, RED, 110);
-    emit('redcross_hit', { lost: lost });
+    emit('redcross_hit', { lost: lost, pts: pts });
     w.sound.play('wrong');
   }
 
@@ -285,12 +294,13 @@ var StickArmySky = function (w) {
     emit('plane_spawn', { kind: 'diver', dir: out, target: p.target, launched: true });
     return p;
   }
+  function releaseY(p) { return p.sortie ? DIVE.SORTIE_RELEASE_Y : DIVE.RELEASE_Y; }
   // Back from high above the side it left, already in its dive, screaming down at the bunker.
   function comeBack(p) {
-    var vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE), fall = BK.top - 8 - (DIVE.RELEASE_Y + 8);
+    var ry = releaseY(p), vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE), fall = BK.top - 8 - (ry + 8);
     var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, y0 = -40;
     p.dir = -p.dir;
-    p.x = p.target - p.dir * vx * tf - p.dir * (DIVE.RELEASE_Y - y0) / Math.tan(DIVE.ANGLE); p.y = y0;
+    p.x = p.target - p.dir * vx * tf - p.dir * (ry - y0) / Math.tan(DIVE.ANGLE); p.y = y0;
     p.phase = 'dive'; p.ang = p.drawAng = DIVE.ANGLE; p.speed = DIVE.SPEED;
     emit('dive', { x: p.x }); w.sound.play('siren');
   }
@@ -302,9 +312,9 @@ var StickArmySky = function (w) {
       if (p.x < -60 || p.x > W + 60) comeBack(p);
     }
     if (p.phase === 'level' && (p.x - p.diveX) * p.dir >= 0) { p.phase = 'dive'; p.ang = DIVE.ANGLE; p.speed = DIVE.SPEED; emit('dive', { x: p.x }); w.sound.play('siren'); }
-    if (p.phase === 'dive' && p.y >= DIVE.RELEASE_Y) {
+    if (p.phase === 'dive' && p.y >= releaseY(p)) {
       p.phase = 'pull';
-      S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, armored: !!p.sortie, dead: false });
+      S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, armored: !!p.sortie, src: 'dive', dead: false });
       emit('bomb_dropped', { by: 'diver' });
       w.sound.play('whistle');
     }
@@ -331,16 +341,17 @@ var StickArmySky = function (w) {
     if (!S.heliTold) { S.heliTold = true; addText('chopper!', side < 0 ? 70 : W - 70, HELI.Y + 40, RED, 22); }
     return p;
   }
-  // The low, fast run: troopers hop out at spots spread across the page, in the order it reaches them.
+  // The low, fast run: troopers hop out in quick succession soon after it comes in, in the order it reaches the spots.
   function spawnSweep(r, side) {
     var S = w.S, SW = HELI.SWEEP, n = r() < 0.5 ? SW.TROOPS[0] : SW.TROOPS[1];
     var p = w.makePlane('heli', -side, side < 0 ? -60 : W + 60, between(r, SW.Y[0], SW.Y[1]));
     p.rng = r; p.hp = p.maxHp = heliHP(S.wave); p.hw = HELI.HW; p.hh = HELI.HH; p.sc = 1; p.speed = SW.SPEED; p.side = side;
     p.phase = 'sweep'; p.sweepY = p.y; p.kits = []; p.hops = [];
-    for (var i = 0; i < n; i++) {
+    // Distance in from its edge; a spot over the bunker moves to the near side of it.
+    for (var i = 0, d = between(r, SW.FIRST[0], SW.FIRST[1]); i < n; i++, d += between(r, SW.GAP[0], SW.GAP[1])) {
       p.kits.push(w.rollTrooper(r));
-      var x = 50 + (i + between(r, 0.2, 0.8)) * 300 / n;
-      if (Math.abs(x - BK.x) < 44) x = BK.x + (x < BK.x ? -44 : 44);
+      var x = side < 0 ? d : W - d;
+      if (Math.abs(x - BK.x) < 44) x = BK.x + side * 44;
       p.hops.push(x);
     }
     p.hops.sort(function (a, b) { return p.dir * (a - b); });
@@ -497,13 +508,14 @@ var StickArmySky = function (w) {
     else updateHeli(p, dt);
   }
   // Your turret's shots (bullets, flak and rockets alike) against the Red Cross plane. Returns true when the shot was
-  // used up. The crew's and the sentry's fire passes it by.
+  // used up. The crew's and the sentry's fire passes it by, and like anything else it can't be hit until its middle is
+  // over the page (w.inView).
   function shot(b) {
     var S = w.S, i;
     if (b.owner !== 'player') return false;
     for (i = 0; i < S.medevac.length; i++) {
       var m = S.medevac[i];
-      if (!m.hit && Math.abs(b.x - m.x) < MEDEVAC.HW && Math.abs(b.y - m.y) < MEDEVAC.HH) { hurtMedevac(m); b.dead = true; return true; }
+      if (!m.hit && w.inView(m) && Math.abs(b.x - m.x) < MEDEVAC.HW && Math.abs(b.y - m.y) < MEDEVAC.HH) { hurtMedevac(m); b.dead = true; return true; }
     }
     return false;
   }
@@ -855,6 +867,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, medevacPts: medevacPts, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

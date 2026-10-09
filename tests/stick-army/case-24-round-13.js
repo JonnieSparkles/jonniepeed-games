@@ -80,7 +80,8 @@
   for (f = 0; f < 60 * 40 && !S.spawn.decoySeen; f++) update(1 / 60);
   check(S.banner && S.banner.s === 'dreadnought!' && S.banner.sub === 'the enemy flagship', 'the decoy gets the full announcement');
   var dz = S.spawn.decoy; render();
-  damagePlane(dz, 1, 'player', dz.x, dz.y, true);
+  // (Round 14: it takes UNITS.PLATE.KNOCKS knocks first, case-25.)
+  for (var kn = 0; kn <= UNITS.PLATE.KNOCKS; kn++) { damagePlane(dz, 1, 'player', dz.x, dz.y, true); S.t += UNITS.PLATE.GAP + 0.01; }
   check(dz.plateOff && S.parts.some(function (q) { return q.k === 'plate'; }), 'its cardboard armor comes off');
   render();
   // The real one makes sure.

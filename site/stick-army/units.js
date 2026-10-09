@@ -134,12 +134,22 @@ var StickArmyUnits = function (w) {
   }
   function hurtZeppelin(p, dmg, owner, hx, hy, direct) {
     var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy, gondola = inGondola(p, x, y), weak = direct && gondola;
-    // The decoy's cardboard "armor" comes off at the first hit and flutters down like its sign.
-    if (p.decoy && !p.plateOff) {
-      p.plateOff = true;
-      w.S.parts.push({ k: 'plate', x: p.x + p.face * PLATE.X, y: p.y + PLATE.Y, vx: p.face * 40, vy: -90, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
-      addText('boing!', p.x + p.face * PLATE.X, p.y - 30, INK, 20); w.sound.play('boing');
-      var wit = w.S.recruits.filter(w.standing)[0]; if (wit) w.say('...cardboard?', wit.id, false, 0.5);
+    // The decoy's cardboard "armor" holds for PLATE.KNOCKS knocks, at most one every PLATE.GAP seconds, each rattling it
+    // and leaving a dent ("solid steel!" says its crew at the first), then the next knocks it off and it flutters down
+    // like its sign. Knocks only count with the plate itself on the page. Round 14: it used to come off at the first
+    // hit, which could land on the nose before the plate was in sight.
+    var px = p.x + p.face * PLATE.X;
+    if (p.decoy && !p.plateOff && px > PLATE.HW && px < W - PLATE.HW && !(w.S.t - p.plateT < PLATE.GAP)) {
+      p.plateT = w.S.t; p.knocks = (p.knocks || 0) + 1;
+      if (p.knocks <= PLATE.KNOCKS) {
+        addText('tonk!', px, p.y - 26, INK2, 16, 'minor'); w.sound.play('clank');
+        if (p.knocks === 1) w.say('solid steel!', p.id, true, 0.1, p.x, p.y + p.hh + 8);
+      } else {
+        p.plateOff = true;
+        w.S.parts.push({ k: 'plate', x: px, y: p.y + PLATE.Y, vx: p.face * 40, vy: -90, rot: 0, flat: 0, dents: PLATE.KNOCKS, life: 10, max: 10, id: w.id() });
+        addText('boing!', px, p.y - 30, INK, 20); w.sound.play('boing');
+        var wit = w.S.recruits.filter(w.standing)[0]; if (wit) w.say('...cardboard?', wit.id, false, 0.5);
+      }
     }
     if (armorTakes(p, dmg, x, y, gondola)) return;
     if (weak) { dmg *= ZEP.WEAK; if (!p.weakShown) { p.weakShown = true; addText('weak spot!', x, y + 26, BLUE, 22); } }
@@ -178,10 +188,11 @@ var StickArmyUnits = function (w) {
   }
 
   // And its "armor": a sheet of cardboard taped over the roundel, ARMOR scrawled on it, bolts drawn in marker.
-  var PLATE = { X: 44, Y: -2, HW: 20, HH: 12, TILT: 0.12 };
-  function drawPlate(x, y, sx, rot, flat) {
+  // A knock rattles it for RATTLE seconds and leaves a dent (DENTS, in order).
+  var PLATE = { X: 44, Y: -2, HW: 20, HH: 12, TILT: 0.12, KNOCKS: 4, GAP: 0.25, RATTLE: 0.3, DENTS: [[-11, -5], [9, 4], [-2, -7], [13, -4]] };
+  function drawPlate(x, y, sx, rot, flat, dents, shake) {
     var G = w.G, hw = PLATE.HW, hh = PLATE.HH, i;
-    G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(PLATE.TILT + (rot || 0));
+    G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(PLATE.TILT + (rot || 0) + (shake || 0));
     pen(8087);
     G.beginPath(); SP([-hw, -hh + 2, hw - 2, -hh, hw, hh - 1, -hw + 3, hh], true, 0.6); G.fillStyle = '#c9a46c'; G.fill(); ink(INK, 1.6); G.stroke();
     G.beginPath(); for (i = -hw + 6; i < hw - 2; i += 5) L(i, -hh + 3, i + 1, hh - 3, 0.2); ink('rgba(120,86,40,0.45)', 1); G.stroke();
@@ -191,6 +202,12 @@ var StickArmyUnits = function (w) {
     G.fillStyle = 'rgba(232,214,150,0.8)';
     G.save(); G.translate(-hw + 1, -hh + 1); G.rotate(-0.6); G.fillRect(-7, -2.5, 14, 5); G.restore();
     G.save(); G.translate(hw - 1, hh - 1); G.rotate(-0.6); G.fillRect(-7, -2.5, 14, 5); G.restore();
+    // Dents: a crumpled crescent each.
+    for (i = 0; i < Math.min(dents || 0, PLATE.DENTS.length); i++) {
+      var d = PLATE.DENTS[i];
+      G.beginPath(); G.arc(d[0], d[1], 3.2, 0.3, Math.PI - 0.3); ink('rgba(90,62,26,0.75)', 1.3); G.stroke();
+      G.beginPath(); L(d[0] - 2, d[1] - 1.5, d[0] + 1.5, d[1] + 0.5, 0.2); ink('rgba(90,62,26,0.5)', 1); G.stroke();
+    }
     G.restore();
   }
   // The final wave's decoy pretends: a paper sign taped on crooked, "DREDNOUGHT" hand-lettered in red with the A
@@ -293,7 +310,10 @@ var StickArmyUnits = function (w) {
     G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
     if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
     G.restore();
-    if (p.decoy && fly) { if (!p.plateOff) drawPlate(p.x + f * PLATE.X, p.y + PLATE.Y, f, p.rot); drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot); }
+    if (p.decoy && fly) {
+      var age = w.S.t - p.plateT, shake = age < PLATE.RATTLE ? Math.sin(age * 70) * 0.16 * (1 - age / PLATE.RATTLE) : 0;
+      if (!p.plateOff) drawPlate(p.x + f * PLATE.X, p.y + PLATE.Y, f, p.rot, 0, p.knocks, shake);
+      drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot); }
   }
   // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry. It comes
   // in with the hull, and is only held on the page once the zeppelin has fully arrived.
@@ -590,13 +610,13 @@ var StickArmyUnits = function (w) {
   }
   // Where a plane of the flight is now.
   function wingAt(f, q) { return { x: f.x + f.dir * q.dx, y: f.y - f.dive + q.dy }; }
-  // Ahead of a plane and in range: bombs first (they threaten the bunker), then planes, the Dreadnought's guns, the
-  // zeppelin last.
+  // Ahead of a plane, in range and on the page: bombs first (they threaten the bunker), then planes, the Dreadnought's
+  // guns, the zeppelin last.
   function fighterTarget(x, y, dir) {
     var S = w.S, best = null, bd = 1e9;
     function consider(list, ok, bias) {
       list.forEach(function (o) {
-        if (!ok(o)) return;
+        if (!ok(o) || !w.inView(o)) return;
         var dx = (o.x - x) * dir, d = Math.hypot(o.x - x, o.y - y) + bias;
         if (dx > 10 && d < FIGHTER.RANGE + bias && d < bd) { bd = d; best = o; }
       });
@@ -695,8 +715,8 @@ var StickArmyUnits = function (w) {
     G.restore();
   }
 
-  return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
-    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, drawPlate: drawPlate, drawBossBar: drawBossBar,
+  return { ZEP: ZEP, fighterTarget: fighterTarget, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
+    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, drawPlate: drawPlate, PLATE: PLATE, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,

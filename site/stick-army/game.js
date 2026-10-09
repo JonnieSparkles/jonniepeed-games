@@ -20,6 +20,12 @@
   // middle of the page, a little faster. Their troopers have less sky to fall through and their bombs land sooner. The
   // share grows by STEP a wave to MAX. Not on boss waves, whose escorts keep their own lanes.
   var LOW = { WAVE: 2, BOMBERS: 3, SHARE: 0.15, STEP: 0.03, MAX: 0.4, PLANE_Y: [246, 296], BOMBER_Y: [188, 220], SPEED: 1.1 };
+  // A bomber lets its bombs go no nearer the edge than this (round 14: the fighting stays on the page; inView).
+  var BOMB_EDGE = 12;
+  // What a bomb does to the wall. Round 14: 16 (it was 18), giving back what keeping the fighting on the page took
+  // (planes and cargo planes no longer go down before they show, so more bombs and tanks arrive). For the bots it
+  // brings waves 6 to 16 back to about where the sixth playtest left them.
+  var BOMB_WALL = 16;
   var ENEMIES = {
     medic: { minWave: Infinity, cooldown: 2, spread: 0.14, hp: 3.2 },
     rifle: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
@@ -383,12 +389,15 @@
   // Who's talking: a small speech bubble with the line, over a recruit (followed as he moves) or at a given spot, for
   // BUBBLE.LIFE seconds after any delay. The line itself is spoken in audio.js (say). At most BUBBLE.MAX at once.
   var BUBBLE = { LIFE: 1.3, MAX: 3 };
+  // Bubbles count their own ids, apart from nextId: some speech is cosmetic small talk on Math.random (SQUAD.smallTalk),
+  // so it must never shift the ids of things in the fight.
+  var bubbleId = 1;
   function speak(text, id, enemy, delay, x, y) {
     var r = id != null && S.recruits.find(function (q) { return q.id === id && !q.dead; });
     if (r || x != null) {
       if (S.bubbles.length >= BUBBLE.MAX) S.bubbles.shift();
       S.bubbles.push({ s: text.charAt(0).toUpperCase() + text.slice(1), rid: r ? r.id : null, x: r ? r.x : x, y: r ? GROUND - (r.down ? 40 : 62) : y,
-        t: -(delay || 0), life: BUBBLE.LIFE, enemy: !!enemy, id: nextId++ });
+        t: -(delay || 0), life: BUBBLE.LIFE, enemy: !!enemy, id: bubbleId++ });
     }
     if (sound.say) sound.say(text, id, enemy, delay);
   }
@@ -486,7 +495,8 @@
         var floor = target > BK.x1 && target < BK.x2 ? BK.top - 8 : GROUND - 6;
         var tf = Math.sqrt(2 * (floor - (p.y + 14)) / 260);
         var vx = dir * p.speed * 0.35;
-        return { x: target - vx * tf, vx: vx };
+        // Bombers hold their bombs until they're over the page (round 14), so a mark near the edge is overshot a little.
+        return { x: clamp(target - vx * tf, BOMB_EDGE, W - BOMB_EDGE), vx: vx };
       }).sort(function (a, b) { return dir * (a.x - b.x); });
     }
     S.planes.push(p);
@@ -673,7 +683,7 @@
   var world = { W: W, H: H, GROUND: GROUND, BK: BK, TUR: TUR, BALANCE: BALANCE,
     INK: INK, INK2: INK2, RED: RED, BLUE: BLUE, HAT: HAT, PAPER: PAPER, RED_FILL: RED_FILL, INK_FILL: INK_FILL,
     L: L, SP: SP, Ci: Ci, ink: ink, pen: pen, jt: jt, stick: stick, tube: tube, clamp: clamp, between: between, rr: rr, substream: substream,
-    makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit,
+    makePlane: makePlane, spawnTrooper: spawnTrooper, rollTrooper: rollTrooper, award: award, explode: explode, emit: emit, hurtRecruit: hurtRecruit, inView: inView,
     puff: function (x, y, r, life) { puff(x, y, r, life); }, burst: function (x, y, n, c, sp) { burst(x, y, n, c, sp); }, pow: function (x, y, r) { pow(x, y, r); },
     killFx: function (t, f, sq, c) { killFx(t, f, sq, c); }, addText: function (t, x, y, c, sz, kind, merge) { addText(t, x, y, c, sz, kind, merge); },
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
@@ -706,7 +716,7 @@
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
   world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
   world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.queueSketches = queueSketches;
-  world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp;
+  world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadLine = squadLine;
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   var SHOP = StickArmyShop(world), ITEMS = SHOP.ITEMS, price = SHOP.price, eligible = SHOP.eligible, OFFERS = SHOP.OFFERS, offer = SHOP.offer,
     onHouse = SHOP.onHouse, costNow = SHOP.costNow, openShop = SHOP.openShop, takeItem = SHOP.takeItem, renderShop = SHOP.renderShop,
@@ -734,7 +744,7 @@
   // ---------- drawn in ----------
   // You're the commander drawing your army: once the wave banner has been read, whatever you just bought is sketched
   // onto the page in blue ballpoint, one at a time. Purely a reveal: everything works from the first frame.
-  var SKETCH = { DELAY: 0.9, DUR: 0.45, GAP: 0.45, DRAWN: ['auto', 'hospital', 'trench', 'wire', 'tramp'] };
+  var SKETCH = { DELAY: 0.9, DUR: 0.45, GAP: 0.45, DRAWN: ['auto', 'hospital', 'trench', 'sandbags', 'wire', 'tramp'] };
   function queueSketches(bought) {
     var keys = SKETCH.DRAWN.filter(function (id) { return bought[id]; });
     S.recruits.forEach(function (r) { if (r.fresh) { r.fresh = false; keys.push('r' + r.id); } });
@@ -808,7 +818,7 @@
     if (S.overheat > 0) return;
     S.heat = 1; S.overheat = BALANCE.OVERHEAT_LOCK;
     addText('too hot!', TUR.x, TUR.y - 52, RED, 23);
-    sound.play('overheat');
+    sound.play('overheat'); SQUAD.heat();
   }
   function updateHeat(dt) {
     if (S.overheat > 0) {
@@ -968,6 +978,15 @@
       sound.play('clank');
     }
   }
+  // The fighting stays on the page (round 14: the sixth playtest saw "a decent amount of offstage combat"; a fifth of
+  // the planes the bots downed still had their middle off the page, mostly to flak bursts and rockets reaching past
+  // the edge). Nothing is hit where you can't see it: shots off the page hit nothing (inView), a blast passes by a
+  // plane that doesn't show yet (shows), and the crew, the sentry and fighter cover only pick targets with their
+  // middle over the page. Holding every plane off until its middle was over the page was tried first and made the
+  // game clearly harder for the bots (wave-20 survival 34% to 17% for decent), as each plane got a free half second.
+  function inView(o) { return o.x >= 0 && o.x <= W; }
+  function shows(p) { return p.x + p.hw > 0 && p.x - p.hw < W; }
+  function canHit(p) { return p.state === 'fly' && (p.kind === 'dread' || shows(p)); }
   // source: who to blame for wall damage, when it isn't the kind (a balloon's bomb).
   function explode(x, y, r, kind, owner, source) {
     if (HL.POW_KINDS[kind]) pow(x, y, r * 0.8 * HL.POW_KINDS[kind]);
@@ -985,12 +1004,15 @@
       }
     });
     if (kind === 'bomb') {
-      if (Math.abs(x - BK.x) < 48) { hurtWall(18, source || 'bomb'); wallText(18); }
+      if (Math.abs(x - BK.x) < 48) { hurtWall(BOMB_WALL, source || 'bomb'); wallText(BOMB_WALL); }
       // A direct hit still kills a bare recruit; near misses wound. Helmets and trenches help.
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 34) hurtRecruit(q, 3.2 * (1 - d / 34) + 0.4, 'bomb'); });
     } else if (kind === 'dive') {
-      // A heavy bomb: a dive bomber's, or the one a heavy bomber saves for the bunker.
-      if (Math.abs(x - BK.x) < 50) { hurtWall(SKY.DIVE.WALL, source || 'dive'); wallText(SKY.DIVE.WALL); }
+      // A heavy bomb: a dive bomber's, or the one a heavy bomber saves for the bunker. A dive bomber's landing on the
+      // wall says so, with a bigger blast (round 14).
+      var onWall = Math.abs(x - BK.x) < 50;
+      if (onWall) { hurtWall(SKY.DIVE.WALL, source || 'dive'); wallText(SKY.DIVE.WALL); }
+      if (source === 'dive') { pow(x, y - 6, 48); if (onWall) addText('direct hit!', BK.x, BK.top - 66, RED, 26, 'alert'); }
       S.recruits.forEach(function (q) { var d = Math.abs(q.x - x); if (!q.dead && d < 40) hurtRecruit(q, 4 * (1 - d / 40) + 0.5, 'bomb'); });
     } else if (kind === 'shell') {
       // Tank shells: lighter than bombs, aimed at the bunker.
@@ -999,8 +1021,8 @@
     }
     blastTanks(x, y, r, kind, owner);
     if (kind === 'rocket' || kind === 'flak') {
-      S.planes.forEach(function (p) { if (p.state === 'fly' && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally', x, y); });
-      S.bombs.forEach(function (m) { if (!m.dead && !m.armored && Math.hypot(m.x-x,m.y-y) < r + 8) { m.dead=true; emit('bomb_intercepted', { by: owner === 'player' ? 'player' : 'crew' }); award(20,m.x,m.y-12,'bomb popped!',BLUE,true); puff(m.x,m.y,8,0.4); } });
+      S.planes.forEach(function (p) { if (canHit(p) && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally', x, y); });
+      S.bombs.forEach(function (m) { if (!m.dead && !m.armored && inView(m) && Math.hypot(m.x-x,m.y-y) < r + 8) { m.dead=true; emit('bomb_intercepted', { by: owner === 'player' ? 'player' : 'crew' }); award(20,m.x,m.y-12,'bomb popped!',BLUE,true); puff(m.x,m.y,8,0.4); } });
     }
     sound.play(kind === 'rocket' || kind === 'air' ? 'hit' : 'boom');
   }
@@ -1015,11 +1037,11 @@
   }
   function hitTest(b) {
     var i, p, m, t, seen = b.hits || [], near = b.flak ? 14 : 0;
-    if (SKY.shot(b)) return;
+    if (!inView(b) || SKY.shot(b)) return;
     for (i = 0; i < S.planes.length; i++) {
       p = S.planes[i];
       if (seen.indexOf(p.id) >= 0) continue;
-      if (p.state === 'fly' && (p.kind === 'dread' ? dreadHit(p, b.x, b.y, near) : SKY.KINDS[p.kind] ? SKY.hit(p, b.x, b.y, near) : planeHit(p, b.x, b.y, near))) {
+      if (canHit(p) && (p.kind === 'dread' ? dreadHit(p, b.x, b.y, near) : SKY.KINDS[p.kind] ? SKY.hit(p, b.x, b.y, near) : planeHit(p, b.x, b.y, near))) {
         if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
         return;
       }
@@ -1069,7 +1091,7 @@
   // ---------- recruit brains ----------
   function pickTarget(r) {
     var ox = r.x, oy = GROUND - 23, best = null, bd = 1e9, tank = null, td = 300;
-    S.tanks.forEach(function (tk) { var d = Math.abs(tk.x - ox); if (!tk.dead && tk.state !== 'chute' && d < td) { td = d; tank = tk; } });
+    S.tanks.forEach(function (tk) { var d = Math.abs(tk.x - ox); if (!tk.dead && tk.state !== 'chute' && inView(tk) && d < td) { td = d; tank = tk; } });
     if (tank && r.type === 'bazooka') return tank;
     S.troopers.forEach(function (t) {
       if (t.dead || t.state !== 'ground') return;
@@ -1079,7 +1101,7 @@
     if (best) return best;
     if (tank) return tank;
     S.bombs.forEach(function (m) {
-      if (m.dead || m.armored || m.y < 250) return;
+      if (m.dead || m.armored || m.y < 250 || !inView(m)) return;
       var d = Math.hypot(m.x - ox, m.y - oy);
       if (d < 320 && d < bd) { bd = d; best = m; }
     });
@@ -1444,10 +1466,10 @@
       list.forEach(function (o) { if (!ok(o)) return; var d = Math.hypot(o.x - ox, o.y - oy); if (d < SENTRY.range && d < bd) { bd = d; best = o; } });
       return best;
     }
-    return nearest(S.bombs, function (m) { return !m.dead && !m.armored && m.y > 200; }) ||
+    return nearest(S.bombs, function (m) { return !m.dead && !m.armored && m.y > 200 && inView(m); }) ||
       nearest(S.troopers, function (t) { return !t.dead && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low; }) ||
       nearest(S.troopers, function (t) { return !t.dead && t.state === 'ground'; }) ||
-      nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute'; }) ||
+      nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute' && inView(tk); }) ||
       nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon' && p.x > 10 && p.x < W - 10; });
   }
   function updateAutoTurret(dt) {
@@ -1491,6 +1513,7 @@
     updateEnemyShots(dt);
     updateParts(dt);
     updateBubbles(dt);
+    if (S.mode === 'play') SQUAD.smallTalk(dt);
     updateSketches(dt);
     TRAMPS.forEach(function (tr) { tr.v += (-240 * tr.dip - 9 * tr.v) * dt; tr.dip += tr.v * dt; });
     if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
@@ -1741,6 +1764,28 @@
         if (row === S.mods.trench - 1) sketched('trench', [span[0] - 7, GROUND - 10 - row * 6, span[1] + 7, GROUND + 3], 'right', draw); else draw();
       });
     }
+    drawSandbags();
+  }
+  // Sandbags (round 14: they raised the wall's health but drew nothing): stacked against the front of the bunker, a
+  // layer per stack (BAGS: each layer's bags, five, then four, three and two on top), the newest layer sketched in.
+  // First tried piled against its sides, where the crew standing beside the bunker hid them.
+  var BAGS = [[176, 188, 200, 212, 224], [182, 194, 206, 218], [188, 200, 212], [194, 206]];
+  function drawSandbags() {
+    var n = Math.min(S.mods.stacks.sandbags || 0, BAGS.length);
+    pen(886);
+    for (var row = 0; row < n; row++) {
+      var draw = (function (row) {
+        return function () {
+          var by = GROUND - 3 - row * 6;
+          BAGS[row].forEach(function (bx) {
+            G.beginPath(); SP([bx - 6, by, bx - 4, by - 4, bx + 4, by - 4, bx + 6, by, bx + 4, by + 3, bx - 4, by + 3], true, 0.3);
+            G.fillStyle = '#ddcfa8'; G.fill(); ink(INK, 1.4); G.stroke();
+            G.beginPath(); L(bx - 2, by - 2, bx + 1, by + 1, 0.15); ink(INK2, 1); G.stroke();
+          });
+        };
+      })(row);
+      if (row === n - 1) sketched('sandbags', [BK.x1 - 2, GROUND - 10 - row * 6, BK.x2 + 2, GROUND + 3], 'up', draw); else draw();
+    }
   }
   function drawTramp(tr, i) {
     pen(500 + i);
@@ -1863,7 +1908,7 @@
         G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.moveTo(-q.s, -q.s * 0.6); G.lineTo(q.s, -q.s * 0.3); G.lineTo(q.s * 0.2, q.s * 0.7); G.closePath();
         G.fillStyle = q.c || PAPER; G.fill(); ink(INK2, 1.1); G.stroke();
       } else if (q.k === 'sticker') { G.globalAlpha = Math.min(1, q.life); drawSticker(q.x, q.y, 1, q.rot, q.flat); }
-      else if (q.k === 'plate') { G.globalAlpha = Math.min(1, q.life); drawPlate(q.x, q.y, 1, q.rot, q.flat); }
+      else if (q.k === 'plate') { G.globalAlpha = Math.min(1, q.life); drawPlate(q.x, q.y, 1, q.rot, q.flat, q.dents); }
       else if (q.k === 'flash') { if (!REDUCED) { G.globalAlpha = a * a * 0.6; G.fillStyle = '#fffdf2'; G.fillRect(-20, -20, W + 40, H + 40); } }
       else if (q.k === 'flag') {
         // A white flag: surrender.
@@ -1986,6 +2031,7 @@
   // On the night raid the whole page goes dark, so the HUD is written in chalk (sky.js drawNight).
   var CHALK = { INK: '#f1ebdd', INK2: '#c8cede', TAGS: '#c8cede', BLUE: '#93b8ff', RED: '#ff9484' };
   var hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
+  var HUD_GAP = 8;
   function drawHUD() {
     pen(4242);
     var chalk = S.night > 0.5 && !S.smoke, c = chalk ? CHALK : { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
@@ -1994,7 +2040,12 @@
     G.textAlign = 'left';
     if (S.mode !== 'title') {
       G.fillStyle = c.INK2; G.font = '16px ' + HAND; G.fillText('score', 58, 28);
-      G.fillStyle = c.INK; G.font = '34px ' + HAND; G.fillText(S.score.toLocaleString('en-US'), 58, 58);
+      // A long score shrinks to stop short of the wave label (round 14: six digits ran into "wave 10").
+      var sc = S.score.toLocaleString('en-US');
+      G.font = '26px ' + HAND; var room = 200 - G.measureText('wave ' + Math.max(1, S.wave)).width / 2 - HUD_GAP - 58;
+      G.font = '34px ' + HAND; var sw = G.measureText(sc).width;
+      if (sw > room) G.font = Math.max(16, Math.floor(34 * room / sw)) + 'px ' + HAND;
+      G.fillStyle = c.INK; G.fillText(sc, 58, 58);
       drawCallChips(); pen(4242);
       G.fillStyle = c.TAGS; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
       dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
@@ -2119,23 +2170,27 @@
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
   // The named squad for the pause card: veterans by rank with their waves, a rookie count, and who's in the tent.
-  function squadLine() {
+  // bare: without the "Squad: " lead (the shop's Squad section has its own heading).
+  function squadLine(bare) {
     var vets = S.recruits.filter(function (r) { return !r.dead && r.name; }).sort(function (a, b) { return b.rank - a.rank || b.waves - a.waves; });
     var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return SQUAD.record({ name: rankName(r), waves: r.waves, kills: r.kills }); });
     if (rookies) parts.push(rookies + (rookies > 1 ? ' rookies' : ' rookie'));
-    var line = parts.length ? 'Squad: ' + parts.join(', ') + '.' : '';
+    var line = parts.length ? (bare ? '' : 'Squad: ') + parts.join(', ') + '.' : '';
     if (S.bed) line += (line ? ' ' : '') + 'In the tent: ' + (S.bed.r.name ? rankName(S.bed.r) : 'a rookie') + '.';
     return line;
   }
-  // The squad as it stood, drawn like the HUD's squad row onto a card's canvas (the game-over card).
-  function drawSquadRow(canvas) {
+  // The squad as it stood, drawn like the HUD's squad row onto a card's canvas (the game-over card, the shop).
+  // slots: every squad slot, the empty ones dotted, as in the HUD (the shop).
+  function drawSquadRow(canvas, slots) {
     var live = S.recruits.filter(function (r) { return !r.dead; }).sort(function (a, b) { return a.slot - b.slot; });
     if (S.bed) live.push(S.bed.r);
-    if (!live.length) return false;
-    var k = 2, cw = 24 * live.length + 12, g = canvas.getContext('2d'), previous = G;
+    var n = slots ? Math.max(S.mods.slots, live.length) : live.length;
+    if (!n) return false;
+    var k = 2, cw = 24 * n + 12, g = canvas.getContext('2d'), previous = G;
     canvas.width = cw * k; canvas.height = 52 * k; canvas.style.width = cw + 'px';
     G = g; g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, cw, 52);
-    try { live.forEach(function (r, i) { miniFig(12 + i * 24, 6, r, i, !!(S.bed && r === S.bed.r)); }); } finally { G = previous; }
+    // Low enough that hard hats and helmets clear the top edge.
+    try { for (var i = 0; i < n; i++) miniFig(12 + i * 24, 11, live[i], i, !!(S.bed && live[i] === S.bed.r)); } finally { G = previous; }
     return true;
   }
   function togglePause() {

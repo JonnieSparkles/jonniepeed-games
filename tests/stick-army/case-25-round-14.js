@@ -1,0 +1,176 @@
+// Round 14 (after the first win): the fighting stays on the page, the decoy's armor takes a few knocks, dive bombs
+// let go sooner and say when they land, low helicopters drop their troopers sooner and faster, tougher heavy
+// bombers, a Red Cross plane worth more either way, sandbags you can see, the squad in the shop, a score that fits
+// beside the wave label, and more small talk.
+(function () {
+  function check(ok, why) { if (!ok) throw new Error(why); }
+  var seen = [];
+  emitHook = function (type, data) { seen.push({ type: type, data: data }); };
+  function heard(type, test) { return seen.some(function (e) { return e.type === type && (!test || test(e.data)); }); }
+  function run(sec) { for (var i = 0; i < Math.ceil(sec * 60); i++) update(1 / 60); }
+  function quiet(n) {
+    newGame(); startWave(n); S.mods.maxHP = S.wallHP = 1e6; S.banner = null;
+    var sp = S.spawn; sp.timer = sp.rushT = sp.cargoT = sp.roadT = sp.bossT = 99;
+    var k = sp.sky; if (k) k.medevacT = k.balloonT = k.crateT = k.diverT = k.heliT = k.heavyT = 99;
+    S.recruits = []; S.mods.auto = false; S.texts = []; S.bubbles = []; seen = [];
+  }
+  function playerShot(x, y) { return { x: x, y: y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false }; }
+  function stub(values, fn) { var real = Math.random, i = 0; Math.random = function () { return values[Math.min(i++, values.length - 1)]; }; try { fn(); } finally { Math.random = real; } }
+
+  // ---- The fighting stays on the page: nothing is hit where you can't see it.
+  RUN.force = 150; quiet(8);
+  spawnPlane('plane'); var pl = S.planes[0]; pl.dir = 1; pl.x = -pl.hw - 2; var hp0 = pl.hp;
+  var off = playerShot(-5, pl.y); hitTest(off);
+  check(!off.dead && pl.hp === hp0, 'shots off the page hit nothing');
+  explode(6, pl.y, 34, 'rocket', 'player');
+  check(pl.state === 'fly' && pl.hp === hp0, "a blast at the edge passes by a plane that doesn't show yet");
+  pl.x = -10;
+  check(!UNITS.fighterTarget(-40, pl.y, 1), "fighter cover doesn't pick a plane with its middle off the page");
+  hitTest(playerShot(4, pl.y));
+  check(pl.state !== 'fly' || pl.hp < hp0, 'a shot that hits it where it shows counts');
+  // The Red Cross plane too.
+  S.planes = []; S.troopers = []; S.coins = 100; var med = SKY.spawnMedevac(RW); med.x = -10;
+  hitTest(playerShot(10, med.y));
+  check(!med.hit && S.coins === 100, 'nor the Red Cross plane');
+  S.medevac = [];
+  // The crew don't aim at a tank still rolling in off the page.
+  S.tanks = []; spawnRoadTank(); var tk = S.tanks[0]; S.tanks = [tk]; S.troopers = []; tk.x = -20;
+  var baz = makeRecruit(0, 'bazooka'); S.recruits = [baz];
+  check(pickTarget(baz) !== tk, "the crew don't aim at a tank off the page");
+  tk.x = 30; check(pickTarget(baz) === tk, 'but do once it shows');
+  S.tanks = []; S.troopers = []; S.recruits = [];
+  // Bombers hold their bombs until they're over the page.
+  for (var i = 0; i < 40; i++) spawnPlane('bomber');
+  check(S.planes.every(function (p) { return p.bombRun.every(function (d) { return d.x >= BOMB_EDGE && d.x <= W - BOMB_EDGE; }); }), 'bombers drop over the page');
+  S.planes = [];
+
+  // ---- The decoy's cardboard armor takes PLATE.KNOCKS knocks, at most one every PLATE.GAP seconds, then comes off.
+  RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle')]; startWave(DREAD.WAVE); S.spawn.timer = 99;
+  for (var f = 0; f < 60 * 40 && !S.spawn.decoySeen; f++) update(1 / 60);
+  var dz = S.spawn.decoy, P = UNITS.PLATE; S.texts = []; S.bubbles = [];
+  var dx0 = dz.x; dz.x = dz.face > 0 ? -P.X : W + P.X;
+  damagePlane(dz, 1, 'player', dz.x, dz.y, true);
+  check(!dz.knocks, "no knock while the plate itself isn't on the page");
+  dz.x = dx0; S.t += P.GAP + 0.01;
+  damagePlane(dz, 1, 'player', dz.x, dz.y, true);
+  check(!dz.plateOff && dz.knocks === 1 && S.texts.some(function (q) { return q.s === 'tonk!'; }) && S.bubbles.some(function (b) { return /^Solid steel/.test(b.s) && b.enemy; }), 'the first knock rattles it: "solid steel!"');
+  damagePlane(dz, 1, 'player', dz.x, dz.y, true);
+  check(dz.knocks === 1, 'hits closer together count as one knock');
+  for (var kn = 2; kn <= P.KNOCKS; kn++) { S.t += P.GAP + 0.01; damagePlane(dz, 1, 'player', dz.x, dz.y, true); }
+  check(!dz.plateOff && dz.knocks === P.KNOCKS, 'it holds for ' + P.KNOCKS + ' knocks');
+  render();
+  S.t += P.GAP + 0.01; damagePlane(dz, 1, 'player', dz.x, dz.y, true);
+  check(dz.plateOff && S.parts.some(function (q) { return q.k === 'plate' && q.dents === P.KNOCKS; }), 'the next knocks it off, dents and all');
+  render();
+
+  // ---- Dive bombers let go sooner, and a bomb on the wall says so.
+  RUN.force = 151; quiet(12);
+  check(SKY.DIVE.RELEASE_Y === 320, 'they let go at 320');
+  var dv = SKY.spawnDiver(RW), bomb = null, said = false, wall0 = S.wallHP;
+  for (f = 0; f < 60 * 12 && !(bomb && bomb.dead); f++) {
+    update(1 / 60);
+    if (!bomb) { bomb = S.bombs.find(function (m) { return m.src === 'dive'; }); if (bomb) check(bomb.y >= 320 && bomb.y < 345, 'released at the new height: ' + Math.round(bomb.y)); }
+    said = said || S.texts.some(function (q) { return q.s === 'direct hit!'; });
+  }
+  check(bomb && bomb.dead && wall0 - S.wallHP === SKY.DIVE.WALL && said && heard('wall_damage', function (d) { return d.source === 'dive'; }), 'it still lands on its mark: "direct hit!"');
+
+  // ---- Low helicopters drop their troopers sooner and faster, over the near half, never on the bunker.
+  RUN.force = 152; quiet(12); var h = null;
+  for (var s = 0; s < 40 && !h; s++) { var c = SKY.spawnHeli(RW); if (c.phase === 'sweep') h = c; else S.planes = []; }
+  var SW = SKY.HELI.SWEEP, edge = h.dir > 0 ? 0 : W, d = h.hops.map(function (x) { return Math.abs(x - edge); });
+  check(d[0] >= SW.FIRST[0] - 0.01 && d[0] <= SW.FIRST[1] + 0.01, 'the first hops out soon after it comes in: ' + Math.round(d[0]));
+  check(d.every(function (v) { return v <= BK.x; }) && h.hops.every(function (x) { return Math.abs(x - BK.x) >= 43.99; }), 'over the near half, never on the bunker');
+  var t0 = S.t;
+  for (f = 0; f < 60 * 6 && h.kits.length; f++) update(1 / 60);
+  check(!h.kits.length && S.t - t0 < 2.4, 'all out quickly: ' + (S.t - t0).toFixed(2) + ' s');
+
+  // ---- Heavy bombers are about an eighth tougher.
+  check(SKY.heavyHP(13) === 50 && SKY.heavyHP(16) === 61 && SKY.heavyHP(19) === 71, 'tougher heavy bombers');
+
+  // ---- The Red Cross plane: a wave bonus in points and its tags across; hit, the same points and 1.5x the tags.
+  RUN.force = 153; quiet(14); S.coins = 0; S.score = 5000;
+  med = SKY.spawnMedevac(RW); med.x = W + 60; med.dir = 1; run(0.5);
+  check(S.score === 5000 + 1400 && S.coins === SKY.medevacTags(14) && heard('redcross_safe', function (e) { return e.pts === 1400; }), 'safe passage pays: ' + S.score + ', ' + S.coins);
+  S.coins = 200; S.score = 5000; med = SKY.spawnMedevac(RW); med.x = 200;
+  hitTest(playerShot(med.x, med.y));
+  check(S.score === 5000 - 1400 && S.coins === 200 - 75 && heard('redcross_hit', function (e) { return e.pts === 1400 && e.lost === 75; }), 'a hit costs points and tags: ' + S.score + ', ' + S.coins);
+  S.score = 300; med = SKY.spawnMedevac(RW); med.x = 200; hitTest(playerShot(med.x, med.y));
+  check(S.score === 0, 'never below zero');
+  S.medevac = [];
+
+  // ---- Sandbags are drawn: stacked against the front of the bunker, a layer a stack.
+  RUN.force = 154; newGame(); S.banner = null; S.sketches = []; S.planes = [];
+  function bag(px) { return Math.abs(px[0] - 221) < 12 && Math.abs(px[2] - 168) < 14; }
+  function at(x, y) { return ctx.getImageData(x * K, y * K, 1, 1).data; }
+  // Inside the bags, clear of their tie marks: the top layer's left bag, and the outer bags of the bottom layer.
+  S.mods.stacks.sandbags = 3; render();
+  var top3 = at(BAGS[3][0] - 4, GROUND - 21);
+  S.mods.stacks.sandbags = 4; render();
+  var top4 = at(BAGS[3][0] - 4, GROUND - 21), left = at(BAGS[0][0] + 3, GROUND - 3), right = at(BAGS[0][4] + 3, GROUND - 3);
+  check(!bag(top3) && bag(top4), 'the fourth layer tops the pile: ' + Array.from(top3) + ' then ' + Array.from(top4));
+  check(bag(left) && bag(right) && BAGS[0][0] > BK.x1 && BAGS[0][4] < BK.x2, 'across the front of the bunker: ' + Array.from(left) + ' / ' + Array.from(right));
+  check(SKETCH.DRAWN.indexOf('sandbags') >= 0, 'sketched in when bought');
+
+  // ---- The squad in the shop: every slot, and names, waves and kills; it follows what you hire.
+  RUN.force = 155; newGame(); S.coins = 500;
+  var vet = makeRecruit(0, 'rifle'); vet.rank = 2; vet.name = 'Doodle'; vet.waves = 7; vet.kills = 12;
+  S.recruits = [vet, makeRecruit(1, 'engineer')];
+  openShop();
+  var row = document.getElementById('shopSquadRow'), line = document.getElementById('shopSquad');
+  check(row.width === (24 * S.mods.slots + 12) * 2 && /^Cpl\. Doodle \(7 waves, 12 kills\), 1 rookie\.$/.test(line.textContent), 'the shop shows the squad: ' + line.textContent);
+  takeItem('hire-rifle');
+  check(/2 rookies/.test(line.textContent), 'and follows a hire: ' + line.textContent);
+  SHOP.undo();
+  check(/1 rookie\./.test(line.textContent), 'and a put-back');
+  S.recruits = []; SHOP.renderShop();
+  check(/^Nobody yet/.test(line.textContent), 'or says nobody yet');
+  shopScreen.hidden = true; S.shop = null; S.mode = 'play';
+
+  // ---- The score shrinks to fit beside the wave label.
+  [[446661, 20], [1234567, 31]].forEach(function (c) {
+    RUN.force = 156; newGame(); S.banner = null; S.planes = []; S.wave = c[1]; S.score = c[0]; render();
+    ctx.save(); ctx.font = '26px ' + HAND; var left = 200 - ctx.measureText('wave ' + c[1]).width / 2; ctx.restore();
+    var ink = 0;
+    for (var x = Math.ceil(left - HUD_GAP + 2); x < left - 1; x++) for (var y = 32; y < 60; y++) {
+      var px = ctx.getImageData(x * K, y * K, 1, 1).data; if (px[0] + px[1] + px[2] < 360) ink++;
+    }
+    check(!ink, c[0].toLocaleString('en-US') + ' stops short of "wave ' + c[1] + '": ' + ink);
+  });
+
+  // ---- Small talk: in a quiet moment, now and then; a reply; the night raid; an overheated gun; Master Sergeant.
+  RUN.force = 157; quiet(8); S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(5, 'rifle')]; S.talk = null;
+  stub([0], function () {
+    SQUAD.smallTalk(0); S.talk.next = 0;
+    for (f = 0; f < 60 * 3 && !S.bubbles.length; f++) SQUAD.smallTalk(1 / 60);
+  });
+  check(S.bubbles.length === 1 && S.bubbles[0].s === 'Who keeps erasing my legs?' && f >= 60 * SQUAD.TALK.QUIET - 1, 'someone says something once it has been quiet a while');
+  check(S.talk.next >= SQUAD.TALK.GAP[0], 'then not again for a while');
+  S.bubbles = []; S.talk.next = 0; S.talk.quiet = SQUAD.TALK.QUIET;
+  S.talk.used = SQUAD.TALK.LINES.map(function (l, i) { return l.length === 1 ? i : -1; });
+  stub([0], function () { SQUAD.smallTalk(1 / 60); });
+  check(S.bubbles.length === 2 && S.bubbles[0].rid !== S.bubbles[1].rid && S.bubbles[1].t < 0, 'sometimes another answers: ' + S.bubbles.map(function (b) { return b.s; }).join(' / '));
+  S.bubbles = []; S.planes = [{ x: 100, y: 100 }]; S.talk.next = 0; S.talk.quiet = 0;
+  SQUAD.smallTalk(1 / 60);
+  check(!S.bubbles.length, 'not while anything is on the page');
+  S.planes = [];
+  // An overheated gun, now and then.
+  S.overheat = 0; S.talk.heatT = -1e9; stub([0], function () { triggerOverheat(); });
+  check(S.bubbles.some(function (b) { return b.s === 'Easy on the trigger!'; }), 'an overheated gun gets a word');
+  S.bubbles = []; S.overheat = 0; stub([0], function () { triggerOverheat(); });
+  check(!S.bubbles.length, 'but not every time');
+  // Making Master Sergeant.
+  var sarge = S.recruits[0]; sarge.name = 'Doodle'; sarge.rank = 4; sarge.waves = 17; S.bubbles = [];
+  serveWave([]);
+  check(sarge.rank === 5 && S.bubbles.some(function (b) { return b.s === 'Master Sergeant of the page!'; }), 'Master Sergeant of the page!');
+  // Speech never shifts the ids of things in the fight.
+  var id0 = nextId; speak('hello', sarge.id);
+  check(nextId === id0, 'speech has its own ids');
+  // The night raid, as it gets dark.
+  RUN.force = 158; quiet(16); S.recruits = [makeRecruit(0, 'rifle')]; S.night = 1;
+  SQUAD.smallTalk(1 / 60);
+  check(S.bubbles.some(function (b) { return b.s === 'Who turned off the lamp?'; }), 'the night raid: who turned off the lamp?');
+  S.bubbles = []; SQUAD.smallTalk(1 / 60);
+  check(!S.bubbles.length, 'once a night');
+
+  emitHook = null; RUN.force = null; reset(); titleScene(); render();
+})();
