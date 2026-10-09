@@ -46,7 +46,7 @@
   // phase 2: staple fans, bundles, a paper jam sheet to jump, volleys
   reset(); b.hp = 60; update(1 / 60);
   check(b.ph === 2, 'phase two');
-  reset(); fire(2);
+  reset(); fire(ATTACKS[1].indexOf('sheet'));
   const sheet = R.rows.find(rw => rw.kind === 'sheet');
   check(sheet && sheet.v === TUNE.bossRows.sheet, 'phase 2 slides a paper jam sheet out of its mouth');
   b.atk = 1e9; bull.inv = 0;
@@ -74,7 +74,7 @@
   // phase 3: the rally, fans, a staple carpet to jump, volleys
   reset(); b.hp = 30; update(1 / 60); b.dark = null;
   check(b.ph === 3, 'phase three');
-  reset(); fire(2);
+  reset(); fire(ATTACKS[2].indexOf('carpet'));
   check(R.rows.some(rw => rw.kind === 'carpet' && rw.v === TUNE.bossRows.carpet), 'phase 3 sends a staple carpet across the floor');
   reset(); fire(0);
   check(b.rally, 'and opens its pattern with the rally');

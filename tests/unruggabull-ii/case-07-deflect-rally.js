@@ -26,10 +26,12 @@
   check(b.st === 'fight', 'the fight is on');
   R.pull.next = 1e9; b.hp = 30; b.atk = 1e9; update(1 / 60);
   check(b.ph === 3, 'phase three');
+  b.surgeAt = 0;   // the forced surge has its own case
   R.projs = []; R.talk = null; R.banner = null; b.atk = 0; b.atkN = 0; bull.inv = 1e9; update(1 / 60);
   check(b.rally && R.projs.filter(p => p.rally).length === 1, 'phase three serves a rally');
   check(R.banner && R.banner.text === 'RALLY!', 'with a prompt the first time');
-  check(b.rally.target >= 1 && b.rally.target <= TUNE.rally.most, 'it bats back 1 to ' + TUNE.rally.most + ' returns');
+  const [lo, hi] = TUNE.rally.count[2];
+  check(b.rally.target >= lo && b.rally.target <= hi, 'in phase 3 it bats back ' + lo + ' to ' + hi + ' returns');
   b.rally.target = 3;
   const ball = R.projs.find(p => p.rally);
   const durs = [];

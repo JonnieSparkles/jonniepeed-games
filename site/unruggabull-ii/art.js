@@ -181,22 +181,13 @@ var UnrugArt = (function () {
   // A rolling office chair, from behind
   const CHAIR = spr(['...KKKKKK...', '...KJJJJK...', '...KJjjJK...', '...KJJJJK...', '...KKKKKK...', '.....KK.....', '.KKKKKKKKKK.', '.KJJJJJJJJK.', '.KKKKKKKKKK.', '.....KK.....', '..KKKKKKKK..', '.K.K....K.K.', '.KK......KK.']);
   const FLASH = spr(['...M...', '..MOM..', '.MOMOM.', 'MOMMMOM', '.MOMOM.', '..MOM..', '...M...']);
-  // Rugged: Unruggabull rolled up in a rug, his head and horns out one end and his boots out the other.
-  const BURRITO = spr([
-    'H.....H',
-    'HH...HH',
-    'hH...HhKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
-    '.hKKKhrRRRRrRRRRrRRRRrRRRRrRRRRrRRRKO',
-    '.KDDDKRRRRrRRRRrRRRRrRRRRrRRRRrRRRRK.BB',
-    '.KDDDKCCCCCCCCCCCCCCCCCCCCCCCCCCCCCKOBB',
-    '.KDDDKRRRrRRRRrRRRRrRRRRrRRRRrRRRRrK.BB',
-    '..KKKKRRrRRRRrRRRRrRRRRrRRRRrRRRRrRKOKK',
-    '......KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK']);
+  // His blaster from the side, for when the Shredder's surge knocks it out of his hands and it lies on the floor.
+  const BLASTER = spr(['.KKKKKKKK...', 'KWWWWWWWWKKK', 'KWMMWWWWWWCK', 'KWWWWWWWWKKK', '.KwwKKKKKK..', '.KwwK.......', '..KK........']);
   // A file box, about knee high
   const BOX = spr(['KKKKKKKKKKKKKKKK', 'KSSSSSSSSSSSSSSK', 'KssssssssssssssK', 'KSSSSKKKKKKSSSSK', 'KSSSSKPPPPKSSSSK', 'KSSSSKKKKKKSSSSK', 'KSSSSSSSSSSSSSSK', 'KssssssssssssssK', 'KKKKKKKKKKKKKKKK']);
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, FLASH, BURRITO
+    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, FLASH, BLASTER
   };
 })();

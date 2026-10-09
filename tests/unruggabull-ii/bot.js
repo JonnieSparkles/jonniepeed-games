@@ -69,6 +69,8 @@ window.__balanceBot = function (profile, seed) {
       }
       // Coffee when hurt, Spread Shot always: walk under it and jump.
       if (!urgent) o.pickups.forEach(function (pk) {
+        // its blaster, knocked up the rug: always worth getting once the rug has brought it close; it's on the floor
+        if (pk.kind === 'blaster') { if (pk.z < .35) goal = clamp(pk.u); return; }
         var dz = pk.z - b.bz - (o.speed + .06) * lead, pl = plan(pk, function () { return { go: r() < P.pickup }; });
         if (!pl.go || dz <= 0 || dz > .5 || (pk.kind === 'coffee' && o.hearts >= o.maxHearts)) return;
         goal = pk.u;

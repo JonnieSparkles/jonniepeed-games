@@ -9,6 +9,8 @@
     { "label": "souls: deflect", "key": "soul.amount:by=deflect" },
     { "label": "audit bonus", "key": "soul.amount:by=audit" },
     { "label": "dark bonus", "key": "soul.amount:by=dark" },
+    { "label": "wipe bonus", "key": "soul.amount:by=wipe" },
+    { "label": "wipes", "key": "wipe" },
     { "label": "streak drops", "key": "streak_drop" },
     { "label": "deflects", "key": "deflect" },
     { "label": "hearts lost", "key": "hit.amount" },
@@ -32,6 +34,9 @@
     { "label": "smashes", "key": "smash" },
     { "label": "cuts", "key": "cut" },
     { "label": "jams", "key": "jam" },
+    { "label": "disarmed", "key": "disarm" },
+    { "label": "rug rolls", "key": "roll" },
+    { "label": "blaster back", "key": "pickup:item=blaster" },
     { "label": "boss dmg: blaster", "key": "boss_damage.amount:by=blaster" },
     { "label": "boss dmg: deflects", "key": "boss_damage.amount:by=deflect" },
     { "label": "boss dmg: smash", "key": "boss_damage.amount:by=smash" }
