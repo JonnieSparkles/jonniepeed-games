@@ -70,9 +70,10 @@ What the dashboard page says tells you where it's stuck:
 
 ## Deploying the Worker
 
-Only changes in `stats/` need a Worker deploy: `games.json` (including switching a game on or off) or `src/`. Changing which stats a game sends is a site change only. When a change touches both, deploy the Worker first, then the site.
+Only changes in `stats/` need a Worker deploy: `games.json` (including switching a game on or off) or `src/`. Changing which stats a game sends is a site change only. When a change touches both, the Worker goes live on merge and the games with the next Pages deploy, which is the right order.
 
-- **GitHub:** Actions tab → **Deploy Play Stats Worker** → Run workflow. It runs the Access check test, refuses to deploy while the database ID is still the placeholder, deploys from `stats/` with the pinned Wrangler version, then runs the smoke test against the live Worker (test rows only).
+- **Automatic:** merging a change to `stats/` into `main` runs **Deploy Play Stats Worker** by itself. It's the only automatic deploy in the repo (Pages and the leaderboard Worker stay manual). It runs the Access check test, refuses to deploy while the database ID is still the placeholder, deploys from `stats/` with the pinned Wrangler version, then runs the smoke test against the live Worker (test rows only). If it fails, the old Worker keeps running; check the Actions tab.
+- **By hand:** Actions tab → **Deploy Play Stats Worker** → Run workflow, for a redeploy without a change.
 - **Terminal:** `wrangler deploy` from `stats/`.
 
 It uses the same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets as the leaderboard Worker. If the token can deploy `scores/` (which also binds D1 and a rate limiter), it can deploy this; on a permissions error, edit the token in Cloudflare.
@@ -99,13 +100,13 @@ Each game in `stats/games.json` can be switched off:
 - **Off** (`"reporting": false`): the Worker refuses new reports from that game. The game itself is unaffected; its reports are refused quietly. Its past runs stay on the dashboards.
 - **On:** remove `"reporting": false` (or set it to `true`).
 
-Either way, deploy the stats Worker afterwards (**Deploy Play Stats Worker**). No site deploy is needed.
+Either way, merging the change deploys the stats Worker by itself. No site deploy is needed.
 
 **When to turn a game on is the owner's call.** A game in early development should be off, so testing doesn't fill the numbers. The usual moment is when it goes to public testing or moves to the Side A shelf. Ask Jonnie before turning it on, and the [promotion checklist](../../README.md#side-b-and-promotion) has a step for it so it isn't forgotten. Plays on `localhost` never reach the real stats either way.
 
 ## Adding a game
 
-1. Add its folder name and display name to `stats/games.json` with `"reporting": false`, and deploy the Worker first. Wire up the steps below as usual; the game starts reporting only once it's switched on (see above).
+1. Add its folder name and display name to `stats/games.json` with `"reporting": false`; merging it deploys the Worker. Wire up the steps below as usual; the game starts reporting only once it's switched on (see above).
 2. Include `../assets/stats.js` before `game.js` (after `leaderboard.js` if it has one).
 3. When real play begins (never for demos or watch modes), start a run and keep the handle on the game's run state:
    ```js

@@ -143,7 +143,7 @@ Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, 
 
 ## Publishing to GitHub Pages
 
-Manual only, like the Worker deploys below; don't add automatic triggers to any of these workflows. In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
+Manual only, like the leaderboard Worker deploy below; don't add automatic triggers to either workflow. The play stats Worker is the one exception: it deploys itself (below). In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
 
 ## Backend services
 
@@ -163,7 +163,7 @@ Manual only, and only after changes in `scores/`. In the Actions tab, open "Depl
 
 ## Deploying the Play Stats Worker
 
-Manual only, and only after changes in `stats/`. In the Actions tab, open "Deploy Play Stats Worker" and click Run workflow, or run `wrangler deploy` from `stats/`. Runs in the database are never touched. It uses the same GitHub secrets as the leaderboard Worker; the one-time setup (database, Cloudflare Access and its two Worker secrets) is in [03: Play stats](docs/guides/03-play-stats.md#one-time-setup-jonnies-cloudflare-account).
+Automatic: when a change to `stats/` reaches `main`, the "Deploy Play Stats Worker" workflow runs by itself (tests first, then a check of the live Worker). It's the only automatic deploy; its changes are private dashboards and per-game switches, so a manual step would only add a chance to forget. It can also be run from the Actions tab, or with `wrangler deploy` from `stats/`. Runs in the database are never touched. It uses the same GitHub secrets as the leaderboard Worker; the one-time setup (database, Cloudflare Access and its two Worker secrets) is in [03: Play stats](docs/guides/03-play-stats.md#one-time-setup-jonnies-cloudflare-account).
 
 ## Publishing to Arweave / ArNS
 
