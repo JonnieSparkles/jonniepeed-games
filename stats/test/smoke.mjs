@@ -152,6 +152,19 @@ await test('windows start at Eastern midnight', async () => {
   }
 }, LOCAL ? null : LOCAL_ONLY);
 
+await test('a game page narrows to one board', async () => {
+  const game = 'dont-step-on-a-crack';
+  for (const board of [7, 7, 8]) { const run = start({ game, board }); await ok('/v1/start', run); await ok('/v1/end', end(run)); }
+  const all = await detail(game);
+  const seven = (await dash(`/dash/api/game?game=${game}&days=1&board=7`)).data;
+  assert.equal(seven.board, 7);
+  assert.equal(seven.summary.runs, all.boards.find(b => b.board === 7).runs);
+  assert.ok(seven.summary.runs >= 2 && seven.summary.runs < all.summary.runs);
+  assert.ok(all.boards.some(b => b.board === 8 && b.runs >= 1 && b.median_ms != null));
+  assert.equal((await dash(`/dash/api/game?game=${game}&days=1&board=0`)).status, 400);
+  assert.equal((await dash(`/dash/api/game?game=${game}&days=1&board=x`)).status, 400);
+}, LOCAL ? null : LOCAL_ONLY);
+
 await test('a saved run shows its initials', async () => {
   // Save a score on a negative test board of the local scores Worker, then report the run with its token's run ID.
   const board = -randomInt(1, 2 ** 40), token = forge(process.env.RUN_SECRET || LOCAL_SECRET, 'thimbleful', board);
