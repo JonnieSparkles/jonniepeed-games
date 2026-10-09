@@ -41,16 +41,21 @@ function loadLeaderboard(score, meta) {
     if (!afterEl.hidden) showLeaderboard();
   });
 }
+// Where a run stands on the whole board. The board shows only the top 50; any run with a token can be saved,
+// and a run below the top 50 is told where it stands instead.
+const count = v => Number(v).toLocaleString('en-US');
 function showLeaderboard() {
   const run = lbRun;
   if (!run || !run.data || run.shown || !(mode === 'over')) return;
   run.shown = true;
   const data = run.data;
   lbBox.hidden = false;
-  if (typeof data.placement !== 'number') { drawLeaderboard(data.scores); return; }
-  const heading = document.createElement('h3'); heading.textContent = 'New high score!';
+  const placed = typeof data.placement === 'number';
+  if (!placed && !(run.token && typeof data.position === 'number')) { drawLeaderboard(data.scores); return; }
+  const heading = document.createElement('h3'); heading.textContent = placed ? 'New high score!' : 'Save your walk';
   const message = document.createElement('p'); message.className = 'lb-message'; message.setAttribute('role', 'status');
-  message.textContent = `You're #${data.placement}. Enter your initials.`;
+  message.textContent = placed ? `You're #${data.placement}. Enter your initials.`
+    : `You'd be #${count(data.position)} of ${count(data.total)}. Enter your initials.`;
   lbBox.append(heading, message);
   // one decision at a time: the game's own buttons come back after OK or Skip
   afterEl.classList.add('lb-entering');
@@ -73,9 +78,15 @@ function showLeaderboard() {
       if (result?.error === 'name_not_allowed') {
         message.textContent = 'Try other initials'; picker.setBusy(false); return;
       }
+      // Saved below the top 50: the board doesn't show the row, so say where it landed.
+      if (result?.ok && result.rank == null && typeof result.position === 'number') run.note = `Saved. You're #${count(result.position)} of ${count(result.total)}.`;
       finish(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
     },
-    onSkip() { if (run.busy) return; finish(data.scores, null); }
+    onSkip() {
+      if (run.busy) return;
+      if (!placed) run.note = `This walk would be #${count(data.position)} of ${count(data.total)}.`;
+      finish(data.scores, null);
+    }
   });
 }
 function drawLeaderboard(scores, highlight = null, all = false, box = lbBox) {
@@ -112,7 +123,12 @@ function drawLeaderboard(scores, highlight = null, all = false, box = lbBox) {
     const player = scores.find(row => row.rank === highlight);
     if (player) { const gap = body.insertRow(); gap.className = 'lb-gap'; const cell = gap.insertCell(); cell.colSpan = cols.length; cell.textContent = '⋯'; addRow(player); }
   }
-  list.append(table); box.append(title, list);
+  box.append(title);
+  if (box === lbBox && lbRun?.note && mode === 'over') {
+    const note = document.createElement('p'); note.className = 'lb-message lb-standing'; note.setAttribute('role', 'status');
+    note.textContent = lbRun.note; box.append(note);
+  }
+  list.append(table); box.append(list);
   if (scores.length > 10) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more';
     button.textContent = all ? 'Show top 10' : `See all ${scores.length}`;

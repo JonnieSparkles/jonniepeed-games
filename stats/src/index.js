@@ -1,6 +1,7 @@
 // Play stats (SPEC-009). Games report each run here; the private dashboards at /dash/ read it back.
 // Writes are open to any page, like the scores API. Reads sit behind Cloudflare Access (see access.js).
 import games from '../games.json';
+import scoreRules from '../../scores/games.json';   // the leaderboards' own rules, so the board ranks as in the game
 import page from './dash.html';
 import { checkAccess } from './access.js';
 
@@ -242,6 +243,30 @@ async function overview(env, url) {
     median_ms: overall[0]?.time_ms ?? null, people: names };
 }
 
+// The leaderboard as players see it: the top 50 of one board, ranked by that board's rules in scores/games.json
+// (the same ORDER BY as the scores Worker), plus how many runs the board holds in all. All-time, not windowed.
+async function leaderboard(env, game, board) {
+  const boards = scoreRules[game]?.boards;
+  if (!env.SCORES || !boards) return null;
+  const number = board != null ? board : Math.max(...Object.keys(boards).map(Number));
+  const rules = boards[number];
+  if (!rules) return { board: number, total: 0, rows: [] };
+  const fields = [`score ${rules.higherIsBetter ? 'DESC' : 'ASC'}`];
+  for (const [key, direction] of rules.tieBreak) {
+    if (!Object.prototype.hasOwnProperty.call(rules.meta, key) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || !['asc', 'desc'].includes(direction)) return null;
+    fields.push(`json_extract(meta, '$.${key}') ${direction.toUpperCase()} NULLS LAST`);
+  }
+  try {
+    const [rows, total] = await env.SCORES.batch([
+      env.SCORES.prepare(`SELECT name, score, input, meta, created_at FROM scores WHERE game = ? AND board = ?
+        ORDER BY ${fields.join(', ')}, created_at ASC, id ASC LIMIT 50`).bind(game, number),
+      env.SCORES.prepare('SELECT COUNT(*) AS n FROM scores WHERE game = ? AND board = ?').bind(game, number)
+    ]);
+    return { board: number, total: total.results[0].n,
+      rows: rows.results.map((r, i) => ({ rank: i + 1, ...r, meta: parseStats(r.meta) })) };
+  } catch (_) { return null; }
+}
+
 async function gameDetail(env, url, game, board) {
   const { days, since } = windowFor(url);
   // The board filter narrows every figure; the list of boards and the per-board table always cover them all.
@@ -302,7 +327,8 @@ async function gameDetail(env, url, game, board) {
     capped: reports.length > REPORT_CAP,
     reports: reports.slice(0, REPORT_CAP).map(r => [r.time_ms, r.score, r.outcome, parseStats(r.stats)]),
     recent: recent.map(({ score_run, stats, ...r }) => ({ ...r, saved: Boolean(score_run && r.name), stats: parseStats(stats) })),
-    board_names: names
+    board_names: names,
+    leaderboard: await leaderboard(env, game, board)
   };
 }
 

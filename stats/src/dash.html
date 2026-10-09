@@ -465,6 +465,35 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
           el('td', { class: 'n' }, dur(b.median_ms)), el('td', { class: 'n' }, b.saves == null ? '–' : num(b.saves))))))));
   }
 
+  // The leaderboard as players see it: top 10, then all 50. All-time, so the day buttons don't change it.
+  function boardCard(lb) {
+    if (!lb) return null;
+    const card = el('section', { class: 'card' }, el('h2', null, `Leaderboard · board ${lb.board}`),
+      el('p', { class: 'desc' }, lb.total
+        ? `All-time top ${Math.min(50, lb.total)} of ${num(lb.total)} saved runs, ranked as in the game. Not affected by the day buttons.`
+        : 'Nothing saved on this board yet.'));
+    if (!lb.rows.length) return card;
+    const extra = [];
+    for (const r of lb.rows) for (const k of Object.keys(r.meta || {})) if (!extra.includes(k)) extra.push(k);
+    const shown = v => (v == null ? '–' : num(v));
+    const head = ['#', 'Initials', 'Score'].concat(extra.map(k => (k === 'time_ms' ? 'Time' : label(k))), ['Input', 'Saved']);
+    const body = el('tbody');
+    const fill = n => body.replaceChildren(...lb.rows.slice(0, n).map(r => el('tr', null,
+      el('td', null, String(r.rank)), el('td', null, r.name), el('td', { class: 'n' }, num(r.score)),
+      extra.map(k => el('td', { class: 'n' }, k === 'time_ms' ? dur(r.meta?.[k]) : shown(r.meta?.[k]))),
+      el('td', null, r.input === 'touch' ? 'touch' : 'keys'), el('td', { class: 'n' }, dateFmt.format(new Date(r.created_at)))))) ;
+    fill(10);
+    card.append(el('div', { class: 'scroll' }, el('table', null,
+      el('thead', null, el('tr', null, head.map((h, i) => el('th', { class: i === 2 || (i > 2 && i < head.length - 2) || i === head.length - 1 ? 'n' : null }, h)))), body)));
+    if (lb.rows.length > 10) {
+      let all = false;
+      const toggle = el('button', { class: 'pill more', type: 'button' }, `Show all ${lb.rows.length}`);
+      toggle.addEventListener('click', () => { all = !all; fill(all ? 50 : 10); toggle.textContent = all ? 'Show top 10' : `Show all ${lb.rows.length}`; });
+      card.append(toggle);
+    }
+    return card;
+  }
+
   function renderGame(data) {
     const s = data.summary, out = [];
     out.push(boardPills(data));
@@ -530,6 +559,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
             el('td', null, n.name), el('td', { class: 'n' }, num(n.runs)), el('td', { class: 'n' }, num(n.days)),
             el('td', { class: 'n' }, dateFmt.format(new Date(n.last))), el('td', { class: 'n' }, n.best == null ? '–' : num(n.best) + (board == null && n.board != null ? ` (${n.board})` : ''))))))));
     }
+    out.push(boardCard(data.leaderboard));
     out.push(names);
     const recent = el('section', { class: 'card' }, el('h2', null, 'Latest runs'),
       el('p', { class: 'desc' }, 'The 50 most recent. Initials show when the run was saved to the board.'));

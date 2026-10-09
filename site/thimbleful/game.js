@@ -53,7 +53,8 @@ let lbRun = null, lbEntry = null;
 const lbBox = $('board');
 // Game over runs in steps so nothing changes under a finger that's about to tap:
 //   checking  the card appears once, with "Checking the leaderboard…" where the buttons go (at least a short beat)
-//   asking    if you placed: "New high score! You're #N" with Enter initials / Skip; Play again waits until you choose
+//   asking    "New high score! You're #N" in the top 50, or "Save your run? You'd be #N of M" below it, with
+//             Enter initials / Skip; Play again waits until you choose. Any run with a token can be saved.
 //   entering  the initials picker opens only after you tap Enter initials
 //   done      Play again comes back and the board opens below the buttons, so they don't move
 // If the scores take longer than LB_WAIT the buttons come back anyway, and a late result offers initials inside the board.
@@ -106,6 +107,11 @@ function loadLeaderboard(score, meta) {
     }, after);
   });
 }
+// Where a run stands on the whole board. The board shows only the top 50; every run gets this line instead.
+const count = v => Number(v).toLocaleString('en-US');
+const canSave = (run, data) => typeof data.placement === 'number' || (run.token && typeof data.position === 'number');
+const standingText = data => typeof data.placement === 'number'
+  ? `You're #${data.placement}.` : `You'd be #${count(data.position)} of ${count(data.total)}.`;
 function backToButtons() {
   lbPhase(null);
   try { go.focus({ preventScroll: true }); } catch (_) {}
@@ -115,24 +121,30 @@ function showLeaderboard() {
   if (!run || !run.data || run.shown || state !== 'over') return;
   run.shown = true;
   const data = run.data, placed = typeof data.placement === 'number';
-  if (!placed) { backToButtons(); drawLeaderboard(data.scores); return; }
+  if (!canSave(run, data)) { backToButtons(); drawLeaderboard(data.scores); return; }
   if (run.late) {
     // the buttons are already back, so offer initials inside the board instead of swapping them
     drawLeaderboard(data.scores, null, false, () => openPicker(run));
     return;
   }
-  lbNote.textContent = `New high score! You're #${data.placement}.`;
+  lbNote.textContent = placed ? `New high score! You're #${data.placement}.` : `Save your run? ${standingText(data)}`;
   lbPhase('asking');
   try { lbEnter.focus({ preventScroll: true }); } catch (_) {}
 }
 lbEnter.addEventListener('click', () => { if (lbRun && lbRun.data) openPicker(lbRun); });
-lbSkip.addEventListener('click', () => { const run = lbRun; if (!run || !run.data) return; backToButtons(); drawLeaderboard(run.data.scores); });
+lbSkip.addEventListener('click', () => { const run = lbRun; if (!run || !run.data) return; skipped(run); backToButtons(); drawLeaderboard(run.data.scores); });
+// A skipped run below the top 50 still learns where it would have stood.
+function skipped(run) {
+  const data = run.data;
+  if (typeof data.placement !== 'number' && typeof data.position === 'number') run.note = `This run would be #${count(data.position)} of ${count(data.total)}.`;
+}
 function openPicker(run) {
   const data = run.data;
   lbBox.replaceChildren(); lbBox.hidden = false;
-  const heading = document.createElement('h3'); heading.textContent = 'New high score!';
+  const placed = typeof data.placement === 'number';
+  const heading = document.createElement('h3'); heading.textContent = placed ? 'New high score!' : 'Save your run';
   const message = document.createElement('p'); message.className = 'lb-message'; message.setAttribute('role', 'status');
-  message.textContent = `You're #${data.placement}. Enter your initials.`;
+  message.textContent = `${standingText(data)} Enter your initials.`;
   lbBox.append(heading, message);
   lbPhase('entering');
   const finish = (rows, rank) => {
@@ -153,9 +165,11 @@ function openPicker(run) {
       if (result?.error === 'name_not_allowed') {
         message.textContent = 'Try other initials'; picker.setBusy(false); return;
       }
+      // Saved below the top 50: the board doesn't show the row, so say where it landed.
+      if (result?.ok && result.rank == null && typeof result.position === 'number') run.note = `Saved. You're #${count(result.position)} of ${count(result.total)}.`;
       finish(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
     },
-    onSkip() { if (run.busy) return; finish(data.scores, null); }
+    onSkip() { if (run.busy) return; skipped(run); finish(data.scores, null); }
   });
 }
 function drawLeaderboard(scores, highlight = null, all = false, addInitials = null) {
@@ -193,9 +207,13 @@ function drawLeaderboard(scores, highlight = null, all = false, addInitials = nu
     if (player) { const gap = body.insertRow(); gap.className = 'lb-gap'; const cell = gap.insertCell(); cell.colSpan = cols.length; cell.textContent = '⋯'; addRow(player); }
   }
   list.append(table); lbBox.hidden = false; lbBox.append(title);
+  if (lbRun?.note && state === 'over') {
+    const note = document.createElement('p'); note.className = 'lb-message lb-standing'; note.setAttribute('role', 'status');
+    note.textContent = lbRun.note; lbBox.append(note);
+  }
   if (addInitials && lbRun?.data) {
     const add = document.createElement('button'); add.type = 'button'; add.className = 'lb-more lb-add';
-    add.textContent = `You're #${lbRun.data.placement}. Add your initials`;
+    add.textContent = `${standingText(lbRun.data)} Add your initials`;
     add.addEventListener('click', addInitials); lbBox.append(add);
   }
   lbBox.append(list);
