@@ -63,7 +63,7 @@
   check(pickTarget(makeRecruit(0, 'bazooka')) === S.tanks[0] && pickTarget(makeRecruit(0, 'rifle')) === S.troopers[0], 'crew pick the right target');
 
   // Air strike: a charge calls a bomber that clears the ground and hurts tanks, sparing crew and wall.
-  quiet(); S.tanks = [{ id: 98, x: 110, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 9, hitFlash: 0, tread: 0, dead: false }];
+  quiet(); S.tanks = [{ id: 98, x: 110, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 9, mgT: 99, hitFlash: 0, tread: 0, dead: false }];
   var crew = makeRecruit(4, 'rifle'), crewHp = crew.hp; S.recruits = [crew]; wall = S.wallHP;
   [30, 60, 90].forEach(function (x) { spawnTrooper(x, GROUND - 33, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); land(S.troopers[S.troopers.length - 1]); });
   var tankHp = S.tanks[0].hp; S.calls.bomber = 1;

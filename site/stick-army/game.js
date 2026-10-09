@@ -16,6 +16,10 @@
     FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1, BOSS_HP_PER_WAVE: 8 };
   // Every BOSS_EVERY waves a zeppelin moves in (see the zeppelin section).
   var BOSS_EVERY = 5;
+  // The low lane (round 13): from wave LOW.WAVE a share of the planes (bombers from LOW.BOMBERS) fly low across the
+  // middle of the page, a little faster. Their troopers have less sky to fall through and their bombs land sooner. The
+  // share grows by STEP a wave to MAX. Not on boss waves, whose escorts keep their own lanes.
+  var LOW = { WAVE: 2, BOMBERS: 3, SHARE: 0.15, STEP: 0.03, MAX: 0.4, PLANE_Y: [246, 296], BOMBER_Y: [188, 220], SPEED: 1.1 };
   var ENEMIES = {
     medic: { minWave: Infinity, cooldown: 2, spread: 0.14, hp: 3.2 },
     rifle: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
@@ -277,6 +281,7 @@
       maxDrops: Math.min(n >= 12 ? 8 : n >= 10 ? 7 : 6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
       special: n === 1 ? 0.15 : Math.min(0.45, 0.16 + 0.06 * n),
+      low: !boss && n >= LOW.WAVE ? Math.min(LOW.MAX, LOW.SHARE + LOW.STEP * (n - LOW.WAVE)) : 0,
       // The night raid: the page goes dark (sky.js drawNight).
       night: n >= SKY.NIGHT.WAVE && (n - SKY.NIGHT.WAVE) % 10 === 0 && !boss
     };
@@ -459,10 +464,11 @@
 
   function spawnPlane(kind, src) {
     var c = S.spawn.cfg, rnd = substream(src || RW), dir = rnd() < 0.5 ? 1 : -1;
+    var low = c.low > 0 && (kind === 'plane' || S.wave >= LOW.BOMBERS) && rnd() < c.low, lane = kind === 'bomber' ? LOW.BOMBER_Y : LOW.PLANE_Y;
     // On boss waves the escort keeps to a high lane above the zeppelin, and to a low one under the Dreadnought.
-    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? between(rnd, 104, 128) : c.bossKind === 'dread' ? between(rnd, 276, 330) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
-    p.rng = rnd;
-    p.speed = kind === 'bomber' ? c.speed * 0.62 : c.speed * between(rnd, 0.85, 1.25);
+    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, low ? between(rnd, lane[0], lane[1]) : kind === 'bomber' ? between(rnd, 104, 128) : c.bossKind === 'dread' ? between(rnd, 276, 330) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
+    p.rng = rnd; p.low = low;
+    p.speed = (kind === 'bomber' ? c.speed * 0.62 : c.speed * between(rnd, 0.85, 1.25)) * (low ? LOW.SPEED : 1);
     if (kind === 'plane') {
       // Each drop carries its trooper, rolled now, so shooting the plane early doesn't change who jumps.
       var n = 1 + Math.floor(rnd() * c.maxDrops);
@@ -484,7 +490,8 @@
       }).sort(function (a, b) { return dir * (a.x - b.x); });
     }
     S.planes.push(p);
-    emit('plane_spawn', { kind: kind, dir: dir, y: p.y, speed: p.speed, drops: p.drops.slice(), troopers: (p.kits || []).map(function (k) { return k.type; }), bombs: p.bombRun.length });
+    if (low && !S.lowTold) { S.lowTold = true; addText('flying low!', dir > 0 ? 90 : W - 90, p.y + 34, RED, 22); }
+    emit('plane_spawn', { kind: kind, dir: dir, y: p.y, speed: p.speed, low: low, drops: p.drops.slice(), troopers: (p.kits || []).map(function (k) { return k.type; }), bombs: p.bombRun.length });
   }
   // Who jumps: type, fall-speed factor and sway phase, drawn from a content stream.
   function rollTrooper(rnd) {
@@ -592,8 +599,11 @@
       }
       // The decoy in sight: the squad thinks this is it.
       if (sp.decoy && !sp.decoySeen && sp.decoy.state === 'fly' && sp.decoy.x > 30 && sp.decoy.x < W - 30) {
+        // It gets the full announcement, just like the real thing.
         sp.decoySeen = true; var spotter = S.recruits.filter(standing)[0];
-        if (spotter) world.say('oh no, here it is!', spotter.id); else addText('oh no, here it is!', 200, 420, BLUE, 24, 'story');
+        S.banner = { s: 'dreadnought!', sub: 'the enemy flagship', t: 0, dur: 3 };
+        sound.play('horn'); sound.play('sting'); S.shake = Math.max(S.shake, 0.3);
+        if (spotter) world.say('oh no, here it is!', spotter.id, false, 0.6); else addText('oh no, here it is!', 200, 420, BLUE, 24, 'story');
       }
       // The decoy down: a soldier wonders "that's it?", a few seconds of quiet, then the Dreadnought, once its sign has
       // fluttered all the way down (and lain there SIGN_BEAT seconds). As the sign nears the ground, another soldier
@@ -675,7 +685,7 @@
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
   var UNITS = StickArmyUnits(world), ZEP = UNITS.ZEP, zeppelinHP = UNITS.zeppelinHP, spawnZeppelin = UNITS.spawnZeppelin,
     zeppelinOnScreen = UNITS.zeppelinOnScreen, planeHit = UNITS.planeHit, updateZeppelin = UNITS.updateZeppelin,
-    hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar, drawSticker = UNITS.drawSticker,
+    hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar, drawSticker = UNITS.drawSticker, drawPlate = UNITS.drawPlate,
     RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo, spawnRoadTank = UNITS.spawnRoadTank,
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
     RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
@@ -1091,8 +1101,9 @@
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
     if (best) return best;
-    // A helicopter hovering low is everyone's business. (Never balloons: their bombs would fall on the crew.)
-    var heli = S.planes.find(function (p) { return p.kind === 'heli' && p.state === 'fly' && (p.phase === 'drop' || p.phase === 'wait'); });
+    // A helicopter hovering low, or sweeping across low, is everyone's business. (Never balloons: their bombs would
+    // fall on the crew.)
+    var heli = S.planes.find(function (p) { return p.kind === 'heli' && p.state === 'fly' && (p.phase === 'drop' || p.phase === 'wait' || (p.phase === 'sweep' && p.x > 10 && p.x < W - 10)); });
     if (heli) return heli;
     // Nothing closer to deal with: everyone plinks at the Dreadnought's guns or the zeppelin.
     if (parts.length) return parts[0];
@@ -1410,8 +1421,9 @@
         q.r += q.vr * dt; q.y -= 10 * dt;
       } else if (q.k === 'scrap') {
         q.vy += 140 * dt; q.vx *= (1 - dt); q.x += q.vx * dt; q.y += q.vy * dt; q.rot += q.vr * dt;
-      } else if (q.k === 'sticker') {
-        // The decoy's disguise, torn off: it flutters down, swaying, and lies on the ground.
+      } else if (q.k === 'sticker' || q.k === 'plate') {
+        // The decoy's disguise (its sign, its cardboard armor), torn off: it flutters down, swaying, and lies on the
+        // ground.
         if (q.y < GROUND - 8) {
           q.vy = Math.min(90, q.vy + 110 * dt); q.y += q.vy * dt; q.vx *= (1 - dt * 0.8);
           q.x = clamp(q.x + (q.vx + Math.sin(q.life * 3.2) * 38) * dt, 40, W - 40); q.rot = Math.sin(q.life * 3.2) * 0.45;
@@ -1851,6 +1863,7 @@
         G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.moveTo(-q.s, -q.s * 0.6); G.lineTo(q.s, -q.s * 0.3); G.lineTo(q.s * 0.2, q.s * 0.7); G.closePath();
         G.fillStyle = q.c || PAPER; G.fill(); ink(INK2, 1.1); G.stroke();
       } else if (q.k === 'sticker') { G.globalAlpha = Math.min(1, q.life); drawSticker(q.x, q.y, 1, q.rot, q.flat); }
+      else if (q.k === 'plate') { G.globalAlpha = Math.min(1, q.life); drawPlate(q.x, q.y, 1, q.rot, q.flat); }
       else if (q.k === 'flash') { if (!REDUCED) { G.globalAlpha = a * a * 0.6; G.fillStyle = '#fffdf2'; G.fillRect(-20, -20, W + 40, H + 40); } }
       else if (q.k === 'flag') {
         // A white flag: surrender.
@@ -1919,7 +1932,7 @@
       G.beginPath(); L(-3, 20, 3, 20); L(0, 17, 0, 23); ink(RED, 2.4); G.stroke();
     } else if (r) {
       var h = clamp(r.hp / crewMax(r), 0, 1), state = h < 0.4 ? 2 : h < 0.7 ? 1 : 0;
-      var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE;
+      var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : hud.BLUE;
       G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(-8, 37, 16, 3);
       G.fillStyle = h < 0.4 ? RED : BLUE; G.fillRect(-8, 37, 16 * h, 3);
       G.save();
@@ -1928,8 +1941,8 @@
       var pose = state ? [-3, 21, 3, 21, -5, 33, 5, 33] : [-6, 19, 6, 19, -5, 33, 5, 33];
       if (r.type === 'bazooka') tube(-8, 18, 7, 5);
       stick(0, 0, pose, col, 2.6);
-      if (r.type === 'rifle' || r.type === 'sniper') { G.beginPath(); L(-7, 17, 8, 7, 0.3); ink(INK, 2.2); G.stroke(); }
-      if (r.type === 'sniper') { G.beginPath(); SP([-7, -4, -3, -10, 7, -7, 6, -3], true, 0.3); G.fillStyle = INK; G.fill(); }
+      if (r.type === 'rifle' || r.type === 'sniper') { G.beginPath(); L(-7, 17, 8, 7, 0.3); ink(hud.INK, 2.2); G.stroke(); }
+      if (r.type === 'sniper') { G.beginPath(); SP([-7, -4, -3, -10, 7, -7, 6, -3], true, 0.3); G.fillStyle = hud.INK; G.fill(); }
       if (r.type === 'engineer') hat(0, 0);
       if (r.type === 'medic') medicHelmet(0, 0);
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
@@ -1970,43 +1983,49 @@
       G.restore();
     });
   }
+  // On the night raid the whole page goes dark, so the HUD is written in chalk (sky.js drawNight).
+  var CHALK = { INK: '#f1ebdd', INK2: '#c8cede', TAGS: '#c8cede', BLUE: '#93b8ff', RED: '#ff9484' };
+  var hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
   function drawHUD() {
     pen(4242);
+    var chalk = S.night > 0.5 && !S.smoke, c = chalk ? CHALK : { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
+    hud = c;
     G.save();
     G.textAlign = 'left';
     if (S.mode !== 'title') {
-      G.fillStyle = INK2; G.font = '16px ' + HAND; G.fillText('score', 58, 28);
-      G.fillStyle = INK; G.font = '34px ' + HAND; G.fillText(S.score.toLocaleString('en-US'), 58, 58);
+      G.fillStyle = c.INK2; G.font = '16px ' + HAND; G.fillText('score', 58, 28);
+      G.fillStyle = c.INK; G.font = '34px ' + HAND; G.fillText(S.score.toLocaleString('en-US'), 58, 58);
       drawCallChips(); pen(4242);
-      G.fillStyle = '#56606b'; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
+      G.fillStyle = c.TAGS; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
       dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
       var lose = S.tagLoss > 0, jig = lose ? Math.sin(S.t * 60) * 2.5 * Math.min(1, S.tagLoss) : 0;
       G.save(); G.translate(302 + jig, 58); var pulse = 1 + (S.tagPulse || 0) * 0.9; G.scale(pulse, pulse);
-      G.fillStyle = lose ? RED : '#56606b'; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(S.coins), 0, 0); G.restore();
-      if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }
-      G.fillStyle = INK;
+      G.fillStyle = lose ? c.RED : c.TAGS; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(S.coins), 0, 0); G.restore();
+      if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = c.RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }
+      G.fillStyle = c.INK;
       G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
       if (S.combo >= 2 && S.comboT > 0) {
-        G.fillStyle = BLUE; G.font = '22px ' + HAND; G.fillText('combo x' + Math.min(5, S.combo), 200, 76);
+        G.fillStyle = c.BLUE; G.font = '22px ' + HAND; G.fillText('combo x' + Math.min(5, S.combo), 200, 76);
         var cw = 70 * (S.comboT / 1.4);
-        G.beginPath(); L(200 - cw / 2, 82, 200 + cw / 2, 82, 0.4); ink(BLUE, 2.4); G.stroke();
-      } else if (S.endless) { G.fillStyle = BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
-      else if (S.wave === DREAD.WAVE) { G.fillStyle = RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
+        G.beginPath(); L(200 - cw / 2, 82, 200 + cw / 2, 82, 0.4); ink(c.BLUE, 2.4); G.stroke();
+      } else if (S.endless) { G.fillStyle = c.BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
+      else if (S.wave === DREAD.WAVE) { G.fillStyle = c.RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
     }
     var y1 = 648, bx = 112, bw = 186, hp = Math.max(0, S.wallHP);
-    G.textAlign = 'left'; G.fillStyle = INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
-    G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : 'rgba(47,111,220,0.4)';
+    G.textAlign = 'left'; G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
+    G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : chalk ? 'rgba(147,184,255,0.55)' : 'rgba(47,111,220,0.4)';
     G.fillRect(bx + 2, y1 - 8, (bw - 4) * hp / S.mods.maxHP, 16);
     G.beginPath(); L(bx, y1 - 10, bx + bw, y1 - 10, 0.5); L(bx + bw, y1 - 10, bx + bw, y1 + 10, 0.5); L(bx + bw, y1 + 10, bx, y1 + 10, 0.5); L(bx, y1 + 10, bx, y1 - 10, 0.5);
-    ink(INK, 2.4); G.stroke();
-    G.fillStyle = INK2; G.font = '17px ' + HAND; G.fillText(Math.ceil(hp) + '/' + S.mods.maxHP, bx + bw + 10, y1 + 6);
+    ink(c.INK, 2.4); G.stroke();
+    G.fillStyle = c.INK2; G.font = '17px ' + HAND; G.fillText(Math.ceil(hp) + '/' + S.mods.maxHP, bx + bw + 10, y1 + 6);
     var y2 = 690;
-    G.fillStyle = INK; G.font = '21px ' + HAND; G.fillText('squad', 58, y2 + 6);
+    G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('squad', 58, y2 + 6);
     var live = S.recruits.filter(function (r) { return !r.dead; }).sort(function (a, b) { return a.slot - b.slot; });
     if (S.bed) live.push(S.bed.r);
     for (var i = 0; i < S.mods.slots; i++) miniFig(124 + i * 24, y2 - 20, live[i], i, !!(S.bed && live[i] === S.bed.r));
-    G.fillStyle = INK2; G.font = '17px ' + HAND; G.textAlign = 'left'; G.fillText(live.length + "/" + S.mods.slots, bx + bw + 10, y2 + 6);
+    G.fillStyle = c.INK2; G.font = '17px ' + HAND; G.textAlign = 'left'; G.fillText(live.length + "/" + S.mods.slots, bx + bw + 10, y2 + 6);
     G.restore();
+    hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
   }
   function drawBanner() {
     var b = S.banner, a = Math.min(1, b.t / 0.25, (b.dur - b.t) / 0.4);
@@ -2108,6 +2127,17 @@
     if (S.bed) line += (line ? ' ' : '') + 'In the tent: ' + (S.bed.r.name ? rankName(S.bed.r) : 'a rookie') + '.';
     return line;
   }
+  // The squad as it stood, drawn like the HUD's squad row onto a card's canvas (the game-over card).
+  function drawSquadRow(canvas) {
+    var live = S.recruits.filter(function (r) { return !r.dead; }).sort(function (a, b) { return a.slot - b.slot; });
+    if (S.bed) live.push(S.bed.r);
+    if (!live.length) return false;
+    var k = 2, cw = 24 * live.length + 12, g = canvas.getContext('2d'), previous = G;
+    canvas.width = cw * k; canvas.height = 52 * k; canvas.style.width = cw + 'px';
+    G = g; g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, cw, 52);
+    try { live.forEach(function (r, i) { miniFig(12 + i * 24, 6, r, i, !!(S.bed && r === S.bed.r)); }); } finally { G = previous; }
+    return true;
+  }
   function togglePause() {
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
@@ -2157,6 +2187,9 @@
     document.getElementById('stTanks').textContent = String(S.stats.tanks);
     document.getElementById('stTanks').hidden = document.getElementById('stTanksLabel').hidden = !S.stats.tanks;
     var cause = OVER_CAUSE[S.lastHit];
+    // Who was still standing: the squad row as it was in the HUD (roles, stripes), and their names.
+    var row = document.getElementById('overSquadRow'), line = squadLine(), squad = document.getElementById('overSquad');
+    row.hidden = !drawSquadRow(row); squad.textContent = line; squad.hidden = !line;
     var lost = document.getElementById('overFallen');
     lost.textContent = S.fallen.length ? 'Fallen: ' + S.fallen.map(SQUAD.record).join(', ') + '.' : '';
     lost.hidden = !S.fallen.length;
@@ -2271,7 +2304,7 @@
     }
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; if (S.mode === 'play') e.preventDefault(); }
-    else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
+    else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
     else if (k === 'p' || k === 'P' || k === 'Escape') { togglePause(); }
     else if ((k === 'b' || k === 'B') && !e.repeat && S.mode === 'play') { callStrike(); }
     else if ((k === 'c' || k === 'C') && !e.repeat && S.mode === 'play') { callFighter(); }
@@ -2280,7 +2313,7 @@
     var k = e.key;
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') keys.left = false;
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = false;
-    else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') keys.fire = false;
+    else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') keys.fire = false;
   });
   window.addEventListener('blur', function () { keys.left = keys.right = keys.fire = false; S.firing = false; });
   document.addEventListener('visibilitychange', function () { if (document.hidden && S.mode === 'play') togglePause(); });

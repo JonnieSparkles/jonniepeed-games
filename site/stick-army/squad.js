@@ -29,7 +29,7 @@ var StickArmySquad = function (w) {
   // Kill counts (r.kills) come from each soldier's own shots, credited in game.js.
   function killsText(n) { n = n || 0; return n + (n === 1 ? ' kill' : ' kills'); }
   // "Sgt. Doodle (12 waves, 140 kills)" for the pause card, the fallen list and the roll call.
-  function record(f) { return f.name + ' (' + f.waves + (f.waves === 1 ? ' wave, ' : ' waves, ') + killsText(f.kills) + ')'; }
+  function record(f) { var n = f.waves || 0; return f.name + ' (' + n + (n === 1 ? ' wave, ' : ' waves, ') + killsText(f.kills) + ')'; }
   // Names come from the run seed and the recruit's id, never from a game stream, so they can't change outcomes.
   function pickName(r) {
     var S = w.S, h = (Math.imul(w.seed ^ 0x9e3779b9, 31) + Math.imul(r.id, 2654435761)) >>> 0;

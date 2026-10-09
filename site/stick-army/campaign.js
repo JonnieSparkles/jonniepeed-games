@@ -382,7 +382,8 @@ var StickArmyCampaign = function (w) {
       if (p.wait <= 0) {
         // The payoff: its name across the page, a brass sting, and the squad realizing what it is.
         w.sound.play('horn'); w.sound.play('sting'); S.shake = Math.max(S.shake, 0.45);
-        S.banner = { s: 'dreadnought!', sub: 'the enemy flagship', t: 0, dur: 3.2 };
+        // After the decoy's announcement, this one makes sure.
+        S.banner = { s: 'dreadnought!', sub: S.spawn && S.spawn.teaser ? 'the REAL enemy flagship' : 'the enemy flagship', t: 0, dur: 3.2 };
         // "...oh." first, then two more from the pool, picked cosmetically so it differs run to run.
         var crew = S.recruits.filter(w.standing), pool = ['oh sh*t', "dang, that's long", '\ud83c\udf46', 'oh no.', 'we need a bigger gun'];
         for (var q = pool.length - 1; q > 0; q--) { var j = Math.floor(Math.random() * (q + 1)), tmp = pool[q]; pool[q] = pool[j]; pool[j] = tmp; }
