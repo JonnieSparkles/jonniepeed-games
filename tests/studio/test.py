@@ -157,6 +157,8 @@ with sync_playwright() as p:
         page.on('requestfailed', lambda request: errors.append(request.url + ' ' + str(request.failure))
                 if request.failure != 'net::ERR_ABORTED' else None)
         page.route('**/assets/studio/ident.js*', lambda route: route.fulfill(body=SOURCE, content_type='application/javascript'))
+        # Stick Army's title lists its online top five; answer for the scores Worker, which isn't running here.
+        page.route('http://localhost:8787/**', lambda route: route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"ok":true,"game":"stick-army","board":1,"scores":[]}'))
         page.clock.install(time=datetime(2026, 1, 1, tzinfo=timezone.utc))
         page.clock.pause_at(datetime(2026, 1, 1, 0, 0, 1, tzinfo=timezone.utc))
         return context, page

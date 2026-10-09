@@ -151,7 +151,7 @@ var StickArmySky = function (w) {
     addText('safe passage! +' + pts.toLocaleString('en-US'), x, m.y + 30, BLUE, 22);
     emit('redcross_safe', { tags: tags, pts: pts });
     emit('coins', { amount: tags, reason: 'safe passage' });
-    w.sound.play('medevac');
+    w.sound.play('safe');
   }
   // The penalty you feel: the tags fly out of the counter toward the plane (loseTags), the counter flashes red, and
   // the combo is gone.
@@ -184,7 +184,7 @@ var StickArmySky = function (w) {
     p.armed = false;
     w.S.bombs.push({ id: w.id(), x: p.x, y: p.y + 20, vx: p.vx * 0.5, vy: 0, isBomb: true, balloon: true, dead: false });
     emit('bomb_dropped', { by: 'balloon' });
-    w.sound.play('whistle');
+    w.sound.play('balloon');
   }
   function updateBalloon(p, dt) {
     var S = w.S;
@@ -320,7 +320,7 @@ var StickArmySky = function (w) {
       p.phase = 'pull';
       S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, armored: !!p.sortie, src: 'dive', dead: false });
       emit('bomb_dropped', { by: 'diver' });
-      w.sound.play('whistle');
+      w.sound.play('heavy');
     }
     if (p.phase === 'pull') { p.ang = Math.max(DIVE.CLIMB, p.ang - DIVE.PULL * dt); if (p.ang <= DIVE.CLIMB) p.phase = 'climb'; }
     // Climbing away, it levels off at its lane and leaves by the side, below the page's top rule (round 14).
@@ -461,7 +461,7 @@ var StickArmySky = function (w) {
       var d = p.run.shift();
       S.bombs.push({ id: w.id(), x: p.x, y: p.y + 16, vx: d.vx, vy: 0, isBomb: true, heavy: d.heavy, src: 'heavy', dead: false });
       emit('bomb_dropped', { by: 'heavy' });
-      w.sound.play('whistle');
+      w.sound.play(d.heavy ? 'heavy' : 'whistle');
     }
     if (p.x < -110 || p.x > W + 110) p.gone = true;
   }

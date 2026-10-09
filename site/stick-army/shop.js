@@ -105,7 +105,9 @@ var StickArmyShop = function (w) {
   function takeItem(id) {
     var S = w.S;
     if (S.mode !== 'shop' || !S.shop || !buy(id, false)) return false;
-    w.sound.play('recruit'); renderShop();
+    // A soldier gets the recruit ding, a radio call a click and beeps, anything else a pen scratch and a clunk.
+    var it = ITEMS.find(function (q) { return q.id === id; });
+    w.sound.play(it && it.tier === 'hire' ? 'recruit' : id === 'strike' || id === 'fighter' ? 'call' : 'gear'); renderShop();
     if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
     return true;
   }
@@ -143,7 +145,7 @@ var StickArmyShop = function (w) {
     S.shop.bought = {}; S.shop.giftTaken = false; S.shop.log = [];
     keep.forEach(function (k) { buy(k, true); });
     w.emit('refund', { item: id });
-    w.sound.play('tink'); renderShop();
+    w.sound.play('back'); renderShop();
     var again = shopScreen.querySelector('[data-item="' + id + '"]:not(:disabled)');
     (again || document.getElementById('continueBtn')).focus({ preventScroll: true });
     return true;

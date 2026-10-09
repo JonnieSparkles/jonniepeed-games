@@ -78,7 +78,7 @@ var StickArmySquad = function (w) {
     r.down = true; r.hp = 0; r.downAt = S.t; r.downCause = cause || 'unknown'; r.role = 'down'; r.tx = r.x;
     addText(r.name ? r.name + ' is down!' : 'man down!', r.x, GROUND - 52, BLUE, 20);
     emit('recruit_down', { type: r.type, cause: r.downCause, rank: r.rank || 0 });
-    w.say('medic!', r.id);
+    w.say('medic!', r.id, false, 0, null, null, 'alarm');
   }
   function standUp(r, by) {
     r.down = false; r.hp = Math.max(r.hp, 1); r.role = 'shoot';
@@ -110,7 +110,7 @@ var StickArmySquad = function (w) {
     var S = w.S, k = talkState(), R = Math.random;
     var crew = S.recruits.filter(w.standing);
     if (S.waveState !== 'active' || !crew.length) { k.quiet = 0; return; }
-    if (S.spawn && S.spawn.cfg.night && S.night > 0.9 && k.night !== S.wave) { k.night = S.wave; w.say(TALK.NIGHT, crew[Math.floor(R() * crew.length)].id, false, 0.4); return; }
+    if (S.spawn && S.spawn.cfg.night && S.night > 0.9 && k.night !== S.wave) { k.night = S.wave; w.say(TALK.NIGHT, crew[Math.floor(R() * crew.length)].id, false, 0.4, null, null, 'chat'); return; }
     k.next -= dt;
     var busy = S.planes.length || S.bombs.length || S.tanks.length || S.bubbles.length || S.troopers.some(function (t) { return !t.dead; });
     k.quiet = busy ? 0 : k.quiet + dt;
@@ -122,15 +122,15 @@ var StickArmySquad = function (w) {
     if (!fresh.length) { k.used = []; fresh = TALK.LINES; }
     var line = fresh[Math.floor(R() * fresh.length)], a = crew[Math.floor(R() * crew.length)], others = crew.filter(function (r) { return r !== a; });
     k.used.push(TALK.LINES.indexOf(line));
-    w.say(line[0], a.id);
-    if (line[1] && others.length) w.say(line[1], others[Math.floor(R() * others.length)].id, false, TALK.REPLY);
+    w.say(line[0], a.id, false, 0, null, null, 'chat');
+    if (line[1] && others.length) w.say(line[1], others[Math.floor(R() * others.length)].id, false, TALK.REPLY, null, null, 'chat');
   }
   // The gun just overheated: now and then someone says so.
   function heat() {
     var S = w.S, k = talkState(), crew = S.recruits.filter(w.standing);
     if (!crew.length || S.t - k.heatT < TALK.HEAT || Math.random() > TALK.HEAT_CHANCE) return;
     k.heatT = S.t;
-    w.say(TALK.HOT, crew.sort(function (a, b) { return Math.abs(a.x - w.BK.x) - Math.abs(b.x - w.BK.x); })[0].id, false, 0.3);
+    w.say(TALK.HOT, crew.sort(function (a, b) { return Math.abs(a.x - w.BK.x) - Math.abs(b.x - w.BK.x); })[0].id, false, 0.3, null, null, 'chat');
   }
 
   // ---------- field hospital ----------

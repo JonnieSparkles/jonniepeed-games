@@ -2,6 +2,8 @@
   'use strict';
 
   // ---------- constants ----------
+  // The online board (board.js, scores/games.json). A change to how fast points come starts a new board.
+  const BOARD = 1;
   var W = 400, H = 720, GROUND = 612;
   var BK = { x: 200, x1: 168, x2: 232, top: 576 };
   var TUR = { x: 200, y: 570 };
@@ -119,15 +121,23 @@
     if (mean > 24) { renderCap = Math.max(1, Math.min(renderCap, window.devicePixelRatio || 1) - 0.5); fit(); }
   }
 
+  // The title opens the notebook on a wide screen: the facing page (#facing) sits to the right of the game page.
+  var facing = document.getElementById('facing'), SPREAD_ASPECT = 1.05, facingLoaded = false;
   function fit() {
     var padding = getComputedStyle(wrap);
     var aw = Math.max(1, wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight));
     var ah = Math.max(1, wrap.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom));
-    var s = Math.min(aw / W, ah / H);
+    var spread = S.mode === 'title' && aw / ah >= SPREAD_ASPECT, pages = spread ? 2 : 1;
+    var s = Math.min(aw / (W * pages), ah / H);
     var dpr = Math.min(window.devicePixelRatio || 1, renderCap);
-    frameEl.style.width = (W * s) + 'px';
+    frameEl.style.width = (W * s * pages) + 'px';
     frameEl.style.height = (H * s) + 'px';
     stage.style.transform = 'scale(' + s + ')';
+    wrap.classList.toggle('spread', spread);
+    facing.hidden = !spread;
+    // The facing page's top five load only when it shows (once per visit to the title), so phones ask for nothing.
+    if (spread && !facingLoaded) { facingLoaded = true; LBOARD.titleRows(); }
+    facing.style.transform = 'translateX(' + (W * s) + 'px) scale(' + s + ')';
     K = s * dpr;
     [cv, bg, dc].forEach(function (c) { c.width = Math.max(1, Math.round(W * K)); c.height = Math.max(1, Math.round(H * K)); });
     bgx.setTransform(K, 0, 0, K, 0, 0);
@@ -252,6 +262,7 @@
 
   function reset() {
     S = {
+      input: 'keys',
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, stacks: {} },
@@ -415,14 +426,14 @@
   // Bubbles count their own ids, apart from nextId: some speech is cosmetic small talk on Math.random (SQUAD.smallTalk),
   // so it must never shift the ids of things in the fight.
   var bubbleId = 1;
-  function speak(text, id, enemy, delay, x, y) {
+  function speak(text, id, enemy, delay, x, y, mood) {
     var r = id != null && S.recruits.find(function (q) { return q.id === id && !q.dead; });
     if (r || x != null) {
       if (S.bubbles.length >= BUBBLE.MAX) S.bubbles.shift();
       S.bubbles.push({ s: text.charAt(0).toUpperCase() + text.slice(1), rid: r ? r.id : null, x: r ? r.x : x, y: r ? GROUND - (r.down ? 40 : 62) : y,
         t: -(delay || 0), life: BUBBLE.LIFE, enemy: !!enemy, id: bubbleId++ });
     }
-    if (sound.say) sound.say(text, id, enemy, delay);
+    if (sound.say) sound.say(text, id, enemy, delay, mood);
   }
   function updateBubbles(dt) {
     S.bubbles.forEach(function (b) {
@@ -686,7 +697,9 @@
         S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
         if (victoryDue()) S.waveTimer = 3.2;
         S.hint = false;
-        sound.play('wave'); SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
+        // The final wave's own fanfare plays with the victory card, so its banner gets only the cheer.
+        if (!victoryDue()) sound.play(untouched ? 'untouched' : 'wave');
+        SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
@@ -711,7 +724,7 @@
     addDecal: function (d) { addDecal(d); }, flyTags: function (x, y, n) { flyTags(x, y, n); }, id: function () { return nextId++; },
     crewMax: function (r) { return crewMax(r); }, credit: function () { credit(); }, sketchReveal: function (p, box, dir, fn) { sketchReveal(p, box, dir, fn); },
     // Little voices: a speech bubble over the speaker (a recruit by id, or at x, y) and the line in his voice.
-    say: function (text, id, enemy, delay, x, y) { speak(text, id, enemy, delay, x, y); } };
+    say: function (text, id, enemy, delay, x, y, mood) { speak(text, id, enemy, delay, x, y, mood); } };
   Object.defineProperties(world, { S: { get: function () { return S; } }, G: { get: function () { return G; } },
     boil: { get: function () { return boil; } }, RW: { get: function () { return RW; } }, RC: { get: function () { return RC; } }, sound: { get: function () { return sound; } },
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
@@ -754,6 +767,8 @@
     dreadHit = CAMPAIGN.dreadHit, hurtDread = CAMPAIGN.hurtDread, updateDread = CAMPAIGN.updateDread, drawDread = CAMPAIGN.drawDread,
     drawDreadBar = CAMPAIGN.drawDreadBar, dreadTargets = CAMPAIGN.dreadTargets, victoryDue = CAMPAIGN.victoryDue, showWin = CAMPAIGN.showWin,
     keepGoing = CAMPAIGN.keepGoing, rollCall = CAMPAIGN.rollCall, recordLine = CAMPAIGN.recordLine;
+  world.BOARD = BOARD;
+  var LBOARD = world.board = StickArmyBoard(world);
   world.dreadTargets = dreadTargets; world.DREAD_DECOY_HP = DREAD.DECOY_HP; world.dreadBeams = CAMPAIGN.dreadBeams; world.dreadPhase = CAMPAIGN.dreadPhase;
   world.dreadLit = function () { var p = CAMPAIGN.dread(); return !p ? [] : p.phase === 'hangar' ? [CAMPAIGN.hangarAt(p)] : p.phase === 'bridge' ? [CAMPAIGN.bridgeAt(p), CAMPAIGN.hangarAt(p)] : []; };
   function drawItemIcon(canvas, id) {
@@ -2105,6 +2120,8 @@
       } else if (S.endless) { G.fillStyle = c.BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
       else if (S.wave === DREAD.WAVE) { G.fillStyle = c.RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
     }
+    // The title uses the bottom of the page for Start and the chips.
+    if (S.mode === 'title') { G.restore(); hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED }; return; }
     var y1 = 648, bx = 112, bw = 186, hp = Math.max(0, S.wallHP);
     G.textAlign = 'left'; G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
     G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : chalk ? 'rgba(147,184,255,0.55)' : 'rgba(47,111,220,0.4)';
@@ -2188,36 +2205,81 @@
   var pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn'), strikeBtn = document.getElementById('strikeBtn'), fighterBtn = document.getElementById('fighterBtn');
 
   function titleScene() {
-    reset();
-    S.mode = 'title';
-    S.planes.push(makePlane('plane', -1, 300, 44));
-    [[0, 'rifle'], [1, 'bazooka'], [4, 'engineer'], [5, 'rifle']].forEach(function (d) { S.recruits.push(makeRecruit(d[0], d[1])); });
+    demoScene(0);
     var bl = document.getElementById('bestLine');
     bl.hidden = !(best > 0);
-    bl.textContent = 'Best so far: ' + Number(best).toLocaleString('en-US') + '.';
-    var record = recordLine(), wl = document.getElementById('winLine');
-    wl.textContent = record; wl.hidden = !record;
+    bl.textContent = 'Best ' + Number(best).toLocaleString('en-US');
+    // The record is a rubber stamp: "Best 446,661 / Won 2×", with the best wave once endless has gone past 20.
+    var wins = load('stickarmy.wins', 0), bestWave = load('stickarmy.bestWave', 0), wl = document.getElementById('winLine');
+    wl.textContent = wins ? 'Won ' + wins + '×' + (bestWave > DREAD.WAVE ? ' · wave ' + bestWave : '') : ''; wl.hidden = !wins;
     document.getElementById('recordLine').hidden = bl.hidden && wl.hidden;
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
+    facingLoaded = false;
+    fit();
+  }
+  // ---------- the title's demo ----------
+  // The title page plays the game in miniature, over and over: a plane crosses and drops two troopers. The turret
+  // pops the first one's chute low over the mat and he bounces into the squad; it shoots the second. It runs the real
+  // simulation (update) with a scripted gunner (updateDemo), mirrored each time round. Nothing here touches a run:
+  // newGame resets everything, and the title has no score.
+  var DEMO = { Y: 150, SPEED: 95, CATCH_X: 57, SHOOT_X: 296, CATCH_AT: 400, SHOOT_AT: 330, TURN: 2.3, REST: 3, RETRY: 0.6,
+    LINES: ['here they come!', 'incoming!', 'planes!', 'heads up!'] };
+  var demo = null;
+  function demoScene(n) {
+    reset();
+    S.mode = 'title';
+    [[0, 'rifle'], [4, 'engineer']].forEach(function (d) { S.recruits.push(makeRecruit(d[0], d[1])); });
+    var dir = n % 2 ? -1 : 1, p = makePlane('plane', dir, dir > 0 ? -50 : W + 50, DEMO.Y);
+    p.speed = DEMO.SPEED;
+    p.drops = [DEMO.CATCH_X, DEMO.SHOOT_X].sort(function (a, b) { return dir * (a - b); });
+    p.kits = p.drops.map(function () { return { type: 'rifle', fall: 1, sway: 0, armor: 0 }; });
+    S.planes.push(p);
+    S.aim = -Math.PI / 2;
+    demo = { n: n, rest: -1, shotAt: {} };
+    speak(DEMO.LINES[n % DEMO.LINES.length], S.recruits[n % 2].id, false, 0.8);
+  }
+  function updateDemo(dt) {
+    var live = S.troopers.filter(function (t) { return !t.dead && t.state === 'chute' && t.open > 0.6; });
+    // The one to deal with next: whoever is lowest.
+    var t = live.sort(function (a, b) { return b.y - a.y; })[0];
+    if (t) {
+      var catching = t.x < 120, off = catching ? -32 : 14, tx = t.x, ty = t.y + off;
+      for (var k = 0; k < 2; k++) { var flight = Math.hypot(tx - TUR.x, ty - TUR.y) / 700; ty = t.y + off + t.fall * flight; }
+      var want = clamp(Math.atan2(ty - TUR.y, tx - TUR.x), AIM_MIN, AIM_MAX);
+      S.aim += clamp(want - S.aim, -DEMO.TURN * dt, DEMO.TURN * dt);
+      var last = demo.shotAt[t.id];
+      if (t.y >= (catching ? DEMO.CATCH_AT : DEMO.SHOOT_AT) && Math.abs(want - S.aim) < 0.03 && (last == null || S.t - last > DEMO.RETRY)) {
+        demo.shotAt[t.id] = S.t; shoot();
+      }
+      return;
+    }
+    if (S.planes.length || S.troopers.some(function (q) { return !q.dead; })) return;
+    if (demo.rest < 0) demo.rest = DEMO.REST;
+    if ((demo.rest -= dt) <= 0) demoScene(demo.n + 1);
   }
   function newGame() {
     sound.init();
-    // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
-    if (window.PlayStats) statsRun = PlayStats.start('stick-army', { progress: runReport });
     // A run seed: forced by a harness, fixed by #seed=, or random.
     var fixed = RUN.force != null ? RUN.force : hashSeed();
+    // The online board: practice runs (a fixed seed, the tuning panel) never get a token, so they can't be saved.
+    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0);
+    // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
+    if (window.PlayStats) statsRun = PlayStats.start('stick-army', { board: BOARD, token: token || undefined, progress: runReport });
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));
     reset();
     S.mode = 'play'; S.hint = true;
+    sound.ambience(ambienceState());
     startWave(1);
     titleScreen.hidden = true; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; shopScreen.hidden = true; pauseBtn.hidden = false;
+    fit();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
   // The named squad for the pause card: veterans by rank with their waves, a rookie count, and who's in the tent.
   // bare: without the "Squad: " lead (the shop's Squad section has its own heading).
-  function squadLine(bare) {
+  // short: names and ranks only (the pause card), without waves and kills.
+  function squadLine(bare, short) {
     var vets = S.recruits.filter(function (r) { return !r.dead && r.name; }).sort(function (a, b) { return b.rank - a.rank || b.waves - a.waves; });
-    var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return SQUAD.record({ name: rankName(r), waves: r.waves, kills: r.kills }); });
+    var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return short ? rankName(r) : SQUAD.record({ name: rankName(r), waves: r.waves, kills: r.kills }); });
     if (rookies) parts.push(rookies + (rookies > 1 ? ' rookies' : ' rookie'));
     var line = parts.length ? (bare ? '' : 'Squad: ') + parts.join(', ') + '.' : '';
     if (S.bed) line += (line ? ' ' : '') + 'In the tent: ' + (S.bed.r.name ? rankName(S.bed.r) : 'a rookie') + '.';
@@ -2241,9 +2303,11 @@
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
       document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
+      // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
       var kit = document.getElementById('pauseKit');
-      kit.hidden = !renderKit(kit, true);
-      var squad = document.getElementById('pauseSquad'), line = squadLine();
+      kit.hidden = !renderKit(kit, false);
+      var row = document.getElementById('pauseSquadRow'), squad = document.getElementById('pauseSquad'), line = squadLine(false, true);
+      row.hidden = !drawSquadRow(row);
       squad.textContent = line; squad.hidden = !line;
       pauseScreen.hidden = false;
       document.getElementById('resumeBtn').focus({ preventScroll: true });
@@ -2298,6 +2362,7 @@
     document.getElementById('stBest').textContent = Number(best).toLocaleString('en-US');
     overScreen.hidden = false;
     document.getElementById('againBtn').focus({ preventScroll: true });
+    LBOARD.finish(overScreen.querySelector('.card'), false);
   }
   // What a run reports to play stats (site/assets/stats.js), at game over or when the page is left mid-run.
   // The crew count includes a recruit in the field hospital (S.bed), as the roll call does.
@@ -2313,7 +2378,7 @@
     if (S.won) st.won_at = S.wonAt;
     if (S.captain) st.captain = S.captain;
     if (S.endless) st.endless = true;
-    return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, stats: st };
+    return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, input: S.input, stats: st };
   }
   // A win is reported as soon as the victory card shows. The handle stays, so a winner who keeps going is reported
   // again if the page is hidden mid-run, and once more at the final game over.
@@ -2325,6 +2390,8 @@
     // The icons are SVG elements, which have no hidden property, so the attribute is set directly.
     document.getElementById('icoSound').toggleAttribute('hidden', sound.muted);
     document.getElementById('icoMuted').toggleAttribute('hidden', !sound.muted);
+    titleSoundBtn.textContent = sound.muted ? 'Sound off' : 'Sound on';
+    titleSoundBtn.setAttribute('aria-pressed', sound.muted ? 'false' : 'true');
   }
 
   // Fullscreen API with a fill-window fallback (including iPhone).
@@ -2378,6 +2445,8 @@
     if (chip) { if (chip.kind === 'bomber') callStrike(); else callFighter(); e.preventDefault(); return; }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     aimAt(toLogical(e)); S.firing = true;
+    // Touch (or a pen) on the page marks the run as touch on the board and in play stats; menus don't count.
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') { S.input = 'touch'; LBOARD.touched(); }
     e.preventDefault();
   });
   cv.addEventListener('pointermove', function (e) {
@@ -2405,6 +2474,10 @@
     }
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; if (S.mode === 'play') e.preventDefault(); }
+    else if (k === 'Escape' && LBOARD.closeScores()) { /* closed the title's high scores */ }
+    // On the title, Space or Enter starts a run unless a button has focus (which gets the key itself).
+    else if ((k === ' ' || k === 'Enter') && S.mode === 'title' && document.getElementById('scoresScreen').hidden &&
+      !(document.activeElement && document.activeElement.closest && document.activeElement.closest('button, a'))) { e.preventDefault(); document.getElementById('startBtn').click(); }
     else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
     else if (k === 'p' || k === 'P' || k === 'Escape') { togglePause(); }
     else if ((k === 'b' || k === 'B') && !e.repeat && S.mode === 'play') { callStrike(); }
@@ -2444,6 +2517,23 @@
     fighterBtn.disabled = !!S.fighter;
     document.getElementById('fighterCount').textContent = String(c.fighter);
   }
+  // The browser plays nothing until the page is touched, so the title's music starts with the first touch or key.
+  function wakeSound() { if (S.mode === 'title' && !sound.muted) sound.init(); }
+  document.addEventListener('pointerdown', wakeSound, true);
+  document.addEventListener('keydown', wakeSound, true);
+  // The menus' buttons make a sound (audio.js click and press, heard on the title too); the shop's have their own.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('button');
+    if (!b || b.disabled || b.closest('#shopScreen .shop-stock, .hud-btns') || b.id === 'titleSoundBtn') return;
+    sound.play(b.classList.contains('btn') ? 'press' : 'click');
+  }, true);
+  // The title's chips do what the buttons around the page do.
+  var titleSoundBtn = document.getElementById('titleSoundBtn');
+  titleSoundBtn.addEventListener('click', function () { muteBtn.click(); if (!sound.muted) sound.play('click'); titleSoundBtn.focus({ preventScroll: true }); });
+  document.getElementById('titleFullBtn').addEventListener('click', function () { fullBtn.click(); });
+  var titleScoresBtn = document.getElementById('titleScoresBtn');
+  titleScoresBtn.hidden = !LBOARD.available;
+  titleScoresBtn.addEventListener('click', LBOARD.openScores);
   muteBtn.addEventListener('click', function () {
     sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
     if (!sound.muted) sound.init();
@@ -2453,9 +2543,22 @@
   // ---------- loop ----------
   var last = performance.now(), lastAmbience = 0;
   // What the ambience layer needs: whether a wave is live, where the planes are, and whether the wall is in trouble.
+  // How busy the page is, for the march (audio.js marchStep): 0 quiet once nothing has been on it for HEAT.QUIET seconds,
+  // 2 busy from HEAT.BUSY threats on the page until it falls back to HEAT.CALM, 1 otherwise. A threat is a trooper,
+  // a plane or a bomb, a tank counting double.
+  var HEAT = { QUIET: 1.5, BUSY: 9, CALM: 5 }, heatLevel = 1, quietSince = 0;
+  function pageHeat() {
+    var n = S.troopers.filter(function (t) { return !t.dead; }).length + S.bombs.length + S.planes.length + 2 * S.tanks.length;
+    if (n) quietSince = S.t;
+    if (heatLevel === 2) heatLevel = n <= HEAT.CALM ? 1 : 2; else if (n >= HEAT.BUSY) heatLevel = 2;
+    if (heatLevel !== 2) heatLevel = S.t - quietSince >= HEAT.QUIET ? 0 : 1;
+    return heatLevel;
+  }
   function ambienceState() {
     return {
       active: S.mode === 'play' && !document.hidden,
+      title: S.mode === 'title' && !document.hidden,
+      heat: S.mode === 'play' ? pageHeat() : 1,
       planes: S.planes.filter(function (p) { return p.state === 'fly' && p.kind !== 'balloon' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
       wave: S.waveState === 'active',
       number: S.wave,
@@ -2483,6 +2586,7 @@
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
     notePlayed(dt);
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
+    else if (S.mode === 'title' && !document.hidden) { update(dt); updateDemo(dt); }
     render();
     syncCallBtns();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
