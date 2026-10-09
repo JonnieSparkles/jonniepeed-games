@@ -2,6 +2,8 @@
   'use strict';
 
   // ---------- constants ----------
+  // The online board (board.js, scores/games.json). A change to how fast points come starts a new board.
+  const BOARD = 1;
   var W = 400, H = 720, GROUND = 612;
   var BK = { x: 200, x1: 168, x2: 232, top: 576 };
   var TUR = { x: 200, y: 570 };
@@ -120,7 +122,7 @@
   }
 
   // The title opens the notebook on a wide screen: the facing page (#facing) sits to the right of the game page.
-  var facing = document.getElementById('facing'), SPREAD_ASPECT = 1.05;
+  var facing = document.getElementById('facing'), SPREAD_ASPECT = 1.05, facingLoaded = false;
   function fit() {
     var padding = getComputedStyle(wrap);
     var aw = Math.max(1, wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight));
@@ -133,6 +135,8 @@
     stage.style.transform = 'scale(' + s + ')';
     wrap.classList.toggle('spread', spread);
     facing.hidden = !spread;
+    // The facing page's top five load only when it shows (once per visit to the title), so phones ask for nothing.
+    if (spread && !facingLoaded) { facingLoaded = true; LBOARD.titleRows(); }
     facing.style.transform = 'translateX(' + (W * s) + 'px) scale(' + s + ')';
     K = s * dpr;
     [cv, bg, dc].forEach(function (c) { c.width = Math.max(1, Math.round(W * K)); c.height = Math.max(1, Math.round(H * K)); });
@@ -258,6 +262,7 @@
 
   function reset() {
     S = {
+      input: 'keys',
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, stacks: {} },
@@ -762,6 +767,8 @@
     dreadHit = CAMPAIGN.dreadHit, hurtDread = CAMPAIGN.hurtDread, updateDread = CAMPAIGN.updateDread, drawDread = CAMPAIGN.drawDread,
     drawDreadBar = CAMPAIGN.drawDreadBar, dreadTargets = CAMPAIGN.dreadTargets, victoryDue = CAMPAIGN.victoryDue, showWin = CAMPAIGN.showWin,
     keepGoing = CAMPAIGN.keepGoing, rollCall = CAMPAIGN.rollCall, recordLine = CAMPAIGN.recordLine;
+  world.BOARD = BOARD;
+  var LBOARD = world.board = StickArmyBoard(world);
   world.dreadTargets = dreadTargets; world.DREAD_DECOY_HP = DREAD.DECOY_HP; world.dreadBeams = CAMPAIGN.dreadBeams; world.dreadPhase = CAMPAIGN.dreadPhase;
   world.dreadLit = function () { var p = CAMPAIGN.dread(); return !p ? [] : p.phase === 'hangar' ? [CAMPAIGN.hangarAt(p)] : p.phase === 'bridge' ? [CAMPAIGN.bridgeAt(p), CAMPAIGN.hangarAt(p)] : []; };
   function drawItemIcon(canvas, id) {
@@ -2207,13 +2214,8 @@
     wl.textContent = wins ? 'Won ' + wins + '×' + (bestWave > DREAD.WAVE ? ' · wave ' + bestWave : '') : ''; wl.hidden = !wins;
     document.getElementById('recordLine').hidden = bl.hidden && wl.hidden;
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
-    facingPage();
+    facingLoaded = false;
     fit();
-  }
-  // The facing page lists the online board's top five (facingRows), once there is one.
-  function facingPage() {
-    var rows = document.getElementById('facingRows');
-    if (!rows.children.length) { var li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Be the first on the page.'; rows.append(li); }
   }
   // ---------- the title's demo ----------
   // The title page plays the game in miniature, over and over: a plane crosses and drops two troopers. The turret
@@ -2257,10 +2259,12 @@
   }
   function newGame() {
     sound.init();
-    // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
-    if (window.PlayStats) statsRun = PlayStats.start('stick-army', { progress: runReport });
     // A run seed: forced by a harness, fixed by #seed=, or random.
     var fixed = RUN.force != null ? RUN.force : hashSeed();
+    // The online board: practice runs (a fixed seed, the tuning panel) never get a token, so they can't be saved.
+    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0);
+    // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
+    if (window.PlayStats) statsRun = PlayStats.start('stick-army', { board: BOARD, token: token || undefined, progress: runReport });
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));
     reset();
     S.mode = 'play'; S.hint = true;
@@ -2272,9 +2276,10 @@
   }
   // The named squad for the pause card: veterans by rank with their waves, a rookie count, and who's in the tent.
   // bare: without the "Squad: " lead (the shop's Squad section has its own heading).
-  function squadLine(bare) {
+  // short: names and ranks only (the pause card), without waves and kills.
+  function squadLine(bare, short) {
     var vets = S.recruits.filter(function (r) { return !r.dead && r.name; }).sort(function (a, b) { return b.rank - a.rank || b.waves - a.waves; });
-    var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return SQUAD.record({ name: rankName(r), waves: r.waves, kills: r.kills }); });
+    var rookies = S.recruits.filter(function (r) { return !r.dead && !r.name; }).length, parts = vets.map(function (r) { return short ? rankName(r) : SQUAD.record({ name: rankName(r), waves: r.waves, kills: r.kills }); });
     if (rookies) parts.push(rookies + (rookies > 1 ? ' rookies' : ' rookie'));
     var line = parts.length ? (bare ? '' : 'Squad: ') + parts.join(', ') + '.' : '';
     if (S.bed) line += (line ? ' ' : '') + 'In the tent: ' + (S.bed.r.name ? rankName(S.bed.r) : 'a rookie') + '.';
@@ -2298,9 +2303,11 @@
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
       document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
+      // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
       var kit = document.getElementById('pauseKit');
-      kit.hidden = !renderKit(kit, true);
-      var squad = document.getElementById('pauseSquad'), line = squadLine();
+      kit.hidden = !renderKit(kit, false);
+      var row = document.getElementById('pauseSquadRow'), squad = document.getElementById('pauseSquad'), line = squadLine(false, true);
+      row.hidden = !drawSquadRow(row);
       squad.textContent = line; squad.hidden = !line;
       pauseScreen.hidden = false;
       document.getElementById('resumeBtn').focus({ preventScroll: true });
@@ -2355,6 +2362,7 @@
     document.getElementById('stBest').textContent = Number(best).toLocaleString('en-US');
     overScreen.hidden = false;
     document.getElementById('againBtn').focus({ preventScroll: true });
+    LBOARD.finish(overScreen.querySelector('.card'), false);
   }
   // What a run reports to play stats (site/assets/stats.js), at game over or when the page is left mid-run.
   // The crew count includes a recruit in the field hospital (S.bed), as the roll call does.
@@ -2370,7 +2378,7 @@
     if (S.won) st.won_at = S.wonAt;
     if (S.captain) st.captain = S.captain;
     if (S.endless) st.endless = true;
-    return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, stats: st };
+    return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, input: S.input, stats: st };
   }
   // A win is reported as soon as the victory card shows. The handle stays, so a winner who keeps going is reported
   // again if the page is hidden mid-run, and once more at the final game over.
@@ -2437,6 +2445,8 @@
     if (chip) { if (chip.kind === 'bomber') callStrike(); else callFighter(); e.preventDefault(); return; }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     aimAt(toLogical(e)); S.firing = true;
+    // Touch (or a pen) on the page marks the run as touch on the board and in play stats; menus don't count.
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') { S.input = 'touch'; LBOARD.touched(); }
     e.preventDefault();
   });
   cv.addEventListener('pointermove', function (e) {
@@ -2465,6 +2475,7 @@
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
+    else if (k === 'Escape' && LBOARD.closeScores()) { /* closed the title's high scores */ }
     else if (k === 'p' || k === 'P' || k === 'Escape') { togglePause(); }
     else if ((k === 'b' || k === 'B') && !e.repeat && S.mode === 'play') { callStrike(); }
     else if ((k === 'c' || k === 'C') && !e.repeat && S.mode === 'play') { callFighter(); }
@@ -2517,6 +2528,9 @@
   var titleSoundBtn = document.getElementById('titleSoundBtn');
   titleSoundBtn.addEventListener('click', function () { muteBtn.click(); if (!sound.muted) sound.play('click'); titleSoundBtn.focus({ preventScroll: true }); });
   document.getElementById('titleFullBtn').addEventListener('click', function () { fullBtn.click(); });
+  var titleScoresBtn = document.getElementById('titleScoresBtn');
+  titleScoresBtn.hidden = !LBOARD.available;
+  titleScoresBtn.addEventListener('click', LBOARD.openScores);
   muteBtn.addEventListener('click', function () {
     sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
     if (!sound.muted) sound.init();

@@ -136,17 +136,17 @@ def stick_army(browser):
     page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
     page.goto(SITE + '/stick-army/')
     page.click('#startBtn')
-    start = check_start(beacons(page)[0], 'stick-army', None)
+    start = check_start(beacons(page)[0], 'stick-army', 1)
     # A recruit in the field hospital (S.bed) still counts as crew.
     alive = page.evaluate("armyTest('S.recruits.filter(function (r) { return !r.dead; }).length')")
     page.evaluate("armyTest(\"S.bed = { r: { name: 'Doodle' }, since: 3 }; S.score = 420; S.wave = 3; S.stats.kills = 9; S.lastHit = 'bomb'; S.mode = 'dying'; showOver();\")")
     end = check_end(beacons(page)[1], start, 'over', ['wave', 'kills', 'captured', 'crew', 'fallen', 'tags', 'cause'])
     assert end['score'] == 420 and end['stats']['wave'] == 3 and end['stats']['cause'] == 'bomb', end
     assert end['stats']['crew'] == alive + 1, (alive, end['stats'])
-    assert 'score_run' not in end, end
+    assert end['score_run'] == TOKEN_ID, end  # the board's run token, so a saved run can be matched
     # A win reports as soon as the victory card shows, as the wave-end code calls it.
     page.click('#againBtn')
-    second = check_start(beacons(page)[2], 'stick-army', None)
+    second = check_start(beacons(page)[2], 'stick-army', 1)
     page.evaluate("armyTest('S.wave = 15; showWin(); reportWin();')")
     won = check_end(beacons(page)[3], second, 'won', ['wave', 'won_at'])
     assert won['stats']['won_at'] == 15 and 'cause' not in won['stats'] and 'endless' not in won['stats'], won
@@ -161,7 +161,7 @@ def stick_army(browser):
     page.click('#pauseBtn')
     page.click('#restartBtn')
     check_end(beacons(page)[5], second, 'won', ['wave', 'endless'])
-    check_start(beacons(page)[6], 'stick-army', None)
+    check_start(beacons(page)[6], 'stick-army', 1)
     # A win left on the victory card needs nothing more: it was reported when the card appeared.
     third = beacons(page)[6]['body']
     page.evaluate("armyTest('S.wave = 15; showWin(); reportWin();')")

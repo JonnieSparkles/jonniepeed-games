@@ -172,8 +172,14 @@ body {
 .squad-row { display: block; height: 52px; margin: 8px 0 -4px; }
 #shopSquadRow { margin: 0 0 -2px; }
 #shopSquad { margin: 2px 0 0; font: 14px/1.3 'Atkinson Hyperlegible', sans-serif; }
-/* The victory card: the roll call of who made it, top gun starred. Scrolls on short screens. */
-.win-card { max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+/* Every card on the page scrolls when it's taller than the page (a full squad, a long roll call, the board), and its
+   buttons sit right under the score so they're always in reach. */
+.overlay > .card:not(.shop-card) { max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+/* Stats two to a line. */
+.stats { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; column-gap: 12px; font-size: 17px; line-height: 1.25; }
+.stats dt { white-space: nowrap; }
+.big-score { font-size: 56px; }
+#pauseKit canvas { width: 26px; height: 26px; }
 .win-card h2 { font-size: 40px; }
 .won-line { color: var(--ally); }
 /* The title card has the most to say: it sits higher and tighter so it fits the page with a record line. */
@@ -236,6 +242,50 @@ body {
 .f-bonus { margin: 10px 0 0 -20px; font-size: 18px; line-height: 22px; color: var(--enemy); }
 .f-postit mark { background: none; color: var(--ally); text-decoration: underline 2px; text-underline-offset: 2px; }
 #wrap.spread .t-keys { display: none; }
+/* Online high scores (board.js): the step row where the end card's buttons go while the scores are checked, the
+   picker, and the board drawn in pen on the card. */
+.lb-step { display: none; }
+.lb-checking > .lb-step, .lb-asking > .lb-step { display: block; }
+.lb-checking > .row, .lb-asking > .row, .lb-entering > .row { display: none; }
+.lb-wait { display: none; min-height: 52px; margin: 0; align-content: center; color: var(--ink-soft); font-size: 19px; }
+.lb-checking .lb-wait { display: grid; }
+.lb-ask { display: none; gap: 8px; }
+.lb-asking .lb-ask { display: grid; }
+.lb-note { margin: 0; font: 700 22px/1.1 var(--font-display); color: var(--ally); }
+.lb-ask .row { align-items: center; }
+.lb-skipq, .lb-more { min-height: 40px; padding: 4px 6px; font: 18px var(--font-hand); color: var(--ink-soft); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.lb-skipq:hover, .lb-more:hover { color: var(--ink); }
+.lb-add { color: var(--ally); text-align: left; }
+.lb { display: grid; gap: 6px; }
+.lb[hidden] { display: none; }
+.lb h3 { margin: 0; font: 700 22px/1 var(--font-display); }
+.lb-message { margin: 0; font-size: 17px; color: var(--ink-soft); }
+.lb-entry { display: grid; gap: 10px; justify-items: center; }
+.lb-slots { display: flex; gap: 10px; }
+.lb-slot { display: grid; gap: 3px; justify-items: center; }
+.lb .lb-button { width: 50px; min-height: 36px; padding: 0; font: 18px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 9px 5px 10px 6px; cursor: pointer; }
+.lb .lb-letter { min-height: 50px; font: 700 30px var(--font-display); }
+.lb .lb-current .lb-letter { border-color: var(--ally); box-shadow: 0 0 0 2px var(--ally); }
+.lb-actions { display: flex; align-items: center; gap: 14px; }
+.lb .lb-ok { width: auto; min-height: 46px; padding: 4px 24px 6px; font: 700 24px var(--font-display); color: var(--paper); background: var(--ally); border: 2.5px solid var(--ink); border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px; }
+.lb .lb-skip { width: auto; min-height: 44px; border: 0; background: none; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
+.lb button:focus-visible, .lb-list:focus-visible, .lb-skipq:focus-visible { outline: 3px solid var(--ally); outline-offset: 2px; }
+.lb-list { width: 100%; }
+.lb-list.lb-all { max-height: 260px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; }
+.lb-table { width: 100%; border-collapse: collapse; font-size: 18px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.lb-table th { padding: 0 4px 2px; font: 15px var(--font-hand); color: var(--ink-soft); text-align: right; border-bottom: 1.5px solid var(--rule); }
+.lb-table td { padding: 2px 4px; text-align: right; border-bottom: 1px solid var(--rule); }
+.lb-table td:first-child, .lb-table th:first-child { width: 2em; color: var(--ink-soft); }
+.lb-table td:nth-child(2), .lb-table th:nth-child(2) { text-align: left; letter-spacing: 1px; }
+.lb-table td:nth-child(4) { color: var(--ally); white-space: nowrap; }
+.lb-table td:last-child, .lb-table th:last-child { width: 22px; text-align: center; }
+.lb-all thead th { position: sticky; top: 0; background: var(--paper); }
+.lb-table .lb-you td { background: linear-gradient(transparent 12%, rgba(242, 194, 48, 0.55) 12%, rgba(242, 194, 48, 0.55) 88%, transparent 88%); color: var(--ink); }
+.lb-gap td { text-align: center; color: var(--ink-soft); padding: 0; line-height: 1; }
+.lb-input { width: 16px; height: 16px; vertical-align: middle; color: var(--ink-soft); }
+.lb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.scores-card { max-height: calc(100% - 40px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+#scoresScreen { z-index: 4; }
 /* The page has its own sound and full-screen chips on the title, so the buttons around the page wait for play. */
 #wrap:has(#titleScreen:not([hidden])) .hud-btns, #wrap:has(#titleScreen:not([hidden])) #fullBtn { display: none; }
 .roll-title { margin: 2px 0 -6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
@@ -331,11 +381,20 @@ body {
         </div>
       </div>
 
+      <div class="overlay" id="scoresScreen" role="dialog" aria-modal="true" aria-labelledby="scoresTitle" hidden>
+        <div class="card scores-card">
+          <h2 id="scoresTitle">High <span class="pen">scores</span></h2>
+          <div class="lb" id="scoresBox"></div>
+          <button class="btn" id="scoresClose" type="button">Close</button>
+        </div>
+      </div>
+
       <div class="overlay" id="pauseScreen" hidden>
         <div class="card">
           <h2>Paused</h2>
           <p class="tag" id="pauseTime"></p>
-          <div class="kit kit-named" id="pauseKit" aria-label="Your kit" hidden></div>
+          <div class="kit" id="pauseKit" aria-label="Your kit" hidden></div>
+          <canvas class="squad-row" id="pauseSquadRow" width="216" height="104" aria-hidden="true" hidden></canvas>
           <p class="squad-line" id="pauseSquad" hidden></p>
           <div class="row">
             <button class="btn" id="resumeBtn" type="button">Resume</button>
@@ -352,22 +411,22 @@ body {
           <p class="tag won-line" id="overWon" hidden></p>
           <p class="big-score" id="overScore">0</p>
           <p class="flag" id="newBest" hidden>New best!</p>
+          <div class="row"><button class="btn" id="againBtn" type="button">Play again</button></div>
           <dl class="stats">
-            <dt>Reached wave</dt><dd id="stWave">1</dd>
-            <dt>Time played</dt><dd id="stTime">0:00</dd>
-            <dt>Recruits captured</dt><dd id="stCap">0</dd>
-            <dt>Chutes popped</dt><dd id="stPop">0</dd>
-            <dt>Planes downed</dt><dd id="stPlanes">0</dd>
-            <dt id="stZepsLabel" hidden>Zeppelins downed</dt><dd id="stZeps" hidden>0</dd>
-            <dt id="stTanksLabel" hidden>Tanks destroyed</dt><dd id="stTanks" hidden>0</dd>
-            <dt>Wall damage taken</dt><dd id="stDmg">0</dd>
-            <dt>Rounds fired</dt><dd id="stShots">0</dd>
+            <dt>Wave</dt><dd id="stWave">1</dd>
+            <dt>Time</dt><dd id="stTime">0:00</dd>
+            <dt>Captured</dt><dd id="stCap">0</dd>
+            <dt>Popped</dt><dd id="stPop">0</dd>
+            <dt>Planes</dt><dd id="stPlanes">0</dd>
+            <dt id="stZepsLabel" hidden>Zeppelins</dt><dd id="stZeps" hidden>0</dd>
+            <dt id="stTanksLabel" hidden>Tanks</dt><dd id="stTanks" hidden>0</dd>
+            <dt>Damage</dt><dd id="stDmg">0</dd>
+            <dt>Rounds</dt><dd id="stShots">0</dd>
             <dt>Best</dt><dd id="stBest">0</dd>
           </dl>
           <canvas class="squad-row" id="overSquadRow" width="216" height="104" aria-hidden="true" hidden></canvas>
           <p class="squad-line" id="overSquad" hidden></p>
           <p class="squad-line" id="overFallen" hidden></p>
-          <button class="btn" id="againBtn" type="button">Play again</button>
           <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
@@ -378,23 +437,23 @@ body {
           <p class="tag">The Dreadnought is down and the enemy has surrendered.</p>
           <p class="big-score" id="winScore">0</p>
           <p class="flag" id="winBest" hidden>New best!</p>
+          <div class="row">
+            <button class="btn" id="keepBtn" type="button">Keep going</button>
+            <button class="btn ghost" id="winAgainBtn" type="button">Play again</button>
+          </div>
           <dl class="stats">
-            <dt>Time played</dt><dd id="winTime">0:00</dd>
-            <dt>Planes downed</dt><dd id="winPlanes">0</dd>
-            <dt>Zeppelins downed</dt><dd id="winZeps">0</dd>
-            <dt>Tanks destroyed</dt><dd id="winTanks">0</dd>
-            <dt>Wall damage taken</dt><dd id="winDmg">0</dd>
-            <dt>Rounds fired</dt><dd id="winShots">0</dd>
+            <dt>Time</dt><dd id="winTime">0:00</dd>
+            <dt>Planes</dt><dd id="winPlanes">0</dd>
+            <dt>Zeppelins</dt><dd id="winZeps">0</dd>
+            <dt>Tanks</dt><dd id="winTanks">0</dd>
+            <dt>Damage</dt><dd id="winDmg">0</dd>
+            <dt>Rounds</dt><dd id="winShots">0</dd>
           </dl>
           <h3 class="roll-title">Roll call</h3>
           <ul class="roll" id="winRoll"></ul>
           <p class="squad-line" id="winFallen" hidden></p>
           <p class="squad-line" id="winCaptain" hidden></p>
           <p class="keys" id="winCount"></p>
-          <div class="row">
-            <button class="btn" id="keepBtn" type="button">Keep going</button>
-            <button class="btn ghost" id="winAgainBtn" type="button">Play again</button>
-          </div>
           <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
@@ -423,13 +482,15 @@ body {
 </div>
 
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
+<script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="audio.js?v=97e6dbd5ab"></script>
 <script src="icons.js?v=6dd850d7a9"></script>
 <script src="units.js?v=7f9c46bf46"></script>
 <script src="sky.js?v=f50faadbee"></script>
 <script src="squad.js?v=e52c64b27c"></script>
-<script src="campaign.js?v=b8753d5790"></script>
+<script src="campaign.js?v=0c3db83a39"></script>
+<script src="board.js?v=edef67978c"></script>
 <script src="shop.js?v=1ebb6ef56c"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=b918e35add"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=5d460c0d0a"></script>
 </body>
 </html>

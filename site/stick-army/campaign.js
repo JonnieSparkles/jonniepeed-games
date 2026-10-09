@@ -1260,12 +1260,14 @@ var StickArmyCampaign = function (w) {
     winScreen.hidden = false; w.hidePause();
     w.sound.play('victory');
     emit('victory', { wave: S.wave, score: S.score });
+    // The campaign's score goes on the online board now; keeping going doesn't change it.
+    w.board.finish(winScreen.querySelector('.card'), true);
     document.getElementById('keepBtn').focus({ preventScroll: true });
   }
   function keepGoing() {
     var S = w.S;
     if (S.mode !== 'won') return;
-    S.endless = true; winScreen.hidden = true;
+    S.endless = true; winScreen.hidden = true; w.board.clear();
     w.openShop();
   }
   // The title card's record line.
