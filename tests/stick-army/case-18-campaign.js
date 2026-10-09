@@ -47,8 +47,10 @@
   check(seen.indexOf('dread_tease') >= 0 && ambienceState().dread === 'hush' && S.bubbles.some(function (b) { return /that's it/i.test(b.s); }), "that's it?");
   S.recruits = [];
   run(DREAD.TEASE_GAP);
+  check(!CAMPAIGN.dread() && sign.y < GROUND - 8, 'nothing comes while its sign is still falling');
+  for (var sf = 0; sf < 60 * 12 && !CAMPAIGN.dread(); sf++) update(1 / 60);
   var p = CAMPAIGN.dread();
-  check(p && p.wait > 0, 'the real one announces itself');
+  check(p && p.wait > 0 && sign.landedT >= DREAD.SIGN_BEAT, 'once it has landed, the real one announces itself');
   run(DREAD.APPROACH + 0.05);
   check(S.banner && S.banner.s === 'dreadnought!', 'its name across the page');
   check(p && p.phase === 'arrive' && (p.x < 0 || p.x > W) && seen.indexOf('plane_spawn') >= 0, 'it sails in from the side');

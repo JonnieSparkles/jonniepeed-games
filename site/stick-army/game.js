@@ -592,7 +592,8 @@
         sp.decoySeen = true; var spotter = S.recruits.filter(standing)[0];
         if (spotter) world.say('oh no, here it is!', spotter.id); else addText('oh no, here it is!', 200, 420, BLUE, 24, 'story');
       }
-      // The decoy down: a soldier wonders "that's it?", a few seconds of quiet, then the Dreadnought.
+      // The decoy down: a soldier wonders "that's it?", a few seconds of quiet, then the Dreadnought, once its sign has
+      // fluttered all the way down (and lain there SIGN_BEAT seconds).
       if (sp.decoy && !sp.decoyDone && sp.decoy.state !== 'fly') {
         sp.decoyDone = true; sp.bossT = DREAD.TEASE_GAP;
         var asker = S.recruits.filter(standing)[0];
@@ -606,7 +607,7 @@
         if (sp.bossT <= 0) {
           // The final wave's teaser: an ordinary zeppelin first, to thin music; the real thing waits until it's down.
           if (sp.cfg.bossKind === 'dread' && sp.teaser && !sp.decoy) teaseIn(sp, dt);
-          else if (sp.cfg.bossKind === 'dread') { sp.boss--; spawnDread(); }
+          else if (sp.cfg.bossKind === 'dread') { if (!S.parts.some(function (q) { return q.k === 'sticker' && !(q.landedT >= DREAD.SIGN_BEAT); })) { sp.boss--; spawnDread(); } }
           // The twins come in together, one from each side, one above the other.
           else if (sp.cfg.twin) { sp.boss = 0; spawnZeppelin({ dir: 1, twin: 0 }); spawnZeppelin({ dir: -1, twin: 1 }); }
           else { sp.boss--; spawnZeppelin(); }
@@ -1404,9 +1405,9 @@
       } else if (q.k === 'sticker') {
         // The decoy's disguise, torn off: it flutters down, swaying, and lies on the ground.
         if (q.y < GROUND - 8) {
-          q.vy = Math.min(70, q.vy + 90 * dt); q.y += q.vy * dt; q.vx *= (1 - dt * 0.8);
+          q.vy = Math.min(90, q.vy + 110 * dt); q.y += q.vy * dt; q.vx *= (1 - dt * 0.8);
           q.x = clamp(q.x + (q.vx + Math.sin(q.life * 3.2) * 38) * dt, 40, W - 40); q.rot = Math.sin(q.life * 3.2) * 0.45;
-        } else { q.y = GROUND - 8; q.rot *= 1 - Math.min(1, dt * 4); q.flat = Math.min(1, q.flat + dt * 3); }
+        } else { q.y = GROUND - 8; q.rot *= 1 - Math.min(1, dt * 4); q.flat = Math.min(1, q.flat + dt * 3); q.landedT = (q.landedT || 0) + dt; }
       }
     });
     S.parts = S.parts.filter(function (q) { return q.life > 0; });

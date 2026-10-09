@@ -33,9 +33,10 @@ var StickArmyCampaign = function (w) {
     // With no live gun over the page it moves at SEEK to bring one over; deck guns fire bursts every DECK_GUN seconds
     // in the guns stage; every BAIL of its health lost, crew bail out on chutes, shooting as they come down.
     SEEK: 60, DECK_GUN: 2.6, BAIL: 0.08, BAIL_EVERY: 1.6, BAIL_HURT: 0.35,
-    // The final wave opens with a teaser: an ordinary zeppelin (DECOY_HP of a usual one, no armor) to thin music; once
-    // it's down, TEASE_GAP seconds of quiet, then the real thing.
-    DECOY_HP: 0.75, TEASE_GAP: 3, DECOY_BUILD: 4.5, DECOY_SPEED: 16,
+    // The final wave opens with a teaser: an ordinary zeppelin (DECOY_HP of a usual one, no armor, a fake sign on its
+    // side) to thin music; once it's down, quiet for at least TEASE_GAP seconds and until its sign has landed and lain
+    // there SIGN_BEAT seconds, then the real thing.
+    DECOY_HP: 0.75, TEASE_GAP: 3, SIGN_BEAT: 1, DECOY_BUILD: 4.5, DECOY_SPEED: 16,
     // When the last gun goes, explosions run along the hull for CHAIN seconds and it lurches.
     CHAIN: 1.4,
     // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
@@ -59,8 +60,8 @@ var StickArmyCampaign = function (w) {
   function turretHP(n) { return Math.round(30 + 2.5 * n); }
   function hangarHP(n) { return Math.round(70 + 5 * n); }
   function bridgeHP(n) { return Math.round(80 + 6 * n); }
-  // About one and a half guns' worth.
-  function cannonHP(n) { return Math.round(45 + 3.75 * n); }
+  // About two guns' worth (one and a half went down too quickly).
+  function cannonHP(n) { return Math.round(60 + 5 * n); }
   // Wave 20, then every tenth wave in endless.
   function isDreadWave(n) { return n >= DREAD.WAVE && (n - DREAD.WAVE) % DREAD.EVERY === 0; }
   function dread() { return w.S.planes.find(function (p) { return p.kind === 'dread'; }) || null; }
