@@ -70,7 +70,7 @@ What the dashboard page says tells you where it's stuck:
 
 ## Deploying the Worker
 
-Only changes in `stats/` need a Worker deploy: `games.json` or `src/`. Changing which stats a game sends is a site change only. When a change touches both, deploy the Worker first, then the site.
+Only changes in `stats/` need a Worker deploy: `games.json` (including switching a game on or off) or `src/`. Changing which stats a game sends is a site change only. When a change touches both, deploy the Worker first, then the site.
 
 - **GitHub:** Actions tab → **Deploy Play Stats Worker** → Run workflow. It runs the Access check test, refuses to deploy while the database ID is still the placeholder, deploys from `stats/` with the pinned Wrangler version, then runs the smoke test against the live Worker (test rows only).
 - **Terminal:** `wrangler deploy` from `stats/`.
@@ -88,9 +88,24 @@ It uses the same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository s
 - **Boards:** a game with a leaderboard gets board pills (All boards, Board 3, Board 2…) on its page, and the choice is kept in the address (`?board=3`) so a link opens the same view. One board narrows every figure on the page, including names and saves. All boards adds a **By board** table, one row per board, for comparing play before and after a board change; each name's best is shown with its board, since scores on different boards follow different rules. Only boards seen in play stats appear, so runs from before play stats existed aren't counted.
 - Days are Eastern time. The window buttons are 7, 30 and 90 days; `?days=` takes 1–365. A window is whole Eastern days: 7 days is today and the six before it, from midnight.
 
+## Turning a game's stats off and on
+
+Each game in `stats/games.json` can be switched off:
+
+```json
+"stick-army": { "name": "Stick Army", "reporting": false }
+```
+
+- **Off** (`"reporting": false`): the Worker refuses new reports from that game. The game itself is unaffected; its reports are refused quietly. Its past runs stay on the dashboards.
+- **On:** remove `"reporting": false` (or set it to `true`).
+
+Either way, deploy the stats Worker afterwards (**Deploy Play Stats Worker**). No site deploy is needed.
+
+**When to turn a game on is the owner's call.** A game in early development should be off, so testing doesn't fill the numbers. The usual moment is when it goes to public testing or moves to the Side A shelf. Ask Jonnie before turning it on, and the [promotion checklist](../../README.md#side-b-and-promotion) has a step for it so it isn't forgotten. Plays on `localhost` never reach the real stats either way.
+
 ## Adding a game
 
-1. Add its folder name and display name to `stats/games.json`. Deploy the Worker first.
+1. Add its folder name and display name to `stats/games.json` with `"reporting": false`, and deploy the Worker first. Wire up the steps below as usual; the game starts reporting only once it's switched on (see above).
 2. Include `../assets/stats.js` before `game.js` (after `leaderboard.js` if it has one).
 3. When real play begins (never for demos or watch modes), start a run and keep the handle on the game's run state:
    ```js
@@ -171,7 +186,7 @@ All write responses are JSON with `Access-Control-Allow-Origin: *`. Requests can
 
 - `POST /v1/start` with `run`, `visit`, `game`, `board` (optional), `device`, `orientation`, `host`, `from` (optional). Repeats are ignored.
 - `POST /v1/end` with the start fields plus `outcome` (`over`, `won` or `quit`), `time_ms`, and optional `score`, `input`, `score_run`, `stats`. It creates the row if the start was lost. A `quit` never replaces a finished run; a finish always replaces a `quit`.
-- Both answer `{ok:true}`, or 400 `{ok:false,error}` naming the first bad field (`bad_run`, `bad_visit`, `bad_game`, `bad_board`, `bad_device`, `bad_orientation`, `bad_host`, `bad_from`, `bad_outcome`, `bad_time`, `bad_score`, `bad_input`, `bad_score_run`, `bad_stats`, `bad_json`, `body_too_large`), 429 `rate_limited`, or 503 `unavailable`.
+- Both answer `{ok:true}`, or 400 `{ok:false,error}` naming the first bad field (`bad_run`, `bad_visit`, `bad_game`, `bad_board`, `bad_device`, `bad_orientation`, `bad_host`, `bad_from`, `bad_outcome`, `bad_time`, `bad_score`, `bad_input`, `bad_score_run`, `bad_stats`, `bad_json`, `body_too_large`, `reporting_off` for a game switched off in `games.json`), 429 `rate_limited`, or 503 `unavailable`.
 - `game: "test"` is accepted and never shown.
 - `/dash/`, `/dash/<game>/`, `/dash/api/overview?days=N` and `/dash/api/game?game=<id>&days=N` need a valid Access token. Without one they answer 403; before Access is configured, 503 `locked`.
 

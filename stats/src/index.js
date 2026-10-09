@@ -77,6 +77,8 @@ function check(data, end) {
   if (typeof data.run !== 'string' || !UUID.test(data.run)) return 'bad_run';
   if (typeof data.visit !== 'string' || !UUID.test(data.visit)) return 'bad_visit';
   if (data.game !== TEST && !own(games, data.game)) return 'bad_game';
+  // A game switched off in games.json ("reporting": false) keeps its past runs on the dashboards but takes no new ones.
+  if (data.game !== TEST && games[data.game].reporting === false) return 'reporting_off';
   if (data.board != null && !Number.isSafeInteger(data.board)) return 'bad_board';
   if (!ONE_OF.device.includes(data.device)) return 'bad_device';
   if (!ONE_OF.orientation.includes(data.orientation)) return 'bad_orientation';
