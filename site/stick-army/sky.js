@@ -17,7 +17,8 @@ var StickArmySky = function (w) {
   // The Red Cross plane crosses slowly, trailing a Red Cross pennant, with a blinking light and a two-tone chime as
   // it comes in. A hit from your turret costs TAGS dog tags (more late in the run, medevacTags) and your combo, then it
   // flees.
-  var MEDEVAC = { WAVE: 6, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
+  // One that gets across untouched pays SAFE points and half its penalty in tags (safePassage).
+  var MEDEVAC = { WAVE: 6, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, SAFE: 200, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
   function medevacTags(n) { return n >= MEDEVAC.LATE_WAVE ? MEDEVAC.LATE : MEDEVAC.TAGS; }
   // A bomb balloon drifts in from an edge toward the bunker and lets its bomb go over it at DROP_Y. Popped anywhere
   // else, its bomb falls where it is: on the enemy, or on your crew.
@@ -29,7 +30,11 @@ var StickArmySky = function (w) {
   // A dive bomber comes in level, marking its target on the ground with a red crosshair, tips over at ANGLE below
   // level with a howl, lets its heavy bomb go at RELEASE_Y so it carries on to the target, then pulls out and climbs
   // away. Three hits down it.
-  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
+  // A sortie from the Dreadnought's hangar zooms out at LAUNCH px/s, climbing at LAUNCH_ANGLE, so it's off the page
+  // before the squad can down it.
+  // Sorties are tougher (SORTIE_HP) and their bomb is armored: bullets, flak and the sentry can't stop it, so the
+  // plane has to go down before it lets go.
+  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, SORTIE_HP: 5, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
   // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
@@ -38,7 +43,7 @@ var StickArmySky = function (w) {
   function heliHP(n) { return Math.round(6 + 0.4 * Math.max(0, n - HELI.WAVE)); }
   // A heavy bomber: a big, slow, armored four-engine plane (heavyHP, with a health bar) laying a long carpet of BOMBS
   // across the field, a heavy one on the bunker.
-  var HEAVY = { WAVE: 13, SPEED: 42, Y: [132, 156], BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
+  var HEAVY = { WAVE: 13, PAIR: 16, SPEED: 42, Y: [136, 160], PAIR_Y: [136, 198], BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
   function heavyHP(n) { return Math.round(45 + 3 * Math.max(0, n - HEAVY.WAVE)); }
   // The night raid (drawNight): the page goes dark, lit by your searchlight along the barrel, a lamp over the bunker,
   // explosions and burning planes. Planes show their blinking lights; bombs glint.
@@ -54,26 +59,35 @@ var StickArmySky = function (w) {
       crates: n >= CRATE.WAVE ? (n < 14 ? 1 : 2) : 0,
       divers: n >= DIVE.WAVE && !dread ? Math.min(8, 2 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
       helis: n >= HELI.WAVE && !dread ? Math.min(4, 1 + Math.floor((n - HELI.WAVE) / 4)) : 0,
-      // Like the other bombers, heavies sit out the boss waves.
-      heavies: n >= HEAVY.WAVE && !boss ? Math.min(4, 1 + Math.floor((n - HEAVY.WAVE) / 3)) : 0
+      // Like the other bombers, heavies sit out the boss waves. One a wave at first, then a pair from PAIR, then two
+      // pairs.
+      heavies: n >= HEAVY.WAVE && !boss ? (n < HEAVY.PAIR ? 1 : n < HEAVY.PAIR + 3 ? 2 : 4) : 0
     };
   }
   // Timers come from one draw of the wave stream, so what happens in the fight never shifts them.
   function start(sp, c) {
     var rnd = substream(w.RW);
+    w.S.smoke = null;
     sp.sky = { rnd: rnd, medevac: c.medevac, medevacT: c.medevac ? between(rnd, 6, 14) : 99, balloons: c.balloons, balloonT: between(rnd, 4, 7),
       crates: c.crates, crateT: between(rnd, 7, 13), divers: c.divers, diverT: between(rnd, 6, 9), helis: c.helis, heliT: between(rnd, 8, 11),
       heavies: c.heavies, heavyT: between(rnd, 5, 8) };
   }
+  // The enemies' gaps shrink with the wave's pace (game.js wavePace), so late waves arrive together.
   function tick(sp, dt) {
-    var k = sp.sky;
+    var k = sp.sky, pace = sp.pace || 1;
     if (!k) return;
     if (k.medevac > 0 && (k.medevacT -= dt) <= 0) { k.medevac--; spawnMedevac(k.rnd); k.medevacT = between(k.rnd, 10, 16); }
-    if (k.balloons > 0 && (k.balloonT -= dt) <= 0) { k.balloons--; spawnBalloon(k.rnd); k.balloonT = between(k.rnd, 5, 9); }
+    if (k.balloons > 0 && (k.balloonT -= dt) <= 0) { k.balloons--; spawnBalloon(k.rnd); k.balloonT = between(k.rnd, 5, 9) * pace; }
     if (k.crates > 0 && (k.crateT -= dt) <= 0) { k.crates--; spawnCrate(k.rnd); k.crateT = between(k.rnd, 12, 18); }
-    if (k.divers > 0 && (k.diverT -= dt) <= 0) { k.divers--; spawnDiver(k.rnd); k.diverT = between(k.rnd, 6, 10); }
-    if (k.helis > 0 && (k.heliT -= dt) <= 0) { k.helis--; spawnHeli(k.rnd); k.heliT = between(k.rnd, 13, 18); }
-    if (k.heavies > 0 && (k.heavyT -= dt) <= 0) { k.heavies--; spawnHeavy(k.rnd); k.heavyT = between(k.rnd, 14, 20); }
+    if (k.divers > 0 && (k.diverT -= dt) <= 0) { k.divers--; spawnDiver(k.rnd); k.diverT = between(k.rnd, 6, 10) * pace; }
+    if (k.helis > 0 && (k.heliT -= dt) <= 0) { k.helis--; spawnHeli(k.rnd); k.heliT = between(k.rnd, 13, 18) * pace; }
+    // From HEAVY.PAIR heavy bombers come two at a time, one from each side.
+    if (k.heavies > 0 && (k.heavyT -= dt) <= 0) {
+      var pair = w.S.wave >= HEAVY.PAIR && k.heavies >= 2, first = spawnHeavy(k.rnd, pair ? { high: true } : null);
+      k.heavies--;
+      if (pair) { k.heavies--; spawnHeavy(k.rnd, { dir: -first.dir, high: false }); }
+      k.heavyT = between(k.rnd, 14, 20) * pace;
+    }
   }
   // Enemies still due: the wave isn't over until they've come.
   function pending(sp) { var k = sp && sp.sky; return k ? k.balloons + k.divers + k.helis + (k.heavies || 0) : 0; }
@@ -113,9 +127,17 @@ var StickArmySky = function (w) {
     S.medevac.forEach(function (m) {
       m.x += m.dir * m.speed * dt; m.y = m.y0 + Math.sin(S.t * 1.3 + m.bob) * 3;
       if (m.hit) { m.smoke -= dt; if (m.smoke <= 0) { m.smoke = 0.1; w.puff(m.x - m.dir * 22, m.y - 2, 3, 0.7); } }
-      if (m.x < -70 || m.x > W + 70) m.gone = true;
+      if (m.x < -70 || m.x > W + 70) { m.gone = true; if (!m.hit) safePassage(m); }
     });
     S.medevac = S.medevac.filter(function (m) { return !m.gone; });
+  }
+  function safePassage(m) {
+    var S = w.S, x = clamp(m.x, 40, W - 40), tags = Math.round(medevacTags(S.wave) / 2);
+    S.score += MEDEVAC.SAFE; S.coins += tags; w.flyTags(x, m.y, tags);
+    addText('safe passage! +' + MEDEVAC.SAFE, x, m.y + 30, BLUE, 22);
+    emit('redcross_safe', { tags: tags });
+    emit('coins', { amount: tags, reason: 'safe passage' });
+    w.sound.play('medevac');
   }
   // The penalty you feel: the tags fly out of the counter toward the plane (loseTags), the counter flashes red, and
   // the combo is gone.
@@ -247,13 +269,36 @@ var StickArmySky = function (w) {
     if (!S.diverTold) { S.diverTold = true; addText('dive bomber!', clamp(p.x + dir * 80, 60, W - 60), y0 + 36, RED, 22); }
     return p;
   }
+  // A sortie from the Dreadnought's hangar: it rolls out one way (out), climbing to the dive bombers' height, leaves
+  // the page, then comes back in from that edge on a normal run at the bunker (comeBack), crosshair and all.
+  function launchDiver(rnd, from, out) {
+    var S = w.S, r = substream(rnd), p = w.makePlane('diver', out, from.x, from.y);
+    p.rng = r; p.hp = DIVE.SORTIE_HP; p.sortie = true; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.LAUNCH; p.ang = -DIVE.LAUNCH_ANGLE; p.drawAng = 0;
+    p.phase = 'launch'; p.vx = out * DIVE.LAUNCH; p.vy = 0; p.target = BK.x + between(r, -8, 8); p.spin = 0;
+    S.planes.push(p);
+    emit('plane_spawn', { kind: 'diver', dir: out, target: p.target, launched: true });
+    return p;
+  }
+  // Back from high above the side it left, already in its dive, screaming down at the bunker.
+  function comeBack(p) {
+    var vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE), fall = BK.top - 8 - (DIVE.RELEASE_Y + 8);
+    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, y0 = -40;
+    p.dir = -p.dir;
+    p.x = p.target - p.dir * vx * tf - p.dir * (DIVE.RELEASE_Y - y0) / Math.tan(DIVE.ANGLE); p.y = y0;
+    p.phase = 'dive'; p.ang = p.drawAng = DIVE.ANGLE; p.speed = DIVE.SPEED;
+    emit('dive', { x: p.x }); w.sound.play('siren');
+  }
   function updateDiver(p, dt) {
     var S = w.S;
     if (p.state !== 'fly') { fallDown(p, dt); return; }
+    if (p.phase === 'launch') {
+      if (p.y <= DIVE.Y) { p.y = DIVE.Y; p.ang = 0; }
+      if (p.x < -60 || p.x > W + 60) comeBack(p);
+    }
     if (p.phase === 'level' && (p.x - p.diveX) * p.dir >= 0) { p.phase = 'dive'; p.ang = DIVE.ANGLE; p.speed = DIVE.SPEED; emit('dive', { x: p.x }); w.sound.play('siren'); }
     if (p.phase === 'dive' && p.y >= DIVE.RELEASE_Y) {
       p.phase = 'pull';
-      S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, dead: false });
+      S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, armored: !!p.sortie, dead: false });
       emit('bomb_dropped', { by: 'diver' });
       w.sound.play('whistle');
     }
@@ -323,9 +368,13 @@ var StickArmySky = function (w) {
   }
 
   // ---------- heavy bombers ----------
-  function spawnHeavy(rnd) {
-    var S = w.S, r = substream(rnd), dir = r() < 0.5 ? 1 : -1;
-    var p = w.makePlane('heavy', dir, dir > 0 ? -90 : W + 90, between(r, HEAVY.Y[0], HEAVY.Y[1]));
+  // A pair (opts: { high, dir for the second }) flies at two heights from opposite sides, so they cross clear of
+  // each other.
+  function spawnHeavy(rnd, opts) {
+    var S = w.S, r = substream(rnd), roll = r(), y = between(r, HEAVY.Y[0], HEAVY.Y[1]);
+    var dir = opts && opts.dir ? opts.dir : roll < 0.5 ? 1 : -1;
+    if (opts) y = opts.high ? HEAVY.PAIR_Y[0] : HEAVY.PAIR_Y[1];
+    var p = w.makePlane('heavy', dir, dir > 0 ? -90 : W + 90, y);
     p.rng = r; p.hp = p.maxHp = heavyHP(S.wave); p.hw = HEAVY.HW; p.hh = HEAVY.HH; p.sc = HEAVY.SC; p.speed = HEAVY.SPEED;
     p.vx = dir * HEAVY.SPEED; p.vy = 0;
     // A long carpet across the field: each bomb let go where it will land on its mark, the one nearest the bunker heavy.
@@ -421,8 +470,11 @@ var StickArmySky = function (w) {
     var S = w.S;
     updateMedevac(dt); updateHQ(dt); updateCrates(dt);
     // The night raid fades in as its wave starts and out as it clears. Cosmetic only.
-    var dark = S.spawn && S.spawn.cfg && S.spawn.cfg.night && S.waveState === 'active';
+    // Night for the night raid, and the Dreadnought's smoke screen while its hangar launches its dive bombers.
+    var dp = w.dreadPhase && w.dreadPhase();
+    var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar');
     S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
+    if (S.smoke) { S.smoke.t += dt; if (S.smoke.clearing) { S.smoke.clear += dt; if (S.night <= 0) S.smoke = null; } }
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });
   }
@@ -585,7 +637,8 @@ var StickArmySky = function (w) {
   }
   // Where a dive bomber is going to put its bomb: a red crosshair on the ground, pulsing, until it lets go.
   function drawDiveMark(p) {
-    if (p.kind !== 'diver' || p.state !== 'fly' || (p.phase !== 'level' && p.phase !== 'dive')) return;
+    // A sortie marks its target as soon as it launches, so you know they're coming back.
+    if (p.kind !== 'diver' || p.state !== 'fly' || (p.phase !== 'level' && p.phase !== 'dive' && p.phase !== 'launch')) return;
     var G = w.G, x = p.target, y = Math.abs(p.target - BK.x) < 36 ? BK.top - 4 : GROUND - 6, k = 1 + 0.15 * Math.sin(w.S.t * 10);
     pen(p.id + 3);
     G.save(); G.globalAlpha = p.phase === 'dive' ? 0.95 : 0.6;
@@ -616,6 +669,63 @@ var StickArmySky = function (w) {
     else { G.beginPath(); G.rect(-2.5, -0.5, 5, 7); G.fillStyle = BLUE; G.fill(); G.beginPath(); L(1.5, -0.5, 2.2, -4.5, 0.1); ink(BLUE, 1.4); G.stroke(); }
     G.restore();
   }
+  // ---------- the Dreadnought's smoke screen ----------
+  // When its last gun goes, campaign.js has it fire smoke pots onto the field (smokePot). Each pours smoke, and the
+  // dark rolls out from them as billows that grow outward (SPREAD px/s, faster upward as smoke rises, each filling out
+  // over GROW seconds) instead of the page fading evenly, with wisps drifting through it. When the hangar goes down the
+  // pots sputter out (OUT seconds) and it blows off one side of the page (WIND px/s) as it fades. It's drawn by
+  // drawNight in place of the night's even fill, so the lights cut through it the same way, and each pot's nozzle
+  // glows through it. S.smoke is cosmetic.
+  var SMOKE = { COL: 62, ROW: 66, R: 58, GROW: 0.8, SPREAD: 240, RISE: 0.6, WIND: 260, OUT: 1.5, TOP: 'rgba(58,51,46,0.84)', LOW: 'rgba(44,40,37,0.62)' };
+  function smokeStart(wind) {
+    var billows = [];
+    for (var y = 100, row = 0; y < GROUND + 50; y += SMOKE.ROW, row++) {
+      for (var x = -40 + (row % 2) * SMOKE.COL / 2; x < W + 60; x += SMOKE.COL) billows.push({ x: x + rr(-14, 14), y: y + rr(-12, 12), r: SMOKE.R * rr(0.9, 1.25), t0: 1e9 });
+    }
+    w.S.smoke = { t: 0, billows: billows, pots: [], wind: wind, clear: 0, clearing: false };
+  }
+  function smokePot(x, y) {
+    var sm = w.S.smoke;
+    if (!sm) return;
+    sm.pots.push({ x: x, y: y, t: sm.t });
+    sm.billows.forEach(function (b) { b.t0 = Math.min(b.t0, sm.t + 0.25 + Math.hypot(b.x - x, (b.y - y) * SMOKE.RISE) / SMOKE.SPREAD); });
+  }
+  function potsOut(sm) { return clamp(sm.clear / SMOKE.OUT, 0, 1); }
+  function smokeClear() { if (w.S.smoke) w.S.smoke.clearing = true; }
+  function grown(sm, b) { var k = clamp((sm.t - b.t0) / SMOKE.GROW, 0, 1); return k * (2 - k); }
+  // Over the smoke: the rolling front outlined in pen while it spreads, and pale wisps drifting through it.
+  function drawSmoke(sm, a) {
+    var G = w.G, S = w.S, dx = sm.wind * sm.clear * SMOKE.WIND, full = 0, i;
+    G.save();
+    sm.billows.forEach(function (b, j) {
+      var k = grown(sm, b); full += k;
+      if (k <= 0 || k >= 1) return;
+      pen(900 + j); G.globalAlpha = a * 0.55 * (1 - k * 0.6); G.beginPath(); Ci(b.x + dx, b.y, b.r * k, 0.8); ink('rgba(30,26,24,0.9)', 1.6); G.stroke();
+    });
+    full /= sm.billows.length;
+    // The pots: a can on the ground with a glowing nozzle, a plume billowing up out of it, shorter as it sputters out.
+    var out = potsOut(sm);
+    sm.pots.forEach(function (q, j) {
+      var on = Math.min(1, (sm.t - q.t) * 2);
+      for (var k = 0; k < 7; k++) {
+        var age = (S.t * 0.45 + k / 7 + j * 0.31) % 1;
+        if (age > 1 - out) continue;
+        pen(970 + j * 7 + k); G.globalAlpha = (1 - age) * 0.75 * on;
+        G.beginPath(); Ci(q.x + Math.sin(age * 5 + j) * 6 + sm.wind * age * 30, q.y - 12 - age * 190, 5 + age * 26, 0.7);
+        G.fillStyle = 'rgba(205,198,188,0.5)'; G.fill(); ink('rgba(236,229,219,0.9)', 1.5); G.stroke();
+      }
+      pen(990 + j); G.globalAlpha = Math.min(1, a * 3);
+      G.fillStyle = '#7d8288'; G.fillRect(q.x - 4, q.y - 11, 8, 11); G.fillStyle = RED; G.fillRect(q.x - 4, q.y - 7, 8, 2.5);
+      G.beginPath(); SP([q.x - 4, q.y - 11, q.x + 4, q.y - 11, q.x + 4, q.y, q.x - 4, q.y], true, 0.2); ink(INK, 1.4); G.stroke();
+      if (out < 1) { G.globalAlpha = (1 - out) * (0.7 + 0.3 * Math.sin(S.t * 30 + j)); G.beginPath(); G.arc(q.x, q.y - 12, 2.6, 0, Math.PI * 2); G.fillStyle = 'rgba(255,170,60,1)'; G.fill(); }
+    });
+    for (i = 0; i < 12; i++) {
+      var m = W + 160, v = (i * 97 + S.t * (10 + (i * 7) % 13) * (i % 2 ? 1 : -1)) % m, x = (v + m) % m - 80 + dx, y = 130 + (i * 53) % 430, r = 26 + (i * 17) % 30;
+      pen(950 + i); G.globalAlpha = a * 0.32 * full; G.beginPath(); Ci(x, y, r, 0.8); G.fillStyle = 'rgba(150,140,130,0.25)'; G.fill(); ink('rgba(214,204,192,0.85)', 1.6); G.stroke();
+    }
+    G.restore();
+  }
+
   // ---------- the night raid ----------
   // The dark is drawn on its own canvas, then light cuts holes in it: the searchlight along the barrel, a lamp over the
   // bunker, every explosion, and planes going down in flames. It's laid over the battlefield (not the HUD, labels or
@@ -629,10 +739,24 @@ var StickArmySky = function (w) {
     var g = cv.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
     g.setTransform(G.getTransform());
-    var sky = g.createLinearGradient(0, 0, 0, GROUND + 20);
-    sky.addColorStop(0, 'rgba(14,20,44,' + NIGHT.DARK + ')'); sky.addColorStop(1, 'rgba(14,20,44,' + NIGHT.GROUND + ')');
-    g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
+    var sky = g.createLinearGradient(0, 0, 0, GROUND + 20), sm = S.smoke;
+    if (sm) {
+      // The smoke screen: only where its billows have reached, drifting off with the wind as it clears.
+      sky.addColorStop(0, SMOKE.TOP); sky.addColorStop(1, SMOKE.LOW);
+      var sdx = sm.wind * sm.clear * SMOKE.WIND;
+      g.fillStyle = sky; g.beginPath();
+      sm.billows.forEach(function (b) { var r = b.r * grown(sm, b); if (r > 0) { g.moveTo(b.x + sdx + r, b.y); g.arc(b.x + sdx, b.y, r, 0, Math.PI * 2); } });
+      g.fill();
+    } else {
+      sky.addColorStop(0, 'rgba(14,20,44,' + NIGHT.DARK + ')'); sky.addColorStop(1, 'rgba(14,20,44,' + NIGHT.GROUND + ')');
+      g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
+    }
     g.globalCompositeOperation = 'destination-out';
+    // The HUD bands stay light, so the score, tags, the Dreadnought's gauges, wall and squad read at night.
+    var top = g.createLinearGradient(0, 124, 0, 140); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = top; g.fillRect(-30, -30, W + 60, 170);
+    var low = g.createLinearGradient(0, GROUND + 4, 0, GROUND + 16); low.addColorStop(0, 'rgba(0,0,0,0)'); low.addColorStop(1, 'rgba(0,0,0,0.85)');
+    g.fillStyle = low; g.fillRect(-30, GROUND + 4, W + 60, w.H);
     function glow(x, y, r, k) {
       var rg = g.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, 'rgba(0,0,0,' + k + ')'); rg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -645,6 +769,14 @@ var StickArmySky = function (w) {
     g.fillStyle = beam; g.fill();
     glow(BK.x, GROUND - 24, NIGHT.LAMP, 0.85);
     S.parts.forEach(function (q) { if (q.k === 'pow') glow(q.x, q.y, q.r * 3, Math.min(1, q.life / q.max * 1.5)); });
+    // The Dreadnought's searchlights cut through the dark, and its open hangar and lit bridge glow, so the target shows.
+    (w.dreadBeams ? w.dreadBeams() : []).forEach(function (b) {
+      g.beginPath(); g.moveTo(b.x - 4, b.y); g.lineTo(b.gx - 36, GROUND); g.lineTo(b.gx + 36, GROUND); g.lineTo(b.x + 4, b.y); g.closePath();
+      g.fillStyle = 'rgba(0,0,0,' + 0.75 * b.k + ')'; g.fill();
+      glow(b.gx, GROUND - 4, 48, 0.8 * b.k);
+    });
+    (w.dreadLit ? w.dreadLit() : []).forEach(function (q, i) { glow(q.x, q.y, i ? 34 : 56, i ? 0.5 : 0.85); });
+    if (sm) sm.pots.forEach(function (q) { glow(q.x, q.y - 8, 30, 0.6 * (1 - potsOut(sm))); });
     S.planes.forEach(function (p) { if (p.state !== 'fly') glow(p.x, p.y, 60, 0.8); });
     g.globalCompositeOperation = 'source-over';
     G.save(); G.setTransform(1, 0, 0, 1, 0, 0); G.globalAlpha = a; G.drawImage(cv, 0, 0); G.restore();
@@ -652,6 +784,7 @@ var StickArmySky = function (w) {
     G.save(); G.globalAlpha = a * 0.08; G.beginPath(); G.moveTo(TUR.x, TUR.y);
     G.lineTo(TUR.x + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); G.lineTo(TUR.x + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); G.closePath();
     G.fillStyle = '#ffe27a'; G.fill(); G.restore();
+    if (sm) drawSmoke(sm, a);
     // What shows through the dark anyway.
     G.save(); G.globalAlpha = a;
     function light(x, y, r, c) { G.beginPath(); G.arc(x, y, r * 2.2, 0, Math.PI * 2); G.fillStyle = c.replace('1)', '0.25)'); G.fill(); G.beginPath(); G.arc(x, y, r, 0, Math.PI * 2); G.fillStyle = c; G.fill(); }
@@ -678,6 +811,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

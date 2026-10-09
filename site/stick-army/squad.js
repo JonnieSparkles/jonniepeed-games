@@ -9,12 +9,17 @@ var StickArmySquad = function (w) {
 
   // ---------- names and ranks ----------
   // Rookies are nameless. Standing at the end of a wave counts as a wave served; enough waves earn a name and a
-  // stripe, then more stripes. Each stripe adds a little health and a quicker trigger.
+  // stripe, then more stripes, up to five. Each stripe adds a little health and a quicker trigger. Training in the
+  // shop (Boot Camp, Elite Training) adds stripes too: one for everyone in the squad, and new soldiers start with
+  // them. A soldier's stripes are what he's served for plus what he's been trained (stripes), so the ones who've been
+  // there longest always have the most.
   var RANKS = [
     { waves: 0, short: '', title: 'rookie' },
     { waves: 3, short: 'Pfc.', title: 'Private First Class' },
     { waves: 6, short: 'Cpl.', title: 'Corporal' },
-    { waves: 10, short: 'Sgt.', title: 'Sergeant' }
+    { waves: 10, short: 'Sgt.', title: 'Sergeant' },
+    { waves: 14, short: 'SSgt.', title: 'Staff Sergeant' },
+    { waves: 18, short: 'MSgt.', title: 'Master Sergeant' }
   ];
   var RANK = { HP: 0.5, FIRE: 0.92 };
   var NAMES = ['Doodle', 'Squiggle', 'Scribbles', 'Inky', 'Smudge', 'Sketch', 'Nib', 'Graphite', 'Crayon', 'Margins',
@@ -34,13 +39,27 @@ var StickArmySquad = function (w) {
     }
     return NAMES[h % NAMES.length] + ' ' + (r.id % 90 + 10);
   }
+  // Service stripes for waves served, plus training stripes, capped at the top rank.
+  function stripes(r) {
+    var served = 0;
+    for (var i = 1; i < RANKS.length; i++) if ((r.waves || 0) >= RANKS[i].waves) served = i;
+    return Math.min(RANKS.length - 1, served + (r.trained || 0));
+  }
+  // n training stripes: a level of training for a soldier already in the squad (the one in the tent too), or every
+  // level bought so far for one who joins after. A stripe brings a name, and its health.
+  function train(r, n) {
+    r.trained = (r.trained || 0) + n;
+    var want = stripes(r), was = r.rank || 0;
+    if (want > was) { r.rank = want; if (!r.down) r.hp += RANK.HP * (want - was); }
+    if (r.rank && !r.name) r.name = pickName(r);
+  }
   function serveWave(news) {
     var S = w.S;
     S.recruits.forEach(function (r) {
       if (r.dead || r.down) return;
       r.waves = (r.waves || 0) + 1;
-      var next = RANKS[(r.rank || 0) + 1];
-      if (!next || r.waves < next.waves) return;
+      var want = stripes(r);
+      if (want <= (r.rank || 0)) return;
       r.rank = (r.rank || 0) + 1; r.hp += RANK.HP;
       if (!r.name) { r.name = pickName(r); news.push('A rookie earns a name: ' + rankName(r) + ', ' + killsText(r.kills) + '.'); }
       else news.push(r.name + ' makes ' + RANKS[r.rank].title + ', ' + killsText(r.kills) + '.');
@@ -130,6 +149,6 @@ var StickArmySquad = function (w) {
     }
   }
 
-  return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, killsText: killsText, record: record, serveWave: serveWave, knockDown: knockDown, standUp: standUp, cheer: cheer,
+  return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, stripes: stripes, train: train, killsText: killsText, record: record, serveWave: serveWave, knockDown: knockDown, standUp: standUp, cheer: cheer,
     fallen: fallen, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
 };

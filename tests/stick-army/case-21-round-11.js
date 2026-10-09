@@ -19,11 +19,12 @@
   RUN.force = 91; newGame(); S.wave = 6; S.coins = 500; S.mods.slots = 4; S.recruits = [makeRecruit(0, 'medic'), makeRecruit(4, 'rifle')];
   openShop();
   var chips = document.getElementById('hiredItems');
-  check(chips.hidden && roles().indexOf('hire-medic') < 0, 'nobody hired yet, and one medic at a time');
+  function medicBtn() { return document.querySelector('#hireItems [data-item="hire-medic"]'); }
+  check(chips.hidden && medicBtn().disabled && /Have one/.test(medicBtn().textContent) && roles().length === 5, 'nobody hired yet; one medic at a time, greyed "Have one"');
   takeItem('hire-rifle'); takeItem('hire-engineer'); var spent = S.coins;
   check(S.recruits.length === 4 && !chips.hidden && chips.children.length === 2, 'two hires, two chips');
-  // The bug: filling the squad used to bring the medic back, greyed out.
-  check(roles().indexOf('hire-medic') < 0, 'with a medic aboard, a full squad still hides him');
+  // Every role stays listed, so the list never changes shape.
+  check(roles().length === 5 && /Have one/.test(medicBtn().textContent), 'a full squad lists every role');
   chips.querySelector('[data-hired="hire-rifle"]').click();
   var types = S.recruits.map(function (r) { return r.type; }).sort().join();
   check(types === 'engineer,medic,rifle' && S.mods.hired === 1 && S.coins > spent && chips.children.length === 1, 'sent back: ' + types);
@@ -33,8 +34,7 @@
   // With no medic, a full squad shows him greyed with the rest.
   RUN.force = 92; newGame(); S.wave = 6; S.coins = 500; S.mods.slots = 3; S.recruits = unlockedSlots().map(function (sl) { return makeRecruit(sl, 'rifle'); });
   openShop();
-  var medicBtn = document.querySelector('#hireItems [data-item="hire-medic"]');
-  check(medicBtn && medicBtn.disabled, 'no medic: he shows, greyed, while the squad is full');
+  check(medicBtn().disabled && !/Have one/.test(medicBtn().textContent), 'no medic: he shows, greyed with a price, while the squad is full');
   closeShop();
 
   // The shop warns what's next.
@@ -86,10 +86,10 @@
   check(S.night === 0, 'then light again');
 
   // The Dreadnought: a gun knocked out blows apart and leaves a hole, not a gun.
-  RUN.force = 97; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(DREAD.WAVE); S.spawn.timer = 99;
+  RUN.force = 97; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(DREAD.WAVE); S.spawn.timer = 99; S.spawn.teaser = false;
   run(DREAD.ARRIVE + 0.05);
   var p = CAMPAIGN.dread();
-  for (var f = 0; f < 60 * 15 && p.phase === 'arrive'; f++) update(1 / 60);
+  for (var f = 0; f < 60 * 30 && p.phase === 'arrive'; f++) update(1 / 60);
   p.x = 200; p.move = 0; p.turrets.forEach(function (t) { t.cd = 99; });
   var gun = p.turrets.find(function (t) { var x = p.x + p.dir * t.lx; return x > 24 && x < W - 24; });
   S.parts = [];

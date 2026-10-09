@@ -42,6 +42,22 @@ var StickArmySound = (function () {
     g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(fl); fl.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.03);
   }
+  // A klaxon blast, "a-OOO-gah": two buzzing horns a fifth apart swoop up, hold, then sag, through a honky bandpass
+  // with a little rasp, so it reads as an alarm and not a beep.
+  function honk(delay) {
+    var t0 = AC.currentTime + (delay || 0), g = AC.createGain(), bp = AC.createBiquadFilter(), sh = AC.createWaveShaper(), c = new Float32Array(257);
+    for (var k = 0; k < c.length; k++) { var x = k / 128 - 1; c[k] = Math.tanh(3 * x); }
+    sh.curve = c; bp.type = 'bandpass'; bp.frequency.value = 950; bp.Q.value = 1.3;
+    [[1, 'sawtooth', 0.11], [1.5, 'square', 0.05]].forEach(function (h) {
+      var o = AC.createOscillator(), og = AC.createGain();
+      o.type = h[1]; o.frequency.setValueAtTime(150 * h[0], t0); o.frequency.exponentialRampToValueAtTime(330 * h[0], t0 + 0.14);
+      o.frequency.setValueAtTime(330 * h[0], t0 + 0.42); o.frequency.exponentialRampToValueAtTime(250 * h[0], t0 + 0.62);
+      og.gain.value = h[2]; o.connect(og); og.connect(sh); o.start(t0); o.stop(t0 + 0.66);
+    });
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.03); g.gain.setValueAtTime(0.5, t0 + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.64);
+    sh.connect(bp); bp.connect(g); g.connect(master);
+    noise(0.55, 0.03, 1400, delay, 'bandpass');
+  }
   var SFX = {
     shoot: function () { noise(0.05, 0.08, 3000); tone(260, 0.05, 'square', 0.025, 120); },
     ally: function () { noise(0.04, 0.05, 2200); },
@@ -88,7 +104,22 @@ var StickArmySound = (function () {
     rip: function () { for (var i = 0; i < 10; i++) noise(0.06, 0.13, 3200 - i * 220, i * 0.035, 'bandpass'); noise(0.45, 0.12, 1200, 0.05, 'highpass'); },
     flare: function () { noise(0.7, 0.07, 4200, 0, 'highpass'); tone(900, 0.45, 'sine', 0.025, 1500); },
     broadside: function () { noise(0.7, 0.5, 280); tone(56, 0.7, 'sine', 0.38, 28); noise(0.1, 0.25, 2200); },
-    klaxon: function () { [0, 0.32, 0.64, 0.96].forEach(function (d, i) { tone(i % 2 ? 350 : 440, 0.28, 'square', 0.045, null, d); }); },
+    klaxon: function () { honk(0); honk(0.78); honk(1.56); honk(2.34); },
+    // The Dreadnought's entrance: a low minor brass chord swelling under its horn.
+    sting: function () { [73.4, 87.3, 110, 146.8].forEach(function (f, i) { brass(f, 2.2, 0.075, i * 0.03); }); noise(1.8, 0.05, 160); },
+    // Its main gun charging: a whine rising over three seconds under a warning beep that quickens; then the shot, the
+    // biggest bang in the game.
+    charge: function () {
+      tone(110, 3, 'sawtooth', 0.04, 880); tone(220, 3, 'square', 0.016, 1760);
+      [0, 0.7, 1.3, 1.8, 2.2, 2.5, 2.7, 2.85].forEach(function (t) { tone(1320, 0.08, 'square', 0.05, null, t); });
+    },
+    maingun: function () { noise(0.6, 0.6, 240); noise(0.6, 0.35, 180, 0.4); tone(48, 1, 'sine', 0.45, 22); noise(0.14, 0.32, 2400); tone(140, 0.5, 'sawtooth', 0.08, 40); },
+    // Its wreck hitting the ground: a long, deep crash with metal crumpling through it.
+    crash: function () {
+      noise(0.6, 0.6, 260); noise(0.6, 0.45, 200, 0.45); noise(0.6, 0.3, 160, 0.9); noise(0.6, 0.18, 140, 1.35);
+      tone(55, 1.8, 'sine', 0.45, 22); tone(170, 0.9, 'sawtooth', 0.07, 45, 0.05);
+      for (var i = 0; i < 7; i++) noise(0.14, 0.2, 2600 - i * 260, 0.04 + i * 0.1, 'bandpass');
+    },
     // The sky (sky.js): a dive bomber's rising siren, a helicopter's chop, and a sour buzz for hitting the Red Cross.
     // A dive bomber tipping over: a short, low, rising howl (two detuned saws through a lowpass) rather than a whistle.
     siren: function () {
@@ -226,8 +257,10 @@ var StickArmySound = (function () {
   var DREAD_BASS = [[[0, D2, 3], [3, D2, 3], [6, F2, 2], [8, E2, 3], [11, D2, 3], [14, A1, 2]],
     [[0, D2, 3], [3, D2, 3], [6, G2, 2], [8, F2, 3], [11, E2, 2], [13, CS2, 3]]];
   var DREAD_CALL = [[[0, A3, 6], [6, D4, 2], [8, F4, 4], [12, E4, 4]], [[0, D4, 4], [4, CS4, 4], [8, A3, 8]]];
-  function dreadStep(i, bar, t, dt, bridge) {
-    DREAD_BASS[bar % 2].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, 0.05); });
+  // thin: the final wave's teaser, just the low brass and the timpani, quietly.
+  function dreadStep(i, bar, t, dt, bridge, thin) {
+    DREAD_BASS[bar % 2].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, thin ? 0.03 : 0.05); });
+    if (thin) { if (i === 0) timp(t, D2, 0.16); return; }
     var callBar = bridge ? bar % 2 : bar % 4 - 2;
     if (callBar === 0 || callBar === 1) DREAD_CALL[callBar].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, 0.032); });
     if (i === 0) timp(t, D2, 0.24); else if (i === 8) timp(t, A1, 0.2); else if (bridge && i === 12) timp(t, D2, 0.12);
@@ -276,11 +309,14 @@ var StickArmySound = (function () {
     if (on && state.wave) {
       if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
       // The Dreadnought brings its own march once it's through the page.
-      var dreadOn = !!state.dread && state.dread !== 'sinking', bridge = state.dread === 'hangar' || state.dread === 'bridge';
+      // The final wave opens with it thin (teaser) and goes quiet (hush) before the real one arrives.
+      var dreadOn = !!state.dread && state.dread !== 'sinking' && state.dread !== 'wreck', bridge = state.dread === 'hangar' || state.dread === 'bridge';
+      var thin = state.dread === 'teaser', hush = state.dread === 'hush';
       var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {
-        if (dreadOn) dreadStep(amb.step, amb.bar, amb.nextStep, dt, bridge);
+        if (hush) { /* a held breath */ }
+        else if (dreadOn) dreadStep(amb.step, amb.bar, amb.nextStep, dt, bridge, thin);
         else marchStep(amb.step, amb.bar, n, amb.nextStep, dt, !!state.wallLow, boss);
         amb.nextStep += dt;
         if (++amb.step === 16) { amb.step = 0; amb.bar++; }

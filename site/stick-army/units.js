@@ -23,20 +23,23 @@ var StickArmyUnits = function (w) {
     DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2, ARRIVE: 9, WARN: 2.5,
     ARMOR_WAVE: 10, PLATES: [-0.72, -0.36, 0, 0.36, 0.72], PLATE_W: 0.18, PLATE_HP: 6,
     // From TWIN_WAVE the fives bring two at once, one TWIN_DY above the other, each with TWIN_HP of a single one's health.
-    TWIN_WAVE: 15, TWIN_DY: 48, TWIN_HP: 0.6 };
+    TWIN_WAVE: 15, TWIN_DY: 48, TWIN_HP: 0.6,
+    // Once the wave's planes are done, an escort plane every ESCORT_EVERY seconds while a zeppelin flies.
+    ESCORT_EVERY: 2.4 };
   var STEEL = 'rgba(112,120,130,0.5)';
   function zeppelinHP(n) { return Math.round(20 + BALANCE.BOSS_HP_PER_WAVE * n); }
   // The gondola is the weak spot: direct shots there do ZEP.WEAK times the damage.
   function inGondola(p, x, y) { var dx = x - p.x, dy = y - p.y; return dy > p.hh - 3 && Math.abs(dx) < 24 * Math.abs(p.face) + 4; }
   // opts (optional): { dir, twin: 0 or 1 } for the pair, upper (0) and lower (1).
   function spawnZeppelin(opts) {
-    var S = w.S, twin = opts && opts.twin != null;
+    // opts.twin: one of a pair (0 above, 1 below). opts.decoy: the final wave's teaser, lighter and unarmored.
+    var S = w.S, twin = opts && opts.twin != null, decoy = !!(opts && opts.decoy);
     var rnd = substream(w.RW), roll = rnd(), dir = opts && opts.dir ? opts.dir : roll < 0.5 ? 1 : -1;
     var homeY = twin ? ZEP.Y + (opts.twin ? 1 : -1) * ZEP.TWIN_DY : ZEP.Y, p = makePlane('zeppelin', dir, dir > 0 ? -ZEP.HW - 20 : W + ZEP.HW + 20, homeY);
     p.rng = rnd; p.homeY = homeY; p.twin = twin;
-    p.hp = p.maxHp = Math.round(zeppelinHP(S.wave) * (twin ? ZEP.TWIN_HP : 1)); p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
+    p.hp = p.maxHp = Math.round(zeppelinHP(S.wave) * (twin ? ZEP.TWIN_HP : decoy ? w.DREAD_DECOY_HP : 1)); p.decoy = decoy; p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
     p.baseY = homeY; p.bob = between(rnd, 0, 6.28); p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
-    if (S.wave >= ZEP.ARMOR_WAVE) {
+    if (S.wave >= ZEP.ARMOR_WAVE && !decoy) {
       p.armored = true; p.shield = true;
       p.plates = ZEP.PLATES.map(function (k) { return { k: k, hp: ZEP.PLATE_HP, flash: 0, id: w.id() }; });
     }
@@ -89,7 +92,7 @@ var StickArmyUnits = function (w) {
     p.face += clamp(p.dir - p.face, -dt * 2.6, dt * 2.6);
     if (p.state === 'fly') {
       if (!p.entered && p.x > ZEP.LEFT && p.x < ZEP.RIGHT) p.entered = true;
-      var want = !p.entered ? ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
+      var want = !p.entered ? p.enterSpeed || ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
       p.speed += (want - p.speed) * Math.min(1, dt * 1.5);
       if (p.entered && (p.dir > 0 ? p.x > ZEP.RIGHT : p.x < ZEP.LEFT)) p.dir = -p.dir;
       p.x += p.face * p.speed * dt;
@@ -163,6 +166,39 @@ var StickArmyUnits = function (w) {
     S.shake = Math.max(S.shake, 0.5);
     w.sound.play('zepdown');
     for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
+    // The decoy's disguise tears off and flutters down on its own (game.js updateParts).
+    if (p.decoy) S.parts.push({ k: 'sticker', x: p.x + p.face * STICKER.X, y: p.y + STICKER.Y, vx: rr(-30, 30), vy: -60, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
+  }
+
+  // The final wave's decoy pretends: a paper sign taped on crooked, "DREDNOUGHT" hand-lettered in red with the A
+  // squeezed in over a caret, one corner come loose and flapping. Drawn the right way round whichever way it faces
+  // (sx squashes it as the zeppelin turns); flat lays it on the ground.
+  var STICKER = { X: -14, Y: -1, HW: 48, HH: 13, TILT: -0.07 };
+  function drawSticker(x, y, sx, rot, flat) {
+    var G = w.G, t = w.S.t, hw = STICKER.HW, hh = STICKER.HH, flap = Math.sin(t * 8) * 0.5 + 0.5, i;
+    G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(STICKER.TILT + (rot || 0));
+    pen(8086);
+    G.beginPath(); SP([-hw, -hh + 1, hw - 13, -hh, hw, -hh + 11, hw - 1, hh, -hw + 2, hh - 1], true, 0.5);
+    G.fillStyle = '#fffbee'; G.fill(); ink(INK, 1.6); G.stroke();
+    // Masking tape on three corners.
+    G.fillStyle = 'rgba(232,214,150,0.8)';
+    [[-hw + 2, -hh + 2, 0.7], [-hw + 3, hh - 2, -0.7], [hw - 3, hh - 2, 0.7]].forEach(function (c) {
+      G.save(); G.translate(c[0], c[1]); G.rotate(c[2]); G.fillRect(-8, -3, 16, 6); G.restore();
+    });
+    // The lettering: uneven, running downhill.
+    var word = 'DREDNOUGHT', step = 8.4, x0 = -step * (word.length - 1) / 2 - 1;
+    G.fillStyle = RED; G.textAlign = 'center';
+    for (i = 0; i < word.length; i++) {
+      G.save(); G.translate(x0 + i * step + (i >= 3 ? 2 : 0), 7 + Math.sin(i * 2.1) * 1.6 + i * 0.3); G.rotate(Math.sin(i * 1.3 + 1) * 0.15);
+      G.font = '700 ' + (14 + ((i * 7) % 3) * 2) + 'px ' + w.HAND; G.fillText(word[i], 0, 0); G.restore();
+    }
+    var cx = x0 + 2.5 * step + 1;
+    G.beginPath(); L(cx - 3, 10, cx, 5, 0.1); L(cx, 5, cx + 3, 10, 0.1); ink(RED, 1.4); G.stroke();
+    G.font = '700 10px ' + w.HAND; G.fillText('A', cx, -4);
+    // The loose corner, lifting in the wind and falling back.
+    var tx = hw + 4 + (hw - 10.8 - hw - 4) * flap, ty = -hh - 5 + 17.8 * flap;
+    G.beginPath(); SP([hw - 13, -hh, hw, -hh + 11, tx, ty], true, 0.2); G.fillStyle = '#ece2c6'; G.fill(); ink(INK, 1.4); G.stroke();
+    G.restore();
   }
 
   function drawZeppelin(p) {
@@ -234,6 +270,7 @@ var StickArmyUnits = function (w) {
     G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
     if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
     G.restore();
+    if (p.decoy && fly) drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot);
   }
   // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry. It comes
   // in with the hull, and is only held on the page once the zeppelin has fully arrived.
@@ -452,9 +489,11 @@ var StickArmyUnits = function (w) {
     var S = w.S;
     if (S.mode !== 'play' || S.strike || S.calls.bomber <= 0) return false;
     S.calls.bomber--;
-    var targets = [];
+    // It comes in from the left or the right, picked with the combat stream so a replay is the same.
+    var dir = w.RC() < 0.5 ? -1 : 1, targets = [];
     for (var i = 0; i < STRIKE.BOMBS; i++) { var x = 24 + i * (W - 48) / (STRIKE.BOMBS - 1); if (Math.abs(x - BK.x) > 46) targets.push(x); }
-    S.strike = { x: STRIKE.START, hold: STRIKE.HOLD + RADIO.TALK, drops: targets, id: w.id() };
+    if (dir < 0) targets.reverse();
+    S.strike = { x: dir > 0 ? STRIKE.START : W - STRIKE.START, dir: dir, hold: STRIKE.HOLD + RADIO.TALK, drops: targets, id: w.id() };
     radioCall('air strike!');
     emit('air_strike', { wave: S.wave, left: S.calls.bomber });
     return true;
@@ -463,9 +502,9 @@ var StickArmyUnits = function (w) {
     var S = w.S, st = S.strike;
     if (st && st.hold > 0) { var was = st.hold; st.hold -= dt; if (was > STRIKE.HOLD && st.hold <= STRIKE.HOLD) w.sound.play('strike'); }
     else if (st) {
-      st.x += STRIKE.SPEED * dt;
-      while (st.drops.length && st.x >= st.drops[0]) S.strikeBombs.push({ id: w.id(), x: st.drops.shift(), y: STRIKE.Y + 12, vy: 80, dead: false });
-      if (st.x > W + 100) S.strike = null;
+      st.x += st.dir * STRIKE.SPEED * dt;
+      while (st.drops.length && (st.x - st.drops[0]) * st.dir >= 0) S.strikeBombs.push({ id: w.id(), x: st.drops.shift(), y: STRIKE.Y + 12, vy: 80, dead: false });
+      if (st.dir > 0 ? st.x > W + 100 : st.x < -100) S.strike = null;
     }
     S.strikeBombs.forEach(function (m) {
       m.vy += STRIKE.FALL * dt; m.y += m.vy * dt;
@@ -477,8 +516,10 @@ var StickArmyUnits = function (w) {
     var S = w.S;
     if (S.mode !== 'play' || S.fighter || S.calls.fighter <= 0) return false;
     S.calls.fighter--;
-    // A lead and a wingman, flying in echelon. Each has its own guns, contrail and muzzle flash.
-    S.fighter = { pass: 0, dir: 1, x: FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, fly: 0, dive: FIGHTER.DIVE, id: w.id(),
+    // A lead and a wingman, flying in echelon. Each has its own guns, contrail and muzzle flash. From the left or the
+    // right, like the air strike.
+    var dir = w.RC() < 0.5 ? -1 : 1;
+    S.fighter = { pass: 0, dir: dir, x: dir > 0 ? FIGHTER.START : W - FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, fly: 0, dive: FIGHTER.DIVE, id: w.id(),
       wing: [{ dx: 0, dy: 0, cd: 0.1, flash: 0, trail: [] }, { dx: -FIGHTER.WING_X, dy: -FIGHTER.WING_Y, cd: 0.16, flash: 0, trail: [] }] };
     radioCall('fighter cover!');
     emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });
@@ -497,7 +538,7 @@ var StickArmyUnits = function (w) {
         if (dx > 10 && d < FIGHTER.RANGE + bias && d < bd) { bd = d; best = o; }
       });
     }
-    consider(S.bombs, function (m) { return !m.dead && m.y < GROUND - 70; }, 0);
+    consider(S.bombs, function (m) { return !m.dead && !m.armored && m.y < GROUND - 70; }, 0);
     // Not balloons: popped from up here, a balloon's bomb could fall anywhere, the crew included.
     consider(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon'; }, 40);
     consider(S.planes, function (p) { return p.state === 'fly' && p.kind === 'zeppelin'; }, 200);
@@ -545,7 +586,7 @@ var StickArmyUnits = function (w) {
     });
     if (!st) return;
     var body = function () {
-      pen(st.id); G.save(); G.translate(st.x, STRIKE.Y); G.scale(-0.86, 0.86);
+      pen(st.id); G.save(); G.translate(st.x, STRIKE.Y); G.scale(-0.86 * st.dir, 0.86);
       G.beginPath(); SP(w.BOMBER_PTS, true, 0.6); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.12)'; G.fill(); ink(INK, 2.6); G.stroke();
       G.beginPath(); L(-16, 4, 22, 6); ink(INK, 3.4); G.stroke();
       G.beginPath(); G.arc(18, -3, 5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
@@ -553,14 +594,15 @@ var StickArmyUnits = function (w) {
       var pl = w.boil % 2 ? 11 : 6; G.beginPath(); L(-50, -pl, -50, pl, 0.4); ink(INK, 2.3); G.stroke();
       G.restore();
     };
-    if (st.hold > 0) w.sketchReveal(1 - st.hold / STRIKE.HOLD, [st.x - 54, STRIKE.Y - 28, st.x + 46, STRIKE.Y + 16], 'right', body); else body();
+    if (st.hold > 0) w.sketchReveal(1 - st.hold / STRIKE.HOLD, [st.x - (st.dir > 0 ? 54 : 46), STRIKE.Y - 28, st.x + (st.dir > 0 ? 46 : 54), STRIKE.Y + 16], 'right', body); else body();
   }
   function drawFighter() {
     var f = w.S.fighter, G = w.G;
     if (!f) return;
     if (f.hold > 0) {
       var lead = wingAt(f, f.wing[0]);
-      w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [lead.x - 32 - FIGHTER.WING_X, lead.y - 16 - FIGHTER.WING_Y, lead.x + 32, lead.y + 8], 'right', function () { f.wing.forEach(function (q) { fighterBody(f, q, G); }); });
+      var back = f.dir > 0 ? FIGHTER.WING_X : 0, ahead = f.dir > 0 ? 0 : FIGHTER.WING_X;
+      w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [lead.x - 32 - back, lead.y - 16 - FIGHTER.WING_Y, lead.x + 32 + ahead, lead.y + 8], 'right', function () { f.wing.forEach(function (q) { fighterBody(f, q, G); }); });
       return;
     }
     f.wing.forEach(function (q) {
@@ -591,7 +633,7 @@ var StickArmyUnits = function (w) {
   }
 
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
-    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
+    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,

@@ -3,7 +3,7 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   var i;
   function play(seconds) { for (var k = 0; k < seconds * 60; k++) update(1 / 60); }
-  function quiet() { S.mode = 'play'; S.shop = null; shopScreen.hidden = true; S.waveState = 'active'; S.mods.maxHP = S.wallHP = 1e6; S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.cargo = S.spawn.boss = 0; S.planes = []; S.troopers = []; S.bombs = []; }
+  function quiet() { S.mode = 'play'; S.shop = null; shopScreen.hidden = true; S.waveState = 'active'; S.mods.maxHP = S.wallHP = 1e6; S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.cargo = S.spawn.road = S.spawn.boss = 0; var k = S.spawn.sky; if (k) k.balloons = k.divers = k.helis = k.heavies = k.medevac = k.crates = 0; S.planes = []; S.troopers = []; S.bombs = []; S.medevac = []; S.hq = []; }
 
   // New threats arrive on schedule, and pressure keeps rising after wave 7.
   check(!waveCfg(5).rushes && waveCfg(6).rushes >= 1 && waveCfg(12).rushes > waveCfg(6).rushes, 'rushers from wave 6, more later');
@@ -65,7 +65,7 @@
   // Air strike: a charge calls a bomber that clears the ground and hurts tanks, sparing crew and wall.
   quiet(); S.tanks = [{ id: 98, x: 110, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 9, hitFlash: 0, tread: 0, dead: false }];
   var crew = makeRecruit(4, 'rifle'), crewHp = crew.hp; S.recruits = [crew]; wall = S.wallHP;
-  [30, 60, 90].forEach(function (x) { spawnTrooper(x, GROUND - 33); land(S.troopers[S.troopers.length - 1]); });
+  [30, 60, 90].forEach(function (x) { spawnTrooper(x, GROUND - 33, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); land(S.troopers[S.troopers.length - 1]); });
   var tankHp = S.tanks[0].hp; S.calls.bomber = 1;
   check(callStrike() && S.calls.bomber === 0 && !callStrike(), 'a strike uses a charge, and only one flies at a time');
   play(4);
