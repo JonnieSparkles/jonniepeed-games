@@ -30,21 +30,21 @@ var StickArmySky = function (w) {
   // the bunker. Nothing can shoot it or the crate. Once it lands, the nearest free soldier runs out and fetches it
   // (errand, collect); with no squad it's collected where it lands. Inside: dog tags, a wall patch or a radio call.
   var CRATE = { WAVE: 8, Y: 250, SPEED: 150, FALL: 85, TAGS: 35, WALL: 25 };
-  // A dive bomber comes in level, marking its target on the ground with a red crosshair, tips over at ANGLE below
-  // level with a howl, lets its heavy bomb go at RELEASE_Y so it carries on to the target, then pulls out and climbs
-  // away. Three hits down it. Round 14: it lets go at 320 (it was 392), as the sixth playtest couldn't tell whether
+  // A dive bomber comes in level at Y (124 since round 14, below the page's top rule; it was 112), marking its target
+  // on the ground with a red crosshair, tips over at ANGLE below level with a howl, lets its heavy bomb go at RELEASE_Y
+  // so it carries on to the target, then pulls out and climbs away. Three hits down it. Round 14: it lets go at 320 (it was 392), as the sixth playtest couldn't tell whether
   // they did anything; for the bots, about half were shot down before letting go and half the bombs were popped, so
   // only a quarter landed one. A dive bomb that lands on the wall says so ("direct hit!", game.js explode).
   // A sortie from the Dreadnought's hangar zooms out at LAUNCH px/s, climbing at LAUNCH_ANGLE, so it's off the page
   // before the squad can down it.
   // Sorties are tougher (SORTIE_HP) and their bomb is armored: bullets, flak and the sentry can't stop it, so the
   // plane has to go down before it lets go; so they still let go low, at SORTIE_RELEASE_Y (releaseY).
-  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, SORTIE_HP: 5, ANGLE: 1.25, RELEASE_Y: 320, SORTIE_RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
+  var DIVE = { WAVE: 12, Y: 124, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, SORTIE_HP: 5, ANGLE: 1.25, RELEASE_Y: 320, SORTIE_RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
-  // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
+  // leaves, climbing to OUT_Y (126 since round 14, below the page's top rule; it was 80). Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
   var HELI = { WAVE: 7, SPEED: 160, Y: 150, HOVER: [310, 350], TROOPS: [4, 5], ROPE_EVERY: 0.4, ROPE: 150, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
-    SHOT: 260, HURT: 0.6, WAIT: 0.8, HW: 36, HH: 17,
+    SHOT: 260, HURT: 0.6, WAIT: 0.8, HW: 36, HH: 17, OUT_Y: 126,
     // From SWEEP.WAVE half the helicopters make a low, fast run instead (round 13): in from either side at Y, across
     // at SPEED, troopers hopping out on the move, dropping FALL px/s to the ground, and gone out the other side. Its
     // door gunner fires all the way. Round 14 ("should release guys earlier quicker"): the first hops out FIRST px in
@@ -55,7 +55,8 @@ var StickArmySky = function (w) {
   // A heavy bomber: a big, slow, armored four-engine plane (heavyHP, with a health bar) laying a long carpet of BOMBS
   // across the field, a heavy one on the bunker.
   // From LOW_WAVE some fly low (LOW_Y): a lone one half the time, and the second of each pair.
-  var HEAVY = { WAVE: 13, PAIR: 16, LOW_WAVE: 14, SPEED: 42, Y: [136, 160], PAIR_Y: [136, 198], LOW_Y: 252, BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
+  // Y and PAIR_Y keep its tail below the page's top rule (round 14; they started at 136).
+  var HEAVY = { WAVE: 13, PAIR: 16, LOW_WAVE: 14, SPEED: 42, Y: [148, 168], PAIR_Y: [148, 206], LOW_Y: 252, BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
   // Round 14: about an eighth tougher (it was 45 + 3 a wave): 50 at wave 13, 61 at 16, 71 at 19.
   function heavyHP(n) { return Math.round(50 + 3.5 * Math.max(0, n - HEAVY.WAVE)); }
   // The night raid (drawNight): the page goes dark, lit by your searchlight along the barrel, a lamp over the bunker,
@@ -269,10 +270,7 @@ var StickArmySky = function (w) {
     var S = w.S, r = substream(rnd), dir = r() < 0.5 ? 1 : -1, target = BK.x + between(r, -8, 8);
     var crew = S.recruits.filter(w.standing);
     if (crew.length && r() < 0.35) target = crew[Math.floor(r() * crew.length)].x;
-    // Where to tip over so the bomb, let go at RELEASE_Y with the plane's speed, lands on the target.
-    var y0 = from ? from.y : DIVE.Y, vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE);
-    var floor = Math.abs(target - BK.x) < 36 ? BK.top - 8 : GROUND - 6, fall = floor - (DIVE.RELEASE_Y + 8);
-    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, lead = (DIVE.RELEASE_Y - y0) / Math.tan(DIVE.ANGLE) + vx * tf;
+    var y0 = from ? from.y : DIVE.Y, lead = diveLead(target, y0, DIVE.RELEASE_Y);
     // Come in from whichever side leaves room for some level flight first.
     var x0 = function (d) { return from ? from.x : d > 0 ? -50 : W + 50; }, room = function (d) { return (target - d * lead - x0(d)) * d; };
     if (room(dir) < (from ? 20 : 50) && room(-dir) > room(dir)) dir = -dir;
@@ -295,14 +293,20 @@ var StickArmySky = function (w) {
     return p;
   }
   function releaseY(p) { return p.sortie ? DIVE.SORTIE_RELEASE_Y : DIVE.RELEASE_Y; }
-  // Back from high above the side it left, already in its dive, screaming down at the bunker.
+  // How far ahead of its target a dive bomber at height y0 tips over, so its bomb, let go at ry with the plane's speed,
+  // lands on the target.
+  function diveLead(target, y0, ry) {
+    var vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE);
+    var floor = Math.abs(target - BK.x) < 36 ? BK.top - 8 : GROUND - 6, fall = floor - (ry + 8);
+    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260;
+    return (ry - y0) / Math.tan(DIVE.ANGLE) + vx * tf;
+  }
+  // Back in from the side it left, level at the dive bombers' height, on a normal run at the bunker: crosshair, howl,
+  // dive. Round 14: it used to come back already diving from high above the page, through the score.
   function comeBack(p) {
-    var ry = releaseY(p), vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE), fall = BK.top - 8 - (ry + 8);
-    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, y0 = -40;
-    p.dir = -p.dir;
-    p.x = p.target - p.dir * vx * tf - p.dir * (ry - y0) / Math.tan(DIVE.ANGLE); p.y = y0;
-    p.phase = 'dive'; p.ang = p.drawAng = DIVE.ANGLE; p.speed = DIVE.SPEED;
-    emit('dive', { x: p.x }); w.sound.play('siren');
+    p.dir = -p.dir; p.x = p.dir > 0 ? -60 : W + 60; p.y = DIVE.Y;
+    p.phase = 'level'; p.ang = p.drawAng = 0; p.speed = DIVE.CRUISE;
+    p.diveX = p.target - p.dir * diveLead(p.target, DIVE.Y, releaseY(p));
   }
   function updateDiver(p, dt) {
     var S = w.S;
@@ -319,8 +323,12 @@ var StickArmySky = function (w) {
       w.sound.play('whistle');
     }
     if (p.phase === 'pull') { p.ang = Math.max(DIVE.CLIMB, p.ang - DIVE.PULL * dt); if (p.ang <= DIVE.CLIMB) p.phase = 'climb'; }
+    // Climbing away, it levels off at its lane and leaves by the side, below the page's top rule (round 14).
+    if (p.phase === 'climb' && p.y <= DIVE.Y) p.ang = 0;
     p.vx = p.dir * p.speed * Math.cos(p.ang); p.vy = p.speed * Math.sin(p.ang);
     p.x += p.vx * dt; p.y += p.vy * dt;
+    // Climbing out (from the hangar, or away after its dive), it levels off at its lane, never above it.
+    if ((p.phase === 'launch' || p.phase === 'climb') && p.y < DIVE.Y) { p.y = DIVE.Y; p.ang = 0; }
     // The drawing tips over quickly rather than snapping.
     p.drawAng += clamp(p.ang - p.drawAng, -dt * 7, dt * 7);
     if (p.x < -90 || p.x > W + 90 || p.y < -60) p.gone = true;
@@ -389,7 +397,7 @@ var StickArmySky = function (w) {
       return;
     }
     if (p.phase === 'in') { if (moveTo(p, p.hoverX, p.hoverY, dt)) { p.phase = 'drop'; w.say('go go go!', p.id, true, 0, p.x, p.y + 22); } return; }
-    if (p.phase === 'out') { moveTo(p, p.side < 0 ? -90 : W + 90, 80, dt); if (p.x < -70 || p.x > W + 70) p.gone = true; return; }
+    if (p.phase === 'out') { moveTo(p, p.side < 0 ? -90 : W + 90, HELI.OUT_Y, dt); if (p.x < -70 || p.x > W + 70) p.gone = true; return; }
     moveTo(p, p.hoverX, p.hoverY + Math.sin(S.t * 2 + p.bob) * 2, dt);
     if (p.phase === 'drop') {
       p.ropeT -= dt;

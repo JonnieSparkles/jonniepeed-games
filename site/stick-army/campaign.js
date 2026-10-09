@@ -25,7 +25,7 @@ var StickArmyCampaign = function (w) {
   // armored throughout; only the part for the stage can be hurt. It lives in S.planes as kind 'dread', so bullets,
   // rockets, flak, bazookas and the ambience all see it. Local x runs stern to bow; on the page, x = p.x + p.dir * lx.
   var DREAD = {
-    WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 6, ENTER: 32,
+    WAVE: 20, EVERY: 10, Y: 210, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 6, ENTER: 32,
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
     AIM: 1.2, MARKS: 2, EXPOSED: 2, RELOAD: [1.8, 2.4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 14, SPLASH: 26, DIRECT: 4,
@@ -43,6 +43,10 @@ var StickArmyCampaign = function (w) {
     // SMOKE_GAP seconds) that arc out over SMOKE_FLIGHT seconds to spots on the field (SMOKE_AT) and pour smoke; its
     // smoke screen rolls out from them (sky.js). It blows away when the hangar goes down.
     PAUSE: { HANGAR: 3.5, BRIDGE: 2.8 },
+    // Sneak attacks under the smoke screen (round 14, the second win: "during nought smoke screen bring in some ground
+    // sneak attacks"): once the hangar opens, every EVERY seconds from FIRST, up to GROUPS times, SIZE infantry creep in
+    // crouched along the ground from one side, then the other, at SPEED px/s. No whistle; a soldier spots the first.
+    SNEAK: { FIRST: 2.5, EVERY: 6, GROUPS: 3, SIZE: [2, 3], SPEED: 26 },
     CHAIN: 1.4, SMOKE_AT: [50, 132, 268, 350], SMOKE_FIRST: 0.5, SMOKE_GAP: 0.45, SMOKE_FLIGHT: 0.9,
     // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
     SAG: 140, LIST: 0.06,
@@ -189,7 +193,7 @@ var StickArmyCampaign = function (w) {
   function openHangar(p) {
     var S = w.S;
     p.chainT = DREAD.CHAIN; p.boomT = 0;
-    p.phase = 'hangar'; p.t = 0; p.launchT = 1.2; p.troopT = 2;
+    p.phase = 'hangar'; p.t = 0; p.launchT = 1.2; p.troopT = 2; p.sneakT = DREAD.SNEAK.FIRST; p.sneaks = 0; p.sneakSide = p.rng() < 0.5 ? -1 : 1;
     // It reels first; the hangar opens when the pause is over (stageOpens).
     p.hold = DREAD.PAUSE.HANGAR;
     emit('dread_hangar', { wave: S.wave });
@@ -207,6 +211,26 @@ var StickArmyCampaign = function (w) {
     S.shake = Math.max(S.shake, 0.4); w.sound.play('klaxon');
     if (p.phase === 'hangar') addText('the hangar opens!', 200, 260, RED, 24, 'alert');
     else { addText('the bridge is exposed!', 200, 250, RED, 24, 'alert'); w.sound.play('clank'); }
+  }
+  // A sneak attack: a few infantry creeping in crouched along the ground from one side (drawTrooper leans them over),
+  // the next group from the other side. A soldier on that side spots the first group.
+  function sneak(p, dt) {
+    var S = w.S, SN = DREAD.SNEAK;
+    if (p.sneaks >= SN.GROUPS || (p.sneakT -= dt) > 0) return;
+    p.sneakT = SN.EVERY; p.sneaks++;
+    var side = p.sneakSide, n = p.rng() < 0.5 ? SN.SIZE[0] : SN.SIZE[1];
+    p.sneakSide = -side;
+    for (var i = 0; i < n; i++) {
+      var kit = w.rollTrooper(p.rng);
+      if (kit.type === 'sniper') kit.type = 'rifle';
+      var t = w.spawnTrooper(0, GROUND - 33, kit);
+      t.x = side < 0 ? -14 - i * 22 : W + 14 + i * 22; t.state = 'ground'; t.open = 1; t.dir = -side; t.speed = SN.SPEED; t.sneak = true;
+    }
+    emit('sneak', { side: side < 0 ? 'left' : 'right', count: n });
+    if (p.sneaks === 1) {
+      var crew = S.recruits.filter(w.standing).sort(function (a, b) { return side * (a.x - b.x); });
+      if (crew.length) w.say("they're sneaking in!", crew[0].id, false, 1.2);
+    }
   }
   // The smoke pots: fired from the hull one at a time with a thunk, each arcs out to its spot on the field, trailing
   // smoke, and lands there hissing; sky.js draws it pouring smoke and spreads the screen from it.
@@ -437,6 +461,7 @@ var StickArmyCampaign = function (w) {
         w.sound.play('fighter'); emit('dread_launch', {});
       }
       if ((p.troopT -= dt) <= 0) { p.troopT = DREAD.TROOPS_EVERY; [-14, 0, 14].forEach(function (o) { w.spawnTrooper(clamp(h.x + o, 16, W - 16), h.y + 18, w.rollTrooper(p.rng)); }); }
+      sneak(p, dt);
     } else if (p.phase === 'bridge') {
       // The bomb bay (the gutted hangar) drops clusters at the bunker; the bridge gunner fires at the crew.
       if (onPage && (p.bombT -= dt) <= 0) {
@@ -1134,6 +1159,7 @@ var StickArmyCampaign = function (w) {
     document.getElementById('winZeps').textContent = String(S.stats.zeppelins);
     document.getElementById('winTanks').textContent = String(S.stats.tanks);
     document.getElementById('winDmg').textContent = String(Math.round(S.stats.wallDamage));
+    document.getElementById('winShots').textContent = S.stats.shots.toLocaleString('en-US');
     document.getElementById('winCount').textContent = wins === 1 ? 'Your first win.' : 'Win number ' + wins + '.';
     var list = document.getElementById('winRoll'), roll = rollCall();
     list.replaceChildren.apply(list, roll.map(function (q) {

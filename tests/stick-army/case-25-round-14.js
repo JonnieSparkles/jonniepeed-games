@@ -172,5 +172,72 @@
   S.bubbles = []; SQUAD.smallTalk(1 / 60);
   check(!S.bubbles.length, 'once a night');
 
+  // ======== The second pass (after the second win) ========
+
+  // ---- Rounds fired: every bullet and rocket from your turret, on both end cards and in play stats.
+  RUN.force = 160; newGame(); S.mods.double = true; S.mods.spread = true; S.mods.rockets = true; S.volleys = 3;
+  shoot();
+  check(S.stats.shots === 7, 'one pull with the double barrel, spread shot and a rocket fires seven: ' + S.stats.shots);
+  check(runReport().stats.shots === 7, 'play stats get it');
+  hurtWall(S.wallHP + 1, 'bomb'); update(1 / 60); run(3);
+  check(S.mode === 'over' && document.getElementById('stShots').textContent === '7', 'the game-over card shows it');
+  overScreen.hidden = true;
+  RUN.force = 161; newGame(); S.stats.shots = 12480; S.wave = DREAD.WAVE; CAMPAIGN.showWin();
+  check(document.getElementById('winShots').textContent === '12,480', 'and the victory card');
+  winScreen.hidden = true;
+
+  // ---- Nothing of consequence flies above the page's top rule: every high lane keeps its art below it.
+  check(SKY_LANES.PLANE[0] - 21 * 0.78 >= SKY_TOP && SKY_LANES.ESCORT[0] - 21 * 0.78 >= SKY_TOP && SKY_LANES.BOMBER[0] - 30 * 0.86 >= SKY_TOP &&
+    UNITS.STRIKE.Y - 30 * 0.86 >= SKY_TOP && SKY.HEAVY.Y[0] - 34 * SKY.HEAVY.SC >= SKY_TOP && SKY.HEAVY.PAIR_Y[0] - 34 * SKY.HEAVY.SC >= SKY_TOP, 'the high lanes keep below the top rule');
+  check(UNITS.ZEP.Y - UNITS.ZEP.TWIN_DY - UNITS.ZEP.HH - 16 >= SKY_TOP, "the high twin zeppelin's health bar too");
+  check(UNITS.FIGHTER.PASSES[0] - UNITS.FIGHTER.DIVE - UNITS.FIGHTER.WING_Y - 16 >= SKY_TOP && SKY.HELI.OUT_Y - SKY.HELI.HH - 6 >= SKY_TOP, 'fighter cover swoops in, and helicopters leave, below it');
+  RUN.force = 162; quiet(8);
+  for (i = 0; i < 60; i++) { spawnPlane(i % 2 ? 'bomber' : 'plane'); UNITS.spawnCargo(); }
+  check(S.planes.every(function (p) { return p.y >= (p.kind === 'bomber' ? SKY_LANES.BOMBER[0] : p.kind === 'cargo' ? 132 : SKY_LANES.PLANE[0]); }), 'planes, bombers and cargo planes spawn in them');
+  S.planes = [];
+  // A dive bomber climbing away levels off at its lane and leaves by the side.
+  RUN.force = 165; quiet(12); var dv2 = SKY.spawnDiver(RW), topY = 1e9, climbed = false;
+  for (f = 0; f < 60 * 10 && S.planes.indexOf(dv2) >= 0; f++) { update(1 / 60); topY = Math.min(topY, dv2.y); climbed = climbed || dv2.phase === 'climb'; }
+  check(climbed && topY >= SKY.DIVE.Y - 0.01 && S.planes.indexOf(dv2) < 0, 'a dive bomber levels off below the rule and leaves by the side: ' + Math.round(topY));
+  // A Dreadnought sortie comes back in from the side it left, level at the dive bombers' lane.
+  S.planes = []; var so = SKY.launchDiver(RW, { x: 200, y: 260 }, 1), lowest = 1e9, back = false;
+  for (f = 0; f < 60 * 12 && S.planes.indexOf(so) >= 0; f++) {
+    update(1 / 60); lowest = Math.min(lowest, so.y);
+    if (!back && so.phase === 'level') { back = true; check(so.dir === -1 && so.x > W && so.y === SKY.DIVE.Y, 'a sortie comes back from its side, level: ' + Math.round(so.x) + ', ' + so.y); }
+  }
+  check(back && lowest >= SKY.DIVE.Y - 0.01, 'and never above the lane: ' + Math.round(lowest));
+
+  // ---- Road tanks come while the planes are still coming: the first at ROAD.FIRST.
+  RUN.force = 163; newGame(); startWave(17); S.mods.maxHP = S.wallHP = 1e6;
+  check(S.spawn.roadT === ROAD.FIRST && ROAD.FIRST < 11 && ROAD.GAP[1] < 16, 'sooner, and closer together');
+  var t0 = S.t; seen = [];
+  for (f = 0; f < 60 * 12 && !heard('tank_drop', function (d) { return d.road; }); f++) update(1 / 60);
+  check(heard('tank_drop', function (d) { return d.road; }) && Math.abs(S.t - t0 - ROAD.FIRST) < 0.1, 'the first pair rolls in on time: ' + (S.t - t0).toFixed(2));
+
+  // ---- The Dreadnought sits 14 px lower; the decoy's armor sits forward of its sign.
+  check(DREAD.Y === 210 && SKY_LANES.DREAD[0] === 290, 'the Dreadnought and its escorts sit lower');
+  check(UNITS.STICKER.X + UNITS.STICKER.HW < UNITS.PLATE.X - UNITS.PLATE.HW, "the sign and the armor don't overlap");
+
+  // ---- Sneak attacks under the smoke screen: crouched infantry from one side, then the other, GROUPS times.
+  RUN.force = 164; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'rifle')]; startWave(DREAD.WAVE);
+  S.spawn.teaser = false; S.spawn.timer = 99; S.spawn.planes = 0; S.spawn.bossT = 0;
+  for (f = 0; f < 60 * 40 && !(CAMPAIGN.dread() && CAMPAIGN.dread().phase === 'guns'); f++) update(1 / 60);
+  var dn = CAMPAIGN.dread(); check(dn && dn.phase === 'guns', 'the Dreadnought is here');
+  dn.turrets.forEach(function (q) { if (!q.dead) damagePlane(dn, 999, 'player', dn.x + dn.dir * q.lx, dn.y + DREAD.GUN_Y, true); });
+  check(dn.phase === 'hangar', 'the hangar stage');
+  seen = []; S.bubbles = []; var spotted = false, crouched = false;
+  for (f = 0; f < 60 * 40 && seen.filter(function (e) { return e.type === 'sneak'; }).length < DREAD.SNEAK.GROUPS; f++) {
+    update(1 / 60); dn.hangar.hp = dn.hangar.max; S.recruits.forEach(function (r) { r.hp = crewMax(r); });
+    spotted = spotted || S.bubbles.some(function (b) { return b.s === "They're sneaking in!"; });
+    crouched = crouched || S.troopers.some(function (t) { return t.sneak && t.state === 'ground' && t.speed === DREAD.SNEAK.SPEED; });
+  }
+  var sneaks = seen.filter(function (e) { return e.type === 'sneak'; });
+  check(sneaks.length === DREAD.SNEAK.GROUPS && sneaks[0].data.side !== sneaks[1].data.side && sneaks.every(function (e) { return e.data.count >= DREAD.SNEAK.SIZE[0] && e.data.count <= DREAD.SNEAK.SIZE[1]; }),
+    'three groups, from one side then the other: ' + JSON.stringify(sneaks.map(function (e) { return e.data; })));
+  check(crouched && spotted, 'crouched along the ground, and a soldier spots them');
+  render();
+  run(DREAD.SNEAK.EVERY * 2);
+  check(seen.filter(function (e) { return e.type === 'sneak'; }).length === DREAD.SNEAK.GROUPS, 'and no more');
+
   emitHook = null; RUN.force = null; reset(); titleScene(); render();
 })();

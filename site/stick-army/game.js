@@ -20,6 +20,18 @@
   // middle of the page, a little faster. Their troopers have less sky to fall through and their bombs land sooner. The
   // share grows by STEP a wave to MAX. Not on boss waves, whose escorts keep their own lanes.
   var LOW = { WAVE: 2, BOMBERS: 3, SHARE: 0.15, STEP: 0.03, MAX: 0.4, PLANE_Y: [246, 296], BOMBER_Y: [188, 220], SPEED: 1.1 };
+  // Road tanks: the first FIRST seconds into the wave, then every GAP seconds (times the wave's pace). Round 14 ("lots
+  // of late arriving tanks... they just need to be more impactful"): on wave 17 the last pair rolled in as the planes
+  // ran out, at about 27 s, and the wave dragged on to about 50 s against tanks alone. They were 11 s, then 11-16 s;
+  // now they come while the planes and bombers are still overhead.
+  var ROAD = { FIRST: 7, GAP: [8, 12] };
+  // Nothing of consequence flies above the page's top rule (SKY_TOP, y 100), where the score and tags are written
+  // (round 14: "nothing 'of consequence' flies above that line. ambient things are no problem"). The high lanes keep a
+  // plane's fin and a bomber's tail below it (they started at 98 and 104; cargo planes, heavy bombers, the zeppelins,
+  // the air strike and fighter cover moved down too); dive bombers level off below it as they climb away, and the
+  // Dreadnought's sorties come back in from the side (sky.js). Smoke and the like drift where they will.
+  // DREAD: the escorts' low lane under the Dreadnought, which sits 14 px lower since round 14 (it was 276-330).
+  var SKY_TOP = 100, SKY_LANES = { PLANE: [120, 206], BOMBER: [130, 148], ESCORT: [120, 130], DREAD: [290, 344] };
   // A bomber lets its bombs go no nearer the edge than this (round 14: the fighting stays on the page; inView).
   var BOMB_EDGE = 12;
   // What a bomb does to the wall. Round 14: 16 (it was 18), giving back what keeping the fighting on the page took
@@ -250,7 +262,7 @@
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
-      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0 },
+      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0 },
       hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false
     };
     resizeMats(); clearInput();
@@ -475,7 +487,7 @@
     var c = S.spawn.cfg, rnd = substream(src || RW), dir = rnd() < 0.5 ? 1 : -1;
     var low = c.low > 0 && (kind === 'plane' || S.wave >= LOW.BOMBERS) && rnd() < c.low, lane = kind === 'bomber' ? LOW.BOMBER_Y : LOW.PLANE_Y;
     // On boss waves the escort keeps to a high lane above the zeppelin, and to a low one under the Dreadnought.
-    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, low ? between(rnd, lane[0], lane[1]) : kind === 'bomber' ? between(rnd, 104, 128) : c.bossKind === 'dread' ? between(rnd, 276, 330) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
+    var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, low ? between(rnd, lane[0], lane[1]) : kind === 'bomber' ? between(rnd, SKY_LANES.BOMBER[0], SKY_LANES.BOMBER[1]) : c.bossKind === 'dread' ? between(rnd, SKY_LANES.DREAD[0], SKY_LANES.DREAD[1]) : c.boss ? between(rnd, SKY_LANES.ESCORT[0], SKY_LANES.ESCORT[1]) : between(rnd, SKY_LANES.PLANE[0], SKY_LANES.PLANE[1]));
     p.rng = rnd; p.low = low;
     p.speed = (kind === 'bomber' ? c.speed * 0.62 : c.speed * between(rnd, 0.85, 1.25)) * (low ? LOW.SPEED : 1);
     if (kind === 'plane') {
@@ -565,7 +577,7 @@
     var c = waveCfg(n);
     // pace: the gaps between rushes, cargo planes, road tanks and the sky's arrivals shrink with the plane interval,
     // so late waves arrive together and build to a peak instead of trickling in after the planes are done.
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: 11,
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: ROAD.FIRST,
       pace: wavePace(c), escort: substream(RW), escortT: ZEP.ESCORT_EVERY };
     SKY.start(S.spawn, c);
     S.waveState = 'active';
@@ -648,7 +660,7 @@
       }
       if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14) * sp.pace; } }
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15) * sp.pace; } }
-      if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, 11, 16) * sp.pace; } }
+      if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, ROAD.GAP[0], ROAD.GAP[1]) * sp.pace; } }
       SKY.tick(sp, dt);
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
       if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) SKY.settle(sp);
@@ -799,7 +811,11 @@
     });
     if (S.mods.rockets && S.volleys % 4 === 0) {
       S.bullets.push({ x: TUR.x + c * 32, y: TUR.y + s * 32, vx: c * 360, vy: s * 360, owner: 'player', kind: 'rocket', life: 2, dead: false }); sound.play('rocket');
+      S.stats.shots++;
     }
+    // Rounds fired (round 14, "shots fired would be a fun stat"): every bullet and rocket from your turret, so the
+    // double barrel and spread shot make it climb.
+    S.stats.shots += angles.length * (S.mods.double ? 2 : 1);
     S.parts.push({ k: 'star', x: TUR.x + c * 34, y: TUR.y + s * 34, life: 0.07, max: 0.07, id: nextId++ });
     S.recoil = 1;
     sound.play('shoot');
@@ -1618,6 +1634,8 @@
     var x = t.x, y = t.y, pose, s;
     G.save();
     if (t.rot) { G.translate(x, y + 14); G.rotate(t.rot); G.translate(-x, -(y + 14)); }
+    // Sneaking in under the Dreadnought's smoke (campaign.js sneak): crouched, leaning into it.
+    if (t.sneak && t.state === 'ground' && !t.attacking && !t.atWall) { G.translate(x, y + 33); G.rotate(t.dir * 0.5); G.translate(-x, -(y + 33)); }
     if (t.state === 'chute') { chute(t); pose = [-5, 1, 5, 1, -4, 33, 4, 33]; }
     else if (t.state === 'rope') pose = [-1, -6, 1, -9, -3, 33, 3, 32];
     else if (t.state === 'free' || t.state === 'bounce') { s = Math.sin(S.t * 22 + t.id); pose = [-11, 1 + s * 4, 11, 1 - s * 4, -7 + s * 3, 32, 7 + s * 3, 31]; }
@@ -2239,6 +2257,7 @@
     document.getElementById('stZeps').textContent = String(S.stats.zeppelins);
     document.getElementById('stZeps').hidden = document.getElementById('stZepsLabel').hidden = !S.stats.zeppelins;
     document.getElementById('stDmg').textContent = String(Math.round(S.stats.wallDamage));
+    document.getElementById('stShots').textContent = S.stats.shots.toLocaleString('en-US');
     document.getElementById('stTanks').textContent = String(S.stats.tanks);
     document.getElementById('stTanks').hidden = document.getElementById('stTanksLabel').hidden = !S.stats.tanks;
     var cause = OVER_CAUSE[S.lastHit];
@@ -2261,7 +2280,7 @@
   function runReport() {
     var st = {
       wave: S.wave, kills: S.stats.kills, captured: S.stats.captured, popped: S.stats.popped, planes: S.stats.planes,
-      zeppelins: S.stats.zeppelins, tanks: S.stats.tanks, wall_damage: Math.round(S.stats.wallDamage),
+      zeppelins: S.stats.zeppelins, tanks: S.stats.tanks, wall_damage: Math.round(S.stats.wallDamage), shots: S.stats.shots,
       crew: S.recruits.filter(function (r) { return !r.dead; }).length + (S.bed ? 1 : 0), fallen: S.fallen.length, tags: S.coins
     };
     if ((S.mode === 'over' || S.mode === 'dying') && S.lastHit) st.cause = S.lastHit;
