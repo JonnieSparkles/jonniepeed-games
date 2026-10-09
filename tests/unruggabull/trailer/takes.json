@@ -1,0 +1,130 @@
+{
+  "A": {
+    "seed": 5,
+    "max_s": 120,
+    "plan": [
+      {
+        "type": "wait",
+        "dur": 0.5
+      },
+      {
+        "type": "title"
+      },
+      {
+        "type": "wait",
+        "dur": 1.0
+      },
+      {
+        "type": "capture",
+        "on": true
+      },
+      {
+        "type": "start"
+      },
+      {
+        "type": "wait",
+        "until": "D.state().gs === 'controls'"
+      },
+      {
+        "type": "wait",
+        "dur": 0.6
+      },
+      {
+        "type": "js",
+        "code": "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'x', bubbles: true}));"
+      },
+      {
+        "type": "js",
+        "code": "D.minHealth = 6;"
+      },
+      {
+        "type": "fight",
+        "dur": 24
+      },
+      {
+        "type": "js",
+        "code": "D.wave(4);"
+      },
+      {
+        "type": "fight",
+        "dur": 24
+      },
+      {
+        "type": "capture"
+      },
+      {
+        "type": "end"
+      }
+    ]
+  },
+  "B": {
+    "seed": 9,
+    "max_s": 240,
+    "plan": [
+      {
+        "type": "wait",
+        "dur": 0.5
+      },
+      {
+        "type": "title"
+      },
+      {
+        "type": "wait",
+        "dur": 1.0
+      },
+      {
+        "type": "capture",
+        "on": true
+      },
+      {
+        "type": "start"
+      },
+      {
+        "type": "wait",
+        "until": "D.state().gs === 'controls'"
+      },
+      {
+        "type": "wait",
+        "dur": 0.6
+      },
+      {
+        "type": "js",
+        "code": "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'x', bubbles: true}));"
+      },
+      {
+        "type": "js",
+        "code": "D.minHealth = 6;"
+      },
+      {
+        "type": "fight",
+        "dur": 8
+      },
+      {
+        "type": "js",
+        "code": "D.wave(6);"
+      },
+      {
+        "type": "fight",
+        "until": "S_trig()"
+      },
+      {
+        "type": "wait",
+        "until": "D.state().gs !== 'playing' || window.__ugBattle()"
+      },
+      {
+        "type": "boss",
+        "until": "D.state().boss === 0 || D.state().gs !== 'playing'"
+      },
+      {
+        "type": "wait",
+        "dur": 12
+      },
+      {
+        "type": "capture"
+      },
+      {
+        "type": "end"
+      }
+    ]
+  }
+}

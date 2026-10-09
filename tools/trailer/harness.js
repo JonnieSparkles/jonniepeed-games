@@ -4,7 +4,8 @@
 // 1. CSS animations and transitions follow the fake clock (__stepAnims), so overlays, pops and fades play at the
 //    same speed as the canvas.
 // 2. Every top-level call into the game's sound object is logged with its time and the object's state flags, so
-//    sound.py can replay them into an OfflineAudioContext later.
+//    sound.py can replay them into an OfflineAudioContext later; or, for games that play <audio> elements, every
+//    play, pause and seek, for media.py.
 // 3. A plan runner (__D) plays a list of items once per game frame: core items here, game items from the director.
 //    Markers (__D.mark) and capture windows go into take.json and drive the edit.
 (() => {
@@ -34,27 +35,47 @@
     }
   };
 
-  // ---------- sound log: top-level calls only (a sound calling the object's own helpers is one call),
-  // with the state flags at that moment, and any stop handle a call returns
+  // ---------- sound log
   const LOG = window.__snd = [];
-  const S = E(cfg.audio.object), stateKeys = cfg.audio.state || [];
-  let depth = 0;
-  for (const k of Object.keys(S)) {
-    const f = S[k];
-    if (typeof f !== 'function') continue;
-    S[k] = function (...args) {
-      const top = depth === 0;
-      let id = -1;
-      if (top) {
-        const st = {}; for (const s of stateKeys) st[s] = S[s];
-        id = LOG.length; LOG.push({ t: nowS(), m: k, a: args, s: st, r: window.__rngN });
-      }
-      depth++;
-      let r;
-      try { r = f.apply(this, args); } finally { depth--; }
-      if (top && typeof r === 'function') { const rr = r; r = () => { LOG.push({ t: nowS(), stop: id }); return rr(); }; }
-      return r;
-    };
+  if (cfg.audio.media) {
+    // Games that play <audio> elements (new Audio(...).play()): log each element's plays, pauses, seeks, rate and
+    // volume changes. media.py mixes the files back in from the log. Positions are tracked here, not read from the
+    // element, because real playback doesn't follow the fake clock.
+    const M = HTMLMediaElement.prototype, ids = new WeakMap();
+    let nextId = 0;
+    const id = el => { if (!ids.has(el)) ids.set(el, nextId++); return ids.get(el); };
+    const src = el => { const u = el.currentSrc || el.src || el.getAttribute('src') || ''; try { return decodeURI(new URL(u, location.href).pathname); } catch (e) { return u; } };
+    const rec = (el, ev, extra) => LOG.push(Object.assign({ t: nowS(), ev, id: id(el), src: src(el), v: +el.volume.toFixed(3), loop: el.loop, r: window.__rngN }, extra || {}));
+    const play = M.play, pause = M.pause;
+    M.play = function () { rec(this, 'play', { rate: this.playbackRate }); const p = play.apply(this, arguments); return p && p.catch ? p.catch(() => {}) : p; };
+    M.pause = function () { rec(this, 'pause'); return pause.apply(this, arguments); };
+    for (const [prop, ev] of [['currentTime', 'seek'], ['playbackRate', 'rate'], ['volume', 'vol'], ['src', 'srcset']]) {
+      const d = Object.getOwnPropertyDescriptor(M, prop);
+      Object.defineProperty(M, prop, { configurable: true, enumerable: d.enumerable, get: d.get,
+        set(v) { d.set.call(this, v); rec(this, ev, { val: prop === 'src' ? src(this) : +v }); } });
+    }
+  } else {
+    // Games with a sound object (CrackSound.crack()): every top-level call (a sound calling the object's own
+    // helpers is one call), with the state flags at that moment and any stop handle a call returns
+    const S = E(cfg.audio.object), stateKeys = cfg.audio.state || [];
+    let depth = 0;
+    for (const k of Object.keys(S)) {
+      const f = S[k];
+      if (typeof f !== 'function') continue;
+      S[k] = function (...args) {
+        const top = depth === 0;
+        let id = -1;
+        if (top) {
+          const st = {}; for (const s of stateKeys) st[s] = S[s];
+          id = LOG.length; LOG.push({ t: nowS(), m: k, a: args, s: st, r: window.__rngN });
+        }
+        depth++;
+        let r;
+        try { r = f.apply(this, args); } finally { depth--; }
+        if (top && typeof r === 'function') { const rr = r; r = () => { LOG.push({ t: nowS(), stop: id }); return rr(); }; }
+        return r;
+      };
+    }
   }
 
   // ---------- the plan runner
@@ -116,5 +137,8 @@
   window.__trailerTick = function (args) {
     try { D.tick(D.nowFrom(args)); } catch (e) { console.error('trailer director', e && e.stack || e); }
   };
-  E('(() => { const f = ' + cfg.hook + '; ' + cfg.hook + ' = function () { window.__trailerTick(arguments); return f.apply(this, arguments); }; })()');
+  // hook "@frame": games whose loop only runs during play (or isn't reachable) get the plan from an animation frame
+  // of its own instead, every frame from now on, title screens included
+  if (cfg.hook === '@frame') { const loop = () => { window.__trailerTick([]); window.requestAnimationFrame(loop); }; window.requestAnimationFrame(loop); }
+  else E('(() => { const f = ' + cfg.hook + '; ' + cfg.hook + ' = function () { window.__trailerTick(arguments); return f.apply(this, arguments); }; })()');
 })();

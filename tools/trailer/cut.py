@@ -120,6 +120,8 @@ class Cut:
         end0, end = self.spec['end']
         if t >= end0:
             return end(t - end0)
+        if 'open' in self.spec and t < self.spec['open'][0]:   # an opening card (cover art, a title screen) before the shots
+            return self.spec.get('overlay', lambda t, im: im)(t, self.spec['open'][1](t))
         for s0, s1, take, src0, cam in self.spec['shots']:
             if s0 <= t < s1:
                 im = self.game_frame(take, src0 + t - s0, cam(t - s0))
@@ -130,6 +132,8 @@ class Cut:
 
     def sheet(self, path):
         times = []
+        if 'open' in self.spec:
+            times += [0.02, self.spec['open'][0] / 2, self.spec['open'][0] - 0.04]
         for s0, s1, *_ in self.spec['shots']:
             times += [s0 + 0.02, (s0 + s1) / 2, s1 - 0.04]
         e0 = self.spec['end'][0]
@@ -169,22 +173,38 @@ class Cut:
         wavfile.write(str(path), SR, out.astype(np.float32))
 
     def encode(self, path, wav, crf=17):
+        """H.264 and AAC, tagged BT.709 so players don't guess the colors, with the first frame attached as the
+        file's cover picture: file browsers and chat apps show it as the preview instead of a frame of their own
+        choosing (which can land on a flash)."""
+        path = Path(path)
+        body = path.with_name(path.stem + '.body.mp4')
         enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '%dx%d' % (self.w, self.h),
-                                '-r', str(self.fps), '-i', '-', '-i', str(wav), '-c:v', 'libx264', '-preset', 'slow', '-crf', str(crf),
-                                '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart',
-                                '-shortest', str(path)], stdin=subprocess.PIPE)
+                                '-r', str(self.fps), '-i', '-', '-i', str(wav),
+                                '-vf', 'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p',
+                                '-c:v', 'libx264', '-preset', 'slow', '-crf', str(crf), '-profile:v', 'high',
+                                '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
+                                '-c:a', 'aac', '-b:a', '256k', '-shortest', str(body)], stdin=subprocess.PIPE)
+        first = None
         for k in range(int(round(self.dur * self.fps))):
-            enc.stdin.write(self.render(k / self.fps).convert('RGB').tobytes())
+            im = self.render(k / self.fps).convert('RGB')
+            if first is None: first = im
+            enc.stdin.write(im.tobytes())
         enc.stdin.close()
         if enc.wait():
             raise SystemExit('ffmpeg failed')
+        cover = path.with_name(path.stem + '.cover.jpg')
+        first.save(cover, quality=92)
+        if subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(body), '-i', str(cover), '-map', '0', '-map', '1', '-c', 'copy',
+                           '-disposition:v:1', 'attached_pic', '-movflags', '+faststart', str(path)]).returncode:
+            raise SystemExit('ffmpeg failed attaching the cover picture')
+        body.unlink(); cover.unlink()
 
 
 class Cover:
     """An end card from cover art: a 16:9 window of it, pushing in slowly."""
 
     def __init__(self, path, size=(1920, 1080), top=0, push=0.055, drift=8, dur=3.75):
-        self.img = Image.open(path).convert('RGB')
+        self.img = (path if isinstance(path, Image.Image) else Image.open(path)).convert('RGB')   # a file, or an image made in shots.py
         self.size, self.top, self.push, self.drift, self.dur = size, top, push, drift, dur
 
     def frame(self, u):

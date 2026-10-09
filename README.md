@@ -114,14 +114,14 @@ Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game i
 
 ## Trailers
 
-Don't Step on a Crack and Thimbleful have 15- and 16-second trailers ([the guide](docs/guides/04-trailers.md)). It's cut from real play: a scripted player plays seeded takes under a fake clock, every frame is captured, and the game's own sound is re-rendered from what it played. Dry-run the takes first; it's quick and plays exactly like the filmed run:
+Don't Step on a Crack, Thimbleful and Unruggabull have trailers ([the guide](docs/guides/04-trailers.md)). Each is cut from real play: a scripted player plays seeded takes under a fake clock, every frame is captured, and the game's own sound is re-rendered from what it played. Dry-run the takes first; it's quick and plays exactly like the filmed run:
 
 ```sh
 python3 tools/trailer/make.py dont-step-on-a-crack --dry
 python3 tools/trailer/make.py dont-step-on-a-crack
 ```
 
-Output goes to `work/trailer/` (git-ignored). Trailer videos stay out of the repo, so clones and deploys stay light: post the cut from `work/trailer/<slug>/trailer.mp4` to YouTube and social platforms. The same command rebuilds the exact cut from the repo.
+Output goes to `work/trailer/` (git-ignored). Trailer videos stay out of the repo, so clones and deploys stay light: post the cut from `work/trailer/<slug>/<slug>-trailer.mp4` to YouTube and social platforms. The same command rebuilds the exact cut from the repo.
 
 ## Social previews
 
