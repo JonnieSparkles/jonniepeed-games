@@ -2112,8 +2112,9 @@
   function updateMuteBtn() {
     muteBtn.setAttribute('aria-pressed', sound.muted ? 'true' : 'false');
     muteBtn.setAttribute('aria-label', sound.muted ? 'Unmute sound' : 'Mute sound');
-    document.getElementById('icoSound').hidden = sound.muted;
-    document.getElementById('icoMuted').hidden = !sound.muted;
+    // The icons are SVG elements, which have no hidden property, so the attribute is set directly.
+    document.getElementById('icoSound').toggleAttribute('hidden', sound.muted);
+    document.getElementById('icoMuted').toggleAttribute('hidden', !sound.muted);
   }
 
   // Fullscreen API with a fill-window fallback (including iPhone).

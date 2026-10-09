@@ -102,5 +102,16 @@
   S.calls = { bomber: 0, fighter: 0 }; check(!callChips().length, 'an empty radio shows nothing');
   render();
 
+  // The mute button swaps its icon: a crossed-out speaker while muted.
+  var wasMuted = sound.muted;
+  function shown(id) { return getComputedStyle(document.getElementById(id)).display !== 'none'; }
+  if (wasMuted) muteBtn.click();
+  check(shown('icoSound') && !shown('icoMuted'), 'sound on: the speaker');
+  muteBtn.click();
+  check(sound.muted && !shown('icoSound') && shown('icoMuted') && muteBtn.getAttribute('aria-pressed') === 'true', 'muted: the crossed-out speaker');
+  muteBtn.click();
+  check(!sound.muted && shown('icoSound') && !shown('icoMuted'), 'and back');
+  if (wasMuted) muteBtn.click();
+
   emitHook = null; RUN.force = null; reset(); titleScene(); render();
 })();
