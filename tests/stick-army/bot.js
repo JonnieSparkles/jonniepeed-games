@@ -134,7 +134,9 @@ window.__balanceBot = function (profile, seed) {
 
   // Shop: one readable function. The gift first, a rifleman if the squad is down to one or none, the top of the
   // supply list, then hiring, then the rest of the supplies within the budget, and pizza last when the wall is low.
-  var PRIORITY = ['strike', 'spread', 'double', 'fighter', 'tramp', 'fire', 'rockets', 'auto', 'hospital', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
+  // Training (a stripe for every soldier, now and later) comes after the guns and defenses that keep a young squad
+  // alive; bought first, it starved the early waves.
+  var PRIORITY = ['strike', 'spread', 'double', 'fighter', 'tramp', 'fire', 'rockets', 'auto', 'hospital', 'cool', 'trench', 'helmet', 'bootcamp', 'elite', 'flak', 'pierce', 'slot',
     'mines', 'catcher', 'mat', 'aim', 'sandbags', 'wire', 'repair'];
   function shop(o) {
     var sh = o.shop, take = [];

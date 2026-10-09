@@ -36,10 +36,23 @@ var StickArmyShop = function (w) {
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },
     { id: 'fighter', name: 'Fighter cover', desc: 'A fighter sweeps the sky once, gunning down planes and bombs. Press C or the fighter button.', tier: 'supply', cost: 50, maxStacks: Infinity,
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.fighter++; } },
+    // Training (TRAIN): a stripe for everyone in the squad now, the one in the tent too, and every soldier who joins
+    // after, hired or caught, starts with a stripe for each level bought (squad.js train). In the rotation like any
+    // supply: Boot Camp from wave TRAIN.BOOT, Elite Training from TRAIN.ELITE once Boot Camp is done.
+    { id: 'bootcamp', name: 'Boot Camp', desc: 'Everyone in your squad gets a stripe, and every new soldier starts with one.', tier: 'supply', cost: 60, maxStacks: 1,
+      available: function () { return w.S.wave >= TRAIN.BOOT; }, apply: trainSquad },
+    { id: 'elite', name: 'Elite Training', desc: 'Everyone in your squad gets another stripe, and new soldiers start with two.', tier: 'supply', cost: 150, maxStacks: 1,
+      available: function () { return w.S.wave >= TRAIN.ELITE && (w.S.mods.training || 0) >= 1; }, apply: trainSquad },
     // Pizza is always on the menu, at the same price all war.
     { id: 'pizza', name: 'Order a pizza', desc: 'Delivered before the next wave: +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, flat: true, apply: function (s) { s.pizzaOrder = true; } }
   ];
   function radioFull() { return w.callsHeld() >= w.RADIO.SLOTS ? 'Radio full' : ''; }
+  var TRAIN = { BOOT: 5, ELITE: 10 };
+  function trainSquad(s) {
+    s.mods.training = (s.mods.training || 0) + 1;
+    s.recruits.forEach(function (r) { if (!r.dead) w.SQUAD.train(r, 1); });
+    if (s.bed) w.SQUAD.train(s.bed.r, 1);
+  }
   function hasMedic() { return w.S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; }); }
   // War prices: supplies run short as the war drags on. After wave WAR.FROM, prices rise WAR.SUPPLY a wave (about three
   // times by wave 19) and soldiers WAR.HIRE a wave (about four times), which makes a recruit caught on the mat worth
@@ -114,7 +127,8 @@ var StickArmyShop = function (w) {
   // only worked because of what went back (a hire into a slot you returned) goes back too.
   function snapshot(S) {
     return { coins: S.coins, wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
-      pizzaOrder: S.pizzaOrder, recruits: S.recruits.map(function (r) { return Object.assign({}, r); }) };
+      pizzaOrder: S.pizzaOrder, recruits: S.recruits.map(function (r) { return Object.assign({}, r); }),
+      bed: S.bed ? { r: Object.assign({}, S.bed.r), since: S.bed.since } : null, usedNames: Object.assign({}, S.usedNames) };
   }
   function putBack(id) {
     var S = w.S;
@@ -125,6 +139,7 @@ var StickArmyShop = function (w) {
     keep.splice(at, 1);
     S.coins = b.coins; S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
     S.pizzaOrder = b.pizzaOrder; S.recruits = b.recruits.map(function (r) { return Object.assign({}, r); }); w.resizeMats();
+    S.bed = b.bed ? { r: Object.assign({}, b.bed.r), since: b.bed.since } : null; S.usedNames = Object.assign({}, b.usedNames);
     S.shop.bought = {}; S.shop.giftTaken = false; S.shop.log = [];
     keep.forEach(function (k) { buy(k, true); });
     w.emit('refund', { item: id });

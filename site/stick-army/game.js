@@ -509,8 +509,11 @@
   }
   function makeRecruit(slot, type, id) {
     var hx = SLOTS[slot];
-    return { id: id || nextId++, type: type, slot: slot, x: hx, homeX: hx, tx: hx, hp: ENEMIES[type].hp + (S.mods ? S.mods.helmet : 0), role: 'shoot',
+    var r = { id: id || nextId++, type: type, slot: slot, x: hx, homeX: hx, tx: hx, hp: ENEMIES[type].hp + (S.mods ? S.mods.helmet : 0), role: 'shoot',
       cd: between(RC, 0.4, 1), aim: -Math.PI / 2 + (hx < 200 ? -0.35 : 0.35), walk: 0, hurt: 0, sparkT: 0, dead: false };
+    // After Boot Camp (and Elite Training), new soldiers, hired or caught, arrive with their stripes (shop.js).
+    if (S.mods && S.mods.training) SQUAD.train(r, S.mods.training);
+    return r;
   }
 
   // Crew health: helmets raise the maximum, trenches cut every kind of damage.
