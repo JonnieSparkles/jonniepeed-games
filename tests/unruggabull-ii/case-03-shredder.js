@@ -12,8 +12,10 @@
   check(R.phase === 'wake' && R.noPops, 'enough souls in the copy room wake the far wall');
   step(1.6);
   check(R.boss.st === 'awake' && R.speed < .02, 'the hall stops and its eyes light up');
+  R.hearts = TUNE.hearts - 1; R.pickups = [];
   step(6);
   check(R.phase === 'boss' && R.boss.st === 'fight', 'then it fights');
+  check(R.pickups.some(p => p.kind === 'coffee'), 'with a coffee to start, a heart down');
 
   const b = R.boss;
   R.projs = []; R.flies = []; R.shots = []; bull.u = 0; bull.inv = 99; R.pull.next = 1e9; b.atk = 1e9;

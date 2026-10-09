@@ -40,7 +40,7 @@
       var b = bull, o = {
         t: R.t, phase: R.phase, stage: stage(), event: R.event ? R.event.kind : null, speed: R.speed,
         souls: R.souls, goal: TUNE.goal, hearts: R.hearts, maxHearts: TUNE.hearts, charge: R.charge, spread: R.spread,
-        runner: TUNE.runner, aimCone: TUNE.aimCone, pull: R.pull.st,
+        runner: TUNE.runner, aimCone: TUNE.aimCone, move: TUNE.move, aisle: TUNE.aisle, pull: R.pull.st,
         bull: { u: b.u, bz: b.bz, jh: b.jh, cd: b.cd, inv: b.inv, busy: !!(b.mouth || b.spat) },
         boss: { st: R.boss.st, ph: R.boss.ph, hp: R.boss.hp, jam: R.boss.jam, rally: R.boss.rally ? R.boss.rally.count : -1 },
         temps: [], flies: [], projs: [], boxes: [], rows: [], pickups: []

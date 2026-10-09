@@ -40,11 +40,14 @@
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, recover: .5, mouth: .85,
     goal: 60,               // souls that wake the Shredder
-    wadTime: 1.1, wadLead: .2, throwChance: .6, eventT: 6, auditT: 8,
+    wadTime: 1.25, wadLead: .2, throwChance: .6, eventT: 6, auditT: 8,
     bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,
+    bundleT: [2.2, 1.6],    // how long a bundle takes to reach you: phase 1, then later phases
+    attackEvery: [2.6, 2.1, 1.8], // seconds between the Shredder's attacks in each phase
     deflectCharge: 3,       // each deflect gives the blaster this many charges back
-    // the phase 3 rally: each return is quicker (dur × speedUp, down to fastest); the miss hits for smash + smashPer × returns
-    rally: { serve: 1.7, speedUp: .8, fastest: .6, back: .45, smash: 10, smashPer: 4, stun: 1.6 }
+    // the phase 3 rally: the Shredder bats back 1 to `most` returns, each quicker (dur × speedUp, down to fastest),
+    // then misses, for smash + smashPer × its bat-backs
+    rally: { serve: 1.7, speedUp: .87, fastest: .8, most: 3, back: .45, smash: 10, smashPer: 4, stun: 1.6 }
   };
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
@@ -525,17 +528,18 @@
     R.phase = 'boss'; R.phaseT = 0;
     const b = R.boss;
     b.st = 'fight'; b.atk = 1.5; R.pull.next = R.t + 4;
+    if (R.hearts < TUNE.hearts) addPickup('coffee', .45, rr(-.4, .4));
     Snd.music('shred');
   }
   function spitBundle() {
-    const b = R.boss, dur = b.ph === 1 ? 1.9 : 1.6;
+    const b = R.boss, dur = TUNE.bundleT[b.ph === 1 ? 0 : 1];
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, dur, { w: .08, hh: .05 });
     b.spit = .25; Snd.play('spit');
   }
   // Phase 3's rally: a gold bundle the Shredder keeps batting back, quicker each time, until it misses.
   function serveRally() {
     const b = R.boss;
-    b.rally = { count: 0, target: 3 + Math.floor(rnd() * 3) };
+    b.rally = { count: 0, target: 1 + Math.floor(rnd() * TUNE.rally.most) };
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.rally.serve, { w: .09, hh: .06, rally: true });
     b.spit = .25; Snd.play('spit');
     if (!R.events.rallyHint) { R.events.rallyHint = true; talk('RETURN TO SENDER.', 'shredder'); R.banner = { text: 'RALLY!', sub: 'KEEP KNOCKING IT BACK', t: 0, dur: 2.4, pull: true }; live('Rally! Keep knocking the gold bundle back until the Shredder misses.'); }
@@ -582,9 +586,10 @@
     if (R.pull.st === 'warn' || (ph === 1 && R.pull.st === 'on') || b.rally) return;
     b.atk -= dt;
     if (b.atk <= 0) {
-      if (ph === 1) { spitBundle(); b.atk = 2.3; }
-      else if (ph === 2) { if (b.atkN++ % 2) spitBundle(); else spitFan(); b.atk = 2.1; }
-      else { if (b.atkN++ % 2) spitFan(); else serveRally(); b.atk = 1.8; }
+      if (ph === 1) spitBundle();
+      else if (ph === 2) { if (b.atkN++ % 2) spitBundle(); else spitFan(); }
+      else { if (b.atkN++ % 2) spitFan(); else serveRally(); }
+      b.atk = TUNE.attackEvery[ph - 1];
     }
   }
   function defeat() {
