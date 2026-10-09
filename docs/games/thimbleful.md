@@ -86,6 +86,23 @@ Each run reports to [play stats](../guides/03-play-stats.md) from `start` (inclu
 | Full screen | the "full screen" section: `setFull`, `toggleFull`, wake lock |
 | Sound | `ThimbleSound.start`, `.intensity(seconds, edge)`, `.catch`, `.gold`, `.earn`, `.milestone`, `.spill`, `.over`, `.thunder`, `.title`, `.blip(i)`, `.press`, `.settle`, `.toggle`, `.muted`, `.ready`, `.onready` |
 
+## Trailer
+
+16.1 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../guides/04-trailers.md)) from the files in `tests/thimbleful/trailer/`. The soundtrack is the game's own: `ThimbleSound` re-rendered in one pass under the whole cut, steered like a run (C major at 132 BPM, then minor with drums at 158 BPM at the top of the loop), with every shot's sound effects on top. Frames are the canvas's own pixels, scaled up whole.
+
+| Time | Shot |
+| --- | --- |
+| 0:00 | The windowsill at sunset with the title over the sky: she plants the seed and the can slides in. |
+| 0:02.2 | "Catch the drips.", pushed in on her first catches. |
+| 0:04.0 | "Grow a sunflower.": it blooms at 14. |
+| 0:05.8 | A gold drop, and the butterfly lands on the grown sunflower. |
+| 0:07.6 | The storm on the loop's downbeat: lightning at night, and "Then the storm rolls in." held for a whole bar. |
+| 0:09.1 | A close-up of the manic can feinting, then a spill. |
+| 0:10.7 | A gold catch, and lightning just before the cut. |
+| 0:12.2 | A white flash and thunder into the cover art, with the studio mark and jonniepeed.games, over the game's title jingle. |
+
+Two seeded takes supply it: A (the first-play intro and the cozy first minute) and B (a run to the full storm at 4 minutes, where `D.maxSpills` keeps spills at 3 or fewer, off screen). `director.js` drags on the scene through pointer events, chasing the drop that lands first. `python3 tools/trailer/make.py thimbleful` rebuilds this cut in under three minutes: the same play, markers and sound, with frames that can land one 60 Hz tick apart.
+
 ## Validation
 
 ```sh

@@ -16,5 +16,10 @@
     "state": [
       "quiet"
     ]
-  }
+  },
+  "quiet_marks": [
+    "squirrel",
+    "obs:",
+    "dog:off"
+  ]
 }

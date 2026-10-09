@@ -33,6 +33,7 @@ class Take:
         self.path, self.name = Path(path), name
         d = json.loads((self.path / 'take.json').read_text())
         self.frames, self.marks, self.windows, self.dry = np.array(d['frames']), d['marks'], d.get('windows', []), d.get('dry', False)
+        self.snd, self.upscale = d.get('snd', []), d.get('upscale') or 1
         self._audio = None
 
     def mark(self, name, after=None, nth=0):
@@ -51,6 +52,10 @@ class Take:
         i = int(np.argmin(np.abs(self.frames - t)))
         if abs(self.frames[i] - t) > 0.02:
             raise ValueError('take %s: no frame at %.3f (nearest %.3f)' % (self.name, t, self.frames[i]))
+        png = self.path / 'f' / ('%05d.png' % i)
+        if png.is_file():   # a canvas capture: its own pixels, scaled up whole so pixel art stays sharp
+            im = Image.open(png).convert('RGB')
+            return im.resize((im.width * self.upscale, im.height * self.upscale), Image.NEAREST) if self.upscale > 1 else im
         return Image.open(self.path / 'f' / ('%05d.jpg' % i))
 
     def audio(self):
@@ -58,6 +63,16 @@ class Take:
             a = json.loads((self.path / 'audio.json').read_text())
             self._audio = (a['base'], wavfile.read(str(self.path / 'game.wav'))[1].astype(np.float32))
         return self._audio
+
+
+def score_calls(shots, keep):
+    """The game's sound calls under each shot, moved to the trailer's time. For games whose sound is re-rendered
+    in one pass over the whole cut (see Cut.mix), so music that the game schedules itself plays on without a jump
+    at the cuts. `keep` names the sound object's methods to carry over: the effects, not the music controls."""
+    out = []
+    for s0, s1, take, src0, cam in shots:
+        out += [dict(e, t=s0 + e['t'] - src0) for e in take.snd if e.get('m') in keep and src0 <= e['t'] < src0 + (s1 - s0)]
+    return sorted(out, key=lambda e: e['t'])
 
 
 def wipe(img, u, x0, x1, soft=90):
@@ -126,22 +141,28 @@ class Cut:
             sheet.paste(im, ((k % cols) * 480, (k // cols) * 270))
         sheet.save(path, quality=85)
 
-    def mix(self, path, music):
-        """The game's own sound under each shot (8 ms fades at cuts), the music on top, a soft limiter."""
+    def mix(self, path, music=None, score=None):
+        """The game's own sound, the music on top, a soft limiter. The game's sound is either each shot's take
+        (8 ms fades at cuts) or `score`, one render of the whole cut (spec['score'], made by make.py)."""
         m = self.spec.get('mix', {})
         n = int(self.dur * SR)
         game = np.zeros((n, 2), np.float32)
         f = int(0.008 * SR)
-        for s0, s1, take, src0, cam in self.spec['shots']:
-            base, audio = take.audio()
-            i0, i1 = int(round(s0 * SR)), int(round(s1 * SR))
-            j0 = int(round((src0 - base) * SR))
-            seg = audio[j0:j0 + (i1 - i0)].copy()
-            seg[:f] *= np.linspace(0, 1, f)[:, None]; seg[-f:] *= np.linspace(1, 0, f)[:, None]
-            game[i0:i0 + len(seg)] += seg
-        mus = wavfile.read(str(music))[1][:n].astype(np.float32)
+        if score is not None:
+            a = wavfile.read(str(score))[1][:n].astype(np.float32)
+            game[:len(a)] = a
+        else:
+            for s0, s1, take, src0, cam in self.spec['shots']:
+                base, audio = take.audio()
+                i0, i1 = int(round(s0 * SR)), int(round(s1 * SR))
+                j0 = int(round((src0 - base) * SR))
+                seg = audio[j0:j0 + (i1 - i0)].copy()
+                seg[:f] *= np.linspace(0, 1, f)[:, None]; seg[-f:] *= np.linspace(1, 0, f)[:, None]
+                game[i0:i0 + len(seg)] += seg
         out = game * m.get('game', 0.9)
-        out[:len(mus)] += mus * m.get('music', 0.6)
+        if music is not None:
+            mus = wavfile.read(str(music))[1][:n].astype(np.float32)
+            out[:len(mus)] += mus * m.get('music', 0.6)
         peak = np.abs(out).max()
         drive = m.get('drive', 1.45)
         out = np.tanh(out / max(peak, 1e-6) * drive) / np.tanh(drive) * 0.89
