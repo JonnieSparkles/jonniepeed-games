@@ -169,6 +169,7 @@ body {
 #shopReport { margin: 0; font-size: 17px; }
 #shopNews { margin: 2px 0 0; font-size: 17px; color: var(--ally); }
 .squad-line { margin: 4px 0 0; font-size: 18px; color: var(--ink-soft); }
+.squad-row { display: block; height: 52px; margin: 8px 0 -4px; }
 /* The victory card: the roll call of who made it, top gun starred. Scrolls on short screens. */
 .win-card { max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
 .win-card h2 { font-size: 40px; }
@@ -300,6 +301,8 @@ body {
             <dt>Wall damage taken</dt><dd id="stDmg">0</dd>
             <dt>Best</dt><dd id="stBest">0</dd>
           </dl>
+          <canvas class="squad-row" id="overSquadRow" width="216" height="104" aria-hidden="true" hidden></canvas>
+          <p class="squad-line" id="overSquad" hidden></p>
           <p class="squad-line" id="overFallen" hidden></p>
           <button class="btn" id="againBtn" type="button">Play again</button>
           <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
@@ -337,11 +340,11 @@ body {
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
 <script src="audio.js?v=b3b6de713a"></script>
 <script src="icons.js?v=6dd850d7a9"></script>
-<script src="units.js?v=00cc459374"></script>
-<script src="sky.js?v=7154f9a4bb"></script>
-<script src="squad.js?v=3eea7ed1aa"></script>
-<script src="campaign.js?v=0a7c5a1bed"></script>
+<script src="units.js?v=f45e44d075"></script>
+<script src="sky.js?v=6fe671d124"></script>
+<script src="squad.js?v=a339e50a5a"></script>
+<script src="campaign.js?v=451e653ed2"></script>
 <script src="shop.js?v=1b16d9a4e0"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=82263c2e4e"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=65a19ce922"></script>
 </body>
 </html>

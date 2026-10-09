@@ -134,6 +134,13 @@ var StickArmyUnits = function (w) {
   }
   function hurtZeppelin(p, dmg, owner, hx, hy, direct) {
     var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy, gondola = inGondola(p, x, y), weak = direct && gondola;
+    // The decoy's cardboard "armor" comes off at the first hit and flutters down like its sign.
+    if (p.decoy && !p.plateOff) {
+      p.plateOff = true;
+      w.S.parts.push({ k: 'plate', x: p.x + p.face * PLATE.X, y: p.y + PLATE.Y, vx: p.face * 40, vy: -90, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
+      addText('boing!', p.x + p.face * PLATE.X, p.y - 30, INK, 20); w.sound.play('boing');
+      var wit = w.S.recruits.filter(w.standing)[0]; if (wit) w.say('...cardboard?', wit.id, false, 0.5);
+    }
     if (armorTakes(p, dmg, x, y, gondola)) return;
     if (weak) { dmg *= ZEP.WEAK; if (!p.weakShown) { p.weakShown = true; addText('weak spot!', x, y + 26, BLUE, 22); } }
     p.hp -= dmg; p.hitFlash = 0.1;
@@ -170,6 +177,22 @@ var StickArmyUnits = function (w) {
     if (p.decoy) S.parts.push({ k: 'sticker', x: p.x + p.face * STICKER.X, y: p.y + STICKER.Y, vx: rr(-30, 30), vy: -60, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
   }
 
+  // And its "armor": a sheet of cardboard taped over the roundel, ARMOR scrawled on it, bolts drawn in marker.
+  var PLATE = { X: 44, Y: -2, HW: 20, HH: 12, TILT: 0.12 };
+  function drawPlate(x, y, sx, rot, flat) {
+    var G = w.G, hw = PLATE.HW, hh = PLATE.HH, i;
+    G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(PLATE.TILT + (rot || 0));
+    pen(8087);
+    G.beginPath(); SP([-hw, -hh + 2, hw - 2, -hh, hw, hh - 1, -hw + 3, hh], true, 0.6); G.fillStyle = '#c9a46c'; G.fill(); ink(INK, 1.6); G.stroke();
+    G.beginPath(); for (i = -hw + 6; i < hw - 2; i += 5) L(i, -hh + 3, i + 1, hh - 3, 0.2); ink('rgba(120,86,40,0.45)', 1); G.stroke();
+    G.fillStyle = INK; G.font = '700 11px ' + w.HAND; G.textAlign = 'center';
+    'ARMOR'.split('').forEach(function (ch, j) { G.save(); G.translate(-12 + j * 6, 4 + Math.sin(j * 2.3) * 1.4); G.rotate(Math.sin(j * 1.7) * 0.18); G.fillText(ch, 0, 0); G.restore(); });
+    [[-hw + 4, -hh + 4], [hw - 5, -hh + 4], [-hw + 5, hh - 4], [hw - 4, hh - 4]].forEach(function (b) { G.beginPath(); Ci(b[0], b[1], 1.6, 0.3); ink(INK, 1.2); G.stroke(); });
+    G.fillStyle = 'rgba(232,214,150,0.8)';
+    G.save(); G.translate(-hw + 1, -hh + 1); G.rotate(-0.6); G.fillRect(-7, -2.5, 14, 5); G.restore();
+    G.save(); G.translate(hw - 1, hh - 1); G.rotate(-0.6); G.fillRect(-7, -2.5, 14, 5); G.restore();
+    G.restore();
+  }
   // The final wave's decoy pretends: a paper sign taped on crooked, "DREDNOUGHT" hand-lettered in red with the A
   // squeezed in over a caret, one corner come loose and flapping. Drawn the right way round whichever way it faces
   // (sx squashes it as the zeppelin turns); flat lays it on the ground.
@@ -270,7 +293,7 @@ var StickArmyUnits = function (w) {
     G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
     if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
     G.restore();
-    if (p.decoy && fly) drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot);
+    if (p.decoy && fly) { if (!p.plateOff) drawPlate(p.x + f * PLATE.X, p.y + PLATE.Y, f, p.rot); drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot); }
   }
   // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry. It comes
   // in with the hull, and is only held on the page once the zeppelin has fully arrived.
@@ -310,7 +333,12 @@ var StickArmyUnits = function (w) {
   // with it. Landed, the tank rolls to TANK.STOP from the wall (just inside the barrel's dip) and lobs shells at the
   // bunker. Shells fly like bombs, so they can be shot down. Turret and rifle hits chip it (BULLET each); rockets,
   // mines, crashes and the air strike hit hard.
-  var TANK = { WAVE: 9, ROAD_WAVE: 11, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.6, SHELL_DAMAGE: 8, BULLET: 0.1,
+  // Round 13: heavier guns (SHELL_DAMAGE 12 every SHELL_EVERY 3.2 s; it was 8 every 3.6) and a machine gun that
+  // fires bursts at the nearest soldier in front of it within MG_RANGE. From PAIR, tanks by road come two at a time,
+  // one behind the other (PAIR_GAP); from ESCORT, half of them come with infantry walking ahead of them (ESCORT_SIZE,
+  // at ESCORT_SPEED, a little quicker than the tanks): a tank raid. A tank stops behind another in its way.
+  var TANK = { WAVE: 9, ROAD_WAVE: 11, PAIR: 13, ESCORT: 12, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.2, SHELL_DAMAGE: 12, BULLET: 0.1,
+    MG_EVERY: 2.6, MG_RANGE: 200, MG_BURST: 3, MG_GAP: 0.12, MG_SHOT: 280, MG_HURT: 0.4, PAIR_GAP: 74, ESCORT_SIZE: [3, 5], ESCORT_SPEED: 20,
     BLAST: { rocket: 4, mine: 6, crash: 6, strike: 14 } };
   function tankHP(n) { return Math.round(10 + 0.8 * n); }
   // Cargo planes are armored too, so a steady stream doesn't stop every tank in the air.
@@ -334,10 +362,22 @@ var StickArmyUnits = function (w) {
   // A tank by road rolls in from one edge of the page and stops, like a dropped one, within the barrel's dip.
   function spawnRoadTank() {
     var S = w.S, rnd = substream(w.RW), side = rnd() < 0.5 ? -1 : 1, hp = tankHP(S.wave);
-    S.tanks.push({ id: w.id(), x: side < 0 ? -TANK.HW - 10 : W + TANK.HW + 10, y: GROUND - 1 - TANK.HH, state: 'roll', road: true, dir: -side, hp: hp, maxHp: hp,
-      shellT: 2.5, hitFlash: 0, tread: 0, dead: false });
-    addText('tank!', side < 0 ? 48 : W - 48, GROUND - 70, RED, 22);
-    emit('tank_drop', { hp: hp, road: true });
+    var n = S.wave >= TANK.PAIR ? 2 : 1, escort = S.wave >= TANK.ESCORT && rnd() < 0.5, edge = side < 0 ? -TANK.HW - 10 : W + TANK.HW + 10;
+    for (var i = 0; i < n; i++) {
+      S.tanks.push({ id: w.id(), x: edge + side * i * TANK.PAIR_GAP, y: GROUND - 1 - TANK.HH, state: 'roll', road: true, dir: -side, hp: hp, maxHp: hp,
+        shellT: 2.5 + i * 1.3, mgT: 1.5 + i * 0.8, burst: 0, burstT: 0, flash: 0, hitFlash: 0, tread: 0, dead: false });
+      emit('tank_drop', { hp: hp, road: true });
+    }
+    // A tank raid: infantry walk in ahead of the tanks.
+    var k = escort ? Math.min(TANK.ESCORT_SIZE[1], TANK.ESCORT_SIZE[0] + Math.floor((S.wave - TANK.ESCORT) / 3)) : 0;
+    for (var j = 0; j < k; j++) {
+      var kit = rollTrooper(rnd);
+      if (kit.type === 'sniper') kit.type = 'rifle';
+      var t = spawnTrooper(0, GROUND - 33, kit);
+      t.x = edge - side * (TANK.HW + 18 + j * 20); t.state = 'ground'; t.open = 1; t.dir = -side; t.speed = TANK.ESCORT_SPEED; t.escort = true;
+    }
+    addText(k ? 'tank raid!' : n > 1 ? 'tanks!' : 'tank!', side < 0 ? 60 : W - 60, GROUND - 74, RED, 22);
+    if (k) { w.say('advance!', 910 + k, true, 0, side < 0 ? 40 : W - 40, GROUND - 60); emit('tank_raid', { side: side < 0 ? 'left' : 'right', tanks: n, troops: k }); }
     w.sound.play('cannon');
   }
   function tankHit(tk, x, y, near) {
@@ -381,12 +421,32 @@ var StickArmyUnits = function (w) {
       if (mine) { mine.armed = false; explode(mine.x, GROUND - 12, 38, 'mine', 'ally'); if (tk.dead) return; }
       var stopX = tk.dir > 0 ? BK.x1 - TANK.STOP : BK.x2 + TANK.STOP;
       var front = tk.x + tk.dir * TANK.HW, blocker = S.recruits.find(function (r) { return !r.dead && (r.x - front) * tk.dir > -4 && (r.x - front) * tk.dir < 6; });
+      var ahead = S.tanks.some(function (o) { return o !== tk && !o.dead && o.state !== 'chute' && o.dir === tk.dir && (o.x - tk.x) * tk.dir > 0 && (o.x - tk.x) * tk.dir < 2 * TANK.HW + 8; });
       if (blocker) hurtRecruit(blocker, 2.5 * dt, 'tank');
-      else if ((stopX - tk.x) * tk.dir > 0) { tk.x += tk.dir * Math.min(TANK.SPEED * (S.mods.wire ? 0.5 : 1) * dt, Math.abs(stopX - tk.x)); tk.tread += dt * 8; }
+      else if (!ahead && (stopX - tk.x) * tk.dir > 0) { tk.x += tk.dir * Math.min(TANK.SPEED * (S.mods.wire ? 0.5 : 1) * dt, Math.abs(stopX - tk.x)); tk.tread += dt * 8; }
       // Tanks shell on the move as well as parked; a crew member in the way keeps the crew busy instead.
       if (!blocker && tk.x > 0 && tk.x < W) { tk.shellT -= dt; if (tk.shellT <= 0) { tk.shellT = TANK.SHELL_EVERY; fireShell(tk); } }
+      if (tk.x > 0 && tk.x < W) machineGun(tk, dt);
     });
     S.tanks = S.tanks.filter(function (tk) { return !tk.dead; });
+  }
+  // The machine gun: a burst of MG_BURST at the nearest soldier standing in front of it, within MG_RANGE.
+  function machineGun(tk, dt) {
+    var S = w.S;
+    tk.flash = Math.max(0, (tk.flash || 0) - dt);
+    if (!(tk.burst > 0)) {
+      if ((tk.mgT = (tk.mgT == null ? 1.5 : tk.mgT) - dt) > 0) return;
+      tk.mgT = TANK.MG_EVERY; tk.burst = TANK.MG_BURST; tk.burstT = 0;
+    }
+    var gx = tk.x + tk.dir * 12, gy = tk.y - 12;
+    var r = S.recruits.filter(function (q) { var d = (q.x - gx) * tk.dir; return w.standing(q) && d > 0 && d < TANK.MG_RANGE; })
+      .sort(function (a, b) { return Math.abs(a.x - gx) - Math.abs(b.x - gx); })[0];
+    if (!r) { tk.burst = 0; return; }
+    if ((tk.burstT -= dt) > 0) return;
+    tk.burst--; tk.burstT = TANK.MG_GAP; tk.flash = 0.06;
+    var a = Math.atan2(GROUND - 22 - gy, r.x - gx) + (w.RC() * 2 - 1) * 0.05;
+    S.enemyShots.push({ x: gx, y: gy, vx: Math.cos(a) * TANK.MG_SHOT, vy: Math.sin(a) * TANK.MG_SHOT, life: 1.5, dmg: TANK.MG_HURT, cause: 'tank' });
+    w.sound.play('sniper');
   }
   // Explosions near a tank (not its own wreck, flak or a bomb popped in the air).
   function blastTanks(x, y, r, kind, owner) {
@@ -417,6 +477,9 @@ var StickArmyUnits = function (w) {
     }
     G.beginPath(); G.arc(-d * 2, -7, 9, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill(); ink(INK, 2.2 / k); G.stroke();
     G.beginPath(); L(d * 5, -12, d * 26, -15, 0.3); ink(INK, 3.4 / k); G.stroke();
+    // The machine gun on the hull, flashing as it fires.
+    G.beginPath(); L(d * 8, -8, d * 15, -9, 0.1); ink(INK, 1.8 / k); G.stroke();
+    if (tk.flash > 0) { G.beginPath(); G.arc(d * 17, -9, 2.6, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     G.beginPath(); G.arc(-d * 10, -1, 3, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
     if (tk.state !== 'chute' && tk.hp < tk.maxHp) {
       var f = Math.max(0, tk.hp / tk.maxHp);
@@ -633,7 +696,7 @@ var StickArmyUnits = function (w) {
   }
 
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
-    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, drawBossBar: drawBossBar,
+    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, drawPlate: drawPlate, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,

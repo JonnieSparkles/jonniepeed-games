@@ -18,7 +18,8 @@ var StickArmySky = function (w) {
   // it comes in. A hit from your turret costs TAGS dog tags (more late in the run, medevacTags) and your combo, then it
   // flees.
   // One that gets across untouched pays SAFE points and half its penalty in tags (safePassage).
-  var MEDEVAC = { WAVE: 6, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, SAFE: 200, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
+  // One a wave from WAVE, two from TWO and three from THREE (round 13: "more red cross flights"; it was 12 and 17).
+  var MEDEVAC = { WAVE: 6, TWO: 9, THREE: 14, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, SAFE: 200, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
   function medevacTags(n) { return n >= MEDEVAC.LATE_WAVE ? MEDEVAC.LATE : MEDEVAC.TAGS; }
   // A bomb balloon drifts in from an edge toward the bunker and lets its bomb go over it at DROP_Y. Popped anywhere
   // else, its bomb falls where it is: on the enemy, or on your crew.
@@ -39,11 +40,16 @@ var StickArmySky = function (w) {
   // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
   var HELI = { WAVE: 7, SPEED: 160, Y: 150, HOVER: [310, 350], TROOPS: [4, 5], ROPE_EVERY: 0.4, ROPE: 150, GUN_EVERY: 1.7, BURST: 3, GAP: 0.13,
-    SHOT: 260, HURT: 0.6, WAIT: 0.8, HW: 36, HH: 17 };
+    SHOT: 260, HURT: 0.6, WAIT: 0.8, HW: 36, HH: 17,
+    // From SWEEP.WAVE half the helicopters make a low, fast run instead (round 13): in from either side at Y, across
+    // at SPEED, troopers hopping out on the move every so often (clear of the bunker), dropping FALL px/s to the
+    // ground, and gone out the other side. Its door gunner fires all the way.
+    SWEEP: { WAVE: 9, SHARE: 0.5, Y: [440, 476], SPEED: 115, TROOPS: [3, 4], FALL: 240 } };
   function heliHP(n) { return Math.round(6 + 0.4 * Math.max(0, n - HELI.WAVE)); }
   // A heavy bomber: a big, slow, armored four-engine plane (heavyHP, with a health bar) laying a long carpet of BOMBS
   // across the field, a heavy one on the bunker.
-  var HEAVY = { WAVE: 13, PAIR: 16, SPEED: 42, Y: [136, 160], PAIR_Y: [136, 198], BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
+  // From LOW_WAVE some fly low (LOW_Y): a lone one half the time, and the second of each pair.
+  var HEAVY = { WAVE: 13, PAIR: 16, LOW_WAVE: 14, SPEED: 42, Y: [136, 160], PAIR_Y: [136, 198], LOW_Y: 252, BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
   function heavyHP(n) { return Math.round(45 + 3 * Math.max(0, n - HEAVY.WAVE)); }
   // The night raid (drawNight): the page goes dark, lit by your searchlight along the barrel, a lamp over the bunker,
   // explosions and burning planes. Planes show their blinking lights; bombs glint.
@@ -54,7 +60,7 @@ var StickArmySky = function (w) {
   // Pure in n, folded into waveCfg. None of the enemies come with the Dreadnought; HQ's crates still do.
   function counts(n, dread, boss) {
     return {
-      medevac: n >= MEDEVAC.WAVE && !dread ? (n < 12 ? 1 : n < 17 ? 2 : 3) : 0,
+      medevac: n >= MEDEVAC.WAVE && !dread ? (n < MEDEVAC.TWO ? 1 : n < MEDEVAC.THREE ? 2 : 3) : 0,
       balloons: n >= BALLOON.WAVE && !dread ? Math.min(6, 2 + Math.floor((n - BALLOON.WAVE) / 3)) : 0,
       crates: n >= CRATE.WAVE ? (n < 14 ? 1 : 2) : 0,
       divers: n >= DIVE.WAVE && !dread ? Math.min(8, 2 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
@@ -313,6 +319,7 @@ var StickArmySky = function (w) {
   // ---------- helicopters ----------
   function spawnHeli(rnd) {
     var S = w.S, r = substream(rnd), side = r() < 0.5 ? -1 : 1, n = r() < 0.5 ? HELI.TROOPS[0] : HELI.TROOPS[1];
+    if (S.wave >= HELI.SWEEP.WAVE && r() < HELI.SWEEP.SHARE) return spawnSweep(r, side);
     var p = w.makePlane('heli', -side, side < 0 ? -50 : W + 50, HELI.Y);
     p.rng = r; p.hp = p.maxHp = heliHP(S.wave); p.hw = HELI.HW; p.hh = HELI.HH; p.sc = 1; p.speed = HELI.SPEED; p.side = side;
     p.hoverX = side < 0 ? between(r, 52, 96) : between(r, 304, 348); p.hoverY = between(r, HELI.HOVER[0], HELI.HOVER[1]);
@@ -322,6 +329,26 @@ var StickArmySky = function (w) {
     emit('plane_spawn', { kind: 'heli', dir: p.dir, troopers: n });
     w.sound.play('chopper');
     if (!S.heliTold) { S.heliTold = true; addText('chopper!', side < 0 ? 70 : W - 70, HELI.Y + 40, RED, 22); }
+    return p;
+  }
+  // The low, fast run: troopers hop out at spots spread across the page, in the order it reaches them.
+  function spawnSweep(r, side) {
+    var S = w.S, SW = HELI.SWEEP, n = r() < 0.5 ? SW.TROOPS[0] : SW.TROOPS[1];
+    var p = w.makePlane('heli', -side, side < 0 ? -60 : W + 60, between(r, SW.Y[0], SW.Y[1]));
+    p.rng = r; p.hp = p.maxHp = heliHP(S.wave); p.hw = HELI.HW; p.hh = HELI.HH; p.sc = 1; p.speed = SW.SPEED; p.side = side;
+    p.phase = 'sweep'; p.sweepY = p.y; p.kits = []; p.hops = [];
+    for (var i = 0; i < n; i++) {
+      p.kits.push(w.rollTrooper(r));
+      var x = 50 + (i + between(r, 0.2, 0.8)) * 300 / n;
+      if (Math.abs(x - BK.x) < 44) x = BK.x + (x < BK.x ? -44 : 44);
+      p.hops.push(x);
+    }
+    p.hops.sort(function (a, b) { return p.dir * (a - b); });
+    p.gunT = 0.5; p.burst = 0; p.burstT = 0; p.vx = p.dir * SW.SPEED; p.vy = 0; p.aim = Math.PI / 2; p.flash = 0; p.tilt = p.dir * 0.2; p.bob = r() * 6.28;
+    S.planes.push(p);
+    emit('plane_spawn', { kind: 'heli', dir: p.dir, troopers: n, sweep: true });
+    w.sound.play('chopper');
+    if (!S.sweepTold) { S.sweepTold = true; addText('chopper, low!', side < 0 ? 80 : W - 80, p.y - 40, RED, 22); }
     return p;
   }
   function door(p) { return { x: p.x + p.dir * 7, y: p.y + 7 }; }
@@ -337,6 +364,19 @@ var StickArmySky = function (w) {
     var S = w.S;
     p.flash = Math.max(0, p.flash - dt); p.hitFlash = Math.max(0, p.hitFlash - dt);
     if (p.state !== 'fly') { fallDown(p, dt); return; }
+    if (p.phase === 'sweep') {
+      p.x += p.vx * dt; p.y = p.sweepY + Math.sin(S.t * 3 + p.bob) * 2.5;
+      while (p.hops.length && (p.x - p.hops[0]) * p.dir >= 0) {
+        p.hops.shift();
+        var dd = door(p), ht = w.spawnTrooper(clamp(dd.x, 14, W - 14), dd.y + 4, p.kits.shift());
+        ht.state = 'rope'; ht.open = 0; ht.fall = HELI.SWEEP.FALL; ht.hop = true;
+        emit('rope', { x: ht.x, hop: true });
+        if (!p.called) { p.called = true; w.say('go go go!', p.id, true, 0, p.x, p.y - 26); }
+      }
+      if (p.x < -80 || p.x > W + 80) p.gone = true;
+      gunner(p, dt);
+      return;
+    }
     if (p.phase === 'in') { if (moveTo(p, p.hoverX, p.hoverY, dt)) { p.phase = 'drop'; w.say('go go go!', p.id, true, 0, p.x, p.y + 22); } return; }
     if (p.phase === 'out') { moveTo(p, p.side < 0 ? -90 : W + 90, 80, dt); if (p.x < -70 || p.x > W + 70) p.gone = true; return; }
     moveTo(p, p.hoverX, p.hoverY + Math.sin(S.t * 2 + p.bob) * 2, dt);
@@ -372,8 +412,9 @@ var StickArmySky = function (w) {
   // each other.
   function spawnHeavy(rnd, opts) {
     var S = w.S, r = substream(rnd), roll = r(), y = between(r, HEAVY.Y[0], HEAVY.Y[1]);
-    var dir = opts && opts.dir ? opts.dir : roll < 0.5 ? 1 : -1;
-    if (opts) y = opts.high ? HEAVY.PAIR_Y[0] : HEAVY.PAIR_Y[1];
+    var dir = opts && opts.dir ? opts.dir : roll < 0.5 ? 1 : -1, lowOK = S.wave >= HEAVY.LOW_WAVE;
+    if (opts) y = opts.high ? HEAVY.PAIR_Y[0] : lowOK ? HEAVY.LOW_Y : HEAVY.PAIR_Y[1];
+    else if (lowOK && r() < 0.5) y = HEAVY.LOW_Y;
     var p = w.makePlane('heavy', dir, dir > 0 ? -90 : W + 90, y);
     p.rng = r; p.hp = p.maxHp = heavyHP(S.wave); p.hw = HEAVY.HW; p.hh = HEAVY.HH; p.sc = HEAVY.SC; p.speed = HEAVY.SPEED;
     p.vx = dir * HEAVY.SPEED; p.vy = 0;
@@ -752,11 +793,14 @@ var StickArmySky = function (w) {
       g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
     }
     g.globalCompositeOperation = 'destination-out';
-    // The HUD bands stay light, so the score, tags, the Dreadnought's gauges, wall and squad read at night.
-    var top = g.createLinearGradient(0, 124, 0, 140); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = top; g.fillRect(-30, -30, W + 60, 170);
-    var low = g.createLinearGradient(0, GROUND + 4, 0, GROUND + 16); low.addColorStop(0, 'rgba(0,0,0,0)'); low.addColorStop(1, 'rgba(0,0,0,0.85)');
-    g.fillStyle = low; g.fillRect(-30, GROUND + 4, W + 60, w.H);
+    // In the smoke screen the HUD bands stay light, so the score, tags, the Dreadnought's gauges, wall and squad read.
+    // The night raid darkens the whole page (round 13: "full notebook dark"); game.js draws the HUD in chalk then.
+    if (sm) {
+      var top = g.createLinearGradient(0, 124, 0, 140); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = top; g.fillRect(-30, -30, W + 60, 170);
+      var low = g.createLinearGradient(0, GROUND + 4, 0, GROUND + 16); low.addColorStop(0, 'rgba(0,0,0,0)'); low.addColorStop(1, 'rgba(0,0,0,0.85)');
+      g.fillStyle = low; g.fillRect(-30, GROUND + 4, W + 60, w.H);
+    }
     function glow(x, y, r, k) {
       var rg = g.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, 'rgba(0,0,0,' + k + ')'); rg.addColorStop(1, 'rgba(0,0,0,0)');

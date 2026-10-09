@@ -30,7 +30,7 @@
 
   // The Red Cross plane: the tags fly out of the counter, which flashes red, and late in the run it costs more.
   RUN.force = 82; newGame(); startWave(12); S.coins = 200; S.combo = 4; S.comboT = 1; S.parts = [];
-  check(waveCfg(11).medevac === 1 && waveCfg(12).medevac === 2 && waveCfg(17).medevac === 3, 'more Red Cross planes late');
+  check(waveCfg(8).medevac === 1 && waveCfg(9).medevac === 2 && waveCfg(14).medevac === 3, 'more Red Cross planes late');
   var med = SKY.spawnMedevac(RW); med.x = 200;
   hitTest({ x: med.x, y: med.y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false });
   check(S.coins === 200 - SKY.medevacTags(12) && SKY.medevacTags(12) > SKY.MEDEVAC.TAGS && S.tagLoss > 0 && S.parts.some(function (q) { return q.k === 'tagout'; }), 'tags fly out of the counter');
