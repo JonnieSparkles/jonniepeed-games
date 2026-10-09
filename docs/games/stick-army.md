@@ -362,6 +362,15 @@ Round 14 (after the first win and its second pass after the second, 200 seeds a 
 - **The last hurrah barely moves the bots:** 26 or 27 of 400 runs win either way (the ship's own dice fall differently, so a few different seeds win); abandon ship comes in 67 runs that reach the bridge's last third, and the captain adds about 1,500 to a winner's score on average (the bots mostly shoot him down).
 - `--verify` matches on 15 runs.
 
+Round 15 (the polish pass; game unchanged, the bot fixed, 40 seeds a skill against the old bot): the bots had a blind spot. They ranked a zeppelin below every chute, so on a zeppelin wave they often left it while troopers kept falling, and since a zeppelin's escort keeps coming while it flies, a quarter of expert runs died on wave 5 in waves that ran three minutes (one seed: 154 troopers and 45 planes). A zeppelin now comes before planes and high chutes, as a player would take it.
+
+| Skill | Won | Alive at wave 6 / 10 / 20 |
+| --- | --- | --- |
+| decent | 0% → 2% | 62 / 52 / 15% → 80 / 62 / 22% |
+| expert | 5% → 15% | 72 / 57 / 30% → 78 / 68 / 28% |
+
+The bots still rarely win: the Dreadnought was tuned for a person (round 12), and landers and bombs end most runs between waves 9 and 17. Nothing was changed to move those numbers; playtesting decides.
+
 ## Play stats
 
 Each run reports to [play stats](../guides/03-play-stats.md) from `newGame` and at `showOver`, through `runReport`; a restart from pause reports the old run as quit. A run's online-board token goes with it (`token`, `board` 1), so a saved run can be matched to its row; `input` is touch or keys, as on the board. The score is `S.score` and the time is `S.played`. `stats` are `wave`, `kills`, `captured`, `popped`, `planes`, `zeppelins`, `tanks`, `wall_damage` (the run's total), `shots` (rounds fired, `S.stats.shots`), `captain` (the Dreadnought captain's fate, once he's out), `crew` (alive), `fallen`, `tags` (dog tags in hand), and `cause` (what brought the wall down) at game over. A win reports as soon as the victory card shows (`reportWin`, called with `showWin`), with `won_at`. **Keep going** resumes the same run, so it reports again if the page is hidden mid-run and at the final game over, with `endless`; it stays won. Harness and bot runs report nothing (automated browsers are skipped).
