@@ -138,7 +138,7 @@ window.__balanceBot = function (profile, seed) {
   // Training (a stripe for every soldier, now and later) comes after the guns and defenses that keep a young squad
   // alive; bought first, it starved the early waves.
   var PRIORITY = ['strike', 'spread', 'double', 'fighter', 'tramp', 'fire', 'rockets', 'auto', 'hospital', 'cool', 'trench', 'helmet', 'bootcamp', 'elite', 'flak', 'pierce', 'slot',
-    'mines', 'catcher', 'mat', 'aim', 'sandbags', 'wire', 'repair'];
+    'mines', 'catcher', 'mat', 'aim', 'flag', 'sandbags', 'wire', 'repair'];
   function shop(o) {
     var sh = o.shop, take = [];
     if (shopped === o.wave) return { continue: true };
