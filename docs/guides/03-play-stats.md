@@ -144,6 +144,22 @@ Tests:
 
 In the Cloudflare dashboard, open **Workers & Pages → D1 → jonniepeed-games-stats → Console**. Use `--local` instead of `--remote` for local data.
 
+### Export the runs for analysis
+
+Writes every run (not the hidden test rows) to `runs.json` in the folder you run it from. Attach the file to a chat with Claude for a deeper look. It holds nothing private: no IP addresses, device IDs or names.
+
+```sh
+wrangler d1 execute jonniepeed-games-stats --remote --json --command "SELECT * FROM runs WHERE game <> 'test'" > runs.json
+```
+
+To include initials for saved runs, export the board saves too:
+
+```sh
+wrangler d1 execute jonniepeed-games-scores --remote --json --command "SELECT game, board, run_id, name, score, created_at FROM scores WHERE board > 0" > saves.json
+```
+
+Runs and saves match on `runs.score_run` = `scores.run_id`. Wait for a week or so of ordinary plays before reading much into it.
+
 Runs per day for one game, Eastern time:
 
 ```sql
