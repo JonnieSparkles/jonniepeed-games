@@ -308,6 +308,15 @@ body {
   .shop-foot { padding-top: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
+/* Landscape: the page is as tall as the screen allows, and the round buttons stand in the space beside it (a column
+   bottom left, full screen bottom right) instead of taking a strip under it. On a phone the page grows about a fifth. */
+@media (orientation: landscape) {
+  #wrap { padding-bottom: max(12px, env(safe-area-inset-bottom)); padding-left: max(76px, env(safe-area-inset-left)); padding-right: max(76px, env(safe-area-inset-right)); }
+  .hud-btns { flex-direction: column-reverse; }
+  #fullBtn { min-width: 52px; padding: 8px; display: flex; align-items: center; justify-content: center; }
+  #fullBtn .full-ico { display: block; }
+  #fullBtn .full-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 </style>
 </head>
 <body>
