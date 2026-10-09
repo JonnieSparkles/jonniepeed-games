@@ -670,23 +670,27 @@ var StickArmySky = function (w) {
     G.restore();
   }
   // ---------- the Dreadnought's smoke screen ----------
-  // When its hangar opens, campaign.js has it lob smoke bombs that burst under it (smokeBurst). The dark then rolls in
-  // from the bursts as billows of smoke that grow outward (SPREAD px/s, each filling out over GROW seconds) instead of
-  // the page fading evenly, with wisps drifting through it; when the hangar goes down it blows off one side of the page
-  // (WIND px/s) as it fades. It's drawn by drawNight in place of the night's even fill, so the lights cut through it the
-  // same way. S.smoke is cosmetic.
-  var SMOKE = { COL: 62, ROW: 66, R: 58, GROW: 0.8, SPREAD: 240, WIND: 260, TOP: 'rgba(58,51,46,0.84)', LOW: 'rgba(44,40,37,0.62)' };
+  // When its last gun goes, campaign.js has it fire smoke pots onto the field (smokePot). Each pours smoke, and the
+  // dark rolls out from them as billows that grow outward (SPREAD px/s, faster upward as smoke rises, each filling out
+  // over GROW seconds) instead of the page fading evenly, with wisps drifting through it. When the hangar goes down the
+  // pots sputter out (OUT seconds) and it blows off one side of the page (WIND px/s) as it fades. It's drawn by
+  // drawNight in place of the night's even fill, so the lights cut through it the same way, and each pot's nozzle
+  // glows through it. S.smoke is cosmetic.
+  var SMOKE = { COL: 62, ROW: 66, R: 58, GROW: 0.8, SPREAD: 240, RISE: 0.6, WIND: 260, OUT: 1.5, TOP: 'rgba(58,51,46,0.84)', LOW: 'rgba(44,40,37,0.62)' };
   function smokeStart(wind) {
     var billows = [];
     for (var y = 100, row = 0; y < GROUND + 50; y += SMOKE.ROW, row++) {
       for (var x = -40 + (row % 2) * SMOKE.COL / 2; x < W + 60; x += SMOKE.COL) billows.push({ x: x + rr(-14, 14), y: y + rr(-12, 12), r: SMOKE.R * rr(0.9, 1.25), t0: 1e9 });
     }
-    w.S.smoke = { t: 0, billows: billows, wind: wind, clear: 0, clearing: false };
+    w.S.smoke = { t: 0, billows: billows, pots: [], wind: wind, clear: 0, clearing: false };
   }
-  function smokeBurst(x, y) {
+  function smokePot(x, y) {
     var sm = w.S.smoke;
-    if (sm) sm.billows.forEach(function (b) { b.t0 = Math.min(b.t0, sm.t + Math.hypot(b.x - x, b.y - y) / SMOKE.SPREAD); });
+    if (!sm) return;
+    sm.pots.push({ x: x, y: y, t: sm.t });
+    sm.billows.forEach(function (b) { b.t0 = Math.min(b.t0, sm.t + 0.25 + Math.hypot(b.x - x, (b.y - y) * SMOKE.RISE) / SMOKE.SPREAD); });
   }
+  function potsOut(sm) { return clamp(sm.clear / SMOKE.OUT, 0, 1); }
   function smokeClear() { if (w.S.smoke) w.S.smoke.clearing = true; }
   function grown(sm, b) { var k = clamp((sm.t - b.t0) / SMOKE.GROW, 0, 1); return k * (2 - k); }
   // Over the smoke: the rolling front outlined in pen while it spreads, and pale wisps drifting through it.
@@ -699,6 +703,22 @@ var StickArmySky = function (w) {
       pen(900 + j); G.globalAlpha = a * 0.55 * (1 - k * 0.6); G.beginPath(); Ci(b.x + dx, b.y, b.r * k, 0.8); ink('rgba(30,26,24,0.9)', 1.6); G.stroke();
     });
     full /= sm.billows.length;
+    // The pots: a can on the ground with a glowing nozzle, a plume billowing up out of it, shorter as it sputters out.
+    var out = potsOut(sm);
+    sm.pots.forEach(function (q, j) {
+      var on = Math.min(1, (sm.t - q.t) * 2);
+      for (var k = 0; k < 7; k++) {
+        var age = (S.t * 0.45 + k / 7 + j * 0.31) % 1;
+        if (age > 1 - out) continue;
+        pen(970 + j * 7 + k); G.globalAlpha = (1 - age) * 0.75 * on;
+        G.beginPath(); Ci(q.x + Math.sin(age * 5 + j) * 6 + sm.wind * age * 30, q.y - 12 - age * 190, 5 + age * 26, 0.7);
+        G.fillStyle = 'rgba(205,198,188,0.5)'; G.fill(); ink('rgba(236,229,219,0.9)', 1.5); G.stroke();
+      }
+      pen(990 + j); G.globalAlpha = Math.min(1, a * 3);
+      G.fillStyle = '#7d8288'; G.fillRect(q.x - 4, q.y - 11, 8, 11); G.fillStyle = RED; G.fillRect(q.x - 4, q.y - 7, 8, 2.5);
+      G.beginPath(); SP([q.x - 4, q.y - 11, q.x + 4, q.y - 11, q.x + 4, q.y, q.x - 4, q.y], true, 0.2); ink(INK, 1.4); G.stroke();
+      if (out < 1) { G.globalAlpha = (1 - out) * (0.7 + 0.3 * Math.sin(S.t * 30 + j)); G.beginPath(); G.arc(q.x, q.y - 12, 2.6, 0, Math.PI * 2); G.fillStyle = 'rgba(255,170,60,1)'; G.fill(); }
+    });
     for (i = 0; i < 12; i++) {
       var m = W + 160, v = (i * 97 + S.t * (10 + (i * 7) % 13) * (i % 2 ? 1 : -1)) % m, x = (v + m) % m - 80 + dx, y = 130 + (i * 53) % 430, r = 26 + (i * 17) % 30;
       pen(950 + i); G.globalAlpha = a * 0.32 * full; G.beginPath(); Ci(x, y, r, 0.8); G.fillStyle = 'rgba(150,140,130,0.25)'; G.fill(); ink('rgba(214,204,192,0.85)', 1.6); G.stroke();
@@ -732,9 +752,9 @@ var StickArmySky = function (w) {
       g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
     }
     g.globalCompositeOperation = 'destination-out';
-    // The HUD bands stay light, so the score, tags, wall and squad read at night.
-    var top = g.createLinearGradient(0, 96, 0, 114); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = top; g.fillRect(-30, -30, W + 60, 144);
+    // The HUD bands stay light, so the score, tags, the Dreadnought's gauges, wall and squad read at night.
+    var top = g.createLinearGradient(0, 124, 0, 140); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = top; g.fillRect(-30, -30, W + 60, 170);
     var low = g.createLinearGradient(0, GROUND + 4, 0, GROUND + 16); low.addColorStop(0, 'rgba(0,0,0,0)'); low.addColorStop(1, 'rgba(0,0,0,0.85)');
     g.fillStyle = low; g.fillRect(-30, GROUND + 4, W + 60, w.H);
     function glow(x, y, r, k) {
@@ -756,6 +776,7 @@ var StickArmySky = function (w) {
       glow(b.gx, GROUND - 4, 48, 0.8 * b.k);
     });
     (w.dreadLit ? w.dreadLit() : []).forEach(function (q, i) { glow(q.x, q.y, i ? 34 : 56, i ? 0.5 : 0.85); });
+    if (sm) sm.pots.forEach(function (q) { glow(q.x, q.y - 8, 30, 0.6 * (1 - potsOut(sm))); });
     S.planes.forEach(function (p) { if (p.state !== 'fly') glow(p.x, p.y, 60, 0.8); });
     g.globalCompositeOperation = 'source-over';
     G.save(); G.setTransform(1, 0, 0, 1, 0, 0); G.globalAlpha = a; G.drawImage(cv, 0, 0); G.restore();
@@ -790,6 +811,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokeBurst: smokeBurst, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

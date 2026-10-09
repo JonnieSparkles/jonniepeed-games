@@ -1843,6 +1843,7 @@
         G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.moveTo(-q.s, -q.s * 0.6); G.lineTo(q.s, -q.s * 0.3); G.lineTo(q.s * 0.2, q.s * 0.7); G.closePath();
         G.fillStyle = q.c || PAPER; G.fill(); ink(INK2, 1.1); G.stroke();
       } else if (q.k === 'sticker') { G.globalAlpha = Math.min(1, q.life); drawSticker(q.x, q.y, 1, q.rot, q.flat); }
+      else if (q.k === 'flash') { if (!REDUCED) { G.globalAlpha = a * a * 0.6; G.fillStyle = '#fffdf2'; G.fillRect(-20, -20, W + 40, H + 40); } }
       else if (q.k === 'flag') {
         // A white flag: surrender.
         var up = (1 - a) * 14; G.globalAlpha = Math.min(1, a * 2);
@@ -1935,7 +1936,7 @@
   // Calls held on the radio, drawn under the score so they're in sight on any screen (the buttons beside pause are
   // easy to miss on a desktop). Click or tap one to make the call; B and C still work, and the key shows where there's
   // a keyboard. A call already flying is greyed.
-  var CALL_CHIP = { X: 58, Y: 66, W: 48, H: 24, GAP: 4 }; // clear of the combo counter in the middle
+  var CALL_CHIP = { X: 58, Y: 66, W: 44, H: 24, GAP: 3 }; // clear of the combo counter in the middle
   var KEYS_SHOWN = !(window.matchMedia && window.matchMedia('(hover: none)').matches);
   function callChips() {
     var out = [], x = CALL_CHIP.X;
@@ -1957,7 +1958,7 @@
       G.fillStyle = PAPER; G.fillRect(x, y, cw, ch); G.fillStyle = 'rgba(47,111,220,0.1)'; G.fillRect(x, y, cw, ch);
       G.beginPath(); L(x, y, x + cw, y, 0.3); L(x + cw, y, x + cw, y + ch, 0.3); L(x + cw, y + ch, x, y + ch, 0.3); L(x, y + ch, x, y, 0.3); ink(BLUE, 1.6); G.stroke();
       G.save(); G.translate(x + 1, y + 1); G.scale(22 / 44, 22 / 44); ICONS[c.icon](G); G.restore();
-      G.fillStyle = BLUE; G.font = '15px ' + HAND; G.textAlign = 'left'; G.fillText((KEYS_SHOWN ? c.key : '') + '×' + c.n, x + 24, y + 17);
+      G.fillStyle = BLUE; G.font = '14px ' + HAND; G.textAlign = 'left'; G.fillText((KEYS_SHOWN ? c.key : '') + '×' + c.n, x + 23, y + 17);
       G.restore();
     });
   }
@@ -2024,6 +2025,8 @@
     activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     SKY.drawBehind();
     drawTease();
+    // The Dreadnought's name and gauges sit behind it, so the ship passes in front of them.
+    drawDreadBar();
     if (S.wreck) drawDread(S.wreck);
     S.planes.forEach(function (p) { if (p.kind === 'dread') drawDread(p); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
@@ -2048,8 +2051,6 @@
     drawBossBar();
     drawParts();
     SKY.drawNight();
-    // Over the night, so its gauges always read.
-    drawDreadBar();
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
     drawTexts();
@@ -2317,7 +2318,7 @@
       wave: S.waveState === 'active',
       number: S.wave,
       wallLow: S.wallHP < S.mods.maxHP * 0.3,
-      dread: CAMPAIGN.dreadPhase() || teaserMusic()
+      dread: CAMPAIGN.dreadMusic() || teaserMusic()
     };
   }
   // The final wave's teaser: the Dreadnought's march, thin, until the decoy is down; then a hush until the real one.

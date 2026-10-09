@@ -117,16 +117,24 @@
   S.strikeBombs = [{ id: 9001, x: gx, y: p.y + DREAD.GUN_Y - 2, vy: 10, dead: false }]; update(1 / 60);
   check(gB.hp === hpB - 14, 'the air strike hits its guns: ' + gB.hp);
 
-  // With every gun down the hangar opens: it launches dive bombers and drops troops.
+  // With every gun down it reels (a pause: nothing fires, nothing can be hurt, the music holds its breath) while it
+  // lays a smoke screen; then the hangar opens: it launches dive bombers and drops troops.
   p.turrets.forEach(function (t) { if (!t.dead) damagePlane(p, 999, 'player', p.x + p.dir * t.lx, p.y + DREAD.GUN_Y, true); });
-  check(p.phase === 'hangar' && seen.indexOf('dread_hangar') >= 0, 'the hangar opens');
+  check(p.phase === 'hangar' && seen.indexOf('dread_hangar') >= 0, 'the guns are gone');
   var troops = S.troopers.length;
-  check(p.chainT > 0, 'explosions run along the hull first');
-  run(2.1 + DREAD.CHAIN);
+  check(p.chainT > 0 && p.hold > 0 && !dreadTargets().length && ambienceState().dread === 'hush', 'explosions run along the hull, and a pause');
+  var hp0 = p.hangar.hp; damagePlane(p, 50, 'player', p.x + p.dir * DREAD.HANGAR, p.y + DREAD.HANGAR_Y, true);
+  check(p.hangar.hp === hp0, 'nothing to hurt while it reels');
+  run(DREAD.PAUSE.HANGAR - 0.1);
+  check(seen.indexOf('dread_launch') < 0 && p.hangar.open === 0 && S.smoke.pots.length === DREAD.SMOKE_AT.length, 'its smoke pots land on the field, the hangar still shut');
+  render();
+  run(0.2);
+  check(!(p.hold > 0) && ambienceState().dread === 'hangar' && dreadTargets().some(function (q) { return q.part === 'hangar'; }), 'then the hangar opens');
+  run(2.1);
   check(seen.indexOf('dread_launch') >= 0 && S.planes.filter(function (q) { return q.kind === 'diver'; }).length === 2 && S.troopers.length > troops, 'it launches dive bombers in pairs and drops troops');
   check(S.night > 0.5, 'dark while the hangar launches');
   check(p.canisters.length === DREAD.SMOKE_AT.length && p.canisters.every(function (c) { return c.done; }) && S.smoke &&
-    S.smoke.billows.filter(function (b) { return b.t0 < S.smoke.t; }).length > S.smoke.billows.length * 0.8, 'a smoke screen, rolled in from its smoke bombs');
+    S.smoke.billows.every(function (b) { return b.t0 < S.smoke.t; }), 'a smoke screen, rolled out from its smoke pots');
   check(S.planes.filter(function (q) { return q.kind === 'diver'; }).every(function (q) { return q.sortie && q.hp === SKY.DIVE.SORTIE_HP; }), 'sorties are tougher');
   var ab = { id: 9301, x: 120, y: 420, vx: 0, vy: 0, isBomb: true, heavy: true, armored: true, dead: false }; S.bombs.push(ab);
   hitTest({ x: 120, y: 420, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
@@ -135,8 +143,12 @@
   render();
   // Shoot the hangar to pieces and the bridge is exposed: the bomb bay opens and the bridge gunner fires.
   damagePlane(p, 9999, 'player', p.x + p.dir * DREAD.HANGAR, p.y + DREAD.HANGAR_Y, true);
-  check(p.phase === 'bridge' && seen.indexOf('dread_bridge') >= 0 && S.smoke.clearing, 'the bridge is exposed, and the smoke blows away');
+  check(p.phase === 'bridge' && seen.indexOf('dread_bridge') >= 0 && S.smoke.clearing, 'the hangar is down, and the smoke blows away');
+  check(p.hold > 0 && !dreadTargets().length && p.cannon.deploy === 0, 'another pause');
+  render();
   S.planes = S.planes.filter(function (q) { return q.kind === 'dread'; }); S.troopers = []; S.bombs = [];
+  run(DREAD.PAUSE.BRIDGE + 0.02);
+  check(!(p.hold > 0) && dreadTargets().some(function (q) { return q.part === 'bridge'; }), 'then the bridge is exposed');
   p.x = 200 + p.dir * 120 - p.dir * DREAD.BRIDGE; p.bombT = 0; run(0.05);
   check(S.bombs.length === DREAD.BAY_BOMBS, 'the bomb bay opens');
   S.recruits = [makeRecruit(1, 'rifle')]; p.gunT = 0; run(0.5);

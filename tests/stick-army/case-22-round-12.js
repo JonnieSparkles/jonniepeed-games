@@ -101,6 +101,23 @@
   check(callChips().length === 1 && callChips()[0].kind === 'fighter', 'the spent call leaves the HUD');
   S.calls = { bomber: 0, fighter: 0 }; check(!callChips().length, 'an empty radio shows nothing');
   render();
+  // The two chips leave room for the combo counter in the middle.
+  check(CALL_CHIP.X + 2 * CALL_CHIP.W + CALL_CHIP.GAP <= 152, 'the chips clear the combo counter');
+
+  // The air strike and fighter cover come in from the left or the right, and fly across and off the other side.
+  var sides = {}, fromRight = null;
+  for (var sd = 0; sd < 12; sd++) {
+    RUN.force = 120 + sd; quiet(9); S.calls = { bomber: 1, fighter: 1 }; callStrike(); callFighter();
+    sides['s' + S.strike.dir] = sides['f' + S.fighter.dir] = true;
+    check(S.strike.x === (S.strike.dir > 0 ? STRIKE.START : W - STRIKE.START) && S.fighter.x === (S.fighter.dir > 0 ? FIGHTER.START : W - FIGHTER.START), 'each starts on its own side');
+    if (S.strike.dir < 0 && S.fighter.dir < 0 && fromRight == null) fromRight = 120 + sd;
+  }
+  check(sides.s1 && sides['s-1'] && sides.f1 && sides['f-1'] && fromRight != null, 'from either side');
+  {
+    RUN.force = fromRight; quiet(9); S.calls = { bomber: 1, fighter: 1 }; callStrike(); callFighter(); render();
+    var drops = 0; for (var sf = 0; sf < 60 * 5 && (S.strike || S.fighter); sf++) { update(1 / 60); drops = Math.max(drops, S.strikeBombs.length); }
+    check(!S.strike && !S.fighter && drops > 0, 'from the right, they cross and leave by the left');
+  }
 
   // The mute button swaps its icon: a crossed-out speaker while muted.
   var wasMuted = sound.muted;

@@ -489,9 +489,11 @@ var StickArmyUnits = function (w) {
     var S = w.S;
     if (S.mode !== 'play' || S.strike || S.calls.bomber <= 0) return false;
     S.calls.bomber--;
-    var targets = [];
+    // It comes in from the left or the right, picked with the combat stream so a replay is the same.
+    var dir = w.RC() < 0.5 ? -1 : 1, targets = [];
     for (var i = 0; i < STRIKE.BOMBS; i++) { var x = 24 + i * (W - 48) / (STRIKE.BOMBS - 1); if (Math.abs(x - BK.x) > 46) targets.push(x); }
-    S.strike = { x: STRIKE.START, hold: STRIKE.HOLD + RADIO.TALK, drops: targets, id: w.id() };
+    if (dir < 0) targets.reverse();
+    S.strike = { x: dir > 0 ? STRIKE.START : W - STRIKE.START, dir: dir, hold: STRIKE.HOLD + RADIO.TALK, drops: targets, id: w.id() };
     radioCall('air strike!');
     emit('air_strike', { wave: S.wave, left: S.calls.bomber });
     return true;
@@ -500,9 +502,9 @@ var StickArmyUnits = function (w) {
     var S = w.S, st = S.strike;
     if (st && st.hold > 0) { var was = st.hold; st.hold -= dt; if (was > STRIKE.HOLD && st.hold <= STRIKE.HOLD) w.sound.play('strike'); }
     else if (st) {
-      st.x += STRIKE.SPEED * dt;
-      while (st.drops.length && st.x >= st.drops[0]) S.strikeBombs.push({ id: w.id(), x: st.drops.shift(), y: STRIKE.Y + 12, vy: 80, dead: false });
-      if (st.x > W + 100) S.strike = null;
+      st.x += st.dir * STRIKE.SPEED * dt;
+      while (st.drops.length && (st.x - st.drops[0]) * st.dir >= 0) S.strikeBombs.push({ id: w.id(), x: st.drops.shift(), y: STRIKE.Y + 12, vy: 80, dead: false });
+      if (st.dir > 0 ? st.x > W + 100 : st.x < -100) S.strike = null;
     }
     S.strikeBombs.forEach(function (m) {
       m.vy += STRIKE.FALL * dt; m.y += m.vy * dt;
@@ -514,8 +516,10 @@ var StickArmyUnits = function (w) {
     var S = w.S;
     if (S.mode !== 'play' || S.fighter || S.calls.fighter <= 0) return false;
     S.calls.fighter--;
-    // A lead and a wingman, flying in echelon. Each has its own guns, contrail and muzzle flash.
-    S.fighter = { pass: 0, dir: 1, x: FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, fly: 0, dive: FIGHTER.DIVE, id: w.id(),
+    // A lead and a wingman, flying in echelon. Each has its own guns, contrail and muzzle flash. From the left or the
+    // right, like the air strike.
+    var dir = w.RC() < 0.5 ? -1 : 1;
+    S.fighter = { pass: 0, dir: dir, x: dir > 0 ? FIGHTER.START : W - FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, fly: 0, dive: FIGHTER.DIVE, id: w.id(),
       wing: [{ dx: 0, dy: 0, cd: 0.1, flash: 0, trail: [] }, { dx: -FIGHTER.WING_X, dy: -FIGHTER.WING_Y, cd: 0.16, flash: 0, trail: [] }] };
     radioCall('fighter cover!');
     emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });
@@ -582,7 +586,7 @@ var StickArmyUnits = function (w) {
     });
     if (!st) return;
     var body = function () {
-      pen(st.id); G.save(); G.translate(st.x, STRIKE.Y); G.scale(-0.86, 0.86);
+      pen(st.id); G.save(); G.translate(st.x, STRIKE.Y); G.scale(-0.86 * st.dir, 0.86);
       G.beginPath(); SP(w.BOMBER_PTS, true, 0.6); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.12)'; G.fill(); ink(INK, 2.6); G.stroke();
       G.beginPath(); L(-16, 4, 22, 6); ink(INK, 3.4); G.stroke();
       G.beginPath(); G.arc(18, -3, 5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
@@ -590,14 +594,15 @@ var StickArmyUnits = function (w) {
       var pl = w.boil % 2 ? 11 : 6; G.beginPath(); L(-50, -pl, -50, pl, 0.4); ink(INK, 2.3); G.stroke();
       G.restore();
     };
-    if (st.hold > 0) w.sketchReveal(1 - st.hold / STRIKE.HOLD, [st.x - 54, STRIKE.Y - 28, st.x + 46, STRIKE.Y + 16], 'right', body); else body();
+    if (st.hold > 0) w.sketchReveal(1 - st.hold / STRIKE.HOLD, [st.x - (st.dir > 0 ? 54 : 46), STRIKE.Y - 28, st.x + (st.dir > 0 ? 46 : 54), STRIKE.Y + 16], 'right', body); else body();
   }
   function drawFighter() {
     var f = w.S.fighter, G = w.G;
     if (!f) return;
     if (f.hold > 0) {
       var lead = wingAt(f, f.wing[0]);
-      w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [lead.x - 32 - FIGHTER.WING_X, lead.y - 16 - FIGHTER.WING_Y, lead.x + 32, lead.y + 8], 'right', function () { f.wing.forEach(function (q) { fighterBody(f, q, G); }); });
+      var back = f.dir > 0 ? FIGHTER.WING_X : 0, ahead = f.dir > 0 ? 0 : FIGHTER.WING_X;
+      w.sketchReveal(1 - f.hold / FIGHTER.HOLD, [lead.x - 32 - back, lead.y - 16 - FIGHTER.WING_Y, lead.x + 32 + ahead, lead.y + 8], 'right', function () { f.wing.forEach(function (q) { fighterBody(f, q, G); }); });
       return;
     }
     f.wing.forEach(function (q) {
