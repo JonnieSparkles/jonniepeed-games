@@ -106,7 +106,7 @@ var StickArmyUnits = function (w) {
         if (p.bombT <= 0) {
           p.bombT = p.angry ? ZEP.ANGRY_BOMB_EVERY : ZEP.BOMB_EVERY;
           [-1, 0, 1].forEach(function (k) { S.bombs.push({ id: w.id(), x: p.x + k * 10, y: p.y + p.hh - 2, vx: p.face * p.speed * 0.5 + k * 40, vy: 0, isBomb: true, dead: false }); emit('bomb_dropped', { by: 'zeppelin' }); });
-          w.sound.play('whistle');
+          w.sound.play('cluster');
         }
       }
       p.holes.forEach(function (h) { if (R() < dt * 0.8) puff(p.x + h.x * p.face, p.y + h.y, 2, 0.5); });
@@ -552,7 +552,7 @@ var StickArmyUnits = function (w) {
     var r = crew[0];
     S.radio = { rid: r ? r.id : null, x: r ? r.x : BK.x, t: 0, dur: RADIO.TALK + 0.6 };
     // The call is said aloud, in a speech bubble over whoever makes it.
-    w.sound.play('radio'); w.say(label, r ? r.id : 77, false, 0.25, BK.x, BK.top - 40);
+    w.sound.play('radio'); w.say(label, r ? r.id : 77, false, 0.25, BK.x, BK.top - 40, 'radio');
   }
   function updateRadio(dt) {
     var S = w.S, rc = S.radio;

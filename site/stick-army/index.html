@@ -215,7 +215,7 @@ body {
 .t-chip { min-height: 32px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
 .t-chip:hover, .t-chip:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
 /* The open notebook (wide screens, title only): the game page on the left, the facing page on the right with a
-   shadow down the binding. On the left page the logo, the demo, the pencil notes, Start and the record stamp remain. */
+   shadow down the binding. On the left page the logo, the demo, the pencil notes and every button stay; the facing page is for reading. */
 .facing { position: absolute; left: 0; top: 0; width: 400px; height: 720px; transform-origin: 0 0; box-sizing: border-box; padding: 34px 26px 0 66px;
   background: linear-gradient(to right, transparent 46px, var(--margin) 46px, var(--margin) 47.4px, transparent 47.4px),
     repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px) 0 100px / 100% 620px no-repeat, var(--paper);
@@ -235,8 +235,14 @@ body {
 .f-rows .sc { text-align: right; }
 .f-rows .won { color: var(--ally); width: 18px; text-align: center; }
 .f-rows .empty { display: block; color: var(--ink-soft); }
-.f-chips { position: absolute; left: 66px; bottom: 26px; }
-#wrap.spread .title-page .t-chips, #wrap.spread .t-orders, #wrap.spread .t-keys { display: none; }
+/* Layout B: the orders are a post-it stuck on the facing page. */
+#wrap:has(.layout-b) .f-postit { margin: 6px -6px 22px -14px; padding: 16px 14px 12px 34px; background: #f7e58a; transform: rotate(-2deg); position: relative;
+  box-shadow: 2px 4px 0 var(--card-shadow), 0 10px 18px rgba(46, 46, 51, 0.12); }
+#wrap:has(.layout-b) .f-postit::before { content: ""; position: absolute; left: 50%; top: -10px; width: 80px; height: 20px; margin-left: -40px; background: rgba(214, 222, 232, 0.75); transform: rotate(3deg); }
+#wrap:has(.layout-b) .f-postit .f-title { height: auto; margin: 0 0 8px -20px; font-size: 32px; transform: none; }
+#wrap:has(.layout-b) .f-postit .f-orders { font-size: 18px; line-height: 24px; }
+#wrap:has(.layout-b) .f-postit mark { background: none; color: var(--ally); text-decoration: underline 2px; text-underline-offset: 2px; }
+#wrap.spread .t-orders, #wrap.spread .t-keys { display: none; }
 /* The page has its own sound and full-screen chips on the title, so the buttons around the page wait for play. */
 #wrap:has(#titleScreen:not([hidden])) .hud-btns, #wrap:has(#titleScreen:not([hidden])) #fullBtn { display: none; }
 .roll-title { margin: 2px 0 -6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
@@ -411,7 +417,8 @@ body {
     <!-- The facing page: on a wide screen the title opens the notebook, with the orders, the keys and the high
          scores on the right-hand page (game.js fit, spread). It closes when play starts. -->
     <aside class="facing" id="facing" aria-label="Orders and high scores" hidden>
-      <h2 class="f-title">Orders from HQ</h2>
+      <section class="f-postit" aria-labelledby="facingOrders">
+      <h2 class="f-title" id="facingOrders">Orders from HQ</h2>
       <ol class="f-orders">
         <li>Aim and hold to fire, in <mark>short bursts</mark>: the gun overheats.</li>
         <li>Pop a chute <mark>low over the mat</mark> and he joins your squad.</li>
@@ -419,28 +426,24 @@ body {
         <li><mark>Shoot the rest</mark> before they reach the wall.</li>
         <li>Spend <mark>dog tags</mark> on supplies between waves.</li>
       </ol>
+      </section>
       <p class="f-keys">Keys: arrows aim · space fires · B air strike · C fighter cover · P pause · F full screen</p>
       <section class="f-board" aria-labelledby="facingBoardTitle">
         <h3 id="facingBoardTitle">High scores</h3>
         <ol class="f-rows" id="facingRows"></ol>
       </section>
-      <div class="t-chips f-chips">
-        <button class="t-chip" id="facingSoundBtn" type="button">Sound on</button>
-        <button class="t-chip" id="facingFullBtn" type="button">Full screen</button>
-        <button class="t-chip" id="facingScoresBtn" type="button">See all</button>
-      </div>
     </aside>
   </div>
 </div>
 
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
-<script src="audio.js?v=6f8cd86d0e"></script>
+<script src="audio.js?v=97e6dbd5ab"></script>
 <script src="icons.js?v=6dd850d7a9"></script>
-<script src="units.js?v=2c95475f0b"></script>
-<script src="sky.js?v=42ad096c4c"></script>
+<script src="units.js?v=7f9c46bf46"></script>
+<script src="sky.js?v=f50faadbee"></script>
 <script src="squad.js?v=e52c64b27c"></script>
-<script src="campaign.js?v=2eb9dcc0e6"></script>
-<script src="shop.js?v=fa4a4a6648"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=e0cab8d7eb"></script>
+<script src="campaign.js?v=b8753d5790"></script>
+<script src="shop.js?v=1ebb6ef56c"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=b918e35add"></script>
 </body>
 </html>

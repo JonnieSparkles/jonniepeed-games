@@ -2264,6 +2264,7 @@
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));
     reset();
     S.mode = 'play'; S.hint = true;
+    sound.ambience(ambienceState());
     startWave(1);
     titleScreen.hidden = true; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; shopScreen.hidden = true; pauseBtn.hidden = false;
     fit();
@@ -2382,7 +2383,6 @@
     document.getElementById('icoSound').toggleAttribute('hidden', sound.muted);
     document.getElementById('icoMuted').toggleAttribute('hidden', !sound.muted);
     titleSoundBtn.textContent = sound.muted ? 'Sound off' : 'Sound on';
-    document.getElementById('facingSoundBtn').textContent = titleSoundBtn.textContent;
     titleSoundBtn.setAttribute('aria-pressed', sound.muted ? 'false' : 'true');
   }
 
@@ -2503,12 +2503,20 @@
     fighterBtn.disabled = !!S.fighter;
     document.getElementById('fighterCount').textContent = String(c.fighter);
   }
+  // The browser plays nothing until the page is touched, so the title's music starts with the first touch or key.
+  function wakeSound() { if (S.mode === 'title' && !sound.muted) sound.init(); }
+  document.addEventListener('pointerdown', wakeSound, true);
+  document.addEventListener('keydown', wakeSound, true);
+  // The menus' buttons make a sound (audio.js click and press, heard on the title too); the shop's have their own.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('button');
+    if (!b || b.disabled || b.closest('#shopScreen .shop-stock, .hud-btns') || b.id === 'titleSoundBtn') return;
+    sound.play(b.classList.contains('btn') ? 'press' : 'click');
+  }, true);
   // The title's chips do what the buttons around the page do.
   var titleSoundBtn = document.getElementById('titleSoundBtn');
-  titleSoundBtn.addEventListener('click', function () { muteBtn.click(); titleSoundBtn.focus({ preventScroll: true }); });
+  titleSoundBtn.addEventListener('click', function () { muteBtn.click(); if (!sound.muted) sound.play('click'); titleSoundBtn.focus({ preventScroll: true }); });
   document.getElementById('titleFullBtn').addEventListener('click', function () { fullBtn.click(); });
-  document.getElementById('facingSoundBtn').addEventListener('click', function () { titleSoundBtn.click(); });
-  document.getElementById('facingFullBtn').addEventListener('click', function () { fullBtn.click(); });
   muteBtn.addEventListener('click', function () {
     sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
     if (!sound.muted) sound.init();
@@ -2518,9 +2526,22 @@
   // ---------- loop ----------
   var last = performance.now(), lastAmbience = 0;
   // What the ambience layer needs: whether a wave is live, where the planes are, and whether the wall is in trouble.
+  // How busy the page is, for the march (audio.js marchStep): 0 quiet once nothing has been on it for HEAT.QUIET seconds,
+  // 2 busy from HEAT.BUSY threats on the page until it falls back to HEAT.CALM, 1 otherwise. A threat is a trooper,
+  // a plane or a bomb, a tank counting double.
+  var HEAT = { QUIET: 1.5, BUSY: 9, CALM: 5 }, heatLevel = 1, quietSince = 0;
+  function pageHeat() {
+    var n = S.troopers.filter(function (t) { return !t.dead; }).length + S.bombs.length + S.planes.length + 2 * S.tanks.length;
+    if (n) quietSince = S.t;
+    if (heatLevel === 2) heatLevel = n <= HEAT.CALM ? 1 : 2; else if (n >= HEAT.BUSY) heatLevel = 2;
+    if (heatLevel !== 2) heatLevel = S.t - quietSince >= HEAT.QUIET ? 0 : 1;
+    return heatLevel;
+  }
   function ambienceState() {
     return {
       active: S.mode === 'play' && !document.hidden,
+      title: S.mode === 'title' && !document.hidden,
+      heat: S.mode === 'play' ? pageHeat() : 1,
       planes: S.planes.filter(function (p) { return p.state === 'fly' && p.kind !== 'balloon' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
       wave: S.waveState === 'active',
       number: S.wave,
