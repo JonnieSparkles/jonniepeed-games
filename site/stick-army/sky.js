@@ -442,7 +442,9 @@ var StickArmySky = function (w) {
     var S = w.S;
     updateMedevac(dt); updateHQ(dt); updateCrates(dt);
     // The night raid fades in as its wave starts and out as it clears. Cosmetic only.
-    var dark = S.spawn && S.spawn.cfg && S.spawn.cfg.night && S.waveState === 'active';
+    // Night for the night raid, and for the Dreadnought's hangar and bridge stages (dawn as it sinks).
+    var dp = w.dreadPhase && w.dreadPhase();
+    var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar' || dp === 'bridge');
     S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });
@@ -654,6 +656,11 @@ var StickArmySky = function (w) {
     sky.addColorStop(0, 'rgba(14,20,44,' + NIGHT.DARK + ')'); sky.addColorStop(1, 'rgba(14,20,44,' + NIGHT.GROUND + ')');
     g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
     g.globalCompositeOperation = 'destination-out';
+    // The HUD bands stay light, so the score, tags, wall and squad read at night.
+    var top = g.createLinearGradient(0, 96, 0, 114); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = top; g.fillRect(-30, -30, W + 60, 144);
+    var low = g.createLinearGradient(0, GROUND + 4, 0, GROUND + 16); low.addColorStop(0, 'rgba(0,0,0,0)'); low.addColorStop(1, 'rgba(0,0,0,0.85)');
+    g.fillStyle = low; g.fillRect(-30, GROUND + 4, W + 60, w.H);
     function glow(x, y, r, k) {
       var rg = g.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, 'rgba(0,0,0,' + k + ')'); rg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -666,6 +673,13 @@ var StickArmySky = function (w) {
     g.fillStyle = beam; g.fill();
     glow(BK.x, GROUND - 24, NIGHT.LAMP, 0.85);
     S.parts.forEach(function (q) { if (q.k === 'pow') glow(q.x, q.y, q.r * 3, Math.min(1, q.life / q.max * 1.5)); });
+    // The Dreadnought's searchlights cut through the dark, and its open hangar and lit bridge glow, so the target shows.
+    (w.dreadBeams ? w.dreadBeams() : []).forEach(function (b) {
+      g.beginPath(); g.moveTo(b.x - 4, b.y); g.lineTo(b.gx - 36, GROUND); g.lineTo(b.gx + 36, GROUND); g.lineTo(b.x + 4, b.y); g.closePath();
+      g.fillStyle = 'rgba(0,0,0,' + 0.75 * b.k + ')'; g.fill();
+      glow(b.gx, GROUND - 4, 48, 0.8 * b.k);
+    });
+    (w.dreadLit ? w.dreadLit() : []).forEach(function (q, i) { glow(q.x, q.y, i ? 34 : 56, i ? 0.5 : 0.85); });
     S.planes.forEach(function (p) { if (p.state !== 'fly') glow(p.x, p.y, 60, 0.8); });
     g.globalCompositeOperation = 'source-over';
     G.save(); G.setTransform(1, 0, 0, 1, 0, 0); G.globalAlpha = a; G.drawImage(cv, 0, 0); G.restore();

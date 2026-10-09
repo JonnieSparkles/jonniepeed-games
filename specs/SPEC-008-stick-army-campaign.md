@@ -42,7 +42,8 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 - **From the fifth playtest** (Oct 8: "wave 13 - so far very fun", but nothing touched the wall from 13 to 19, 6,500 tags unspent by 19, then "dreadnought PWNED ME like no hope", "hard to react"). A balance round, with no new enemies:
   - Prices rise as the war drags on (after wave 6), soldiers most, so the shop makes you choose late and catching recruits matters again. Pizza stays cheap: "sometimes u just want pizza".
   - Late waves arrive together and build to a peak instead of trickling in; planes carry more troopers; heavy bombers come in pairs from 16; a zeppelin's escort keeps coming while it flies.
-  - The Dreadnought's guns aim for 1.5 s, one at a time while most stand, and hit the wall for 12. Tuned for a person: the bots react instantly.
+  - The Dreadnought's guns aim one at a time while most stand. Tuned for a person on a wave-20 practice page, since the bots react instantly: 1.5 s aims with slow reloads were "way too easy", so each aim is 1.2 s, reloads about 2 s (one gun nearly always aiming) and shells hit the wall for 14.
+  - The Dreadnought builds up: it announces itself off the page (horn, rumbling, smoke, searchlights reaching in) before sailing in slowly. Night falls for the hangar and bridge stages, lit by its searchlights.
   - Small things: the Red Cross plane pays for safe passage; wall damage taken shows per wave and per run, with a bonus for an untouched wave; the calls held show in the HUD (no pulsing); "Patch the wall" isn't offered with the wall full; the medic shows greyed with "Have one".
   - Left for after an outside playtest: a "bring it on" difficulty you can buy, new late-game supplies, a campaign pick at the start, and the audio pass.
 

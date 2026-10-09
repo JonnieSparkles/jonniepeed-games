@@ -9,8 +9,10 @@ var StickArmyCampaign = function (w) {
   var emit = w.emit, addText = w.addText;
 
   // ---------- the Dreadnought ----------
-  // The enemy flagship: an armored airship 600 px long, wider than the page. It sails in bow first from one side
-  // (ENTER px/s, easing to a stop) with its horn, searchlights sweeping the ground, and fights in three stages:
+  // The enemy flagship: an armored airship 600 px long, wider than the page. It announces itself first (APPROACH
+  // seconds off the page: a horn, rumbling, smoke and its searchlights sweeping in from that edge), then sails in bow
+  // first (ENTER px/s, easing to a stop) and fights in three stages. Night falls for the hangar and the bridge, and its
+  // searchlights cut through it (sky.js drawNight, dreadBeams).
   //   guns:   it patrols back and forth (DRIFT px/s between PATROL) so its four underside gun turrets take turns over
   //           the page. A loaded gun aims at a target for AIM seconds (a red crosshair on the ground, its barrel
   //           glowing), then fires a volley of three shells around it. What the middle shell hits is gone for good.
@@ -22,10 +24,10 @@ var StickArmyCampaign = function (w) {
   // armored throughout; only the part for the stage can be hurt. It lives in S.planes as kind 'dread', so bullets,
   // rockets, flak, bazookas and the ambience all see it. Local x runs stern to bow; on the page, x = p.x + p.dir * lx.
   var DREAD = {
-    WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 2, ENTER: 90,
+    WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 4, ENTER: 55,
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
-    AIM: 1.5, MARKS: 2, EXPOSED: 2, RELOAD: [2.8, 3.6], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 12, SPLASH: 26, DIRECT: 4,
+    AIM: 1.2, MARKS: 2, EXPOSED: 2, RELOAD: [1.8, 2.4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 14, SPLASH: 26, DIRECT: 4,
     LAUNCH_EVERY: 4, TROOPS_EVERY: 5, BOMBS_EVERY: 3, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
     SINK: 3.2
   };
@@ -45,6 +47,7 @@ var StickArmyCampaign = function (w) {
     var S = w.S, rnd = substream(w.RW), n = S.wave, dir = rnd() < 0.5 ? -1 : 1;
     var p = w.makePlane('dread', dir, dir < 0 ? W + DREAD.HW + 40 : -DREAD.HW - 40, DREAD.Y);
     p.rng = rnd; p.hw = DREAD.HW; p.hh = DREAD.HH; p.speed = DREAD.ENTER; p.phase = 'arrive'; p.t = 0; p.move = dir; p.rot = 0;
+    p.wait = DREAD.APPROACH; p.smokeT = 0; p.rumbleT = 1.3;
     p.turrets = DREAD.TURRETS.map(function (lx) {
       return { lx: lx, hp: turretHP(n), max: turretHP(n), cd: between(rnd, 0.8, 2), aim: Math.PI / 2, flash: 0, recoil: 0, dead: false, mark: null, id: w.id() };
     });
@@ -55,6 +58,7 @@ var StickArmyCampaign = function (w) {
     S.planes.push(p);
     emit('plane_spawn', { kind: 'dread', hp: p.maxHp, dir: dir });
     w.sound.play('horn'); w.sound.play('rumble');
+    addText('the Dreadnought is coming!', dir > 0 ? 130 : W - 130, 250, RED, 24, 'alert');
     return p;
   }
 
@@ -184,6 +188,15 @@ var StickArmyCampaign = function (w) {
       return;
     }
     p.y = DREAD.Y + Math.sin(S.t * 0.7) * 2;
+    if (p.phase === 'arrive' && p.wait > 0) {
+      // Off the page, coming: rumbling, smoke from its stacks drifting in, searchlights sweeping in from that edge.
+      p.wait -= dt; p.smokeT -= dt; p.rumbleT -= dt;
+      var k = 1 - p.wait / DREAD.APPROACH, ex = p.dir > 0 ? 6 : W - 6;
+      if (p.smokeT <= 0) { p.smokeT = 0.25; w.puff(ex + p.dir * rr(0, 30), DREAD.Y - 50 + rr(-12, 12), rr(5, 9), 1.4); }
+      if (p.rumbleT <= 0) { p.rumbleT = 1.3; S.shake = Math.max(S.shake, 0.12 + 0.2 * k); w.sound.play('rumble'); }
+      if (p.wait <= 0) { w.sound.play('horn'); S.shake = Math.max(S.shake, 0.35); }
+      return;
+    }
     if (p.phase === 'arrive') {
       // Sailing in, slowing as it reaches its first station; then the fight starts.
       var to = settleX(p), d = to - p.x;
@@ -338,16 +351,28 @@ var StickArmyCampaign = function (w) {
   }
 
   // ---------- drawing ----------
+  // Its two searchlights: from the housings under the hull to a pool on the ground, sweeping. While it's still off the
+  // page they reach in from that edge, brightening (k). Shared with the night (sky.js drawNight).
+  function dreadBeams() {
+    var p = dread(), S = w.S;
+    if (!p || p.phase === 'sinking') return [];
+    var coming = p.phase === 'arrive' && p.wait > 0, k = coming ? 1 - p.wait / DREAD.APPROACH : 1;
+    return DREAD.LIGHTS.map(function (lx, i) {
+      var sweep = Math.sin(S.t * (0.6 + i * 0.25) + i * 2), l;
+      if (coming) { var ex = p.dir > 0 ? -10 : W + 10; l = { x: ex, y: DREAD.Y + 26 + i * 18 }; return { x: l.x, y: l.y, gx: ex + p.dir * (90 + 80 * i + sweep * 60), k: k }; }
+      l = at(p, lx, DREAD.HH * 0.8);
+      return { x: l.x, y: l.y, gx: l.x + sweep * 120, k: 1 };
+    });
+  }
   function drawDread(p) {
     var S = w.S, G = w.G;
     // Its shadow on the ground, and the searchlights sweeping it.
     if (p.phase !== 'sinking') {
       G.beginPath(); G.ellipse(clamp(p.x, -100, W + 100), GROUND - 2, DREAD.HW * 0.8, 5, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(46,46,51,0.07)'; G.fill();
-      DREAD.LIGHTS.forEach(function (lx, i) {
-        var l = at(p, lx, DREAD.HH * 0.8), sweep = Math.sin(S.t * (0.6 + i * 0.25) + i * 2) * 120, gx = l.x + sweep;
-        G.beginPath(); G.moveTo(l.x - 4, l.y); G.lineTo(gx - 34, GROUND); G.lineTo(gx + 34, GROUND); G.lineTo(l.x + 4, l.y); G.closePath();
-        G.fillStyle = 'rgba(255,224,110,0.13)'; G.fill();
-        G.beginPath(); G.ellipse(gx, GROUND - 3, 34, 6, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.16)'; G.fill();
+      dreadBeams().forEach(function (b) {
+        G.beginPath(); G.moveTo(b.x - 4, b.y); G.lineTo(b.gx - 34, GROUND); G.lineTo(b.gx + 34, GROUND); G.lineTo(b.x + 4, b.y); G.closePath();
+        G.fillStyle = 'rgba(255,224,110,' + 0.13 * b.k + ')'; G.fill();
+        G.beginPath(); G.ellipse(b.gx, GROUND - 3, 34, 6, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,' + 0.16 * b.k + ')'; G.fill();
       });
     }
     G.save(); G.translate(p.x, p.y); G.scale(p.dir, 1); if (p.rot) G.rotate(p.rot);
@@ -595,6 +620,6 @@ var StickArmyCampaign = function (w) {
 
   return { DREAD: DREAD, turretHP: turretHP, hangarHP: hangarHP, bridgeHP: bridgeHP, isDreadWave: isDreadWave, dread: dread, spawnDread: spawnDread,
     dreadHit: dreadHit, hurtDread: hurtDread, updateDread: updateDread, drawDread: drawDread, drawDreadBar: drawDreadBar,
-    dreadTargets: dreadTargets, dreadPhase: dreadPhase, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
+    dreadTargets: dreadTargets, dreadPhase: dreadPhase, dreadBeams: dreadBeams, hangarAt: hangarAt, bridgeAt: bridgeAt, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
     recordLine: recordLine };
 };

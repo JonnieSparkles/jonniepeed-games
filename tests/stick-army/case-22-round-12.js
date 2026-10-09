@@ -64,7 +64,7 @@
   render();
 
   // The Dreadnought gives time to react: each gun aims for 1.5 s, one at a time while most stand (case-18).
-  check(DREAD.AIM >= 1.5 && DREAD.SHELL_WALL <= 12, 'a fight you can react to');
+  check(DREAD.AIM >= 1.2 && DREAD.SHELL_WALL <= 14 && DREAD.APPROACH >= 3, 'a fight you can react to, after a build-up');
 
   // The Red Cross plane: across untouched, it pays points and tags; hit, it pays nothing.
   RUN.force = 105; quiet(12); S.coins = 0;
