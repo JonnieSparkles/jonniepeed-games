@@ -48,7 +48,11 @@
     bundleT: [2.2, 1.6],    // how long a bundle takes to reach you: phase 1, then later phases
     tell: .45,              // the Shredder's mouth glows this long before each attack
     finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
-    attackEvery: [2.6, 2.1, 1.8], // seconds between the Shredder's attacks in each phase
+    attackEvery: [1.8, 2, 1.8],   // seconds between the Shredder's attacks in each phase
+    volley: { n: [2, 3, 3], gap: .35, dur: 1.7 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
+    bossRows: { sheet: .45, carpet: .5 },   // how fast a paper jam sheet and a staple carpet cross the floor
+    sprayEvery: .3, sprayT: 1.5,   // a side spray sends staples down both sides of the hall this often while the rug pulls, this slow
+    rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
     deflectCharge: 3,       // each deflect gives the blaster this many charges back
@@ -264,7 +268,7 @@
   }
   function updateRows(dt) {
     for (const row of R.rows) {
-      row.w -= (row.kind === 'chairs' ? .12 : .22) * dt;   // chairs roll toward you; paper skids faster
+      row.w -= (row.v || (row.kind === 'chairs' ? .12 : .22)) * dt;   // chairs roll toward you; paper skids faster; the Shredder's rows set their own speed
       const z = row.w - R.dist;
       if (row.hit) { row.hit += dt; continue; }
       if (!R.events.jumpHint && z < .6 && R.phase === 'hall') {
@@ -351,6 +355,8 @@
   // A deflect sends the paper back where it came from and gives the blaster charges back.
   function deflect(p) {
     p.friendly = true;
+    // in the fight, paper knocked back from close to the mouth hits harder, up to double
+    p.power = R.phase === 'boss' ? 1 + clamp(bull.bz / TUNE.mouth, 0, 1) : 1;
     let to = { u: 0, z: .98, h: .12 };
     if (p.kind === 'wad') to = p.src && !p.src.dead ? posOf(p.src) : { u: p.u, z: 1.1, h: p.h };
     const rl = R.boss.rally, dur = p.rally && rl ? Math.max(.28, TUNE.rally.back * Math.pow(TUNE.rally.speedUp, rl.count)) : .45;
@@ -391,13 +397,16 @@
             emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash');
             popText('SMASH! -' + dmg, 120, BACK.y0 - 2, '#ffd44a'); live('Smash! The Shredder misses the return.');
             for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
-          } else if (b.st === 'fight') { const dmg = p.kind === 'bundle' ? TUNE.bundleDmg : TUNE.stapleDmg; bossDamage(dmg, 'deflect'); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), '#ffd44a'); }
+          } else if (b.st === 'fight') {
+            const base = p.kind === 'bundle' ? TUNE.bundleDmg : p.kind === 'scrap' ? TUNE.scrapDmg : TUNE.stapleDmg, dmg = Math.round(base * (p.power || 1) * 10) / 10;
+            bossDamage(dmg, 'deflect'); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), p.power > 1.4 ? '#ff9628' : '#ffd44a');
+          }
           poof(p.u, .97, p.h);
         }
         continue;
       }
       if (Math.abs(p.z - bull.bz) < .045 && Math.abs(p.u - bull.u) < .1 + p.w && overlaps(p.h, p.hh)) {
-        if (hurtBull(1, p.rally ? 'rally' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); } continue; }
+        if (hurtBull(1, p.rally ? 'rally' : p.spray ? 'spray' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); } continue; }
       }
       if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) { R.boss.rally = null; emit('rally_lost'); } }
     }
@@ -456,7 +465,7 @@
     R.events.cuts = (R.events.cuts || 0) + 1; emit('cut');
     Snd.play('cut');
     popText('CUT!', PX(bull.u, bull.bz), YH(bull.bz, .3), '#ffd44a');
-    if (R.boss.st === 'fight') jam();
+    if (R.boss.st === 'fight') jam(bull.bz);
   }
   // One shot (three with Spread Shot) for one charge. Out of charges: a click, a red flash, and a wait.
   function fire() {
@@ -533,25 +542,39 @@
   // ---------- the runner rug ----------
   const pullDur = () => R.phase === 'hall' ? 2.2 : TUNE.bossPull.dur[R.boss.ph - 1];
   const pullGap = () => R.phase === 'hall' ? rr(9, 12) : TUNE.bossPull.gap[R.boss.ph - 1];
-  function endPull() { const P = R.pull; if (P.st === 'idle') return; P.st = 'idle'; P.t = 0; P.next = R.t + pullGap(); if (R.banner && R.banner.pull) R.banner = null; }
+  function endPull() { const P = R.pull; if (P.st === 'idle') return; P.st = 'idle'; P.t = 0; P.spray = false; P.next = R.t + pullGap(); if (R.banner && R.banner.pull) R.banner = null; }
   function updatePull(dt) {
     const P = R.pull;
     P.t += dt;
     const can = (R.phase === 'hall' && beat().pulls && !R.event) ||
       (R.phase === 'boss' && R.boss.st === 'fight' && R.boss.jam <= 0 && !R.boss.rally);
     if (P.st === 'idle') {
-      if (can && R.t >= P.next) { P.st = 'warn'; P.t = 0; Snd.play('warn'); }
+      if (can && R.t >= P.next) {
+        P.st = 'warn'; P.t = 0; Snd.play('warn');
+        // from phase 2 every other pull sprays staples down both sides, and the sides flash red while it warns:
+        // ride the rug toward the mouth, or dodge at the sides
+        P.spray = R.phase === 'boss' && R.boss.ph >= 2 && (P.count + 1) % 2 === 0; P.sprayT = .2;
+        if (P.spray && !R.events.sprayHint && !R.talk) { R.events.sprayHint = true; R.banner = { text: 'SIDE SPRAY!', sub: 'RIDE THE RUG OR JUMP THE STAPLES', t: 0, dur: 99, pull: true }; live('Side spray coming: staples down both sides. Ride the rug, or jump them.'); }
+      }
     } else if (!can && P.st !== 'cut') {
       endPull();
     } else if (P.st === 'warn') {
       if (P.t >= .9) {
         P.st = 'on'; P.t = 0; P.dur = pullDur(); P.count++; P.snd = 0;
         if (P.count === 1) { R.banner = { text: 'STEP OFF THE RUG', sub: 'OR SLASH TO CUT IT', t: 0, dur: 99, pull: true }; live('The runner rug is pulling you toward the shredder. Step off it, or slash to cut the rug.'); }
-        else if (R.phase === 'boss' && !R.events.jamHint && !R.talk) { R.events.jamHint = true; R.banner = { text: 'CUT THE RUG', sub: 'TO JAM THE SHREDDER', t: 0, dur: 99, pull: true }; live('Cut the rug to jam the shredder.'); }
+        else if (R.phase === 'boss' && !P.spray && !R.events.jamHint && !R.talk) { R.events.jamHint = true; R.banner = { text: 'CUT THE RUG', sub: 'TO JAM THE SHREDDER', t: 0, dur: 99, pull: true }; live('Cut the rug to jam the shredder.'); }
       }
     } else if (P.st === 'on') {
       P.snd -= dt;
       if (P.snd <= 0) { Snd.play('pull'); P.snd = .45; }
+      if (P.spray) {
+        P.sprayT -= dt;
+        if (P.sprayT <= 0) {
+          P.sprayT = TUNE.sprayEvery;
+          for (const sd of [-1, 1]) { const u = sd * rr(.48, .62); launch('staple', { u: sd * rr(.34, .42), z: .95, h: .03 }, { u, z: bull.bz - .02, h: .03 }, TUNE.sprayT, { w: .06, hh: .03, spray: true }); }
+          R.boss.spit = .15;
+        }
+      }
       if (P.t >= P.dur) endPull();
     } else if (P.st === 'cut') {
       if (P.t >= .7) endPull();
@@ -591,6 +614,25 @@
     b.spit = .25; Snd.play('spit');
     if (!R.events.rallyHint) { R.events.rallyHint = true; R.banner = { text: 'RALLY!', sub: 'KEEP KNOCKING IT BACK', t: 0, dur: 2, pull: true }; live('Rally! Keep knocking the glowing bundle back until the Shredder misses.'); }
   }
+  // A volley: two or three scraps of shredded paper, one after another, each aimed where you are. Knock them back tap-tap-tap.
+  function spitScrap() {
+    launch('scrap', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.volley.dur, { w: .06, hh: .04 });
+    R.boss.spit = .2; Snd.play('spit');
+  }
+  // Rows from its mouth that cover the whole floor: a paper jam sheet, or a carpet of staples. Jump them.
+  function spitRow(kind) {
+    R.rows.push({ w: R.dist + .93, kind, hit: 0, v: TUNE.bossRows[kind] });
+    R.boss.spit = .35; Snd.play('spit');
+  }
+  // Each phase cycles through its own attacks.
+  const ATTACKS = [['bundle', 'volley'], ['fan', 'bundle', 'sheet', 'volley'], ['rally', 'fan', 'carpet', 'volley']];
+  function attack(kind) {
+    if (kind === 'bundle') spitBundle();
+    else if (kind === 'volley') R.boss.volley = { left: TUNE.volley.n[R.boss.ph - 1], t: 0 };
+    else if (kind === 'fan') spitFan();
+    else if (kind === 'sheet' || kind === 'carpet') spitRow(kind);
+    else serveRally();
+  }
   function spitFan() {
     const gap = Math.floor(rnd() * 5);
     [-.5, -.25, 0, .25, .5].forEach((o, i) => {
@@ -599,12 +641,13 @@
     });
     R.boss.spit = .25; Snd.play('spit');
   }
-  function jam() {
-    const b = R.boss;
-    b.jam = TUNE.jamT; endPull();
-    R.events.jams = (R.events.jams || 0) + 1; emit('jam');
+  // Cutting the rug jams it; ride the rug in close before you cut and the jam lasts longer, up to double at the mouth.
+  function jam(bz) {
+    const b = R.boss, close = clamp((bz || 0) / TUNE.mouth, 0, 1);
+    b.jam = TUNE.jamT * (1 + TUNE.rideJam * close); b.volley = null; endPull();
+    R.events.jams = (R.events.jams || 0) + 1; emit('jam', { amount: Math.round(b.jam * 10) / 10 });
     Snd.play('jam');
-    popText('JAMMED! x3', 120, BACK.y0 - 2, '#ffd44a');
+    popText(close > .5 ? 'BIG JAM! x3' : 'JAMMED! x3', 120, BACK.y0 - 2, close > .5 ? '#ff9628' : '#ffd44a');
   }
   function bossDamage(n, by) {
     const b = R.boss;
@@ -625,7 +668,7 @@
     if (b.st !== 'fight') return;
     const ph = b.hp > 66 ? 1 : b.hp > 33 ? 2 : 3;
     if (ph !== b.ph) {
-      b.ph = ph; b.atk = 1.6;
+      b.ph = ph; b.atk = 1.6; b.atkN = 0; b.volley = null;
       if (R.hearts < TUNE.hearts) addPickup('coffee', .45, rr(-.4, .4));
       if (ph === 2) talk('STAPLES. FOR YOUR RECORDS.', 'shredder');
       else {
@@ -640,18 +683,19 @@
       if (Math.random() < dt * 8) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 10, BACK.x1 - 10), y: BACK.y0 + 4, t: 0, dur: 1 });
       return;
     }
-    // no attacks while the runner warns; in phase 1 none while it pulls either, and a rally waits for the pull to end
-    const rallyNext = ph === 3 && b.atkN % 2 === 0;
-    if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (ph === 1 || rallyNext)) || b.rally) return;
+    // a volley fires its scraps one after another
+    if (b.volley) {
+      b.volley.t -= dt;
+      if (b.volley.t <= 0) { spitScrap(); b.volley.t = TUNE.volley.gap; if (--b.volley.left <= 0) b.volley = null; }
+      return;
+    }
+    // no attacks while the runner warns or sprays; in phase 1 none while it pulls either, and a rally waits for the pull to end
+    const list = ATTACKS[ph - 1], next = list[b.atkN % list.length];
+    if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (ph === 1 || R.pull.spray || next === 'rally')) || b.rally) return;
     const was = b.atk;
     b.atk -= dt;
     if (was > TUNE.tell && b.atk <= TUNE.tell) { b.rev = TUNE.tell; Snd.play('rev'); }   // its mouth glows: something's coming
-    if (b.atk <= 0) {
-      if (ph === 1) spitBundle();
-      else if (ph === 2) { if (b.atkN++ % 2) spitBundle(); else spitFan(); }
-      else { if (b.atkN++ % 2) spitFan(); else serveRally(); }
-      b.atk = TUNE.attackEvery[ph - 1];
-    }
+    if (b.atk <= 0) { attack(next); b.atkN++; b.atk = TUNE.attackEvery[ph - 1]; }
   }
   // The final hit: a white flash and a beat of stillness, slow motion while it shudders, then it blows.
   function defeat() {
@@ -839,10 +883,19 @@
     quadF(g, '#7a1d1a', -TUNE.runner, TUNE.runner, ZN, 1);
     for (let k = 0; k < 10; k++) { const z = mod1(k / 10 + R.roff); rect(g, PX(-.26, z), FY(z) - 1, PX(.26, z) - PX(-.26, z), Math.max(1, Math.round(2 * sc(z))), '#5a1412'); }
     quadF(g, edge, -TUNE.runner, -TUNE.runner + .04, ZN, 1); quadF(g, edge, TUNE.runner - .04, TUNE.runner, ZN, 1);
+    sprayLanes();
     if (R.cut && R.cut.z > 0) {
       const z = R.cut.z, y = FY(z), x0 = PX(-TUNE.runner, z), x1 = PX(TUNE.runner, z);
       for (let x = Math.round(x0); x < x1; x++) rect(g, x, y - 1 + ((x * 7) % 3), 1, 2, '#28304a');
     }
+  }
+  // A side spray coming: the floor beside the rug flashes red while it warns, and stays tinted while it sprays.
+  function sprayLanes() {
+    const P = R.pull;
+    if (!P.spray || (P.st !== 'warn' && P.st !== 'on')) return;
+    g.save(); g.globalAlpha = P.st === 'warn' ? (Math.floor(P.t * 8) % 2 ? .35 : .12) : .14;
+    for (const sd of [-1, 1]) quadF(g, '#d63428', sd > 0 ? TUNE.runner + .04 : -.66, sd > 0 ? .66 : -TUNE.runner - .04, ZN, 1);
+    g.restore();
   }
   function drawShredder() {
     const b = R.boss, x0 = BACK.x0, x1 = BACK.x1, y0 = BACK.y0, y1 = BACK.y1, w = x1 - x0, t = R.t;
@@ -964,8 +1017,8 @@
   // The Shredder's wads of shredded paper spin in quarter turns and shed strips behind them; the rally's wad has a
   // white-hot edge inside the red. Paper you knocked back loses the edge, throws a shadow and sparkles blue.
   function drawProj(p) {
-    const s = sc(p.z), bundle = p.kind === 'bundle', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : A.STAPLE;
-    const big = p.friendly ? 1 : bundle ? (p.rally ? 1.4 : 1.2) : 1.35, blink = Math.floor(R.t * 10 + p.spin) % 2;
+    const s = sc(p.z), bundle = p.kind === 'bundle' || p.kind === 'scrap', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : A.STAPLE;
+    const big = (p.kind === 'scrap' ? .6 : 1) * (p.friendly ? 1 : bundle ? (p.rally ? 1.4 : 1.2) : 1.35), blink = Math.floor(R.t * 10 + p.spin) % 2;
     const w = Math.max(2, Math.round(img.width * s * big)), h = Math.max(1, Math.round(img.height * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
     if (p.friendly) shadow(p.u, p.z, img.width * .8);
     else if (bundle) for (let k = 1; k <= 3; k++) {
@@ -999,6 +1052,15 @@
         const x = PX(u, z) + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0);
         shadow(u, z, 12);
         g.drawImage(A.CHAIR, Math.round(x - w / 2), Math.round(FY(z) - h - drop * .2), w, h);
+      }
+    } else if (row.kind === 'carpet') {
+      // a carpet of staples skittering across the whole floor, edges blinking red like all the Shredder's paper
+      const w = Math.max(3, Math.round(A.STAPLE.width * k * 1.3)), h = Math.max(1, Math.round(A.STAPLE.height * k * 1.3));
+      const sil = tinted(A.STAPLE, Math.floor(R.t * 10) % 2 ? '#ff3020' : '#ff9628');
+      for (let u = -.6; u <= .61; u += .15) {
+        const x = Math.round(PX(u, z) - w / 2 + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0)), y = Math.round(FY(z) - h - 1 - (Math.floor(R.t * 12 + u * 7) % 2));
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, x + dx, y + dy, w, h);
+        g.drawImage(A.STAPLE, x, y, w, h);
       }
     } else {
       // a sheet of paper skidding along the floor, wall to wall, with a fold that flaps
@@ -1242,6 +1304,7 @@
       const edge = R.pull.st === 'warn' ? (Math.floor(R.pull.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : '#ff9628';
       quadF(g, edge, -TUNE.runner, -TUNE.runner + .04, ZN, 1); quadF(g, edge, TUNE.runner - .04, TUNE.runner, ZN, 1);
     }
+    sprayLanes();
     if (R.phase !== 'hall') { shredderEyes(); shredderTeeth(); }
     g.save(); g.globalAlpha = .45; drawBull();
     for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) drawRow(row, z); }

@@ -1,5 +1,5 @@
 {
-  "casual": { "reaction_ms": 340, "notice_s": 0.5, "depth_err": 0.06, "deflect_try": 0.45, "fly_slash": 0.5, "dodge": 0.45, "jump_try": 0.55, "jump_err": 0.05, "pickup": 0.4, "charge_floor": 0, "anticipate": 0.4, "cut_try": 0.3 },
-  "decent": { "reaction_ms": 230, "notice_s": 0.3, "depth_err": 0.04, "deflect_try": 0.65, "fly_slash": 0.65, "dodge": 0.6, "jump_try": 0.75, "jump_err": 0.035, "pickup": 0.65, "charge_floor": 0, "anticipate": 0.75, "cut_try": 0.55 },
-  "expert": { "reaction_ms": 150, "notice_s": 0.1, "depth_err": 0.02, "deflect_try": 0.9, "fly_slash": 0.85, "dodge": 0.85, "jump_try": 0.92, "jump_err": 0.02, "pickup": 0.9, "charge_floor": 3, "anticipate": 1, "cut_try": 0.85 }
+  "casual": { "reaction_ms": 340, "notice_s": 0.5, "depth_err": 0.06, "deflect_try": 0.45, "fly_slash": 0.5, "dodge": 0.45, "jump_try": 0.55, "jump_err": 0.05, "pickup": 0.4, "charge_floor": 0, "anticipate": 0.4, "cut_try": 0.3, "ride": 0.15 },
+  "decent": { "reaction_ms": 230, "notice_s": 0.3, "depth_err": 0.04, "deflect_try": 0.65, "fly_slash": 0.65, "dodge": 0.6, "jump_try": 0.75, "jump_err": 0.035, "pickup": 0.65, "charge_floor": 0, "anticipate": 0.75, "cut_try": 0.55, "ride": 0.35 },
+  "expert": { "reaction_ms": 150, "notice_s": 0.1, "depth_err": 0.02, "deflect_try": 0.9, "fly_slash": 0.85, "dodge": 0.85, "jump_try": 0.92, "jump_err": 0.02, "pickup": 0.9, "charge_floor": 3, "anticipate": 1, "cut_try": 0.85, "ride": 0.55 }
 }

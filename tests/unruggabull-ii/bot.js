@@ -5,7 +5,7 @@
 // It sees itself late too, but like a person it knows what it has pressed since, and counts that in.
 window.__balanceBot = function (profile, seed) {
   'use strict';
-  var P = Object.assign({ notice_s: .3, depth_err: .04, deflect_try: .7, fly_slash: .7, dodge: .6, jump_try: .75, jump_err: .035, pickup: .7, charge_floor: 0, anticipate: .75, cut_try: .5 }, profile);
+  var P = Object.assign({ notice_s: .3, depth_err: .04, deflect_try: .7, fly_slash: .7, dodge: .6, jump_try: .75, jump_err: .035, pickup: .7, charge_floor: 0, anticipate: .75, cut_try: .5, ride: .3 }, profile);
   var lead = P.reaction_ms / 1000 * P.anticipate;   // seconds it looks ahead
   var s = (seed * 2654435761 + 12345) >>> 0;
   function r() { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
@@ -55,11 +55,16 @@ window.__balanceBot = function (profile, seed) {
         if (pl.side && !urgent) { goal = clamp(me + (bx.u >= me ? -.3 : .3)); urgent = true; }
         else if (dz < o.speed * .25 + pl.err + .02) a.jump = true;
       });
-      // The runner warns, then pulls: step off it, or stay on and slash to cut it (which jams the Shredder).
+      // The runner warns, then pulls: step off it, or stay on and slash to cut it (which jams the Shredder), riding it
+      // `ride` of the way toward the mouth first for a longer jam. A side spray makes the rug the safe place: get on it.
       if (o.pull === 'warn' && lastPull !== 'warn') pullPlan = { cut: r() < P.cut_try };
       lastPull = o.pull;
-      if ((o.pull === 'warn' || o.pull === 'on') && Math.abs(me) < o.runner + .05 && !urgent) {
-        if (pullPlan && pullPlan.cut) { if (o.pull === 'on') a.slash = true; }
+      var pulling = o.pull === 'warn' || o.pull === 'on', onRug = Math.abs(me) < o.runner + .05, cutAt = P.ride * (o.mouth || .85);
+      if (pulling && o.spray && !urgent) {
+        if (Math.abs(me) > o.runner - .08) { goal = 0; urgent = true; }
+        if (o.pull === 'on' && onRug && b.bz >= cutAt) a.slash = true;
+      } else if (pulling && onRug && !urgent) {
+        if (pullPlan && pullPlan.cut) { if (o.pull === 'on' && b.bz >= cutAt) a.slash = true; }
         else { goal = me >= 0 ? .45 : -.45; urgent = true; }
       }
       // Coffee when hurt, Spread Shot always: walk under it and jump.
