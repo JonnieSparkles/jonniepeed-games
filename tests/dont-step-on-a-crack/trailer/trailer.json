@@ -1,0 +1,20 @@
+{
+  "page": "dont-step-on-a-crack/",
+  "viewport": [
+    1920,
+    1080
+  ],
+  "scale": 1.3333333333333333,
+  "fps": 30,
+  "hook": "update",
+  "director": "director.js",
+  "css": "trailer.css",
+  "audio": {
+    "object": "CrackSound",
+    "script": "dont-step-on-a-crack/audio.js",
+    "init": "init",
+    "state": [
+      "quiet"
+    ]
+  }
+}

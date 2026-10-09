@@ -23,14 +23,15 @@ tools/og/make.py        builds the social preview cards and shelf thumbnails (co
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 tools/check_boards.py   checks game BOARD constants before deploying
 tools/balance/          balance bots: seeded headless runs at several skill levels, with reports
+tools/trailer/          trailers: scripted gameplay captured frame by frame, the game's own sound, music and the cut
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 stats/                  play stats Worker, D1 schema, private dashboards and tests (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
 docs/guides/            numbered repo operations guides: 00-name.md, 01-name.md, ...
 docs/games/             living game design docs: <slug>.md (unnumbered)
-tests/<slug>/           per-game browser harnesses, plus balance.js, bot.js and balance.json for games with balance bots;
-                        backend tests stay in scores/test/ and stats/test/
-work/                   local tool output such as work/balance/ (git-ignored, never committed)
+tests/<slug>/           per-game browser harnesses, plus balance.js, bot.js and balance.json for games with balance bots,
+                        and trailer/ for games with a trailer; backend tests stay in scores/test/ and stats/test/
+work/                   local tool output such as work/balance/ and work/trailer/ (git-ignored, never committed)
 brand/                  source logo and cover art files, not published
   covers/<slug>.png               game cover art, full size, title lettered in (make.py crops it)
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
@@ -110,6 +111,17 @@ python3 tools/balance/run.py stick-army --runs 200 --skills decent --ref main
 ```
 
 Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game includes a before/after summary for at least the decent profile. Bots measure difficulty, not fun; playtesting wins.
+
+## Trailers
+
+Don't Step on a Crack has a 15-second trailer ([the guide](docs/guides/04-trailers.md)). It's cut from real play: a scripted player plays seeded takes under a fake clock, every frame is captured, and the game's own sound is re-rendered from what it played. Dry-run the takes first; it's quick and plays exactly like the filmed run:
+
+```sh
+python3 tools/trailer/make.py dont-step-on-a-crack --dry
+python3 tools/trailer/make.py dont-step-on-a-crack
+```
+
+Output goes to `work/trailer/` (git-ignored). Trailer videos stay out of the repo, so clones and deploys stay light: post the cut from `work/trailer/<slug>/trailer.mp4` to YouTube and social platforms. The same command rebuilds the exact cut from the repo.
 
 ## Social previews
 
