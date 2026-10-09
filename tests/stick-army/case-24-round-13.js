@@ -88,5 +88,12 @@
   for (f = 0; f < 60 * 40 && !(S.banner && S.banner.s === 'dreadnought!' && CAMPAIGN.dread()); f++) update(1 / 60);
   check(/REAL/.test(S.banner.sub), 'then the real one: ' + S.banner.sub);
 
+  // Enter fires too, like Space.
+  RUN.force = 146; newGame(); keys.fire = false;
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  check(keys.fire, 'Enter fires');
+  window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+  check(!keys.fire, 'and lets go');
+
   emitHook = null; RUN.force = null; reset(); titleScene(); render();
 })();
