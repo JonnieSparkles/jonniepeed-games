@@ -119,15 +119,21 @@
     if (mean > 24) { renderCap = Math.max(1, Math.min(renderCap, window.devicePixelRatio || 1) - 0.5); fit(); }
   }
 
+  // The title opens the notebook on a wide screen: the facing page (#facing) sits to the right of the game page.
+  var facing = document.getElementById('facing'), SPREAD_ASPECT = 1.05;
   function fit() {
     var padding = getComputedStyle(wrap);
     var aw = Math.max(1, wrap.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight));
     var ah = Math.max(1, wrap.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom));
-    var s = Math.min(aw / W, ah / H);
+    var spread = S.mode === 'title' && aw / ah >= SPREAD_ASPECT, pages = spread ? 2 : 1;
+    var s = Math.min(aw / (W * pages), ah / H);
     var dpr = Math.min(window.devicePixelRatio || 1, renderCap);
-    frameEl.style.width = (W * s) + 'px';
+    frameEl.style.width = (W * s * pages) + 'px';
     frameEl.style.height = (H * s) + 'px';
     stage.style.transform = 'scale(' + s + ')';
+    wrap.classList.toggle('spread', spread);
+    facing.hidden = !spread;
+    facing.style.transform = 'translateX(' + (W * s) + 'px) scale(' + s + ')';
     K = s * dpr;
     [cv, bg, dc].forEach(function (c) { c.width = Math.max(1, Math.round(W * K)); c.height = Math.max(1, Math.round(H * K)); });
     bgx.setTransform(K, 0, 0, K, 0, 0);
@@ -2201,6 +2207,13 @@
     wl.textContent = wins ? 'Won ' + wins + '×' + (bestWave > DREAD.WAVE ? ' · wave ' + bestWave : '') : ''; wl.hidden = !wins;
     document.getElementById('recordLine').hidden = bl.hidden && wl.hidden;
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
+    facingPage();
+    fit();
+  }
+  // The facing page lists the online board's top five (facingRows), once there is one.
+  function facingPage() {
+    var rows = document.getElementById('facingRows');
+    if (!rows.children.length) { var li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Be the first on the page.'; rows.append(li); }
   }
   // ---------- the title's demo ----------
   // The title page plays the game in miniature, over and over: a plane crosses and drops two troopers. The turret
@@ -2253,6 +2266,7 @@
     S.mode = 'play'; S.hint = true;
     startWave(1);
     titleScreen.hidden = true; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; shopScreen.hidden = true; pauseBtn.hidden = false;
+    fit();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
   // The named squad for the pause card: veterans by rank with their waves, a rookie count, and who's in the tent.
@@ -2368,6 +2382,7 @@
     document.getElementById('icoSound').toggleAttribute('hidden', sound.muted);
     document.getElementById('icoMuted').toggleAttribute('hidden', !sound.muted);
     titleSoundBtn.textContent = sound.muted ? 'Sound off' : 'Sound on';
+    document.getElementById('facingSoundBtn').textContent = titleSoundBtn.textContent;
     titleSoundBtn.setAttribute('aria-pressed', sound.muted ? 'false' : 'true');
   }
 
@@ -2492,6 +2507,8 @@
   var titleSoundBtn = document.getElementById('titleSoundBtn');
   titleSoundBtn.addEventListener('click', function () { muteBtn.click(); titleSoundBtn.focus({ preventScroll: true }); });
   document.getElementById('titleFullBtn').addEventListener('click', function () { fullBtn.click(); });
+  document.getElementById('facingSoundBtn').addEventListener('click', function () { titleSoundBtn.click(); });
+  document.getElementById('facingFullBtn').addEventListener('click', function () { fullBtn.click(); });
   muteBtn.addEventListener('click', function () {
     sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
     if (!sound.muted) sound.init();
