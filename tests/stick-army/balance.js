@@ -64,11 +64,12 @@
           state: p.state, phase: p.phase || null, armed: !!p.armed, hw: p.hw, hh: p.hh, hp: p.hp });
       });
       // The Dreadnought: its guns over the page (the one aiming first) and, once exposed, its bridge.
-      o.dread = dreadTargets().map(function (q) { return { id: q.id, part: q.part, x: q.x, y: q.y, vx: q.vx, marking: q.marking }; });
+      // marking: false, or a tag for this aim (when it started), so each new aim is a new thing to notice.
+      o.dread = dreadTargets().map(function (q) { return { id: q.id, part: q.part, x: q.x, y: q.y, vx: q.vx, marking: q.marking ? 'm' + Math.round((S.t - q.markT) * 10) : false }; });
       S.bombs.forEach(function (m) { if (!m.dead) o.bombs.push({ id: m.id, x: m.x, y: m.y, vx: m.vx, vy: m.vy }); });
       S.recruits.forEach(function (r) { if (!r.dead) o.recruits.push({ id: r.id, type: r.type, x: r.x, hp: r.hp, max: crewMax(r) }); });
       if (S.mode === 'shop' && S.shop) {
-        o.shop = { items: S.shop.items.map(item), hire: S.shop.hire.map(item), gift: S.shop.gift };
+        o.shop = { items: S.shop.items.map(item), hire: S.shop.hire.map(item), gift: S.shop.gift, hireStep: Math.round(15 * SHOP.war(SHOP.WAR.HIRE)) };
         o.mods = JSON.parse(JSON.stringify(S.mods));
       }
       return o;

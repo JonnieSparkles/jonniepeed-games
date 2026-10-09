@@ -24,7 +24,7 @@
   takeItem('slot'); takeItem('hire-rifle'); takeItem('hire-engineer');
   check(S.mods.slots === 5 && S.recruits.length === 5, 'a slot and two hires');
   SHOP.putBack('slot');
-  check(S.mods.slots === 4 && S.recruits.length === 4 && S.coins === coins0 - (35 + 0), 'without the slot only one hire fits: ' + S.coins);
+  check(S.mods.slots === 4 && S.recruits.length === 4 && S.coins === coins0 - Math.round(35 * SHOP.war(SHOP.WAR.HIRE) / 5) * 5 && S.mods.hired === 1, 'without the slot only one hire fits: ' + S.coins);
   check(S.wallHP === wall0, 'the wall is as it was');
   shopScreen.hidden = true; S.shop = null; S.mode = 'play';
 

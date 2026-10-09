@@ -2,7 +2,7 @@
 
 Twenty waves, four bosses, a victory screen, then optional endless play. Something new arrives on most waves on the way, and each boss wave is different.
 
-Status: stages 1–4 are built (the ending, the armored zeppelin, the new threats, twin zeppelins and the night raid), with the second, third and fourth playtests' changes; a full audio pass is planned. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
+Status: stages 1–4 are built (the ending, the armored zeppelin, the new threats, twin zeppelins and the night raid), with the second to fifth playtests' changes; an outside playtest is next, and a full audio pass is planned. Builds on [SPEC-002](SPEC-002-stick-army.md); current behavior is in [Stick Army](../docs/games/stick-army.md), and difficulty is measured with the [balance bots](SPEC-005-balance-bots.md).
 
 ## Why
 
@@ -39,6 +39,12 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
   - The browser's speech is gone ("the default one sounds terrible"); speech bubbles stay, with the gibberish chatter under them.
   - The Dreadnought's guns blow apart and leave a hole when knocked out.
   - Hires can be sent back from the shop, and the medic no longer pops into the list after a hire fills the squad.
+- **From the fifth playtest** (Oct 8: "wave 13 - so far very fun", but nothing touched the wall from 13 to 19, 6,500 tags unspent by 19, then "dreadnought PWNED ME like no hope", "hard to react"). A balance round, with no new enemies:
+  - Prices rise as the war drags on (after wave 6), soldiers most, so the shop makes you choose late and catching recruits matters again. Pizza stays cheap: "sometimes u just want pizza".
+  - Late waves arrive together and build to a peak instead of trickling in; planes carry more troopers; heavy bombers come in pairs from 16; a zeppelin's escort keeps coming while it flies.
+  - The Dreadnought's guns aim for 1.5 s, one at a time while most stand, and hit the wall for 12. Tuned for a person: the bots react instantly.
+  - Small things: the Red Cross plane pays for safe passage; wall damage taken shows per wave and per run, with a bonus for an untouched wave; the calls held show in the HUD (no pulsing); "Patch the wall" isn't offered with the wall full; the medic shows greyed with "Have one".
+  - Left for after an outside playtest: a "bring it on" difficulty you can buy, new late-game supplies, a campaign pick at the start, and the audio pass.
 
 ## The waves
 
@@ -58,9 +64,9 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 | 12 | **new: dive bombers** | built. A red crosshair marks where it's aiming, then a howl and a steep dive at the bunker with one heavy bomb at the bottom. Three hits down it; or shoot the bomb. |
 | 13 | **new: heavy bombers** | built. Big, slow and armored, with a health bar; each lays a long carpet across the field with a heavy bomb on the bunker. Downed, the rest of the carpet never falls. |
 | 15 | **boss: two zeppelins at once** | built. From both sides at two heights, each lighter than one alone, both armored. |
-| 16 | **new: the night raid** | built. The page goes dark; your searchlight follows the barrel, explosions and burning planes light the page, planes show their lights. Drawing only. |
+| 16 | **new: the night raid**, heavy bombers in pairs | built. The page goes dark; your searchlight follows the barrel, explosions and burning planes light the page, planes show their lights. Drawing only. |
 | 17 | heavy armor | built: armored troopers' vests stop two hits |
-| 19 | the big push | everything so far, at full strength |
+| 19 | the big push | everything so far, at full strength, arriving together; two pairs of heavy bombers |
 | 20 | **final boss: the Dreadnought** | built; see below |
 | 21+ | endless | built: everything mixed, counts climbing to their caps; two zeppelins on the fives, the Dreadnought on the tens, a night raid on 26, 36… |
 

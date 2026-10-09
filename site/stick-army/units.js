@@ -23,7 +23,9 @@ var StickArmyUnits = function (w) {
     DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2, ARRIVE: 9, WARN: 2.5,
     ARMOR_WAVE: 10, PLATES: [-0.72, -0.36, 0, 0.36, 0.72], PLATE_W: 0.18, PLATE_HP: 6,
     // From TWIN_WAVE the fives bring two at once, one TWIN_DY above the other, each with TWIN_HP of a single one's health.
-    TWIN_WAVE: 15, TWIN_DY: 48, TWIN_HP: 0.6 };
+    TWIN_WAVE: 15, TWIN_DY: 48, TWIN_HP: 0.6,
+    // Once the wave's planes are done, an escort plane every ESCORT_EVERY seconds while a zeppelin flies.
+    ESCORT_EVERY: 2.4 };
   var STEEL = 'rgba(112,120,130,0.5)';
   function zeppelinHP(n) { return Math.round(20 + BALANCE.BOSS_HP_PER_WAVE * n); }
   // The gondola is the weak spot: direct shots there do ZEP.WEAK times the damage.

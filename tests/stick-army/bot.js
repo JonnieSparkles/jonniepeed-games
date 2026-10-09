@@ -73,8 +73,9 @@ window.__balanceBot = function (profile, seed) {
     });
 
     // The Dreadnought: the gun that's aiming comes before anything, then the hangar or the bridge, then its other guns.
+    // A gun starting to aim has to be noticed like a new target (its own id while marking), as a player would.
     (o.dread || []).forEach(function (q) {
-      consider(q.marking ? 560 : q.part === 'gun' ? 360 : 380, lead(o, q.x, q.y, q.vx, 0), q.id);
+      consider(q.marking ? 560 : q.part === 'gun' ? 360 : 380, lead(o, q.x, q.y, q.vx, 0), q.marking ? q.id + ':' + q.marking : q.id);
     });
     // Tanks: on the way down, or parked within the barrel's dip.
     (o.tanks || []).forEach(function (tk) {
@@ -157,7 +158,7 @@ window.__balanceBot = function (profile, seed) {
     o.recruits.forEach(function (r) { have[r.type] = (have[r.type] || 0) + 1; });
     var first = (sh.hire || []).find(function (it) { return it.id === 'hire-rifle'; });
     if (profile.shop !== 'random' && crew < 2 && crew < o.slots && first && first.cost <= coins) {
-      take.push(first.id); coins -= first.cost; extra += 15; crew++; have.rifle = (have.rifle || 0) + 1;
+      take.push(first.id); coins -= first.cost; extra += sh.hireStep || 15; crew++; have.rifle = (have.rifle || 0) + 1;
     }
     var pizza = items.find(function (it) { return it.id === 'pizza'; });
     var wantPizza = pizza && pizza.can && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
@@ -170,13 +171,13 @@ window.__balanceBot = function (profile, seed) {
       rest.sort(function (x, y) { return order.indexOf(x.id) - order.indexOf(y.id); });
       rest.forEach(function (it) { if (order.indexOf(it.id) < 4) buy(it); else later.push(it); });
     }
-    // Hiring: the role the squad lacks most, up to two a visit. Every hire raises the next price by 15.
+    // Hiring: the role the squad lacks most, up to two a visit. Every hire raises the next price (by 15 before war prices).
     for (var n = 0; n < 2 && crew < o.slots; n++) {
       var role = !have.bazooka ? 'bazooka' : !have.engineer ? 'engineer' : !have.medic && crew >= 3 ? 'medic' : 'rifle';
       if (profile.shop === 'random') { if (rnd() > 0.35) break; role = ['rifle', 'engineer', 'bazooka', 'sniper'][Math.floor(rnd() * 4)]; }
       var job = (sh.hire || []).find(function (it) { return it.id === 'hire-' + role; });
       if (!job || job.cost + extra > coins - cushion) break;
-      take.push(job.id); coins -= job.cost + extra; extra += 15; crew++; have[role] = (have[role] || 0) + 1;
+      take.push(job.id); coins -= job.cost + extra; extra += sh.hireStep || 15; crew++; have[role] = (have[role] || 0) + 1;
     }
     // Experts keep a cushion for the rest of the list.
     later.forEach(function (it) { if (coins - it.cost >= cushion) buy(it); });

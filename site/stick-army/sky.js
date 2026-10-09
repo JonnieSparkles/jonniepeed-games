@@ -17,7 +17,8 @@ var StickArmySky = function (w) {
   // The Red Cross plane crosses slowly, trailing a Red Cross pennant, with a blinking light and a two-tone chime as
   // it comes in. A hit from your turret costs TAGS dog tags (more late in the run, medevacTags) and your combo, then it
   // flees.
-  var MEDEVAC = { WAVE: 6, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
+  // One that gets across untouched pays SAFE points and half its penalty in tags (safePassage).
+  var MEDEVAC = { WAVE: 6, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, SAFE: 200, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
   function medevacTags(n) { return n >= MEDEVAC.LATE_WAVE ? MEDEVAC.LATE : MEDEVAC.TAGS; }
   // A bomb balloon drifts in from an edge toward the bunker and lets its bomb go over it at DROP_Y. Popped anywhere
   // else, its bomb falls where it is: on the enemy, or on your crew.
@@ -38,7 +39,7 @@ var StickArmySky = function (w) {
   function heliHP(n) { return Math.round(6 + 0.4 * Math.max(0, n - HELI.WAVE)); }
   // A heavy bomber: a big, slow, armored four-engine plane (heavyHP, with a health bar) laying a long carpet of BOMBS
   // across the field, a heavy one on the bunker.
-  var HEAVY = { WAVE: 13, SPEED: 42, Y: [132, 156], BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
+  var HEAVY = { WAVE: 13, PAIR: 16, SPEED: 42, Y: [136, 160], PAIR_Y: [136, 198], BOMBS: 8, HW: 62, HH: 20, SC: 1.3 };
   function heavyHP(n) { return Math.round(45 + 3 * Math.max(0, n - HEAVY.WAVE)); }
   // The night raid (drawNight): the page goes dark, lit by your searchlight along the barrel, a lamp over the bunker,
   // explosions and burning planes. Planes show their blinking lights; bombs glint.
@@ -54,8 +55,9 @@ var StickArmySky = function (w) {
       crates: n >= CRATE.WAVE ? (n < 14 ? 1 : 2) : 0,
       divers: n >= DIVE.WAVE && !dread ? Math.min(8, 2 + Math.floor((n - DIVE.WAVE) / 2)) : 0,
       helis: n >= HELI.WAVE && !dread ? Math.min(4, 1 + Math.floor((n - HELI.WAVE) / 4)) : 0,
-      // Like the other bombers, heavies sit out the boss waves.
-      heavies: n >= HEAVY.WAVE && !boss ? Math.min(4, 1 + Math.floor((n - HEAVY.WAVE) / 3)) : 0
+      // Like the other bombers, heavies sit out the boss waves. One a wave at first, then a pair from PAIR, then two
+      // pairs.
+      heavies: n >= HEAVY.WAVE && !boss ? (n < HEAVY.PAIR ? 1 : n < HEAVY.PAIR + 3 ? 2 : 4) : 0
     };
   }
   // Timers come from one draw of the wave stream, so what happens in the fight never shifts them.
@@ -65,15 +67,22 @@ var StickArmySky = function (w) {
       crates: c.crates, crateT: between(rnd, 7, 13), divers: c.divers, diverT: between(rnd, 6, 9), helis: c.helis, heliT: between(rnd, 8, 11),
       heavies: c.heavies, heavyT: between(rnd, 5, 8) };
   }
+  // The enemies' gaps shrink with the wave's pace (game.js wavePace), so late waves arrive together.
   function tick(sp, dt) {
-    var k = sp.sky;
+    var k = sp.sky, pace = sp.pace || 1;
     if (!k) return;
     if (k.medevac > 0 && (k.medevacT -= dt) <= 0) { k.medevac--; spawnMedevac(k.rnd); k.medevacT = between(k.rnd, 10, 16); }
-    if (k.balloons > 0 && (k.balloonT -= dt) <= 0) { k.balloons--; spawnBalloon(k.rnd); k.balloonT = between(k.rnd, 5, 9); }
+    if (k.balloons > 0 && (k.balloonT -= dt) <= 0) { k.balloons--; spawnBalloon(k.rnd); k.balloonT = between(k.rnd, 5, 9) * pace; }
     if (k.crates > 0 && (k.crateT -= dt) <= 0) { k.crates--; spawnCrate(k.rnd); k.crateT = between(k.rnd, 12, 18); }
-    if (k.divers > 0 && (k.diverT -= dt) <= 0) { k.divers--; spawnDiver(k.rnd); k.diverT = between(k.rnd, 6, 10); }
-    if (k.helis > 0 && (k.heliT -= dt) <= 0) { k.helis--; spawnHeli(k.rnd); k.heliT = between(k.rnd, 13, 18); }
-    if (k.heavies > 0 && (k.heavyT -= dt) <= 0) { k.heavies--; spawnHeavy(k.rnd); k.heavyT = between(k.rnd, 14, 20); }
+    if (k.divers > 0 && (k.diverT -= dt) <= 0) { k.divers--; spawnDiver(k.rnd); k.diverT = between(k.rnd, 6, 10) * pace; }
+    if (k.helis > 0 && (k.heliT -= dt) <= 0) { k.helis--; spawnHeli(k.rnd); k.heliT = between(k.rnd, 13, 18) * pace; }
+    // From HEAVY.PAIR heavy bombers come two at a time, one from each side.
+    if (k.heavies > 0 && (k.heavyT -= dt) <= 0) {
+      var pair = w.S.wave >= HEAVY.PAIR && k.heavies >= 2, first = spawnHeavy(k.rnd, pair ? { high: true } : null);
+      k.heavies--;
+      if (pair) { k.heavies--; spawnHeavy(k.rnd, { dir: -first.dir, high: false }); }
+      k.heavyT = between(k.rnd, 14, 20) * pace;
+    }
   }
   // Enemies still due: the wave isn't over until they've come.
   function pending(sp) { var k = sp && sp.sky; return k ? k.balloons + k.divers + k.helis + (k.heavies || 0) : 0; }
@@ -113,9 +122,17 @@ var StickArmySky = function (w) {
     S.medevac.forEach(function (m) {
       m.x += m.dir * m.speed * dt; m.y = m.y0 + Math.sin(S.t * 1.3 + m.bob) * 3;
       if (m.hit) { m.smoke -= dt; if (m.smoke <= 0) { m.smoke = 0.1; w.puff(m.x - m.dir * 22, m.y - 2, 3, 0.7); } }
-      if (m.x < -70 || m.x > W + 70) m.gone = true;
+      if (m.x < -70 || m.x > W + 70) { m.gone = true; if (!m.hit) safePassage(m); }
     });
     S.medevac = S.medevac.filter(function (m) { return !m.gone; });
+  }
+  function safePassage(m) {
+    var S = w.S, x = clamp(m.x, 40, W - 40), tags = Math.round(medevacTags(S.wave) / 2);
+    S.score += MEDEVAC.SAFE; S.coins += tags; w.flyTags(x, m.y, tags);
+    addText('safe passage! +' + MEDEVAC.SAFE, x, m.y + 30, BLUE, 22);
+    emit('redcross_safe', { tags: tags });
+    emit('coins', { amount: tags, reason: 'safe passage' });
+    w.sound.play('medevac');
   }
   // The penalty you feel: the tags fly out of the counter toward the plane (loseTags), the counter flashes red, and
   // the combo is gone.
@@ -323,9 +340,13 @@ var StickArmySky = function (w) {
   }
 
   // ---------- heavy bombers ----------
-  function spawnHeavy(rnd) {
-    var S = w.S, r = substream(rnd), dir = r() < 0.5 ? 1 : -1;
-    var p = w.makePlane('heavy', dir, dir > 0 ? -90 : W + 90, between(r, HEAVY.Y[0], HEAVY.Y[1]));
+  // A pair (opts: { high, dir for the second }) flies at two heights from opposite sides, so they cross clear of
+  // each other.
+  function spawnHeavy(rnd, opts) {
+    var S = w.S, r = substream(rnd), roll = r(), y = between(r, HEAVY.Y[0], HEAVY.Y[1]);
+    var dir = opts && opts.dir ? opts.dir : roll < 0.5 ? 1 : -1;
+    if (opts) y = opts.high ? HEAVY.PAIR_Y[0] : HEAVY.PAIR_Y[1];
+    var p = w.makePlane('heavy', dir, dir > 0 ? -90 : W + 90, y);
     p.rng = r; p.hp = p.maxHp = heavyHP(S.wave); p.hw = HEAVY.HW; p.hh = HEAVY.HH; p.sc = HEAVY.SC; p.speed = HEAVY.SPEED;
     p.vx = dir * HEAVY.SPEED; p.vy = 0;
     // A long carpet across the field: each bomb let go where it will land on its mark, the one nearest the bunker heavy.

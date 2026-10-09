@@ -25,7 +25,7 @@ var StickArmyCampaign = function (w) {
     WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 2, ENTER: 90,
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
-    AIM: 0.9, MARKS: 2, EXPOSED: 2, RELOAD: [2.8, 3.6], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 16, SPLASH: 26, DIRECT: 4,
+    AIM: 1.5, MARKS: 2, EXPOSED: 2, RELOAD: [2.8, 3.6], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 12, SPLASH: 26, DIRECT: 4,
     LAUNCH_EVERY: 4, TROOPS_EVERY: 5, BOMBS_EVERY: 3, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
     SINK: 3.2
   };
@@ -245,8 +245,10 @@ var StickArmyCampaign = function (w) {
 
   function clearMarks(p) { p.turrets.forEach(function (t) { t.mark = null; }); }
   function marks(p) { return p.turrets.filter(function (t) { return t.mark; }).length; }
-  // Guns: up to DREAD.MARKS aim at once, at different targets. A gun over the page counts down its reload, aims, then
-  // fires a volley of three.
+  // One gun aims at a time while more than half of them stand, so there's time to react; the last two can aim together.
+  function markCap(p) { return p.turrets.filter(function (t) { return !t.dead; }).length > p.turrets.length / 2 ? 1 : DREAD.MARKS; }
+  // Guns: a gun over the page counts down its reload, aims for AIM seconds, then fires a volley of three. Up to
+  // markCap aim at once, at different targets.
   function updateGuns(p, dt) {
     var S = w.S;
     p.turrets.forEach(function (t) {
@@ -265,7 +267,7 @@ var StickArmyCampaign = function (w) {
         if (m.t >= DREAD.AIM) fire(p, t);
         return;
       }
-      if (g.x < 24 || g.x > W - 24 || marks(p) >= DREAD.MARKS) return;
+      if (g.x < 24 || g.x > W - 24 || marks(p) >= markCap(p)) return;
       t.cd -= dt;
       if (t.cd <= 0) startMark(p, t);
     });
@@ -525,7 +527,7 @@ var StickArmyCampaign = function (w) {
     p.turrets.forEach(function (t) {
       if (t.dead) return;
       var g = gunAt(p, t);
-      if (g.x > 6 && g.x < W - 6) out.push({ kind: 'dreadpart', part: 'gun', x: g.x, y: g.y, vx: vx, marking: !!t.mark, id: t.id });
+      if (g.x > 6 && g.x < W - 6) out.push({ kind: 'dreadpart', part: 'gun', x: g.x, y: g.y, vx: vx, marking: !!t.mark, markT: t.mark ? t.mark.t : 0, id: t.id });
     });
     if (p.phase === 'hangar') { var h = hangarAt(p); if (h.x > 6 && h.x < W - 6) out.push({ kind: 'dreadpart', part: 'hangar', x: h.x, y: h.y, vx: 0, marking: false, id: p.hangar.id }); }
     if (p.phase === 'bridge') { var b = bridgeAt(p); if (b.x > 6 && b.x < W - 6) out.push({ kind: 'dreadpart', part: 'bridge', x: b.x, y: b.y, vx: 0, marking: false, id: p.bridge.id }); }
@@ -560,6 +562,7 @@ var StickArmyCampaign = function (w) {
     document.getElementById('winPlanes').textContent = String(S.stats.planes);
     document.getElementById('winZeps').textContent = String(S.stats.zeppelins);
     document.getElementById('winTanks').textContent = String(S.stats.tanks);
+    document.getElementById('winDmg').textContent = String(Math.round(S.stats.wallDamage));
     document.getElementById('winCount').textContent = wins === 1 ? 'Your first win.' : 'Win number ' + wins + '.';
     var list = document.getElementById('winRoll'), roll = rollCall();
     list.replaceChildren.apply(list, roll.map(function (q) {

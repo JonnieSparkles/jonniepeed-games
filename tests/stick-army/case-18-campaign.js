@@ -60,9 +60,15 @@
   // Natural marks come from a loaded gun over the page.
   g0.cd = 0; run(0.05);
   check(g0.mark && seen.indexOf('dread_mark') >= 0, 'a loaded gun aims');
-  // Two guns can aim at once, never at the same thing.
+  // One gun aims at a time while more than half of them stand.
   S.mods.wire = true; S.recruits = [makeRecruit(0, 'rifle')]; gB.cd = 0; run(0.05);
-  check(gB.mark && (gB.mark.kind + (gB.mark.id || '')) !== (g0.mark.kind + (g0.mark.id || '')), 'a second gun takes a different target');
+  check(!gB.mark, 'one gun aims at a time while most stand');
+  // With two left, both can aim, never at the same thing.
+  var others = p.turrets.filter(function (t) { return t !== g0 && t !== gB; });
+  others.forEach(function (t) { t.dead = true; });
+  gB.cd = 0; run(0.05);
+  check(gB.mark && (gB.mark.kind + (gB.mark.id || '')) !== (g0.mark.kind + (g0.mark.id || '')), 'with two guns left, a second takes a different target');
+  others.forEach(function (t) { t.dead = false; });
   gB.mark = null; gB.cd = 99; S.recruits = [];
   render();
   // Knock the gun out while it aims, and the volley never comes.

@@ -233,14 +233,14 @@
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, stacks: {} },
-      coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0 },
+      coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0, wall: 0 },
       aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [], night: 0,
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
-      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0 },
+      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0 },
       hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false
     };
     resizeMats(); clearInput();
@@ -273,7 +273,8 @@
       // Planes come quickly from the start, hold a 0.85 s gap from wave 5 to 9, then keep tightening to 0.3 s.
       interval: n <= 4 ? 1.7 - 0.18 * n : n <= 9 ? 0.85 : Math.max(0.3, 0.85 - 0.045 * (n - 9)),
       speed: n <= 10 ? 65 + 8 * n : 145 + 5 * (n - 10),
-      maxDrops: Math.min(6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
+      // Up to six troopers a plane by wave 8, seven from 10 and eight from 12.
+      maxDrops: Math.min(n >= 12 ? 8 : n >= 10 ? 7 : 6, 2 + Math.ceil(BALANCE.DROPS_PER_WAVE * n)),
       fall: Math.min(130, 47 + BALANCE.FALL_PER_WAVE * n),
       special: n === 1 ? 0.15 : Math.min(0.45, 0.16 + 0.06 * n),
       // The night raid: the page goes dark (sky.js drawNight).
@@ -284,6 +285,9 @@
     for (var k in extra) c[k] = extra[k];
     return c;
   }
+
+  // 1 up to wave 9, then the gaps shrink with the plane interval, to half by wave 21.
+  function wavePace(c) { return Math.max(0.5, Math.min(1, c.interval / 0.85)); }
 
   // Floating text comes in kinds, so the busy moments stay readable:
   //   alert: threats in red ("sniper!", "rush!", "wall -18"), bigger, longer, always shown, drawn on top;
@@ -432,8 +436,8 @@
   function activeTramps() { return S.mods.secondTramp ? TRAMPS : [TRAMPS[0]]; }
   function unlockedSlots() { return SLOT_ORDER.slice(0, S.mods.slots); }
 
-  function spawnPlane(kind) {
-    var c = S.spawn.cfg, rnd = substream(RW), dir = rnd() < 0.5 ? 1 : -1;
+  function spawnPlane(kind, src) {
+    var c = S.spawn.cfg, rnd = substream(src || RW), dir = rnd() < 0.5 ? 1 : -1;
     // On boss waves the escort keeps to a high lane above the zeppelin, and to a low one under the Dreadnought.
     var p = makePlane(kind, dir, dir > 0 ? -60 : W + 60, kind === 'bomber' ? between(rnd, 104, 128) : c.bossKind === 'dread' ? between(rnd, 276, 330) : c.boss ? between(rnd, 98, 118) : between(rnd, 98, 206));
     p.rng = rnd;
@@ -499,7 +503,7 @@
     if (r.hp <= 0) knockDown(r, cause);
   }
   // Wall bookkeeping for the event log; the last source to hurt the wall is the game-over cause.
-  function hurtWall(amount, source) { S.wallHP -= amount; S.lastHit = source; emit('wall_damage', { source: source, amount: amount }); }
+  function hurtWall(amount, source) { S.wallHP -= amount; S.stats.wallDamage += amount; S.lastHit = source; emit('wall_damage', { source: source, amount: amount }); }
   function repairWall(amount, source) {
     var before = S.wallHP; S.wallHP = Math.min(S.mods.maxHP, S.wallHP + amount);
     if (S.wallHP > before) emit('wall_repair', { source: source, amount: S.wallHP - before });
@@ -513,10 +517,13 @@
   function startWave(n) {
     S.wave = n; seedWave(n);
     S.medevac = []; S.skyFx = [];
-    S.waveStart = { kills: S.stats.kills, captured: S.stats.captured };
+    S.waveStart = { kills: S.stats.kills, captured: S.stats.captured, wall: S.stats.wallDamage };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
     var c = waveCfg(n);
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: 11 };
+    // pace: the gaps between rushes, cargo planes, road tanks and the sky's arrivals shrink with the plane interval,
+    // so late waves arrive together and build to a peak instead of trickling in after the planes are done.
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: 11,
+      pace: wavePace(c), escort: substream(RW), escortT: ZEP.ESCORT_EVERY };
     SKY.start(S.spawn, c);
     S.waveState = 'active';
     var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.twin ? 'two zeppelins at once!' : c.boss && n >= ZEP.ARMOR_WAVE ? 'armored zeppelin! strip its plates' :
@@ -567,18 +574,27 @@
           else { sp.boss--; spawnZeppelin(); }
         }
       }
-      if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14); } }
-      if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15); } }
-      if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, 11, 16); } }
+      // While a zeppelin is up, its escort keeps coming (from its own stream), so it's never alone on the page.
+      if (sp.planes + sp.bombers === 0 && S.planes.some(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; })) {
+        sp.escortT -= dt;
+        if (sp.escortT <= 0) { spawnPlane('plane', sp.escort); sp.escortT = ZEP.ESCORT_EVERY * between(sp.escort, 0.8, 1.2); }
+      }
+      if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14) * sp.pace; } }
+      if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15) * sp.pace; } }
+      if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, 11, 16) * sp.pace; } }
       SKY.tick(sp, dt);
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
       if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) SKY.settle(sp);
       if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies && !SKY.waiting()) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
-        var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2; S.score += bonus; S.coins += waveTags; flyTags(200, 330, waveTags);
-        emit('wave_clear', { wave: S.wave }); emit('coins', { amount: waveTags, reason: 'wave' });
+        var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2;
+        // A wave that never touched the wall pays extra: half the wave bonus again, and a tag a wave.
+        var untouched = S.stats.wallDamage - S.waveStart.wall < 0.5, extra = untouched ? 50 * S.wave : 0;
+        if (untouched) waveTags += S.wave;
+        S.score += bonus + extra; S.coins += waveTags; flyTags(200, 330, waveTags);
+        emit('wave_clear', { wave: S.wave, untouched: untouched }); emit('coins', { amount: waveTags, reason: 'wave' });
         S.news = []; serveWave(S.news); careAtWaveEnd(S.news);
-        S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus', t: 0, dur: 1.9 };
+        S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
         if (victoryDue()) S.waveTimer = 3.2;
         S.hint = false;
         sound.play('wave'); SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
@@ -1852,6 +1868,35 @@
     }
     G.restore();
   }
+  // Calls held on the radio, drawn under the score so they're in sight on any screen (the buttons beside pause are
+  // easy to miss on a desktop). Click or tap one to make the call; B and C still work, and the key shows where there's
+  // a keyboard. A call already flying is greyed.
+  var CALL_CHIP = { X: 58, Y: 66, W: 48, H: 24, GAP: 4 }; // clear of the combo counter in the middle
+  var KEYS_SHOWN = !(window.matchMedia && window.matchMedia('(hover: none)').matches);
+  function callChips() {
+    var out = [], x = CALL_CHIP.X;
+    [['bomber', 'strike', 'B', S.calls.bomber, !!S.strike], ['fighter', 'fighter', 'C', S.calls.fighter, !!S.fighter]].forEach(function (c) {
+      if (c[3] <= 0) return;
+      out.push({ kind: c[0], icon: c[1], key: c[2], n: c[3], busy: c[4], x: x, y: CALL_CHIP.Y });
+      x += CALL_CHIP.W + CALL_CHIP.GAP;
+    });
+    return out;
+  }
+  function callChipAt(p) {
+    return callChips().find(function (c) { return p.x >= c.x - 4 && p.x <= c.x + CALL_CHIP.W + 4 && p.y >= c.y - 4 && p.y <= c.y + CALL_CHIP.H + 4; }) || null;
+  }
+  function drawCallChips() {
+    if (S.mode !== 'play' && S.mode !== 'paused') return;
+    callChips().forEach(function (c) {
+      var x = c.x, y = c.y, cw = CALL_CHIP.W, ch = CALL_CHIP.H;
+      G.save(); G.globalAlpha = c.busy ? 0.4 : 1; pen(c.icon.length * 77);
+      G.fillStyle = PAPER; G.fillRect(x, y, cw, ch); G.fillStyle = 'rgba(47,111,220,0.1)'; G.fillRect(x, y, cw, ch);
+      G.beginPath(); L(x, y, x + cw, y, 0.3); L(x + cw, y, x + cw, y + ch, 0.3); L(x + cw, y + ch, x, y + ch, 0.3); L(x, y + ch, x, y, 0.3); ink(BLUE, 1.6); G.stroke();
+      G.save(); G.translate(x + 1, y + 1); G.scale(22 / 44, 22 / 44); ICONS[c.icon](G); G.restore();
+      G.fillStyle = BLUE; G.font = '15px ' + HAND; G.textAlign = 'left'; G.fillText((KEYS_SHOWN ? c.key : '') + '×' + c.n, x + 24, y + 17);
+      G.restore();
+    });
+  }
   function drawHUD() {
     pen(4242);
     G.save();
@@ -1859,6 +1904,7 @@
     if (S.mode !== 'title') {
       G.fillStyle = INK2; G.font = '16px ' + HAND; G.fillText('score', 58, 28);
       G.fillStyle = INK; G.font = '34px ' + HAND; G.fillText(S.score.toLocaleString('en-US'), 58, 58);
+      drawCallChips(); pen(4242);
       G.fillStyle = '#56606b'; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
       dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
       var lose = S.tagLoss > 0, jig = lose ? Math.sin(S.t * 60) * 2.5 * Math.min(1, S.tagLoss) : 0;
@@ -2031,6 +2077,7 @@
     document.getElementById('stPlanes').textContent = String(S.stats.planes);
     document.getElementById('stZeps').textContent = String(S.stats.zeppelins);
     document.getElementById('stZeps').hidden = document.getElementById('stZepsLabel').hidden = !S.stats.zeppelins;
+    document.getElementById('stDmg').textContent = String(Math.round(S.stats.wallDamage));
     document.getElementById('stTanks').textContent = String(S.stats.tanks);
     document.getElementById('stTanks').hidden = document.getElementById('stTanksLabel').hidden = !S.stats.tanks;
     var cause = OVER_CAUSE[S.lastHit];
@@ -2050,7 +2097,7 @@
   function runReport() {
     var st = {
       wave: S.wave, kills: S.stats.kills, captured: S.stats.captured, popped: S.stats.popped, planes: S.stats.planes,
-      zeppelins: S.stats.zeppelins, tanks: S.stats.tanks,
+      zeppelins: S.stats.zeppelins, tanks: S.stats.tanks, wall_damage: Math.round(S.stats.wallDamage),
       crew: S.recruits.filter(function (r) { return !r.dead; }).length + (S.bed ? 1 : 0), fallen: S.fallen.length, tags: S.coins
     };
     if ((S.mode === 'over' || S.mode === 'dying') && S.lastHit) st.cause = S.lastHit;
@@ -2115,6 +2162,9 @@
   cv.addEventListener('pointerdown', function (e) {
     if (S.mode !== 'play') return;
     sound.init();
+    // A call in the HUD makes the call instead of firing.
+    var chip = callChipAt(toLogical(e));
+    if (chip) { if (chip.kind === 'bomber') callStrike(); else callFighter(); e.preventDefault(); return; }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     aimAt(toLogical(e)); S.firing = true;
     e.preventDefault();
@@ -2259,7 +2309,7 @@
           if (key === 'DROP_CHANCE' || key === 'DROPS_PER_WAVE') {
             S.planes.forEach(function (p) {
               if (p.kind !== 'plane' || p.state !== 'fly' || !p.drops.length) return;
-              var count = Math.max(1, Math.min(6, p.drops.length + after.maxDrops - before.maxDrops));
+              var count = Math.max(1, Math.min(8, p.drops.length + after.maxDrops - before.maxDrops));
               p.drops = [];
               for (var tries = 0; tries < count * 30 && p.drops.length < count; tries++) {
                 var x = pickDropX(p.rng); if ((x - p.x) * p.dir > 0) p.drops.push(x);
