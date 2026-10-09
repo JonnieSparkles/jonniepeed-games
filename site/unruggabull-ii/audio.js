@@ -304,6 +304,11 @@ window.UnrugSound = (function () {
     coffee: t => { [60, 64, 67].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12), t + i * .06, .08, .12)); osc(sfxBus, 'p50', hz(84), t + .2, .25, .07, { vib: true }); },
     // the Shredder's tell before it spits: a quick rising growl
     rev: t => { osc(sfxBus, 'sawtooth', 70, t, .32, .07, { to: 200 }); noiseHit(sfxBus, t + .1, .2, .12, 'bandpass', 700, 2); },
+    // one heart left: a low double thump
+    thump: t => { osc(sfxBus, 'sine', 75, t, .12, .32, { to: 42 }); osc(sfxBus, 'sine', 70, t + .16, .1, .22, { to: 40 }); },
+    // office life: a desk phone trilling twice somewhere down the hall, a copier whirring and clunking
+    phone: t => { for (let r = 0; r < 2; r++) for (let i = 0; i < 8; i++) osc(sfxBus, 'p25', i % 2 ? 1300 : 1100, t + r * .5 + i * .04, .04, .022); },
+    printer: t => { for (let i = 0; i < 3; i++) noiseHit(sfxBus, t + i * .18, .14, .1, 'bandpass', 1400 + i * 300, 3); osc(sfxBus, 'sawtooth', 55, t, .6, .03, { to: 62, sustain: .8 }); noiseHit(sfxBus, t + .62, .05, .14, 'lowpass', 900); },
     // a pickup turns up: a bright little twinkle
     appear: t => { [88, 95, 100, 95, 100].forEach((m, i) => osc(sfxBus, 'p25', hz(m), t + i * .05, .05, .045)); osc(sfxBus, 'triangle', hz(100), t + .25, .2, .07, { vib: true }); },
     power: t => { for (let i = 0; i < 8; i++) osc(sfxBus, 'p25', hz(64 + i * 3), t + i * .035, .06, .07); osc(sfxBus, 'p50', hz(88), t + .3, .3, .07, { vib: true }); },

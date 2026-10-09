@@ -101,11 +101,12 @@
       charge: TUNE.charges, rechargeT: 0, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
-      banner: null, talk: null, shake: 0, red: 0, endT: 0, continues: 0, events: {}
+      banner: null, talk: null, bark: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
+      shown: 0, meterPulse: 0, pulse: 0, pulseT: 0, ambT: 8   // cosmetic: souls shown as their wisps land, the low-health pulse, office sounds
     };
     bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0 };
     if (at) {
-      Object.assign(R, { beat: BEATS.length - 1, t: at.t, souls: at.souls, continues: at.continues + 1, bestStreak: at.bestStreak, speed: 0 });
+      Object.assign(R, { beat: BEATS.length - 1, t: at.t, souls: at.souls, shown: at.souls, continues: at.continues + 1, bestStreak: at.bestStreak, speed: 0 });
       Object.assign(R.events, at.events, { bossAt: 0 });
       R.pull.count = 1;   // the runner has been explained already
       for (let w = .15; w < 1.05; w += .45) R.decor.push({ w, s: w < .5 ? -1 : 1, kind: 'stack', col: 0 });
@@ -193,11 +194,13 @@
       for (const cb of R.cubs) { const z = cubZ(cb); if (z > .3 && (!cb.temp || cb.temp.dead)) cb.temp = { cub: cb, st: 'hidden', t: 0, pop: 0, trig: 0, pops: 0, threw: true, dead: false }; }
       addSign(.75, 'AUDIT! SLASH IT BACK ×2', 'audit');
       Snd.play('audit'); live('Audit! The temps lob paperwork. Slash it back for double souls.');
+      bark('audit');
     } else {
       // carpshits come out of the dark, only their eyes showing; everything freed in the dark counts double
       R.event.nextFly = 1.2; R.event.v = false;
       addSign(.75, 'LIGHTS OUT! ×2 SOULS', 'neon');
       Snd.play('dark'); Snd.music('dark'); live('Lights out. Souls freed in the dark count double.');
+      bark('dark');
       spawnFormation('snake');
     }
   }
@@ -225,6 +228,7 @@
         if (E.kind === 'dark') Snd.play('lights');
         R.event = null; R.beat++; R.beatT = 0;
         addSign(1, beat().sign);
+        if (beat().pulls) bark('copy');
         Snd.music(beat().music);
         if (beat().pulls) R.pull.next = R.t + 3;
         // a coffee after each event, and a Spread Shot to try out after the audit
@@ -234,6 +238,9 @@
     } else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) startEvent(B.after);
     else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
     spawnHall(dt);
+    // office life now and then: a phone down the hall, a copier in the copy room (sound only, so not from the run's seed)
+    R.ambT -= dt;
+    if (R.ambT <= 0 && !R.event) { Snd.play(beat().station === 'copier' ? 'printer' : 'phone'); R.ambT = fxr(10, 18); }
   }
   // Pickups float at jump height: a coffee gives a heart back, a Spread Shot fires three ways for a while.
   // They drift toward you a little on their own, so they still arrive when the hall has stopped.
@@ -255,9 +262,11 @@
           const full = R.hearts >= TUNE.hearts;
           R.hearts = Math.min(TUNE.hearts, R.hearts + 1);
           popText(full ? 'FULL' : '+1 HEART', x, y - 8, '#ff7050'); Snd.play('coffee'); live(full ? 'Coffee. Hearts already full.' : 'Coffee: one heart back.');
+          if (!full) bark('coffee');
         } else {
           R.spread = TUNE.spreadT; R.charge = TUNE.charges;
           popText('SPREAD SHOT', x, y - 8, '#ffd44a'); Snd.play('power'); live('Spread Shot: the blaster fires three ways for ten seconds.');
+          bark('spread');
         }
       }
       if (!pk.got && !R.events.grabHint && z < .5 && z > .2 && R.phase === 'hall' && !R.banner) {
@@ -303,10 +312,10 @@
       tp.t += dt;
       if (tp.st === 'hidden') {
         // in the dark the temps stay down: lights out belongs to the carpshits
-        if (!R.noPops && !(R.event && R.event.kind === 'dark') && ((z < tp.trig && z > .3) || (audit && z > .25 && z < .95))) { tp.st = 'up'; tp.t = audit ? rr(0, .3) : 0; tp.threw = false; }
+        if (!R.noPops && !(R.event && R.event.kind === 'dark') && ((z < tp.trig && z > .3) || (audit && z > .25 && z < .95))) { tp.st = 'up'; tp.t = audit ? rr(0, .3) : 0; tp.threw = false; tp.will = !audit && rnd() < TUNE.throwChance; }
       } else if (tp.st === 'up') {
         tp.pop = Math.min(1, tp.pop + dt * 7);
-        if (!tp.threw && tp.t > .55 && z > .22 && !R.noPops && !audit) { tp.threw = true; if (rnd() < TUNE.throwChance) throwWad(tp); }
+        if (!tp.threw && tp.t > .55 && z > .22 && !R.noPops && !audit) { tp.threw = true; if (tp.will) throwWad(tp); }
         if (tp.t > (audit ? 1.8 : 1.25)) { tp.st = 'down'; tp.t = 0; tp.threw = true; }
       } else if (tp.st === 'down') {
         tp.pop = Math.max(0, tp.pop - dt * 7);
@@ -362,6 +371,7 @@
     const rl = R.boss.rally, dur = p.rally && rl ? Math.max(.28, TUNE.rally.back * Math.pow(TUNE.rally.speedUp, rl.count)) : .45;
     p.vu = (to.u - p.u) / dur; p.vz = (to.z - p.z) / dur; p.vh = (to.h - p.h) / dur; p.gv = 0;
     R.events.deflects = (R.events.deflects || 0) + 1;
+    if (!p.rally) bark('deflect');
     emit('deflect', { kind: p.rally ? 'rally' : p.kind });
     const before = R.charge;
     R.charge = Math.min(TUNE.charges, R.charge + TUNE.deflectCharge); R.chargeFlash = .3; R.freeze = Math.max(R.freeze, .04);
@@ -394,7 +404,7 @@
             // it misses: a smash, and the Shredder reels
             const dmg = TUNE.rally.smash + TUNE.rally.smashPer * rl.count;
             b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
-            emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash');
+            emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash'); bark('smash');
             popText('SMASH! -' + dmg, 120, BACK.y0 - 2, '#ffd44a'); live('Smash! The Shredder misses the return.');
             for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
           } else if (b.st === 'fight') {
@@ -521,6 +531,7 @@
   function hurtBull(n, cause) {
     if (bull.inv > 0 || bull.mouth > 0 || bull.spat > 0 || R.phase === 'dead' || R.phase === 'win') return false;
     R.hearts = Math.max(0, R.hearts - n); bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15;
+    if (R.hearts === 1) bark('low');
     R.lastCause = cause || 'unknown'; emit('hit', { amount: n, cause: R.lastCause });
     Snd.play('hurt');
     if (R.hearts <= 0) die();
@@ -645,7 +656,7 @@
   function jam(bz) {
     const b = R.boss, close = clamp((bz || 0) / TUNE.mouth, 0, 1);
     b.jam = TUNE.jamT * (1 + TUNE.rideJam * close); b.volley = null; endPull();
-    R.events.jams = (R.events.jams || 0) + 1; emit('jam', { amount: Math.round(b.jam * 10) / 10 });
+    R.events.jams = (R.events.jams || 0) + 1; emit('jam', { amount: Math.round(b.jam * 10) / 10 }); bark('jam');
     Snd.play('jam');
     popText(close > .5 ? 'BIG JAM! x3' : 'JAMMED! x3', 120, BACK.y0 - 2, close > .5 ? '#ff9628' : '#ffd44a');
   }
@@ -678,6 +689,10 @@
         Snd.play('dark'); Snd.music('dark'); live('Power saving mode: the lights go out.');
       }
     }
+    // smoke, then sparks, as it wears down (cosmetic)
+    const wear = 1 - b.hp / TUNE.bossHP;
+    if (wear > .3 && Math.random() < dt * wear * 4) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 8, BACK.x1 - 8), y: BACK.y0 + 4, t: 0, dur: 1 });
+    if (wear > .6 && Math.random() < dt * (wear - .5) * 5) { const c = CRACKS[Math.floor(Math.random() * CRACKS.length)][0]; R.fx.push({ k: 'spark', x: BACK.x0 + c[0], y: BACK.y0 + c[1], s: .6, col: '#ffd44a', t: 0, dur: .22, a: Math.random() * 6 }); }
     if (b.jam > 0) {
       b.jam -= dt;
       if (Math.random() < dt * 8) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 10, BACK.x1 - 10), y: BACK.y0 + 4, t: 0, dur: 1 });
@@ -721,13 +736,13 @@
     emit('soul', { amount: 1, source: source || 'temp', by: by || 'shot' });
     R.streak = R.streakT > 0 ? R.streak + 1 : 0; R.streakT = 1.6;
     if (by !== 'clear') R.bestStreak = Math.max(R.bestStreak, R.streak + 1);   // the Shredder's own souls don't count
-    R.fx.push({ k: 'wisp', x, y, t: 0, dur: 1.6, dx: fxr(-8, 8) });
+    R.fx.push({ k: 'wisp', x, y, sx: x, sy: y, t: 0, dur: 1.05, dx: fxr(-10, 10) });   // it floats up, then flies into the souls counter
     Snd.play('soul', R.streak);
     const section = R.beat + (R.event ? R.event.kind : '');
     if (R.streak + 1 === TUNE.streakDrop && R.phase === 'hall' && R.dropAt !== section) {
       R.dropAt = section;   // one per section
       addPickup('spread', bull.bz + .4, bull.u);
-      emit('streak_drop'); popText(TUNE.streakDrop + ' STREAK!', PX(bull.u, bull.bz), YH(bull.bz, .42), '#ffd44a');
+      emit('streak_drop'); popText(TUNE.streakDrop + ' STREAK!', PX(bull.u, bull.bz), YH(bull.bz, .42), '#ffd44a'); bark('streak');
       live(TUNE.streakDrop + ' in a row: a Spread Shot drops.');
     }
   }
@@ -759,12 +774,46 @@
   function updateFx(dt) {
     for (const f of R.fx) {
       f.t += dt;
-      if (f.k === 'wisp') { f.y -= 24 * dt; f.x += Math.sin(f.t * 5) * 6 * dt + f.dx * dt; }
+      if (f.k === 'wisp') {
+        const up = Math.min(1, f.t / .3), k = Math.max(0, (f.t - .3) / (f.dur - .3)), e = k * k, to = meterSpot();
+        const hx = f.sx + f.dx * up, hy = f.sy - 14 * up;
+        f.x = hx + (to.x - hx) * e; f.y = hy + (to.y - hy) * e;
+        if (f.t >= f.dur) { R.shown = Math.min(R.souls, R.shown + 1); R.meterPulse = .16; }
+      }
       else if (f.k === 'pop') f.y -= 12 * dt;
       else if (f.k === 'bit') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; }
       else if (f.k === 'smoke') { f.y -= 14 * dt; f.x += Math.sin(f.t * 4) * 4 * dt; }
     }
     R.fx = R.fx.filter(f => f.t < f.dur);
+    if (!R.fx.some(f => f.k === 'wisp')) R.shown = R.souls;
+    R.meterPulse = Math.max(0, R.meterPulse - dt);
+  }
+  // Unruggabull's lines: each once per run, over his head, in his own blips until Jonnie's recordings exist.
+  const LINES = {
+    start: 'FLOOR THIRTEEN. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', audit: 'I KEEP MY RECEIPTS.',
+    dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
+    copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
+    low: 'BEEN WORSE. NOT MUCH.', clear: 'FLOOR THIRTEEN: UNRUGGED.', rugged: 'MMPH!'
+  };
+  // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
+  function bark(key, over) {
+    const said = R.events.said || (R.events.said = {});
+    if (said[key] || (R.talk && !over)) return 0;
+    said[key] = true;
+    const text = LINES[key], plan = Snd.talkTimes(text, 'bull');
+    R.bark = { key, text, t: 0, times: plan.times, total: plan.total + 1.1 };
+    Snd.say(text, 'bull'); live('Unruggabull: ' + text);
+    return plan.total;
+  }
+  const lowHealth = () => R.hearts === 1 && (R.phase === 'hall' || R.phase === 'wake' || R.phase === 'boss');
+  // Where freed souls fly to: the end of the meter's fill in the hall, the souls counter after.
+  function meterSpot() {
+    if (R.phase === 'hall') return { x: 87 + Math.round(62 * Math.min(1, R.shown / TUNE.goal)), y: 7 };
+    return { x: W - 10 - textWidth(String(R.souls)), y: 7 };
+  }
+  function drawWisp(f) {
+    const k = f.t / f.dur;
+    g.save(); g.globalAlpha = k > .85 ? .5 : .9; g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore();
   }
   function talk(text, who) {
     const plan = Snd.talkTimes(text, who);
@@ -783,6 +832,7 @@
       R.t += dt;
       updateFx(dt);
       if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
+      if (R.bark) { R.bark.t += dt; if (R.bark.t > R.bark.total) R.bark = null; }
       return;
     }
     if (state !== 'play') return;
@@ -802,6 +852,11 @@
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt);
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
+    if (R.bark) { R.bark.t += dt; if (R.bark.t > R.bark.total) R.bark = null; }
+    if (R.phase === 'hall' && R.t > 5.2) bark('start');
+    // one heart left: a heartbeat
+    R.pulse = Math.max(0, R.pulse - dt);
+    if (lowHealth()) { R.pulseT -= dt; if (R.pulseT <= 0) { R.pulseT = .9; R.pulse = .35; Snd.play('thump'); } } else R.pulseT = 0;
     R.dist += R.speed * dt;
     if (R.phase === 'hall') updateHall(dt);
     updateBull(dt);
@@ -831,12 +886,15 @@
         if (Math.floor(b.bar * 20) > Math.floor(was * 20)) Snd.play('tick');
       }
       if (R.phaseT > 2 && !R.events.bossAt) R.events.bossAt = R.phaseT + talk(R.continues ? 'BACK FOR SECONDS?' : 'YOUR RUG HAS BEEN PROCESSED.', 'shredder') + .3;
-      if (R.events.bossAt && R.phaseT > R.events.bossAt) startBoss();
+      // Unruggabull answers it, then the fight starts
+      if (R.events.bossAt && R.phaseT > R.events.bossAt && !R.events.replied) { R.events.replied = true; R.events.bossAt = R.phaseT + bark(R.continues ? 'again' : 'wake', true) + .2; }
+      else if (R.events.bossAt && R.phaseT > R.events.bossAt) startBoss();
     } else if (R.phase === 'win') {
       // the souls inside come out one at a time, then the card
       if (R.phaseT < 1.5 && Math.random() < dt * 14) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-50, 50), vy: fxr(-70, -10), t: 0, dur: fxr(.8, 1.4) });
       const due = Math.min(TUNE.bossSouls, Math.floor(Math.max(0, R.phaseT - .8) / .1));
       while (b.freed < due) { b.freed++; free(fxr(BACK.x0 + 10, BACK.x1 - 10), BACK.y1 - 8, 'shredder', 'clear'); }
+      if (R.phaseT > 1.6 && !R.talk) bark('clear');
       if (R.phaseT > 2.1 && !R.events.clearBanner) {
         R.events.clearBanner = true;
         R.banner = { text: 'FLOOR 13 CLEAR', sub: 'SOULS FREED: ' + R.souls, t: 0, dur: 99 };
@@ -845,11 +903,12 @@
       if (R.banner && R.events.clearBanner) R.banner.sub = 'SOULS FREED: ' + R.souls;
       if (R.phaseT > 4.4) endRun('clear');
     } else if (R.phase === 'dead') {
+      if (R.phaseT > .9) bark('rugged');
       if (R.phaseT > 1.9) endRun('rugged');
     }
   }
   function die() {
-    R.phase = 'dead'; R.phaseT = 0; R.hearts = 0;
+    R.phase = 'dead'; R.phaseT = 0; R.hearts = 0; R.bark = null;
     emit('game_over', { cause: R.lastCause || 'unknown', score: R.souls });
     endPull();
     R.banner = { text: 'RUGGED.', t: 0, dur: 99, col: '#ff7050' };
@@ -897,6 +956,9 @@
     for (const sd of [-1, 1]) quadF(g, '#d63428', sd > 0 ? TUNE.runner + .04 : -.66, sd > 0 ? .66 : -TUNE.runner - .04, ZN, 1);
     g.restore();
   }
+  // Cracks on its panels, clear of the sign, the eyes and the mouth, in the order they appear.
+  const CRACKS = [[[8, 6], [13, 12], [11, 17]], [[66, 5], [62, 10], [64, 15], [60, 19]], [[6, 22], [11, 26], [9, 31]], [[68, 24], [63, 27], [66, 31]],
+    [[16, 4], [19, 9], [17, 12]], [[58, 8], [55, 13]], [[12, 14], [18, 17]], [[62, 16], [57, 22]]];
   function drawShredder() {
     const b = R.boss, x0 = BACK.x0, x1 = BACK.x1, y0 = BACK.y0, y1 = BACK.y1, w = x1 - x0, t = R.t;
     const dead = b.st === 'dead';
@@ -908,7 +970,9 @@
     rect(g, x0 + 9, y0 + 21, 6, 2, '#8a8e9c'); rect(g, x1 - 15, y0 + 21, 6, 2, '#8a8e9c');
     rect(g, 104, y0 + 6, 32, 9, '#1a1418'); txt(g, 'SHRED-O', 120, y0 + 8, '#ffd44a', 1, 'center');
     shredderEyes();
-    if (b.ph >= 2 && b.st === 'fight') { line(g, x0 + 8, y0 + 6, x0 + 13, y0 + 12, '#2a2a32'); line(g, x0 + 13, y0 + 12, x0 + 11, y0 + 17, '#2a2a32'); }
+    // it wears down: more cracks the more damage it has taken
+    const wear = b.st === 'fight' || dead ? 1 - b.hp / TUNE.bossHP : 0, n = Math.floor(wear * CRACKS.length * 1.15);
+    for (let i = 0; i < Math.min(n, CRACKS.length); i++) { const c = CRACKS[i]; for (let j = 1; j < c.length; j++) line(g, x0 + c[j - 1][0], y0 + c[j - 1][1], x0 + c[j][0], y0 + c[j][1], '#24242c'); }
     if (b.ph >= 3 && b.st === 'fight' && Math.floor(t * 9) % 4 === 0) { rect(g, x1 - 12, y0 + 9, 1, 1, '#ffd44a'); rect(g, x1 - 10, y0 + 7, 1, 1, '#fff6e2'); }
     // the mouth, fed by the runner
     const my = y1 - 13, open = b.spit > 0 ? 2 : 0;
@@ -992,6 +1056,11 @@
     const s = sc(zt) * .85, w = Math.max(2, Math.round(26 * s)), h = Math.max(2, Math.round(15 * s));
     const x = Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb = YH(zt, tp.cub.top - .12 + tp.pop * .17);
     g.drawImage(A.TEMP, x, Math.round(yb - h), w, h);
+    // the tell: a temp about to throw flashes a ! first
+    if (tp.will && tp.st === 'up' && !tp.threw && tp.t > .12 && Math.floor(tp.t * 12) % 3) {
+      const tx = Math.round(x + w / 2), ty = Math.round(yb - h - 10);
+      rect(g, tx - 3, ty - 1, 7, 9, '#1a1418'); rect(g, tx - 2, ty, 5, 7, '#fff6e2'); txt(g, '!', tx - 1, ty + 1, '#d63428');
+    }
     if (tp.st === 'up' && tp.t > .25 && !tp.threw) g.drawImage(A.WAD, Math.round(x + w * .75), Math.round(yb - h - 4 * s), Math.max(2, Math.round(5 * s)), Math.max(2, Math.round(5 * s)));
   }
   function drawBox(bx, z) {
@@ -1107,6 +1176,7 @@
     if (b.mouth > 0) return;
     const s = sc(b.bz), x = PX(b.u, b.bz), feet = YH(b.bz, b.jh);
     shadow(b.u, b.bz, 14 * (1 - .5 * Math.min(1, b.jh / TUNE.jumpH)));   // the shadow shrinks as he rises
+    if (R.phase === 'dead') { drawRugged(s, x, YH(b.bz, 0)); return; }
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
     // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
     const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
@@ -1118,12 +1188,32 @@
     else if (air) p = aim ? P.jumpAim : P.jump;
     else if (aim) p = kick ? P.kick : running ? (stride ? P.runAimA : P.runAimB) : P.aim;
     else if (running) p = stride ? P.runA : P.runB;
-    if (R.phase === 'dead') { g.save(); g.globalAlpha = Math.max(0, 1 - R.phaseT / 1.6); }
-    const sink = R.phase === 'dead' ? Math.min(10, R.phaseT * 8) : 0;
     if (cheer) p = Math.floor(R.t * 4) % 2 ? P.win : P.winB;   // horns up at the clear
     const sx = 1 + (b.sq || 0), sy = 1 - (b.sq || 0);
-    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s * sx), Math.round(feet - 38 * s * sy + sink), Math.round(A.POSE_W * s * sx), Math.round(A.POSE_H * s * sy));
-    if (R.phase === 'dead') g.restore();
+    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s * sx), Math.round(feet - 38 * s * sy), Math.round(A.POSE_W * s * sx), Math.round(A.POSE_H * s * sy));
+  }
+  // Rugged: a rug drops over him, rolls him up, and the bundle wriggles, horns out one end and boots out the other.
+  function drawRugged(s, x, feet) {
+    const t = R.phaseT, rugW = 40 * s, B = A.BURRITO, bw = Math.round(B.width * s * 1.25), bh = Math.round(B.height * s * 1.25);
+    if (t < .3) {
+      const k = t / .3, top = feet - 38 * s;
+      g.drawImage(A.POSES.hurt, Math.round(x - A.POSE_W / 2 * s), Math.round(top), Math.round(A.POSE_W * s), Math.round(A.POSE_H * s));
+      rugSheet(x - rugW / 2, top - 4 * s - 34 * s * (1 - k), rugW, 10 * s + 28 * s * k);
+    } else if (t < .6) {
+      const k = (t - .3) / .3, h = (38 - 26 * k) * s, w = rugW + (bw - rugW) * k;
+      rugSheet(x - w / 2, feet - h, w, h);
+    } else {
+      const wob = Math.floor(t * 5) % 4 === 0 ? 1 : 0, hop = Math.floor(t * 2.5) % 3 === 0 && Math.floor(t * 10) % 2 ? 1 : 0;
+      g.drawImage(B, Math.round(x - bw / 2 + wob), Math.round(feet - bh - hop), bw, bh);
+    }
+  }
+  // A plain red rug, flat out: dark stripes, a gold band and fringe at the ends.
+  function rugSheet(x, y, w, h) {
+    x = Math.round(x); y = Math.round(y); w = Math.max(2, Math.round(w)); h = Math.max(2, Math.round(h));
+    rect(g, x - 1, y - 1, w + 2, h + 2, '#1a1418'); rect(g, x, y, w, h, '#d63428');
+    for (let i = 2; i < w; i += 5) rect(g, x + i, y, 1, h, '#961e16');
+    rect(g, x, y + Math.floor(h / 2), w, 1, '#ffd44a');
+    for (let i = 0; i < h; i += 2) { rect(g, x - 2, y + i, 1, 1, '#ff9628'); rect(g, x + w + 1, y + i, 1, 1, '#ff9628'); }
   }
   function drawPaper() {
     for (let i = 0; i < 8; i++) {
@@ -1134,7 +1224,7 @@
   function drawFx() {
     for (const f of R.fx) {
       const k = f.t / f.dur;
-      if (f.k === 'wisp') { g.save(); g.globalAlpha = k > .7 ? (1 - k) / .3 * .85 : .85; g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore(); }
+      if (f.k === 'wisp') drawWisp(f);
       else if (f.k === 'poof') { for (let i = 0; i < f.n; i++) { const a = i / f.n * 6.28 + f.x, r = 2 + k * 9 * f.s; rect(g, f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * .7, Math.max(1, Math.round(2 * f.s)), Math.max(1, Math.round(2 * f.s)), k < .5 ? '#fff6e2' : '#b8b4a8'); } }
       else if (f.k === 'half') {
         const img = f.img, w = img.width * f.s, h = img.height * f.s, d = 4 + k * 14 * f.s, drop = k * k * 26;
@@ -1160,16 +1250,16 @@
     if (R.spread > 0 && (R.spread > 2 || blink)) otxt(g, 'SPREAD', 4, 20, '#ffd44a');
     if (R.phase === 'hall') {
       // the goal: free enough souls and the Shredder wakes
-      const k = Math.min(1, R.souls / TUNE.goal), full = k >= 1 && Math.floor(R.t * 6) % 2;
-      g.drawImage(A.GHOST, 74, 3);
-      rect(g, 86, 4, 64, 7, '#1a1418'); rect(g, 87, 5, 62, 5, '#3a2f5e'); rect(g, 87, 5, Math.round(62 * k), 5, full ? '#ffd44a' : '#7fd4ff');
-      otxt(g, R.souls + '/' + TUNE.goal, 154, 5, '#fff6e2');
+      const shown = Math.min(R.souls, R.shown), k = Math.min(1, shown / TUNE.goal), full = k >= 1 && Math.floor(R.t * 6) % 2, pulse = R.meterPulse > 0;
+      g.drawImage(A.GHOST, 74, pulse ? 2 : 3);
+      rect(g, 86, 4, 64, 7, pulse ? '#fff6e2' : '#1a1418'); rect(g, 87, 5, 62, 5, '#3a2f5e'); rect(g, 87, 5, Math.round(62 * k), 5, full || pulse ? '#ffd44a' : '#7fd4ff');
+      otxt(g, shown + '/' + TUNE.goal, 154, 5, pulse ? '#ffd44a' : '#fff6e2');
       // while an audit or lights out doubles souls
       if (R.event && Math.floor(R.t * 4) % 4) otxt(g, '×2', 178, 5, '#ffd44a');
     } else {
-      const n = String(R.souls), tw = textWidth(n);
-      g.drawImage(A.GHOST, W - 4 - tw - 12, 3);
-      otxt(g, n, W - 4, 5, '#fff6e2', 1, 'right');
+      const n = String(Math.min(R.souls, R.shown)), tw = textWidth(n), pulse = R.meterPulse > 0;
+      g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 2 : 3);
+      otxt(g, n, W - 4, 5, pulse ? '#ffd44a' : '#fff6e2', 1, 'right');
     }
     const b = R.boss;
     if (b.st === 'fight' || b.st === 'awake' || (b.st === 'dead' && R.phaseT < 1.2)) {
@@ -1196,6 +1286,16 @@
       A.bubble(g, x, y, T.text, 118);
       rect(g, x, y, w, 11, '#fff6e2');
       txt(g, T.text.slice(0, n), x + 3, y + 3, '#1a1418');
+    }
+    // Unruggabull's own lines, over his head (or over the rug he's rolled up in)
+    const K = R.bark;
+    if (K) {
+      let n = 0; while (n < K.text.length && K.times[n] <= K.t) n++;
+      const s = sc(bull.bz), bx = PX(bull.u, bull.bz), top = R.phase === 'dead' ? YH(bull.bz, 0) - 16 * s : YH(bull.bz, bull.jh) - 36 * s;
+      const w = textWidth(K.text) + 6, x = Math.round(clamp(bx - w / 2, 2, W - w - 2)), y = Math.round(Math.max(26, top - 14));
+      A.bubble(g, x, y, K.text, Math.round(clamp(bx - 2, x + 2, x + w - 5)));
+      rect(g, x, y, w, 11, '#fff6e2');
+      txt(g, K.text.slice(0, n), x + 3, y + 3, '#1a1418');
     }
   }
   // ---------- title: RugCo Tower at sunset ----------
@@ -1313,6 +1413,7 @@
     for (const pk of R.pickups) { const z = pk.w - R.dist; if (z < 1.02) drawPickup(pk, z); }
     for (const p of R.projs) drawProj(p);
     for (const sh of R.shots) drawShot(sh);
+    for (const f of R.fx) if (f.k === 'wisp') drawWisp(f);
   }
   function draw() {
     if (state === 'title' || state === 'intro') { g.setTransform(1, 0, 0, 1, 0, 0); drawTitle(); return; }
@@ -1345,6 +1446,11 @@
     if (dk) { g.drawImage(darkLayer(dk), -4, -4); if (dk > .5) drawGlows(); }
     g.setTransform(1, 0, 0, 1, 0, 0);
     if (R.red > 0) { g.save(); g.globalAlpha = R.red * 1.6; rect(g, 0, 0, W, H, '#d63428'); g.restore(); }
+    // one heart left: the edges of the screen pulse red with the heartbeat
+    if (lowHealth()) {
+      const a = .16 + .5 * R.pulse / .35;
+      g.save(); for (let i = 0; i < 4; i++) { g.globalAlpha = a * (1 - i / 4); const d = i * 3; rect(g, d, d, W - 2 * d, 3, '#d63428'); rect(g, d, H - d - 3, W - 2 * d, 3, '#d63428'); rect(g, d, d + 3, 3, H - 2 * d - 6, '#d63428'); rect(g, W - d - 3, d + 3, 3, H - 2 * d - 6, '#d63428'); } g.restore();
+    }
     if (R.white > 0) { g.save(); g.globalAlpha = Math.min(1, R.white * 4); rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
     drawHUD(); drawWords();
   }

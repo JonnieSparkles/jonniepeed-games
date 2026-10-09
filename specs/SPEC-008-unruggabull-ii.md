@@ -86,7 +86,7 @@ A corridor floor of about two minutes, then the Shredder.
 
 - **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. Floor 13 changes tune by section: "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room, and a heavier version for the Shredder.
 - **Blip talk:** everyone except Unruggabull and p(Loom) talks in blips while their line types out.
-- **Unruggabull's voice:** Jonnie's recordings, crushed to 8-bit, shipped as small data in the code rather than audio files. Until lines are recorded, he talks in blips too.
+- **Unruggabull's voice:** Jonnie's recordings, crushed to 8-bit, shipped as small data in the code rather than audio files. Until lines are recorded, he talks in blips too: about fifteen short lines in bubbles over his head (`LINES` in `game.js`), which double as the recording script.
 - **p(Loom)'s voice** (roof stage): the only synth voice. SAM was used for the storyboard but has no license, so the options are a small formant synth of our own, pre-rendered SAM shipped as crushed audio, or sam-js as is. Decide when the roof is built.
 
 ## Later stages
@@ -101,5 +101,5 @@ A corridor floor of about two minutes, then the Shredder.
 
 - Lives across a full run: restart at the floor you died on, and how many lives?
 - The leaderboard metric: souls freed, floors, or time.
-- The Unruggabull recording script (15 to 20 lines).
+- The Unruggabull recording script (15 to 20 lines). A first draft is in the game as `LINES`; it needs Jonnie's approval before recording.
 - p(Loom)'s voice (see Sound).
