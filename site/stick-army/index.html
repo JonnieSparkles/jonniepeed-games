@@ -178,7 +178,7 @@ body {
 .won-line { color: var(--ally); }
 /* The title card has the most to say: it sits higher and tighter so it fits the page with a record line. */
 /* The title is the page itself: the logo across the top, the live demo underneath (game.js updateDemo), the
-   rules as pencil notes on the page (layout A) or a sticky note from HQ (layout B), and Start, the record and the
+   rules as pencil notes on the page (with the orders on a post-it on the facing page when the notebook opens), and Start, the record and the
    chips along the bottom where the wall and squad usually sit. Positions are in the page's 400x720 units. */
 .title-page { position: absolute; inset: 0; pointer-events: none; }
 .title-page > * { pointer-events: auto; }
@@ -198,14 +198,6 @@ body {
 .t-n3 { left: 270px; top: 470px; width: 120px; transform: rotate(-2deg); }
 .t-arrows { position: absolute; left: 0; top: 0; width: 400px; height: 720px; pointer-events: none; }
 .t-arrows path { fill: none; stroke: var(--ink-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.t-orders { display: none; position: absolute; left: 96px; top: 232px; width: 158px; box-sizing: border-box; padding: 14px 12px 12px;
-  background: #f7e58a; box-shadow: 2px 4px 0 var(--card-shadow), 0 10px 18px rgba(46, 46, 51, 0.12); transform: rotate(-3deg); pointer-events: none; }
-.t-orders::before { content: ""; position: absolute; left: 50%; top: -9px; width: 62px; height: 18px; margin-left: -31px; background: rgba(214, 222, 232, 0.75); transform: rotate(4deg); }
-.t-orders h2 { margin: 0 0 6px; font: 700 20px/1 var(--font-display); color: var(--enemy); }
-.t-orders ul { margin: 0; padding: 0 0 0 14px; font-size: 16px; line-height: 1.12; display: flex; flex-direction: column; gap: 5px; }
-.t-orders mark { background: none; color: var(--ally); text-decoration: underline; text-decoration-color: var(--ally); text-decoration-thickness: 2px; text-underline-offset: 2px; }
-.layout-b .t-notes, .layout-b .t-arrows { display: none; }
-.layout-b .t-orders { display: block; }
 .t-foot { position: absolute; left: 0; right: 0; top: 616px; padding: 0 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 14px; }
 .t-start { min-height: 54px; padding: 4px 30px 8px; font-size: 32px; }
 .t-stamp { margin: 0; justify-self: end; display: flex; flex-direction: column; align-items: center; padding: 3px 10px 4px; border: 2.5px solid var(--enemy); border-radius: 6px 3px 7px 4px;
@@ -235,14 +227,15 @@ body {
 .f-rows .sc { text-align: right; }
 .f-rows .won { color: var(--ally); width: 18px; text-align: center; }
 .f-rows .empty { display: block; color: var(--ink-soft); }
-/* Layout B: the orders are a post-it stuck on the facing page. */
-#wrap:has(.layout-b) .f-postit { margin: 6px -6px 22px -14px; padding: 16px 14px 12px 34px; background: #f7e58a; transform: rotate(-2deg); position: relative;
+/* The orders are a post-it stuck on the facing page. */
+.f-postit { margin: 6px -6px 22px -14px; padding: 16px 14px 12px 34px; background: #f7e58a; transform: rotate(-2deg); position: relative;
   box-shadow: 2px 4px 0 var(--card-shadow), 0 10px 18px rgba(46, 46, 51, 0.12); }
-#wrap:has(.layout-b) .f-postit::before { content: ""; position: absolute; left: 50%; top: -10px; width: 80px; height: 20px; margin-left: -40px; background: rgba(214, 222, 232, 0.75); transform: rotate(3deg); }
-#wrap:has(.layout-b) .f-postit .f-title { height: auto; margin: 0 0 8px -20px; font-size: 32px; transform: none; }
-#wrap:has(.layout-b) .f-postit .f-orders { font-size: 18px; line-height: 24px; }
-#wrap:has(.layout-b) .f-postit mark { background: none; color: var(--ally); text-decoration: underline 2px; text-underline-offset: 2px; }
-#wrap.spread .t-orders, #wrap.spread .t-keys { display: none; }
+.f-postit::before { content: ""; position: absolute; left: 50%; top: -10px; width: 80px; height: 20px; margin-left: -40px; background: rgba(214, 222, 232, 0.75); transform: rotate(3deg); }
+.f-postit .f-title { height: auto; margin: 0 0 8px -20px; font-size: 32px; transform: none; }
+.f-postit .f-orders { font-size: 18px; line-height: 24px; }
+.f-bonus { margin: 10px 0 0 -20px; font-size: 18px; line-height: 22px; color: var(--enemy); }
+.f-postit mark { background: none; color: var(--ally); text-decoration: underline 2px; text-underline-offset: 2px; }
+#wrap.spread .t-keys { display: none; }
 /* The page has its own sound and full-screen chips on the title, so the buttons around the page wait for play. */
 #wrap:has(#titleScreen:not([hidden])) .hud-btns, #wrap:has(#titleScreen:not([hidden])) #fullBtn { display: none; }
 .roll-title { margin: 2px 0 -6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
@@ -309,7 +302,7 @@ body {
       <canvas id="game" role="img" aria-label="Stick Army: a turret on a notebook page shooting at stick-figure paratroopers"></canvas>
 
 
-      <div class="title-page layout-a" id="titleScreen">
+      <div class="title-page" id="titleScreen">
         <a class="back t-back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         <header class="t-head">
           <h1 class="t-logo">Stick <span class="pen">Army</span></h1>
@@ -327,14 +320,6 @@ body {
           <path d="M262 262 C 278 266, 286 278, 288 296 M 280 286 L 288 300 L 294 284"/>
           <path d="M300 518 C 290 530, 280 540, 268 552 M 268 538 L 266 554 L 282 552"/>
         </svg>
-        <section class="t-orders" aria-labelledby="ordersTitle">
-          <h2 id="ordersTitle">Orders from HQ</h2>
-          <ul>
-            <li>Pop chutes <mark>low over the mat</mark> to recruit.</li>
-            <li><mark>Shoot</mark> the rest.</li>
-            <li>Keep the <mark>wall</mark> standing.</li>
-          </ul>
-        </section>
         <div class="t-foot">
           <button class="btn t-start" id="startBtn" type="button">Start</button>
           <p class="t-stamp" id="recordLine" hidden><span id="bestLine" hidden></span><span id="winLine" hidden></span></p>
@@ -422,10 +407,11 @@ body {
       <ol class="f-orders">
         <li>Aim and hold to fire, in <mark>short bursts</mark>: the gun overheats.</li>
         <li>Pop a chute <mark>low over the mat</mark> and he joins your squad.</li>
-        <li>Pop it too high and he rips right through.</li>
         <li><mark>Shoot the rest</mark> before they reach the wall.</li>
         <li>Spend <mark>dog tags</mark> on supplies between waves.</li>
+        <li>Hold out 20 waves and <mark>defeat the Dreadnought</mark>.</li>
       </ol>
+      <p class="f-bonus">Bonus: <mark>protect the Red Cross</mark>.</p>
       </section>
       <p class="f-keys">Keys: arrows aim · space fires · B air strike · C fighter cover · P pause · F full screen</p>
       <section class="f-board" aria-labelledby="facingBoardTitle">
