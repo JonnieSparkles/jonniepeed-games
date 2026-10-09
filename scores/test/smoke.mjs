@@ -131,6 +131,12 @@ await test('Crack time tie-break, earlier exact tie wins', async () => {
   assert.deepEqual(data.scores.slice(0, 4).map(row => row.name), ['FST', 'TIE', 'SLW', 'JON']);
   assert.equal((await top('dont-step-on-a-crack', 100, { time_ms: 1500 })).placement, 3);
   assert.equal((await top('dont-step-on-a-crack', 100)).placement, 4);
+  // position counts the whole board the same way, with the run itself in the total
+  const where = await top('dont-step-on-a-crack', 100, { time_ms: 1500 });
+  assert.equal(where.position, 3); assert.equal(where.total, data.scores.length + 1);
+  assert.equal((await top('dont-step-on-a-crack', 100)).position, 4);
+  const tie = await accepted(run('dont-step-on-a-crack', { name: 'TWO', score: 100, meta: { time_ms: 1000 } }));
+  assert.equal(tie.position, 3); assert.equal(tie.total, data.scores.length + 1); // behind FST and TIE, saved earlier
 }, !SECRET && LOCAL_ONLY);
 await test('full board: winning, losing, exact 50th tie, and rank outside 50', async () => {
   for (let i = 0; i < 50; i++) await accepted(run('thimbleful', { score: 500 + i }));
@@ -139,8 +145,15 @@ await test('full board: winning, losing, exact 50th tie, and rank outside 50', a
   assert.equal((await top('thimbleful', 0)).placement, null);
   assert.equal((await top('thimbleful', full.scores[49].score)).placement, null);
   const tied = await accepted(run('thimbleful', { score: full.scores[49].score })); assert.equal(tied.rank, null);
+  const before = await top('thimbleful', 0);
+  assert.equal(before.placement, null); assert.equal(before.position, before.total); // last, and counted
   const outside = await accepted(run('thimbleful', { score: 0 }));
   assert.equal(outside.rank, null);
+  // Outside the top 50 a save still learns where it stands on the whole board.
+  assert.equal(outside.total, before.total); assert.equal(outside.position, before.position);
+  assert.equal((await top('thimbleful', 10000)).position, 1);
+  const mid = await top('thimbleful', full.scores[49].score);
+  assert.ok(mid.position > 50 && mid.position < mid.total, JSON.stringify({ position: mid.position, total: mid.total }));
   const retry = await accepted(originalPayload);
   assert.equal(retry.id, original.id); assert.equal(retry.rank, null);
 }, !SECRET && LOCAL_ONLY);
@@ -150,8 +163,10 @@ await test('SQL and candidate comparator agree at Crack 50th boundary', async ()
   assert.equal((await top('dont-step-on-a-crack', 102, { time_ms: 1048 })).placement, 50);
   assert.equal((await top('dont-step-on-a-crack', 102, { time_ms: 1049 })).placement, null);
   assert.equal((await top('dont-step-on-a-crack', 102)).placement, null);
+  assert.equal((await top('dont-step-on-a-crack', 102, { time_ms: 1048 })).position, 50);
+  assert.equal((await top('dont-step-on-a-crack', 102, { time_ms: 1049 })).position, 51);
   const winning = await accepted(run('dont-step-on-a-crack', { score: 102, meta: { time_ms: 1048 } }));
-  assert.equal(winning.rank, 50);
+  assert.equal(winning.rank, 50); assert.equal(winning.position, 50);
 }, !SECRET && LOCAL_ONLY);
 await test('rate limit: 20 new rows a minute per connection; refusals and repeats not counted', async () => {
   const ip = randomIp();

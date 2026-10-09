@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'stats/**'
+      - 'scores/games.json'   # the dashboards rank leaderboards by these rules
       - '.github/workflows/stats-worker.yml'
   workflow_dispatch:
 

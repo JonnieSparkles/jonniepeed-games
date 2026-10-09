@@ -137,8 +137,24 @@ def suite(page, game, size, label):
     assert page.evaluate("localStorage.getItem('jpg-initials')")=='JON'
     assert page.locator('.lb-entry').count()==0
     assert api('/v2/top?'+urlencode({'game':game,'board':board}))['scores'][0]['score']==5000
-    start(page,game); finish(page,game,0); page.locator('.lb-table').wait_for()
-    assert page.locator('.lb-entry').count()==0
+    # A run outside the top 50 is still offered initials and told where it stands; the board itself stays the top 50.
+    start(page,game); finish(page,game,0)
+    if game=='thimbleful':
+        page.locator('#lbEnter').wait_for(); assert page.locator('#lbNote').inner_text().startswith('Save your run?')
+    picker(page,game)
+    msg=page.locator('.lb-message').first.inner_text()
+    assert re.search(r"You'd be #[\d,]+ of [\d,]+\. Enter your initials\.$",msg),msg
+    page.get_by_role('button',name='Skip score entry').click()
+    page.locator('.lb-standing').wait_for()
+    assert re.match(r"This (run|walk) would be #[\d,]+ of [\d,]+\.$",page.locator('.lb-standing').inner_text())
+    assert page.locator('.lb-entry').count()==0 and page.locator('.lb-you').count()==0
+    start(page,game); finish(page,game,1); picker(page,game)
+    page.keyboard.type('out'); page.get_by_role('button',name='Save score',exact=True).click()
+    page.locator('.lb-entry').wait_for(state='detached'); page.locator('.lb-standing').wait_for()
+    saved=page.locator('.lb-standing').inner_text()
+    m=re.match(r"Saved\. You're #([\d,]+) of ([\d,]+)\.$",saved); assert m,saved
+    assert int(m.group(1).replace(',',''))>50 and m.group(1)==m.group(2),saved   # the lowest score lands last
+    assert page.locator('.lb-you').count()==0
     start(page,game); finish(page,game,2035); picker(page,game)
     page.keyboard.type('low'); page.keyboard.press('Enter'); page.locator('.lb-you').wait_for()
     rank=int(page.locator('.lb-you td').first.inner_text()); assert rank>10
@@ -174,7 +190,7 @@ def suite(page, game, size, label):
     assert 'REF' not in [row['name'] for row in api('/v2/top?'+urlencode({'game':game,'board':board}))['scores']]
     api_mode['sign']=True
     assert not errors,errors
-    print(f'PASS {game} {label}: OK, Skip, nonqualification, input, shortcuts, gap row, 50-row scrolling and end-screen fit, title-screen scores, no token, refused run',flush=True)
+    print(f'PASS {game} {label}: OK, Skip, outside the top 50, input, shortcuts, gap row, 50-row scrolling and end-screen fit, title-screen scores, no token, refused run',flush=True)
 
 with sync_playwright() as p:
     browser=p.chromium.launch(**({'executable_path': os.environ['CHROMIUM']} if os.environ.get('CHROMIUM') else {}))

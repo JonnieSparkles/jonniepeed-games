@@ -75,7 +75,7 @@ The same day, playtesters pointed out that ending heelies on a crack was unavoid
 
 **What's new** on the title screen explains the latest board change in a few lines. Only the latest; older changes live in the table above. It also shows your best from the previous board if this device has one. Its button has a dot until the note has been opened once on that device (`dsotc-news-seen`). The text is the `#news` card in `index.html`; when you bump the board, rewrite it in a few short lines, set its `data-board` to the new `BOARD`, and set its date to the day it goes live. That brings the dot back for everyone.
 
-At game over Mom calls. After the call is picked up, the results count up and the board shows inside the phone, with initials entry if you placed. The title screen has a **High scores** button that opens the board over the title. The board shows feet, time and streak.
+At game over Mom calls. After the call is picked up, the results count up and the board shows inside the phone, with initials entry for any walk ("New high score!" in the top 50, "Save your walk" and "You'd be #N of M" below it); a walk below the top 50 gets a line saying where it stands. The title screen has a **High scores** button that opens the board over the title. The board shows feet, time and streak.
 
 ## Play stats
 

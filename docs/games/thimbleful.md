@@ -63,7 +63,7 @@ Game ID `thimbleful`, rules in `scores/games.json`, following [the leaderboard g
 | 2 | Bigger drops and a wider catch (`CATCH` 4.5) |
 | 3 | Keeps getting harder after the first minute (the table above) |
 
-The game over card runs in steps so nothing changes under a finger about to tap: checking, then (if placed) Enter initials or Skip, then the board below the buttons. The title card has a **High scores** link that opens the current board below the buttons without starting a run.
+The game over card runs in steps so nothing changes under a finger about to tap: checking, then Enter initials or Skip ("New high score! You're #N" in the top 50, "Save your run? You'd be #N of M" below it), then the board below the buttons, with a line saying where a run below the top 50 stands. The title card has a **High scores** link that opens the current board below the buttons without starting a run.
 
 ## Play stats
 

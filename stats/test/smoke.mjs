@@ -183,6 +183,13 @@ await test('a saved run shows its initials', async () => {
   assert.ok(before.saves >= 1 && before.saves <= before.runs, JSON.stringify(before));
 }, LOCAL ? null : LOCAL_ONLY);
 
+await test('a game page shows its leaderboard, ranked as in the game', async () => {
+  const lb = (await detail('dont-step-on-a-crack')).leaderboard;
+  assert.ok(lb && Number.isInteger(lb.board) && lb.total >= lb.rows.length && lb.rows.length <= 50);
+  for (let i = 1; i < lb.rows.length; i++) assert.ok(lb.rows[i - 1].score >= lb.rows[i].score, 'scores in order');
+  assert.equal((await detail('stick-army')).leaderboard, null);   // no board, no card
+}, LOCAL ? null : LOCAL_ONLY);
+
 await test('the overview and game pages load', async () => {
   for (const path of ['/dash/', '/dash/thimbleful/', '/dash/stick-army/']) {
     const response = await fetch(BASE + path);
