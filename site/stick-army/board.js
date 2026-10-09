@@ -169,7 +169,7 @@ var StickArmyBoard = function (w) {
       var mine = scores.find(function (row) { return row.rank === highlight; });
       if (mine) { var gap = body.insertRow(); gap.className = 'lb-gap'; var c = gap.insertCell(); c.colSpan = 5; c.textContent = '⋯'; add(mine); }
     }
-    box.append(el('h3', null, 'High scores'));
+    if (box !== scoresBox) box.append(el('h3', null, 'High scores'));  // the title's card has its own heading
     if (run && run.note && current && box === current.box) { var n = el('p', 'lb-message lb-standing', run.note); n.setAttribute('role', 'status'); box.append(n); }
     if (addInitials && run && run.data) { var a = el('button', 'lb-more lb-add', standing(run.data) + ' Add your initials'); a.type = 'button'; a.addEventListener('click', addInitials); box.append(a); }
     if (!scores.length) box.append(el('p', 'lb-message', 'No scores yet. Be the first!'));
