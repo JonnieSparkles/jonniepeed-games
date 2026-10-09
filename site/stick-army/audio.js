@@ -226,8 +226,10 @@ var StickArmySound = (function () {
   var DREAD_BASS = [[[0, D2, 3], [3, D2, 3], [6, F2, 2], [8, E2, 3], [11, D2, 3], [14, A1, 2]],
     [[0, D2, 3], [3, D2, 3], [6, G2, 2], [8, F2, 3], [11, E2, 2], [13, CS2, 3]]];
   var DREAD_CALL = [[[0, A3, 6], [6, D4, 2], [8, F4, 4], [12, E4, 4]], [[0, D4, 4], [4, CS4, 4], [8, A3, 8]]];
-  function dreadStep(i, bar, t, dt, bridge) {
-    DREAD_BASS[bar % 2].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, 0.05); });
+  // thin: the final wave's teaser, just the low brass and the timpani, quietly.
+  function dreadStep(i, bar, t, dt, bridge, thin) {
+    DREAD_BASS[bar % 2].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, thin ? 0.03 : 0.05); });
+    if (thin) { if (i === 0) timp(t, D2, 0.16); return; }
     var callBar = bridge ? bar % 2 : bar % 4 - 2;
     if (callBar === 0 || callBar === 1) DREAD_CALL[callBar].forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, 0.032); });
     if (i === 0) timp(t, D2, 0.24); else if (i === 8) timp(t, A1, 0.2); else if (bridge && i === 12) timp(t, D2, 0.12);
@@ -276,11 +278,14 @@ var StickArmySound = (function () {
     if (on && state.wave) {
       if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
       // The Dreadnought brings its own march once it's through the page.
+      // The final wave opens with it thin (teaser) and goes quiet (hush) before the real one arrives.
       var dreadOn = !!state.dread && state.dread !== 'sinking', bridge = state.dread === 'hangar' || state.dread === 'bridge';
+      var thin = state.dread === 'teaser', hush = state.dread === 'hush';
       var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {
-        if (dreadOn) dreadStep(amb.step, amb.bar, amb.nextStep, dt, bridge);
+        if (hush) { /* a held breath */ }
+        else if (dreadOn) dreadStep(amb.step, amb.bar, amb.nextStep, dt, bridge, thin);
         else marchStep(amb.step, amb.bar, n, amb.nextStep, dt, !!state.wallLow, boss);
         amb.nextStep += dt;
         if (++amb.step === 16) { amb.step = 0; amb.bar++; }

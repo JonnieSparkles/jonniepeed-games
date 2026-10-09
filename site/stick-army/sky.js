@@ -30,7 +30,9 @@ var StickArmySky = function (w) {
   // A dive bomber comes in level, marking its target on the ground with a red crosshair, tips over at ANGLE below
   // level with a howl, lets its heavy bomb go at RELEASE_Y so it carries on to the target, then pulls out and climbs
   // away. Three hits down it.
-  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
+  // A sortie from the Dreadnought's hangar zooms out at LAUNCH px/s, climbing at LAUNCH_ANGLE, so it's off the page
+  // before the squad can down it.
+  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
   // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
@@ -268,8 +270,8 @@ var StickArmySky = function (w) {
   // the page, then comes back in from that edge on a normal run at the bunker (comeBack), crosshair and all.
   function launchDiver(rnd, from, out) {
     var S = w.S, r = substream(rnd), p = w.makePlane('diver', out, from.x, from.y);
-    p.rng = r; p.hp = DIVE.HP; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.CRUISE; p.ang = -0.45; p.drawAng = 0;
-    p.phase = 'launch'; p.vx = out * DIVE.CRUISE; p.vy = 0; p.target = BK.x + between(r, -8, 8); p.spin = 0;
+    p.rng = r; p.hp = DIVE.HP; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.LAUNCH; p.ang = -DIVE.LAUNCH_ANGLE; p.drawAng = 0;
+    p.phase = 'launch'; p.vx = out * DIVE.LAUNCH; p.vy = 0; p.target = BK.x + between(r, -8, 8); p.spin = 0;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'diver', dir: out, target: p.target, launched: true });
     return p;
@@ -462,9 +464,9 @@ var StickArmySky = function (w) {
     var S = w.S;
     updateMedevac(dt); updateHQ(dt); updateCrates(dt);
     // The night raid fades in as its wave starts and out as it clears. Cosmetic only.
-    // Night for the night raid, and for the Dreadnought's hangar and bridge stages (dawn as it sinks).
+    // Night for the night raid, and lights out while the Dreadnought's hangar launches its dive bombers.
     var dp = w.dreadPhase && w.dreadPhase();
-    var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar' || dp === 'bridge');
+    var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar');
     S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });

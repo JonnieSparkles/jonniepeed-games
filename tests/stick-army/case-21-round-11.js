@@ -86,7 +86,7 @@
   check(S.night === 0, 'then light again');
 
   // The Dreadnought: a gun knocked out blows apart and leaves a hole, not a gun.
-  RUN.force = 97; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(DREAD.WAVE); S.spawn.timer = 99;
+  RUN.force = 97; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(DREAD.WAVE); S.spawn.timer = 99; S.spawn.teaser = false;
   run(DREAD.ARRIVE + 0.05);
   var p = CAMPAIGN.dread();
   for (var f = 0; f < 60 * 15 && p.phase === 'arrive'; f++) update(1 / 60);

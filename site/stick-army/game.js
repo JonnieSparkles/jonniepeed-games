@@ -528,7 +528,8 @@
       pace: wavePace(c), escort: substream(RW), escortT: ZEP.ESCORT_EVERY };
     SKY.start(S.spawn, c);
     S.waveState = 'active';
-    var sub = c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.twin ? 'two zeppelins at once!' : c.boss && n >= ZEP.ARMOR_WAVE ? 'armored zeppelin! strip its plates' :
+    var teaser = c.bossKind === 'dread' && n === DREAD.WAVE && !S.won;
+    var sub = teaser ? 'their flagship is coming...' : c.bossKind === 'dread' ? 'the Dreadnought! knock out its guns' : c.twin ? 'two zeppelins at once!' : c.boss && n >= ZEP.ARMOR_WAVE ? 'armored zeppelin! strip its plates' :
       c.boss ? 'zeppelin! aim for the gondola' : c.night ? 'night raid! follow your searchlight' :
       n === 1 ? 'here they come' : n === 2 ? 'carpet bombers incoming' : n === 3 ? 'snipers! protect your crew' : n === SKY.BALLOON.WAVE ? 'bomb balloons! pop them early' :
       n === SKY.MEDEVAC.WAVE ? "don't shoot the Red Cross plane!" : n === SKY.HELI.WAVE ? 'choppers! shoot them off the ropes' : n === SKY.CRATE.WAVE ? 'supplies from HQ!' :
@@ -538,7 +539,7 @@
     // says so, rather than a label of its own.
     if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
     // The Dreadnought needs no horn: it shows through the page first.
-    if (c.bossKind === 'dread') { S.spawn.bossT = DREAD.ARRIVE; S.spawn.bossWarned = true; }
+    if (c.bossKind === 'dread') { S.spawn.bossT = DREAD.ARRIVE; S.spawn.bossWarned = true; S.spawn.teaser = teaser; }
     S.banner = { s: n === DREAD.WAVE && !S.won ? 'final wave' : 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
@@ -565,12 +566,21 @@
         spawnPlane(kind);
         sp.timer = sp.cfg.interval * between(RW, 0.7, 1.3);
       }
+      // The decoy down: a soldier wonders "that's it?", a few seconds of quiet, then the Dreadnought.
+      if (sp.decoy && !sp.decoyDone && sp.decoy.state !== 'fly') {
+        sp.decoyDone = true; sp.bossT = DREAD.TEASE_GAP;
+        var asker = S.recruits.filter(standing)[0];
+        if (asker) world.say("that's it?", asker.id, false, 1.2); else addText("that's it?", 200, 420, BLUE, 26, 'story');
+        emit('dread_tease', {});
+      }
       if (sp.boss > 0) {
         sp.bossT -= dt;
         // The horn and a red callout warn that the zeppelin is coming.
         if (!sp.bossWarned && sp.bossT <= ZEP.WARN) { sp.bossWarned = true; sound.play('horn'); addText(sp.cfg.twin ? 'two zeppelins incoming!' : 'zeppelin incoming!', 200, ZEP.Y, RED); emit('zeppelin_warning', { wave: S.wave }); }
         if (sp.bossT <= 0) {
-          if (sp.cfg.bossKind === 'dread') { sp.boss--; spawnDread(); }
+          // The final wave's teaser: an ordinary zeppelin first, to thin music; the real thing waits until it's down.
+          if (sp.cfg.bossKind === 'dread' && sp.teaser && !sp.decoy) { sp.decoy = spawnZeppelin({ decoy: true }); sp.bossT = 1e9; sound.play('horn'); }
+          else if (sp.cfg.bossKind === 'dread') { sp.boss--; spawnDread(); }
           // The twins come in together, one from each side, one above the other.
           else if (sp.cfg.twin) { sp.boss = 0; spawnZeppelin({ dir: 1, twin: 0 }); spawnZeppelin({ dir: -1, twin: 1 }); }
           else { sp.boss--; spawnZeppelin(); }
@@ -667,7 +677,7 @@
     dreadHit = CAMPAIGN.dreadHit, hurtDread = CAMPAIGN.hurtDread, updateDread = CAMPAIGN.updateDread, drawDread = CAMPAIGN.drawDread,
     drawDreadBar = CAMPAIGN.drawDreadBar, dreadTargets = CAMPAIGN.dreadTargets, victoryDue = CAMPAIGN.victoryDue, showWin = CAMPAIGN.showWin,
     keepGoing = CAMPAIGN.keepGoing, rollCall = CAMPAIGN.rollCall, recordLine = CAMPAIGN.recordLine;
-  world.dreadTargets = dreadTargets; world.dreadBeams = CAMPAIGN.dreadBeams; world.dreadPhase = CAMPAIGN.dreadPhase;
+  world.dreadTargets = dreadTargets; world.DREAD_DECOY_HP = DREAD.DECOY_HP; world.dreadBeams = CAMPAIGN.dreadBeams; world.dreadPhase = CAMPAIGN.dreadPhase;
   world.dreadLit = function () { var p = CAMPAIGN.dread(); return !p ? [] : p.phase === 'hangar' ? [CAMPAIGN.hangarAt(p)] : p.phase === 'bridge' ? [CAMPAIGN.bridgeAt(p), CAMPAIGN.hangarAt(p)] : []; };
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
@@ -2265,8 +2275,14 @@
       wave: S.waveState === 'active',
       number: S.wave,
       wallLow: S.wallHP < S.mods.maxHP * 0.3,
-      dread: CAMPAIGN.dreadPhase()
+      dread: CAMPAIGN.dreadPhase() || teaserMusic()
     };
+  }
+  // The final wave's teaser: the Dreadnought's march, thin, until the decoy is down; then a hush until the real one.
+  function teaserMusic() {
+    var sp = S.spawn;
+    if (!sp || !sp.teaser) return null;
+    return sp.decoyDone ? 'hush' : 'teaser';
   }
   // Time played counts waves and the shop, not pauses or the title. It's shown on the pause and game-over cards
   // and never feeds the simulation.

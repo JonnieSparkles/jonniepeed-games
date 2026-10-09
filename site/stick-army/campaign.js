@@ -32,6 +32,14 @@ var StickArmyCampaign = function (w) {
     // With no live gun over the page it moves at SEEK to bring one over; deck guns fire bursts every DECK_GUN seconds
     // in the guns stage; every BAIL of its health lost, crew bail out on chutes, shooting as they come down.
     SEEK: 60, DECK_GUN: 2.6, BAIL: 0.08, BAIL_EVERY: 1.6, BAIL_HURT: 0.35,
+    // The final wave opens with a teaser: an ordinary zeppelin (DECOY_HP of a usual one, no armor) to thin music; once
+    // it's down, TEASE_GAP seconds of quiet, then the real thing.
+    DECOY_HP: 0.45, TEASE_GAP: 3,
+    // When the last gun goes, explosions run along the hull for CHAIN seconds and it lurches.
+    CHAIN: 1.4,
+    // The ramming run, in the bridge stage: every RAM_EVERY seconds it sinks RAM_STEP lower; after RAM_STEPS it slams
+    // down on the bunker (RAM_WALL to the wall, crew near it hurt), then climbs back up and starts again.
+    RAM_EVERY: 2.5, RAM_STEP: 24, RAM_STEPS: 5, RAM_WALL: 60, RAM_RISE: 2.5,
     SINK: 3.2
   };
   function turretHP(n) { return Math.round(30 + 2.5 * n); }
@@ -116,9 +124,47 @@ var StickArmyCampaign = function (w) {
     if (t.mark) { addText('saved!', t.mark.x, GROUND - 70, BLUE, 26); emit('dread_saved', { target: t.mark.kind }); t.mark = null; }
     if (p.turrets.every(function (q) { return q.dead; })) openHangar(p);
   }
+  // The last gun gone: explosions run along the hull and it lurches, then the hangar opens (and the lights go out).
+  function chain(p, dt) {
+    p.chainT -= dt; p.boomT -= dt;
+    p.rot = Math.sin(p.chainT * 9) * 0.035 * Math.min(1, p.chainT);
+    if (p.chainT <= 0) { p.rot = 0; return; }
+    if (p.boomT <= 0) {
+      p.boomT = rr(0.08, 0.16);
+      var bx = clamp(p.x + rr(-0.9, 0.9) * DREAD.HW, 10, W - 10), by = p.y + rr(-0.5, 0.7) * DREAD.HH;
+      w.pow(bx, by, rr(14, 24)); w.burst(bx, by, 5, RED, 130); w.puff(bx, by, 5, 0.9); w.sound.play('hit');
+    }
+  }
+  // Sinking lower and lower toward the bunker, with the klaxon at each drop; then it slams down on it.
+  function ramming(p, dt) {
+    var S = w.S;
+    if (p.rising) { p.ram = Math.max(0, p.ram - p.rising / DREAD.RAM_RISE * dt); if (!p.ram) p.rising = 0; return; }
+    if (p.slam) {
+      // The slam: down fast until the keel meets the bunker.
+      var floor = w.BK.top - DREAD.HH - 6 - DREAD.Y;
+      p.ram = Math.min(floor, p.ram + 420 * dt);
+      if (p.ram >= floor) {
+        p.slam = false; p.rising = p.ram; p.ramN = 0; // rising holds the height it climbs back from
+        w.hurtWall(DREAD.RAM_WALL, 'dreadnought'); w.wallText(DREAD.RAM_WALL);
+        S.recruits.forEach(function (r) { if (!r.dead && Math.abs(r.x - w.BK.x) < 70) w.hurtRecruit(r, 2, 'dreadnought'); });
+        S.shake = Math.max(S.shake, 1); w.pow(w.BK.x, w.BK.top, 60); w.burst(w.BK.x, w.BK.top, 18, INK, 220); w.puff(w.BK.x, w.BK.top, 12, 1.2);
+        w.sound.play('boom'); w.sound.play('rumble');
+        emit('dread_ram', { wall: DREAD.RAM_WALL });
+      }
+      return;
+    }
+    p.ramT = (p.ramT == null ? DREAD.RAM_EVERY : p.ramT) - dt;
+    if (p.ramT > 0) return;
+    p.ramT = DREAD.RAM_EVERY; p.ramN = (p.ramN || 0) + 1;
+    if (p.ramN > DREAD.RAM_STEPS) { p.slam = true; addText('brace!', 200, 300, RED, 30, 'alert'); w.sound.play('horn'); return; }
+    p.ram = (p.ram || 0) + DREAD.RAM_STEP; S.shake = Math.max(S.shake, 0.25); w.sound.play('klaxon');
+    if (p.ramN === 1) addText("it's coming down on us!", 200, 300, RED, 24, 'alert');
+    emit('dread_sink', { step: p.ramN });
+  }
   function openHangar(p) {
     var S = w.S;
-    p.phase = 'hangar'; p.t = 0; p.launchT = 1.2; p.troopT = 2;
+    p.chainT = DREAD.CHAIN; p.boomT = 0;
+    p.phase = 'hangar'; p.t = 0; p.launchT = 1.2 + DREAD.CHAIN; p.troopT = 2 + DREAD.CHAIN;
     addText('the hangar opens!', 200, 260, RED, 24, 'alert');
     emit('dread_hangar', { wave: S.wave });
     w.sound.play('klaxon'); S.shake = Math.max(S.shake, 0.4);
@@ -193,7 +239,9 @@ var StickArmyCampaign = function (w) {
       if (p.t >= DREAD.SINK || p.y > w.H + 80) p.gone = true;
       return;
     }
-    p.y = DREAD.Y + Math.sin(S.t * 0.7) * 2;
+    p.y = DREAD.Y + Math.sin(S.t * 0.7) * 2 + (p.ram || 0);
+    if (p.chainT > 0) chain(p, dt);
+    if (p.phase === 'bridge') ramming(p, dt);
     if (p.phase === 'arrive' && p.wait > 0) {
       // Off the page, coming: rumbling, smoke from its stacks drifting in, searchlights sweeping in from that edge.
       p.wait -= dt; p.smokeT -= dt; p.rumbleT -= dt;

@@ -24,10 +24,17 @@
   check(shoot(gunner.id) && gunner.kills === 1, 'his own kill counts');
   check(shoot(null) && gunner.kills === 1, 'yours does not');
 
-  // The final wave. The Dreadnought sails in from one side and can't be hurt until it takes its station.
-  RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(FINAL); S.spawn.timer = 99;
-  check(S.banner.s === 'final wave' && /Dreadnought/.test(S.banner.sub), 'the final wave is announced');
+  // The final wave opens with a teaser: an ordinary zeppelin to thin music. Once it's down, a soldier wonders
+  // "that's it?", the music goes quiet, and then the Dreadnought announces itself and sails in from one side.
+  RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle')]; startWave(FINAL); S.spawn.timer = 99;
+  check(S.banner.s === 'final wave' && /flagship/.test(S.banner.sub) && ambienceState().dread === 'teaser', 'the final wave is announced, to thin music');
   run(DREAD.ARRIVE + 0.05);
+  var decoy = S.planes.find(function (q) { return q.kind === 'zeppelin'; });
+  check(decoy && decoy.decoy && !decoy.armored && decoy.maxHp === Math.round(zeppelinHP(FINAL) * DREAD.DECOY_HP) && !CAMPAIGN.dread(), 'just a zeppelin');
+  zeppelinDown(decoy, 'player'); S.bubbles = []; run(1.4);
+  check(seen.indexOf('dread_tease') >= 0 && ambienceState().dread === 'hush' && S.bubbles.some(function (b) { return /that's it/i.test(b.s); }), "that's it?");
+  S.recruits = [];
+  run(DREAD.TEASE_GAP);
   var p = CAMPAIGN.dread();
   check(p && p.phase === 'arrive' && (p.x < 0 || p.x > W) && seen.indexOf('plane_spawn') >= 0, 'it sails in from the side');
   var g0 = p.turrets[0];
@@ -96,8 +103,10 @@
   p.turrets.forEach(function (t) { if (!t.dead) damagePlane(p, 999, 'player', p.x + p.dir * t.lx, p.y + DREAD.GUN_Y, true); });
   check(p.phase === 'hangar' && seen.indexOf('dread_hangar') >= 0, 'the hangar opens');
   var troops = S.troopers.length;
-  run(2.1);
-  check(seen.indexOf('dread_launch') >= 0 && S.planes.some(function (q) { return q.kind === 'diver'; }) && S.troopers.length > troops, 'it launches dive bombers and drops troops');
+  check(p.chainT > 0, 'explosions run along the hull first');
+  run(2.1 + DREAD.CHAIN);
+  check(seen.indexOf('dread_launch') >= 0 && S.planes.filter(function (q) { return q.kind === 'diver'; }).length === 2 && S.troopers.length > troops, 'it launches dive bombers in pairs and drops troops');
+  check(S.night > 0.5, 'lights out while the hangar launches');
   render();
   // Shoot the hangar to pieces and the bridge is exposed: the bomb bay opens and the bridge gunner fires.
   damagePlane(p, 9999, 'player', p.x + p.dir * DREAD.HANGAR, p.y + DREAD.HANGAR_Y, true);
@@ -109,6 +118,14 @@
   check(S.enemyShots.some(function (b) { return b.cause === 'dreadnought'; }), 'the bridge gunner fires at the crew');
   render();
   S.bombs = []; S.enemyShots = []; S.recruits = [];
+  // The ramming run: it sinks a step at a time with the klaxon, then slams down on the bunker and climbs back up.
+  var wall0 = S.wallHP; p.bombT = p.gunT = 1e9; p.ramT = 0.01; run(0.05);
+  check(p.ram === DREAD.RAM_STEP && seen.indexOf('dread_sink') >= 0, 'it sinks toward the bunker');
+  run(DREAD.RAM_EVERY * DREAD.RAM_STEPS + 1);
+  check(seen.indexOf('dread_ram') >= 0 && S.wallHP <= wall0 - DREAD.RAM_WALL && p.rising, 'then slams down on it');
+  render();
+  run(DREAD.RAM_RISE + 0.2);
+  check(!p.ram && !p.rising && S.night === 0, 'climbs back up, and the lights are back on');
   // Downing the bridge downs the ship; on the final wave everyone left surrenders and nothing more comes.
   spawnTrooper(300, 300); spawnTrooper(80, 450);
   damagePlane(p, 9999, 'player', p.x + p.dir * p.bridge.lx, p.y + DREAD.BRIDGE_Y, true);

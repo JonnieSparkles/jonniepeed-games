@@ -32,13 +32,14 @@ var StickArmyUnits = function (w) {
   function inGondola(p, x, y) { var dx = x - p.x, dy = y - p.y; return dy > p.hh - 3 && Math.abs(dx) < 24 * Math.abs(p.face) + 4; }
   // opts (optional): { dir, twin: 0 or 1 } for the pair, upper (0) and lower (1).
   function spawnZeppelin(opts) {
-    var S = w.S, twin = opts && opts.twin != null;
+    // opts.twin: one of a pair (0 above, 1 below). opts.decoy: the final wave's teaser, lighter and unarmored.
+    var S = w.S, twin = opts && opts.twin != null, decoy = !!(opts && opts.decoy);
     var rnd = substream(w.RW), roll = rnd(), dir = opts && opts.dir ? opts.dir : roll < 0.5 ? 1 : -1;
     var homeY = twin ? ZEP.Y + (opts.twin ? 1 : -1) * ZEP.TWIN_DY : ZEP.Y, p = makePlane('zeppelin', dir, dir > 0 ? -ZEP.HW - 20 : W + ZEP.HW + 20, homeY);
     p.rng = rnd; p.homeY = homeY; p.twin = twin;
-    p.hp = p.maxHp = Math.round(zeppelinHP(S.wave) * (twin ? ZEP.TWIN_HP : 1)); p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
+    p.hp = p.maxHp = Math.round(zeppelinHP(S.wave) * (twin ? ZEP.TWIN_HP : decoy ? w.DREAD_DECOY_HP : 1)); p.decoy = decoy; p.hw = ZEP.HW; p.hh = ZEP.HH; p.face = dir; p.speed = ZEP.ENTER_SPEED;
     p.baseY = homeY; p.bob = between(rnd, 0, 6.28); p.entered = false; p.dropT = 2; p.bombT = 4; p.holes = []; p.angry = false; p.boomT = 0;
-    if (S.wave >= ZEP.ARMOR_WAVE) {
+    if (S.wave >= ZEP.ARMOR_WAVE && !decoy) {
       p.armored = true; p.shield = true;
       p.plates = ZEP.PLATES.map(function (k) { return { k: k, hp: ZEP.PLATE_HP, flash: 0, id: w.id() }; });
     }
