@@ -105,6 +105,10 @@ var StickArmySound = (function () {
     flare: function () { noise(0.7, 0.07, 4200, 0, 'highpass'); tone(900, 0.45, 'sine', 0.025, 1500); },
     broadside: function () { noise(0.7, 0.5, 280); tone(56, 0.7, 'sine', 0.38, 28); noise(0.1, 0.25, 2200); },
     klaxon: function () { honk(0); honk(0.78); },
+    // The Dreadnought's entrance: a low minor brass chord swelling under its horn.
+    sting: function () { [73.4, 87.3, 110, 146.8].forEach(function (f, i) { brass(f, 2.2, 0.075, i * 0.03); }); noise(1.8, 0.05, 160); },
+    // Its main gun charging: a whine rising over three seconds.
+    charge: function () { tone(110, 3, 'sawtooth', 0.028, 880); tone(220, 3, 'square', 0.012, 1760); },
     // The sky (sky.js): a dive bomber's rising siren, a helicopter's chop, and a sour buzz for hitting the Red Cross.
     // A dive bomber tipping over: a short, low, rising howl (two detuned saws through a lowpass) rather than a whistle.
     siren: function () {

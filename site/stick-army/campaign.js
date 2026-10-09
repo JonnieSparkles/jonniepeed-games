@@ -28,17 +28,24 @@ var StickArmyCampaign = function (w) {
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
     AIM: 1.2, MARKS: 2, EXPOSED: 2, RELOAD: [1.8, 2.4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 14, SPLASH: 26, DIRECT: 4,
-    LAUNCH_EVERY: 6, TROOPS_EVERY: 5, BOMBS_EVERY: 3, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
+    LAUNCH_EVERY: 6, TROOPS_EVERY: 5, BOMBS_EVERY: 4.5, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
     // With no live gun over the page it moves at SEEK to bring one over; deck guns fire bursts every DECK_GUN seconds
     // in the guns stage; every BAIL of its health lost, crew bail out on chutes, shooting as they come down.
     SEEK: 60, DECK_GUN: 2.6, BAIL: 0.08, BAIL_EVERY: 1.6, BAIL_HURT: 0.35,
     // The final wave opens with a teaser: an ordinary zeppelin (DECOY_HP of a usual one, no armor) to thin music; once
     // it's down, TEASE_GAP seconds of quiet, then the real thing.
-    DECOY_HP: 0.45, TEASE_GAP: 3, DECOY_BUILD: 4.5, DECOY_SPEED: 26,
+    DECOY_HP: 0.75, TEASE_GAP: 3, DECOY_BUILD: 4.5, DECOY_SPEED: 16,
     // When the last gun goes, explosions run along the hull for CHAIN seconds and it lurches.
     CHAIN: 1.4,
     // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
-    SAG: 110, LIST: 0.05,
+    SAG: 140, LIST: 0.06,
+    // The bridge stage's main gun, under the bow (at LX, LY): every EVERY seconds it charges for CHARGE seconds, its
+    // muzzle glowing, then fires one big shell at the bunker (WALL to the wall). BREAK damage to the glowing muzzle
+    // during the charge knocks it off target.
+    CANNON: { LX: 272, LY: 30, FIRST: 2.5, EVERY: 7, CHARGE: 3, WALL: 40, BREAK: 14, FLIGHT: 0.6 },
+    // Boarding lines, in the bridge stage too: every BOARD_EVERY seconds BOARD_ROPES ropes drop from the hull and
+    // BOARD_TROOPS troopers slide down each, BOARD_GAP apart, at BOARD_FALL px/s.
+    BOARD_EVERY: 6, BOARD_ROPES: 2, BOARD_TROOPS: 3, BOARD_GAP: 0.45, BOARD_FALL: 130,
     SINK: 3.2
   };
   function turretHP(n) { return Math.round(30 + 2.5 * n); }
@@ -85,9 +92,16 @@ var StickArmyCampaign = function (w) {
     }
     var h = hangarAt(p);
     if (p.hangar.hp > 0 && Math.abs(x - h.x) < 32 + pad && Math.abs(y - h.y) < 9 + pad) return p.hangar;
+    if (p.phase === 'bridge' && p.cannon && p.cannon.charge > 0) { var m = muzzleAt(p); if (Math.abs(x - m.x) < 14 + pad && Math.abs(y - m.y) < 12 + pad) return p.cannon; }
     var b = bridgeAt(p);
     if (Math.abs(x - b.x) < 34 + pad && Math.abs(y - b.y) < 14 + pad) return p.bridge;
     return null;
+  }
+  // The main gun under the bow: its mount, and its muzzle pointing at the bunker.
+  function cannonAt(p) { return at(p, DREAD.CANNON.LX, DREAD.CANNON.LY); }
+  function muzzleAt(p) {
+    var c = cannonAt(p), a = Math.atan2(BK.top - c.y, BK.x - c.x);
+    return { x: c.x + Math.cos(a) * 24, y: c.y + Math.sin(a) * 24, a: a };
   }
   // The hull is a long armored cigar; its guns, hangar and bridge car hang below it.
   // On the way in (once it's on the page) shots clang off it, so you can see it can't be hurt yet.
@@ -104,6 +118,7 @@ var StickArmyCampaign = function (w) {
     if (part && p.turrets.indexOf(part) >= 0) { hurtGun(p, part, dmg, owner, hx, hy); return; }
     if (part === p.hangar && p.phase === 'hangar') { hurtHangar(p, dmg, owner, hx, hy); return; }
     if (part === p.bridge && p.phase === 'bridge') { hurtBridge(p, dmg, owner, hx, hy); return; }
+    if (part === p.cannon) { hurtCannon(p, dmg, owner, hx, hy); return; }
     // Armor: hits elsewhere clang.
     clang(p, hx, hy);
   }
@@ -157,6 +172,7 @@ var StickArmyCampaign = function (w) {
     w.award(400, at0.x, at0.y + 40, 'hangar down!', owner === 'ally' ? BLUE : INK, true); w.credit();
     S.shake = Math.max(S.shake, 0.5); w.sound.play('boom');
     p.phase = 'bridge'; p.t = 0; p.bombT = 1.5; p.gunT = 1.2;
+    p.cannon = { t: DREAD.CANNON.FIRST, charge: 0, hp: 0, shell: null, flash: 0, recoil: 0, id: w.id() }; p.boardT = 3; p.ropes = [];
     addText('the bridge is exposed!', 200, 250, RED, 24, 'alert');
     emit('dread_bridge', { wave: S.wave });
     w.sound.play('klaxon');
@@ -221,7 +237,7 @@ var StickArmyCampaign = function (w) {
     // Going down by the bridge's health: it sinks and lists, gradually.
     if (p.phase === 'bridge') {
       var hurt = 1 - p.bridge.hp / p.bridge.max;
-      p.sag = (p.sag || 0) + (hurt * DREAD.SAG - (p.sag || 0)) * Math.min(1, dt * 1.2);
+      p.sag = (p.sag || 0) + (hurt * DREAD.SAG - (p.sag || 0)) * Math.min(1, dt * 3);
       if (!(p.chainT > 0)) p.rot = -p.dir * DREAD.LIST * hurt;
     }
     p.y = DREAD.Y + Math.sin(S.t * 0.7) * 2 + (p.sag || 0);
@@ -232,7 +248,15 @@ var StickArmyCampaign = function (w) {
       var k = 1 - p.wait / DREAD.APPROACH, ex = p.dir > 0 ? 6 : W - 6;
       if (p.smokeT <= 0) { p.smokeT = 0.25; w.puff(ex + p.dir * rr(0, 30), DREAD.Y - 50 + rr(-12, 12), rr(5, 9), 1.4); }
       if (p.rumbleT <= 0) { p.rumbleT = 1.3; S.shake = Math.max(S.shake, 0.12 + 0.2 * k); w.sound.play('rumble'); }
-      if (p.wait <= 0) { w.sound.play('horn'); S.shake = Math.max(S.shake, 0.35); }
+      if (p.wait <= 0) {
+        // The payoff: its name across the page, a brass sting, and the squad realizing what it is.
+        w.sound.play('horn'); w.sound.play('sting'); S.shake = Math.max(S.shake, 0.45);
+        S.banner = { s: 'dreadnought!', sub: 'the enemy flagship', t: 0, dur: 3.2 };
+        // "...oh." first, then two more from the pool, picked cosmetically so it differs run to run.
+        var crew = S.recruits.filter(w.standing), pool = ['oh sh*t', "dang, that's long", '\ud83c\udf46', 'oh no.', 'we need a bigger gun'];
+        for (var q = pool.length - 1; q > 0; q--) { var j = Math.floor(Math.random() * (q + 1)), tmp = pool[q]; pool[q] = pool[j]; pool[j] = tmp; }
+        ['...oh.'].concat(pool).slice(0, Math.min(3, crew.length)).forEach(function (line, i) { w.say(line, crew[i].id, false, 0.8 + i * 1.2); });
+      }
       return;
     }
     if (p.phase === 'arrive') {
@@ -286,6 +310,8 @@ var StickArmyCampaign = function (w) {
         w.sound.play('whistle');
       }
       bridgeGun(p, dt);
+      mainGun(p, dt);
+      boarding(p, dt);
     }
     // The air strike's bombs hit the parts they fall past.
     S.strikeBombs.forEach(function (m) {
@@ -296,6 +322,65 @@ var StickArmyCampaign = function (w) {
       else if (part === p.hangar && p.phase === 'hangar') hurtHangar(p, 14, 'ally', m.x, m.y);
       else if (part === p.bridge && p.phase === 'bridge') hurtBridge(p, 14, 'ally', m.x, m.y);
     });
+  }
+  // The main gun: it charges (the muzzle glowing brighter, a whine rising, a line to the bunker), then fires one big
+  // shell at the bunker. Enough damage to the glowing muzzle during the charge knocks it off target.
+  function mainGun(p, dt) {
+    var S = w.S, c = p.cannon, C = DREAD.CANNON, m = muzzleAt(p);
+    c.flash = Math.max(0, c.flash - dt); c.recoil = Math.max(0, c.recoil - dt * 3);
+    if (c.shell && (c.shell.t += dt) >= C.FLIGHT) {
+      c.shell = null;
+      w.explode(BK.x, BK.top, 40, 'broadside'); w.pow(BK.x, BK.top, 46);
+      w.hurtWall(C.WALL, 'dreadnought'); w.wallText(C.WALL);
+      S.recruits.forEach(function (r) { if (!r.dead && Math.abs(r.x - BK.x) < 60) w.hurtRecruit(r, 1.5, 'dreadnought'); });
+      S.shake = Math.max(S.shake, 0.7); w.sound.play('boom');
+      emit('dread_cannon', { wall: C.WALL });
+    }
+    if (c.charge > 0) {
+      c.charge += dt;
+      if (c.charge >= C.CHARGE) {
+        c.charge = 0; c.t = C.EVERY; c.recoil = 1; c.flash = 0.15;
+        c.shell = { x0: m.x, y0: m.y, t: 0 };
+        w.puff(m.x, m.y, 10, 0.8); S.shake = Math.max(S.shake, 0.5); w.sound.play('broadside');
+      }
+      return;
+    }
+    if ((c.t -= dt) > 0 || m.x < 16 || m.x > W - 16) return;
+    c.charge = 1e-4; c.hp = C.BREAK; w.sound.play('charge');
+    if (!p.cannonTold) { p.cannonTold = true; addText('the main gun! hit its muzzle!', clamp(m.x - p.dir * 90, 90, W - 90), 280, RED, 22, 'alert'); }
+    emit('dread_charge', {});
+  }
+  function hurtCannon(p, dmg, owner, hx, hy) {
+    var c = p.cannon;
+    c.hp -= dmg; c.flash = 0.08; w.burst(hx, hy, 3, '#ffd226', 100);
+    if (c.hp > 0) { w.sound.play('clank'); return; }
+    var m = muzzleAt(p);
+    c.charge = 0; c.t = DREAD.CANNON.EVERY; c.recoil = 1;
+    w.pow(m.x, m.y, 30); w.burst(m.x, m.y, 10, RED, 160); w.puff(m.x, m.y, 8, 0.9);
+    w.award(150, m.x, m.y + 30, 'knocked off target!', owner === 'ally' ? BLUE : INK, true);
+    addText('saved!', BK.x, BK.top - 50, BLUE, 26);
+    w.sound.play('boom'); emit('dread_cannon_saved', { by: owner === 'ally' ? 'crew' : 'player' });
+  }
+  // Boarding lines: ropes drop from the hull over the field and troopers slide down them, no chutes.
+  function boarding(p, dt) {
+    var S = w.S;
+    p.ropes.forEach(function (r) {
+      if (r.n <= 0 || (r.t -= dt) > 0) return;
+      r.n--; r.t = DREAD.BOARD_GAP;
+      var t = w.spawnTrooper(r.x, p.y + DREAD.HH + 6, w.rollTrooper(p.rng));
+      t.state = 'rope'; t.open = 0; t.fall = DREAD.BOARD_FALL; t.board = p.id;
+      emit('rope', { x: t.x });
+    });
+    p.ropes = p.ropes.filter(function (r) { return r.n > 0 || S.troopers.some(function (t) { return !t.dead && t.state === 'rope' && t.board === p.id && Math.abs(t.x - r.x) < 2; }); });
+    if ((p.boardT -= dt) > 0) return;
+    p.boardT = DREAD.BOARD_EVERY;
+    for (var i = 0; i < DREAD.BOARD_ROPES; i++) {
+      var lo = Math.max(30, p.x - DREAD.HW * 0.8), hi = Math.min(W - 30, p.x + DREAD.HW * 0.8), x = between(p.rng, lo, hi);
+      if (Math.abs(x - BK.x) < 70) x = BK.x + (x < BK.x ? -70 : 70);
+      p.ropes.push({ x: clamp(x, 24, W - 24), n: DREAD.BOARD_TROOPS, t: i * 0.3 });
+    }
+    if (!p.boardTold) { p.boardTold = true; addText('boarders!', 200, 330, RED, 24, 'alert'); }
+    emit('dread_board', {});
   }
   // The bridge gunner: a burst of BURST shots every BRIDGE_GUN seconds at the nearest soldier standing.
   function bridgeGun(p, dt) {
@@ -465,6 +550,25 @@ var StickArmyCampaign = function (w) {
     G.save(); G.translate(p.x, p.y); G.scale(p.dir, 1); if (p.rot) G.rotate(p.rot);
     drawBody(p);
     G.restore();
+    // Boarding ropes from the hull to the ground.
+    (p.ropes || []).forEach(function (r) { G.beginPath(); SP([r.x, p.y + DREAD.HH, r.x + 2, (p.y + GROUND) / 2, r.x, GROUND - 26], false, 0.3); ink('#8b6b3e', 1.7); G.stroke(); });
+    // The main gun under the bow: a heavy barrel on the bunker; charging, it glows hotter and a line runs to the bunker.
+    if (p.cannon && p.phase === 'bridge') {
+      var cm = cannonAt(p), mz = muzzleAt(p), CC = DREAD.CANNON, ck = p.cannon.charge > 0 ? p.cannon.charge / CC.CHARGE : 0, rc = p.cannon.recoil * 7;
+      var bx = mz.x - Math.cos(mz.a) * rc, by = mz.y - Math.sin(mz.a) * rc;
+      G.beginPath(); L(cm.x, cm.y, bx, by, 0.2); ink(INK, 8); G.stroke();
+      G.beginPath(); L(cm.x, cm.y, bx, by, 0.2); ink(ck > 0 ? 'rgba(220,60,40,' + (0.35 + 0.65 * ck) + ')' : p.cannon.flash > 0 ? PAPER : '#8a8f96', 4.5); G.stroke();
+      G.beginPath(); G.arc(cm.x, cm.y, 9, 0, Math.PI * 2); G.fillStyle = '#8a8f96'; G.fill(); ink(INK, 2); G.stroke();
+      if (ck > 0) {
+        G.save(); G.globalAlpha = 0.25 + 0.4 * ck; G.setLineDash([6, 6]); G.beginPath(); L(mz.x, mz.y, BK.x, BK.top - 6, 0.2); ink(RED, 1.6); G.stroke(); G.restore();
+        var pulse = 1 + 0.15 * Math.sin(S.t * 30 * (0.5 + ck));
+        G.beginPath(); G.arc(mz.x, mz.y, (4 + 11 * ck) * pulse, 0, Math.PI * 2); G.fillStyle = 'rgba(255,' + Math.round(210 - 130 * ck) + ',40,' + (0.5 + 0.4 * ck) + ')'; G.fill();
+      }
+      if (p.cannon.shell) {
+        var su = p.cannon.shell.t / CC.FLIGHT, sx = p.cannon.shell.x0 + (BK.x - p.cannon.shell.x0) * su, sy = p.cannon.shell.y0 + (BK.top - p.cannon.shell.y0) * su;
+        G.beginPath(); G.arc(sx, sy, 6, 0, Math.PI * 2); G.fillStyle = INK; G.fill();
+      }
+    }
     if (p.deckFlash && p.deckFlash.t > 0) { G.beginPath(); G.arc(p.deckFlash.x, p.deckFlash.y + 3, 5, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     p.turrets.forEach(function (t) { if (t.mark) drawMark(p, t, t.mark); });
     p.shells.forEach(function (s) {
@@ -569,6 +673,10 @@ var StickArmyCampaign = function (w) {
         // Gone: a scorched, torn hole where the turret hung, still smoking.
         G.beginPath(); SP([gx - 13, hh - 4, gx - 6, hh + 3, gx + 2, hh - 1, gx + 9, hh + 4, gx + 14, hh - 4], true, 0.5); G.fillStyle = 'rgba(46,46,51,0.75)'; G.fill(); ink(INK, 1.6); G.stroke();
         G.beginPath(); L(gx - 8, hh + 2, gx - 10, hh + 8, 0.3); L(gx + 6, hh + 3, gx + 9, hh + 9, 0.3); ink(INK, 1.3); G.stroke();
+        // Still burning.
+        var fl = Math.sin(S.t * 19 + t.id) * 2.5, fl2 = Math.cos(S.t * 23 + t.id) * 2;
+        G.beginPath(); G.moveTo(gx - 7, hh - 2); G.quadraticCurveTo(gx - 5, hh - 14 - fl, gx - 1, hh - 5); G.quadraticCurveTo(gx + 3, hh - 17 + fl2, gx + 7, hh - 2); G.closePath(); G.fillStyle = 'rgba(255,130,40,0.85)'; G.fill();
+        G.beginPath(); G.moveTo(gx - 3, hh - 2); G.quadraticCurveTo(gx, hh - 9 - fl2, gx + 3, hh - 2); G.closePath(); G.fillStyle = 'rgba(255,220,80,0.9)'; G.fill();
         for (var k = 0; k < 3; k++) {
           var age = (S.t * 0.9 + k / 3 + t.id * 0.17) % 1;
           G.globalAlpha = (1 - age) * 0.5; G.beginPath(); w.Ci(gx + 3 - age * 14, hh - 4 - age * 30, 3 + age * 7, 0.6); ink(INK, 1.3); G.stroke(); G.globalAlpha = 1;
@@ -712,6 +820,6 @@ var StickArmyCampaign = function (w) {
 
   return { DREAD: DREAD, turretHP: turretHP, hangarHP: hangarHP, bridgeHP: bridgeHP, isDreadWave: isDreadWave, dread: dread, spawnDread: spawnDread,
     dreadHit: dreadHit, hurtDread: hurtDread, updateDread: updateDread, drawDread: drawDread, drawDreadBar: drawDreadBar,
-    dreadTargets: dreadTargets, dreadPhase: dreadPhase, dreadBeams: dreadBeams, hangarAt: hangarAt, bridgeAt: bridgeAt, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
+    dreadTargets: dreadTargets, dreadPhase: dreadPhase, dreadBeams: dreadBeams, hangarAt: hangarAt, bridgeAt: bridgeAt, muzzleAt: muzzleAt, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
     recordLine: recordLine };
 };

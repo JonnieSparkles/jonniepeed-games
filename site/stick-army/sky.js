@@ -278,11 +278,14 @@ var StickArmySky = function (w) {
     emit('plane_spawn', { kind: 'diver', dir: out, target: p.target, launched: true });
     return p;
   }
+  // Back from high above the side it left, already in its dive, screaming down at the bunker.
   function comeBack(p) {
     var vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE), fall = BK.top - 8 - (DIVE.RELEASE_Y + 8);
-    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, lead = (DIVE.RELEASE_Y - DIVE.Y) / Math.tan(DIVE.ANGLE) + vx * tf;
-    p.dir = -p.dir; p.x = p.dir > 0 ? -50 : W + 50; p.y = DIVE.Y; p.ang = 0; p.drawAng = 0; p.speed = DIVE.CRUISE;
-    p.diveX = p.target - p.dir * lead; p.phase = 'level';
+    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, y0 = -40;
+    p.dir = -p.dir;
+    p.x = p.target - p.dir * vx * tf - p.dir * (DIVE.RELEASE_Y - y0) / Math.tan(DIVE.ANGLE); p.y = y0;
+    p.phase = 'dive'; p.ang = p.drawAng = DIVE.ANGLE; p.speed = DIVE.SPEED;
+    emit('dive', { x: p.x }); w.sound.play('siren');
   }
   function updateDiver(p, dt) {
     var S = w.S;
@@ -632,7 +635,8 @@ var StickArmySky = function (w) {
   }
   // Where a dive bomber is going to put its bomb: a red crosshair on the ground, pulsing, until it lets go.
   function drawDiveMark(p) {
-    if (p.kind !== 'diver' || p.state !== 'fly' || (p.phase !== 'level' && p.phase !== 'dive')) return;
+    // A sortie marks its target as soon as it launches, so you know they're coming back.
+    if (p.kind !== 'diver' || p.state !== 'fly' || (p.phase !== 'level' && p.phase !== 'dive' && p.phase !== 'launch')) return;
     var G = w.G, x = p.target, y = Math.abs(p.target - BK.x) < 36 ? BK.top - 4 : GROUND - 6, k = 1 + 0.15 * Math.sin(w.S.t * 10);
     pen(p.id + 3);
     G.save(); G.globalAlpha = p.phase === 'dive' ? 0.95 : 0.6;

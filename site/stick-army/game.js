@@ -587,6 +587,11 @@
         spawnPlane(kind);
         sp.timer = sp.cfg.interval * between(RW, 0.7, 1.3);
       }
+      // The decoy in sight: the squad thinks this is it.
+      if (sp.decoy && !sp.decoySeen && sp.decoy.state === 'fly' && sp.decoy.x > 30 && sp.decoy.x < W - 30) {
+        sp.decoySeen = true; var spotter = S.recruits.filter(standing)[0];
+        if (spotter) world.say('oh no, here it is!', spotter.id); else addText('oh no, here it is!', 200, 420, BLUE, 24, 'story');
+      }
       // The decoy down: a soldier wonders "that's it?", a few seconds of quiet, then the Dreadnought.
       if (sp.decoy && !sp.decoyDone && sp.decoy.state !== 'fly') {
         sp.decoyDone = true; sp.bossT = DREAD.TEASE_GAP;
