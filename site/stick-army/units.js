@@ -19,11 +19,12 @@ var StickArmyUnits = function (w) {
   // It arrives ARRIVE seconds into the wave, after a few escort planes; its horn sounds WARN seconds before.
   // From ARMOR_WAVE it comes armored: steel plates (PLATES, centred at those fractions of its half-length, each
   // PLATE_W wide either side) cover the hull and clang until shot off, and the gondola is plated until half health.
-  var ZEP = { HW: 78, HH: 25, Y: 172, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
+  var ZEP = { HW: 78, HH: 25, Y: 180, SINK: 44, LEFT: 72, RIGHT: 328, SPEED: 24, ANGRY_SPEED: 36, ENTER_SPEED: 48,
     DROP_EVERY: 3.4, ANGRY_DROP_EVERY: 2.4, BOMB_EVERY: 6.5, ANGRY_BOMB_EVERY: 4.5, WEAK: 2, ARRIVE: 9, WARN: 2.5,
     ARMOR_WAVE: 10, PLATES: [-0.72, -0.36, 0, 0.36, 0.72], PLATE_W: 0.18, PLATE_HP: 6,
     // From TWIN_WAVE the fives bring two at once, one TWIN_DY above the other, each with TWIN_HP of a single one's health.
-    TWIN_WAVE: 15, TWIN_DY: 48, TWIN_HP: 0.6,
+    // Round 14: Y 180 and TWIN_DY 34 (they were 172 and 48), so the high one's health bar stays below the page's top rule.
+    TWIN_WAVE: 15, TWIN_DY: 34, TWIN_HP: 0.6,
     // Once the wave's planes are done, an escort plane every ESCORT_EVERY seconds while a zeppelin flies.
     ESCORT_EVERY: 2.4 };
   var STEEL = 'rgba(112,120,130,0.5)';
@@ -134,12 +135,22 @@ var StickArmyUnits = function (w) {
   }
   function hurtZeppelin(p, dmg, owner, hx, hy, direct) {
     var x = hx == null ? p.x : hx, y = hy == null ? p.y : hy, gondola = inGondola(p, x, y), weak = direct && gondola;
-    // The decoy's cardboard "armor" comes off at the first hit and flutters down like its sign.
-    if (p.decoy && !p.plateOff) {
-      p.plateOff = true;
-      w.S.parts.push({ k: 'plate', x: p.x + p.face * PLATE.X, y: p.y + PLATE.Y, vx: p.face * 40, vy: -90, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
-      addText('boing!', p.x + p.face * PLATE.X, p.y - 30, INK, 20); w.sound.play('boing');
-      var wit = w.S.recruits.filter(w.standing)[0]; if (wit) w.say('...cardboard?', wit.id, false, 0.5);
+    // The decoy's cardboard "armor" holds for PLATE.KNOCKS knocks, at most one every PLATE.GAP seconds, each rattling it
+    // and leaving a dent ("solid steel!" says its crew at the first), then the next knocks it off and it flutters down
+    // like its sign. Knocks only count with the plate itself on the page. Round 14: it used to come off at the first
+    // hit, which could land on the nose before the plate was in sight.
+    var px = p.x + p.face * PLATE.X;
+    if (p.decoy && !p.plateOff && px > PLATE.HW && px < W - PLATE.HW && !(w.S.t - p.plateT < PLATE.GAP)) {
+      p.plateT = w.S.t; p.knocks = (p.knocks || 0) + 1;
+      if (p.knocks <= PLATE.KNOCKS) {
+        addText('tonk!', px, p.y - 26, INK2, 16, 'minor'); w.sound.play('clank');
+        if (p.knocks === 1) w.say('solid steel!', p.id, true, 0.1, p.x, p.y + p.hh + 8);
+      } else {
+        p.plateOff = true;
+        w.S.parts.push({ k: 'plate', x: px, y: p.y + PLATE.Y, vx: p.face * 40, vy: -90, rot: 0, flat: 0, dents: PLATE.KNOCKS, life: 10, max: 10, id: w.id() });
+        addText('boing!', px, p.y - 30, INK, 20); w.sound.play('boing');
+        var wit = w.S.recruits.filter(w.standing)[0]; if (wit) w.say('...cardboard?', wit.id, false, 0.5);
+      }
     }
     if (armorTakes(p, dmg, x, y, gondola)) return;
     if (weak) { dmg *= ZEP.WEAK; if (!p.weakShown) { p.weakShown = true; addText('weak spot!', x, y + 26, BLUE, 22); } }
@@ -167,9 +178,10 @@ var StickArmyUnits = function (w) {
     S.stats.planes++; S.stats.zeppelins++; w.credit();
     emit('plane_down', { kind: 'zeppelin', by: owner === 'ally' ? 'crew' : 'player' });
     w.pow(p.x, p.y, 60);
-    award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true);
+    // The decoy goes down without the fanfare (round 14: the "zeppelin down!" label and banner stepped on the joke).
+    award(250 + 30 * S.wave, p.x, p.y + p.hh + 40, 'zeppelin down!', owner === 'ally' ? BLUE : INK, true, p.decoy);
     var got = grantCall('bomber', p.x, p.y - p.hh - 20, true);
-    S.banner = { s: 'zeppelin down!', sub: 'catch the crew! ' + (got ? '+1 air strike' : '+' + RADIO.FULL_TAGS + ' tags'), t: 0, dur: 2.4 };
+    if (!p.decoy) S.banner = { s: 'zeppelin down!', sub: 'catch the crew! ' + (got ? '+1 air strike' : '+' + RADIO.FULL_TAGS + ' tags'), t: 0, dur: 2.4 };
     S.shake = Math.max(S.shake, 0.5);
     w.sound.play('zepdown');
     for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
@@ -178,10 +190,13 @@ var StickArmyUnits = function (w) {
   }
 
   // And its "armor": a sheet of cardboard taped over the roundel, ARMOR scrawled on it, bolts drawn in marker.
-  var PLATE = { X: 44, Y: -2, HW: 20, HH: 12, TILT: 0.12 };
-  function drawPlate(x, y, sx, rot, flat) {
+  // A knock rattles it for RATTLE seconds and leaves a dent (DENTS, in order). Round 14: it sits out toward the nose
+  // (X 56, corners past the hull) and the sign a little aft (STICKER.X -20), as the second win found the sign's last
+  // letters over ARMOR (they were 44 and -14).
+  var PLATE = { X: 56, Y: -2, HW: 20, HH: 12, TILT: 0.12, KNOCKS: 4, GAP: 0.25, RATTLE: 0.3, DENTS: [[-11, -5], [9, 4], [-2, -7], [13, -4]] };
+  function drawPlate(x, y, sx, rot, flat, dents, shake) {
     var G = w.G, hw = PLATE.HW, hh = PLATE.HH, i;
-    G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(PLATE.TILT + (rot || 0));
+    G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(PLATE.TILT + (rot || 0) + (shake || 0));
     pen(8087);
     G.beginPath(); SP([-hw, -hh + 2, hw - 2, -hh, hw, hh - 1, -hw + 3, hh], true, 0.6); G.fillStyle = '#c9a46c'; G.fill(); ink(INK, 1.6); G.stroke();
     G.beginPath(); for (i = -hw + 6; i < hw - 2; i += 5) L(i, -hh + 3, i + 1, hh - 3, 0.2); ink('rgba(120,86,40,0.45)', 1); G.stroke();
@@ -191,12 +206,18 @@ var StickArmyUnits = function (w) {
     G.fillStyle = 'rgba(232,214,150,0.8)';
     G.save(); G.translate(-hw + 1, -hh + 1); G.rotate(-0.6); G.fillRect(-7, -2.5, 14, 5); G.restore();
     G.save(); G.translate(hw - 1, hh - 1); G.rotate(-0.6); G.fillRect(-7, -2.5, 14, 5); G.restore();
+    // Dents: a crumpled crescent each.
+    for (i = 0; i < Math.min(dents || 0, PLATE.DENTS.length); i++) {
+      var d = PLATE.DENTS[i];
+      G.beginPath(); G.arc(d[0], d[1], 3.2, 0.3, Math.PI - 0.3); ink('rgba(90,62,26,0.75)', 1.3); G.stroke();
+      G.beginPath(); L(d[0] - 2, d[1] - 1.5, d[0] + 1.5, d[1] + 0.5, 0.2); ink('rgba(90,62,26,0.5)', 1); G.stroke();
+    }
     G.restore();
   }
   // The final wave's decoy pretends: a paper sign taped on crooked, "DREDNOUGHT" hand-lettered in red with the A
   // squeezed in over a caret, one corner come loose and flapping. Drawn the right way round whichever way it faces
   // (sx squashes it as the zeppelin turns); flat lays it on the ground.
-  var STICKER = { X: -14, Y: -1, HW: 48, HH: 13, TILT: -0.07 };
+  var STICKER = { X: -20, Y: -1, HW: 48, HH: 13, TILT: -0.07 };
   function drawSticker(x, y, sx, rot, flat) {
     var G = w.G, t = w.S.t, hw = STICKER.HW, hh = STICKER.HH, flap = Math.sin(t * 8) * 0.5 + 0.5, i;
     G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(STICKER.TILT + (rot || 0));
@@ -293,7 +314,10 @@ var StickArmyUnits = function (w) {
     G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
     if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
     G.restore();
-    if (p.decoy && fly) { if (!p.plateOff) drawPlate(p.x + f * PLATE.X, p.y + PLATE.Y, f, p.rot); drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot); }
+    if (p.decoy && fly) {
+      var age = w.S.t - p.plateT, shake = age < PLATE.RATTLE ? Math.sin(age * 70) * 0.16 * (1 - age / PLATE.RATTLE) : 0;
+      if (!p.plateOff) drawPlate(p.x + f * PLATE.X, p.y + PLATE.Y, f, p.rot, 0, p.knocks, shake);
+      drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot); }
   }
   // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry. It comes
   // in with the hull, and is only held on the page once the zeppelin has fully arrived.
@@ -343,9 +367,11 @@ var StickArmyUnits = function (w) {
   function tankHP(n) { return Math.round(10 + 0.8 * n); }
   // Cargo planes are armored too, so a steady stream doesn't stop every tank in the air.
   function cargoHP(n) { return 8 + Math.floor(Math.max(0, n - TANK.WAVE) / 2); }
+  // The cargo plane's lane, its tail below the page's top rule (round 14; it was 104-124).
+  var CARGO_Y = [132, 150];
   function spawnCargo() {
     var S = w.S, rnd = substream(w.RW), dir = rnd() < 0.5 ? 1 : -1;
-    var p = makePlane('cargo', dir, dir > 0 ? -80 : W + 80, between(rnd, 104, 124));
+    var p = makePlane('cargo', dir, dir > 0 ? -80 : W + 80, between(rnd, CARGO_Y[0], CARGO_Y[1]));
     p.rng = rnd; p.speed = S.spawn.cfg.speed * 0.5; p.hp = p.maxHp = cargoHP(S.wave); p.sc = 0.95; p.hw = 50; p.hh = 16; p.kits = [];
     p.tankX = rnd() < 0.5 ? between(rnd, 34, 80) : between(rnd, 320, 366);
     S.planes.push(p);
@@ -498,10 +524,12 @@ var StickArmyUnits = function (w) {
   // A call starts on the radio: someone in the squad (or the bunker, with no squad) raises a buzzing walkie-talkie
   // for TALK seconds, then the plane is sketched in at the left edge of the page (HOLD seconds), then it flies.
   var RADIO = { SLOTS: 2, FULL_TAGS: 40, TALK: 0.6 };
-  var STRIKE = { SPEED: 230, Y: 92, BOMBS: 11, FALL: 520, START: 56, HOLD: 0.45 };
-  // Fighter cover swoops in from DIVE px above its lane over DIVE_T seconds, trailing contrails, strafing with tracers.
+  // Y: below the page's top rule (round 14; it was 92, over the score).
+  var STRIKE = { SPEED: 230, Y: 130, BOMBS: 11, FALL: 520, START: 56, HOLD: 0.45 };
+  // Fighter cover swoops in from DIVE px above its lane over DIVE_T seconds, trailing contrails, strafing with tracers
+  // (DIVE 50 since round 14, so the wingman starts below the page's top rule; it was 70).
   // Fighter cover is a flight of two, the wingman WING_X behind and WING_Y above the lead.
-  var FIGHTER = { SPEED: 250, PASSES: [190], EVERY: 0.08, RANGE: 320, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35, DIVE: 70, DIVE_T: 0.5, WING_X: 46, WING_Y: 24 };
+  var FIGHTER = { SPEED: 250, PASSES: [190], EVERY: 0.08, RANGE: 320, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35, DIVE: 50, DIVE_T: 0.5, WING_X: 46, WING_Y: 24 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
   // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead. Quiet when a banner says it.
@@ -590,13 +618,13 @@ var StickArmyUnits = function (w) {
   }
   // Where a plane of the flight is now.
   function wingAt(f, q) { return { x: f.x + f.dir * q.dx, y: f.y - f.dive + q.dy }; }
-  // Ahead of a plane and in range: bombs first (they threaten the bunker), then planes, the Dreadnought's guns, the
-  // zeppelin last.
+  // Ahead of a plane, in range and on the page: bombs first (they threaten the bunker), then planes, the Dreadnought's
+  // guns, the zeppelin last.
   function fighterTarget(x, y, dir) {
     var S = w.S, best = null, bd = 1e9;
     function consider(list, ok, bias) {
       list.forEach(function (o) {
-        if (!ok(o)) return;
+        if (!ok(o) || !w.inView(o)) return;
         var dx = (o.x - x) * dir, d = Math.hypot(o.x - x, o.y - y) + bias;
         if (dx > 10 && d < FIGHTER.RANGE + bias && d < bd) { bd = d; best = o; }
       });
@@ -695,8 +723,8 @@ var StickArmyUnits = function (w) {
     G.restore();
   }
 
-  return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
-    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, drawPlate: drawPlate, drawBossBar: drawBossBar,
+  return { ZEP: ZEP, fighterTarget: fighterTarget, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
+    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, STICKER: STICKER, drawPlate: drawPlate, PLATE: PLATE, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,

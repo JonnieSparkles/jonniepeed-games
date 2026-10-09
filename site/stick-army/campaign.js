@@ -25,7 +25,7 @@ var StickArmyCampaign = function (w) {
   // armored throughout; only the part for the stage can be hurt. It lives in S.planes as kind 'dread', so bullets,
   // rockets, flak, bazookas and the ambience all see it. Local x runs stern to bow; on the page, x = p.x + p.dir * lx.
   var DREAD = {
-    WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 6, ENTER: 32,
+    WAVE: 20, EVERY: 10, Y: 210, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 6, ENTER: 32,
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
     AIM: 1.2, MARKS: 2, EXPOSED: 2, RELOAD: [1.8, 2.4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 14, SPLASH: 26, DIRECT: 4,
@@ -43,6 +43,22 @@ var StickArmyCampaign = function (w) {
     // SMOKE_GAP seconds) that arc out over SMOKE_FLIGHT seconds to spots on the field (SMOKE_AT) and pour smoke; its
     // smoke screen rolls out from them (sky.js). It blows away when the hangar goes down.
     PAUSE: { HANGAR: 3.5, BRIDGE: 2.8 },
+    // Sneak attacks under the smoke screen (round 14, the second win: "during nought smoke screen bring in some ground
+    // sneak attacks"): once the hangar opens, every EVERY seconds from FIRST, up to GROUPS times, SIZE infantry creep in
+    // crouched along the ground from one side, then the other, at SPEED px/s. No whistle; a soldier spots the first.
+    SNEAK: { FIRST: 2.5, EVERY: 6, GROUPS: 3, SIZE: [2, 3], SPEED: 26 },
+    // The last hurrah (round 14, the second win: "when the nought is down to the bridge only, its pretty much over...
+    // just thinking a last hurrah"; a ramming run was turned down, as it could take a won run on a sliver of wall).
+    // ABANDON: once the bridge falls to AT of its health, a klaxon, and its crew bail out along the hull in WAVES waves of
+    // N, one at a time EVERY seconds from the bow back, GAP seconds between waves (the second win: "at least 2 waves of
+    // people jumping... stagger person by person not all at once").
+    // CAPTAIN: downed, its captain is the last one out, DELAY seconds into its fall, under his own chute at FALL px/s,
+    // no lower than LOW px above the ground, drifting toward the nearest open mat (at DRIFT px/s, quick enough to be
+    // over it with the last two fifths of his way down to go) and then on toward the edge at EDGE. Catch him on the mat
+    // for PTS, and he's your prisoner on the victory card; shoot him down for DOWN; let him land and he runs off the page
+    // at RUN px/s. Never the game: only points. The crew and the sentry leave him to you.
+    ABANDON: { AT: 1 / 3, WAVES: 2, N: 6, EVERY: 0.22, GAP: 3.5 },
+    CAPTAIN: { DELAY: 0.8, FALL: 50, LOW: 260, DRIFT: [20, 90], EDGE: 12, PTS: 5000, DOWN: 500, RUN: 90 },
     CHAIN: 1.4, SMOKE_AT: [50, 132, 268, 350], SMOKE_FIRST: 0.5, SMOKE_GAP: 0.45, SMOKE_FLIGHT: 0.9,
     // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
     SAG: 140, LIST: 0.06,
@@ -189,7 +205,7 @@ var StickArmyCampaign = function (w) {
   function openHangar(p) {
     var S = w.S;
     p.chainT = DREAD.CHAIN; p.boomT = 0;
-    p.phase = 'hangar'; p.t = 0; p.launchT = 1.2; p.troopT = 2;
+    p.phase = 'hangar'; p.t = 0; p.launchT = 1.2; p.troopT = 2; p.sneakT = DREAD.SNEAK.FIRST; p.sneaks = 0; p.sneakSide = p.rng() < 0.5 ? -1 : 1;
     // It reels first; the hangar opens when the pause is over (stageOpens).
     p.hold = DREAD.PAUSE.HANGAR;
     emit('dread_hangar', { wave: S.wave });
@@ -207,6 +223,26 @@ var StickArmyCampaign = function (w) {
     S.shake = Math.max(S.shake, 0.4); w.sound.play('klaxon');
     if (p.phase === 'hangar') addText('the hangar opens!', 200, 260, RED, 24, 'alert');
     else { addText('the bridge is exposed!', 200, 250, RED, 24, 'alert'); w.sound.play('clank'); }
+  }
+  // A sneak attack: a few infantry creeping in crouched along the ground from one side (drawTrooper leans them over),
+  // the next group from the other side. A soldier on that side spots the first group.
+  function sneak(p, dt) {
+    var S = w.S, SN = DREAD.SNEAK;
+    if (p.sneaks >= SN.GROUPS || (p.sneakT -= dt) > 0) return;
+    p.sneakT = SN.EVERY; p.sneaks++;
+    var side = p.sneakSide, n = p.rng() < 0.5 ? SN.SIZE[0] : SN.SIZE[1];
+    p.sneakSide = -side;
+    for (var i = 0; i < n; i++) {
+      var kit = w.rollTrooper(p.rng);
+      if (kit.type === 'sniper') kit.type = 'rifle';
+      var t = w.spawnTrooper(0, GROUND - 33, kit);
+      t.x = side < 0 ? -14 - i * 22 : W + 14 + i * 22; t.state = 'ground'; t.open = 1; t.dir = -side; t.speed = SN.SPEED; t.sneak = true;
+    }
+    emit('sneak', { side: side < 0 ? 'left' : 'right', count: n });
+    if (p.sneaks === 1) {
+      var crew = S.recruits.filter(w.standing).sort(function (a, b) { return side * (a.x - b.x); });
+      if (crew.length) w.say("they're sneaking in!", crew[0].id, false, 1.2);
+    }
   }
   // The smoke pots: fired from the hull one at a time with a thunk, each arcs out to its spot on the field, trailing
   // smoke, and lands there hissing; sky.js draws it pouring smoke and spreads the screen from it.
@@ -248,11 +284,37 @@ var StickArmyCampaign = function (w) {
   function hurtBridge(p, dmg, owner, hx, hy) {
     var b = p.bridge;
     b.hp -= dmg; b.flash = 0.1; w.burst(hx, hy, 4, RED, 110);
-    if (b.hp <= 0) { b.hp = 0; dreadDown(p, owner); } else { w.sound.play('thup'); bail(p); }
+    if (b.hp <= 0) { b.hp = 0; dreadDown(p, owner); return; }
+    w.sound.play('thup'); bail(p);
+    if (!p.abandoned && b.hp <= b.max * DREAD.ABANDON.AT) abandonShip(p);
+  }
+  // Abandon ship: a klaxon, then its crew jump one after another along the hull, from the bow back, in waves
+  // (abandoning, from updateDread in the bridge stage).
+  function abandonShip(p) {
+    var S = w.S;
+    p.abandoned = true; p.abandon = { wave: 0, t: 0, queue: [] };
+    S.shake = Math.max(S.shake, 0.3); w.sound.play('klaxon');
+    addText('abandon ship!', 200, 300, RED, 26, 'alert');
+    jumpers(p);
+  }
+  function jumpers(p) {
+    var A = DREAD.ABANDON, ab = p.abandon, xs = [];
+    for (var i = 0; i < A.N; i++) xs.push(34 + (i + 0.5) * (W - 68) / A.N + (p.rng() - 0.5) * 16);
+    ab.queue = p.dir > 0 ? xs.reverse() : xs; ab.wave++; ab.t = 0;
+    emit('dread_abandon', { round: ab.wave, n: A.N });
+  }
+  function abandoning(p, dt) {
+    var A = DREAD.ABANDON, ab = p.abandon;
+    if (!ab || (ab.t -= dt) > 0) return;
+    if (!ab.queue.length) { if (ab.wave < A.WAVES) jumpers(p); return; }
+    var kit = w.rollTrooper(p.rng);
+    if (kit.type === 'sniper') kit.type = 'rifle';
+    w.spawnTrooper(ab.queue.shift(), p.y + DREAD.HH + 2 + p.rng() * 8, kit);
+    ab.t = ab.queue.length ? A.EVERY : A.GAP;
   }
   function dreadDown(p, owner) {
     var S = w.S, b = bridgeAt(p), final = S.wave === DREAD.WAVE && !S.won;
-    p.phase = 'sinking'; p.t = 0; p.vy = 0; p.boomT = 0; p.smokeT = 0; p.ropes = []; clearMarks(p);
+    p.phase = 'sinking'; p.t = 0; p.vy = 0; p.boomT = 0; p.smokeT = 0; p.ropes = []; clearMarks(p); p.captainT = DREAD.CAPTAIN.DELAY;
     if (p.cannon) { p.cannon.charge = 0; p.cannon.shell = null; }
     S.stats.planes++; S.stats.dreads = (S.stats.dreads || 0) + 1;
     emit('plane_down', { kind: 'dread', by: owner === 'ally' ? 'crew' : 'player' });
@@ -282,6 +344,50 @@ var StickArmyCampaign = function (w) {
     emit('surrender', { wave: S.wave });
   }
   function flag(x, y) { w.S.parts.push({ k: 'flag', x: x, y: y, life: 1.6, max: 1.6, id: w.id() }); }
+
+  // ---------- the captain ----------
+  // The last one out (DREAD.CAPTAIN): a red stick figure in a peaked cap (game.js drawTrooper) under his own chute,
+  // making for the nearest open mat. S.captain is his fate: 'out', then 'captured', 'down' or 'escaped'. game.js calls
+  // captainDrift while he hangs under his chute, captainRun once he lands, and captainCaught or captainDown.
+  function captainOut(p) {
+    var S = w.S, CP = DREAD.CAPTAIN, b = bridgeAt(p), x = clamp(b.x, 40, W - 40), tr = w.activeTramps();
+    var mat = tr.slice().sort(function (a, c) { return Math.abs((a.x1 + a.x2) / 2 - x) - Math.abs((c.x1 + c.x2) / 2 - x); })[0];
+    var kit = w.rollTrooper(p.rng); kit.type = 'rifle'; kit.armor = 0; kit.gunner = false;
+    var t = w.spawnTrooper(x, clamp(b.y + 16, 150, GROUND - CP.LOW), kit), mx = (mat.x1 + mat.x2) / 2;
+    var down = Math.max(1, (mat.y - 33 - t.y) / CP.FALL);
+    t.captain = true; t.fall = CP.FALL; t.matX = mx; t.edge = mx < 200 ? -1 : 1; t.drift = clamp(Math.abs(mx - x) / (down * 0.6), CP.DRIFT[0], CP.DRIFT[1]);
+    S.captain = 'out';
+    addText('their captain!', x, t.y - 34, RED, 22, 'alert');
+    emit('captain', { fate: 'out' });
+  }
+  function captainDrift(t, dt) {
+    var CP = DREAD.CAPTAIN, d = t.matX - t.x;
+    if (!t.overMat && Math.abs(d) <= 1) t.overMat = true;
+    t.x += t.overMat ? t.edge * CP.EDGE * dt : Math.sign(d) * Math.min(Math.abs(d), t.drift * dt);
+  }
+  function captainCaught(t) {
+    var S = w.S, CP = DREAD.CAPTAIN;
+    S.captain = 'captured'; S.score += CP.PTS;
+    addText('captain captured! +' + CP.PTS.toLocaleString('en-US'), BK.x, BK.top - 56, BLUE, 26, 'big');
+    w.burst(BK.x, BK.top - 20, 10, BLUE, 150); w.sound.play('recruit');
+    var r = S.recruits.filter(w.standing)[0]; if (r) w.say('gotcha!', r.id, false, 0.2);
+    emit('captain', { fate: 'captured' });
+  }
+  function captainDown(t) {
+    var S = w.S, CP = DREAD.CAPTAIN;
+    S.captain = 'down'; S.score += CP.DOWN;
+    addText('captain down! +' + CP.DOWN, t.x, t.y - 20, INK, 22, 'big');
+    emit('captain', { fate: 'down' });
+  }
+  function captainRun(t, dt) {
+    var S = w.S;
+    t.dir = t.edge; t.x += t.edge * DREAD.CAPTAIN.RUN * dt; t.walk += dt * 16;
+    if (t.x < -10 || t.x > W + 10) {
+      t.dead = true; S.captain = 'escaped';
+      addText('he got away!', clamp(t.x, 60, W - 60), GROUND - 70, RED, 22, 'alert');
+      emit('captain', { fate: 'escaped' });
+    }
+  }
 
   // ---------- the crash ----------
   // Falling: nosing down, explosions running along it and smoke pouring off, until the bow digs in.
@@ -362,6 +468,7 @@ var StickArmyCampaign = function (w) {
     p.hangar.open = clamp(p.hangar.open + ((p.phase === 'hangar' && !(p.hold > 0)) || p.phase === 'bridge' ? dt : -dt) * 1.5, 0, 1);
     updateShells(p, dt);
     if (p.canisters) smokeBombs(p, dt);
+    if (p.captainT > 0 && (p.captainT -= dt) <= 0) captainOut(p);
     if (p.phase === 'sinking') { fall(p, dt); return; }
     if (p.phase === 'wreck') { wreck(p, dt); return; }
     // Going down by the bridge's health: it sinks and lists, bow first, gradually.
@@ -437,6 +544,7 @@ var StickArmyCampaign = function (w) {
         w.sound.play('fighter'); emit('dread_launch', {});
       }
       if ((p.troopT -= dt) <= 0) { p.troopT = DREAD.TROOPS_EVERY; [-14, 0, 14].forEach(function (o) { w.spawnTrooper(clamp(h.x + o, 16, W - 16), h.y + 18, w.rollTrooper(p.rng)); }); }
+      sneak(p, dt);
     } else if (p.phase === 'bridge') {
       // The bomb bay (the gutted hangar) drops clusters at the bunker; the bridge gunner fires at the crew.
       if (onPage && (p.bombT -= dt) <= 0) {
@@ -447,6 +555,7 @@ var StickArmyCampaign = function (w) {
       bridgeGun(p, dt);
       mainGun(p, dt);
       boarding(p, dt);
+      abandoning(p, dt);
     }
     // The air strike's bombs hit the parts they fall past.
     S.strikeBombs.forEach(function (m) {
@@ -1134,6 +1243,7 @@ var StickArmyCampaign = function (w) {
     document.getElementById('winZeps').textContent = String(S.stats.zeppelins);
     document.getElementById('winTanks').textContent = String(S.stats.tanks);
     document.getElementById('winDmg').textContent = String(Math.round(S.stats.wallDamage));
+    document.getElementById('winShots').textContent = S.stats.shots.toLocaleString('en-US');
     document.getElementById('winCount').textContent = wins === 1 ? 'Your first win.' : 'Win number ' + wins + '.';
     var list = document.getElementById('winRoll'), roll = rollCall();
     list.replaceChildren.apply(list, roll.map(function (q) {
@@ -1145,6 +1255,8 @@ var StickArmyCampaign = function (w) {
     var lost = document.getElementById('winFallen');
     lost.textContent = S.fallen.length ? 'Fallen: ' + S.fallen.map(w.SQUAD.record).join(', ') + '.' : '';
     lost.hidden = !S.fallen.length;
+    var cap = document.getElementById('winCaptain'), fate = { captured: 'Prisoner: their captain, caught on the mat.', down: 'Their captain was shot down.', escaped: 'Their captain got away.' }[S.captain];
+    cap.textContent = fate || ''; cap.hidden = !fate;
     winScreen.hidden = false; w.hidePause();
     w.sound.play('victory');
     emit('victory', { wave: S.wave, score: S.score });
@@ -1166,6 +1278,6 @@ var StickArmyCampaign = function (w) {
 
   return { DREAD: DREAD, turretHP: turretHP, hangarHP: hangarHP, bridgeHP: bridgeHP, cannonHP: cannonHP, isDreadWave: isDreadWave, dread: dread, spawnDread: spawnDread,
     dreadHit: dreadHit, hurtDread: hurtDread, updateDread: updateDread, drawDread: drawDread, drawDreadBar: drawDreadBar,
-    dreadTargets: dreadTargets, dreadPhase: dreadPhase, dreadMusic: dreadMusic, dreadBeams: dreadBeams, hangarAt: hangarAt, bridgeAt: bridgeAt, muzzleAt: muzzleAt, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
+    dreadTargets: dreadTargets, dreadPhase: dreadPhase, captainDrift: captainDrift, captainCaught: captainCaught, captainDown: captainDown, captainRun: captainRun, dreadMusic: dreadMusic, dreadBeams: dreadBeams, hangarAt: hangarAt, bridgeAt: bridgeAt, muzzleAt: muzzleAt, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
     recordLine: recordLine };
 };

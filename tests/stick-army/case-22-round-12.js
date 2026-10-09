@@ -70,7 +70,7 @@
   RUN.force = 105; quiet(12); S.coins = 0;
   var med = SKY.spawnMedevac(RW), score0 = S.score; med.x = W + 60; med.dir = 1;
   run(0.5);
-  check(!S.medevac.length && S.score === score0 + SKY.MEDEVAC.SAFE && S.coins === Math.round(SKY.medevacTags(12) / 2) && heard('redcross_safe'), 'safe passage pays');
+  check(!S.medevac.length && S.score === score0 + SKY.medevacPts(12) && S.coins === SKY.medevacTags(12) && heard('redcross_safe'), 'safe passage pays');
   med = SKY.spawnMedevac(RW); med.x = 200;
   hitTest({ x: med.x, y: med.y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false });
   var paid = seen.filter(function (e) { return e.type === 'redcross_safe'; }).length; med.x = W + 60; med.dir = 1; run(0.5);
