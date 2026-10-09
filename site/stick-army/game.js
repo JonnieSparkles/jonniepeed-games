@@ -666,7 +666,7 @@
     BOMBER_PTS: { get: function () { return BOMBER_PTS; } }, seed: { get: function () { return RUN.seed; } } });
   var UNITS = StickArmyUnits(world), ZEP = UNITS.ZEP, zeppelinHP = UNITS.zeppelinHP, spawnZeppelin = UNITS.spawnZeppelin,
     zeppelinOnScreen = UNITS.zeppelinOnScreen, planeHit = UNITS.planeHit, updateZeppelin = UNITS.updateZeppelin,
-    hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar,
+    hurtZeppelin = UNITS.hurtZeppelin, inGondola = UNITS.inGondola, zeppelinDown = UNITS.zeppelinDown, drawZeppelin = UNITS.drawZeppelin, drawBossBar = UNITS.drawBossBar, drawSticker = UNITS.drawSticker,
     RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo, spawnRoadTank = UNITS.spawnRoadTank,
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
     RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
@@ -1401,6 +1401,12 @@
         q.r += q.vr * dt; q.y -= 10 * dt;
       } else if (q.k === 'scrap') {
         q.vy += 140 * dt; q.vx *= (1 - dt); q.x += q.vx * dt; q.y += q.vy * dt; q.rot += q.vr * dt;
+      } else if (q.k === 'sticker') {
+        // The decoy's disguise, torn off: it flutters down, swaying, and lies on the ground.
+        if (q.y < GROUND - 8) {
+          q.vy = Math.min(70, q.vy + 90 * dt); q.y += q.vy * dt; q.vx *= (1 - dt * 0.8);
+          q.x = clamp(q.x + (q.vx + Math.sin(q.life * 3.2) * 38) * dt, 40, W - 40); q.rot = Math.sin(q.life * 3.2) * 0.45;
+        } else { q.y = GROUND - 8; q.rot *= 1 - Math.min(1, dt * 4); q.flat = Math.min(1, q.flat + dt * 3); }
       }
     });
     S.parts = S.parts.filter(function (q) { return q.life > 0; });
@@ -1835,7 +1841,8 @@
         // A scrap of torn paper.
         G.translate(q.x, q.y); G.rotate(q.rot); G.beginPath(); G.moveTo(-q.s, -q.s * 0.6); G.lineTo(q.s, -q.s * 0.3); G.lineTo(q.s * 0.2, q.s * 0.7); G.closePath();
         G.fillStyle = q.c || PAPER; G.fill(); ink(INK2, 1.1); G.stroke();
-      } else if (q.k === 'flag') {
+      } else if (q.k === 'sticker') { G.globalAlpha = Math.min(1, q.life); drawSticker(q.x, q.y, 1, q.rot, q.flat); }
+      else if (q.k === 'flag') {
         // A white flag: surrender.
         var up = (1 - a) * 14; G.globalAlpha = Math.min(1, a * 2);
         G.beginPath(); L(q.x, q.y - up, q.x, q.y - up - 18, 0.2); ink(INK, 1.6); G.stroke();

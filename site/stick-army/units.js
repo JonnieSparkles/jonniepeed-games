@@ -166,6 +166,39 @@ var StickArmyUnits = function (w) {
     S.shake = Math.max(S.shake, 0.5);
     w.sound.play('zepdown');
     for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
+    // The decoy's disguise tears off and flutters down on its own (game.js updateParts).
+    if (p.decoy) S.parts.push({ k: 'sticker', x: p.x + p.face * STICKER.X, y: p.y + STICKER.Y, vx: rr(-30, 30), vy: -60, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
+  }
+
+  // The final wave's decoy pretends: a paper sign taped on crooked, "DREDNOUGHT" hand-lettered in red with the A
+  // squeezed in over a caret, one corner come loose and flapping. Drawn the right way round whichever way it faces
+  // (sx squashes it as the zeppelin turns); flat lays it on the ground.
+  var STICKER = { X: -14, Y: -1, HW: 48, HH: 13, TILT: -0.07 };
+  function drawSticker(x, y, sx, rot, flat) {
+    var G = w.G, t = w.S.t, hw = STICKER.HW, hh = STICKER.HH, flap = Math.sin(t * 8) * 0.5 + 0.5, i;
+    G.save(); G.translate(x, y); G.scale(Math.max(0.12, Math.abs(sx)), 1 - 0.65 * (flat || 0)); G.rotate(STICKER.TILT + (rot || 0));
+    pen(8086);
+    G.beginPath(); SP([-hw, -hh + 1, hw - 13, -hh, hw, -hh + 11, hw - 1, hh, -hw + 2, hh - 1], true, 0.5);
+    G.fillStyle = '#fffbee'; G.fill(); ink(INK, 1.6); G.stroke();
+    // Masking tape on three corners.
+    G.fillStyle = 'rgba(232,214,150,0.8)';
+    [[-hw + 2, -hh + 2, 0.7], [-hw + 3, hh - 2, -0.7], [hw - 3, hh - 2, 0.7]].forEach(function (c) {
+      G.save(); G.translate(c[0], c[1]); G.rotate(c[2]); G.fillRect(-8, -3, 16, 6); G.restore();
+    });
+    // The lettering: uneven, running downhill.
+    var word = 'DREDNOUGHT', step = 8.4, x0 = -step * (word.length - 1) / 2 - 1;
+    G.fillStyle = RED; G.textAlign = 'center';
+    for (i = 0; i < word.length; i++) {
+      G.save(); G.translate(x0 + i * step + (i >= 3 ? 2 : 0), 7 + Math.sin(i * 2.1) * 1.6 + i * 0.3); G.rotate(Math.sin(i * 1.3 + 1) * 0.15);
+      G.font = '700 ' + (14 + ((i * 7) % 3) * 2) + 'px ' + w.HAND; G.fillText(word[i], 0, 0); G.restore();
+    }
+    var cx = x0 + 2.5 * step + 1;
+    G.beginPath(); L(cx - 3, 10, cx, 5, 0.1); L(cx, 5, cx + 3, 10, 0.1); ink(RED, 1.4); G.stroke();
+    G.font = '700 10px ' + w.HAND; G.fillText('A', cx, -4);
+    // The loose corner, lifting in the wind and falling back.
+    var tx = hw + 4 + (hw - 10.8 - hw - 4) * flap, ty = -hh - 5 + 17.8 * flap;
+    G.beginPath(); SP([hw - 13, -hh, hw, -hh + 11, tx, ty], true, 0.2); G.fillStyle = '#ece2c6'; G.fill(); ink(INK, 1.4); G.stroke();
+    G.restore();
   }
 
   function drawZeppelin(p) {
@@ -237,6 +270,7 @@ var StickArmyUnits = function (w) {
     G.beginPath(); L(-27, hh + 10 - pl, -27, hh + 10 + pl, 0.3); ink(INK, 1.8); G.stroke();
     if (fly && Math.abs(f) > 0.8) { G.globalAlpha = 0.45; G.beginPath(); L(-hw * 1.18, -8, -hw * 1.18 - 16, -8); L(-hw * 1.2, 4, -hw * 1.2 - 10, 4); ink(INK2, 1.5); G.stroke(); G.globalAlpha = 1; }
     G.restore();
+    if (p.decoy && fly) drawSticker(p.x + f * STICKER.X, p.y + STICKER.Y, f, p.rot);
   }
   // Boss health rides just above the hull, below the escort lane; the tick marks half, where it turns angry. It comes
   // in with the hull, and is only held on the page once the zeppelin has fully arrived.
@@ -594,7 +628,7 @@ var StickArmyUnits = function (w) {
   }
 
   return { ZEP: ZEP, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
-    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawBossBar: drawBossBar,
+    updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,

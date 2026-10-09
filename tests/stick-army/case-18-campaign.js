@@ -37,7 +37,13 @@
   for (var df = 0; df < 60 * 15 && !S.spawn.decoySeen; df++) update(1 / 60);
   run(0.1);
   check(S.spawn.decoySeen && S.bubbles.some(function (b) { return /here it is/i.test(b.s); }), 'the squad thinks this is it');
-  zeppelinDown(decoy, 'player'); S.bubbles = []; run(1.4);
+  render();
+  // Downed, its "DREDNOUGHT" sign tears off and flutters down on its own.
+  zeppelinDown(decoy, 'player'); S.bubbles = [];
+  var sign = S.parts.find(function (q) { return q.k === 'sticker'; }), signY = sign && sign.y;
+  run(1.4);
+  check(sign && sign.y > signY, 'its sign flutters down');
+  render();
   check(seen.indexOf('dread_tease') >= 0 && ambienceState().dread === 'hush' && S.bubbles.some(function (b) { return /that's it/i.test(b.s); }), "that's it?");
   S.recruits = [];
   run(DREAD.TEASE_GAP);
@@ -52,6 +58,7 @@
   render();
   for (var f = 0; f < 60 * 30 && p.phase === 'arrive'; f++) update(1 / 60);
   check(p.phase === 'guns' && seen.indexOf('dread_arrive') >= 0 && p.unlockT > 0, 'then it takes station, with the cue to open fire');
+  check(p.maxHp === 4 * CAMPAIGN.turretHP(FINAL) + CAMPAIGN.hangarHP(FINAL) + CAMPAIGN.cannonHP(FINAL) + CAMPAIGN.bridgeHP(FINAL), 'its health counts the main gun');
   render();
 
   // Armor: the hull, the closed hangar and the plated bridge only clang while its guns fire.
@@ -143,9 +150,22 @@
   render();
   run(DREAD.CANNON.CHARGE + DREAD.CANNON.FLIGHT + 0.1);
   check(seen.indexOf('dread_cannon') >= 0 && S.wallHP <= wallC - DREAD.CANNON.WALL, 'and fires at the bunker');
-  p.cannon.t = 0.01; run(0.05); var mz = CAMPAIGN.muzzleAt(p);
-  damagePlane(p, DREAD.CANNON.BREAK, 'player', mz.x, mz.y, true);
-  check(p.cannon.charge === 0 && seen.indexOf('dread_cannon_saved') >= 0, 'hit the muzzle and it never fires');
+  // It's a part with its own health: hits count any time, double while it glows, and the crew go for it then.
+  function gunTarget() { return dreadTargets().find(function (q) { return q.part === 'cannon'; }); }
+  var cg = gunTarget(), cHP = p.cannon.hp;
+  check(cg && !cg.marking && cHP === CAMPAIGN.cannonHP(FINAL) && dreadTargets()[0].part === 'bridge', 'the main gun is a target, after the bridge');
+  damagePlane(p, 5, 'player', cg.x, cg.y, true);
+  check(p.cannon.hp === cHP - 5 && p.cannon.hitT > 0, 'a hit counts, and its bar jumps');
+  p.cannon.t = 0.01; run(0.05); cg = gunTarget();
+  check(cg.marking && dreadTargets()[0].part === 'cannon', 'charging, it comes first');
+  damagePlane(p, 5, 'player', cg.x, cg.y, true);
+  check(p.cannon.hp === cHP - 5 - 5 * DREAD.EXPOSED, 'double while it glows');
+  render();
+  damagePlane(p, 999, 'player', cg.x, cg.y, true);
+  check(p.cannon.dead && p.cannon.charge === 0 && seen.indexOf('dread_cannon_down') >= 0 && seen.indexOf('dread_cannon_saved') >= 0 && !gunTarget(), 'destroyed mid-charge: the shot never comes');
+  var cannons = seen.filter(function (e) { return e === 'dread_cannon'; }).length; p.cannon.t = 0.01; run(DREAD.CANNON.CHARGE + 1);
+  check(!p.cannon.charge && seen.filter(function (e) { return e === 'dread_cannon'; }).length === cannons, 'and it never fires again');
+  render();
   // Boarders slide down ropes from the hull.
   p.cannon.t = 1e9; p.boardT = 0.01; run(1.2);
   check(p.ropes.length === DREAD.BOARD_ROPES && S.troopers.some(function (t) { return t.board === p.id && t.state === 'rope'; }) && seen.indexOf('dread_board') >= 0, 'boarders slide down ropes');
