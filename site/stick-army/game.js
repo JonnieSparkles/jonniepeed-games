@@ -886,6 +886,7 @@
     if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 8, color: RED, a: 0.34, seed: t.id });
     award(10, t.x, t.y - 6, OUCH[t.id % OUCH.length], owner === 'ally' ? BLUE : INK, true);
     sound.play('hit');
+    if (t.captain) CAMPAIGN.captainDown(t);
   }
   function armorHit(t, owner) {
     t.armor--; t.pingT = S.t;
@@ -909,6 +910,7 @@
     killFx(t, 210, true);
     award(15, t.x, GROUND - 44, 'splat!', RED, true);
     sound.play('splat');
+    if (t.captain) CAMPAIGN.captainDown(t);
   }
   function freeSlot(side) {
     var order = side === 0 ? [0, 1, 2, 3, 4, 5, 6, 7] : [4, 5, 6, 7, 0, 1, 2, 3];
@@ -925,7 +927,8 @@
     tr.v += 180;
     addText('boing!', t.x, tr.y - 20, INK, 21);
     sound.play('boing');
-    var slot = freeSlot(tr.x1 < 200 ? 0 : 1);
+    // The Dreadnought's captain is a prisoner, not a recruit: he bounces onto the bunker (campaign.js captainCaught).
+    var slot = t.captain ? -1 : freeSlot(tr.x1 < 200 ? 0 : 1);
     t.state = 'bounce'; t.bt = 0; t.bdur = 0.85; t.x0 = t.x; t.y0 = tr.y - 33; t.slot = slot;
     if (slot >= 0) { S.slotRes[slot] = true; t.x1 = SLOTS[slot]; t.y1 = GROUND - 33; t.bh = 120; }
     else { t.x1 = BK.x; t.y1 = BK.top - 30; t.bh = 140; }
@@ -933,6 +936,7 @@
   }
   function becomeRecruit(t) {
     t.dead = true;
+    if (t.captain) { CAMPAIGN.captainCaught(t); return; }
     if (t.slot >= 0) {
       delete S.slotRes[t.slot];
       var r = makeRecruit(t.slot, t.type, t.id);
@@ -1013,7 +1017,7 @@
     var col = kind === 'rocket' || kind === 'strike' ? BLUE : INK;
     // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
     S.troopers.forEach(function (t) {
-      if (kind !== 'flak' && !t.dead && t.state !== 'bounce' && Math.hypot(t.x - x, t.y + 14 - y) < r) {
+      if (kind !== 'flak' && !t.dead && t.state !== 'bounce' && !(t.captain && owner !== 'player') && Math.hypot(t.x - x, t.y + 14 - y) < r) {
         t.dead = true; killFx(t, kind === 'bomb' || kind === 'crash' ? 320 : 240); S.stats.kills++; if (kind === 'rocket') credit();
         emit('kill', { by: kind === 'crash' ? 'crash' : kind === 'strike' ? 'strike' : 'explosion', source: kind, type: t.type });
         award(10, t.x, t.y - 4, 'boom!', col, true);
@@ -1110,7 +1114,7 @@
     S.tanks.forEach(function (tk) { var d = Math.abs(tk.x - ox); if (!tk.dead && tk.state !== 'chute' && inView(tk) && d < td) { td = d; tank = tk; } });
     if (tank && r.type === 'bazooka') return tank;
     S.troopers.forEach(function (t) {
-      if (t.dead || t.state !== 'ground') return;
+      if (t.dead || t.captain || t.state !== 'ground') return;
       var d = Math.abs(t.x - ox);
       if (d < 240 && d < bd) { bd = d; best = t; }
     });
@@ -1134,7 +1138,7 @@
       if (best) return best;
     }
     S.troopers.forEach(function (t) {
-      if (t.dead || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380) return;
+      if (t.dead || t.captain || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380) return;
       var d = Math.hypot(t.x - ox, t.y - oy);
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
@@ -1330,6 +1334,7 @@
     S.enemyShots = S.enemyShots.filter(function (b) { return b.life > 0 && b.x > -20 && b.x < W + 20 && b.y < GROUND + 4; });
   }
   function updateLander(t, dt) {
+    if (t.captain) { CAMPAIGN.captainRun(t, dt); return; }
     if (t.type === 'sniper') { updateSniper(t, dt); return; }
     var mine = S.mines.find(function (m) { return m.armed && Math.abs(t.x - m.x) < 12; });
     if (mine) { mine.armed = false; explode(mine.x, GROUND - 15, 38, 'mine', 'ally'); return; }
@@ -1370,7 +1375,8 @@
         if (t.gunner) gunnerFire(t, dt);
         t.open = Math.min(1, t.open + dt * 2.6);
         t.y += (t.open < 1 ? 95 - 55 * t.open : t.fall) * dt;
-        if (t.type === 'sniper') { var edge = t.x < BK.x ? 18 : W - 18; t.x += Math.sign(edge - t.x) * Math.min(Math.abs(edge - t.x), 28 * dt); }
+        if (t.captain) CAMPAIGN.captainDrift(t, dt);
+        else if (t.type === 'sniper') { var edge = t.x < BK.x ? 18 : W - 18; t.x += Math.sign(edge - t.x) * Math.min(Math.abs(edge - t.x), 28 * dt); }
         else t.x += Math.sin(S.t * 1.3 + t.sway) * 7 * dt;
         if (t.x > 150 && t.x < 250) t.x += (t.x < 200 ? -1 : 1) * 10 * dt;
         t.x = clamp(t.x, 12, W - 12);
@@ -1483,8 +1489,8 @@
       return best;
     }
     return nearest(S.bombs, function (m) { return !m.dead && !m.armored && m.y > 200 && inView(m); }) ||
-      nearest(S.troopers, function (t) { return !t.dead && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low; }) ||
-      nearest(S.troopers, function (t) { return !t.dead && t.state === 'ground'; }) ||
+      nearest(S.troopers, function (t) { return !t.dead && !t.captain && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low; }) ||
+      nearest(S.troopers, function (t) { return !t.dead && !t.captain && t.state === 'ground'; }) ||
       nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute' && inView(tk); }) ||
       nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon' && p.x > 10 && p.x < W - 10; });
   }
@@ -1607,6 +1613,14 @@
     G.beginPath(); SP([x - 4.5, y + 7, x + 4.5, y + 7, x + 4, y + 19, x - 4, y + 19], true, 0.3);
     G.fillStyle = flash ? PAPER : '#8a8f96'; G.fill(); ink(INK, 1.5); G.stroke();
   }
+  // The Dreadnought's captain (campaign.js): a peaked officer's cap, dark with a red band, a gold badge and a visor.
+  function captainCap(x, y, d) {
+    G.beginPath(); G.moveTo(x - 5.5, y - 3); G.lineTo(x - 8.5, y - 9); G.quadraticCurveTo(x, y - 12.5, x + 8.5, y - 9); G.lineTo(x + 5.5, y - 3); G.closePath();
+    G.fillStyle = '#3b3f4a'; G.fill(); ink(INK, 1.4); G.stroke();
+    G.beginPath(); L(x - 5.8, y - 4.6, x + 5.8, y - 4.6, 0.2); ink(RED, 2); G.stroke();
+    G.beginPath(); L(x + d * 1, y - 3, x + d * 9.5, y - 1.2, 0.2); ink(INK, 2.4); G.stroke();
+    G.beginPath(); G.arc(x, y - 8, 1.5, 0, Math.PI * 2); G.fillStyle = HAT; G.fill();
+  }
   function steelPot(x, y) {
     G.beginPath(); G.moveTo(x - 7.5, y - 1); G.quadraticCurveTo(x - 7, y - 10, x, y - 10); G.quadraticCurveTo(x + 7, y - 10, x + 7.5, y - 1); G.closePath();
     G.fillStyle = '#6b6f75'; G.fill(); ink(INK, 1.5); G.stroke();
@@ -1646,7 +1660,8 @@
     if (t.type === 'rifle') { G.beginPath(); L(x - 7, y + 17, x + 7, y + 8, 0.4); ink(INK, 2); G.stroke(); }
     if (t.gunner && t.flash > 0) { G.beginPath(); G.arc(x + 8, y + 8, 4, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     if (t.armor > 0) vest(x, y, S.t - t.pingT < 0.12);
-    if (t.type === 'engineer') hat(x, y);
+    if (t.captain) captainCap(x, y, t.state === 'ground' ? t.dir : 1);
+    else if (t.type === 'engineer') hat(x, y);
     else if (t.armor > 1) steelPot(x, y);
     if (t.type === 'sniper') { drawScope(x, y, t.state === 'ground' ? t.dir : 1);
       if (t.state === 'ground' && t.shotCD < 0.8 && S.recruits.some(standing)) { G.save(); G.globalAlpha = 0.28; G.setLineDash([3, 5]); G.beginPath(); L(x + t.dir * 16, y + 11, x + t.dir * 160, y + 11); ink(RED, 1); G.stroke(); G.restore(); }
@@ -2118,13 +2133,14 @@
     ctx.drawImage(bg, 0, 0, W, H);
     ctx.drawImage(dc, 0, 0, W, H);
     drawGround();
-    activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     SKY.drawBehind();
     drawTease();
     // The Dreadnought's name and gauges sit behind it, so the ship passes in front of them.
     drawDreadBar();
     if (S.wreck) drawDread(S.wreck);
     S.planes.forEach(function (p) { if (p.kind === 'dread') drawDread(p); });
+    // The mats in front of the Dreadnought's wreck, so its captain can still be caught on one (campaign.js).
+    activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
     S.planes.forEach(function (p) { if (SKY.KINDS[p.kind]) SKY.drawPlane(p); else if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });
     SKY.draw();
@@ -2285,6 +2301,7 @@
     };
     if ((S.mode === 'over' || S.mode === 'dying') && S.lastHit) st.cause = S.lastHit;
     if (S.won) st.won_at = S.wonAt;
+    if (S.captain) st.captain = S.captain;
     if (S.endless) st.endless = true;
     return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, stats: st };
   }

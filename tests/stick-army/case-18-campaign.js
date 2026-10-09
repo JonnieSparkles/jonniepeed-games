@@ -219,7 +219,10 @@
   run(0.3); render();
   check(p.broken === 1 && CAMPAIGN.dread() === p && S.waveState === 'active', 'broken in two, burning');
   run(DREAD.CRASH.SETTLE);
-  check(!CAMPAIGN.dread() && S.wreck === p && S.waveState === 'clear' && S.banner.s === 'victory!', 'victory, the wreck still smoldering');
+  check(!CAMPAIGN.dread() && S.wreck === p, 'the wreck settles, still smoldering');
+  // The wave waits for its captain, the last one out (case-25); here he lands and gets away.
+  for (f = 0; f < 60 * 20 && S.waveState === 'active'; f++) update(1 / 60);
+  check(S.waveState === 'clear' && S.banner.s === 'victory!' && S.captain === 'escaped', 'victory once the captain is gone: ' + S.captain);
   render();
   run(3.4);
 

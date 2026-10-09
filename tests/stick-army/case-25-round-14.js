@@ -239,5 +239,64 @@
   run(DREAD.SNEAK.EVERY * 2);
   check(seen.filter(function (e) { return e.type === 'sneak'; }).length === DREAD.SNEAK.GROUPS, 'and no more');
 
+  // ---- The last hurrah: abandon ship at a third of the bridge; then its captain, the last one out.
+  function alive(t) { return !t.dead; }
+  RUN.force = 170; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'rifle')]; startWave(DREAD.WAVE);
+  S.spawn.teaser = false; S.spawn.timer = 99; S.spawn.planes = 0; S.spawn.bossT = 0;
+  for (f = 0; f < 60 * 40 && !(CAMPAIGN.dread() && CAMPAIGN.dread().phase === 'guns'); f++) update(1 / 60);
+  var dz2 = CAMPAIGN.dread();
+  dz2.turrets.forEach(function (g) { if (!g.dead) damagePlane(dz2, 999, 'player', dz2.x + dz2.dir * g.lx, dz2.y + DREAD.GUN_Y, true); });
+  run(DREAD.PAUSE.HANGAR + 0.2);
+  damagePlane(dz2, 9999, 'player', dz2.x + dz2.dir * DREAD.HANGAR, dz2.y + DREAD.HANGAR_Y, true);
+  run(DREAD.PAUSE.BRIDGE + 0.1);
+  check(dz2.phase === 'bridge' && !(dz2.hold > 0), 'the bridge stage');
+  S.planes = S.planes.filter(function (z) { return z.kind === 'dread'; }); S.troopers = []; S.bombs = []; S.enemyShots = [];
+  dz2.bombT = dz2.gunT = dz2.boardT = 1e9; dz2.ropes = []; if (dz2.cannon) dz2.cannon.dead = true;
+  dz2.x = 200 + dz2.dir * 120 - dz2.dir * DREAD.BRIDGE;
+  function hitBridge(dmg) { damagePlane(dz2, dmg, 'player', dz2.x + dz2.dir * dz2.bridge.lx, dz2.y + DREAD.BRIDGE_Y, true); }
+  seen = []; hitBridge(dz2.bridge.max * 0.5);
+  check(!dz2.abandoned && !heard('dread_abandon'), 'not at half');
+  var before = S.troopers.filter(alive).length; S.texts = [];
+  hitBridge(dz2.bridge.max * 0.2);
+  check(dz2.abandoned && heard('dread_abandon', function (d) { return d.n === DREAD.ABANDON.N; }) && S.troopers.filter(alive).length - before >= DREAD.ABANDON.N &&
+    S.texts.some(function (q) { return q.s === 'abandon ship!'; }), 'at a third: abandon ship!');
+  hitBridge(dz2.bridge.max * 0.05);
+  check(seen.filter(function (e) { return e.type === 'dread_abandon'; }).length === 1, 'once');
+  render();
+  // Downed: they surrender, and the captain is the last one out, under his own slow chute.
+  hitBridge(9999);
+  check(dz2.phase === 'sinking' && !S.troopers.some(alive), 'down it goes, and they surrender');
+  run(DREAD.CAPTAIN.DELAY + 0.05);
+  var cap = S.troopers.find(function (t) { return t.captain && !t.dead; });
+  check(cap && S.captain === 'out' && cap.fall === DREAD.CAPTAIN.FALL && heard('captain', function (d) { return d.fate === 'out'; }), 'the captain is the last one out');
+  render();
+  var d0 = Math.abs(cap.x - cap.matX); run(0.5);
+  check(cap.overMat || Math.abs(cap.x - cap.matX) < d0, 'he makes for the nearest open mat');
+  // The crew and the sentry leave him to you.
+  var cy0 = cap.y; cap.y = 450; cap.open = 1; S.mods.auto = true;
+  check(pickTarget(S.recruits[0]) !== cap && sentryTarget() !== cap, 'the crew and the sentry leave him to you');
+  cap.y = cy0; S.mods.auto = false;
+  // Pop his chute over the mat: he bounces onto the bunker, your prisoner.
+  var mat = activeTramps()[0], crew0 = S.recruits.filter(alive).length, sc0 = S.score;
+  cap.x = (mat.x1 + mat.x2) / 2; cap.y = mat.y - 33 - 16; popChute(cap);
+  for (f = 0; f < 60 * 3 && !cap.dead; f++) update(1 / 60);
+  check(S.captain === 'captured' && S.score >= sc0 + DREAD.CAPTAIN.PTS && S.recruits.filter(alive).length === crew0 && heard('captain', function (d) { return d.fate === 'captured'; }),
+    'caught on the mat: a prisoner, not a recruit, +' + DREAD.CAPTAIN.PTS);
+  for (f = 0; f < 60 * 20 && S.mode !== 'won'; f++) update(1 / 60);
+  var capLine = document.getElementById('winCaptain');
+  check(S.mode === 'won' && !capLine.hidden && /^Prisoner: their captain/.test(capLine.textContent) && runReport().stats.captain === 'captured', 'on the victory card: ' + capLine.textContent);
+  winScreen.hidden = true;
+  // Shot down, or let him land and he runs off the page.
+  RUN.force = 171; quiet(20); S.recruits = [];
+  var c2 = spawnTrooper(120, 300); c2.captain = true; c2.matX = 57; c2.edge = -1; c2.drift = 40; S.captain = 'out'; sc0 = S.score;
+  killTrooper(c2, 'player');
+  check(S.captain === 'down' && S.score >= sc0 + DREAD.CAPTAIN.DOWN, 'shot down');
+  var c3 = spawnTrooper(80, GROUND - 40); c3.captain = true; c3.matX = 57; c3.edge = -1; c3.drift = 40; S.captain = 'out';
+  for (f = 0; f < 60 * 6 && !c3.dead; f++) update(1 / 60);
+  check(c3.dead && S.captain === 'escaped' && S.wallHP === S.mods.maxHP, 'or he lands and runs off the page, touching nothing');
+  S.captain = 'escaped'; S.wave = DREAD.WAVE; CAMPAIGN.showWin();
+  check(capLine.textContent === 'Their captain got away.', 'and the card says so');
+  winScreen.hidden = true;
+
   emitHook = null; RUN.force = null; reset(); titleScene(); render();
 })();
