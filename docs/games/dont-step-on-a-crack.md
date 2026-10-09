@@ -101,6 +101,20 @@ Each walk reports to [play stats](../guides/03-play-stats.md) from `startGame` a
 
 The title screen runs a demo walk: `botUpdate` drives the feet through the same input path as a player. Nothing counts outside play, and the title is quiet.
 
+## Trailer
+
+The trailer is 15 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../guides/04-trailers.md)) from the files in `tests/dont-step-on-a-crack/trailer/`. The cut, at 128 BPM:
+
+| Time | Shot |
+| --- | --- |
+| 0:00 | Maple Ave, with the game's title lettered on the grass from the first frame, so a share preview says what it is. The feet walk over the chalked title while Mom sips her coffee. |
+| 0:01.4 | Cut on beat 3 as the music plays "step on a" and "Step on a crack…" is written in chalk; the foot lands on a crack on bar 2's downbeat, with "Crack. Mom's back." and the X-ray. "…break your mother's back." |
+| 0:03.75 | Montage on the beat: heelies, Calzone herding you, Dad walking on Mom's back (pushed in on the Mom Cam), moon shoes, "Quarry Ln, condemned" with Mom updating her will. |
+| 0:09.1 | The last pothole lands on bar 6's downbeat with a brass "uh-oh"; the music drops out and Mom calls. |
+| 0:11.25 | The cover art, with the studio mark and jonniepeed.games. |
+
+Three seeded takes supply it: A (the opening, the first crack, Dad, Calzone), B (heelies, moon shoes) and C (Quarry Ln and Mom's call). `python3 tools/trailer/make.py dont-step-on-a-crack` rebuilds this exact cut. `director.js` plays through the player's input path, with taps when a tap lands clean, held and aimed steps otherwise, a one-step lookahead so it isn't cornered, and a giant step when it is. `trailer.css` makes the Mom Cam 446 px on the left grass and hides the buttons and stats. The music is original (`music.py`), in D major: a first version in D minor sounded like Halloween.
+
 ## Validation
 
 ```sh
@@ -109,6 +123,6 @@ node --check site/dont-step-on-a-crack/audio.js
 python3 tools/check_boards.py
 ```
 
-The browser runner `scores/test/games.py` covers Crack's end screen and title-screen High scores in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../guides/00-leaderboards.md#local-development). There is no `tests/dont-step-on-a-crack/` harness yet. [SPEC-005](../../specs/SPEC-005-balance-bots.md) lists a Crack balance bot as follow-up work.
+The browser runner `scores/test/games.py` covers Crack's end screen and title-screen High scores in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../guides/00-leaderboards.md#local-development). There is no browser test harness for Crack yet; `tests/dont-step-on-a-crack/trailer/` holds only the trailer. [SPEC-005](../../specs/SPEC-005-balance-bots.md) lists a Crack balance bot as follow-up work.
 
 The preview card and thumbnail (`site/dont-step-on-a-crack/og.png`, `thumb.webp`) come from the cover art in `brand/covers/dont-step-on-a-crack.png`: `python3 tools/og/make.py` crops it to 4:3 near the left edge, so the Mom Cam in the corner stays in, and puts the crop beside the tagline on the card. The chalked title is part of the art, so the card leaves its own title out. Run `python3 tools/stamp.py` last after any change in `site/`.
