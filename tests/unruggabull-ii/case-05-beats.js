@@ -8,7 +8,7 @@
   step(BEATS[0].time - .1);
   check(R.decor.some(d => d.kind === 'poster' || d.kind === 'cooler'), 'posters and water coolers dress the walls');
   step(.2);
-  check(R.event && R.event.kind === 'audit' && R.banner.text === 'AUDIT!', 'then an audit');
+  check(R.event && R.event.kind === 'audit' && R.signs.some(sg => sg.text.startsWith('AUDIT')) && !(R.banner && R.banner.text.startsWith('AUDIT')), 'then an audit, announced by a sign, not a banner');
   step(3);
   const inView = R.cubs.filter(cb => { const z = cubZ(cb); return z > .35 && z < .85; });
   check(inView.length >= 2 && inView.every(cb => cb.temp && !cb.temp.dead && cb.temp.st !== 'hidden'), 'every desk in view is staffed and its temp stands up (' + inView.length + ')');
@@ -30,7 +30,7 @@
   check(R.event && R.event.kind === 'dark', 'then the lights go out');
   step(1.5);
   check(darkness() > .5, 'and the hall is dark');
-  step(TUNE.eventT);
+  step(TUNE.darkT);
   check(!R.event && darkness() === 0 && beat().sign === 'COPY ROOM', 'the lights come back in the copy room');
   step(3);
   check(R.cubs.some(cb => cb.kind === 'copier'), 'copiers replace the cubicles');

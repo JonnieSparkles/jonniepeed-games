@@ -5,13 +5,13 @@
 // It sees itself late too, but like a person it knows what it has pressed since, and counts that in.
 window.__balanceBot = function (profile, seed) {
   'use strict';
-  var P = Object.assign({ notice_s: .3, depth_err: .04, deflect_try: .7, fly_slash: .7, dodge: .6, jump_try: .75, jump_err: .035, pickup: .7, charge_floor: 0, anticipate: .75 }, profile);
+  var P = Object.assign({ notice_s: .3, depth_err: .04, deflect_try: .7, fly_slash: .7, dodge: .6, jump_try: .75, jump_err: .035, pickup: .7, charge_floor: 0, anticipate: .75, cut_try: .5 }, profile);
   var lead = P.reaction_ms / 1000 * P.anticipate;   // seconds it looks ahead
   var s = (seed * 2654435761 + 12345) >>> 0;
   function r() { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
   function clamp(u) { return Math.max(-.58, Math.min(.58, u)); }
   function err(n) { return (r() * 2 - 1) * n; }
-  var seen = {}, plans = {}, sent = [], lastT = null, dt = 1 / 30;
+  var seen = {}, plans = {}, sent = [], lastT = null, dt = 1 / 30, lastPull = 'idle', pullPlan = null;
   function noticed(o, x) { if (!(x.id in seen)) seen[x.id] = o.t; return o.t - seen[x.id] >= P.notice_s; }
   function plan(x, make) { return plans[x.id] || (plans[x.id] = make()); }
   return {
@@ -55,8 +55,13 @@ window.__balanceBot = function (profile, seed) {
         if (pl.side && !urgent) { goal = clamp(me + (bx.u >= me ? -.3 : .3)); urgent = true; }
         else if (dz < o.speed * .25 + pl.err + .02) a.jump = true;
       });
-      // The runner warns, then pulls: step off it.
-      if ((o.pull === 'warn' || o.pull === 'on') && Math.abs(me) < o.runner + .05 && !urgent) { goal = me >= 0 ? .45 : -.45; urgent = true; }
+      // The runner warns, then pulls: step off it, or stay on and slash to cut it (which jams the Shredder).
+      if (o.pull === 'warn' && lastPull !== 'warn') pullPlan = { cut: r() < P.cut_try };
+      lastPull = o.pull;
+      if ((o.pull === 'warn' || o.pull === 'on') && Math.abs(me) < o.runner + .05 && !urgent) {
+        if (pullPlan && pullPlan.cut) { if (o.pull === 'on') a.slash = true; }
+        else { goal = me >= 0 ? .45 : -.45; urgent = true; }
+      }
       // Coffee when hurt, Spread Shot always: walk under it and jump.
       if (!urgent) o.pickups.forEach(function (pk) {
         var dz = pk.z - b.bz - (o.speed + .06) * lead, pl = plan(pk, function () { return { go: r() < P.pickup }; });

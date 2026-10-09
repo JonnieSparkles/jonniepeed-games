@@ -302,6 +302,8 @@ window.UnrugSound = (function () {
     drained: t => { osc(sfxBus, 'p25', 900, t, .4, .1, { to: 90, sustain: .8 }); osc(sfxBus, 'square', 220, t + .05, .3, .06, { to: 55 }); },
     ready: t => { [76, 83].forEach((m, i) => osc(sfxBus, 'p25', hz(m + 12), t + i * .07, .08, .07)); },
     coffee: t => { [60, 64, 67].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12), t + i * .06, .08, .12)); osc(sfxBus, 'p50', hz(84), t + .2, .25, .07, { vib: true }); },
+    // a pickup turns up: a bright little twinkle
+    appear: t => { [88, 95, 100, 95, 100].forEach((m, i) => osc(sfxBus, 'p25', hz(m), t + i * .05, .05, .045)); osc(sfxBus, 'triangle', hz(100), t + .25, .2, .07, { vib: true }); },
     power: t => { for (let i = 0; i < 8; i++) osc(sfxBus, 'p25', hz(64 + i * 3), t + i * .035, .06, .07); osc(sfxBus, 'p50', hz(88), t + .3, .3, .07, { vib: true }); },
     audit: t => { for (let i = 0; i < 4; i++) osc(sfxBus, 'p50', i % 2 ? 660 : 880, t + i * .16, .14, .09, { sustain: .9 }); for (let i = 0; i < 10; i++) noiseHit(sfxBus, t + .64 + i * .04, .05, .25, 'bandpass', 1600, .8); },
     jump: t => osc(sfxBus, 'p25', 320, t, .12, .08, { to: 760 }),

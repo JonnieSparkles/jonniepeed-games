@@ -65,6 +65,6 @@
   check(R.pickups.some(pk => pk.kind === 'coffee') && R.pickups.some(pk => pk.kind === 'spread'), 'a coffee and a Spread Shot follow the audit');
   R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
   check(R.event && R.event.kind === 'dark' && Snd.track === 'dark', 'lights out drops to a heartbeat');
-  step(TUNE.eventT);
+  step(TUNE.darkT);
   check(R.beat === 2 && Snd.track === 'copy', 'the copy room has its own tune');
 })();

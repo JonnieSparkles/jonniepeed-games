@@ -57,21 +57,22 @@ A corridor floor of about two minutes, then the Shredder.
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
   - **AUDIT!**: a deflect round. The temps all stand and lob paperwork; each one knocked back counts double.
   - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap, a snake).
-  - **Lights out**: only monitors, eyes and blaster bolts show.
+  - **Lights out**: only monitors, eyes and paper show, and blaster bolts light up the hall as they fly. Carpshits keep coming out of the dark, and every soul freed in it counts double.
   - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
   - Rows that span the aisle (office chairs from All Staff on, a paper jam's sheet) give jumping a job, after the first section.
-  - Pickups float at jump height: coffee (a heart back) and the Spread Shot.
-  - Each beat has its own music, with stings for the events.
+  - Pickups float at jump height, lit by a beam from the ceiling: coffee (a heart back) and the Spread Shot. A streak of 10 kills drops a Spread Shot.
+  - Each beat and event drops its own sign from the ceiling and has its own music, with stings for the events. No banners across the hall during play.
   - Paper blows down the corridor the whole time.
 - **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, or slash while standing on it to cut the rug and stop it. The first pull shows a prompt.
-- **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner.
-  - Phase 1: it spits bundles of shredded paper (deflect them into its mouth for heavy damage) and pulls the runner.
+- **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner. An old-school card names it while its health bar fills.
+  - In every phase the runner pulls on a steady beat, and cutting the rug jams it: blaster shots do triple damage while it's jammed.
+  - Phase 1: it spits bundles of shredded paper (deflect them into its mouth for heavy damage).
   - Phase 2: staple fans you have to dodge or deflect, and longer pulls.
-  - Phase 3 (the rally): it serves a gold bundle and bats your deflects back, quicker each time, until it misses for a smash. It braces against the blaster, so the rally is how you finish it. Cutting the rug still jams it, and blaster shots do triple damage while it's jammed.
+  - Phase 3 (the rally) opens with the lights out ("power saving mode"). It serves a gold bundle and bats your deflects back, quicker each time, until it misses for a smash. It braces against the blaster, so the rally and jams are how you finish it.
   - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
-- **Clear.** "FLOOR 13 CLEAR", the souls float up, and a card shows souls freed, time and best. The elevator to floor 42 is the next stage.
-- **Dying.** Five hearts. At zero: "RUGGED. CONTINUE?" restarts the floor. (Lives across a full run are still open; see below.)
+- **Clear.** "FLOOR 13 CLEAR", the souls float up, and a card shows souls freed, time, deflects, best streak, smashes and best. The elevator to floor 42 is the next stage.
+- **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by the Shredder, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
 
 ## Look
 
