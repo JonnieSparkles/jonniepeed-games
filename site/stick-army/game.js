@@ -286,6 +286,27 @@
     return c;
   }
 
+  // The final wave's decoy builds up like the real thing: a horn, rumbling and a great shadow creeping in from one
+  // side, then a lone zeppelin sails in, slowly.
+  function teaseIn(sp, dt) {
+    if (sp.teaseT == null) {
+      sp.teaseT = DREAD.DECOY_BUILD; sp.teaseDir = RW() < 0.5 ? 1 : -1; sp.rumbleT = 0.6; sound.play('horn');
+      addText('something big is coming...', sp.teaseDir > 0 ? 150 : W - 150, 260, RED, 24, 'alert');
+    }
+    sp.teaseT -= dt; sp.rumbleT -= dt;
+    if (sp.rumbleT <= 0) { sp.rumbleT = 1.1; S.shake = Math.max(S.shake, 0.15 + 0.15 * (1 - sp.teaseT / DREAD.DECOY_BUILD)); sound.play('rumble'); }
+    if (sp.teaseT > 0) return;
+    sp.decoy = spawnZeppelin({ decoy: true, dir: sp.teaseDir }); sp.decoy.speed = sp.decoy.enterSpeed = DREAD.DECOY_SPEED;
+    sp.bossT = 1e9; sound.play('horn');
+  }
+  function drawTease() {
+    var sp = S.spawn;
+    if (!sp || !(sp.teaseT > 0) || sp.decoy) return;
+    var k = 1 - sp.teaseT / DREAD.DECOY_BUILD, x = sp.teaseDir > 0 ? -120 + k * 150 : W + 120 - k * 150;
+    G.save(); G.globalAlpha = 0.1 + 0.12 * k; G.fillStyle = INK;
+    G.beginPath(); G.ellipse(x, GROUND - 2, 150, 8, 0, 0, Math.PI * 2); G.fill(); G.restore();
+  }
+
   // 1 up to wave 9, then the gaps shrink with the plane interval, to half by wave 21.
   function wavePace(c) { return Math.max(0.5, Math.min(1, c.interval / 0.85)); }
 
@@ -579,7 +600,7 @@
         if (!sp.bossWarned && sp.bossT <= ZEP.WARN) { sp.bossWarned = true; sound.play('horn'); addText(sp.cfg.twin ? 'two zeppelins incoming!' : 'zeppelin incoming!', 200, ZEP.Y, RED); emit('zeppelin_warning', { wave: S.wave }); }
         if (sp.bossT <= 0) {
           // The final wave's teaser: an ordinary zeppelin first, to thin music; the real thing waits until it's down.
-          if (sp.cfg.bossKind === 'dread' && sp.teaser && !sp.decoy) { sp.decoy = spawnZeppelin({ decoy: true }); sp.bossT = 1e9; sound.play('horn'); }
+          if (sp.cfg.bossKind === 'dread' && sp.teaser && !sp.decoy) teaseIn(sp, dt);
           else if (sp.cfg.bossKind === 'dread') { sp.boss--; spawnDread(); }
           // The twins come in together, one from each side, one above the other.
           else if (sp.cfg.twin) { sp.boss = 0; spawnZeppelin({ dir: 1, twin: 0 }); spawnZeppelin({ dir: -1, twin: 1 }); }
@@ -955,7 +976,7 @@
     blastTanks(x, y, r, kind, owner);
     if (kind === 'rocket' || kind === 'flak') {
       S.planes.forEach(function (p) { if (p.state === 'fly' && Math.abs(p.x - x) < r + p.hw && Math.abs(p.y - y) < r + p.hh) damagePlane(p, kind === 'rocket' ? 3 : 1, owner || 'ally', x, y); });
-      S.bombs.forEach(function (m) { if (!m.dead && Math.hypot(m.x-x,m.y-y) < r + 8) { m.dead=true; emit('bomb_intercepted', { by: owner === 'player' ? 'player' : 'crew' }); award(20,m.x,m.y-12,'bomb popped!',BLUE,true); puff(m.x,m.y,8,0.4); } });
+      S.bombs.forEach(function (m) { if (!m.dead && !m.armored && Math.hypot(m.x-x,m.y-y) < r + 8) { m.dead=true; emit('bomb_intercepted', { by: owner === 'player' ? 'player' : 'crew' }); award(20,m.x,m.y-12,'bomb popped!',BLUE,true); puff(m.x,m.y,8,0.4); } });
     }
     sound.play(kind === 'rocket' || kind === 'air' ? 'hit' : 'boom');
   }
@@ -982,8 +1003,8 @@
     for (i = 0; i < S.bombs.length; i++) {
       m = S.bombs[i];
       if (seen.indexOf(m.id) >= 0) continue;
-      // Tank shells are smaller than bombs and harder to hit.
-      if (!m.dead && Math.hypot(b.x - m.x, b.y - m.y) < (m.shell ? 6 : m.heavy ? 11 : 9) + near) {
+      // Tank shells are smaller than bombs and harder to hit. A sortie's armored bomb can't be shot down.
+      if (!m.dead && !m.armored && Math.hypot(b.x - m.x, b.y - m.y) < (m.shell ? 6 : m.heavy ? 11 : 9) + near) {
         m.dead = true; emit('bomb_intercepted', { by: b.owner === 'ally' ? 'crew' : 'player' });
         award(20, m.x, m.y - 12, 'bomb popped!', b.owner === 'ally' ? BLUE : INK, true);
         if (!projectileBurst(b)) { consumeBullet(b, m); explode(m.x, m.y, 26, 'air', b.owner); }
@@ -1034,7 +1055,7 @@
     if (best) return best;
     if (tank) return tank;
     S.bombs.forEach(function (m) {
-      if (m.dead || m.y < 250) return;
+      if (m.dead || m.armored || m.y < 250) return;
       var d = Math.hypot(m.x - ox, m.y - oy);
       if (d < 320 && d < bd) { bd = d; best = m; }
     });
@@ -1389,7 +1410,7 @@
       list.forEach(function (o) { if (!ok(o)) return; var d = Math.hypot(o.x - ox, o.y - oy); if (d < SENTRY.range && d < bd) { bd = d; best = o; } });
       return best;
     }
-    return nearest(S.bombs, function (m) { return !m.dead && m.y > 200; }) ||
+    return nearest(S.bombs, function (m) { return !m.dead && !m.armored && m.y > 200; }) ||
       nearest(S.troopers, function (t) { return !t.dead && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low; }) ||
       nearest(S.troopers, function (t) { return !t.dead && t.state === 'ground'; }) ||
       nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute'; }) ||
@@ -1652,6 +1673,8 @@
     G.save(); G.translate(m.x, m.y); G.rotate(a); if (m.heavy) G.scale(1.45, 1.45);
     if (m.shell) { G.beginPath(); G.ellipse(0, 0, 3, 5, 0, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); G.restore(); return; }
     G.beginPath(); G.ellipse(0, 0, 4.5, 7.5, 0, 0, Math.PI * 2); G.fillStyle = INK; G.fill();
+    // An armored bomb (from a Dreadnought sortie): steel bands, and bullets pass it by.
+    if (m.armored) { G.beginPath(); L(-4.5, -1, 4.5, -1, 0.1); L(-4, 3, 4, 3, 0.1); ink('#9aa0a8', 1.8); G.stroke(); }
     G.beginPath(); L(-4, -6, -6, -12, 0.3); L(4, -6, 6, -12, 0.3); L(-6, -12, 6, -12, 0.3); ink(INK, 1.8); G.stroke();
     G.restore();
   }
@@ -1985,6 +2008,7 @@
     drawGround();
     activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     SKY.drawBehind();
+    drawTease();
     S.planes.forEach(function (p) { if (p.kind === 'dread') drawDread(p); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
     S.planes.forEach(function (p) { if (SKY.KINDS[p.kind]) SKY.drawPlane(p); else if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });

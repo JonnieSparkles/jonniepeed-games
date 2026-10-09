@@ -89,7 +89,7 @@
   RUN.force = 97; newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(DREAD.WAVE); S.spawn.timer = 99; S.spawn.teaser = false;
   run(DREAD.ARRIVE + 0.05);
   var p = CAMPAIGN.dread();
-  for (var f = 0; f < 60 * 15 && p.phase === 'arrive'; f++) update(1 / 60);
+  for (var f = 0; f < 60 * 30 && p.phase === 'arrive'; f++) update(1 / 60);
   p.x = 200; p.move = 0; p.turrets.forEach(function (t) { t.cd = 99; });
   var gun = p.turrets.find(function (t) { var x = p.x + p.dir * t.lx; return x > 24 && x < W - 24; });
   S.parts = [];

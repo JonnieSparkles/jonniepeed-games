@@ -42,6 +42,22 @@ var StickArmySound = (function () {
     g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(fl); fl.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.03);
   }
+  // A klaxon blast, "a-OOO-gah": two buzzing horns a fifth apart swoop up, hold, then sag, through a honky bandpass
+  // with a little rasp, so it reads as an alarm and not a beep.
+  function honk(delay) {
+    var t0 = AC.currentTime + (delay || 0), g = AC.createGain(), bp = AC.createBiquadFilter(), sh = AC.createWaveShaper(), c = new Float32Array(257);
+    for (var k = 0; k < c.length; k++) { var x = k / 128 - 1; c[k] = Math.tanh(3 * x); }
+    sh.curve = c; bp.type = 'bandpass'; bp.frequency.value = 950; bp.Q.value = 1.3;
+    [[1, 'sawtooth', 0.11], [1.5, 'square', 0.05]].forEach(function (h) {
+      var o = AC.createOscillator(), og = AC.createGain();
+      o.type = h[1]; o.frequency.setValueAtTime(150 * h[0], t0); o.frequency.exponentialRampToValueAtTime(330 * h[0], t0 + 0.14);
+      o.frequency.setValueAtTime(330 * h[0], t0 + 0.42); o.frequency.exponentialRampToValueAtTime(250 * h[0], t0 + 0.62);
+      og.gain.value = h[2]; o.connect(og); og.connect(sh); o.start(t0); o.stop(t0 + 0.66);
+    });
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.03); g.gain.setValueAtTime(0.5, t0 + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.64);
+    sh.connect(bp); bp.connect(g); g.connect(master);
+    noise(0.55, 0.03, 1400, delay, 'bandpass');
+  }
   var SFX = {
     shoot: function () { noise(0.05, 0.08, 3000); tone(260, 0.05, 'square', 0.025, 120); },
     ally: function () { noise(0.04, 0.05, 2200); },
@@ -88,7 +104,7 @@ var StickArmySound = (function () {
     rip: function () { for (var i = 0; i < 10; i++) noise(0.06, 0.13, 3200 - i * 220, i * 0.035, 'bandpass'); noise(0.45, 0.12, 1200, 0.05, 'highpass'); },
     flare: function () { noise(0.7, 0.07, 4200, 0, 'highpass'); tone(900, 0.45, 'sine', 0.025, 1500); },
     broadside: function () { noise(0.7, 0.5, 280); tone(56, 0.7, 'sine', 0.38, 28); noise(0.1, 0.25, 2200); },
-    klaxon: function () { [0, 0.32, 0.64, 0.96].forEach(function (d, i) { tone(i % 2 ? 350 : 440, 0.28, 'square', 0.045, null, d); }); },
+    klaxon: function () { honk(0); honk(0.78); },
     // The sky (sky.js): a dive bomber's rising siren, a helicopter's chop, and a sour buzz for hitting the Red Cross.
     // A dive bomber tipping over: a short, low, rising howl (two detuned saws through a lowpass) rather than a whistle.
     siren: function () {

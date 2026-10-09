@@ -24,7 +24,7 @@ var StickArmyCampaign = function (w) {
   // armored throughout; only the part for the stage can be hurt. It lives in S.planes as kind 'dread', so bullets,
   // rockets, flak, bazookas and the ambience all see it. Local x runs stern to bow; on the page, x = p.x + p.dir * lx.
   var DREAD = {
-    WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 4, ENTER: 55,
+    WAVE: 20, EVERY: 10, Y: 196, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 6, ENTER: 32,
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
     AIM: 1.2, MARKS: 2, EXPOSED: 2, RELOAD: [1.8, 2.4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 14, SPLASH: 26, DIRECT: 4,
@@ -34,12 +34,11 @@ var StickArmyCampaign = function (w) {
     SEEK: 60, DECK_GUN: 2.6, BAIL: 0.08, BAIL_EVERY: 1.6, BAIL_HURT: 0.35,
     // The final wave opens with a teaser: an ordinary zeppelin (DECOY_HP of a usual one, no armor) to thin music; once
     // it's down, TEASE_GAP seconds of quiet, then the real thing.
-    DECOY_HP: 0.45, TEASE_GAP: 3,
+    DECOY_HP: 0.45, TEASE_GAP: 3, DECOY_BUILD: 4.5, DECOY_SPEED: 26,
     // When the last gun goes, explosions run along the hull for CHAIN seconds and it lurches.
     CHAIN: 1.4,
-    // The ramming run, in the bridge stage: every RAM_EVERY seconds it sinks RAM_STEP lower; after RAM_STEPS it slams
-    // down on the bunker (RAM_WALL to the wall, crew near it hurt), then climbs back up and starts again.
-    RAM_EVERY: 2.5, RAM_STEP: 24, RAM_STEPS: 5, RAM_WALL: 60, RAM_RISE: 2.5,
+    // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
+    SAG: 110, LIST: 0.05,
     SINK: 3.2
   };
   function turretHP(n) { return Math.round(30 + 2.5 * n); }
@@ -91,19 +90,24 @@ var StickArmyCampaign = function (w) {
     return null;
   }
   // The hull is a long armored cigar; its guns, hangar and bridge car hang below it.
+  // On the way in (once it's on the page) shots clang off it, so you can see it can't be hurt yet.
+  function arriving(p) { return p.phase === 'arrive' && !(p.wait > 0); }
   function dreadHit(p, x, y, near) {
-    if (!fighting(p)) return false;
+    if (!fighting(p) && !arriving(p)) return false;
     var lx = (x - p.x) * p.dir, half = DREAD.HH * clamp((DREAD.HW - Math.abs(lx)) / 50, 0, 1);
     return Math.abs(y - p.y) < half + near || !!partAt(p, x, y, near);
   }
   // direct: a bullet; otherwise a blast, which reaches a part within reach. Only the stage's part can be hurt.
   function hurtDread(p, dmg, owner, hx, hy, direct) {
-    if (!fighting(p)) return;
+    if (!fighting(p)) { clang(p, hx, hy); return; }
     var part = partAt(p, hx, hy, direct ? 0 : 24);
     if (part && p.turrets.indexOf(part) >= 0) { hurtGun(p, part, dmg, owner, hx, hy); return; }
     if (part === p.hangar && p.phase === 'hangar') { hurtHangar(p, dmg, owner, hx, hy); return; }
     if (part === p.bridge && p.phase === 'bridge') { hurtBridge(p, dmg, owner, hx, hy); return; }
     // Armor: hits elsewhere clang.
+    clang(p, hx, hy);
+  }
+  function clang(p, hx, hy) {
     p.clankT -= 1;
     if (p.clankT <= 0) { p.clankT = 6; w.sound.play('clank'); w.S.parts.push({ k: 'tink', x: hx, y: hy, life: 0.22, max: 0.22, c: INK2, id: w.id() }); }
   }
@@ -134,32 +138,6 @@ var StickArmyCampaign = function (w) {
       var bx = clamp(p.x + rr(-0.9, 0.9) * DREAD.HW, 10, W - 10), by = p.y + rr(-0.5, 0.7) * DREAD.HH;
       w.pow(bx, by, rr(14, 24)); w.burst(bx, by, 5, RED, 130); w.puff(bx, by, 5, 0.9); w.sound.play('hit');
     }
-  }
-  // Sinking lower and lower toward the bunker, with the klaxon at each drop; then it slams down on it.
-  function ramming(p, dt) {
-    var S = w.S;
-    if (p.rising) { p.ram = Math.max(0, p.ram - p.rising / DREAD.RAM_RISE * dt); if (!p.ram) p.rising = 0; return; }
-    if (p.slam) {
-      // The slam: down fast until the keel meets the bunker.
-      var floor = w.BK.top - DREAD.HH - 6 - DREAD.Y;
-      p.ram = Math.min(floor, p.ram + 420 * dt);
-      if (p.ram >= floor) {
-        p.slam = false; p.rising = p.ram; p.ramN = 0; // rising holds the height it climbs back from
-        w.hurtWall(DREAD.RAM_WALL, 'dreadnought'); w.wallText(DREAD.RAM_WALL);
-        S.recruits.forEach(function (r) { if (!r.dead && Math.abs(r.x - w.BK.x) < 70) w.hurtRecruit(r, 2, 'dreadnought'); });
-        S.shake = Math.max(S.shake, 1); w.pow(w.BK.x, w.BK.top, 60); w.burst(w.BK.x, w.BK.top, 18, INK, 220); w.puff(w.BK.x, w.BK.top, 12, 1.2);
-        w.sound.play('boom'); w.sound.play('rumble');
-        emit('dread_ram', { wall: DREAD.RAM_WALL });
-      }
-      return;
-    }
-    p.ramT = (p.ramT == null ? DREAD.RAM_EVERY : p.ramT) - dt;
-    if (p.ramT > 0) return;
-    p.ramT = DREAD.RAM_EVERY; p.ramN = (p.ramN || 0) + 1;
-    if (p.ramN > DREAD.RAM_STEPS) { p.slam = true; addText('brace!', 200, 300, RED, 30, 'alert'); w.sound.play('horn'); return; }
-    p.ram = (p.ram || 0) + DREAD.RAM_STEP; S.shake = Math.max(S.shake, 0.25); w.sound.play('klaxon');
-    if (p.ramN === 1) addText("it's coming down on us!", 200, 300, RED, 24, 'alert');
-    emit('dread_sink', { step: p.ramN });
   }
   function openHangar(p) {
     var S = w.S;
@@ -225,6 +203,7 @@ var StickArmyCampaign = function (w) {
     p.t += dt;
     p.turrets.forEach(function (t) { t.flash = Math.max(0, t.flash - dt); t.recoil = Math.max(0, t.recoil - dt * 4); });
     if (p.deckFlash) p.deckFlash.t -= dt;
+    if (p.unlockT > 0) p.unlockT -= dt;
     p.bridge.flash = Math.max(0, p.bridge.flash - dt); p.hangar.flash = Math.max(0, p.hangar.flash - dt);
     p.hangar.open = clamp(p.hangar.open + (p.phase === 'hangar' || p.phase === 'bridge' ? dt : -dt) * 1.5, 0, 1);
     updateShells(p, dt);
@@ -239,9 +218,14 @@ var StickArmyCampaign = function (w) {
       if (p.t >= DREAD.SINK || p.y > w.H + 80) p.gone = true;
       return;
     }
-    p.y = DREAD.Y + Math.sin(S.t * 0.7) * 2 + (p.ram || 0);
+    // Going down by the bridge's health: it sinks and lists, gradually.
+    if (p.phase === 'bridge') {
+      var hurt = 1 - p.bridge.hp / p.bridge.max;
+      p.sag = (p.sag || 0) + (hurt * DREAD.SAG - (p.sag || 0)) * Math.min(1, dt * 1.2);
+      if (!(p.chainT > 0)) p.rot = -p.dir * DREAD.LIST * hurt;
+    }
+    p.y = DREAD.Y + Math.sin(S.t * 0.7) * 2 + (p.sag || 0);
     if (p.chainT > 0) chain(p, dt);
-    if (p.phase === 'bridge') ramming(p, dt);
     if (p.phase === 'arrive' && p.wait > 0) {
       // Off the page, coming: rumbling, smoke from its stacks drifting in, searchlights sweeping in from that edge.
       p.wait -= dt; p.smokeT -= dt; p.rumbleT -= dt;
@@ -257,7 +241,11 @@ var StickArmyCampaign = function (w) {
       p.x += Math.sign(d) * Math.min(Math.abs(d), Math.max(14, Math.min(DREAD.ENTER, Math.abs(d) * 0.7)) * dt);
       if (Math.abs(d) < 1) {
         p.phase = 'guns'; p.t = 0; p.move = -p.dir;
-        S.shake = Math.max(S.shake, 0.4); w.sound.play('horn');
+        S.shake = Math.max(S.shake, 0.4); w.sound.play('horn'); w.sound.play('bugle');
+        // The cue that it can be hurt now: the gauges light up, its guns flash, and the squad opens fire.
+        p.unlockT = 1.6; p.turrets.forEach(function (t) { t.flash = 0.5; });
+        addText('open fire!', 200, 300, BLUE, 32, 'story');
+        var caller = S.recruits.filter(w.standing)[0]; if (caller) w.say('open fire!', caller.id, false, 0.3);
         emit('dread_arrive', { wave: S.wave });
       }
       return;
@@ -627,10 +615,14 @@ var StickArmyCampaign = function (w) {
     var a = p.phase === 'arrive' ? clamp(p.t / 2, 0, 1) : 1;
     G.save(); G.globalAlpha = a; pen(4545);
     G.textAlign = 'center'; G.fillStyle = RED; G.font = '700 15px ' + w.DISPLAY; G.fillText('DREADNOUGHT', 200, 98);
+    // Greyed and marked while it can't be hurt; when it can, the gauges light up with a highlighter flash.
+    var locked = p.phase === 'arrive', lit = p.unlockT > 0 ? p.unlockT / 1.6 : 0;
+    if (locked) { G.font = '13px ' + w.HAND; G.fillStyle = INK2; G.fillText("armored: can't be hurt yet", 200, 128); }
+    if (lit) { G.save(); G.globalAlpha = a * lit; G.fillStyle = 'rgba(255,214,38,0.7)'; G.fillRect(86, 102, 228, 16); G.restore(); }
     p.turrets.forEach(function (t, i) {
       var x = 92 + i * 20, y = 106;
       G.fillStyle = PAPER; G.fillRect(x, y, 16, 8);
-      if (!t.dead) { G.fillStyle = 'rgba(200,67,58,0.6)'; G.fillRect(x + 1, y + 1, 14 * t.hp / t.max, 6); }
+      if (!t.dead) { G.fillStyle = locked ? 'rgba(46,46,51,0.18)' : 'rgba(200,67,58,0.6)'; G.fillRect(x + 1, y + 1, 14 * t.hp / t.max, 6); }
       G.beginPath(); SP([x, y, x + 16, y, x + 16, y + 8, x, y + 8], true, 0.2); ink(INK, 1.4); G.stroke();
       if (t.dead) { G.beginPath(); L(x - 1, y + 9, x + 17, y - 1, 0.2); ink(INK, 1.6); G.stroke(); }
     });

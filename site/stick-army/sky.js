@@ -32,7 +32,9 @@ var StickArmySky = function (w) {
   // away. Three hits down it.
   // A sortie from the Dreadnought's hangar zooms out at LAUNCH px/s, climbing at LAUNCH_ANGLE, so it's off the page
   // before the squad can down it.
-  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
+  // Sorties are tougher (SORTIE_HP) and their bomb is armored: bullets, flak and the sentry can't stop it, so the
+  // plane has to go down before it lets go.
+  var DIVE = { WAVE: 12, Y: 112, CRUISE: 190, SPEED: 250, LAUNCH: 330, LAUNCH_ANGLE: 0.75, SORTIE_HP: 5, ANGLE: 1.25, RELEASE_Y: 392, PULL: 2.2, CLIMB: -0.55, HP: 3, HW: 32, HH: 14, WALL: 30, SC: 1.05 };
   // A helicopter flies to a hover near its edge, lowers troopers on a rope one at a time (no chutes), waits, then
   // leaves. Its door gunner fires bursts at the crew (at the turret with no crew). It's armored (heliHP), and when
   // it goes down anyone still on the rope falls.
@@ -270,7 +272,7 @@ var StickArmySky = function (w) {
   // the page, then comes back in from that edge on a normal run at the bunker (comeBack), crosshair and all.
   function launchDiver(rnd, from, out) {
     var S = w.S, r = substream(rnd), p = w.makePlane('diver', out, from.x, from.y);
-    p.rng = r; p.hp = DIVE.HP; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.LAUNCH; p.ang = -DIVE.LAUNCH_ANGLE; p.drawAng = 0;
+    p.rng = r; p.hp = DIVE.SORTIE_HP; p.sortie = true; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.LAUNCH; p.ang = -DIVE.LAUNCH_ANGLE; p.drawAng = 0;
     p.phase = 'launch'; p.vx = out * DIVE.LAUNCH; p.vy = 0; p.target = BK.x + between(r, -8, 8); p.spin = 0;
     S.planes.push(p);
     emit('plane_spawn', { kind: 'diver', dir: out, target: p.target, launched: true });
@@ -292,7 +294,7 @@ var StickArmySky = function (w) {
     if (p.phase === 'level' && (p.x - p.diveX) * p.dir >= 0) { p.phase = 'dive'; p.ang = DIVE.ANGLE; p.speed = DIVE.SPEED; emit('dive', { x: p.x }); w.sound.play('siren'); }
     if (p.phase === 'dive' && p.y >= DIVE.RELEASE_Y) {
       p.phase = 'pull';
-      S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, dead: false });
+      S.bombs.push({ id: w.id(), x: p.x, y: p.y + 8, vx: p.dir * p.speed * Math.cos(p.ang), vy: p.speed * Math.sin(p.ang), isBomb: true, heavy: true, armored: !!p.sortie, dead: false });
       emit('bomb_dropped', { by: 'diver' });
       w.sound.play('whistle');
     }

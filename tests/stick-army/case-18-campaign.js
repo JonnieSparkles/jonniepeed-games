@@ -29,6 +29,8 @@
   RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle')]; startWave(FINAL); S.spawn.timer = 99;
   check(S.banner.s === 'final wave' && /flagship/.test(S.banner.sub) && ambienceState().dread === 'teaser', 'the final wave is announced, to thin music');
   run(DREAD.ARRIVE + 0.05);
+  check(S.spawn.teaseT > 0 && !S.planes.some(function (q) { return q.kind === 'zeppelin'; }), 'a build-up first');
+  run(DREAD.DECOY_BUILD);
   var decoy = S.planes.find(function (q) { return q.kind === 'zeppelin'; });
   check(decoy && decoy.decoy && !decoy.armored && decoy.maxHp === Math.round(zeppelinHP(FINAL) * DREAD.DECOY_HP) && !CAMPAIGN.dread(), 'just a zeppelin');
   zeppelinDown(decoy, 'player'); S.bubbles = []; run(1.4);
@@ -41,8 +43,8 @@
   damagePlane(p, 50, 'player', p.x + p.dir * g0.lx, p.y + DREAD.GUN_Y, true);
   check(g0.hp === g0.max && !dreadHit(p, p.x, p.y, 0), "it can't be hurt on the way in");
   render();
-  for (var f = 0; f < 60 * 15 && p.phase === 'arrive'; f++) update(1 / 60);
-  check(p.phase === 'guns' && seen.indexOf('dread_arrive') >= 0, 'then it takes station');
+  for (var f = 0; f < 60 * 30 && p.phase === 'arrive'; f++) update(1 / 60);
+  check(p.phase === 'guns' && seen.indexOf('dread_arrive') >= 0 && p.unlockT > 0, 'then it takes station, with the cue to open fire');
   render();
 
   // Armor: the hull, the closed hangar and the plated bridge only clang while its guns fire.
@@ -107,6 +109,11 @@
   run(2.1 + DREAD.CHAIN);
   check(seen.indexOf('dread_launch') >= 0 && S.planes.filter(function (q) { return q.kind === 'diver'; }).length === 2 && S.troopers.length > troops, 'it launches dive bombers in pairs and drops troops');
   check(S.night > 0.5, 'lights out while the hangar launches');
+  check(S.planes.filter(function (q) { return q.kind === 'diver'; }).every(function (q) { return q.sortie && q.hp === SKY.DIVE.SORTIE_HP; }), 'sorties are tougher');
+  var ab = { id: 9301, x: 120, y: 420, vx: 0, vy: 0, isBomb: true, heavy: true, armored: true, dead: false }; S.bombs.push(ab);
+  hitTest({ x: 120, y: 420, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
+  check(!ab.dead && sentryTarget() !== ab, "a sortie's armored bomb can't be shot down");
+  S.bombs = S.bombs.filter(function (m) { return m !== ab; });
   render();
   // Shoot the hangar to pieces and the bridge is exposed: the bomb bay opens and the bridge gunner fires.
   damagePlane(p, 9999, 'player', p.x + p.dir * DREAD.HANGAR, p.y + DREAD.HANGAR_Y, true);
@@ -118,14 +125,13 @@
   check(S.enemyShots.some(function (b) { return b.cause === 'dreadnought'; }), 'the bridge gunner fires at the crew');
   render();
   S.bombs = []; S.enemyShots = []; S.recruits = [];
-  // The ramming run: it sinks a step at a time with the klaxon, then slams down on the bunker and climbs back up.
-  var wall0 = S.wallHP; p.bombT = p.gunT = 1e9; p.ramT = 0.01; run(0.05);
-  check(p.ram === DREAD.RAM_STEP && seen.indexOf('dread_sink') >= 0, 'it sinks toward the bunker');
-  run(DREAD.RAM_EVERY * DREAD.RAM_STEPS + 1);
-  check(seen.indexOf('dread_ram') >= 0 && S.wallHP <= wall0 - DREAD.RAM_WALL && p.rising, 'then slams down on it');
+  // As the bridge takes damage it sinks and lists, gradually; the lights are back on.
+  p.bombT = p.gunT = 1e9; var y0 = p.y;
+  damagePlane(p, p.bridge.max / 2, 'player', p.x + p.dir * p.bridge.lx, p.y + DREAD.BRIDGE_Y, true);
+  run(0.1); var y1 = p.y; run(3);
+  check(p.y > y1 + 20 && y1 - y0 < 20 && Math.abs(p.sag - DREAD.SAG / 2) < 5 && p.rot !== 0, 'it sinks as the bridge is hurt, gradually: ' + Math.round(p.sag));
+  check(S.night === 0, 'and the lights are back on');
   render();
-  run(DREAD.RAM_RISE + 0.2);
-  check(!p.ram && !p.rising && S.night === 0, 'climbs back up, and the lights are back on');
   // Downing the bridge downs the ship; on the final wave everyone left surrenders and nothing more comes.
   spawnTrooper(300, 300); spawnTrooper(80, 450);
   damagePlane(p, 9999, 'player', p.x + p.dir * p.bridge.lx, p.y + DREAD.BRIDGE_Y, true);

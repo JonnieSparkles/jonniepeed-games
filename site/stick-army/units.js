@@ -92,7 +92,7 @@ var StickArmyUnits = function (w) {
     p.face += clamp(p.dir - p.face, -dt * 2.6, dt * 2.6);
     if (p.state === 'fly') {
       if (!p.entered && p.x > ZEP.LEFT && p.x < ZEP.RIGHT) p.entered = true;
-      var want = !p.entered ? ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
+      var want = !p.entered ? p.enterSpeed || ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
       p.speed += (want - p.speed) * Math.min(1, dt * 1.5);
       if (p.entered && (p.dir > 0 ? p.x > ZEP.RIGHT : p.x < ZEP.LEFT)) p.dir = -p.dir;
       p.x += p.face * p.speed * dt;
@@ -500,7 +500,7 @@ var StickArmyUnits = function (w) {
         if (dx > 10 && d < FIGHTER.RANGE + bias && d < bd) { bd = d; best = o; }
       });
     }
-    consider(S.bombs, function (m) { return !m.dead && m.y < GROUND - 70; }, 0);
+    consider(S.bombs, function (m) { return !m.dead && !m.armored && m.y < GROUND - 70; }, 0);
     // Not balloons: popped from up here, a balloon's bomb could fall anywhere, the crew included.
     consider(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon'; }, 40);
     consider(S.planes, function (p) { return p.state === 'fly' && p.kind === 'zeppelin'; }, 200);
