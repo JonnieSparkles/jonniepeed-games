@@ -480,6 +480,8 @@
     var t = { id: nextId++, x: clamp(x, 14, W - 14), y: y, type: kit.type, state: 'chute', open: 0,
       fall: c.fall * kit.fall, sway: kit.sway, vy: 0, rot: 0, spin: 0, dir: 1, walk: 0, thump: 0,
       attacking: null, atWall: false, shotCD: 2.2, alone: 0, aim: 0, armor: kit.armor || 0, pingT: -1, dead: false };
+    // The Dreadnought's crew bailing out shoot at the squad on the way down.
+    if (kit.gunner) { t.gunner = true; t.gunT = 0.8; t.flash = 0; }
     S.troopers.push(t);
     emit('trooper_spawn', { x: t.x, type: t.type });
     return t;
@@ -1254,10 +1256,22 @@
       t.x += t.dir * pace * dt; t.walk += dt * 9 * pace / 22;
     }
   }
+  // A bailing Dreadnought crewman fires at the nearest soldier standing every DREAD.BAIL_EVERY seconds on his way down.
+  function gunnerFire(t, dt) {
+    t.flash = Math.max(0, t.flash - dt);
+    if (t.open < 1 || (t.gunT -= dt) > 0) return;
+    t.gunT = DREAD.BAIL_EVERY;
+    var crew = S.recruits.filter(standing).sort(function (a, b) { return Math.abs(a.x - t.x) - Math.abs(b.x - t.x); })[0];
+    if (!crew) return;
+    var a = Math.atan2(GROUND - 22 - (t.y + 10), crew.x - t.x) + (RC() * 2 - 1) * 0.06;
+    S.enemyShots.push({ x: t.x + 6, y: t.y + 10, vx: Math.cos(a) * 240, vy: Math.sin(a) * 240, life: 2.5, dmg: DREAD.BAIL_HURT, cause: 'dreadnought' });
+    t.flash = 0.07; sound.play('sniper');
+  }
   function updateTroopers(dt) {
     S.troopers.forEach(function (t) {
       if (t.dead) return;
       if (t.state === 'chute') {
+        if (t.gunner) gunnerFire(t, dt);
         t.open = Math.min(1, t.open + dt * 2.6);
         t.y += (t.open < 1 ? 95 - 55 * t.open : t.fall) * dt;
         if (t.type === 'sniper') { var edge = t.x < BK.x ? 18 : W - 18; t.x += Math.sign(edge - t.x) * Math.min(Math.abs(edge - t.x), 28 * dt); }
@@ -1524,6 +1538,7 @@
     if (t.type === 'bazooka') tube(x - 10, y + 20, x + 9, y + 4);
     stick(x, y, pose, RED);
     if (t.type === 'rifle') { G.beginPath(); L(x - 7, y + 17, x + 7, y + 8, 0.4); ink(INK, 2); G.stroke(); }
+    if (t.gunner && t.flash > 0) { G.beginPath(); G.arc(x + 8, y + 8, 4, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     if (t.armor > 0) vest(x, y, S.t - t.pingT < 0.12);
     if (t.type === 'engineer') hat(x, y);
     else if (t.armor > 1) steelPot(x, y);

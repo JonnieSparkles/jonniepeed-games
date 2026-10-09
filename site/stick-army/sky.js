@@ -264,9 +264,29 @@ var StickArmySky = function (w) {
     if (!S.diverTold) { S.diverTold = true; addText('dive bomber!', clamp(p.x + dir * 80, 60, W - 60), y0 + 36, RED, 22); }
     return p;
   }
+  // A sortie from the Dreadnought's hangar: it rolls out one way (out), climbing to the dive bombers' height, leaves
+  // the page, then comes back in from that edge on a normal run at the bunker (comeBack), crosshair and all.
+  function launchDiver(rnd, from, out) {
+    var S = w.S, r = substream(rnd), p = w.makePlane('diver', out, from.x, from.y);
+    p.rng = r; p.hp = DIVE.HP; p.hw = DIVE.HW; p.hh = DIVE.HH; p.sc = DIVE.SC; p.speed = DIVE.CRUISE; p.ang = -0.45; p.drawAng = 0;
+    p.phase = 'launch'; p.vx = out * DIVE.CRUISE; p.vy = 0; p.target = BK.x + between(r, -8, 8); p.spin = 0;
+    S.planes.push(p);
+    emit('plane_spawn', { kind: 'diver', dir: out, target: p.target, launched: true });
+    return p;
+  }
+  function comeBack(p) {
+    var vx = DIVE.SPEED * Math.cos(DIVE.ANGLE), vy = DIVE.SPEED * Math.sin(DIVE.ANGLE), fall = BK.top - 8 - (DIVE.RELEASE_Y + 8);
+    var tf = (-vy + Math.sqrt(vy * vy + 2 * 260 * fall)) / 260, lead = (DIVE.RELEASE_Y - DIVE.Y) / Math.tan(DIVE.ANGLE) + vx * tf;
+    p.dir = -p.dir; p.x = p.dir > 0 ? -50 : W + 50; p.y = DIVE.Y; p.ang = 0; p.drawAng = 0; p.speed = DIVE.CRUISE;
+    p.diveX = p.target - p.dir * lead; p.phase = 'level';
+  }
   function updateDiver(p, dt) {
     var S = w.S;
     if (p.state !== 'fly') { fallDown(p, dt); return; }
+    if (p.phase === 'launch') {
+      if (p.y <= DIVE.Y) { p.y = DIVE.Y; p.ang = 0; }
+      if (p.x < -60 || p.x > W + 60) comeBack(p);
+    }
     if (p.phase === 'level' && (p.x - p.diveX) * p.dir >= 0) { p.phase = 'dive'; p.ang = DIVE.ANGLE; p.speed = DIVE.SPEED; emit('dive', { x: p.x }); w.sound.play('siren'); }
     if (p.phase === 'dive' && p.y >= DIVE.RELEASE_Y) {
       p.phase = 'pull';
@@ -713,6 +733,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

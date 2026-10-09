@@ -28,7 +28,10 @@ var StickArmyCampaign = function (w) {
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
     AIM: 1.2, MARKS: 2, EXPOSED: 2, RELOAD: [1.8, 2.4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 14, SPLASH: 26, DIRECT: 4,
-    LAUNCH_EVERY: 4, TROOPS_EVERY: 5, BOMBS_EVERY: 3, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
+    LAUNCH_EVERY: 6, TROOPS_EVERY: 5, BOMBS_EVERY: 3, BAY_BOMBS: 4, BRIDGE_GUN: 2, BURST: 3, SHOT_HURT: 0.5,
+    // With no live gun over the page it moves at SEEK to bring one over; deck guns fire bursts every DECK_GUN seconds
+    // in the guns stage; every BAIL of its health lost, crew bail out on chutes, shooting as they come down.
+    SEEK: 60, DECK_GUN: 2.6, BAIL: 0.08, BAIL_EVERY: 1.6, BAIL_HURT: 0.35,
     SINK: 3.2
   };
   function turretHP(n) { return Math.round(30 + 2.5 * n); }
@@ -100,6 +103,7 @@ var StickArmyCampaign = function (w) {
   function hurtGun(p, t, dmg, owner, hx, hy) {
     var S = w.S, g = gunAt(p, t);
     t.hp -= dmg * (t.mark ? DREAD.EXPOSED : 1); t.flash = 0.1; w.burst(hx, hy, 3, INK, 90);
+    bail(p);
     if (t.hp > 0) { w.sound.play('thup'); return; }
     t.dead = true; t.hp = 0;
     // It blows apart: a flash, flame, and the turret's pieces tumbling off. A scorched hole is left in the hull.
@@ -122,6 +126,7 @@ var StickArmyCampaign = function (w) {
   function hurtHangar(p, dmg, owner, hx, hy) {
     var S = w.S, h = p.hangar, at0 = hangarAt(p);
     h.hp -= dmg; h.flash = 0.1; w.burst(hx, hy, 4, RED, 110);
+    bail(p);
     if (h.hp > 0) { w.sound.play('thup'); return; }
     h.hp = 0;
     w.pow(at0.x, at0.y, 50); w.burst(at0.x, at0.y, 14, RED, 180);
@@ -135,7 +140,7 @@ var StickArmyCampaign = function (w) {
   function hurtBridge(p, dmg, owner, hx, hy) {
     var b = p.bridge;
     b.hp -= dmg; b.flash = 0.1; w.burst(hx, hy, 4, RED, 110);
-    if (b.hp <= 0) { b.hp = 0; dreadDown(p, owner); } else w.sound.play('thup');
+    if (b.hp <= 0) { b.hp = 0; dreadDown(p, owner); } else { w.sound.play('thup'); bail(p); }
   }
   function dreadDown(p, owner) {
     var S = w.S, b = bridgeAt(p), final = S.wave === DREAD.WAVE && !S.won;
@@ -173,6 +178,7 @@ var StickArmyCampaign = function (w) {
     var S = w.S;
     p.t += dt;
     p.turrets.forEach(function (t) { t.flash = Math.max(0, t.flash - dt); t.recoil = Math.max(0, t.recoil - dt * 4); });
+    if (p.deckFlash) p.deckFlash.t -= dt;
     p.bridge.flash = Math.max(0, p.bridge.flash - dt); p.hangar.flash = Math.max(0, p.hangar.flash - dt);
     p.hangar.open = clamp(p.hangar.open + (p.phase === 'hangar' || p.phase === 'bridge' ? dt : -dt) * 1.5, 0, 1);
     updateShells(p, dt);
@@ -209,10 +215,18 @@ var StickArmyCampaign = function (w) {
       return;
     }
     if (p.phase === 'guns') {
-      // Patrolling, so every gun takes a turn over the page.
-      p.x += p.move * DREAD.DRIFT * dt;
-      if (p.x <= DREAD.PATROL[0]) { p.x = DREAD.PATROL[0]; p.move = 1; } else if (p.x >= DREAD.PATROL[1]) { p.x = DREAD.PATROL[1]; p.move = -1; }
+      // Patrolling, so every gun takes a turn over the page. With no live gun over the page it hurries to bring the
+      // nearest one over, and carries on that way, so it never just drifts.
+      var live = p.turrets.filter(function (t) { return !t.dead; }), over = live.some(function (t) { var x = gunAt(p, t).x; return x > 40 && x < W - 40; });
+      if (!over && live.length) {
+        var shift = live.map(function (t) { return 200 - gunAt(p, t).x; }).sort(function (a, b) { return Math.abs(a) - Math.abs(b); })[0];
+        p.move = Math.sign(shift) || p.move; p.x += p.move * Math.min(Math.abs(shift), DREAD.SEEK * dt);
+      } else {
+        p.x += p.move * DREAD.DRIFT * dt;
+        if (p.x <= DREAD.PATROL[0]) { p.x = DREAD.PATROL[0]; p.move = 1; } else if (p.x >= DREAD.PATROL[1]) { p.x = DREAD.PATROL[1]; p.move = -1; }
+      }
       updateGuns(p, dt);
+      deckGun(p, dt);
     } else {
       // The hangar, then the bridge, comes over the page and sways there.
       var want = stageX(p) + Math.sin(p.t * 0.5) * DREAD.SWAY;
@@ -220,8 +234,13 @@ var StickArmyCampaign = function (w) {
     }
     var h = hangarAt(p), onPage = h.x > 30 && h.x < W - 30;
     if (p.phase === 'hangar' && onPage) {
-      // The hangar launches dive bombers and drops troops.
-      if ((p.launchT -= dt) <= 0) { p.launchT = DREAD.LAUNCH_EVERY; w.SKY.spawnDiver(p.rng, { x: h.x, y: h.y + 16 }); w.sound.play('fighter'); emit('dread_launch', {}); }
+      // The hangar launches dive bombers in pairs: they roll out to either side, climb off the page and come back in
+      // on dive-bombing runs at the bunker. It drops troops too.
+      if ((p.launchT -= dt) <= 0) {
+        p.launchT = DREAD.LAUNCH_EVERY;
+        [-1, 1].forEach(function (out) { w.SKY.launchDiver(p.rng, { x: h.x + out * 12, y: h.y + 12 }, out); });
+        w.sound.play('fighter'); emit('dread_launch', {});
+      }
       if ((p.troopT -= dt) <= 0) { p.troopT = DREAD.TROOPS_EVERY; [-14, 0, 14].forEach(function (o) { w.spawnTrooper(clamp(h.x + o, 16, W - 16), h.y + 18, w.rollTrooper(p.rng)); }); }
     } else if (p.phase === 'bridge') {
       // The bomb bay (the gutted hangar) drops clusters at the bunker; the bridge gunner fires at the crew.
@@ -244,16 +263,45 @@ var StickArmyCampaign = function (w) {
   }
   // The bridge gunner: a burst of BURST shots every BRIDGE_GUN seconds at the nearest soldier standing.
   function bridgeGun(p, dt) {
-    var S = w.S, b = bridgeAt(p);
+    var b = bridgeAt(p);
     if (b.x < 10 || b.x > W - 10) return;
-    var crew = S.recruits.filter(function (r) { return !r.dead && !r.down; }).sort(function (a, c) { return Math.abs(a.x - b.x) - Math.abs(c.x - b.x); });
+    gunner(p, dt, DREAD.BRIDGE_GUN, function () { return { x: b.x, y: b.y + 10 }; }, function () { p.bridge.flash = 0.04; });
+  }
+  // Deck guns in the guns stage: the same bursts, from the hull right over the soldier they're aimed at.
+  function deckGun(p, dt) {
+    gunner(p, dt, DREAD.DECK_GUN, function (r) {
+      var x = clamp(r.x, Math.max(20, p.x - DREAD.HW * 0.85), Math.min(W - 20, p.x + DREAD.HW * 0.85));
+      return { x: x, y: p.y + DREAD.HH * 0.9 };
+    }, function (src) { p.deckFlash = { x: src.x, y: src.y, t: 0.06 }; });
+  }
+  function gunner(p, dt, every, from, flash) {
+    var S = w.S, first = from({ x: 200 });
+    var crew = S.recruits.filter(function (r) { return !r.dead && !r.down; }).sort(function (a, c) { return Math.abs(a.x - first.x) - Math.abs(c.x - first.x); });
     if (!crew.length) return;
-    if (p.burst <= 0) { if ((p.gunT -= dt) <= 0) { p.gunT = DREAD.BRIDGE_GUN; p.burst = DREAD.BURST; p.burstT = 0; } return; }
+    if (p.burst <= 0) { if ((p.gunT -= dt) <= 0) { p.gunT = every; p.burst = DREAD.BURST; p.burstT = 0; } return; }
     if ((p.burstT -= dt) > 0) return;
-    p.burst--; p.burstT = 0.13; p.bridge.flash = 0.04;
-    var a = Math.atan2(GROUND - 22 - (b.y + 10), crew[0].x - b.x) + (w.RC() * 2 - 1) * 0.04;
-    S.enemyShots.push({ x: b.x, y: b.y + 10, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, life: 2.5, dmg: DREAD.SHOT_HURT, cause: 'dreadnought' });
+    p.burst--; p.burstT = 0.13;
+    var src = from(crew[0]); flash(src);
+    var a = Math.atan2(GROUND - 22 - src.y, crew[0].x - src.x) + (w.RC() * 2 - 1) * 0.04;
+    S.enemyShots.push({ x: src.x, y: src.y, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, life: 2.5, dmg: DREAD.SHOT_HURT, cause: 'dreadnought' });
     w.sound.play('sniper');
+  }
+  // Crew bail out as it takes damage: one or two for every DREAD.BAIL of its health lost, from the hull over the
+  // page, on chutes, firing at the squad on the way down (game.js updateTroopers). Ordinary troopers otherwise, so
+  // they can be caught.
+  function bail(p) {
+    var S = w.S, left = p.turrets.reduce(function (s, t) { return s + Math.max(0, t.hp); }, 0) + Math.max(0, p.hangar.hp) + Math.max(0, p.bridge.hp);
+    var due = Math.floor((1 - left / p.maxHp) / DREAD.BAIL);
+    while ((p.bailed || 0) < due) {
+      p.bailed = (p.bailed || 0) + 1;
+      var n = p.rng() < 0.5 ? 1 : 2;
+      for (var i = 0; i < n; i++) {
+        var x = clamp(p.x + (p.rng() * 2 - 1) * DREAD.HW * 0.7, 30, W - 30), kit = w.rollTrooper(p.rng);
+        kit.type = 'rifle'; kit.gunner = true;
+        w.spawnTrooper(x, p.y + DREAD.HH + 4, kit);
+      }
+      emit('dread_bail', { n: n });
+    }
   }
 
   function clearMarks(p) { p.turrets.forEach(function (t) { t.mark = null; }); }
@@ -280,8 +328,9 @@ var StickArmyCampaign = function (w) {
         if (m.t >= DREAD.AIM) fire(p, t);
         return;
       }
-      if (g.x < 24 || g.x > W - 24 || marks(p) >= markCap(p)) return;
+      // Guns reload off the page too, so one swings in loaded.
       t.cd -= dt;
+      if (g.x < 24 || g.x > W - 24 || marks(p) >= markCap(p)) return;
       if (t.cd <= 0) startMark(p, t);
     });
   }
@@ -310,7 +359,9 @@ var StickArmyCampaign = function (w) {
   // A volley: three shells around the target, one after another; the gun kicks back with each.
   function fire(p, t) {
     var S = w.S, m = t.mark;
-    t.cd = between(p.rng, DREAD.RELOAD[0], DREAD.RELOAD[1]);
+    // The fewer guns it has left, the faster they reload: the last ones are frantic.
+    var live = p.turrets.filter(function (q) { return !q.dead; }).length;
+    t.cd = between(p.rng, DREAD.RELOAD[0], DREAD.RELOAD[1]) * Math.max(0.4, live / p.turrets.length);
     t.mark = null;
     DREAD.VOLLEY.forEach(function (off, i) { p.shells.push({ gun: t, x1: m.x + off, t: -i * DREAD.SHELL_GAP, m: off === 0 ? m : null, launched: false }); });
     S.shake = Math.max(S.shake, 0.2);
@@ -378,6 +429,7 @@ var StickArmyCampaign = function (w) {
     G.save(); G.translate(p.x, p.y); G.scale(p.dir, 1); if (p.rot) G.rotate(p.rot);
     drawBody(p);
     G.restore();
+    if (p.deckFlash && p.deckFlash.t > 0) { G.beginPath(); G.arc(p.deckFlash.x, p.deckFlash.y + 3, 5, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     p.turrets.forEach(function (t) { if (t.mark) drawMark(p, t, t.mark); });
     p.shells.forEach(function (s) {
       if (!s.launched) return;
