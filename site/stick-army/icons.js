@@ -99,6 +99,15 @@ var StickArmyIcons = function (kit) {
       G.save(); G.translate(22, 14); G.rotate(-0.6); G.fillStyle = PAPER; G.fillRect(0, -2.5, 15, 5); G.beginPath(); L(0, -2.5, 15, -2.5, 0.2); L(0, 2.5, 15, 2.5, 0.2); L(15, -3, 15, 3, 0.2); ink(INK, 1.8); G.stroke(); G.restore();
       G.beginPath(); G.moveTo(16, 18); G.arc(22, 18, 6, Math.PI, 0); G.closePath(); G.fillStyle = BLUE; G.fill(); ink(INK, 1.8); G.stroke();
     },
+    // The flagpole: a pole with a ball on top and the blue flag flying.
+    flag: function (G) {
+      G.beginPath(); L(11, 40, 11, 6, 0.3); ink(INK, 2.6); G.stroke();
+      G.beginPath(); G.arc(11, 4.5, 2.6, 0, Math.PI * 2); G.fillStyle = HAT; G.fill(); ink(INK, 1.4); G.stroke();
+      G.beginPath(); SP([11, 7, 22, 4, 31, 9, 40, 6, 39, 22, 30, 25, 21, 21, 11, 24], true, 0.4);
+      G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.3)'; G.fill(); ink(BLUE, 2.2); G.stroke();
+      G.beginPath(); for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.4 : 5.6; if (i) G.lineTo(24 + Math.cos(a) * r, 14.5 + Math.sin(a) * r); else G.moveTo(24 + Math.cos(a) * r, 14.5 + Math.sin(a) * r); }
+      G.closePath(); G.fillStyle = PAPER; G.fill(); ink(BLUE, 1.2); G.stroke();
+    },
     catcher: function (G) {
       G.beginPath(); L(5, 33, 4, 41, 0.3); L(21, 33, 22, 41, 0.3); ink(INK, 1.8); G.stroke();
       G.beginPath(); G.moveTo(4, 33); G.quadraticCurveTo(13, 38, 22, 33); ink(INK, 2.6); G.stroke();

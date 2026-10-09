@@ -31,6 +31,9 @@ var StickArmyShop = function (w) {
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
     { id: 'auto', name: 'Sentry tower', desc: 'A tower beside the bunker shoots down bombs and shells, then low chutes and landers.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'hospital', name: 'Field hospital', desc: 'A tent with one bed. When a wave ends, your most decorated wounded soldier is carried in and back after a wave.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.hospital = true; } },
+    // The flagpole: "It boosts morale." The squad fires FLAG.FIRE faster while it flies, and salutes it at every wave
+    // start (game.js FLAG).
+    { id: 'flag', name: 'Flagpole', desc: 'It boosts morale.', tier: 'supply', cost: 40, maxStacks: 1, apply: function (s) { s.mods.flag = true; s.flagUp = 0; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'A bomber carpets the field and hits tanks hard. Press B or the bomber button.', tier: 'supply', cost: 45, maxStacks: Infinity,
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },
@@ -237,12 +240,12 @@ var StickArmyShop = function (w) {
     w.queueSketches(S.shop.bought);
     shopScreen.hidden = true; S.shop = null; w.clearInput(); S.mode = 'play'; pauseBtn.hidden = false;
     // A pizza ordered in the shop is its own little scene before the wave: the courier rides in, everyone is fed,
-    // and the wave starts as he rides off (updateWave). New purchases wait, undrawn, until then. Without a pizza,
-    // the wave starts now.
+    // and the wave starts as he rides off (updateWave). New purchases wait, undrawn, until then. A new flagpole goes
+    // up next, in its own scene (game.js openWave). Without either, the wave starts now.
     if (S.pizzaOrder) {
       S.pizzaOrder = false; S.waveState = 'pizza'; S.nextWave = S.wave + 1;
       S.delivery = { x: -30, phase: 'arrive', wait: 0 };
-    } else w.startWave(S.wave + 1);
+    } else w.openWave(S.wave + 1);
     document.activeElement.blur();
   }
   // The courier rides along the ground before the wave; the pizza lands at the handoff in the middle of the page.

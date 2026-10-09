@@ -265,9 +265,9 @@
       input: 'keys',
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       heat: 0, overheat: 0,
-      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, stacks: {} },
+      mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, flag: false, stacks: {} },
       coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0, wall: 0 },
-      aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0,
+      aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0, flagUp: 0, saluteT: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], wreck: null, calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [], night: 0,
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
@@ -587,12 +587,14 @@
   }
 
   // ---------- waves ----------
-  // A wave opens one thing at a time: a pizza ordered in the shop is delivered first (S.waveState 'pizza'), then the
-  // banner, then the sketches of what you bought (SKETCH.DELAY in), then the enemies. Once the planes are done and the
+  // A wave opens one thing at a time: a pizza ordered in the shop is delivered first (S.waveState 'pizza'), then a new
+  // flagpole goes up (S.waveState 'flag', openWave), then the banner, then the sketches of what you bought (SKETCH.DELAY in), then the enemies. Once the planes are done and the
   // field is clear, anything still due (a rush, a cargo plane, the zeppelin) comes in after WAVE_HURRY seconds.
   var WAVE_BANNER = 2.2, WAVE_HURRY = 1.5;
   function startWave(n) {
     S.wave = n; seedWave(n);
+    // With the flag flying, the squad salutes it as the wave's bugle plays.
+    if (S.mods.flag && S.flagUp >= 1) S.saluteT = FLAG.SALUTE;
     S.medevac = []; S.skyFx = []; S.wreck = null;
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured, wall: S.stats.wallDamage };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
@@ -622,9 +624,10 @@
   function updateWave(dt) {
     if (S.waveState === 'pizza') {
       // The wave starts as the courier rides off.
-      if (!S.delivery || S.delivery.phase === 'leave') { var next = S.nextWave; S.nextWave = null; startWave(next); }
+      if (!S.delivery || S.delivery.phase === 'leave') { var next = S.nextWave; S.nextWave = null; openWave(next); }
       return;
     }
+    if (S.waveState === 'flag') { raiseFlag(dt); return; }
     var sp = S.spawn;
     if (!sp) return;
     if (S.waveState === 'active') {
@@ -750,7 +753,7 @@
   // The item list, the shop, the kit display and the pizza courier live in shop.js.
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
   world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
-  world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.queueSketches = queueSketches;
+  world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches;
   world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadLine = squadLine;
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   var SHOP = StickArmyShop(world), ITEMS = SHOP.ITEMS, price = SHOP.price, eligible = SHOP.eligible, OFFERS = SHOP.OFFERS, offer = SHOP.offer,
@@ -788,7 +791,7 @@
     S.sketches = keys.map(function (key, i) { return { key: key, t: -SKETCH.DELAY - i * SKETCH.GAP }; });
   }
   function updateSketches(dt) {
-    if (!S.sketches.length || S.waveState === 'pizza') return;
+    if (!S.sketches.length || S.waveState === 'pizza' || S.waveState === 'flag') return;
     S.sketches.forEach(function (k) { var was = k.t; k.t += dt; if (was < 0 && k.t >= 0) sound.play('scribble'); });
     S.sketches = S.sketches.filter(function (k) { return k.t < SKETCH.DUR; });
   }
@@ -1259,7 +1262,7 @@
         if (tg) {
           var ap = aimPoint(r, tg), want = Math.atan2(ap.y - (GROUND - 23), ap.x - r.x);
           r.aim += angDiff(want, r.aim) * Math.min(1, dt * 10);
-          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) + between(RC, 0, 0.3); }
+          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) * (S.mods.flag ? FLAG.FIRE : 1) + between(RC, 0, 0.3); }
         } else r.cd = Math.max(r.cd, 0.2);
       }
     });
@@ -1562,6 +1565,7 @@
     updateBubbles(dt);
     if (S.mode === 'play') SQUAD.smallTalk(dt);
     updateSketches(dt);
+    updateFlag(dt);
     TRAMPS.forEach(function (tr) { tr.v += (-240 * tr.dip - 9 * tr.v) * dt; tr.dip += tr.v * dt; });
     if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
     S.shake = Math.max(0, S.shake - dt * 1.8);
@@ -1715,9 +1719,12 @@
       s = Math.sin(S.t * 12 + r.id);
       var hx = side * (8 + s * 2), hy = 7 + s * 5;
       pose = [hx, hy, side * 3, 18, -5, 33, 5, 33]; tool = { hx: x + hx, hy: y + hy, idle: false };
-    } else if (r.type === 'engineer') { pose = [7, 17, -6, 19, -5, 33, 5, 33]; tool = { hx: x + 7, hy: y + 17, idle: true }; }
+    } else if (S.saluteT > 0 && r.role === 'shoot') { pose = [side * 3, 1, -side * 5, 19, -5, 33, 5, 33]; }
+    else if (r.type === 'engineer') { pose = [7, 17, -6, 19, -5, 33, 5, 33]; tool = { hx: x + 7, hy: y + 17, idle: true }; }
     else pose = [ca * 9, 9.5 + sa * 9, ca * 15, 9.5 + sa * 15, -5, 33, 5, 33];
-    var aiming = !moving && r.role === 'shoot';
+    // Saluting the flag (FLAG): the hand at the brow, the weapon held at the side.
+    var saluting = !moving && S.saluteT > 0 && r.role === 'shoot';
+    var aiming = !moving && r.role === 'shoot' && !saluting;
     if (r.type === 'bazooka') { if (aiming) tube(x - ca * 9, y + 8 - sa * 9, x + ca * 16, y + 8 + sa * 16); else tube(x - 9, y + 19, x + 8, y + 5); }
     stick(x, y, pose, col);
     if (r.type === 'rifle') {
@@ -1919,6 +1926,57 @@
     }
     if (dipping) drawBarrel();
     drawHeatRing();
+  }
+  // ---------- the flagpole ----------
+  // A supply with one job: "It boosts morale." (shop.js). The squad fires FIRE faster while it flies. The first time,
+  // it goes up in its own little ceremony before the next wave (after a pizza, if one's coming; openWave, raiseFlag):
+  // the pole is sketched in with the flag at the bottom (SKETCH), a beat (PAUSE), the flag is hoisted to the top
+  // (HOIST, S.flagUp 0 to 1), and the squad salutes it (SALUTE) while a soldier admires it; then the wave starts. From
+  // then on the squad salutes it at every wave start (S.saluteT). It stands behind the bunker's back corner, clear of
+  // the turret, the squad and the tent, and nothing targets it.
+  var FLAG = { FIRE: 0.96, X: 230, TALL: 118, W: 44, H: 28, SKETCH: 0.6, PAUSE: 0.35, HOIST: 1.6, SALUTE: 1.4 };
+  function openWave(n) {
+    if (S.mods.flag && S.flagUp < 1) { S.waveState = 'flag'; S.nextWave = n; S.flagT = 0; S.flagUp = 0; sound.play('scribble'); }
+    else startWave(n);
+  }
+  function raiseFlag(dt) {
+    var was = S.flagT, hoist = FLAG.SKETCH + FLAG.PAUSE, top = hoist + FLAG.HOIST;
+    S.flagT += dt;
+    S.flagUp = clamp((S.flagT - hoist) / FLAG.HOIST, 0, 1);
+    if (was < top && S.flagT >= top) {
+      S.saluteT = FLAG.SALUTE;
+      var fan = S.recruits.filter(standing)[0];
+      if (fan) world.say('look at her fly!', fan.id, false, 0.2);
+    }
+    if (S.flagT >= top + FLAG.SALUTE) { var next = S.nextWave; S.nextWave = null; startWave(next); }
+  }
+  function updateFlag(dt) { if (S.saluteT > 0) S.saluteT = Math.max(0, S.saluteT - dt); }
+  function drawFlagpole() {
+    pen(7070);
+    var px = FLAG.X, top = GROUND - FLAG.TALL, low = GROUND - 40 - FLAG.H, up = S.flagUp == null ? 1 : S.flagUp;
+    G.beginPath(); L(px, GROUND, px, top, 0.4); ink(INK, 2.6); G.stroke();
+    G.beginPath(); G.arc(px, top - 3, 3, 0, Math.PI * 2); G.fillStyle = HAT; G.fill(); ink(INK, 1.6); G.stroke();
+    G.beginPath(); L(px + 2, top + 2, px + 2, GROUND - 40, 0.2); ink('rgba(46,46,51,0.35)', 1); G.stroke();
+    drawFlagCloth(px, low + (top + 2 - low) * up, S.t);
+  }
+  // The flag itself, rippling in the wind: blue pen with a white star.
+  function drawFlagCloth(px, y0, t) {
+    var w = FLAG.W, h = FLAG.H, n = 8, pts = [], i, k;
+    for (i = 0; i <= n; i++) { k = i / n; pts.push(px + k * w, y0 + Math.sin(t * 6 - k * 5) * 3.2 * k); }
+    for (i = n; i >= 0; i--) { k = i / n; pts.push(px + k * w, y0 + h + Math.sin(t * 6 - k * 5 + 0.6) * 3.2 * k - k * 2); }
+    G.beginPath(); G.moveTo(pts[0], pts[1]); for (i = 2; i < pts.length; i += 2) G.lineTo(pts[i], pts[i + 1]); G.closePath();
+    G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.28)'; G.fill(); ink(BLUE, 2.4); G.stroke();
+    var cx = px + w * 0.42, cy = y0 + h / 2 + Math.sin(t * 6 - 2.1) * 1.4, st = [];
+    for (i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 3.6 : 8.4; st.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+    G.beginPath(); G.moveTo(st[0], st[1]); for (i = 2; i < st.length; i += 2) G.lineTo(st[i], st[i + 1]); G.closePath();
+    G.fillStyle = PAPER; G.fill(); ink(BLUE, 1.6); G.stroke();
+  }
+  // Brought down with the wall: the pole lies across the rubble, the flag crumpled at its end.
+  function drawFallenFlag() {
+    pen(7071);
+    G.beginPath(); L(150, GROUND - 4, 252, GROUND - 14, 0.4); ink(INK, 2.6); G.stroke();
+    G.beginPath(); SP([252, GROUND - 14, 268, GROUND - 22, 282, GROUND - 12, 272, GROUND - 4, 258, GROUND - 6], true, 0.6);
+    G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.28)'; G.fill(); ink(BLUE, 2); G.stroke();
   }
   function drawRubble() {
     pen(9002);
@@ -2177,8 +2235,9 @@
     drawStrike();
     drawFighter();
     drawRadio();
-    if (S.mode === 'dying' || S.mode === 'over') drawRubble();
+    if (S.mode === 'dying' || S.mode === 'over') { drawRubble(); if (S.mods.flag) drawFallenFlag(); }
     else {
+      if (S.mods.flag) sketchReveal(S.waveState === 'flag' ? clamp(S.flagT / FLAG.SKETCH, 0, 1) : 1, [FLAG.X - 6, GROUND - FLAG.TALL - 8, FLAG.X + FLAG.W + 6, GROUND], 'up', drawFlagpole);
       sketched('auto', [SENTRY.x - 12, SENTRY.y - 16, SENTRY.x + 14, GROUND], 'up', drawSentry);
       drawBunker(); drawDefenses();
       sketched('hospital', [SQUAD.TENT.x - SQUAD.TENT.hw, GROUND - SQUAD.TENT.h - 10, SQUAD.TENT.x + SQUAD.TENT.hw, GROUND], 'up', drawTent);
