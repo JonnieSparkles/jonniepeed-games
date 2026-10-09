@@ -7,7 +7,8 @@
 
 Run by hand. Serves site/ itself and launches Chromium like the other harnesses (CHROMIUM selects a system
 browser). A game opts in with tests/<slug>/trailer/: trailer.json (page, framing, sound object, frame hook),
-takes.json (seeded plans), director.js (plays the game), trailer.css, layers.html, music.py and shots.py.
+takes.json (seeded plans), director.js (plays the game), trailer.css, layers.html, shots.py and, for new music,
+music.py.
 Output goes to work/trailer/<slug>/ (git-ignored): trailer.mp4, sheet.jpg, the takes, music and layers.
 See docs/guides/04-trailers.md.
 """
@@ -61,7 +62,8 @@ def shoot(job):
     try:
         with sync_playwright() as pw:
             d = capture.capture(pw, base, game_dir, cfg, name, take, Path(out) / ('take' + name), dry=dry, log=lambda s: print(s, flush=True))
-            if not dry and d['done']:
+            # games whose sound is re-rendered in one pass over the cut (audio.score) skip the per-take render
+            if not dry and d['done'] and not cfg['audio'].get('score'):
                 sound.render(pw, base, cfg, Path(out) / ('take' + name), log=lambda s: print(s, flush=True))
     finally:
         server.shutdown()
@@ -104,14 +106,14 @@ def main():
     if missing:
         sys.exit('no take %s in %s yet; shoot it first' % (', '.join(missing), out))
     takes = {n: cut.Take(out / ('take' + n), n) for n in names}
+    quiet = tuple(cfg.get('quiet_marks', []))   # markers too frequent to print
     for n, t in takes.items():
-        print('take %s markers: %s' % (n, ', '.join('%s %.2f' % (m['name'], m['t'] - t.marks[0]['t']) for m in t.marks if not m['name'].startswith(('squirrel', 'obs:', 'dog:off')))))
+        print('take %s markers: %s' % (n, ', '.join('%s %.2f' % (m['name'], m['t'] - t.marks[0]['t']) for m in t.marks if not m['name'].startswith(quiet))))
 
     from playwright.sync_api import sync_playwright
     server, base = serve()
     with sync_playwright() as pw:
         layers.render(pw, base, game_dir, cfg, out / 'layers')
-    server.shutdown()
     shots = load(game_dir / 'shots.py', 'trailer_shots_' + args.slug.replace('-', '_'))
 
     def L(name):
@@ -121,18 +123,29 @@ def main():
     try:
         spec = shots.build(takes, L, ROOT)
     except KeyError as e:
+        server.shutdown()
         sys.exit('the cut needs a marker the takes lack: %s' % e.args[0])
     c = cut.Cut(spec, size=tuple(cfg.get('size', [1920, 1080])), fps=cfg.get('fps', 30), src_scale=cfg.get('scale', 1))
     problems = c.problems()
+    if problems or args.dry:
+        server.shutdown()
     if problems:
         sys.exit('the cut needs footage that wasn\'t filmed:\n  ' + '\n  '.join(problems))
     if args.dry:
         print('dry run OK: every shot is filmed (%.0fs). Shoot it with the same command without --dry.' % (time.time() - t0))
         return
 
-    load(game_dir / 'music.py', 'trailer_music_' + args.slug.replace('-', '_')).render(out / 'music.wav')
+    score = None
+    if spec.get('score'):
+        with sync_playwright() as pw:
+            score = sound.render_score(pw, base, cfg, spec['score'], c.dur + 0.5, out / 'score.wav')
+    server.shutdown()
+    music = None
+    if (game_dir / 'music.py').is_file():
+        music = out / 'music.wav'
+        load(game_dir / 'music.py', 'trailer_music_' + args.slug.replace('-', '_')).render(music)
     c.sheet(out / 'sheet.jpg')
-    c.mix(out / 'mix.wav', out / 'music.wav')
+    c.mix(out / 'mix.wav', music, score)
     c.encode(out / 'trailer.mp4', out / 'mix.wav', crf=cfg.get('crf', 17))
     print('wrote %s and sheet.jpg in %.0fs' % (out / 'trailer.mp4', time.time() - t0))
 

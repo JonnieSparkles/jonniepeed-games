@@ -1,0 +1,21 @@
+{
+  "A": {"seed": 11, "max_s": 90, "plan": [
+    {"type": "wait", "dur": 0.6},
+    {"type": "capture", "on": true},
+    {"type": "wait", "dur": 0.4},
+    {"type": "start"},
+    {"type": "catch", "until": "score >= 52"},
+    {"type": "catch", "dur": 2},
+    {"type": "capture"},
+    {"type": "end"}
+  ]},
+  "B": {"seed": 23, "max_s": 260, "plan": [
+    {"type": "start"},
+    {"type": "js", "code": "D.maxSpills = 3;"},
+    {"type": "catch", "until": "el >= 105"},
+    {"type": "capture", "on": true},
+    {"type": "catch", "until": "el >= 235"},
+    {"type": "capture"},
+    {"type": "end"}
+  ]}
+}

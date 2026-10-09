@@ -3,7 +3,10 @@
 The page only advances when the clock is run, so every frame is exactly 1/fps apart however slow the screenshots
 are. Math.random is seeded, so a take with the same seed and plan plays the same way every time, with or without
 screenshots: a dry run (no screenshots, drawn at 1x) gives the same markers in about a third of the time.
+Pixel-art games can save their canvas's own pixels instead of screenshots (trailer.json "canvas"), which is faster
+and stays crisp however far the cut pushes in.
 """
+import base64
 import json
 import os
 import time
@@ -21,7 +24,12 @@ SEED_JS = """(() => { const seed = %d; let a = seed >>> 0;
   try { localStorage.clear(); } catch (e) {}
   window.__trailerConfig = %s; })();"""
 BRIDGE = 'window.__trailerEval = function (code) { return eval(code); };\n'
-GLOBAL_EVAL = 'window.__trailerEval = window.__trailerEval || function (code) { return (0, eval)(code); };'
+# one frame: step CSS animations, report the plan's state, and hand back the canvas's pixels when filming one
+STEP_JS = """([dt, sel]) => { __stepAnims(dt);
+  const st = {c: __D.capture, d: __D.done, t: performance.now() / 1000};
+  if (st.c && sel) st.png = document.querySelector(sel).toDataURL('image/png').slice(22);
+  return st; }"""
+GLOBAL_EVAL ='window.__trailerEval = window.__trailerEval || function (code) { return (0, eval)(code); };'
 
 
 def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
@@ -29,13 +37,15 @@ def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
     out = Path(out)
     frames_dir = out / 'f'
     frames_dir.mkdir(parents=True, exist_ok=True)
-    for f in frames_dir.glob('*.jpg'):
+    for f in list(frames_dir.glob('*.jpg')) + list(frames_dir.glob('*.png')):
         f.unlink()
     fps = cfg.get('fps', 30)
     vw, vh = cfg.get('viewport', [1920, 1080])
     browser = pw.chromium.launch(executable_path=os.environ.get('CHROMIUM'), args=['--autoplay-policy=no-user-gesture-required'])
-    # a dry run draws at 1x: pixel density only changes drawing, so the take plays the same and runs faster
-    ctx = browser.new_context(viewport={'width': vw, 'height': vh}, device_scale_factor=1 if dry else cfg.get('scale', 1))
+    # a dry run draws at 1x: pixel density only changes drawing, so the take plays the same and runs faster.
+    # A canvas capture saves the canvas's own pixels, so pixel density doesn't matter there either.
+    canvas = cfg.get('canvas')
+    ctx = browser.new_context(viewport={'width': vw, 'height': vh}, device_scale_factor=1 if dry or canvas else cfg.get('scale', 1))
     page = ctx.new_page()
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
@@ -72,17 +82,21 @@ def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
     while i < nmax:
         tgt = round((i + 1) * 1000 / fps)
         page.clock.run_for(tgt - prev)
-        st = page.evaluate('dt => { __stepAnims(dt); return {c: __D.capture, d: __D.done, t: performance.now() / 1000}; }', tgt - prev)
+        st = page.evaluate(STEP_JS, [tgt - prev, canvas['selector'] if canvas and not dry else None])
         prev = tgt
         if st['c'] and not dry:
-            page.screenshot(path=str(frames_dir / ('%05d.jpg' % len(times))), type='jpeg', quality=94)
+            if canvas:
+                (frames_dir / ('%05d.png' % len(times))).write_bytes(base64.b64decode(st['png']))
+            else:
+                page.screenshot(path=str(frames_dir / ('%05d.jpg' % len(times))), type='jpeg', quality=94)
             times.append(st['t'])
         if st['d']:
             break
         i += 1
     data = page.evaluate('({marks: __D.marks, windows: __D.windows, snd: __snd, done: __D.done, rng: __D.rng})')
     browser.close()
-    data.update({'frames': times, 'fps': fps, 'seed': take['seed'], 'dry': dry, 'errors': errors})
+    data.update({'frames': times, 'fps': fps, 'seed': take['seed'], 'dry': dry, 'errors': errors,
+                 'upscale': canvas.get('upscale', 1) if canvas else None})
     (out / 'take.json').write_text(json.dumps(data))
     status = 'done' if data['done'] else 'HIT max_s before the plan ended'
     filmed = sum((b if b is not None else data['marks'][-1]['t']) - a for a, b in data['windows'])

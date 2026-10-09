@@ -1,6 +1,6 @@
 # 04: Trailers
 
-A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, original music and the cut are added on top. Don't Step on a Crack is the first game with one (15 s, 1920×1080).
+A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music) and Thimbleful (14.6 s, the game's own music) have one.
 
 ## Running
 
@@ -32,6 +32,8 @@ On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 mi
 - **Markers, not frame numbers.** The director leaves markers when things happen (a crack hit, Dad arriving, the street changing). `shots.py` places each shot by a marker plus an offset, so a re-shot take re-cuts itself.
 - **The game's own sound.** Every top-level call into the game's sound object is logged with its time and state flags. Afterwards the game's `audio.js` is loaded into a blank page whose `AudioContext` is one `OfflineAudioContext`, and each call is replayed at its time. The result is the real game sound, in exact sync, without recording anything.
 - **Capture at 4/3 scale.** Frames are captured at 2560×1440 for a 1920×1080 trailer, so the cut can push in up to a third and stay sharp.
+- **Or the canvas's own pixels.** A pixel-art game can save its canvas instead of screenshots (`canvas` in `trailer.json`). Thimbleful's 96×72 frames are scaled up 40× whole before the cut crops them, so any push-in stays crisp, and filming costs almost nothing: its 130-second storm take films in under a minute.
+- **The game's own music, in one pass.** A game that plays its own music from timers (Thimbleful's loop is scheduled from `setInterval`) can't be cut from separate takes without the music jumping at every cut. With `audio.score`, shots.py steers the game's music itself (Thimbleful: `start()`, then `intensity()` at the cozy and storm tempos) and `cut.score_calls` moves every shot's sound effects to the trailer's time. Both are replayed into one sound object, so the music runs straight through and the catch notes still follow its chords. In the replay, the page's timers run on the audio clock (`audio.timers`).
 
 ## Making one
 
@@ -50,12 +52,12 @@ Add `tests/<slug>/trailer/`:
 
 | File | Role |
 | --- | --- |
-| `trailer.json` | The page, viewport and capture `scale`, the per-frame function to hook (`hook`), the framing CSS and director files, and the sound object: `{object, script, init, state}`, where `state` lists flags to restore with each call (Crack: `quiet`). Games that keep their code in a closure add `script` and `inject_before`, like `balance.json`, and get the same eval bridge (not tried yet; Stick Army would be the first). |
+| `trailer.json` | The page, viewport and capture `scale`, the per-frame function to hook (`hook`), the framing CSS and director files, and the sound object: `{object, script, init, state}`, where `state` lists flags to restore with each call (Crack: `quiet`). `canvas` (`{selector, upscale}`) films a canvas's own pixels; `audio.timers` and `audio.score` are for games that play their own music (see above); `quiet_marks` lists marker prefixes too frequent to print. Games that keep their code in a closure add `script` and `inject_before`, like `balance.json`, and get the same eval bridge (not tried yet; Stick Army would be the first). |
 | `takes.json` | Takes by name: `seed`, `max_s` and the `plan`. |
 | `director.js` | The scripted player, evaluated in the game's scope after the shared harness. |
 | `trailer.css` | Framing for the trailer: Crack makes the Mom Cam 446 px and hides buttons and stats. |
 | `layers.html` | Text layers. Each `<template id>` becomes a transparent PNG; `{{SITE}}` is the local site's address, for the game's fonts. |
-| `music.py` | `render(path)`, written with `tools/trailer/synth.py`. |
+| `music.py` | Optional: `render(path)` for new music, written with `tools/trailer/synth.py`. Without it, the game's own sound is the whole soundtrack. |
 | `shots.py` | `build(takes, layer, repo)` returns the cut: `dur`, `shots`, `overlay`, `end` and `mix`, made with `tools/trailer/cut.py`. |
 
 A plan is a list of items, played one at a time, once per game frame. The shared harness provides `start`, `capture` (`on`), `wait` (`dur` or `until`, a JavaScript condition in the game's scope), `js` (`code`, run once with `now` and `D`), `mark` and `end`. Any item can have a `name`, which leaves a marker when it starts. The director adds the game's own items; Crack's are `walk`, `crack`, `shoes`, `roll` and `jump` (see the top of its `director.js`).

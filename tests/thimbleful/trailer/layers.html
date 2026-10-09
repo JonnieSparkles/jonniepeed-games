@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- The trailer's text layers, in the game's own fonts and colors (Silkscreen and Pixelify Sans, sun on dusk).
+     tools/trailer/layers.py renders each <template> to a transparent 1920x1080 PNG; shots.py places and animates them. -->
+<link rel="stylesheet" href="{{SITE}}assets/fonts/fonts.css">
+<style>
+:root{--dusk:#2a2140;--dusk-2:#3b2f58;--cream:#f6e7c8;--sun:#f5c32c;--sun-deep:#b8861a}
+html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hidden}
+#L{position:absolute;inset:0}
+/* hard pixel shadows, like the game's buttons */
+.title{position:absolute;left:180px;top:236px;margin:0;font-family:"Silkscreen",monospace;font-weight:400;font-size:204px;line-height:1;
+  color:var(--sun);letter-spacing:.02em;text-shadow:0 10px 0 var(--sun-deep),10px 20px 0 var(--dusk),0 0 60px rgba(42,33,64,.55)}
+.cap{position:absolute;right:120px;top:236px;margin:0;font-family:"Pixelify Sans",sans-serif;font-weight:600;font-size:112px;line-height:1.05;
+  color:var(--cream);text-align:right;text-shadow:8px 8px 0 var(--dusk),0 0 40px rgba(42,33,64,.6)}
+.cap.sun{color:var(--sun)}
+/* end card: the studio mark and address on the game's dusk panel */
+.pill{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;align-items:center;gap:24px;white-space:nowrap;
+  background:rgba(42,33,64,.9);color:var(--sun);border-radius:999px;padding:12px 44px 12px 22px;box-shadow:0 10px 40px rgba(0,0,0,.45);
+  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:44px;letter-spacing:.005em}
+.pill img{width:80px;height:88px;image-rendering:pixelated}
+</style></head><body>
+<div id="L"></div>
+
+<template id="title"><h1 class="title">Thimbleful</h1></template>
+<template id="cap1"><p class="cap">Catch the drips.</p></template>
+<template id="cap2"><p class="cap">Grow a sunflower.</p></template>
+<template id="cap3"><p class="cap sun">Then the storm<br>rolls in.</p></template>
+<template id="pill"><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
+</body></html>
