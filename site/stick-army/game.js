@@ -2474,8 +2474,11 @@
     }
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; if (S.mode === 'play') e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; if (S.mode === 'play') e.preventDefault(); }
-    else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
     else if (k === 'Escape' && LBOARD.closeScores()) { /* closed the title's high scores */ }
+    // On the title, Space or Enter starts a run unless a button has focus (which gets the key itself).
+    else if ((k === ' ' || k === 'Enter') && S.mode === 'title' && document.getElementById('scoresScreen').hidden &&
+      !(document.activeElement && document.activeElement.closest && document.activeElement.closest('button, a'))) { e.preventDefault(); document.getElementById('startBtn').click(); }
+    else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') { if (S.mode === 'play') { keys.fire = true; sound.init(); e.preventDefault(); } }
     else if (k === 'p' || k === 'P' || k === 'Escape') { togglePause(); }
     else if ((k === 'b' || k === 'B') && !e.repeat && S.mode === 'play') { callStrike(); }
     else if ((k === 'c' || k === 'C') && !e.repeat && S.mode === 'play') { callFighter(); }

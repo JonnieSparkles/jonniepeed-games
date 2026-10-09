@@ -106,9 +106,10 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={'width': 390, 'height': 844})
     starts = []
     page.route('http://localhost:8787/**', lambda route: (starts.append(route.request.url) if '/v2/start' in route.request.url else None, route.abort()))
-    page.goto(SITE + '/stick-army/#seed=42'); page.click('#startBtn'); page.wait_for_timeout(300)
+    page.goto(SITE + '/stick-army/#seed=42'); page.keyboard.press('Space'); page.wait_for_timeout(300)
+    check(page.locator('#titleScreen').is_hidden(), 'Space starts a run from the title')
     check(not starts, 'seeded runs get no token')
     page.close()
     browser.close()
     check(not errors, errors)
-print('PASS board: ask, save, skip, win, endless, offline, seeded, title')
+print('PASS board: ask, save, skip, win, endless, offline, seeded, title (and Space starts a run)')
