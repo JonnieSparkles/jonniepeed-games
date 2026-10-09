@@ -46,7 +46,9 @@
 
   // ---- The decoy's cardboard armor takes PLATE.KNOCKS knocks, at most one every PLATE.GAP seconds, then comes off.
   RUN.force = 52; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle')]; startWave(DREAD.WAVE); S.spawn.timer = 99;
-  for (var f = 0; f < 60 * 40 && !S.spawn.decoySeen; f++) update(1 / 60);
+  var chirp = false;
+  for (var f = 0; f < 60 * 40 && !S.spawn.decoySeen; f++) { update(1 / 60); chirp = chirp || S.bubbles.some(function (b) { return b.s === 'Oh no... here it comes!' && b.rid != null; }); }
+  check(chirp, 'a squad chirp as the decoy comes: "Oh no... here it comes!"');
   var dz = S.spawn.decoy, P = UNITS.PLATE; S.texts = []; S.bubbles = [];
   var dx0 = dz.x; dz.x = dz.face > 0 ? -P.X : W + P.X;
   damagePlane(dz, 1, 'player', dz.x, dz.y, true);
@@ -62,6 +64,9 @@
   S.t += P.GAP + 0.01; damagePlane(dz, 1, 'player', dz.x, dz.y, true);
   check(dz.plateOff && S.parts.some(function (q) { return q.k === 'plate' && q.dents === P.KNOCKS; }), 'the next knocks it off, dents and all');
   render();
+  // It goes down without "zeppelin down!", label or banner, though it still pays.
+  S.texts = []; S.banner = null; var dsc = S.score; UNITS.zeppelinDown(dz, 'player');
+  check(!S.texts.some(function (q) { return /zeppelin down/.test(q.s); }) && !(S.banner && S.banner.s === 'zeppelin down!') && S.score > dsc, 'the decoy goes down quietly');
 
   // ---- Dive bombers let go sooner, and a bomb on the wall says so.
   RUN.force = 151; quiet(12);
@@ -256,12 +261,21 @@
   function hitBridge(dmg) { damagePlane(dz2, dmg, 'player', dz2.x + dz2.dir * dz2.bridge.lx, dz2.y + DREAD.BRIDGE_Y, true); }
   seen = []; hitBridge(dz2.bridge.max * 0.5);
   check(!dz2.abandoned && !heard('dread_abandon'), 'not at half');
-  var before = S.troopers.filter(alive).length; S.texts = [];
+  var A = DREAD.ABANDON, recruits = S.recruits; S.recruits = []; S.texts = [];
   hitBridge(dz2.bridge.max * 0.2);
-  check(dz2.abandoned && heard('dread_abandon', function (d) { return d.n === DREAD.ABANDON.N; }) && S.troopers.filter(alive).length - before >= DREAD.ABANDON.N &&
-    S.texts.some(function (q) { return q.s === 'abandon ship!'; }), 'at a third: abandon ship!');
-  hitBridge(dz2.bridge.max * 0.05);
-  check(seen.filter(function (e) { return e.type === 'dread_abandon'; }).length === 1, 'once');
+  function jumped() { return seen.filter(function (e) { return e.type === 'trooper_spawn'; }).length; }
+  check(dz2.abandoned && heard('dread_abandon', function (d) { return d.round === 1 && d.n === A.N; }) && S.texts.some(function (q) { return q.s === 'abandon ship!'; }), 'at a third: abandon ship!');
+  seen = []; update(1 / 60);
+  check(jumped() === 1, 'they jump one at a time');
+  run(A.EVERY * (A.N - 1) + 0.05);
+  check(jumped() === A.N, 'a wave of ' + A.N + ': ' + jumped());
+  run(A.GAP - 0.2);
+  check(jumped() === A.N, 'a pause');
+  run(0.3 + A.EVERY * A.N);
+  check(heard('dread_abandon', function (d) { return d.round === 2; }) && jumped() === A.N * A.WAVES, 'then a second wave: ' + jumped());
+  run(A.GAP + 1);
+  check(jumped() === A.N * A.WAVES && dz2.abandon.wave === A.WAVES, 'and no more');
+  S.recruits = recruits;
   render();
   // Downed: they surrender, and the captain is the last one out, under his own slow chute.
   hitBridge(9999);

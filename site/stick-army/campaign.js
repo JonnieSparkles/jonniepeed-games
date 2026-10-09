@@ -49,13 +49,15 @@ var StickArmyCampaign = function (w) {
     SNEAK: { FIRST: 2.5, EVERY: 6, GROUPS: 3, SIZE: [2, 3], SPEED: 26 },
     // The last hurrah (round 14, the second win: "when the nought is down to the bridge only, its pretty much over...
     // just thinking a last hurrah"; a ramming run was turned down, as it could take a won run on a sliver of wall).
-    // ABANDON: once, as the bridge falls to AT of its health, a klaxon and N of its crew bail out along the hull at once.
+    // ABANDON: once the bridge falls to AT of its health, a klaxon, and its crew bail out along the hull in WAVES waves of
+    // N, one at a time EVERY seconds from the bow back, GAP seconds between waves (the second win: "at least 2 waves of
+    // people jumping... stagger person by person not all at once").
     // CAPTAIN: downed, its captain is the last one out, DELAY seconds into its fall, under his own chute at FALL px/s,
     // no lower than LOW px above the ground, drifting toward the nearest open mat (at DRIFT px/s, quick enough to be
     // over it with the last two fifths of his way down to go) and then on toward the edge at EDGE. Catch him on the mat
     // for PTS, and he's your prisoner on the victory card; shoot him down for DOWN; let him land and he runs off the page
     // at RUN px/s. Never the game: only points. The crew and the sentry leave him to you.
-    ABANDON: { AT: 1 / 3, N: 8 },
+    ABANDON: { AT: 1 / 3, WAVES: 2, N: 6, EVERY: 0.22, GAP: 3.5 },
     CAPTAIN: { DELAY: 0.8, FALL: 50, LOW: 260, DRIFT: [20, 90], EDGE: 12, PTS: 5000, DOWN: 500, RUN: 90 },
     CHAIN: 1.4, SMOKE_AT: [50, 132, 268, 350], SMOKE_FIRST: 0.5, SMOKE_GAP: 0.45, SMOKE_FLIGHT: 0.9,
     // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
@@ -286,18 +288,29 @@ var StickArmyCampaign = function (w) {
     w.sound.play('thup'); bail(p);
     if (!p.abandoned && b.hp <= b.max * DREAD.ABANDON.AT) abandonShip(p);
   }
-  // Abandon ship: a klaxon, and a crowd of its crew bail out all along the hull at once.
+  // Abandon ship: a klaxon, then its crew jump one after another along the hull, from the bow back, in waves
+  // (abandoning, from updateDread in the bridge stage).
   function abandonShip(p) {
-    var S = w.S, n = DREAD.ABANDON.N;
-    p.abandoned = true;
-    for (var i = 0; i < n; i++) {
-      var kit = w.rollTrooper(p.rng), x = 34 + (i + 0.5) * (W - 68) / n + (p.rng() - 0.5) * 16;
-      if (kit.type === 'sniper') kit.type = 'rifle';
-      w.spawnTrooper(x, p.y + DREAD.HH + 2 + p.rng() * 10, kit);
-    }
+    var S = w.S;
+    p.abandoned = true; p.abandon = { wave: 0, t: 0, queue: [] };
     S.shake = Math.max(S.shake, 0.3); w.sound.play('klaxon');
     addText('abandon ship!', 200, 300, RED, 26, 'alert');
-    emit('dread_abandon', { n: n });
+    jumpers(p);
+  }
+  function jumpers(p) {
+    var A = DREAD.ABANDON, ab = p.abandon, xs = [];
+    for (var i = 0; i < A.N; i++) xs.push(34 + (i + 0.5) * (W - 68) / A.N + (p.rng() - 0.5) * 16);
+    ab.queue = p.dir > 0 ? xs.reverse() : xs; ab.wave++; ab.t = 0;
+    emit('dread_abandon', { round: ab.wave, n: A.N });
+  }
+  function abandoning(p, dt) {
+    var A = DREAD.ABANDON, ab = p.abandon;
+    if (!ab || (ab.t -= dt) > 0) return;
+    if (!ab.queue.length) { if (ab.wave < A.WAVES) jumpers(p); return; }
+    var kit = w.rollTrooper(p.rng);
+    if (kit.type === 'sniper') kit.type = 'rifle';
+    w.spawnTrooper(ab.queue.shift(), p.y + DREAD.HH + 2 + p.rng() * 8, kit);
+    ab.t = ab.queue.length ? A.EVERY : A.GAP;
   }
   function dreadDown(p, owner) {
     var S = w.S, b = bridgeAt(p), final = S.wave === DREAD.WAVE && !S.won;
@@ -542,6 +555,7 @@ var StickArmyCampaign = function (w) {
       bridgeGun(p, dt);
       mainGun(p, dt);
       boarding(p, dt);
+      abandoning(p, dt);
     }
     // The air strike's bombs hit the parts they fall past.
     S.strikeBombs.forEach(function (m) {

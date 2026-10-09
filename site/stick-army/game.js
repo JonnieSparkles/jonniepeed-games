@@ -310,7 +310,9 @@
   }
 
   // The final wave's decoy builds up like the real thing: a horn, rumbling and a great shadow creeping in from one
-  // side, then a lone zeppelin sails in, slowly.
+  // side, a soldier on that side chirping "Oh no... here it comes!" TEASE_CHIRP seconds before it shows, then a lone
+  // zeppelin sails in, slowly.
+  var TEASE_CHIRP = 1.4;
   function teaseIn(sp, dt) {
     if (sp.teaseT == null) {
       sp.teaseT = DREAD.DECOY_BUILD; sp.teaseDir = RW() < 0.5 ? 1 : -1; sp.rumbleT = 0.6; sound.play('horn');
@@ -318,6 +320,13 @@
     }
     sp.teaseT -= dt; sp.rumbleT -= dt;
     if (sp.rumbleT <= 0) { sp.rumbleT = 1.1; S.shake = Math.max(S.shake, 0.15 + 0.15 * (1 - sp.teaseT / DREAD.DECOY_BUILD)); sound.play('rumble'); }
+    // A squad chirp as it's about to show (round 14, the second win: "oh no here it comes"). It replaces "oh no, here it
+    // is!" as it came into view, which was lost under the banner.
+    if (sp.teaseT <= TEASE_CHIRP && !sp.chirped) {
+      sp.chirped = true;
+      var crew = S.recruits.filter(standing).sort(function (a, b) { return sp.teaseDir * (a.x - b.x); });
+      if (crew.length) speak('oh no... here it comes!', crew[0].id, false, 0); else addText('oh no... here it comes!', 200, 420, BLUE, 24, 'story');
+    }
     if (sp.teaseT > 0) return;
     sp.decoy = spawnZeppelin({ decoy: true, dir: sp.teaseDir }); sp.decoy.speed = sp.decoy.enterSpeed = DREAD.DECOY_SPEED;
     sp.bossT = 1e9; sound.play('horn');
@@ -374,7 +383,8 @@
   function wallText(amount) {
     addText('wall -' + amount, BK.x, BK.top - 36, RED, 20, 'alert', { key: 'wall', pts: amount, window: 0.8, fmt: function (n, p) { return 'wall -' + Math.round(p); } });
   }
-  function award(base, x, y, label, color, useCombo) {
+  // quiet: the points and tags without the label (the final wave's decoy going down, round 14).
+  function award(base, x, y, label, color, useCombo, quiet) {
     var mult = 1;
     if (useCombo) { S.combo++; S.comboT = 1.4; mult = Math.min(S.combo, 5); }
     var pts = base * mult;
@@ -382,6 +392,7 @@
     var tags = Math.max(1, Math.round(base / 15)) + Math.floor(mult / 3);
     S.coins += tags; flyTags(x, y, tags);
     emit('coins', { amount: tags, reason: OUCH.indexOf(label) >= 0 ? 'kill' : label.replace(/!+$/, '') });
+    if (quiet) return;
     // Every kind of trooper cry merges with the others, under the first one's word.
     if (base >= 100) addText(label + ' +' + pts, x, y, color === BLUE ? BLUE : INK, null, 'big');
     else addText(label + ' +' + pts, x, y, color === BLUE ? BLUE : INK2, null, 'score',
@@ -622,10 +633,9 @@
       // The decoy in sight: the squad thinks this is it.
       if (sp.decoy && !sp.decoySeen && sp.decoy.state === 'fly' && sp.decoy.x > 30 && sp.decoy.x < W - 30) {
         // It gets the full announcement, just like the real thing.
-        sp.decoySeen = true; var spotter = S.recruits.filter(standing)[0];
+        sp.decoySeen = true;
         S.banner = { s: 'dreadnought!', sub: 'the enemy flagship', t: 0, dur: 3 };
         sound.play('horn'); sound.play('sting'); S.shake = Math.max(S.shake, 0.3);
-        if (spotter) world.say('oh no, here it is!', spotter.id, false, 0.6); else addText('oh no, here it is!', 200, 420, BLUE, 24, 'story');
       }
       // The decoy down: a soldier wonders "that's it?", a few seconds of quiet, then the Dreadnought, once its sign has
       // fluttered all the way down (and lain there SIGN_BEAT seconds). As the sign nears the ground, another soldier

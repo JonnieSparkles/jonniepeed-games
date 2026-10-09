@@ -30,13 +30,14 @@
   check(S.banner.s === 'final wave' && /flagship/.test(S.banner.sub) && ambienceState().dread === 'teaser', 'the final wave is announced, to thin music');
   run(DREAD.ARRIVE + 0.05);
   check(S.spawn.teaseT > 0 && !S.planes.some(function (q) { return q.kind === 'zeppelin'; }), 'a build-up first');
-  run(DREAD.DECOY_BUILD);
+  S.bubbles = []; var chirped = false;
+  for (var df = 0; df < 60 * DREAD.DECOY_BUILD; df++) { update(1 / 60); chirped = chirped || S.bubbles.some(function (b) { return /here it comes/i.test(b.s); }); }
+  check(chirped, 'the squad thinks this is it: "Oh no... here it comes!"');
   var decoy = S.planes.find(function (q) { return q.kind === 'zeppelin'; });
   check(decoy && decoy.decoy && !decoy.armored && decoy.maxHp === Math.round(zeppelinHP(FINAL) * DREAD.DECOY_HP) && !CAMPAIGN.dread(), 'just a zeppelin');
-  S.bubbles = [];
-  for (var df = 0; df < 60 * 15 && !S.spawn.decoySeen; df++) update(1 / 60);
+  for (df = 0; df < 60 * 15 && !S.spawn.decoySeen; df++) update(1 / 60);
   run(0.1);
-  check(S.spawn.decoySeen && S.bubbles.some(function (b) { return /here it is/i.test(b.s); }), 'the squad thinks this is it');
+  check(S.spawn.decoySeen && S.banner && S.banner.s === 'dreadnought!', 'in sight, the full announcement');
   render();
   // Downed, its "DREDNOUGHT" sign tears off and flutters down on its own.
   zeppelinDown(decoy, 'player'); S.bubbles = [];
