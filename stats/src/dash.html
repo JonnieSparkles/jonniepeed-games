@@ -123,6 +123,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   const game = match ? match[1] : null;
   const params = new URLSearchParams(location.search);
   let days = [7, 30, 90].includes(Number(params.get('days'))) ? Number(params.get('days')) : 30;
+  // A game's page can be narrowed to one leaderboard board (?board=3). Scores on different boards follow different rules.
+  let board = game && /^[1-9]\d{0,5}$/.test(params.get('board') || '') ? Number(params.get('board')) : null;
+  const query = () => `?days=${days}${board != null ? '&board=' + board : ''}`;
   let last = null;
 
   /* ---------- small helpers ---------- */
@@ -435,8 +438,36 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   }
 
   /* ---------- one game ---------- */
+  // Board pills (All boards, Board 3, Board 2…) for games with a leaderboard.
+  function boardPills(data) {
+    if (!data.boards.length && board == null) return null;
+    const known = data.boards.map(b => b.board);
+    if (board != null && !known.includes(board)) known.unshift(board);
+    const pill = (value, text) => {
+      const b = el('button', { class: 'pill', type: 'button', 'aria-pressed': value === board ? 'true' : 'false' }, text);
+      b.addEventListener('click', () => { if (value === board) return; board = value; history.replaceState(null, '', location.pathname + query()); load(); });
+      return b;
+    };
+    return el('div', { class: 'bar' }, el('div', { class: 'pills', role: 'group', 'aria-label': 'Leaderboard board' },
+      pill(null, 'All boards'), ...known.map(n => pill(n, 'Board ' + n))));
+  }
+  // Side by side, one row per board: how play changed after a board change.
+  function boardsCard(data) {
+    if (board != null || data.boards.length < 2) return null;
+    const head = ['Board', 'Runs', 'Sittings', 'Finished', 'Quit', 'Median run', 'Saved to the board'];
+    return el('section', { class: 'card' }, el('h2', null, 'By board'),
+      el('p', { class: 'desc' }, 'Each board is a set of rules; a new board starts when scoring changes. Runs from before play stats existed aren’t here.'),
+      el('div', { class: 'scroll' }, el('table', null,
+        el('thead', null, el('tr', null, head.map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
+        el('tbody', null, data.boards.map(b => el('tr', null,
+          el('td', null, 'Board ' + b.board), el('td', { class: 'n' }, num(b.runs)), el('td', { class: 'n' }, num(b.visits)),
+          el('td', { class: 'n' }, pct(b.finished, b.runs)), el('td', { class: 'n' }, pct(b.quit, b.runs)),
+          el('td', { class: 'n' }, dur(b.median_ms)), el('td', { class: 'n' }, b.saves == null ? '–' : num(b.saves))))))));
+  }
+
   function renderGame(data) {
     const s = data.summary, out = [];
+    out.push(boardPills(data));
     out.push(el('div', { class: 'tiles' },
       tile('Runs', compact(s.runs)),
       tile('Sittings', compact(s.visits), 'page visits with at least one run'),
@@ -446,7 +477,8 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       tile('Median run', dur(s.median_ms)),
       tile('Time played', dur(s.time_ms)),
       s.saves == null ? null : tile('Saved to the board', compact(s.saves), pct(s.saves, s.runs) + ' of runs')));
-    if (!s.runs) { out.push(el('p', { class: 'empty' }, `No runs in the last ${data.days} days yet.`)); return out; }
+    if (!s.runs) { out.push(el('p', { class: 'empty' }, `No runs${board != null ? ' on board ' + board : ''} in the last ${data.days} days yet.`)); return out.filter(Boolean); }
+    out.push(boardsCard(data));
     const series = [
       { name: 'Finished', color: SERIES[0], pick: r => r.finished },
       { name: 'Quit', color: SERIES[1], pick: r => r.quit },
@@ -493,10 +525,10 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     } else {
       names.append(el('p', { class: 'desc' }, 'Initials from saved runs. Days are UTC dates. AAA is the picker’s default, so it’s likely several people.'),
         el('div', { class: 'scroll' }, el('table', null,
-          el('thead', null, el('tr', null, ['Initials', 'Runs saved', 'Days seen', 'Last seen', 'Best'].map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
+          el('thead', null, el('tr', null, ['Initials', 'Runs saved', 'Days seen', 'Last seen', board != null ? 'Best' : 'Best (board)'].map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
           el('tbody', null, data.board_names.map(n => el('tr', null,
             el('td', null, n.name), el('td', { class: 'n' }, num(n.runs)), el('td', { class: 'n' }, num(n.days)),
-            el('td', { class: 'n' }, dateFmt.format(new Date(n.last))), el('td', { class: 'n' }, num(n.best))))))));
+            el('td', { class: 'n' }, dateFmt.format(new Date(n.last))), el('td', { class: 'n' }, n.best == null ? '–' : num(n.best) + (board == null && n.board != null ? ` (${n.board})` : ''))))))));
     }
     out.push(names);
     const recent = el('section', { class: 'card' }, el('h2', null, 'Latest runs'),
@@ -530,7 +562,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     const box = document.getElementById('range');
     box.replaceChildren(...[7, 30, 90].map(d => {
       const b = el('button', { class: 'pill', type: 'button', 'aria-pressed': d === days ? 'true' : 'false' }, d + ' days');
-      b.addEventListener('click', () => { if (d === days) return; days = d; history.replaceState(null, '', `${location.pathname}?days=${d}`); load(); });
+      b.addEventListener('click', () => { if (d === days) return; days = d; history.replaceState(null, '', location.pathname + query()); load(); });
       return b;
     }));
   }
@@ -541,7 +573,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     main.classList.add('loading'); main.setAttribute('aria-busy', 'true');
     let data = null, problem = 'Couldn’t load the numbers. Try again in a moment.';
     try {
-      const res = await fetch(game ? `/dash/api/game?game=${encodeURIComponent(game)}&days=${days}` : `/dash/api/overview?days=${days}`, { credentials: 'same-origin' });
+      const res = await fetch(game ? `/dash/api/game?game=${encodeURIComponent(game)}&${query().slice(1)}` : `/dash/api/overview?days=${days}`, { credentials: 'same-origin' });
       data = await res.json();
       if (data && data.error === 'locked') problem = 'The dashboards are locked until Cloudflare Access is set up.';
       if (data && data.error === 'forbidden') problem = 'Sign in through Cloudflare Access to see this.';
@@ -552,10 +584,10 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     last = data;
     nav(data.names);
     const title = game ? data.names[game] : 'All games';
-    document.getElementById('heading').textContent = game ? 'Play stats · ' + title : 'Play stats';
+    document.getElementById('heading').textContent = game ? 'Play stats · ' + title + (board != null ? ' · board ' + board : '') : 'Play stats';
     document.title = game ? title + ' · Play stats' : 'Play stats';
     document.getElementById('sub').textContent = `Last ${data.days} days`;
-    main.replaceChildren(...(game ? renderGame(data) : renderOverview(data)));
+    main.replaceChildren(...(game ? renderGame(data) : renderOverview(data)).filter(Boolean));
     draw();
   }
   load();

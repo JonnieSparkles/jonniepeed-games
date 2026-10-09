@@ -172,20 +172,23 @@ const median = (where, by) => `SELECT ${by ? by + ', ' : ''}time_ms FROM (
     FROM runs WHERE ${where} AND time_ms IS NOT NULL) WHERE r = (c + 1) / 2`;
 
 // Leaderboard rows, read-only. AAA is the picker's default, so it's left out of name counts: it's likely many people.
-async function boardNames(env, since, game) {
+async function boardNames(env, since, game, board) {
   if (!env.SCORES) return null;
   try {
-    const where = `board > 0 AND created_at >= ?1${game ? ' AND game = ?2' : ''}`;
-    const bind = s => game ? s.bind(since, game) : s.bind(since);
-    const [saves, names, people] = await env.SCORES.batch([
+    const where = `board > 0 AND created_at >= ?1${game ? ' AND game = ?2' : ''}${board != null ? ' AND board = ?3' : ''}`;
+    const args = [since].concat(game ? [game] : [], board != null ? [board] : []);
+    const bind = s => s.bind(...args);
+    const [saves, names, people, bests] = await env.SCORES.batch([
       bind(env.SCORES.prepare(`SELECT game, COUNT(*) AS saves FROM scores WHERE ${where} GROUP BY game`)),
       bind(env.SCORES.prepare(`SELECT game, name, COUNT(*) AS runs, COUNT(DISTINCT substr(created_at, 1, 10)) AS days,
         MAX(created_at) AS last, MAX(score) AS best FROM scores WHERE ${where} GROUP BY game, name`)),
       // Each set of initials across every game: saved on how many dates, in how many games.
       bind(env.SCORES.prepare(`SELECT name, COUNT(DISTINCT substr(created_at, 1, 10)) AS days, COUNT(DISTINCT game) AS games
-        FROM scores WHERE ${where} AND name <> 'AAA' GROUP BY name`))
+        FROM scores WHERE ${where} AND name <> 'AAA' GROUP BY name`)),
+      // Best score per board: scores on different boards follow different rules, so they're never compared.
+      bind(env.SCORES.prepare(`SELECT game, name, board, MAX(score) AS best FROM scores WHERE ${where} GROUP BY game, name, board`))
     ]);
-    return { saves: saves.results, names: names.results, people: people.results };
+    return { saves: saves.results, names: names.results, people: people.results, bests: bests.results };
   } catch (_) { return null; }
 }
 
@@ -237,30 +240,48 @@ async function overview(env, url) {
     median_ms: overall[0]?.time_ms ?? null, people: names };
 }
 
-async function gameDetail(env, url, game) {
+async function gameDetail(env, url, game, board) {
   const { days, since } = windowFor(url);
-  const where = 'game = ?1 AND started_at >= ?2';
-  const [hourly, summary, devices, inputs, sources, mid, reports, recent, linked] = (await env.DB.batch([
-    env.DB.prepare(`SELECT ${HOURLY} FROM runs WHERE ${where} GROUP BY hour`).bind(game, since),
-    env.DB.prepare(`SELECT ${TALLY}, COUNT(board) AS boarded FROM runs WHERE ${where}`).bind(game, since),
-    env.DB.prepare(`SELECT device, orientation, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY device, orientation`).bind(game, since),
-    env.DB.prepare(`SELECT input, COUNT(*) AS n FROM runs WHERE ${where} AND outcome IS NOT NULL GROUP BY input`).bind(game, since),
-    env.DB.prepare(`SELECT source, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY source ORDER BY n DESC`).bind(game, since),
-    env.DB.prepare(median(where)).bind(game, since),
+  // The board filter narrows every figure; the list of boards and the per-board table always cover them all.
+  const inGame = 'game = ?1 AND started_at >= ?2';
+  const where = board != null ? inGame + ' AND board = ?3' : inGame;
+  const args = board != null ? [game, since, board] : [game, since];
+  const [hourly, summary, devices, inputs, sources, mid, reports, recent, linked, boards, boardMedians] = (await env.DB.batch([
+    env.DB.prepare(`SELECT ${HOURLY} FROM runs WHERE ${where} GROUP BY hour`).bind(...args),
+    env.DB.prepare(`SELECT ${TALLY}, COUNT(board) AS boarded FROM runs WHERE ${where}`).bind(...args),
+    env.DB.prepare(`SELECT device, orientation, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY device, orientation`).bind(...args),
+    env.DB.prepare(`SELECT input, COUNT(*) AS n FROM runs WHERE ${where} AND outcome IS NOT NULL GROUP BY input`).bind(...args),
+    env.DB.prepare(`SELECT source, COUNT(*) AS n FROM runs WHERE ${where} GROUP BY source ORDER BY n DESC`).bind(...args),
+    env.DB.prepare(median(where)).bind(...args),
     env.DB.prepare(`SELECT time_ms, score, outcome, stats FROM runs WHERE ${where} AND outcome IS NOT NULL
-      ORDER BY started_at DESC LIMIT ${REPORT_CAP + 1}`).bind(game, since),
+      ORDER BY started_at DESC LIMIT ${REPORT_CAP + 1}`).bind(...args),
     env.DB.prepare(`SELECT started_at, device, orientation, source, outcome, time_ms, score, input, score_run, stats
-      FROM runs WHERE ${where} ORDER BY started_at DESC LIMIT 50`).bind(game, since),
-    env.DB.prepare(`SELECT score_run FROM runs WHERE ${where} AND score_run IS NOT NULL`).bind(game, since)
+      FROM runs WHERE ${where} ORDER BY started_at DESC LIMIT 50`).bind(...args),
+    env.DB.prepare(`SELECT score_run FROM runs WHERE ${where} AND score_run IS NOT NULL`).bind(...args),
+    // Leaderboard test boards (0 and below) never show.
+    env.DB.prepare(`SELECT board, ${TALLY} FROM runs WHERE ${inGame} AND board > 0 GROUP BY board ORDER BY board DESC`).bind(game, since),
+    env.DB.prepare(median(inGame + ' AND board > 0', 'board')).bind(game, since)
   ])).map(r => r.results);
   // A game without a leaderboard (no run reports a board, nothing saved) shows no board figures at all.
-  const found = await boardNames(env, since, game);
-  const board = found && (summary[0].boarded || found.saves.length) ? found : null;
+  const found = await boardNames(env, since, game, board);
+  const onBoards = found && (summary[0].boarded || boards.length || found.saves.length) ? found : null;
   let names = null, saves = null;
-  if (board) {
+  if (onBoards) {
     saves = (await savedRuns(env, linked.map(r => r.score_run))).size;
-    names = board.names.map(({ game: _, ...row }) => row)
+    // Each name's best on the newest board it saved to, with that board's number.
+    const bestOf = new Map();
+    for (const b of onBoards.bests) {
+      const had = bestOf.get(b.name);
+      if (!had || b.board > had.board) bestOf.set(b.name, { best: b.best, board: b.board });
+    }
+    names = onBoards.names.map(({ game: _, best: __, ...row }) => ({ ...row, ...(bestOf.get(row.name) || {}) }))
       .sort((a, b) => b.days - a.days || b.runs - a.runs || (a.last < b.last ? 1 : -1)).slice(0, 100);
+    // Saved runs per board, for the per-board table.
+    if (board == null && boards.length) {
+      const ids = await env.DB.prepare(`SELECT board, score_run FROM runs WHERE ${inGame} AND score_run IS NOT NULL`).bind(game, since).all();
+      const savedIds = await savedRuns(env, ids.results.map(r => r.score_run));
+      for (const b of boards) b.saves = ids.results.filter(r => r.board === b.board && savedIds.has(r.score_run)).length;
+    }
     // Initials for the recent runs that were saved, matched by the run ID from the leaderboard token.
     const ids = [...new Set(recent.map(r => r.score_run).filter(Boolean))];
     if (ids.length) {
@@ -272,7 +293,8 @@ async function gameDetail(env, url, game) {
     }
   }
   return {
-    ok: true, game, days, since, names: gameNames(), hourly,
+    ok: true, game, board, days, since, names: gameNames(), hourly,
+    boards: boards.map(b => ({ ...b, median_ms: boardMedians.find(m => m.board === b.board)?.time_ms ?? null })),
     summary: { ...summary[0], boarded: undefined, median_ms: mid[0]?.time_ms ?? null, saves },
     devices, inputs, sources: topSources(sources),
     capped: reports.length > REPORT_CAP,
@@ -301,8 +323,10 @@ async function dashboard(request, env, url) {
   if (url.pathname === '/dash') return Response.redirect(url.origin + '/dash/' + url.search, 302);
   if (url.pathname === '/dash/api/overview') return json(await overview(env, url));
   if (url.pathname === '/dash/api/game') {
-    const game = url.searchParams.get('game');
-    return own(games, game) ? json(await gameDetail(env, url, game)) : json({ ok: false, error: 'bad_game' }, 400);
+    const game = url.searchParams.get('game'), boardText = url.searchParams.get('board');
+    if (boardText != null && !/^[1-9]\d{0,5}$/.test(boardText)) return json({ ok: false, error: 'bad_board' }, 400);
+    const board = boardText == null ? null : Number(boardText);
+    return own(games, game) ? json(await gameDetail(env, url, game, board)) : json({ ok: false, error: 'bad_game' }, 400);
   }
   const match = /^\/dash\/(?:([a-z0-9-]+)\/)?$/.exec(url.pathname);
   if (match && (!match[1] || own(games, match[1]))) return html(page);
