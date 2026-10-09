@@ -70,7 +70,7 @@
   // The title card: the record sits on one line under the keys.
   try { localStorage.setItem('stickarmy.wins', '1'); localStorage.setItem('stickarmy.bestWave', '17'); } catch (e) { /* ignore */ }
   best = 1234; titleScene();
-  check(!document.getElementById('recordLine').hidden && /1,234/.test(document.getElementById('bestLine').textContent) && /Won once/.test(document.getElementById('winLine').textContent), 'the title card shows the record');
+  check(!document.getElementById('recordLine').hidden && /1,234/.test(document.getElementById('bestLine').textContent) && /Won 1×/.test(document.getElementById('winLine').textContent), 'the title stamp shows the record');
   try { localStorage.removeItem('stickarmy.wins'); localStorage.removeItem('stickarmy.bestWave'); } catch (e) { /* ignore */ }
   best = 0;
 

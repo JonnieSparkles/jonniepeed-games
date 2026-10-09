@@ -250,7 +250,7 @@
   check(load('stickarmy.bestWave', 0) === FINAL + 1, 'best wave saved');
   overScreen.hidden = true;
   titleScene();
-  check(!document.getElementById('winLine').hidden && document.getElementById('winLine').textContent.indexOf('Won once · best wave ' + (FINAL + 1)) >= 0, 'the title card shows the record');
+  check(!document.getElementById('winLine').hidden && document.getElementById('winLine').textContent.indexOf('Won 1× · wave ' + (FINAL + 1)) >= 0, 'the title stamp shows the record');
 
   try { localStorage.removeItem('stickarmy.wins'); localStorage.removeItem('stickarmy.bestWave'); } catch (e) { /* ignore */ }
   emitHook = null; RUN.force = null; reset(); render();

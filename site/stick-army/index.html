@@ -177,8 +177,45 @@ body {
 .win-card h2 { font-size: 40px; }
 .won-line { color: var(--ally); }
 /* The title card has the most to say: it sits higher and tighter so it fits the page with a record line. */
-#titleScreen { padding-top: 22px; }
-#titleScreen .card { gap: 10px; }
+/* The title is the page itself: the logo across the top, the live demo underneath (game.js updateDemo), the
+   rules as pencil notes on the page (layout A) or a sticky note from HQ (layout B), and Start, the record and the
+   chips along the bottom where the wall and squad usually sit. Positions are in the page's 400x720 units. */
+.title-page { position: absolute; inset: 0; pointer-events: none; }
+.title-page > * { pointer-events: auto; }
+.t-back { position: absolute; left: 16px; top: 2px; min-height: 30px; font-size: 9px; }
+.t-back img { width: 15px; height: 17px; }
+.t-head { position: absolute; left: 0; right: 0; top: 26px; text-align: center; pointer-events: none; }
+.t-logo { margin: 0; font: 700 70px/0.9 var(--font-display); letter-spacing: 1px; color: var(--ink); transform: rotate(-2deg); }
+.t-swoosh { display: block; width: 250px; height: 14px; margin: 0 auto; color: var(--enemy); transform: rotate(-2deg) translateX(14px); }
+.t-tag { margin: 6px 0 0; font-size: 18px; color: var(--ink-soft); }
+.t-keys { display: none; margin: 2px 0 0; font-size: 14px; color: var(--ink-soft); }
+@media (hover: hover) and (pointer: fine) { .t-keys { display: block; } }
+.title-page mark { color: inherit; background: linear-gradient(transparent 52%, rgba(242, 194, 48, 0.6) 52%, rgba(242, 194, 48, 0.6) 92%, transparent 92%); padding: 0 1px; }
+.t-notes { margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.t-notes li { position: absolute; font-size: 18px; line-height: 1.05; color: var(--ink); text-shadow: 0 0 4px var(--paper), 0 0 2px var(--paper); }
+.t-n1 { left: 108px; top: 400px; width: 120px; transform: rotate(-3deg); }
+.t-n2 { left: 168px; top: 246px; width: 100px; transform: rotate(2deg); text-align: right; }
+.t-n3 { left: 270px; top: 470px; width: 120px; transform: rotate(-2deg); }
+.t-arrows { position: absolute; left: 0; top: 0; width: 400px; height: 720px; pointer-events: none; }
+.t-arrows path { fill: none; stroke: var(--ink-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.t-orders { display: none; position: absolute; left: 96px; top: 232px; width: 158px; box-sizing: border-box; padding: 14px 12px 12px;
+  background: #f7e58a; box-shadow: 2px 4px 0 var(--card-shadow), 0 10px 18px rgba(46, 46, 51, 0.12); transform: rotate(-3deg); pointer-events: none; }
+.t-orders::before { content: ""; position: absolute; left: 50%; top: -9px; width: 62px; height: 18px; margin-left: -31px; background: rgba(214, 222, 232, 0.75); transform: rotate(4deg); }
+.t-orders h2 { margin: 0 0 6px; font: 700 20px/1 var(--font-display); color: var(--enemy); }
+.t-orders ul { margin: 0; padding: 0 0 0 14px; font-size: 16px; line-height: 1.12; display: flex; flex-direction: column; gap: 5px; }
+.t-orders mark { background: none; color: var(--ally); text-decoration: underline; text-decoration-color: var(--ally); text-decoration-thickness: 2px; text-underline-offset: 2px; }
+.layout-b .t-notes, .layout-b .t-arrows { display: none; }
+.layout-b .t-orders { display: block; }
+.t-foot { position: absolute; left: 0; right: 0; top: 616px; padding: 0 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 14px; }
+.t-start { min-height: 54px; padding: 4px 30px 8px; font-size: 32px; }
+.t-stamp { margin: 0; justify-self: end; display: flex; flex-direction: column; align-items: center; padding: 3px 10px 4px; border: 2.5px solid var(--enemy); border-radius: 6px 3px 7px 4px;
+  color: var(--enemy); font: 700 15px/1.15 var(--font-display); text-transform: uppercase; letter-spacing: 0.5px; transform: rotate(5deg); opacity: 0.9; }
+.t-stamp #bestLine { font-size: 19px; }
+.t-chips { grid-column: 1 / -1; display: flex; gap: 8px; }
+.t-chip { min-height: 32px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
+.t-chip:hover, .t-chip:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
+/* The page has its own sound and full-screen chips on the title, so the buttons around the page wait for play. */
+#wrap:has(#titleScreen:not([hidden])) .hud-btns, #wrap:has(#titleScreen:not([hidden])) #fullBtn { display: none; }
 .roll-title { margin: 2px 0 -6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
 .roll { margin: 0; padding: 0 0 0 18px; font-size: 18px; line-height: 1.25; }
 .roll b { color: var(--ally); font-weight: 400; white-space: nowrap; }
@@ -243,32 +280,40 @@ body {
       <canvas id="game" role="img" aria-label="Stick Army: a turret on a notebook page shooting at stick-figure paratroopers"></canvas>
 
 
-      <div class="overlay top" id="titleScreen">
-        <div class="card">
-          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
-          <h1>Stick <span class="pen">Army</span></h1>
-          <p class="tag">A turret, a trampoline and a notebook full of trouble.</p>
-          <ul class="rules">
-            <li>
-              <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="14" cy="14" r="8"/><path d="M14 2v6M14 20v6M2 14h6M20 14h6"/></svg>
-              <span>Aim and hold to fire. Short bursts keep the gun from overheating.</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 22q11 5 22 0"/><path d="M5 22l-2 5M23 22l2 5"/><path d="M8 17q6-16 13-4" stroke-dasharray="2 3"/></svg>
-              <span>Pop a chute over the trampoline to bounce him into your squad.</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20q2-6 7-4 3-5 7-1 5 0 4 5z"/><path d="M4 12l2 2M24 11l-2 3M14 7v3"/></svg>
-              <span>Pop it too high and he rips through. Anywhere else he goes splat on whoever's below.</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 25l9-12"/><path d="M12 8l9 6 3-4-9-6z"/></svg>
-              <span>Protect your recruits. Fallen enemies drop dog tags to spend on supplies between waves.</span>
-            </li>
+      <div class="title-page layout-a" id="titleScreen">
+        <a class="back t-back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
+        <header class="t-head">
+          <h1 class="t-logo">Stick <span class="pen">Army</span></h1>
+          <svg class="t-swoosh" viewBox="0 0 300 16" aria-hidden="true"><path d="M4 11 C 60 5, 120 13, 180 7 S 270 4, 296 9" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>
+          <p class="t-tag">A turret, a trampoline and a notebook full of trouble.</p>
+          <p class="t-keys">Keys: arrows aim · space fires · B, C call help · P pause</p>
+        </header>
+        <ol class="t-notes" aria-label="How to play">
+          <li class="t-n1">Pop his chute <mark>low, over the mat</mark></li>
+          <li class="t-n2"><mark>Shoot</mark> the rest</li>
+          <li class="t-n3">Caught ones <mark>join your squad</mark> and fight</li>
+        </ol>
+        <svg class="t-arrows" viewBox="0 0 400 720" aria-hidden="true">
+          <path d="M104 438 C 84 456, 74 492, 74 548 M 66 534 L 74 552 L 84 536"/>
+          <path d="M262 262 C 278 266, 286 278, 288 296 M 280 286 L 288 300 L 294 284"/>
+          <path d="M300 518 C 290 530, 280 540, 268 552 M 268 538 L 266 554 L 282 552"/>
+        </svg>
+        <section class="t-orders" aria-labelledby="ordersTitle">
+          <h2 id="ordersTitle">Orders from HQ</h2>
+          <ul>
+            <li>Pop chutes <mark>low over the mat</mark> to recruit.</li>
+            <li><mark>Shoot</mark> the rest.</li>
+            <li>Keep the <mark>wall</mark> standing.</li>
           </ul>
-          <button class="btn" id="startBtn" type="button">Start</button>
-          <p class="keys">Mouse or touch. Keys: arrows aim, space or Enter fires, B air strike, C fighter cover, P pause, F full screen.</p>
-          <p class="keys" id="recordLine" hidden><span id="bestLine" hidden></span> <span class="won-line" id="winLine" hidden></span></p>
+        </section>
+        <div class="t-foot">
+          <button class="btn t-start" id="startBtn" type="button">Start</button>
+          <p class="t-stamp" id="recordLine" hidden><span id="bestLine" hidden></span><span id="winLine" hidden></span></p>
+          <div class="t-chips">
+            <button class="t-chip" id="titleSoundBtn" type="button">Sound on</button>
+            <button class="t-chip" id="titleFullBtn" type="button">Full screen</button>
+            <button class="t-chip" id="titleScoresBtn" type="button">High scores</button>
+          </div>
         </div>
       </div>
 
@@ -351,6 +396,6 @@ body {
 <script src="squad.js?v=e52c64b27c"></script>
 <script src="campaign.js?v=2eb9dcc0e6"></script>
 <script src="shop.js?v=fa4a4a6648"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=34d23c1bd1"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=c095194618"></script>
 </body>
 </html>

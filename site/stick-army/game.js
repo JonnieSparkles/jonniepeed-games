@@ -2107,6 +2107,8 @@
       } else if (S.endless) { G.fillStyle = c.BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
       else if (S.wave === DREAD.WAVE) { G.fillStyle = c.RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
     }
+    // The title uses the bottom of the page for Start and the chips.
+    if (S.mode === 'title') { G.restore(); hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED }; return; }
     var y1 = 648, bx = 112, bw = 186, hp = Math.max(0, S.wallHP);
     G.textAlign = 'left'; G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
     G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : chalk ? 'rgba(147,184,255,0.55)' : 'rgba(47,111,220,0.4)';
@@ -2190,17 +2192,55 @@
   var pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn'), strikeBtn = document.getElementById('strikeBtn'), fighterBtn = document.getElementById('fighterBtn');
 
   function titleScene() {
-    reset();
-    S.mode = 'title';
-    S.planes.push(makePlane('plane', -1, 300, 44));
-    [[0, 'rifle'], [1, 'bazooka'], [4, 'engineer'], [5, 'rifle']].forEach(function (d) { S.recruits.push(makeRecruit(d[0], d[1])); });
+    demoScene(0);
     var bl = document.getElementById('bestLine');
     bl.hidden = !(best > 0);
-    bl.textContent = 'Best so far: ' + Number(best).toLocaleString('en-US') + '.';
-    var record = recordLine(), wl = document.getElementById('winLine');
-    wl.textContent = record; wl.hidden = !record;
+    bl.textContent = 'Best ' + Number(best).toLocaleString('en-US');
+    // The record is a rubber stamp: "Best 446,661 / Won 2×", with the best wave once endless has gone past 20.
+    var wins = load('stickarmy.wins', 0), bestWave = load('stickarmy.bestWave', 0), wl = document.getElementById('winLine');
+    wl.textContent = wins ? 'Won ' + wins + '×' + (bestWave > DREAD.WAVE ? ' · wave ' + bestWave : '') : ''; wl.hidden = !wins;
     document.getElementById('recordLine').hidden = bl.hidden && wl.hidden;
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
+  }
+  // ---------- the title's demo ----------
+  // The title page plays the game in miniature, over and over: a plane crosses and drops two troopers. The turret
+  // pops the first one's chute low over the mat and he bounces into the squad; it shoots the second. It runs the real
+  // simulation (update) with a scripted gunner (updateDemo), mirrored each time round. Nothing here touches a run:
+  // newGame resets everything, and the title has no score.
+  var DEMO = { Y: 150, SPEED: 95, CATCH_X: 57, SHOOT_X: 296, CATCH_AT: 400, SHOOT_AT: 330, TURN: 2.3, REST: 3, RETRY: 0.6,
+    LINES: ['here they come!', 'incoming!', 'planes!', 'heads up!'] };
+  var demo = null;
+  function demoScene(n) {
+    reset();
+    S.mode = 'title';
+    [[0, 'rifle'], [4, 'engineer']].forEach(function (d) { S.recruits.push(makeRecruit(d[0], d[1])); });
+    var dir = n % 2 ? -1 : 1, p = makePlane('plane', dir, dir > 0 ? -50 : W + 50, DEMO.Y);
+    p.speed = DEMO.SPEED;
+    p.drops = [DEMO.CATCH_X, DEMO.SHOOT_X].sort(function (a, b) { return dir * (a - b); });
+    p.kits = p.drops.map(function () { return { type: 'rifle', fall: 1, sway: 0, armor: 0 }; });
+    S.planes.push(p);
+    S.aim = -Math.PI / 2;
+    demo = { n: n, rest: -1, shotAt: {} };
+    speak(DEMO.LINES[n % DEMO.LINES.length], S.recruits[n % 2].id, false, 0.8);
+  }
+  function updateDemo(dt) {
+    var live = S.troopers.filter(function (t) { return !t.dead && t.state === 'chute' && t.open > 0.6; });
+    // The one to deal with next: whoever is lowest.
+    var t = live.sort(function (a, b) { return b.y - a.y; })[0];
+    if (t) {
+      var catching = t.x < 120, off = catching ? -32 : 14, tx = t.x, ty = t.y + off;
+      for (var k = 0; k < 2; k++) { var flight = Math.hypot(tx - TUR.x, ty - TUR.y) / 700; ty = t.y + off + t.fall * flight; }
+      var want = clamp(Math.atan2(ty - TUR.y, tx - TUR.x), AIM_MIN, AIM_MAX);
+      S.aim += clamp(want - S.aim, -DEMO.TURN * dt, DEMO.TURN * dt);
+      var last = demo.shotAt[t.id];
+      if (t.y >= (catching ? DEMO.CATCH_AT : DEMO.SHOOT_AT) && Math.abs(want - S.aim) < 0.03 && (last == null || S.t - last > DEMO.RETRY)) {
+        demo.shotAt[t.id] = S.t; shoot();
+      }
+      return;
+    }
+    if (S.planes.length || S.troopers.some(function (q) { return !q.dead; })) return;
+    if (demo.rest < 0) demo.rest = DEMO.REST;
+    if ((demo.rest -= dt) <= 0) demoScene(demo.n + 1);
   }
   function newGame() {
     sound.init();
@@ -2327,6 +2367,8 @@
     // The icons are SVG elements, which have no hidden property, so the attribute is set directly.
     document.getElementById('icoSound').toggleAttribute('hidden', sound.muted);
     document.getElementById('icoMuted').toggleAttribute('hidden', !sound.muted);
+    titleSoundBtn.textContent = sound.muted ? 'Sound off' : 'Sound on';
+    titleSoundBtn.setAttribute('aria-pressed', sound.muted ? 'false' : 'true');
   }
 
   // Fullscreen API with a fill-window fallback (including iPhone).
@@ -2446,6 +2488,10 @@
     fighterBtn.disabled = !!S.fighter;
     document.getElementById('fighterCount').textContent = String(c.fighter);
   }
+  // The title's chips do what the buttons around the page do.
+  var titleSoundBtn = document.getElementById('titleSoundBtn');
+  titleSoundBtn.addEventListener('click', function () { muteBtn.click(); titleSoundBtn.focus({ preventScroll: true }); });
+  document.getElementById('titleFullBtn').addEventListener('click', function () { fullBtn.click(); });
   muteBtn.addEventListener('click', function () {
     sound.muted = !sound.muted; save('stickarmy.muted', sound.muted); updateMuteBtn();
     if (!sound.muted) sound.init();
@@ -2485,6 +2531,7 @@
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
     notePlayed(dt);
     if (S.mode === 'play' || S.mode === 'dying') update(dt);
+    else if (S.mode === 'title' && !document.hidden) { update(dt); updateDemo(dt); }
     render();
     syncCallBtns();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
