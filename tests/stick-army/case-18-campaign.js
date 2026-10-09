@@ -131,8 +131,13 @@
   S.recruits = [makeRecruit(1, 'rifle')]; p.gunT = 0; run(0.5);
   check(S.enemyShots.some(function (b) { return b.cause === 'dreadnought'; }), 'the bridge gunner fires at the crew');
   render();
-  // The main gun charges, then fires at the bunker; enough hits on the glowing muzzle during the charge knock it off.
+  // The main gun lowers out of the belly first; then it charges, then fires at the bunker; enough hits on the glowing
+  // muzzle during the charge knock it off.
   S.bombs = []; S.enemyShots = []; S.recruits = []; p.bombT = p.gunT = p.boardT = 1e9;
+  check(p.cannon.deploy > 0 && p.cannon.deploy < 1 && p.cannon.charge === 0, 'the main gun swings down first');
+  render();
+  run(DREAD.CANNON.DEPLOY);
+  check(p.cannon.deploy === 1 && p.cannon.charge === 0 && Math.abs(CAMPAIGN.muzzleAt(p).a - Math.PI / 2) < 0.4, 'and points at the bunker');
   var wallC = S.wallHP; p.cannon.t = 0.01; run(0.05);
   check(p.cannon.charge > 0 && seen.indexOf('dread_charge') >= 0, 'the main gun charges');
   render();
@@ -160,8 +165,18 @@
   check(p.phase === 'sinking' && S.finalWon && seen.indexOf('surrender') >= 0, 'down it goes, and they surrender');
   check(S.troopers.every(function (t) { return t.dead; }) && S.spawn.planes === 0 && S.spawn.boss === 0, 'nothing left, nothing more coming');
   render();
-  run(DREAD.SINK + 0.2);
-  check(!CAMPAIGN.dread() && S.waveState === 'clear' && S.banner.s === 'victory!', 'it sinks off the page: victory');
+  // It falls bow first until the bow digs in; the hull slams down after it, half buried, and breaks its back; it burns,
+  // and once it has settled the wreck stops holding up the wave and smolders behind the victory banner.
+  for (var f = 0; f < 60 * 8 && p.phase === 'sinking'; f++) update(1 / 60);
+  check(p.phase === 'wreck' && p.rot > 0.1 && CAMPAIGN.dread() === p && S.waveState === 'active', 'it falls bow first and digs in: ' + p.rot.toFixed(2));
+  render();
+  run(DREAD.CRASH.SLAM + 0.05);
+  check(p.slammed && seen.indexOf('dread_crash') >= 0 && Math.abs(p.rot - DREAD.CRASH.REST) < 0.01 && p.y + DREAD.HH > GROUND && p.y < GROUND, 'the hull slams down, half buried');
+  run(0.3); render();
+  check(p.broken === 1 && CAMPAIGN.dread() === p && S.waveState === 'active', 'broken in two, burning');
+  run(DREAD.CRASH.SETTLE);
+  check(!CAMPAIGN.dread() && S.wreck === p && S.waveState === 'clear' && S.banner.s === 'victory!', 'victory, the wreck still smoldering');
+  render();
   run(3.4);
 
   // The victory card: the score, the record and the roll call; wins are saved.
@@ -179,6 +194,7 @@
   check(S.mode === 'shop' && S.endless && winScreen.hidden, 'keep going opens the shop');
   continueWave(); S.spawn.timer = 99;
   check(S.wave === FINAL + 1 && S.mode === 'play' && S.banner.s === 'wave ' + (FINAL + 1), 'endless after the final wave');
+  check(!S.wreck, 'the wreck is cleared away');
   render();
   // A loss after winning says so, and the best wave is kept.
   hurtWall(S.wallHP + 1, 'bomb'); update(1 / 60); run(2);

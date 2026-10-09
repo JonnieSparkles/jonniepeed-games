@@ -104,11 +104,22 @@ var StickArmySound = (function () {
     rip: function () { for (var i = 0; i < 10; i++) noise(0.06, 0.13, 3200 - i * 220, i * 0.035, 'bandpass'); noise(0.45, 0.12, 1200, 0.05, 'highpass'); },
     flare: function () { noise(0.7, 0.07, 4200, 0, 'highpass'); tone(900, 0.45, 'sine', 0.025, 1500); },
     broadside: function () { noise(0.7, 0.5, 280); tone(56, 0.7, 'sine', 0.38, 28); noise(0.1, 0.25, 2200); },
-    klaxon: function () { honk(0); honk(0.78); },
+    klaxon: function () { honk(0); honk(0.78); honk(1.56); honk(2.34); },
     // The Dreadnought's entrance: a low minor brass chord swelling under its horn.
     sting: function () { [73.4, 87.3, 110, 146.8].forEach(function (f, i) { brass(f, 2.2, 0.075, i * 0.03); }); noise(1.8, 0.05, 160); },
-    // Its main gun charging: a whine rising over three seconds.
-    charge: function () { tone(110, 3, 'sawtooth', 0.028, 880); tone(220, 3, 'square', 0.012, 1760); },
+    // Its main gun charging: a whine rising over three seconds under a warning beep that quickens; then the shot, the
+    // biggest bang in the game.
+    charge: function () {
+      tone(110, 3, 'sawtooth', 0.04, 880); tone(220, 3, 'square', 0.016, 1760);
+      [0, 0.7, 1.3, 1.8, 2.2, 2.5, 2.7, 2.85].forEach(function (t) { tone(1320, 0.08, 'square', 0.05, null, t); });
+    },
+    maingun: function () { noise(0.6, 0.6, 240); noise(0.6, 0.35, 180, 0.4); tone(48, 1, 'sine', 0.45, 22); noise(0.14, 0.32, 2400); tone(140, 0.5, 'sawtooth', 0.08, 40); },
+    // Its wreck hitting the ground: a long, deep crash with metal crumpling through it.
+    crash: function () {
+      noise(0.6, 0.6, 260); noise(0.6, 0.45, 200, 0.45); noise(0.6, 0.3, 160, 0.9); noise(0.6, 0.18, 140, 1.35);
+      tone(55, 1.8, 'sine', 0.45, 22); tone(170, 0.9, 'sawtooth', 0.07, 45, 0.05);
+      for (var i = 0; i < 7; i++) noise(0.14, 0.2, 2600 - i * 260, 0.04 + i * 0.1, 'bandpass');
+    },
     // The sky (sky.js): a dive bomber's rising siren, a helicopter's chop, and a sour buzz for hitting the Red Cross.
     // A dive bomber tipping over: a short, low, rising howl (two detuned saws through a lowpass) rather than a whistle.
     siren: function () {
@@ -299,7 +310,7 @@ var StickArmySound = (function () {
       if (!amb.marching || amb.nextStep < now) { amb.marching = true; amb.nextStep = now + 0.08; amb.step = 0; amb.bar = 0; }
       // The Dreadnought brings its own march once it's through the page.
       // The final wave opens with it thin (teaser) and goes quiet (hush) before the real one arrives.
-      var dreadOn = !!state.dread && state.dread !== 'sinking', bridge = state.dread === 'hangar' || state.dread === 'bridge';
+      var dreadOn = !!state.dread && state.dread !== 'sinking' && state.dread !== 'wreck', bridge = state.dread === 'hangar' || state.dread === 'bridge';
       var thin = state.dread === 'teaser', hush = state.dread === 'hush';
       var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });

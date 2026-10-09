@@ -20,7 +20,8 @@ var StickArmyCampaign = function (w) {
   //           the hangar is shot to pieces.
   //   bridge: then the bridge car under the bow is exposed. The ship turns angry, brings the bridge over the page,
   //           its bomb bay drops clusters at the bunker and a gunner on the bridge fires at the crew.
-  // Downing the bridge downs the ship: explosions run along it as it lists and sinks off the page. Its hull is
+  // Downing the bridge downs the ship: it falls bow first, explosions running along it, crashes across the field,
+  // breaks its back and burns there through the victory banner. Its hull is
   // armored throughout; only the part for the stage can be hurt. It lives in S.planes as kind 'dread', so bullets,
   // rockets, flak, bazookas and the ambience all see it. Local x runs stern to bow; on the page, x = p.x + p.dir * lx.
   var DREAD = {
@@ -39,14 +40,20 @@ var StickArmyCampaign = function (w) {
     CHAIN: 1.4,
     // In the bridge stage it sinks lower and lists as the bridge takes damage, up to SAG px, easing there.
     SAG: 140, LIST: 0.06,
-    // The bridge stage's main gun, under the bow (at LX, LY): every EVERY seconds it charges for CHARGE seconds, its
-    // muzzle glowing, then fires one big shell at the bunker (WALL to the wall). BREAK damage to the glowing muzzle
-    // during the charge knocks it off target.
-    CANNON: { LX: 272, LY: 30, FIRST: 2.5, EVERY: 7, CHARGE: 3, WALL: 40, BREAK: 14, FLIGHT: 0.6 },
+    // The bridge stage's main gun, a big turret in the belly amidships (at LX) with a BARREL-long gun: when the stage
+    // opens it lowers out of the hull and swings its barrel down at the bunker over DEPLOY seconds. Then every EVERY
+    // seconds it charges for CHARGE seconds (the muzzle glowing, rings gathering on it, a target on the bunker), and
+    // fires one big shell at the bunker (WALL to the wall). BREAK damage to the glowing muzzle during the charge knocks
+    // it off target.
+    CANNON: { LX: 75, BARREL: 44, DEPLOY: 1.2, FIRST: 2.5, EVERY: 7, CHARGE: 3, WALL: 40, BREAK: 14, FLIGHT: 0.6 },
     // Boarding lines, in the bridge stage too: every BOARD_EVERY seconds BOARD_ROPES ropes drop from the hull and
     // BOARD_TROOPS troopers slide down each, BOARD_GAP apart, at BOARD_FALL px/s.
     BOARD_EVERY: 6, BOARD_ROPES: 2, BOARD_TROOPS: 3, BOARD_GAP: 0.45, BOARD_FALL: 130,
-    SINK: 3.2
+    // Downed, it falls (FALL px/s², nosing down toward DIVE) until its bow (NOSE px out) digs into the ground. The
+    // hull slams down after it over SLAM seconds and breaks its back at TEAR, then burns where it lies. After SETTLE
+    // seconds the wreck no longer holds up the wave (S.wreck): it smolders behind the victory banner until the next
+    // wave, its fires dying down over BURN seconds.
+    CRASH: { FALL: 95, MAX_VY: 260, DIVE: 0.2, NOSE: 276, SLAM: 0.5, REST: 0.02, TEAR: 60, SETTLE: 1.4, BURN: 4 }
   };
   function turretHP(n) { return Math.round(30 + 2.5 * n); }
   function hangarHP(n) { return Math.round(70 + 5 * n); }
@@ -55,6 +62,8 @@ var StickArmyCampaign = function (w) {
   function isDreadWave(n) { return n >= DREAD.WAVE && (n - DREAD.WAVE) % DREAD.EVERY === 0; }
   function dread() { return w.S.planes.find(function (p) { return p.kind === 'dread'; }) || null; }
   function fighting(p) { return p.phase === 'guns' || p.phase === 'hangar' || p.phase === 'bridge'; }
+  // Shot down: falling, or a wreck on the ground.
+  function down(p) { return p.phase === 'sinking' || p.phase === 'wreck'; }
   // Where it stops: its first station as it sails in (the bow-most guns over the page), then the hangar over the
   // middle, then the bridge well out ahead with the bomb bay still on the page behind it.
   function settleX(p) { return 200 - p.dir * 130; }
@@ -79,8 +88,11 @@ var StickArmyCampaign = function (w) {
     return p;
   }
 
-  // Where its parts are on the page.
-  function at(p, lx, ly) { return { x: p.x + p.dir * lx, y: p.y + ly }; }
+  // Where its parts are on the page, turned with the hull as it lists.
+  function at(p, lx, ly) {
+    var r = p.rot || 0, c = Math.cos(r), s = Math.sin(r);
+    return { x: p.x + p.dir * (lx * c - ly * s), y: p.y + lx * s + ly * c };
+  }
   function gunAt(p, t) { return at(p, t.lx, DREAD.GUN_Y); }
   function hangarAt(p) { return at(p, DREAD.HANGAR, DREAD.HANGAR_Y); }
   function bridgeAt(p) { return at(p, DREAD.BRIDGE, DREAD.BRIDGE_Y); }
@@ -92,16 +104,18 @@ var StickArmyCampaign = function (w) {
     }
     var h = hangarAt(p);
     if (p.hangar.hp > 0 && Math.abs(x - h.x) < 32 + pad && Math.abs(y - h.y) < 9 + pad) return p.hangar;
-    if (p.phase === 'bridge' && p.cannon && p.cannon.charge > 0) { var m = muzzleAt(p); if (Math.abs(x - m.x) < 14 + pad && Math.abs(y - m.y) < 12 + pad) return p.cannon; }
+    if (p.phase === 'bridge' && p.cannon && p.cannon.charge > 0) { var m = muzzleAt(p); if (Math.abs(x - m.x) < 16 + pad && Math.abs(y - m.y) < 16 + pad) return p.cannon; }
     var b = bridgeAt(p);
     if (Math.abs(x - b.x) < 34 + pad && Math.abs(y - b.y) < 14 + pad) return p.bridge;
     return null;
   }
-  // The main gun under the bow: its mount, and its muzzle pointing at the bunker.
-  function cannonAt(p) { return at(p, DREAD.CANNON.LX, DREAD.CANNON.LY); }
+  // The main gun in the belly: its turret, lowered out of the hull as it deploys, and its muzzle, the barrel swinging
+  // from along the hull (stowed, pointing at the bow) down to the bunker.
+  function deployed(p) { var d = p.cannon ? p.cannon.deploy : 0; return d * d * (3 - 2 * d); }
+  function cannonAt(p) { return at(p, DREAD.CANNON.LX, DREAD.HH - 18 + 20 * deployed(p)); }
   function muzzleAt(p) {
-    var c = cannonAt(p), a = Math.atan2(BK.top - c.y, BK.x - c.x);
-    return { x: c.x + Math.cos(a) * 24, y: c.y + Math.sin(a) * 24, a: a };
+    var c = cannonAt(p), aim = Math.atan2(BK.top - c.y, BK.x - c.x), stow = p.dir > 0 ? 0 : Math.PI, a = stow + (aim - stow) * deployed(p);
+    return { x: c.x + Math.cos(a) * DREAD.CANNON.BARREL, y: c.y + Math.sin(a) * DREAD.CANNON.BARREL, a: a };
   }
   // The hull is a long armored cigar; its guns, hangar and bridge car hang below it.
   // On the way in (once it's on the page) shots clang off it, so you can see it can't be hurt yet.
@@ -172,7 +186,8 @@ var StickArmyCampaign = function (w) {
     w.award(400, at0.x, at0.y + 40, 'hangar down!', owner === 'ally' ? BLUE : INK, true); w.credit();
     S.shake = Math.max(S.shake, 0.5); w.sound.play('boom');
     p.phase = 'bridge'; p.t = 0; p.bombT = 1.5; p.gunT = 1.2;
-    p.cannon = { t: DREAD.CANNON.FIRST, charge: 0, hp: 0, shell: null, flash: 0, recoil: 0, id: w.id() }; p.boardT = 3; p.ropes = [];
+    p.cannon = { t: DREAD.CANNON.FIRST, charge: 0, hp: 0, shell: null, flash: 0, recoil: 0, deploy: 0, n: 0, id: w.id() }; p.boardT = 3; p.ropes = [];
+    w.sound.play('clank');
     addText('the bridge is exposed!', 200, 250, RED, 24, 'alert');
     emit('dread_bridge', { wave: S.wave });
     w.sound.play('klaxon');
@@ -184,7 +199,8 @@ var StickArmyCampaign = function (w) {
   }
   function dreadDown(p, owner) {
     var S = w.S, b = bridgeAt(p), final = S.wave === DREAD.WAVE && !S.won;
-    p.phase = 'sinking'; p.t = 0; clearMarks(p);
+    p.phase = 'sinking'; p.t = 0; p.vy = 0; p.boomT = 0; p.smokeT = 0; p.ropes = []; clearMarks(p);
+    if (p.cannon) { p.cannon.charge = 0; p.cannon.shell = null; }
     S.stats.planes++; S.stats.dreads = (S.stats.dreads || 0) + 1;
     emit('plane_down', { kind: 'dread', by: owner === 'ally' ? 'crew' : 'player' });
     w.pow(b.x, b.y, 70);
@@ -214,6 +230,75 @@ var StickArmyCampaign = function (w) {
   }
   function flag(x, y) { w.S.parts.push({ k: 'flag', x: x, y: y, life: 1.6, max: 1.6, id: w.id() }); }
 
+  // ---------- the crash ----------
+  // Falling: nosing down, explosions running along it and smoke pouring off, until the bow digs in.
+  function fall(p, dt) {
+    var S = w.S, C = DREAD.CRASH;
+    p.vy = Math.min(p.vy + C.FALL * dt, C.MAX_VY); p.y += p.vy * dt;
+    p.rot += (C.DIVE - p.rot) * Math.min(1, dt * 1.2);
+    if ((p.boomT -= dt) <= 0) {
+      p.boomT = rr(0.12, 0.22);
+      var b = at(p, rr(-0.9, 0.95) * DREAD.HW, rr(-0.6, 0.8) * DREAD.HH), bx = clamp(b.x, 10, W - 10);
+      w.pow(bx, b.y, rr(16, 30)); w.burst(bx, b.y, 6, RED, 140); w.puff(bx, b.y, 7, 1.1); w.sound.play('hit');
+    }
+    if ((p.smokeT -= dt) <= 0) { p.smokeT = 0.07; var f = at(p, rr(-0.7, 0.9) * DREAD.HW, -DREAD.HH * 0.6); w.puff(clamp(f.x, 4, W - 4), f.y, rr(6, 11), rr(1.2, 1.8)); }
+    var nose = at(p, C.NOSE, DREAD.HH * 0.3);
+    if (nose.y < GROUND - 2 && p.t < 8) return;
+    // The bow digs in: a blast and a spray of dirt where it hits, and the hull starts to come down after it.
+    p.phase = 'wreck'; p.t = 0; p.pivot = { x: nose.x, y: nose.y, rot: p.rot }; p.broken = 0;
+    var nx = clamp(nose.x, 16, W - 16);
+    w.pow(nx, GROUND - 14, 54); w.burst(nx, GROUND - 8, 12, INK2, 220); w.burst(nx, GROUND - 12, 8, RED, 180);
+    for (var k = 0; k < 4; k++) w.puff(nx + rr(-30, 30), GROUND - rr(4, 20), rr(10, 16), 1.6);
+    S.shake = Math.max(S.shake, 0.8); w.sound.play('broadside'); w.sound.play('boom');
+  }
+  // On the ground: the hull slams down and breaks its back, then burns. Once it has settled it moves to S.wreck,
+  // where game.js keeps it smoldering (and drawn) until the next wave starts.
+  function wreck(p, dt) {
+    var S = w.S, C = DREAD.CRASH;
+    if (!p.slammed) {
+      // Pivoting on the buried bow, faster and faster.
+      var e = Math.min(1, p.t / C.SLAM), r = p.pivot.rot + (C.REST - p.pivot.rot) * e * e, lx = C.NOSE, ly = DREAD.HH * 0.3;
+      p.rot = r;
+      p.x = p.pivot.x - p.dir * (lx * Math.cos(r) - ly * Math.sin(r));
+      p.y = p.pivot.y - (lx * Math.sin(r) + ly * Math.cos(r));
+      if (e >= 1) slam(p);
+      return;
+    }
+    p.broken = Math.min(1, p.broken + dt * 5);
+    // Burning: smoke off the fires, and now and then something inside goes up.
+    var burn = clamp(1 - (p.t - C.SLAM) / C.BURN, 0.3, 1);
+    if ((p.smokeT -= dt) <= 0) {
+      p.smokeT = rr(0.18, 0.3) / burn;
+      var f = FIRES[Math.floor(rr(0, FIRES.length))], q = at(p, f[0], DREAD.HH * f[1]);
+      if (q.x > -10 && q.x < W + 10) w.puff(q.x + rr(-8, 8), q.y - rr(6, 16), rr(7, 12), rr(1.4, 2.2));
+    }
+    if ((p.boomT -= dt) <= 0) {
+      p.boomT = rr(0.5, 1.2) / burn;
+      var x = rr(20, W - 20), y = GROUND - rr(10, 50);
+      w.burst(x, y, 5, burn > 0.6 ? RED : '#ff8a2a', 110);
+      if (burn > 0.6) { w.pow(x, y, rr(12, 20)); w.sound.play('thump'); }
+    }
+    if (!p.settled && p.t >= C.SLAM + C.SETTLE) { p.settled = true; S.wreck = p; p.gone = true; }
+  }
+  // The hull hits the ground: the page shakes, fire and dust run along it, and wreckage flies.
+  function slam(p) {
+    var S = w.S, tear = at(p, DREAD.CRASH.TEAR, 0), i;
+    p.slammed = true; p.t = DREAD.CRASH.SLAM;
+    for (i = 0; i < 7; i++) {
+      var x = 22 + i * 59 + rr(-14, 14);
+      w.pow(x, GROUND - rr(10, 34), rr(28, 46)); w.burst(x, GROUND - 10, 6, INK2, 210); w.puff(x, GROUND - 8, rr(12, 18), 1.8);
+    }
+    w.burst(tear.x, tear.y, 14, RED, 240);
+    for (i = 0; i < 12; i++) {
+      var sx = i < 5 ? tear.x : rr(10, W - 10);
+      S.parts.push({ k: 'scrap', x: sx + rr(-10, 10), y: GROUND - rr(20, 50), vx: rr(-170, 170), vy: rr(-210, -80), rot: rr(0, 6), vr: rr(-9, 9), s: rr(5, 10), c: '#8a8f96', life: 2, max: 2, id: w.id() });
+    }
+    S.shake = Math.max(S.shake, 1); w.sound.play('crash');
+    emit('dread_crash', { wave: S.wave });
+  }
+  // Where the wreck burns, stern to bow (local x, and y as a share of the hull's half height; the third is the size).
+  var FIRES = [[-150, -0.45, 0.8], [-70, -0.55, 1], [10, -0.4, 0.9], [60, -0.25, 1.5], [140, -0.5, 1], [225, -0.35, 0.9]];
+
   function updateDread(p, dt) {
     var S = w.S;
     p.t += dt;
@@ -223,22 +308,13 @@ var StickArmyCampaign = function (w) {
     p.bridge.flash = Math.max(0, p.bridge.flash - dt); p.hangar.flash = Math.max(0, p.hangar.flash - dt);
     p.hangar.open = clamp(p.hangar.open + (p.phase === 'hangar' || p.phase === 'bridge' ? dt : -dt) * 1.5, 0, 1);
     updateShells(p, dt);
-    if (p.phase === 'sinking') {
-      // Explosions run along it as it lists, then it sinks off the bottom of the page.
-      p.vy += 40 * dt; p.y += p.vy * dt; p.x += p.dir * 20 * dt; p.rot = Math.min(0.12, p.rot + 0.05 * dt); p.boomT -= dt;
-      if (p.boomT <= 0) {
-        p.boomT = rr(0.14, 0.26);
-        var bx = clamp(p.x + rr(-0.9, 0.9) * DREAD.HW, 10, W - 10), by = p.y + rr(-0.6, 0.8) * DREAD.HH;
-        w.pow(bx, by, rr(16, 28)); w.burst(bx, by, 6, RED, 140); w.puff(bx, by, 6, 0.9); w.sound.play('hit');
-      }
-      if (p.t >= DREAD.SINK || p.y > w.H + 80) p.gone = true;
-      return;
-    }
-    // Going down by the bridge's health: it sinks and lists, gradually.
+    if (p.phase === 'sinking') { fall(p, dt); return; }
+    if (p.phase === 'wreck') { wreck(p, dt); return; }
+    // Going down by the bridge's health: it sinks and lists, bow first, gradually.
     if (p.phase === 'bridge') {
       var hurt = 1 - p.bridge.hp / p.bridge.max;
       p.sag = (p.sag || 0) + (hurt * DREAD.SAG - (p.sag || 0)) * Math.min(1, dt * 3);
-      if (!(p.chainT > 0)) p.rot = -p.dir * DREAD.LIST * hurt;
+      if (!(p.chainT > 0)) p.rot = DREAD.LIST * hurt;
     }
     p.y = DREAD.Y + Math.sin(S.t * 0.7) * 2 + (p.sag || 0);
     if (p.chainT > 0) chain(p, dt);
@@ -323,31 +399,42 @@ var StickArmyCampaign = function (w) {
       else if (part === p.bridge && p.phase === 'bridge') hurtBridge(p, 14, 'ally', m.x, m.y);
     });
   }
-  // The main gun: it charges (the muzzle glowing brighter, a whine rising, a line to the bunker), then fires one big
-  // shell at the bunker. Enough damage to the glowing muzzle during the charge knocks it off target.
+  // The main gun: it lowers out of the belly and swings down at the bunker, then charges (the muzzle glowing hotter,
+  // rings gathering on it, a whine and quickening beeps, a target on the bunker), then fires one big shell at the
+  // bunker. Enough damage to the glowing muzzle during the charge knocks it off target.
   function mainGun(p, dt) {
     var S = w.S, c = p.cannon, C = DREAD.CANNON, m = muzzleAt(p);
-    c.flash = Math.max(0, c.flash - dt); c.recoil = Math.max(0, c.recoil - dt * 3);
+    c.flash = Math.max(0, c.flash - dt); c.recoil = Math.max(0, c.recoil - dt * 2.5);
+    if (c.deploy < 1) {
+      c.deploy = Math.min(1, c.deploy + dt / C.DEPLOY);
+      if (c.deploy >= 1) {
+        // Locked on: a heavy clunk, and the squad told what it is.
+        m = muzzleAt(p); c.recoil = 0.5;
+        w.sound.play('cannon'); w.sound.play('clank'); S.shake = Math.max(S.shake, 0.35); w.puff(m.x, m.y, 8, 0.8);
+        addText('the main gun!', clamp(m.x - p.dir * 80, 80, W - 80), m.y + 10, RED, 26, 'alert');
+      }
+      return;
+    }
     if (c.shell && (c.shell.t += dt) >= C.FLIGHT) {
       c.shell = null;
-      w.explode(BK.x, BK.top, 40, 'broadside'); w.pow(BK.x, BK.top, 46);
+      w.explode(BK.x, BK.top, 40, 'broadside'); w.pow(BK.x, BK.top, 52); w.burst(BK.x, BK.top, 14, RED, 210);
       w.hurtWall(C.WALL, 'dreadnought'); w.wallText(C.WALL);
       S.recruits.forEach(function (r) { if (!r.dead && Math.abs(r.x - BK.x) < 60) w.hurtRecruit(r, 1.5, 'dreadnought'); });
-      S.shake = Math.max(S.shake, 0.7); w.sound.play('boom');
+      S.shake = Math.max(S.shake, 0.8); w.sound.play('boom');
       emit('dread_cannon', { wall: C.WALL });
     }
     if (c.charge > 0) {
       c.charge += dt;
       if (c.charge >= C.CHARGE) {
-        c.charge = 0; c.t = C.EVERY; c.recoil = 1; c.flash = 0.15;
+        c.charge = 0; c.t = C.EVERY; c.recoil = 1; c.flash = 0.2;
         c.shell = { x0: m.x, y0: m.y, t: 0 };
-        w.puff(m.x, m.y, 10, 0.8); S.shake = Math.max(S.shake, 0.5); w.sound.play('broadside');
+        w.pow(m.x, m.y, 36); w.burst(m.x, m.y, 10, '#ffd226', 170); w.puff(m.x, m.y, 14, 1.2);
+        S.shake = Math.max(S.shake, 0.6); w.sound.play('maingun');
       }
       return;
     }
     if ((c.t -= dt) > 0 || m.x < 16 || m.x > W - 16) return;
-    c.charge = 1e-4; c.hp = C.BREAK; w.sound.play('charge');
-    if (!p.cannonTold) { p.cannonTold = true; addText('the main gun! hit its muzzle!', clamp(m.x - p.dir * 90, 90, W - 90), 280, RED, 22, 'alert'); }
+    c.charge = 1e-4; c.hp = C.BREAK; c.n++; w.sound.play('charge');
     emit('dread_charge', {});
   }
   function hurtCannon(p, dmg, owner, hx, hy) {
@@ -527,7 +614,7 @@ var StickArmyCampaign = function (w) {
   // page they reach in from that edge, brightening (k). Shared with the night (sky.js drawNight).
   function dreadBeams() {
     var p = dread(), S = w.S;
-    if (!p || p.phase === 'sinking') return [];
+    if (!p || down(p)) return [];
     var coming = p.phase === 'arrive' && p.wait > 0, k = coming ? 1 - p.wait / DREAD.APPROACH : 1;
     return DREAD.LIGHTS.map(function (lx, i) {
       var sweep = Math.sin(S.t * (0.6 + i * 0.25) + i * 2), l;
@@ -537,9 +624,9 @@ var StickArmyCampaign = function (w) {
     });
   }
   function drawDread(p) {
-    var S = w.S, G = w.G;
+    var S = w.S, G = w.G, gone = down(p);
     // Its shadow on the ground, and the searchlights sweeping it.
-    if (p.phase !== 'sinking') {
+    if (!gone) {
       G.beginPath(); G.ellipse(clamp(p.x, -100, W + 100), GROUND - 2, DREAD.HW * 0.8, 5, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(46,46,51,0.07)'; G.fill();
       dreadBeams().forEach(function (b) {
         G.beginPath(); G.moveTo(b.x - 4, b.y); G.lineTo(b.gx - 34, GROUND); G.lineTo(b.gx + 34, GROUND); G.lineTo(b.x + 4, b.y); G.closePath();
@@ -547,28 +634,20 @@ var StickArmyCampaign = function (w) {
         G.beginPath(); G.ellipse(b.gx, GROUND - 3, 34, 6, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,' + 0.16 * b.k + ')'; G.fill();
       });
     }
+    // Going down, whatever hits the ground first is buried, and the wreck lies half buried: nothing shows below the
+    // ground line.
+    G.save();
+    if (gone) { G.beginPath(); G.rect(-80, -80, W + 160, GROUND + 81); G.clip(); }
+    // The main gun hangs from the belly, so it's drawn first and the hull covers its top.
+    if (p.cannon) drawCannon(p);
     G.save(); G.translate(p.x, p.y); G.scale(p.dir, 1); if (p.rot) G.rotate(p.rot);
-    drawBody(p);
+    if (p.broken) drawBroken(p); else drawBody(p);
     G.restore();
+    G.restore();
+    if (gone) drawFires(p);
     // Boarding ropes from the hull to the ground.
     (p.ropes || []).forEach(function (r) { G.beginPath(); SP([r.x, p.y + DREAD.HH, r.x + 2, (p.y + GROUND) / 2, r.x, GROUND - 26], false, 0.3); ink('#8b6b3e', 1.7); G.stroke(); });
-    // The main gun under the bow: a heavy barrel on the bunker; charging, it glows hotter and a line runs to the bunker.
-    if (p.cannon && p.phase === 'bridge') {
-      var cm = cannonAt(p), mz = muzzleAt(p), CC = DREAD.CANNON, ck = p.cannon.charge > 0 ? p.cannon.charge / CC.CHARGE : 0, rc = p.cannon.recoil * 7;
-      var bx = mz.x - Math.cos(mz.a) * rc, by = mz.y - Math.sin(mz.a) * rc;
-      G.beginPath(); L(cm.x, cm.y, bx, by, 0.2); ink(INK, 8); G.stroke();
-      G.beginPath(); L(cm.x, cm.y, bx, by, 0.2); ink(ck > 0 ? 'rgba(220,60,40,' + (0.35 + 0.65 * ck) + ')' : p.cannon.flash > 0 ? PAPER : '#8a8f96', 4.5); G.stroke();
-      G.beginPath(); G.arc(cm.x, cm.y, 9, 0, Math.PI * 2); G.fillStyle = '#8a8f96'; G.fill(); ink(INK, 2); G.stroke();
-      if (ck > 0) {
-        G.save(); G.globalAlpha = 0.25 + 0.4 * ck; G.setLineDash([6, 6]); G.beginPath(); L(mz.x, mz.y, BK.x, BK.top - 6, 0.2); ink(RED, 1.6); G.stroke(); G.restore();
-        var pulse = 1 + 0.15 * Math.sin(S.t * 30 * (0.5 + ck));
-        G.beginPath(); G.arc(mz.x, mz.y, (4 + 11 * ck) * pulse, 0, Math.PI * 2); G.fillStyle = 'rgba(255,' + Math.round(210 - 130 * ck) + ',40,' + (0.5 + 0.4 * ck) + ')'; G.fill();
-      }
-      if (p.cannon.shell) {
-        var su = p.cannon.shell.t / CC.FLIGHT, sx = p.cannon.shell.x0 + (BK.x - p.cannon.shell.x0) * su, sy = p.cannon.shell.y0 + (BK.top - p.cannon.shell.y0) * su;
-        G.beginPath(); G.arc(sx, sy, 6, 0, Math.PI * 2); G.fillStyle = INK; G.fill();
-      }
-    }
+    if (p.cannon && p.phase === 'bridge') drawCharge(p);
     if (p.deckFlash && p.deckFlash.t > 0) { G.beginPath(); G.arc(p.deckFlash.x, p.deckFlash.y + 3, 5, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     p.turrets.forEach(function (t) { if (t.mark) drawMark(p, t, t.mark); });
     p.shells.forEach(function (s) {
@@ -578,12 +657,139 @@ var StickArmyCampaign = function (w) {
       G.beginPath(); L(x, y, x - (s.x1 - s.x0) * 0.08, y - (GROUND - s.y0) * 0.08, 0.3); ink('rgba(200,67,58,0.6)', 2.4); G.stroke();
     });
   }
+  // The main gun: an armored turret in the belly and a heavy barrel with a muzzle brake, red-hot as it charges; it kicks
+  // back when it fires.
+  function drawCannon(p) {
+    var G = w.G, c = p.cannon, cm = cannonAt(p), mz = muzzleAt(p), ck = c.charge > 0 ? c.charge / DREAD.CANNON.CHARGE : 0;
+    var ca = Math.cos(mz.a), sa = Math.sin(mz.a), nx = -sa, ny = ca, rc = c.recoil * 12;
+    var bx = mz.x - ca * rc, by = mz.y - sa * rc, b0x = cm.x - ca * rc * 0.4, b0y = cm.y - sa * rc * 0.4;
+    pen(c.id);
+    G.beginPath(); L(b0x, b0y, bx, by, 0.2); ink(INK, 15); G.stroke();
+    G.beginPath(); L(b0x, b0y, bx, by, 0.2); ink(ck > 0 ? 'rgba(220,60,40,' + (0.4 + 0.6 * ck) + ')' : c.flash > 0 ? PAPER : '#8a8f96', 10); G.stroke();
+    var mx = b0x + (bx - b0x) * 0.55, my = b0y + (by - b0y) * 0.55;
+    G.beginPath(); L(mx + nx * 7, my + ny * 7, mx - nx * 7, my - ny * 7, 0.1); ink(RED, 3.4); G.stroke();
+    G.beginPath(); SP([bx - ca * 9 + nx * 10, by - sa * 9 + ny * 10, bx + nx * 10, by + ny * 10, bx - nx * 10, by - ny * 10, bx - ca * 9 - nx * 10, by - sa * 9 - ny * 10], true, 0.2);
+    G.fillStyle = '#6f747b'; G.fill(); ink(INK, 2.2); G.stroke();
+    G.beginPath(); G.arc(cm.x, cm.y, 22, 0, Math.PI * 2); G.fillStyle = '#8a8f96'; G.fill(); ink(INK, 2.8); G.stroke();
+    G.beginPath(); G.arc(cm.x, cm.y, 13, 0, Math.PI * 2); ink('rgba(46,46,51,0.45)', 1.4); G.stroke();
+    G.fillStyle = 'rgba(46,46,51,0.55)';
+    for (var k = 0; k < 8; k++) { var a = k * Math.PI / 4; G.fillRect(cm.x + Math.cos(a) * 17.5 - 1, cm.y + Math.sin(a) * 17.5 - 1, 2, 2); }
+  }
+  // Charging: a marching line and a target closing on the bunker, rings gathering on the muzzle, the glow growing
+  // white-hot, and a blue ring that fills as you hit it. Then its shell in flight, trailing smoke.
+  function drawCharge(p) {
+    var G = w.G, S = w.S, c = p.cannon, CC = DREAD.CANNON, mz = muzzleAt(p), k;
+    G.save();
+    if (c.shell) {
+      var sh = c.shell, su = sh.t / CC.FLIGHT;
+      for (k = 4; k >= 0; k--) {
+        var u = Math.max(0, su - k * 0.07), sx = sh.x0 + (BK.x - sh.x0) * u, sy = sh.y0 + (BK.top - sh.y0) * u;
+        G.globalAlpha = k ? 0.45 - k * 0.08 : 1; G.beginPath(); G.arc(sx, sy, k ? 9 - k : 8, 0, Math.PI * 2); G.fillStyle = k ? 'rgba(46,46,51,0.4)' : INK; G.fill();
+        if (!k) { ink(RED, 2); G.stroke(); }
+      }
+    }
+    if (c.charge > 0) {
+      var ck = c.charge / CC.CHARGE, tx = mz.x + Math.cos(mz.a) * 6, ty = mz.y + Math.sin(mz.a) * 6, ky = BK.top - 12;
+      G.globalAlpha = 0.45 + 0.5 * ck; G.setLineDash([10, 8]); G.lineDashOffset = -S.t * 60;
+      G.beginPath(); G.moveTo(tx, ty); G.lineTo(BK.x, ky); ink(RED, 2 + 2 * ck); G.stroke(); G.setLineDash([]);
+      var tr = 42 - 20 * ck;
+      G.globalAlpha = Math.floor(S.t * (4 + 10 * ck)) % 2 ? 1 : 0.5;
+      G.beginPath(); G.arc(BK.x, ky, tr, 0, Math.PI * 2); ink(RED, 2.4); G.stroke();
+      for (k = 0; k < 4; k++) {
+        var ra = k * Math.PI / 2 + S.t * 1.5;
+        G.beginPath(); G.moveTo(BK.x + Math.cos(ra) * (tr - 7), ky + Math.sin(ra) * (tr - 7)); G.lineTo(BK.x + Math.cos(ra) * (tr + 8), ky + Math.sin(ra) * (tr + 8)); ink(RED, 2.4); G.stroke();
+      }
+      for (k = 0; k < 3; k++) {
+        var f = (S.t * 1.4 + k / 3) % 1;
+        G.globalAlpha = f * (0.35 + 0.6 * ck); G.beginPath(); G.arc(tx, ty, 10 + 50 * (1 - f), 0, Math.PI * 2); ink('#ff9a2a', 2.6); G.stroke();
+      }
+      var r = (8 + 16 * ck) * (1 + 0.18 * Math.sin(S.t * 30 * (0.5 + ck))), gr = G.createRadialGradient(tx, ty, 0, tx, ty, r * 1.8);
+      gr.addColorStop(0, 'rgba(255,244,190,0.98)'); gr.addColorStop(0.45, 'rgba(255,' + Math.round(200 - 110 * ck) + ',40,0.9)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+      G.globalAlpha = 1; G.fillStyle = gr; G.beginPath(); G.arc(tx, ty, r * 1.8, 0, Math.PI * 2); G.fill();
+      var hit = 1 - c.hp / CC.BREAK;
+      if (hit > 0) { G.beginPath(); G.arc(tx, ty, r + 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hit); ink(BLUE, 3.6); G.stroke(); }
+      // The first two charges point it out, beside the muzzle on the stern side.
+      if (c.n <= 2) {
+        var say = c.n === 1 ? 'hit its muzzle!' : 'hit it!', ax = tx - p.dir * (r + 24), ex = tx - p.dir * (r + 8);
+        G.font = '22px ' + w.HAND; G.textAlign = 'center';
+        var half = G.measureText(say).width / 2, lx = clamp(tx - p.dir * (r + 30 + half), half + 6, W - half - 6);
+        G.lineWidth = 4; G.lineJoin = 'round'; G.strokeStyle = PAPER; G.strokeText(say, lx, ty + 7); G.fillStyle = RED; G.fillText(say, lx, ty + 7);
+        G.beginPath(); L(ax, ty, ex, ty, 0.2); L(ex, ty, ex - p.dir * 7, ty - 6, 0.1); L(ex, ty, ex - p.dir * 7, ty + 6, 0.1); ink(RED, 2.4); G.stroke();
+      }
+    }
+    G.restore();
+  }
+  // The hull's outline: a long cigar, pointed at the bow.
+  var HULL = (function () {
+    var pts = [];
+    for (var i = 0; i < 44; i++) {
+      var a = i / 44 * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      pts.push(DREAD.HW * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), 0.42), DREAD.HH * s * (c > 0 ? 1 - 0.25 * Math.pow(c, 6) : 1));
+    }
+    return pts;
+  })();
+  // Broken in two at TEAR: each half drawn on its own, clipped along a jagged tear, sagging away from the break, with
+  // the charred inside showing through the gap.
+  function drawBroken(p) {
+    var G = w.G, k = p.broken, X = DREAD.CRASH.TEAR, hh = DREAD.HH, far = DREAD.HW + 120;
+    var tear = [X + 5, -hh - 80, X - 4, -hh * 0.75, X + 6, -hh * 0.25, X - 5, hh * 0.3, X + 3, hh + 80];
+    G.save(); G.beginPath(); SP(HULL, true, 0); G.clip();
+    G.fillStyle = 'rgba(38,30,28,0.92)'; G.fillRect(X - 16, -hh - 8, 32, 2 * hh + 16);
+    G.restore();
+    [-1, 1].forEach(function (side) {
+      G.save();
+      G.translate(X + side * 4 * k, hh); G.rotate(side * 0.06 * k); G.translate(-X, -hh);
+      G.beginPath(); G.moveTo(side * far, tear[1]);
+      for (var i = 0; i < tear.length; i += 2) G.lineTo(tear[i], tear[i + 1]);
+      G.lineTo(side * far, tear[tear.length - 1]); G.closePath(); G.clip();
+      drawBody(p);
+      G.restore();
+    });
+  }
+  // A point on the wreck, on whichever half it's on once it has broken.
+  function onWreck(p, lx, ly) {
+    if (!p.broken) return at(p, lx, ly);
+    var X = DREAD.CRASH.TEAR, hh = DREAD.HH, side = lx < X ? -1 : 1, a = side * 0.06 * p.broken, dx = lx - X, dy = ly - hh;
+    return at(p, X + side * 4 * p.broken + dx * Math.cos(a) - dy * Math.sin(a), hh + dx * Math.sin(a) + dy * Math.cos(a));
+  }
+  // Going down and on the ground it burns: fires along the hull, and once it's down, columns of smoke from each.
+  function drawFires(p) {
+    var G = w.G, C = DREAD.CRASH, burn = p.slammed ? clamp(1 - (p.t - C.SLAM) / C.BURN, 0.3, 1) : 0.75;
+    G.save();
+    FIRES.forEach(function (f, i) {
+      var q = onWreck(p, f[0], DREAD.HH * f[1]);
+      if (q.x < -40 || q.x > W + 40 || q.y > GROUND - 2) return;
+      if (p.slammed) smoke(q.x, q.y, f[2], i);
+      flame(q.x, q.y, 22 * f[2] * (0.55 + 0.45 * burn), i * 1.7 + p.id);
+    });
+    G.restore();
+  }
+  function smoke(x, y, s, i) {
+    var G = w.G, S = w.S;
+    for (var k = 0; k < 6; k++) {
+      var age = (S.t * 0.3 + k / 6 + i * 0.29) % 1;
+      G.globalAlpha = (1 - age) * 0.6; G.beginPath(); w.Ci(x + Math.sin(age * 4 + i) * 6 - age * 28, y - 14 - age * 150 * Math.min(1.2, s), (6 + age * 20) * s, 0.6);
+      G.fillStyle = 'rgba(46,46,51,0.22)'; G.fill(); ink(INK, 1.3); G.stroke();
+    }
+    G.globalAlpha = 1;
+  }
+  function flame(x, y, h, seed) {
+    var G = w.G, t = w.S.t;
+    [[-0.5, 0.65], [0.5, 0.7], [0, 1]].forEach(function (f, j) {
+      var fx = x + f[0] * h * 0.55, fh = h * f[1] * (1 + 0.22 * Math.sin(t * 16 + seed + j * 2.1)), sway = Math.sin(t * 9 + seed + j) * h * 0.18;
+      G.beginPath(); G.moveTo(fx - h * 0.32, y); G.quadraticCurveTo(fx - h * 0.3, y - fh * 0.55, fx + sway, y - fh); G.quadraticCurveTo(fx + h * 0.3, y - fh * 0.55, fx + h * 0.32, y); G.closePath();
+      G.fillStyle = 'rgba(255,128,40,0.88)'; G.fill();
+    });
+    var ih = h * 0.55 * (1 + 0.2 * Math.sin(t * 21 + seed));
+    G.beginPath(); G.moveTo(x - h * 0.2, y); G.quadraticCurveTo(x - h * 0.15, y - ih * 0.6, x, y - ih); G.quadraticCurveTo(x + h * 0.15, y - ih * 0.6, x + h * 0.2, y); G.closePath();
+    G.fillStyle = 'rgba(255,224,90,0.95)'; G.fill();
+  }
   function drawBody(p) {
-    var G = w.G, S = w.S, hw = DREAD.HW, hh = DREAD.HH, i, angry = p.phase === 'bridge' || p.phase === 'sinking';
+    var G = w.G, S = w.S, hw = DREAD.HW, hh = DREAD.HH, i, wrecked = p.phase === 'wreck', angry = p.phase === 'bridge' || down(p);
     pen(p.id);
     // Three propellers at the stern, a blur of spinning blades.
     [-0.55, 0, 0.55].forEach(function (k, j) {
-      var py = k * hh, px = -hw - 26, span = 13 + ((w.boil + j) % 2) * 5;
+      var py = k * hh, px = -hw - 26, span = 13 + (wrecked ? 0 : ((w.boil + j) % 2) * 5);
       G.beginPath(); L(-hw + 6, py * 0.7, px, py, 0.2); ink(INK, 2.2); G.stroke();
       G.beginPath(); G.ellipse(px - 2, py, 3, span, 0, 0, Math.PI * 2); G.fillStyle = 'rgba(46,46,51,0.12)'; G.fill(); ink('rgba(46,46,51,0.5)', 1.2); G.stroke();
       G.beginPath(); L(px - 2, py - span, px - 2, py + span, 0.3); ink(INK, 2.4); G.stroke();
@@ -609,13 +815,11 @@ var StickArmyCampaign = function (w) {
     var flap = Math.sin(S.t * 6) * 3;
     G.beginPath(); SP([150, -hh - 34, 178, -hh - 29 + flap, 150, -hh - 23], true, 0.3); G.fillStyle = RED; G.fill(); ink(INK, 1.4); G.stroke();
     // The hull: a long armored cigar, pointed at the bow.
-    var pts = [];
-    for (i = 0; i < 44; i++) {
-      var a = i / 44 * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
-      pts.push(hw * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), 0.42), hh * s * (c > 0 ? 1 - 0.25 * Math.pow(c, 6) : 1));
-    }
+    var pts = HULL;
     G.beginPath(); SP(pts, true, 0.7);
     G.fillStyle = PAPER; G.fill(); G.fillStyle = angry ? 'rgba(200,67,58,0.26)' : 'rgba(46,46,51,0.1)'; G.fill();
+    // Scorched as it goes down, charred on the ground.
+    if (down(p)) { G.fillStyle = wrecked ? 'rgba(40,34,30,0.36)' : 'rgba(40,34,30,0.16)'; G.fill(); }
     ink(INK, 3.4); G.stroke();
     // A darker belly, a red nose cap and the ship's number stencilled at the bow.
     G.save(); G.beginPath(); SP(pts, true, 0); G.clip();
@@ -640,7 +844,7 @@ var StickArmyCampaign = function (w) {
     G.fillStyle = 'rgba(46,46,51,0.45)';
     for (var rx = -hw + 30; rx < hw - 30; rx += 14) { G.fillRect(rx, -hh * 0.62, 1.8, 1.8); G.fillRect(rx + 7, hh * 0.22, 1.8, 1.8); }
     for (var px2 = -hw + 70; px2 < hw - 60; px2 += 26) {
-      G.beginPath(); G.arc(px2, -hh * 0.18, 3.6, 0, Math.PI * 2); G.fillStyle = angry && Math.floor(S.t * 6 + px2) % 2 ? RED : 'rgba(255,214,38,0.85)'; G.fill(); ink(INK, 1.2); G.stroke();
+      G.beginPath(); G.arc(px2, -hh * 0.18, 3.6, 0, Math.PI * 2); G.fillStyle = wrecked ? 'rgba(46,46,51,0.55)' : angry && Math.floor(S.t * 6 + px2) % 2 ? RED : 'rgba(255,214,38,0.85)'; G.fill(); ink(INK, 1.2); G.stroke();
     }
     [-170, 110].forEach(function (ix) {
       G.beginPath(); G.arc(ix, -hh * 0.02, 11, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
@@ -663,7 +867,7 @@ var StickArmyCampaign = function (w) {
     G.beginPath(); SP([bc - 36, by - 12, bc + 30, by - 12, bc + 38, by - 2, bc + 28, by + 12, bc - 34, by + 12], true, 0.4);
     G.fillStyle = p.bridge.flash > 0 ? 'rgba(200,67,58,0.4)' : PAPER; G.fill(); ink(INK, 2.6); G.stroke();
     for (var wx = bc - 28; wx <= bc + 18; wx += 12) {
-      if (p.phase !== 'bridge' && p.phase !== 'sinking') { G.fillStyle = '#8a8f96'; G.fillRect(wx - 1, by - 7, 10, 10); G.beginPath(); SP([wx - 1, by - 7, wx + 9, by - 7, wx + 9, by + 3, wx - 1, by + 3], true, 0.2); ink(INK, 1.2); G.stroke(); }
+      if (p.phase !== 'bridge' && !down(p)) { G.fillStyle = '#8a8f96'; G.fillRect(wx - 1, by - 7, 10, 10); G.beginPath(); SP([wx - 1, by - 7, wx + 9, by - 7, wx + 9, by + 3, wx - 1, by + 3], true, 0.2); ink(INK, 1.2); G.stroke(); }
       else { G.beginPath(); G.rect(wx, by - 6, 7, 7); ink(INK, 1.3); G.stroke(); G.beginPath(); G.arc(wx + 3.5, by - 2.5, 2, 0, Math.PI * 2); G.fillStyle = RED; G.fill(); }
     }
     // The gun turrets: steel casemates under the hull; each barrel turns, glows while aiming, and kicks back on firing.
@@ -717,28 +921,31 @@ var StickArmyCampaign = function (w) {
   }
   // Its health at the top of the page, under its name: a pip per gun, then the hangar and the bridge, greyed until
   // their stage.
+  // Its name sits clear of the radio's call chips under the score (game.js CALL_CHIP ends at y 90), the gauges under it.
+  var BAR = { NAME: 110, Y: 115 };
   function drawDreadBar() {
-    var p = dread(), G = w.G;
-    if (!p || p.phase === 'sinking') return;
+    var p = dread(), G = w.G, y = BAR.Y;
+    if (!p || down(p)) return;
     var a = p.phase === 'arrive' ? clamp(p.t / 2, 0, 1) : 1;
     G.save(); G.globalAlpha = a; pen(4545);
-    G.textAlign = 'center'; G.fillStyle = RED; G.font = '700 15px ' + w.DISPLAY; G.fillText('DREADNOUGHT', 200, 98);
+    G.textAlign = 'center'; G.font = '700 15px ' + w.DISPLAY; G.lineJoin = 'round';
+    G.lineWidth = 4; G.strokeStyle = PAPER; G.strokeText('DREADNOUGHT', 200, BAR.NAME); G.fillStyle = RED; G.fillText('DREADNOUGHT', 200, BAR.NAME);
     // Greyed and marked while it can't be hurt; when it can, the gauges light up with a highlighter flash.
     var locked = p.phase === 'arrive', lit = p.unlockT > 0 ? p.unlockT / 1.6 : 0;
-    if (locked) { G.font = '13px ' + w.HAND; G.fillStyle = INK2; G.fillText("armored: can't be hurt yet", 200, 128); }
-    if (lit) { G.save(); G.globalAlpha = a * lit; G.fillStyle = 'rgba(255,214,38,0.7)'; G.fillRect(86, 102, 228, 16); G.restore(); }
+    if (locked) { G.font = '13px ' + w.HAND; G.lineWidth = 3; G.strokeText("armored: can't be hurt yet", 200, y + 23); G.fillStyle = INK2; G.fillText("armored: can't be hurt yet", 200, y + 23); }
+    if (lit) { G.save(); G.globalAlpha = a * lit; G.fillStyle = 'rgba(255,214,38,0.7)'; G.fillRect(86, y - 4, 228, 16); G.restore(); }
     p.turrets.forEach(function (t, i) {
-      var x = 92 + i * 20, y = 106;
+      var x = 92 + i * 20;
       G.fillStyle = PAPER; G.fillRect(x, y, 16, 8);
       if (!t.dead) { G.fillStyle = locked ? 'rgba(46,46,51,0.18)' : 'rgba(200,67,58,0.6)'; G.fillRect(x + 1, y + 1, 14 * t.hp / t.max, 6); }
       G.beginPath(); SP([x, y, x + 16, y, x + 16, y + 8, x, y + 8], true, 0.2); ink(INK, 1.4); G.stroke();
       if (t.dead) { G.beginPath(); L(x - 1, y + 9, x + 17, y - 1, 0.2); ink(INK, 1.6); G.stroke(); }
     });
     function bar(part, x, wd, live) {
-      G.fillStyle = PAPER; G.fillRect(x, 106, wd, 8);
-      if (!live) { G.fillStyle = 'rgba(46,46,51,0.18)'; G.fillRect(x + 1, 107, wd - 2, 6); }
-      else { G.fillStyle = part.flash > 0 ? 'rgba(200,67,58,0.85)' : 'rgba(200,67,58,0.55)'; G.fillRect(x + 1, 107, (wd - 2) * part.hp / part.max, 6); }
-      G.beginPath(); SP([x, 106, x + wd, 106, x + wd, 114, x, 114], true, 0.2); ink(INK, 1.4); G.stroke();
+      G.fillStyle = PAPER; G.fillRect(x, y, wd, 8);
+      if (!live) { G.fillStyle = 'rgba(46,46,51,0.18)'; G.fillRect(x + 1, y + 1, wd - 2, 6); }
+      else { G.fillStyle = part.flash > 0 ? 'rgba(200,67,58,0.85)' : 'rgba(200,67,58,0.55)'; G.fillRect(x + 1, y + 1, (wd - 2) * part.hp / part.max, 6); }
+      G.beginPath(); SP([x, y, x + wd, y, x + wd, y + 8, x, y + 8], true, 0.2); ink(INK, 1.4); G.stroke();
     }
     bar(p.hangar, 176, 52, p.phase === 'hangar' || p.hangar.hp <= 0);
     bar(p.bridge, 234, 74, p.phase === 'bridge');
