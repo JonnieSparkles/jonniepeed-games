@@ -173,15 +173,31 @@ class Cut:
         wavfile.write(str(path), SR, out.astype(np.float32))
 
     def encode(self, path, wav, crf=17):
+        """H.264 and AAC, tagged BT.709 so players don't guess the colors, with the first frame attached as the
+        file's cover picture: file browsers and chat apps show it as the preview instead of a frame of their own
+        choosing (which can land on a flash)."""
+        path = Path(path)
+        body = path.with_name(path.stem + '.body.mp4')
         enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '%dx%d' % (self.w, self.h),
-                                '-r', str(self.fps), '-i', '-', '-i', str(wav), '-c:v', 'libx264', '-preset', 'slow', '-crf', str(crf),
-                                '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart',
-                                '-shortest', str(path)], stdin=subprocess.PIPE)
+                                '-r', str(self.fps), '-i', '-', '-i', str(wav),
+                                '-vf', 'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p',
+                                '-c:v', 'libx264', '-preset', 'slow', '-crf', str(crf), '-profile:v', 'high',
+                                '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
+                                '-c:a', 'aac', '-b:a', '256k', '-shortest', str(body)], stdin=subprocess.PIPE)
+        first = None
         for k in range(int(round(self.dur * self.fps))):
-            enc.stdin.write(self.render(k / self.fps).convert('RGB').tobytes())
+            im = self.render(k / self.fps).convert('RGB')
+            if first is None: first = im
+            enc.stdin.write(im.tobytes())
         enc.stdin.close()
         if enc.wait():
             raise SystemExit('ffmpeg failed')
+        cover = path.with_name(path.stem + '.cover.jpg')
+        first.save(cover, quality=92)
+        if subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(body), '-i', str(cover), '-map', '0', '-map', '1', '-c', 'copy',
+                           '-disposition:v:1', 'attached_pic', '-movflags', '+faststart', str(path)]).returncode:
+            raise SystemExit('ffmpeg failed attaching the cover picture')
+        body.unlink(); cover.unlink()
 
 
 class Cover:

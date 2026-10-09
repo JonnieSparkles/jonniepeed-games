@@ -60,14 +60,10 @@ def build(T, L, repo, site=None):
     def opening(t):
         im = title.frame(t)
         im.alpha_composite(fade(cap1, ease((t - 0.8) / 0.6) * (1 - ease((t - 4.4) / 0.5)), rise=12))
-        if t > DROP - 0.25:                                    # a flash into the drop
-            im.alpha_composite(white(im.size, ease((t - DROP + 0.25) / 0.25)))
         return im
 
     def overlay(t, im):
-        if DROP <= t < DROP + 0.2:
-            im.alpha_composite(white(im.size, 1 - ease((t - DROP) / 0.2)))
-        return im
+        return im                                              # a hard cut on the drop, no white flash
 
     def end(u):
         im = poster.frame(u)
