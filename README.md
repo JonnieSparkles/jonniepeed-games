@@ -158,17 +158,17 @@ Nothing has been uploaded to Arweave yet. From the first Arweave upload onward, 
 
 ## Publishing to GitHub Pages
 
-Manual only, like the leaderboard Worker deploy below; don't add automatic triggers to either workflow. The play stats Worker is the one exception: it deploys itself (below). In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
+Manual only, like the leaderboard Worker deploy below; don't add automatic triggers to either workflow. The play stats and rooms Workers are the exceptions: they deploy themselves (below). In the Actions tab, open "Deploy to GitHub Pages" and click Run workflow. It publishes the `site/` folder.
 
 ## Backend services
 
 Each backend service is a Cloudflare Worker in its own top-level folder, named the same way everywhere:
 
-| | Pattern | Leaderboards | Play stats |
-| --- | --- | --- | --- |
-| Repo folder | `name/` | `scores/` | `stats/` |
-| Worker and D1 database | `jonniepeed-games-name` | `jonniepeed-games-scores` | `jonniepeed-games-stats` |
-| Address | `name.jonniepeed.games` | `scores.jonniepeed.games` | `stats.jonniepeed.games` |
+| | Pattern | Leaderboards | Play stats | Rooms |
+| --- | --- | --- | --- | --- |
+| Repo folder | `name/` | `scores/` | `stats/` | `rooms/` |
+| Worker and D1 database | `jonniepeed-games-name` | `jonniepeed-games-scores` | `jonniepeed-games-stats` | `jonniepeed-games-rooms` (no database) |
+| Address | `name.jonniepeed.games` | `scores.jonniepeed.games` | `stats.jonniepeed.games` | `rooms.jonniepeed.games` |
 
 The feature itself can have a friendlier name in docs and buttons (leaderboards, play stats). New `*.jonniepeed.games` addresses do not automatically need CAA records of their own: the apex uses A records to GitHub Pages, so CAA lookup inherits the apex policy without following a GitHub CNAME. Only `www` is a CNAME. If CAA restricts issuance, the applicable policy must allow Cloudflare's certificate authorities (`pki.goog`, `letsencrypt.org`, `ssl.com`). Check closer records and any CNAME target before adding an override; see the [leaderboard guide](docs/guides/00-leaderboards.md#if-the-scores-certificate-wont-issue).
 
@@ -178,7 +178,11 @@ Manual only, and only after changes in `scores/`. In the Actions tab, open "Depl
 
 ## Deploying the Play Stats Worker
 
-Automatic: when a change to `stats/` reaches `main`, the "Deploy Play Stats Worker" workflow runs by itself (tests first, then a check of the live Worker). It's the only automatic deploy; its changes are private dashboards and per-game switches, so a manual step would only add a chance to forget. It can also be run from the Actions tab, or with `wrangler deploy` from `stats/`. Runs in the database are never touched. It uses the same GitHub secrets as the leaderboard Worker; the one-time setup (database, Cloudflare Access and its two Worker secrets) is in [03: Play stats](docs/guides/03-play-stats.md#one-time-setup-jonnies-cloudflare-account).
+Automatic: when a change to `stats/` reaches `main`, the "Deploy Play Stats Worker" workflow runs by itself (tests first, then a check of the live Worker). It and the rooms Worker are the only automatic deploys; its changes are private dashboards and per-game switches, so a manual step would only add a chance to forget. It can also be run from the Actions tab, or with `wrangler deploy` from `stats/`. Runs in the database are never touched. It uses the same GitHub secrets as the leaderboard Worker; the one-time setup (database, Cloudflare Access and its two Worker secrets) is in [03: Play stats](docs/guides/03-play-stats.md#one-time-setup-jonnies-cloudflare-account).
+
+## Deploying the Rooms Worker
+
+Automatic: when a change to `rooms/` reaches `main`, the "Deploy Rooms Worker" workflow runs by itself, then checks the live Worker relays between two connections. It can also be run from the Actions tab, or with `wrangler deploy` from `rooms/`. Nothing is stored, so a deploy only drops matches in progress, and the pages reconnect. Details are in [05: Rooms](docs/guides/05-rooms.md).
 
 ## Publishing to Arweave / ArNS
 

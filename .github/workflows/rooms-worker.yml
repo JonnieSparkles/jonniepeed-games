@@ -1,10 +1,16 @@
 # Deploys the rooms Worker (rooms/) to Cloudflare: the two-player relay behind Don't click this.
-# Manual only: run it from the Actions tab ("Deploy Rooms Worker" → Run workflow).
-# Only needed after changes in rooms/. A deploy drops any match in progress; the pages reconnect.
+# Runs by itself when a change to rooms/ reaches main. It can also be run from the Actions tab
+# ("Deploy Rooms Worker" → Run workflow). A deploy drops any match in progress; the pages reconnect.
+# See docs/guides/05-rooms.md.
 # Uses the same repository secrets as the leaderboard: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
 name: Deploy Rooms Worker
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'rooms/**'
+      - '.github/workflows/rooms-worker.yml'
   workflow_dispatch:
 
 permissions:

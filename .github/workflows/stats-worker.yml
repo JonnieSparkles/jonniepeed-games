@@ -1,5 +1,5 @@
 # Deploys the play stats Worker (stats/) to Cloudflare.
-# Runs by itself when a change to stats/ reaches main (the one deploy that does; Pages and the leaderboard Worker
+# Runs by itself when a change to stats/ reaches main (so does the rooms Worker; Pages and the leaderboard Worker
 # stay manual). It can also be run from the Actions tab ("Deploy Play Stats Worker" → Run workflow).
 # Runs live in D1 and are never touched. Uses the same repository secrets as the leaderboard Worker.
 # See docs/guides/03-play-stats.md.

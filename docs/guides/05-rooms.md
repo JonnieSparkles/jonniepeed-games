@@ -23,9 +23,10 @@ It runs on the Workers Free plan: SQLite-backed Durable Objects, which the free 
 
 ## Deploying
 
-Only changes in `rooms/` need a deploy. Changes in `site/` only need the Pages deploy.
+Only changes in `rooms/` need a deploy, and those deploy themselves. Changes in `site/` only need the manual Pages deploy. When a change touches both, merge it, let the rooms deploy finish, then run Pages.
 
-- **GitHub:** Actions tab → **Deploy Rooms Worker** → Run workflow. It deploys `rooms/` and then runs `rooms/test/relay.mjs` against the live Worker (retrying for a few minutes while a new custom domain's certificate is issued).
+- **Automatic:** merging a change to `rooms/` (or to `.github/workflows/rooms-worker.yml`) into `main` runs **Deploy Rooms Worker** by itself. It deploys `rooms/` and then runs `rooms/test/relay.mjs` against the live Worker (retrying for a few minutes while a new custom domain's certificate is issued). If it fails, the old Worker keeps running; check the Actions tab.
+- **GitHub, by hand:** Actions tab → **Deploy Rooms Worker** → Run workflow.
 - **Terminal:** `wrangler deploy` from `rooms/`.
 
 It uses the same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets as the leaderboard. The first deploy creates the Durable Object class and the `rooms.jonniepeed.games` custom domain. If it's refused, the API token may need permission to edit Workers and Durable Objects, or the custom domain; Cloudflare's error says which. A deploy drops any match in progress; the pages reconnect on their own.
