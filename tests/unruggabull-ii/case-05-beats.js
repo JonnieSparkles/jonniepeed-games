@@ -1,0 +1,42 @@
+// The hall's three beats, the events between them, signs, and the souls meter.
+(function () {
+  function check(ok, why) { if (!ok) throw new Error(why); }
+  const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
+  RUN.force = 505; startRun(); bull.inv = 1e9;
+  check(R.beat === 0 && R.signs.length === 1 && beat().sign === 'ACCOUNTS PAYABLE', 'the floor opens in Accounts Payable with its sign');
+  check(R.cubs.every(cb => cb.kind === 'cub'), 'cubicles line the hall');
+  step(BEATS[0].time - .1);
+  check(R.decor.some(d => d.kind === 'poster' || d.kind === 'cooler'), 'posters and water coolers dress the walls');
+  step(.2);
+  check(R.event && R.event.kind === 'audit' && R.signs.some(sg => sg.text.startsWith('AUDIT')) && !(R.banner && R.banner.text.startsWith('AUDIT')), 'then an audit, announced by a sign, not a banner');
+  step(3);
+  const inView = R.cubs.filter(cb => { const z = cubZ(cb); return z > .35 && z < .85; });
+  check(inView.length >= 2 && inView.every(cb => cb.temp && !cb.temp.dead && cb.temp.st !== 'hidden'), 'every desk in view is staffed and its temp stands up (' + inView.length + ')');
+  step(.6);
+  const lob = R.projs.find(pr => pr.kind === 'wad' && !pr.friendly);
+  check(lob, 'and they lob paperwork on a beat');
+  const souls = R.souls, thrower = lob.src;
+  for (let i = 0; i < 120 && lob.z > bull.bz + .15; i++) update(1 / 60);
+  bull.cd = 0; press('slash'); step(1);
+  check(thrower.dead && R.souls >= souls + 2, 'knocking it back counts double in an audit');
+  for (let i = 0; i < 60 * TUNE.auditT && R.event; i++) update(1 / 60);
+  check(!R.event && R.beat === 1 && beat().sign === 'ALL STAFF' && R.signs.some(sg => sg.w > R.dist), 'All Staff comes next, with its sign');
+  step(3);
+  check(R.flies.filter(f => f.form).length >= 4, 'carpshits arrive in formations');
+  step(BEATS[1].time - 3 - .5);
+  R.flies = []; spawnFormation('line'); step(.6);
+  check(!R.event && R.beatT > BEATS[1].time, 'the lights stay on while a formation is still coming');
+  R.flies = []; update(1 / 60);
+  check(R.event && R.event.kind === 'dark', 'then the lights go out');
+  step(1.5);
+  check(darkness() > .5, 'and the hall is dark');
+  step(TUNE.darkT);
+  check(!R.event && darkness() === 0 && beat().sign === 'COPY ROOM', 'the lights come back in the copy room');
+  step(3);
+  check(R.cubs.some(cb => cb.kind === 'copier'), 'copiers replace the cubicles');
+  check(R.pull.st !== 'idle' || R.pull.count > 0 || R.pull.next <= R.t + 1, 'the runner starts pulling');
+  R.souls = 30; draw();
+  check(R.phase === 'hall', 'the meter fills toward the Shredder');
+  step(BEATS[2].max);
+  check(R.phase !== 'hall', 'the copy room ends at its time limit even short of the goal');
+})();

@@ -13,6 +13,7 @@ site/                   everything that gets published
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
   dont-click-this/      up to four players on phones or computers: send a link, find each other (unlisted; the first game on rooms)
+  unruggabull-ii/       8-bit sequel to Unruggabull, floor 13 so far: corridor shooter, katana, the Shredder (unlisted, noindexed)
   assets/               shared fonts, leaderboard, play stats and rooms clients (rooms.js), dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
@@ -45,7 +46,7 @@ brand/                  source logo and cover art files, not published
   logo-animated-original.mp4      the original animated logo as made, with audio
 ```
 
-Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io.
+Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io. Its 8-bit sequel, Unruggabull II, is built here ([living doc](docs/games/unruggabull-ii/README.md)).
 
 ## Standards
 
@@ -70,6 +71,7 @@ These apply to every change:
 - **Play stats.** Every game reports its runs through `site/assets/stats.js` to the private dashboards ([03: Play stats](docs/guides/03-play-stats.md)). Nothing is stored on or read from the player's device for it (no device IDs, no reading saved initials; names come only from saved board rows), and a report never waits on or breaks a game. The stats API is permanent like the scores API. The dashboards stay behind Cloudflare Access: never set `DASH_OPEN` on the deployed Worker.
 - **Playing together.** Games played over the internet use `site/assets/rooms.js` and the rooms Worker, and follow [05: Rooms](docs/guides/05-rooms.md); read it, especially "Pick a pattern", before adding multiplayer. The room stays game-agnostic: a new game never needs a change in `rooms/`. Test with `tests/rooms/harness.py` and on two real phones.
 - **What's new when scores reset.** A board bump comes with a short What's new note on the title screen explaining the latest change. The note's button has a dot until it's opened once on that device. See [What's new notes](docs/guides/00-leaderboards.md#whats-new-notes).
+- **Listed, demo or unlisted.** A game is shown one of three ways, decided only by its card in `site/index.html` and its robots tag; nothing in the game changes. **Listed**: a plain card on Side A, indexed. **Demo**: a `data-side="b" data-badge="demo" hidden` card on Side B, noindexed. **Unlisted**: no card on either shelf and noindexed, reached only by its direct link (for testing, or a game paused between rounds). Unlisted games keep their page, card art (`og.png`, `thumb.<ext>`) and `tools/og/make.py` entry, so listing one again is just adding its card back. Moving a game between them updates the studio harness's card counts and the game's living doc. The current state is under [Side B and promotion](#side-b-and-promotion).
 - **Related, not identical.** Reuse what the other games already do (full screen, leaderboards, previews) so nothing starts from scratch, but each game is free to do things its own way.
 - **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
 
@@ -87,7 +89,7 @@ These apply to every change:
 
 [Side B](specs/SPEC-004-side-b.md) is the development shelf. Hold the studio's rainbow egg with a pointer, Space or Enter: about 1.4 seconds to full power, then three more seconds as the puddle grows. Or enter `#side-b` directly. The **Side A** button returns to Games. The selected shelf lasts for this tab's visit in `sessionStorage`, including reloads and game/home round trips; a new session defaults to Side A. Side B is discoverable, not private.
 
-Stick Army is the only launch card, labelled **demo**, with an online board for each level (board 1 Soldier, board 2 Veteran). Don't click this is unlisted: it has no card on either shelf and is reached only by its direct link, `dont-click-this/` ([05: Rooms](docs/guides/05-rooms.md)). To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
+Stick Army is the only launch card, labelled **demo**, with an online board for each level (board 1 Soldier, board 2 Veteran). Two games are unlisted: they have no card on either shelf and are reached only by their direct links, Don't click this at `dont-click-this/` ([05: Rooms](docs/guides/05-rooms.md)) and Unruggabull II at `unruggabull-ii/` (noindexed, local scores only). To promote one after approval, give it a card (or, for a Side B card, remove its card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute), remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
 
 ## Browser checks
 
@@ -105,6 +107,7 @@ CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
+CHROMIUM=/usr/bin/chromium python3 tests/unruggabull-ii/test.py
 CHROMIUM=/usr/bin/chromium python3 stats/test/games.py
 CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py             # these two also need a local rooms Worker (05: Rooms)
 CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py
@@ -114,11 +117,12 @@ Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the lo
 
 ## Balance bots
 
-Stick Army has balance bots ([SPEC-005](specs/SPEC-005-balance-bots.md); see [the guide](docs/guides/01-balance-bots.md)). They play seeded runs headless at casual, decent and expert skill and report survival, causes of death, per-wave events and shop picks. Run them by hand; the runner serves `site/` itself:
+Stick Army and Unruggabull II have balance bots ([SPEC-005](specs/SPEC-005-balance-bots.md); see [the guide](docs/guides/01-balance-bots.md)). They play seeded runs headless at casual, decent and expert skill and report survival, causes of death, per-wave (or per-stage) events and shop picks. Run them by hand; the runner serves `site/` itself:
 
 ```sh
 python3 tools/balance/run.py stick-army --runs 200
 python3 tools/balance/run.py stick-army --runs 200 --skills decent --ref main
+python3 tools/balance/run.py unruggabull-ii --runs 100
 ```
 
 Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game includes a before/after summary for at least the decent profile. Bots measure difficulty, not fun; playtesting wins.

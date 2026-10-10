@@ -59,6 +59,7 @@ def state(page, side, focus=False, keyboard=False):
         if side == 'a':
             assert page.evaluate('document.activeElement.id !== "sideA"')
     assert ('stick-army/' in reached) == (side == 'b'), reached
+    assert 'unruggabull-ii/' not in reached, reached   # unlisted: no card on either shelf
     assert ('thimbleful/' in reached) == (side == 'a'), reached
     snapshot = page.locator('.grid').aria_snapshot()
     assert ('Stick Army' in snapshot) == (side == 'b'), snapshot
@@ -331,6 +332,16 @@ with sync_playwright() as p:
     assert page.locator('.card:visible').count() == 3
     assert page.locator('[data-side="b"]').is_hidden()
     assert page.locator('#sideA').is_hidden()
+    context.close()
+    # Unruggabull II is unlisted: reached only by its link, noindexed, with a way home
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto(URL + 'unruggabull-ii/', wait_until='load')
+    assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
+    page.locator('main > .back').click()
+    page.wait_for_load_state('load')
+    assert page.url == URL
+    print('PASS unlisted Unruggabull II by direct link')
     context.close()
     assert not errors, errors
     browser.close()
