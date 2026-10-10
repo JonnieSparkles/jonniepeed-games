@@ -186,13 +186,17 @@
   var decals = [];
   // Stamp each new mark once. The bounded history is only replayed after a resize or the wipe between waves.
   // Older marks stay in the current raster until then, or a new run.
-  function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); }
+  // Co-op: the host's new marks go to the guest, except those particles leave as they land (partsBusy), which the
+  // guest's own particles leave there too.
+  var partsBusy = false;
+  function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); if (COOP && !partsBusy) COOP.fx('d', d); }
   function redrawDecals() { dcx.clearRect(0, 0, W, H); decals.forEach(drawDecal); }
   // Between waves the page gets a wipe: old ink fades, and the faintest marks go. During a wave the ink fades a
   // little every DECAL.EVERY seconds, so the ground never builds into a solid band.
   var DECAL = { EVERY: 4, FADE: 0.7, WASH: 0.45, GONE: 0.06 }, inkT = 0;
   function washDecals(k) {
     k = k || DECAL.WASH;
+    if (COOP) COOP.fx('w', k);
     for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= k; if (decals[i].a < DECAL.GONE) decals.splice(i, 1); }
     redrawDecals();
   }
@@ -319,9 +323,9 @@
     };
     setTurrets(RUN.players); resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
-    decals.length = 0; inkT = 0;
-    redrawDecals();
+    clearInk();
   }
+  function clearInk() { decals.length = 0; inkT = 0; redrawDecals(); if (COOP) COOP.fx('x'); }
 
   // A run is 20 waves. Bosses every fifth: a zeppelin (5), the armored zeppelin (10), two zeppelins at once (15) and
   // the Dreadnought (20); in endless the twins return on the fives and the Dreadnought on the tens. Something new
@@ -823,6 +827,12 @@
   world.BOARD = BOARD;
   var LBOARD = world.board = StickArmyBoard(world);
   world.dreadTargets = dreadTargets; world.DREAD_DECOY_HP = DREAD.DECOY_HP; world.dreadBeams = CAMPAIGN.dreadBeams; world.dreadPhase = CAMPAIGN.dreadPhase;
+  // Co-op (coop.js, an add-on: without it, COOP is null and every hook below does nothing).
+  world.TRAMPS = TRAMPS; world.keys = keys; world.AIM_MIN = AIM_MIN; world.AIM_MAX = AIM_MAX; world.RUN = RUN;
+  world.setState = function (o) { S = o; }; world.resizeMats = function () { resizeMats(); }; world.clearInk = function () { clearInk(); };
+  world.updateParts = function (dt) { updateParts(dt); }; world.fadeInk = function (dt) { fadeInk(dt); };
+  Object.defineProperty(world, 'me', { get: function () { return me; }, set: function (v) { me = v; } });
+  var COOP = window.StickArmyCoop ? StickArmyCoop(world) : null;
   world.dreadLit = function () { var p = CAMPAIGN.dread(); return !p ? [] : p.phase === 'hangar' ? [CAMPAIGN.hangarAt(p)] : p.phase === 'bridge' ? [CAMPAIGN.bridgeAt(p), CAMPAIGN.hangarAt(p)] : []; };
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
@@ -1519,6 +1529,10 @@
     if (r && !r.dead) r.kills = (r.kills || 0) + 1;
   }
   function updateParts(dt) {
+    partsBusy = true;
+    try { moveParts(dt); } finally { partsBusy = false; }
+  }
+  function moveParts(dt) {
     S.parts.forEach(function (q) {
       q.life -= dt;
       if (q.k === 'body') {
@@ -2756,8 +2770,11 @@
     last = now;
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
     notePlayed(dt);
-    if (S.mode === 'play' || S.mode === 'dying') update(dt);
+    // A co-op guest draws the host's field instead of running the game (coop.js).
+    if (COOP && COOP.guest && COOP.guestFrame(dt, now)) { /* drawn from the host's field */ }
+    else if (S.mode === 'play' || S.mode === 'dying') update(dt);
     else if (S.mode === 'title' && !document.hidden) { update(dt); updateDemo(dt); }
+    if (COOP && COOP.host) COOP.hostTick(now);
     render();
     syncCallBtns();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
