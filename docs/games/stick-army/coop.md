@@ -1,8 +1,8 @@
-# SPEC-010: Stick Army co-op
+# Stick Army: co-op
 
 Two players defend one bunker over the internet, from a link: two barrels on the turret, one wall, one squad, one wallet.
 
-Status: planned, not started (Oct 10). Written down while work turns back to single player. Builds on [SPEC-008](SPEC-008-stick-army-campaign.md) and uses rooms ([guide 05](../docs/guides/05-rooms.md)); current behavior is in [Stick Army](../docs/games/stick-army.md).
+Status: planned, not started (Oct 10; formerly SPEC-010). Written down while work turns back to single player. Builds on [the campaign](campaign.md) and uses rooms ([guide 05](../../guides/05-rooms.md)); current behavior is in [README.md](README.md).
 
 ## Why
 

@@ -1,4 +1,4 @@
-// Stick Army sky (SPEC-008): what else crosses the page on the way to wave 20. Bomb balloons (from wave 4), the Red
+// Stick Army sky (docs/games/stick-army/campaign.md): what else crosses the page on the way to wave 20. Bomb balloons (from wave 4), the Red
 // Cross plane you mustn't shoot (6), helicopters (7), HQ supply drops (8), dive bombers (12), heavy bombers (13), and
 // the night raid (16).
 // Classic script; load before game.js. game.js calls StickArmySky(world) once with the same world object it gives

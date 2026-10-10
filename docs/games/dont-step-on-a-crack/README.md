@@ -1,12 +1,12 @@
 # Don't Step on a Crack
 
-A first-person walk home along a sidewalk. Every crack, line or pothole you land on breaks one of Mom's vertebrae, and the Mom Cam in the corner shows it. The game is at `site/dont-step-on-a-crack/index.html`. Its leaderboard comes from [SPEC-001](../../specs/SPEC-001-leaderboards.md) and its folder layout from [SPEC-003](../../specs/SPEC-003-repo-layout.md). There is no build spec for the game itself, so its history is in git and in this doc.
+A first-person walk home along a sidewalk. Every crack, line or pothole you land on breaks one of Mom's vertebrae, and the Mom Cam in the corner shows it. The game is at `site/dont-step-on-a-crack/index.html`. Its leaderboard comes from [SPEC-001](../../../specs/SPEC-001-leaderboards.md) and its folder layout from [SPEC-003](../../../specs/SPEC-003-repo-layout.md). There is no build spec for the game itself, so its history is in git and in this doc.
 
 ## How it started
 
 Jonnie and his wife were out for a walk, and he started wondering how to turn the walk into a game. He took this photo mid-step, right on a joint, and it started it all:
 
-![A sneaker stepping onto the joint between two sidewalk slabs, autumn leaves on the grass either side](dont-step-on-a-crack-origin.jpg)
+![A sneaker stepping onto the joint between two sidewalk slabs, autumn leaves on the grass either side](origin.jpg)
 
 The rhyme did the rest ("Step on a crack, break your mother's back"): a first-person view looking down at your own feet, with Mom paying for every misstep.
 
@@ -62,7 +62,7 @@ The same day, playtesters pointed out that ending heelies on a crack was unavoid
 
 | | |
 | --- | --- |
-| Game ID | `dont-step-on-a-crack`, board 2 (`scores/games.json`), following [the leaderboard guide](../guides/00-leaderboards.md) |
+| Game ID | `dont-step-on-a-crack`, board 2 (`scores/games.json`), following [the leaderboard guide](../../guides/00-leaderboards.md) |
 | Score | feet walked, up to 1,000,000 |
 | Meta | `time_ms`, `steps` and `streak` (the best clean streak in the run) |
 | Ranking | ties go to the lower `time_ms` |
@@ -79,7 +79,7 @@ At game over Mom calls. After the call is picked up, the results count up and th
 
 ## Play stats
 
-Each walk reports to [play stats](../guides/03-play-stats.md) from `startGame` and at `gameOver`, through `walkReport`. Leaving from pause (Title screen or Restart) reports a quit. The score is feet walked; `stats` are `steps`, `streak` (best clean streak), `street` (1–6) and `giants` (giant steps used). Play time leaves out pauses. The title screen's demo walk reports nothing.
+Each walk reports to [play stats](../../guides/03-play-stats.md) from `startGame` and at `gameOver`, through `walkReport`. Leaving from pause (Title screen or Restart) reports a quit. The score is feet walked; `stats` are `steps`, `streak` (best clean streak), `street` (1–6) and `giants` (giant steps used). Play time leaves out pauses. The title screen's demo walk reports nothing.
 
 ## Code entry points
 
@@ -103,7 +103,7 @@ The title screen runs a demo walk: `botUpdate` drives the feet through the same 
 
 ## Trailer
 
-The trailer is 15 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../guides/04-trailers.md)) from the files in `tests/dont-step-on-a-crack/trailer/`. The cut, at 128 BPM:
+The trailer is 15 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../../guides/04-trailers.md)) from the files in `tests/dont-step-on-a-crack/trailer/`. The cut, at 128 BPM:
 
 | Time | Shot |
 | --- | --- |
@@ -123,6 +123,6 @@ node --check site/dont-step-on-a-crack/audio.js
 python3 tools/check_boards.py
 ```
 
-The browser runner `scores/test/games.py` covers Crack's end screen and title-screen High scores in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../guides/00-leaderboards.md#local-development). There is no browser test harness for Crack yet; `tests/dont-step-on-a-crack/trailer/` holds only the trailer. [SPEC-005](../../specs/SPEC-005-balance-bots.md) lists a Crack balance bot as follow-up work.
+The browser runner `scores/test/games.py` covers Crack's end screen and title-screen High scores in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../../guides/00-leaderboards.md#local-development). There is no browser test harness for Crack yet; `tests/dont-step-on-a-crack/trailer/` holds only the trailer. [SPEC-005](../../../specs/SPEC-005-balance-bots.md) lists a Crack balance bot as follow-up work.
 
 The preview card and thumbnail (`site/dont-step-on-a-crack/og.png`, `thumb.webp`) come from the cover art in `brand/covers/dont-step-on-a-crack.png`: `python3 tools/og/make.py` crops it to 4:3 near the left edge, so the Mom Cam in the corner stays in, and puts the crop beside the tagline on the card. The chalked title is part of the art, so the card leaves its own title out. Run `python3 tools/stamp.py` last after any change in `site/`.

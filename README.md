@@ -28,9 +28,9 @@ tools/trailer/          trailers: scripted gameplay captured frame by frame, the
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 stats/                  play stats Worker, D1 schema, private dashboards and tests (not published with site/)
 rooms/                  rooms Worker: plays together over the internet from a link, and its test (not published with site/)
-specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
+specs/                  repo-wide specs (services, tooling, the studio page): SPEC-001-name.md, SPEC-003-name.md, ...
 docs/guides/            numbered repo operations guides: 00-name.md, 01-name.md, ...
-docs/games/             living game design docs: <slug>.md (unnumbered)
+docs/games/<slug>/      everything about one game: README.md (how it works now), its specs, and history.md
 tests/rooms/            rooms.js browser test and harness.py, the helpers for testing games played together
 tests/<slug>/           per-game browser harnesses, plus balance.js, bot.js and balance.json for games with balance bots,
                         and trailer/ for games with a trailer; backend tests stay in scores/test/ and stats/test/
@@ -57,8 +57,12 @@ These apply to every change:
 - **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games.
 - **Relative links, clean directory URLs.** Player links use `<slug>/` from the studio and `../` from games back home, preserving the site mount. Assets remain relative; entry files remain `index.html`. No slashless aliases or `<base>` bootstrap. Arweave manifests need the directory entries described below. The one exception is `site/404.html`: GitHub Pages serves it at whatever missing path was asked for, so its assets use absolute `https://jonniepeed.games/` URLs (which `stamp.py` still versions) and its home links use `/`.
 - **Asset ownership.** Only shared files belong at the top of `site/assets/`. Studio-only files belong in `assets/studio/`; game-owned files, including `og.png` and `thumb.<ext>`, belong in `site/<slug>/`. Keep image formats. Retiring a game removes its shelf and `GAMES` entries too; permanent scores API records remain.
-- **Game docs first.** Each game's current rules, tuning, code entry points and validation live in its unnumbered `docs/games/<slug>.md`, linked to its specs. Read it before changing the game, and update it in the same change. Player help stays inside the game.
-- **Specs and guides.** Build specs live in `specs/` as `SPEC-NNN-name.md` and stay historical once built; take the next number not already used on `main`. Operations guides live in `docs/guides/` as `NN-name.md`, numbered from `00`. Each title starts with its number (`# SPEC-001: Name`, `# 00: Name`), and a guide built from a spec links to it at the top.
+- **Game docs first.** Everything about one game lives in its folder, `docs/games/<slug>/`, named like its `site/` folder. Player help stays inside the game.
+  - **`README.md`** is the living doc: the game as it is now, with its rules, tuning, code entry points and validation. Read it before changing the game, and update it in the same change. Keep it to the present; what a value used to be, and why it changed, goes in `history.md`.
+  - **Specs** are plans for the game or a feature of it, named for what they are, without a number: `spec.md` for the game itself, then names like `campaign.md` or `coop.md`. Write one before building something big. Once it's built, give it a status line saying so and leave the plan as it was decided.
+  - **`history.md`** records each round, newest first: what changed and why, the playtest's words, what was tried and dropped, and the balance bots' numbers. Start one when a game's history outgrows a short section of its README ([Stick Army's](docs/games/stick-army/history.md) is the model).
+  - A new game starts as its folder and `spec.md`, before there's any code; the README comes with the first build. Photos and other files the docs use sit beside them.
+- **Repo-wide specs and guides.** Specs for anything more than one game shares, or the studio itself (services, tooling, the site), live in `specs/` as `SPEC-NNN-name.md`, take the next number not already used on `main`, and stay historical once built: current behavior goes in the guide or doc they produced. Operations guides live in `docs/guides/` as `NN-name.md`, numbered from `00`. Each title starts with its number (`# SPEC-001: Name`, `# 00: Name`), and a guide built from a spec links to it at the top. SPEC-002, 008 and 010 were Stick Army's and now live in its folder as `spec.md`, `campaign.md` and `coop.md`; their numbers aren't reused.
 - **Scripts and tests.** Keep audio in game-local `audio.js` with a small `init/play/muted` API; best-score storage and run state stay in the game. Split around 2,000 lines or a clear seam. Use classic scripts and explicit globals, loading audio/data before `game.js`; no ES modules, so file previews keep working. Optional tuning scripts stay opt-in. Per-game harnesses live in `tests/<slug>/`; backend API tests stay in `scores/test/`.
 - **No backward compatibility for pages and paths.** Remove old pages and paths outright, with no redirects or shims. Shared code and the scores API are the exceptions below.
 - **Shared code stays compatible.** Code in `site/` that more than one page loads, such as `site/assets/leaderboard.js`, only grows: add functions and options, but don't rename or remove anything or change what an existing call does unless the same change updates every page that uses it. Check every page that loads it before merging; games with harnesses in `tests/<slug>/` must still pass them.
@@ -71,12 +75,13 @@ These apply to every change:
 
 ## Adding a game
 
-1. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
-2. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture (see [02: Cover art](docs/guides/02-cover-art.md)).
-3. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
-4. Add a living `docs/games/yourgame.md` ([Thimbleful's](docs/games/thimbleful.md) is a good model) linked to its specs and any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
-5. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
-6. Report runs to play stats: follow [Adding a game](docs/guides/03-play-stats.md#adding-a-game) in the play stats guide. A new game starts with stats switched off; ask Jonnie when to turn them on (usually at public testing or promotion, below).
+1. For anything bigger than a sketch, start with a spec: `docs/games/yourgame/spec.md` (see Game docs first, above).
+2. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
+3. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture (see [02: Cover art](docs/guides/02-cover-art.md)).
+4. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
+5. Write its living doc, `docs/games/yourgame/README.md` ([Thimbleful's](docs/games/thimbleful/README.md) is a good model), beside the game's `spec.md` if it has one, and link it to any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
+6. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
+7. Report runs to play stats: follow [Adding a game](docs/guides/03-play-stats.md#adding-a-game) in the play stats guide. A new game starts with stats switched off; ask Jonnie when to turn them on (usually at public testing or promotion, below).
 
 ## Side B and promotion
 
@@ -105,7 +110,7 @@ CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py             # these two a
 CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py
 ```
 
-Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army.md#validation-and-generated-assets).
+Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army/README.md#validation-and-generated-assets).
 
 ## Balance bots
 

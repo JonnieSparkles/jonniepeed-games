@@ -3,7 +3,7 @@
 An unlisted proof of concept for playing together over the internet. Up to four players, on phones or computers, anywhere: one starts a match and sends the link, friends open it, and each sees everyone's dots moving live. When two dots touch they burst ("WE DID IT" the first time), and when three or four pile up together, every phone goes off: "EVERYONE!".
 
 - Page: `site/dont-click-this/` (`index.html`, `audio.js`, `game.js`), noindexed. **Unlisted:** no card on Side A or Side B; reached only by its direct link, https://jonniepeed.games/dont-click-this/. It still has an `og.png` so a texted link shows a preview; `tools/og/make.py` also writes a `thumb.webp`, unused until it gets a card.
-- Connection: `site/assets/rooms.js` and the rooms Worker, [05: Rooms](../guides/05-rooms.md), with the "each phone owns its own stuff" pattern. Rooms open with `game: 'dont-click-this'` and `max: 4`.
+- Connection: `site/assets/rooms.js` and the rooms Worker, [05: Rooms](../../guides/05-rooms.md), with the "each phone owns its own stuff" pattern. Rooms open with `game: 'dont-click-this'` and `max: 4`.
 - Test: `tests/dont-click-this/test.py` (uses `tests/rooms/harness.py`).
 - No online scores or play stats.
 
@@ -42,7 +42,7 @@ Full screen uses the Fullscreen API where it exists (F on a keyboard); the butto
 
 ## Validation
 
-Start the site server and a local rooms Worker (see [Testing](../guides/05-rooms.md#testing)), then:
+Start the site server and a local rooms Worker (see [Testing](../../guides/05-rooms.md#testing)), then:
 
 ```sh
 CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py

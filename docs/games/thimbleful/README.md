@@ -1,6 +1,6 @@
 # Thimbleful
 
-A tiny explorer on a windowsill catches drips from a leaky watering can in her thimble, and every drop grows her sunflower. The game is at `site/thimbleful/index.html`. It has no build spec: it predates `specs/`, so its history is in git and in this doc. The folder layout follows [SPEC-003](../../specs/SPEC-003-repo-layout.md).
+A tiny explorer on a windowsill catches drips from a leaky watering can in her thimble, and every drop grows her sunflower. The game is at `site/thimbleful/index.html`. It has no build spec: it predates `specs/`, so its history is in git and in this doc. The folder layout follows [SPEC-003](../../../specs/SPEC-003-repo-layout.md).
 
 ## How it started
 
@@ -55,7 +55,7 @@ Still unverified: how the music, thunder and catch sounds actually sound (only c
 
 ## Leaderboard
 
-Game ID `thimbleful`, rules in `scores/games.json`, following [the leaderboard guide](../guides/00-leaderboards.md). The score is drops caught (higher is better, up to 10,000), with optional meta `time_ms`. The local best is stored per board as `thimbleful-best-<BOARD>`.
+Game ID `thimbleful`, rules in `scores/games.json`, following [the leaderboard guide](../../guides/00-leaderboards.md). The score is drops caught (higher is better, up to 10,000), with optional meta `time_ms`. The local best is stored per board as `thimbleful-best-<BOARD>`.
 
 | Board | Change |
 | --- | --- |
@@ -67,7 +67,7 @@ The game over card runs in steps so nothing changes under a finger about to tap:
 
 ## Play stats
 
-Each run reports to [play stats](../guides/03-play-stats.md) from `start` (including the first-play intro) and at `end`, through `runReport`. The score is drops caught; `stats` are `golds` (gold drops caught), `spills`, `earned` (spills won back) and `storm` (0–100, how far `edge` got). Saved runs carry their board run ID, so the dashboards show their initials. Watch mode reports nothing.
+Each run reports to [play stats](../../guides/03-play-stats.md) from `start` (including the first-play intro) and at `end`, through `runReport`. The score is drops caught; `stats` are `golds` (gold drops caught), `spills`, `earned` (spills won back) and `storm` (0–100, how far `edge` got). Saved runs carry their board run ID, so the dashboards show their initials. Watch mode reports nothing.
 
 ## Code entry points
 
@@ -88,7 +88,7 @@ Each run reports to [play stats](../guides/03-play-stats.md) from `start` (inclu
 
 ## Trailer
 
-16.1 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../guides/04-trailers.md)) from the files in `tests/thimbleful/trailer/`. The soundtrack is the game's own: `ThimbleSound` re-rendered in one pass under the whole cut, steered like a run (C major at 132 BPM, then minor with drums at 158 BPM at the top of the loop), with every shot's sound effects on top. Frames are the canvas's own pixels, scaled up whole.
+16.1 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../../guides/04-trailers.md)) from the files in `tests/thimbleful/trailer/`. The soundtrack is the game's own: `ThimbleSound` re-rendered in one pass under the whole cut, steered like a run (C major at 132 BPM, then minor with drums at 158 BPM at the top of the loop), with every shot's sound effects on top. Frames are the canvas's own pixels, scaled up whole.
 
 | Time | Shot |
 | --- | --- |
@@ -111,6 +111,6 @@ node --check site/thimbleful/audio.js
 python3 tools/check_boards.py
 ```
 
-The browser runner `scores/test/games.py` covers both scored games, including Thimbleful's end screen, its title-card High scores and full screen, in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../guides/00-leaderboards.md#local-development).
+The browser runner `scores/test/games.py` covers both scored games, including Thimbleful's end screen, its title-card High scores and full screen, in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../../guides/00-leaderboards.md#local-development).
 
 The preview card and index thumbnail (`site/thimbleful/og.png`, `thumb.webp`) come from the cover art in `brand/covers/thimbleful.png`: `python3 tools/og/make.py` crops it to 4:3, centred, and puts the crop beside the tagline on the card. The cross-stitch title is part of the art, so the card leaves its own title out. Run `python3 tools/stamp.py` last after any change in `site/`.

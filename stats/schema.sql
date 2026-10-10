@@ -1,4 +1,4 @@
--- One row per run. A start creates it; an end fills in how it went. See SPEC-008.
+-- One row per run. A start creates it; an end fills in how it went. See SPEC-009.
 CREATE TABLE IF NOT EXISTS runs (
   id          INTEGER PRIMARY KEY,
   run_key     TEXT    NOT NULL UNIQUE,  -- random, made by the client for this run

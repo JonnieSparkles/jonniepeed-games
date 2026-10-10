@@ -1,6 +1,6 @@
 # SPEC-003: Repo layout
 
-Status: implemented on `repo-layout`. Current rules are in [README](../README.md#standards), [AGENTS](../AGENTS.md) and the living [Stick Army doc](../docs/games/stick-army.md). Gameplay, scoring, BOARD values and SPEC-004 are outside this layout work. Arweave publishing remains paused pending the follow-up below.
+Status: implemented on `repo-layout`. Current rules are in [README](../README.md#standards), [AGENTS](../AGENTS.md) and the living [Stick Army doc](../docs/games/stick-army/README.md). Gameplay, scoring, BOARD values and SPEC-004 are outside this layout work. Arweave publishing remains paused pending the follow-up below.
 
 ## Resolved questions
 
