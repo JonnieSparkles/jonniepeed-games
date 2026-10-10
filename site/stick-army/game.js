@@ -33,7 +33,17 @@
       KEYS: { best: 'stickarmy.veteran.best', wins: 'stickarmy.veteran.wins', wave: 'stickarmy.veteran.bestWave' } }
   };
   var level = 'soldier';
-  function lv() { return LEVELS[S && S.level] || LEVELS.soldier; }
+  // Co-op (coop.md) is harder: two gunners are a lot more firepower, more so once each barrel has its own upgrades.
+  // COOP_HARD scales the planes and bombers from MORE[0] on wave 1 to MORE[1] by wave FULL, and the Dreadnought's
+  // health by DREAD. Tuned with the balance bots playing two barrels (run.py --option coop=1).
+  var COOP_HARD = { MORE: [1.2, 2], FULL: 15, DREAD: 2 }, coopLevels = {};
+  function coopMore(n) { var k = Math.min(1, Math.max(0, (n - 1) / (COOP_HARD.FULL - 1))); return COOP_HARD.MORE[0] + (COOP_HARD.MORE[1] - COOP_HARD.MORE[0]) * k; }
+  function lv() {
+    var L = LEVELS[S && S.level] || LEVELS.soldier;
+    if (!(S && S.players)) return L;
+    var key = S.level || 'soldier';
+    return coopLevels[key] || (coopLevels[key] = Object.assign({}, L, { DREAD: L.DREAD * COOP_HARD.DREAD }));
+  }
   // The low lane (round 13): from wave LOW.WAVE a share of the planes (bombers from LOW.BOMBERS) fly low across the
   // middle of the page, a little faster. Their troopers have less sky to fall through and their bombs land sooner. The
   // share grows by STEP a wave to MAX. Not on boss waves, whose escorts keep their own lanes.
@@ -91,7 +101,8 @@
   // to seed its own sub-stream, so shooting it early doesn't shift what follows. RC is combat (crew aim and timing).
   var R = Math.random;
   function rr(a, b) { return a + R() * (b - a); }
-  var RUN = { seed: 0, force: null }, RW = Math.random, RS = Math.random, RC = Math.random;
+  // RUN.players: 2 for a co-op run (two barrels, coop.md), set by coop.js before newGame.
+  var RUN = { seed: 0, force: null, players: 1 }, RW = Math.random, RS = Math.random, RC = Math.random;
   function between(rnd, a, b) { return a + rnd() * (b - a); }
   function mix(a, b) {
     var h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab | 0, 0xc2b2ae35);
@@ -109,7 +120,7 @@
   }
   // Key moments call emit. It does nothing in normal play; test harnesses attach a listener (SPEC-005).
   var emitHook = null;
-  function emit(type, data) { if (emitHook) emitHook(type, data || {}); }
+  function emit(type, data) { if (S && S.players) playerEvent(type, data || {}); if (emitHook) emitHook(type, data || {}); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function angDiff(a, b) { var d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
   function mulberry(a) {
@@ -185,13 +196,17 @@
   var decals = [];
   // Stamp each new mark once. The bounded history is only replayed after a resize or the wipe between waves.
   // Older marks stay in the current raster until then, or a new run.
-  function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); }
+  // Co-op: the host's new marks go to the guest, except those particles leave as they land (partsBusy), which the
+  // guest's own particles leave there too.
+  var partsBusy = false;
+  function addDecal(d) { drawDecal(d); decals.push(d); if (decals.length > 500) decals.shift(); if (COOP && !partsBusy) COOP.fx('d', d); }
   function redrawDecals() { dcx.clearRect(0, 0, W, H); decals.forEach(drawDecal); }
   // Between waves the page gets a wipe: old ink fades, and the faintest marks go. During a wave the ink fades a
   // little every DECAL.EVERY seconds, so the ground never builds into a solid band.
   var DECAL = { EVERY: 4, FADE: 0.7, WASH: 0.45, GONE: 0.06 }, inkT = 0;
   function washDecals(k) {
     k = k || DECAL.WASH;
+    if (COOP) COOP.fx('w', k);
     for (var i = decals.length - 1; i >= 0; i--) { decals[i].a *= k; if (decals[i].a < DECAL.GONE) decals.splice(i, 1); }
     redrawDecals();
   }
@@ -277,16 +292,51 @@
 
   // ---------- state ----------
   var S = {}, nextId = 1;
+  // keys: this device's keyboard. It drives the local barrel (gun()); the pointer sets that barrel's firing.
   var keys = { left: false, right: false, fire: false };
+  // ---------- the turret's barrels ----------
+  // S.turrets: one barrel in solo; two in co-op (coop.md), side by side on the one turret, each with its own aim, heat
+  // and lock, and its own volleys (rockets come every fourth of a barrel's own). `gun` is the barrel's player (0 the
+  // host, 1 the guest) and goes on every round it fires, so scores can be split by player; x is where it's mounted.
+  // (A round's `by` is something else: the soldier who fired it, for kill counts.)
+  // `me` is which barrel this device's input drives. A barrel no one here drives is moved from outside (coop.js sets
+  // its aim and firing).
+  // Turret upgrades (TURRET_MODS: quick trigger, cooling fins, double barrel, spread, flak, rockets, piercing) belong to
+  // a barrel: in co-op each player buys their own, so each barrel has its own `mods`. Solo's one barrel has none and
+  // reads S.mods, as it always has (gm).
+  var me = 0, TWIN_MOUNT = 7, TURRET_MODS = ['fire', 'cool', 'double', 'spread', 'flak', 'rockets', 'pierce'];
+  function makeTurret(gun, x, own) {
+    var t = { gun: gun, x: x, aim: -Math.PI / 2, heat: 0, overheat: 0, recoil: 0, firing: false, fireCD: 0, volleys: 0 };
+    if (own) t.mods = { fire: 0, cool: 0, double: false, spread: false, flak: false, rockets: false, pierce: false, stacks: {} };
+    return t;
+  }
+  function setTurrets(n) {
+    S.turrets = n > 1 ? [makeTurret(0, TUR.x - TWIN_MOUNT, true), makeTurret(1, TUR.x + TWIN_MOUNT, true)] : [makeTurret(0, TUR.x)];
+  }
+  function gm(t) { return t.mods || S.mods; }
+  // A co-op player's own tally: the points their barrel earned (its rounds, the chutes it popped that were caught,
+  // its own combo), and its planes, catches and Red Cross hits for the end card. Points nobody fired for (the squad,
+  // air strikes, wave bonuses) go to the team score only. `gunner` is the barrel whose round is being resolved.
+  function makePlayer() { return { score: 0, combo: 0, comboT: 0, planes: 0, captured: 0, redCross: 0, kills: 0 }; }
+  var gunner = null;
+  function scorer() { return S.players && gunner != null ? S.players[gunner] || null : null; }
+  function playerEvent(type, data) {
+    var p = scorer();
+    if (!p) return;
+    if (type === 'plane_down' && data.by === 'player') p.planes++;
+    else if (type === 'kill' && data.by === 'player') p.kills++;
+    else if (type === 'capture') p.captured++;
+    else if (type === 'redcross_hit') { p.redCross++; p.combo = 0; p.comboT = 0; p.score = Math.max(0, p.score - (data.pts || 0)); }
+  }
+  function gun() { return S.turrets[me] || S.turrets[0]; }
 
   function reset() {
     S = {
       input: 'keys',
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
-      heat: 0, overheat: 0,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, flag: false, stacks: {} },
-      coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0, wall: 0 },
-      aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0, flagUp: 0, saluteT: 0,
+      coins: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0, wall: 0 },
+      turrets: null, flagUp: 0, saluteT: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], wreck: null, calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [], night: 0,
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
@@ -294,13 +344,15 @@
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0 },
       hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false, redCrossPaid: false,
-      matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level
+      matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level,
+      // Co-op: each player's own points, combo and counts (coop.md); null in solo.
+      players: RUN.players > 1 ? [makePlayer(), makePlayer()] : null
     };
-    resizeMats(); clearInput();
+    setTurrets(RUN.players); resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
-    decals.length = 0; inkT = 0;
-    redrawDecals();
+    clearInk();
   }
+  function clearInk() { decals.length = 0; inkT = 0; redrawDecals(); if (COOP) COOP.fx('x'); }
 
   // A run is 20 waves. Bosses every fifth: a zeppelin (5), the armored zeppelin (10), two zeppelins at once (15) and
   // the Dreadnought (20); in endless the twins return on the fives and the Dreadnought on the tens. Something new
@@ -340,6 +392,7 @@
     // Veteran: from wave FROM, more planes and more armor; boss waves keep their own shape.
     var L = lv();
     if (n >= L.FROM && !boss) { c.planes = Math.round(c.planes * L.PLANES); c.armorChance = Math.min(0.75, c.armorChance + L.ARMOR); }
+    if (S && S.players) { var more = coopMore(n); c.planes = Math.round(c.planes * more); c.bombers = Math.round(c.bombers * more); }
     return c;
   }
 
@@ -419,10 +472,12 @@
   }
   // quiet: the points and tags without the label (the final wave's decoy going down, round 14).
   function award(base, x, y, label, color, useCombo, quiet) {
-    var mult = 1;
-    if (useCombo) { S.combo++; S.comboT = 1.4; mult = Math.min(S.combo, 5); }
+    var mult = 1, p = scorer();
+    if (useCombo && p) { p.combo++; p.comboT = 1.4; mult = Math.min(p.combo, 5); }
+    else if (useCombo) { S.combo++; S.comboT = 1.4; mult = Math.min(S.combo, 5); }
     var pts = base * mult;
     S.score += pts;
+    if (p) p.score += pts;
     var tags = Math.max(1, Math.round(base / 15)) + Math.floor(mult / 3);
     S.coins += tags; flyTags(x, y, tags);
     emit('coins', { amount: tags, reason: OUCH.indexOf(label) >= 0 ? 'kill' : label.replace(/!+$/, '') });
@@ -765,8 +820,9 @@
     RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo, spawnRoadTank = UNITS.spawnRoadTank,
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
     RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
-    STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
-    FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
+    // A co-op guest's calls go to the host, which makes them (coop.js).
+    STRIKE = UNITS.STRIKE, callStrike = function () { return COOP && COOP.guest ? COOP.ask('call', 'bomber') : UNITS.callStrike(); }, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
+    FIGHTER = UNITS.FIGHTER, callFighter = function () { return COOP && COOP.guest ? COOP.ask('call', 'fighter') : UNITS.callFighter(); }, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio;
   // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
   world.grantCall = grantCall; world.activeTramps = activeTramps; world.loseTags = function (n, x, y) { loseTags(n, x, y); }; world.standing = standing; world.repairWall = repairWall;
@@ -784,6 +840,9 @@
   world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches;
   world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadLine = squadLine;
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
+  // Co-op's shop (shop.js): turret upgrades are each barrel's own; a guest's taps go to the host (coop.js).
+  world.TURRET_MODS = TURRET_MODS;
+  world.coopRemote = function (action, id) { if (!(COOP && COOP.guest)) return false; COOP.ask('shop', { a: action, id: id }); return true; };
   var SHOP = StickArmyShop(world), ITEMS = SHOP.ITEMS, price = SHOP.price, eligible = SHOP.eligible, OFFERS = SHOP.OFFERS, offer = SHOP.offer,
     onHouse = SHOP.onHouse, costNow = SHOP.costNow, openShop = SHOP.openShop, takeItem = SHOP.takeItem, renderShop = SHOP.renderShop,
     continueWave = SHOP.continueWave, kitItems = SHOP.kitItems, renderKit = SHOP.renderKit, updateDelivery = SHOP.updateDelivery, drawCourier = SHOP.drawCourier;
@@ -791,8 +850,9 @@
   world.HAND = HAND; world.DISPLAY = DISPLAY; world.TENT = SQUAD.TENT; world.SQUAD = SQUAD; world.load = load; world.save = save; world.clock = clock;
   world.recruitDie = function (r, cause) { recruitDie(r, cause); }; world.hurtWall = hurtWall; world.wallText = function (n) { wallText(n); };
   world.openShop = function () { openShop(); }; world.hidePause = function () { pauseBtn.hidden = true; };
-  world.saveBest = function () { if (S.score <= best) return false; best = S.score; save(lv().KEYS.best, best); return true; };
-  world.saveBestWave = function (n) { if (n > load(lv().KEYS.wave, 0)) save(lv().KEYS.wave, n); };
+  // Records are solo's: a co-op run (S.players) never writes them.
+  world.saveBest = function () { if (S.players || S.score <= best) return false; best = S.score; save(lv().KEYS.best, best); return true; };
+  world.saveBestWave = function (n) { if (!S.players && n > load(lv().KEYS.wave, 0)) save(lv().KEYS.wave, n); };
   world.lv = lv; world.LEVELS = LEVELS;
   Object.defineProperty(world, 'SENTRY', { get: function () { return SENTRY; } });
   var CAMPAIGN = StickArmyCampaign(world), DREAD = CAMPAIGN.DREAD, isDreadWave = CAMPAIGN.isDreadWave, spawnDread = CAMPAIGN.spawnDread,
@@ -802,6 +862,16 @@
   world.BOARD = BOARD;
   var LBOARD = world.board = StickArmyBoard(world);
   world.dreadTargets = dreadTargets; world.DREAD_DECOY_HP = DREAD.DECOY_HP; world.dreadBeams = CAMPAIGN.dreadBeams; world.dreadPhase = CAMPAIGN.dreadPhase;
+  // Co-op (coop.js, an add-on: without it, COOP is null and every hook below does nothing).
+  world.TRAMPS = TRAMPS; world.keys = keys; world.AIM_MIN = AIM_MIN; world.AIM_MAX = AIM_MAX; world.RUN = RUN;
+  world.setState = function (o) { S = o; }; world.resizeMats = function () { resizeMats(); }; world.clearInk = function () { clearInk(); };
+  world.updateParts = function (dt) { updateParts(dt); }; world.fadeInk = function (dt) { fadeInk(dt); };
+  Object.defineProperty(world, 'me', { get: function () { return me; }, set: function (v) { me = v; } });
+  world.fit = function () { fit(); }; world.fillPause = function () { fillPause(); }; world.togglePause = function () { togglePause(); };
+  world.newGame = function () { newGame(); }; world.ITEMS = ITEMS; world.renderShop = function () { SHOP.renderShop(); }; world.continueWave = function () { continueWave(); };
+  world.takeItem = function (id, by) { return SHOP.takeItem(id, by); }; world.putBack = function (id, by) { return SHOP.putBack(id, by); }; world.undo = function (by) { return SHOP.undo(by); }; world.callStrike = function () { return UNITS.callStrike(); }; world.callFighter = function () { return UNITS.callFighter(); };
+  world.screens = function () { return { title: titleScreen, pause: pauseScreen, over: overScreen, win: winScreen, shop: shopScreen, pauseBtn: pauseBtn }; };
+  var COOP = window.StickArmyCoop ? StickArmyCoop(world) : null;
   world.dreadLit = function () { var p = CAMPAIGN.dread(); return !p ? [] : p.phase === 'hangar' ? [CAMPAIGN.hangarAt(p)] : p.phase === 'bridge' ? [CAMPAIGN.bridgeAt(p), CAMPAIGN.hangarAt(p)] : []; };
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
@@ -855,53 +925,58 @@
     G.restore();
   }
   // ---------- combat ----------
-  function shoot() {
-    var c = Math.cos(S.aim), s = Math.sin(S.aim);
-    S.volleys++;
-    var angles = S.mods.spread ? [-0.13, 0, 0.13] : [0];
+  function shoot(t) {
+    t = t || S.turrets[0];
+    var c = Math.cos(t.aim), s = Math.sin(t.aim), x0 = t.x, m = gm(t);
+    t.volleys++;
+    var angles = m.spread ? [-0.13, 0, 0.13] : [0];
     angles.forEach(function (offset) {
-      var a = S.aim + offset, ca = Math.cos(a), sa = Math.sin(a);
-      (S.mods.double ? [-4, 4] : [0]).forEach(function (side) {
-        S.bullets.push({ x: TUR.x + ca * 30 - sa * side, y: TUR.y + sa * 30 + ca * side, vx: ca * 700, vy: sa * 700,
-          owner: 'player', kind: 'bullet', flak: S.mods.flak, pierce: S.mods.pierce ? 3 : 1, hits: [], life: 1.3, dead: false, side: offset !== 0 });
+      var a = t.aim + offset, ca = Math.cos(a), sa = Math.sin(a);
+      (m.double ? [-4, 4] : [0]).forEach(function (side) {
+        S.bullets.push({ x: x0 + ca * 30 - sa * side, y: TUR.y + sa * 30 + ca * side, vx: ca * 700, vy: sa * 700,
+          owner: 'player', gun: t.gun, kind: 'bullet', flak: m.flak, pierce: m.pierce ? 3 : 1, hits: [], life: 1.3, dead: false, side: offset !== 0 });
       });
     });
-    if (S.mods.rockets && S.volleys % 4 === 0) {
-      S.bullets.push({ x: TUR.x + c * 32, y: TUR.y + s * 32, vx: c * 360, vy: s * 360, owner: 'player', kind: 'rocket', life: 2, dead: false }); sound.play('rocket');
+    if (m.rockets && t.volleys % 4 === 0) {
+      S.bullets.push({ x: x0 + c * 32, y: TUR.y + s * 32, vx: c * 360, vy: s * 360, owner: 'player', gun: t.gun, kind: 'rocket', life: 2, dead: false }); sound.play('rocket');
       S.stats.shots++;
     }
     // Rounds fired (round 14, "shots fired would be a fun stat"): every bullet and rocket from your turret, so the
     // double barrel and spread shot make it climb.
-    S.stats.shots += angles.length * (S.mods.double ? 2 : 1);
-    S.parts.push({ k: 'star', x: TUR.x + c * 34, y: TUR.y + s * 34, life: 0.07, max: 0.07, id: nextId++ });
-    S.recoil = 1;
+    S.stats.shots += angles.length * (m.double ? 2 : 1);
+    S.parts.push({ k: 'star', x: x0 + c * 34, y: TUR.y + s * 34, a: t.aim, life: 0.07, max: 0.07, id: nextId++ });
+    t.recoil = 1;
     sound.play('shoot');
   }
   // One trigger pull: costs points, adds heat, and locks the gun when it boils over. Heat per shot never changes with
   // the wave, so cooling fins always pay off.
-  function fireVolley() {
-    shoot();
-    var rate = Math.pow(0.82, S.mods.fire);
-    S.fireCD = BALANCE.FIRE_COOLDOWN * rate;
-    S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool);
+  function fireVolley(t) {
+    t = t || S.turrets[0];
+    shoot(t);
+    var m = gm(t), rate = Math.pow(0.82, m.fire);
+    t.fireCD = BALANCE.FIRE_COOLDOWN * rate;
+    t.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, m.cool);
     S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
-    if (S.heat >= 1) triggerOverheat();
+    if (S.players) S.players[t.gun].score = Math.max(0, S.players[t.gun].score - BALANCE.SHOT_COST);
+    if (t.heat >= 1) triggerOverheat(t);
   }
-  function triggerOverheat() {
-    if (S.overheat > 0) return;
-    S.heat = 1; S.overheat = BALANCE.OVERHEAT_LOCK;
-    addText('too hot!', TUR.x, TUR.y - 52, RED, 23);
+  function triggerOverheat(t) {
+    t = t || S.turrets[0];
+    if (t.overheat > 0) return;
+    t.heat = 1; t.overheat = BALANCE.OVERHEAT_LOCK;
+    addText('too hot!', t.x, TUR.y - 52, RED, 23);
     sound.play('overheat'); SQUAD.heat();
   }
-  function updateHeat(dt) {
-    if (S.overheat > 0) {
+  function updateHeat(dt, t) {
+    t = t || S.turrets[0];
+    if (t.overheat > 0) {
       // While locked, the barrel cools to a usable level by the time it unlocks.
-      S.overheat -= dt;
-      S.heat = Math.max(0.35, S.heat - 0.65 / Math.max(0.1, BALANCE.OVERHEAT_LOCK) * dt);
-      if (R() < dt * 9) { var c = Math.cos(S.aim), s = Math.sin(S.aim); puff(TUR.x + c * 30, TUR.y + s * 30, 2, 0.6); }
-      if (S.overheat <= 0) { S.overheat = 0; sound.play('ready'); }
+      t.overheat -= dt;
+      t.heat = Math.max(0.35, t.heat - 0.65 / Math.max(0.1, BALANCE.OVERHEAT_LOCK) * dt);
+      if (R() < dt * 9) { var c = Math.cos(t.aim), s = Math.sin(t.aim); puff(t.x + c * 30, TUR.y + s * 30, 2, 0.6); }
+      if (t.overheat <= 0) { t.overheat = 0; sound.play('ready'); }
     } else {
-      S.heat = Math.max(0, S.heat - BALANCE.COOL_RATE * dt);
+      t.heat = Math.max(0, t.heat - BALANCE.COOL_RATE * dt);
     }
   }
   function killFx(t, force, squash, color) {
@@ -957,6 +1032,8 @@
     for (var i = 0; i < 4; i++) S.parts.push({ k: 'shred', x: t.x + rr(-16, 16), y: t.y - 30 + rr(-6, 6), vx: rr(-50, 50), vy: rr(-40, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.7, 1.1), max: 1.1, id: nextId++ });
     addText('pop!', t.x + 16, t.y - 34, RED, 18, 'minor');
     S.stats.popped++;
+    // Co-op: a catch is the popper's.
+    if (S.players && gunner != null) t.poppedBy = gunner;
     emit('chute_pop', { x: t.x, y: t.y, overMat: activeTramps().some(function (m) { return t.x >= m.x1 + 4 && t.x <= m.x2 - 4; }) });
     sound.play('pop');
   }
@@ -992,6 +1069,11 @@
     t.spinDir = t.x1 > t.x0 ? 1 : -1;
   }
   function becomeRecruit(t) {
+    var was = gunner;
+    if (S.players) gunner = t.poppedBy != null ? t.poppedBy : null;
+    try { joinSquad(t); } finally { gunner = was; }
+  }
+  function joinSquad(t) {
     t.dead = true;
     if (t.captain) { CAMPAIGN.captainCaught(t); return; }
     if (t.slot >= 0) {
@@ -1374,8 +1456,8 @@
     }
   }
   function sniperHitsTurret(cause) {
-    S.heat = Math.min(1, S.heat + 0.25);
-    if (S.heat >= 1) triggerOverheat();
+    // Every barrel takes the knock.
+    S.turrets.forEach(function (t) { t.heat = Math.min(1, t.heat + 0.25); if (t.heat >= 1) triggerOverheat(t); });
     hurtWall(3, cause || 'sniper');
     addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20, 'minor');
     S.parts.push({ k: 'tink', x: TUR.x, y: TUR.y - 6, life: 0.25, max: 0.25, c: RED, id: nextId++ });
@@ -1474,6 +1556,7 @@
     S.bullets.forEach(function (b) {
       if (b.dead) return;
       shooter = b.by != null ? b.by : null;
+      gunner = b.owner === 'player' && b.gun != null ? b.gun : null;
       b.life -= dt;
       for (var s = 0; s < 3 && !b.dead; s++) { b.x += b.vx * dt / 3; b.y += b.vy * dt / 3; hitTest(b); }
       if (!b.dead) {
@@ -1483,7 +1566,7 @@
           if (b.kind === 'rocket' && b.y > GROUND - 2) explode(b.x, GROUND - 4, 24, 'rocket', b.owner);
         }
       }
-      shooter = null;
+      shooter = null; gunner = null;
     });
   }
   // Kill counts: while a recruit's own bullet or rocket is being resolved, its kills are his (credit).
@@ -1494,6 +1577,10 @@
     if (r && !r.dead) r.kills = (r.kills || 0) + 1;
   }
   function updateParts(dt) {
+    partsBusy = true;
+    try { moveParts(dt); } finally { partsBusy = false; }
+  }
+  function moveParts(dt) {
     S.parts.forEach(function (q) {
       q.life -= dt;
       if (q.k === 'body') {
@@ -1572,17 +1659,20 @@
   function update(dt) {
     S.t += dt;
     if (S.mode === 'play') {
-      if (keys.left) S.aim = Math.max(AIM_MIN, S.aim - 2.3 * dt);
-      if (keys.right) S.aim = Math.min(AIM_MAX, S.aim + 2.3 * dt);
-      S.fireCD -= dt;
-      updateHeat(dt);
-      if ((S.firing || keys.fire) && S.fireCD <= 0 && S.overheat <= 0) fireVolley();
+      S.turrets.forEach(function (t, i) {
+        var mine = i === me;
+        if (mine && keys.left) t.aim = Math.max(AIM_MIN, t.aim - 2.3 * dt);
+        if (mine && keys.right) t.aim = Math.min(AIM_MAX, t.aim + 2.3 * dt);
+        t.fireCD -= dt;
+        updateHeat(dt, t);
+        if ((t.firing || (mine && keys.fire)) && t.fireCD <= 0 && t.overheat <= 0) fireVolley(t);
+      });
       updateWave(dt);
       if (S.mode === 'shop') return;
       updateDelivery(dt);
       fadeInk(dt);
     }
-    S.recoil = Math.max(0, S.recoil - dt * 8);
+    S.turrets.forEach(function (t) { t.recoil = Math.max(0, t.recoil - dt * 8); });
     updatePlanes(dt);
     updateBombs(dt);
     SKY.update(dt);
@@ -1602,6 +1692,7 @@
     updateFlag(dt);
     TRAMPS.forEach(function (tr) { tr.v += (-240 * tr.dip - 9 * tr.v) * dt; tr.dip += tr.v * dt; });
     if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
+    if (S.players) S.players.forEach(function (p) { if (p.comboT > 0) { p.comboT -= dt; if (p.comboT <= 0) p.combo = 0; } });
     S.shake = Math.max(0, S.shake - dt * 1.8);
     if (S.tagPulse > 0) S.tagPulse = Math.max(0, S.tagPulse - dt);
     if (S.tagLoss > 0) S.tagLoss = Math.max(0, S.tagLoss - dt);
@@ -1899,22 +1990,26 @@
     G.beginPath(); G.moveTo(a + jt(0.5), y + jt(0.5)); G.quadraticCurveTo(mid + jt(1), y + sag * 2, b + jt(0.5), y + jt(0.5)); ink(INK, 3.4); G.stroke();
     G.beginPath(); G.rect(a - 5, y - 4, 9, 7); G.rect(b - 4, y - 4, 9, 7); G.fillStyle = BLUE; G.fill(); ink(INK, 1.6); G.stroke();
   }
-  function drawBarrel() {
-    var len = 31 - S.recoil * 6, hot = clamp((S.heat - 0.35) / 0.65, 0, 1);
-    if (S.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
-    G.save(); G.translate(TUR.x, TUR.y); G.rotate(S.aim);
+  // Two barrels (co-op) each wear their player's color as a band behind the muzzle: the host blue, the guest red.
+  var GUN_COLORS = [BLUE, RED];
+  function drawBarrel(t) {
+    var len = 31 - t.recoil * 6, hot = clamp((t.heat - 0.35) / 0.65, 0, 1);
+    if (t.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
+    G.save(); G.translate(t.x, TUR.y); G.rotate(t.aim);
     G.fillStyle = PAPER; G.fillRect(2, -4, len - 2, 8);
     if (hot > 0) { G.globalAlpha = 0.45 * hot; G.fillStyle = RED; G.fillRect(2, -4, len - 2, 8); G.globalAlpha = 1; }
+    if (S.turrets.length > 1) { G.fillStyle = GUN_COLORS[t.gun] || INK; G.fillRect(len - 11, -4, 5, 8); }
     G.beginPath(); L(2, -4, len, -4, 0.4); L(2, 4, len, 4, 0.4); L(len, -4.5, len, 4.5, 0.3); ink(hot > 0.7 ? RED : INK, 2.4); G.stroke();
     G.restore();
   }
-  // A thin gauge arcing over the dome: fills left to right as the gun heats, blinks red when locked.
-  function drawHeatRing() {
-    if (S.mode !== 'play' || (S.heat < 0.03 && S.overheat <= 0)) return;
-    var r = 25, start = Math.PI * 1.08, span = Math.PI * 0.84, end = start + span * S.heat;
+  // A thin gauge arcing over the dome: fills left to right as the gun heats, blinks red when locked. With two barrels,
+  // the guest's gauge sits outside the host's.
+  function drawHeatRing(t, i) {
+    if (S.mode !== 'play' || (t.heat < 0.03 && t.overheat <= 0)) return;
+    var r = 25 + i * 5, start = Math.PI * 1.08, span = Math.PI * 0.84, end = start + span * t.heat;
     G.save();
     G.setLineDash([2, 4]); G.beginPath(); G.arc(BK.x, BK.top, r, start, start + span); ink('rgba(46,46,51,0.25)', 1.5); G.stroke(); G.setLineDash([]);
-    var col = S.overheat > 0 ? (Math.floor(S.t * 8) % 2 ? RED : INK) : S.heat > 0.7 ? RED : INK;
+    var col = t.overheat > 0 ? (Math.floor(S.t * 8) % 2 ? RED : INK) : t.heat > 0.7 ? RED : INK;
     G.beginPath(); G.arc(BK.x, BK.top, r, start, end); ink(col, 3); G.stroke();
     G.restore();
   }
@@ -1935,9 +2030,9 @@
   }
   function drawBunker() {
     pen(9001);
-    var i, dipping = S.aim > -0.05 || S.aim < -Math.PI + 0.05;
-    // Tipped down, the barrel leans out over the wall, so it draws in front of the bunker.
-    if (!dipping) drawBarrel();
+    var i, dipping = function (t) { return t.aim > -0.05 || t.aim < -Math.PI + 0.05; };
+    // Tipped down, a barrel leans out over the wall, so it draws in front of the bunker.
+    S.turrets.forEach(function (t) { if (!dipping(t)) drawBarrel(t); });
     var dome = [];
     for (i = 0; i <= 10; i++) { var an = Math.PI + (i / 10) * Math.PI; dome.push(BK.x + Math.cos(an) * 19, BK.top + Math.sin(an) * 19); }
     G.beginPath(); G.moveTo(BK.x - 19, BK.top); G.arc(BK.x, BK.top, 19, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill();
@@ -1963,8 +2058,8 @@
       G.beginPath(); G.moveTo(ch[0], ch[1]); for (i = 2; i < ch.length; i += 2) G.lineTo(ch[i], ch[i + 1]); G.closePath(); G.fillStyle = PAPER; G.fill();
       G.beginPath(); SP([232, 595, 226, 590, 219, 586, 214, 581, 210, 576], false, 0.3); ink(INK, 2.2); G.stroke();
     }
-    if (dipping) drawBarrel();
-    drawHeatRing();
+    S.turrets.forEach(function (t) { if (dipping(t)) drawBarrel(t); });
+    S.turrets.forEach(drawHeatRing);
   }
   // ---------- the flagpole ----------
   // A supply with one job: "It boosts morale." (shop.js). The squad fires FIRE faster while it flies. The first time,
@@ -2055,7 +2150,7 @@
       else if (q.k === 'puff') { G.globalAlpha = a * 0.55; G.beginPath(); Ci(q.x, q.y, q.r, 0.6); ink(INK, 1.6); G.stroke(); }
       else if (q.k === 'star') {
         G.globalAlpha = 1; G.beginPath();
-        for (var i = 0; i < 6; i++) { var an = S.aim + i * Math.PI / 3; L(q.x + Math.cos(an) * 2, q.y + Math.sin(an) * 2, q.x + Math.cos(an) * 7, q.y + Math.sin(an) * 7, 0.5); }
+        for (var i = 0; i < 6; i++) { var an = (q.a != null ? q.a : S.turrets[0].aim) + i * Math.PI / 3; L(q.x + Math.cos(an) * 2, q.y + Math.sin(an) * 2, q.x + Math.cos(an) * 7, q.y + Math.sin(an) * 7, 0.5); }
         ink(INK, 2); G.stroke();
       } else if (q.k === 'deflate') { G.beginPath(); SP([q.x - 14, q.y, q.x - 8, q.y - 6, q.x - 2, q.y - 2, q.x + 4, q.y - 7, q.x + 10, q.y - 2, q.x + 15, q.y], false, 0.5); G.fillStyle = RED_FILL; G.fill(); ink(RED, 1.8); G.stroke(); }
       else if (q.k === 'tink') { G.beginPath(); L(q.x, q.y, q.x + 6, q.y - 5, 0.4); L(q.x, q.y, q.x + 7, q.y + 2, 0.4); L(q.x, q.y, q.x - 6, q.y - 6, 0.4); L(q.x, q.y, q.x - 5, q.y + 3, 0.4); ink(q.c === HAT ? '#d29a00' : q.c, 2); G.stroke(); }
@@ -2105,10 +2200,11 @@
       G.restore();
     });
   }
+  // Only this device's barrel gets the guide.
   function drawAimGuide() {
-    var c = Math.cos(S.aim), s = Math.sin(S.aim);
+    var t = gun(), c = Math.cos(t.aim), s = Math.sin(t.aim);
     G.save(); G.setLineDash([2, 8]);
-    G.beginPath(); G.moveTo(TUR.x + c * 40, TUR.y + s * 40); G.lineTo(TUR.x + c * 125, TUR.y + s * 125);
+    G.beginPath(); G.moveTo(t.x + c * 40, TUR.y + s * 40); G.lineTo(t.x + c * 125, TUR.y + s * 125);
     ink('rgba(46,46,51,0.28)', 2); G.stroke();
     G.restore();
   }
@@ -2199,6 +2295,16 @@
     G.textAlign = 'left';
     if (S.mode !== 'title') {
       G.fillStyle = c.INK2; G.font = '16px ' + HAND; G.fillText('score', 58, 28);
+      // Co-op: each player's own points beside the label, in their barrel's color.
+      if (S.players) {
+        var px = 100, ps = S.players.map(function (p) { return p.score.toLocaleString('en-US'); });
+        G.font = '15px ' + HAND;
+        var pw = G.measureText(ps.join(' · ')).width;
+        if (pw > 84) G.font = Math.max(10, Math.floor(15 * 84 / pw)) + 'px ' + HAND;
+        G.fillStyle = c.BLUE; G.fillText(ps[0], px, 28); px += G.measureText(ps[0]).width;
+        G.fillStyle = c.INK2; G.fillText(' · ', px, 28); px += G.measureText(' · ').width;
+        G.fillStyle = c.RED; G.fillText(ps[1], px, 28);
+      }
       // A long score shrinks to stop short of the wave label (round 14: six digits ran into "wave 10").
       var sc = S.score.toLocaleString('en-US');
       G.font = '26px ' + HAND; var room = 200 - G.measureText('wave ' + Math.max(1, S.wave)).width / 2 - HUD_GAP - 58;
@@ -2216,9 +2322,11 @@
       G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
       // Veteran wears its three stripes over the wave.
       if (S.level === 'veteran') { G.beginPath(); for (var vs = 0; vs < 3; vs++) { L(191, 20 + vs * 5, 200, 15 + vs * 5, 0.2); L(200, 15 + vs * 5, 209, 20 + vs * 5, 0.2); } ink(c.BLUE, 2.2); G.stroke(); }
-      if (S.combo >= 2 && S.comboT > 0) {
-        G.fillStyle = c.BLUE; G.font = '22px ' + HAND; G.fillText('combo x' + Math.min(5, S.combo), 200, 76);
-        var cw = 70 * (S.comboT / 1.4);
+      // In co-op the combo shown is this player's own.
+      var cb = S.players ? S.players[me] || S : S;
+      if (cb.combo >= 2 && cb.comboT > 0) {
+        G.fillStyle = c.BLUE; G.font = '22px ' + HAND; G.fillText('combo x' + Math.min(5, cb.combo), 200, 76);
+        var cw = 70 * (cb.comboT / 1.4);
         G.beginPath(); L(200 - cw / 2, 82, 200 + cw / 2, 82, 0.4); ink(c.BLUE, 2.4); G.stroke();
       } else if (S.endless) { G.fillStyle = c.BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
       else if (S.wave === DREAD.WAVE) { G.fillStyle = c.RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
@@ -2369,7 +2477,7 @@
     p.drops = [DEMO.CATCH_X, DEMO.SHOOT_X].sort(function (a, b) { return dir * (a - b); });
     p.kits = p.drops.map(function () { return { type: 'rifle', fall: 1, sway: 0, armor: 0 }; });
     S.planes.push(p);
-    S.aim = -Math.PI / 2;
+    S.turrets[0].aim = -Math.PI / 2;
     demo = { n: n, rest: -1, shotAt: {} };
     speak(DEMO.LINES[n % DEMO.LINES.length], S.recruits[n % 2].id, false, 0.8);
   }
@@ -2381,9 +2489,10 @@
       var catching = t.x < 120, off = catching ? -32 : 14, tx = t.x, ty = t.y + off;
       for (var k = 0; k < 2; k++) { var flight = Math.hypot(tx - TUR.x, ty - TUR.y) / 700; ty = t.y + off + t.fall * flight; }
       var want = clamp(Math.atan2(ty - TUR.y, tx - TUR.x), AIM_MIN, AIM_MAX);
-      S.aim += clamp(want - S.aim, -DEMO.TURN * dt, DEMO.TURN * dt);
+      var gun0 = S.turrets[0];
+      gun0.aim += clamp(want - gun0.aim, -DEMO.TURN * dt, DEMO.TURN * dt);
       var last = demo.shotAt[t.id];
-      if (t.y >= (catching ? DEMO.CATCH_AT : DEMO.SHOOT_AT) && Math.abs(want - S.aim) < 0.03 && (last == null || S.t - last > DEMO.RETRY)) {
+      if (t.y >= (catching ? DEMO.CATCH_AT : DEMO.SHOOT_AT) && Math.abs(want - gun0.aim) < 0.03 && (last == null || S.t - last > DEMO.RETRY)) {
         demo.shotAt[t.id] = S.t; shoot();
       }
       return;
@@ -2397,7 +2506,8 @@
     // A run seed: forced by a harness, fixed by #seed=, or random.
     var fixed = RUN.force != null ? RUN.force : hashSeed();
     // The online board: practice runs (a fixed seed, the tuning panel) never get a token, so they can't be saved.
-    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0);
+    // Co-op runs aren't on the boards (coop.md).
+    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0 || RUN.players > 1);
     // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
     if (window.PlayStats) statsRun = PlayStats.start('stick-army', { board: world.levelBoard(), token: token || undefined, progress: runReport });
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));
@@ -2435,15 +2545,11 @@
     return true;
   }
   function togglePause() {
+    // Either co-op player pauses for both: a guest asks the host (coop.js), whose pause comes back in the field.
+    if (COOP && COOP.guest) { COOP.ask('pause'); return; }
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
-      document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
-      // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
-      var kit = document.getElementById('pauseKit');
-      kit.hidden = !renderKit(kit, false);
-      var row = document.getElementById('pauseSquadRow'), squad = document.getElementById('pauseSquad'), line = squadLine(false, true);
-      row.hidden = !drawSquadRow(row);
-      squad.textContent = line; squad.hidden = !line;
+      fillPause();
       pauseScreen.hidden = false;
       document.getElementById('resumeBtn').focus({ preventScroll: true });
     } else if (S.mode === 'paused') {
@@ -2451,9 +2557,19 @@
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     }
   }
+  // The pause card's lines: the wave and time, the kit and the squad.
+  function fillPause() {
+    document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
+    // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
+    var kit = document.getElementById('pauseKit');
+    kit.hidden = !renderKit(kit, false);
+    var row = document.getElementById('pauseSquadRow'), squad = document.getElementById('pauseSquad'), line = squadLine(false, true);
+    row.hidden = !drawSquadRow(row);
+    squad.textContent = line; squad.hidden = !line;
+  }
   function die() {
     emit('game_over', { wave: S.wave, score: S.score, cause: S.lastHit || 'unknown' });
-    S.mode = 'dying'; S.wallHP = 0; S.dieT = 1.6; S.firing = false;
+    S.mode = 'dying'; S.wallHP = 0; S.dieT = 1.6; S.turrets.forEach(function (t) { t.firing = false; });
     explode(BK.x, BK.top + 10, 46, 'final');
     S.shake = 0.8;
     pauseBtn.hidden = true;
@@ -2476,7 +2592,8 @@
     S.mode = 'over';
     showRedCross('st');
     if (statsRun) { PlayStats.end(statsRun, runReport()); statsRun = null; }
-    var isBest = S.score > best;
+    // Co-op runs leave this device's records alone: different difficulty, two guns (coop.md).
+    var isBest = !S.players && S.score > best;
     if (isBest) { best = S.score; save(lv().KEYS.best, best); }
     document.getElementById('overScore').textContent = S.score.toLocaleString('en-US');
     document.getElementById('newBest').hidden = !isBest || S.score === 0;
@@ -2525,6 +2642,8 @@
     if (S.captain) st.captain = S.captain;
     if (S.endless) st.endless = true;
     if (S.level !== 'soldier') st.level = S.level;
+    // Co-op: reported once, by the host, with each player's points and planes.
+    if (S.players) { st.coop = true; st.host_score = S.players[0].score; st.guest_score = S.players[1].score; st.host_planes = S.players[0].planes; st.guest_planes = S.players[1].planes; }
     return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, input: S.input, stats: st };
   }
   // A win is reported as soon as the victory card shows. The handle stays, so a winner who keeps going is reported
@@ -2571,18 +2690,19 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden && wrap.classList.contains('full')) setFull(true); });
   fullBtn.addEventListener('click', toggleFull);
 
-  function clearInput() { keys.left = keys.right = keys.fire = false; S.firing = false; }
+  function clearInput() { keys.left = keys.right = keys.fire = false; if (S.turrets) S.turrets.forEach(function (t) { t.firing = false; }); }
 
   // ---------- input ----------
   function toLogical(e) {
     var r = cv.getBoundingClientRect();
     return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
   }
+  // Aims this device's barrel at a point on the page (from its own mount).
   function aimAt(p) {
-    var a = Math.atan2(p.y - TUR.y, p.x - TUR.x);
+    var t = gun(), a = Math.atan2(p.y - TUR.y, p.x - t.x);
     // Below-left angles continue past -PI so the range stays one continuous sweep.
     if (a > Math.PI / 2) a -= Math.PI * 2;
-    S.aim = clamp(a, AIM_MIN, AIM_MAX);
+    t.aim = clamp(a, AIM_MIN, AIM_MAX);
   }
   cv.addEventListener('pointerdown', function (e) {
     if (S.mode !== 'play') return;
@@ -2591,16 +2711,16 @@
     var chip = callChipAt(toLogical(e));
     if (chip) { if (chip.kind === 'bomber') callStrike(); else callFighter(); e.preventDefault(); return; }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    aimAt(toLogical(e)); S.firing = true;
+    aimAt(toLogical(e)); gun().firing = true;
     // Touch (or a pen) on the page marks the run as touch on the board and in play stats; menus don't count.
     if (e.pointerType === 'touch' || e.pointerType === 'pen') { S.input = 'touch'; LBOARD.touched(); }
     e.preventDefault();
   });
   cv.addEventListener('pointermove', function (e) {
     if (S.mode !== 'play') return;
-    if (e.pointerType === 'mouse' || S.firing) aimAt(toLogical(e));
+    if (e.pointerType === 'mouse' || gun().firing) aimAt(toLogical(e));
   });
-  function stopFire() { S.firing = false; }
+  function stopFire() { gun().firing = false; }
   cv.addEventListener('pointerup', stopFire);
   cv.addEventListener('pointercancel', stopFire);
   cv.addEventListener('lostpointercapture', stopFire);
@@ -2636,11 +2756,14 @@
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = false;
     else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') keys.fire = false;
   });
-  window.addEventListener('blur', function () { keys.left = keys.right = keys.fire = false; S.firing = false; });
-  document.addEventListener('visibilitychange', function () { if (document.hidden && S.mode === 'play') togglePause(); });
+  // Leaving the window lets go of this device's controls only.
+  window.addEventListener('blur', function () { keys.left = keys.right = keys.fire = false; if (S.turrets) gun().firing = false; });
+  // A co-op guest leaving the page doesn't pause the host's game; its barrel just goes quiet (coop.js).
+  document.addEventListener('visibilitychange', function () { if (document.hidden && S.mode === 'play' && !(COOP && COOP.guest)) togglePause(); });
   window.addEventListener('resize', fit);
 
-  document.getElementById('continueBtn').addEventListener('click', continueWave);
+  // In co-op the next wave waits for both players' Ready (coop.js).
+  document.getElementById('continueBtn').addEventListener('click', function () { if (COOP && COOP.ready()) return; continueWave(); });
   document.getElementById('undoBtn').addEventListener('click', function () { SHOP.undo(); });
   document.getElementById('startBtn').addEventListener('click', newGame);
   document.getElementById('againBtn').addEventListener('click', newGame);
@@ -2720,8 +2843,11 @@
     last = now;
     boil = REDUCED ? 0 : Math.floor(now / 130) % 3;
     notePlayed(dt);
-    if (S.mode === 'play' || S.mode === 'dying') update(dt);
+    // A co-op guest draws the host's field instead of running the game (coop.js).
+    if (COOP && COOP.guest && COOP.guestFrame(dt, now)) { /* drawn from the host's field */ }
+    else if (S.mode === 'play' || S.mode === 'dying') update(dt);
     else if (S.mode === 'title' && !document.hidden) { update(dt); updateDemo(dt); }
+    if (COOP) { if (COOP.host) COOP.hostTick(now); COOP.tick(now); }
     render();
     syncCallBtns();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
@@ -2739,6 +2865,7 @@
   }
 
   start();
+  if (COOP) COOP.init();
   // The tuning UI and its bridge exist only in opt-in development mode.
   if (hashTokens().indexOf('tune') >= 0) {
     window.StickArmyTune = {
