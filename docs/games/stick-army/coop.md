@@ -2,7 +2,7 @@
 
 Two players defend one bunker over the internet, from a link: two barrels on the turret, one wall, one squad, one wallet.
 
-Status: being built (Oct 10; formerly SPEC-010). Builds on [the campaign](campaign.md) and uses rooms ([guide 05](../../guides/05-rooms.md)); current behavior is in [README.md](README.md).
+Status: built in round 18 (Oct 10; formerly SPEC-010), in one pull request with its four stages; it ships once it has worked on two real phones on different networks. The game as it is now is in [README.md](README.md#co-op-two-players-over-a-room). Builds on [the campaign](campaign.md) and uses rooms ([guide 05](../../guides/05-rooms.md)); current behavior is in [README.md](README.md).
 
 ## Why
 

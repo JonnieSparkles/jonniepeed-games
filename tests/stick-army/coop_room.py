@@ -69,7 +69,7 @@ with Phones() as phones:
     box = guest.locator('#game').bounding_box()
     guest.mouse.move(box['x'] + box['width'] * 0.8, box['y'] + box['height'] * 0.35)
     guest.mouse.down()
-    wait(host, "() => armyTest('S.turrets[1].firing && S.bullets.some(function (b) { return b.by === 1; })')")
+    wait(host, "() => armyTest('S.turrets[1].firing && S.bullets.some(function (b) { return b.gun === 1; })')")
     check(js(host, 'S.turrets[1].aim') > -1.4, "the guest's aim and trigger reach the host (aim %.2f)" % js(host, 'S.turrets[1].aim'))
     guest.mouse.up()
     wait(host, "() => !armyTest('S.turrets[1].firing')")
@@ -91,6 +91,25 @@ with Phones() as phones:
     wait(host, "() => armyTest('S.mode') === 'play'")
     wait(guest, "() => document.getElementById('pauseScreen').hidden")
     check(True, 'and resumes both')
+
+    # The supply table: the guest shops through the host; turret upgrades are each player's own, common ones shared.
+    js(host, 'S.coins = 600; openShop(); S.shop.items = ["spread", "sandbags", "pizza"].map(function (id) { return ITEMS.find(function (q) { return q.id === id; }); }); S.shop.gift = null; renderShop(); "ok"')
+    wait(guest, "() => !document.getElementById('shopScreen').hidden && document.querySelector('[data-item=\"spread\"]')")
+    check(True, "the guest sees the supply table")
+    guest.click('[data-item="spread"]')
+    wait(host, "() => armyTest('!!S.turrets[1].mods.spread && !S.turrets[0].mods.spread')")
+    check(True, "the guest's spread shot goes on the guest's barrel")
+    guest.click('[data-item="sandbags"]')
+    wait(host, "() => /comrade/.test(document.querySelector('[data-item=\"sandbags\"] em').textContent)")
+    check(host.is_enabled('[data-item="spread"]'), 'the host sees the sandbags chosen by the comrade, and can still buy spread for its own barrel')
+    wait(guest, "() => /Packed/.test(document.querySelector('[data-item=\"sandbags\"] em').textContent)")
+    host.click('#continueBtn')
+    wait(guest, "() => /Friend ✓/.test(document.getElementById('coopReady').textContent)")
+    check(js(host, 'S.mode') == 'shop', 'the host is ready; the wave waits for the guest, who sees it')
+    guest.click('#continueBtn')
+    wait(host, "() => armyTest('S.mode') === 'play'")
+    wait(guest, "() => document.getElementById('shopScreen').hidden")
+    check(True, "the guest's Ready starts the wave")
 
     # The guest reloads: it keeps its seat and draws again from a fresh field.
     guest.reload()
@@ -115,6 +134,12 @@ with Phones() as phones:
     host.context.set_offline(False)
     wait(guest, "() => document.getElementById('coopScreen').hidden", 20000)
     check(True, 'the host comes back and the guest plays on')
+
+    # The end: both players side by side on each card.
+    js(host, 'S.wallHP = 0; "ok"')
+    wait(host, "() => !document.getElementById('overScreen').hidden && document.getElementById('coopTable-over')", 10000)
+    wait(guest, "() => { const o = document.getElementById('coopScreen'); return !o.hidden && o.querySelector('.coop-table'); }", 10000)
+    check('You' in host.text_content('#coopTable-over') and 'Friend' in guest.text_content('#coopScreen .coop-table'), 'the end cards put the two players side by side')
 
     phones.check_no_errors()
     check(True, 'no page errors')

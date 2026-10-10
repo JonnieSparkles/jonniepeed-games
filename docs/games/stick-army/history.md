@@ -18,9 +18,17 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Two fighter-cover passes** (round 6): too strong. It makes one.
 - **Sandbags against the bunker's sides** (round 14): the crew standing there hid them. They're stacked across the front.
 - **Veteran's markup from wave 1** (round 17): a third on prices from the start hurt the opening, not the stacking (expert bots alive at wave 10 fell from 68% to 45%). It climbs from nothing to a third by wave 10.
+- **Co-op half again harder on every wave** (round 18): two decent bots fell sooner than one in solo early on, and two experts were far stronger from wave 12, once each barrel had its own spread and double barrel (alive at wave 15: 70% against solo's 30%). The extra now grows with the waves.
 - **A Veteran Dreadnought with a quarter more health, and spread shot doing nothing or half to it** (round 17): no expert bot that reached it won, where 4 of 8 did with spread shot at full damage; the health made no difference beside that. Its health is Soldier's, and side bullets do three quarters: the bots don't aim the middle bullet, and the Dreadnought is tuned by hand anyway (below).
 
 ## Why it's like this
+
+### Co-op
+
+- **The host runs the game** (round 18): every phone running the same game was ruled out because the logic's trigonometry can differ in the last digit between Safari and Chrome, and two copies would drift.
+- **The field is sent generally, not from a list** (round 18, the owner): everything in `S` but particles, so a new enemy reaches the guest with nothing to remember, and co-op can be taken back out as one file and its hooks.
+- **Turret upgrades are each player's own** (round 18, the owner): "each player should get own store options for turret choices". Common supplies stay common, shown to the other as chosen by the comrade; one wallet and one free pick for the team.
+- **Co-op ramps from ×1.2 to ×2 by wave 15, with a Dreadnought of twice the health** (round 18): two bots then fare about as one does in solo.
 
 ### Pace and difficulty
 

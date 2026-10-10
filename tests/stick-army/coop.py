@@ -91,7 +91,7 @@ with sync_playwright() as p:
             a, b = json.loads(same), json.loads(got)
             # The guest's own barrel is where its player has it, not where the host last heard.
             for t in (a.get('turrets') or []) + (b.get('turrets') or []):
-                if t.get('by') == 1:
+                if t.get('gun') == 1:
                     t.pop('aim', None); t.pop('firing', None)
 
             def untag(v):   # hidden list tags differ between encoders
@@ -129,7 +129,8 @@ with sync_playwright() as p:
       return d / n;
     }""", ['data:image/png;base64,' + __import__('base64').b64encode((SHOTS / 'host.png').read_bytes()).decode(),
            'data:image/png;base64,' + __import__('base64').b64encode((SHOTS / 'guest.png').read_bytes()).decode()])
-    check(diff < 0.02, 'the guest page draws what the host page draws (%.2f%% of pixels differ)' % (diff * 100))
+    # Each player sees their own combo and aim guide, and particles move on each page, so a little differs.
+    check(diff < 0.03, 'the guest page draws what the host page draws (%.2f%% of pixels differ)' % (diff * 100))
 
     # The guest's barrel: it turns at once on the guest and its aim and trigger reach the host.
     js(guest, 'keys.left = true; COOP.guestFrame(0.3, COOP.DELAY); keys.left = false; S.turrets[1].firing = true; COOP.guestFrame(0, COOP.DELAY); "ok"')

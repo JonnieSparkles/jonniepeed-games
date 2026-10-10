@@ -105,9 +105,11 @@ CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/coop.py
 CHROMIUM=/usr/bin/chromium python3 stats/test/games.py
-CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py             # these two also need a local rooms Worker (05: Rooms)
+CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py             # these three also need a local rooms Worker (05: Rooms)
 CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/coop_room.py
 ```
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army/README.md#validation-and-generated-assets).

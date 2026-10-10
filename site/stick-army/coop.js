@@ -275,6 +275,8 @@ window.StickArmyCoop = function (w) {
     if (j === 0 || at >= buf[buf.length - 1].h) view = lerp(null, buf[at >= buf[buf.length - 1].h ? buf.length - 1 : 0].s, 0);
     else view = lerp(buf[j - 1].s, buf[j].s, Math.max(0, Math.min(1, (at - buf[j - 1].h) / Math.max(1, buf[j].h - buf[j - 1].h))));
     view.parts = guest.parts;
+    // The shop's items travel as data; the guest's shop works with its own copies of them (same code, same list).
+    if (view.shop) ['items', 'hire'].forEach(function (k) { view.shop[k] = (view.shop[k] || []).map(function (e) { return w.ITEMS.find(function (q) { return q.id === e.id; }) || e; }); });
     if (view.turrets && view.turrets[me] && guest.aim != null) { view.turrets[me].aim = guest.aim; view.turrets[me].firing = guest.firing; }
     (view._tramps || []).forEach(function (dip, i) { if (w.TRAMPS[i]) w.TRAMPS[i].dip = dip; });
     w.setState(view);
@@ -287,6 +289,7 @@ window.StickArmyCoop = function (w) {
     w.S.texts = texts; w.S.tagPulse = pulse;
     if (view.mode === 'play') w.fadeInk(dt);
     guestScreens(view.mode);
+    guestShop(view);
     return true;
   }
   // What the guest sends: its barrel's aim (a) and whether the trigger is down (d). (The room adds f, the sender.)
@@ -319,6 +322,11 @@ window.StickArmyCoop = function (w) {
     '.coop-card .btn:disabled { opacity: .45; cursor: default; }',
     '.coop-card .nope { color: var(--enemy); }',
     '.coop-link { margin: 0; font-size: 15px; line-height: 1.2; color: var(--ink-soft); word-break: break-all; user-select: all; }',
+    '.coop-table { width: 100%; border-collapse: collapse; font-size: 19px; }',
+    '.coop-table th { font-weight: 400; text-align: right; }',
+    '.coop-table th.blue { color: var(--ally); } .coop-table th.red { color: var(--enemy); }',
+    '.coop-table td { color: var(--ink-soft); padding: 1px 0; } .coop-table td.n { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }',
+    '.coop-ready { margin: 0 8px 0 auto; align-self: center; font-size: 17px; color: var(--ink-soft); }',
     '.coop-status { position: absolute; left: 50%; top: 106px; transform: translateX(-50%) rotate(-1deg); margin: 0; padding: 2px 10px 3px; font: 17px var(--font-hand);',
     '  color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 12px 5px 12px 5px; pointer-events: none; white-space: nowrap; }'
   ].join('\n');
@@ -417,7 +425,11 @@ window.StickArmyCoop = function (w) {
     r.on('leave', function (seat) {
       if (role === 'host') {
         friend = false;
-        if (started) { var t = w.S.turrets && w.S.turrets[1]; if (t) t.firing = false; status('Your friend dropped out'); } else invite();
+        if (started) {
+          var t = w.S.turrets && w.S.turrets[1]; if (t) t.firing = false; status('Your friend dropped out');
+          // Waiting at the supply table for a friend who's gone: on without them.
+          if (w.S.mode === 'shop' && w.S.shop && w.S.shop.ready && w.S.shop.ready[0]) w.continueWave(); else if (w.S.mode === 'shop') w.renderShop();
+        } else invite();
       } else if (seat === HOST_SEAT) {
         if (started) { awaySince = now(); away(); }
         else showCard(['Waiting for your ', 'friend'], ['Your friend left. They can come back with the same link.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting');
@@ -440,6 +452,11 @@ window.StickArmyCoop = function (w) {
         else if (m.t === 'call' && w.S.mode === 'play') { if (m.k === 'bomber') w.callStrike(); else if (m.k === 'fighter') w.callFighter(); }
         else if (m.t === 'pause' && (w.S.mode === 'play' || w.S.mode === 'paused')) w.togglePause();
         else if (m.t === 'hi') resend();
+        else if (m.t === 'shop' && m.k && w.S.mode === 'shop') {
+          if (m.k.a === 'take') w.takeItem(String(m.k.id), 1);
+          else if (m.k.a === 'back') w.putBack(String(m.k.id), 1);
+          else if (m.k.a === 'undo') w.undo(1);
+        } else if (m.t === 'ready') markReady(1);
       } else if (from === HOST_SEAT) {
         var whole = joinPieces(m);
         if (!whole || whole.t !== 'f') return;
@@ -480,15 +497,89 @@ window.StickArmyCoop = function (w) {
     if (mode === shownMode) return;
     var sc = w.screens(), was = shownMode;
     shownMode = mode;
+    if (was === null) w.fit();   // the title's open notebook closes to the single page
     sc.pause.hidden = mode !== 'paused';
     if (mode === 'paused') w.fillPause();
     sc.pauseBtn.hidden = mode !== 'play';
-    if (mode === 'shop') showCard(['Field ', 'supplies'], ['Your friend is at the supply table.'], [], 'shop');
-    else if (mode === 'over' || mode === 'won') {
-      var S = w.S;
-      showCard(mode === 'won' ? ['The page is ', 'yours!'] : ['Wall ', 'down!'], ['Score: ' + Number(S.score).toLocaleString('en-US') + ', wave ' + S.wave + '.', 'Waiting for your friend to play again.'],
+    if (mode === 'over' || mode === 'won') {
+      var S = w.S, big = el('p', 'big-score', Number(S.score).toLocaleString('en-US'));
+      showCard(mode === 'won' ? ['The page is ', 'yours!'] : ['Wall ', 'down!'], [big, 'Wave ' + S.wave + ' together.', sideBySide(S), 'Waiting for your friend to play again.'],
         [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'end');
-    } else if (was === 'shop' || was === 'over' || was === 'won') { if (ui && (ui.kind === 'shop' || ui.kind === 'end')) hideCard(); }
+    } else if (was === 'over' || was === 'won') { if (ui && ui.kind === 'end') hideCard(); }
+  }
+  // The two players side by side: points, planes, catches and Red Cross planes hit, in their barrels' colors.
+  var ROWS = [['Points', 'score'], ['Planes', 'planes'], ['Captured', 'captured'], ['Red Cross', 'redCross']];
+  function sideBySide(S) {
+    var t = el('table', 'coop-table'), me = w.me, head = el('tr');
+    head.appendChild(el('th'));
+    [0, 1].forEach(function (i) { var th = el('th', i ? 'red' : 'blue', i === me ? 'You' : 'Friend'); head.appendChild(th); });
+    t.appendChild(head);
+    ROWS.forEach(function (r) {
+      if (r[1] === 'redCross' && !(S.players[0].redCross || S.players[1].redCross)) return;
+      var tr = el('tr'); tr.appendChild(el('td', null, r[0]));
+      [0, 1].forEach(function (i) { tr.appendChild(el('td', 'n', Number(S.players[i][r[1]] || 0).toLocaleString('en-US'))); });
+      t.appendChild(tr);
+    });
+    return t;
+  }
+  // The guest's supply table: the host's shop, drawn here and redrawn when it changes; taps go to the host (shop.js).
+  // A tap held on the shop holds back redrawing, so a button isn't replaced between finger down and up (no click).
+  var shopShown = '', pressing = false, pressHooked = false;
+  function guestShop(S) {
+    var sc = w.screens();
+    if (!pressHooked) {
+      pressHooked = true;
+      sc.shop.addEventListener('pointerdown', function () { pressing = true; }, true);
+      ['pointerup', 'pointercancel'].forEach(function (n) { addEventListener(n, function () { setTimeout(function () { pressing = false; }, 0); }, true); });
+    }
+    if (S.mode !== 'shop' || !S.shop) { if (shopShown) { sc.shop.hidden = true; shopShown = ''; } return; }
+    if (pressing) return;
+    var key = JSON.stringify([S.coins, S.wave, S.wallHP, S.pizzaOrder, S.calls, S.mods, S.turrets.map(function (t) { return t.mods; }), S.recruits.length, S.bed && S.bed.r && S.bed.r.id,
+      S.shop.bought, S.shop.log, S.shop.giftTaken, S.shop.who, S.shop.ready, friend]);
+    if (key === shopShown) return;
+    var first = !shopShown;
+    shopShown = key;
+    sc.shop.hidden = false;
+    w.renderShop();
+    if (first) { sc.shop.scrollTop = 0; var stock = sc.shop.querySelector('.shop-stock'); if (stock) stock.scrollTop = 0; }
+  }
+  // Ready: the next wave waits for both players at the supply table (game.js asks before continuing).
+  function ready() {
+    if (guest) { ask('ready'); return true; }
+    if (!host || !w.S.players || w.S.mode !== 'shop' || !w.S.shop) return false;
+    markReady(0);
+    return true;
+  }
+  function markReady(i) {
+    var S = w.S;
+    if (!host || S.mode !== 'shop' || !S.shop) return;
+    S.shop.ready = S.shop.ready || {};
+    S.shop.ready[i] = true;
+    if (S.shop.ready[0] && (S.shop.ready[1] || !friend)) w.continueWave(); else w.renderShop();
+  }
+  // After the shop draws: Ready instead of Continue, and who's ready.
+  function afterShop() {
+    var S = w.S, btn = document.getElementById('continueBtn');
+    if (!S.players || !S.shop || !btn) return;
+    var r = S.shop.ready || {}, me = w.me, other = 1 - me, line = document.getElementById('coopReady');
+    if (!line) { line = el('p', 'coop-ready'); line.id = 'coopReady'; line.setAttribute('role', 'status'); btn.parentNode.insertBefore(line, btn); }
+    btn.textContent = r[me] ? 'Ready ✓' : 'Ready for wave ' + (S.wave + 1);
+    var away = role === 'host' && !friend;
+    line.textContent = (r[me] ? 'You ✓' : 'You …') + ' · ' + (away ? 'Friend away' : r[other] ? 'Friend ✓' : 'Friend …');
+  }
+  w.afterShop = afterShop;
+  // The host's own end cards get the two players side by side under the score.
+  var endShown = null;
+  function hostEnd() {
+    var S = w.S, mode = S.mode;
+    if (mode === endShown) return;
+    endShown = mode;
+    ['over', 'win'].forEach(function (k) { var old = document.getElementById('coopTable-' + k); if (old) old.remove(); });
+    if (!S.players || (mode !== 'over' && mode !== 'won')) return;
+    var card = (mode === 'won' ? w.screens().win : w.screens().over).querySelector('.big-score');
+    if (!card) return;
+    var t = sideBySide(S); t.id = 'coopTable-' + (mode === 'won' ? 'win' : 'over');
+    card.parentNode.insertBefore(t, card.nextSibling);
   }
   // Each frame: the guest's aim to the host, the host letting go of a silent guest's trigger, the status line.
   function tick(t) {
@@ -501,7 +592,7 @@ window.StickArmyCoop = function (w) {
         if ((changed && t - sentInAt >= IN_EVERY) || t - sentInAt >= IN_BEAT) { if (room.send(m)) { sentIn = m; sentInAt = t; } }
       }
     }
-    if (host) { var g = w.S.turrets && w.S.turrets[1]; if (g && g.firing && t - lastIn > IN_LOST) g.firing = false; }
+    if (host) { var g = w.S.turrets && w.S.turrets[1]; if (g && g.firing && t - lastIn > IN_LOST) g.firing = false; hostEnd(); }
   }
 
   // Opened from a friend's link: join it. A host whose page reloaded comes back as the host, with the link card.
@@ -521,7 +612,7 @@ window.StickArmyCoop = function (w) {
     Encoder: Encoder, Decoder: Decoder, lerp: lerp, LEAVE: LEAVE, EVERY: EVERY, DELAY: DELAY, pieces: pieces, Joiner: Joiner,
     startHost: startHost, stopHost: stopHost, resend: resend, fx: fx, hostTick: hostTick, hostInput: hostInput,
     startGuest: startGuest, stopGuest: stopGuest, receive: receive, guestFrame: guestFrame, guestInput: guestInput,
-    init: init, tick: tick, ask: ask, startMatch: startMatch, get room() { return room; }, get role() { return role; },
+    init: init, tick: tick, ask: ask, ready: ready, startMatch: startMatch, get room() { return room; }, get role() { return role; },
     get host() { return !!host; }, get guest() { return !!guest; }
   };
 };
