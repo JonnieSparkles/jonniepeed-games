@@ -1723,22 +1723,27 @@
     var x = r.x, y = GROUND - 33, moving = Math.abs(r.x - r.tx) > 0.8, side = r.homeX < 200 ? 1 : -1;
     var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE;
     var ca = Math.cos(r.aim), sa = Math.sin(r.aim), pose, tool = null, s;
+    // Everyone not busy salutes the flag (repairing, healing and fetching carry on).
+    var saluting = !moving && S.saluteT > 0 && r.role !== 'repair' && r.role !== 'heal' && r.role !== 'fetch';
     if (moving) { s = Math.sin(r.walk); pose = [-s * 5, 19, s * 5, 19, s * 6, 33, -s * 6, 33]; }
     else if (r.role === 'repair') {
       s = Math.sin(S.t * 12 + r.id);
       var hx = side * (8 + s * 2), hy = 7 + s * 5;
       pose = [hx, hy, side * 3, 18, -5, 33, 5, 33]; tool = { hx: x + hx, hy: y + hy, idle: false };
-    } else if (S.saluteT > 0 && r.role === 'shoot') { pose = [side * 3, 1, -side * 5, 19, -5, 33, 5, 33]; }
+    } else if (saluting) { pose = [side * 10, 6, -side * 4, 20, -2, 33, 2, 33]; }
     else if (r.type === 'engineer') { pose = [7, 17, -6, 19, -5, 33, 5, 33]; tool = { hx: x + 7, hy: y + 17, idle: true }; }
     else pose = [ca * 9, 9.5 + sa * 9, ca * 15, 9.5 + sa * 15, -5, 33, 5, 33];
-    // Saluting the flag (FLAG): the hand at the brow, the weapon held at the side.
-    var saluting = !moving && S.saluteT > 0 && r.role === 'shoot';
+    // Saluting the flag (FLAG), at attention: heels together, the elbow out and the hand at the brow (the forearm drawn
+    // below), the weapon upright at the other side.
     var aiming = !moving && r.role === 'shoot' && !saluting;
     if (r.type === 'bazooka') { if (aiming) tube(x - ca * 9, y + 8 - sa * 9, x + ca * 16, y + 8 + sa * 16); else tube(x - 9, y + 19, x + 8, y + 5); }
     stick(x, y, pose, col);
+    if (saluting) { G.beginPath(); L(x + side * 10, y + 6, x + side * 6, y - 4, 0.2); L(x + side * 6, y - 4, x + side * 1, y - 5, 0.2); ink(col, 2.4); G.stroke(); }
     if (r.type === 'rifle') {
       G.beginPath();
-      if (aiming) L(x + ca * 4, y + 9.5 + sa * 4, x + ca * 20, y + 9.5 + sa * 20, 0.3); else L(x - 7, y + 17, x + 7, y + 8, 0.4);
+      if (aiming) L(x + ca * 4, y + 9.5 + sa * 4, x + ca * 20, y + 9.5 + sa * 20, 0.3);
+      else if (saluting) L(x - side * 6, y + 4, x - side * 6, y + 28, 0.2);
+      else L(x - 7, y + 17, x + 7, y + 8, 0.4);
       ink(INK, aiming ? 2.6 : 2); G.stroke();
     }
     if (tool) hammer(tool.hx, tool.hy, side, tool.idle);
@@ -1944,7 +1949,7 @@
   // then on the squad salutes it at every wave start (S.saluteT). It stands at the bunker's left back corner and flies
   // left (DIR) over the squad, clear of the turret and the sentry gun on the right, and nothing targets it. Sold from
   // wave FROM (shop.js).
-  var FLAG = { FIRE: 0.96, FROM: 8, X: 170, DIR: -1, TALL: 118, W: 44, H: 28, SKETCH: 0.6, PAUSE: 0.35, HOIST: 1.6, SALUTE: 1.4 };
+  var FLAG = { FIRE: 0.96, FROM: 8, X: 170, DIR: -1, TALL: 118, W: 44, H: 28, SKETCH: 0.6, PAUSE: 0.35, HOIST: 1.6, SALUTE: 2 };
   world.FLAG = FLAG;
   function openWave(n) {
     if (S.mods.flag && S.flagUp < 1) { S.waveState = 'flag'; S.nextWave = n; S.flagT = 0; S.flagUp = 0; sound.play('scribble'); }
