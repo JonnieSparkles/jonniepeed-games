@@ -850,8 +850,9 @@
   world.HAND = HAND; world.DISPLAY = DISPLAY; world.TENT = SQUAD.TENT; world.SQUAD = SQUAD; world.load = load; world.save = save; world.clock = clock;
   world.recruitDie = function (r, cause) { recruitDie(r, cause); }; world.hurtWall = hurtWall; world.wallText = function (n) { wallText(n); };
   world.openShop = function () { openShop(); }; world.hidePause = function () { pauseBtn.hidden = true; };
-  world.saveBest = function () { if (S.score <= best) return false; best = S.score; save(lv().KEYS.best, best); return true; };
-  world.saveBestWave = function (n) { if (n > load(lv().KEYS.wave, 0)) save(lv().KEYS.wave, n); };
+  // Records are solo's: a co-op run (S.players) never writes them.
+  world.saveBest = function () { if (S.players || S.score <= best) return false; best = S.score; save(lv().KEYS.best, best); return true; };
+  world.saveBestWave = function (n) { if (!S.players && n > load(lv().KEYS.wave, 0)) save(lv().KEYS.wave, n); };
   world.lv = lv; world.LEVELS = LEVELS;
   Object.defineProperty(world, 'SENTRY', { get: function () { return SENTRY; } });
   var CAMPAIGN = StickArmyCampaign(world), DREAD = CAMPAIGN.DREAD, isDreadWave = CAMPAIGN.isDreadWave, spawnDread = CAMPAIGN.spawnDread,
@@ -2591,7 +2592,8 @@
     S.mode = 'over';
     showRedCross('st');
     if (statsRun) { PlayStats.end(statsRun, runReport()); statsRun = null; }
-    var isBest = S.score > best;
+    // Co-op runs leave this device's records alone: different difficulty, two guns (coop.md).
+    var isBest = !S.players && S.score > best;
     if (isBest) { best = S.score; save(lv().KEYS.best, best); }
     document.getElementById('overScore').textContent = S.score.toLocaleString('en-US');
     document.getElementById('newBest').hidden = !isBest || S.score === 0;

@@ -73,6 +73,15 @@
     var so = waveCfg(12);
     check(co.planes === Math.round(so.planes * coopMore(12)) && co.bombers === Math.round(so.bombers * coopMore(12)) && coopMore(1) < coopMore(12) && dreadCo === lv().DREAD * COOP_HARD.DREAD, 'co-op waves are harder, more so later');
 
+    // Co-op runs leave this device's records alone (best score, best wave, wins).
+    var K = LEVELS.soldier.KEYS, rec = function () { return [load(K.best, 0), load(K.wave, 0), load(K.wins, 0)].join(); }, before = rec(), bestWas = best;
+    level = 'soldier'; RUN.players = 2; RUN.force = 35; newGame();
+    S.score = 9e8; S.wave = 99; showOver();
+    check(rec() === before && best === bestWas && document.getElementById('newBest').hidden, 'a co-op game over writes no record');
+    newGame(); S.score = 9e8; S.wave = 20; showWin();
+    check(rec() === before && /together/.test(document.getElementById('winCount').textContent), 'a co-op win isn\'t counted, and says so');
+    winScreen.hidden = true; overScreen.hidden = true;
+
     // The shop: turret upgrades per barrel, common items once, Ready from both.
     RUN.players = 2; RUN.force = 33; newGame(); S.coins = 999;
     var spread = ITEMS.find(function (it) { return it.id === 'spread'; }), sand = ITEMS.find(function (it) { return it.id === 'sandbags'; });

@@ -141,6 +141,17 @@ with Phones() as phones:
     wait(host, "() => armyTest('S.mode') === 'play'", 10000)
     check(True, 'the host comes back, its game plays on and the guest with it')
 
+    # A host back after the guest has called the match over: the guest rejoins its game. (The host plays on unseen
+    # for the 8-10 s its connection takes to notice it's gone, so the wall is made to last through it.)
+    js(host, 'S.mods.maxHP = S.wallHP = 1e6; "ok"')
+    js(guest, 'COOP.TIMING.AWAY_END = 1; "ok"')
+    host.context.set_offline(True)
+    wait(guest, "() => { const o = document.getElementById('coopScreen'); return !o.hidden && /match is/.test(o.textContent); }", 20000)
+    host.context.set_offline(False)
+    wait(guest, "() => document.getElementById('coopScreen').hidden && armyTest('COOP.guest && S.mode === \"play\"')", 25000)
+    wait(host, "() => armyTest('S.mode') === 'play'", 10000)
+    check(True, 'a host back after the match was called over: the guest rejoins its game')
+
     # The end: both players side by side on each card.
     js(host, 'S.wallHP = 0; "ok"')
     wait(host, "() => !document.getElementById('overScreen').hidden && document.getElementById('coopTable-over')", 10000)

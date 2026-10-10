@@ -300,7 +300,8 @@ window.StickArmyCoop = function (w) {
   // rooms secret, opens a room and shows the link; a friend opening the link waits on the title until the host taps
   // Start. If the guest drops, its barrel goes quiet and play goes on; if the host drops, the guest waits AWAY_END
   // seconds for it to come back, then the match is over.
-  var GAME = 'stick-army', HOST_SEAT = 1, AWAY_END = 60;
+  // TIMING.AWAY_END: seconds a guest waits for its host before calling the match over (tests shorten it).
+  var GAME = 'stick-army', HOST_SEAT = 1, TIMING = { AWAY_END: 60 };
   // The guest sends its aim when it changes, at most every IN_EVERY ms, and at least every IN_BEAT ms; the host lets
   // go of the guest's trigger after IN_LOST ms without word (a phone gone to sleep mid-burst).
   var IN_EVERY = 50, IN_BEAT = 400, IN_LOST = 1200;
@@ -420,7 +421,7 @@ window.StickArmyCoop = function (w) {
     });
     r.on('join', function (seat) {
       if (role === 'host') { friend = true; if (started) { resend(); flash('Your friend is back'); } else invite(); }
-      else if (seat === HOST_SEAT) { awaySince = 0; if (ui && ui.kind === 'away') hideCard(); status(''); ask('hi'); }
+      else if (seat === HOST_SEAT) { awaySince = 0; if (ui && (ui.kind === 'away' || ui.kind === 'ended')) hideCard(); status(''); ask('hi'); }
     });
     r.on('leave', function (seat) {
       if (role === 'host') {
@@ -475,11 +476,12 @@ window.StickArmyCoop = function (w) {
   function flash(text) { status(text); flashT = now() + 2000; }
   function leaveToTitle() { leaveRoom(); forget(); location.reload(); }
   function away() {
-    var left = Math.max(0, Math.ceil(AWAY_END - (now() - awaySince) / 1000));
+    var left = Math.max(0, Math.ceil(TIMING.AWAY_END - (now() - awaySince) / 1000));
     if (left <= 0) {
+      // Still in the room: if the host does come back, its game resumes and this guest rejoins it (join, below).
       var S = w.S;
-      showCard(['The match is ', 'over'], ['Your friend didn\'t come back.', S && S.score != null ? 'Score: ' + Number(S.score).toLocaleString('en-US') + ', wave ' + S.wave + '.' : ''],
-        [{ label: 'Back to the title', fn: leaveToTitle }], 'ended');
+      showCard(['The match is ', 'over'], ['Your friend didn\'t come back.', S && S.score != null ? 'Score: ' + Number(S.score).toLocaleString('en-US') + ', wave ' + S.wave + '.' : '',
+        "If they do, you'll rejoin."], [{ label: 'Back to the title', fn: leaveToTitle }], 'ended');
       awaySince = 0;
       return;
     }
@@ -619,7 +621,7 @@ window.StickArmyCoop = function (w) {
     Encoder: Encoder, Decoder: Decoder, lerp: lerp, LEAVE: LEAVE, EVERY: EVERY, DELAY: DELAY, pieces: pieces, Joiner: Joiner,
     startHost: startHost, stopHost: stopHost, resend: resend, fx: fx, hostTick: hostTick, hostInput: hostInput,
     startGuest: startGuest, stopGuest: stopGuest, receive: receive, guestFrame: guestFrame, guestInput: guestInput,
-    init: init, tick: tick, ask: ask, ready: ready, startMatch: startMatch, get room() { return room; }, get role() { return role; },
+    init: init, tick: tick, ask: ask, ready: ready, startMatch: startMatch, TIMING: TIMING, get room() { return room; }, get role() { return role; },
     get host() { return !!host; }, get guest() { return !!guest; }
   };
 };
