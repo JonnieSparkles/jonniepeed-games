@@ -72,7 +72,7 @@ What the dashboard page says tells you where it's stuck:
 
 Only changes in `stats/` need a Worker deploy: `games.json` (including switching a game on or off) or `src/`. Changing which stats a game sends is a site change only. When a change touches both, the Worker goes live on merge and the games with the next Pages deploy, which is the right order.
 
-- **Automatic:** merging a change to `stats/` into `main` runs **Deploy Play Stats Worker** by itself. It's the only automatic deploy in the repo (Pages and the leaderboard Worker stay manual). It runs the Access check test, refuses to deploy while the database ID is still the placeholder, deploys from `stats/` with the pinned Wrangler version, then runs the smoke test against the live Worker (test rows only). If it fails, the old Worker keeps running; check the Actions tab.
+- **Automatic:** merging a change to `stats/` into `main` runs **Deploy Play Stats Worker** by itself. The rooms Worker deploys the same way; Pages and the leaderboard Worker stay manual. It runs the Access check test, refuses to deploy while the database ID is still the placeholder, deploys from `stats/` with the pinned Wrangler version, then runs the smoke test against the live Worker (test rows only). If it fails, the old Worker keeps running; check the Actions tab.
 - **By hand:** Actions tab → **Deploy Play Stats Worker** → Run workflow, for a redeploy without a change.
 - **Terminal:** `wrangler deploy` from `stats/`.
 
