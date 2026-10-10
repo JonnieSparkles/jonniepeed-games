@@ -52,8 +52,9 @@
   const b = R.boss; check(b.st === 'fight', 'the fight is on');
   check(R.events.said.wake, 'Unruggabull answers its opening line');
   b.hp = 20; R.pull.next = 1e9; b.atk = 1e9; b.dark = null; update(1 / 60); b.dark = null; R.fx = [];
-  for (let i = 0; i < 120; i++) { b.atk = 1e9; update(1 / 60); }
-  check(R.fx.some(f => f.k === 'smoke'), 'it smokes when it has taken a beating');
+  let smoked = false;
+  for (let i = 0; i < 120; i++) { b.atk = 1e9; update(1 / 60); smoked = smoked || R.fx.some(f => f.k === 'smoke'); }
+  check(smoked, 'it smokes when it has taken a beating');
   draw();
 
   // rugged: rolled up in a rug, and a muffled line from inside

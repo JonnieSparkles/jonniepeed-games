@@ -36,7 +36,7 @@
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
     charges: 20, recharge: .5, // the blaster holds 20 shots and gets one back every half second, like the first game's
     spreadT: 10, coffeeDrop: .2, rowH: .055,
-    slashT: .2, slashCd: .32, slashReach: .24, slashWide: .34, deflectWindow: .16,
+    slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
     hurtInv: 1.7,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, recover: .5, mouth: .85,
@@ -66,6 +66,7 @@
     // speed for this long, shoving anyone on it to the back of the hall and pinning them; the rewind attack rolls it back too
     surgeFly: .6, roll: { dur: 1.6, speed: .5, pin: .3 }, rewindT: 1.4,
     darkFormEvery: 2.2,     // lights out sends a formation this often
+    switchEvery: 3, switchFlash: 1.4,   // lights out: a light switch glows on a wall this often; shoot it and the lights flash on this long, freezing every carpshit
     crouchH: .1, grip: .25, // crouched he's half height; gripping a pulling rug, it drags him at a quarter of the speed
     planeT: 1.6, planeDmg: 2,  // the Shredder's paper airplanes at head height: duck them, or slash them back
     wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
@@ -144,8 +145,11 @@
       R.cubs.push(cb);
     }
   }
+  // a light switch on the wall in lights out, about chest height
+  const switchAt = sw => ({ u: sw.s * .9, z: sw.w - R.dist, h: .32 });
   // Where a target is, for aiming and hits. Temps live behind their station.
   function posOf(o) {
+    if (o.sw) return switchAt(o);
     if (o.cub) return { u: o.cub.s * .8, z: cubZ(o.cub) + .06, h: o.cub.top - .07 + o.pop * .17 };
     return o;
   }
@@ -213,7 +217,7 @@
       bark('move');
     } else {
       // carpshits come out of the dark, only their eyes showing; everything freed in the dark counts double
-      R.event.nextFly = 1.2; R.event.nextForm = TUNE.darkFormEvery; R.event.formN = 0;
+      R.event.nextFly = 1.2; R.event.nextForm = TUNE.darkFormEvery; R.event.formN = 0; R.event.nextSwitch = 1.6; R.event.flash = 0; R.switches = [];
       addSign(.75, 'LIGHTS OUT ×2', 'neon');
       Snd.play('dark'); Snd.music('dark'); live('Lights out. Souls freed in the dark count double.');
       bark('dark');
@@ -260,6 +264,12 @@
         E.nextForm -= dt;
         if (E.nextForm <= 0 && E.t < E.dur - 2.5) { spawnFormation(['v', 'line', 'snake'][E.formN++ % 3]); E.nextForm = TUNE.darkFormEvery; }
       }
+      if (E.kind === 'dark') {
+        // light switches glow on the walls; shoot one and the lights flash on, freezing every carpshit in the hall
+        E.nextSwitch -= dt; E.flash = Math.max(0, E.flash - dt);
+        if (E.nextSwitch <= 0 && E.t < E.dur - 2) { R.switches.push({ w: R.dist + 1.02, s: rnd() < .5 ? -1 : 1, hit: false, sw: true }); E.nextSwitch = TUNE.switchEvery; }
+        R.switches = R.switches.filter(sw => sw.w - R.dist > .05 && !sw.hit);
+      }
       if (E.kind === 'move') updateMove(E, dt);
       if (E.t >= E.dur) {
         if (E.kind === 'dark') Snd.play('lights');
@@ -268,7 +278,7 @@
           for (let i = 0; i < TUNE.moveClean; i++) free(PX(bull.u, bull.bz) + fxr(-12, 12), YH(bull.bz, .3) + fxr(-6, 6), 'move', 'clean');
           R.fx.push({ k: 'big', text: 'NOT A SCRATCH +' + TUNE.moveClean, x: 120, y: 44, t: 0, dur: 1.3 }); Snd.play('wipe');
         }
-        R.event = null; R.beat++; R.beatT = 0;
+        R.event = null; R.beat++; R.beatT = 0; R.switches = [];
         addSign(1, beat().sign);
         if (beat().pulls) { bark('copy'); R.copyAt = R.souls; }
         Snd.music(beat().music);
@@ -340,18 +350,25 @@
       // a beam hangs from the ceiling: duck under it; everything else rolls along the floor: jump it
       if (row.kind === 'beam' && z < .6) duckHint();
       const hits = row.kind === 'beam' ? !bull.crouch : bull.jh < TUNE.rowH;
-      if (Math.abs(z - bull.bz) < .02 && hits && hurtBull(1, row.kind)) { row.hit = .001; R.events.rowHits = (R.events.rowHits || 0) + 1; obHit(row.ob); }
+      if (Math.abs(z - bull.bz) < .02 && hits && knock(row.ob, row.kind)) { row.hit = .001; R.events.rowHits = (R.events.rowHits || 0) + 1; obHit(row.ob); }
     }
     R.rows = R.rows.filter(row => row.w - R.dist > ZN && row.hit < .6);
   }
   const BOX_H = .06;
   // a moving-day obstacle that hits you: no soul for it, and the run isn't clean
   function obHit(ob) { if (!ob) return; ob.hit = true; if (R.event && R.event.kind === 'move') R.event.clean = false; }
+  // on moving day furniture doesn't hurt: he bumps it and staggers (no heart), and loses that piece's soul
+  function bump(ob) {
+    if (bull.inv > 0) return false;
+    bull.inv = .5; bull.stag = .3; R.shake = Math.max(R.shake, .12); Snd.play('thump'); obHit(ob);
+    return true;
+  }
+  const knock = (ob, cause) => ob ? bump(ob) : hurtBull(1, cause);
   function updateBoxes(dt) {
     for (const bx of R.boxes) {
       const z = bx.w - R.dist;
       if (bx.hit) { bx.hit += dt; continue; }
-      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && (bx.tall || bull.jh < BOX_H) && hurtBull(1, 'box')) { bx.hit = .001; obHit(bx.ob); }
+      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && (bx.tall || bull.jh < BOX_H) && knock(bx.ob, 'box')) { bx.hit = .001; obHit(bx.ob); }
     }
     R.boxes = R.boxes.filter(bx => bx.w - R.dist > ZN && bx.hit < .5);
   }
@@ -377,7 +394,9 @@
     R.signs = R.signs.filter(sg => sg.w - R.dist > ZN);
   }
   function updateFlies(dt) {
+    const frozen = R.event && R.event.kind === 'dark' && R.event.flash > 0;
     for (const f of R.flies) {
+      if (frozen && !f.dead) { f.hit = Math.max(0, f.hit - dt); continue; }   // caught in the light: frozen
       if (f.form) {
         // formations keep their shape instead of chasing you
         f.z -= (.3 + R.speed * .4) * dt;
@@ -416,6 +435,8 @@
   // A deflect sends the paper back where it came from and gives the blaster charges back.
   function deflect(p) {
     p.friendly = true;
+    // a bright cut from his blade to the paper, so a deflect at arm's length reads as reached
+    const m = muzzleXY(); R.fx.push({ k: 'cut', x0: m.x - 4, y0: m.y + 6, x1: PX(p.u, p.z), y1: YH(p.z, p.h), t: 0, dur: .12 });
     // in the fight, paper knocked back from close to the mouth hits harder, up to double
     p.power = R.phase === 'boss' ? 1 + clamp(bull.bz / TUNE.mouth, 0, 1) : 1;
     let to = { u: 0, z: .98, h: .12 };
@@ -561,6 +582,7 @@
     const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < .97 && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
     for (const cb of R.cubs) if (cb.temp && !cb.temp.dead && cb.temp.pop > .3) consider(cb.temp, posOf(cb.temp), TUNE.aimCone);
     for (const f of R.flies) consider(f, f, .3);
+    for (const sw of R.switches || []) consider(sw, switchAt(sw), .5);
     // bolts leave the muzzle of the blaster he holds up beside his head
     const mu = bull.u + A.MUZZLE.x / HW, mh = bull.jh - A.MUZZLE.y / (FN - CN);
     const shot = du => R.shots.push({ u: mu, z: bull.bz + .03, h: mh, du, tgt: du ? null : best, dead: false, spread: !!du });
@@ -576,10 +598,16 @@
     return true;
   }
   function sparks(u, z, h, col) { R.fx.push({ k: 'spark', x: PX(u, z), y: YH(z, h), s: Math.max(.5, sc(z)), col: col || '#ffd44a', t: 0, dur: .22, a: Math.random() * 6 }); }
+  // a light switch on the wall, about chest height
+  function hitSwitch(sw) {
+    sw.hit = true; R.event.flash = TUNE.switchFlash;
+    Snd.play('lights'); Snd.play('wipe'); R.white = Math.max(R.white || 0, .06); emit('switch');
+    R.events.switches = (R.events.switches || 0) + 1;
+  }
   function updateShots(dt) {
     for (const s of R.shots) {
       s.z += TUNE.shotSpeed * dt; s.u += (s.du || 0) * dt;
-      if (s.tgt && !s.tgt.dead) {
+      if (s.tgt && !s.tgt.dead && !(s.tgt.sw && s.tgt.hit)) {
         const at = posOf(s.tgt), k = Math.min(1, TUNE.shotSpeed * dt / Math.max(.04, at.z - s.z));
         s.u += (at.u - s.u) * k; s.h += (at.h - s.h) * k;
       }
@@ -588,6 +616,8 @@
         const at = posOf(tp);
         if (Math.abs(s.u - at.u) < .09 && Math.abs(s.z - at.z) < .06) { s.dead = true; sparks(at.u, at.z, at.h); killTemp(tp, 'shot'); break; }
       }
+      if (s.dead) continue;
+      for (const sw of R.switches || []) { const at = switchAt(sw); if (!sw.hit && Math.abs(s.z - at.z) < .07 && Math.abs(s.u - at.u) < .2) { s.dead = true; hitSwitch(sw); break; } }
       if (s.dead) continue;
       for (const f of R.flies) {
         if (f.dead || Math.abs(s.u - f.u) > .11 || Math.abs(s.z - f.z) > .06) continue;
@@ -718,6 +748,8 @@
   // now it's a volley match until a smash rolls the rug back with the blaster on it.
   function surge() {
     shove(10);
+    // the cause, plainly: a bolt of blue lightning from its eyes to the blaster in his hand
+    const m = muzzleXY(); R.fx.push({ k: 'bolt', x0: 120, y0: BACK.y0 + 19, x1: m.x, y1: m.y, t: 0, dur: .4 });
     const pk = { kind: 'blaster', w: R.dist + rr(.55, .7), u: rr(-.12, .12), h: 0, t: 0, still: true, rug: true };
     R.armed = false; R.shake = .3; R.zap = .3; R.boss.spit = .3;
     R.pickups.push(pk);
@@ -822,7 +854,16 @@
   // Its body is a spring: it lunges at you when it spits or laughs, leans back before an attack, and recoils when hit.
   function shove(v) { R.boss.pushV = (R.boss.pushV || 0) + v; }
   function laugh() { const b = R.boss; if (b.st !== 'fight') return; b.laugh = 1.1; shove(8); }
+  // a power surge is coming: its eyes charge blue and crackle first, so losing the blaster has a visible cause
+  function surgeSoon() {
+    const b = R.boss;
+    if (b.st !== 'fight' || R.armed === false) return false;
+    if (b.surgeAt > 0 && b.surgeAt < .9) return true;
+    const list = ATTACKS[b.ph - 1];
+    return b.rev > 0 && list[b.atkN % list.length] === 'surge';
+  }
   function updateBody(dt) {
+    if (surgeSoon() && Math.random() < dt * 30) R.fx.push({ k: 'spark', x: (Math.random() < .5 ? 109 : 130) + fxr(-4, 4), y: BACK.y0 + 18 + fxr(-3, 3), s: .7, col: Math.random() < .5 ? '#7fd4ff' : '#ffffff', t: 0, dur: .18, a: Math.random() * 6 });
     const b = R.boss;
     b.push = b.push || 0; b.pushV = b.pushV || 0;
     b.pushV += (-70 * b.push - 9 * b.pushV) * dt; b.push += b.pushV * dt;
@@ -845,7 +886,7 @@
       if (b.dark.t >= b.dark.dur) { b.dark = null; Snd.play('lights'); if (b.st === 'fight') Snd.music('shred'); }
     }
     if (b.st !== 'fight') return;
-    if (b.surgeAt > 0 && b.jam <= 0) { b.surgeAt -= dt; if (b.surgeAt <= 0 && R.armed !== false) surge(); }
+    if (b.surgeAt > 0 && b.jam <= 0) { const was = b.surgeAt; b.surgeAt -= dt; if (was >= .9 && b.surgeAt < .9 && R.armed !== false) Snd.play('rev'); if (b.surgeAt <= 0 && R.armed !== false) surge(); }
     const ph = b.hp > 66 ? 1 : b.hp > 33 ? 2 : 3;
     if (ph !== b.ph) {
       b.ph = ph; b.atk = 1.6; b.atkN = 0; b.volley = null; b.marathonDone = false;
@@ -925,6 +966,8 @@
     if (H.endT && H.t >= H.endT) {
       // back to normal, one stream at a time, without a sound
       H.streams--; H.endT = H.t + T.fade;
+      // the soul that made that stream leaves the gun and goes back to the counter
+      const m = muzzleXY(); R.fx.push({ k: 'wisp', x: m.x, y: m.y, sx: m.x, sy: m.y, t: 0, dur: 1.2, dx: fxr(-14, 14) });
       if (H.streams <= 1) R.hint = null;
     }
   }
@@ -1300,7 +1343,7 @@
       rect(g, 105, ey - 3, 8, 1, '#1a1418'); rect(g, 127, ey - 3, 8, 1, '#1a1418');
     } else if (awake || b.chomp > 0) {
       const low = b.st === 'fight' && b.hp < 15 && Math.floor(R.t * 14) % 3 === 0;
-      const lit = low ? '#5a1010' : b.chomp > 0 || b.rev > 0 || Math.floor(R.t * 3) % 2 ? '#ff5040' : '#a02018';
+      const charge = surgeSoon(), lit = charge ? (Math.floor(R.t * 16) % 2 ? '#ffffff' : '#3aa8e0') : low ? '#5a1010' : b.chomp > 0 || b.rev > 0 || Math.floor(R.t * 3) % 2 ? '#ff5040' : '#a02018';
       if (b.blink > 0) { rect(g, 106, ey + 1, 7, 1, lit); rect(g, 127, ey + 1, 7, 1, lit); }
       else {
         rect(g, 106, ey, 7, 3, lit); rect(g, 127, ey, 7, 3, lit);
@@ -1594,6 +1637,16 @@
         g.restore();
       } else if (f.k === 'pop') otxt(g, f.text, f.x, Math.round(f.y), f.col, 1, 'center');
       else if (f.k === 'bit') rect(g, f.x, f.y, 2, 1, (Math.floor(f.t * 10) + f.vx) % 2 > 0 ? '#fff6e2' : '#b8b4a8');
+      else if (f.k === 'cut') { const a = 1 - f.t / f.dur; g.save(); g.globalAlpha = a; line(g, Math.round(f.x0), Math.round(f.y0), Math.round(f.x1), Math.round(f.y1), '#ffffff'); line(g, Math.round(f.x0) + 1, Math.round(f.y0), Math.round(f.x1) + 1, Math.round(f.y1), '#7fd4ff'); g.restore(); }
+      else if (f.k === 'bolt') {
+        // jagged, redrawn every frame, white core in blue
+        let px = f.x0, py = f.y0; const n = 7;
+        for (let i = 1; i <= n; i++) {
+          const q = i / n, x = f.x0 + (f.x1 - f.x0) * q + (i < n ? fxr(-6, 6) : 0), y = f.y0 + (f.y1 - f.y0) * q + (i < n ? fxr(-3, 3) : 0);
+          for (const d of [-1, 1]) line(g, Math.round(px + d), Math.round(py), Math.round(x + d), Math.round(y), '#3aa8e0');
+          line(g, Math.round(px), Math.round(py), Math.round(x), Math.round(y), '#ffffff'); px = x; py = y;
+        }
+      }
       else if (f.k === 'strip') rect(g, Math.round(f.x), Math.round(f.y), 1, 2, Math.floor(f.t * 12 + f.vx) % 2 ? '#f2eee2' : '#b8b4a8');
       else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore(); }
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
@@ -1745,6 +1798,7 @@
   function darkness() {
     const E = blackout();
     if (!E) return 0;
+    if (E.flash > 0) return E.flash < .25 ? .4 : 0;   // a light switch: the lights are on for a moment
     if (E.t < .5) return Math.floor(E.t * 14) % 2 ? .82 : .25;
     if (E.t > E.dur - .6) return Math.floor(E.t * 14) % 2 ? .82 : .3;
     return .82;
@@ -1768,7 +1822,14 @@
   }
   // In the dark only glowing things show: monitors, eyes, the neon sign, pickups, paper, bolts, the runner's
   // edges when it warns or pulls, the Shredder's eyes and teeth, and you, rows and boxes faintly.
+  function drawSwitch(sw) {
+    const at = switchAt(sw); if (at.z > 1.02 || at.z < .05) return;
+    const k = sc(at.z), x = PX(sw.s * .99, at.z), y = YH(at.z, at.h), w = Math.max(3, Math.round(9 * k)), h = Math.max(4, Math.round(13 * k)), blink = Math.floor(R.t * 6) % 2;
+    rect(g, x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2, blink ? '#fff0aa' : '#ffd44a');
+    rect(g, x - w / 2, y - h / 2, w, h, '#1a1418'); rect(g, x - Math.max(1, w / 4), y - h / 4, Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 3)), '#ffd44a');
+  }
   function drawGlows() {
+    for (const sw of R.switches || []) drawSwitch(sw);
     for (const cb of R.cubs) {
       const z = cubZ(cb); if (z > 1.02 || cb.kind !== 'cub') continue;
       const k = sc(z), mx = PX(cb.s * .93, z), my = YH(z, cb.top), mw = Math.max(2, Math.round(10 * k)), mh = Math.max(2, Math.round(7 * k));
