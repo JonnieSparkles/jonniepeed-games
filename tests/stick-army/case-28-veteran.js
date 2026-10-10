@@ -27,7 +27,7 @@
   check(SHOP.price(fire) === soldierFirst && SHOP.price(pizza) === 25, 'no markup on wave 1');
   S.wave = 12;
   check(SHOP.price(fire) > soldierPrice && SHOP.price(fire) % 5 === 0, 'prices are up by wave 10, still in fives');
-  check(soldierPizza === 25 && SHOP.price(pizza) === 35, 'the pizza too, by wave 10');
+  check(soldierPizza === 25 && SHOP.price(pizza) === 25, 'the pizza stays 25');
   check(CAMPAIGN.turretHP(20) === Math.round(soldierGun * LEVELS.veteran.DREAD), "the Dreadnought's health follows DREAD");
   SKY.smokeStart(1); S.smoke.t = 12; SKY.smokeClear();
   check(S.smoke.linger === 18, 'the smoke lingers half again as long');

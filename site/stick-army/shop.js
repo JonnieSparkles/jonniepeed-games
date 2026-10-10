@@ -62,12 +62,11 @@ var StickArmyShop = function (w) {
   // times by wave 19) and soldiers WAR.HIRE a wave (about four times), which makes a recruit caught on the mat worth
   // more as the run goes on. The early waves keep their prices. Prices round to fives; pizza and the gift are exempt.
   var WAR = { FROM: 6, SUPPLY: 0.15, HIRE: 0.22 };
-  // Veteran's markup (game.js LEVELS): nothing on wave 1, climbing to PRICE times everything by wave FROM, where
-  // stacking starts to tell; war prices on top.
+  // Veteran's markup (game.js LEVELS): nothing on wave 1, climbing to PRICE times everything but the pizza by wave
+  // FROM, where stacking starts to tell; war prices on top. The pizza stays flat ("sometimes u just want pizza").
   function markup() { var L = w.lv(); return L.PRICE === 1 ? 1 : 1 + (L.PRICE - 1) * Math.min(1, Math.max(0, ((w.S.wave || 1) - 1) / (L.FROM - 1))); }
   function war(rate) { return markup() * (1 + rate * Math.max(0, (w.S.wave || 1) - WAR.FROM)); }
   function fives(n) { return Math.max(5, Math.round(n / 5) * 5); }
-  function flatPrice(n) { return markup() === 1 ? n : fives(n * markup()); }
   // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15 (before war prices).
   [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
    ['engineer', 'Engineer', 40, 'Repairs the wall twice as fast as anyone.'],
@@ -81,7 +80,7 @@ var StickArmyShop = function (w) {
       blocked: h[0] === 'medic' ? function () { return hasMedic() ? 'Have one' : ''; } : null,
       apply: function (s) { s.mods.hired++; var r = w.makeRecruit(w.freeSlot(0), h[0]); r.fresh = true; s.recruits.push(r); } });
   });
-  function price(item) { return typeof item.cost === 'function' ? item.cost() : item.flat ? flatPrice(item.cost) : fives(item.cost * war(WAR.SUPPLY)); }
+  function price(item) { return typeof item.cost === 'function' ? item.cost() : item.flat ? item.cost : fives(item.cost * war(WAR.SUPPLY)); }
   function eligible(item) { return (w.S.mods.stacks[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
   // Offers walk a seeded shuffle of every supply and take the first eligible ones, so for a given seed
   // the offers change only when eligibility does.
