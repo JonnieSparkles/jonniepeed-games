@@ -2602,16 +2602,12 @@
   // ---------- loop ----------
   var last = performance.now(), lastAmbience = 0;
   // What the ambience layer needs: whether a wave is live, where the planes are, and whether the wall is in trouble.
-  // How busy the page is, for the march (audio.js marchStep): 0 quiet once nothing has been on it for HEAT.QUIET seconds,
-  // 2 busy from HEAT.BUSY threats on the page until it falls back to HEAT.CALM, 1 otherwise. A threat is a trooper,
-  // a plane or a bomb, a tank counting double.
-  var HEAT = { QUIET: 1.5, BUSY: 9, CALM: 5 }, heatLevel = 1, quietSince = 0;
+  // How busy the page is, for the march (audio.js marchStep): 0 quiet once nothing (a trooper, a plane, a bomb, a tank)
+  // has been on it for HEAT.QUIET seconds, 1 otherwise.
+  var HEAT = { QUIET: 1.5 }, quietSince = 0;
   function pageHeat() {
-    var n = S.troopers.filter(function (t) { return !t.dead; }).length + S.bombs.length + S.planes.length + 2 * S.tanks.length;
-    if (n) quietSince = S.t;
-    if (heatLevel === 2) heatLevel = n <= HEAT.CALM ? 1 : 2; else if (n >= HEAT.BUSY) heatLevel = 2;
-    if (heatLevel !== 2) heatLevel = S.t - quietSince >= HEAT.QUIET ? 0 : 1;
-    return heatLevel;
+    if (S.troopers.some(function (t) { return !t.dead; }) || S.bombs.length || S.planes.length || S.tanks.length) quietSince = S.t;
+    return S.t - quietSince >= HEAT.QUIET ? 0 : 1;
   }
   function ambienceState() {
     return {

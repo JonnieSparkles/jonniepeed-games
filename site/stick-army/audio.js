@@ -87,9 +87,9 @@ var StickArmySound = (function () {
     thud: function () { tone(110, 0.08, 'sine', 0.15, 70); },
     thump: function () { noise(0.06, 0.12, 400); },
     tink: function () { tone(1800, 0.04, 'triangle', 0.04); },
-    // Falling bombs, one sound per kind so you can tell what's coming: the carpet bomber's plain whistle; a heavy bomb
-    // (dive bombers, heavy bombers) a deep wobbling scream with a rumble; a balloon's bomb a pop and a cartoon slide
-    // whistle; a cluster (zeppelins, the Dreadnought's bay) three whistles one after another.
+    // Falling bombs, one sound per kind so you can tell what's coming: the carpet bomber's plain whistle (a balloon's
+    // bomb too: its slide whistle was dropped); a heavy bomb (dive bombers, heavy bombers) a deep wobbling scream with a
+    // rumble; a cluster (zeppelins, the Dreadnought's bay) three whistles one after another.
     whistle: function () { tone(1500, 0.9, 'sine', 0.07, 180); },
     heavy: function () {
       var t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), lfo = AC.createOscillator(), ld = AC.createGain(), fl = AC.createBiquadFilter(), trem = AC.createGain();
@@ -99,14 +99,6 @@ var StickArmySound = (function () {
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.055, t + 0.2); g.gain.setValueAtTime(0.055, t + 1.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.75);
       o.connect(fl); fl.connect(trem); trem.connect(g); g.connect(fx); o.start(t); lfo.start(t); o.stop(t + 1.8); lfo.stop(t + 1.8);
       tone(1400, 1.6, 'sine', 0.05, 200); tone(60, 1.7, 'sine', 0.12, 40); noise(1.6, 0.05, 180);
-    },
-    balloon: function () {
-      noise(0.06, 0.2, 2600, 0, 'bandpass'); tone(500, 0.08, 'sine', 0.14, 180);
-      var t = AC.currentTime + 0.12, o = AC.createOscillator(), g = AC.createGain(), lfo = AC.createOscillator(), ld = AC.createGain();
-      o.type = 'triangle'; o.frequency.setValueAtTime(1600, t); o.frequency.exponentialRampToValueAtTime(260, t + 1);
-      lfo.frequency.value = 7; ld.gain.value = 70; lfo.connect(ld); ld.connect(o.frequency);
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.11, t + 0.05); g.gain.setValueAtTime(0.11, t + 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
-      o.connect(g); g.connect(fx); o.start(t); lfo.start(t); o.stop(t + 1.05); lfo.stop(t + 1.05);
     },
     cluster: function () { [[1900, 0], [1500, 0.16], [1700, 0.32]].forEach(function (w) { tone(w[0], 0.85, 'sine', 0.065, 200, w[1]); noise(0.04, 0.05, 4000, w[1], 'highpass'); }); },
     overheat: function () { noise(0.75, 0.13, 3500, 0, 'highpass'); tone(320, 0.4, 'square', 0.035, 110); },
@@ -373,10 +365,9 @@ var StickArmySound = (function () {
   // One sixteenth of the march. Waves 1-3 keep a plain left-right step with a backbeat and a roll every
   // fourth bar; from wave 4 ghost notes and a roll every other bar; from wave 9 a pickup kick, steady
   // ghost notes and a roll into every bar. A zeppelin adds a low timpani on each downbeat.
-  // It also follows the fight (heat, from the game): when the page is quiet (0) it drops to a bass drum and a soft tap;
-  // when it's busy (2) every bar rolls, the bass drum doubles and a low brass phrase from the bugle call comes in every
-  // other bar (and the tempo picks up a little, in ambience).
-  var BUSY_BRASS = [[0, 98, 2], [2, 130.81, 2], [4, 164.81, 2], [6, 196, 6], [12, 164.81, 2], [14, 130.81, 2]];
+  // When the page is quiet (heat 0, from the game) it drops to a bass drum and a soft tap. It used to get busier too
+  // when the page was busy (rolls every bar, a doubled bass drum, low brass, a faster tempo); with that much going on
+  // in the fight, the march stays simple instead.
   function marchStep(i, bar, wave, t, dt, low, boss, heat) {
     if (heat === 0) {
       if (low) { if (i === 0 || i === 8) heart(t); }
@@ -385,10 +376,8 @@ var StickArmySound = (function () {
       if (boss && i === 0) drum(t, 82, 58, 0.7, 0.16);
       return;
     }
-    var busy = heat === 2, tier = wave >= 9 ? 2 : wave >= 4 ? 1 : 0;
-    var roll = busy || tier === 2 || (tier === 1 ? bar % 2 === 1 : bar % 4 === 3);
-    if (busy && (i === 0 || i === 8)) drum(t, 82, 58, 0.5, 0.12);
-    if (busy && bar % 2 === 0) BUSY_BRASS.forEach(function (n) { if (n[0] === i) brassAt(t, n[1], n[2] * dt * 0.95, 0.05); });
+    var tier = wave >= 9 ? 2 : wave >= 4 ? 1 : 0;
+    var roll = tier === 2 || (tier === 1 ? bar % 2 === 1 : bar % 4 === 3);
     if (low) { if (i === 0 || i === 8) heart(t); }
     else if (i === 0 || i === 8) drum(t, 120, 44, 0.3, i === 0 ? 0.18 : 0.14);
     else if ((tier === 2 && i === 14) || (tier === 1 && i === 6 && bar % 2)) drum(t, 110, 44, 0.24, 0.1);
@@ -435,7 +424,7 @@ var StickArmySound = (function () {
       var dreadOn = !!state.dread && !down, bridge = state.dread === 'hangar' || state.dread === 'bridge';
       var thin = state.dread === 'teaser', hush = state.dread === 'hush' || down;
       var heat = state.heat == null ? 1 : state.heat;
-      var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5) * (heat === 2 ? 1.06 : 1), dt = 60 / bpm / 4;
+      var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {
         if (hush) { /* a held breath */ }

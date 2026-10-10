@@ -184,7 +184,7 @@ var StickArmySky = function (w) {
     p.armed = false;
     w.S.bombs.push({ id: w.id(), x: p.x, y: p.y + 20, vx: p.vx * 0.5, vy: 0, isBomb: true, balloon: true, dead: false });
     emit('bomb_dropped', { by: 'balloon' });
-    w.sound.play('balloon');
+    w.sound.play('whistle');
   }
   function updateBalloon(p, dt) {
     var S = w.S;
