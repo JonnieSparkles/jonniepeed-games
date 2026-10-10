@@ -195,7 +195,7 @@ window.StickArmyCoop = function (w) {
   function hostTick(now, force) {
     if (!host || (!force && now - host.last < EVERY)) return null;
     host.last = now;
-    var S = w.S, enc = host.enc, pick = {}, key;
+    var S = w.S, enc = host.enc, pick = {}, key, whole = host.fresh;
     if (host.fresh) {
       enc.reset(); host.fresh = false;
       // Marks, washes and clears since the last message are already in the history this replaces them with.
@@ -204,7 +204,8 @@ window.StickArmyCoop = function (w) {
     }
     for (key in S) if (!LEAVE[key]) pick[key] = S[key];
     pick._tramps = w.TRAMPS.map(function (t) { return t.dip; });
-    var born = S.parts.filter(function (q) { return !host.seen.has(q); });
+    // A full resend carries every live particle (the guest starts its own list over), so marks still in flight land there too.
+    var born = whole ? S.parts.slice() : S.parts.filter(function (q) { return !host.seen.has(q); });
     born.forEach(function (q) { host.seen.add(q); });
     var b = born.length ? enc.full(enc.clean(born)) : null;
     var e = host.fx.length ? host.fx.map(function (f) { return f.length > 1 ? [f[0], enc.full(enc.clean(f[1]))] : f; }) : null;
@@ -247,10 +248,11 @@ window.StickArmyCoop = function (w) {
     if (msg.r) guest.buf = [];
     guest.buf.push({ h: msg.h, s: state });
     if (guest.buf.length > 8) guest.buf.shift();
-    if (msg.b || msg.e) guest.due.push({ h: msg.h, b: msg.b ? dec.decode(msg.b) : null, e: msg.e ? msg.e.map(function (f) { return f.length > 1 ? [f[0], dec.decode(f[1])] : f; }) : null });
+    if (msg.b || msg.e || msg.r) guest.due.push({ h: msg.h, r: !!msg.r, b: msg.b ? dec.decode(msg.b) : null, e: msg.e ? msg.e.map(function (f) { return f.length > 1 ? [f[0], dec.decode(f[1])] : f; }) : null });
     return true;
   }
   function play(item) {
+    if (item.r) guest.parts = [];   // a full resend brings every live particle
     if (item.b) guest.parts.push.apply(guest.parts, item.b);
     (item.e || []).forEach(function (f) {
       var snd = w.sound;
@@ -601,10 +603,15 @@ window.StickArmyCoop = function (w) {
   }
   // While the host's room is down, its game doesn't play: any play (a wave started from the shop, a resume) pauses at
   // once. A host who resumes by hand while still offline (netResumed) plays on alone.
+  // A move from paused to play while offline is a resume by hand (from the connection's pause or one made before the
+  // outage): it's honored.
+  var lastMode = null;
   function netPause() {
-    if (!host || !room || room.status === 'connected' || w.S.mode !== 'play' || netResumed) return;
-    if (netPaused) { netResumed = true; return; }
-    w.togglePause(); netPaused = true;
+    var was = lastMode, mode = w.S.mode;
+    lastMode = mode;
+    if (!host || !room || room.status === 'connected' || mode !== 'play' || netResumed) return;
+    if (netPaused || was === 'paused') { netResumed = true; return; }
+    w.togglePause(); netPaused = true; lastMode = w.S.mode;
   }
   // Each frame: the guest's aim to the host, the host letting go of a silent guest's trigger, the status line.
   function tick(t) {

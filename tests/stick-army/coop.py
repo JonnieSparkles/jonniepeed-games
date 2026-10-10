@@ -148,6 +148,8 @@ with sync_playwright() as p:
     js(guest, 'COOP.guestFrame(1 / 60, COOP.DELAY); "ok"')
     marks, host_marks = js(guest, 'decals.length'), js(host, 'decals.length')
     check(host_marks > 0 and abs(marks - host_marks) <= 2, 'a fresh resend brings the page\'s ink: %d marks, the host %d' % (marks, host_marks))
+    live, host_live = js(guest, 'S.parts.length'), js(host, 'S.parts.length')
+    check(host_live > 0 and abs(live - host_live) <= 3, 'and every particle still in flight: %d, the host %d' % (live, host_live))
 
     check(not host.errors and not guest.errors, 'no page errors %s %s' % (host.errors[:2], guest.errors[:2]))
     browser.close()

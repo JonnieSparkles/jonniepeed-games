@@ -158,6 +158,18 @@ with Phones() as phones:
     wait(guest, "() => document.getElementById('shopScreen').hidden && armyTest('COOP.guest && S.mode === \"play\"')", 15000)
     check(True, 'and plays once the host is back, the guest with it')
 
+    # Paused by hand before an outage: one Resume while offline plays on.
+    host.keyboard.press('p')
+    wait(host, "() => armyTest('S.mode') === 'paused'", 5000)
+    host.context.set_offline(True)
+    wait(host, "() => armyTest('COOP.room.status') !== 'connected'", 25000)
+    host.click('#resumeBtn')
+    time.sleep(0.5)
+    check(js(host, 'S.mode') == 'play', 'paused before an outage, one Resume while offline plays on')
+    host.context.set_offline(False)
+    wait(host, "() => armyTest('COOP.room.status') === 'connected'", 20000)
+    wait(guest, "() => armyTest('COOP.guest && S.mode === \"play\"') && document.getElementById('coopScreen').hidden", 20000)
+
     # Offline, the host resumes by hand, then pauses again: back online, that pause is the host's and stays.
     host.context.set_offline(True)
     wait(host, "() => armyTest('S.mode') === 'paused'", 25000)
@@ -186,7 +198,8 @@ with Phones() as phones:
     # The host reloads mid-match: its run is gone, so the guest goes back to waiting; Start brings both back in.
     host.reload()
     wait(host, "() => !document.getElementById('coopStart') ? false : !document.getElementById('coopStart').disabled", 20000)
-    wait(guest, "() => { const o = document.getElementById('coopScreen'); return !o.hidden && /Waiting for your/.test(o.textContent) && !armyTest('COOP.guest'); }", 20000)
+    # (The guest page reloads itself to get there, so the check allows for a page mid-load.)
+    wait(guest, "() => { const o = document.getElementById('coopScreen'); return !!(o && !o.hidden && /Waiting for your/.test(o.textContent) && window.armyTest && !armyTest('COOP.guest')); }", 20000)
     check(True, 'a host reload mid-match sends the guest back to waiting, and the host gets the link card with the friend there')
     host.click('#coopStart')
     wait(guest, "() => document.getElementById('titleScreen').hidden && armyTest('COOP.guest && S.mode === \"play\" && S.wave === 1')", 15000)
