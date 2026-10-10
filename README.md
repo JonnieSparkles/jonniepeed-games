@@ -12,6 +12,7 @@ site/                   everything that gets published
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
+  dont-click-this/      two phones, anywhere: send a link, find each other (Side B proof of concept for rooms)
   assets/               shared fonts, leaderboard and play stats clients, dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
@@ -26,6 +27,7 @@ tools/balance/          balance bots: seeded headless runs at several skill leve
 tools/trailer/          trailers: scripted gameplay captured frame by frame, the game's own sound, music and the cut
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 stats/                  play stats Worker, D1 schema, private dashboards and tests (not published with site/)
+rooms/                  two-player rooms Worker: a WebSocket relay per match link, and its test (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
 docs/guides/            numbered repo operations guides: 00-name.md, 01-name.md, ...
 docs/games/             living game design docs: <slug>.md (unnumbered)
@@ -78,7 +80,7 @@ These apply to every change:
 
 [Side B](specs/SPEC-004-side-b.md) is the development shelf. Hold the studio's rainbow egg with a pointer, Space or Enter: about 1.4 seconds to full power, then three more seconds as the puddle grows. Or enter `#side-b` directly. The **Side A** button returns to Games. The selected shelf lasts for this tab's visit in `sessionStorage`, including reloads and game/home round trips; a new session defaults to Side A. Side B is discoverable, not private.
 
-Stick Army is the only launch card, labelled **demo**, with an online board (board 1). To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
+Stick Army is a launch card, labelled **demo**, with an online board (board 1). Don't click this, labelled **2 players**, is the proof of concept for playing together over the internet ([05: Rooms](docs/guides/05-rooms.md)). To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
 
 ## Browser checks
 
@@ -97,6 +99,7 @@ CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
 CHROMIUM=/usr/bin/chromium python3 stats/test/games.py
+CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py   # also needs a local rooms Worker
 ```
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army.md#validation-and-generated-assets).

@@ -43,10 +43,11 @@ def follow(page, selector, path='', card=False):
 def state(page, side, focus=False, keyboard=False):
     page.wait_for_load_state('load')
     expect(page.locator('#shelfHeading')).to_have_text('Games' if side == 'a' else 'Side B')
-    assert page.locator('.card:visible').count() == (3 if side == 'a' else 1)
+    assert page.locator('.card:visible').count() == (3 if side == 'a' else 2)
     assert page.locator('#sideA').is_visible() == (side == 'b')
-    assert page.locator('.card[hidden]').count() == (1 if side == 'a' else 3)
-    assert page.locator('[data-side="b"]').is_visible() == (side == 'b')
+    assert page.locator('.card[hidden]').count() == (2 if side == 'a' else 3)
+    assert page.locator('[data-side="b"][href="dont-click-this/"]').is_visible() == (side == 'b')
+    assert page.locator('[data-side="b"][href="stick-army/"]').is_visible() == (side == 'b')
     if focus:
         focus_outline(page, keyboard)
     # Real Tab traversal and accessibility snapshot must exclude inactive cards/button.
@@ -124,7 +125,7 @@ def hold_flip(page, key=None, calm=False):
         assert page.locator('.grid').evaluate('(el) => el.inert')
         assert page.locator('.grid').evaluate('(el) => el.classList.contains("flip-out")')
         page.clock.run_for(200)
-        assert page.locator('[data-side="b"]').get_attribute('hidden') is None
+        assert page.locator('[data-side="b"][href="stick-army/"]').get_attribute('hidden') is None
         assert page.locator('.grid').evaluate('(el) => el.inert && el.classList.contains("flip-in")')
     page.clock.run_for(300)
     assert not page.locator('.grid').evaluate('(el) => el.inert')
@@ -168,8 +169,8 @@ with sync_playwright() as p:
     assert page.evaluate('document.activeElement === document.body')  # Initial load does not steal focus.
     state(page, 'a')
     assert page.locator('meta[name="robots"]').count() == 0
-    assert page.locator('[data-side="b"]').get_attribute('data-badge') == 'demo'
-    assert page.locator('[data-side="b"] .badge').text_content() == 'demo'
+    assert page.locator('[data-side="b"][href="stick-army/"]').get_attribute('data-badge') == 'demo'
+    assert page.locator('[data-side="b"][href="stick-army/"] .badge').text_content() == 'demo'
     # Both pre-charge and almost-complete overflow release preserve the original splash.
     for duration in [600, 4100, 2400, 2400]:
         page.clock.run_for(1000)
@@ -217,7 +218,7 @@ with sync_playwright() as p:
     state(page, 'b')
     reload(page)
     expect(page.locator('#shelfHeading')).to_have_text('Side B')
-    follow(page, '[data-side="b"]', 'stick-army/', card=True)
+    follow(page, '[data-side="b"][href="stick-army/"]', 'stick-army/', card=True)
     assert page.url == URL + 'stick-army/'
     assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
     for selector in ['link[rel="icon"][type="image/png"]', 'link[rel="apple-touch-icon"]']:
@@ -289,7 +290,7 @@ with sync_playwright() as p:
             expect(page.locator('#shelfHeading')).to_have_css('outline-style', 'none')
         state(page, 'b', focus=True)
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        assert page.locator('[data-side="b"] img').evaluate('(el) => el.complete && el.naturalWidth === 768')
+        assert page.locator('[data-side="b"][href="stick-army/"] img').evaluate('(el) => el.complete && el.naturalWidth === 768')
         page.locator('#shelfHeading').scroll_into_view_if_needed()
         page.screenshot(path=str(OUT / f'side-b-{width}-{theme}.png'))
         page.locator('#sideA').click()
@@ -315,8 +316,8 @@ with sync_playwright() as p:
     html = (ROOT / 'site/index.html').read_text().replace('data-badge="demo"', 'data-badge="&lt;new label&gt;"')
     page.route(URL, lambda route: route.fulfill(body=html, content_type='text/html'))
     prepare(page)
-    assert page.locator('.badge').text_content() == '<new label>'
-    assert page.locator('.badge').evaluate('(el) => el.children.length') == 0
+    assert page.locator('[href="stick-army/"] .badge').text_content() == '<new label>'
+    assert page.locator('[href="stick-army/"] .badge').evaluate('(el) => el.children.length') == 0
     page.goto(URL + '#side-b', wait_until='load')
     page.wait_for_load_state('load')
     reload(page)
@@ -329,7 +330,7 @@ with sync_playwright() as p:
     page.goto(URL + '#side-b', wait_until='load')
     page.wait_for_load_state('load')
     assert page.locator('.card:visible').count() == 3
-    assert page.locator('[data-side="b"]').is_hidden()
+    assert page.locator('[data-side="b"][href="stick-army/"]').is_hidden()
     assert page.locator('#sideA').is_hidden()
     context.close()
     assert not errors, errors

@@ -51,6 +51,9 @@ GAMES = [
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
      # the Mom Cam is in the cover's top-left corner, so the crop sits near the left edge
      None, {"cover": ("dont-step-on-a-crack.png", 0.18)}),
+    # Side B two-player demo: a screenshot of its title card
+    ("dont-click-this", "Don't click this", "Two phones, anywhere. Find each other.", "Play with a friend",
+     None, {"screenshot": True}),
 ]
 
 BASE_CSS = f"""
