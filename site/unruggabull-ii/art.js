@@ -79,6 +79,8 @@ var UnrugArt = (function () {
     runB: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KJJJjKKBBBK....', '....KJJJK.KKKKK....', '....KBBBK..........', '....KKKKK..........'],
     jump: ['....KJJJJJJJJJK....', '...KJJJJJKJJJJJK...', '..KJJJjK...KjJJJK..', '..KBBBK.....KBBBK..', '..KKKKK.....KKKKK..'],
     // a squat from behind: knees out wide either side of the body (drawn 3 px further left)
+    // scuffing a hoof while he waits: the right foot lifted
+    scuff: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KJJJjKjJJJK....', '....KJJJK.KBBBK....', '....KBBBK.KKKKK....', '....KKKKK..........'],
     crouch: ['', '', '..KJJJK...........KJJJK..', '.KJJJJK...........KJJJJK.', 'KJJjJK.............KJjJJK', 'KBBBK...............KBBBK', 'KKKKK...............KKKKK'],
   };
   // Poses share one 48x40 box: feet at y 38, centred on x 24, room above and around for the sword and blaster.
@@ -96,7 +98,7 @@ var UnrugArt = (function () {
   const HAND = {
     L: { down: [BX + 2, BY + 20], fwd: [BX + 3, BY + 18], back: [BX + 1, BY + 21], up: [BX - 2, BY + 9] },
     R: { down: [BX + 16, BY + 20], fwd: [BX + 15, BY + 18], back: [BX + 17, BY + 21], up: [BX + 20, BY + 9],
-      aim: [BX + 20, BY + 8], kick: [BX + 19, BY + 10], wind: [BX + 6, BY + 5], cut: [BX + 25, BY + 13] }
+      aim: [BX + 20, BY + 8], kick: [BX + 19, BY + 10], wind: [BX + 6, BY + 5], cut: [BX + 25, BY + 13], hilt: [BX + 16, BY + 11], twirl: [BX + 19, BY + 17] }
   };
   // Where the blaster's muzzle is, relative to his feet, when aiming: the game fires bolts from here.
   const MUZZLE = { x: BX + 20 - 24, y: BY + 2 - 38 };
@@ -105,14 +107,17 @@ var UnrugArt = (function () {
     for (const x of [hx - 2, hx, hx + 2]) rect(g, x, hy - 4, 1, 3, '#1a1418');
     for (const x of [hx - 1, hx + 1]) { px(g, x, hy - 4, '#1a1418'); rect(g, x, hy - 3, 1, 2, '#543424'); }
   }
-  function pose(legs, l, r, sword, bob = 0, rock = false) {
+  // o (idle poses): head turns his head a pixel to look aside, lift raises the katana a little in its sheath, spin turns
+  // the blaster in his hand (0 to 3).
+  function pose(legs, l, r, sword, bob = 0, rock = false, o = {}) {
     const cv = canvas(POSE_W, POSE_H), g = cv.getContext('2d');
     rows(g, LEGS_B[legs], legs === 'crouch' ? BX - 3 : BX, BY + 21);
     rows(g, TORSO_BARE, BX, BY + 12 + bob);
-    rows(g, HEAD_B, BX, BY + bob);
+    rows(g, HEAD_B, BX + (o.head || 0), BY + bob);
     if (sword === 'back') {
-      line(g, BX + 4, BY + 25 + bob, BX + 15, BY + 14 + bob, '#8a93a6'); line(g, BX + 3, BY + 25 + bob, BX + 14, BY + 14 + bob, '#e8edf6');
-      rect(g, BX + 13, BY + 13 + bob, 4, 1, '#1a1418'); line(g, BX + 15, BY + 12 + bob, BX + 17, BY + 10 + bob, '#e8b030');
+      const lb = bob - (o.lift || 0), dx = o.lift ? 1 : 0;
+      line(g, BX + 4 + dx, BY + 25 + lb, BX + 15 + dx, BY + 14 + lb, '#8a93a6'); line(g, BX + 3 + dx, BY + 25 + lb, BX + 14 + dx, BY + 14 + lb, '#e8edf6');
+      rect(g, BX + 13 + dx, BY + 13 + lb, 4, 1, '#1a1418'); line(g, BX + 15 + dx, BY + 12 + lb, BX + 17 + dx, BY + 10 + lb, '#e8b030');
     }
     const sh = (side) => [SHOULDER[side][0], SHOULDER[side][1] + bob];
     const lh = HAND.L[l], rh = HAND.R[r];
@@ -127,6 +132,12 @@ var UnrugArt = (function () {
     arm(g, ...sh('R'), rh[0], rh[1]);
     if (rock) { horns(g, lh[0], lh[1]); horns(g, rh[0], rh[1]); }
     if (sword === 'wind' || sword === 'cut') rect(g, rh[0] - 1, rh[1] - 1, 3, 2, '#e8b030');
+    if (o.spin != null) {
+      // the blaster spun round his finger at his side: four quarter turns
+      const [hx, hy] = rh, k = o.spin % 4;
+      if (k % 2 === 0) { rect(g, hx - 4, hy - 2, 9, 4, '#1a1418'); rect(g, hx - 3, hy - 1, 7, 2, '#e8b030'); px(g, k ? hx - 3 : hx + 3, hy - 1, '#fff0aa'); }
+      else { rect(g, hx - 2, hy - 4, 4, 9, '#1a1418'); rect(g, hx - 1, hy - 3, 2, 7, '#e8b030'); px(g, hx - 1, k === 1 ? hy - 3 : hy + 3, '#fff0aa'); }
+    }
     if (r === 'aim' || r === 'kick') {
       // the blaster from behind: a gold block pointing into the screen, with a bright muzzle
       rect(g, rh[0] - 3, rh[1] - 7, 7, 7, '#1a1418'); rect(g, rh[0] - 2, rh[1] - 6, 5, 5, '#e8b030'); rect(g, rh[0] - 1, rh[1] - 5, 3, 1, '#fff0aa'); rect(g, rh[0] - 2, rh[1] - 2, 5, 1, '#8c6010');
@@ -145,6 +156,12 @@ var UnrugArt = (function () {
     hurt: pose('stand', 'up', 'up', 'back', 1),
     // crouched: half height, to duck high paper or grip a pulling rug; he can still slash from down there
     crouch: pose('crouch', 'down', 'down', 'back', 6), crouchWind: pose('crouch', 'down', 'wind', 'wind', 6), crouchCut: pose('crouch', 'fwd', 'cut', 'cut', 6),
+    // standing about: breathing, glancing aside, and three things he does if you leave him long enough
+    breathe: pose('stand', 'down', 'down', 'back', 1),
+    lookL: pose('stand', 'down', 'down', 'back', 0, false, { head: -1 }), lookR: pose('stand', 'down', 'down', 'back', 0, false, { head: 1 }),
+    twirl: [0, 1, 2, 3].map(k => pose('stand', 'down', 'twirl', 'back', 0, false, { spin: k })),
+    grip: pose('stand', 'down', 'hilt', 'back'), gripUp: pose('stand', 'down', 'hilt', 'back', 0, false, { lift: 2 }),
+    scuff: pose('scuff', 'down', 'down', 'back'),
     // the clear: horns up, bobbing
     win: pose('stand', 'up', 'up', 'back', 0, true), winB: pose('stand', 'up', 'up', 'back', -1, true)
   };
@@ -156,6 +173,11 @@ var UnrugArt = (function () {
   // Temps: carpshits in a collar and tie.
   const TIE = ['..........PKRRKP..........', '...........KRRK...........', '...........KRRK...........', '............KK............'];
   const TEMP = spr(CARP.concat(TIE));
+  // Two more temps, so the office isn't all the same guy: glasses and a blue tie, a comb-over and a teal tie.
+  const tieIn = c => TIE.map(r => r.replace(/RR/g, c + c));
+  const GLASSES = CARP.slice();
+  GLASSES[4] = '.KCRRYYYYYYRRRRYYYYYYRRCK.'; GLASSES[5] = 'OKCRRYMMMKYYYYYYKMMMYRRCKO'; GLASSES[6] = '.KCRCYMMKMYRRRRYMKMMYRCRK.'; GLASSES[7] = 'OKCRRYYYYYYKKKKYYYYYYRRCKO';
+  const TEMPS = [TEMP, spr(GLASSES.concat(tieIn('J'))), spr(['.......OOOOOOOOOOOO.......', '.....OOhOOOOOOOOOOhOO.....'].concat(CARP, tieIn('c')))];
   const GHOST = spr(['..CCCCC..', '.........', '.KKKKKKK.', 'KMMMMMMMK', 'KMKMMMKMK', 'KMMMMMMMK', 'KMMgggMMK', '.KMKMKMK.', '..g.g.g..']);
   const HEART = spr(['.KK...KK.', 'KRRK.KRRK', 'KRLRKRRRK', 'KRRRRRRRK', '.KRRRRRK.', '..KRRRK..', '...KRK...', '....K....']);
   const HEART_EMPTY = spr(['.KK...KK.', 'KEEK.KEEK', 'KEEEKEEEK', 'KEEEEEEEK', '.KEEEEEK.', '..KEEEK..', '...KEK...', '....K....']);
@@ -185,6 +207,11 @@ var UnrugArt = (function () {
   const COFFEE = spr(['..p..p...', '...p..p..', '.KKKKKK..', '.KFFFFKKK', '.KPPPPK.K', '.KPRRPK.K', '.KPPPPKKK', '.KPPPPK..', '..KKKK...']);
   const SPREAD = spr(['M....M....M', '.M...M...M.', '..M..M..M..', '...M.M.M...', '....MMM....', '...KWWWK...', '...KwWwK...', '....KKK....']);
   // A rolling office chair, from behind
+  // A rolling office chair, rolling at you: high back, arms, seat, gas lift, a five-star base, casters in two frames.
+  const CHAIR_TOP = ['.....KKKKKKKKKKKK.....', '....KjjjjjjjjjjjjK....', '...KjJJJJJJJJJJJJjK...', '...KjJJjJJJJJJjJJjK...', '...KjJJJJJJJJJJJJjK...', '...KjJJJJJJJJJJJJjK...', '...KjJJjJJJJJJjJJjK...', '...KjJJJJJJJJJJJJjK...',
+    '....KjjjjjjjjjjjjK....', '.....KKKKKyyKKKKK.....', '.KKK......yy......KKK.', '.KyKKKKKKKyyKKKKKKKyK.', '.KyKjJJJJJJJJJJJJjKyK.', '.KyKjJJJJJJJJJJJJjKyK.', '..KKKjjjjjjjjjjjjKKK..', '....KKKKKKKKKKKKKK....',
+    '.........KYyK.........', '.........KYyK.........', '.........KYyK.........', '...KKKKKKKYyKKKKKKK...', '.KKyyyyyyyYyyyyyyyyKK.', 'KyyKK....KyyK....KKyyK'];
+  const CHAIRS = [spr(CHAIR_TOP.concat(['KKK......KKKK......KKK', '.K.......K..K.......K.'])), spr(CHAIR_TOP.concat(['.K........KK........K.', 'KKK......K..K......KKK']))];
   const CHAIR = spr(['...KKKKKK...', '...KJJJJK...', '...KJjjJK...', '...KJJJJK...', '...KKKKKK...', '.....KK.....', '.KKKKKKKKKK.', '.KJJJJJJJJK.', '.KKKKKKKKKK.', '.....KK.....', '..KKKKKKKK..', '.K.K....K.K.', '.KK......KK.']);
   const FLASH = spr(['...M...', '..MOM..', '.MOMOM.', 'MOMMMOM', '.MOMOM.', '..MOM..', '...M...']);
   // His blaster from the side, for when the Shredder's surge knocks it out of his hands and it lies on the floor.
@@ -194,6 +221,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, TEMPS, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();

@@ -70,8 +70,9 @@
     wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
     // the souls' hint (the mega stream's first glimpse, saved for the roof): the first time the blaster comes back in the
     // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
-    // go into the gun; the first two each add a stream. The streams hold this long, then drop off one by one, fade apart.
-    soulHint: { souls: 3, gap: .45, fly: .85, hold: 4, fade: .6 }
+    // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
+    // run out unseen), then drop off one by one, fade apart.
+    soulHint: { souls: 3, gap: .6, fly: 1.4, hold: 4, fade: .6 }
   };
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
@@ -475,7 +476,7 @@
   function updateBull(dt) {
     const b = bull;
     input.jump = Math.max(0, input.jump - dt); input.slash = Math.max(0, input.slash - dt); input.shoot = Math.max(0, input.shoot - dt);
-    b.inv = Math.max(0, b.inv - dt); b.cd = Math.max(0, b.cd - dt); b.aimT = Math.max(0, (b.aimT || 0) - dt);
+    b.inv = Math.max(0, b.inv - dt); b.cd = Math.max(0, b.cd - dt); b.stag = Math.max(0, (b.stag || 0) - dt); b.aimT = Math.max(0, (b.aimT || 0) - dt);
     if (b.slash >= 0) { b.slash += dt; if (b.slash >= TUNE.slashT) b.slash = -1; }
     if (R.phase === 'dead') return;
     if (b.mouth > 0) { b.mouth -= dt; if (b.mouth <= 0) { b.mouth = 0; b.spat = .45; b.inv = Math.max(b.inv, 1.6); } return; }
@@ -483,6 +484,8 @@
     b.pin = Math.max(0, (b.pin || 0) - dt);
     // crouched (on the ground only): half height, no moving or shooting; on a pulling rug he grips it
     b.crouch = crouchHeld() && b.jh <= 0 && R.phase !== 'win';
+    // how long he's been standing about (cosmetic: his idle poses)
+    b.idle = moveDir() || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
     const dir = R.phase === 'win' || b.pin > 0 || b.crouch ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
     b.u = clamp(b.u + dir * TUNE.move * dt, -TUNE.aisle, TUNE.aisle);
     if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; b.crouch = false; Snd.play('jump'); }
@@ -531,7 +534,7 @@
     if (R.armed === false) { R.empty = .2; Snd.play('empty'); return false; }   // knocked out of his hands: go and get it
     if (R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
     R.charge--;
-    if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
+    if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); if (!R.fx.some(f => f.k === 'pop' && f.text === 'EMPTY')) popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
     bull.aimT = .22;
     let best = null, bz = Infinity;
     const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < .97 && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
@@ -583,7 +586,7 @@
   }
   function hurtBull(n, cause) {
     if (bull.inv > 0 || bull.mouth > 0 || bull.spat > 0 || R.phase === 'dead' || R.phase === 'win') return false;
-    R.hearts = Math.max(0, R.hearts - n); bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15;
+    R.hearts = Math.max(0, R.hearts - n); bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15; bull.stag = .3;   // he staggers (drawn only)
     if (R.hearts === 1) bark('low');
     R.lastCause = cause || 'unknown'; emit('hit', { amount: n, cause: R.lastCause });
     if (R.hearts > 0 && R.phase === 'boss' && R.boss.st === 'fight' && cause !== 'rally') { laugh(); taunt('hit'); }   // not on the last heart: that's his WHOA!
@@ -869,6 +872,8 @@
   }
   function blowUp() {
     R.shake = .6; R.white = .15;
+    // every soul freed on the floor drifts up past him and away (up to 40 of them, cosmetic)
+    for (let i = 0; i < Math.min(40, R.souls); i++) R.fx.push({ k: 'rise', x: fxr(10, W - 10), y: H + 6 + fxr(0, 60), vy: -fxr(18, 34), ph: fxr(0, 6), t: -i * .05, dur: 6 });
     for (let i = 0; i < 24; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-70, 70), vy: fxr(-90, -10), t: 0, dur: fxr(.8, 1.4) });
     Snd.play('explode');
     talk('RUG NOT FOUND.', 'shredder');
@@ -887,6 +892,7 @@
     if (!H) return;
     if (R.armed === false || R.phase !== 'boss') { R.hint = null; return; }
     H.t += dt;
+    if (H.endT && !shooting()) H.endT += dt;   // the hold only runs while he's firing
     while (H.landed < T.souls && H.t >= H.landed * T.gap + T.fly) {
       const i = H.landed++;
       const m = muzzleXY();
@@ -909,10 +915,13 @@
     for (let i = H.landed; i < T.souls; i++) {
       const p = (H.t - i * T.gap) / T.fly;
       if (p <= 0) continue;
-      const e = p * p * (3 - 2 * p), bend = Math.sin(Math.PI * p) * (i - 1) * 18;
-      const x = from.x + (to.x - from.x) * e + bend, y = from.y + (to.y - from.y) * e - Math.sin(Math.PI * p) * 10;
-      rect(g, Math.round(x - (to.x - from.x) * .04), Math.round(y - (to.y - from.y) * .04), 1, 1, '#ffd44a');
-      g.drawImage(A.GHOST, Math.round(x - 4), Math.round(y - 4));
+      const e = p * p * (3 - 2 * p), bend = Math.sin(Math.PI * p) * (i - 1 || -1.4) * 46;
+      const at = q => ({ x: from.x + (to.x - from.x) * q + Math.sin(Math.PI * q) * (i - 1 || -1.4) * 46, y: from.y + (to.y - from.y) * q - Math.sin(Math.PI * q) * 14 });
+      const x = from.x + (to.x - from.x) * e + bend, y = from.y + (to.y - from.y) * e - Math.sin(Math.PI * p) * 14;
+      // a trail of gold sparkles behind it, then the soul itself, drawn double size with a glow
+      for (let j = 1; j <= 5; j++) { const q = Math.max(0, e - j * .045), t = at(q); if (Math.floor(R.t * 20 + j) % 2) rect(g, Math.round(t.x), Math.round(t.y), 1, 1, j < 3 ? '#fff0aa' : '#ffd44a'); }
+      disc(g, Math.round(x), Math.round(y), 9, 'rgba(255,212,74,.22)');
+      g.drawImage(A.GHOST, Math.round(x - 9), Math.round(y - 9), 18, 18);
     }
   }
   function drawSoulShot(s) {
@@ -967,7 +976,7 @@
     tp.dead = true; R.freeze = .045;
     if (R.hearts < TUNE.hearts && rnd() < TUNE.coffeeDrop) addPickup('coffee', tp.cub.w - R.dist + .06, tp.cub.s * .5);
     const at = posOf(tp), x = PX(at.u, at.z), y = YH(at.z, at.h), s = sc(at.z) * .85;
-    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.TEMP }); else poof(at.u, at.z, at.h);
+    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: tempLook(tp) }); else poof(at.u, at.z, at.h);
     free(x, y - 4, 'temp', how);
     bonusSoul(how, x, y, 'temp');
   }
@@ -981,7 +990,8 @@
     if (f.fid) { const F = R.forms[f.fid - 1]; F.killed++; if (!F.lost && F.killed === F.n) wipe(F, x, y); }
   }
   function poof(u, z, h, n = 6) { R.fx.push({ k: 'poof', x: PX(u, z), y: YH(z, h), s: Math.max(.4, sc(z)), n, t: 0, dur: .35 }); }
-  function popText(text, x, y, col) { R.fx.push({ k: 'pop', text, x, y, col, t: 0, dur: .8 }); }
+  // a pop with the same words close by and just as fresh is already saying it
+  function popText(text, x, y, col) { if (R.fx.some(f => f.k === 'pop' && f.text === text && f.t < .25 && Math.abs(f.x - x) < 24 && Math.abs(f.y - y) < 16)) return; R.fx.push({ k: 'pop', text, x, y, col, t: 0, dur: .8 }); }
   function updateFx(dt) {
     for (const f of R.fx) {
       f.t += dt;
@@ -994,6 +1004,7 @@
       else if (f.k === 'pop') f.y -= 12 * dt;
       else if (f.k === 'bit') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; }
       else if (f.k === 'strip') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= .96; }
+      else if (f.k === 'rise' && f.t > 0) { f.y += f.vy * dt; f.x += Math.sin(f.t * 3 + f.ph) * 10 * dt; }
       else if (f.k === 'smoke') { f.y -= 14 * dt; f.x += Math.sin(f.t * 4) * 4 * dt; }
     }
     R.fx = R.fx.filter(f => f.t < f.dur);
@@ -1185,8 +1196,7 @@
     const dead = b.st === 'dead';
     const body = b.flash > 0 ? '#d8dce8' : dead ? '#3a3a44' : '#4a4e5a';
     rect(g, x0 + 4, y0 + 3, w - 8, y1 - y0 - 3, body);
-    rect(g, x0 + 4, y0 + 3, w - 8, 2, b.flash > 0 || b.tick > 0 ? '#ffffff' : '#6a6e7c');
-    if (b.tick > 0) { rect(g, x0 + 4, y0 + 3, 1, y1 - y0 - 3, '#ffffff'); rect(g, x1 - 5, y0 + 3, 1, y1 - y0 - 3, '#ffffff'); }
+    rect(g, x0 + 4, y0 + 3, w - 8, 2, b.flash > 0 ? '#ffffff' : b.tick > 0 ? '#b8bcc8' : '#6a6e7c');   // blaster hits only glint the top edge
     rect(g, x0 + 7, y0 + 25, w - 14, 1, '#3a3e48');
     rect(g, x0 + 9, y0 + 21, 6, 2, '#8a8e9c'); rect(g, x1 - 15, y0 + 21, 6, 2, '#8a8e9c');
     rect(g, 104, y0 + 6, 32, 9, '#1a1418'); txt(g, 'SHRED-O', 120, y0 + 8, '#ffd44a', 1, 'center');
@@ -1300,10 +1310,12 @@
     line(g, 120 - w * .35, CY(z), 120 - w * .35, y, '#4c4856'); line(g, 120 + w * .35, CY(z), 120 + w * .35, y, '#4c4856');
     g.drawImage(sg.img, Math.round(120 - w / 2), Math.round(y), w, h);
   }
+  // which of the three temps sits at this desk: from where the desk is, so it never touches the run's dice
+  const tempLook = tp => A.TEMPS[Math.floor(Math.abs(tp.cub.w * 7.3 + tp.cub.s)) % A.TEMPS.length];
   function drawTemp(tp, zt) {
     const s = sc(zt) * .85, w = Math.max(2, Math.round(26 * s)), h = Math.max(2, Math.round(15 * s));
-    const x = Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb = YH(zt, tp.cub.top - .12 + tp.pop * .17);
-    g.drawImage(A.TEMP, x, Math.round(yb - h), w, h);
+    const x = Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb = YH(zt, tp.cub.top - .12 + tp.pop * .17), img = tempLook(tp), hh = Math.round(h * img.height / 15);
+    g.drawImage(img, x, Math.round(yb - hh), w, hh);
     // the tell: a temp about to throw flashes a ! first
     if (tp.will && tp.st === 'up' && !tp.threw && tp.t > .12 && Math.floor(tp.t * 12) % 3) {
       const tx = Math.round(x + w / 2), ty = Math.round(yb - h - 10);
@@ -1374,12 +1386,14 @@
     const k = sc(z), drop = row.hit ? row.hit * 30 * k : 0;
     if (row.hit) { g.save(); g.globalAlpha = Math.max(0, 1 - row.hit * 1.7); }
     if (row.kind === 'chairs') {
-      const w = Math.max(3, Math.round(A.CHAIR.width * k)), h = Math.max(3, Math.round(A.CHAIR.height * k));
-      for (const u of [-.52, -.26, 0, .26, .52]) {
-        const x = PX(u, z) + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0);
-        shadow(u, z, 12);
-        g.drawImage(A.CHAIR, Math.round(x - w / 2), Math.round(FY(z) - h - drop * .2), w, h);
-      }
+      // three office chairs side by side, rolling at you: casters spinning, a little swivel wobble; hit one and they tip
+      const img = A.CHAIRS[Math.floor(R.t * 14) % 2], w = Math.max(3, Math.round(img.width * k)), h = Math.max(3, Math.round(img.height * k));
+      [-.46, 0, .46].forEach((u, i) => {
+        const wob = Math.round(Math.sin(R.t * 9 + i * 2.1) * k * 1.5), x = PX(u, z) + wob + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0);
+        shadow(u, z, 18);
+        if (row.hit) { g.save(); g.translate(Math.round(x), Math.round(FY(z))); g.rotate((i - 1 || 1) * Math.min(1.4, row.hit * 4)); g.drawImage(img, -Math.round(w / 2), -h, w, h); g.restore(); }
+        else g.drawImage(img, Math.round(x - w / 2), Math.round(FY(z) - h), w, h);
+      });
     } else if (row.kind === 'carpet') {
       // a carpet of staples skittering across the whole floor, edges blinking red like all the Shredder's paper
       const w = Math.max(3, Math.round(A.STAPLE.width * k * 1.3)), h = Math.max(1, Math.round(A.STAPLE.height * k * 1.3));
@@ -1391,10 +1405,14 @@
       }
     } else {
       // a sheet of paper skidding along the floor, wall to wall, with a fold that flaps
-      const flap = Math.floor(R.t * 10) % 2 ? .05 : .035;
-      quadF(g, '#b8b4a8', -.66, .66, z, z + .03, 0);
-      quadF(g, '#f2eee2', -.66, .66, z, z + .025, flap);
-      for (const u of [-.4, 0, .4]) rect(g, PX(u, z) - 3 * k, YH(z, flap) - 1, 6 * k, 1, '#7c8494');
+      // a jammed sheet as wide as the hall, curling up at you: outlined, printed, its top edge flapping
+      const flap = Math.floor(R.t * 10) % 2 ? .075 : .055, x0 = PX(-.66, z), x1 = PX(.66, z), yb = FY(z), yt = YH(z, flap), hgt = Math.max(2, yb - yt);
+      rect(g, x0 - 1, yt - 1, x1 - x0 + 2, hgt + 2, '#1a1418');
+      rect(g, x0, yt, x1 - x0, hgt, '#f2eee2');
+      rect(g, x0, yb - Math.max(1, Math.round(2 * k)), x1 - x0, Math.max(1, Math.round(2 * k)), '#b8b4a8');
+      for (let i = 1; i <= 3; i++) { const ly = Math.round(yt + hgt * i / 4); for (let u = -.58; u < .58; u += .16) rect(g, PX(u, z), ly, Math.max(2, Math.round(9 * k)), 1, i === 1 ? '#d63428' : '#7c8494'); }
+      // the corner folds back on alternate frames
+      if (Math.floor(R.t * 10) % 2) { rect(g, x1 - Math.round(8 * k), yt, Math.round(8 * k), Math.max(1, Math.round(3 * k)), '#b8b4a8'); }
     }
     if (row.hit) g.restore();
   }
@@ -1442,6 +1460,19 @@
       rect(g, x + Math.cos(a) * r, y + Math.sin(a) * r * .6, 1, 1, i === Math.floor(pk.t * 6) % 3 ? '#ffffff' : col);
     }
   }
+  // Standing about: he breathes; after 2 seconds he glances aside now and then; after 5 he does something, in turn:
+  // spins the blaster, checks the katana, scuffs a hoof. Any move, shot or slash resets it.
+  function idlePose(t) {
+    const P = A.POSES, breathe = Math.floor(t / .7) % 2 ? P.breathe : P.stand;
+    if (t < 2) return breathe;
+    if (t < 5) { const k = Math.floor((t - 2) / .8) % 4; return k === 1 ? P.lookL : k === 3 ? P.lookR : breathe; }
+    const n = Math.floor((t - 5) / 2.6), u = (t - 5) % 2.6;
+    if (u > 1.7) return breathe;
+    const bit = n % 3;
+    if (bit === 0) return P.twirl[Math.floor(u * 10) % 4];
+    if (bit === 1) return Math.floor(u / .4) % 2 ? P.gripUp : P.grip;
+    return Math.floor(u / .25) % 2 ? P.scuff : P.stand;
+  }
   function drawBull() {
     const b = bull;
     if (b.mouth > 0) return;
@@ -1461,8 +1492,11 @@
     else if (aim) p = kick ? P.kick : running ? (stride ? P.runAimA : P.runAimB) : P.aim;
     else if (running) p = stride ? P.runA : P.runB;
     if (cheer) p = Math.floor(R.t * 4) % 2 ? P.win : P.winB;   // horns up at the clear
+    else if (p === P.stand && !b.crouch) p = idlePose(b.idle || 0);
     const sx = 1 + (b.sq || 0), sy = 1 - (b.sq || 0);
-    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s * sx), Math.round(feet - 38 * s * sy), Math.round(A.POSE_W * s * sx), Math.round(A.POSE_H * s * sy));
+    // hit: knocked back a step toward you, rocking side to side, then he catches himself
+    const st = b.stag > 0 && R.phase !== 'win' ? b.stag / .3 : 0, kx = Math.round(Math.sin(st * 14) * 3 * st * s), ky = Math.round(st * 4 * s);
+    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s * sx) + kx, Math.round(feet - 38 * s * sy) + ky, Math.round(A.POSE_W * s * sx), Math.round(A.POSE_H * s * sy));
   }
   // Rugged: the rug is yanked out from under him. He flips up, spins in quarter turns and falls off the screen.
   function drawRugPulled(s, x, feet) {
@@ -1492,6 +1526,7 @@
       } else if (f.k === 'pop') otxt(g, f.text, f.x, Math.round(f.y), f.col, 1, 'center');
       else if (f.k === 'bit') rect(g, f.x, f.y, 2, 1, (Math.floor(f.t * 10) + f.vx) % 2 > 0 ? '#fff6e2' : '#b8b4a8');
       else if (f.k === 'strip') rect(g, Math.round(f.x), Math.round(f.y), 1, 2, Math.floor(f.t * 12 + f.vx) % 2 ? '#f2eee2' : '#b8b4a8');
+      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore(); }
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
@@ -1513,7 +1548,7 @@
     rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
     if (dry && (R.empty > 0 || blink)) rect(g, 4, 14, 49, 3, '#d63428');
     if (R.spread > 0 && (R.spread > 2 || blink)) otxt(g, 'SPREAD', 4, 20, '#ffd44a');
-    if (R.armed === false) { rect(g, 3, 13, 51, 5, '#1a1418'); if (blink || R.empty > 0) txt(g, 'NO BLASTER', 5, 13, '#ff5040'); }
+    if (R.armed === false && R.phase !== 'win') { rect(g, 3, 13, 51, 5, '#1a1418'); if (blink || R.empty > 0) txt(g, 'NO BLASTER', 5, 13, '#ff5040'); }
     if (R.phase === 'hall') {
       // the goal: free enough souls and the Shredder wakes
       const shown = Math.min(R.souls, R.shown), k = Math.min(1, shown / TUNE.goal), full = k >= 1 && Math.floor(R.t * 6) % 2, pulse = R.meterPulse > 0;
@@ -1563,10 +1598,14 @@
     const K = R.bark;
     if (K) {
       let n = 0; while (n < K.text.length && K.times[n] <= K.t) n++;
-      const w = textWidth(K.text) + 8, y = R.spread > 0 ? 27 : 21;
-      g.save(); g.globalAlpha = .75; rect(g, 2, y, w, 9, '#0a0810'); g.restore();
-      rect(g, 2, y, 1, 9, '#ffd44a');
-      txt(g, K.text.slice(0, n), 6, y + 2, '#fff6e2');
+      // wrapped at about 15 letters so it stays at the left, clear of the signs hanging over the middle of the hall
+      const lines = [], words = K.text.split(' ');
+      for (const wd of words) { const l = lines.length - 1; if (l >= 0 && (lines[l] + ' ' + wd).length <= 15) lines[l] += ' ' + wd; else lines.push(wd); }
+      const w = Math.max(...lines.map(l => textWidth(l))) + 8, y = R.spread > 0 ? 27 : 21, h = lines.length * 7 + 2;
+      g.save(); g.globalAlpha = .75; rect(g, 2, y, w, h, '#0a0810'); g.restore();
+      rect(g, 2, y, 1, h, '#ffd44a');
+      let left = n;
+      lines.forEach((l, i) => { txt(g, l.slice(0, Math.max(0, left)), 6, y + 2 + i * 7, '#fff6e2'); left -= l.length + 1; });
     }
   }
   // ---------- title: RugCo Tower at sunset ----------

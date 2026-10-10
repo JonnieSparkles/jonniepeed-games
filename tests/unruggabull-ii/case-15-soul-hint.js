@@ -46,7 +46,9 @@
     check(Math.abs((hp - b.hp) - TUNE.shotDmg * .5) < 1e-6, 'a soul stream does normal damage (' + (hp - b.hp) + ')');
     // then, quietly, back to normal
     const n = bells.length;
-    step(T.hold + T.fade * 2 + .2);
+    step(T.hold + 1);
+    check(R.hint && R.hint.streams === 3, 'the hold only runs while he fires');
+    keys.kbShoot = true; step(T.hold + T.fade * 2 + .2); keys.kbShoot = false;
     check(!R.hint, 'a few seconds later it goes back to one stream');
     check(bells.length === n, 'without a sound');
     R.shots = []; R.fireT = 0; keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
