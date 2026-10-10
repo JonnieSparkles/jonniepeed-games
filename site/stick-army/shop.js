@@ -23,7 +23,7 @@ var StickArmyShop = function (w) {
     { id: 'double', name: 'Double barrel', desc: 'Two parallel shots with each trigger pull.', tier: 'supply', cost: 40, maxStacks: 1, apply: function (s) { s.mods.double = true; } },
     { id: 'trench', name: 'Dig in', desc: 'Your crew take 40% less damage. A second trench makes it 60%.', tier: 'supply', cost: 25, maxStacks: 2, apply: function (s) { s.mods.trench++; } },
     { id: 'helmet', name: 'Helmets', desc: '+1 health for every recruit, now and later. Stacks three times.', tier: 'supply', cost: 20, maxStacks: 3, apply: function (s) { s.mods.helmet++; s.recruits.forEach(function (r) { if (!r.dead) r.hp += 1; }); } },
-    { id: 'tramp', name: 'Second trampoline', desc: 'Open the right-hand mat. Twice the places to catch.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
+    { id: 'tramp', name: 'Second trampoline', desc: 'Open a mat on the other side. Twice the places to catch.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
     { id: 'spread', name: 'Spread shot', desc: 'Add two angled shots to every volley.', tier: 'supply', cost: 65, maxStacks: 1, apply: function (s) { s.mods.spread = true; } },
     { id: 'flak', name: 'Flak rounds', desc: 'Rounds burst near planes and bombs. Paratroopers are left to you.', tier: 'supply', cost: 80, maxStacks: 1, apply: function (s) { s.mods.flak = true; } },
     { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'supply', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
@@ -33,7 +33,8 @@ var StickArmyShop = function (w) {
     { id: 'hospital', name: 'Field hospital', desc: 'A tent with one bed. When a wave ends, your most decorated wounded soldier is carried in and back after a wave.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.hospital = true; } },
     // The flagpole: "It boosts morale." The squad fires FLAG.FIRE faster while it flies, and salutes it at every wave
     // start (game.js FLAG).
-    { id: 'flag', name: 'Flagpole', desc: 'It boosts morale.', tier: 'supply', cost: 40, maxStacks: 1, apply: function (s) { s.mods.flag = true; s.flagUp = 0; } },
+    { id: 'flag', name: 'Flagpole', desc: 'It boosts morale.', tier: 'supply', cost: 40, maxStacks: 1,
+      available: function () { return w.S.wave >= w.FLAG.FROM; }, apply: function (s) { s.mods.flag = true; s.flagUp = 0; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'A bomber carpets the field and hits tanks hard. Press B or the bomber button.', tier: 'supply', cost: 45, maxStacks: Infinity,
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },

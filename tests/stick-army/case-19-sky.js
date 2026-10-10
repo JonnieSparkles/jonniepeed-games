@@ -141,7 +141,7 @@
   check(heard('land') && !S.troopers.some(function (t) { return t.state === 'rope'; }) && (h.phase === 'wait' || h.phase === 'out' || h.gone), 'they reach the ground, and it leaves');
   // Shoot it down and anyone on the rope falls; over a mat, that's a catch.
   RUN.force = 69; quiet(13); S.mods.slots = 4;
-  h = SKY.spawnHeli(RW); h.side = -1; h.dir = 1; h.hoverX = 57; h.hoverY = 330; h.x = 57; h.y = 330;
+  h = SKY.spawnHeli(RW); h.side = -1; h.dir = 1; h.hoverX = h.x = (TRAMPS[0].x1 + TRAMPS[0].x2) / 2; h.hoverY = 330; h.y = 330;
   run(0.9);
   check(S.troopers.some(function (t) { return t.state === 'rope'; }), 'one on the rope');
   damagePlane(h, h.hp, 'player');

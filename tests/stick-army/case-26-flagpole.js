@@ -5,11 +5,14 @@
   var flag = ITEMS.find(function (it) { return it.id === 'flag'; });
   check(flag && flag.tier === 'supply' && flag.maxStacks === 1 && flag.desc === 'It boosts morale.', 'the flagpole is a one-off supply that boosts morale');
   check(!flag.flat, 'it takes war prices like any supply');
+  // Not before wave FLAG.FROM.
+  newGame(); S.wave = FLAG.FROM - 1; check(!eligible(flag), 'not offered before wave ' + FLAG.FROM);
+  S.wave = FLAG.FROM; check(eligible(flag), 'offered from wave ' + FLAG.FROM);
 
   // In the rotation: across seeds, the flagpole turns up among the offers.
   var seen = false;
   for (var seed = 1; seed <= 40 && !seen; seed++) {
-    RUN.force = seed; newGame(); RUN.force = null; S.wave = 3; openShop();
+    RUN.force = seed; newGame(); RUN.force = null; S.wave = FLAG.FROM; openShop();
     if (S.shop.items.some(function (it) { return it.id === 'flag'; })) seen = true;
     S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   }
