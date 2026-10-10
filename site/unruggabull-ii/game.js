@@ -66,7 +66,11 @@
     darkFormEvery: 2.2,     // lights out sends a formation this often
     crouchH: .1, grip: .25, // crouched he's half height; gripping a pulling rug, it drags him at a quarter of the speed
     planeT: 1.6, planeDmg: 2,  // the Shredder's paper airplanes at head height: duck them, or slash them back
-    wipeBy: .5               // a formation wiped out before any of it gets this far down the hall pays a bonus
+    wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
+    // the souls' hint (the mega stream's first glimpse, saved for the roof): the first time the blaster comes back in the
+    // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
+    // go into the gun; the first two each add a stream. The streams hold this long, then drop off one by one, fade apart.
+    soulHint: { souls: 3, gap: .45, fly: .85, hold: 4, fade: .6 }
   };
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
@@ -280,6 +284,7 @@
         emit('pickup', { item: pk.kind });
         if (pk.kind === 'blaster') {
           R.armed = true; R.charge = TUNE.charges; Snd.play('ready'); popText('GOT IT!', x, y - 10, '#ffd44a'); live('Blaster back.');
+          if (R.phase === 'boss' && !R.events.soulHint) startHint();
           if (R.banner && R.banner.text === 'BLASTER DOWN!') R.banner = null;
         } else if (pk.kind === 'coffee') {
           const full = R.hearts >= TUNE.hearts;
@@ -535,6 +540,9 @@
     const shot = du => R.shots.push({ u: mu, z: bull.bz + .03, h: mh, du, tgt: du ? null : best, dead: false, spread: !!du });
     shot(0);
     if (R.spread > 0) { shot(-.6); shot(.6); }
+    // the souls' streams: thin, white and gold, side by side with the bolt (a slight fan, never bending in), no extra charge
+    const hs = R.hint ? R.hint.streams : 1;
+    if (hs > 1) for (const o of hs === 2 ? [1] : [-1, 1]) R.shots.push({ u: mu + o * .08, z: bull.bz + .03, h: mh, du: o * .06, tgt: null, dead: false, soul: true });
     R.events.shots = (R.events.shots || 0) + 1;
     const k = sc(bull.bz);
     R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k, t: 0, dur: .08 });
@@ -826,6 +834,55 @@
     talk('RUG NOT FOUND.', 'shredder');
   }
 
+  // ---------- the souls' hint ----------
+  // A glimpse of the mega stream, saved for the roof. Nothing announces it: a few souls leave the counter and fly into
+  // the gun, each of the first two lands with one soft bell and adds a stream, and a few seconds later the streams quietly
+  // drop off. The counter keeps its souls; the streams do normal damage and cost nothing extra.
+  function startHint() {
+    R.events.soulHint = true;
+    R.hint = { t: 0, landed: 0, streams: 1, endT: 0 };
+  }
+  function updateHint(dt) {
+    const H = R.hint, T = TUNE.soulHint;
+    if (!H) return;
+    if (R.armed === false || R.phase !== 'boss') { R.hint = null; return; }
+    H.t += dt;
+    while (H.landed < T.souls && H.t >= H.landed * T.gap + T.fly) {
+      const i = H.landed++;
+      const m = muzzleXY();
+      for (let j = 0; j < 6; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-3, 3), y: m.y + fxr(-3, 3), s: .7, col: j % 2 ? '#ffd44a' : '#f4f0ff', t: 0, dur: .3, a: Math.random() * 6 });
+      if (i < 2) { H.streams = i + 2; Snd.play('bell', i); }
+      if (H.landed === T.souls) H.endT = H.t + T.hold;
+    }
+    if (H.endT && H.t >= H.endT) {
+      // back to normal, one stream at a time, without a sound
+      H.streams--; H.endT = H.t + T.fade;
+      if (H.streams <= 1) R.hint = null;
+    }
+  }
+  function muzzleXY() { const k = sc(bull.bz); return { x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k }; }
+  // the souls on their way from the counter to the gun, drawn over the scene
+  function drawHintSouls() {
+    const H = R.hint, T = TUNE.soulHint;
+    if (!H) return;
+    const from = { x: W - 10 - textWidth(String(R.souls)), y: 7 }, to = muzzleXY();
+    for (let i = H.landed; i < T.souls; i++) {
+      const p = (H.t - i * T.gap) / T.fly;
+      if (p <= 0) continue;
+      const e = p * p * (3 - 2 * p), bend = Math.sin(Math.PI * p) * (i - 1) * 18;
+      const x = from.x + (to.x - from.x) * e + bend, y = from.y + (to.y - from.y) * e - Math.sin(Math.PI * p) * 10;
+      rect(g, Math.round(x - (to.x - from.x) * .04), Math.round(y - (to.y - from.y) * .04), 1, 1, '#ffd44a');
+      g.drawImage(A.GHOST, Math.round(x - 4), Math.round(y - 4));
+    }
+  }
+  function drawSoulShot(s) {
+    const k = sc(s.z), z0 = Math.max(ZN, s.z - .14), z1 = Math.max(ZN, s.z - .06), x = PX(s.u, s.z), y = YH(s.z, s.h), r = Math.max(1, Math.round(2.2 * k));
+    line(g, PX(s.u - s.du * .14, z0), YH(z0, s.h), PX(s.u - s.du * .06, z1), YH(z1, s.h), '#b0701a');
+    line(g, PX(s.u - s.du * .06, z1), YH(z1, s.h), x, y, '#ffd44a');
+    disc(g, x, y, r + 1, Math.floor(R.t * 30 + s.z * 10) % 2 ? 'rgba(255,212,74,.6)' : 'rgba(255,212,74,.35)');
+    disc(g, x, y, r, '#f4f0ff'); rect(g, x, y, 1, 1, '#ffffff');
+  }
+
   // ---------- souls, effects and words ----------
   // Each soul in a quick streak rings a step higher, and a long enough streak in the hall drops a Spread Shot.
   function free(x, y, source, by) {
@@ -983,6 +1040,7 @@
     updateBull(dt);
     updatePull(dt);
     updateRoll(dt);
+    updateHint(dt);
     updateTemps(dt);
     updateBoxes(dt);
     updateRows(dt);
@@ -1236,6 +1294,7 @@
   }
   // A blaster bolt: a long two-tone tail, a flickering glow ring and a white-hot core. Spread bolts are gold.
   function drawShot(s) {
+    if (s.soul) { drawSoulShot(s); return; }
     const k = sc(s.z), z0 = Math.max(ZN, s.z - .1), z1 = Math.max(ZN, s.z - .045), x = PX(s.u, s.z), y = YH(s.z, s.h);
     const u0 = s.u - (s.du || 0) * .045, r = Math.max(1, Math.round(2.5 * k)), gold = s.spread;
     line(g, PX(u0 - (s.du || 0) * .05, z0), YH(z0, s.h), PX(u0, z1), YH(z1, s.h), gold ? '#b0701a' : '#243a6c');
@@ -1596,7 +1655,7 @@
     }
     if (R.white > 0) { g.save(); g.globalAlpha = Math.min(1, R.white * 4); rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
     if (R.zap > 0) { g.save(); g.globalAlpha = Math.min(.6, R.zap * 2); rect(g, 0, 0, W, H, '#3aa8e0'); g.restore(); }
-    drawHUD(); drawWords();
+    drawHintSouls(); drawHUD(); drawWords();
   }
 
   // ---------- page: card, sound, full screen ----------

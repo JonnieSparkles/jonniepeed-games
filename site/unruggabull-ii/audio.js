@@ -341,6 +341,8 @@ window.UnrugSound = (function () {
     smash: t => { noiseHit(sfxBus, t, .6, .7, 'lowpass', 3000, 1, 120); osc(sfxBus, 'sine', 160, t, .5, .5, { to: 40, sustain: .5 }); [72, 79, 84].forEach((m, i) => osc(sfxBus, 'p25', hz(m + 12), t + .1 + i * .06, .1, .08)); },
     hit: t => { noiseHit(sfxBus, t, .09, .45, 'lowpass', 2200); osc(sfxBus, 'square', 260, t, .08, .12, { to: 110 }); },
     poof: t => noiseHit(sfxBus, t, .07, .18, 'highpass', 3000),
+    // one soft bell as a soul joins the blaster: D5, then F5 (the roof will add A5)
+    bell: (t, n) => { const m = [74, 77, 81][n || 0]; osc(sfxBus, 'triangle', hz(m), t, 1.4, .13, { attack: .015, sustain: .2 }); osc(sfxBus, 'sine', hz(m + 12), t, .9, .05, { sustain: .2 }); },
     soul: (t, n) => { const up = Math.min(12, n || 0); [76, 80, 83, 88].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12 + up), t + i * .045, .09, .12, { sustain: .5 })); },
     hurt: t => { osc(sfxBus, 'square', 170, t, .26, .12, { to: 55 }); noiseHit(sfxBus, t, .18, .3, 'lowpass', 900); },
     warn: t => { for (let i = 0; i < 6; i++) noiseHit(sfxBus, t + i * .11, .03, .3, 'bandpass', 2600, 5); osc(sfxBus, 'p50', 220, t, .5, .05, { to: 330 }); },
