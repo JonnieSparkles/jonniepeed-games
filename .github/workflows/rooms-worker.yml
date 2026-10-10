@@ -1,7 +1,7 @@
-# Deploys the rooms Worker (rooms/) to Cloudflare: the relay behind Don't click this.
-# Runs by itself when a change to rooms/ reaches main. It can also be run from the Actions tab
-# ("Deploy Rooms Worker" → Run workflow). A deploy drops any match in progress; the pages reconnect.
-# See docs/guides/05-rooms.md.
+# Deploys the rooms Worker (rooms/) to Cloudflare: the relay for games played together (docs/guides/05-rooms.md).
+# Runs by itself when a change to rooms/ reaches main: tests a local copy first, deploys, then checks the live
+# Worker. It can also be run from the Actions tab ("Deploy Rooms Worker" → Run workflow). A deploy drops any
+# match in progress; the pages reconnect by themselves.
 # Uses the same repository secrets as the leaderboard: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
 name: Deploy Rooms Worker
 
@@ -28,6 +28,14 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Test the Worker locally before deploying
+        # A broken change stops here, before it replaces the live Worker. Local mode needs no Cloudflare login.
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          (cd rooms && npx --yes wrangler@4.148.0 dev --local --port 8788 --var GHOST_MS:6000 --var LEAVE_GRACE_MS:500 > /tmp/rooms-dev.log 2>&1 &)
+          for i in $(seq 1 90); do curl -sf http://localhost:8788/ > /dev/null && break; sleep 1; done
+          GHOST_MS=6000 LEAVE_GRACE_MS=500 node rooms/test/relay.mjs || { echo "--- wrangler dev log ---"; cat /tmp/rooms-dev.log; exit 1; }
       - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

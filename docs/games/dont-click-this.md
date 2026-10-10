@@ -3,15 +3,15 @@
 An unlisted proof of concept for playing together over the internet. Up to four phones, anywhere: one starts a match and sends the link, friends open it, and each sees everyone's dots moving live. When two dots touch they burst ("WE DID IT" the first time), and when three or four pile up together, every phone goes off: "EVERYONE!".
 
 - Page: `site/dont-click-this/` (`index.html`, `audio.js`, `game.js`), noindexed. **Unlisted:** no card on Side A or Side B; reached only by its direct link, https://jonniepeed.games/dont-click-this/. It still has an `og.png` so a texted link shows a preview; `tools/og/make.py` also writes a `thumb.webp`, unused until it gets a card.
-- Connection: the rooms Worker, [05: Rooms](../guides/05-rooms.md).
-- Test: `tests/dont-click-this/test.py`.
+- Connection: `site/assets/rooms.js` and the rooms Worker, [05: Rooms](../guides/05-rooms.md), with the "each phone owns its own stuff" pattern. Rooms open with `game: 'dont-click-this'` and `max: 4`.
+- Test: `tests/dont-click-this/test.py` (uses `tests/rooms/harness.py`).
 - No online scores or play stats.
 
 ## How it plays
 
 1. **Title card:** "Don't click this." and **Start a match**.
 2. **Start a match** asks "What's the secret?" with three buttons: Meatball and two random decoys, in random order. The secret is always a meatball. The room checks the answer (it isn't in the page); a wrong pick shakes the card, says "Nope. That's not the secret." and deals new decoys.
-3. **The right pick** makes a 12-character code, puts it in the page's `#`, and shows the share card: "Send this to friends", the link, **Send link** (the phone's share sheet; copies the link where there is none), **Copy link**, and "Waiting for your friend…".
+3. **The right pick** opens the match (`Rooms.open` makes the code and puts it in the page's `#`) and shows the share card: "Send this to friends", the link, **Send link** (the phone's share sheet; copies the link where there is none), **Copy link**, and "Waiting for your friend…".
 4. **A friend opens the link** and needs no secret. It joins straight away. Every phone plays the join sound and buzzes, and shows "Orange is here!" (or "2 friends are here!" for someone joining a match already going). Later arrivals show "Green joined" and "3 of you now."
 5. **Seats and colors.** Each phone gets a seat in the order they join, and a seat keeps its color on every phone: 1 Blue, 2 Orange, 3 Green, 4 Pink. The top bar shows a dot for each player, with yours ringed and marked "You"; someone who left stays there, faded. Dots are named under them ("you", "orange"…); a name that would sit on top of another is left out.
 6. **Each player drags their own dot.** Friends' dots have a short trail and a dashed line to yours. A ring pulses around a dot while its player is touching the screen. Arrow keys move the dot on a keyboard.
@@ -22,16 +22,17 @@ An unlisted proof of concept for playing together over the internet. Up to four 
 11. **If someone leaves:** "Green left" and "They can come back with the same link". Their dot fades where it was. The same link brings them back ("Green is back").
 12. **A fifth phone** with the link sees "This match is full" and can start its own.
 13. **A made-up link**, or one more than a week old, says "This match isn't open".
-14. **A dropped connection** (wifi to mobile data, a locked phone) reconnects on its own and keeps its seat; returning to the page reconnects at once.
+14. **A dropped connection** (wifi to mobile data, a locked phone) shows "Reconnecting…" and reconnects on its own, keeping its seat; returning to the page reconnects at once. A reload comes back in the same seat and color.
+15. **The same match open in a second tab** takes over; the first says "Open somewhere else".
 
 ## Layout and tuning (`game.js`)
 
 - The play area is a square, `min(width − 32, height − 120)`, centered a little low. Positions are shares of the square (0 to 1), so phones of any shape agree on where a dot is.
 - `R = 0.05`: dot radius. Two dots touch at `2R` and re-arm beyond `5R`. A pile-up is every player within `2.5R` of their middle; it re-arms once someone is beyond `6R`.
-- `SEAT`: each seat's name, color and starting spot: Blue (0.28, 0.5), Orange (0.72, 0.5), Green (0.5, 0.28), Pink (0.5, 0.72). `SEATS = 4` matches the room's limit.
+- `SEAT`: each seat's name, color and starting spot: Blue (0.28, 0.5), Orange (0.72, 0.5), Green (0.5, 0.28), Pink (0.5, 0.72). `SEATS = 4` is the size the game opens its rooms with.
 - Positions go out at most about 30 times a second; other phones ease toward each one (`1 − e^(−18·dt)`).
-- Messages, each tagged with the sender's seat `f` by the room: `{"t":"p","x","y","d","r"}` (position, finger down, round trip in ms), `{"t":"boom","w":seat}` (my dot touched seat w's) and `{"t":"all"}` (pile-up). Each phone judges its own dot's touches and its own view of a pile-up, and tells the others; a phone plays a touch unless it already did for that pair within 0.8 s, and a pile-up unless it already did within 2 s. A "×N" count doesn't cover "EVERYONE!".
-- Rooms: `ws://localhost:8788` on `localhost` and `127.0.0.1`, otherwise `wss://rooms.jonniepeed.games`.
+- Messages, each arriving with the sender's seat: `{"t":"p","x","y","d","r"}` (position, finger down, round trip in ms), `{"t":"boom","w":seat}` (my dot touched seat w's) and `{"t":"all"}` (pile-up). Each phone judges its own dot's touches and its own view of a pile-up, and tells the others; a phone plays a touch unless it already did for that pair within 0.8 s, and a pile-up unless it already did within 2 s. A "×N" count doesn't cover "EVERYONE!".
+- The connection code is `use(room)` in `game.js`: it maps rooms.js events to the game (ready, join, leave, refused, messages).
 
 ## Sound and feel
 
@@ -41,7 +42,7 @@ Full screen uses the Fullscreen API where it exists (F on a keyboard); the butto
 
 ## Validation
 
-Start the site server and a local rooms Worker (see the guide), then:
+Start the site server and a local rooms Worker (see [Testing](../guides/05-rooms.md#testing)), then:
 
 ```sh
 CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py

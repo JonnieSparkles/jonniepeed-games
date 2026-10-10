@@ -12,8 +12,8 @@ site/                   everything that gets published
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
-  dont-click-this/      up to four phones, anywhere: send a link, find each other (unlisted proof of concept for rooms)
-  assets/               shared fonts, leaderboard and play stats clients, dark mark and favicons
+  dont-click-this/      up to four phones, anywhere: send a link, find each other (unlisted; the first game on rooms)
+  assets/               shared fonts, leaderboard, play stats and rooms clients (rooms.js), dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
   <slug>/thumb.<ext>    game-owned shelf thumbnail (retain its image format)
@@ -27,10 +27,11 @@ tools/balance/          balance bots: seeded headless runs at several skill leve
 tools/trailer/          trailers: scripted gameplay captured frame by frame, the game's own sound, music and the cut
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 stats/                  play stats Worker, D1 schema, private dashboards and tests (not published with site/)
-rooms/                  rooms Worker: a WebSocket relay per match link for up to four phones, and its test (not published with site/)
+rooms/                  rooms Worker: plays together over the internet from a link, and its test (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
 docs/guides/            numbered repo operations guides: 00-name.md, 01-name.md, ...
 docs/games/             living game design docs: <slug>.md (unnumbered)
+tests/rooms/            rooms.js browser test and harness.py, the helpers for testing games played together
 tests/<slug>/           per-game browser harnesses, plus balance.js, bot.js and balance.json for games with balance bots,
                         and trailer/ for games with a trailer; backend tests stay in scores/test/ and stats/test/
 work/                   local tool output such as work/balance/ and work/trailer/ (git-ignored, never committed)
@@ -63,6 +64,7 @@ These apply to every change:
 - **Shared code stays compatible.** Code in `site/` that more than one page loads, such as `site/assets/leaderboard.js`, only grows: add functions and options, but don't rename or remove anything or change what an existing call does unless the same change updates every page that uses it. Check every page that loads it before merging; games with harnesses in `tests/<slug>/` must still pass them.
 - **Online scores.** Games with scores follow [the leaderboard guide](docs/guides/00-leaderboards.md). Read it before adding scores or changing scoring, `BOARD` or `scores/games.json`; anything that changes how fast a game can score (pace, bonuses, power-ups) counts as a scoring change. Run `python3 tools/check_boards.py` after touching either. The scores API is also exempt from no backward compatibility: old published copies must keep working.
 - **Play stats.** Every game reports its runs through `site/assets/stats.js` to the private dashboards ([03: Play stats](docs/guides/03-play-stats.md)). Nothing is stored on or read from the player's device for it (no device IDs, no reading saved initials; names come only from saved board rows), and a report never waits on or breaks a game. The stats API is permanent like the scores API. The dashboards stay behind Cloudflare Access: never set `DASH_OPEN` on the deployed Worker.
+- **Playing together.** Games played over the internet use `site/assets/rooms.js` and the rooms Worker, and follow [05: Rooms](docs/guides/05-rooms.md); read it, especially "Pick a pattern", before adding multiplayer. The room stays game-agnostic: a new game never needs a change in `rooms/`. Test with `tests/rooms/harness.py` and on two real phones.
 - **What's new when scores reset.** A board bump comes with a short What's new note on the title screen explaining the latest change. The note's button has a dot until it's opened once on that device. See [What's new notes](docs/guides/00-leaderboards.md#whats-new-notes).
 - **Related, not identical.** Reuse what the other games already do (full screen, leaderboards, previews) so nothing starts from scratch, but each game is free to do things its own way.
 - **Spelling.** The studio is JonniePeed Games (capital P). Lowercase `jonniepeed` only in slugs and URLs.
@@ -99,7 +101,8 @@ CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
 CHROMIUM=/usr/bin/chromium python3 stats/test/games.py
-CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py   # also needs a local rooms Worker
+CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py             # these two also need a local rooms Worker (05: Rooms)
+CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py
 ```
 
 Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army.md#validation-and-generated-assets).

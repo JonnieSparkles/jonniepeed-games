@@ -1,30 +1,28 @@
 """Up to four phones in one match, end to end, against a local rooms Worker.
 
-Start both servers first (see docs/games/dont-click-this.md):
+Start both servers first (see tests/rooms/harness.py, which this test uses):
 
     python3 -m http.server 8000 --bind 127.0.0.1 --directory site
-    (cd rooms && wrangler dev --local --port 8788)
+    (cd rooms && wrangler dev --local --port 8788 --var GHOST_MS:6000 --var LEAVE_GRACE_MS:500)
 
 Then: CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py
 
 SITE_URL overrides the site address. SCREENSHOTS sets where phone screenshots go (default /tmp/dont-click-this).
 """
 import os
+import sys
 from pathlib import Path
-from playwright.sync_api import sync_playwright
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'rooms'))
+from harness import Phones, SITE  # noqa: E402
 
-SITE = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
 URL = SITE + '/dont-click-this/'
 SHOTS = Path(os.environ.get('SCREENSHOTS', '/tmp/dont-click-this'))
 SHOTS.mkdir(parents=True, exist_ok=True)
-PHONE = dict(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
 
 
-def phone(browser, errors):
-    context = browser.new_context(**PHONE)
-    page = context.new_page()
-    page.on('pageerror', lambda e: errors.append(str(e)))
-    return context, page
+def phone(phones):
+    page = phones.new()
+    return page.context, page
 
 
 def dot_xy(page, x, y):
@@ -51,10 +49,8 @@ def drag(page, x0, y0, x1, y1, steps=12):
 
 
 def main():
-    errors = []
-    with sync_playwright() as p:
-        browser = p.chromium.launch(**({'executable_path': os.environ['CHROMIUM']} if os.environ.get('CHROMIUM') else {}))
-        ca, a = phone(browser, errors)
+    with Phones() as phones:
+        ca, a = phone(phones)
         a.goto(URL)
         assert a.locator('#titleCard').is_visible()
         a.screenshot(path=str(SHOTS / '1-title.png'))
@@ -76,7 +72,7 @@ def main():
         a.screenshot(path=str(SHOTS / '2-waiting.png'))
         print('PASS start a match: link made, waiting for a friend')
 
-        cb, b = phone(browser, errors)
+        cb, b = phone(phones)
         b.goto(link)
         for page in (a, b):
             wait_present(page, 2)
@@ -102,7 +98,7 @@ def main():
         print('PASS the phones show how far apart they are:', a.text_content('#ping'))
 
         # A link to a room nobody opened with the secret doesn't open.
-        cn, n = phone(browser, errors)
+        cn, n = phone(phones)
         n.goto(URL + '#neveropenedroom')
         n.wait_for_selector('#msgCard:not([hidden])', timeout=6000)
         assert "isn't open" in n.text_content('#msgTitle')
@@ -119,9 +115,9 @@ def main():
         print('PASS Invite shows the link mid-game, Back returns')
 
         # A third and fourth phone join; everyone sees four.
-        cc, c = phone(browser, errors)
+        cc, c = phone(phones)
         c.goto(link)
-        cd, d = phone(browser, errors)
+        cd, d = phone(phones)
         d.goto(link)
         for page in (a, b, c, d):
             wait_present(page, 4)
@@ -131,7 +127,7 @@ def main():
         print('PASS four phones in one match, each sees all four; Invite hides when full')
 
         # A fifth phone is turned away.
-        ce, e = phone(browser, errors)
+        ce, e = phone(phones)
         e.goto(link)
         e.wait_for_selector('#msgCard:not([hidden])', timeout=6000)
         assert 'full' in e.text_content('#msgTitle')
@@ -154,7 +150,7 @@ def main():
         for page in (a, b, d):
             wait_present(page, 3)
         assert 'left' in a.text_content('#banner')
-        cc, c = phone(browser, errors)
+        cc, c = phone(phones)
         c.goto(link)
         wait_present(a, 4)
         print('PASS leaving is shown, and the same link brings them back')
@@ -168,9 +164,8 @@ def main():
         a.screenshot(path=str(SHOTS / '8-desktop.png'))
         print('PASS landscape and desktop')
 
-        assert not errors, errors
+        phones.check_no_errors()
         print('PASS no page errors')
-        browser.close()
 
 
 if __name__ == '__main__':

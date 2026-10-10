@@ -1,15 +1,13 @@
 // Don't click this: up to four phones, anywhere, find each other (docs/games/dont-click-this.md).
-// The match link carries a random room code after the #. Every phone connects to that room on the rooms
-// Worker (rooms/, docs/guides/05-rooms.md), which passes each one's messages to the others, tagged with the
-// sender's seat. Each phone sends where its dot is; when two dots touch they burst, and when three or four
-// pile up together, everyone's phone goes off.
+// The connection is site/assets/rooms.js (docs/guides/05-rooms.md): the match link carries a room code after
+// the #, and every phone's messages reach the others tagged with the sender's seat. Each phone sends where its
+// dot is ("each phone owns its own stuff"); when two dots touch they burst, and when three or four pile up
+// together, everyone's phone goes off.
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
   const SOUND = window.DontClickSound;
-  const local = ['localhost', '127.0.0.1'].includes(location.hostname);
-  const ROOMS = local ? 'ws://localhost:8788' : 'wss://rooms.jonniepeed.games';
-  const CODE = /^[a-z0-9]{8,32}$/;
+  const GAME = 'dont-click-this';
   const SEATS = 4;
   const R = 0.05;                     // dot radius, as a share of the play square
   // Each seat keeps its color on every phone, so "I'm green" means the same thing to everyone.
@@ -27,15 +25,7 @@
   // Opening a match asks for the secret. It's always a meatball; the other two are random.
   const DECOYS = ['Pickle', 'Waffle', 'Taco', 'Pretzel', 'Dumpling', 'Burrito', 'Noodle', 'Nugget', 'Pancake', 'Crouton', 'Biscuit', 'Tater tot'];
 
-  function randomCode() {
-    const abc = 'abcdefghijkmnpqrstuvwxyz23456789', bytes = new Uint8Array(12);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, b => abc[b % abc.length]).join('');
-  }
-  const me = randomCode();           // this visit, so a reconnect gets its own seat back
-
-  let code = null, ws = null, seat = 0, phase = 'title', secret = '';
-  let retries = 0, retryTimer = null, pingAt = 0, rtt = 0, pingTimer = null;
+  let room = null, seat = 0, phase = 'title';
   const you = { x: 0.28, y: 0.5, down: false, moved: false };
   // Everyone else, by seat: where they are, where they were last reported, and whether they're here now.
   const players = {};
@@ -54,73 +44,59 @@
   const parts = [];
   let flash = 0;
 
-  // ---------- connection ----------
-  function connect() {
-    clearTimeout(retryTimer);
-    if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} }
-    const s = secret ? '&s=' + encodeURIComponent(secret) : '';
-    try { ws = new WebSocket(`${ROOMS}/room/${code}?me=${me}${s}`); } catch (e) { scheduleRetry(); return; }
-    ws.onmessage = e => onMessage(e.data);
-    ws.onclose = e => {
-      ws = null; clearInterval(pingTimer);
-      if (e.code === 4001) return showMessage('This match is full', 'Four people are already playing here. Start your own and send the link to your friends.');
-      if (e.code === 4002) return;     // replaced by this same page's newer connection
-      if (e.code === 4003) {
-        if (secret) return askSecret(true);
-        return showMessage("This match isn't open", 'Ask your friend to start a new one and send you the link.');
-      }
-      // Everyone looks away until the room says who's still here.
-      for (const s of here()) setHere(s, false, true);
-      if (phase !== 'full') { hint.textContent = 'Reconnecting…'; scheduleRetry(); }
-    };
-  }
-  function scheduleRetry() {
-    retries++;
-    retryTimer = setTimeout(connect, Math.min(5000, 600 * retries));
-  }
-  function send(data) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(data)); }
-
-  function onMessage(raw) {
-    if (raw === 'pong') { rtt = rtt ? rtt * 0.7 + (performance.now() - pingAt) * 0.3 : performance.now() - pingAt; showPing(); return; }
-    let m; try { m = JSON.parse(raw); } catch (e) { return; }
-    const from = SEAT[m.f] ? m.f : 0;
-    if (m.t === 'hello') {
-      retries = 0; seat = m.seat;
+  // ---------- connection (site/assets/rooms.js) ----------
+  function use(r) {
+    room = r;
+    r.on('ready', info => {
+      seat = info.seat;
       if (!you.moved) [you.x, you.y] = SEAT[seat].at;
-      pingTimer = setInterval(ping, 2000); ping();
-      const others = (m.seats || []).filter(s => SEAT[s] && s !== seat);
+      const others = r.others.filter(s => SEAT[s]);
       others.forEach(s => setHere(s, true, true));
       drawRoster();
       if (others.length) together(others.length === 1 ? `${SEAT[others[0]].name} is here!` : `${others.length} friends are here!`);
       else waiting();
-    } else if (m.t === 'join') {
-      if (SEAT[m.seat] && m.seat !== seat) setHere(m.seat, true);
-    } else if (m.t === 'leave') {
-      if (SEAT[m.seat] && m.seat !== seat) setHere(m.seat, false);
-    } else if (m.t === 'p' && from) {
-      const p = player(from);
-      if (!p.here) setHere(from, true);
-      p.tx = clamp(+m.x); p.ty = clamp(+m.y); p.down = !!m.d; p.seen = true;
-      if (m.r) p.rtt = +m.r;
-    } else if (m.t === 'boom' && from && SEAT[m.w]) {
-      // Whoever's dot touched another says so; everyone plays it unless they already did.
-      touch(from, m.w, false);
-    } else if (m.t === 'all' && from) {
-      if (performance.now() - lastPile > 2000) pile(false);
-    }
+    });
+    r.on('join', s => { if (SEAT[s]) setHere(s, true); });
+    r.on('leave', s => { if (SEAT[s]) setHere(s, false); });
+    r.on('seat', s => { seat = s; drawRoster(); });
+    r.on('rtt', showPing);
+    r.on('status', st => {
+      if (st === 'reconnecting') hint.textContent = 'Reconnecting…';
+      else if (st === 'connected') syncHint();
+    });
+    r.on('refused', reason => {
+      if (reason === 'nope') return askSecret(true);
+      if (reason === 'full') return showMessage('This match is full', 'Four people are already playing here. Start your own and send the link to your friends.');
+      if (reason === 'replaced') return showMessage('Open somewhere else', 'This match is open in another tab or window.');
+      showMessage("This match isn't open", 'Ask your friend to start a new one and send you the link.');
+    });
+    r.on('message', (m, from) => {
+      if (!SEAT[from]) return;
+      if (m.t === 'p') {
+        const p = player(from);
+        if (!p.here) setHere(from, true);
+        p.tx = clamp(+m.x); p.ty = clamp(+m.y); p.down = !!m.d; p.seen = true;
+        if (m.r) p.rtt = +m.r;
+      } else if (m.t === 'boom' && SEAT[m.w]) {
+        // Whoever's dot touched another says so; everyone plays it unless they already did.
+        touch(from, m.w, false);
+      } else if (m.t === 'all') {
+        if (performance.now() - lastPile > 2000) pile(false);
+      }
+    });
   }
-  function ping() { if (ws && ws.readyState === 1) { pingAt = performance.now(); ws.send('ping'); } }
+  function send(data) { if (room) room.send(data); }
   function showPing() {
     // One way, phone to phone, is about half of each phone's round trip to the room. Shows the slowest friend.
     const worst = Math.max(0, ...here().map(s => players[s].rtt));
-    pingEl.textContent = worst && rtt ? `~${Math.round(rtt / 2 + worst / 2)} ms apart` : '';
+    pingEl.textContent = worst && room && room.rtt ? `~${Math.round(room.rtt / 2 + worst / 2)} ms apart` : '';
   }
 
   // ---------- what the players see ----------
   function hideCards() { titleCard.hidden = secretCard.hidden = shareCard.hidden = msgCard.hidden = true; }
   function askSecret(wrong) {
-    phase = 'secret'; secret = ''; code = null;
-    clearTimeout(retryTimer);
+    phase = 'secret';
+    if (room) { room.leave(); room = null; }
     history.replaceState(null, '', location.pathname);
     hideCards();
     secretCard.hidden = false;
@@ -148,15 +124,11 @@
   }
   function pickSecret(word) {
     SOUND.init(); SOUND.play('tap');
-    // The room checks it: the answer isn't in this page.
-    secret = word.toLowerCase();
-    code = randomCode();
-    history.replaceState(null, '', '#' + code);
     hideCards();
     phase = 'checking';
     hint.textContent = 'Checking the secret…';
-    retries = 0;
-    connect();
+    // The room checks it: the answer isn't in this page. Rooms.open puts the new match's code in the link.
+    use(Rooms.open({ game: GAME, max: SEATS, secret: word.toLowerCase() }));
   }
   // The share card: alone, it waits for the first friend; with friends, it's the Invite card and closes again.
   function showShare() {
@@ -301,7 +273,7 @@
       return;
     }
     sentAt = now;
-    send({ t: 'p', x: +you.x.toFixed(4), y: +you.y.toFixed(4), d: you.down ? 1 : 0, r: Math.round(rtt) });
+    send({ t: 'p', x: +you.x.toFixed(4), y: +you.y.toFixed(4), d: you.down ? 1 : 0, r: room ? room.rtt : 0 });
   }
   let pointerId = null;
   canvas.addEventListener('pointerdown', e => {
@@ -338,19 +310,12 @@
   });
   inviteBtn.addEventListener('click', () => { SOUND.init(); SOUND.play('tap'); showShare(); });
   backBtn.addEventListener('click', () => { SOUND.play('tap'); hideCards(); });
-  const shareText = "Play with me. Don't click this.";
   $('shareBtn').addEventListener('click', () => {
     SOUND.init();
-    if (navigator.share) navigator.share({ title: "Don't click this", text: shareText, url: location.href }).catch(() => {});
-    else copy();
+    Rooms.share({ title: "Don't click this", text: "Play with me. Don't click this.", url: location.href }).then(r => { if (r === 'copied') copied(); });
   });
-  $('copyBtn').addEventListener('click', () => { SOUND.init(); copy(); });
-  function copy() {
-    const btn = $('copyBtn'), done = () => { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 1500); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(location.href).then(done, fallback);
-    else fallback();
-    function fallback() { const l = $('link'); l.focus(); l.select(); try { document.execCommand('copy'); done(); } catch (e) {} }
-  }
+  $('copyBtn').addEventListener('click', () => { SOUND.init(); Rooms.copy(location.href).then(r => { if (r === 'copied') copied(); }); });
+  function copied() { const btn = $('copyBtn'); btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 1500); }
   function toggleSound() { SOUND.init(); const m = SOUND.toggle(); $('snd').setAttribute('aria-pressed', String(!m)); $('snd').textContent = m ? 'Muted' : 'Sound'; }
   $('snd').addEventListener('click', toggleSound);
   if (SOUND.muted) { $('snd').setAttribute('aria-pressed', 'false'); $('snd').textContent = 'Muted'; }
@@ -369,11 +334,6 @@
   document.addEventListener('webkitfullscreenchange', syncFull);
   fsBtn.hidden = !(gameEl.requestFullscreen || gameEl.webkitRequestFullscreen);
   fsBtn.addEventListener('click', toggleFull);
-
-  // Back from the background (a locked phone, another app): reconnect at once if the connection dropped.
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && code && !ws && phase !== 'full') { retries = 0; connect(); }
-  });
 
   // ---------- drawing ----------
   let W = 0, H = 0, dpr = 1;
@@ -489,13 +449,12 @@
   requestAnimationFrame(frame);
 
   // ---------- start ----------
-  const fromLink = location.hash.slice(1).toLowerCase();
-  if (CODE.test(fromLink)) {
-    // Opened from a friend's link: join straight away.
-    code = fromLink;
+  // Opened from a friend's link: join straight away.
+  const fromLink = Rooms.join({ game: GAME });
+  if (fromLink) {
     hideCards();
     phase = 'joining';
     hint.textContent = 'Joining your friends…';
-    connect();
+    use(fromLink);
   }
 })();
