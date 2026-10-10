@@ -1,6 +1,6 @@
 # Deploys the rooms Worker (rooms/) to Cloudflare: the two-player relay behind Don't click this.
 # Manual only: run it from the Actions tab ("Deploy Rooms Worker" → Run workflow).
-# Only needed after changes in rooms/. Nothing is stored, so a deploy just drops any match in progress.
+# Only needed after changes in rooms/. A deploy drops any match in progress; the pages reconnect.
 # Uses the same repository secrets as the leaderboard: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
 name: Deploy Rooms Worker
 

@@ -54,7 +54,17 @@ def main():
         assert a.locator('#titleCard').is_visible()
         a.screenshot(path=str(SHOTS / '1-title.png'))
         a.click('#startBtn')
-        a.wait_for_selector('#shareCard:not([hidden])')
+        a.wait_for_selector('#secretCard:not([hidden])')
+        words = a.locator('#choices button').all_text_contents()
+        assert len(words) == 3 and 'Meatball' in words, words
+        a.screenshot(path=str(SHOTS / '1b-secret.png'))
+        wrong = next(w for w in words if w != 'Meatball')
+        a.click(f'#choices button:text-is("{wrong}")')
+        a.wait_for_function("document.getElementById('secretText').textContent.startsWith('Nope')", timeout=6000)
+        assert a.locator('#secretCard').is_visible() and '#' not in a.url
+        print('PASS the wrong secret is refused by the room')
+        a.click('#choices button:text-is("Meatball")')
+        a.wait_for_selector('#shareCard:not([hidden])', timeout=6000)
         link = a.input_value('#link')
         assert '#' in link and len(link.split('#')[1]) == 12, link
         a.wait_for_function("document.getElementById('ping').textContent === '' && !document.getElementById('shareCard').hidden")
@@ -85,6 +95,14 @@ def main():
 
         a.wait_for_function("/ms apart/.test(document.getElementById('ping').textContent)", timeout=6000)
         print('PASS the phones show how far apart they are:', a.text_content('#ping'))
+
+        # A link to a room nobody opened with the secret doesn't open.
+        cn, n = phone(browser, errors)
+        n.goto(URL + '#neveropenedroom')
+        n.wait_for_selector('#msgCard:not([hidden])', timeout=6000)
+        assert "isn't open" in n.text_content('#msgTitle')
+        cn.close()
+        print("PASS a made-up link isn't a match")
 
         # A third phone is turned away.
         cc, c = phone(browser, errors)

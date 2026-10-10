@@ -14,7 +14,9 @@
 
   const canvas = $('c'), g = canvas.getContext('2d');
   const banner = $('banner'), hint = $('hint'), frLabel = $('frLabel'), pingEl = $('ping');
-  const titleCard = $('titleCard'), shareCard = $('shareCard'), msgCard = $('msgCard');
+  const titleCard = $('titleCard'), secretCard = $('secretCard'), shareCard = $('shareCard'), msgCard = $('msgCard');
+  // Opening a match asks for the secret. It's always a meatball; the other two are random.
+  const DECOYS = ['Pickle', 'Waffle', 'Taco', 'Pretzel', 'Dumpling', 'Burrito', 'Noodle', 'Nugget', 'Pancake', 'Crouton', 'Biscuit', 'Tater tot'];
 
   function randomCode() {
     const abc = 'abcdefghijkmnpqrstuvwxyz23456789', bytes = new Uint8Array(12);
@@ -23,7 +25,7 @@
   }
   const me = randomCode();           // this visit, so a reconnect gets its own seat back
 
-  let code = null, ws = null, seat = 0, friendHere = false, phase = 'title';
+  let code = null, ws = null, seat = 0, friendHere = false, phase = 'title', secret = '';
   let retries = 0, retryTimer = null, pingAt = 0, rtt = 0, theirRtt = 0, pingTimer = null;
   const you = { x: 0.28, y: 0.5, down: false, moved: false };
   const them = { x: 0.72, y: 0.5, tx: 0.72, ty: 0.5, down: false, seen: false, trail: [] };
@@ -35,12 +37,17 @@
   function connect() {
     clearTimeout(retryTimer);
     if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} }
-    try { ws = new WebSocket(`${ROOMS}/room/${code}?me=${me}`); } catch (e) { scheduleRetry(); return; }
+    const s = secret ? '&s=' + encodeURIComponent(secret) : '';
+    try { ws = new WebSocket(`${ROOMS}/room/${code}?me=${me}${s}`); } catch (e) { scheduleRetry(); return; }
     ws.onmessage = e => onMessage(e.data);
     ws.onclose = e => {
       ws = null; clearInterval(pingTimer);
       if (e.code === 4001) return showMessage('This match is full', 'Two people are already playing here. Start your own and send the link to a friend.');
       if (e.code === 4002) return;     // replaced by this same page's newer connection
+      if (e.code === 4003) {
+        if (secret) return askSecret(true);
+        return showMessage("This match isn't open", 'Ask your friend to start a new one and send you the link.');
+      }
       setFriend(false, true);
       if (phase !== 'full') { hint.textContent = 'Reconnecting…'; scheduleRetry(); }
     };
@@ -82,7 +89,47 @@
   }
 
   // ---------- what the players see ----------
-  function hideCards() { titleCard.hidden = shareCard.hidden = msgCard.hidden = true; }
+  function hideCards() { titleCard.hidden = secretCard.hidden = shareCard.hidden = msgCard.hidden = true; }
+  function askSecret(wrong) {
+    phase = 'secret'; secret = ''; code = null;
+    clearTimeout(retryTimer);
+    history.replaceState(null, '', location.pathname);
+    hideCards();
+    secretCard.hidden = false;
+    hint.textContent = '';
+    const text = $('secretText');
+    text.textContent = wrong ? "Nope. That's not the secret." : 'Pick one.';
+    text.classList.toggle('nope', !!wrong);
+    if (wrong) {
+      SOUND.play('leave'); buzz([80]);
+      const card = secretCard.firstElementChild;
+      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+    }
+    const pool = DECOYS.slice(), picks = ['Meatball'];
+    while (picks.length < 3) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    picks.sort(() => Math.random() - 0.5);
+    const box = $('choices');
+    box.textContent = '';
+    picks.forEach(word => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'ghost'; b.textContent = word;
+      b.addEventListener('click', () => pickSecret(word));
+      box.append(b);
+    });
+    box.firstElementChild.focus({ preventScroll: true });
+  }
+  function pickSecret(word) {
+    SOUND.init(); SOUND.play('tap');
+    // The room checks it: the answer isn't in this page.
+    secret = word.toLowerCase();
+    code = randomCode();
+    history.replaceState(null, '', '#' + code);
+    hideCards();
+    phase = 'checking';
+    hint.textContent = 'Checking the secret…';
+    retries = 0;
+    connect();
+  }
   function waiting() {
     phase = 'waiting';
     hideCards();
@@ -188,10 +235,7 @@
   // ---------- buttons ----------
   $('startBtn').addEventListener('click', () => {
     SOUND.init(); SOUND.play('tap');
-    code = randomCode();
-    history.replaceState(null, '', '#' + code);
-    waiting();
-    connect();
+    askSecret(false);
   });
   $('msgBtn').addEventListener('click', () => {
     history.replaceState(null, '', location.pathname);

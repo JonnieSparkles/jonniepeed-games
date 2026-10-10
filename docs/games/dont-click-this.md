@@ -10,14 +10,16 @@ A Side B proof of concept for playing together over the internet. Two phones, an
 ## How it plays
 
 1. **Title card:** "Don't click this." and **Start a match**.
-2. **Start a match** makes a 12-character code, puts it in the page's `#`, and shows the share card: the link, **Send link** (the phone's share sheet; copies the link where there is none), **Copy link**, and "Waiting for your friend…".
-3. **The friend opens the link** and joins straight away. Both phones play the join sound and buzz, show "Friend is here!", and the Friend label lights up. The hint reads "Drag your dot into theirs".
-4. **Each player drags their own dot** (blue, "you"). The friend's dot is orange, with a short trail and a dashed line between the two. A ring pulses around a dot while its player is touching the screen. Arrow keys move the dot on a keyboard.
-5. **Touching dots** burst on both phones. The first time: "WE DID IT", "Two phones. One page. Across the internet.", a big burst and a buzz. After that, a count ("×2"). The dots have to move apart again before the next one counts.
-6. **The top bar** shows both players, and "~N ms apart" once both have measured their round trip: half of each phone's round trip to the room, added together.
-7. **If the friend leaves:** "Friend left" and "They can come back with the same link". Their dot fades where it was. The same link brings them back.
-8. **A third phone** with the link sees "This match is full" and can start its own.
-9. **A dropped connection** (wifi to mobile data, a locked phone) reconnects on its own and keeps its seat; returning to the page reconnects at once.
+2. **Start a match** asks "What's the secret?" with three buttons: Meatball and two random decoys, in random order. The secret is always a meatball. The room checks the answer (it isn't in the page); a wrong pick shakes the card, says "Nope. That's not the secret." and deals new decoys.
+3. **The right pick** makes a 12-character code, puts it in the page's `#`, and shows the share card: the link, **Send link** (the phone's share sheet; copies the link where there is none), **Copy link**, and "Waiting for your friend…".
+4. **The friend opens the link** and needs no secret. It joins straight away. Both phones play the join sound and buzz, show "Friend is here!", and the Friend label lights up. The hint reads "Drag your dot into theirs".
+5. **Each player drags their own dot** (blue, "you"). The friend's dot is orange, with a short trail and a dashed line between the two. A ring pulses around a dot while its player is touching the screen. Arrow keys move the dot on a keyboard.
+6. **Touching dots** burst on both phones. The first time: "WE DID IT", "Two phones. One page. Across the internet.", a big burst and a buzz. After that, a count ("×2"). The dots have to move apart again before the next one counts.
+7. **The top bar** shows both players, and "~N ms apart" once both have measured their round trip: half of each phone's round trip to the room, added together.
+8. **If the friend leaves:** "Friend left" and "They can come back with the same link". Their dot fades where it was. The same link brings them back.
+9. **A third phone** with the link sees "This match is full" and can start its own.
+10. **A made-up link**, or one more than a week old, says "This match isn't open".
+11. **A dropped connection** (wifi to mobile data, a locked phone) reconnects on its own and keeps its seat; returning to the page reconnects at once.
 
 ## Layout and tuning (`game.js`)
 
@@ -42,4 +44,4 @@ Start the site server and a local rooms Worker (see the guide), then:
 CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py
 ```
 
-It plays a whole match with two phone-sized browsers: start, share link, join, a drag seen on the other phone, "WE DID IT" on both, the ms readout, a third phone turned away, leaving and rejoining, and landscape and desktop layouts. Screenshots go to `/tmp/dont-click-this` (`SCREENSHOTS` changes it).
+It plays a whole match with two phone-sized browsers: a wrong secret, then Meatball, the share link, join, a drag seen on the other phone, "WE DID IT" on both, the ms readout, a made-up link refused, a third phone turned away, leaving and rejoining, and landscape and desktop layouts. Screenshots go to `/tmp/dont-click-this` (`SCREENSHOTS` changes it).
