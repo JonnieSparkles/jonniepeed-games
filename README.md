@@ -12,7 +12,7 @@ site/                   everything that gets published
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
-  dont-click-this/      two phones, anywhere: send a link, find each other (Side B proof of concept for rooms)
+  dont-click-this/      two phones, anywhere: send a link, find each other (unlisted proof of concept for rooms)
   assets/               shared fonts, leaderboard and play stats clients, dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
@@ -80,7 +80,7 @@ These apply to every change:
 
 [Side B](specs/SPEC-004-side-b.md) is the development shelf. Hold the studio's rainbow egg with a pointer, Space or Enter: about 1.4 seconds to full power, then three more seconds as the puddle grows. Or enter `#side-b` directly. The **Side A** button returns to Games. The selected shelf lasts for this tab's visit in `sessionStorage`, including reloads and game/home round trips; a new session defaults to Side A. Side B is discoverable, not private.
 
-Stick Army is a launch card, labelled **demo**, with an online board (board 1). Don't click this, labelled **2 players**, is the proof of concept for playing together over the internet ([05: Rooms](docs/guides/05-rooms.md)). To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
+Stick Army is the only launch card, labelled **demo**, with an online board (board 1). Don't click this is unlisted: it has no card on either shelf and is reached only by its direct link, `dont-click-this/` ([05: Rooms](docs/guides/05-rooms.md)). To promote it after approval, remove the card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute, remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
 
 ## Browser checks
 

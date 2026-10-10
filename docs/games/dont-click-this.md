@@ -1,8 +1,8 @@
 # Don't click this
 
-A Side B proof of concept for playing together over the internet. Two phones, anywhere: one starts a match and sends the link, the other opens it, and each sees the other's dot moving live. When the two dots touch, both phones burst at once: "WE DID IT".
+An unlisted proof of concept for playing together over the internet. Two phones, anywhere: one starts a match and sends the link, the other opens it, and each sees the other's dot moving live. When the two dots touch, both phones burst at once: "WE DID IT".
 
-- Page: `site/dont-click-this/` (`index.html`, `audio.js`, `game.js`). Side B card labelled **2 players**, noindexed.
+- Page: `site/dont-click-this/` (`index.html`, `audio.js`, `game.js`), noindexed. **Unlisted:** no card on Side A or Side B; reached only by its direct link, https://jonniepeed.games/dont-click-this/. It still has an `og.png` so a texted link shows a preview; `tools/og/make.py` also writes a `thumb.webp`, unused until it gets a card.
 - Connection: the rooms Worker, [05: Rooms](../guides/05-rooms.md).
 - Test: `tests/dont-click-this/test.py`.
 - No online scores or play stats.
