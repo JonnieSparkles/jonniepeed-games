@@ -1,4 +1,4 @@
-"""Two phones in one match, end to end, against a local rooms Worker.
+"""Up to four phones in one match, end to end, against a local rooms Worker.
 
 Start both servers first (see docs/games/dont-click-this.md):
 
@@ -32,6 +32,11 @@ def dot_xy(page, x, y):
     w, h = page.viewport_size['width'], page.viewport_size['height']
     s = max(120, min(w - 32, h - 120))
     return (w - s) / 2 + x * s, (h - s) / 2 + 6 + y * s
+
+
+def wait_present(page, n):
+    """Waits until the page's top bar shows n players here, counting its own."""
+    page.wait_for_function(f"document.querySelectorAll('#roster span:not(.away)').length === {n}", timeout=8000)
 
 
 def drag(page, x0, y0, x1, y1, steps=12):
@@ -74,7 +79,7 @@ def main():
         cb, b = phone(browser, errors)
         b.goto(link)
         for page in (a, b):
-            page.wait_for_function("!document.getElementById('frLabel').classList.contains('away')", timeout=8000)
+            wait_present(page, 2)
             assert page.locator('#shareCard').is_hidden() and page.locator('#titleCard').is_hidden()
         a.wait_for_timeout(400)
         a.screenshot(path=str(SHOTS / '3-friend-here.png'))
@@ -104,22 +109,55 @@ def main():
         cn.close()
         print("PASS a made-up link isn't a match")
 
-        # A third phone is turned away.
+        # Invite opens the link again without leaving the game; Back closes it.
+        assert a.locator('#inviteBtn').is_visible()
+        a.click('#inviteBtn')
+        a.wait_for_selector('#shareCard:not([hidden])')
+        assert a.locator('#backBtn').is_visible() and a.locator('#waitText').is_hidden()
+        a.click('#backBtn')
+        assert a.locator('#shareCard').is_hidden()
+        print('PASS Invite shows the link mid-game, Back returns')
+
+        # A third and fourth phone join; everyone sees four.
         cc, c = phone(browser, errors)
         c.goto(link)
-        c.wait_for_selector('#msgCard:not([hidden])', timeout=6000)
-        assert 'full' in c.text_content('#msgTitle')
-        print('PASS a third phone is told the match is full')
-        cc.close()
+        cd, d = phone(browser, errors)
+        d.goto(link)
+        for page in (a, b, c, d):
+            wait_present(page, 4)
+        assert a.locator('#inviteBtn').is_hidden()
+        c.wait_for_timeout(400)
+        c.screenshot(path=str(SHOTS / '6-four-players.png'))
+        print('PASS four phones in one match, each sees all four; Invite hides when full')
 
-        # B leaves; A is told. B comes back with the same link.
-        cb.close()
-        a.wait_for_function("document.getElementById('frLabel').classList.contains('away')", timeout=6000)
+        # A fifth phone is turned away.
+        ce, e = phone(browser, errors)
+        e.goto(link)
+        e.wait_for_selector('#msgCard:not([hidden])', timeout=6000)
+        assert 'full' in e.text_content('#msgTitle')
+        ce.close()
+        print('PASS a fifth phone is told the match is full')
+
+        # Everyone piles into the middle: EVERYONE! on every phone.
+        drag(c, 0.5, 0.28, 0.5, 0.5)
+        drag(d, 0.5, 0.72, 0.5, 0.5)
+        drag(a, 0.5, 0.3, 0.5, 0.5)
+        drag(b, 0.5, 0.3, 0.5, 0.5)
+        for page in (a, b, c, d):
+            page.wait_for_function("document.getElementById('banner').textContent.startsWith('EVERYONE')", timeout=5000)
+        d.wait_for_timeout(150)
+        d.screenshot(path=str(SHOTS / '7-everyone.png'))
+        print('PASS all four pile up: EVERYONE! on every phone')
+
+        # C leaves; the others are told. C comes back with the same link.
+        cc.close()
+        for page in (a, b, d):
+            wait_present(page, 3)
         assert 'left' in a.text_content('#banner')
-        cb, b = phone(browser, errors)
-        b.goto(link)
-        a.wait_for_function("!document.getElementById('frLabel').classList.contains('away')", timeout=8000)
-        print('PASS leaving is shown, and the same link brings the friend back')
+        cc, c = phone(browser, errors)
+        c.goto(link)
+        wait_present(a, 4)
+        print('PASS leaving is shown, and the same link brings them back')
 
         # Landscape and desktop layouts keep the play square on screen.
         for size in ({'width': 844, 'height': 390}, {'width': 1280, 'height': 800}):
@@ -127,7 +165,7 @@ def main():
             a.wait_for_timeout(200)
             x, y = dot_xy(a, 1, 1)
             assert 0 < x <= size['width'] and 0 < y <= size['height'], (size, x, y)
-        a.screenshot(path=str(SHOTS / '6-desktop.png'))
+        a.screenshot(path=str(SHOTS / '8-desktop.png'))
         print('PASS landscape and desktop')
 
         assert not errors, errors

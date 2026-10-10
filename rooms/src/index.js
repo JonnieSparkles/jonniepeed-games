@@ -1,9 +1,9 @@
-// Rooms: a two-player relay for games played together over the internet (docs/guides/05-rooms.md).
+// Rooms: a relay for up to four phones playing together over the internet (docs/guides/05-rooms.md).
 // A room is a Durable Object named by the code in the share link. Each phone opens a WebSocket to
-// /room/<code>; whatever one sends, the other receives. Opening a new room takes the secret; joining a
+// /room/<code>; whatever one sends, the others receive, tagged with who sent it. Opening a new room takes the secret; joining a
 // room that's already open doesn't. The only thing stored is that a room is open, for a week.
 
-const MAX_PLAYERS = 2;
+const MAX_PLAYERS = 4;
 const MAX_MESSAGE = 1024;          // characters; game messages are a few numbers
 const CODE = /^[a-z0-9]{8,32}$/;
 const SECRET = 'meatball';         // it's always a meatball
@@ -47,7 +47,7 @@ export class Room {
     }
     others = others.filter(ws => ws.deserializeAttachment()?.seat);
     const taken = others.map(ws => ws.deserializeAttachment().seat);
-    seat = seat || [1, 2].find(s => !taken.includes(s));
+    seat = seat || Array.from({ length: MAX_PLAYERS }, (_, i) => i + 1).find(s => !taken.includes(s));
     // Accept, then close with a reason the page can read: a refused upgrade just looks like a network error.
     const refuse = (t, code) => {
       server.accept();
@@ -64,16 +64,23 @@ export class Room {
     }
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ seat, me });
-    server.send(JSON.stringify({ t: 'hello', seat, others: others.length }));
+    server.send(JSON.stringify({ t: 'hello', seat, others: others.length, seats: taken }));
     for (const ws of others) { try { ws.send(JSON.stringify({ t: 'join', seat })); } catch (e) {} }
     return new Response(null, { status: 101, webSocket: client });
   }
 
   webSocketMessage(ws, message) {
     if (typeof message !== 'string' || message.length > MAX_MESSAGE) return;
-    if (!ws.deserializeAttachment()?.seat) return;
+    const seat = ws.deserializeAttachment()?.seat;
+    if (!seat) return;
+    // Games send JSON objects. The room adds "f", the sender's seat, so the others know who it's from.
+    let data;
+    try { data = JSON.parse(message); } catch (e) { return; }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return;
+    data.f = seat;
+    const out = JSON.stringify(data);
     for (const other of this.ctx.getWebSockets()) {
-      if (other !== ws && other.deserializeAttachment()?.seat) { try { other.send(message); } catch (e) {} }
+      if (other !== ws && other.deserializeAttachment()?.seat) { try { other.send(out); } catch (e) {} }
     }
   }
 

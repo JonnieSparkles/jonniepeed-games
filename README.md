@@ -12,7 +12,7 @@ site/                   everything that gets published
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
-  dont-click-this/      two phones, anywhere: send a link, find each other (unlisted proof of concept for rooms)
+  dont-click-this/      up to four phones, anywhere: send a link, find each other (unlisted proof of concept for rooms)
   assets/               shared fonts, leaderboard and play stats clients, dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
@@ -27,7 +27,7 @@ tools/balance/          balance bots: seeded headless runs at several skill leve
 tools/trailer/          trailers: scripted gameplay captured frame by frame, the game's own sound, music and the cut
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 stats/                  play stats Worker, D1 schema, private dashboards and tests (not published with site/)
-rooms/                  two-player rooms Worker: a WebSocket relay per match link, and its test (not published with site/)
+rooms/                  rooms Worker: a WebSocket relay per match link for up to four phones, and its test (not published with site/)
 specs/                  build specs, one file each: SPEC-001-name.md, SPEC-002-name.md, ...
 docs/guides/            numbered repo operations guides: 00-name.md, 01-name.md, ...
 docs/games/             living game design docs: <slug>.md (unnumbered)
