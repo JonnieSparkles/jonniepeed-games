@@ -81,11 +81,12 @@ var StickArmyCampaign = function (w) {
     // wave, its fires dying down over BURN seconds.
     CRASH: { FALL: 95, MAX_VY: 260, DIVE: 0.2, NOSE: 276, SLAM: 0.5, REST: 0.02, TEAR: 60, SETTLE: 1.4, BURN: 4 }
   };
-  function turretHP(n) { return Math.round(30 + 2.5 * n); }
-  function hangarHP(n) { return Math.round(70 + 5 * n); }
-  function bridgeHP(n) { return Math.round(80 + 6 * n); }
+  // Each part's health; Veteran's Dreadnought has DREAD times as much (game.js LEVELS).
+  function turretHP(n) { return Math.round((30 + 2.5 * n) * w.lv().DREAD); }
+  function hangarHP(n) { return Math.round((70 + 5 * n) * w.lv().DREAD); }
+  function bridgeHP(n) { return Math.round((80 + 6 * n) * w.lv().DREAD); }
   // About three guns' worth: at two it still got off only one shot.
-  function cannonHP(n) { return Math.round(90 + 7.5 * n); }
+  function cannonHP(n) { return Math.round((90 + 7.5 * n) * w.lv().DREAD); }
   // Wave 20, then every tenth wave in endless.
   function isDreadWave(n) { return n >= DREAD.WAVE && (n - DREAD.WAVE) % DREAD.EVERY === 0; }
   function dread() { return w.S.planes.find(function (p) { return p.kind === 'dread'; }) || null; }
@@ -178,6 +179,13 @@ var StickArmyCampaign = function (w) {
     if (part === p.cannon) { hurtCannon(p, dmg, owner, hx, hy); return; }
     // Armor: hits elsewhere clang.
     clang(p, hx, hy);
+  }
+  // Veteran: a spread-shot side bullet only grazes it (game.js hitTest): a spark off the armor. The first of a run
+  // says so.
+  function graze(p, hx, hy) {
+    var S = w.S;
+    S.parts.push({ k: 'tink', x: hx, y: hy, life: 0.22, max: 0.22, c: INK2, id: w.id() });
+    if (!S.grazeTold) { S.grazeTold = true; addText('spread shot just grazes it!', clamp(hx, 110, W - 110), hy + 34, RED, 22, 'alert'); }
   }
   function clang(p, hx, hy) {
     p.clankT -= 1;
@@ -1248,7 +1256,7 @@ var StickArmyCampaign = function (w) {
     var S = w.S;
     S.mode = 'won'; S.won = true; S.wonAt = S.wave;
     w.showRedCross('win');
-    var wins = w.load('stickarmy.wins', 0) + 1; w.save('stickarmy.wins', wins);
+    var keys = w.lv().KEYS, wins = w.load(keys.wins, 0) + 1; w.save(keys.wins, wins);
     w.saveBestWave(S.wave);
     var isBest = w.saveBest();
     document.getElementById('winScore').textContent = S.score.toLocaleString('en-US');
@@ -1259,7 +1267,9 @@ var StickArmyCampaign = function (w) {
     document.getElementById('winTanks').textContent = String(S.stats.tanks);
     document.getElementById('winDmg').textContent = String(Math.round(S.stats.wallDamage));
     document.getElementById('winShots').textContent = S.stats.shots.toLocaleString('en-US');
-    document.getElementById('winCount').textContent = wins === 1 ? 'Your first win.' : 'Win number ' + wins + '.';
+    var vet = S.level === 'veteran';
+    document.getElementById('winLevel').hidden = !vet;
+    document.getElementById('winCount').textContent = wins === 1 ? 'Your first ' + (vet ? 'Veteran ' : '') + 'win.' : (vet ? 'Veteran win number ' : 'Win number ') + wins + '.';
     var list = document.getElementById('winRoll'), roll = rollCall();
     list.replaceChildren.apply(list, roll.map(function (q) {
       var li = document.createElement('li'); li.textContent = q.text;
@@ -1287,14 +1297,14 @@ var StickArmyCampaign = function (w) {
   }
   // The title card's record line.
   function recordLine() {
-    var wins = w.load('stickarmy.wins', 0), bestWave = w.load('stickarmy.bestWave', 0);
+    var wins = w.load(w.lv().KEYS.wins, 0), bestWave = w.load(w.lv().KEYS.wave, 0);
     if (!wins) return '';
     return 'Won ' + (wins === 1 ? 'once' : wins + ' times') + (bestWave > DREAD.WAVE ? ' · best wave ' + bestWave : '') + '.';
   }
   document.getElementById('keepBtn').addEventListener('click', keepGoing);
 
   return { DREAD: DREAD, turretHP: turretHP, hangarHP: hangarHP, bridgeHP: bridgeHP, cannonHP: cannonHP, isDreadWave: isDreadWave, dread: dread, spawnDread: spawnDread,
-    dreadHit: dreadHit, hurtDread: hurtDread, updateDread: updateDread, drawDread: drawDread, drawDreadBar: drawDreadBar,
+    dreadHit: dreadHit, hurtDread: hurtDread, graze: graze, updateDread: updateDread, drawDread: drawDread, drawDreadBar: drawDreadBar,
     dreadTargets: dreadTargets, dreadPhase: dreadPhase, captainDrift: captainDrift, captainCaught: captainCaught, captainDown: captainDown, captainRun: captainRun, dreadMusic: dreadMusic, dreadBeams: dreadBeams, hangarAt: hangarAt, bridgeAt: bridgeAt, muzzleAt: muzzleAt, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
     recordLine: recordLine };
 };

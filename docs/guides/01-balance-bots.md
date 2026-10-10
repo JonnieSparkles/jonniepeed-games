@@ -23,6 +23,7 @@ python3 tools/balance/run.py stick-army --runs 10 --verify
 | `--cap-minutes M` | 40 | Simulated time cap per run. A run that hits it is reported as a timeout, which also catches stuck states. |
 | `--ref <commit>` | | Also plays the same seeds against another commit (its site and adapter, checked out to a temporary worktree, with the current bot and profiles) and reports both side by side. The commit must already contain the game's adapter. |
 | `--ref-bot own` | `current` | Plays `--ref` with that commit's own `bot.js` instead of the current one. Use it when the adapter's `observe` or `act` contract changed between the versions, so the current bot can't play the old one; the report says so, and the comparison then includes the bots' own changes. The working tree's results are saved before the reference run starts. |
+| `--option KEY=VALUE` | | Passed to the adapter's `start(seed, options)`, repeatable; the reference gets the same. Stick Army takes `level=veteran`. The report lists them. |
 | `--verify` | | Replays every run twice more, in reverse order and once with cosmetic effects on, and fails if any record differs. |
 | `--out DIR` | `work/balance/<timestamp>/` | Where `results.json` and `summary.md` go. `work/` is git-ignored; paste summaries into PRs instead of committing them. |
 
@@ -78,7 +79,7 @@ The runner installs Playwright's clock before loading the page, injects the brid
 The adapter implements this on `window.__balance`:
 
 ```js
-start(seed, options)  // fresh run in a known state; options.fast (default true) may skip cosmetic work
+start(seed, options)  // fresh run in a known state; options.fast (default true) may skip cosmetic work; --option adds keys
 step(dt)              // game logic only, never render()
 observe()             // plain JSON copies the bot can read
 act(actions)          // player input paths only: aim, fire, shop buttons, continue

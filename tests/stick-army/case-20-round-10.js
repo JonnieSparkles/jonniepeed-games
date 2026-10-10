@@ -68,8 +68,8 @@
   check(!S.bubbles.length, 'and goes');
 
   // The title card: the record sits on one line under the keys.
-  try { localStorage.setItem('stickarmy.wins', '1'); localStorage.setItem('stickarmy.bestWave', '17'); } catch (e) { /* ignore */ }
-  best = 1234; titleScene();
+  try { localStorage.setItem('stickarmy.wins', '1'); localStorage.setItem('stickarmy.bestWave', '17'); localStorage.setItem('stickarmy.best.3', '1234'); } catch (e) { /* ignore */ }
+  level = 'soldier'; titleScene();
   check(!document.getElementById('recordLine').hidden && /1,234/.test(document.getElementById('bestLine').textContent) && /Won 1×/.test(document.getElementById('winLine').textContent), 'the title stamp shows the record');
   try { localStorage.removeItem('stickarmy.wins'); localStorage.removeItem('stickarmy.bestWave'); } catch (e) { /* ignore */ }
   best = 0;

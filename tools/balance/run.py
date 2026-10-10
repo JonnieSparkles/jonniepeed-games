@@ -141,6 +141,8 @@ def main():
                     help="which bot plays --ref: the current one (default), or the ref commit's own bot.js when the "
                          "adapter's observe/act contract changed between the versions")
     ap.add_argument('--verify', action='store_true', help='play every run twice, plus once with effects on, and check the records match')
+    ap.add_argument('--option', action='append', default=[], metavar='KEY=VALUE',
+                    help="pass an option to the game's adapter start(), e.g. --option level=veteran (repeatable)")
     ap.add_argument('--out', help='output directory (default work/balance/<timestamp>)')
     args = ap.parse_args()
 
@@ -155,7 +157,13 @@ def main():
         sys.exit('unknown skill profile(s): %s' % ', '.join(unknown))
     seeds = parse_seeds(args.seeds, args.runs)
     cap = args.cap_minutes * 60
-    tasks = [{'seed': seed, 'skill': skill, 'profile': profiles[skill], 'cap': cap, 'options': {'fast': True}} for skill in skills for seed in seeds]
+    options = {'fast': True}
+    for pair in args.option:
+        key, sep, value = pair.partition('=')
+        if not sep or not key:
+            sys.exit('--option takes KEY=VALUE, got %r' % pair)
+        options[key] = value
+    tasks = [{'seed': seed, 'skill': skill, 'profile': profiles[skill], 'cap': cap, 'options': dict(options)} for skill in skills for seed in seeds]
     bot_source = (ROOT / 'tests' / args.game / 'bot.js').read_text()
     out = Path(args.out) if args.out else ROOT / 'work' / 'balance' / datetime.now().strftime('%Y%m%d-%H%M%S')
     out.mkdir(parents=True, exist_ok=True)
@@ -163,7 +171,7 @@ def main():
     server, base = serve(ROOT / 'site')
     current = variant('working tree', ROOT, args.game, base, bot_source)
     started = time.time()
-    results = {'game': args.game, 'commit': git('rev-parse', '--short', 'HEAD'), 'dirty': bool(git('status', '--porcelain')),
+    results = {'game': args.game, 'commit': git('rev-parse', '--short', 'HEAD'), 'dirty': bool(git('status', '--porcelain')), 'options': options,
                'skills': skills, 'seeds': seeds, 'cap_minutes': args.cap_minutes, 'profiles': {s: profiles[s] for s in skills},
                'columns': current['config'].get('columns', []), 'runs': play_all(current, tasks, args.jobs, 'working tree')}
 
@@ -171,7 +179,7 @@ def main():
         # Replays run in reverse order, so each run lands on a page with a different history: state leaking
         # between runs on a shared page shows up as a mismatch.
         again = play_all(current, tasks[::-1], args.jobs, 'repeat')
-        slow = play_all(current, [dict(t, options={'fast': False}) for t in tasks[::-1]], args.jobs, 'effects on')
+        slow = play_all(current, [dict(t, options=dict(t['options'], fast=False)) for t in tasks[::-1]], args.jobs, 'effects on')
         def strip(r):
             return {k: v for k, v in r.items() if k not in ('elapsed', 'options')}
         mismatched = [(a['skill'], a['seed']) for a, b, c in zip(results['runs'], again, slow) if not (strip(a) == strip(b) == strip(c))]
