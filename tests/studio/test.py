@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[2]
 URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/') + '/'
 OUT = Path(os.environ.get('SCREENSHOTS', '/tmp/studio-screenshots'))
 OUT.mkdir(parents=True, exist_ok=True)
-SIDE_B = 2  # demo cards on Side B: Stick Army and Unruggabull II
 SOURCE = (ROOT / 'site/assets/studio/ident.js').read_text().replace(
     '  size(); draw(); start();',
     '  window.studioTest = function(code) { return eval(code); };\n  size(); draw(); start();')
@@ -44,10 +43,10 @@ def follow(page, selector, path='', card=False):
 def state(page, side, focus=False, keyboard=False):
     page.wait_for_load_state('load')
     expect(page.locator('#shelfHeading')).to_have_text('Games' if side == 'a' else 'Side B')
-    assert page.locator('.card:visible').count() == (3 if side == 'a' else SIDE_B)
+    assert page.locator('.card:visible').count() == (3 if side == 'a' else 1)
     assert page.locator('#sideA').is_visible() == (side == 'b')
-    assert page.locator('.card[hidden]').count() == (SIDE_B if side == 'a' else 3)
-    assert page.locator('[data-side="b"]:visible').count() == (SIDE_B if side == 'b' else 0)
+    assert page.locator('.card[hidden]').count() == (1 if side == 'a' else 3)
+    assert page.locator('[data-side="b"]').is_visible() == (side == 'b')
     if focus:
         focus_outline(page, keyboard)
     # Real Tab traversal and accessibility snapshot must exclude inactive cards/button.
@@ -60,11 +59,10 @@ def state(page, side, focus=False, keyboard=False):
         if side == 'a':
             assert page.evaluate('document.activeElement.id !== "sideA"')
     assert ('stick-army/' in reached) == (side == 'b'), reached
-    assert ('unruggabull-ii/' in reached) == (side == 'b'), reached
+    assert 'unruggabull-ii/' not in reached, reached   # unlisted: no card on either shelf
     assert ('thimbleful/' in reached) == (side == 'a'), reached
     snapshot = page.locator('.grid').aria_snapshot()
     assert ('Stick Army' in snapshot) == (side == 'b'), snapshot
-    assert ('Unruggabull II' in snapshot) == (side == 'b'), snapshot
     assert ('Thimbleful' in snapshot) == (side == 'a'), snapshot
 
 
@@ -127,7 +125,7 @@ def hold_flip(page, key=None, calm=False):
         assert page.locator('.grid').evaluate('(el) => el.inert')
         assert page.locator('.grid').evaluate('(el) => el.classList.contains("flip-out")')
         page.clock.run_for(200)
-        assert page.locator('[data-side="b"]').evaluate_all('(els) => els.every((el) => !el.hasAttribute("hidden"))')
+        assert page.locator('[data-side="b"]').get_attribute('hidden') is None
         assert page.locator('.grid').evaluate('(el) => el.inert && el.classList.contains("flip-in")')
     page.clock.run_for(300)
     assert not page.locator('.grid').evaluate('(el) => el.inert')
@@ -171,8 +169,8 @@ with sync_playwright() as p:
     assert page.evaluate('document.activeElement === document.body')  # Initial load does not steal focus.
     state(page, 'a')
     assert page.locator('meta[name="robots"]').count() == 0
-    assert page.locator('[data-side="b"]').evaluate_all('(els) => els.map((el) => el.dataset.badge)') == ['demo'] * SIDE_B
-    assert page.locator('[data-side="b"] .badge').all_text_contents() == ['demo'] * SIDE_B
+    assert page.locator('[data-side="b"]').get_attribute('data-badge') == 'demo'
+    assert page.locator('[data-side="b"] .badge').text_content() == 'demo'
     # Both pre-charge and almost-complete overflow release preserve the original splash.
     for duration in [600, 4100, 2400, 2400]:
         page.clock.run_for(1000)
@@ -220,19 +218,13 @@ with sync_playwright() as p:
     state(page, 'b')
     reload(page)
     expect(page.locator('#shelfHeading')).to_have_text('Side B')
-    follow(page, '[data-side="b"][href="stick-army/"]', 'stick-army/', card=True)
+    follow(page, '[data-side="b"]', 'stick-army/', card=True)
     assert page.url == URL + 'stick-army/'
     assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
     for selector in ['link[rel="icon"][type="image/png"]', 'link[rel="apple-touch-icon"]']:
         assert page.locator(selector).count() == 1
     assert page.locator('#titleScreen .back img').evaluate('(el) => el.complete && el.naturalWidth > 0')
     follow(page, '#titleScreen .back')
-    assert page.url == URL
-    expect(page.locator('#shelfHeading')).to_have_text('Side B')
-    follow(page, '[data-side="b"][href="unruggabull-ii/"]', 'unruggabull-ii/', card=True)
-    assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
-    assert page.locator('main > .back img').evaluate('(el) => el.complete && el.naturalWidth > 0')
-    follow(page, 'main > .back')
     assert page.url == URL
     expect(page.locator('#shelfHeading')).to_have_text('Side B')
     reload(page)
@@ -298,7 +290,7 @@ with sync_playwright() as p:
             expect(page.locator('#shelfHeading')).to_have_css('outline-style', 'none')
         state(page, 'b', focus=True)
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        assert page.locator('[data-side="b"] img').evaluate_all('(els) => els.every((el) => el.complete && el.naturalWidth === 768)')
+        assert page.locator('[data-side="b"] img').evaluate('(el) => el.complete && el.naturalWidth === 768')
         page.locator('#shelfHeading').scroll_into_view_if_needed()
         page.screenshot(path=str(OUT / f'side-b-{width}-{theme}.png'))
         page.locator('#sideA').click()
@@ -324,8 +316,8 @@ with sync_playwright() as p:
     html = (ROOT / 'site/index.html').read_text().replace('data-badge="demo"', 'data-badge="&lt;new label&gt;"')
     page.route(URL, lambda route: route.fulfill(body=html, content_type='text/html'))
     prepare(page)
-    assert page.locator('.badge').all_text_contents() == ['<new label>'] * SIDE_B
-    assert page.locator('.badge').evaluate_all('(els) => els.every((el) => el.children.length === 0)')
+    assert page.locator('.badge').text_content() == '<new label>'
+    assert page.locator('.badge').evaluate('(el) => el.children.length') == 0
     page.goto(URL + '#side-b', wait_until='load')
     page.wait_for_load_state('load')
     reload(page)
@@ -338,8 +330,18 @@ with sync_playwright() as p:
     page.goto(URL + '#side-b', wait_until='load')
     page.wait_for_load_state('load')
     assert page.locator('.card:visible').count() == 3
-    assert page.locator('[data-side="b"]:visible').count() == 0
+    assert page.locator('[data-side="b"]').is_hidden()
     assert page.locator('#sideA').is_hidden()
+    context.close()
+    # Unruggabull II is unlisted: reached only by its link, noindexed, with a way home
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto(URL + 'unruggabull-ii/', wait_until='load')
+    assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
+    page.locator('main > .back').click()
+    page.wait_for_load_state('load')
+    assert page.url == URL
+    print('PASS unlisted Unruggabull II by direct link')
     context.close()
     assert not errors, errors
     browser.close()
