@@ -24,7 +24,7 @@
   for(var k=0;k<120 && !sn.dead;k++) updateBullets(1/60);
   check(sn.dead,'a low shot across the field kills an edge sniper');
   newGame(); equip('auto'); spawnTrooper(120,500); S.troopers[0].open=1; updateAutoTurret(0.1); check(S.bullets.length===1,'auto turret fires');
-  newGame(); equip('catcher'); spawnTrooper(56,490); S.troopers[0].open=1;
+  newGame(); equip('catcher'); spawnTrooper((TRAMPS[0].x1+TRAMPS[0].x2)/2,490); S.troopers[0].open=1;
   check(aimPoint(makeRecruit(0,'rifle'),S.troopers[0]).y<490,'trained crew aims for low chute');
   reset(); render();
 })();

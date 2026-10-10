@@ -26,6 +26,9 @@ var StickArmyCampaign = function (w) {
   // rockets, flak, bazookas and the ambience all see it. Local x runs stern to bow; on the page, x = p.x + p.dir * lx.
   var DREAD = {
     WAVE: 20, EVERY: 10, Y: 210, HW: 300, HH: 38, ARRIVE: 4, APPROACH: 6, ENTER: 32,
+    // What the squad says as it sails in (the arrive phase): awe first, then trash talk. Cosmetic.
+    TAUNT: { EVERY: 2.4, AWE: ['oh sh*t', "dang, that's long", 'oh no.', 'we need a bigger gun', "it's STILL coming", 'how long IS it'],
+      GOAD: ['bring it, tubby', 'nice blimp, grandpa', 'aim for the big part', 'come on then!', 'all that and no aim', 'big ship, small crew', "you're in range, buddy"] },
     PATROL: [70, 330], DRIFT: 24, SWAY: 18,
     TURRETS: [-210, -100, 20, 130], HANGAR: -40, BRIDGE: 222, GUN_Y: 47, HANGAR_Y: 40, BRIDGE_Y: 54, LIGHTS: [-150, 90],
     AIM: 1.2, MARKS: 2, EXPOSED: 2, RELOAD: [1.8, 2.4], VOLLEY: [-26, 0, 26], SHELL_GAP: 0.14, SHELL: 0.5, SHELL_WALL: 14, SPLASH: 26, DIRECT: 4,
@@ -86,6 +89,12 @@ var StickArmyCampaign = function (w) {
   // Wave 20, then every tenth wave in endless.
   function isDreadWave(n) { return n >= DREAD.WAVE && (n - DREAD.WAVE) % DREAD.EVERY === 0; }
   function dread() { return w.S.planes.find(function (p) { return p.kind === 'dread'; }) || null; }
+  // A shuffled copy, picked cosmetically (Math.random) so the squad's lines differ run to run without touching a stream.
+  function shuffled(list) {
+    var out = list.slice();
+    for (var q = out.length - 1; q > 0; q--) { var j = Math.floor(Math.random() * (q + 1)), tmp = out[q]; out[q] = out[j]; out[j] = tmp; }
+    return out;
+  }
   function fighting(p) { return p.phase === 'guns' || p.phase === 'hangar' || p.phase === 'bridge'; }
   // Shot down: falling, or a wreck on the ground.
   function down(p) { return p.phase === 'sinking' || p.phase === 'wreck'; }
@@ -491,15 +500,20 @@ var StickArmyCampaign = function (w) {
         w.sound.play('horn'); w.sound.play('sting'); S.shake = Math.max(S.shake, 0.45);
         // After the decoy's announcement, this one makes sure.
         S.banner = { s: 'dreadnought!', sub: S.spawn && S.spawn.teaser ? 'the REAL enemy flagship' : 'the enemy flagship', t: 0, dur: 3.2 };
-        // "...oh." first, then two more from the pool, picked cosmetically so it differs run to run.
-        var crew = S.recruits.filter(w.standing), pool = ['oh sh*t', "dang, that's long", '\ud83c\udf46', 'oh no.', 'we need a bigger gun'];
-        for (var q = pool.length - 1; q > 0; q--) { var j = Math.floor(Math.random() * (q + 1)), tmp = pool[q]; pool[q] = pool[j]; pool[j] = tmp; }
-        ['...oh.'].concat(pool).slice(0, Math.min(3, crew.length)).forEach(function (line, i) { w.say(line, crew[i].id, false, 0.8 + i * 1.2); });
+        // Then the squad talks the whole way in, a line every TAUNT.EVERY seconds until it opens fire (round 16:
+        // "spread the banter out ... goad it"): "...oh.", two lines of awe, the eggplant, then trash talk.
+        p.taunts = ['...oh.'].concat(shuffled(DREAD.TAUNT.AWE).slice(0, 2), ['\ud83c\udf46'], shuffled(DREAD.TAUNT.GOAD));
+        p.tauntT = 0.8; p.tauntN = 0;
       }
       return;
     }
     if (p.phase === 'arrive') {
       // Sailing in, slowing as it reaches its first station; then the fight starts.
+      if (p.taunts && p.taunts.length && (p.tauntT -= dt) <= 0) {
+        var talkers = S.recruits.filter(w.standing);
+        if (talkers.length) w.say(p.taunts.shift(), talkers[p.tauntN++ % talkers.length].id, false, 0);
+        p.tauntT = DREAD.TAUNT.EVERY;
+      }
       var to = settleX(p), d = to - p.x;
       p.x += Math.sign(d) * Math.min(Math.abs(d), Math.max(14, Math.min(DREAD.ENTER, Math.abs(d) * 0.7)) * dt);
       if (Math.abs(d) < 1) {
@@ -733,7 +747,7 @@ var StickArmyCampaign = function (w) {
     if (S.mods.auto) list.push({ kind: 'sentry', x: w.SENTRY.x, weight: 1 });
     if (S.mods.wire) list.push({ kind: 'wire', x: gx < 200 ? 104 : 296, weight: 1 });
     if (S.mods.trench > 0) list.push({ kind: 'trench', x: gx < 200 ? 130 : 270, weight: 1 });
-    if (S.mods.secondTramp) list.push({ kind: 'mat', x: 343, weight: 0.8 });
+    if (S.mods.secondTramp) list.push({ kind: 'mat', x: S.matRight ? W - 343 : 343, weight: 0.8 });
     if (S.mods.hospital && !S.bed) list.push({ kind: 'tent', x: w.TENT.x, weight: 0.8 });
     list.push({ kind: 'wall', x: BK.x, weight: 5 });
     return list.filter(function (q) { return taken.indexOf(q.kind + (q.id || '')) < 0; });
@@ -1233,6 +1247,7 @@ var StickArmyCampaign = function (w) {
   function showWin() {
     var S = w.S;
     S.mode = 'won'; S.won = true; S.wonAt = S.wave;
+    w.showRedCross('win');
     var wins = w.load('stickarmy.wins', 0) + 1; w.save('stickarmy.wins', wins);
     w.saveBestWave(S.wave);
     var isBest = w.saveBest();

@@ -25,8 +25,11 @@
   // Road tanks: the first FIRST seconds into the wave, then every GAP seconds (times the wave's pace). Round 14 ("lots
   // of late arriving tanks... they just need to be more impactful"): on wave 17 the last pair rolled in as the planes
   // ran out, at about 27 s, and the wave dragged on to about 50 s against tanks alone. They were 11 s, then 11-16 s;
-  // now they come while the planes and bombers are still overhead.
-  var ROAD = { FIRST: 7, GAP: [8, 12] };
+  // now they come while the planes and bombers are still overhead. Round 16 ("a couple tanks straggling that kind of
+  // roll in, and you're like, what are you doing here, man?"): they rolled out in time, at about 7, 13 and 18 s on
+  // wave 17, but a tank takes about 13 s to drive in, so the last pair still arrived after the planes, at about 31 s.
+  // They were 7 s, then 8-12 s; now they all roll out in the first half of the wave and arrive with the rush.
+  var ROAD = { FIRST: 4, GAP: [5, 7] };
   // Nothing of consequence flies above the page's top rule (SKY_TOP, y 100), where the score and tags are written
   // (round 14: "nothing 'of consequence' flies above that line. ambient things are no problem"). The high lanes keep a
   // plane's fin and a bomber's tail below it (they started at 98 and 104; cargo planes, heavy bombers, the zeppelins,
@@ -273,8 +276,9 @@
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
-      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0 },
-      hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false
+      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0 },
+      hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false, redCrossPaid: false,
+      matRight: (mix(RUN.seed, 0x3a7) & 1) === 1
     };
     resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
@@ -499,8 +503,9 @@
     // A little more drops over the mats each wave, so catches don't dry up as the sky gets busier.
     var tr = activeTramps(), chance = Math.min(0.3, BALANCE.DROP_CHANCE + 0.012 * Math.max(0, (S.wave || 1) - 1));
     if (rnd() < chance) { var mat = tr[Math.floor(rnd() * tr.length)]; return between(rnd, mat.x1 + 12, mat.x2 - 12); }
-    // The remaining drops avoid mats, preserving the configured opportunity rate.
-    return rnd() < 0.5 ? between(rnd, 106, 146) : (S.mods.secondTramp ? between(rnd, 254, 294) : between(rnd, 254, 382));
+    // The remaining drops avoid mats, preserving the configured opportunity rate (mirrored when the first mat is on the right).
+    var x = rnd() < 0.5 ? between(rnd, 106, 146) : (S.mods.secondTramp ? between(rnd, 254, 294) : between(rnd, 254, 382));
+    return S.matRight ? W - x : x;
   }
   function activeTramps() { return S.mods.secondTramp ? TRAMPS : [TRAMPS[0]]; }
   function unlockedSlots() { return SLOT_ORDER.slice(0, S.mods.slots); }
@@ -710,9 +715,13 @@
     }
   }
 
+  // The mats: the first on its side for the run (S.matRight, from the run seed), the second across from it, and the
+  // hospital tent on the second mat's side, as before; widened by Bigger bounce.
   function resizeMats() {
-    TRAMPS[0].x1 = 22 - S.mods.mat * 6; TRAMPS[0].x2 = 92 + S.mods.mat * 6;
-    TRAMPS[1].x1 = 308 - S.mods.mat * 6; TRAMPS[1].x2 = 378 + S.mods.mat * 6;
+    var near = [22 - S.mods.mat * 6, 92 + S.mods.mat * 6], far = [308 - S.mods.mat * 6, 378 + S.mods.mat * 6];
+    if (S.matRight) { var swap = near; near = far; far = swap; }
+    TRAMPS[0].x1 = near[0]; TRAMPS[0].x2 = near[1]; TRAMPS[1].x1 = far[0]; TRAMPS[1].x2 = far[1];
+    SQUAD.TENT.x = S.matRight ? W - 318 : 318;
   }
   // Pencil icons for supplies live in icons.js; they draw with this file's pen.
   var ICONS = StickArmyIcons({ L: L, SP: SP, Ci: Ci, ink: ink, stick: stick, dogTag: dogTag, hat: hat, medicHelmet: medicHelmet, tube: tube,
@@ -1932,9 +1941,11 @@
   // it goes up in its own little ceremony before the next wave (after a pizza, if one's coming; openWave, raiseFlag):
   // the pole is sketched in with the flag at the bottom (SKETCH), a beat (PAUSE), the flag is hoisted to the top
   // (HOIST, S.flagUp 0 to 1), and the squad salutes it (SALUTE) while a soldier admires it; then the wave starts. From
-  // then on the squad salutes it at every wave start (S.saluteT). It stands behind the bunker's back corner, clear of
-  // the turret, the squad and the tent, and nothing targets it.
-  var FLAG = { FIRE: 0.96, X: 230, TALL: 118, W: 44, H: 28, SKETCH: 0.6, PAUSE: 0.35, HOIST: 1.6, SALUTE: 1.4 };
+  // then on the squad salutes it at every wave start (S.saluteT). It stands at the bunker's left back corner and flies
+  // left (DIR) over the squad, clear of the turret and the sentry gun on the right, and nothing targets it. Sold from
+  // wave FROM (shop.js).
+  var FLAG = { FIRE: 0.96, FROM: 8, X: 170, DIR: -1, TALL: 118, W: 44, H: 28, SKETCH: 0.6, PAUSE: 0.35, HOIST: 1.6, SALUTE: 1.4 };
+  world.FLAG = FLAG;
   function openWave(n) {
     if (S.mods.flag && S.flagUp < 1) { S.waveState = 'flag'; S.nextWave = n; S.flagT = 0; S.flagUp = 0; sound.play('scribble'); }
     else startWave(n);
@@ -1956,12 +1967,12 @@
     var px = FLAG.X, top = GROUND - FLAG.TALL, low = GROUND - 40 - FLAG.H, up = S.flagUp == null ? 1 : S.flagUp;
     G.beginPath(); L(px, GROUND, px, top, 0.4); ink(INK, 2.6); G.stroke();
     G.beginPath(); G.arc(px, top - 3, 3, 0, Math.PI * 2); G.fillStyle = HAT; G.fill(); ink(INK, 1.6); G.stroke();
-    G.beginPath(); L(px + 2, top + 2, px + 2, GROUND - 40, 0.2); ink('rgba(46,46,51,0.35)', 1); G.stroke();
+    G.beginPath(); L(px + 2 * FLAG.DIR, top + 2, px + 2 * FLAG.DIR, GROUND - 40, 0.2); ink('rgba(46,46,51,0.35)', 1); G.stroke();
     drawFlagCloth(px, low + (top + 2 - low) * up, S.t);
   }
-  // The flag itself, rippling in the wind: blue pen with a white star.
+  // The flag itself, rippling in the wind (flying FLAG.DIR of the pole): blue pen with a white star.
   function drawFlagCloth(px, y0, t) {
-    var w = FLAG.W, h = FLAG.H, n = 8, pts = [], i, k;
+    var w = FLAG.W * FLAG.DIR, h = FLAG.H, n = 8, pts = [], i, k;
     for (i = 0; i <= n; i++) { k = i / n; pts.push(px + k * w, y0 + Math.sin(t * 6 - k * 5) * 3.2 * k); }
     for (i = n; i >= 0; i--) { k = i / n; pts.push(px + k * w, y0 + h + Math.sin(t * 6 - k * 5 + 0.6) * 3.2 * k - k * 2); }
     G.beginPath(); G.moveTo(pts[0], pts[1]); for (i = 2; i < pts.length; i += 2) G.lineTo(pts[i], pts[i + 1]); G.closePath();
@@ -2074,9 +2085,11 @@
   function drawHint() {
     G.save(); G.globalAlpha = 0.6 + 0.3 * Math.sin(S.t * 4);
     G.fillStyle = INK; G.textAlign = 'center'; G.font = '19px ' + HAND;
-    G.fillText('pop his chute', 80, 468); G.fillText('over the mat!', 80, 490);
-    G.setLineDash([2, 6]); G.beginPath(); G.moveTo(64, 538); G.lineTo(58, 580); ink(INK, 2); G.stroke(); G.setLineDash([]);
-    G.beginPath(); G.moveTo(52, 573); G.lineTo(58, 582); G.lineTo(64, 573); G.stroke();
+    // Over the first mat, whichever side it's on.
+    var m = function (x) { return S.matRight ? W - x : x; };
+    G.fillText('pop his chute', m(80), 468); G.fillText('over the mat!', m(80), 490);
+    G.setLineDash([2, 6]); G.beginPath(); G.moveTo(m(64), 538); G.lineTo(m(58), 580); ink(INK, 2); G.stroke(); G.setLineDash([]);
+    G.beginPath(); G.moveTo(m(52), 573); G.lineTo(m(58), 582); G.lineTo(m(64), 573); G.stroke();
     G.restore();
   }
   // The squad row doubles as a health readout: a bar under each figure, wounded crew slouch with a bandage, and
@@ -2237,7 +2250,7 @@
     drawRadio();
     if (S.mode === 'dying' || S.mode === 'over') { drawRubble(); if (S.mods.flag) drawFallenFlag(); }
     else {
-      if (S.mods.flag) sketchReveal(S.waveState === 'flag' ? clamp(S.flagT / FLAG.SKETCH, 0, 1) : 1, [FLAG.X - 6, GROUND - FLAG.TALL - 8, FLAG.X + FLAG.W + 6, GROUND], 'up', drawFlagpole);
+      if (S.mods.flag) sketchReveal(S.waveState === 'flag' ? clamp(S.flagT / FLAG.SKETCH, 0, 1) : 1, [FLAG.X - FLAG.W - 6, GROUND - FLAG.TALL - 8, FLAG.X + 6, GROUND], 'up', drawFlagpole);
       sketched('auto', [SENTRY.x - 12, SENTRY.y - 16, SENTRY.x + 14, GROUND], 'up', drawSentry);
       drawBunker(); drawDefenses();
       sketched('hospital', [SQUAD.TENT.x - SQUAD.TENT.hw, GROUND - SQUAD.TENT.h - 10, SQUAD.TENT.x + SQUAD.TENT.hw, GROUND], 'up', drawTent);
@@ -2286,6 +2299,7 @@
   var demo = null;
   function demoScene(n) {
     reset();
+    S.matRight = false; resizeMats(); // the scripted catch is over the left mat
     S.mode = 'title';
     [[0, 'rifle'], [4, 'engineer']].forEach(function (d) { S.recruits.push(makeRecruit(d[0], d[1])); });
     var dir = n % 2 ? -1 : 1, p = makePlane('plane', dir, dir > 0 ? -50 : W + 50, DEMO.Y);
@@ -2387,8 +2401,18 @@
   var OVER_CAUSE = { bomb: 'A bomb brought the wall down.', lander: 'Troopers at the wall broke through.', sniper: 'Sniper fire chipped the wall away.', tank: 'Tank shells knocked the wall down.', dreadnought: "The Dreadnought's guns brought the wall down.",
     dive: "A dive bomber's bomb brought the wall down.", balloon: "A balloon's bomb brought the wall down.", heli: 'Helicopter fire chipped the wall away.',
     heavy: "A heavy bomber's carpet brought the wall down." };
+  // The Red Cross line on an end card: "3 of 8 got through", and the bonus when every one did.
+  function showRedCross(prefix) {
+    var rc = SKY.redCrossRecord(), dd = document.getElementById(prefix + 'Red'), bonus = document.getElementById(prefix + 'Perfect');
+    dd.textContent = rc.safe + ' of ' + rc.flew;
+    dd.hidden = document.getElementById(prefix + 'RedLabel').hidden = !rc.flew;
+    bonus.textContent = 'Every Red Cross plane got through: +' + SKY.MEDEVAC.PERFECT.toLocaleString('en-US');
+    bonus.hidden = !rc.perfect;
+  }
+  world.showRedCross = showRedCross;
   function showOver() {
     S.mode = 'over';
+    showRedCross('st');
     if (statsRun) { PlayStats.end(statsRun, runReport()); statsRun = null; }
     var isBest = S.score > best;
     if (isBest) { best = S.score; save('stickarmy.best.3', best); }

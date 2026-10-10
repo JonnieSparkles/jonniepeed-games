@@ -20,7 +20,7 @@ var StickArmySky = function (w) {
   // tags and your combo, then it flees. Round 14 ("red cross = more points/more penalty"): it paid 200 points and half
   // the tags, and a hit cost only the tags.
   // One a wave from WAVE, two from TWO and three from THREE (round 13: "more red cross flights"; it was 12 and 17).
-  var MEDEVAC = { WAVE: 6, TWO: 9, THREE: 14, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, PTS: 100, HIT: 1.5, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
+  var MEDEVAC = { WAVE: 6, TWO: 9, THREE: 14, SPEED: 55, Y: [128, 196], TAGS: 30, LATE: 50, LATE_WAVE: 12, PTS: 100, PERFECT: 5000, HIT: 1.5, HW: 38, HH: 15, FLEE: 2.4, SC: 1 };
   function medevacTags(n) { return n >= MEDEVAC.LATE_WAVE ? MEDEVAC.LATE : MEDEVAC.TAGS; }
   function medevacPts(n) { return MEDEVAC.PTS * n; }
   // A bomb balloon drifts in from an edge toward the bunker and lets its bomb go over it at DROP_Y. Popped anywhere
@@ -122,7 +122,8 @@ var StickArmySky = function (w) {
     else { p.phase = 'out'; p.kits = []; p.burst = 0; }
   }
   // Only a crate still in the air holds the wave open; one on the ground is collected when the wave clears (settle).
-  function waiting() { return w.S.hq.length > 0 || w.S.crates.some(function (c) { return c.state === 'chute'; }); }
+  // A Red Cross plane still crossing holds it open too, so every one that flies gets to finish (and to count).
+  function waiting() { var S = w.S; return S.hq.length > 0 || S.medevac.length > 0 || S.crates.some(function (c) { return c.state === 'chute'; }); }
 
   // ---------- the Red Cross plane ----------
   function spawnMedevac(rnd) {
@@ -147,7 +148,7 @@ var StickArmySky = function (w) {
   }
   function safePassage(m) {
     var S = w.S, x = clamp(m.x, 40, W - 40), tags = medevacTags(S.wave), pts = medevacPts(S.wave);
-    S.score += pts; S.coins += tags; w.flyTags(x, m.y, tags);
+    S.score += pts; S.coins += tags; S.stats.redCross++; w.flyTags(x, m.y, tags);
     addText('safe passage! +' + pts.toLocaleString('en-US'), x, m.y + 30, BLUE, 22);
     emit('redcross_safe', { tags: tags, pts: pts });
     emit('coins', { amount: tags, reason: 'safe passage' });
@@ -158,7 +159,7 @@ var StickArmySky = function (w) {
   // The tags lost show under the counter (loseTags), so the line over the plane gives the points.
   function hurtMedevac(m) {
     var S = w.S, lost = Math.min(S.coins, Math.round(medevacTags(S.wave) * MEDEVAC.HIT)), pts = Math.min(S.score, medevacPts(S.wave)), had = S.combo >= 2;
-    m.hit = true; m.speed *= MEDEVAC.FLEE;
+    m.hit = true; m.speed *= MEDEVAC.FLEE; S.stats.redCrossHit++;
     S.coins -= lost; S.score -= pts; S.combo = 0; S.comboT = 0;
     w.loseTags(lost, m.x, m.y);
     addText('Red Cross hit!' + (pts ? ' -' + pts.toLocaleString('en-US') : ''), m.x, m.y + 36, RED, 24);
@@ -166,6 +167,14 @@ var StickArmySky = function (w) {
     w.burst(m.x, m.y, 6, RED, 110);
     emit('redcross_hit', { lost: lost, pts: pts });
     w.sound.play('wrong');
+  }
+
+  // The Red Cross record for the end cards: how many got through of how many flew. When every one did, the run
+  // gets MEDEVAC.PERFECT points, once (S.redCrossPaid), as its card shows.
+  function redCrossRecord() {
+    var S = w.S, safe = S.stats.redCross, flew = safe + S.stats.redCrossHit, perfect = flew > 0 && safe === flew;
+    if (perfect && !S.redCrossPaid) { S.redCrossPaid = true; S.score += MEDEVAC.PERFECT; emit('redcross_perfect', { pts: MEDEVAC.PERFECT }); }
+    return { safe: safe, flew: flew, perfect: perfect };
   }
 
   // ---------- bomb balloons ----------
@@ -532,10 +541,11 @@ var StickArmySky = function (w) {
     updateMedevac(dt); updateHQ(dt); updateCrates(dt);
     // The night raid fades in as its wave starts and out as it clears. Cosmetic only.
     // Night for the night raid, and the Dreadnought's smoke screen while its hangar launches its dive bombers.
-    var dp = w.dreadPhase && w.dreadPhase();
-    var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar');
+    // The smoke lingers into the bridge stage (smokeClear) and clears at once if the Dreadnought goes down.
+    var dp = w.dreadPhase && w.dreadPhase(), sm = S.smoke, linger = !!sm && sm.clearing && sm.linger > 0 && dp === 'bridge';
+    var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar' || linger);
     S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
-    if (S.smoke) { S.smoke.t += dt; if (S.smoke.clearing) { S.smoke.clear += dt; if (S.night <= 0) S.smoke = null; } }
+    if (sm) { sm.t += dt; if (sm.clearing) { if (linger) sm.linger -= dt; else { sm.clear += dt; if (S.night <= 0) S.smoke = null; } } }
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });
   }
@@ -733,11 +743,13 @@ var StickArmySky = function (w) {
   // ---------- the Dreadnought's smoke screen ----------
   // When its last gun goes, campaign.js has it fire smoke pots onto the field (smokePot). Each pours smoke, and the
   // dark rolls out from them as billows that grow outward (SPREAD px/s, faster upward as smoke rises, each filling out
-  // over GROW seconds) instead of the page fading evenly, with wisps drifting through it. When the hangar goes down the
-  // pots sputter out (OUT seconds) and it blows off one side of the page (WIND px/s) as it fades. It's drawn by
+  // over GROW seconds) instead of the page fading evenly, with wisps drifting through it. When the hangar goes down it
+  // lingers as long again as it has been up, LINGER seconds at least and at most (round 16: "the smoke could probably
+  // last like twice as long"), so it hangs over the start of the bridge stage; then the pots sputter out (OUT seconds)
+  // and it blows off one side of the page (WIND px/s) as it fades. It's drawn by
   // drawNight in place of the night's even fill, so the lights cut through it the same way, and each pot's nozzle
   // glows through it. S.smoke is cosmetic.
-  var SMOKE = { COL: 62, ROW: 66, R: 58, GROW: 0.8, SPREAD: 240, RISE: 0.6, WIND: 260, OUT: 1.5, TOP: 'rgba(58,51,46,0.84)', LOW: 'rgba(44,40,37,0.62)' };
+  var SMOKE = { COL: 62, ROW: 66, R: 58, GROW: 0.8, SPREAD: 240, RISE: 0.6, WIND: 260, OUT: 1.5, LINGER: [6, 20], TOP: 'rgba(58,51,46,0.84)', LOW: 'rgba(44,40,37,0.62)' };
   function smokeStart(wind) {
     var billows = [];
     for (var y = 100, row = 0; y < GROUND + 50; y += SMOKE.ROW, row++) {
@@ -752,7 +764,7 @@ var StickArmySky = function (w) {
     sm.billows.forEach(function (b) { b.t0 = Math.min(b.t0, sm.t + 0.25 + Math.hypot(b.x - x, (b.y - y) * SMOKE.RISE) / SMOKE.SPREAD); });
   }
   function potsOut(sm) { return clamp(sm.clear / SMOKE.OUT, 0, 1); }
-  function smokeClear() { if (w.S.smoke) w.S.smoke.clearing = true; }
+  function smokeClear() { var sm = w.S.smoke; if (sm) { sm.clearing = true; sm.linger = clamp(sm.t, SMOKE.LINGER[0], SMOKE.LINGER[1]); } }
   function grown(sm, b) { var k = clamp((sm.t - b.t0) / SMOKE.GROW, 0, 1); return k * (2 - k); }
   // Over the smoke: the rolling front outlined in pen while it spreads, and pale wisps drifting through it.
   function drawSmoke(sm, a) {
@@ -875,6 +887,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, medevacPts: medevacPts, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, medevacPts: medevacPts, redCrossRecord: redCrossRecord, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

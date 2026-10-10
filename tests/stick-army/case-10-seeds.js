@@ -75,7 +75,7 @@
   for (i = 0; i < 18000 && S.mode === 'play'; i++) { aimBot(); update(1 / 60); }
   emitHook = null; clearInput();
   ['wave_start', 'plane_spawn', 'trooper_spawn', 'kill', 'coins', 'wave_clear', 'shop_offer'].forEach(function (type) { check(seen[type] > 0, 'event ' + type); });
-  var popped = listen(['chute_pop']); spawnTrooper(57, 400); popChute(S.troopers[S.troopers.length - 1]); emitHook = null;
+  var popped = listen(['chute_pop']); spawnTrooper((TRAMPS[0].x1 + TRAMPS[0].x2) / 2, 400); popChute(S.troopers[S.troopers.length - 1]); emitHook = null;
   check(popped.length === 1 && JSON.parse(popped[0].slice(10)).overMat, 'chute_pop knows when it was over a mat');
 
   RUN.force = null; S.mode = 'play'; S.shop = null; shopScreen.hidden = true; reset(); render();
