@@ -701,7 +701,7 @@
         if (victoryDue()) S.waveTimer = 3.2;
         S.hint = false;
         // The final wave's own fanfare plays with the victory card, so its banner gets only the cheer.
-        if (!victoryDue()) sound.play(untouched ? 'untouched' : 'wave');
+        if (!victoryDue()) sound.play('wave');
         SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
       }
     } else if (S.waveState === 'clear') {
@@ -2602,18 +2602,10 @@
   // ---------- loop ----------
   var last = performance.now(), lastAmbience = 0;
   // What the ambience layer needs: whether a wave is live, where the planes are, and whether the wall is in trouble.
-  // How busy the page is, for the march (audio.js marchStep): 0 quiet once nothing (a trooper, a plane, a bomb, a tank)
-  // has been on it for HEAT.QUIET seconds, 1 otherwise.
-  var HEAT = { QUIET: 1.5 }, quietSince = 0;
-  function pageHeat() {
-    if (S.troopers.some(function (t) { return !t.dead; }) || S.bombs.length || S.planes.length || S.tanks.length) quietSince = S.t;
-    return S.t - quietSince >= HEAT.QUIET ? 0 : 1;
-  }
   function ambienceState() {
     return {
       active: S.mode === 'play' && !document.hidden,
       title: S.mode === 'title' && !document.hidden,
-      heat: S.mode === 'play' ? pageHeat() : 1,
       planes: S.planes.filter(function (p) { return p.state === 'fly' && p.kind !== 'balloon' && p.x > -40 && p.x < W + 40; }).map(function (p) { return { x: p.x, dir: p.dir, kind: p.kind }; }),
       wave: S.waveState === 'active',
       number: S.wave,

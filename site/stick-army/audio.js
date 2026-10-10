@@ -47,14 +47,6 @@ var StickArmySound = (function () {
     g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(fl); fl.connect(g); g.connect(route); o.start(t0); o.stop(t0 + dur + 0.03);
   }
-  // A soft held brass note (as in the march), for the shop's "at ease".
-  function soft(f, dur, vol, delay) {
-    var t = AC.currentTime + (delay || 0), o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
-    o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t);
-    fl.type = 'lowpass'; fl.frequency.setValueAtTime(f * 4, t); fl.frequency.linearRampToValueAtTime(f * 9, t + 0.08);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.04); g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(fl); fl.connect(g); g.connect(fx); o.start(t); o.stop(t + dur + 0.03);
-  }
   // A klaxon blast, "a-OOO-gah": two buzzing horns a fifth apart swoop up, hold, then sag, through a honky bandpass
   // with a little rasp, so it reads as an alarm and not a beep.
   function honk(delay) {
@@ -87,20 +79,7 @@ var StickArmySound = (function () {
     thud: function () { tone(110, 0.08, 'sine', 0.15, 70); },
     thump: function () { noise(0.06, 0.12, 400); },
     tink: function () { tone(1800, 0.04, 'triangle', 0.04); },
-    // Falling bombs, one sound per kind so you can tell what's coming: the carpet bomber's plain whistle (a balloon's
-    // bomb too: its slide whistle was dropped); a heavy bomb (dive bombers, heavy bombers) a deep wobbling scream with a
-    // rumble; a cluster (zeppelins, the Dreadnought's bay) three whistles one after another.
     whistle: function () { tone(1500, 0.9, 'sine', 0.07, 180); },
-    heavy: function () {
-      var t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), lfo = AC.createOscillator(), ld = AC.createGain(), fl = AC.createBiquadFilter(), trem = AC.createGain();
-      o.type = 'sawtooth'; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(110, t + 1.7);
-      lfo.frequency.setValueAtTime(5, t); lfo.frequency.linearRampToValueAtTime(11, t + 1.7); ld.gain.value = 0.35;
-      fl.type = 'lowpass'; fl.frequency.value = 1400; trem.gain.value = 0.65; lfo.connect(ld); ld.connect(trem.gain);
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.055, t + 0.2); g.gain.setValueAtTime(0.055, t + 1.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.75);
-      o.connect(fl); fl.connect(trem); trem.connect(g); g.connect(fx); o.start(t); lfo.start(t); o.stop(t + 1.8); lfo.stop(t + 1.8);
-      tone(1400, 1.6, 'sine', 0.05, 200); tone(60, 1.7, 'sine', 0.12, 40); noise(1.6, 0.05, 180);
-    },
-    cluster: function () { [[1900, 0], [1500, 0.16], [1700, 0.32]].forEach(function (w) { tone(w[0], 0.85, 'sine', 0.065, 200, w[1]); noise(0.04, 0.05, 4000, w[1], 'highpass'); }); },
     overheat: function () { noise(0.75, 0.13, 3500, 0, 'highpass'); tone(320, 0.4, 'square', 0.035, 110); },
     ready: function () { tone(1250, 0.05, 'triangle', 0.06); tone(1650, 0.07, 'triangle', 0.06, null, 0.06); },
     pizza: function () { tone(660,0.12,'triangle',0.18); tone(880,0.12,'triangle',0.18,null,0.14); tone(1320,0.24,'triangle',0.18,null,0.28); },
@@ -108,22 +87,10 @@ var StickArmySound = (function () {
     // Wave start: a short bugle call. Wave clear keeps the bright arpeggio.
     bugle: function () { brass(392, 0.14, 0.07); brass(523, 0.14, 0.07, 0.14); brass(659, 0.14, 0.07, 0.28); brass(784, 0.5, 0.08, 0.42); },
     wave: function () { tone(523, 0.12, 'triangle', 0.15); tone(659, 0.12, 'triangle', 0.15, null, 0.12); tone(784, 0.22, 'triangle', 0.15, null, 0.24); },
-    // A wave that never touched the wall: the same arpeggio, then two higher notes on top.
-    untouched: function () { SFX.wave(); tone(1047, 0.1, 'triangle', 0.11, null, 0.42); tone(1319, 0.3, 'triangle', 0.11, null, 0.52); },
-    // The shop opening: a page turning, then two quiet low brass notes, like a band settling ("at ease"). It was a
-    // second bright arpeggio straight after the wave-clear one.
-    shop: function () {
-      noise(0.35, 0.05, 1800, 0, 'bandpass'); noise(0.25, 0.035, 4200, 0.12, 'highpass');
-      soft(98, 0.5, 0.045, 0.35); soft(130.8, 1.1, 0.045, 0.8); soft(164.8, 1.1, 0.025, 0.8);
-    },
-    // Buying in the shop: a soldier keeps the recruit ding; a supply is a pen scratch and a clunk; a radio call a click
-    // of static and two beeps; putting something back is the ding, backwards.
+    shop: function () { [784, 988, 1175, 1568].forEach(function (f, i) { tone(f, 0.18, 'triangle', 0.07, null, i * 0.09); }); },
     // Menu buttons: a pen tap for a chip, a firmer double tap for a big button.
     click: function () { tone(1250, 0.035, 'triangle', 0.18, 900); noise(0.025, 0.1, 3800, 0, 'bandpass'); },
     press: function () { tone(520, 0.05, 'triangle', 0.16, 330); noise(0.03, 0.08, 2400, 0, 'bandpass'); tone(980, 0.04, 'triangle', 0.08, 700, 0.05); },
-    gear: function () { noise(0.05, 0.05, 5200, 0, 'highpass'); noise(0.05, 0.05, 5200, 0.07, 'highpass'); tone(210, 0.09, 'triangle', 0.2, 140, 0.13); noise(0.04, 0.12, 1200, 0.13, 'bandpass'); tone(1320, 0.06, 'triangle', 0.05, null, 0.2); },
-    call: function () { noise(0.1, 0.18, 2600, 0, 'bandpass'); tone(1400, 0.06, 'square', 0.07, null, 0.11); tone(1870, 0.08, 'square', 0.06, null, 0.19); },
-    back: function () { tone(990, 0.08, 'triangle', 0.13); tone(660, 0.14, 'triangle', 0.13, null, 0.08); },
     // New threats: a rush (a sharp whistle and a yell), tank cannon (a dull thump), and the friendly bomber (a
     // rising engine roar under a bright two-note horn).
     rush: function () { tone(2200, 0.12, 'square', 0.04, 1900); tone(2200, 0.18, 'square', 0.04, 1800, 0.16); noise(0.3, 0.08, 1400, 0.05, 'bandpass'); },
@@ -175,8 +142,6 @@ var StickArmySound = (function () {
     },
     // The Red Cross plane coming in: a soft two-tone chime. HQ's supply plane: an engine and a bright little horn.
     medevac: function () { tone(988, 0.22, 'sine', 0.09); tone(784, 0.3, 'sine', 0.09, null, 0.24); tone(988, 0.22, 'sine', 0.07, null, 0.6); tone(784, 0.3, 'sine', 0.07, null, 0.84); },
-    // It got across: the same soft chime, rising this time and coming to rest, "all clear".
-    safe: function () { tone(784, 0.18, 'sine', 0.09); tone(988, 0.18, 'sine', 0.09, null, 0.18); tone(1175, 0.5, 'sine', 0.08, null, 0.36); tone(1568, 0.5, 'sine', 0.03, null, 0.36); },
     hq: function () { tone(90, 1.1, 'sawtooth', 0.035, 150); brass(659, 0.12, 0.06, 0.2); brass(880, 0.25, 0.065, 0.34); },
     // A heavy bomber: a deep, beating drone of four engines.
     drone: function () { tone(52, 2.4, 'sawtooth', 0.045, 58); tone(55.5, 2.4, 'sawtooth', 0.04, 61); noise(2, 0.07, 220); },
@@ -192,33 +157,22 @@ var StickArmySound = (function () {
   // ---------- little voices ----------
   // Gibberish chatter to go with the game's speech bubbles: a syllable for each vowel in the line (up to four), each a
   // buzzy pitch through the formants of that vowel, so "medic!" and "air strike!" sound like themselves. Every speaker
-  // keeps his own pitch (from his id); the enemy's voices are lower and gruffer. (The browser's own speech was tried and
-  // sounded bad on phones.) Each line has a mood (MOODS):
-  // - alarm ("medic!", "incoming!"): said twice, quick, high and falling, and always heard at once;
-  // - radio (the radio calls): flat, through a walkie-talkie, with a click and static before and a squelch beep after;
-  // - chat (small talk): soft, slow and round, a question going up at the end; it gives way to anything else;
-  // - anything else: as before, a line ending in "!" lifting at the end.
+  // keeps his own pitch (from his id); the enemy's voices are lower and gruffer. A line ending in "!" lifts at the end.
+  // (The browser's own speech was tried and sounded bad on phones.)
   // Lines don't talk over each other: one that would overlap a line already playing waits until it ends (up to
-  // SAY.WAIT), except an alarm, which plays at once, and small talk, which is dropped. (Before, any line within 0.2 s of
+  // SAY.WAIT), except an alarm (mood 'alarm': "medic!", "incoming!"), which plays at once, and small talk (mood 'chat'),
+  // which is dropped. Moods only decide who gets through; every line sounds the same. (Before, any line within 0.2 s of
   // another was dropped, alarms included.)
   var SAY = { VOL: 0.12, WAIT: 0.6, SPACE: 0.04 }, saying = [];
   // Formants per vowel, and a level for each so they come out about equally loud.
   var VOWELS = { a: [730, 1090, 0.65], e: [530, 1840, 0.85], i: [300, 2200, 1.2], o: [570, 840, 1], u: [320, 900, 1.2], y: [300, 2200, 1.2] };
-  // vol: loudness; len: syllable length; gap: between syllables; glide: pitch at a syllable's end; wave: oscillator;
-  // shape(i, n, lift, ask): pitch of syllable i of n.
-  var MOODS = {
-    alarm: { vol: 2.1, len: 0.7, gap: 0.015, glide: 0.75, wave: 'sawtooth', twice: true, shape: function (i) { return 1.45 * Math.pow(0.82, i); } },
-    radio: { vol: 1.6, len: 0.9, gap: 0.03, glide: 1, shape: function () { return 1; } },
-    chat: { vol: 0.6, len: 1.5, gap: 0.07, glide: 0.98, wave: 'triangle', shape: function (i, n, lift, ask) { return i === n - 1 ? (ask ? 1.4 : 0.8) : 1 - i * 0.02; } },
-    plain: { vol: 1, len: 1, gap: 0.035, glide: 0.93, shape: function (i, n, lift) { return lift && i === n - 1 ? 1.3 : 1; } }
-  };
   function say(text, voice, enemy, delay, mood) {
     if (!AC || muted) return;
-    var now = AC.currentTime, t = now + (delay || 0), M = enemy ? MOODS.plain : MOODS[mood] || MOODS.plain;
+    var now = AC.currentTime, t = now + (delay || 0);
     var h = Math.imul((voice | 0) + 7, 2654435761) >>> 0, base = enemy ? 118 + (h % 5) * 11 : 220 + (h % 7) * 22;
-    var vowels = (String(text).toLowerCase().match(/[aeiouy]/g) || ['a']).slice(0, 4), lift = /!$/.test(text), ask = /\?$/.test(text), n = vowels.length;
-    var lens = vowels.map(function (v, i) { return (0.07 + ((h >>> (i * 3)) & 3) * 0.012) * M.len; });
-    var once = lens.reduce(function (a, d) { return a + d + M.gap; }, 0), len = (M.twice ? 2 * once + 0.06 : once) + (mood === 'radio' ? 0.2 : 0);
+    var vowels = (String(text).toLowerCase().match(/[aeiouy]/g) || ['a']).slice(0, 4), lift = /!$/.test(text);
+    var lens = vowels.map(function (v, i) { return 0.07 + ((h >>> (i * 3)) & 3) * 0.012; });
+    var len = lens.reduce(function (a, d) { return a + d + 0.035; }, 0);
     saying = saying.filter(function (q) { return q.end > now; });
     if (mood !== 'alarm') {
       var clash = saying.filter(function (q) { return q.start < t + len && q.end + SAY.SPACE > t; });
@@ -231,36 +185,25 @@ var StickArmySound = (function () {
     }
     saying.push({ start: t, end: t + len });
     try {
-      var out = null;
-      if (mood === 'radio' && !enemy) {
-        tone(2400, 0.02, 'square', 0.06, null, t - now); noise(0.09, 0.09, 2600, t - now, 'bandpass'); t += 0.1;
-        var band = AC.createBiquadFilter(), crush = AC.createWaveShaper(), cv = new Float32Array(257);
-        for (var k = 0; k < 257; k++) cv[k] = Math.tanh(4 * (k / 128 - 1));
-        band.type = 'bandpass'; band.frequency.value = 1400; band.Q.value = 2.2; crush.curve = cv; band.connect(crush); crush.connect(fx); out = band;
-        noise(once, 0.025, 3000, t - now, 'bandpass'); tone(1750, 0.07, 'square', 0.045, null, t + once + 0.03 - now);
-      }
-      for (var r = 0; r < (M.twice ? 2 : 1); r++) {
-        vowels.forEach(function (v, i) {
-          var f = base * (1 + ((h >>> (i * 2 + 9)) & 3) * 0.07) * M.shape(i, n, lift, ask) * (r ? 1.08 : 1);
-          syllable(t, f, lens[i], VOWELS[v], enemy, M, out);
-          t += lens[i] + M.gap;
-        });
-        t += 0.06;
-      }
+      vowels.forEach(function (v, i) {
+        var f = base * (1 + ((h >>> (i * 2 + 9)) & 3) * 0.07) * (lift && i === vowels.length - 1 ? 1.3 : 1);
+        syllable(t, f, lens[i], VOWELS[v], enemy);
+        t += lens[i] + 0.035;
+      });
     } catch (e) { /* ignore */ }
   }
-  function syllable(t, f, d, formants, enemy, M, out) {
+  function syllable(t, f, d, formants, enemy) {
     var o = AC.createOscillator(), g = AC.createGain();
-    o.type = enemy ? 'sawtooth' : M.wave || 'square';
-    o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * (enemy ? 0.85 : M.glide), t + d);
-    var vol = SAY.VOL * formants[2] * (enemy ? 1.6 : M.vol);
+    o.type = enemy ? 'sawtooth' : 'square';
+    o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * (enemy ? 0.85 : 0.93), t + d);
+    var vol = SAY.VOL * formants[2] * (enemy ? 1.6 : 1);
     formants.slice(0, 2).forEach(function (F, i) {
       var bp = AC.createBiquadFilter(), lvl = AC.createGain();
       bp.type = 'bandpass'; bp.frequency.value = F; bp.Q.value = 4; lvl.gain.value = i ? 0.6 : 1;
       o.connect(bp); bp.connect(lvl); lvl.connect(g);
     });
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.setValueAtTime(vol, t + d * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
-    g.connect(out || fx); o.start(t); o.stop(t + d + 0.02);
+    g.connect(fx); o.start(t); o.stop(t + d + 0.02);
   }
 
   // The menus' own sounds go straight to master, so they're heard on the title, where fx is closed.
@@ -365,17 +308,7 @@ var StickArmySound = (function () {
   // One sixteenth of the march. Waves 1-3 keep a plain left-right step with a backbeat and a roll every
   // fourth bar; from wave 4 ghost notes and a roll every other bar; from wave 9 a pickup kick, steady
   // ghost notes and a roll into every bar. A zeppelin adds a low timpani on each downbeat.
-  // When the page is quiet (heat 0, from the game) it drops to a bass drum and a soft tap. It used to get busier too
-  // when the page was busy (rolls every bar, a doubled bass drum, low brass, a faster tempo); with that much going on
-  // in the fight, the march stays simple instead.
-  function marchStep(i, bar, wave, t, dt, low, boss, heat) {
-    if (heat === 0) {
-      if (low) { if (i === 0 || i === 8) heart(t); }
-      else if (i === 0) drum(t, 110, 44, 0.3, 0.13); else if (i === 8) drum(t, 100, 44, 0.3, 0.08);
-      if (i === 12) snare(t, 0.035);
-      if (boss && i === 0) drum(t, 82, 58, 0.7, 0.16);
-      return;
-    }
+  function marchStep(i, bar, wave, t, dt, low, boss) {
     var tier = wave >= 9 ? 2 : wave >= 4 ? 1 : 0;
     var roll = tier === 2 || (tier === 1 ? bar % 2 === 1 : bar % 4 === 3);
     if (low) { if (i === 0 || i === 8) heart(t); }
@@ -389,7 +322,7 @@ var StickArmySound = (function () {
   }
 
   // state: { active, title (the title is showing: its music, and no effects), planes: [{ x, dir, kind }], wave (true
-  //   while a wave is running), number (the wave), wallLow, heat (0 quiet, 1, 2 busy), dread (the Dreadnought's
+  //   while a wave is running), number (the wave), wallLow, dread (the Dreadnought's
   //   phase, or null) }
   function ambience(state) {
     if (!AC) return;
@@ -423,13 +356,12 @@ var StickArmySound = (function () {
       var down = state.dread === 'sinking' || state.dread === 'wreck';
       var dreadOn = !!state.dread && !down, bridge = state.dread === 'hangar' || state.dread === 'bridge';
       var thin = state.dread === 'teaser', hush = state.dread === 'hush' || down;
-      var heat = state.heat == null ? 1 : state.heat;
       var n = state.number || 1, bpm = dreadOn ? (bridge ? 104 : 96) : Math.min(124, 106 + Math.max(0, n - 3) * 1.5), dt = 60 / bpm / 4;
       var boss = planes.some(function (p) { return p.kind === 'zeppelin'; });
       while (amb.nextStep < now + 0.3) {
         if (hush) { /* a held breath */ }
         else if (dreadOn) dreadStep(amb.step, amb.bar, amb.nextStep, dt, bridge, thin);
-        else marchStep(amb.step, amb.bar, n, amb.nextStep, dt, !!state.wallLow, boss, heat);
+        else marchStep(amb.step, amb.bar, n, amb.nextStep, dt, !!state.wallLow, boss);
         amb.nextStep += dt;
         if (++amb.step === 16) { amb.step = 0; amb.bar++; }
       }

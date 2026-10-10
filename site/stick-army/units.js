@@ -106,7 +106,7 @@ var StickArmyUnits = function (w) {
         if (p.bombT <= 0) {
           p.bombT = p.angry ? ZEP.ANGRY_BOMB_EVERY : ZEP.BOMB_EVERY;
           [-1, 0, 1].forEach(function (k) { S.bombs.push({ id: w.id(), x: p.x + k * 10, y: p.y + p.hh - 2, vx: p.face * p.speed * 0.5 + k * 40, vy: 0, isBomb: true, dead: false }); emit('bomb_dropped', { by: 'zeppelin' }); });
-          w.sound.play('cluster');
+          w.sound.play('whistle');
         }
       }
       p.holes.forEach(function (h) { if (R() < dt * 0.8) puff(p.x + h.x * p.face, p.y + h.y, 2, 0.5); });
