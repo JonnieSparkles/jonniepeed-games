@@ -306,7 +306,7 @@ window.StickArmyCoop = function (w) {
   var IN_EVERY = 50, IN_BEAT = 400, IN_LOST = 1200;
   var DECOYS = ['Pickle', 'Waffle', 'Taco', 'Pretzel', 'Dumpling', 'Burrito', 'Noodle', 'Nugget', 'Pancake', 'Crouton', 'Biscuit', 'Tater tot'];
   var room = null, role = null, friend = false, started = false, awaySince = 0, joinPieces = Joiner();
-  var lastIn = 0, sentIn = null, sentInAt = 0, askedAt = -1e9, shownMode = null, flashT = 0, ui = null;
+  var lastIn = 0, sentIn = null, sentInAt = 0, askedAt = -1e9, shownMode = null, flashT = 0, ui = null, netPaused = false;
   var store = {
     get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
@@ -435,9 +435,16 @@ window.StickArmyCoop = function (w) {
         else showCard(['Waiting for your ', 'friend'], ['Your friend left. They can come back with the same link.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting');
       }
     });
+    // A host that loses the room pauses its game, since its friend can't see it any more; it plays on once it's back,
+    // unless someone paused it meanwhile (netPaused is only the pause the connection made).
     r.on('status', function (st) {
-      if (st === 'reconnecting') status('Reconnecting…');
-      else if (st === 'connected') { status(role === 'host' && started && !friend ? 'Your friend dropped out' : ''); if (role === 'host') resend(); else ask('hi'); }
+      if (st === 'reconnecting') {
+        status('Reconnecting…');
+        if (role === 'host' && host && w.S.mode === 'play') { w.togglePause(); netPaused = true; }
+      } else if (st === 'connected') {
+        status(role === 'host' && started && !friend ? 'Your friend dropped out' : '');
+        if (role === 'host') { resend(); if (netPaused && w.S.mode === 'paused') w.togglePause(); netPaused = false; } else ask('hi');
+      }
     });
     r.on('refused', function (reason) {
       if (reason === 'nope') return askSecret(true);
@@ -450,7 +457,7 @@ window.StickArmyCoop = function (w) {
       if (role === 'host') {
         if (m.t === 'in') { lastIn = now(); hostInput(m); }
         else if (m.t === 'call' && w.S.mode === 'play') { if (m.k === 'bomber') w.callStrike(); else if (m.k === 'fighter') w.callFighter(); }
-        else if (m.t === 'pause' && (w.S.mode === 'play' || w.S.mode === 'paused')) w.togglePause();
+        else if (m.t === 'pause' && (w.S.mode === 'play' || w.S.mode === 'paused')) { netPaused = false; w.togglePause(); }
         else if (m.t === 'hi') resend();
         else if (m.t === 'shop' && m.k && w.S.mode === 'shop') {
           if (m.k.a === 'take') w.takeItem(String(m.k.id), 1);

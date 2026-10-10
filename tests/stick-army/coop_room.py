@@ -131,9 +131,15 @@ with Phones() as phones:
     host.context.set_offline(True)
     wait(guest, "() => { const o = document.getElementById('coopScreen'); return !o.hidden && /Waiting for your/.test(o.textContent); }", 15000)
     check(True, 'the host drops out: the guest waits, counting down')
+    # The host's own connection notices within about 10 s (rooms.js: no answer to its pings for 8 s).
+    wait(host, "() => armyTest('S.mode') === 'paused'", 25000)
+    wave, wall = js(host, 'S.wave'), js(host, 'S.wallHP')
+    time.sleep(1)
+    check(js(host, 'S.mode') == 'paused' and js(host, 'S.wallHP') == wall, "and the host's game pauses, so nothing happens while the guest can't see it")
     host.context.set_offline(False)
     wait(guest, "() => document.getElementById('coopScreen').hidden", 20000)
-    check(True, 'the host comes back and the guest plays on')
+    wait(host, "() => armyTest('S.mode') === 'play'", 10000)
+    check(True, 'the host comes back, its game plays on and the guest with it')
 
     # The end: both players side by side on each card.
     js(host, 'S.wallHP = 0; "ok"')
