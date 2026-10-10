@@ -17,6 +17,8 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Faster repairs and a 12% quicker trigger per stripe** (round 6): long-lived squads became unbeatable. A stripe gives 0.5 health and 8%.
 - **Two fighter-cover passes** (round 6): too strong. It makes one.
 - **Sandbags against the bunker's sides** (round 14): the crew standing there hid them. They're stacked across the front.
+- **Veteran's markup from wave 1** (round 17): a third on prices from the start hurt the opening, not the stacking (expert bots alive at wave 10 fell from 68% to 45%). It climbs from nothing to a third by wave 10.
+- **A Veteran Dreadnought with a quarter more health, and spread shot doing nothing or half to it** (round 17): no expert bot that reached it won, where 4 of 8 did with spread shot at full damage; the health made no difference beside that. Its health is Soldier's, and side bullets do three quarters: the bots don't aim the middle bullet, and the Dreadnought is tuned by hand anyway (below).
 
 ## Why it's like this
 
@@ -52,6 +54,13 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **War prices** (round 12): 6,500 tags went unspent by wave 19, with nothing left to buy. Pizza stays 25 ("sometimes u just want pizza").
 - **Training** (round 12): by wave 20 every supply was maxed and two thirds of the squad were rookies. Training adds the same stripes as service, so the "og" soldiers always have the most.
 - **The mats on either side, from the seed** (round 16): "the starting trampoline always starts on the left".
+
+### Levels
+
+- **Two levels, Soldier and Veteran** (round 17): "it wasn't too hard bc u can stack upgrades. but i like that. maybe make 3 hardness levels". Two, not three, since every later balance change is checked on each. Soldier is the game as it was, and Veteran goes after stacking.
+- **A board per level, not a score multiplier** (round 17): a multiplier is hard to make fair.
+- **A "new" tag on Veteran, not a What's new note** (round 17): notes explain a board reset, and nothing reset.
+- **The record stamp on the grass at the right** (round 17): the level took its place beside Start, and it sits clear of the demo's squad there.
 
 ### Sound
 

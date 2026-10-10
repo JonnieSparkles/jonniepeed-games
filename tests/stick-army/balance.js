@@ -35,6 +35,8 @@
       options = options || {};
       effects(options.fast === false);
       log = []; emitHook = record;
+      // options.level: 'soldier' (the default) or 'veteran' (run.py --option level=veteran).
+      level = LEVELS[options.level] ? options.level : 'soldier';
       RUN.force = seed; newGame(); RUN.force = null;
     },
     // Game logic only, mirroring what the frame loop would run in each mode. Never draws.

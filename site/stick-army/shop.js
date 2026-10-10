@@ -62,7 +62,10 @@ var StickArmyShop = function (w) {
   // times by wave 19) and soldiers WAR.HIRE a wave (about four times), which makes a recruit caught on the mat worth
   // more as the run goes on. The early waves keep their prices. Prices round to fives; pizza and the gift are exempt.
   var WAR = { FROM: 6, SUPPLY: 0.15, HIRE: 0.22 };
-  function war(rate) { return 1 + rate * Math.max(0, (w.S.wave || 1) - WAR.FROM); }
+  // Veteran's markup (game.js LEVELS): nothing on wave 1, climbing to PRICE times everything but the pizza by wave
+  // FROM, where stacking starts to tell; war prices on top. The pizza stays flat ("sometimes u just want pizza").
+  function markup() { var L = w.lv(); return L.PRICE === 1 ? 1 : 1 + (L.PRICE - 1) * Math.min(1, Math.max(0, ((w.S.wave || 1) - 1) / (L.FROM - 1))); }
+  function war(rate) { return markup() * (1 + rate * Math.max(0, (w.S.wave || 1) - WAR.FROM)); }
   function fives(n) { return Math.max(5, Math.round(n / 5) * 5); }
   // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15 (before war prices).
   [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
@@ -206,8 +209,9 @@ var StickArmyShop = function (w) {
       return button;
     }
     document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
-    var up = Math.round((war(WAR.SUPPLY) - 1) * 100);
-    document.getElementById('supplyNote').textContent = 'Dog tags come from kills, planes and cleared waves.' + (up >= 10 ? ' Supplies are running short: prices are up ' + up + '%.' : '');
+    var up = Math.round((war(WAR.SUPPLY) - 1) * 100), vet = markup() > 1;
+    document.getElementById('supplyNote').textContent = 'Dog tags come from kills, planes and cleared waves.' +
+      (vet ? ' Veteran prices: up ' + up + '%.' : up >= 10 ? ' Supplies are running short: prices are up ' + up + '%.' : '');
     // Every role is always listed, so the list never changes shape; what you can't hire is greyed.
     document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), S.shop.hire.map(function (it) { return itemButton(it, 'hire', false); }));
     // Who you hired this visit: tap one to send him back and get the tags back.

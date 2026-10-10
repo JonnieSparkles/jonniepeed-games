@@ -2,8 +2,10 @@
   'use strict';
 
   // ---------- constants ----------
-  // The online board (board.js, scores/games.json). A change to how fast points come starts a new board.
+  // The online boards (board.js, scores/games.json): Soldier's and Veteran's. A change to how fast points come starts
+  // a new board for that level.
   const BOARD = 1;
+  const VETERAN_BOARD = 2;
   var W = 400, H = 720, GROUND = 612;
   var BK = { x: 200, x1: 168, x2: 232, top: 576 };
   var TUR = { x: 200, y: 570 };
@@ -18,6 +20,20 @@
     FIRE_COOLDOWN: 0.2, HEAT_PER_SHOT: 0.11, COOL_RATE: 0.22, OVERHEAT_LOCK: 1.5, SHOT_COST: 1, BOSS_HP_PER_WAVE: 8 };
   // Every BOSS_EVERY waves a zeppelin moves in (see the zeppelin section).
   var BOSS_EVERY = 5;
+  // ---------- levels ----------
+  // Soldier is the campaign as it is. Veteran (docs/games/stick-army/veteran.md) goes after stacking upgrades: a
+  // markup on everything in the shop climbing to PRICE by wave FROM (shop.js markup), PLANES and ARMOR from FROM (waveCfg), a Dreadnought with DREAD times
+  // the health (campaign.js) and SMOKE times the smoke screen's linger (sky.js), and spread shot's side bullets only
+  // grazing it, for GRAZE of the damage (hitTest), so it pays to aim the middle one. Scoring is the same on both; each has its own board and records (KEYS). A run's level is
+  // S.level, from the title's pick (level), which the device remembers.
+  var LEVELS = {
+    soldier: { NAME: 'Soldier', BOARD: BOARD, PRICE: 1, FROM: Infinity, PLANES: 1, ARMOR: 0, DREAD: 1, SMOKE: 1, GRAZE: 1,
+      KEYS: { best: 'stickarmy.best.3', wins: 'stickarmy.wins', wave: 'stickarmy.bestWave' } },
+    veteran: { NAME: 'Veteran', BOARD: VETERAN_BOARD, PRICE: 1.33, FROM: 10, PLANES: 1.2, ARMOR: 0.15, DREAD: 1, SMOKE: 1.5, GRAZE: 0.75,
+      KEYS: { best: 'stickarmy.veteran.best', wins: 'stickarmy.veteran.wins', wave: 'stickarmy.veteran.bestWave' } }
+  };
+  var level = 'soldier';
+  function lv() { return LEVELS[S && S.level] || LEVELS.soldier; }
   // The low lane (round 13): from wave LOW.WAVE a share of the planes (bombers from LOW.BOMBERS) fly low across the
   // middle of the page, a little faster. Their troopers have less sky to fall through and their bombs land sooner. The
   // share grows by STEP a wave to MAX. Not on boss waves, whose escorts keep their own lanes.
@@ -278,7 +294,7 @@
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0 },
       hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false, redCrossPaid: false,
-      matRight: (mix(RUN.seed, 0x3a7) & 1) === 1
+      matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level
     };
     resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
@@ -321,6 +337,9 @@
     // Balloons (4), the Red Cross plane (6), helicopters (7), HQ drops (8), dive bombers (12), heavy bombers (13): sky.js.
     var extra = SKY.counts(n, dreadWave, boss);
     for (var k in extra) c[k] = extra[k];
+    // Veteran: from wave FROM, more planes and more armor; boss waves keep their own shape.
+    var L = lv();
+    if (n >= L.FROM && !boss) { c.planes = Math.round(c.planes * L.PLANES); c.armorChance = Math.min(0.75, c.armorChance + L.ARMOR); }
     return c;
   }
 
@@ -772,8 +791,9 @@
   world.HAND = HAND; world.DISPLAY = DISPLAY; world.TENT = SQUAD.TENT; world.SQUAD = SQUAD; world.load = load; world.save = save; world.clock = clock;
   world.recruitDie = function (r, cause) { recruitDie(r, cause); }; world.hurtWall = hurtWall; world.wallText = function (n) { wallText(n); };
   world.openShop = function () { openShop(); }; world.hidePause = function () { pauseBtn.hidden = true; };
-  world.saveBest = function () { if (S.score <= best) return false; best = S.score; save('stickarmy.best.3', best); return true; };
-  world.saveBestWave = function (n) { if (n > load('stickarmy.bestWave', 0)) save('stickarmy.bestWave', n); };
+  world.saveBest = function () { if (S.score <= best) return false; best = S.score; save(lv().KEYS.best, best); return true; };
+  world.saveBestWave = function (n) { if (n > load(lv().KEYS.wave, 0)) save(lv().KEYS.wave, n); };
+  world.lv = lv; world.LEVELS = LEVELS;
   Object.defineProperty(world, 'SENTRY', { get: function () { return SENTRY; } });
   var CAMPAIGN = StickArmyCampaign(world), DREAD = CAMPAIGN.DREAD, isDreadWave = CAMPAIGN.isDreadWave, spawnDread = CAMPAIGN.spawnDread,
     dreadHit = CAMPAIGN.dreadHit, hurtDread = CAMPAIGN.hurtDread, updateDread = CAMPAIGN.updateDread, drawDread = CAMPAIGN.drawDread,
@@ -843,7 +863,7 @@
       var a = S.aim + offset, ca = Math.cos(a), sa = Math.sin(a);
       (S.mods.double ? [-4, 4] : [0]).forEach(function (side) {
         S.bullets.push({ x: TUR.x + ca * 30 - sa * side, y: TUR.y + sa * 30 + ca * side, vx: ca * 700, vy: sa * 700,
-          owner: 'player', kind: 'bullet', flak: S.mods.flak, pierce: S.mods.pierce ? 3 : 1, hits: [], life: 1.3, dead: false });
+          owner: 'player', kind: 'bullet', flak: S.mods.flak, pierce: S.mods.pierce ? 3 : 1, hits: [], life: 1.3, dead: false, side: offset !== 0 });
       });
     });
     if (S.mods.rockets && S.volleys % 4 === 0) {
@@ -1011,10 +1031,11 @@
     sound.play('noo');
   }
   // direct: a bullet hit, not a blast (only direct hits find the zeppelin's weak spot).
+  var grazing = 1;  // a grazing shot's share of the damage to the Dreadnought (hitTest)
   function damagePlane(p, dmg, owner, hx, hy, direct) {
     if (p.state !== 'fly') return;
     if (p.kind === 'zeppelin') { hurtZeppelin(p, dmg, owner, hx, hy, direct); return; }
-    if (p.kind === 'dread') { hurtDread(p, dmg, owner, hx == null ? p.x : hx, hy == null ? p.y : hy, direct); return; }
+    if (p.kind === 'dread') { hurtDread(p, dmg * grazing, owner, hx == null ? p.x : hx, hy == null ? p.y : hy, direct); return; }
     if (SKY.KINDS[p.kind]) { SKY.hurt(p, dmg, owner); return; }
     p.hp -= dmg; p.hitFlash = 0.15;
     burst(p.x, p.y, 4, INK, 120);
@@ -1099,7 +1120,11 @@
       p = S.planes[i];
       if (seen.indexOf(p.id) >= 0) continue;
       if (canHit(p) && (p.kind === 'dread' ? dreadHit(p, b.x, b.y, near) : SKY.KINDS[p.kind] ? SKY.hit(p, b.x, b.y, near) : planeHit(p, b.x, b.y, near))) {
+        // Veteran: spread shot's side bullets only graze the Dreadnought, for GRAZE of the damage (their flak bursts
+        // too), so it pays to aim the middle one.
+        if (p.kind === 'dread' && b.side && lv().GRAZE < 1) { CAMPAIGN.graze(p, b.x, b.y); grazing = lv().GRAZE; }
         if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
+        grazing = 1;
         return;
       }
     }
@@ -2189,6 +2214,8 @@
       if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = c.RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }
       G.fillStyle = c.INK;
       G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
+      // Veteran wears its three stripes over the wave.
+      if (S.level === 'veteran') { G.beginPath(); for (var vs = 0; vs < 3; vs++) { L(191, 20 + vs * 5, 200, 15 + vs * 5, 0.2); L(200, 15 + vs * 5, 209, 20 + vs * 5, 0.2); } ink(c.BLUE, 2.2); G.stroke(); }
       if (S.combo >= 2 && S.comboT > 0) {
         G.fillStyle = c.BLUE; G.font = '22px ' + HAND; G.fillText('combo x' + Math.min(5, S.combo), 200, 76);
         var cw = 70 * (S.comboT / 1.4);
@@ -2283,17 +2310,47 @@
 
   function titleScene() {
     demoScene(0);
-    var bl = document.getElementById('bestLine');
-    bl.hidden = !(best > 0);
-    bl.textContent = 'Best ' + Number(best).toLocaleString('en-US');
-    // The record is a rubber stamp: "Best 446,661 / Won 2×", with the best wave once endless has gone past 20.
-    var wins = load('stickarmy.wins', 0), bestWave = load('stickarmy.bestWave', 0), wl = document.getElementById('winLine');
-    wl.textContent = wins ? 'Won ' + wins + '×' + (bestWave > DREAD.WAVE ? ' · wave ' + bestWave : '') : ''; wl.hidden = !wins;
-    document.getElementById('recordLine').hidden = bl.hidden && wl.hidden;
+    showLevel();
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
     facingLoaded = false;
     fit();
   }
+  // The level picked on the title (LEVELS): ticked on the form, its record on the rubber stamp ("Best 446,661 / Won
+  // 2×", with the best wave once endless has gone past 20), and its board on the notebook's facing page. Veteran wears
+  // a "new" tag until it's been picked once on this device.
+  var levelBtns = Array.prototype.slice.call(document.querySelectorAll('.t-rank'));
+  function showLevel() {
+    var L = LEVELS[level], wins = load(L.KEYS.wins, 0), bestWave = load(L.KEYS.wave, 0);
+    best = load(L.KEYS.best, 0);
+    levelBtns.forEach(function (b) { b.setAttribute('aria-checked', b.dataset.level === level ? 'true' : 'false'); b.tabIndex = b.dataset.level === level ? 0 : -1; });
+    document.getElementById('vetNew').hidden = level === 'veteran' || !!load('stickarmy.veteran.seen', false);
+    var bl = document.getElementById('bestLine'), wl = document.getElementById('winLine');
+    bl.hidden = !(best > 0);
+    bl.textContent = 'Best ' + Number(best).toLocaleString('en-US');
+    wl.textContent = wins ? 'Won ' + wins + '×' + (bestWave > DREAD.WAVE ? ' · wave ' + bestWave : '') : ''; wl.hidden = !wins;
+    document.getElementById('recordLine').hidden = bl.hidden && wl.hidden;
+  }
+  function pickLevel(name) {
+    if (!LEVELS[name] || S.mode !== 'title') return;
+    var changed = name !== level;
+    level = name; S.level = name; save('stickarmy.level', name);
+    if (name === 'veteran') save('stickarmy.veteran.seen', true);
+    showLevel();
+    // The facing page's board follows the pick.
+    if (changed) { facingLoaded = false; fit(); }
+  }
+  levelBtns.forEach(function (b, i) {
+    b.addEventListener('click', function () { pickLevel(b.dataset.level); });
+    // A radio group: the arrows move the tick.
+    b.addEventListener('keydown', function (e) {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.key) < 0) return;
+      e.preventDefault(); e.stopPropagation();
+      var next = levelBtns[(i + 1) % levelBtns.length];
+      pickLevel(next.dataset.level); next.focus({ preventScroll: true });
+    });
+  });
+  world.levelBoard = function (name) { return LEVELS[name || (S.mode === 'title' ? level : S.level)].BOARD; };
+  world.levelName = function () { return S.mode === 'title' ? level : S.level; };
   // ---------- the title's demo ----------
   // The title page plays the game in miniature, over and over: a plane crosses and drops two troopers. The turret
   // pops the first one's chute low over the mat and he bounces into the squad; it shoots the second. It runs the real
@@ -2342,7 +2399,7 @@
     // The online board: practice runs (a fixed seed, the tuning panel) never get a token, so they can't be saved.
     var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0);
     // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
-    if (window.PlayStats) statsRun = PlayStats.start('stick-army', { board: BOARD, token: token || undefined, progress: runReport });
+    if (window.PlayStats) statsRun = PlayStats.start('stick-army', { board: world.levelBoard(), token: token || undefined, progress: runReport });
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));
     reset();
     S.mode = 'play'; S.hint = true;
@@ -2420,9 +2477,10 @@
     showRedCross('st');
     if (statsRun) { PlayStats.end(statsRun, runReport()); statsRun = null; }
     var isBest = S.score > best;
-    if (isBest) { best = S.score; save('stickarmy.best.3', best); }
+    if (isBest) { best = S.score; save(lv().KEYS.best, best); }
     document.getElementById('overScore').textContent = S.score.toLocaleString('en-US');
     document.getElementById('newBest').hidden = !isBest || S.score === 0;
+    document.getElementById('overLevel').hidden = S.level !== 'veteran';
     document.getElementById('stWave').textContent = String(S.wave);
     document.getElementById('stTime').textContent = clock(S.played);
     var wonLine = document.getElementById('overWon');
@@ -2466,6 +2524,7 @@
     if (S.won) st.won_at = S.wonAt;
     if (S.captain) st.captain = S.captain;
     if (S.endless) st.endless = true;
+    if (S.level !== 'soldier') st.level = S.level;
     return { score: S.score, time_ms: Math.round(S.played * 1000), won: !!S.won, input: S.input, stats: st };
   }
   // A win is reported as soon as the victory card shows. The handle stays, so a winner who keeps going is reported
@@ -2671,7 +2730,7 @@
 
   function start(data) {
     data = data || {};
-    best = typeof data.best === 'number' ? data.best : load('stickarmy.best.3', 0);
+    level = LEVELS[load('stickarmy.level', 'soldier')] ? load('stickarmy.level', 'soldier') : 'soldier';
     sound.muted = typeof data.muted === 'boolean' ? data.muted : load('stickarmy.muted', false);
     fit();
     titleScene();
