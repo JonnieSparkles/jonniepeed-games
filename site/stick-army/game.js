@@ -2406,7 +2406,7 @@
     var rc = SKY.redCrossRecord(), dd = document.getElementById(prefix + 'Red'), bonus = document.getElementById(prefix + 'Perfect');
     dd.textContent = rc.safe + ' of ' + rc.flew;
     dd.hidden = document.getElementById(prefix + 'RedLabel').hidden = !rc.flew;
-    bonus.textContent = 'Every Red Cross plane got through: +' + SKY.MEDEVAC.PERFECT.toLocaleString('en-US');
+    bonus.textContent = 'Red Cross: all safe! +' + SKY.MEDEVAC.PERFECT.toLocaleString('en-US');
     bonus.hidden = !rc.perfect;
   }
   world.showRedCross = showRedCross;
