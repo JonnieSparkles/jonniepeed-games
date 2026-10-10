@@ -1,0 +1,39 @@
+# Deploys the rooms Worker (rooms/) to Cloudflare: the two-player relay behind Don't click this.
+# Manual only: run it from the Actions tab ("Deploy Rooms Worker" → Run workflow).
+# Only needed after changes in rooms/. A deploy drops any match in progress; the pages reconnect.
+# Uses the same repository secrets as the leaderboard: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+name: Deploy Rooms Worker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rooms-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: rooms
+          wranglerVersion: "4.148.0"
+          command: deploy
+      - name: Check the live Worker relays between two connections
+        # A new custom domain's certificate can take a few minutes, so this retries for a while.
+        run: |
+          for i in $(seq 1 30); do
+            if ROOMS_URL=wss://rooms.jonniepeed.games node rooms/test/relay.mjs; then exit 0; fi
+            echo "not answering yet, retrying in 20 s"; sleep 20
+          done
+          echo "The rooms Worker didn't answer. See docs/guides/05-rooms.md."; exit 1
