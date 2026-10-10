@@ -79,9 +79,9 @@
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
   const BEATS = [
-    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: 'poster', music: 'tower', after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: 'streamer', music: 'staff', after: 'dark' },
-    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: 'stack', music: 'copy' }
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: ['poster', 'poster', 'clock', 'window', 'plant', 'door', 'cooler'], rail: '#3a5a8a', music: 'tower', after: 'move' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], rail: '#961e16', music: 'staff', after: 'dark' },
+    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: ['stack', 'shelf', 'recycle', 'vending', 'notice', 'clock'], rail: '#b8a878', music: 'copy' }
   ];
   const JUMP_V = 4 * TUNE.jumpH / TUNE.jumpT, GRAV = 8 * TUNE.jumpH / (TUNE.jumpT * TUNE.jumpT);
 
@@ -168,8 +168,9 @@
       addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38);
     }
     while (R.dist + 1.05 >= R.nextDecorW) {
-      R.decor.push({ w: R.nextDecorW, s: Math.random() < .5 ? -1 : 1, kind: Math.random() < .25 && B.decor === 'poster' ? 'cooler' : B.decor, col: Math.random() });
-      R.nextDecorW += fxr(.35, .6);
+      // each section has its own mix of things on the walls and floor (cosmetic, so not from the run's seed)
+      R.decor.push({ w: R.nextDecorW, s: Math.random() < .5 ? -1 : 1, kind: B.decor[Math.floor(Math.random() * B.decor.length)], col: Math.random() });
+      R.nextDecorW += fxr(.16, .3);
     }
     if (B.fly && !ev) {
       R.nextFly -= dt;
@@ -482,7 +483,7 @@
             }
             emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash'); bark('smash');
             if (R.armed === false && b.st === 'fight') rollBack(TUNE.roll.dur);   // win the volley: the rug rolls back with your blaster
-            popText('SMASH! -' + dmg, 120, BACK.y0 - 2, '#ffd44a'); live('Smash! The Shredder misses the return.');
+            popText('SMASH! -' + dmg, 120, BACK.y0 + 30, '#ffd44a'); live('Smash! The Shredder misses the return.');
             for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
           } else if (b.st === 'fight') {
             const base = p.kind === 'bundle' ? TUNE.bundleDmg : p.kind === 'scrap' ? TUNE.scrapDmg : p.kind === 'plane' ? TUNE.planeDmg : TUNE.stapleDmg, dmg = Math.round(base * (p.power || 1) * 10) / 10;
@@ -1227,7 +1228,10 @@
   function drawHall() {
     g.drawImage(BG, 0, 0);
     for (let k = 0; k < 6; k++) { const z = mod1(k / 6 - R.dist); for (const s of [-1, 1]) rect(g, PX(s, z), CY(z), 1, FY(z) - CY(z), '#26222c'); }
-    for (let k = 0; k < 5; k++) { const z = mod1(k / 5 - R.dist); rect(g, PX(-.25, z), CY(z) + 2, PX(.25, z) - PX(-.25, z), Math.max(1, Math.round(3 * sc(z))), '#e8e4c8'); }
+    // ceiling lights; one in a while flickers (cosmetic)
+    for (let k = 0; k < 5; k++) { const z = mod1(k / 5 - R.dist), n = Math.floor(k - R.dist * 5 + 1000), flick = n % 7 === 3 && Math.random() < .25; rect(g, PX(-.25, z), CY(z) + 2, PX(.25, z) - PX(-.25, z), Math.max(1, Math.round(3 * sc(z))), flick ? '#6a6658' : '#e8e4c8'); }
+    // a chair rail along both walls, in the section's colour
+    if (R.phase === 'hall' || R.phase === 'wake') { const rail = BEATS[R.beat].rail; for (const sd of [-1, 1]) wallQuad(sd, ZN, 1 - ZN, .3, .33, rail); }
     for (let k = 0; k < 8; k++) { const z = mod1(k / 8 - R.dist); rect(g, PX(-1, z), FY(z), PX(1, z) - PX(-1, z), 1, '#222a40'); }
     // the runner: stripes move with the floor, or away from you when it pulls
     const P = R.pull, edge = R.roll ? (Math.floor(R.t * 12) % 2 ? '#7fd4ff' : '#bfefff') : P.st === 'warn' ? (Math.floor(P.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : P.st === 'on' ? '#ff9628' : '#c9962e';
@@ -1254,7 +1258,7 @@
   function drawShredder() {
     const b = R.boss, x0 = BACK.x0, x1 = BACK.x1, y0 = BACK.y0, y1 = BACK.y1, w = x1 - x0, t = R.t;
     const dead = b.st === 'dead';
-    const body = b.flash > 0 ? '#d8dce8' : dead ? '#3a3a44' : '#4a4e5a';
+    const body = b.flash > 0 ? '#7a7e8c' : dead ? '#3a3a44' : '#4a4e5a';   // a hard hit lightens it, not a white box
     rect(g, x0 + 4, y0 + 3, w - 8, y1 - y0 - 3, body);
     rect(g, x0 + 4, y0 + 3, w - 8, 2, b.flash > 0 ? '#ffffff' : b.tick > 0 ? '#b8bcc8' : '#6a6e7c');   // blaster hits only glint the top edge
     rect(g, x0 + 7, y0 + 25, w - 14, 1, '#3a3e48');
@@ -1385,12 +1389,75 @@
   const monitor = () => '#5ac08a';
   // Wall and floor dressing for each beat: posters and water coolers, all-staff streamers, paper stacks.
   const POSTERS = ['#ffd44a', '#7fd4ff', '#ff7050', '#5ac08a'];
+  // a flat rectangle on a side wall, from depth z to z + dz, between heights h0 and h1 (as a share of the hall)
+  function wallQuad(s, z, dz, h0, h1, col, u) {
+    const uu = u == null ? s : u, z1 = z + dz;
+    poly(g, col, [[PX(uu, z), YH(z, h1)], [PX(uu, z1), YH(z1, h1)], [PX(uu, z1), YH(z1, h0)], [PX(uu, z), YH(z, h0)]]);
+  }
+  // a little picture on a motivational poster: a mountain, a cat, a graph going up, a rug
+  function posterPic(s, z, z1, kind) {
+    const zc = (z + z1) / 2, x = PX(s, zc), y = YH(zc, .575), k = sc(zc), d = Math.max(1, Math.round(2 * k));
+    if (kind === 0) { line(g, x - 3 * d, y + 2 * d, x, y - 2 * d, '#1a1418'); line(g, x, y - 2 * d, x + 3 * d, y + 2 * d, '#1a1418'); rect(g, x - d / 2, y - 2 * d, d, d, '#ffffff'); }
+    else if (kind === 1) { rect(g, x - 2 * d, y - d, 4 * d, 3 * d, '#1a1418'); rect(g, x - 2 * d, y - 2 * d, d, d, '#1a1418'); rect(g, x + d, y - 2 * d, d, d, '#1a1418'); }
+    else if (kind === 2) { line(g, x - 3 * d, y + 2 * d, x - d, y, '#1a1418'); line(g, x - d, y, x, y + d, '#1a1418'); line(g, x, y + d, x + 3 * d, y - 2 * d, '#1a1418'); }
+    else { rect(g, x - 3 * d, y - d, 6 * d, 2 * d, '#d63428'); rect(g, x - 3 * d, y - d, 6 * d, Math.max(1, d / 2), '#ffd44a'); }
+  }
   function drawDecor(d, z) {
     const s = d.s, k = sc(z);
     if (d.kind === 'poster') {
+      // a framed motivational poster with a picture and a caption line
       const z1 = z + .07, col = POSTERS[Math.floor(d.col * 4)];
+      wallQuad(s, z, .07, .44, .67, '#1a1418');
       poly(g, '#e8e4d8', [[PX(s, z), YH(z, .66)], [PX(s, z1), YH(z1, .66)], [PX(s, z1), YH(z1, .46)], [PX(s, z), YH(z, .46)]]);
       poly(g, col, [[PX(s, z + .008), YH(z + .008, .63)], [PX(s, z1 - .008), YH(z1 - .008, .63)], [PX(s, z1 - .008), YH(z1 - .008, .52)], [PX(s, z + .008), YH(z + .008, .52)]]);
+      posterPic(s, z, z1, Math.floor(d.col * 16) % 4);
+      wallQuad(s, z + .015, .04, .48, .495, '#7c8494');
+    } else if (d.kind === 'clock') {
+      // a round wall clock, its second hand ticking
+      const zc = z + .02, x = PX(s, zc), y = YH(zc, .62), r = Math.max(2, Math.round(5 * k));
+      disc(g, x, y, r + 1, '#1a1418'); disc(g, x, y, r, '#fff6e2');
+      const a = Math.floor(R.t) * Math.PI / 30;
+      line(g, x, y, Math.round(x + Math.sin(a) * r * .8), Math.round(y - Math.cos(a) * r * .8), '#d63428');
+      line(g, x, y, x, Math.round(y - r * .6), '#1a1418');
+    } else if (d.kind === 'window') {
+      // a tall window onto the city at night, lit windows in the towers outside
+      wallQuad(s, z, .16, .3, .74, '#1a1418');
+      wallQuad(s, z + .008, .144, .32, .72, '#16203a');
+      for (let i = 0; i < 6; i++) { const zz = z + .02 + i * .022, hh = .32 + ((i * 37 + Math.floor(d.col * 9)) % 5) * .05; wallQuad(s, zz, .016, .32, hh, '#0c1020'); if (i % 2) wallQuad(s, zz + .005, .005, hh - .06, hh - .04, '#ffd44a'); }
+      wallQuad(s, z + .078, .006, .32, .72, '#1a1418');
+    } else if (d.kind === 'door') {
+      // an office door with a nameplate
+      wallQuad(s, z, .1, 0, .58, '#1a1418');
+      wallQuad(s, z + .008, .084, 0, .56, '#6a4a30');
+      wallQuad(s, z + .02, .05, .44, .5, '#e8b030');
+      wallQuad(s, z + .07, .01, .26, .3, '#e8e4c8');
+    } else if (d.kind === 'banner') {
+      // ALL STAFF, on a strip of red across the wall
+      wallQuad(s, z, .28, .7, .8, '#961e16');
+      for (let i = 0; i < 7; i++) wallQuad(s, z + .02 + i * .036, .02, .73, .77, '#ffd44a');
+    } else if (d.kind === 'notice') {
+      // a cork notice board with pinned notes
+      wallQuad(s, z, .12, .38, .62, '#1a1418');
+      wallQuad(s, z + .006, .108, .4, .6, '#a0703a');
+      for (let i = 0; i < 4; i++) wallQuad(s, z + .015 + i * .025, .018, .44 + (i % 2) * .06, .52 + (i % 2) * .06, i % 3 ? '#fff6e2' : '#ffd44a');
+    } else if (d.kind === 'shelf') {
+      // a shelf of paper reams
+      for (const h of [.3, .5]) { wallQuad(s, z, .14, h - .02, h, '#4a4e5a'); for (let i = 0; i < 5; i++) wallQuad(s, z + .01 + i * .026, .02, h, h + .07, i % 2 ? '#f2eee2' : '#c8d0dc'); }
+    } else if (d.kind === 'plant' || d.kind === 'balloons' || d.kind === 'recycle' || d.kind === 'vending') {
+      const x = PX(s * .93, z), y = FY(z), u = Math.max(1, k);
+      if (d.kind === 'plant') {
+        rect(g, x - 3 * u, y - 5 * u, 6 * u, 5 * u, '#8c4a2a');
+        for (let i = 0; i < 6; i++) disc(g, Math.round(x + Math.sin(i * 2.1) * 4 * u), Math.round(y - 9 * u - i * 2 * u), Math.max(1, Math.round(3 * u)), i % 2 ? '#2a7a4a' : '#3a9a5a');
+      } else if (d.kind === 'balloons') {
+        for (let i = 0; i < 3; i++) { const bx = x + (i - 1) * 5 * u, by = y - (26 + (i % 2) * 5) * u + Math.sin(R.t * 2 + i + d.col * 6) * u; line(g, Math.round(bx), Math.round(by), Math.round(x), Math.round(y), '#e8e4c8'); disc(g, Math.round(bx), Math.round(by), Math.max(1, Math.round(3 * u)), ['#d63428', '#ffd44a', '#3aa8e0'][i]); }
+      } else if (d.kind === 'recycle') {
+        rect(g, x - 4 * u, y - 9 * u, 8 * u, 9 * u, '#2a5aa0'); rect(g, x - 4 * u, y - 10 * u, 8 * u, u, '#1a1418'); rect(g, x - 2 * u, y - 7 * u, 4 * u, 3 * u, '#fff6e2');
+      } else {
+        // a vending machine, its window glowing
+        rect(g, x - 7 * u, y - 30 * u, 14 * u, 30 * u, '#1a1418'); rect(g, x - 6 * u, y - 29 * u, 12 * u, 28 * u, '#d63428');
+        rect(g, x - 4 * u, y - 26 * u, 6 * u, 16 * u, '#7fd4ff'); for (let i = 0; i < 4; i++) rect(g, x - 4 * u, y - 24 * u + i * 4 * u, 6 * u, Math.max(1, u), '#fff6e2');
+        rect(g, x + 3 * u, y - 24 * u, 2 * u, 6 * u, '#ffd44a');
+      }
     } else if (d.kind === 'streamer') {
       const z1 = z + .3;
       poly(g, '#961e16', [[PX(s, z), YH(z, .74)], [PX(s, z1), YH(z1, .74)], [PX(s, z1), YH(z1, .68)], [PX(s, z), YH(z, .68)]]);

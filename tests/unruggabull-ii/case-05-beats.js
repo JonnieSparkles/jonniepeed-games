@@ -6,7 +6,7 @@
   check(R.beat === 0 && R.signs.length === 1 && beat().sign === 'ACCOUNTS PAYABLE', 'the floor opens in Accounts Payable with its sign');
   check(R.cubs.every(cb => cb.kind === 'cub'), 'cubicles line the hall');
   step(BEATS[0].time - .1);
-  check(R.decor.some(d => d.kind === 'poster' || d.kind === 'cooler'), 'posters and water coolers dress the walls');
+  check(new Set(R.decor.map(d => d.kind)).size >= 3, 'posters, clocks, windows and the like dress the walls');
   step(.2);
   check(R.event && R.event.kind === 'move' && R.signs.some(sg => sg.text === 'MOVING DAY') && !(R.banner && !R.banner.pull), 'then moving day, announced by a sign, not a banner');
   step(4);
