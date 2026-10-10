@@ -32,10 +32,12 @@ jobs:
         # A broken change stops here, before it replaces the live Worker. Local mode needs no Cloudflare login.
         env:
           WRANGLER_SEND_METRICS: "false"
+        # 127.0.0.1, not localhost: on the runner, localhost can mean IPv6 (::1) to one program and IPv4 to another.
         run: |
-          (cd rooms && npx --yes wrangler@4.148.0 dev --local --port 8788 --var GHOST_MS:6000 --var LEAVE_GRACE_MS:500 > /tmp/rooms-dev.log 2>&1 &)
-          for i in $(seq 1 90); do curl -sf http://localhost:8788/ > /dev/null && break; sleep 1; done
-          GHOST_MS=6000 LEAVE_GRACE_MS=500 node rooms/test/relay.mjs || { echo "--- wrangler dev log ---"; cat /tmp/rooms-dev.log; exit 1; }
+          (cd rooms && npx --yes wrangler@4.148.0 dev --local --ip 127.0.0.1 --port 8788 --var GHOST_MS:6000 --var LEAVE_GRACE_MS:500 > /tmp/rooms-dev.log 2>&1 &)
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8788/ > /dev/null && break; sleep 1; done
+          echo "local Worker answered after ${i} s"
+          ROOMS_URL=ws://127.0.0.1:8788 GHOST_MS=6000 LEAVE_GRACE_MS=500 node rooms/test/relay.mjs || { echo "--- wrangler dev log ---"; cat /tmp/rooms-dev.log; exit 1; }
       - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

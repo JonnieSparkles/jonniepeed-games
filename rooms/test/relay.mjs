@@ -33,12 +33,16 @@ function open(code, me, opts = {}) {
   ws.quiet = async (ms = 300) => { await new Promise(r => setTimeout(r, ms)); return inbox.length === 0; };
   ws.drain = async (ms = 300) => { await new Promise(r => setTimeout(r, ms)); inbox.length = 0; };
   ws.json = data => ws.send(JSON.stringify(data));
-  return new Promise((resolve, reject) => { ws.onopen = () => resolve(ws); ws.onerror = reject; });
+  return new Promise((resolve, reject) => {
+    ws.onopen = () => resolve(ws);
+    ws.onerror = () => reject(new Error(`could not connect to ${BASE}/room/${code} as ${me}`));
+  });
 }
 const check = (ok, what) => { if (!ok) throw new Error('FAIL ' + what); console.log('ok', what); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- the Worker itself ----------
+console.log('rooms Worker at', BASE, '· node', process.version);
 const health = await (await fetch(BASE.replace(/^ws/, 'http') + '/')).json();
 check(health.ok && health.version === 2 && health.maxPlayers === 8, 'the Worker answers at / with its version and limits');
 check((await fetch(BASE.replace(/^ws/, 'http') + '/room/BAD!')).status === 404, 'a bad room code is refused');
@@ -136,15 +140,19 @@ check(m.t === 'x' && m.to === 2, 'a seat number written as text still reaches on
 check(await c.quiet(), 'and not the others');
 
 // ---------- rate limit ----------
-for (let i = 0; i < 400; i++) b3.json({ t: 'spam', i });
+// 600 at once: the room lets about 240 through, plus 120 for each second it takes, and tells the sender at most
+// once a second. (Fewer than the 600 drops that would disconnect it.) Bounds allow for a slow test machine.
+const spamStart = Date.now();
+for (let i = 0; i < 600; i++) b3.json({ t: 'spam', i });
 let got = 0, errors = 0;
 for (;;) {
   let msg; try { msg = await a2.next(500); } catch (e) { break; }
   if (msg.t === 'spam') got++;
 }
 for (;;) { let msg; try { msg = await b3.next(300); } catch (e) { break; } if (msg.reason === 'too fast') errors++; }
-check(got >= 200 && got < 400, `a burst is capped (${got} of 400 got through)`);
-check(errors === 1, 'the sender is told once, not for every dropped message');
+const spamSecs = (Date.now() - spamStart) / 1000;
+check(got >= 200 && got < 600 && got <= 240 + 120 * spamSecs + 20, `a burst is capped (${got} of 600 got through)`);
+check(errors >= 1 && errors <= Math.ceil(spamSecs) + 1, `the sender is told, at most once a second (${errors} times)`);
 await c.quiet(800);
 
 // ---------- silent phones ----------
