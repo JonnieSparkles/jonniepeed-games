@@ -12,7 +12,7 @@ site/                   everything that gets published
   thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
   stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
   dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
-  dont-click-this/      up to four phones, anywhere: send a link, find each other (unlisted; the first game on rooms)
+  dont-click-this/      up to four players on phones or computers: send a link, find each other (unlisted; the first game on rooms)
   assets/               shared fonts, leaderboard, play stats and rooms clients (rooms.js), dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card

@@ -1,7 +1,8 @@
 """Helpers for browser tests of games played together over the internet (site/assets/rooms.js).
 
-A test opens a few phone-sized browsers, each in its own context (its own session, like separate phones), and
-points them at the same match link. Start both servers first, then import this from a test:
+A test opens a few browsers, each in its own context (its own session, like separate devices), and points them
+at the same match link. Each is a phone by default; `phones.new(desktop=True)` is a computer with a mouse and a
+big window, so a test can mix the two the way real players do. Start both servers first, then import this from a test:
 
     python3 -m http.server 8000 --bind 127.0.0.1 --directory site
     (cd rooms && wrangler dev --local --port 8788 --var GHOST_MS:6000 --var LEAVE_GRACE_MS:500)
@@ -24,6 +25,7 @@ from playwright.sync_api import sync_playwright
 SITE = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
 ROOMS_HTTP = 'http://localhost:8788'
 PHONE = dict(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+DESKTOP = dict(viewport={'width': 1440, 'height': 900}, device_scale_factor=1, has_touch=False, is_mobile=False)
 
 
 def servers_up():
@@ -65,9 +67,9 @@ class Phones:
     def url(self, path=''):
         return SITE + '/' + path.lstrip('/')
 
-    def new(self, init_script=None, **options):
-        """A new phone: a fresh context (own session storage), one page."""
-        context = self.browser.new_context(**dict(self.options, **options))
+    def new(self, init_script=None, desktop=False, **options):
+        """A new player: a fresh context (own session storage), one page. A phone unless desktop=True."""
+        context = self.browser.new_context(**dict(DESKTOP if desktop else self.options, **options))
         self.contexts.append(context)
         page = context.new_page()
         if init_script:

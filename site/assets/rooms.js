@@ -27,6 +27,23 @@ window.Rooms = (function () {
     const c = (location.hash || '').slice(1).toLowerCase();
     return CODE.test(c) ? c : null;
   }
+  // A repeating timer that keeps time in a background tab. Browsers slow a hidden tab's own timers (Chrome to
+  // once a minute after five minutes), which would get a desktop player dropped from the match while they're in
+  // another tab, say pasting the link into a chat. A worker's timers aren't slowed that way, so pings keep going.
+  // Falls back to setInterval where a worker can't start.
+  function steady(fn, ms) {
+    try {
+      const src = 'setInterval(function () { postMessage(0); }, ' + ms + ');';
+      const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      const w = new Worker(url);
+      URL.revokeObjectURL(url);
+      w.onmessage = fn;
+      return () => w.terminate();
+    } catch (e) {
+      const t = setInterval(fn, ms);
+      return () => clearInterval(t);
+    }
+  }
   const store = {
     get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
@@ -75,7 +92,7 @@ window.Rooms = (function () {
     if (!me) { me = newCode() + newCode(); store.set(meKey, me); }
 
     const handlers = {};
-    let ws = null, retries = 0, retryTimer = null, pingTimer = null, lastPong = 0, pingAt = 0, ready = false, done = false;
+    let ws = null, retries = 0, retryTimer = null, stopPings = null, lastPong = 0, pingAt = 0, ready = false, done = false;
     let kicks = 0, helloAt = 0;   // times the room let us go (too many messages, or silent) without a long stay in between
     const present = new Set();
     const room = {
@@ -108,7 +125,7 @@ window.Rooms = (function () {
       clearTimeout(retryTimer);
       if (done) return;
       if (ws) { ws.onclose = ws.onmessage = ws.onerror = null; try { ws.close(); } catch (e) {} }
-      clearInterval(pingTimer); lastPong = 0;
+      lastPong = 0;
       const q = new URLSearchParams({ me });
       if (room.game) q.set('game', room.game);
       if (opts.secret) q.set('s', opts.secret);
@@ -128,7 +145,7 @@ window.Rooms = (function () {
       retryTimer = setTimeout(dial, ms != null ? ms : retries === 1 ? 200 : Math.min(8000, 500 * Math.pow(2, retries - 2)));
     }
     function stop() {
-      clearTimeout(retryTimer); clearInterval(pingTimer);
+      clearTimeout(retryTimer); if (stopPings) { stopPings(); stopPings = null; }
       if (ws) { const s = ws; ws = null; s.onclose = s.onmessage = null; try { s.close(1000); } catch (e) {} }
     }
     function ping() {
@@ -152,7 +169,8 @@ window.Rooms = (function () {
         retries = 0; lastPong = helloAt = performance.now();
         const oldSeat = room.seat;
         room.seat = m.seat; room.max = m.max || 0; store.set(seatKey, String(m.seat));
-        clearInterval(pingTimer); pingTimer = setInterval(ping, PING_EVERY); ping();
+        if (!stopPings) stopPings = steady(ping, PING_EVERY);
+        ping();
         // After a reconnect, catch up on who came and went while we were away.
         const now = new Set(m.seats || []);
         for (const s of [...present]) if (!now.has(s)) { present.delete(s); if (ready) emit('leave', s); }
@@ -175,7 +193,6 @@ window.Rooms = (function () {
     }
 
     function onClose(code) {
-      clearInterval(pingTimer);
       if (ws) { ws.onclose = ws.onmessage = null; try { ws.close(); } catch (e) {} ws = null; }
       if (done) return;
       const refuse = reason => { done = true; setStatus('refused'); emit('refused', reason); };
@@ -184,8 +201,6 @@ window.Rooms = (function () {
       if (code === 4003) return refuse(opts.secret && !ready ? 'nope' : 'closed');
       if (code === 4004) return refuse('wrong-game');
       setStatus('reconnecting');
-      // A hidden page (another app, a locked phone) waits until it's looked at again; wake() reconnects it then.
-      if (document.visibilityState === 'hidden') return;
       if (code === 4005 || code === 4006) {
         // Let go by the room. Come straight back the first time; if it keeps happening, back off, so a game stuck
         // sending too much doesn't keep everyone seeing it leave and rejoin.

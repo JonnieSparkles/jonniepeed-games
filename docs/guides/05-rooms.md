@@ -2,6 +2,8 @@
 
 Rooms let friends play a game together over the internet from a link. One player starts a match and texts the link; whoever opens it is in. No accounts, no app, nothing to install. It runs on Cloudflare's free plan.
 
+It works in any current browser on phones, tablets and computers, mixed in one match. This guide says "phone" for short; it means any of them. A game still has to suit each one: touch and a mouse both work through pointer events, and computers can also have keys (see [Phones and computers](#phones-and-computers)).
+
 There are two parts:
 
 - **The rooms Worker** (`rooms/`, at `rooms.jonniepeed.games`). It seats players, says who the host is and passes messages between phones. It knows nothing about any game, so a new game never needs a change here.
@@ -75,6 +77,14 @@ Every phone runs the full game from the same seed and applies everyone's inputs 
 - Process things in a fixed order (arrays, sorted by id), never in an order that depends on timing.
 
 To check, run the same seed and inputs headless in Chromium and in WebKit (Safari's engine) and compare checksums at the end. Playwright can run both: `python3 -m playwright install webkit` works on your own computer and on GitHub Actions. (The cloud session can't download it.)
+
+### Phones and computers
+
+- **Controls.** Use pointer events (`pointerdown`, `pointermove`, `pointerup`) so touch, mouse and pen all work; add keys for computers. Don't click this moves the dot by dragging or with the arrow keys, and only mentions the keys where there's a mouse (`matchMedia('(hover: hover) and (pointer: fine)')`).
+- **Sharing.** `Rooms.share` uses the share sheet where there is one (phones, Safari and Edge on computers) and copies the link where there isn't. A computer with no share sheet is better served by one "Copy link" button than a "Send" button that silently copies; check `navigator.share`.
+- **Background tabs.** On a computer, a player often switches tabs while they wait, say to paste the link into a chat. Browsers slow a hidden tab's own timers, Chrome to once a minute after five minutes, which would get them dropped. rooms.js pings from a worker, whose timers aren't slowed that way, so they stay in. A tab the browser freezes or discards entirely (to save memory) drops out and rejoins its seat when it's looked at again.
+- **Phones in the background.** Switching apps or locking a phone usually pauses the page completely. The room lets it go after 15 seconds; it comes back to its seat when the player returns. A game should pause or show a friend as away rather than end the match.
+- **Testing.** `tests/rooms/harness.py` opens computers as well as phones (`phones.new(desktop=True)`); Don't click this's test plays with three phones and a computer.
 
 ### Catching up a late joiner
 
@@ -153,9 +163,9 @@ GHOST_MS=6000 LEAVE_GRACE_MS=500 node rooms/test/relay.mjs   # the room itself
 CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py       # rooms.js in real browsers
 ```
 
-The relay test covers the secret, room size and game, seats and the host, `to`, message limits and errors, the rate limit, silent phones, the leave grace period, reconnecting and rooms from the first version. The rooms.js test covers opening and joining, events, every refusal, a dropped connection, a reload, a duplicated tab, host changes and a connection that dies silently.
+The relay test covers the secret, room size and game, seats and the host, `to`, message limits and errors, the rate limit, silent phones, the leave grace period, reconnecting and rooms from the first version. The rooms.js test covers opening and joining, events, every refusal, a dropped connection, a reload, a duplicated tab, host changes, a connection that dies silently, and a background tab whose own timers are stopped.
 
-**Testing a game:** `tests/rooms/harness.py` opens several phone-sized browsers, each with its own session like separate phones, and collects page errors. `tests/dont-click-this/test.py` uses it to play a whole four-phone match. Still try a new game on two real phones on different networks before calling it done; that's the only test of real signal.
+**Testing a game:** `tests/rooms/harness.py` opens several browsers, each with its own session like separate devices, phones by default or computers with `desktop=True`, and collects page errors. `tests/dont-click-this/test.py` uses it to play a whole match with three phones and a computer. Still try a new game on two real devices on different networks, ideally a phone and a computer, before calling it done; that's the only test of real signal.
 
 ## Adding a game
 
@@ -163,4 +173,5 @@ The relay test covers the secret, room size and game, seats and the host, `to`, 
 2. Pick a pattern (above) and design the messages: a `t` for the type, short keys, at most about 30 a second per phone.
 3. Handle `join`, `leave` and `refused`. For the host or same-game patterns, handle `host` and catch up joiners with `sendTo`.
 4. Show `room.status` when it's `reconnecting`.
-5. Write a test with `tests/rooms/harness.py`, and play it on two real phones.
+5. Make it work with touch, a mouse and keys ([Phones and computers](#phones-and-computers)).
+6. Write a test with `tests/rooms/harness.py`, with at least one computer, and play it on two real devices.

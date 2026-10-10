@@ -148,6 +148,23 @@ def main():
         assert dup.evaluate('room.players') == [2, 3]
         print('PASS a connection that dies silently is noticed and replaced; the player keeps its seat')
 
+        # ---------- background tabs ----------
+        # A computer with the match in a background tab: the browser slows that tab's own timers to a crawl.
+        # Here its setInterval and setTimeout do nothing at all; rooms.js pings from a worker, so it stays in.
+        bg = page_for(phones, init="window.setInterval = () => 0; window.setTimeout = () => 0;")
+        bg.set_viewport_size({'width': 1440, 'height': 900})
+        bg.goto(link)
+        bg.evaluate("watch(Rooms.join({ game: 'rooms-test' }))")
+        has(bg, "e[0] === 'ready' && e[1].seat === 1")
+        has(dup, "e[0] === 'join' && e[1] === 1")
+        since = dup.evaluate('log.length')
+        for _ in range(10):   # 10 s, past the local 6 s silent limit; messages keep the room checking
+            dup.evaluate("room.send({ t: 'tick' })")
+            dup.wait_for_timeout(1000)
+        assert bg.evaluate('sockets.length') == 1 and bg.evaluate("room.status") == 'connected'
+        assert not dup.evaluate(f"log.slice({since}).some(e => e[0] === 'leave' && e[1] === 1)")
+        print('PASS a tab whose own timers are stopped (a background tab) keeps pinging and stays in')
+
         wait(dup, 'room.rtt > 0')
         print('PASS round trip measured:', dup.evaluate('room.rtt'), 'ms')
         phones.check_no_errors()

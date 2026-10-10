@@ -1,4 +1,4 @@
-"""Up to four phones in one match, end to end, against a local rooms Worker.
+"""Up to four players in one match, end to end, against a local rooms Worker: three phones and a computer.
 
 Start both servers first (see tests/rooms/harness.py, which this test uses):
 
@@ -20,8 +20,8 @@ SHOTS = Path(os.environ.get('SCREENSHOTS', '/tmp/dont-click-this'))
 SHOTS.mkdir(parents=True, exist_ok=True)
 
 
-def phone(phones):
-    page = phones.new()
+def phone(phones, desktop=False):
+    page = phones.new(desktop=desktop)
     return page.context, page
 
 
@@ -69,6 +69,7 @@ def main():
         link = a.input_value('#link')
         assert '#' in link and len(link.split('#')[1]) == 12, link
         a.wait_for_function("document.getElementById('ping').textContent === '' && !document.getElementById('shareCard').hidden")
+        assert a.locator('#waitText').is_visible() and a.locator('#backBtn').is_hidden(), 'alone: waiting, no Back button'
         a.screenshot(path=str(SHOTS / '2-waiting.png'))
         print('PASS start a match: link made, waiting for a friend')
 
@@ -117,14 +118,16 @@ def main():
         # A third and fourth phone join; everyone sees four.
         cc, c = phone(phones)
         c.goto(link)
-        cd, d = phone(phones)
+        cd, d = phone(phones, desktop=True)   # the fourth player is on a computer
         d.goto(link)
         for page in (a, b, c, d):
             wait_present(page, 4)
         assert a.locator('#inviteBtn').is_hidden()
+        assert 'arrow keys' in d.text_content('#hint') and 'arrow keys' not in a.text_content('#hint'), 'computers get the arrow-key hint'
+        d.screenshot(path=str(SHOTS / '6b-desktop-player.png'))
         c.wait_for_timeout(400)
         c.screenshot(path=str(SHOTS / '6-four-players.png'))
-        print('PASS four phones in one match, each sees all four; Invite hides when full')
+        print('PASS four players (three phones and a computer) in one match, each sees all four; Invite hides when full')
 
         # A fifth phone is turned away.
         ce, e = phone(phones)
@@ -136,7 +139,7 @@ def main():
 
         # Everyone piles into the middle: EVERYONE! on every phone.
         drag(c, 0.5, 0.28, 0.5, 0.5)
-        drag(d, 0.5, 0.72, 0.5, 0.5)
+        drag(d, 0.5, 0.72, 0.5, 0.5)   # with the mouse, on the computer
         drag(a, 0.5, 0.3, 0.5, 0.5)
         drag(b, 0.5, 0.3, 0.5, 0.5)
         for page in (a, b, c, d):

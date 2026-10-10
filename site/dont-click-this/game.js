@@ -22,6 +22,8 @@
   const banner = $('banner'), hint = $('hint'), roster = $('roster'), pingEl = $('ping');
   const titleCard = $('titleCard'), secretCard = $('secretCard'), shareCard = $('shareCard'), msgCard = $('msgCard');
   const inviteBtn = $('inviteBtn'), backBtn = $('backBtn');
+  // On a computer (a mouse and no touch screen), the hint mentions the arrow keys.
+  const keyboard = matchMedia('(hover: hover) and (pointer: fine)').matches;
   // Opening a match asks for the secret. It's always a meatball; the other two are random.
   const DECOYS = ['Pickle', 'Waffle', 'Taco', 'Pretzel', 'Dumpling', 'Burrito', 'Noodle', 'Nugget', 'Pancake', 'Crouton', 'Biscuit', 'Tater tot'];
 
@@ -179,9 +181,9 @@
   function syncHint() {
     const n = here().length;
     if (phase !== 'together') return;
-    hint.textContent = n === 0 ? 'Waiting for your friends to come back'
+    hint.textContent = (n === 0 ? 'Waiting for your friends to come back'
       : n === 1 ? 'Drag your dot into theirs'
-      : 'Touch a friend, or all pile into the middle';
+      : 'Touch a friend, or all pile into the middle') + (n && keyboard ? ' (or use the arrow keys)' : '');
   }
   function syncInvite() { inviteBtn.hidden = !(phase === 'together' && here().length + 1 < SEATS); }
   function drawRoster() {
@@ -247,7 +249,7 @@
     flash = big ? 1 : 0.5;
     SOUND.play('boom', big);
     buzz(big ? [200, 80, 300] : [120]);
-    if (big) say('WE DID IT', 'Different phones. One page. Across the internet.', 3600);
+    if (big) say('WE DID IT', 'Different screens. One page. Across the internet.', 3600);
     else if (performance.now() - lastPile > 3000) say(`×${booms}`, '', 900);   // don't cover EVERYONE!
   }
   function pile(mine) {
@@ -259,7 +261,7 @@
     flash = 1;
     SOUND.play('boom', true);
     buzz([300, 100, 300, 100, 400]);
-    say('EVERYONE!', `${seats.length} phones. One pile.`, 3600);
+    say('EVERYONE!', `All ${seats.length} of you. One pile.`, 3600);
   }
 
   // ---------- input ----------
@@ -310,6 +312,8 @@
   });
   inviteBtn.addEventListener('click', () => { SOUND.init(); SOUND.play('tap'); showShare(); });
   backBtn.addEventListener('click', () => { SOUND.play('tap'); hideCards(); });
+  // Computers without a share sheet get one button: Copy link, made the big one.
+  if (!navigator.share) { $('shareBtn').hidden = true; $('copyBtn').className = 'big'; }
   $('shareBtn').addEventListener('click', () => {
     SOUND.init();
     Rooms.share({ title: "Don't click this", text: "Play with me. Don't click this.", url: location.href }).then(r => { if (r === 'copied') copied(); });
