@@ -13,6 +13,8 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Incoming paper has a jagged red edge, no glow and no floor shadow** (lights out, shredded-paper wads): the shadow was confusing, and a glow looked like a power-up.
 - **Captions are small, at the top left** (volley match): his lines across the scene got in the way.
 - **A thumb stick, with crouch on down** (thumb stick): the owner's idea, as the arrows were tough on a phone. Crouch got jobs straight away: high lines, paper airplanes, gripping the rug.
+- **No shooting while crouched** (Shredder's life): the owner leaned yes, but then ducking would be free: you'd duck the paper airplanes and keep shooting, and they'd stop costing anything. Shoot greys out instead, so it's clear.
+- **The Shredder reacts instead of getting more attacks** (Shredder's life): "it's there, just needs more life", after the fight had gained plenty of mechanics. It lunges, recoils, laughs, watches you and talks back; its taunts are rationed so they don't nag.
 - **The souls' hint is unannounced, white and gold, and never bends in** (mega stream hint): it's the first glimpse of the mega stream, which fuses only on the roof against p(Loom) (the owner's "shining star"). It has to feel like something odd and good happened, not a power-up: Spread Shot already fires three ways in gold, so the streams are the souls' own colours and the souls are seen flying into the gun. Bending in is saved for the middle floor's near miss.
 - **No frame round the stick; round arcade buttons** (fast rallies): "the control pad shouldn't have the outer rectangle", and the buttons "can look cooler". Both orientations stay; landscape plays best.
 

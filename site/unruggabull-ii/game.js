@@ -9,7 +9,8 @@
   const A = UnrugArt, Snd = UnrugSound;
   const rect = A.rect, line = A.line, disc = A.disc, poly = A.poly, txt = A.txt, otxt = A.otxt, textWidth = A.textWidth;
   const $ = id => document.getElementById(id);
-  const c = $('c'), g = c.getContext('2d');
+  const c = $('c');
+  let g = c.getContext('2d');   // swapped for an offscreen canvas while the Shredder draws (see withShredder)
   const W = 240, H = 135;
   g.imageSmoothingEnabled = false;
 
@@ -436,6 +437,7 @@
             // it misses: a smash, and the Shredder reels
             const dmg = TUNE.rally.smash + TUNE.rally.smashPer * rl.count;
             b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
+            shove(-14); b.shudder = .8; taunt('smash');
             if (rl.marathon) {
               // the long one: a bigger finish
               R.white = .12; R.freeze = Math.max(R.freeze, .18); R.shake = .9; Snd.play('explode');
@@ -455,9 +457,9 @@
         continue;
       }
       if (Math.abs(p.z - bull.bz) < .045 && Math.abs(p.u - bull.u) < .1 + p.w && overlaps(p.h, p.hh)) {
-        if (hurtBull(1, p.rally ? 'rally' : p.spray ? 'spray' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); } continue; }
+        if (hurtBull(1, p.rally ? 'rally' : p.spray ? 'spray' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); if (R.hearts > 0) taunt('miss'); } continue; }
       }
-      if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) { R.boss.rally = null; emit('rally_lost'); } }
+      if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); } }
     }
     R.projs = R.projs.filter(p => !p.dead);
   }
@@ -584,6 +586,7 @@
     R.hearts = Math.max(0, R.hearts - n); bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15;
     if (R.hearts === 1) bark('low');
     R.lastCause = cause || 'unknown'; emit('hit', { amount: n, cause: R.lastCause });
+    if (R.hearts > 0 && R.phase === 'boss' && R.boss.st === 'fight' && cause !== 'rally') { laugh(); taunt('hit'); }   // not on the last heart: that's his WHOA!
     Snd.play('hurt');
     if (R.hearts <= 0) die();
     return true;
@@ -689,6 +692,7 @@
   // Phase 3's power surge: a flash of static that knocks the blaster out of his hands and up the rug. No dodging it:
   // now it's a volley match until a smash rolls the rug back with the blaster on it.
   function surge() {
+    shove(10);
     const pk = { kind: 'blaster', w: R.dist + rr(.55, .7), u: rr(-.12, .12), h: 0, t: 0, still: true, rug: true };
     R.armed = false; R.shake = .3; R.zap = .3; R.boss.spit = .3;
     R.pickups.push(pk);
@@ -739,6 +743,7 @@
   // Each phase cycles through its own attacks; 'marathon' is a long rally, once a phase (a normal one after that).
   const ATTACKS = [['rally', 'bundle', 'volley', 'marathon', 'planes'], ['fan', 'marathon', 'bundle', 'planes', 'rally', 'sheet', 'volley'], ['rally', 'surge', 'marathon', 'rewind', 'planes', 'rally', 'fan', 'volley', 'carpet']];
   function attack(kind) {
+    shove(7);   // it lunges as it spits
     if (kind === 'bundle') spitBundle();
     else if (kind === 'volley') R.boss.volley = { left: TUNE.volley.n[R.boss.ph - 1], t: 0 };
     else if (kind === 'planes') throwPlanes();
@@ -769,12 +774,46 @@
     if (b.st !== 'fight') return;
     emit('boss_damage', { amount: n, by: by || 'blaster' });
     b.hp = Math.max(0, b.hp - n);
-    if (n >= 2) b.flash = .07; else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
+    if (n >= 2) { b.flash = .07; shove(-Math.min(12, 2 + n * .6)); } else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
     if (b.hitSnd <= 0) { Snd.play('bosshit'); b.hitSnd = .09; }
     if (b.hp <= 0) defeat();
   }
+  // The Shredder's lines in the fight, beyond its set lines: one at a time, never more often than every 7 seconds,
+  // and never over another line or a banner. Each list goes round in order.
+  const TAUNTS = {
+    miss: ['SHREDDED.', 'DENIED.', 'FILED UNDER NOPE.'],
+    hit: ['PAPER CUT.', 'SIGN HERE. AND HERE.', 'THAT GOES ON YOUR RECORD.'],
+    smash: ['MY ROLLERS!', 'PC LOAD LETTER?!', 'THAT VOIDS MY WARRANTY.'],
+    low: ['I AM NOT... OUT OF ORDER.']
+  };
+  function taunt(kind) {
+    const b = R.boss;
+    if (b.st !== 'fight' || R.talk || R.banner || (b.tauntT || 0) > 0) return;
+    const list = TAUNTS[kind], n = (b.taunts = b.taunts || {})[kind] || 0;
+    if (kind === 'low' && n) return;
+    b.taunts[kind] = n + 1; b.tauntT = 7;
+    talk(list[n % list.length], 'shredder');
+  }
+  // Its body is a spring: it lunges at you when it spits or laughs, leans back before an attack, and recoils when hit.
+  function shove(v) { R.boss.pushV = (R.boss.pushV || 0) + v; }
+  function laugh() { const b = R.boss; if (b.st !== 'fight') return; b.laugh = 1.1; shove(8); }
+  function updateBody(dt) {
+    const b = R.boss;
+    b.push = b.push || 0; b.pushV = b.pushV || 0;
+    b.pushV += (-70 * b.push - 9 * b.pushV) * dt; b.push += b.pushV * dt;
+    b.push = clamp(b.push, -1.6, 1.6);
+    b.laugh = Math.max(0, (b.laugh || 0) - dt); b.shudder = Math.max(0, (b.shudder || 0) - dt); b.tauntT = Math.max(0, (b.tauntT || 0) - dt);
+    // it blinks now and then (cosmetic)
+    b.blink = (b.blink || 0) - dt;
+    if (b.blink < -fxr(2.5, 5)) b.blink = .12;
+    // it chews: shredded strips drop out of its mouth onto the rug
+    if ((b.st === 'fight' || b.st === 'awake') && b.jam <= 0 && Math.random() < dt * (R.pull.st === 'on' ? 14 : 5))
+      R.fx.push({ k: 'strip', x: fxr(BACK.x0 + 14, BACK.x1 - 14), y: BACK.y1 - 5, vx: fxr(-8, 8), vy: fxr(8, 18), t: 0, dur: fxr(.4, .7) });
+    if (b.st === 'fight' && b.hp < 15) { if (Math.random() < dt * 3) shove(fxr(-2, 2)); taunt('low'); }
+  }
   function updateBoss(dt) {
     const b = R.boss;
+    updateBody(dt);
     b.flash = Math.max(0, b.flash - dt); b.tick = Math.max(0, (b.tick || 0) - dt); b.spit = Math.max(0, b.spit - dt); b.chomp = Math.max(0, b.chomp - dt); b.hitSnd -= dt; b.rev = Math.max(0, (b.rev || 0) - dt);
     if (b.dark) {
       b.dark.t += dt;
@@ -785,6 +824,7 @@
     const ph = b.hp > 66 ? 1 : b.hp > 33 ? 2 : 3;
     if (ph !== b.ph) {
       b.ph = ph; b.atk = 1.6; b.atkN = 0; b.volley = null; b.marathonDone = false;
+      shove(12); b.chomp = .6; R.shake = Math.max(R.shake, .35);   // it roars into the new phase
       if (R.hearts < TUNE.hearts) addPickup('coffee', .45, rr(-.4, .4));
       if (ph === 2) talk('STAPLES. FOR YOUR RECORDS.', 'shredder');
       else {
@@ -814,7 +854,7 @@
     if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (R.pull.spray || next === 'rally' || next === 'marathon' || next === 'rewind')) || b.rally || R.roll) return;
     const was = b.atk;
     b.atk -= dt;
-    if (was > TUNE.tell && b.atk <= TUNE.tell) { b.rev = TUNE.tell; Snd.play('rev'); }   // its mouth glows: something's coming
+    if (was > TUNE.tell && b.atk <= TUNE.tell) { b.rev = TUNE.tell; Snd.play('rev'); shove(-3); }   // its mouth glows and it rears back: something's coming
     if (b.atk <= 0) { attack(next); b.atkN++; b.atk = TUNE.attackEvery[ph - 1]; }
   }
   // The final hit: a white flash and a beat of stillness, slow motion while it shudders, then it blows.
@@ -953,6 +993,7 @@
       }
       else if (f.k === 'pop') f.y -= 12 * dt;
       else if (f.k === 'bit') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; }
+      else if (f.k === 'strip') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= .96; }
       else if (f.k === 'smoke') { f.y -= 14 * dt; f.x += Math.sin(f.t * 4) * 4 * dt; }
     }
     R.fx = R.fx.filter(f => f.t < f.dur);
@@ -1083,7 +1124,7 @@
       if (R.banner && R.events.clearBanner) R.banner.sub = 'SOULS FREED: ' + R.souls;
       if (R.phaseT > 4.4) endRun('clear');
     } else if (R.phase === 'dead') {
-      if (R.phaseT > .12) bark('rugged');
+      if (R.phaseT > .12 && !(R.events.said && R.events.said.rugged)) { if (R.talk) { R.talk = null; Snd.hush(); } bark('rugged', true); }   // his WHOA! cuts off a taunt
       if (R.phaseT > 1.9) endRun('rugged');
     }
   }
@@ -1162,15 +1203,42 @@
     rect(g, PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
     if (b.st === 'sleep') for (let i = 0; i < 3; i++) { const k = mod1(t * .4 + i / 3); txt(g, 'Z', x1 - 8 + Math.round(Math.sin(k * 6) * 2), Math.round(y0 + 2 - k * 16), k > .8 ? '#5a5670' : '#a8a0c0'); }
   }
+  // The Shredder is drawn on its own canvas, then onto the scene scaled about the foot of its mouth with hard pixels: it
+  // swells as it lunges at you and shrinks as it recoils, breathes, and shudders when jammed or hit hard.
+  const SHC = A.canvas(W, H), shg = SHC.getContext('2d');
+  function withShredder(fn) {
+    const b = R.boss, main = g;
+    shg.clearRect(0, 0, W, H);
+    g = shg; try { fn(); } finally { g = main; }
+    const live = b.st === 'fight' || b.st === 'awake', fast = b.ph === 3 || b.hp < 15;
+    const breathe = live ? Math.sin(R.t * (fast ? 4.2 : 2.4)) * .012 : 0;
+    const k = clamp(1 + (b.push || 0) * .07 + breathe, .88, 1.14);
+    const jx = (b.shudder > 0 || (b.jam > 0 && live) || (live && b.hp < 15 && Math.random() < .3)) ? Math.round(fxr(-1.4, 1.4)) : 0;
+    const sx = BACK.x0 - 8, sy = BACK.y0 - 22, sw = BACK.x1 - BACK.x0 + 16, sh = BACK.y1 - sy + 4, fy = BACK.y1;
+    g.drawImage(SHC, sx, sy, sw, sh, Math.round(120 - (120 - sx) * k) + jx, Math.round(fy - (fy - sy) * k + Math.max(0, b.push || 0) * 1.5), Math.round(sw * k), Math.round(sh * k));
+  }
   // Its eyes and teeth, drawn again over the dark in power saving mode.
   function shredderEyes() {
     const b = R.boss, ey = BACK.y0 + 17, awake = b.st === 'awake' || b.st === 'fight';
     if (b.jam > 0 || b.st === 'dead') {
       for (const ex of [106, 127]) { line(g, ex, ey - 1, ex + 5, ey + 3, '#ffd44a'); line(g, ex, ey + 3, ex + 5, ey - 1, '#ffd44a'); }
+    } else if (b.laugh > 0 && b.st === 'fight') {
+      // laughing at you: squeezed shut in two hard arcs, brows up
+      for (const ex of [106, 127]) { line(g, ex, ey + 2, ex + 3, ey, '#ff5040'); line(g, ex + 3, ey, ex + 6, ey + 2, '#ff5040'); }
+      rect(g, 105, ey - 3, 8, 1, '#1a1418'); rect(g, 127, ey - 3, 8, 1, '#1a1418');
     } else if (awake || b.chomp > 0) {
-      const lit = b.chomp > 0 || Math.floor(R.t * 3) % 2 ? '#ff5040' : '#a02018';
-      rect(g, 106, ey, 7, 3, lit); rect(g, 127, ey, 7, 3, lit);
-      rect(g, 105, ey - 2, 8, 1, '#1a1418'); rect(g, 127, ey - 2, 8, 1, '#1a1418');
+      const low = b.st === 'fight' && b.hp < 15 && Math.floor(R.t * 14) % 3 === 0;
+      const lit = low ? '#5a1010' : b.chomp > 0 || b.rev > 0 || Math.floor(R.t * 3) % 2 ? '#ff5040' : '#a02018';
+      if (b.blink > 0) { rect(g, 106, ey + 1, 7, 1, lit); rect(g, 127, ey + 1, 7, 1, lit); }
+      else {
+        rect(g, 106, ey, 7, 3, lit); rect(g, 127, ey, 7, 3, lit);
+        // pupils follow you down the hall
+        const px = clamp(Math.round((bull.u + .6) / 1.2 * 4), 0, 4) + 1;
+        rect(g, 106 + px, ey, 1, 3, '#1a1418'); rect(g, 127 + px, ey, 1, 3, '#1a1418');
+      }
+      // brows: level when it's calm, down at the middle once it's cross (phase 2 on, or winding up an attack)
+      if (b.ph >= 2 || b.rev > 0 || b.chomp > 0) { line(g, 105, ey - 3, 112, ey - 1, '#1a1418'); line(g, 127, ey - 1, 134, ey - 3, '#1a1418'); }
+      else { rect(g, 105, ey - 2, 8, 1, '#1a1418'); rect(g, 127, ey - 2, 8, 1, '#1a1418'); }
     } else {
       rect(g, 106, ey + 1, 7, 1, '#22222a'); rect(g, 127, ey + 1, 7, 1, '#22222a');
     }
@@ -1179,7 +1247,7 @@
     const b = R.boss, x0 = BACK.x0, x1 = BACK.x1, my = BACK.y1 - 13, open = b.spit > 0 ? 2 : 0, awake = b.st === 'awake' || b.st === 'fight';
     // the tell: its mouth glows red just before it spits
     if (b.rev > 0 && b.st === 'fight') rect(g, x0 + 10, my - open, x1 - x0 - 20, 9 + open, Math.floor(R.t * 16) % 2 ? '#d63428' : '#7a1010');
-    const fast = b.chomp > 0 || R.pull.st === 'on', moving = (awake && b.jam <= 0) || b.chomp > 0;
+    const fast = b.chomp > 0 || b.laugh > 0 || R.pull.st === 'on' || b.rev > 0, moving = (awake && b.jam <= 0) || b.chomp > 0;
     const ch = moving ? Math.floor(R.t * (fast ? 24 : 10)) % 2 : 0;
     for (let x = x0 + 11; x < x1 - 12; x += 4) { rect(g, x, my - open, 2, 3 + ch, '#d8dde8'); rect(g, x + 2, my + 6 - ch, 2, 3 + ch, '#d8dde8'); }
   }
@@ -1423,6 +1491,7 @@
         g.restore();
       } else if (f.k === 'pop') otxt(g, f.text, f.x, Math.round(f.y), f.col, 1, 'center');
       else if (f.k === 'bit') rect(g, f.x, f.y, 2, 1, (Math.floor(f.t * 10) + f.vx) % 2 > 0 ? '#fff6e2' : '#b8b4a8');
+      else if (f.k === 'strip') rect(g, Math.round(f.x), Math.round(f.y), 1, 2, Math.floor(f.t * 12 + f.vx) % 2 ? '#f2eee2' : '#b8b4a8');
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
@@ -1607,7 +1676,7 @@
       quadF(g, edge, -TUNE.runner, -TUNE.runner + .04, ZN, 1); quadF(g, edge, TUNE.runner - .04, TUNE.runner, ZN, 1);
     }
     sprayLanes();
-    if (R.phase !== 'hall') { shredderEyes(); shredderTeeth(); }
+    if (R.phase !== 'hall') withShredder(() => { shredderEyes(); shredderTeeth(); });
     g.save(); g.globalAlpha = .45; drawBull();
     for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) drawRow(row, z); }
     for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) drawBox(bx, z); }
@@ -1624,7 +1693,7 @@
     rect(g, 0, 0, W, H, '#09070b');
     g.setTransform(1, 0, 0, 1, sh, sh ? Math.round((Math.random() - .5) * 4) : 0);
     drawHall();
-    drawShredder();
+    withShredder(drawShredder);
     drawPaper();
     // Fixed things beside and above the aisle go down first, far to near, so nothing moving is ever cut by them.
     const back = [];
@@ -1937,7 +2006,7 @@
   }
   function padRings() {
     if (!document.body.classList.contains('touch')) return;
-    ring(shootPad, 'shoot', R.armed === false ? 0 : R.charge / TUNE.charges, R.armed === false ? 'off' : R.charge < 4 ? 'low' : '');
+    ring(shootPad, 'shoot', R.armed === false ? 0 : R.charge / TUNE.charges, R.armed === false || bull.crouch ? 'off' : R.charge < 4 ? 'low' : '');
     ring(slashPad, 'slash', 1 - bull.cd / TUNE.slashCd);
   }
   function padSync() {
