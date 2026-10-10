@@ -11,19 +11,22 @@
   const line = R.flies.slice(), n = line.length, souls = R.souls;
   for (const f of line) killFly(f, 'shot');
   check(R.events.wipes === 1 && R.souls === souls + n * 2, 'wiping out a line of ' + n + ' pays ' + n + ' bonus souls');
-  check(R.fx.some(f => f.k === 'big' && f.text.includes('WIPED OUT')), 'with a big moment');
+  check(R.fx.some(f => f.k === 'pop' && f.text.includes('WIPED OUT')) && !R.fx.some(f => f.k === 'big'), 'with a pop, not a big moment, in the hall');
   draw();
-  // one that gets past spoils it
+  // one that gets halfway down the hall spoils it
   quiet(); spawnFormation('v');
-  const v = R.flies.slice(); v[0].z = bull.bz - .2; R.freeze = 0; update(1 / 60);
+  const v = R.flies.slice(); v[0].z = TUNE.wipeBy - .02; R.freeze = 0; update(1 / 60);
   for (const f of R.flies) killFly(f, 'shot');
-  check(R.events.wipes === 1, 'a formation with one that got past is not a wipe');
+  check(R.events.wipes === 1, 'a formation with one past halfway is not a wipe');
 
   // lights out sends formations every couple of seconds
   quiet(); R.beat = 1; R.beatT = BEATS[1].time; update(1 / 60);
   check(R.event && R.event.kind === 'dark', 'lights out');
   const forms = new Set(); for (let i = 0; i < 60 * 6; i++) { update(1 / 60); for (const f of R.flies) if (f.fid) forms.add(f.fid); }
   check(forms.size >= 3, 'formations keep coming in the dark (' + forms.size + ' in 6 seconds)');
+  // a wipe in the dark is a big moment
+  R.fx = []; spawnFormation('line'); for (const f of R.flies.filter(f => f.z > .9)) killFly(f, 'shot');
+  check(R.fx.some(f => f.k === 'big' && f.text.includes('WIPED OUT')), 'a wipe in the dark gets the big moment');
 
   // to the Shredder, phase 3: a surge it can't miss knocks the blaster up the rug
   RUN.force = 1213; startRun(); bull.inv = 1e9; R.beat = 2; R.beatT = BEATS[2].minT; R.souls = TUNE.goal;

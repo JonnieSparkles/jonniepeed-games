@@ -78,25 +78,34 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .touch .playing .pads{display:flex}
 .playing .card{display:none}
 .pad-group{display:flex;align-items:end;gap:10px;touch-action:none}
-.stickzone{position:relative;flex:1 1 auto;min-width:150px;min-height:140px;border-radius:14px;background:rgba(58,47,88,.3);border:2px dashed rgba(90,76,134,.8);touch-action:none;overflow:hidden}
-.stick{position:absolute;left:50%;top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:2px solid #5a4c86;background:rgba(58,47,88,.55);pointer-events:none}
-.stick.on{border-color:var(--gold);background:rgba(58,47,88,.75)}
-.knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:#5a4c86;border:2px solid var(--cream)}
+/* The stick has no frame: a faint ring shows where it rests, and it jumps to wherever the thumb lands in its area. */
+.stickzone{position:relative;flex:1 1 auto;min-width:150px;min-height:140px;touch-action:none}
+.stick{position:absolute;left:50%;top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:2px solid rgba(168,156,196,.35);background:rgba(58,47,88,.25);pointer-events:none;transition:opacity .2s}
+.stick.on{border-color:var(--gold);background:rgba(58,47,88,.6);transition:none}
+.knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(90,76,134,.7);border:2px solid rgba(255,246,226,.5);box-shadow:0 3px 0 rgba(9,7,11,.5)}
 .stick.on .knob{background:var(--gold);border-color:var(--cream)}
 .stick-tip{position:absolute;left:8px;right:8px;bottom:6px;font-size:10px;line-height:1.2;color:var(--muted);text-align:center;pointer-events:none}
-.pad{display:grid;place-items:center;width:76px;height:64px;padding:0;border-radius:12px;background:rgba(58,47,88,.85);border:2px solid #5a4c86;box-shadow:none;color:var(--cream);font-size:12px;letter-spacing:.06em;text-transform:uppercase;touch-action:none;-webkit-tap-highlight-color:transparent}
-.pad:active{transform:none;box-shadow:none}
-.pad.on{background:#5a4c86;border-color:var(--gold)}
-.pad.slash{background:rgba(150,30,22,.85);border-color:#d63428}
-.pad.slash.on{background:#d63428;border-color:var(--gold)}
-.pad.shoot{background:rgba(36,82,140,.85);border-color:#3aa8e0}
-.pad.shoot.on{background:#3aa8e0;border-color:var(--gold)}
+.stickzone.used .stick-tip{display:none}
+/* Shoot and Slash: round arcade buttons with a pixel icon. They sink and glow while held. The ring round Shoot is the
+   blaster's charge; the ring round Slash sweeps back as it's ready again. */
+.pad{--size:76px;--fill:1;--ring:var(--cream);position:relative;display:grid;place-items:center;align-content:center;gap:2px;width:var(--size);height:var(--size);padding:0;border-radius:50%;border:3px solid #09070b;color:var(--cream);font-family:var(--display);font-size:9px;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 1px 0 rgba(9,7,11,.6);touch-action:none;-webkit-tap-highlight-color:transparent;transition:transform .05s,box-shadow .05s,filter .05s}
+.pad::before{content:'';position:absolute;inset:-8px;border-radius:50%;background:conic-gradient(var(--ring) calc(var(--fill) * 1turn),rgba(168,156,196,.18) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3.5px));pointer-events:none}
+.pad svg{width:42%;height:auto;fill:currentColor;shape-rendering:crispEdges;filter:drop-shadow(0 1px 0 rgba(9,7,11,.6))}
+.pad:active{transform:none}
+.pad.shoot{background:radial-gradient(circle at 36% 30%,#9fe2ff 0,#3aa8e0 38%,#1b5a94 100%);box-shadow:0 5px 0 #0f2f52,inset 0 -4px 0 rgba(9,7,11,.25),inset 0 3px 0 rgba(255,255,255,.3)}
+.pad.slash{--ring:var(--gold);background:radial-gradient(circle at 36% 30%,#ff9a86 0,#d63428 40%,#7a1610 100%);box-shadow:0 5px 0 #4a0d08,inset 0 -4px 0 rgba(9,7,11,.25),inset 0 3px 0 rgba(255,255,255,.3)}
+.pad.on{transform:translateY(4px);filter:brightness(1.25)}
+.pad.shoot.on{box-shadow:0 1px 0 #0f2f52,0 0 18px 4px rgba(58,168,224,.7),inset 0 -2px 0 rgba(9,7,11,.25)}
+.pad.slash.on{box-shadow:0 1px 0 #4a0d08,0 0 18px 4px rgba(214,52,40,.7),inset 0 -2px 0 rgba(9,7,11,.25)}
+.pad.shoot.low{--ring:#ff5a4a}
+.pad.shoot.off{filter:grayscale(.85) brightness(.7)}
+.land-note{display:none}
+@media (orientation:portrait){.touch .land-note{display:inline}}
 /* The story so far, typed over the tower. Tap to move on. */
 .crawl{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;padding:10px 12px;background:rgba(9,7,11,.84);cursor:pointer}
 .crawl p{margin:0;font-size:clamp(13px,2.4vw,18px);line-height:1.35;min-height:2.7em;text-wrap:pretty}
 .skip{font-size:11px;padding:6px 10px;background:transparent;color:var(--cream);border:2px solid var(--edge);box-shadow:none}
 .skip:active{transform:none;box-shadow:none}
-.pad svg{width:22px;height:22px;fill:currentColor}
 .hint{margin:0;color:var(--muted);font-size:14px}
 .hint .touch-only{display:none}
 .touch .hint .touch-only{display:inline}
@@ -111,14 +120,14 @@ body.locked{overflow:hidden}
 .full .stage{width:100%;max-width:calc((100dvh - 120px) * 16 / 9)}
 .full .deck{align-content:start;min-height:0;overflow:auto}
 .full.playing .deck{align-content:end;overflow:visible}
-.full .pad{width:min(22vw,92px);height:min(16vw,76px)}
-/* Portrait, playing: the stage sits right on top of the pads, near your thumbs, and the pads grow: the D-pad on the
-   left with jump across its top, Shoot over Slash on the right. */
+.full .pad{--size:min(22vw,92px)}
+/* Portrait, playing: the stage sits right on top of the controls, near your thumbs, and the buttons grow: the stick on
+   the left, Shoot over Slash on the right. */
 @media (orientation:portrait){
   .full.playing .arena{grid-template-rows:auto auto;align-content:end}
   .full.playing .deck{align-content:start}
-  .full .pad{width:min(29vw,120px);height:min(21vw,92px)}
-  .full .pad-group{flex-direction:column;gap:8px}
+  .full .pad{--size:min(27vw,112px)}
+  .full .pad-group{flex-direction:column;gap:18px;padding:8px 8px 6px}
 }
 @media (orientation:landscape){
   .full .arena{container-type:size;display:grid;place-items:center;grid-template-rows:minmax(0,1fr)}
@@ -126,12 +135,11 @@ body.locked{overflow:hidden}
   .full .deck{position:absolute;inset:0;display:grid;place-items:center;padding:8px;pointer-events:none;overflow:visible}
   .full .card{pointer-events:auto;max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:rgba(34,26,54,.95)}
   .full .pads{position:absolute;left:0;right:0;bottom:0;pointer-events:none;align-items:end}
-  .full .pad-group{pointer-events:auto}
-  .full .stickzone{pointer-events:auto;flex:0 0 auto;width:min(36vw,260px);height:min(48vh,190px);min-height:0;background:rgba(58,47,88,.18);border-color:rgba(90,76,134,.5)}
+  .full .pad-group{pointer-events:auto;gap:20px;padding:10px 12px 8px}
+  .full .stickzone{pointer-events:auto;flex:0 0 auto;width:min(36vw,260px);height:min(48vh,190px);min-height:0}
   .full .stick-tip{display:none}
-  .full .pad{width:min(11vw,80px);height:min(15vh,60px);background:rgba(58,47,88,.55)}
-  .full .pad.slash{background:rgba(150,30,22,.6)}
-  .full .pad.shoot{background:rgba(36,82,140,.6)}
+  .full .pad{--size:min(20vh,12vw,84px);opacity:.88}
+  .full .pad.slash{margin-bottom:calc(var(--size) * .45)}
 }
 @media (prefers-reduced-motion:reduce){button:active{transform:none}}
 </style>
@@ -167,8 +175,8 @@ body.locked{overflow:hidden}
             <span class="stick-tip" aria-hidden="true">Slide to move · flick up to jump · hold down to crouch</span>
           </div>
           <div class="pad-group">
-            <button class="pad shoot" type="button" data-k="shoot" tabindex="-1">Shoot</button>
-            <button class="pad slash" type="button" data-k="slash" tabindex="-1">Slash</button>
+            <button class="pad shoot" type="button" data-k="shoot" tabindex="-1"><svg viewBox="0 0 12 10" aria-hidden="true"><path d="M9 1h1v1h-1zM2 2h7v1h-7zM10 2h1v1h-1zM1 3h10v1h-10zM1 4h9v1h-9zM1 5h2v1h-2zM4 5h1v1h-1zM1 6h2v1h-2zM4 6h2v1h-2zM1 7h2v1h-2zM1 8h3v1h-3z"/></svg>Shoot</button>
+            <button class="pad slash" type="button" data-k="slash" tabindex="-1"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M11 0h1v1h-1zM10 1h2v1h-2zM9 2h2v1h-2zM8 3h2v1h-2zM7 4h2v1h-2zM6 5h2v1h-2zM2 6h1v1h-1zM4 6h2v1h-2zM3 7h2v1h-2zM2 8h3v1h-3zM1 9h1v1h-1zM4 9h1v1h-1zM0 10h1v1h-1z"/></svg>Slash</button>
           </div>
         </div>
       </div>
@@ -178,7 +186,7 @@ body.locked{overflow:hidden}
   <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space; crouch with S or Down. Hold Shift or ' to shoot (watch the charge bar), press Enter to slash (J and K work too). Slash cuts carpshits up close and knocks paper back at whoever threw it; temps behind their desks need the blaster or their own paper. Jump for coffee and power-ups. M sound, F full screen, P pause.</span><span class="touch-only">Slide the thumb stick to move, flick it up to jump, hold it down to crouch. Hold Shoot to fire, but watch the charge bar. Slash cuts carpshits up close and knocks paper back at whoever threw it. Jump for coffee and power-ups.</span></p>
 </main>
 <script src="art.js?v=9db88e95d7"></script>
-<script src="audio.js?v=154f9f732b"></script>
-<script src="game.js?v=ceaa8a8946"></script>
+<script src="audio.js?v=b8d4a1cf42"></script>
+<script src="game.js?v=aea349a419"></script>
 </body>
 </html>

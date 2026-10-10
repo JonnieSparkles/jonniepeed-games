@@ -216,7 +216,7 @@ window.UnrugSound = (function () {
       drums: { pat: 'KKh.S.hKKKh.S.hK', fills: { 3: 'KKh.S.hKKKSSSSSS', 7: 'KKKKSSSSSSSSSSSS' }, crash: [0, 4] }
     }] }
   };
-  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0 };
+  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1 };   // rate: tempo multiplier (a rally speeds the music up)
   function stopTrack() {
     if (!P.id) return;
     clearInterval(P.timer); P.timer = 0;
@@ -244,11 +244,11 @@ window.UnrugSound = (function () {
     if (!P.id || !ctx) return;
     if (P.next < ctx.currentTime - .1) P.next = ctx.currentTime + .05;
     while (P.next < ctx.currentTime + .12) {
-      const S = P.comp[P.si], t = P.next;
-      for (const ch of S.chans) { const evs = ch.byStep[P.step]; if (evs) for (const e of evs) osc(ch.drive ? P.drive : P.out, ch.wave, hz(e.m), t, e.len * S.stepDur * (e.g || ch.gate || .9), ch.vol, { vib: ch.vib }); }
+      const S = P.comp[P.si], t = P.next, stepDur = S.stepDur / P.rate;
+      for (const ch of S.chans) { const evs = ch.byStep[P.step]; if (evs) for (const e of evs) osc(ch.drive ? P.drive : P.out, ch.wave, hz(e.m), t, e.len * stepDur * (e.g || ch.gate || .9), ch.vol, { vib: ch.vib }); }
       const d = S.drums[P.step]; if (DRUM[d]) DRUM[d](t, P.out);
       if (S.crash.has(P.step)) DRUM.c(t, P.out);
-      P.next += S.stepDur; P.step++;
+      P.next += stepDur; P.step++;
       if (P.step >= S.steps) { P.step = 0; P.si = P.si + 1 < P.comp.length ? P.si + 1 : P.loopFrom; }
     }
     if (duckUntil && ctx.currentTime > duckUntil) { duckUntil = 0; musicBus.gain.setTargetAtTime(MUSIC_LEVEL, ctx.currentTime, .08); }
@@ -375,6 +375,8 @@ window.UnrugSound = (function () {
       if (id) playTrack(id); else stopTrack();
     },
     get track() { return want; },
+    // Tempo: 1 is the track's own; above 1 plays it faster at the same pitch.
+    tempo(r) { P.rate = Math.max(.5, Math.min(2, r || 1)); },
     say, talkTimes, hush,
     toggle() {
       muted = !muted;

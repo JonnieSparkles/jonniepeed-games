@@ -30,8 +30,12 @@ window.__balanceBot = function (profile, seed) {
         if (p.friendly || p.vz >= 0 || !noticed(o, p)) return;
         var dz = p.z - b.bz + p.vz * lead, landU = p.u + p.vu * ((p.z - b.bz) / -p.vz);
         if (dz > .7 || Math.abs(landU - me) > .2) return;
-        var pl = plan(p, function () { return { deflect: r() < P.deflect_try, dodge: r() < P.dodge, err: err(P.depth_err) }; });
-        if (pl.deflect) { if (dz < .14 + pl.err && dz > -.03) a.slash = true; }
+        // a rally can't be stepped round for long, so like a person it always tries the return, with fresh timing each time
+        // its timing is off by a little each return, in time (about depth_err × 1.5 seconds), so faster balls are harder
+        var pl = p.rally ? plan({ id: p.id + ':' + o.boss.rally }, function () { return { deflect: true, err: 0, errT: (r() + r() + r() - 1.5) * 2 * P.depth_err * 1.5 }; })
+          : plan(p, function () { return { deflect: r() < P.deflect_try, dodge: r() < P.dodge, err: err(P.depth_err) }; });
+        // a rally ball: swing for the middle of the window (the swing stays live a moment), as a person learns its rhythm
+        if (pl.deflect) { if (dz < .14 + (p.rally ? -p.vz * (.08 + pl.errT) : 0) + pl.err && dz > -.03) a.slash = true; }
         else if (p.h > .17) { if (pl.dodge && dz < .16 + pl.err && dz > -.06) a.crouch = true; }
         else if (p.kind === 'staple') { if (pl.dodge && dz < .08 + pl.err) a.jump = true; }
         else if (pl.dodge) { goal = clamp(me + (landU >= me ? -.3 : .3)); urgent = true; }

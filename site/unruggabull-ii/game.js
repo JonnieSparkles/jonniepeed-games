@@ -35,7 +35,7 @@
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
     charges: 20, recharge: .5, // the blaster holds 20 shots and gets one back every half second, like the first game's
     spreadT: 10, coffeeDrop: .2, rowH: .055,
-    slashT: .2, slashCd: .32, slashReach: .24, slashWide: .34, deflectWindow: .12,
+    slashT: .2, slashCd: .32, slashReach: .24, slashWide: .34, deflectWindow: .16,
     hurtInv: 1.7,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, recover: .5, mouth: .85,
@@ -48,23 +48,25 @@
     bundleT: [2.2, 1.6],    // how long a bundle takes to reach you: phase 1, then later phases
     tell: .45,              // the Shredder's mouth glows this long before each attack
     finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
-    attackEvery: [1.8, 2, 1.8],   // seconds between the Shredder's attacks in each phase
-    volley: { n: [2, 3, 3], gap: .35, dur: 1.7 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
+    attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
+    volley: { n: [3, 4, 5], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
     bossRows: { sheet: .45, carpet: .5 },   // how fast a paper jam sheet and a staple carpet cross the floor
     sprayEvery: .3, sprayT: 1.5,   // a side spray sends staples down both sides of the hall this often while the rug pulls, this slow
     rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
     deflectCharge: 3,       // each deflect gives the blaster this many charges back
-    // the phase 3 rally: the Shredder bats back 1 to `most` returns, each quicker (dur × speedUp, down to fastest),
-    // then misses, for smash + smashPer × its bat-backs
-    rally: { serve: 1.7, speedUp: .87, fastest: .8, count: [[0, 0], [1, 2], [2, 4]], back: .45, smash: 10, smashPer: 4, stun: 1.6 },
+    // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
+    // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
+    // misses, for smash + smashPer × its bat-backs. Once a phase, a marathon rally of this many.
+    rally: { serve: 1, speedUp: .85, fastest: .45, count: [[1, 2], [2, 4], [3, 5]], marathon: [6, 7, 8], back: .3, backMin: .2, smash: 6, smashPer: 2, stun: 1.6 },
     // phase 3's power surge knocks the blaster up the rug (it flies this long); a smash rolls the rug back toward you at this
     // speed for this long, shoving anyone on it to the back of the hall and pinning them; the rewind attack rolls it back too
     surgeFly: .6, roll: { dur: 1.6, speed: .5, pin: .3 }, rewindT: 1.4,
     darkFormEvery: 2.2,     // lights out sends a formation this often
     crouchH: .1, grip: .25, // crouched he's half height; gripping a pulling rug, it drags him at a quarter of the speed
-    planeT: 1.6, planeDmg: 2   // the Shredder's paper airplanes at head height: duck them, or slash them back
+    planeT: 1.6, planeDmg: 2,  // the Shredder's paper airplanes at head height: duck them, or slash them back
+    wipeBy: .5               // a formation wiped out before any of it gets this far down the hall pays a bonus
   };
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
@@ -359,6 +361,7 @@
       }
       if (f.z < .45) f.h += ((f.high ? .22 : .12) - f.h) * Math.min(1, dt * 2.5);
       if (f.high && f.z < .6) duckHint();
+      if (f.fid && f.z < TUNE.wipeBy) formLost(f);   // a wipe has to be done before the formation is halfway down the hall
       f.hit = Math.max(0, f.hit - dt);
       if (!f.dead && Math.abs(f.z - bull.bz) < .045 && Math.abs(f.u - bull.u) < .12 && overlaps(f.h, .05)) {
         if (hurtBull(1, f.form ? 'formation' : 'carpshit')) { f.dead = true; poof(f.u, f.z, f.h); formLost(f); }
@@ -390,7 +393,7 @@
     p.power = R.phase === 'boss' ? 1 + clamp(bull.bz / TUNE.mouth, 0, 1) : 1;
     let to = { u: 0, z: .98, h: .12 };
     if (p.kind === 'wad') to = p.src && !p.src.dead ? posOf(p.src) : { u: p.u, z: 1.1, h: p.h };
-    const rl = R.boss.rally, dur = p.rally && rl ? Math.max(.28, TUNE.rally.back * Math.pow(TUNE.rally.speedUp, rl.count)) : .45;
+    const rl = R.boss.rally, dur = p.rally && rl ? Math.max(TUNE.rally.backMin, TUNE.rally.back * Math.pow(TUNE.rally.speedUp, rl.count)) : .45;
     p.vu = (to.u - p.u) / dur; p.vz = (to.z - p.z) / dur; p.vh = (to.h - p.h) / dur; p.gv = 0;
     R.events.deflects = (R.events.deflects || 0) + 1;
     if (!p.rally) bark('deflect');
@@ -414,11 +417,13 @@
           const b = R.boss, rl = b.rally;
           if (p.rally && rl && b.st === 'fight' && b.jam <= 0 && rl.count < rl.target) {
             // the Shredder bats it back at you, quicker every time
-            rl.count++; b.spit = .2; emit('rally_return', { amount: 1 });
+            rl.count++; b.spit = .2; emit('rally_return', { amount: 1 }); R.rallyPop = .35;
+            R.events.bestRally = Math.max(R.events.bestRally || 0, rl.count);
+            R.shake = Math.max(R.shake, .05 + .02 * Math.min(rl.count, 10));   // it builds: harder shakes, faster music
             if (!R.events.rallyLine) { R.events.rallyLine = true; if (R.banner && R.banner.text === 'RALLY!') R.banner = null; talk('RETURN TO SENDER.', 'shredder'); }
             const dur = Math.max(TUNE.rally.fastest, TUNE.rally.serve * Math.pow(TUNE.rally.speedUp, rl.count));
             p.friendly = false; p.vu = (bull.u - p.u) / dur; p.vz = (bull.bz - p.z) / dur; p.vh = (.12 - p.h) / dur;
-            Snd.play('volley', rl.count); popText('RALLY x' + rl.count, 120, BACK.y0 - 2, '#ffd44a');
+            Snd.play('volley', rl.count);
             continue;
           }
           p.dead = true;
@@ -426,6 +431,12 @@
             // it misses: a smash, and the Shredder reels
             const dmg = TUNE.rally.smash + TUNE.rally.smashPer * rl.count;
             b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
+            if (rl.marathon) {
+              // the long one: a bigger finish
+              R.white = .12; R.freeze = Math.max(R.freeze, .18); R.shake = .9; Snd.play('explode');
+              R.fx.push({ k: 'big', text: 'MARATHON SMASH!', x: 120, y: 44, t: 0, dur: 1.4 });
+              for (let i = 0; i < 16; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-70, 70), vy: fxr(-90, -10), t: 0, dur: fxr(.8, 1.3) });
+            }
             emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash'); bark('smash');
             if (R.armed === false && b.st === 'fight') rollBack(TUNE.roll.dur);   // win the volley: the rug rolls back with your blaster
             popText('SMASH! -' + dmg, 120, BACK.y0 - 2, '#ffd44a'); live('Smash! The Shredder misses the return.');
@@ -652,12 +663,19 @@
     b.spit = .25; Snd.play('spit');
   }
   // Phase 3's rally: a white-hot bundle the Shredder keeps batting back, quicker each time, until it misses.
-  function serveRally() {
+  function serveRally(long) {
     const b = R.boss;
     const [lo, hi] = TUNE.rally.count[b.ph - 1];
-    b.rally = { count: 0, target: lo + Math.floor(rnd() * (hi - lo + 1)) };
+    const marathon = !!long && !b.marathonDone;   // once a phase, a rally goes the distance
+    if (marathon) b.marathonDone = true;
+    b.rally = { count: 0, target: marathon ? TUNE.rally.marathon[b.ph - 1] : lo + Math.floor(rnd() * (hi - lo + 1)), marathon };
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.rally.serve, { w: .09, hh: .06, rally: true });
     b.spit = .25; Snd.play('spit');
+    if (marathon) {
+      popText('MARATHON!', 120, BACK.y0 - 2, '#ff9628');
+      if (!R.events.marathonLine) { R.events.marathonLine = true; talk("LET'S GO THE DISTANCE.", 'shredder'); }
+      live('A marathon rally: keep knocking it back.');
+    }
     if (!R.events.rallyHint) { R.events.rallyHint = true; R.banner = { text: 'RALLY!', sub: 'KEEP KNOCKING IT BACK', t: 0, dur: 2, pull: true }; live('Rally! Keep knocking the glowing bundle back until the Shredder misses.'); }
   }
   // Phase 3's power surge: a flash of static that knocks the blaster out of his hands and up the rug. No dodging it:
@@ -710,8 +728,8 @@
     R.rows.push({ w: R.dist + .93, kind, hit: 0, v: TUNE.bossRows[kind] });
     R.boss.spit = .35; Snd.play('spit');
   }
-  // Each phase cycles through its own attacks.
-  const ATTACKS = [['bundle', 'volley', 'planes'], ['fan', 'bundle', 'rally', 'planes', 'sheet', 'volley'], ['rally', 'surge', 'rally', 'rewind', 'planes', 'fan', 'volley', 'carpet']];
+  // Each phase cycles through its own attacks; 'marathon' is a long rally, once a phase (a normal one after that).
+  const ATTACKS = [['rally', 'bundle', 'volley', 'marathon', 'planes'], ['fan', 'marathon', 'bundle', 'planes', 'rally', 'sheet', 'volley'], ['rally', 'surge', 'marathon', 'rewind', 'planes', 'rally', 'fan', 'volley', 'carpet']];
   function attack(kind) {
     if (kind === 'bundle') spitBundle();
     else if (kind === 'volley') R.boss.volley = { left: TUNE.volley.n[R.boss.ph - 1], t: 0 };
@@ -720,7 +738,7 @@
     else if (kind === 'sheet' || kind === 'carpet') spitRow(kind);
     else if (kind === 'surge') { if (R.armed === false) serveRally(); else surge(); }
     else if (kind === 'rewind') { rollBack(TUNE.rewindT); launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: 0, h: .12 }, TUNE.bundleT[1], { w: .08, hh: .05 }); R.boss.spit = .25; Snd.play('spit'); }
-    else serveRally();
+    else serveRally(kind === 'marathon');
   }
   function spitFan() {
     const gap = Math.floor(rnd() * 5);
@@ -758,7 +776,7 @@
     if (b.surgeAt > 0 && b.jam <= 0) { b.surgeAt -= dt; if (b.surgeAt <= 0 && R.armed !== false) surge(); }
     const ph = b.hp > 66 ? 1 : b.hp > 33 ? 2 : 3;
     if (ph !== b.ph) {
-      b.ph = ph; b.atk = 1.6; b.atkN = 0; b.volley = null;
+      b.ph = ph; b.atk = 1.6; b.atkN = 0; b.volley = null; b.marathonDone = false;
       if (R.hearts < TUNE.hearts) addPickup('coffee', .45, rr(-.4, .4));
       if (ph === 2) talk('STAPLES. FOR YOUR RECORDS.', 'shredder');
       else {
@@ -783,9 +801,9 @@
       if (b.volley.t <= 0) { spitScrap(); b.volley.t = TUNE.volley.gap; if (--b.volley.left <= 0) b.volley = null; }
       return;
     }
-    // no attacks while the runner warns or sprays; in phase 1 none while it pulls either, and a rally waits for the pull to end
+    // no attacks while the runner warns or sprays, and a rally waits for a pull to end
     const list = ATTACKS[ph - 1], next = list[b.atkN % list.length];
-    if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (ph === 1 || R.pull.spray || next === 'rally' || next === 'rewind')) || b.rally || R.roll) return;
+    if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (R.pull.spray || next === 'rally' || next === 'marathon' || next === 'rewind')) || b.rally || R.roll) return;
     const was = b.atk;
     b.atk -= dt;
     if (was > TUNE.tell && b.atk <= TUNE.tell) { b.rev = TUNE.tell; Snd.play('rev'); }   // its mouth glows: something's coming
@@ -825,16 +843,20 @@
       live(TUNE.streakDrop + ' in a row: a Spread Shot drops.');
     }
   }
-  // A formation is wiped out only if every carpshit in it is killed: one that hits you or gets past spoils it.
+  // A formation is wiped out only if every carpshit in it is killed before any of it is halfway down the hall.
   function formLost(f) { if (f.fid) R.forms[f.fid - 1].lost = true; }
-  // A whole formation wiped out: a bonus soul for each carpshit in it, and a big moment.
+  // A whole formation wiped out: a bonus soul for each carpshit in it. A pop and a chime; in lights out, a big moment.
   function wipe(F, x, y) {
     R.events.wipes = (R.events.wipes || 0) + 1; emit('wipe', { amount: F.n });
     for (let i = 0; i < F.n; i++) free(x + fxr(-10, 10), y + fxr(-6, 6), 'formation', 'wipe');
-    R.fx.push({ k: 'big', text: 'WIPED OUT! +' + F.n, x: 120, y: 44, t: 0, dur: 1.3 });
-    for (let i = 0; i < 14; i++) R.fx.push({ k: 'spark', x: x + fxr(-8, 8), y: y + fxr(-6, 6), s: 1, col: i % 2 ? '#ffd44a' : '#fff6e2', t: 0, dur: .4, a: Math.random() * 6 });
-    R.freeze = Math.max(R.freeze, .12); R.shake = Math.max(R.shake, .2); R.white = Math.max(R.white || 0, .05);
-    Snd.play('wipe'); bark('wipe');
+    const sparks = R.event && R.event.kind === 'dark' ? 14 : 6;
+    for (let i = 0; i < sparks; i++) R.fx.push({ k: 'spark', x: x + fxr(-8, 8), y: y + fxr(-6, 6), s: 1, col: i % 2 ? '#ffd44a' : '#fff6e2', t: 0, dur: .4, a: Math.random() * 6 });
+    if (sparks > 6) {
+      R.fx.push({ k: 'big', text: 'WIPED OUT! +' + F.n, x: 120, y: 44, t: 0, dur: 1.3 });
+      R.freeze = Math.max(R.freeze, .12); R.shake = Math.max(R.shake, .2); R.white = Math.max(R.white || 0, .05);
+      Snd.play('wipe');
+    } else { popText('WIPED OUT +' + F.n, x, y - 10, '#ffd44a'); Snd.play('volley', 5); }
+    bark('wipe');
     live('Wiped out the whole formation: ' + F.n + ' bonus souls.');
   }
   // A kill in the dark, or paper knocked back in an audit, frees a second soul.
@@ -945,7 +967,10 @@
     R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.chargeFlash = Math.max(0, (R.chargeFlash || 0) - dt); R.spread = Math.max(0, R.spread - dt);
     if (R.charge < TUNE.charges) { R.rechargeT += dt; while (R.rechargeT >= TUNE.recharge && R.charge < TUNE.charges) { R.rechargeT -= TUNE.recharge; R.charge++; } }
     else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
-    R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt);
+    R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt); R.rallyPop = Math.max(0, (R.rallyPop || 0) - dt);
+    // a rally speeds the music up as it goes
+    const tempo = R.phase === 'boss' && R.boss.rally ? 1 + Math.min(.4, .05 * R.boss.rally.count) : 1;
+    if (tempo !== R.tempo) { R.tempo = tempo; Snd.tempo(tempo); }
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
     if (R.bark) { R.bark.t += dt; if (R.bark.t > R.bark.total) R.bark = null; }
@@ -1191,6 +1216,15 @@
       const tz = p.z - p.vz * k * .05, tu = p.u - p.vu * k * .05, j = (k * 7 + Math.floor(p.spin)) % 5 - 2;
       rect(g, PX(tu, tz) + j, YH(tz, p.h) + ((k * 3) % 4) - 2, Math.max(1, Math.round(3 * sc(tz))), 1, k === 1 ? '#f2eee2' : '#b8b4a8');
     }
+    // speed streaks round a rally bundle: more and longer the longer the rally goes
+    const rl = p.rally && R.boss.rally;
+    if (rl && rl.count > 0) {
+      const n = Math.min(10, 3 + rl.count), r0 = w * .6 + 2, len = 2 + Math.min(6, rl.count), cx = Math.round(x), cy = Math.round(y);
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + Math.floor(R.t * 12) * .3, l = len * (k % 2 ? .6 : 1);
+        line(g, Math.round(cx + Math.cos(a) * r0), Math.round(cy + Math.sin(a) * r0 * .8), Math.round(cx + Math.cos(a) * (r0 + l)), Math.round(cy + Math.sin(a) * (r0 + l) * .8), k % 3 ? (p.friendly ? '#7fd4ff' : '#ffb080') : '#ffffff');
+      }
+    }
     const rot = bundle ? Math.floor(p.spin * .8) % 4 : 0, ix = -Math.round(w / 2), iy = -Math.round(h / 2);
     g.save(); g.translate(Math.round(x), Math.round(y)); if (rot) g.rotate(rot * Math.PI / 2);
     const ring = (col, d) => { const sil = tinted(img, col); for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d]]) g.drawImage(sil, ix + dx, iy + dy, w, h); };
@@ -1372,6 +1406,12 @@
       rect(g, 89, 4, 74, 7, '#1a1418'); rect(g, 90, 5, 72, 5, '#3a2f5e');
       rect(g, 90, 5, Math.round(72 * fill), 5, b.jam > 0 ? '#ffd44a' : b.flash > 0 ? '#ffffff' : '#e2483a');
       rect(g, 90 + Math.round(72 * .66), 5, 1, 5, '#1a1418'); rect(g, 90 + Math.round(72 * .33), 5, 1, 5, '#1a1418');
+    }
+    // the rally counter: it grows as the rally goes on, and flashes with each return
+    const rl = R.phase === 'boss' && R.boss.rally;
+    if (rl && rl.count > 0) {
+      const big = rl.count >= 4 ? 2 : 1, pop = R.rallyPop > 0;
+      otxt(g, (rl.marathon ? 'MARATHON x' : 'RALLY x') + rl.count, 120, big === 2 ? 15 : 17, pop ? (Math.floor(R.t * 20) % 2 ? '#ffffff' : '#ffd44a') : rl.count >= 7 ? '#ff9628' : '#ffd44a', big, 'center');
     }
   }
   function drawWords() {
@@ -1583,6 +1623,7 @@
       goBtn.textContent = 'Start';
       if (storySeen()) { altBtn.textContent = 'Watch the story'; altBtn.hidden = false; }
       cardNote.textContent = 'Demo: the first floor of the climb.'; cardNote.hidden = false;
+      const land = document.createElement('span'); land.className = 'land-note'; land.textContent = ' Best played in landscape.'; cardNote.append(land);
     } else if (kind === 'pause') {
       cardTitle.textContent = 'Paused';
       cardText.textContent = 'The Shredder will wait. It has nowhere else to be.';
@@ -1591,7 +1632,7 @@
       cardTitle.textContent = 'Floor 13 clear';
       cardText.textContent = extra.newBest ? 'New best! The Unrugged drift up toward the roof.' : 'The Unrugged drift up toward the roof.';
       rows.push(['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Deflects', String(R.events.deflects || 0)],
-        ['Best streak', String(R.bestStreak)], ['Formation wipes', String(R.events.wipes || 0)], ['Smashes', String(R.events.smashes || 0)]);
+        ['Best streak', String(R.bestStreak)], ['Formation wipes', String(R.events.wipes || 0)], ['Smashes', String(R.events.smashes || 0)], ['Longest rally', String(R.events.bestRally || 0)]);
       if (R.continues) rows.push(['Continues', String(R.continues)]);
       rows.push(['Best', best.souls + ' souls']);
       goBtn.textContent = 'Play again';
@@ -1826,6 +1867,20 @@
     }
     return best ? best.dataset.k : null;
   }
+  // The rings round the buttons: Shoot's is the blaster's charge, Slash's sweeps back as it's ready again.
+  const shootPad = pads.querySelector('.pad.shoot'), slashPad = pads.querySelector('.pad.slash'), ringWas = {};
+  function ring(el, key, fill, cls) {
+    const f = Math.round(fill * 40) / 40, c = cls || '';
+    if (ringWas[key] === f + c) return;
+    ringWas[key] = f + c;
+    el.style.setProperty('--fill', f);
+    el.classList.toggle('low', c === 'low'); el.classList.toggle('off', c === 'off');
+  }
+  function padRings() {
+    if (!document.body.classList.contains('touch')) return;
+    ring(shootPad, 'shoot', R.armed === false ? 0 : R.charge / TUNE.charges, R.armed === false ? 'off' : R.charge < 4 ? 'low' : '');
+    ring(slashPad, 'slash', 1 - bull.cd / TUNE.slashCd);
+  }
   function padSync() {
     const held = new Set(padPointers.values());
     keys.padShoot = held.has('shoot');
@@ -1879,7 +1934,7 @@
     e.stopPropagation();
     if (stickId !== null) return;
     e.preventDefault();
-    stickId = e.pointerId; centre = { x: e.clientX, y: e.clientY }; upArmed = true;
+    stickId = e.pointerId; centre = { x: e.clientX, y: e.clientY }; upArmed = true; zone.classList.add('used');
     try { zone.setPointerCapture(e.pointerId); } catch (_) {}
     stickEl.classList.add('on');
     stickAt(e.clientX, e.clientY);
@@ -1897,7 +1952,7 @@
     if (!looping) return;
     const dt = last ? Math.min(.05, Math.max(0, (now - last) / 1000)) : 0;
     last = now;
-    update(dt); draw();
+    update(dt); draw(); padRings();
     requestAnimationFrame(frame);
   }
   function start() {

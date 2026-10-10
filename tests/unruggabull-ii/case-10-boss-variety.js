@@ -12,14 +12,16 @@
   const reset = () => { R.projs = []; R.rows = []; R.talk = null; R.banner = null; R.pull.next = 1e9; b.jam = 0; b.volley = null; b.rally = null; };
   const fire = n => { b.atkN = n; b.atk = 0; update(1 / 60); };
 
-  // phase 1: a bundle, then a volley of three scraps, one after another
+  // phase 1: a rally, a bundle, then a volley of scraps one after another
   reset(); bull.u = 0; bull.bz = 0;
-  check(near(TUNE.attackEvery[0], 1.8), 'phase 1 attacks every 1.8 seconds');
+  check(near(TUNE.attackEvery[0], 1.4), 'phase 1 attacks every 1.4 seconds');
   fire(0);
-  check(R.projs.length === 1 && R.projs[0].kind === 'bundle', 'phase 1 opens with a bundle');
-  reset(); fire(1);
+  check(b.rally, 'phase 1 opens with a rally');
+  reset(); fire(ATTACKS[0].indexOf('bundle'));
+  check(R.projs.length === 1 && R.projs[0].kind === 'bundle', 'then a bundle');
+  reset(); fire(ATTACKS[0].indexOf('volley'));
   check(b.volley, 'then a volley');
-  step(TUNE.volley.gap * 2 + .1);
+  step(TUNE.volley.gap * (TUNE.volley.n[0] - 1) + .1);
   check(R.projs.filter(p => p.kind === 'scrap').length === TUNE.volley.n[0] && !b.volley, TUNE.volley.n[0] + ' scraps, one after another');
   // knocking a scrap back does its damage
   reset(); const hp = b.hp;
