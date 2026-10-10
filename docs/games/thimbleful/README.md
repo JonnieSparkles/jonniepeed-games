@@ -1,6 +1,6 @@
 # Thimbleful
 
-A tiny explorer on a windowsill catches drips from a leaky watering can in her thimble, and every drop grows her sunflower. The game is at `site/thimbleful/index.html`. It has no build spec: it predates `specs/`, so its history is in git and in this doc. The folder layout follows [SPEC-003](../../specs/SPEC-003-repo-layout.md).
+A tiny explorer on a windowsill catches drips from a leaky watering can in her thimble, and every drop grows her sunflower. The game is at `site/thimbleful/index.html`. It has no build spec: it predates `specs/`, so its history is in git and in this doc. The folder layout follows [SPEC-003](../../../specs/SPEC-003-repo-layout.md).
 
 ## How it started
 
@@ -55,7 +55,7 @@ Still unverified: how the music, thunder and catch sounds actually sound (only c
 
 ## Leaderboard
 
-Game ID `thimbleful`, rules in `scores/games.json`, following [the leaderboard guide](../guides/00-leaderboards.md). The score is drops caught (higher is better, up to 10,000), with optional meta `time_ms`. The local best is stored per board as `thimbleful-best-<BOARD>`.
+Game ID `thimbleful`, rules in `scores/games.json`, following [the leaderboard guide](../../guides/00-leaderboards.md). The score is drops caught (higher is better, up to 10,000), with optional meta `time_ms`. The local best is stored per board as `thimbleful-best-<BOARD>`.
 
 | Board | Change |
 | --- | --- |
@@ -63,7 +63,11 @@ Game ID `thimbleful`, rules in `scores/games.json`, following [the leaderboard g
 | 2 | Bigger drops and a wider catch (`CATCH` 4.5) |
 | 3 | Keeps getting harder after the first minute (the table above) |
 
-The game over card runs in steps so nothing changes under a finger about to tap: checking, then (if placed) Enter initials or Skip, then the board below the buttons. The title card has a **High scores** link that opens the current board below the buttons without starting a run.
+The game over card runs in steps so nothing changes under a finger about to tap: checking, then Enter initials or Skip ("New high score! You're #N" in the top 50, "Save your run? You'd be #N of M" below it), then the board below the buttons, with a line saying where a run below the top 50 stands. The title card has a **High scores** link that opens the current board below the buttons without starting a run.
+
+## Play stats
+
+Each run reports to [play stats](../../guides/03-play-stats.md) from `start` (including the first-play intro) and at `end`, through `runReport`. The score is drops caught; `stats` are `golds` (gold drops caught), `spills`, `earned` (spills won back) and `storm` (0–100, how far `edge` got). Saved runs carry their board run ID, so the dashboards show their initials. Watch mode reports nothing.
 
 ## Code entry points
 
@@ -78,8 +82,26 @@ The game over card runs in steps so nothing changes under a finger about to tap:
 | Characters | `wateringCan` (including its face), `explorer`, `drawExplorer` |
 | HUD on the wall | `streakMeter`, `digits`, `plusThree`, `heartPop` |
 | Leaderboard | `loadLeaderboard`, `showLeaderboard`, `openPicker`, `drawLeaderboard`, `openScores` (title card) |
+| Play stats | `runReport`, `statsRun`, and the `golds`/`earned` counters |
 | Full screen | the "full screen" section: `setFull`, `toggleFull`, wake lock |
 | Sound | `ThimbleSound.start`, `.intensity(seconds, edge)`, `.catch`, `.gold`, `.earn`, `.milestone`, `.spill`, `.over`, `.thunder`, `.title`, `.blip(i)`, `.press`, `.settle`, `.toggle`, `.muted`, `.ready`, `.onready` |
+
+## Trailer
+
+16.1 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../../guides/04-trailers.md)) from the files in `tests/thimbleful/trailer/`. The soundtrack is the game's own: `ThimbleSound` re-rendered in one pass under the whole cut, steered like a run (C major at 132 BPM, then minor with drums at 158 BPM at the top of the loop), with every shot's sound effects on top. Frames are the canvas's own pixels, scaled up whole.
+
+| Time | Shot |
+| --- | --- |
+| 0:00 | The windowsill at sunset with the title over the sky: she plants the seed and the can slides in. |
+| 0:02.2 | "Catch the drips.", pushed in on her first catches. |
+| 0:04.0 | "Grow a sunflower.": it blooms at 14. |
+| 0:05.8 | A gold drop, and the butterfly lands on the grown sunflower. |
+| 0:07.6 | The storm on the loop's downbeat: lightning at night, and "Then the storm rolls in." held for a whole bar. |
+| 0:09.1 | A close-up of the manic can feinting, then a spill. |
+| 0:10.7 | A gold catch, and lightning just before the cut. |
+| 0:12.2 | A white flash and thunder into the cover art, with the studio mark and jonniepeed.games, over the game's title jingle. |
+
+Two seeded takes supply it: A (the first-play intro and the cozy first minute) and B (a run to the full storm at 4 minutes, where `D.maxSpills` keeps spills at 3 or fewer, off screen). `director.js` drags on the scene through pointer events, chasing the drop that lands first. `python3 tools/trailer/make.py thimbleful` rebuilds this cut in under three minutes: the same play, markers and sound, with frames that can land one 60 Hz tick apart.
 
 ## Validation
 
@@ -89,6 +111,6 @@ node --check site/thimbleful/audio.js
 python3 tools/check_boards.py
 ```
 
-The browser runner `scores/test/games.py` covers both scored games, including Thimbleful's end screen, its title-card High scores and full screen, in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../guides/00-leaderboards.md#local-development).
+The browser runner `scores/test/games.py` covers both scored games, including Thimbleful's end screen, its title-card High scores and full screen, in portrait, landscape and desktop. It needs the local Worker and site servers from [Local development](../../guides/00-leaderboards.md#local-development).
 
 The preview card and index thumbnail (`site/thimbleful/og.png`, `thumb.webp`) come from the cover art in `brand/covers/thimbleful.png`: `python3 tools/og/make.py` crops it to 4:3, centred, and puts the crop beside the tagline on the card. The cross-stitch title is part of the art, so the card leaves its own title out. Run `python3 tools/stamp.py` last after any change in `site/`.

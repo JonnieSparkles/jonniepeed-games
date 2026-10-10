@@ -6,7 +6,7 @@
 
   // Boss waves come every fifth wave and trade the bombers and half the planes for one zeppelin.
   check(!waveCfg(4).boss && waveCfg(5).boss === 1 && !waveCfg(6).boss && waveCfg(10).boss === 1, 'a zeppelin every fifth wave');
-  check(waveCfg(5).bombers === 0 && waveCfg(5).planes === Math.round((4 + BALANCE.PLANES_PER_WAVE * 5) / 2), 'a lighter escort on boss waves');
+  check(waveCfg(5).bombers === 0 && waveCfg(5).planes === Math.round((5 + BALANCE.PLANES_PER_WAVE * 5) / 2), 'a lighter escort on boss waves');
 
   newGame(); S.mods.maxHP = S.wallHP = 1e6; startWave(5);
   check(/zeppelin/.test(S.banner.sub) && /gondola/.test(S.banner.sub), 'the boss wave is announced, with a hint');

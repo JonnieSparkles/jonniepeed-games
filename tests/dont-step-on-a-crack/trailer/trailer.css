@@ -1,0 +1,25 @@
+/* Trailer framing at 1920x1080 (tools/trailer): a big Mom Cam on the left grass, bigger chalk messages, no buttons or stats. */
+#view.side .hud{padding:44px 0 0 52px !important}
+#view.side .hud-col{width:470px !important;gap:16px !important}
+.panel{grid-template-columns:1fr !important;padding:12px 12px 14px !important;border-radius:26px !important;row-gap:12px !important;box-shadow:0 8px 34px rgba(0,0,0,.4) !important}
+#cam{grid-row:auto !important;width:446px !important;height:446px !important;border-radius:16px !important}
+#cam::after{background:repeating-linear-gradient(rgba(0,0,0,.09) 0 2px,transparent 2px 5px) !important}
+.cam-top{font-size:17px !important;left:14px !important;top:13px !important;gap:9px !important}
+.cam-bot{font-size:15px !important;left:14px !important;bottom:12px !important}
+.rec{width:12px !important;height:12px !important}
+.row{grid-column:1 !important;padding:0 6px}
+.label{font-size:17px !important;gap:6px 14px !important}
+.pips{gap:6px !important}
+.pip{width:22px !important;height:15px !important;border-radius:6px 6px 4px 4px !important}
+#status{font-size:23px !important;line-height:1.25 !important}
+.ibtn,.srow,#giant{display:none !important}
+#chat{max-width:470px !important;gap:10px !important}
+.bubble{font-size:25px !important;padding:12px 18px !important;border-radius:7px 24px 24px 24px !important}
+.from{font-size:15px !important;margin:0 0 6px 14px !important;gap:8px !important}
+.from::before{width:11px !important;height:11px !important}
+.typing{gap:6px !important}.typing i{width:10px !important;height:10px !important}
+#view.side #msg{left:560px !important;right:560px !important;top:36px !important}
+#msg .m{font-size:64px !important}
+#msg.big .m{font-size:78px !important}
+#msg .s{font-size:36px !important;margin-top:6px !important}
+#power{zoom:1.7;left:auto !important;right:30px !important;bottom:26px !important}

@@ -1,0 +1,55 @@
+# Deploys the rooms Worker (rooms/) to Cloudflare: the relay for games played together (docs/guides/05-rooms.md).
+# Runs by itself when a change to rooms/ reaches main: tests a local copy first, deploys, then checks the live
+# Worker. It can also be run from the Actions tab ("Deploy Rooms Worker" → Run workflow). A deploy drops any
+# match in progress; the pages reconnect by themselves.
+# Uses the same repository secrets as the leaderboard: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+name: Deploy Rooms Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rooms/**'
+      - '.github/workflows/rooms-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rooms-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Test the Worker locally before deploying
+        # A broken change stops here, before it replaces the live Worker. Local mode needs no Cloudflare login.
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        # 127.0.0.1, not localhost: on the runner, localhost can mean IPv6 (::1) to one program and IPv4 to another.
+        run: |
+          (cd rooms && npx --yes wrangler@4.148.0 dev --local --ip 127.0.0.1 --port 8788 --var GHOST_MS:6000 --var LEAVE_GRACE_MS:500 > /tmp/rooms-dev.log 2>&1 &)
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8788/ > /dev/null && break; sleep 1; done
+          echo "local Worker answered after ${i} s"
+          ROOMS_URL=ws://127.0.0.1:8788 GHOST_MS=6000 LEAVE_GRACE_MS=500 node rooms/test/relay.mjs || { echo "--- wrangler dev log ---"; cat /tmp/rooms-dev.log; exit 1; }
+      - uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: rooms
+          wranglerVersion: "4.148.0"
+          command: deploy
+      - name: Check the live Worker relays between two connections
+        # A new custom domain's certificate can take a few minutes, so this retries for a while.
+        run: |
+          for i in $(seq 1 30); do
+            if ROOMS_URL=wss://rooms.jonniepeed.games node rooms/test/relay.mjs; then exit 0; fi
+            echo "not answering yet, retrying in 20 s"; sleep 20
+          done
+          echo "The rooms Worker didn't answer. See docs/guides/05-rooms.md."; exit 1

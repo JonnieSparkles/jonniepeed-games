@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Play stats</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #77756f;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --wash: rgba(11,11,11,0.04);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #9a988f;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #9a988f;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+}
+* { box-sizing: border-box; touch-action: manipulation; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 12px; }
+h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); font-size: 13px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; }
+.pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.pill { border: 1px solid var(--ring); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 12px;
+  font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.pill:hover { background: var(--wash); }
+.pill[aria-current="page"], .pill[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.pill:focus-visible, svg:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.spacer { flex: 1; }
+main { transition: opacity .15s; }
+main.loading { opacity: .5; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 12px 14px; }
+.tile .label { color: var(--ink-2); font-size: 13px; }
+.tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+.tile .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px 12px; min-width: 0; margin-bottom: 12px; }
+.grid > .card { margin-bottom: 0; }
+.card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.card .desc { color: var(--ink-2); font-size: 13px; margin: 2px 0 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--ink-2); margin: 4px 0 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+svg { display: block; width: 100%; overflow: visible; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.gridline { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+.baseline { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+.hit { fill: transparent; }
+.hit.on { fill: var(--wash); }
+.hbars { display: grid; grid-template-columns: minmax(0, max-content) 1fr auto; gap: 6px 10px; align-items: center; font-size: 13px; }
+.hbars .name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+.hbars .track { height: 10px; }
+.hbars .fill { height: 10px; border-radius: 0 4px 4px 0; background: var(--s1); min-width: 2px; }
+.hbars .num { color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.summary { color: var(--ink-2); font-size: 13px; margin: 0 0 6px; }
+.summary b { color: var(--ink); font-weight: 600; }
+details { margin-top: 8px; font-size: 13px; }
+summary { color: var(--ink-2); cursor: pointer; width: max-content; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--grid); white-space: nowrap; vertical-align: top; }
+th { color: var(--ink-2); font-weight: 500; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.runs { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.runs li { padding: 8px 0; border-bottom: 1px solid var(--grid); }
+.runs li:last-child { border-bottom: 0; }
+.runs .head { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.runs .head b { font-weight: 600; }
+.runs .meta, .runs .st { color: var(--ink-2); margin-top: 2px; }
+.runs .st { color: var(--muted); }
+.runs .tag { color: var(--ink-2); border: 1px solid var(--ring); border-radius: 999px; padding: 0 7px; font-size: 12px; }
+.more { margin-top: 8px; }
+.key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
+.empty, .message { color: var(--ink-2); padding: 24px 0; }
+.foot { color: var(--muted); font-size: 12px; margin-top: 20px; }
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--ring);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12); min-width: 120px; max-width: 260px; }
+#tip .t { color: var(--ink-2); margin-bottom: 4px; }
+#tip .r { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+#tip .r b { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 2.5em; }
+#tip .r em { font-style: normal; color: var(--ink-2); }
+#tip .line { width: 10px; height: 2px; border-radius: 1px; display: inline-block; }
+@media (prefers-reduced-motion: reduce) { main { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="heading">Play stats</h1>
+    <span class="sub" id="sub"></span>
+  </header>
+  <div class="bar">
+    <nav class="pills" id="nav" aria-label="Dashboards"></nav>
+    <span class="spacer"></span>
+    <div class="pills" role="group" aria-label="Time range" id="range"></div>
+  </div>
+  <main id="main" aria-busy="true"><p class="message">Loading…</p></main>
+  <p class="foot">Days are counted in Eastern time. Nothing here is public: this page sits behind Cloudflare Access.</p>
+</div>
+<div id="tip" role="tooltip" hidden></div>
+<script>
+'use strict';
+(() => {
+  const ZONE = 'America/New_York';
+  const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
+  const main = document.getElementById('main'), tip = document.getElementById('tip');
+  const path = location.pathname.replace(/\/+$/, '/');
+  const match = /^\/dash\/([a-z0-9-]+)\/$/.exec(path);
+  const game = match ? match[1] : null;
+  const params = new URLSearchParams(location.search);
+  let days = [7, 30, 90].includes(Number(params.get('days'))) ? Number(params.get('days')) : 30;
+  // A game's page can be narrowed to one leaderboard board (?board=3). Scores on different boards follow different rules.
+  let board = game && /^[1-9]\d{0,5}$/.test(params.get('board') || '') ? Number(params.get('board')) : null;
+  const query = () => `?days=${days}${board != null ? '&board=' + board : ''}`;
+  let last = null;
+
+  /* ---------- small helpers ---------- */
+  function el(tag, attrs, ...kids) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'class') node.className = v; else if (k === 'style') node.style.cssText = v; else node.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) node.append(kid instanceof Node ? kid : String(kid));
+    return node;
+  }
+  const NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs) { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v); return n; }
+  const num = n => (n == null ? '–' : Number(n).toLocaleString('en-US', { maximumFractionDigits: 1 }));
+  const pct = (a, b) => (b ? Math.round(100 * a / b) + '%' : '–');
+  const per = (a, b) => (b ? (a / b).toLocaleString('en-US', { maximumFractionDigits: 1 }) : '–');
+  function compact(n) {
+    if (n == null) return '–';
+    const a = Math.abs(n);
+    if (a >= 1e6) return (n / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'M';
+    if (a >= 1e4) return (n / 1e3).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'K';
+    return Number(n).toLocaleString('en-US', { maximumFractionDigits: 1 });
+  }
+  function dur(ms) {
+    if (ms == null) return '–';
+    const s = Math.round(ms / 1000);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60), h = Math.floor(m / 60);
+    if (h) return h + 'h' + (m % 60 ? ' ' + String(m % 60).padStart(2, '0') + 'm' : '');
+    return m + 'm' + (s % 60 ? ' ' + String(s % 60).padStart(2, '0') + 's' : '');
+  }
+  const label = key => (key.charAt(0).toUpperCase() + key.slice(1)).replace(/_/g, ' ');
+  const dayKeyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const dayKey = ms => dayKeyFmt.format(new Date(ms));
+  const dayLabelFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
+  const dayLabel = key => dayLabelFmt.format(new Date(key + 'T12:00:00Z'));
+  const whenFmt = new Intl.DateTimeFormat('en-US', { timeZone: ZONE, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const when = iso => whenFmt.format(new Date(iso));
+  const dateFmt = new Intl.DateTimeFormat('en-US', { timeZone: ZONE, month: 'short', day: 'numeric' });
+
+  // Every Eastern day from the window's start to today. Steps of 12 hours so daylight saving never skips one.
+  function dayList(since) {
+    const keys = [], end = Date.now();
+    for (let t = Date.parse(since); t <= end; t += 12 * 3600000) { const k = dayKey(t); if (keys[keys.length - 1] !== k) keys.push(k); }
+    const today = dayKey(end); if (keys[keys.length - 1] !== today) keys.push(today);
+    return keys;
+  }
+  const hourMs = hour => Date.parse(hour + ':00:00Z');
+
+  function quantile(sorted, q) {
+    if (!sorted.length) return null;
+    const i = (sorted.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+  }
+  function niceStep(span, target) {
+    const raw = span / Math.max(1, target), mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    for (const m of [1, 2, 2.5, 5, 10]) if (raw <= m * mag) return m * mag;
+    return 10 * mag;
+  }
+
+  /* ---------- tooltip ---------- */
+  function showTip(title, rows, x, y) {
+    tip.replaceChildren(el('div', { class: 't' }, title));
+    for (const r of rows) {
+      tip.append(el('div', { class: 'r' }, r.color ? el('span', { class: 'line', style: 'background:' + r.color }) : null, el('b', null, r.value), el('em', null, r.name)));
+    }
+    tip.hidden = false;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = x + 14, top = y - h - 10;
+    if (left + w > innerWidth - 8) left = Math.max(8, x - w - 14);
+    if (top < 8) top = y + 16;
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  }
+  const hideTip = () => { tip.hidden = true; };
+  addEventListener('scroll', hideTip, { passive: true });
+
+  /* ---------- charts ---------- */
+  // Columns per day, stacked by series. Each column is its own hit target; arrow keys step through them.
+  function columns(card, labels, series, opts) {
+    const width = Math.max(260, card.clientWidth - 32), height = opts.height || 190;
+    const pad = { l: 34, r: 4, t: 8, b: 22 };
+    const plotW = width - pad.l - pad.r, plotH = height - pad.t - pad.b;
+    const totals = labels.map((_, i) => series.reduce((s, ser) => s + ser.values[i], 0));
+    const max = Math.max(1, ...totals);
+    // Columns count runs, so the axis steps in whole runs.
+    const step = Math.max(1, Math.ceil(niceStep(max, 4))), top = Math.ceil(max / step) * step;
+    const band = plotW / labels.length, gap = band > 8 ? 2 : 1, barW = Math.max(1, Math.min(24, band - gap));
+    const y = v => pad.t + plotH - (v / top) * plotH;
+    const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, height, role: 'img', tabindex: 0, 'aria-label': opts.title + '. Arrow keys step through the columns.' });
+    for (let v = 0; v <= top + 1e-9; v += step) {
+      svg.append(svgEl('line', { class: v === 0 ? 'baseline' : 'gridline', x1: pad.l, x2: width - pad.r, y1: Math.round(y(v)) + 0.5, y2: Math.round(y(v)) + 0.5 }));
+      const t = svgEl('text', { x: pad.l - 6, y: y(v) + 4, 'text-anchor': 'end' }); t.textContent = compact(v); svg.append(t);
+    }
+    // Space axis labels by the widest one, so they never run into each other. Day labels sit under their column,
+    // counting back from today; histogram labels mark where each bin starts.
+    const axis = labels.map((lab, i) => opts.xLabel(lab, i));
+    const widest = Math.max(...axis.map(a => String(a).length)) * 6.4 + 14;
+    const every = Math.max(1, Math.ceil(labels.length / Math.max(1, Math.floor(plotW / widest))));
+    labels.forEach((lab, i) => {
+      if ((opts.edges ? i : labels.length - 1 - i) % every) return;
+      const x = pad.l + band * i + (opts.edges ? 0 : band / 2);
+      const t = svgEl('text', { x, y: height - 6, 'text-anchor': opts.edges && i === 0 ? 'start' : 'middle' }); t.textContent = axis[i]; svg.append(t);
+    });
+    const hits = [];
+    labels.forEach((lab, i) => {
+      const x = pad.l + band * i + (band - barW) / 2;
+      let base = 0;
+      const visible = series.map((s, k) => [k, s.values[i]]).filter(([, v]) => v > 0);
+      visible.forEach(([k, v], j) => {
+        const isTop = j === visible.length - 1;
+        const y0 = y(base), y1 = y(base + v);
+        // A 2px surface gap separates stacked segments; only the top of the column is rounded.
+        const h = Math.max(1, y0 - y1 - (isTop ? 0 : gap));
+        const r = isTop ? Math.min(4, barW / 2, h) : 0;
+        const d = `M${x},${y1 + h + (isTop ? 0 : gap)}V${y1 + r + (isTop ? 0 : gap)}` +
+          (r ? `Q${x},${y1} ${x + r},${y1}H${x + barW - r}Q${x + barW},${y1} ${x + barW},${y1 + r}` : `H${x + barW}`) +
+          `V${y1 + h + (isTop ? 0 : gap)}Z`;
+        svg.append(svgEl('path', { d, fill: series[k].color }));
+        base += v;
+      });
+      const hit = svgEl('rect', { class: 'hit', x: pad.l + band * i, y: pad.t, width: band, height: plotH });
+      const rows = series.map(s => ({ color: series.length > 1 ? s.color : null, value: num(s.values[i]), name: s.name }));
+      if (series.length > 1) rows.push({ value: num(totals[i]), name: 'total' });
+      const show = (cx, cy) => { hits.forEach(h => h.classList.remove('on')); hit.classList.add('on'); showTip(opts.tipTitle(lab, i), rows.concat(opts.extra ? opts.extra(i) : []), cx, cy); };
+      hit.addEventListener('pointermove', e => show(e.clientX, e.clientY));
+      hit.addEventListener('pointerdown', e => show(e.clientX, e.clientY));
+      hit.addEventListener('pointerleave', () => { hit.classList.remove('on'); hideTip(); });
+      hit._show = () => { const b = hit.getBoundingClientRect(); show(b.left + b.width / 2, b.top + 20); };
+      hits.push(hit); svg.append(hit);
+    });
+    let at = -1;
+    svg.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
+      e.preventDefault();
+      at = e.key === 'Home' ? 0 : e.key === 'End' ? hits.length - 1 : Math.max(0, Math.min(hits.length - 1, at + (e.key === 'ArrowLeft' ? -1 : 1)));
+      if (at < 0) at = hits.length - 1;
+      hits[at]._show();
+    });
+    svg.addEventListener('blur', () => { hits.forEach(h => h.classList.remove('on')); hideTip(); });
+    return svg;
+  }
+
+  function legend(series) {
+    if (series.length < 2) return null;
+    return el('div', { class: 'legend' }, series.map(s => el('span', null, el('i', { style: 'background:' + s.color }), s.name)));
+  }
+
+  function tableView(head, rows) {
+    return el('details', null, el('summary', null, 'Show as a table'),
+      el('div', { class: 'scroll' }, el('table', null,
+        el('thead', null, el('tr', null, head.map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
+        el('tbody', null, rows.map(r => el('tr', null, r.map((c, i) => el('td', { class: i ? 'n' : null }, c))))))));
+  }
+
+  // Horizontal bars for shares: devices, sources, the most common values of a text stat.
+  function hbars(items, total) {
+    const max = Math.max(1, ...items.map(i => i.n));
+    return el('div', { class: 'hbars' }, items.flatMap(i => [
+      el('span', { class: 'name', title: i.name }, i.name),
+      el('span', { class: 'track' }, el('span', { class: 'fill', style: `display:block;width:${(100 * i.n / max).toFixed(1)}%` })),
+      el('span', { class: 'num' }, num(i.n) + (total ? ' · ' + pct(i.n, total) : ''))
+    ]));
+  }
+
+  // Histogram of a numeric stat. Whole numbers with a small range get one column per value;
+  // a long tail folds into a last "and up" column so the bulk stays readable.
+  // Bin widths for times read as times: 10s, 30s, 1m, 5m and so on.
+  const TIME_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200].map(s => s * 1000);
+  function histogram(values, fmt, times) {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const lo = sorted[0], hi = sorted[sorted.length - 1], p95 = quantile(sorted, 0.95);
+    const ints = sorted.every(Number.isInteger);
+    let edges = [], tail = false;
+    if (ints && hi - lo <= 30) { for (let v = lo; v <= hi + 1; v++) edges.push(v); }
+    else {
+      const cap = hi > p95 * 3 && p95 > lo ? p95 * 1.1 : hi;
+      tail = cap < hi;
+      let step = times ? TIME_STEPS.find(t => t >= (cap - lo || 1) / 14) || 7200000 : niceStep(cap - lo || 1, 14);
+      if (ints) step = Math.max(1, Math.round(step));
+      const start = Math.floor(lo / step) * step;
+      for (let v = start; v <= cap + step; v += step) edges.push(v);
+      if (edges.length < 2) edges = [start, start + step];
+    }
+    const counts = new Array(edges.length - 1).fill(0);
+    for (const v of sorted) {
+      let i = edges.findIndex((e, k) => k < edges.length - 1 && v >= e && v < edges[k + 1]);
+      if (i < 0) i = counts.length - 1;
+      counts[i]++;
+    }
+    const single = ints && edges[1] - edges[0] === 1;
+    const names = counts.map((_, i) => {
+      if (single) return fmt(edges[i]);
+      if (tail && i === counts.length - 1) return fmt(edges[i]) + ' and up';
+      return fmt(edges[i]) + '–' + fmt(edges[i + 1]);
+    });
+    return { names, counts, starts: edges.slice(0, -1).map(fmt), single };
+  }
+
+  function numberCard(title, desc, values, fmt, times) {
+    const card = el('section', { class: 'card' }, el('h2', null, title), desc ? el('p', { class: 'desc' }, desc) : null);
+    if (!values.length) { card.append(el('p', { class: 'empty' }, 'Nothing reported yet.')); return card; }
+    const sorted = values.slice().sort((a, b) => a - b);
+    card.append(el('p', { class: 'summary' },
+      'Median ', el('b', null, fmt(quantile(sorted, 0.5))),
+      ' · middle half ', el('b', null, fmt(quantile(sorted, 0.25)) + '–' + fmt(quantile(sorted, 0.75))),
+      ' · highest ', el('b', null, fmt(sorted[sorted.length - 1])),
+      ' · ', num(values.length), ' runs'));
+    const h = histogram(values, fmt, times);
+    card._draw = () => {
+      const series = [{ name: 'runs', color: SERIES[0], values: h.counts }];
+      return [columns(card, h.names, series, { title, height: 150, edges: !h.single, xLabel: (l, i) => h.starts[i], tipTitle: l => l }),
+        tableView([title, 'Runs'], h.names.map((n, i) => [n, num(h.counts[i])]))];
+    };
+    return card;
+  }
+
+  function sharesCard(title, desc, items, total) {
+    const card = el('section', { class: 'card' }, el('h2', null, title), desc ? el('p', { class: 'desc' }, desc) : null);
+    if (!items.length || !total) card.append(el('p', { class: 'empty' }, 'Nothing yet.'));
+    else card.append(hbars(items, total));
+    return card;
+  }
+
+  function tile(name, value, note) {
+    return el('div', { class: 'tile' }, el('div', { class: 'label' }, name), el('div', { class: 'value' }, value), note ? el('div', { class: 'note' }, note) : null);
+  }
+
+  /* ---------- shared pieces ---------- */
+  function dailyCard(title, desc, hourly, since, series, extra) {
+    const keys = dayList(since), index = new Map(keys.map((k, i) => [k, i]));
+    for (const s of series) s.values = keys.map(() => 0);
+    const extras = keys.map(() => ({ won: 0 }));
+    for (const row of hourly) {
+      const i = index.get(dayKey(hourMs(row.hour)));
+      if (i == null) continue;
+      for (const s of series) s.values[i] += s.pick(row);
+      extras[i].won += row.won || 0;
+    }
+    const card = el('section', { class: 'card' }, el('h2', null, title), el('p', { class: 'desc' }, desc), legend(series));
+    card._draw = () => [
+      columns(card, keys, series, { title, xLabel: dayLabel, tipTitle: dayLabel, extra: extra ? i => extra(extras[i]) : null }),
+      tableView(['Day'].concat(series.map(s => s.name)), keys.map((k, i) => [dayLabel(k)].concat(series.map(s => num(s.values[i])))).reverse())
+    ];
+    return card;
+  }
+
+  function devicesCards(devices) {
+    const total = devices.reduce((s, d) => s + d.n, 0);
+    const sum = key => Object.entries(devices.reduce((m, d) => { m[d[key]] = (m[d[key]] || 0) + d.n; return m; }, {}))
+      .map(([name, n]) => ({ name: label(name), n })).sort((a, b) => b.n - a.n);
+    return [sharesCard('Devices', 'Phones and tablets are told apart by screen size.', sum('device'), total),
+      sharesCard('Orientation', 'How the screen was held when the run started.', sum('orientation'), total)];
+  }
+
+  function sourcesCard(sources) {
+    const total = sources.reduce((s, d) => s + d.n, 0);
+    return sharesCard('Where runs came from', 'The site that linked to the game. Direct covers typed links, apps that hide where they came from, and reloads.',
+      sources.map(s => ({ name: s.other ? 'Other sites' : s.source || 'Direct or unknown', n: s.n })), total);
+  }
+
+  function draw() {
+    if (!last) return;
+    hideTip();
+    for (const card of main.querySelectorAll('.card')) {
+      if (!card._draw) continue;
+      card.querySelectorAll(':scope > svg, :scope > details').forEach(n => n.remove());
+      card.append(...card._draw());
+    }
+  }
+  let resizeTimer = 0;
+  addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(draw, 150); });
+
+  /* ---------- overall ---------- */
+  function renderOverview(data) {
+    const ids = Object.keys(data.names);
+    const tot = Object.values(data.games).reduce((t, g) => {
+      for (const k of ['runs', 'visits', 'finished', 'won', 'quit', 'time_ms']) t[k] += g[k] || 0; return t;
+    }, { runs: 0, visits: 0, finished: 0, won: 0, quit: 0, time_ms: 0 });
+    const out = [];
+    const p = data.people;
+    out.push(el('div', { class: 'tiles' },
+      tile('Runs', compact(tot.runs)),
+      tile('Sittings', compact(tot.visits), 'page visits with at least one run'),
+      tile('Runs per sitting', per(tot.runs, tot.visits)),
+      tile('Finished', pct(tot.finished, tot.runs), 'reached the end screen'),
+      tile('Median run', dur(data.median_ms)),
+      tile('Time played', dur(tot.time_ms)),
+      p ? tile('Names on the boards', compact(p.total), `${num(p.returning)} back on another day · ${num(p.several)} in more than one game`) : null,
+      unseenTile(data)));
+    if (!tot.runs) { out.push(el('p', { class: 'empty' }, `No runs in the last ${data.days} days yet.`)); if (data.recent?.length) out.push(runsCard(data.recent, data.names)); return out; }
+    const series = ids.map((id, i) => ({ name: data.names[id], color: SERIES[i % SERIES.length], pick: row => (row.game === id ? row.runs : 0) }));
+    out.push(dailyCard('Runs per day', 'Every run started, by game.', data.hourly, data.since, series));
+    const head = ['Game', 'Runs', 'Sittings', 'Runs per sitting', 'Finished', 'Quit', 'Median run', 'Time played', 'Saved to the board', 'Names', 'Back another day'];
+    out.push(el('section', { class: 'card' }, el('h2', null, 'By game'),
+      el('p', { class: 'desc' }, 'Quit means the page was closed or hidden mid-run and never came back. Names come from the leaderboards, so only saved runs have them.'),
+      el('div', { class: 'scroll' }, el('table', null,
+        el('thead', null, el('tr', null, head.map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
+        el('tbody', null, ids.map((id, i) => {
+          const g = data.games[id] || {};
+          return el('tr', null,
+            el('td', null, el('span', { class: 'key', style: 'background:' + SERIES[i % SERIES.length] }), el('a', { href: `/dash/${id}/?days=${data.days}` }, data.names[id])),
+            el('td', { class: 'n' }, num(g.runs)), el('td', { class: 'n' }, num(g.visits)), el('td', { class: 'n' }, per(g.runs, g.visits)),
+            el('td', { class: 'n' }, pct(g.finished, g.runs)), el('td', { class: 'n' }, pct(g.quit, g.runs)),
+            el('td', { class: 'n' }, dur(g.median_ms)), el('td', { class: 'n' }, dur(g.time_ms)),
+            el('td', { class: 'n' }, g.saves == null ? '–' : num(g.saves)),
+            el('td', { class: 'n' }, g.names == null ? '–' : num(g.names)), el('td', { class: 'n' }, g.returning == null ? '–' : num(g.returning)));
+        }))))));
+    out.push(el('div', { class: 'grid' }, devicesCards(data.devices), sourcesCard(data.sources)));
+    out.push(runsCard(data.recent, data.names));
+    return out;
+  }
+
+  /* ---------- one game ---------- */
+  // Board pills (All boards, Board 3, Board 2…) for games with a leaderboard.
+  function boardPills(data) {
+    if (!data.boards.length && board == null) return null;
+    const known = data.boards.map(b => b.board);
+    if (board != null && !known.includes(board)) known.unshift(board);
+    const pill = (value, text) => {
+      const b = el('button', { class: 'pill', type: 'button', 'aria-pressed': value === board ? 'true' : 'false' }, text);
+      b.addEventListener('click', () => { if (value === board) return; board = value; history.replaceState(null, '', location.pathname + query()); load(); });
+      return b;
+    };
+    return el('div', { class: 'bar' }, el('div', { class: 'pills', role: 'group', 'aria-label': 'Leaderboard board' },
+      pill(null, 'All boards'), ...known.map(n => pill(n, 'Board ' + n))));
+  }
+  // Side by side, one row per board: how play changed after a board change.
+  function boardsCard(data) {
+    if (board != null || data.boards.length < 2) return null;
+    const head = ['Board', 'Runs', 'Sittings', 'Finished', 'Quit', 'Median run', 'Saved to the board'];
+    return el('section', { class: 'card' }, el('h2', null, 'By board'),
+      el('p', { class: 'desc' }, 'Each board is a set of rules; a new board starts when scoring changes. Runs from before play stats existed aren’t here.'),
+      el('div', { class: 'scroll' }, el('table', null,
+        el('thead', null, el('tr', null, head.map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
+        el('tbody', null, data.boards.map(b => el('tr', null,
+          el('td', null, 'Board ' + b.board), el('td', { class: 'n' }, num(b.runs)), el('td', { class: 'n' }, num(b.visits)),
+          el('td', { class: 'n' }, pct(b.finished, b.runs)), el('td', { class: 'n' }, pct(b.quit, b.runs)),
+          el('td', { class: 'n' }, dur(b.median_ms)), el('td', { class: 'n' }, b.saves == null ? '–' : num(b.saves))))))));
+  }
+
+  // The leaderboard as players see it: top 10, then all 50. All-time, so the day buttons don't change it.
+  function boardCard(lb) {
+    if (!lb) return null;
+    const card = el('section', { class: 'card' }, el('h2', null, `Leaderboard · board ${lb.board}`),
+      el('p', { class: 'desc' }, lb.total
+        ? `All-time top ${Math.min(50, lb.total)} of ${num(lb.total)} saved runs, ranked as in the game. Not affected by the day buttons.`
+        : 'Nothing saved on this board yet.'));
+    if (!lb.rows.length) return card;
+    const extra = [];
+    for (const r of lb.rows) for (const k of Object.keys(r.meta || {})) if (!extra.includes(k)) extra.push(k);
+    const shown = v => (v == null ? '–' : num(v));
+    const head = ['#', 'Initials', 'Score'].concat(extra.map(k => (k === 'time_ms' ? 'Time' : label(k))), ['Input', 'Saved']);
+    const body = el('tbody');
+    const fill = n => body.replaceChildren(...lb.rows.slice(0, n).map(r => el('tr', null,
+      el('td', null, String(r.rank)), el('td', null, r.name), el('td', { class: 'n' }, num(r.score)),
+      extra.map(k => el('td', { class: 'n' }, k === 'time_ms' ? dur(r.meta?.[k]) : shown(r.meta?.[k]))),
+      el('td', null, r.input === 'touch' ? 'touch' : 'keys'), el('td', { class: 'n' }, dateFmt.format(new Date(r.created_at)))))) ;
+    fill(10);
+    card.append(el('div', { class: 'scroll' }, el('table', null,
+      el('thead', null, el('tr', null, head.map((h, i) => el('th', { class: i === 2 || (i > 2 && i < head.length - 2) || i === head.length - 1 ? 'n' : null }, h)))), body)));
+    if (lb.rows.length > 10) {
+      let all = false;
+      const toggle = el('button', { class: 'pill more', type: 'button' }, `Show all ${lb.rows.length}`);
+      toggle.addEventListener('click', () => { all = !all; fill(all ? 50 : 10); toggle.textContent = all ? 'Show top 10' : `Show all ${lb.rows.length}`; });
+      card.append(toggle);
+    }
+    return card;
+  }
+
+  // The 50 latest runs. On the homepage each row names its game. A "board only" row is a run saved to the
+  // leaderboard that play stats never saw (a blocker, or a page from before play stats).
+  function runsCard(rows, names) {
+    const card = el('section', { class: 'card' }, el('h2', null, 'Latest runs'),
+      el('p', { class: 'desc' }, 'The 50 most recent' + (names ? ', all games' : '') + '. Initials show when the run was saved to the board. ' +
+        '“Board only” runs were saved to the leaderboard but never reported to play stats, usually because of an ad blocker.'));
+    if (!rows || !rows.length) { card.append(el('p', { class: 'empty' }, 'No runs yet.')); return card; }
+    const outcome = r => (r.outcome === 'won' ? 'Won' : r.outcome === 'over' ? 'Finished' : r.outcome === 'quit' ? 'Quit' : 'No end yet');
+    const statLine = st => (st ? Object.entries(st).map(([k, v]) => `${label(k).toLowerCase()} ${typeof v === 'number' ? compact(v) : v}`).join(' · ') : '');
+    const items = rows.map(r => el('li', null,
+      el('div', { class: 'head' }, el('span', null, when(r.started_at)),
+        names ? el('span', null, names[r.game] || r.game) : null,
+        el('b', null, outcome(r)),
+        r.time_ms == null ? null : el('span', null, dur(r.time_ms)), r.score == null ? null : el('span', null, 'score ' + num(r.score)),
+        r.name ? el('b', null, r.name) : null,
+        r.board_only ? el('span', { class: 'tag' }, 'board only') : null),
+      el('div', { class: 'meta' }, r.board_only
+        ? ['not seen by play stats', r.input === 'touch' ? 'touch' : r.input ? 'keys' : null].filter(Boolean).join(' · ')
+        : [r.device, r.orientation, r.input === 'touch' ? 'touch' : r.input ? 'keys' : null, r.source ? 'from ' + r.source : null].filter(Boolean).join(' · ')),
+      r.stats ? el('div', { class: 'st' }, statLine(r.stats)) : null));
+    const list = el('ul', { class: 'runs' }, items.slice(0, 15));
+    card.append(list);
+    if (items.length > 15) {
+      const more = el('button', { class: 'pill more', type: 'button' }, `Show ${items.length - 15} more`);
+      more.addEventListener('click', () => { list.append(...items.slice(15)); more.remove(); });
+      card.append(more);
+    }
+    return card;
+  }
+  const unseenTile = data => (data.unseen == null ? null
+    : tile('Not seen by play stats', compact(data.unseen) + (data.unseen_capped ? '+' : ''), 'saved to the board by players play stats missed'));
+
+  function renderGame(data) {
+    const s = data.summary, out = [];
+    out.push(boardPills(data));
+    out.push(el('div', { class: 'tiles' },
+      tile('Runs', compact(s.runs)),
+      tile('Sittings', compact(s.visits), 'page visits with at least one run'),
+      tile('Runs per sitting', per(s.runs, s.visits)),
+      tile('Finished', pct(s.finished, s.runs), s.won ? `${num(s.won)} won` : 'reached the end screen'),
+      tile('Quit', pct(s.quit, s.runs), 'left mid-run'),
+      tile('Median run', dur(s.median_ms)),
+      tile('Time played', dur(s.time_ms)),
+      s.saves == null ? null : tile('Saved to the board', compact(s.saves), pct(s.saves, s.runs) + ' of runs'),
+      unseenTile(data)));
+    if (!s.runs) { out.push(el('p', { class: 'empty' }, `No runs${board != null ? ' on board ' + board : ''} in the last ${data.days} days yet.`)); if (data.recent?.length) out.push(runsCard(data.recent, null)); return out.filter(Boolean); }
+    out.push(boardsCard(data));
+    const series = [
+      { name: 'Finished', color: SERIES[0], pick: r => r.finished },
+      { name: 'Quit', color: SERIES[1], pick: r => r.quit },
+      { name: 'No end yet', color: SERIES[2], pick: r => r.runs - r.finished - r.quit }
+    ];
+    out.push(dailyCard('Runs per day', 'No end yet: still playing, or the page closed before it could report.', data.hourly, data.since, series,
+      x => (x.won ? [{ value: num(x.won), name: 'won' }] : [])));
+    const reports = data.reports;
+    const capped = data.capped ? ` From the latest ${num(reports.length)} runs.` : '';
+    const grid = el('div', { class: 'grid' });
+    grid.append(numberCard('Run length', 'Play time as the game counts it, including runs that were quit.' + capped,
+      reports.map(r => r[0]).filter(v => v != null), dur, true));
+    const scores = reports.map(r => r[1]).filter(v => v != null);
+    if (scores.length) grid.append(numberCard('Score', 'Every reported run, saved or not.' + capped, scores, compact));
+    // The game's own numbers, in the order the game sends them.
+    const keys = [];
+    for (const r of reports) for (const k of Object.keys(r[3] || {})) if (!keys.includes(k)) keys.push(k);
+    for (const key of keys) {
+      const vals = reports.map(r => (r[3] || {})[key]).filter(v => v != null);
+      if (vals.every(v => typeof v === 'number')) grid.append(numberCard(label(key), null, vals, compact));
+      else if (vals.every(v => typeof v === 'boolean')) {
+        const yes = vals.filter(Boolean).length;
+        grid.append(sharesCard(label(key), `Yes in ${num(yes)} of ${num(vals.length)} runs.`, [{ name: 'Yes', n: yes }, { name: 'No', n: vals.length - yes }], vals.length));
+      } else {
+        const counts = {};
+        for (const v of vals) counts[String(v)] = (counts[String(v)] || 0) + 1;
+        const items = Object.entries(counts).map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n);
+        const shown = items.slice(0, 8), rest = items.slice(8).reduce((t, i) => t + i.n, 0);
+        if (rest) shown.push({ name: 'Other', n: rest });
+        grid.append(sharesCard(label(key), null, shown, vals.length));
+      }
+    }
+    out.push(grid);
+    const inputs = data.inputs.map(i => ({ name: i.input === 'touch' ? 'Touch' : i.input === 'keys' ? 'Keys or mouse' : 'Not reported', n: i.n }));
+    out.push(el('div', { class: 'grid' }, devicesCards(data.devices),
+      sharesCard('Input', 'How the run was played.', inputs.sort((a, b) => b.n - a.n), inputs.reduce((t, i) => t + i.n, 0)),
+      sourcesCard(data.sources)));
+    // Names from the leaderboards: only saved runs carry initials.
+    const names = el('section', { class: 'card' }, el('h2', null, 'Names on the board'));
+    if (data.board_names == null || (!data.board_names.length && s.saves == null)) {
+      names.append(el('p', { class: 'empty' }, 'This game has no leaderboard yet, so no names.'));
+    } else if (!data.board_names.length) {
+      names.append(el('p', { class: 'empty' }, 'No runs saved to the board in this window.'));
+    } else {
+      names.append(el('p', { class: 'desc' }, 'Initials from saved runs. Days are UTC dates. AAA is the picker’s default, so it’s likely several people.'),
+        el('div', { class: 'scroll' }, el('table', null,
+          el('thead', null, el('tr', null, ['Initials', 'Runs saved', 'Days seen', 'Last seen', board != null ? 'Best' : 'Best (board)'].map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
+          el('tbody', null, data.board_names.map(n => el('tr', null,
+            el('td', null, n.name), el('td', { class: 'n' }, num(n.runs)), el('td', { class: 'n' }, num(n.days)),
+            el('td', { class: 'n' }, dateFmt.format(new Date(n.last))), el('td', { class: 'n' }, n.best == null ? '–' : num(n.best) + (board == null && n.board != null ? ` (${n.board})` : ''))))))));
+    }
+    out.push(boardCard(data.leaderboard));
+    out.push(names);
+    const recent = runsCard(data.recent, null);
+    out.push(recent);
+    return out;
+  }
+
+  /* ---------- page ---------- */
+  function nav(names) {
+    const box = document.getElementById('nav');
+    box.replaceChildren(el('a', { class: 'pill', href: `/dash/?days=${days}`, 'aria-current': game ? null : 'page' }, 'All games'),
+      ...Object.entries(names).map(([id, name]) => el('a', { class: 'pill', href: `/dash/${id}/?days=${days}`, 'aria-current': id === game ? 'page' : null }, name)));
+  }
+  function rangeButtons() {
+    const box = document.getElementById('range');
+    box.replaceChildren(...[7, 30, 90].map(d => {
+      const b = el('button', { class: 'pill', type: 'button', 'aria-pressed': d === days ? 'true' : 'false' }, d + ' days');
+      b.addEventListener('click', () => { if (d === days) return; days = d; history.replaceState(null, '', location.pathname + query()); load(); });
+      return b;
+    }));
+  }
+  let request = 0;
+  async function load() {
+    const mine = ++request;
+    rangeButtons();
+    main.classList.add('loading'); main.setAttribute('aria-busy', 'true');
+    let data = null, problem = 'Couldn’t load the numbers. Try again in a moment.';
+    try {
+      const res = await fetch(game ? `/dash/api/game?game=${encodeURIComponent(game)}&${query().slice(1)}` : `/dash/api/overview?days=${days}`, { credentials: 'same-origin' });
+      data = await res.json();
+      if (data && data.error === 'locked') problem = 'The dashboards are locked until Cloudflare Access is set up.';
+      if (data && data.error === 'forbidden') problem = 'Sign in through Cloudflare Access to see this.';
+    } catch (_) { data = null; }
+    if (mine !== request) return;
+    main.classList.remove('loading'); main.setAttribute('aria-busy', 'false');
+    if (!data || !data.ok) { last = null; main.replaceChildren(el('p', { class: 'message' }, problem)); return; }
+    last = data;
+    nav(data.names);
+    const title = game ? data.names[game] : 'All games';
+    document.getElementById('heading').textContent = game ? 'Play stats · ' + title + (board != null ? ' · board ' + board : '') : 'Play stats';
+    document.title = game ? title + ' · Play stats' : 'Play stats';
+    document.getElementById('sub').textContent = `Last ${data.days} days`;
+    main.replaceChildren(...(game ? renderGame(data) : renderOverview(data)).filter(Boolean));
+    draw();
+  }
+  load();
+})();
+</script>
+</body>
+</html>

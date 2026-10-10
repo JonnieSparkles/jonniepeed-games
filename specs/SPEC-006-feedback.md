@@ -2,7 +2,7 @@
 
 A **Send feedback** button inside each game opens a short text box. The message goes to a small Worker along with the context a bug report needs: which game, which board, how the last run went, phone or desktop, portrait or landscape. Jonnie reads the messages. Nothing is shown publicly.
 
-Status: draft, not built. Answer the open questions at the end before building. Once built, the operating guide (`docs/guides/02-feedback.md`) and the code become the source of truth, as with [SPEC-001](SPEC-001-leaderboards.md).
+Status: draft, not built. Answer the open questions at the end before building. Once built, the operating guide (`docs/guides/NN-feedback.md`, numbered with the next free guide number then) and the code become the source of truth, as with [SPEC-001](SPEC-001-leaderboards.md).
 
 ## Why
 
@@ -45,7 +45,7 @@ feedback/                      the Worker. Not published (outside site/)
   test/games.py                browser checks: the form in each game, all three layouts
 site/assets/feedback.js        shared client: send() and an unstyled form
 .github/workflows/feedback-worker.yml   manual deploy, like the leaderboard one
-docs/guides/02-feedback.md     operating guide
+docs/guides/NN-feedback.md     operating guide
 ```
 
 ## Database (`feedback/schema.sql`)
@@ -169,7 +169,7 @@ An email version would use Cloudflare's `send_email` binding to a verified addre
 
 ## Docs
 
-- **`docs/guides/02-feedback.md`:**
+- **`docs/guides/NN-feedback.md`:**
   - what it is, with the diagram above;
   - one-time setup;
   - deploying;

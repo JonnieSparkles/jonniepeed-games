@@ -1,0 +1,5 @@
+{"site": "../unruggabull-the-game", "page": "index.html", "viewport": [1280, 720], "fps": 30, "hook": "@frame",
+ "director": "director.js", "script": "src/controller.js", "inject_before": "export function resetGame",
+ "canvas": {"selector": "#gameCanvas", "upscale": 4}, "scale": 2,
+ "audio": {"media": true, "exclude": ["/assets/audio/bgm/"]},
+ "quiet_marks": ["kill", "hit"]}

@@ -1,8 +1,8 @@
-# SPEC-008: Unruggabull II: Salvation for the Unrugged
+# Unruggabull II: Salvation for the Unrugged
 
 An 8-bit sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
-Status: Floor 13 is built as the first playable slice, at `site/unruggabull-ii/`, on Side B as a noindexed demo. The rest of the climb follows in later stages. Once a stage ships, `docs/games/unruggabull-ii.md` and the code are the source of truth.
+Status: Floor 13 is built as the first playable slice, at `site/unruggabull-ii/`, on Side B as a noindexed demo. The rest of the climb follows in later stages. Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
 The original game stays in its own repo (painted art, ES modules, desktop). Its `level-2` branch is the start of a later helicopter release, not part of this game.
 
@@ -97,7 +97,7 @@ A corridor floor of about two minutes, then the Shredder.
 2. Floor 42, Human Rugsources: lights out, the projector, policy walls, trust falls. Teaches deflect properly.
 3. Floor 77, the Boardroom: the endless table run, the vote, "Motion to adjourn".
 4. The long ride and the roof: Horns Up, p(Loom)'s odds bar, predicted hits, thread cutting, the escape at 1%.
-5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../docs/guides/00-leaderboards.md)).
+5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../../guides/00-leaderboards.md)).
 
 ## Open questions
 

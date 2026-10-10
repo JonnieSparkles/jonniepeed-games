@@ -24,7 +24,7 @@
   newGame();
   check(S.coins===0 && S.mods.slots===4 && !S.mods.stacks[pick] && S.recruits.length===0, 'new run resets progression');
   ITEMS.filter(it=>it.maxStacks!==Infinity).forEach(it=>S.mods.stacks[it.id]=it.maxStacks);
-  openShop(); check(S.shop.items.length>=2 && S.shop.items.some(it=>it.id==='repair'),'endless run still offers repairs and pizza');
+  S.wallHP=50; openShop(); check(S.shop.items.length>=2 && S.shop.items.some(it=>it.id==='repair') && S.shop.items.some(it=>it.id==='pizza'),'endless run still offers repairs (with the wall down) and pizza');
   newGame(); openShop(); continueWave(); check(S.mode==='play' && S.wave===2,'leaving without buying is fine');
   reset(); shopScreen.hidden=true; render();
 })();

@@ -3,13 +3,15 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   var i;
   function play(seconds) { for (var k = 0; k < seconds * 60; k++) update(1 / 60); }
-  function quiet() { S.mode = 'play'; S.shop = null; shopScreen.hidden = true; S.waveState = 'active'; S.mods.maxHP = S.wallHP = 1e6; S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.cargo = S.spawn.boss = 0; S.planes = []; S.troopers = []; S.bombs = []; }
+  function quiet() { S.mode = 'play'; S.shop = null; shopScreen.hidden = true; S.waveState = 'active'; S.mods.maxHP = S.wallHP = 1e6; S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.cargo = S.spawn.road = S.spawn.boss = 0; var k = S.spawn.sky; if (k) k.balloons = k.divers = k.helis = k.heavies = k.medevac = k.crates = 0; S.planes = []; S.troopers = []; S.bombs = []; S.medevac = []; S.hq = []; }
 
   // New threats arrive on schedule, and pressure keeps rising after wave 7.
   check(!waveCfg(5).rushes && waveCfg(6).rushes >= 1 && waveCfg(12).rushes > waveCfg(6).rushes, 'rushers from wave 6, more later');
-  check(!waveCfg(8).cargo && waveCfg(9).cargo >= 1 && waveCfg(15).cargo > waveCfg(9).cargo, 'tanks from wave 9, more later');
-  check(waveCfg(11).interval === waveCfg(7).interval && waveCfg(13).interval < waveCfg(11).interval && waveCfg(20).interval < waveCfg(13).interval, 'planes hold their pace to wave 11, then keep coming faster');
-  check(waveCfg(11).bombers === waveCfg(6).bombers && waveCfg(21).bombers > waveCfg(12).bombers && waveCfg(41).bombers > waveCfg(31).bombers && waveCfg(20).fall > waveCfg(13).fall, 'from wave 12 bombers keep growing without a cap, and troopers fall faster');
+  check(!waveCfg(8).cargo && waveCfg(9).cargo >= 1 && waveCfg(14).cargo > waveCfg(9).cargo, 'tanks from wave 9, more later');
+  check(!waveCfg(10).road && waveCfg(11).road >= 1 && waveCfg(14).road > waveCfg(11).road && !waveCfg(20).road, 'tanks by road from wave 11, more later, none with the Dreadnought');
+  check(waveCfg(9).interval === waveCfg(7).interval && waveCfg(11).interval < waveCfg(9).interval && waveCfg(19).interval < waveCfg(11).interval, 'planes hold their pace to wave 9, then keep coming faster');
+  check(waveCfg(1).interval < 1.6 && waveCfg(4).interval < waveCfg(1).interval && waveCfg(4).interval >= waveCfg(5).interval && waveCfg(1).planes >= 7, 'the first waves are busy too');
+  check(waveCfg(9).bombers === waveCfg(6).bombers && waveCfg(21).bombers > waveCfg(12).bombers && waveCfg(41).bombers > waveCfg(31).bombers && waveCfg(20).fall > waveCfg(13).fall, 'from wave 10 bombers keep growing without a cap, and troopers fall faster');
 
   // A rush charges in from one edge along the ground, faster than a walker.
   RUN.force = 4; newGame(); startWave(6); quiet();
@@ -61,9 +63,9 @@
   check(pickTarget(makeRecruit(0, 'bazooka')) === S.tanks[0] && pickTarget(makeRecruit(0, 'rifle')) === S.troopers[0], 'crew pick the right target');
 
   // Air strike: a charge calls a bomber that clears the ground and hurts tanks, sparing crew and wall.
-  quiet(); S.tanks = [{ id: 98, x: 110, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 9, hitFlash: 0, tread: 0, dead: false }];
+  quiet(); S.tanks = [{ id: 98, x: 110, y: GROUND - 1 - TANK.HH, state: 'roll', dir: 1, hp: 30, maxHp: 30, shellT: 9, mgT: 99, hitFlash: 0, tread: 0, dead: false }];
   var crew = makeRecruit(4, 'rifle'), crewHp = crew.hp; S.recruits = [crew]; wall = S.wallHP;
-  [30, 60, 90].forEach(function (x) { spawnTrooper(x, GROUND - 33); land(S.troopers[S.troopers.length - 1]); });
+  [30, 60, 90].forEach(function (x) { spawnTrooper(x, GROUND - 33, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); land(S.troopers[S.troopers.length - 1]); });
   var tankHp = S.tanks[0].hp; S.calls.bomber = 1;
   check(callStrike() && S.calls.bomber === 0 && !callStrike(), 'a strike uses a charge, and only one flies at a time');
   play(4);
@@ -91,7 +93,7 @@
   }
   check(shellVx(function () { return 0; }) === shellVx(function () { return 0.99; }), 'shell aim ignores cosmetic randomness');
   // Armor from wave 12: a vest stops one body hit (two for heavies). Chutes still pop, and blasts still kill.
-  check(!waveCfg(11).armorChance && waveCfg(12).armorChance > 0 && waveCfg(20).armorChance > waveCfg(12).armorChance && waveCfg(22).armorHits === 2, 'armor arrives at wave 12 and gets heavier');
+  check(!waveCfg(9).armorChance && waveCfg(10).armorChance > 0 && waveCfg(14).armorChance > waveCfg(11).armorChance && waveCfg(16).armorHits === 1 && waveCfg(17).armorHits === 2, 'armor arrives at wave 10 and gets heavier from 17');
   seen = []; emitHook = function (type) { seen.push(type); };
   quiet(); spawnTrooper(200, 300, { type: 'rifle', fall: 1, sway: 0, armor: 1 }); var vt = S.troopers[0];
   function body() { return { x: vt.x, y: vt.y + 12, vx: 0, vy: -700, owner: 'player', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false }; }

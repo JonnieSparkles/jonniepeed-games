@@ -41,16 +41,21 @@ function loadLeaderboard(score, meta) {
     if (!afterEl.hidden) showLeaderboard();
   });
 }
+// Where a run stands on the whole board. The board shows only the top 50; any run with a token can be saved,
+// and a run below the top 50 is told where it stands instead.
+const count = v => Number(v).toLocaleString('en-US');
 function showLeaderboard() {
   const run = lbRun;
   if (!run || !run.data || run.shown || !(mode === 'over')) return;
   run.shown = true;
   const data = run.data;
   lbBox.hidden = false;
-  if (typeof data.placement !== 'number') { drawLeaderboard(data.scores); return; }
-  const heading = document.createElement('h3'); heading.textContent = 'New high score!';
+  const placed = typeof data.placement === 'number';
+  if (!placed && !(run.token && typeof data.position === 'number')) { drawLeaderboard(data.scores); return; }
+  const heading = document.createElement('h3'); heading.textContent = placed ? 'New high score!' : 'Save your walk';
   const message = document.createElement('p'); message.className = 'lb-message'; message.setAttribute('role', 'status');
-  message.textContent = `You're #${data.placement}. Enter your initials.`;
+  message.textContent = placed ? `You're #${data.placement}. Enter your initials.`
+    : `You'd be #${count(data.position)} of ${count(data.total)}. Enter your initials.`;
   lbBox.append(heading, message);
   // one decision at a time: the game's own buttons come back after OK or Skip
   afterEl.classList.add('lb-entering');
@@ -73,9 +78,15 @@ function showLeaderboard() {
       if (result?.error === 'name_not_allowed') {
         message.textContent = 'Try other initials'; picker.setBusy(false); return;
       }
+      // Saved below the top 50: the board doesn't show the row, so say where it landed.
+      if (result?.ok && result.rank == null && typeof result.position === 'number') run.note = `Saved. You're #${count(result.position)} of ${count(result.total)}.`;
       finish(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
     },
-    onSkip() { if (run.busy) return; finish(data.scores, null); }
+    onSkip() {
+      if (run.busy) return;
+      if (!placed) run.note = `This walk would be #${count(data.position)} of ${count(data.total)}.`;
+      finish(data.scores, null);
+    }
   });
 }
 function drawLeaderboard(scores, highlight = null, all = false, box = lbBox) {
@@ -112,7 +123,12 @@ function drawLeaderboard(scores, highlight = null, all = false, box = lbBox) {
     const player = scores.find(row => row.rank === highlight);
     if (player) { const gap = body.insertRow(); gap.className = 'lb-gap'; const cell = gap.insertCell(); cell.colSpan = cols.length; cell.textContent = '⋯'; addRow(player); }
   }
-  list.append(table); box.append(title, list);
+  box.append(title);
+  if (box === lbBox && lbRun?.note && mode === 'over') {
+    const note = document.createElement('p'); note.className = 'lb-message lb-standing'; note.setAttribute('role', 'status');
+    note.textContent = lbRun.note; box.append(note);
+  }
+  list.append(table); box.append(list);
   if (scores.length > 10) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'lb-more';
     button.textContent = all ? 'Show top 10' : `See all ${scores.length}`;
@@ -1919,6 +1935,8 @@ let mode='title';
 let far=0, fwdSteps=0, jp=null;
 let phase='idle', feet=[], front=null, back=null, sw=null, drop=null, hp=MAXHP, steps=0, camD=0, bodyX=2.5, lastStage=0, hitFx=[], puffs=[], shake=0;
 let streak=0, runStreak=0, giant=1, armed=false, tStart=null, tEnd=null, lastTs='', runResult=null;
+// play stats (site/assets/stats.js): this run's report handle, and giant steps used
+let statsRun=null, giantsUsed=0;
 let best=0, bestStreak=0, bestAtStart=0, bestStreakAtStart=0, newBestShown=false;
 try{best=parseInt(localStorage.getItem('dsotc-best-'+BOARD),10)||0; bestStreak=parseInt(localStorage.getItem('dsotc-best-streak-'+BOARD),10)||0;}catch(_){}
 // Each side of the screen (and A / D) belongs to one foot. A press while the other foot is
@@ -2044,7 +2062,7 @@ function tapStep(){
   x=clamp(x,R+0.05,WS-R-0.05);
   const d=o.d+ahead, dist=Math.hypot(x-sw.dx,d-sw.dd);
   drop={foot:f,x,d,t:0,dur:0.09+dist*0.022,fx:sw.dx,fd:sw.dd,fl:sw.lift,giant:sw.giant,tap:true};
-  if(sw.giant){giant--; armed=false; syncGiant();}
+  if(sw.giant){giant--; giantsUsed++; armed=false; syncGiant();}
   phase='drop';
 }
 // The jump: both feet up, a hop forward, both down side by side. You can't aim it,
@@ -2080,7 +2098,7 @@ function stopWobble(){if(sw&&sw.stopWob){sw.stopWob(); sw.stopWob=null;}}
 function plant(){
   stopWobble();
   drop={foot:sw.foot,x:sw.tx,d:sw.td,t:0,dur:0.08,fx:sw.dx,fd:sw.dd,fl:sw.lift,giant:sw.giant};
-  if(sw.giant){giant--; armed=false; syncGiant();}
+  if(sw.giant){giant--; giantsUsed++; armed=false; syncGiant();}
   phase='drop';
 }
 // Held through the wobble: the foot goes back where it came from and the streak resets
@@ -2179,6 +2197,7 @@ function gameOver(now){
   if(ft>best){best=ft; try{localStorage.setItem('dsotc-best-'+BOARD,String(best));}catch(_){}}
   if(runStreak>bestStreak){bestStreak=runStreak; try{localStorage.setItem('dsotc-best-streak-'+BOARD,String(bestStreak));}catch(_){}}
   loadLeaderboard(runResult.ft, {time_ms:Math.round(runResult.time*1000),steps:runResult.steps,streak:runResult.streak});
+  if(statsRun){PlayStats.end(statsRun,walkReport()); statsRun=null;}
   const endedRun=lbRun;
   setTimeout(()=>{if(lbRun===endedRun) showOver();},700);
 }
@@ -2233,7 +2252,14 @@ function syncBest(){
   if(best>0||bestStreak>0){tBest.hidden=false; tBest.innerHTML=`Best walk <b>${best} ft</b> · best streak <b>${bestStreak}</b>`;}
   else tBest.hidden=true;
 }
+// What a walk reports to play stats, at game over or when it's left mid-way. Paused time doesn't count.
+function walkReport(){
+  const now=mode==='paused'?pausedAt:performance.now()/1000;
+  return {score:dist(), time_ms:Math.round(elapsed(now)*1000), input:lbRun?lbRun.input:undefined,
+    stats:{steps, streak:runStreak, street:stageOf(slabIdx(front.d))+1, giants:giantsUsed}};
+}
 function goTitle(){
+  if(statsRun){PlayStats.quit(statsRun); statsRun=null;}
   clearLeaderboard();
   mode='title'; sfx.quiet=true;
   overEl.hidden=true; pauseEl.hidden=true;
@@ -2243,12 +2269,14 @@ function goTitle(){
   showScreen(titleEl,true); syncBest(); releaseWake();
 }
 function startGame(){
+  if(statsRun){PlayStats.quit(statsRun); statsRun=null;}   // a walk still open is left behind
   resetLeaderboard(); titleBox.replaceChildren();
   afterEl.hidden=true;
   sfx.init(); sfx.quiet=false; sfx.start();
   overEl.hidden=true; showScreen(pauseEl,false);
   if(!titleEl.hidden) showScreen(titleEl,false);
-  reset(); mode='play'; syncGiant();
+  reset(); mode='play'; syncGiant(); giantsUsed=0;
+  if(window.PlayStats) statsRun=PlayStats.start('dont-step-on-a-crack',{board:BOARD, token:lbRun&&lbRun.start, progress:walkReport});
   view.classList.remove('titling');
   requestWake();
 }
@@ -2514,7 +2542,7 @@ function frame(t){
 /* ---------- boot ---------- */
 if(!coarse){
   $('#howMove').innerHTML='Tap <b>A</b> and <b>D</b> (or either half of the screen) in turn to walk. Hold one to lift that foot, steer it with the <b>mouse</b> (or the arrow keys), let go to put it down. <b>Space</b> (or A and D together) jumps.';
-  $('#howGiant').innerHTML="Dawdle and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: press <b>S</b> for a <b>giant step</b> to save it.";
+  $('#howGiant').innerHTML="Loiter and Calzone, the Shmookies' corgi, comes to herd you. Overreach and your leg wobbles: press <b>S</b> for a <b>giant step</b> to save it.";
   const li=document.createElement('li'); li.innerHTML='<i class="dot" style="background:rgba(243,239,230,.35)"></i><span>Space jump · S giant step · Esc pauses · F full screen · M sound</span>';
   $('.t-how').appendChild(li);
 }

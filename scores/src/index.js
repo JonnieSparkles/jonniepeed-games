@@ -94,6 +94,37 @@ function compare(a, b, rules) {
   return 0;
 }
 
+// Where a run stands on the whole board, not just the top 50: how many saved rows rank ahead of it, by the same
+// rules as order() and compare(). A run that hasn't been saved yet (no id) loses every exact tie, as in placement;
+// a saved row is behind exact ties saved before it. Only trusted rules contribute SQL; values are bound.
+function aheadOf(rules, score, meta, saved) {
+  const binds = [];
+  const level = i => {
+    if (i === rules.tieBreak.length) {
+      if (!saved) return '1';
+      binds.push(saved.created_at, saved.created_at, saved.id);
+      return '(created_at < ? OR (created_at = ? AND id < ?))';
+    }
+    const [key, direction] = rules.tieBreak[i];
+    if (!owns(rules.meta, key) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error('Invalid tieBreak configuration');
+    const col = `json_extract(meta, '$.${key}')`, value = meta?.[key];
+    if (value == null) return `(${col} IS NOT NULL OR (${col} IS NULL AND ${level(i + 1)}))`;
+    binds.push(value, value);
+    return `(${col} IS NOT NULL AND (${col} ${direction === 'asc' ? '<' : '>'} ? OR (${col} = ? AND ${level(i + 1)})))`;
+  };
+  binds.push(score, score);
+  const sql = `(score ${rules.higherIsBetter ? '>' : '<'} ? OR (score = ? AND ${level(0)}))`;
+  return { sql, binds };
+}
+// Resolves to { position, total }: the run's standing (1 = first) and how many runs the board holds,
+// counting the run itself when it isn't saved yet.
+async function standing(db, game, board, score, meta, saved) {
+  const ahead = aheadOf(rulesFor(game, board), score, meta, saved);
+  const row = await db.prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(${ahead.sql}), 0) AS ahead
+    FROM scores WHERE game = ? AND board = ?`).bind(...ahead.binds, game, board).first();
+  return { position: row.ahead + 1, total: row.total + (saved ? 0 : 1) };
+}
+
 async function top(db, game, board) {
   const { results } = await db.prepare(`SELECT id, name, score, input, meta FROM scores
     WHERE game = ? AND board = ? ORDER BY ${order(rulesFor(game, board))} LIMIT ${LIMIT}`)
@@ -144,6 +175,8 @@ async function handle(request, env) {
     if (withScore) {
       const index = rows.findIndex(row => compare({ score, meta }, row, rulesFor(game, board)) < 0);
       result.placement = index >= 0 ? index + 1 : rows.length < LIMIT ? rows.length + 1 : null;
+      // Where the run would stand on the whole board if saved, so any run can be offered initials.
+      Object.assign(result, await standing(env.DB, game, board, score, meta));
     }
     return reply(result);
   }
@@ -176,7 +209,7 @@ async function handle(request, env) {
       console.log(JSON.stringify({ rejected: run.reason, game: data.game, board: data.board, score: data.score, time_ms: data.meta.time_ms }));
       return fail('rejected');
     }
-    const saved = () => env.DB.prepare('SELECT id, game, board FROM scores WHERE run_id = ?').bind(run.runId).first();
+    const saved = () => env.DB.prepare('SELECT id, game, board, score, meta, created_at FROM scores WHERE run_id = ?').bind(run.runId).first();
     // A repeat of a saved run (say, a retry after a lost response) returns that row and costs nothing.
     let row = await saved();
     if (!row) {
@@ -191,7 +224,8 @@ async function handle(request, env) {
       row = await saved();
     }
     const rows = await top(env.DB, row.game, row.board);
-    return reply({ ok: true, id: row.id, rank: rows.find(r => r.id === row.id)?.rank ?? null, scores: publicRows(rows) });
+    const where = await standing(env.DB, row.game, row.board, row.score, row.meta === null ? null : JSON.parse(row.meta), row);
+    return reply({ ok: true, id: row.id, rank: rows.find(r => r.id === row.id)?.rank ?? null, ...where, scores: publicRows(rows) });
   }
   return fail('not_found', 404);
 }

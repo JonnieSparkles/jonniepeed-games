@@ -1,6 +1,6 @@
 # Unruggabull II
 
-Built from [SPEC-008](../../specs/SPEC-008-unruggabull-ii.md). The game is at `site/unruggabull-ii/index.html`. This build is Floor 13 only, the first slice of the climb. It appears as a **demo** card on Side B, keeps `<meta name="robots" content="noindex">` and has local best scores only. The original game, Unruggabull: RugCo Alley, stays in its own repo.
+Built from [spec.md](spec.md). The game is at `site/unruggabull-ii/index.html`. This build is Floor 13 only, the first slice of the climb. It appears as a **demo** card on Side B, keeps `<meta name="robots" content="noindex">` and has local best scores only. The original game, Unruggabull: RugCo Alley, stays in its own repo.
 
 ## Finding and promoting the demo
 
@@ -46,7 +46,7 @@ Best souls and fastest clear are kept in `localStorage` (`unruggabull-ii-best`),
 
 ## Balance bots
 
-The game is opted in to the shared balance bots ([01: Balance bots](../guides/01-balance-bots.md)): `tests/unruggabull-ii/balance.js` (the hookup), `bot.js` and `profiles.json`, and `balance.json` (report columns). Run `python3 tools/balance/run.py unruggabull-ii --runs 100`; add `--skills decent --ref main` for a before/after on a tuning change, which tuning PRs need from now on.
+The game is opted in to the shared balance bots ([01: Balance bots](../../guides/01-balance-bots.md)): `tests/unruggabull-ii/balance.js` (the hookup), `bot.js` and `profiles.json`, and `balance.json` (report columns). Run `python3 tools/balance/run.py unruggabull-ii --runs 100`; add `--skills decent --ref main` for a before/after on a tuning change, which tuning PRs need from now on.
 
 - **Stages** stand in for the report's waves: 1 Accounts Payable, 2 Audit, 3 All Staff, 4 Lights out, 5 Copy Room, 6 to 8 the Shredder's phases, 9 cleared. "How runs end" names what took the last heart (`wad`, `formation`, `chairs`, `sheet`, `box`, `rug`, `bundle`, `staple`, `rally`), or `cleared`.
 - **Columns:** souls by blaster, katana, deflect, audit, dark and wipe bonuses; formation wipes; streak drops; deflects; hearts lost by cause (side-spray staples as `spray`, scraps as `scrap`, staple carpets as `carpet`); coffee and Spread Shots grabbed; times the blaster ran dry; rally returns, smashes, rug cuts and jams; times disarmed, rug roll-backs and blasters grabbed back; and Shredder damage by blaster, deflects and smashes.

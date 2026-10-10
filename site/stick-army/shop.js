@@ -12,7 +12,10 @@ var StickArmyShop = function (w) {
     { id: 'fire', name: 'Quick trigger', desc: 'Fire 18% faster. Stacks four times.', tier: 'supply', cost: 25, maxStacks: 4, apply: function (s) { s.mods.fire++; } },
     { id: 'cool', name: 'Cooling fins', desc: 'Each shot heats the gun 20% less. Stacks three times.', tier: 'supply', cost: 20, maxStacks: 3, apply: function (s) { s.mods.cool++; } },
     { id: 'slot', name: 'Room for one more', desc: '+1 squad slot, up to eight.', tier: 'supply', cost: 30, maxStacks: 4, apply: function (s) { s.mods.slots++; } },
-    { id: 'repair', name: 'Patch the wall', desc: 'Restore 30 wall health.', tier: 'supply', cost: 15, maxStacks: Infinity, apply: function () { w.repairWall(30, 'supply'); } },
+    // Not offered while the wall is full; greyed if it fills up during the visit.
+    { id: 'repair', name: 'Patch the wall', desc: 'Restore 30 wall health.', tier: 'supply', cost: 15, maxStacks: Infinity,
+      available: function () { return w.S.wallHP < w.S.mods.maxHP; }, blocked: function () { return w.S.wallHP >= w.S.mods.maxHP ? 'Wall is full' : ''; },
+      apply: function () { w.repairWall(30, 'supply'); } },
     { id: 'mat', name: 'Bigger bounce', desc: 'Widen both trampoline frames by 12. Timing still matters!', tier: 'supply', cost: 20, maxStacks: 2, apply: function (s) { s.mods.mat++; w.resizeMats(); } },
     { id: 'aim', name: 'Steady hands', desc: 'Recruit spread is 28% tighter.', tier: 'supply', cost: 15, maxStacks: 3, apply: function (s) { s.mods.aim++; } },
     { id: 'sandbags', name: 'Sandbags', desc: '+25 maximum wall health, filled immediately.', tier: 'supply', cost: 20, maxStacks: 4, apply: function (s) { s.mods.maxHP += 25; w.repairWall(25, 'supply'); } },
@@ -20,7 +23,7 @@ var StickArmyShop = function (w) {
     { id: 'double', name: 'Double barrel', desc: 'Two parallel shots with each trigger pull.', tier: 'supply', cost: 40, maxStacks: 1, apply: function (s) { s.mods.double = true; } },
     { id: 'trench', name: 'Dig in', desc: 'Your crew take 40% less damage. A second trench makes it 60%.', tier: 'supply', cost: 25, maxStacks: 2, apply: function (s) { s.mods.trench++; } },
     { id: 'helmet', name: 'Helmets', desc: '+1 health for every recruit, now and later. Stacks three times.', tier: 'supply', cost: 20, maxStacks: 3, apply: function (s) { s.mods.helmet++; s.recruits.forEach(function (r) { if (!r.dead) r.hp += 1; }); } },
-    { id: 'tramp', name: 'Second trampoline', desc: 'Open the right-hand mat. Twice the places to catch.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
+    { id: 'tramp', name: 'Second trampoline', desc: 'Open a mat on the other side. Twice the places to catch.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.secondTramp = true; } },
     { id: 'spread', name: 'Spread shot', desc: 'Add two angled shots to every volley.', tier: 'supply', cost: 65, maxStacks: 1, apply: function (s) { s.mods.spread = true; } },
     { id: 'flak', name: 'Flak rounds', desc: 'Rounds burst near planes and bombs. Paratroopers are left to you.', tier: 'supply', cost: 80, maxStacks: 1, apply: function (s) { s.mods.flak = true; } },
     { id: 'rockets', name: 'Rocket rack', desc: 'Launch a bonus explosive rocket every fourth volley.', tier: 'supply', cost: 95, maxStacks: 1, apply: function (s) { s.mods.rockets = true; } },
@@ -28,26 +31,53 @@ var StickArmyShop = function (w) {
     { id: 'mines', name: 'Minefield', desc: 'Plant four mines every wave. Blasts spare your crew.', tier: 'supply', cost: 45, maxStacks: 1, apply: function (s) { s.mods.mines = true; } },
     { id: 'auto', name: 'Sentry tower', desc: 'A tower beside the bunker shoots down bombs and shells, then low chutes and landers.', tier: 'supply', cost: 100, maxStacks: 1, apply: function (s) { s.mods.auto = true; } },
     { id: 'hospital', name: 'Field hospital', desc: 'A tent with one bed. When a wave ends, your most decorated wounded soldier is carried in and back after a wave.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.hospital = true; } },
+    // The flagpole: "It boosts morale." The squad fires FLAG.FIRE faster while it flies, and salutes it at every wave
+    // start (game.js FLAG).
+    { id: 'flag', name: 'Flagpole', desc: 'It boosts morale.', tier: 'supply', cost: 40, maxStacks: 1,
+      available: function () { return w.S.wave >= w.FLAG.FROM; }, apply: function (s) { s.mods.flag = true; s.flagUp = 0; } },
     { id: 'catcher', name: 'Catcher training', desc: 'Rifle recruits aim for low chutes over an open mat.', tier: 'supply', cost: 60, maxStacks: 1, apply: function (s) { s.mods.catcher = true; } },
     { id: 'strike', name: 'Air strike', desc: 'A bomber carpets the field and hits tanks hard. Press B or the bomber button.', tier: 'supply', cost: 45, maxStacks: Infinity,
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.bomber++; } },
     { id: 'fighter', name: 'Fighter cover', desc: 'A fighter sweeps the sky once, gunning down planes and bombs. Press C or the fighter button.', tier: 'supply', cost: 50, maxStacks: Infinity,
       available: function () { return w.callsHeld() < w.RADIO.SLOTS; }, blocked: radioFull, apply: function (s) { s.calls.fighter++; } },
-    { id: 'pizza', name: 'Order a pizza', desc: 'Delivered before the next wave: +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, apply: function (s) { s.pizzaOrder = true; } }
+    // Training (TRAIN): a stripe for everyone in the squad now, the one in the tent too, and every soldier who joins
+    // after, hired or caught, starts with a stripe for each level bought (squad.js train). In the rotation like any
+    // supply: Boot Camp from wave TRAIN.BOOT, Elite Training from TRAIN.ELITE once Boot Camp is done.
+    { id: 'bootcamp', name: 'Boot Camp', desc: 'Everyone in your squad gets a stripe, and every new soldier starts with one.', tier: 'supply', cost: 60, maxStacks: 1,
+      available: function () { return w.S.wave >= TRAIN.BOOT; }, apply: trainSquad },
+    { id: 'elite', name: 'Elite Training', desc: 'Everyone in your squad gets another stripe, and new soldiers start with two.', tier: 'supply', cost: 150, maxStacks: 1,
+      available: function () { return w.S.wave >= TRAIN.ELITE && (w.S.mods.training || 0) >= 1; }, apply: trainSquad },
+    // Pizza is always on the menu, at the same price all war.
+    { id: 'pizza', name: 'Order a pizza', desc: 'Delivered before the next wave: +25 wall health and +1 health per recruit.', tier: 'supply', cost: 25, maxStacks: Infinity, flat: true, apply: function (s) { s.pizzaOrder = true; } }
   ];
   function radioFull() { return w.callsHeld() >= w.RADIO.SLOTS ? 'Radio full' : ''; }
-  // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15.
+  var TRAIN = { BOOT: 5, ELITE: 10 };
+  function trainSquad(s) {
+    s.mods.training = (s.mods.training || 0) + 1;
+    s.recruits.forEach(function (r) { if (!r.dead) w.SQUAD.train(r, 1); });
+    if (s.bed) w.SQUAD.train(s.bed.r, 1);
+  }
+  function hasMedic() { return w.S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; }); }
+  // War prices: supplies run short as the war drags on. After wave WAR.FROM, prices rise WAR.SUPPLY a wave (about three
+  // times by wave 19) and soldiers WAR.HIRE a wave (about four times), which makes a recruit caught on the mat worth
+  // more as the run goes on. The early waves keep their prices. Prices round to fives; pizza and the gift are exempt.
+  var WAR = { FROM: 6, SUPPLY: 0.15, HIRE: 0.22 };
+  function war(rate) { return 1 + rate * Math.max(0, (w.S.wave || 1) - WAR.FROM); }
+  function fives(n) { return Math.max(5, Math.round(n / 5) * 5); }
+  // Hiring: pick a role for a free squad slot. Every hire, of any role, raises the next price by 15 (before war prices).
   [['rifle', 'Rifleman', 35, 'Steady fire at whatever is closest.'],
    ['engineer', 'Engineer', 40, 'Repairs the wall twice as fast as anyone.'],
    ['bazooka', 'Bazooka', 55, 'Slow rockets for tanks and aircraft.'],
    ['sniper', 'Sniper', 50, 'Slow, precise shots.'],
    ['medic', 'Medic', 55, 'Heals nearby crew. One at a time.']].forEach(function (h) {
     ITEMS.push({ id: 'hire-' + h[0], role: h[0], name: h[1], desc: h[3], tier: 'hire', maxStacks: Infinity,
-      cost: function () { return h[2] + 15 * w.S.mods.hired; },
-      available: function () { return w.freeSlot(0) >= 0 && (h[0] !== 'medic' || !w.S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; })); },
+      cost: function () { return fives((h[2] + 15 * w.S.mods.hired) * war(WAR.HIRE)); },
+      // One medic at a time: with one in the squad he's greyed, marked "Have one", rather than dropped from the list.
+      available: function () { return w.freeSlot(0) >= 0 && (h[0] !== 'medic' || !hasMedic()); },
+      blocked: h[0] === 'medic' ? function () { return hasMedic() ? 'Have one' : ''; } : null,
       apply: function (s) { s.mods.hired++; var r = w.makeRecruit(w.freeSlot(0), h[0]); r.fresh = true; s.recruits.push(r); } });
   });
-  function price(item) { return typeof item.cost === 'function' ? item.cost() : item.cost; }
+  function price(item) { return typeof item.cost === 'function' ? item.cost() : item.flat ? item.cost : fives(item.cost * war(WAR.SUPPLY)); }
   function eligible(item) { return (w.S.mods.stacks[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
   // Offers walk a seeded shuffle of every supply and take the first eligible ones, so for a given seed
   // the offers change only when eligibility does.
@@ -68,7 +98,7 @@ var StickArmyShop = function (w) {
     var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gift = Math.floor(w.RS() * Math.max(1, items.length));
     var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
-      gift: items.length ? items[gift].id : null, giftTaken: false, bought: {} };
+      gift: items.length ? items[gift].id : null, giftTaken: false, bought: {}, base: snapshot(S), log: [] };
     w.emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
     // Every visit starts at the top of the list.
@@ -78,27 +108,65 @@ var StickArmyShop = function (w) {
   }
   function takeItem(id) {
     var S = w.S;
-    if (S.mode !== 'shop' || !S.shop) return false;
-    var item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
+    if (S.mode !== 'shop' || !S.shop || !buy(id, false)) return false;
+    w.sound.play('recruit'); renderShop();
+    if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    return true;
+  }
+  // replay: buying again after a put-back, so the purchase isn't reported twice.
+  function buy(id, replay) {
+    var S = w.S, item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
     // Supplies sell once per visit; hiring repeats while slots and tags last.
     if (!item || (S.shop.bought[id] && item.tier !== 'hire') || !eligible(item)) return false;
     var gift = onHouse(item), cost = costNow(item);
     if (S.coins < cost) return false;
     S.coins -= cost; if (gift) S.shop.giftTaken = true;
-    w.emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
+    if (!replay) w.emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
     S.shop.bought[id] = true; S.mods.stacks[id] = (S.mods.stacks[id] || 0) + 1; item.apply(S);
-    w.sound.play('recruit'); renderShop();
-    if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    S.shop.log.push(id);
     return true;
+  }
+  // Putting something back: the shop remembers what you had when it opened (snapshot) and what you took since, in
+  // order. It restores that and takes the rest again, so prices, the gift and hiring stay consistent. Anything that
+  // only worked because of what went back (a hire into a slot you returned) goes back too.
+  function snapshot(S) {
+    return { coins: S.coins, wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
+      pizzaOrder: S.pizzaOrder, recruits: S.recruits.map(function (r) { return Object.assign({}, r); }),
+      bed: S.bed ? { r: Object.assign({}, S.bed.r), since: S.bed.since } : null, usedNames: Object.assign({}, S.usedNames) };
+  }
+  function putBack(id) {
+    var S = w.S;
+    if (S.mode !== 'shop' || !S.shop) return false;
+    var at = S.shop.log.lastIndexOf(id);
+    if (at < 0) return false;
+    var keep = S.shop.log.slice(), b = S.shop.base;
+    keep.splice(at, 1);
+    S.coins = b.coins; S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
+    S.pizzaOrder = b.pizzaOrder; S.recruits = b.recruits.map(function (r) { return Object.assign({}, r); }); w.resizeMats();
+    S.bed = b.bed ? { r: Object.assign({}, b.bed.r), since: b.bed.since } : null; S.usedNames = Object.assign({}, b.usedNames);
+    S.shop.bought = {}; S.shop.giftTaken = false; S.shop.log = [];
+    keep.forEach(function (k) { buy(k, true); });
+    w.emit('refund', { item: id });
+    w.sound.play('tink'); renderShop();
+    var again = shopScreen.querySelector('[data-item="' + id + '"]:not(:disabled)');
+    (again || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    return true;
+  }
+  function undo() { var S = w.S; return !!(S.shop && S.shop.log.length) && putBack(S.shop.log[S.shop.log.length - 1]); }
+  function bossHint(c) {
+    if (!c.boss) return c.night ? ' Heads up: a night raid is coming.' : '';
+    return ' Heads up: ' + (c.bossKind === 'dread' ? 'the Dreadnought is' : c.twin ? 'two zeppelins are' : 'a zeppelin is') + ' coming.';
   }
   function renderShop() {
     var S = w.S;
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
     document.getElementById('shopCoins').textContent = S.coins + ' dog tags';
     var news = document.getElementById('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
-    document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP;
+    var hurt = Math.round(S.stats.wallDamage - (S.waveStart.wall || 0));
+    document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' +
+      (hurt > 0 ? '-' + hurt : 'untouched') + ' (' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP + ')';
     document.getElementById('shopHint').textContent = (S.shop.gift && !S.shop.giftTaken ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
-      (w.waveCfg(S.wave + 1).boss ? ' Heads up: a zeppelin is coming.' : '');
+      bossHint(w.waveCfg(S.wave + 1));
     // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
     function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[it.id]) && S.coins >= costNow(it); }
     function costLabel(it) {
@@ -114,27 +182,55 @@ var StickArmyShop = function (w) {
       return it.tier !== 'hire' && !S.shop.bought[it.id] && !onHouse(it) && eligible(it) && S.coins < price(it) ? price(it) - S.coins : 0;
     }
     function itemButton(it, cls, withDesc) {
-      var button = document.createElement('button'); button.type = 'button'; button.dataset.item = it.id;
-      button.className = cls + (onHouse(it) ? ' gift' : '') + (it.tier !== 'hire' && S.shop.bought[it.id] ? ' bought' : '');
-      button.disabled = !canBuy(it);
+      var button = document.createElement('button'), packed = it.tier !== 'hire' && S.shop.bought[it.id];
+      button.type = 'button'; button.dataset.item = it.id;
+      button.className = cls + (onHouse(it) ? ' gift' : '') + (packed ? ' bought' : '');
+      // A packed supply stays live: tapping it again puts it back.
+      button.disabled = !packed && !canBuy(it);
       var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
       w.drawItemIcon(icon, it.id);
       var name = document.createElement('strong'); name.textContent = it.name;
-      var label = document.createElement('em'); label.textContent = it.tier === 'hire' ? String(price(it)) : costLabel(it);
+      var label = document.createElement('em'); label.textContent = it.tier === 'hire' ? (it.blocked && it.blocked()) || String(price(it)) : costLabel(it);
       button.append(icon, name);
       if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
       else button.title = it.desc;
       if (onHouse(it)) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
       if (needMore(it)) { var more = document.createElement('small'); more.textContent = 'need ' + needMore(it) + ' more'; label.append(more); }
+      if (packed) { var back = document.createElement('small'); back.textContent = 'tap to put back'; label.append(back); }
       button.append(label);
-      button.addEventListener('click', function () { takeItem(it.id); });
+      button.addEventListener('click', function () {
+        if (packed) { putBack(it.id); return; }
+        // On a phone the hired row can sit just below the fold; bring it up so the send-back chip is in sight.
+        if (takeItem(it.id) && it.tier === 'hire') document.getElementById('hiredItems').scrollIntoView({ block: 'nearest' });
+      });
       return button;
     }
     document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
-    var roles = S.shop.hire.filter(function (it) { return it.role !== 'medic' || eligible(it) || w.freeSlot(0) < 0; });
-    document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), roles.map(function (it) { return itemButton(it, 'hire', false); }));
-    document.getElementById('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire.';
+    var up = Math.round((war(WAR.SUPPLY) - 1) * 100);
+    document.getElementById('supplyNote').textContent = 'Dog tags come from kills, planes and cleared waves.' + (up >= 10 ? ' Supplies are running short: prices are up ' + up + '%.' : '');
+    // Every role is always listed, so the list never changes shape; what you can't hire is greyed.
+    document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), S.shop.hire.map(function (it) { return itemButton(it, 'hire', false); }));
+    // Who you hired this visit: tap one to send him back and get the tags back.
+    var hired = document.getElementById('hiredItems'), hires = S.shop.log.filter(function (id) { return /^hire-/.test(id); });
+    hired.replaceChildren.apply(hired, hires.map(function (id) {
+      var it = ITEMS.find(function (q) { return q.id === id; }), chip = document.createElement('button'), icon = document.createElement('canvas'), name = document.createElement('span');
+      chip.type = 'button'; chip.className = 'hired-chip'; chip.dataset.hired = id; chip.title = 'Send back';
+      icon.width = icon.height = 88; icon.setAttribute('aria-hidden', 'true'); w.drawItemIcon(icon, id);
+      name.textContent = it.name + ' ↩'; chip.setAttribute('aria-label', 'Send back the ' + it.name.toLowerCase());
+      chip.append(icon, name); chip.addEventListener('click', function () { putBack(id); });
+      return chip;
+    }));
+    hired.hidden = !hires.length;
+    document.getElementById('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire. Catch them on the mat for free.';
+    // The squad as it stands, redrawn as you hire, train or put things back (round 14: "show squad status on store"):
+    // every slot as in the HUD, with roles, stripes and health, and names, waves and kills.
+    w.drawSquadRow(document.getElementById('shopSquadRow'), true);
+    document.getElementById('shopSquad').textContent = w.squadLine(true) || 'Nobody yet. Catch them on the mat, or hire.';
     renderKit(document.getElementById('loadout'), false);
+    // Undo puts back the last thing taken, hires included.
+    var undoBtn = document.getElementById('undoBtn'), last = S.shop.log[S.shop.log.length - 1];
+    undoBtn.hidden = !last;
+    if (last) undoBtn.textContent = '↩ Undo ' + ITEMS.find(function (it) { return it.id === last; }).name.toLowerCase();
     document.getElementById('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
   }
   function continueWave() {
@@ -143,12 +239,12 @@ var StickArmyShop = function (w) {
     w.queueSketches(S.shop.bought);
     shopScreen.hidden = true; S.shop = null; w.clearInput(); S.mode = 'play'; pauseBtn.hidden = false;
     // A pizza ordered in the shop is its own little scene before the wave: the courier rides in, everyone is fed,
-    // and the wave starts as he rides off (updateWave). New purchases wait, undrawn, until then. Without a pizza,
-    // the wave starts now.
+    // and the wave starts as he rides off (updateWave). New purchases wait, undrawn, until then. A new flagpole goes
+    // up next, in its own scene (game.js openWave). Without either, the wave starts now.
     if (S.pizzaOrder) {
       S.pizzaOrder = false; S.waveState = 'pizza'; S.nextWave = S.wave + 1;
       S.delivery = { x: -30, phase: 'arrive', wait: 0 };
-    } else w.startWave(S.wave + 1);
+    } else w.openWave(S.wave + 1);
     document.activeElement.blur();
   }
   // The courier rides along the ground before the wave; the pizza lands at the handoff in the middle of the page.
@@ -161,7 +257,7 @@ var StickArmyShop = function (w) {
       if (d.x === 200) {
         d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.nextWave || S.wave });
         S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(w.crewMax(r), r.hp + 1); if (r.down) w.standUp(r, 'pizza'); } });
-        w.sound.play('pizza'); w.addText('pizza time!', 200, GROUND - 65, BLUE, 26);
+        w.sound.play('pizza'); w.say('pizza time!', 4242, false, 0.1, 200, GROUND - 60);
       }
     } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
     else {
@@ -207,7 +303,7 @@ var StickArmyShop = function (w) {
     return items.length;
   }
 
-  return { ITEMS: ITEMS, price: price, eligible: eligible, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
-    openShop: openShop, takeItem: takeItem, renderShop: renderShop, continueWave: continueWave,
+  return { ITEMS: ITEMS, WAR: WAR, war: war, price: price, eligible: eligible, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
+    openShop: openShop, takeItem: takeItem, putBack: putBack, undo: undo, renderShop: renderShop, continueWave: continueWave,
     updateDelivery: updateDelivery, drawCourier: drawCourier, kitItems: kitItems, renderKit: renderKit };
 };

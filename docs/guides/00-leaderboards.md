@@ -2,7 +2,7 @@
 
 Built from [SPEC-001](../../specs/SPEC-001-leaderboards.md) and [SPEC-007](../../specs/SPEC-007-leaderboard-v2.md) (run tokens, `/v2/`), which record the decisions and why. This guide is the source of truth for how things work now.
 
-Shared arcade boards hold the top 50 runs for each game in `scores/games.json`. Each run has three initials, a score and an input icon. There are no accounts or admin page. Each run gets a token from the Worker when it starts, and a save is checked against it; see [Protection](#protection). Games show their top 10 at game over, plus the player's row if it is lower. **See all** opens a scrollable list of 50 inside the end screen. The initials picker uses buttons and keyboard controls, never a phone text keyboard. Failed or timed-out API calls leave the game playable.
+Shared arcade boards hold the top 50 runs for each game in `scores/games.json`. Each run has three initials, a score and an input icon. There are no accounts or admin page. Each run gets a token from the Worker when it starts, and a save is checked against it; see [Protection](#protection). Any finished run with a token can be saved, not only runs that make the top 50: the game offers initials after every run, and Skip is always there. Games show their top 10 at game over, plus the player's row if it is lower; a run saved below 50th place isn't shown, so the game says where it stands instead ("Saved. You're #312 of 1,204."). **See all** opens a scrollable list of 50 inside the end screen. The initials picker uses buttons and keyboard controls, never a phone text keyboard. Failed or timed-out API calls leave the game playable.
 
 ```text
 game page (Pages, custom domain or Arweave)
@@ -119,10 +119,11 @@ Checklist, in this order:
 2. Deploy the Worker first, so the new game's board is accepted before any site copy uses it.
 3. Include `../assets/leaderboard.js` before `game.js`, and add `const BOARD = 1;` to `game.js`. Use board-specific local-best keys without migrating old keys.
 4. When real play begins, call `Leaderboard.start(game, BOARD)` and keep the promise on the run; don't wait for it. Reset input to `keys`. Record `touch` only when touch or pen drives the play area; menus do not count. Exclude demos and watch modes.
-5. At game over, freeze the score/meta (with `time_ms`) and await the run's token. With a token, load placement and show the result in the game's end screen: a qualifying run gets the picker, other runs get the board. Without one, load the board only (no score), so the game never asks for initials it can't save. A null load adds nothing. Guard asynchronous responses against restarts, and prevent game keyboard shortcuts while the picker is open.
+5. At game over, freeze the score/meta (with `time_ms`) and await the run's token. With a token, load placement and position and show the result in the game's end screen: every run gets the offer of initials (the picker), with "New high score! You're #N" for the top 50 and "You'd be #N of M" below it. A skipped or saved run below the top 50 gets a line saying where it stands. Without one, load the board only (no score), so the game never asks for initials it can't save. A null load adds nothing. Guard asynchronous responses against restarts, and prevent game keyboard shortcuts while the picker is open.
 6. On OK, save initials, submit the frozen run with its token, and draw the returned board with `rank` highlighted. On `name_not_allowed`, keep the picker open with “Try other initials.” Any other refusal draws the original board, saying nothing. On Skip, display the original board without submitting. Keep the same token for retries. Destroy the picker on restart.
 7. Draw rank, initials, score, any game-specific meta and a touch/keyboard icon with an accessible label. Show 10 rows, then “…” and the player's row when below 10; See all must show up to 50 in a scrollable region. Style `.lb-` picker elements to match the game; the shared script adds no CSS.
-8. Run `python3 tools/check_boards.py`. Test against the local Worker and verify all end-screen flows and orientations. Rebuild social cards after game-art changes with `python3 tools/og/make.py`, then run `python3 tools/stamp.py`. Deploy the site after the Worker.
+8. Report runs to play stats too, passing the run's `Leaderboard.start` promise as `token` so saved runs can be matched to their row; see [03: Play stats](03-play-stats.md#adding-a-game).
+9. Run `python3 tools/check_boards.py`. Test against the local Worker and verify all end-screen flows and orientations. Rebuild social cards after game-art changes with `python3 tools/og/make.py`, then run `python3 tools/stamp.py`. Deploy the site after the Worker.
 
 ### Worked example: pebble-hop
 
@@ -179,7 +180,9 @@ async function finished(points, seconds) {
   const data = token ? await Leaderboard.load(payload.game, BOARD, points, payload.meta) : await Leaderboard.load(payload.game, BOARD);
   if (run !== ended || !data) return; // Also check the game's current end-screen state.
   board.hidden = false;
-  if (typeof data.placement !== 'number') { drawBoard(data.scores); return; }
+  // A token means the run can be saved: offer initials to every run. Top 50: "New high score! You're #N";
+  // below: "You'd be #N of M" from data.position and data.total.
+  if (typeof data.placement !== 'number' && typeof data.position !== 'number') { drawBoard(data.scores); return; }
   const message = document.createElement('p'); message.setAttribute('role', 'status'); board.append(message);
   let busy = false;
   picker = Leaderboard.entry(board, {
@@ -213,7 +216,7 @@ The one rule worth keeping everywhere:
 
 Defaults the current games share:
 
-- **Picker:** heading "New high score!" and a status line "You're #N. Enter your initials." OK is styled as the game's primary button (`.lb-ok`), Skip as a text link (`.lb-skip`). The shared client scrolls the whole picker into view when it opens.
+- **Picker:** heading "New high score!" and a status line "You're #N. Enter your initials." in the top 50; below it, a heading such as "Save your run" and "You'd be #N of M. Enter your initials." After a save below the top 50, a line under the board's heading says "Saved. You're #N of M."; after Skip, "This run would be #N of M." (`.lb-standing`). OK is styled as the game's primary button (`.lb-ok`), Skip as a text link (`.lb-skip`). The shared client scrolls the whole picker into view when it opens.
 - **One decision at a time:** while the picker is open, add `lb-entering` to the end screen's container so its own buttons (play again and so on) are hidden. After OK or Skip, remove it and focus the main replay button with `preventScroll`. Thimbleful also places the board below its buttons, so the buttons stay put when the board opens.
 - **Top 10 in full:** no inner scroll for the top 10. "See all N" switches to a scrolling list of all 50 (`.lb-all`, sticky header), and "Show top 10" switches back.
 - **Your row:** highlighted (`.lb-you`) and scrolled into view with `scrollIntoView({ block: 'nearest' })`. Below 10th, a gap row then your row.
@@ -260,9 +263,9 @@ Don't Step on a Crack is the reference: `openNews` and `syncNews` in its `game.j
 
 `POST /v2/start` with `{game, board}` returns `{ok, token}` for a board that takes new runs. The token is `<run id>.<issued ms>.<signature>`; games treat it as opaque.
 
-`GET /v2/top?game=<id>&board=<integer>` returns `{ok, game, board, scores}` for any accepted board, including read-only ones. Add `score` and URL-encoded JSON `meta` for `placement` (1–50 or null). A row has rank, name, score, input and meta.
+`GET /v2/top?game=<id>&board=<integer>` returns `{ok, game, board, scores}` for any accepted board, including read-only ones. Add `score` and URL-encoded JSON `meta` for `placement` (1–50 or null), `position` (where the run would stand on the whole board, 1 = first, losing exact ties) and `total` (runs on the board, counting this one). A row has rank, name, score, input and meta.
 
-`POST /v2/submit` accepts game, board, token, name, score, input and meta (with `time_ms`); returns `{ok, id, rank, scores}`. The run ID comes from the token. Repeating a token returns the original row, even if another valid payload is sent; it does not change that run. Rows outside 50 are stored with null rank. Checks run in this order: the fields, then the token, time and score cap. A token that already saved returns its row there; only a new row goes on to the rate limit.
+`POST /v2/submit` accepts game, board, token, name, score, input and meta (with `time_ms`); returns `{ok, id, rank, position, total, scores}`; `position` and `total` say where the saved row stands on the whole board, even outside the top 50. The run ID comes from the token. Repeating a token returns the original row, even if another valid payload is sent; it does not change that run. Rows outside 50 are stored with null rank. Checks run in this order: the fields, then the token, time and score cap. A token that already saved returns its row there; only a new row goes on to the rate limit.
 
 All responses are JSON with CORS `*`; any OPTIONS path allows GET/POST/OPTIONS and Content-Type. There are no cookies. Bodies above 2048 bytes fail with `body_too_large`; malformed JSON fails with `bad_json`. Input failures use status 400 and `{ok:false,error}`: `bad_game`, `bad_board` (also a board without a score cap, on start and submit), `bad_name` (exactly three A–Z/0–9), `name_not_allowed`, `bad_score`, `bad_input` (touch or keys), `bad_meta` (also a missing `time_ms`). A missing, altered, expired or mismatched token, too much claimed time, or a score over the cap all answer 400 `rejected`, with no reason. Too many saves from one connection answer 429 `rate_limited`. Every `/v1/` path answers 410 `gone`. Unknown paths/methods return 404 `not_found`; a database failure or missing `RUN_SECRET` returns 503 `unavailable` with the same JSON/CORS format.
 

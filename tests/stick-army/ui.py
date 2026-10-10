@@ -43,10 +43,21 @@ with sync_playwright() as p:
         assert footer['y']>=0 and footer['y']+footer['height']<=height, footer
         assert page.locator('.shop-stock').evaluate('(el) => el.scrollWidth <= el.clientWidth + 1')
         gift=page.locator('#supplyItems button.gift'); gift_id=gift.get_attribute('data-item'); gift.click()
-        assert page.locator('#supplyItems button.gift').count()==0 and page.locator(f'#supplyItems [data-item="{gift_id}"]').is_disabled()
+        packed=page.locator(f'#supplyItems [data-item="{gift_id}"]')
+        assert page.locator('#supplyItems button.gift').count()==0 and 'bought' in packed.get_attribute('class') and page.locator('#undoBtn').is_visible()
+        # A packed supply goes back with a tap (and the gift is free again), or with Undo.
+        packed.click(); assert page.locator('#supplyItems button.gift').count()==1 and page.locator('#undoBtn').is_hidden()
+        page.locator('#supplyItems button.gift').click(); page.click('#undoBtn'); assert page.locator('#supplyItems button.gift').count()==1
+        page.locator('#supplyItems button.gift').click()
+        # A hire shows as a chip under the roles; tapping it sends him back.
+        page.locator('#hireItems [data-item="hire-rifle"]').click()
+        chip=page.locator('#hiredItems .hired-chip'); assert chip.count()==1 and chip.is_visible()
+        assert page.locator('.shop-stock').evaluate('(el) => el.scrollWidth <= el.clientWidth + 1')
+        page.screenshot(path=str(OUT/f'hired-{width}.png'))
+        chip.click(); assert page.locator('#hiredItems').is_hidden() and page.evaluate('armyTest("S.recruits.length===1")')
         # Pizza is ordered without leaving the shop; the courier rides in before the next wave starts.
         page.locator('[data-item="pizza"]').click()
-        assert page.locator('#shopScreen').is_visible() and page.locator('[data-item="pizza"]').is_disabled()
+        assert page.locator('#shopScreen').is_visible() and 'bought' in page.locator('[data-item="pizza"]').get_attribute('class')
         page.click('#continueBtn')
         assert page.locator('#shopScreen').is_hidden()
         assert page.evaluate('armyTest("S.mode===\'play\' && S.waveState===\'pizza\' && S.wave===1 && !!S.delivery")')
@@ -60,7 +71,19 @@ with sync_playwright() as p:
         page.evaluate('armyTest("S.shop = null; shopScreen.hidden = true; S.mode = \'play\'; S.wave = 2;")')
         page.evaluate('armyTest("S.mode=\'paused\'; S.banner=null; S.planes=[]; spawnPlane(\'bomber\'); S.planes[0].x=220; [180,320,470].forEach(function(y){ spawnTrooper(70,y); S.troopers[S.troopers.length-1].open=1; }); render();")')
         page.screenshot(path=str(OUT/f'battle-{width}.png'))
-        print('PASS layout + input + shop + pizza', width,height)
+        # The victory card fits the width, scrolls on short screens, and both buttons can be reached and pressed.
+        page.evaluate('armyTest("S.mode=\'play\'; S.wave=20; S.finalWon=true; S.recruits=[0,1,4,5].map(function(s,i){ var r=makeRecruit(s,\'rifle\'); r.rank=i%3; r.name=SQUAD.NAMES[i]; r.waves=8+i; r.kills=10*i; return r; }); S.fallen=[{name:\'Cpl. Doodle\',waves:9,kills:30}]; showWin();")')
+        card=page.locator('#winScreen .card'); assert card.is_visible()
+        cb=card.bounding_box(); assert cb['x']>=-1 and cb['x']+cb['width']<=width+1, cb
+        assert card.evaluate('(el)=>el.scrollWidth<=el.clientWidth+1')
+        page.locator('#winAgainBtn').scroll_into_view_if_needed(); assert page.locator('#winAgainBtn').is_visible()
+        page.screenshot(path=str(OUT/f'win-{width}.png'))
+        page.locator('#keepBtn').scroll_into_view_if_needed(); page.click('#keepBtn')
+        assert page.locator('#shopScreen').is_visible() and page.evaluate('armyTest("S.endless && S.mode===\'shop\'")')
+        page.evaluate('armyTest("S.shop = null; shopScreen.hidden = true; S.mode = \'play\';")')
+        try: page.evaluate("localStorage.removeItem('stickarmy.wins'); localStorage.removeItem('stickarmy.bestWave')")
+        except Exception: pass
+        print('PASS layout + input + shop + pizza + victory', width,height)
         context.close()
     context=browser.new_context(viewport={'width':390,'height':844})
     page=context.new_page(); page.on('pageerror',lambda e:errors.append(str(e)))
@@ -75,7 +98,7 @@ with sync_playwright() as p:
     for key,value in changes.items():
         page.locator('#tune-'+key).evaluate('(el,value)=>{el.value=value;el.dispatchEvent(new Event("input",{bubbles:true}));}',value)
     assert page.evaluate('StickArmyTune.getValues()')==changes
-    assert page.evaluate('armyTest("CAPTURE_SPEED===420 && S.spawn.cfg.planes===7 && S.spawn.cfg.fall===53 && S.spawn.cfg.maxDrops===4 && S.recruits[0].cd<=0.5")')
+    assert page.evaluate('armyTest("CAPTURE_SPEED===420 && S.spawn.cfg.planes===8 && S.spawn.cfg.fall===53 && S.spawn.cfg.maxDrops===4 && S.recruits[0].cd<=0.5")')
     page.locator('#tune-CAPTURE_SPEED').focus(); page.keyboard.press('ArrowRight')
     assert page.evaluate('armyTest("!keys.right && !keys.fire")')
     page.locator('#tunePanel button').click()

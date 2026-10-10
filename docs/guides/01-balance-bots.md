@@ -1,6 +1,6 @@
 # 01: Balance bots
 
-Built from [SPEC-005](../../specs/SPEC-005-balance-bots.md). Opted in: Stick Army and [Unruggabull II](../games/unruggabull-ii.md#balance-bots).
+Built from [SPEC-005](../../specs/SPEC-005-balance-bots.md). Opted in: Stick Army and [Unruggabull II](../games/unruggabull-ii/README.md#balance-bots).
 
 Balance bots play many seeded runs headless, at several skill levels, and report how far they get, what ends them, and what they capture and buy. Use them to check a tuning change against the same seeds before and after. They measure difficulty, not fun: feel, readability and phone performance still come from playtesting, and when the bots and a playtest disagree, the playtest wins.
 

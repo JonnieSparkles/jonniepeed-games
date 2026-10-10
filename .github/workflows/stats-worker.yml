@@ -1,0 +1,54 @@
+# Deploys the play stats Worker (stats/) to Cloudflare.
+# Runs by itself when a change to stats/ reaches main (so does the rooms Worker; Pages and the leaderboard Worker
+# stay manual). It can also be run from the Actions tab ("Deploy Play Stats Worker" → Run workflow).
+# Runs live in D1 and are never touched. Uses the same repository secrets as the leaderboard Worker.
+# See docs/guides/03-play-stats.md.
+name: Deploy Play Stats Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'stats/**'
+      - 'scores/games.json'   # the dashboards rank leaderboards by these rules
+      - '.github/workflows/stats-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stats-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check the Cloudflare Access check
+        run: node stats/test/access.mjs
+      - name: Check the database exists
+        run: |
+          if grep -q REPLACE_WITH_YOUR_D1_DATABASE_ID stats/wrangler.jsonc; then
+            echo "Create the D1 database first and put its ID in stats/wrangler.jsonc (docs/guides/03-play-stats.md)."; exit 1
+          fi
+      - uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: stats
+          wranglerVersion: "4.148.0"
+          command: deploy
+      - name: Check the live Worker takes reports and keeps the dashboards closed
+        # Reads the hostname from wrangler.jsonc so it stays configured in one place. Writes only "test" rows.
+        run: |
+          HOST=$(python3 -c "import re; print(re.search(r'\"pattern\"\s*:\s*\"([^\"]+)\"', open('stats/wrangler.jsonc').read()).group(1))")
+          for attempt in 1 2 3 4 5; do
+            BASE="https://$HOST" node stats/test/smoke.mjs && exit 0
+            sleep 10
+          done
+          exit 1

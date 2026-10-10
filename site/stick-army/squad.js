@@ -9,18 +9,27 @@ var StickArmySquad = function (w) {
 
   // ---------- names and ranks ----------
   // Rookies are nameless. Standing at the end of a wave counts as a wave served; enough waves earn a name and a
-  // stripe, then more stripes. Each stripe adds a little health and a quicker trigger.
+  // stripe, then more stripes, up to five. Each stripe adds a little health and a quicker trigger. Training in the
+  // shop (Boot Camp, Elite Training) adds stripes too: one for everyone in the squad, and new soldiers start with
+  // them. A soldier's stripes are what he's served for plus what he's been trained (stripes), so the ones who've been
+  // there longest always have the most.
   var RANKS = [
     { waves: 0, short: '', title: 'rookie' },
     { waves: 3, short: 'Pfc.', title: 'Private First Class' },
     { waves: 6, short: 'Cpl.', title: 'Corporal' },
-    { waves: 10, short: 'Sgt.', title: 'Sergeant' }
+    { waves: 10, short: 'Sgt.', title: 'Sergeant' },
+    { waves: 14, short: 'SSgt.', title: 'Staff Sergeant' },
+    { waves: 18, short: 'MSgt.', title: 'Master Sergeant' }
   ];
   var RANK = { HP: 0.5, FIRE: 0.92 };
   var NAMES = ['Doodle', 'Squiggle', 'Scribbles', 'Inky', 'Smudge', 'Sketch', 'Nib', 'Graphite', 'Crayon', 'Margins',
     'Stubby', 'Pip', 'Biro', 'Quill', 'Tally', 'Dash', 'Dot', 'Scrawl', 'Loopy', 'Zigzag', 'Chalky', 'Noodle', 'Blot',
     'Jot', 'Hatch', 'Swoosh', 'Twig', 'Pencils', 'Lefty', 'Ruler'];
   function rankName(r) { return r.rank ? RANKS[r.rank].short + ' ' + r.name : 'a rookie'; }
+  // Kill counts (r.kills) come from each soldier's own shots, credited in game.js.
+  function killsText(n) { n = n || 0; return n + (n === 1 ? ' kill' : ' kills'); }
+  // "Sgt. Doodle (12 waves, 140 kills)" for the pause card, the fallen list and the roll call.
+  function record(f) { var n = f.waves || 0; return f.name + ' (' + n + (n === 1 ? ' wave, ' : ' waves, ') + killsText(f.kills) + ')'; }
   // Names come from the run seed and the recruit's id, never from a game stream, so they can't change outcomes.
   function pickName(r) {
     var S = w.S, h = (Math.imul(w.seed ^ 0x9e3779b9, 31) + Math.imul(r.id, 2654435761)) >>> 0;
@@ -30,17 +39,32 @@ var StickArmySquad = function (w) {
     }
     return NAMES[h % NAMES.length] + ' ' + (r.id % 90 + 10);
   }
+  // Service stripes for waves served, plus training stripes, capped at the top rank.
+  function stripes(r) {
+    var served = 0;
+    for (var i = 1; i < RANKS.length; i++) if ((r.waves || 0) >= RANKS[i].waves) served = i;
+    return Math.min(RANKS.length - 1, served + (r.trained || 0));
+  }
+  // n training stripes: a level of training for a soldier already in the squad (the one in the tent too), or every
+  // level bought so far for one who joins after. A stripe brings a name, and its health.
+  function train(r, n) {
+    r.trained = (r.trained || 0) + n;
+    var want = stripes(r), was = r.rank || 0;
+    if (want > was) { r.rank = want; if (!r.down) r.hp += RANK.HP * (want - was); }
+    if (r.rank && !r.name) r.name = pickName(r);
+  }
   function serveWave(news) {
     var S = w.S;
     S.recruits.forEach(function (r) {
       if (r.dead || r.down) return;
       r.waves = (r.waves || 0) + 1;
-      var next = RANKS[(r.rank || 0) + 1];
-      if (!next || r.waves < next.waves) return;
+      var want = stripes(r);
+      if (want <= (r.rank || 0)) return;
       r.rank = (r.rank || 0) + 1; r.hp += RANK.HP;
-      if (!r.name) { r.name = pickName(r); news.push('A rookie earns a name: ' + rankName(r) + '.'); }
-      else news.push(r.name + ' makes ' + RANKS[r.rank].title + '.');
-      addText(rankName(r) + '!', r.x, GROUND - 60, BLUE, 22);
+      if (!r.name) { r.name = pickName(r); news.push('A rookie earns a name: ' + rankName(r) + ', ' + killsText(r.kills) + '.'); }
+      else news.push(r.name + ' makes ' + RANKS[r.rank].title + ', ' + killsText(r.kills) + '.');
+      addText(rankName(r) + '!' + (r.kills ? ' ' + killsText(r.kills) : ''), r.x, GROUND - 60, BLUE, 22);
+      w.say(r.rank === RANKS.length - 1 ? 'Master Sergeant of the page!' : 'yes sir!', r.id, false, 1.1);
       emit('rank_up', { rank: r.rank, type: r.type });
     });
   }
@@ -54,14 +78,60 @@ var StickArmySquad = function (w) {
     r.down = true; r.hp = 0; r.downAt = S.t; r.downCause = cause || 'unknown'; r.role = 'down'; r.tx = r.x;
     addText(r.name ? r.name + ' is down!' : 'man down!', r.x, GROUND - 52, BLUE, 20);
     emit('recruit_down', { type: r.type, cause: r.downCause, rank: r.rank || 0 });
-    w.sound.play('noo');
+    w.say('medic!', r.id, false, 0, null, null, 'alarm');
   }
   function standUp(r, by) {
     r.down = false; r.hp = Math.max(r.hp, 1); r.role = 'shoot';
     addText('back up!', r.x, GROUND - 52, BLUE, 20);
     emit('recruit_revived', { by: by, rank: r.rank || 0 });
+    w.say('thanks!', r.id);
   }
-  function fallen(r) { if (r.name) w.S.fallen.push({ name: rankName(r), waves: r.waves || 0 }); }
+  // The squad cheers a cleared wave, a few voices one after another.
+  function cheer(line) {
+    w.S.recruits.filter(function (r) { return !r.dead && !r.down; }).slice(0, 2).forEach(function (r, i) { w.say(line, r.id, false, 0.25 + i * 0.55); });
+  }
+  function fallen(r) { if (r.name) w.S.fallen.push({ name: rankName(r), waves: r.waves || 0, kills: r.kills || 0 }); }
+
+  // ---------- small talk ----------
+  // Round 14 (the sixth playtest: "easter eggs: just more small talk"). When a wave goes quiet (nothing on the page for
+  // TALK.QUIET seconds), a soldier now and then says something, and sometimes another answers. At most one every
+  // TALK.GAP seconds or so, each line once until they've all been said. The night raid gets a line as it gets dark,
+  // and an overheated gun one now and then (heat), at most every TALK.HEAT seconds; making Master Sergeant gets its
+  // own (serveWave). Cosmetic: Math.random and speech bubbles only, nothing reads it.
+  var TALK = { QUIET: 2.5, GAP: [35, 55], FIRST: 20, CHANCE: 0.6, RETRY: 8, REPLY: 1.6, HEAT: 60, HEAT_CHANCE: 0.35,
+    LINES: [['who keeps erasing my legs?'], ['I miss the margins'], ['smells like pencil shavings'], ['anyone got a sharpener?'],
+      ['quiet... too quiet'], ['I was a doodle once'], ["hold still, I'm being redrawn"], ["my helmet's just a scribble"],
+      ["think they'll turn the page?", 'not on my watch'], ["you're smudged", "you're smudged"],
+      ['why are they always in red?', "red pen. they're the teacher's"], ["I'm hungry", 'order a pizza then'],
+      ['is this pen or pencil?', "don't ask"], ["what's on the next page?", 'homework, probably']],
+    NIGHT: 'who turned off the lamp?', HOT: 'easy on the trigger!' };
+  function talkState() { var S = w.S; return S.talk || (S.talk = { quiet: 0, next: TALK.FIRST, used: [], heatT: -1e9, night: 0 }); }
+  function smallTalk(dt) {
+    var S = w.S, k = talkState(), R = Math.random;
+    var crew = S.recruits.filter(w.standing);
+    if (S.waveState !== 'active' || !crew.length) { k.quiet = 0; return; }
+    if (S.spawn && S.spawn.cfg.night && S.night > 0.9 && k.night !== S.wave) { k.night = S.wave; w.say(TALK.NIGHT, crew[Math.floor(R() * crew.length)].id, false, 0.4, null, null, 'chat'); return; }
+    k.next -= dt;
+    var busy = S.planes.length || S.bombs.length || S.tanks.length || S.bubbles.length || S.troopers.some(function (t) { return !t.dead; });
+    k.quiet = busy ? 0 : k.quiet + dt;
+    if (k.quiet < TALK.QUIET || k.next > 0) return;
+    k.quiet = 0;
+    if (R() > TALK.CHANCE) { k.next = TALK.RETRY; return; }
+    k.next = TALK.GAP[0] + R() * (TALK.GAP[1] - TALK.GAP[0]);
+    var fresh = TALK.LINES.filter(function (l, i) { return k.used.indexOf(i) < 0; });
+    if (!fresh.length) { k.used = []; fresh = TALK.LINES; }
+    var line = fresh[Math.floor(R() * fresh.length)], a = crew[Math.floor(R() * crew.length)], others = crew.filter(function (r) { return r !== a; });
+    k.used.push(TALK.LINES.indexOf(line));
+    w.say(line[0], a.id, false, 0, null, null, 'chat');
+    if (line[1] && others.length) w.say(line[1], others[Math.floor(R() * others.length)].id, false, TALK.REPLY, null, null, 'chat');
+  }
+  // The gun just overheated: now and then someone says so.
+  function heat() {
+    var S = w.S, k = talkState(), crew = S.recruits.filter(w.standing);
+    if (!crew.length || S.t - k.heatT < TALK.HEAT || Math.random() > TALK.HEAT_CHANCE) return;
+    k.heatT = S.t;
+    w.say(TALK.HOT, crew.sort(function (a, b) { return Math.abs(a.x - w.BK.x) - Math.abs(b.x - w.BK.x); })[0].id, false, 0.3, null, null, 'chat');
+  }
 
   // ---------- field hospital ----------
   var TENT = { x: 318, hw: 21, h: 30 };
@@ -120,6 +190,6 @@ var StickArmySquad = function (w) {
     }
   }
 
-  return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, serveWave: serveWave, knockDown: knockDown, standUp: standUp,
-    fallen: fallen, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
+  return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, stripes: stripes, train: train, killsText: killsText, record: record, serveWave: serveWave, knockDown: knockDown, standUp: standUp, cheer: cheer,
+    TALK: TALK, smallTalk: smallTalk, heat: heat, fallen: fallen, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
 };

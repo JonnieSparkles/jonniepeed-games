@@ -51,6 +51,9 @@ window.__balanceBot = function (profile, seed) {
         consider(400 + t.y / 10, lead(o, t.x + side * 11, t.y - 25, 0, t.fall), t.id);
       } else if (t.state === 'chute' && t.y > 400) {
         consider(300 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id);
+      } else if (t.state === 'rope') {
+        // Sliding down a helicopter's rope: no chute, so shoot him off it.
+        consider(310 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id);
       } else if (t.state === 'ground' && t.type !== 'sniper') {
         var shot = groundShot(o, t);
         if (shot) consider(320 - Math.abs(t.x - 200) / 10, shot, t.id);
@@ -59,17 +62,40 @@ window.__balanceBot = function (profile, seed) {
       }
     });
     o.planes.forEach(function (p) {
-      // Bombers get priority over troopers: downing one saves chasing its whole bomb run.
-      if (p.state === 'fly' && p.x > 20 && p.x < 380) consider(p.kind === 'zeppelin' ? 150 : p.kind === 'bomber' ? 340 : p.kind === 'cargo' ? 260 : 200 + p.y / 10, lead(o, p.x, p.y, p.vx, 0), p.id);
+      if (p.state !== 'fly' || p.x < 20 || p.x > 380) return;
+      // Balloons only while they're out over the field: popped over the squad, the bomb would land on it.
+      if (p.kind === 'balloon') { if (p.x < 100 || p.x > 300) consider(250, lead(o, p.x, p.y, p.vx, p.vy), p.id); return; }
+      // Bombers get priority over troopers: downing one saves chasing its whole bomb run. A dive bomber in its dive
+      // comes before nearly everything. A zeppelin comes before planes and high chutes: its escort keeps coming while
+      // it flies, so leaving it for last (it was ranked below every chute) let some waves run for minutes.
+      var rank = p.kind === 'zeppelin' ? 280 : p.kind === 'bomber' ? 340 : p.kind === 'heavy' ? 345 : p.kind === 'cargo' ? 260 : p.kind === 'heli' ? 330 :
+        p.kind === 'diver' ? (p.phase === 'dive' ? 470 : 300) : 200 + p.y / 10;
+      consider(rank, lead(o, p.x, p.y, p.vx, p.vy || 0), p.id);
+    });
+
+    // The Dreadnought: the gun that's aiming comes before anything, then the hangar or the bridge, then its other guns.
+    // A gun starting to aim has to be noticed like a new target (its own id while marking), as a player would.
+    (o.dread || []).forEach(function (q) {
+      consider(q.marking ? 560 : q.part === 'gun' ? 360 : 380, lead(o, q.x, q.y, q.vx, 0), q.marking ? q.id + ':' + q.marking : q.id);
     });
     // Tanks: on the way down, or parked within the barrel's dip.
     (o.tanks || []).forEach(function (tk) {
-      if (tk.state === 'chute') consider(240, lead(o, tk.x, tk.y, 0, 70), tk.id);
+      // A tank on its chutes shrugs off bullets; wait for it to land.
+      if (tk.state === 'chute') return;
       else { var shot = groundShot(o, { x: tk.x - tk.dir * 18, y: tk.y - 14 }); if (shot) consider(330, shot, tk.id); }
     });
     return list;
   }
 
+  // Hold fire while the Red Cross plane is in the line of fire (wider with the spread gun). Casual players don't check.
+  function clear(o, a) {
+    if (profile.shop === 'random') return true;
+    var cone = (o.spread ? 0.13 : 0) + 0.04;
+    return !(o.medevac || []).some(function (m) {
+      var p = lead(o, m.x, m.y, m.vx, 0), half = Math.atan2(m.hw, Math.hypot(p.x - o.turret.x, p.y - o.turret.y));
+      return Math.abs(angle(o, p) - a) < cone + half;
+    });
+  }
   // Like a hand on a mouse or a thumb on glass: the aim sweeps at a limited speed, stays on its target until
   // something clearly more urgent appears, and carries a small per-target offset plus tremor.
   var aim = -Math.PI / 2, focus = null, offset = 0, lastT = 0, readyAt = 0;
@@ -85,7 +111,7 @@ window.__balanceBot = function (profile, seed) {
   // Fighter cover: when the sky fills with bombers or bombs. Casual players wait until the wall is low.
   function wantFighter(o) {
     if (!o.calls.fighter || o.fighterActive) return false;
-    var bombers = o.planes.filter(function (p) { return p.state === 'fly' && p.kind === 'bomber' && p.x > 0 && p.x < 400; }).length;
+    var bombers = o.planes.filter(function (p) { return p.state === 'fly' && (p.kind === 'bomber' || p.kind === 'diver') && p.x > 0 && p.x < 400; }).length;
     var falling = o.bombs.filter(function (m) { return m.y < o.ground - 150; }).length;
     if (profile.shop === 'random') return o.wall < o.maxWall * 0.3 && (bombers || falling);
     return bombers >= 2 || falling >= 4;
@@ -104,13 +130,15 @@ window.__balanceBot = function (profile, seed) {
     // the bot keeps the trigger down while it has a target, and only heat discipline lets go.
     var want = target.angle + offset + (rnd() * 2 - 1) * aimErr * 0.25, step = o.t >= readyAt ? profile.aim_speed * dt : 0;
     aim += Math.max(-step, Math.min(step, want - aim));
-    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot, strike: strike, fighter: fighter };
+    return { aimAt: { x: o.turret.x + Math.cos(aim) * 200, y: o.turret.y + Math.sin(aim) * 200 }, fire: o.overheat <= 0 && !hot && clear(o, aim), strike: strike, fighter: fighter };
   }
 
   // Shop: one readable function. The gift first, a rifleman if the squad is down to one or none, the top of the
   // supply list, then hiring, then the rest of the supplies within the budget, and pizza last when the wall is low.
-  var PRIORITY = ['strike', 'spread', 'double', 'fighter', 'tramp', 'fire', 'rockets', 'auto', 'hospital', 'cool', 'trench', 'helmet', 'flak', 'pierce', 'slot',
-    'mines', 'catcher', 'mat', 'aim', 'sandbags', 'wire', 'repair'];
+  // Training (a stripe for every soldier, now and later) comes after the guns and defenses that keep a young squad
+  // alive; bought first, it starved the early waves.
+  var PRIORITY = ['strike', 'spread', 'double', 'fighter', 'tramp', 'fire', 'rockets', 'auto', 'hospital', 'cool', 'trench', 'helmet', 'bootcamp', 'elite', 'flak', 'pierce', 'slot',
+    'mines', 'catcher', 'mat', 'aim', 'flag', 'sandbags', 'wire', 'repair'];
   function shop(o) {
     var sh = o.shop, take = [];
     if (shopped === o.wave) return { continue: true };
@@ -133,7 +161,7 @@ window.__balanceBot = function (profile, seed) {
     o.recruits.forEach(function (r) { have[r.type] = (have[r.type] || 0) + 1; });
     var first = (sh.hire || []).find(function (it) { return it.id === 'hire-rifle'; });
     if (profile.shop !== 'random' && crew < 2 && crew < o.slots && first && first.cost <= coins) {
-      take.push(first.id); coins -= first.cost; extra += 15; crew++; have.rifle = (have.rifle || 0) + 1;
+      take.push(first.id); coins -= first.cost; extra += sh.hireStep || 15; crew++; have.rifle = (have.rifle || 0) + 1;
     }
     var pizza = items.find(function (it) { return it.id === 'pizza'; });
     var wantPizza = pizza && pizza.can && o.wall < o.maxWall * (profile.shop === 'random' ? 0.3 : 0.35);
@@ -146,13 +174,13 @@ window.__balanceBot = function (profile, seed) {
       rest.sort(function (x, y) { return order.indexOf(x.id) - order.indexOf(y.id); });
       rest.forEach(function (it) { if (order.indexOf(it.id) < 4) buy(it); else later.push(it); });
     }
-    // Hiring: the role the squad lacks most, up to two a visit. Every hire raises the next price by 15.
+    // Hiring: the role the squad lacks most, up to two a visit. Every hire raises the next price (by 15 before war prices).
     for (var n = 0; n < 2 && crew < o.slots; n++) {
       var role = !have.bazooka ? 'bazooka' : !have.engineer ? 'engineer' : !have.medic && crew >= 3 ? 'medic' : 'rifle';
       if (profile.shop === 'random') { if (rnd() > 0.35) break; role = ['rifle', 'engineer', 'bazooka', 'sniper'][Math.floor(rnd() * 4)]; }
       var job = (sh.hire || []).find(function (it) { return it.id === 'hire-' + role; });
       if (!job || job.cost + extra > coins - cushion) break;
-      take.push(job.id); coins -= job.cost + extra; extra += 15; crew++; have[role] = (have[role] || 0) + 1;
+      take.push(job.id); coins -= job.cost + extra; extra += sh.hireStep || 15; crew++; have[role] = (have[role] || 0) + 1;
     }
     // Experts keep a cushion for the rest of the list.
     later.forEach(function (it) { if (coins - it.cost >= cushion) buy(it); });

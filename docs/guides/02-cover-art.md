@@ -50,7 +50,7 @@ If the first read takes more than a second or two, simplify.
 
 ## Making one
 
-1. Look at the game first: its `docs/games/<slug>.md`, its current `site/<slug>/og.png` and title screen, and its drawing code for colours and characters.
+1. Look at the game first: its `docs/games/<slug>/README.md`, its current `site/<slug>/og.png` and title screen, and its drawing code for colours and characters.
 2. Brief an image model with the prompt below, and attach a screenshot or the current `og.png` as a reference.
 3. Iterate in the same chat. The usual asks are "make the title bigger", "one hero moment, thin out the rest", and "move that inset away from the corner".
 

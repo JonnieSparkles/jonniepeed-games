@@ -1,0 +1,4 @@
+{"page": "thimbleful/", "viewport": [1280, 960], "fps": 30, "hook": "update", "director": "director.js",
+ "canvas": {"selector": "#c", "upscale": 40}, "scale": 2,
+ "audio": {"object": "ThimbleSound", "script": "thimbleful/audio.js", "init": "init", "state": [], "timers": true, "score": true},
+ "quiet_marks": ["snd:catch", "feint"]}

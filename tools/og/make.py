@@ -54,6 +54,9 @@ GAMES = [
     # the title screen, cropped from the 16:9 canvas to the middle 4:3
     ("unruggabull-ii", "Unruggabull II", "Climb RugCo Tower. Free the Unrugged. Beat the Shredder.", "Play in your browser",
      None, {"screenshot": True, "selector": "#c", "crop": (0.125, 0, 0.75, 1), "viewport": (1280, 900), "title_px": 34}),
+    # Side B two-player demo: a screenshot of its title card
+    ("dont-click-this", "Don't click this", "Up to four players, anywhere. Find each other.", "Play with friends",
+     None, {"screenshot": True}),
 ]
 
 BASE_CSS = f"""

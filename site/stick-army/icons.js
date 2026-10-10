@@ -4,6 +4,13 @@ var StickArmyIcons = function (kit) {
   'use strict';
   var L = kit.L, SP = kit.SP, Ci = kit.Ci, ink = kit.ink, stick = kit.stick, dogTag = kit.dogTag, hat = kit.hat, medicHelmet = kit.medicHelmet, tube = kit.tube;
   var INK = kit.INK, INK2 = kit.INK2, RED = kit.RED, BLUE = kit.BLUE, HAT = kit.HAT, PAPER = kit.PAPER;
+  function patch(G, n) {
+    G.beginPath(); SP([8, 8, 30, 8, 30, 30, 19, 38, 8, 30], true, 0.3); G.fillStyle = '#7d8a64'; G.fill(); ink(INK, 2.2); G.stroke();
+    G.beginPath();
+    for (var i = 0; i < n; i++) { var y = 17 + i * 8; L(11, y + 6, 19, y, 0.15); L(19, y, 27, y + 6, 0.15); }
+    ink(INK, 5); G.stroke(); ink(HAT, 2.6); G.stroke();
+    G.beginPath(); L(36, 6, 36, 16, 0.3); L(31, 11, 41, 11, 0.3); ink(BLUE, 2.4); G.stroke();
+  }
   return {
     fire: function (G) {
       [[8, 34], [17, 26], [26, 18]].forEach(function (p) { G.beginPath(); L(p[0], p[1], p[0] + 8, p[1] - 8, 0.4); ink(INK, 3.4); G.stroke(); });
@@ -92,6 +99,15 @@ var StickArmyIcons = function (kit) {
       G.save(); G.translate(22, 14); G.rotate(-0.6); G.fillStyle = PAPER; G.fillRect(0, -2.5, 15, 5); G.beginPath(); L(0, -2.5, 15, -2.5, 0.2); L(0, 2.5, 15, 2.5, 0.2); L(15, -3, 15, 3, 0.2); ink(INK, 1.8); G.stroke(); G.restore();
       G.beginPath(); G.moveTo(16, 18); G.arc(22, 18, 6, Math.PI, 0); G.closePath(); G.fillStyle = BLUE; G.fill(); ink(INK, 1.8); G.stroke();
     },
+    // The flagpole: a pole with a ball on top and the blue flag flying.
+    flag: function (G) {
+      G.beginPath(); L(11, 40, 11, 6, 0.3); ink(INK, 2.6); G.stroke();
+      G.beginPath(); G.arc(11, 4.5, 2.6, 0, Math.PI * 2); G.fillStyle = HAT; G.fill(); ink(INK, 1.4); G.stroke();
+      G.beginPath(); SP([11, 7, 22, 4, 31, 9, 40, 6, 39, 22, 30, 25, 21, 21, 11, 24], true, 0.4);
+      G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.3)'; G.fill(); ink(BLUE, 2.2); G.stroke();
+      G.beginPath(); for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.4 : 5.6; if (i) G.lineTo(24 + Math.cos(a) * r, 14.5 + Math.sin(a) * r); else G.moveTo(24 + Math.cos(a) * r, 14.5 + Math.sin(a) * r); }
+      G.closePath(); G.fillStyle = PAPER; G.fill(); ink(BLUE, 1.2); G.stroke();
+    },
     catcher: function (G) {
       G.beginPath(); L(5, 33, 4, 41, 0.3); L(21, 33, 22, 41, 0.3); ink(INK, 1.8); G.stroke();
       G.beginPath(); G.moveTo(4, 33); G.quadraticCurveTo(13, 38, 22, 33); ink(INK, 2.6); G.stroke();
@@ -159,6 +175,9 @@ var StickArmyIcons = function (kit) {
       G.fillStyle = PAPER; G.fillRect(26, 22, 13, 10); G.beginPath(); SP([26, 22, 39, 22, 39, 32, 26, 32], true, 0.3); ink(INK, 1.8); G.stroke();
       G.beginPath(); L(29.5, 27, 35.5, 27); L(32.5, 24, 32.5, 30); ink(RED, 2); G.stroke();
     },
+    // Training: a sleeve patch with its stripes, and a blue plus.
+    bootcamp: function (G) { patch(G, 1); },
+    elite: function (G) { patch(G, 2); },
     fallback: function (G) { G.beginPath(); Ci(22, 22, 12, 0.5); L(22, 14, 22, 26, 0.3); ink(INK, 2.4); G.stroke(); G.beginPath(); G.arc(22, 31, 1.8, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
   };
 };

@@ -41,7 +41,7 @@
   RUN.force = 43; newGame(); startWave(6); S.spawn.timer = S.spawn.rushT = S.spawn.cargoT = 99; S.mods.maxHP = S.wallHP = 1e6;
   var rook = makeRecruit(0, 'rifle'), cpl = makeRecruit(5, 'rifle'); cpl.rank = 2; cpl.name = 'Inky'; S.recruits = [rook, cpl]; S.texts = [];
   S.calls.bomber = 1; callStrike();
-  check(S.radio && S.radio.rid === cpl.id && S.texts.some(function (q) { return q.s === 'air strike!' && Math.abs(q.x - cpl.x) < 60; }), 'the corporal calls it in');
+  check(S.radio && S.radio.rid === cpl.id && S.bubbles.some(function (q) { return q.s === 'Air strike!' && q.rid === cpl.id; }), 'the corporal calls it in, in a speech bubble');
   render();
   for (var f = 0; f < Math.ceil((RADIO.TALK + 0.7) * 60); f++) update(1 / 60);
   check(!S.radio, 'and puts the radio away');
@@ -52,8 +52,12 @@
   for (f = 0; f < Math.ceil((FIGHTER.HOLD + RADIO.TALK) * 60) + 2; f++) update(1 / 60);
   check(fighter.dive > 0 && fighter.dive < FIGHTER.DIVE, 'it dives in from above its lane: ' + fighter.dive);
   for (f = 0; f < 30; f++) update(1 / 60);
-  check(fighter.dive === 0 && fighter.trail.length > 5, 'levels out, trailing a contrail');
+  check(fighter.dive === 0 && fighter.wing.length === 2 && fighter.wing.every(function (q) { return q.trail.length > 5; }), 'a flight of two levels out, trailing contrails');
   check(S.bullets.some(function (b) { return b.tracer; }) || planeB.state !== 'fly', 'and fires tracers');
+  // With nothing ahead it still strafes the sky.
+  S.planes = []; S.bombs = []; S.bullets = [];
+  for (f = 0; f < 20; f++) update(1 / 60);
+  check(S.bullets.filter(function (b) { return b.tracer; }).length >= 6, 'it strafes the sky even with nothing to aim at');
   render();
 
   emitHook = null; RUN.force = null; reset(); render();
