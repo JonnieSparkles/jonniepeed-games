@@ -2,7 +2,7 @@
 
 Twenty waves, four bosses, a victory screen, then optional endless play. Something new arrives on most waves on the way, and each boss wave is different.
 
-Status: built in rounds 9 to 14 (formerly SPEC-008). This is the plan as it was decided. How it changed playtest by playtest, with the bots' numbers, is in [history.md](history.md); the game as it is now is in [README.md](README.md). Builds on [the original spec](original.md); difficulty is measured with the [balance bots](../../../specs/SPEC-005-balance-bots.md).
+Status: built in rounds 9 to 14 (formerly SPEC-008). This is the plan as it was decided. How it changed playtest by playtest, with the bots' numbers, is in [history.md](history.md); the game as it is now is in [README.md](README.md). Builds on [the first spec](spec.md); difficulty is measured with the [balance bots](../../../specs/SPEC-005-balance-bots.md).
 
 ## Why
 

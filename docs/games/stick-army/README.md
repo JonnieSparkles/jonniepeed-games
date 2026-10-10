@@ -3,7 +3,7 @@
 The game as it is now: its rules, tuning, code entry points and checks. The game is at `site/stick-army/index.html`. It appears only as the **demo** card on Side B; there is no public Side A card. No build step is needed, and it plays offline (only the online board and play stats use the network). The page keeps `<meta name="robots" content="noindex">` until promotion.
 
 Also in this folder:
-- [original.md](original.md): the first spec (formerly SPEC-002), built in the first rounds.
+- [spec.md](spec.md): the first spec (formerly SPEC-002), built in the first rounds.
 - [campaign.md](campaign.md): the 20-wave campaign (formerly SPEC-008), built in rounds 9–14.
 - [coop.md](coop.md): two players on one bunker over a room (formerly SPEC-010). Planned; nothing of it is built.
 - [history.md](history.md): what changed in each round and why, with the playtest notes, what was tried and dropped, and the balance bots' numbers.

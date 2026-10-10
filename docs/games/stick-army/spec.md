@@ -1,4 +1,4 @@
-# Stick Army: original spec
+# Stick Army: first spec
 
 A Paratrooper-style turret game drawn on lined notebook paper. Planes drop stick-figure troopers. Shoot the trooper and he dies; pop his chute over a trampoline and he bounces into your squad, where he fights for you.
 

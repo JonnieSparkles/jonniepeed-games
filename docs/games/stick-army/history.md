@@ -1,8 +1,6 @@
 # Stick Army: history
 
-What changed in each round and why, newest first: the playtest notes, what was tried and dropped, and what the balance bots found. The game as it is now is in [README.md](README.md); the plans these rounds built are [original.md](original.md) and [campaign.md](campaign.md). Rounds are numbered as in the pull request titles. (The bot results used to number rounds 10 to 13 one ahead; they're renumbered here to match.)
-
-Add a section here when a round changes the game: what changed, the playtest's words, what was tried and dropped, and the bots' numbers. Keep the README to how things work now.
+What changed in each round and why, newest first: the playtest notes, what was tried and dropped, and what the balance bots found. The game as it is now is in [README.md](README.md); the plans these rounds built are [spec.md](spec.md) and [campaign.md](campaign.md). Rounds are numbered as in the pull request titles. (The bot results used to number rounds 10 to 13 one ahead; they're renumbered here to match.)
 
 ## Round 16 (#59, #60, #61; Oct 9–10)
 
@@ -296,4 +294,4 @@ What the bots found:
 
 ### The first build (#3)
 
-Built from [original.md](original.md), with the owner's pizza-delivery homage in the shop.
+Built from [spec.md](spec.md), with the owner's pizza-delivery homage in the shop.
