@@ -127,7 +127,9 @@ with Phones() as phones:
     time.sleep(0.6)
     check(js(guest, 'S.t') > t0, 'the guest comes back and the game moves on its page')
 
-    # The host drops out: the guest waits for it.
+    # The host drops out: the guest waits for it. (Each outage gives the host 8-10 s of play before its connection
+    # notices it's gone, so the wall is made to last through them all.)
+    js(host, 'S.mods.maxHP = S.wallHP = 1e6; "ok"')
     host.context.set_offline(True)
     wait(guest, "() => { const o = document.getElementById('coopScreen'); return !o.hidden && /Waiting for your/.test(o.textContent); }", 15000)
     check(True, 'the host drops out: the guest waits, counting down')
@@ -156,9 +158,23 @@ with Phones() as phones:
     wait(guest, "() => document.getElementById('shopScreen').hidden && armyTest('COOP.guest && S.mode === \"play\"')", 15000)
     check(True, 'and plays once the host is back, the guest with it')
 
-    # A host back after the guest has called the match over: the guest rejoins its game. (The host plays on unseen
-    # for the 8-10 s its connection takes to notice it's gone, so the wall is made to last through it.)
-    js(host, 'S.mods.maxHP = S.wallHP = 1e6; "ok"')
+    # Offline, the host resumes by hand, then pauses again: back online, that pause is the host's and stays.
+    host.context.set_offline(True)
+    wait(host, "() => armyTest('S.mode') === 'paused'", 25000)
+    host.click('#resumeBtn')
+    wait(host, "() => armyTest('S.mode') === 'play'", 5000)
+    time.sleep(0.3)
+    check(js(host, 'S.mode') == 'play', 'offline, a host who resumes by hand plays on')
+    host.keyboard.press('p')
+    wait(host, "() => armyTest('S.mode') === 'paused'", 5000)
+    host.context.set_offline(False)
+    wait(host, "() => armyTest('COOP.room.status') === 'connected'", 20000)
+    time.sleep(0.5)
+    check(js(host, 'S.mode') == 'paused', "and a pause after that is the host's: reconnecting leaves it")
+    host.click('#resumeBtn')
+    wait(host, "() => armyTest('S.mode') === 'play'", 5000)
+
+    # A host back after the guest has called the match over: the guest rejoins its game.
     js(guest, 'COOP.TIMING.AWAY_END = 1; "ok"')
     host.context.set_offline(True)
     wait(guest, "() => { const o = document.getElementById('coopScreen'); return !o.hidden && /match is/.test(o.textContent); }", 20000)
@@ -166,6 +182,15 @@ with Phones() as phones:
     wait(guest, "() => document.getElementById('coopScreen').hidden && armyTest('COOP.guest && S.mode === \"play\"')", 25000)
     wait(host, "() => armyTest('S.mode') === 'play'", 10000)
     check(True, 'a host back after the match was called over: the guest rejoins its game')
+
+    # The host reloads mid-match: its run is gone, so the guest goes back to waiting; Start brings both back in.
+    host.reload()
+    wait(host, "() => !document.getElementById('coopStart') ? false : !document.getElementById('coopStart').disabled", 20000)
+    wait(guest, "() => { const o = document.getElementById('coopScreen'); return !o.hidden && /Waiting for your/.test(o.textContent) && !armyTest('COOP.guest'); }", 20000)
+    check(True, 'a host reload mid-match sends the guest back to waiting, and the host gets the link card with the friend there')
+    host.click('#coopStart')
+    wait(guest, "() => document.getElementById('titleScreen').hidden && armyTest('COOP.guest && S.mode === \"play\" && S.wave === 1')", 15000)
+    check(True, 'and Start plays a new run together')
 
     # The end: both players side by side on each card.
     js(host, 'S.wallHP = 0; "ok"')

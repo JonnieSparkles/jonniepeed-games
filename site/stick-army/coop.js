@@ -423,7 +423,8 @@ window.StickArmyCoop = function (w) {
     room = r;
     r.on('ready', function () {
       friend = r.others.length > 0;
-      if (role === 'host') { if (!started) invite(); else resend(); }
+      // A host page with no run (a reload mid-match loses it) tells a guest still drawing the old one ('lobby').
+      if (role === 'host') { if (!started) { invite(); ask('lobby'); } else resend(); }
       else { if (!started) showCard(['Waiting for your ', 'friend'], ["You're in. Your friend starts the match.", 'You get the red barrel.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting'); ask('hi'); }
     });
     r.on('join', function (seat) {
@@ -449,7 +450,8 @@ window.StickArmyCoop = function (w) {
       if (st === 'reconnecting') status('Reconnecting…');
       else if (st === 'connected') {
         status(role === 'host' && started && !friend ? 'Your friend dropped out' : '');
-        if (role === 'host') { resend(); if (netPaused && w.S.mode === 'paused') w.togglePause(); netPaused = netResumed = false; } else ask('hi');
+        // Only the connection's own pause is undone: after a resume by hand, any pause since is someone's choice.
+        if (role === 'host') { resend(); if (netPaused && !netResumed && w.S.mode === 'paused') w.togglePause(); netPaused = netResumed = false; } else ask('hi');
       }
     });
     r.on('refused', function (reason) {
@@ -464,13 +466,15 @@ window.StickArmyCoop = function (w) {
         if (m.t === 'in') { lastIn = now(); hostInput(m); }
         else if (m.t === 'call' && w.S.mode === 'play') { if (m.k === 'bomber') w.callStrike(); else if (m.k === 'fighter') w.callFighter(); }
         else if (m.t === 'pause' && (w.S.mode === 'play' || w.S.mode === 'paused')) { netPaused = false; w.togglePause(); }
-        else if (m.t === 'hi') resend();
+        else if (m.t === 'hi') { if (started) resend(); else ask('lobby'); }
         else if (m.t === 'shop' && m.k && w.S.mode === 'shop') {
           if (m.k.a === 'take') w.takeItem(String(m.k.id), 1);
           else if (m.k.a === 'back') w.putBack(String(m.k.id), 1);
           else if (m.k.a === 'undo') w.undo(1);
         } else if (m.t === 'ready') markReady(1);
       } else if (from === HOST_SEAT) {
+        // The host has no run any more: back to the waiting card (a fresh page, which rejoins the same seat).
+        if (m.t === 'lobby') { if (guest) { stopGuest(); location.reload(); } return; }
         var whole = joinPieces(m);
         if (!whole || whole.t !== 'f') return;
         if (!guest) beginGuest();
