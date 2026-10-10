@@ -1,4 +1,4 @@
-// SPEC-008 stages 2-3, on the 20-wave schedule: bomb balloons (4), the Red Cross plane (6), helicopters (7), HQ
+// Campaign stages 2-3 (campaign.md), on the 20-wave schedule: bomb balloons (4), the Red Cross plane (6), helicopters (7), HQ
 // drops (8), the armored zeppelin (10), dive bombers (12), and the little voices. Heavy bombers (13): case-21.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }

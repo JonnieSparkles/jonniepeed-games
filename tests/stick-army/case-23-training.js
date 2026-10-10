@@ -1,4 +1,4 @@
-// Training (SPEC-008): five stripes, Boot Camp and Elite Training in the shop's rotation. Each level gives everyone in
+// Training (campaign.md): five stripes, Boot Camp and Elite Training in the shop's rotation. Each level gives everyone in
 // the squad a stripe now and every new soldier, hired or caught, starts with it; the ones who've served longest
 // always have the most.
 (function () {

@@ -1,4 +1,4 @@
-// Round 9 (SPEC-008 stage 1): kill counts, the Dreadnought on the final wave (DREAD.WAVE), victory with the roll call, then endless.
+// Round 9 (campaign.md stage 1): kill counts, the Dreadnought on the final wave (DREAD.WAVE), victory with the roll call, then endless.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var seen = [];

@@ -9,7 +9,7 @@ There are two parts:
 - **The rooms Worker** (`rooms/`, at `rooms.jonniepeed.games`). It seats players, says who the host is and passes messages between phones. It knows nothing about any game, so a new game never needs a change here.
 - **`site/assets/rooms.js`**, the page side. It connects, stays connected (pings, reconnects after a drop or a locked phone, keeps a player's seat across a reload) and turns the room into events. A game uses it and writes only its game.
 
-[Don't click this](../games/dont-click-this.md) is the first game on it.
+[Don't click this](../games/dont-click-this/README.md) is the first game on it.
 
 ## Quick start
 

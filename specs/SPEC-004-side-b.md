@@ -8,7 +8,7 @@ Status: implemented. The studio homepage has a hidden development shelf, rainbow
 2. The moved `site/assets/studio/ident.js`, game-owned `site/stick-army/thumb.webp` and clean `stick-army/` link are used. Side B placement is not promotion to the public Side A shelf. Review first and publish only by hand; GitHub Pages uses manual `workflow_dispatch`.
 3. Arweave publishing remains paused pending the uploader/manifest follow-up, as recorded in SPEC-003 and README. Skip the ar.io gateway acceptance check in this implementation. Before publishing resumes, confirm uploader support and receipt format, use root `index.path: "index.html"`, and map every `<slug>/` to the same transaction ID as `<slug>/index.html`, including unlisted demos. Test a fresh manifest on an ar.io gateway at a manifest-ID mount and an ArNS root where available; record the manifest ID, gateway URL and results. No slashless aliases, upload or production ArNS update are introduced here.
 
-Stick Army was built from [SPEC-002](SPEC-002-stick-army.md). Its living doc is [Stick Army](../docs/games/stick-army.md), moved by SPEC-003. Update the living doc when Side B launches and when the game is promoted.
+Stick Army was built from [SPEC-002](../docs/games/stick-army/original.md). Its living doc is [Stick Army](../docs/games/stick-army/README.md), moved by SPEC-003. Update the living doc when Side B launches and when the game is promoted.
 
 ## Discovery: let the rainbow overflow
 

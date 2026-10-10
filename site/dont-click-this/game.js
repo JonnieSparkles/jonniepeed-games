@@ -1,4 +1,4 @@
-// Don't click this: up to four phones, anywhere, find each other (docs/games/dont-click-this.md).
+// Don't click this: up to four phones, anywhere, find each other (docs/games/dont-click-this/README.md).
 // The connection is site/assets/rooms.js (docs/guides/05-rooms.md): the match link carries a room code after
 // the #, and every phone's messages reach the others tagged with the sender's seat. Each phone sends where its
 // dot is ("each phone owns its own stuff"); when two dots touch they burst, and when three or four pile up
