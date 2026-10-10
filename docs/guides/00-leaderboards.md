@@ -45,7 +45,7 @@ Each board that takes new runs has `"plausible": { "perSecond": N, "grace": N }`
 
 A cap is set once, when a board is created. A change that makes a game score faster is a scoring change, which bumps the board, and whoever makes it rechecks the cap on the new board. Raising a cap is always safe and needs no bump; before lowering one, run [Check the score caps](#check-the-score-caps).
 
-`tools/check_boards.py` fails if a game's newest board, or the board its `BOARD` names, has no cap. Boards without one (Thimbleful 1–2, Crack 1) stay readable but take no new runs.
+`tools/check_boards.py` fails if a game's newest board, or a board its `BOARD` (or any other `*_BOARD` constant, such as Stick Army's `VETERAN_BOARD` for its harder level) names, has no cap. A game with levels gives each its own board, so their scores are never ranked together. Boards without one (Thimbleful 1–2, Crack 1) stay readable but take no new runs.
 
 ## One-time setup (Jonnie's Cloudflare account)
 

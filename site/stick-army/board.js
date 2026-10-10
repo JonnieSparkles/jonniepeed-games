@@ -12,10 +12,17 @@
 //   entering  the initials picker, with the card's own buttons hidden
 //   done      the buttons come back and the board sits below them, so nothing moves under a finger
 // If the scores take longer than WAIT ms the buttons come back anyway and a late answer offers initials in the board.
+//
+// Each level has its own board (game.js LEVELS): a run saves to its level's, fixed when it begins. The title's High
+// scores card has a tab for each level and opens on the one picked; the notebook's facing page shows the picked one.
 var StickArmyBoard = function (w) {
   'use strict';
   var GAME = 'stick-army', BEAT = 600, WAIT = 2500, LB = window.Leaderboard || null;
   var run = null, picker = null, current = null;
+  // The board for a level (the picked one, or the run's).
+  function boardFor(level) { return w.levelBoard ? w.levelBoard(level) : w.BOARD; }
+  function levelOf(board) { var L = w.LEVELS; for (var k in L) if (L[k].BOARD === board) return k; return 'soldier'; }
+  function heading(board) { return levelOf(board) === 'veteran' ? 'Veteran high scores' : 'High scores'; }
 
   function count(v) { return Number(v).toLocaleString('en-US'); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -51,7 +58,8 @@ var StickArmyBoard = function (w) {
   // Real play begins: ask for the run's token in the background. Play never waits for it.
   function begin(practice) {
     clear();
-    run = LB && !practice ? { start: LB.start(GAME, w.BOARD), token: null, input: 'keys', used: false } : null;
+    var board = boardFor();
+    run = LB && !practice ? { board: board, start: LB.start(GAME, board), token: null, input: 'keys', used: false } : null;
     return run ? run.start : null;
   }
   function touched() { if (run) run.input = 'touch'; }
@@ -61,10 +69,11 @@ var StickArmyBoard = function (w) {
     if (picker) { picker.destroy(); picker = null; }
     current = slots(cardEl); current.box.replaceChildren(); current.box.hidden = true;
     if (!LB) return;
-    var r = run;
+    var r = run, board = r ? r.board : boardFor();
+    current.board = board;
     if (!r || r.used) {
       // Practice, or the endless game over after a win: just the board.
-      LB.load(GAME, w.BOARD).then(function (data) { if (data && data.scores.length && current && current.card === cardEl && !run_changed(r)) draw(current.box, data.scores); });
+      LB.load(GAME, board).then(function (data) { if (data && data.scores.length && current && current.card === cardEl && !run_changed(r)) draw(current.box, data.scores); });
       return;
     }
     r.used = true; r.score = S.score; r.meta = { time_ms: Math.round(S.played * 1000), wave: Math.max(1, S.wave), won: won ? 1 : 0 };
@@ -73,7 +82,7 @@ var StickArmyBoard = function (w) {
     r.waitTimer = setTimeout(function () { if (run === r && !r.shown) { r.late = true; back(); } }, WAIT);
     r.start.then(function (token) {
       r.token = token;
-      return token ? LB.load(GAME, w.BOARD, r.score, r.meta) : LB.load(GAME, w.BOARD);
+      return token ? LB.load(GAME, r.board, r.score, r.meta) : LB.load(GAME, r.board);
     }).then(function (data) {
       setTimeout(function () {
         if (run !== r || current.card !== cardEl) return;
@@ -115,7 +124,7 @@ var StickArmyBoard = function (w) {
         if (!p || r.busy) return;
         r.busy = true; p.setBusy(true); msg.textContent = 'Saving…';
         LB.saveInitials(name);
-        LB.submit({ game: GAME, board: w.BOARD, token: r.token, name: name, score: r.score, input: r.input, meta: r.meta }).then(function (res) {
+        LB.submit({ game: GAME, board: r.board, token: r.token, name: name, score: r.score, input: r.input, meta: r.meta }).then(function (res) {
           if (run !== r || picker !== p) return;
           r.busy = false;
           if (res && res.error === 'name_not_allowed') { msg.textContent = 'Try other initials.'; p.setBusy(false); return; }
@@ -169,7 +178,7 @@ var StickArmyBoard = function (w) {
       var mine = scores.find(function (row) { return row.rank === highlight; });
       if (mine) { var gap = body.insertRow(); gap.className = 'lb-gap'; var c = gap.insertCell(); c.colSpan = 5; c.textContent = '⋯'; add(mine); }
     }
-    if (box !== scoresBox) box.append(el('h3', null, 'High scores'));  // the title's card has its own heading
+    if (box !== scoresBox) box.append(el('h3', null, heading(current && box === current.box ? current.board : boardFor())));  // the title's card has its own heading and tabs
     if (run && run.note && current && box === current.box) { var n = el('p', 'lb-message lb-standing', run.note); n.setAttribute('role', 'status'); box.append(n); }
     if (addInitials && run && run.data) { var a = el('button', 'lb-more lb-add', standing(run.data) + ' Add your initials'); a.type = 'button'; a.addEventListener('click', addInitials); box.append(a); }
     if (!scores.length) box.append(el('p', 'lb-message', 'No scores yet. Be the first!'));
@@ -183,21 +192,37 @@ var StickArmyBoard = function (w) {
   }
 
   // ---------- the title ----------
-  // High scores: a card over the title with the board (scoresScreen); the open notebook's facing page lists the top
-  // five (facingRows).
+  // High scores: a card over the title with a tab for each level (scoresScreen), opening on the picked level; the open
+  // notebook's facing page lists the top five for the picked level (facingRows).
   var scoresScreen = document.getElementById('scoresScreen'), scoresBox = document.getElementById('scoresBox'), scoresReq = 0;
+  var tabs = Array.prototype.slice.call(scoresScreen.querySelectorAll('[role="tab"]'));
   function say(box, text) { var p = el('p', 'lb-message', text); p.setAttribute('role', 'status'); box.replaceChildren(p); box.hidden = false; }
-  function openScores() {
-    if (!LB) return;
+  function showTab(level) {
     var req = ++scoresReq;
-    scoresScreen.hidden = false;
+    tabs.forEach(function (t) { var on = t.dataset.level === level; t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1; });
+    scoresBox.setAttribute('aria-label', heading(boardFor(level)));
     say(scoresBox, 'Loading the scores…');
-    document.getElementById('scoresClose').focus({ preventScroll: true });
-    LB.load(GAME, w.BOARD).then(function (data) {
+    LB.load(GAME, boardFor(level)).then(function (data) {
       if (req !== scoresReq || scoresScreen.hidden) return;
       if (!data) say(scoresBox, 'Couldn’t load the scores. Try again in a moment.');
+      else if (!data.scores.length) say(scoresBox, level === 'veteran' ? 'No Veteran scores yet. Be the first!' : 'No scores yet. Be the first!');
       else draw(scoresBox, data.scores);
     });
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { showTab(t.dataset.level); });
+    t.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault(); e.stopPropagation();
+      var next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      showTab(next.dataset.level); next.focus({ preventScroll: true });
+    });
+  });
+  function openScores() {
+    if (!LB) return;
+    scoresScreen.hidden = false;
+    showTab(w.levelName ? w.levelName() : 'soldier');
+    document.getElementById('scoresClose').focus({ preventScroll: true });
   }
   function closeScores() {
     if (scoresScreen.hidden) return false;
@@ -206,12 +231,15 @@ var StickArmyBoard = function (w) {
     return true;
   }
   document.getElementById('scoresClose').addEventListener('click', closeScores);
+  var rowsReq = 0;
   function titleRows() {
-    var ol = document.getElementById('facingRows');
+    var ol = document.getElementById('facingRows'), board = boardFor(), req = ++rowsReq;
+    document.getElementById('facingBoardTitle').textContent = heading(board);
     function empty(text) { var li = el('li', 'empty', text); ol.replaceChildren(li); }
     if (!LB) { empty('High scores are online only.'); return; }
     empty('Loading…');
-    LB.load(GAME, w.BOARD).then(function (data) {
+    LB.load(GAME, board).then(function (data) {
+      if (req !== rowsReq) return;
       if (!data) { empty('Couldn’t load the scores.'); return; }
       if (!data.scores.length) { empty('Be the first on the page.'); return; }
       ol.replaceChildren.apply(ol, data.scores.slice(0, 5).map(function (row) {

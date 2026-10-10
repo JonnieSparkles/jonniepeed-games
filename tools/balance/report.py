@@ -173,6 +173,9 @@ def summary(results):
     lines.append('Commit %s%s, %d seeds × %s, cap %s simulated minutes, %s s wall time.' % (
         results['commit'], ' (uncommitted changes)' if results.get('dirty') else '', len(results['seeds']), ', '.join(results['skills']),
         fmt(results['cap_minutes']), fmt(results.get('elapsed_seconds', 0))))
+    extra = {k: v for k, v in results.get('options', {}).items() if k != 'fast'}
+    if extra:
+        lines.append('Options: %s (`--option`; the reference, if any, got the same).' % ', '.join('%s=%s' % kv for kv in sorted(extra.items())))
     if runs:
         sim = sum(r['t'] for r in runs); wall = sum(r['elapsed'] for r in runs) or 1
         lines.append('Simulation speed: %dx real time per page (median run %s s of wall time).' % (sim / wall, fmt(statistics.median(r['elapsed'] for r in runs))))

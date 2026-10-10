@@ -764,7 +764,8 @@ var StickArmySky = function (w) {
     sm.billows.forEach(function (b) { b.t0 = Math.min(b.t0, sm.t + 0.25 + Math.hypot(b.x - x, (b.y - y) * SMOKE.RISE) / SMOKE.SPREAD); });
   }
   function potsOut(sm) { return clamp(sm.clear / SMOKE.OUT, 0, 1); }
-  function smokeClear() { var sm = w.S.smoke; if (sm) { sm.clearing = true; sm.linger = clamp(sm.t, SMOKE.LINGER[0], SMOKE.LINGER[1]); } }
+  // Veteran's lingers SMOKE times as long (game.js LEVELS).
+  function smokeClear() { var sm = w.S.smoke; if (sm) { sm.clearing = true; sm.linger = clamp(sm.t, SMOKE.LINGER[0], SMOKE.LINGER[1]) * w.lv().SMOKE; } }
   function grown(sm, b) { var k = clamp((sm.t - b.t0) / SMOKE.GROW, 0, 1); return k * (2 - k); }
   // Over the smoke: the rolling front outlined in pen while it spreads, and pale wisps drifting through it.
   function drawSmoke(sm, a) {

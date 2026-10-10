@@ -1,4 +1,4 @@
-"""Check the game's BOARD against the Worker rules before deploying the site."""
+"""Check each game's BOARD (and any other *_BOARD it posts to) against the Worker rules before deploying the site."""
 import json
 import pathlib
 import re
@@ -30,23 +30,22 @@ def main():
             print(f'FAIL: {game} board {newest} {problem}', file=sys.stderr)
             failed = True
     for path in sorted((ROOT / 'site').glob('*/game.js')):
-        match = re.search(r'\bconst\s+BOARD\s*=\s*([^;]+);', path.read_text())
-        if not match:
-            continue
-        game = path.parent.name
-        if not re.fullmatch(r'\d+', match[1].strip()):
-            print(f'FAIL: {game} BOARD must be a positive integer literal', file=sys.stderr)
-            failed = True
-            continue
-        board = int(match[1])
-        if game not in games or str(board) not in games[game]['boards']:
-            print(f'FAIL: {game} BOARD={board} is not allowed in scores/games.json', file=sys.stderr)
-            failed = True
-        elif cap_problem(games[game]['boards'][str(board)]):
-            print(f'FAIL: {game} BOARD={board} {cap_problem(games[game]["boards"][str(board)])}, so it takes no new runs', file=sys.stderr)
-            failed = True
-        else:
-            print(f'PASS: {game} BOARD={board}')
+        # BOARD, plus any other board a game posts to, such as a harder level's (Stick Army's VETERAN_BOARD).
+        for name, value in re.findall(r'\bconst\s+(\w*BOARD)\s*=\s*([^;]+);', path.read_text()):
+            game = path.parent.name
+            if not re.fullmatch(r'\d+', value.strip()):
+                print(f'FAIL: {game} {name} must be a positive integer literal', file=sys.stderr)
+                failed = True
+                continue
+            board = int(value)
+            if game not in games or str(board) not in games[game]['boards']:
+                print(f'FAIL: {game} {name}={board} is not allowed in scores/games.json', file=sys.stderr)
+                failed = True
+            elif cap_problem(games[game]['boards'][str(board)]):
+                print(f'FAIL: {game} {name}={board} {cap_problem(games[game]["boards"][str(board)])}, so it takes no new runs', file=sys.stderr)
+                failed = True
+            else:
+                print(f'PASS: {game} {name}={board}')
     return int(failed)
 
 
