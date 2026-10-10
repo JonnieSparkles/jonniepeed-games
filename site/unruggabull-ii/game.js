@@ -210,7 +210,7 @@
     R.event = { kind, t: 0, dur: kind === 'move' ? TUNE.moveT : TUNE.darkT };
     if (kind === 'move') {
       // moving day: no one to shoot, the blaster's holstered, and Facilities has left everything in the hall
-      Object.assign(R.event, { nextOb: 1.4, obN: 0, obs: [], clean: true, gap: 0 });
+      Object.assign(R.event, { nextOb: 2.4, obN: 0, obs: [], clean: true, gap: 0 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
       addSign(.75, 'MOVING DAY', 'move');
       Snd.play('start'); live('Moving day: get past the furniture. Nothing to shoot.');
@@ -1199,6 +1199,7 @@
     }
   }
   function die() {
+    R.statsStage = stageNo();
     R.phase = 'dead'; R.phaseT = 0; R.hearts = 0; R.bark = null;
     emit('game_over', { cause: R.lastCause || 'unknown', score: R.souls });
     endPull();
@@ -1959,9 +1960,29 @@
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
   }
+  // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
+  let statsRun = null;
+  const STAGES = ['accounts', 'moving', 'all_staff', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
+  function stageNo() {
+    if (R.phase === 'win') return 9;
+    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
+    if (R.phase === 'wake') return 6;
+    if (R.phase === 'boss') return 5 + R.boss.ph;
+    return R.statsStage || 1;
+  }
+  // what a run reports, at its end or when the page is left mid-run
+  function runReport() {
+    const st = stageNo();
+    return { score: R.souls, time_ms: Math.round((R.endT || R.t) * 1000), won: R.phase === 'win',
+      stats: { stage: st, stage_name: STAGES[st - 1], cause: R.phase === 'win' ? 'cleared' : (R.lastCause || 'none'), continues: R.continues || 0,
+        boss_hp: Math.round(R.boss.hp), smashes: R.events.smashes || 0, best_rally: R.events.bestRally || 0, wipes: R.events.wipes || 0, deflects: R.events.deflects || 0 } };
+  }
+  function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', { progress: runReport }) : null; }
   function startRun() {
+    if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }   // restarted from pause: the open run is a quit
     checkpoint = null;
     newRun();
+    statsStart();
     setState('play');
     card.hidden = true;
     R.banner = { text: 'FLOOR 13', sub: 'ACCOUNTING', t: 0, dur: 2.2, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 2.2 } };
@@ -1972,6 +1993,7 @@
   // Back at the Shredder: the hall's end, full hearts, the souls you had when it woke, and it wakes again.
   function continueAtBoss() {
     newRun(checkpoint);
+    statsStart();   // a continue is a run of its own, from the Shredder
     setState('play'); card.hidden = true;
     startWake();
     live('Back at the Shredder with full hearts.');
@@ -2038,6 +2060,7 @@
   }
   function endRun(kind) {
     if (kind === 'clear') emit('game_over', { cause: 'cleared', score: R.souls });
+    if (statsRun && window.PlayStats) { PlayStats.end(statsRun, runReport()); statsRun = null; }
     setState('over');
     const newBest = R.souls > best.souls;
     best.souls = Math.max(best.souls, R.souls);
