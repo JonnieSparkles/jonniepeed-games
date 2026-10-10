@@ -790,8 +790,9 @@
     RUSH = UNITS.RUSH, spawnRush = UNITS.spawnRush, TANK = UNITS.TANK, tankHP = UNITS.tankHP, spawnCargo = UNITS.spawnCargo, updateCargo = UNITS.updateCargo, spawnRoadTank = UNITS.spawnRoadTank,
     tankHit = UNITS.tankHit, damageTank = UNITS.damageTank, updateTanks = UNITS.updateTanks, blastTanks = UNITS.blastTanks, drawTank = UNITS.drawTank,
     RADIO = UNITS.RADIO, callsHeld = UNITS.callsHeld, grantCall = UNITS.grantCall,
-    STRIKE = UNITS.STRIKE, callStrike = UNITS.callStrike, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
-    FIGHTER = UNITS.FIGHTER, callFighter = UNITS.callFighter, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
+    // A co-op guest's calls go to the host, which makes them (coop.js).
+    STRIKE = UNITS.STRIKE, callStrike = function () { return COOP && COOP.guest ? COOP.ask('call', 'bomber') : UNITS.callStrike(); }, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
+    FIGHTER = UNITS.FIGHTER, callFighter = function () { return COOP && COOP.guest ? COOP.ask('call', 'fighter') : UNITS.callFighter(); }, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio;
   // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
   world.grantCall = grantCall; world.activeTramps = activeTramps; world.loseTags = function (n, x, y) { loseTags(n, x, y); }; world.standing = standing; world.repairWall = repairWall;
@@ -832,6 +833,9 @@
   world.setState = function (o) { S = o; }; world.resizeMats = function () { resizeMats(); }; world.clearInk = function () { clearInk(); };
   world.updateParts = function (dt) { updateParts(dt); }; world.fadeInk = function (dt) { fadeInk(dt); };
   Object.defineProperty(world, 'me', { get: function () { return me; }, set: function (v) { me = v; } });
+  world.fit = function () { fit(); }; world.fillPause = function () { fillPause(); }; world.togglePause = function () { togglePause(); };
+  world.newGame = function () { newGame(); }; world.callStrike = function () { return UNITS.callStrike(); }; world.callFighter = function () { return UNITS.callFighter(); };
+  world.screens = function () { return { title: titleScreen, pause: pauseScreen, over: overScreen, win: winScreen, shop: shopScreen, pauseBtn: pauseBtn }; };
   var COOP = window.StickArmyCoop ? StickArmyCoop(world) : null;
   world.dreadLit = function () { var p = CAMPAIGN.dread(); return !p ? [] : p.phase === 'hangar' ? [CAMPAIGN.hangarAt(p)] : p.phase === 'bridge' ? [CAMPAIGN.bridgeAt(p), CAMPAIGN.hangarAt(p)] : []; };
   function drawItemIcon(canvas, id) {
@@ -2445,7 +2449,8 @@
     // A run seed: forced by a harness, fixed by #seed=, or random.
     var fixed = RUN.force != null ? RUN.force : hashSeed();
     // The online board: practice runs (a fixed seed, the tuning panel) never get a token, so they can't be saved.
-    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0);
+    // Co-op runs aren't on the boards (coop.md).
+    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0 || RUN.players > 1);
     // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
     if (window.PlayStats) statsRun = PlayStats.start('stick-army', { board: world.levelBoard(), token: token || undefined, progress: runReport });
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));
@@ -2483,21 +2488,27 @@
     return true;
   }
   function togglePause() {
+    // Either co-op player pauses for both: a guest asks the host (coop.js), whose pause comes back in the field.
+    if (COOP && COOP.guest) { COOP.ask('pause'); return; }
     if (S.mode === 'play') {
       S.mode = 'paused'; clearInput();
-      document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
-      // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
-      var kit = document.getElementById('pauseKit');
-      kit.hidden = !renderKit(kit, false);
-      var row = document.getElementById('pauseSquadRow'), squad = document.getElementById('pauseSquad'), line = squadLine(false, true);
-      row.hidden = !drawSquadRow(row);
-      squad.textContent = line; squad.hidden = !line;
+      fillPause();
       pauseScreen.hidden = false;
       document.getElementById('resumeBtn').focus({ preventScroll: true });
     } else if (S.mode === 'paused') {
       S.mode = 'play'; pauseScreen.hidden = true;
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     }
+  }
+  // The pause card's lines: the wave and time, the kit and the squad.
+  function fillPause() {
+    document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
+    // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
+    var kit = document.getElementById('pauseKit');
+    kit.hidden = !renderKit(kit, false);
+    var row = document.getElementById('pauseSquadRow'), squad = document.getElementById('pauseSquad'), line = squadLine(false, true);
+    row.hidden = !drawSquadRow(row);
+    squad.textContent = line; squad.hidden = !line;
   }
   function die() {
     emit('game_over', { wave: S.wave, score: S.score, cause: S.lastHit || 'unknown' });
@@ -2687,7 +2698,8 @@
   });
   // Leaving the window lets go of this device's controls only.
   window.addEventListener('blur', function () { keys.left = keys.right = keys.fire = false; if (S.turrets) gun().firing = false; });
-  document.addEventListener('visibilitychange', function () { if (document.hidden && S.mode === 'play') togglePause(); });
+  // A co-op guest leaving the page doesn't pause the host's game; its barrel just goes quiet (coop.js).
+  document.addEventListener('visibilitychange', function () { if (document.hidden && S.mode === 'play' && !(COOP && COOP.guest)) togglePause(); });
   window.addEventListener('resize', fit);
 
   document.getElementById('continueBtn').addEventListener('click', continueWave);
@@ -2774,7 +2786,7 @@
     if (COOP && COOP.guest && COOP.guestFrame(dt, now)) { /* drawn from the host's field */ }
     else if (S.mode === 'play' || S.mode === 'dying') update(dt);
     else if (S.mode === 'title' && !document.hidden) { update(dt); updateDemo(dt); }
-    if (COOP && COOP.host) COOP.hostTick(now);
+    if (COOP) { if (COOP.host) COOP.hostTick(now); COOP.tick(now); }
     render();
     syncCallBtns();
     if (now - lastAmbience > 80) { lastAmbience = now; sound.ambience(ambienceState()); }
@@ -2792,6 +2804,7 @@
   }
 
   start();
+  if (COOP) COOP.init();
   // The tuning UI and its bridge exist only in opt-in development mode.
   if (hashTokens().indexOf('tune') >= 0) {
     window.StickArmyTune = {

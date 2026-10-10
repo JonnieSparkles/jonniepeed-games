@@ -210,6 +210,7 @@ window.StickArmyCoop = function (w) {
     if (e) msg.e = e;
     if (!msg.k.length) delete msg.k;
     host.sent = now;
+    msg.n = host.seq = (msg.r ? 0 : host.seq) + 1;
     if (host.send) pieces(msg).forEach(host.send);
     return msg;
   }
@@ -219,24 +220,29 @@ window.StickArmyCoop = function (w) {
     var t = w.S.turrets && w.S.turrets[1];
     if (!t || msg.t !== 'in') return;
     if (typeof msg.a === 'number' && isFinite(msg.a)) t.aim = Math.max(w.AIM_MIN, Math.min(w.AIM_MAX, msg.a));
-    t.firing = !!msg.f;
+    t.firing = !!msg.d;
   }
 
   // ---------- the guest: draws the host's field ----------
   // buf: the latest snapshots with the host's clock (h). The guest draws DELAY behind the newest, easing between the
   // two around that moment. Effects and new particles wait in `due` until the drawing reaches their moment.
   var guest = null;
-  function startGuest() { guest = { dec: Decoder(), buf: [], due: [], off: null, parts: [], aim: null, firing: false }; }
+  function startGuest() { guest = { dec: Decoder(), buf: [], due: [], off: null, parts: [], aim: null, firing: false, n: 0, lost: false }; }
   function stopGuest() { guest = null; }
+  // False when a message was missed (a gap in n), or didn't fit: the guest then needs the whole field again (resync).
   function receive(msg, now) {
-    if (!guest || msg.t !== 'f') return;
-    var dec = guest.dec, state = dec.take(msg), o = msg.h - now;
+    if (!guest || msg.t !== 'f') return true;
+    if (!msg.r && (guest.lost || (msg.n != null && msg.n !== guest.n + 1))) { guest.lost = true; return false; }
+    var dec = guest.dec, state, o = msg.h - now;
+    try { state = dec.take(msg); } catch (err) { guest.lost = true; return false; }
+    guest.n = msg.n; guest.lost = false;
     // The host's clock against ours: the quickest message sets it, easing down slowly so drift is followed.
     guest.off = guest.off == null || o > guest.off ? o : guest.off - 0.5;
     if (msg.r) guest.buf = [];
     guest.buf.push({ h: msg.h, s: state });
     if (guest.buf.length > 8) guest.buf.shift();
     if (msg.b || msg.e) guest.due.push({ h: msg.h, b: msg.b ? dec.decode(msg.b) : null, e: msg.e ? msg.e.map(function (f) { return f.length > 1 ? [f[0], dec.decode(f[1])] : f; }) : null });
+    return true;
   }
   function play(item) {
     if (item.b) guest.parts.push.apply(guest.parts, item.b);
@@ -280,15 +286,242 @@ window.StickArmyCoop = function (w) {
     guest.parts = w.S.parts;   // updateParts keeps the live ones
     w.S.texts = texts; w.S.tagPulse = pulse;
     if (view.mode === 'play') w.fadeInk(dt);
+    guestScreens(view.mode);
     return true;
   }
-  // What the guest sends: its barrel's aim and trigger.
-  function guestInput() { return guest && guest.aim != null ? { t: 'in', a: Math.round(guest.aim * 1000) / 1000, f: guest.firing || w.keys.fire ? 1 : 0 } : null; }
+  // What the guest sends: its barrel's aim (a) and whether the trigger is down (d). (The room adds f, the sender.)
+  function guestInput() { return guest && guest.aim != null ? { t: 'in', a: Math.round(guest.aim * 1000) / 1000, d: guest.firing || w.keys.fire ? 1 : 0 } : null; }
+
+  // ---------- the match: a room (site/assets/rooms.js, docs/guides/05-rooms.md) ----------
+  // Seat 1 opened the match and runs the game; seat 2 is the guest. "Play with a friend" on the title asks for the
+  // rooms secret, opens a room and shows the link; a friend opening the link waits on the title until the host taps
+  // Start. If the guest drops, its barrel goes quiet and play goes on; if the host drops, the guest waits AWAY_END
+  // seconds for it to come back, then the match is over.
+  var GAME = 'stick-army', HOST_SEAT = 1, AWAY_END = 60;
+  // The guest sends its aim when it changes, at most every IN_EVERY ms, and at least every IN_BEAT ms; the host lets
+  // go of the guest's trigger after IN_LOST ms without word (a phone gone to sleep mid-burst).
+  var IN_EVERY = 50, IN_BEAT = 400, IN_LOST = 1200;
+  var DECOYS = ['Pickle', 'Waffle', 'Taco', 'Pretzel', 'Dumpling', 'Burrito', 'Noodle', 'Nugget', 'Pancake', 'Crouton', 'Biscuit', 'Tater tot'];
+  var room = null, role = null, friend = false, started = false, awaySince = 0, joinPieces = Joiner();
+  var lastIn = 0, sentIn = null, sentInAt = 0, askedAt = -1e9, shownMode = null, flashT = 0, ui = null;
+  var store = {
+    get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+  };
+  function now() { return performance.now(); }
+  function ask(type, k) { if (room) room.send(k === undefined ? { t: type } : { t: type, k: k }); }
+  function hostSend(m) { if (!room || !room.send(m)) resend(); }   // dropped while reconnecting: everything next time
+
+  var CSS = [
+    '.t-chips.coop-four { gap: 6px; }',
+    '.t-chips.coop-four .t-chip { padding: 2px 7px; font-size: 14.5px; white-space: nowrap; }',
+    '.coop-card .btn { font-size: 24px; min-height: 46px; padding: 4px 18px 6px; }',
+    '.coop-card .btn:disabled { opacity: .45; cursor: default; }',
+    '.coop-card .nope { color: var(--enemy); }',
+    '.coop-link { margin: 0; font-size: 15px; line-height: 1.2; color: var(--ink-soft); word-break: break-all; user-select: all; }',
+    '.coop-status { position: absolute; left: 50%; top: 106px; transform: translateX(-50%) rotate(-1deg); margin: 0; padding: 2px 10px 3px; font: 17px var(--font-hand);',
+    '  color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 12px 5px 12px 5px; pointer-events: none; white-space: nowrap; }'
+  ].join('\n');
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function buildUI() {
+    var chips = document.querySelector('.t-chips'), stage = document.getElementById('stage');
+    if (ui || !chips || !stage) return;
+    var style = el('style'); style.textContent = CSS; document.head.appendChild(style);
+    var chip = el('button', 't-chip', 'Play with a friend'); chip.type = 'button'; chip.id = 'coopBtn';
+    chips.appendChild(chip); chips.classList.add('coop-four');
+    var overlay = el('div', 'overlay'); overlay.id = 'coopScreen'; overlay.hidden = true;
+    overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true');
+    var card = el('div', 'card coop-card'); overlay.appendChild(card); stage.appendChild(overlay);
+    var status = el('p', 'coop-status'); status.id = 'coopStatus'; status.hidden = true; status.setAttribute('role', 'status'); stage.appendChild(status);
+    ui = { chip: chip, overlay: overlay, card: card, status: status };
+    chip.addEventListener('click', function () { if (w.sound.init) w.sound.init(); askSecret(false); });
+  }
+  // A card: a title (its second part in blue pen), lines, and buttons ({ label, fn, ghost, off }).
+  function showCard(title, lines, buttons, kind) {
+    if (!ui) return;
+    var c = ui.card; c.textContent = '';
+    var h = el('h2', null, title[0]); if (title[1]) h.appendChild(el('span', 'pen', title[1])); c.appendChild(h);
+    (lines || []).forEach(function (l) { if (!l) return; c.appendChild(typeof l === 'string' ? el('p', 'tag', l) : l); });
+    var row = el('div', 'row');
+    (buttons || []).forEach(function (b) {
+      var btn = el('button', 'btn' + (b.ghost ? ' ghost' : ''), b.label); btn.type = 'button'; btn.disabled = !!b.off;
+      if (b.id) btn.id = b.id;
+      btn.addEventListener('click', function () { if (w.sound.play) w.sound.play('click'); b.fn(); });
+      row.appendChild(btn);
+    });
+    if (row.children.length) c.appendChild(row);
+    ui.overlay.hidden = false; ui.kind = kind || null;
+    var first = row.querySelector('button:not(:disabled)'); if (first) first.focus({ preventScroll: true });
+  }
+  function hideCard() { if (ui) { ui.overlay.hidden = true; ui.kind = null; } }
+  function status(text) { if (ui) { ui.status.textContent = text || ''; ui.status.hidden = !text; } }
+  function forget() { history.replaceState(null, '', location.pathname + location.search); }
+
+  // ---------- starting a match (the host) ----------
+  function askSecret(wrong) {
+    leaveRoom();
+    var line = el('p', 'tag' + (wrong ? ' nope' : ''), wrong ? "Nope. That's not the secret." : 'Starting a match takes the secret word.');
+    var pool = DECOYS.slice(), picks = ['Meatball'];
+    while (picks.length < 3) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    picks.sort(function () { return Math.random() - 0.5; });
+    showCard(['Play with a ', 'friend'], [line], picks.map(function (word) { return { label: word, ghost: true, fn: function () { openRoom(word); } }; })
+      .concat([{ label: 'Cancel', ghost: true, fn: cancel }]), 'secret');
+  }
+  function openRoom(word) {
+    showCard(['Play with a ', 'friend'], ['Checking the secret…'], [], 'checking');
+    role = 'host';
+    var r = Rooms.open({ game: GAME, max: 2, secret: word.toLowerCase() });
+    store.set('stickarmy.coop.host.' + r.code, '1');
+    use(r);
+  }
+  function invite() {
+    if (role !== 'host' || started) return;
+    var link = el('p', 'coop-link', room ? room.link : '');
+    var share = navigator.share ? { label: 'Send link', fn: function () { Rooms.share({ title: 'Stick Army', text: 'Defend the page with me.', url: room.link }); } }
+      : { label: 'Copy link', fn: function () { Rooms.copy(room.link).then(function (r) { if (r === 'copied') status('Link copied'); setTimeout(function () { status(''); }, 1500); }); } };
+    share.ghost = friend;
+    showCard(['Send the ', 'link'], [link, friend ? 'Your friend is here!' : 'Waiting for your friend…',
+      'You get the blue barrel, your friend the red one. You play ' + w.lv().NAME + ', your pick.'],
+      [share, { label: 'Start', fn: startMatch, off: !friend, id: 'coopStart' }, { label: 'Cancel', ghost: true, fn: cancel }], 'invite');
+  }
+  function startMatch() {
+    if (role !== 'host' || !friend) return;
+    hideCard();
+    w.RUN.players = 2; w.me = 0;
+    w.newGame();
+    started = true;
+    startHost(hostSend);
+    fx('x');   // a fresh page for the guest too
+    lastIn = now();
+  }
+  function cancel() { leaveRoom(); forget(); hideCard(); status(''); }
+  function leaveRoom() {
+    if (room) { room.leave(); room = null; }
+    role = null; friend = false; started = false; awaySince = 0;
+    if (host) { stopHost(); w.RUN.players = 1; }
+    if (guest) { stopGuest(); w.me = 0; }
+  }
+
+  // ---------- the room's events ----------
+  function use(r) {
+    room = r;
+    r.on('ready', function () {
+      friend = r.others.length > 0;
+      if (role === 'host') { if (!started) invite(); else resend(); }
+      else { if (!started) showCard(['Waiting for your ', 'friend'], ["You're in. Your friend starts the match.", 'You get the red barrel.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting'); ask('hi'); }
+    });
+    r.on('join', function (seat) {
+      if (role === 'host') { friend = true; if (started) { resend(); flash('Your friend is back'); } else invite(); }
+      else if (seat === HOST_SEAT) { awaySince = 0; if (ui && ui.kind === 'away') hideCard(); status(''); ask('hi'); }
+    });
+    r.on('leave', function (seat) {
+      if (role === 'host') {
+        friend = false;
+        if (started) { var t = w.S.turrets && w.S.turrets[1]; if (t) t.firing = false; status('Your friend dropped out'); } else invite();
+      } else if (seat === HOST_SEAT) {
+        if (started) { awaySince = now(); away(); }
+        else showCard(['Waiting for your ', 'friend'], ['Your friend left. They can come back with the same link.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting');
+      }
+    });
+    r.on('status', function (st) {
+      if (st === 'reconnecting') status('Reconnecting…');
+      else if (st === 'connected') { status(role === 'host' && started && !friend ? 'Your friend dropped out' : ''); if (role === 'host') resend(); else ask('hi'); }
+    });
+    r.on('refused', function (reason) {
+      if (reason === 'nope') return askSecret(true);
+      started = false;
+      var why = reason === 'full' ? 'Two people are already playing this match.' : reason === 'replaced' ? 'This match is open in another tab or window.'
+        : reason === 'wrong-game' ? "That link is for a different game." : "Ask your friend to start a new one and send you the link.";
+      showCard([reason === 'replaced' ? 'Open somewhere ' : "This match isn't ", reason === 'replaced' ? 'else' : 'open'], [why], [{ label: 'OK', fn: leaveToTitle }], 'refused');
+    });
+    r.on('message', function (m, from) {
+      if (role === 'host') {
+        if (m.t === 'in') { lastIn = now(); hostInput(m); }
+        else if (m.t === 'call' && w.S.mode === 'play') { if (m.k === 'bomber') w.callStrike(); else if (m.k === 'fighter') w.callFighter(); }
+        else if (m.t === 'pause' && (w.S.mode === 'play' || w.S.mode === 'paused')) w.togglePause();
+        else if (m.t === 'hi') resend();
+      } else if (from === HOST_SEAT) {
+        var whole = joinPieces(m);
+        if (!whole || whole.t !== 'f') return;
+        if (!guest) beginGuest();
+        if (!receive(whole, now()) && now() - askedAt > 500) { askedAt = now(); ask('hi'); }
+      }
+    });
+  }
+  function flash(text) { status(text); flashT = now() + 2000; }
+  function leaveToTitle() { leaveRoom(); forget(); location.reload(); }
+  function away() {
+    var left = Math.max(0, Math.ceil(AWAY_END - (now() - awaySince) / 1000));
+    if (left <= 0) {
+      var S = w.S;
+      showCard(['The match is ', 'over'], ['Your friend didn\'t come back.', S && S.score != null ? 'Score: ' + Number(S.score).toLocaleString('en-US') + ', wave ' + S.wave + '.' : ''],
+        [{ label: 'Back to the title', fn: leaveToTitle }], 'ended');
+      awaySince = 0;
+      return;
+    }
+    if (!ui || ui.kind !== 'away' || ui.left !== left) {
+      showCard(['Waiting for your ', 'friend'], ['Your friend dropped out. The game waits for them.', left + ' s'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'away');
+      ui.left = left;
+    }
+  }
+  // The guest's first snapshot: from now on this page draws the host's game.
+  function beginGuest() {
+    startGuest();
+    w.me = 1; started = true; shownMode = null;
+    hideCard();
+    var sc = w.screens();
+    sc.title.hidden = true; sc.pauseBtn.hidden = false;
+    // Only the host starts runs over.
+    ['restartBtn', 'againBtn', 'winAgainBtn', 'keepBtn'].forEach(function (id) { var b = document.getElementById(id); if (b) b.hidden = true; });
+    w.fit();
+  }
+  // The guest's cards follow the host's game.
+  function guestScreens(mode) {
+    if (mode === shownMode) return;
+    var sc = w.screens(), was = shownMode;
+    shownMode = mode;
+    sc.pause.hidden = mode !== 'paused';
+    if (mode === 'paused') w.fillPause();
+    sc.pauseBtn.hidden = mode !== 'play';
+    if (mode === 'shop') showCard(['Field ', 'supplies'], ['Your friend is at the supply table.'], [], 'shop');
+    else if (mode === 'over' || mode === 'won') {
+      var S = w.S;
+      showCard(mode === 'won' ? ['The page is ', 'yours!'] : ['Wall ', 'down!'], ['Score: ' + Number(S.score).toLocaleString('en-US') + ', wave ' + S.wave + '.', 'Waiting for your friend to play again.'],
+        [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'end');
+    } else if (was === 'shop' || was === 'over' || was === 'won') { if (ui && (ui.kind === 'shop' || ui.kind === 'end')) hideCard(); }
+  }
+  // Each frame: the guest's aim to the host, the host letting go of a silent guest's trigger, the status line.
+  function tick(t) {
+    if (flashT && t > flashT) { flashT = 0; status(role === 'host' && started && !friend ? 'Your friend dropped out' : ''); }
+    if (guest && room) {
+      if (awaySince) away();
+      var m = guestInput();
+      if (m) {
+        var changed = !sentIn || Math.abs(m.a - sentIn.a) > 0.002 || m.d !== sentIn.d;
+        if ((changed && t - sentInAt >= IN_EVERY) || t - sentInAt >= IN_BEAT) { if (room.send(m)) { sentIn = m; sentInAt = t; } }
+      }
+    }
+    if (host) { var g = w.S.turrets && w.S.turrets[1]; if (g && g.firing && t - lastIn > IN_LOST) g.firing = false; }
+  }
+
+  // Opened from a friend's link: join it. A host whose page reloaded comes back as the host, with the link card.
+  function init() {
+    if (!window.Rooms) return;
+    buildUI();
+    var code = Rooms.codeFromLink();
+    if (!code) return;
+    role = store.get('stickarmy.coop.host.' + code) ? 'host' : 'guest';
+    var r = Rooms.join({ game: GAME });
+    if (!r) { role = null; return; }
+    showCard([role === 'host' ? 'Back to your ' : 'Joining your ', 'friend'], ['Connecting…'], [{ label: 'Cancel', ghost: true, fn: leaveToTitle }], 'joining');
+    use(r);
+  }
 
   return {
     Encoder: Encoder, Decoder: Decoder, lerp: lerp, LEAVE: LEAVE, EVERY: EVERY, DELAY: DELAY, pieces: pieces, Joiner: Joiner,
     startHost: startHost, stopHost: stopHost, resend: resend, fx: fx, hostTick: hostTick, hostInput: hostInput,
     startGuest: startGuest, stopGuest: stopGuest, receive: receive, guestFrame: guestFrame, guestInput: guestInput,
+    init: init, tick: tick, ask: ask, startMatch: startMatch, get room() { return room; }, get role() { return role; },
     get host() { return !!host; }, get guest() { return !!guest; }
   };
 };

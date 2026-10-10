@@ -134,7 +134,7 @@ with sync_playwright() as p:
     # The guest's barrel: it turns at once on the guest and its aim and trigger reach the host.
     js(guest, 'keys.left = true; COOP.guestFrame(0.3, COOP.DELAY); keys.left = false; S.turrets[1].firing = true; COOP.guestFrame(0, COOP.DELAY); "ok"')
     sent = js(guest, 'COOP.guestInput()')
-    check(sent and sent['f'] == 1, 'the guest sends its aim and trigger: %s' % sent)
+    check(sent and sent['d'] == 1, 'the guest sends its aim and trigger: %s' % sent)
     js(host, 'COOP.hostInput(%s, 2); "ok"' % json.dumps(sent))
     on_host = js(host, '[S.turrets[1].aim, S.turrets[1].firing]')
     check(abs(on_host[0] - sent['a']) < 1e-9 and on_host[1], 'the host turns and fires the guest barrel')
