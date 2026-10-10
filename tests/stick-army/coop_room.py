@@ -141,6 +141,21 @@ with Phones() as phones:
     wait(host, "() => armyTest('S.mode') === 'play'", 10000)
     check(True, 'the host comes back, its game plays on and the guest with it')
 
+    # A wave that starts while the host is offline (both Ready in the shop) pauses at once.
+    js(host, 'S.coins = 50; openShop(); "ok"')
+    wait(guest, "() => !document.getElementById('shopScreen').hidden && !!document.getElementById('coopReady')")
+    guest.click('#continueBtn')
+    wait(host, "() => armyTest('!!(S.shop && S.shop.ready && S.shop.ready[1])')")
+    host.context.set_offline(True)
+    wait(host, "() => armyTest('COOP.room.status') !== 'connected'", 25000)
+    host.click('#continueBtn')
+    wait(host, "() => armyTest('S.mode') === 'paused'", 5000)
+    check(True, 'a wave started while the host is offline pauses at once')
+    host.context.set_offline(False)
+    wait(host, "() => armyTest('S.mode') === 'play'", 20000)
+    wait(guest, "() => document.getElementById('shopScreen').hidden && armyTest('COOP.guest && S.mode === \"play\"')", 15000)
+    check(True, 'and plays once the host is back, the guest with it')
+
     # A host back after the guest has called the match over: the guest rejoins its game. (The host plays on unseen
     # for the 8-10 s its connection takes to notice it's gone, so the wall is made to last through it.)
     js(host, 'S.mods.maxHP = S.wallHP = 1e6; "ok"')

@@ -169,7 +169,8 @@ window.StickArmyCoop = function (w) {
   // ---------- the host: sends the field ----------
   // fx: effects that don't live in S, noted where they happen (game.js hooks addDecal, washDecals and the ink cleared
   // for a new run; sounds and voices are caught here): ['d', decal], ['w', fade], ['x'] (clear the ink), ['s', sound],
-  // ['v', [say's arguments]].
+  // ['v', [say's arguments]]. A full resend starts with ['k', every mark on the page], so a guest joining or coming back
+  // gets the page's ink too.
   var host = null, QUIET = { click: 1, press: 1 };
   function startHost(send) {
     host = { enc: Encoder(), seen: new WeakSet(), fx: [], last: -1e9, send: send, fresh: true };
@@ -195,7 +196,12 @@ window.StickArmyCoop = function (w) {
     if (!host || (!force && now - host.last < EVERY)) return null;
     host.last = now;
     var S = w.S, enc = host.enc, pick = {}, key;
-    if (host.fresh) { enc.reset(); host.fresh = false; }
+    if (host.fresh) {
+      enc.reset(); host.fresh = false;
+      // Marks, washes and clears since the last message are already in the history this replaces them with.
+      host.fx = host.fx.filter(function (f) { return f[0] !== 'd' && f[0] !== 'w' && f[0] !== 'x'; });
+      host.fx.unshift(['k', w.decals().slice()]);
+    }
     for (key in S) if (!LEAVE[key]) pick[key] = S[key];
     pick._tramps = w.TRAMPS.map(function (t) { return t.dip; });
     var born = S.parts.filter(function (q) { return !host.seen.has(q); });
@@ -251,6 +257,7 @@ window.StickArmyCoop = function (w) {
       if (f[0] === 'd') w.addDecal(f[1]);
       else if (f[0] === 'w') w.washDecals(f[1]);
       else if (f[0] === 'x') w.clearInk();
+      else if (f[0] === 'k') { w.clearInk(); (f[1] || []).forEach(function (d) { w.addDecal(d); }); }
       else if (f[0] === 's') snd.play(f[1]);
       else if (f[0] === 'v' && snd.say) snd.say.apply(snd, f[1]);
     });
@@ -307,7 +314,7 @@ window.StickArmyCoop = function (w) {
   var IN_EVERY = 50, IN_BEAT = 400, IN_LOST = 1200;
   var DECOYS = ['Pickle', 'Waffle', 'Taco', 'Pretzel', 'Dumpling', 'Burrito', 'Noodle', 'Nugget', 'Pancake', 'Crouton', 'Biscuit', 'Tater tot'];
   var room = null, role = null, friend = false, started = false, awaySince = 0, joinPieces = Joiner();
-  var lastIn = 0, sentIn = null, sentInAt = 0, askedAt = -1e9, shownMode = null, flashT = 0, ui = null, netPaused = false;
+  var lastIn = 0, sentIn = null, sentInAt = 0, askedAt = -1e9, shownMode = null, flashT = 0, ui = null, netPaused = false, netResumed = false;
   var store = {
     get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
@@ -436,15 +443,13 @@ window.StickArmyCoop = function (w) {
         else showCard(['Waiting for your ', 'friend'], ['Your friend left. They can come back with the same link.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting');
       }
     });
-    // A host that loses the room pauses its game, since its friend can't see it any more; it plays on once it's back,
-    // unless someone paused it meanwhile (netPaused is only the pause the connection made).
+    // A host that loses the room pauses its game (netPause, every frame); it plays on once it's back, unless someone
+    // paused it meanwhile (netPaused is only the pause the connection made).
     r.on('status', function (st) {
-      if (st === 'reconnecting') {
-        status('Reconnecting…');
-        if (role === 'host' && host && w.S.mode === 'play') { w.togglePause(); netPaused = true; }
-      } else if (st === 'connected') {
+      if (st === 'reconnecting') status('Reconnecting…');
+      else if (st === 'connected') {
         status(role === 'host' && started && !friend ? 'Your friend dropped out' : '');
-        if (role === 'host') { resend(); if (netPaused && w.S.mode === 'paused') w.togglePause(); netPaused = false; } else ask('hi');
+        if (role === 'host') { resend(); if (netPaused && w.S.mode === 'paused') w.togglePause(); netPaused = netResumed = false; } else ask('hi');
       }
     });
     r.on('refused', function (reason) {
@@ -590,8 +595,16 @@ window.StickArmyCoop = function (w) {
     var t = sideBySide(S); t.id = 'coopTable-' + (mode === 'won' ? 'win' : 'over');
     card.parentNode.insertBefore(t, card.nextSibling);
   }
+  // While the host's room is down, its game doesn't play: any play (a wave started from the shop, a resume) pauses at
+  // once. A host who resumes by hand while still offline (netResumed) plays on alone.
+  function netPause() {
+    if (!host || !room || room.status === 'connected' || w.S.mode !== 'play' || netResumed) return;
+    if (netPaused) { netResumed = true; return; }
+    w.togglePause(); netPaused = true;
+  }
   // Each frame: the guest's aim to the host, the host letting go of a silent guest's trigger, the status line.
   function tick(t) {
+    netPause();
     if (flashT && t > flashT) { flashT = 0; status(role === 'host' && started && !friend ? 'Your friend dropped out' : ''); }
     if (guest && room) {
       if (awaySince) away();

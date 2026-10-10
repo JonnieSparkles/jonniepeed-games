@@ -865,7 +865,7 @@
   // Co-op (coop.js, an add-on: without it, COOP is null and every hook below does nothing).
   world.TRAMPS = TRAMPS; world.keys = keys; world.AIM_MIN = AIM_MIN; world.AIM_MAX = AIM_MAX; world.RUN = RUN;
   world.setState = function (o) { S = o; }; world.resizeMats = function () { resizeMats(); }; world.clearInk = function () { clearInk(); };
-  world.updateParts = function (dt) { updateParts(dt); }; world.fadeInk = function (dt) { fadeInk(dt); };
+  world.updateParts = function (dt) { updateParts(dt); }; world.fadeInk = function (dt) { fadeInk(dt); }; world.decals = function () { return decals; };
   Object.defineProperty(world, 'me', { get: function () { return me; }, set: function (v) { me = v; } });
   world.fit = function () { fit(); }; world.fillPause = function () { fillPause(); }; world.togglePause = function () { togglePause(); };
   world.newGame = function () { newGame(); }; world.ITEMS = ITEMS; world.renderShop = function () { SHOP.renderShop(); }; world.continueWave = function () { continueWave(); };

@@ -140,5 +140,14 @@ with sync_playwright() as p:
     on_host = js(host, '[S.turrets[1].aim, S.turrets[1].firing]')
     check(abs(on_host[0] - sent['a']) < 1e-9 and on_host[1], 'the host turns and fires the guest barrel')
 
+    # A guest joining or coming back gets the page's ink with the whole field (a fresh start on the guest page).
+    js(guest, 'COOP.stopGuest(); clearInk(); COOP.startGuest(); window.feed = (function (join) { return function (list) { list.forEach(function (m) { var w = join(JSON.parse(m)); if (w) COOP.receive(w, 0); }); }; })(COOP.Joiner()); "ok"')
+    js(host, 'window.sent = []; COOP.resend(); step(1)')
+    msgs = js(host, 'var out = window.sent; window.sent = []; out')
+    guest.evaluate('([list]) => armyTest("feed(" + JSON.stringify(list) + ")")', [msgs])
+    js(guest, 'COOP.guestFrame(1 / 60, COOP.DELAY); "ok"')
+    marks, host_marks = js(guest, 'decals.length'), js(host, 'decals.length')
+    check(host_marks > 0 and abs(marks - host_marks) <= 2, 'a fresh resend brings the page\'s ink: %d marks, the host %d' % (marks, host_marks))
+
     check(not host.errors and not guest.errors, 'no page errors %s %s' % (host.errors[:2], guest.errors[:2]))
     browser.close()
