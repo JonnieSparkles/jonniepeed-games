@@ -39,9 +39,10 @@ Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 
 ## Controls
 
-Five inputs, the same on every floor, laid out like an old game pad:
+Six inputs, the same on every floor, laid out like an old game pad:
 
-- **Move** left and right and **jump** on a D-pad (the up arrow jumps). Keys: A/D or the arrows, W, Up or Space.
+- **Move** left and right, **jump** and **crouch** on a thumb stick that floats where the thumb lands: slide to move, flick up to jump, hold down to crouch. Keys: A/D or the arrows, W, Up or Space, S or Down.
+- **Crouch** (on the ground): half height, so things at head height pass over, but no moving or shooting. On a pulling runner it grips the rug and slows the drag.
 - **Shoot** (hold to keep firing). Keys: Shift or ', or J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
 - **Slash** (Enter, or K or X). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 
@@ -56,7 +57,7 @@ A corridor floor of about two minutes, then the Shredder.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
   - **AUDIT!**: a deflect round. The temps all stand and lob paperwork; each one knocked back counts double.
-  - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap, a snake).
+  - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap at head height to duck, a snake).
   - **Lights out**: only monitors, eyes and paper show, and blaster bolts light up the hall as they fly. Formations and single carpshits keep coming out of the dark, and every soul freed in it counts double.
   - Wiping out a whole formation pays a bonus soul for each carpshit in it.
   - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
@@ -64,11 +65,12 @@ A corridor floor of about two minutes, then the Shredder.
   - Pickups float at jump height, lit by a beam from the ceiling: coffee (a heart back) and the Spread Shot. A streak of 10 kills drops a Spread Shot.
   - Each beat and event drops its own sign from the ceiling and has its own music, with stings for the events. No banners across the hall during play.
   - Paper blows down the corridor the whole time.
-- **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, or slash while standing on it to cut the rug and stop it. The first pull shows a prompt.
+- **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, slash while standing on it to cut the rug and stop it, or crouch to grip it and slow the drag. The first pull shows a prompt.
 - **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner. An old-school card names it while its health bar fills.
   - In every phase the runner pulls on a steady beat, and cutting the rug jams it: blaster shots do triple damage while it's jammed. Ride the rug in close before cutting and the jam lasts longer, and paper knocked back from close hits harder.
   - From phase 2, some pulls spray staples down both sides of the hall, so you choose: ride the rug toward the mouth, or jump staples at the side.
   - Its mouth glows red just before every attack.
+  - In every phase it throws a flight of paper airplanes across the hall at head height: duck, or slash them back.
   - Phase 1: it spits wads of shredded paper (deflect them into its mouth for heavy damage) and quick volleys of smaller scraps to knock back tap-tap-tap.
   - Phase 2: staple fans you have to dodge or deflect, paper jam sheets across the floor to jump, and longer pulls.
   - Phase 2 starts the rallies: it serves a white-hot bundle and bats your deflects back, quicker each time, until it misses for a smash.

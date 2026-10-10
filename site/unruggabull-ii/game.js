@@ -62,7 +62,9 @@
     // phase 3's power surge knocks the blaster up the rug (it flies this long); a smash rolls the rug back toward you at this
     // speed for this long, shoving anyone on it to the back of the hall and pinning them; the rewind attack rolls it back too
     surgeFly: .6, roll: { dur: 1.6, speed: .5, pin: .3 }, rewindT: 1.4,
-    darkFormEvery: 2.2      // lights out sends a formation this often
+    darkFormEvery: 2.2,     // lights out sends a formation this often
+    crouchH: .1, grip: .25, // crouched he's half height; gripping a pulling rug, it drags him at a quarter of the speed
+    planeT: 1.6, planeDmg: 2   // the Shredder's paper airplanes at head height: duck them, or slash them back
   };
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
@@ -187,7 +189,7 @@
     const F = { n: 0, killed: 0, lost: false }, fid = (R.forms || (R.forms = [])).push(F);
     const add = (u, dz, extra) => { F.n++; R.flies.push(Object.assign({ u, z: 1 + dz, h: .36, hp: 1, ph: rnd() * 6, hit: 0, dead: false, form: kind, fid }, extra)); };
     if (kind === 'v') { const c0 = rr(-.3, .3); [[0, 0], [-.18, .07], [.18, .07], [-.36, .14], [.36, .14]].forEach(([o, dz]) => add(clamp(c0 + o, -.75, .75), dz)); }
-    else if (kind === 'line') { const gap = Math.floor(rnd() * 5); [-.6, -.3, 0, .3, .6].forEach((u, i) => { if (i !== gap) add(u, 0); }); }
+    else if (kind === 'line') { const gap = Math.floor(rnd() * 5); [-.6, -.3, 0, .3, .6].forEach((u, i) => { if (i !== gap) add(u, 0, { high: true }); }); }   // a line comes in at head height: duck
     else { const ph = rnd() * 6; for (let i = 0; i < 6; i++) add(0, i * .08, { snake: ph - i * .7 }); }
   }
   // Between beats: an AUDIT (every temp stands up at once) or the lights go out. Each drops its own sign
@@ -355,7 +357,8 @@
         f.z -= (.34 + R.speed * .4) * dt;
         f.u = clamp(f.u + clamp(bull.u - f.u, -.3, .3) * dt * .9 + Math.sin(R.t * 3 + f.ph) * .12 * dt, -.75, .75);
       }
-      if (f.z < .45) f.h += (.12 - f.h) * Math.min(1, dt * 2.5);
+      if (f.z < .45) f.h += ((f.high ? .22 : .12) - f.h) * Math.min(1, dt * 2.5);
+      if (f.high && f.z < .6) duckHint();
       f.hit = Math.max(0, f.hit - dt);
       if (!f.dead && Math.abs(f.z - bull.bz) < .045 && Math.abs(f.u - bull.u) < .12 && overlaps(f.h, .05)) {
         if (hurtBull(1, f.form ? 'formation' : 'carpshit')) { f.dead = true; poof(f.u, f.z, f.h); formLost(f); }
@@ -365,7 +368,7 @@
     R.flies = R.flies.filter(f => !f.dead);
   }
   // Does something at height h (give or take half) touch Unruggabull, who stands about .2 of the hall tall?
-  const overlaps = (h, half) => h + half > bull.jh && h - half < bull.jh + .2;
+  const overlaps = (h, half) => h + half > bull.jh && h - half < bull.jh + (bull.crouch ? TUNE.crouchH : .2);
 
   // ---------- projectiles: paper wads, shredded-paper bundles, staples ----------
   function launch(kind, from, to, dur, extra) {
@@ -428,7 +431,7 @@
             popText('SMASH! -' + dmg, 120, BACK.y0 - 2, '#ffd44a'); live('Smash! The Shredder misses the return.');
             for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
           } else if (b.st === 'fight') {
-            const base = p.kind === 'bundle' ? TUNE.bundleDmg : p.kind === 'scrap' ? TUNE.scrapDmg : TUNE.stapleDmg, dmg = Math.round(base * (p.power || 1) * 10) / 10;
+            const base = p.kind === 'bundle' ? TUNE.bundleDmg : p.kind === 'scrap' ? TUNE.scrapDmg : p.kind === 'plane' ? TUNE.planeDmg : TUNE.stapleDmg, dmg = Math.round(base * (p.power || 1) * 10) / 10;
             bossDamage(dmg, 'deflect'); popText('-' + dmg, PX(p.u, .95), YH(.95, .3), p.power > 1.4 ? '#ff9628' : '#ffd44a');
           }
           poof(p.u, .97, p.h);
@@ -444,10 +447,11 @@
   }
 
   // ---------- Unruggabull ----------
-  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false };
+  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, kbDown: false, padDown: false };
   const input = { jump: 0, slash: 0, shoot: 0 };   // buffered presses, in seconds left
   const moveDir = () => ((keys.kbRight || keys.padRight) ? 1 : 0) - ((keys.kbLeft || keys.padLeft) ? 1 : 0);
   const shooting = () => keys.kbShoot || keys.padShoot;
+  const crouchHeld = () => keys.kbDown || keys.padDown;
   function press(k) { if (state !== 'play') return; if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12; }
   const onRunner = () => Math.abs(bull.u) < TUNE.runner && bull.jh < .03 && !bull.mouth && !bull.spat;
   function updateBull(dt) {
@@ -459,9 +463,11 @@
     if (b.mouth > 0) { b.mouth -= dt; if (b.mouth <= 0) { b.mouth = 0; b.spat = .45; b.inv = Math.max(b.inv, 1.6); } return; }
     if (b.spat > 0) { b.spat = Math.max(0, b.spat - dt); b.bz = Math.max(0, b.bz - dt * 2); b.jh = Math.sin(b.spat / .45 * Math.PI) * .1; return; }
     b.pin = Math.max(0, (b.pin || 0) - dt);
-    const dir = R.phase === 'win' || b.pin > 0 ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
+    // crouched (on the ground only): half height, no moving or shooting; on a pulling rug he grips it
+    b.crouch = crouchHeld() && b.jh <= 0 && R.phase !== 'win';
+    const dir = R.phase === 'win' || b.pin > 0 || b.crouch ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
     b.u = clamp(b.u + dir * TUNE.move * dt, -TUNE.aisle, TUNE.aisle);
-    if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; Snd.play('jump'); }
+    if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; b.crouch = false; Snd.play('jump'); }
     b.sq = (b.sq || 0) > 0 ? Math.max(0, b.sq - dt) : Math.min(0, (b.sq || 0) + dt);   // squash on landing, stretch on takeoff
     if (b.jh > 0) {
       b.jv -= GRAV * dt; b.jh += b.jv * dt;
@@ -469,12 +475,16 @@
     }
     if (input.slash > 0 && b.cd <= 0) { input.slash = 0; slash(); }
     if (b.slash >= 0 && b.slash < TUNE.deflectWindow) slashHits();
-    if (R.pull.st === 'on' && onRunner()) { b.bz += TUNE.pullSpeed * dt; if (b.bz >= TUNE.mouth) draggedIn(); }
+    if (R.pull.st === 'on' && onRunner()) {
+      b.bz += TUNE.pullSpeed * (b.crouch ? TUNE.grip : 1) * dt;
+      if (b.crouch) { if (!R.events.gripped) { R.events.gripped = true; popText('GRIP!', PX(b.u, b.bz), YH(b.bz, .2), '#ffd44a'); } if (Math.random() < dt * 10) R.fx.push({ k: 'dust', x: PX(b.u, b.bz) + fxr(-5, 5), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .25 }); }
+      if (b.bz >= TUNE.mouth) draggedIn();
+    }
     else b.bz = Math.max(0, b.bz - TUNE.recover * dt);
     if (R.speed > .02 || dir || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
     // the blaster: hold Shoot to keep firing, or tap for one shot
     R.fireT -= dt;
-    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
+    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !b.crouch && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
   }
   function slash() {
     bull.slash = 0; bull.cd = TUNE.slashCd;
@@ -594,7 +604,7 @@
     } else if (P.st === 'warn') {
       if (P.t >= .9) {
         P.st = 'on'; P.t = 0; P.dur = pullDur(); P.count++; P.snd = 0;
-        if (P.count === 1) { R.banner = { text: 'STEP OFF THE RUG', sub: 'OR SLASH TO CUT IT', t: 0, dur: 99, pull: true }; live('The runner rug is pulling you toward the shredder. Step off it, or slash to cut the rug.'); }
+        if (P.count === 1) { R.banner = { text: 'STEP OFF THE RUG', sub: 'SLASH TO CUT IT, CROUCH TO GRIP', t: 0, dur: 99, pull: true }; live('The runner rug is pulling you toward the shredder. Step off it, slash to cut the rug, or crouch to grip it.'); }
         else if (R.phase === 'boss' && !P.spray && !R.events.jamHint && !R.talk) { R.events.jamHint = true; R.banner = { text: 'CUT THE RUG', sub: 'TO JAM THE SHREDDER', t: 0, dur: 99, pull: true }; live('Cut the rug to jam the shredder.'); }
       }
     } else if (P.st === 'on') {
@@ -684,16 +694,28 @@
     launch('scrap', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.volley.dur, { w: .06, hh: .04 });
     R.boss.spit = .2; Snd.play('spit');
   }
+  // A flight of paper airplanes at head height, spread right across the hall: no stepping round it. Duck, or slash
+  // the ones in front of you back into its mouth.
+  function throwPlanes() {
+    for (let i = -2; i <= 2; i++) launch('plane', { u: i * .1, z: .95, h: .2 }, { u: clamp(bull.u + i * .3, -.7, .7), z: bull.bz, h: .21 }, TUNE.planeT, { w: .06, hh: .03 });
+    R.boss.spit = .3; Snd.play('spit'); duckHint();
+  }
+  function duckHint() {
+    if (R.events.duckHint || R.talk || (R.banner && R.banner.pull)) return;
+    R.events.duckHint = true; R.banner = { text: 'DUCK!', sub: 'HOLD DOWN TO CROUCH', t: 0, dur: 2, pull: true };
+    live('Duck: hold down to crouch under things at head height.');
+  }
   // Rows from its mouth that cover the whole floor: a paper jam sheet, or a carpet of staples. Jump them.
   function spitRow(kind) {
     R.rows.push({ w: R.dist + .93, kind, hit: 0, v: TUNE.bossRows[kind] });
     R.boss.spit = .35; Snd.play('spit');
   }
   // Each phase cycles through its own attacks.
-  const ATTACKS = [['bundle', 'volley'], ['fan', 'bundle', 'rally', 'sheet', 'volley'], ['rally', 'surge', 'rally', 'rewind', 'fan', 'volley', 'carpet']];
+  const ATTACKS = [['bundle', 'volley', 'planes'], ['fan', 'bundle', 'rally', 'planes', 'sheet', 'volley'], ['rally', 'surge', 'rally', 'rewind', 'planes', 'fan', 'volley', 'carpet']];
   function attack(kind) {
     if (kind === 'bundle') spitBundle();
     else if (kind === 'volley') R.boss.volley = { left: TUNE.volley.n[R.boss.ph - 1], t: 0 };
+    else if (kind === 'planes') throwPlanes();
     else if (kind === 'fan') spitFan();
     else if (kind === 'sheet' || kind === 'carpet') spitRow(kind);
     else if (kind === 'surge') { if (R.armed === false) serveRally(); else surge(); }
@@ -1161,7 +1183,7 @@
   // The Shredder's wads of shredded paper spin in quarter turns and shed strips behind them; the rally's wad has a
   // white-hot edge inside the red. Paper you knocked back loses the edge, throws a shadow and sparkles blue.
   function drawProj(p) {
-    const s = sc(p.z), bundle = p.kind === 'bundle' || p.kind === 'scrap', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : A.STAPLE;
+    const s = sc(p.z), bundle = p.kind === 'bundle' || p.kind === 'scrap', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : p.kind === 'plane' ? A.PLANE : A.STAPLE;
     const big = (p.kind === 'scrap' ? .6 : 1) * (p.friendly ? 1 : bundle ? (p.rally ? 1.4 : 1.2) : 1.35), blink = Math.floor(R.t * 10 + p.spin) % 2;
     const w = Math.max(2, Math.round(img.width * s * big)), h = Math.max(1, Math.round(img.height * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
     if (p.friendly) shadow(p.u, p.z, img.width * .8);
@@ -1271,7 +1293,8 @@
     const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
     let p = P.stand;
     const cheer = R.phase === 'win' && !(R.slow > 0) && R.phaseT > .5 && !air;
-    if (b.slash >= 0) p = b.slash < .07 ? (air ? P.jumpWind : P.wind) : (air ? P.jumpCut : P.cut);
+    if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : P.crouch;
+    else if (b.slash >= 0) p = b.slash < .07 ? (air ? P.jumpWind : P.wind) : (air ? P.jumpCut : P.cut);
     else if (b.inv > TUNE.hurtInv - .3 && R.phase !== 'win') p = P.hurt;
     else if (air) p = aim ? P.jumpAim : P.jump;
     else if (aim) p = kick ? P.kick : running ? (stride ? P.runAimA : P.runAimB) : P.aim;
@@ -1750,23 +1773,24 @@
   // Right hand: Shift or ' shoots, Enter slashes, with J/K and Z/X as alternatives.
   const CODES = {
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
+    ArrowDown: 'down', KeyS: 'down',
     ShiftLeft: 'shoot', ShiftRight: 'shoot', Quote: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot',
     Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash'
   };
   const NAMES = {
     ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
-    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump',
+    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', ArrowDown: 'down', s: 'down', S: 'down',
     Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
     k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };
   const KEYS = { get: e => CODES[e.code] || NAMES[e.key] };
-  function clearHeld() { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = false; padPointers.clear(); padSync(); }
+  function clearHeld() { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; padPointers.clear(); padSync(); stickOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = KEYS.get(e);
     if (state === 'play' && k) {
       e.preventDefault();
-      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true;
+      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true;
       else { if (k === 'shoot') keys.kbShoot = true; if (!e.repeat) press(k); }
       return;
     }
@@ -1784,11 +1808,11 @@
       else if (e.key === 'Escape' && isFull() && !nativeFull()) setFull(false);
     }
   });
-  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; });
-  addEventListener('blur', () => { keys.kbLeft = keys.kbRight = keys.kbShoot = false; });
+  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; });
+  addEventListener('blur', () => { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; });
 
-  // Touch pads: a D-pad on the left (jump is the up arrow) and Shoot and Slash on the right. Each finger is tracked,
-  // so a thumb can slide between pads; jump, slash and shoot act as a finger lands on them, and Shoot keeps firing while held.
+  // Touch: a thumb stick on the left, Shoot and Slash on the right. Each finger is tracked, so a thumb can slide between
+  // Shoot and Slash; they act as a finger lands on them, and Shoot keeps firing while held.
   const pads = $('pads'), padPointers = new Map();
   // A thumb a little off a pad, in the gap between two, still counts: the nearest pad within reach.
   const PAD_REACH = 18;
@@ -1804,7 +1828,7 @@
   }
   function padSync() {
     const held = new Set(padPointers.values());
-    keys.padLeft = held.has('left'); keys.padRight = held.has('right'); keys.padShoot = held.has('shoot');
+    keys.padShoot = held.has('shoot');
     for (const p of pads.querySelectorAll('.pad')) p.classList.toggle('on', held.has(p.dataset.k));
   }
   pads.addEventListener('pointerdown', e => {
@@ -1813,7 +1837,7 @@
     e.preventDefault();
     try { pads.setPointerCapture(e.pointerId); } catch (_) {}
     padPointers.set(e.pointerId, k);
-    if (k === 'jump' || k === 'slash' || k === 'shoot') press(k);
+    if (k === 'slash' || k === 'shoot') press(k);
     padSync();
   });
   pads.addEventListener('pointermove', e => {
@@ -1821,12 +1845,47 @@
     const k = padAt(e.clientX, e.clientY);
     if (k === padPointers.get(e.pointerId)) return;
     padPointers.set(e.pointerId, k);
-    if (k === 'jump' || k === 'slash' || k === 'shoot') press(k);
+    if (k === 'slash' || k === 'shoot') press(k);
     padSync();
   });
   const lift = e => { if (padPointers.delete(e.pointerId)) padSync(); };
   pads.addEventListener('pointerup', lift); pads.addEventListener('pointercancel', lift);
   pads.addEventListener('contextmenu', e => e.preventDefault());
+  // The thumb stick: wherever a thumb lands in its zone becomes the centre. Slide left or right to move, flick up to jump
+  // (once per flick: let it come back toward the middle to flick again), hold down to crouch. The knob follows the thumb,
+  // and if the thumb wanders well past the ring the centre follows it, so the stick never runs away from you.
+  const zone = $('stickzone'), stickEl = $('stick'), knob = $('knob');
+  const STICK = { r: 44, side: 12, up: 20, down: 18 };
+  let stickId = null, centre = null, upArmed = true;
+  function stickAt(x, y) {
+    let dx = x - centre.x, dy = y - centre.y;
+    const far = Math.hypot(dx, dy), max = STICK.r * 1.4;
+    if (far > max) { const k = (far - max) / far; centre.x += dx * k; centre.y += dy * k; dx = x - centre.x; dy = y - centre.y; }
+    const zr = zone.getBoundingClientRect(), kr = Math.min(1, STICK.r / Math.max(1, Math.hypot(dx, dy)));
+    stickEl.style.left = (centre.x - zr.left) + 'px'; stickEl.style.top = (centre.y - zr.top) + 'px';
+    knob.style.transform = 'translate(' + Math.round(dx * kr) + 'px,' + Math.round(dy * kr) + 'px)';
+    const down = dy > STICK.down && dy > Math.abs(dx) * .8, up = dy < -STICK.up && -dy > Math.abs(dx) * .6;
+    keys.padDown = down;
+    keys.padLeft = !down && dx < -STICK.side; keys.padRight = !down && dx > STICK.side;
+    if (up && upArmed) { upArmed = false; press('jump'); }
+    if (dy > -STICK.up * .5) upArmed = true;
+  }
+  function stickOff(e) {
+    if (e && e.pointerId !== stickId) return;
+    stickId = null; keys.padLeft = keys.padRight = keys.padDown = false;
+    stickEl.classList.remove('on'); stickEl.style.left = stickEl.style.top = ''; knob.style.transform = '';
+  }
+  zone.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    if (stickId !== null) return;
+    e.preventDefault();
+    stickId = e.pointerId; centre = { x: e.clientX, y: e.clientY }; upArmed = true;
+    try { zone.setPointerCapture(e.pointerId); } catch (_) {}
+    stickEl.classList.add('on');
+    stickAt(e.clientX, e.clientY);
+  });
+  zone.addEventListener('pointermove', e => { if (e.pointerId !== stickId) return; e.preventDefault(); stickAt(e.clientX, e.clientY); });
+  zone.addEventListener('pointerup', stickOff); zone.addEventListener('pointercancel', stickOff);
   const markTouch = () => document.body.classList.add('touch');
   if (window.matchMedia && matchMedia('(pointer: coarse)').matches) markTouch();
   addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); }, { capture: true, passive: true });

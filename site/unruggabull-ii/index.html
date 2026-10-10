@@ -72,13 +72,18 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .link{background:none;box-shadow:none;padding:4px 6px;color:var(--muted);font-family:var(--body);font-size:14px;text-decoration:underline;text-underline-offset:3px}
 .link:hover{color:var(--cream)}
 .link:active{transform:none;box-shadow:none}
-/* Touch pads: shown while playing on a touch screen. A D-pad on the left (up jumps), Shoot and Slash on the right. */
-.pads{display:none;width:100%;justify-content:space-between;align-items:end;gap:12px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
+/* Touch controls: shown while playing on a touch screen. A thumb stick on the left (slide to move, flick up to jump, hold
+   down to crouch), Shoot and Slash on the right. */
+.pads{display:none;width:100%;justify-content:space-between;align-items:stretch;gap:12px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
 .touch .playing .pads{display:flex}
 .playing .card{display:none}
 .pad-group{display:flex;align-items:end;gap:10px;touch-action:none}
-.dpad{display:grid;grid-template-columns:auto auto;gap:8px;justify-items:center}
-.dpad .up{grid-column:1 / span 2}
+.stickzone{position:relative;flex:1 1 auto;min-width:150px;min-height:140px;border-radius:14px;background:rgba(58,47,88,.3);border:2px dashed rgba(90,76,134,.8);touch-action:none;overflow:hidden}
+.stick{position:absolute;left:50%;top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:2px solid #5a4c86;background:rgba(58,47,88,.55);pointer-events:none}
+.stick.on{border-color:var(--gold);background:rgba(58,47,88,.75)}
+.knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:#5a4c86;border:2px solid var(--cream)}
+.stick.on .knob{background:var(--gold);border-color:var(--cream)}
+.stick-tip{position:absolute;left:8px;right:8px;bottom:6px;font-size:10px;line-height:1.2;color:var(--muted);text-align:center;pointer-events:none}
 .pad{display:grid;place-items:center;width:76px;height:64px;padding:0;border-radius:12px;background:rgba(58,47,88,.85);border:2px solid #5a4c86;box-shadow:none;color:var(--cream);font-size:12px;letter-spacing:.06em;text-transform:uppercase;touch-action:none;-webkit-tap-highlight-color:transparent}
 .pad:active{transform:none;box-shadow:none}
 .pad.on{background:#5a4c86;border-color:var(--gold)}
@@ -113,16 +118,17 @@ body.locked{overflow:hidden}
   .full.playing .arena{grid-template-rows:auto auto;align-content:end}
   .full.playing .deck{align-content:start}
   .full .pad{width:min(29vw,120px);height:min(21vw,92px)}
-  .full .dpad .up{justify-self:stretch;width:auto}
-  .full .pad-group:not(.dpad){flex-direction:column;gap:8px}
+  .full .pad-group{flex-direction:column;gap:8px}
 }
 @media (orientation:landscape){
   .full .arena{container-type:size;display:grid;place-items:center;grid-template-rows:minmax(0,1fr)}
   .full .stage{width:min(100cqw,calc(100cqh * 16 / 9));max-width:none}
   .full .deck{position:absolute;inset:0;display:grid;place-items:center;padding:8px;pointer-events:none;overflow:visible}
   .full .card{pointer-events:auto;max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:rgba(34,26,54,.95)}
-  .full .pads{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
+  .full .pads{position:absolute;left:0;right:0;bottom:0;pointer-events:none;align-items:end}
   .full .pad-group{pointer-events:auto}
+  .full .stickzone{pointer-events:auto;flex:0 0 auto;width:min(36vw,260px);height:min(48vh,190px);min-height:0;background:rgba(58,47,88,.18);border-color:rgba(90,76,134,.5)}
+  .full .stick-tip{display:none}
   .full .pad{width:min(11vw,80px);height:min(15vh,60px);background:rgba(58,47,88,.55)}
   .full .pad.slash{background:rgba(150,30,22,.6)}
   .full .pad.shoot{background:rgba(36,82,140,.6)}
@@ -156,10 +162,9 @@ body.locked{overflow:hidden}
           <p class="note" id="cardNote">Demo: the first floor of the climb.</p>
         </div>
         <div class="pads" id="pads">
-          <div class="pad-group dpad">
-            <button class="pad up" type="button" data-k="jump" tabindex="-1" aria-label="Jump"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 7 5 2l4 5z"/></svg></button>
-            <button class="pad" type="button" data-k="left" tabindex="-1" aria-label="Move left"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M7 1 2 5l5 4z"/></svg></button>
-            <button class="pad" type="button" data-k="right" tabindex="-1" aria-label="Move right"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1l5 4-5 4z"/></svg></button>
+          <div class="stickzone" id="stickzone" role="application" aria-label="Thumb stick: slide left or right to move, flick up to jump, hold down to crouch">
+            <div class="stick" id="stick" aria-hidden="true"><i class="knob" id="knob"></i></div>
+            <span class="stick-tip" aria-hidden="true">Slide to move · flick up to jump · hold down to crouch</span>
           </div>
           <div class="pad-group">
             <button class="pad shoot" type="button" data-k="shoot" tabindex="-1">Shoot</button>
@@ -170,10 +175,10 @@ body.locked{overflow:hidden}
     </div>
     <p class="sr" id="live" aria-live="polite"></p>
   </section>
-  <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space. Hold Shift or ' to shoot (watch the charge bar), press Enter to slash (J and K work too). Slash cuts carpshits up close and knocks paper back at whoever threw it; temps behind their desks need the blaster or their own paper. Jump for coffee and power-ups. M sound, F full screen, P pause.</span><span class="touch-only">Arrows move, the up arrow jumps. Hold Shoot to fire, but watch the charge bar. Slash cuts carpshits up close and knocks paper back at whoever threw it. Jump for coffee and power-ups.</span></p>
+  <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space; crouch with S or Down. Hold Shift or ' to shoot (watch the charge bar), press Enter to slash (J and K work too). Slash cuts carpshits up close and knocks paper back at whoever threw it; temps behind their desks need the blaster or their own paper. Jump for coffee and power-ups. M sound, F full screen, P pause.</span><span class="touch-only">Slide the thumb stick to move, flick it up to jump, hold it down to crouch. Hold Shoot to fire, but watch the charge bar. Slash cuts carpshits up close and knocks paper back at whoever threw it. Jump for coffee and power-ups.</span></p>
 </main>
-<script src="art.js?v=4b246526e6"></script>
+<script src="art.js?v=9db88e95d7"></script>
 <script src="audio.js?v=154f9f732b"></script>
-<script src="game.js?v=79e1833706"></script>
+<script src="game.js?v=ceaa8a8946"></script>
 </body>
 </html>

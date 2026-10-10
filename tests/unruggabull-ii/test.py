@@ -53,38 +53,59 @@ with sync_playwright() as p:
         if touch:
             assert page.evaluate("document.getElementById('game').classList.contains('full')"), f'{name}: Start goes full screen'
             assert stage['y'] >= 0 and stage['y'] + stage['height'] <= size[1] + 1, f'{name}: stage fits in the screen'
-            for k in ('left', 'right', 'jump', 'shoot', 'slash'):
+            zone = page.locator('#stickzone')
+            assert zone.is_visible(), f'{name}: the thumb stick shows'
+            zb = zone.bounding_box()
+            assert zb['y'] + zb['height'] <= size[1] + 1 and zb['x'] >= 0 and zb['width'] >= 120 and zb['height'] >= 100, f'{name}: thumb stick on screen and roomy ({zb})'
+            for k in ('shoot', 'slash'):
                 pad = page.locator(f'.pad[data-k="{k}"]')
                 assert pad.is_visible(), f'{name}: {k} pad shows'
                 box = pad.bounding_box()
                 assert box['y'] + box['height'] <= size[1] + 1 and box['x'] >= 0 and box['x'] + box['width'] <= size[0] + 1, f'{name}: {k} pad on screen'
-            # hold right, then slide the same finger onto left
-            right, left = page.locator('.pad[data-k="right"]').bounding_box(), page.locator('.pad[data-k="left"]').bounding_box()
-            page.evaluate("unrugTest('bull.u = 0')")
             cdp = context.new_cdp_session(page)
-            def touch_event(kind, x, y):
-                cdp.send('Input.dispatchTouchEvent', {'type': kind, 'touchPoints': [] if kind == 'touchEnd' else [{'x': x, 'y': y, 'id': 1}]})
-            touch_event('touchStart', right['x'] + right['width'] / 2, right['y'] + right['height'] / 2)
+            def touch_event(kind, x, y, tid=1):
+                cdp.send('Input.dispatchTouchEvent', {'type': kind, 'touchPoints': [] if kind == 'touchEnd' else [{'x': x, 'y': y, 'id': tid}]})
+            # the stick: land anywhere in its zone, slide right then left, flick up to jump, hold down to crouch
+            cx, cy = zb['x'] + zb['width'] / 2, zb['y'] + zb['height'] / 2
+            page.evaluate("unrugTest('bull.u = 0; bull.inv = 1e9')")
+            touch_event('touchStart', cx, cy)
+            touch_event('touchMove', cx + 36, cy)
             page.wait_for_timeout(250)
             moved = page.evaluate("unrugTest('bull.u')")
-            assert moved > 0, f'{name}: holding the right pad moves right'
-            touch_event('touchMove', left['x'] + left['width'] / 2, left['y'] + left['height'] / 2)
+            assert moved > 0, f'{name}: sliding the stick right moves right'
+            touch_event('touchMove', cx - 36, cy)
             page.wait_for_timeout(250)
-            assert page.evaluate("unrugTest('bull.u')") < moved, f'{name}: sliding onto the left pad moves left'
+            assert page.evaluate("unrugTest('bull.u')") < moved, f'{name}: sliding it left moves left'
+            touch_event('touchMove', cx, cy)
+            page.wait_for_timeout(50)
+            touch_event('touchMove', cx, cy - 40)
+            page.wait_for_timeout(60)
+            assert page.evaluate("unrugTest('bull.jh')") > 0, f'{name}: flicking up jumps'
+            touch_event('touchMove', cx, cy)
+            page.wait_for_timeout(700)
+            touch_event('touchMove', cx, cy + 40)
+            page.wait_for_timeout(60)
+            assert page.evaluate("unrugTest('bull.crouch')"), f'{name}: holding down crouches'
             touch_event('touchEnd', 0, 0)
-            assert not page.evaluate("unrugTest('keys.padLeft || keys.padRight')"), f'{name}: lifting the finger stops'
-            # a thumb in the gap between two pads still counts
-            gap_x = (left['x'] + left['width'] + right['x']) / 2
-            touch_event('touchStart', gap_x, left['y'] + left['height'] / 2)
+            page.wait_for_timeout(30)
+            assert not page.evaluate("unrugTest('keys.padLeft || keys.padRight || keys.padDown')"), f'{name}: lifting the thumb lets go'
+            # a thumb in the gap between Shoot and Slash still counts
+            sh, sl = page.locator('.pad[data-k="shoot"]').bounding_box(), page.locator('.pad[data-k="slash"]').bounding_box()
+            if sl['y'] >= sh['y'] + sh['height'] - 1:
+                gx, gy = sh['x'] + sh['width'] / 2, (sh['y'] + sh['height'] + sl['y']) / 2
+            else:
+                gx, gy = (sh['x'] + sh['width'] + sl['x']) / 2, sh['y'] + sh['height'] / 2
+            page.evaluate("unrugTest('bull.cd = 0; bull.slash = -1; R.events.shots = 0; R.fireT = 0')")
+            touch_event('touchStart', gx, gy)
             page.wait_for_timeout(100)
-            assert page.evaluate("unrugTest('keys.padLeft || keys.padRight')"), f'{name}: a touch between pads counts'
+            assert page.evaluate("unrugTest('bull.slash >= 0 || R.events.shots > 0')"), f'{name}: a touch between Shoot and Slash counts'
             touch_event('touchEnd', 0, 0)
             if name == 'phone portrait':
-                # the stage sits right on top of the pads, and the pads are big
+                # the stage sits right on top of the controls, and the buttons are big
                 stage = page.locator('.stage').bounding_box()
-                top = min(page.locator(f'.pad[data-k="{k}"]').bounding_box()['y'] for k in ('jump', 'shoot'))
-                assert 0 <= top - (stage['y'] + stage['height']) <= 40, f'{name}: the stage sits just above the pads'
-                assert all(page.locator(f'.pad[data-k="{k}"]').bounding_box()['width'] >= 100 for k in ('left', 'right', 'shoot', 'slash')), f'{name}: big pads'
+                top = min(zb['y'], page.locator('.pad[data-k="shoot"]').bounding_box()['y'])
+                assert 0 <= top - (stage['y'] + stage['height']) <= 40, f'{name}: the stage sits just above the controls'
+                assert all(page.locator(f'.pad[data-k="{k}"]').bounding_box()['width'] >= 100 for k in ('shoot', 'slash')), f'{name}: big buttons'
             shoot = page.locator('.pad[data-k="shoot"]').bounding_box()
             page.evaluate("unrugTest('R.events.shots = 0; R.fireT = 0')")
             touch_event('touchStart', shoot['x'] + shoot['width'] / 2, shoot['y'] + shoot['height'] / 2)

@@ -28,7 +28,7 @@
       RUN.force = seedv; newRun(); RUN.force = null;
       setState('play'); card.hidden = true; crawl.hidden = true; intro = null;
       input.jump = input.slash = input.shoot = 0;
-      keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = false;
+      keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = keys.kbDown = keys.padDown = false;
     },
     // Game logic only; never draws.
     step: function (dt) {
@@ -41,12 +41,12 @@
         t: R.t, phase: R.phase, stage: stage(), event: R.event ? R.event.kind : null, speed: R.speed,
         souls: R.souls, goal: TUNE.goal, hearts: R.hearts, maxHearts: TUNE.hearts, charge: R.charge, spread: R.spread,
         runner: TUNE.runner, aimCone: TUNE.aimCone, move: TUNE.move, aisle: TUNE.aisle, pull: R.pull.st, spray: !!R.pull.spray, mouth: TUNE.mouth,
-        bull: { u: b.u, bz: b.bz, jh: b.jh, cd: b.cd, inv: b.inv, busy: !!(b.mouth || b.spat) },
+        bull: { u: b.u, bz: b.bz, jh: b.jh, cd: b.cd, inv: b.inv, busy: !!(b.mouth || b.spat), crouch: !!b.crouch },
         boss: { st: R.boss.st, ph: R.boss.ph, hp: R.boss.hp, jam: R.boss.jam, rally: R.boss.rally ? R.boss.rally.count : -1 },
         temps: [], flies: [], projs: [], boxes: [], rows: [], pickups: []
       };
       R.cubs.forEach(function (cb) { var tp = cb.temp; if (tp && !tp.dead) { var at = posOf(tp); o.temps.push({ id: idOf(tp), u: at.u, z: at.z, h: at.h, up: tp.pop > .4 }); } });
-      R.flies.forEach(function (f) { if (!f.dead) o.flies.push({ id: idOf(f), u: f.u, z: f.z, h: f.h, hp: f.hp, form: !!f.form }); });
+      R.flies.forEach(function (f) { if (!f.dead) o.flies.push({ id: idOf(f), u: f.u, z: f.z, h: f.h, hp: f.hp, form: !!f.form, high: !!f.high }); });
       R.projs.forEach(function (p) { if (!p.dead) o.projs.push({ id: idOf(p), kind: p.kind, u: p.u, z: p.z, h: p.h, vu: p.vu, vz: p.vz, friendly: p.friendly, rally: !!p.rally }); });
       R.boxes.forEach(function (bx) { if (!bx.hit) o.boxes.push({ id: idOf(bx), u: bx.u, z: bx.w - R.dist }); });
       R.rows.forEach(function (rw) { if (!rw.hit) o.rows.push({ id: idOf(rw), kind: rw.kind, z: rw.w - R.dist, speed: R.speed + (rw.v || (rw.kind === 'chairs' ? .12 : .22)) }); });
@@ -56,7 +56,7 @@
     // Player input paths only: the keyboard's held keys and the same presses the pads and keys make.
     act: function (a) {
       if (!a || state !== 'play') return;
-      keys.kbLeft = !!a.left; keys.kbRight = !!a.right; keys.kbShoot = !!a.shoot;
+      keys.kbLeft = !!a.left; keys.kbRight = !!a.right; keys.kbShoot = !!a.shoot; keys.kbDown = !!a.crouch;
       if (a.jump) press('jump');
       if (a.slash) press('slash');
     },

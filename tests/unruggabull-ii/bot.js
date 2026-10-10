@@ -3,6 +3,7 @@
 // and doesn't always try the hard move: each threat gets one plan, rolled once from the profile. It also learns
 // the rhythm: `anticipate` is how much of its own reaction delay it leads its timing by (0 none, 1 all of it).
 // It sees itself late too, but like a person it knows what it has pressed since, and counts that in.
+// Head-height things (paper airplanes, a high line of carpshits) it ducks: crouch until they're past.
 window.__balanceBot = function (profile, seed) {
   'use strict';
   var P = Object.assign({ notice_s: .3, depth_err: .04, deflect_try: .7, fly_slash: .7, dodge: .6, jump_try: .75, jump_err: .035, pickup: .7, charge_floor: 0, anticipate: .75, cut_try: .5, ride: .3 }, profile);
@@ -16,7 +17,7 @@ window.__balanceBot = function (profile, seed) {
   function plan(x, make) { return plans[x.id] || (plans[x.id] = make()); }
   return {
     decide: function (o) {
-      var b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false }, goal = null, urgent = false;
+      var b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false }, goal = null, urgent = false;
       if (lastT !== null && o.t > lastT) dt = o.t - lastT;
       lastT = o.t;
       sent = sent.filter(function (x) { return x.t >= o.t - P.reaction_ms / 1000 - 1e-6; });
@@ -31,6 +32,7 @@ window.__balanceBot = function (profile, seed) {
         if (dz > .7 || Math.abs(landU - me) > .2) return;
         var pl = plan(p, function () { return { deflect: r() < P.deflect_try, dodge: r() < P.dodge, err: err(P.depth_err) }; });
         if (pl.deflect) { if (dz < .14 + pl.err && dz > -.03) a.slash = true; }
+        else if (p.h > .17) { if (pl.dodge && dz < .16 + pl.err && dz > -.06) a.crouch = true; }
         else if (p.kind === 'staple') { if (pl.dodge && dz < .08 + pl.err) a.jump = true; }
         else if (pl.dodge) { goal = clamp(me + (landU >= me ? -.3 : .3)); urgent = true; }
       });
@@ -40,6 +42,7 @@ window.__balanceBot = function (profile, seed) {
         if (!noticed(o, f) || dz > .16 || dz < -.02 || Math.abs(f.u - me) > .3) return;
         var pl = plan(f, function () { return { cut: r() < P.fly_slash, err: err(P.depth_err) }; });
         if (pl.cut) { if (dz < .12 + pl.err) a.slash = true; }
+        else if (f.high) { if (dz < .12 + pl.err) a.crouch = true; }
         else if (!urgent) { goal = clamp(me + (f.u >= me ? -.35 : .35)); urgent = true; }
       });
       // Rows span the aisle: jump about a quarter second before they arrive. Boxes: step aside or jump.
@@ -84,6 +87,7 @@ window.__balanceBot = function (profile, seed) {
       var aligned = tgt ? Math.abs(tgt.u - me) < (tgt.form === undefined ? o.aimCone : .3) : false;
       if (o.phase === 'boss' && o.boss.st === 'fight') aligned = Math.abs(me) < .7;
       a.shoot = aligned && o.charge > P.charge_floor;
+      if (a.crouch && b.jh <= 0) { a.shoot = false; goal = null; }   // crouched: no moving, no shooting
       if (goal !== null) { var d = goal - me; a.left = d < -.04; a.right = d > .04; }
       sent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: dt });
       return a;

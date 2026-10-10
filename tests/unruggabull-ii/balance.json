@@ -26,6 +26,7 @@
     { "label": "lost: rally", "key": "hit.amount:cause=rally" },
     { "label": "lost: scraps", "key": "hit.amount:cause=scrap" },
     { "label": "lost: carpets", "key": "hit.amount:cause=carpet" },
+    { "label": "lost: planes", "key": "hit.amount:cause=plane" },
     { "label": "lost: side spray", "key": "hit.amount:cause=spray" },
     { "label": "coffee", "key": "pickup:item=coffee" },
     { "label": "spread", "key": "pickup:item=spread" },

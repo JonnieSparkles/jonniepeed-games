@@ -78,6 +78,8 @@ var UnrugArt = (function () {
     runA: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KBBBKKjJJJK....', '....KKKKK.KJJJK....', '..........KBBBK....', '..........KKKKK....'],
     runB: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KJJJjKKBBBK....', '....KJJJK.KKKKK....', '....KBBBK..........', '....KKKKK..........'],
     jump: ['....KJJJJJJJJJK....', '...KJJJJJKJJJJJK...', '..KJJJjK...KjJJJK..', '..KBBBK.....KBBBK..', '..KKKKK.....KKKKK..'],
+    // a squat from behind: knees out wide either side of the body (drawn 3 px further left)
+    crouch: ['', '', '..KJJJK...........KJJJK..', '.KJJJJK...........KJJJJK.', 'KJJjJK.............KJjJJK', 'KBBBK...............KBBBK', 'KKKKK...............KKKKK'],
   };
   // Poses share one 48x40 box: feet at y 38, centred on x 24, room above and around for the sword and blaster.
   // Arms are drawn separately so they can swing when he runs, go up when he jumps, raise the blaster and swing the katana.
@@ -105,7 +107,7 @@ var UnrugArt = (function () {
   }
   function pose(legs, l, r, sword, bob = 0, rock = false) {
     const cv = canvas(POSE_W, POSE_H), g = cv.getContext('2d');
-    rows(g, LEGS_B[legs], BX, BY + 21);
+    rows(g, LEGS_B[legs], legs === 'crouch' ? BX - 3 : BX, BY + 21);
     rows(g, TORSO_BARE, BX, BY + 12 + bob);
     rows(g, HEAD_B, BX, BY + bob);
     if (sword === 'back') {
@@ -141,6 +143,8 @@ var UnrugArt = (function () {
     wind: pose('stand', 'down', 'wind', 'wind'), cut: pose('stand', 'fwd', 'cut', 'cut'),
     jumpWind: pose('jump', 'up', 'wind', 'wind'), jumpCut: pose('jump', 'up', 'cut', 'cut'),
     hurt: pose('stand', 'up', 'up', 'back', 1),
+    // crouched: half height, to duck high paper or grip a pulling rug; he can still slash from down there
+    crouch: pose('crouch', 'down', 'down', 'back', 6), crouchWind: pose('crouch', 'down', 'wind', 'wind', 6), crouchCut: pose('crouch', 'fwd', 'cut', 'cut', 6),
     // the clear: horns up, bobbing
     win: pose('stand', 'up', 'up', 'back', 0, true), winB: pose('stand', 'up', 'up', 'back', -1, true)
   };
@@ -172,6 +176,8 @@ var UnrugArt = (function () {
     '.P...P..P...',
     '.....P......']);
   const STAPLE = spr(['YYYYYYYYY', 'Yy.....yY', 'Y.......Y']);
+  // A paper airplane coming at you, seen nose-on: the Shredder throws them at head height. Duck.
+  const PLANE = spr(['....P....', '...PpP...', '..PPpPP..', '.PPP.PPP.', 'PPp...pPP']);
   // Hall dressing: a water cooler and a stack of copy paper
   const COOLER = spr(['..KKKKK..', '.KcggggK.', 'KcgggggcK', 'KcgMggggK', 'KcgMggggK', 'KcgggggcK', '.KcccccK.', '..KKKKK..', '.KPPPPPK.', '.KPpRpPK.', '.KPPPPPK.', '.KPPPPPK.', '.KpPPPpK.', '.KPPPPPK.', '.KPPPPPK.', '.KKKKKKK.']);
   const STACK = spr(['KKKKKKKKKK', 'KPPPPPPPPK', 'KppppppppK', 'KPPPPPPPPK', 'KppppppppK', 'KPPPPPPPPK', 'KppppppppK', 'KKKKKKKKKK']);
@@ -188,6 +194,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, FLASH, BLASTER
+    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, FLASH, BLASTER, PLANE
   };
 })();
