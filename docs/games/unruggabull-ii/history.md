@@ -4,7 +4,8 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Why it's this way
 
-- **Moving day replaced the audit, and furniture only bumps you** (notes after the first deploy): "i still dont get the audit thing", and the owner asked for "an athletic furniture section (not too hard) but without having to worry about shooting". When furniture cost hearts, the casual bot reached lights out in 48% of runs instead of 75%, so it only bumps you now.
+- **Moving day replaced the audit** (notes after the first deploy): "i still dont get the audit thing", and the owner asked for "an athletic furniture section (not too hard) but without having to worry about shooting".
+- **Furniture costs a heart** (notes): a version where it only bumped you was tried and dropped the same day: "It's okay if furniture hurts you." The casual bot suffers for it (it reaches lights out in 48% of runs, down from 75%); playtesting wins.
 - **The hall is endless until the copy room** (notes): "we shouldnt see shredder right away and instead an endless corridor. shredder slowly starts to get closer as we progress".
 - **The surge shows its cause** (notes): "losing your blaster isnt clear why that happens". A blue tell and a lightning bolt to the gun.
 - **Shorter slash reach with a longer window and a cut line** (notes): deflects "seem like the bullet i deflected was too far away to hit". Reach 0.24 became 0.19, the window 0.16 s became 0.2 s so timing stays as forgiving, and a line from the blade shows the reach.

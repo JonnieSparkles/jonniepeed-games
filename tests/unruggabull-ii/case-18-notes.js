@@ -18,7 +18,7 @@
   const blocked = wall[0].u; bull.u = blocked; bull.inv = 0; const h0 = R.hearts;
   for (let i = 0; i < 700 && wall[0].w - R.dist > bull.bz - .03; i++) { if (wall[0].w - R.dist - bull.bz < .1) press('jump'); bull.u = blocked; update(1 / 60); }
   check(wall[0].hit && !E.clean, "a jump doesn't clear a stack; the run's no longer clean");
-  check(R.hearts === h0 && bull.stag > 0 || R.hearts === h0, 'but furniture only bumps you: no heart lost');
+  check(R.hearts === h0 - 1, 'and furniture costs a heart');
   // a beam: duck under it
   bull.inv = 0; R.boxes = []; E.obN = MOVES.indexOf('beam'); spawnMove(E);
   const beam = R.rows.find(rw => rw.kind === 'beam'), h1 = R.hearts, souls = R.souls;

@@ -357,13 +357,7 @@
   const BOX_H = .06;
   // a moving-day obstacle that hits you: no soul for it, and the run isn't clean
   function obHit(ob) { if (!ob) return; ob.hit = true; if (R.event && R.event.kind === 'move') R.event.clean = false; }
-  // on moving day furniture doesn't hurt: he bumps it and staggers (no heart), and loses that piece's soul
-  function bump(ob) {
-    if (bull.inv > 0) return false;
-    bull.inv = .5; bull.stag = .3; R.shake = Math.max(R.shake, .12); Snd.play('thump'); obHit(ob);
-    return true;
-  }
-  const knock = (ob, cause) => ob ? bump(ob) : hurtBull(1, cause);
+  const knock = (ob, cause) => hurtBull(1, cause);
   function updateBoxes(dt) {
     for (const bx of R.boxes) {
       const z = bx.w - R.dist;
