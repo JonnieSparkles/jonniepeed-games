@@ -550,7 +550,7 @@ var StickArmyCampaign = function (w) {
       if (onPage && (p.bombT -= dt) <= 0) {
         p.bombT = DREAD.BOMBS_EVERY;
         for (var k = 0; k < DREAD.BAY_BOMBS; k++) { var o = k - (DREAD.BAY_BOMBS - 1) / 2; S.bombs.push({ id: w.id(), x: h.x + o * 10, y: h.y + 8, vx: (BK.x - h.x) * 0.42 + o * 28, vy: 0, isBomb: true, dead: false }); emit('bomb_dropped', { by: 'dreadnought' }); }
-        w.sound.play('cluster');
+        w.sound.play('whistle');
       }
       bridgeGun(p, dt);
       mainGun(p, dt);
