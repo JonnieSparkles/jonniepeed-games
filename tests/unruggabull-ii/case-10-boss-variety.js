@@ -61,7 +61,7 @@
   reset(); b.atk = 1e9; bull.u = 0; bull.bz = 0; bull.inv = 0; b.atkN = 0;
   R.pull.count = 1; R.pull.st = 'idle'; R.pull.next = R.t; update(1 / 60);
   check(R.pull.st === 'warn' && R.pull.spray, 'every other pull in phase 2 sprays, and you know while it warns');
-  check(R.banner && R.banner.text === 'SIDE SPRAY!', 'with a prompt the first time');
+  check(R.banner && R.banner.text === 'RIDE THE RUG', 'with a prompt the first time');
   draw(); step(.9);
   check(R.pull.st === 'on' && R.pull.spray, 'then it pulls and sprays');
   b.atk = 0; step(.6);

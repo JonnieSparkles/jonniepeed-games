@@ -54,8 +54,9 @@
   check(left >= 0 && right > left, 'its pupils follow you (' + left + ', ' + right + ')');
 
   // it chews: shredded strips drop out of its mouth
-  reset(); R.fx = []; step(2);
-  check(R.fx.some(f => f.k === 'strip'), 'shredded strips drop from its mouth');
+  reset(); R.fx = []; let strips = 0;
+  for (let i = 0; i < 120; i++) { update(1 / 60); if (R.fx.some(f => f.k === 'strip')) strips++; }
+  check(strips > 0, 'shredded strips drop from its mouth');
 
   // into a new phase it roars forward
   reset(); b.hp = 60; update(1 / 60);

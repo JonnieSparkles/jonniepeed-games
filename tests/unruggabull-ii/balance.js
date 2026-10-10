@@ -1,14 +1,14 @@
 // Unruggabull II balance adapter (SPEC-005, docs/guides/01-balance-bots.md). tools/balance/run.py evaluates this
 // inside game.js's scope through a test-only bridge injected into the response; nothing here ships.
 // Progress is reported as stages, in the report's "wave" column:
-//   1 Accounts Payable, 2 Audit, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 Shredder phases 1-3, 9 cleared.
+//   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 Shredder phases 1-3, 9 cleared.
 (function () {
   var log = [], lastStage = 1, ids = new WeakMap(), nextId = 1;
   function idOf(o) { if (!ids.has(o)) ids.set(o, nextId++); return ids.get(o); }
   function stage() {
     if (R.phase === 'dead') return lastStage;
     if (R.phase === 'win' || state === 'over') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'audit' ? 2 : 4) : [1, 3, 5][R.beat];
+    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
     if (R.phase === 'wake') return 6;
     return 5 + R.boss.ph;
   }
@@ -48,7 +48,7 @@
       R.cubs.forEach(function (cb) { var tp = cb.temp; if (tp && !tp.dead) { var at = posOf(tp); o.temps.push({ id: idOf(tp), u: at.u, z: at.z, h: at.h, up: tp.pop > .4 }); } });
       R.flies.forEach(function (f) { if (!f.dead) o.flies.push({ id: idOf(f), u: f.u, z: f.z, h: f.h, hp: f.hp, form: !!f.form, high: !!f.high }); });
       R.projs.forEach(function (p) { if (!p.dead) o.projs.push({ id: idOf(p), kind: p.kind, u: p.u, z: p.z, h: p.h, vu: p.vu, vz: p.vz, friendly: p.friendly, rally: !!p.rally }); });
-      R.boxes.forEach(function (bx) { if (!bx.hit) o.boxes.push({ id: idOf(bx), u: bx.u, z: bx.w - R.dist }); });
+      R.boxes.forEach(function (bx) { if (!bx.hit) o.boxes.push({ id: idOf(bx), u: bx.u, z: bx.w - R.dist, tall: !!bx.tall }); });
       R.rows.forEach(function (rw) { if (!rw.hit) o.rows.push({ id: idOf(rw), kind: rw.kind, z: rw.w - R.dist, speed: R.speed + (rw.v || (rw.kind === 'chairs' ? .12 : .22)) }); });
       R.pickups.forEach(function (pk) { if (!pk.got) o.pickups.push({ id: idOf(pk), kind: pk.kind, u: pk.u, z: pk.w - R.dist }); });
       return o;

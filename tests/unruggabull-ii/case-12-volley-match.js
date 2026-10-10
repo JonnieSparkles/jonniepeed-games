@@ -38,7 +38,7 @@
   for (let i = 0; i < 90 && R.armed !== false; i++) { b.atk = 1e9; update(1 / 60); }
   const gun = R.pickups.find(pk => pk.kind === 'blaster');
   check(R.armed === false && gun && gun.rug && gun.w - R.dist > .5, 'the surge knocks the blaster out of his hands and up the rug');
-  check(R.banner && R.banner.text === 'BLASTER DOWN!', 'with a prompt the first time');
+  check(R.banner && R.banner.text === 'WIN A RALLY FOR IT', 'with a prompt the first time');
   R.events.shots = 0; R.fireT = 0; keys.kbShoot = true; step(.5); keys.kbShoot = false;
   check(!R.events.shots && !R.shots.length, 'no blaster, no shots');
   // a pull carries it toward the mouth

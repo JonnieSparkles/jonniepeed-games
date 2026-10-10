@@ -9,7 +9,7 @@
   R.beat = 2; R.beatT = 0; R.pull.next = R.t; update(1 / 60);
   check(R.pull.st === 'warn', 'the runner warns before it pulls');
   step(1);
-  check(R.pull.st === 'on' && R.banner && R.banner.pull && R.banner.text === 'STEP OFF THE RUG', 'the first pull shows a prompt');
+  check(R.pull.st === 'on' && R.banner && R.banner.pull && R.banner.text === 'STEP OFF OR SLASH', 'the first pull shows a prompt');
   bull.u = 0; step(.5);
   check(bull.bz > .1, 'standing on the runner drags you toward the shredder');
   bull.u = .5; step(.5);
