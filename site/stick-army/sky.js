@@ -839,11 +839,14 @@ var StickArmySky = function (w) {
       rg.addColorStop(0, 'rgba(0,0,0,' + k + ')'); rg.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = rg; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
-    var ang = S.aim, len = 780, hb = NIGHT.BEAM;
-    g.beginPath(); g.moveTo(TUR.x, TUR.y);
-    g.lineTo(TUR.x + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); g.lineTo(TUR.x + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); g.closePath();
-    var beam = g.createRadialGradient(TUR.x, TUR.y, 20, TUR.x, TUR.y, len); beam.addColorStop(0, 'rgba(0,0,0,0.95)'); beam.addColorStop(1, 'rgba(0,0,0,0.55)');
-    g.fillStyle = beam; g.fill();
+    // A searchlight along each barrel.
+    S.turrets.forEach(function (t) {
+      var ang = t.aim, len = 780, hb = NIGHT.BEAM, x0 = t.x;
+      g.beginPath(); g.moveTo(x0, TUR.y);
+      g.lineTo(x0 + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); g.lineTo(x0 + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); g.closePath();
+      var beam = g.createRadialGradient(x0, TUR.y, 20, x0, TUR.y, len); beam.addColorStop(0, 'rgba(0,0,0,0.95)'); beam.addColorStop(1, 'rgba(0,0,0,0.55)');
+      g.fillStyle = beam; g.fill();
+    });
     glow(BK.x, GROUND - 24, NIGHT.LAMP, 0.85);
     S.parts.forEach(function (q) { if (q.k === 'pow') glow(q.x, q.y, q.r * 3, Math.min(1, q.life / q.max * 1.5)); });
     // The Dreadnought's searchlights cut through the dark, and its open hangar and lit bridge glow, so the target shows.
@@ -858,8 +861,11 @@ var StickArmySky = function (w) {
     g.globalCompositeOperation = 'source-over';
     G.save(); G.setTransform(1, 0, 0, 1, 0, 0); G.globalAlpha = a; G.drawImage(cv, 0, 0); G.restore();
     // A warm tint in the beam, so it reads as light.
-    G.save(); G.globalAlpha = a * 0.08; G.beginPath(); G.moveTo(TUR.x, TUR.y);
-    G.lineTo(TUR.x + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); G.lineTo(TUR.x + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); G.closePath();
+    G.save(); G.globalAlpha = a * 0.08; G.beginPath();
+    S.turrets.forEach(function (t) {
+      var ang = t.aim, len = 780, hb = NIGHT.BEAM, x0 = t.x;
+      G.moveTo(x0, TUR.y); G.lineTo(x0 + Math.cos(ang - hb) * len, TUR.y + Math.sin(ang - hb) * len); G.lineTo(x0 + Math.cos(ang + hb) * len, TUR.y + Math.sin(ang + hb) * len); G.closePath();
+    });
     G.fillStyle = '#ffe27a'; G.fill(); G.restore();
     if (sm) drawSmoke(sm, a);
     // What shows through the dark anyway.

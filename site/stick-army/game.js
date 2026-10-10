@@ -91,7 +91,8 @@
   // to seed its own sub-stream, so shooting it early doesn't shift what follows. RC is combat (crew aim and timing).
   var R = Math.random;
   function rr(a, b) { return a + R() * (b - a); }
-  var RUN = { seed: 0, force: null }, RW = Math.random, RS = Math.random, RC = Math.random;
+  // RUN.players: 2 for a co-op run (two barrels, coop.md), set by coop.js before newGame.
+  var RUN = { seed: 0, force: null, players: 1 }, RW = Math.random, RS = Math.random, RC = Math.random;
   function between(rnd, a, b) { return a + rnd() * (b - a); }
   function mix(a, b) {
     var h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab | 0, 0xc2b2ae35);
@@ -277,16 +278,36 @@
 
   // ---------- state ----------
   var S = {}, nextId = 1;
+  // keys: this device's keyboard. It drives the local barrel (gun()); the pointer sets that barrel's firing.
   var keys = { left: false, right: false, fire: false };
+  // ---------- the turret's barrels ----------
+  // S.turrets: one barrel in solo; two in co-op (coop.md), side by side on the one turret, each with its own aim, heat
+  // and lock, and its own volleys (rockets come every fourth of a barrel's own). `by` is the barrel's player (0 the
+  // host, 1 the guest) and goes on every round it fires, so scores can be split by player; x is where it's mounted.
+  // `me` is which barrel this device's input drives. A barrel no one here drives is moved from outside (coop.js sets
+  // its aim and firing).
+  // Turret upgrades (TURRET_MODS: quick trigger, cooling fins, double barrel, spread, flak, rockets, piercing) belong to
+  // a barrel: in co-op each player buys their own, so each barrel has its own `mods`. Solo's one barrel has none and
+  // reads S.mods, as it always has (gm).
+  var me = 0, TWIN_MOUNT = 7, TURRET_MODS = ['fire', 'cool', 'double', 'spread', 'flak', 'rockets', 'pierce'];
+  function makeTurret(by, x, own) {
+    var t = { by: by, x: x, aim: -Math.PI / 2, heat: 0, overheat: 0, recoil: 0, firing: false, fireCD: 0, volleys: 0 };
+    if (own) t.mods = { fire: 0, cool: 0, double: false, spread: false, flak: false, rockets: false, pierce: false, stacks: {} };
+    return t;
+  }
+  function setTurrets(n) {
+    S.turrets = n > 1 ? [makeTurret(0, TUR.x - TWIN_MOUNT, true), makeTurret(1, TUR.x + TWIN_MOUNT, true)] : [makeTurret(0, TUR.x)];
+  }
+  function gm(t) { return t.mods || S.mods; }
+  function gun() { return S.turrets[me] || S.turrets[0]; }
 
   function reset() {
     S = {
       input: 'keys',
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
-      heat: 0, overheat: 0,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, fire: 0, cool: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, double: false, spread: false, flak: false, rockets: false, pierce: false, mines: false, medic: false, auto: false, hospital: false, flag: false, stacks: {} },
-      coins: 0, volleys: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0, wall: 0 },
-      aim: -Math.PI / 2, recoil: 0, firing: false, fireCD: 0, flagUp: 0, saluteT: 0,
+      coins: 0, autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0, wall: 0 },
+      turrets: null, flagUp: 0, saluteT: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], wreck: null, calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [], night: 0,
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
@@ -296,7 +317,7 @@
       hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false, redCrossPaid: false,
       matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level
     };
-    resizeMats(); clearInput();
+    setTurrets(RUN.players); resizeMats(); clearInput();
     TRAMPS.forEach(function (tr) { tr.dip = 0; tr.v = 0; });
     decals.length = 0; inkT = 0;
     redrawDecals();
@@ -855,53 +876,57 @@
     G.restore();
   }
   // ---------- combat ----------
-  function shoot() {
-    var c = Math.cos(S.aim), s = Math.sin(S.aim);
-    S.volleys++;
-    var angles = S.mods.spread ? [-0.13, 0, 0.13] : [0];
+  function shoot(t) {
+    t = t || S.turrets[0];
+    var c = Math.cos(t.aim), s = Math.sin(t.aim), x0 = t.x, m = gm(t);
+    t.volleys++;
+    var angles = m.spread ? [-0.13, 0, 0.13] : [0];
     angles.forEach(function (offset) {
-      var a = S.aim + offset, ca = Math.cos(a), sa = Math.sin(a);
-      (S.mods.double ? [-4, 4] : [0]).forEach(function (side) {
-        S.bullets.push({ x: TUR.x + ca * 30 - sa * side, y: TUR.y + sa * 30 + ca * side, vx: ca * 700, vy: sa * 700,
-          owner: 'player', kind: 'bullet', flak: S.mods.flak, pierce: S.mods.pierce ? 3 : 1, hits: [], life: 1.3, dead: false, side: offset !== 0 });
+      var a = t.aim + offset, ca = Math.cos(a), sa = Math.sin(a);
+      (m.double ? [-4, 4] : [0]).forEach(function (side) {
+        S.bullets.push({ x: x0 + ca * 30 - sa * side, y: TUR.y + sa * 30 + ca * side, vx: ca * 700, vy: sa * 700,
+          owner: 'player', by: t.by, kind: 'bullet', flak: m.flak, pierce: m.pierce ? 3 : 1, hits: [], life: 1.3, dead: false, side: offset !== 0 });
       });
     });
-    if (S.mods.rockets && S.volleys % 4 === 0) {
-      S.bullets.push({ x: TUR.x + c * 32, y: TUR.y + s * 32, vx: c * 360, vy: s * 360, owner: 'player', kind: 'rocket', life: 2, dead: false }); sound.play('rocket');
+    if (m.rockets && t.volleys % 4 === 0) {
+      S.bullets.push({ x: x0 + c * 32, y: TUR.y + s * 32, vx: c * 360, vy: s * 360, owner: 'player', by: t.by, kind: 'rocket', life: 2, dead: false }); sound.play('rocket');
       S.stats.shots++;
     }
     // Rounds fired (round 14, "shots fired would be a fun stat"): every bullet and rocket from your turret, so the
     // double barrel and spread shot make it climb.
-    S.stats.shots += angles.length * (S.mods.double ? 2 : 1);
-    S.parts.push({ k: 'star', x: TUR.x + c * 34, y: TUR.y + s * 34, life: 0.07, max: 0.07, id: nextId++ });
-    S.recoil = 1;
+    S.stats.shots += angles.length * (m.double ? 2 : 1);
+    S.parts.push({ k: 'star', x: x0 + c * 34, y: TUR.y + s * 34, a: t.aim, life: 0.07, max: 0.07, id: nextId++ });
+    t.recoil = 1;
     sound.play('shoot');
   }
   // One trigger pull: costs points, adds heat, and locks the gun when it boils over. Heat per shot never changes with
   // the wave, so cooling fins always pay off.
-  function fireVolley() {
-    shoot();
-    var rate = Math.pow(0.82, S.mods.fire);
-    S.fireCD = BALANCE.FIRE_COOLDOWN * rate;
-    S.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, S.mods.cool);
+  function fireVolley(t) {
+    t = t || S.turrets[0];
+    shoot(t);
+    var m = gm(t), rate = Math.pow(0.82, m.fire);
+    t.fireCD = BALANCE.FIRE_COOLDOWN * rate;
+    t.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, m.cool);
     S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
-    if (S.heat >= 1) triggerOverheat();
+    if (t.heat >= 1) triggerOverheat(t);
   }
-  function triggerOverheat() {
-    if (S.overheat > 0) return;
-    S.heat = 1; S.overheat = BALANCE.OVERHEAT_LOCK;
-    addText('too hot!', TUR.x, TUR.y - 52, RED, 23);
+  function triggerOverheat(t) {
+    t = t || S.turrets[0];
+    if (t.overheat > 0) return;
+    t.heat = 1; t.overheat = BALANCE.OVERHEAT_LOCK;
+    addText('too hot!', t.x, TUR.y - 52, RED, 23);
     sound.play('overheat'); SQUAD.heat();
   }
-  function updateHeat(dt) {
-    if (S.overheat > 0) {
+  function updateHeat(dt, t) {
+    t = t || S.turrets[0];
+    if (t.overheat > 0) {
       // While locked, the barrel cools to a usable level by the time it unlocks.
-      S.overheat -= dt;
-      S.heat = Math.max(0.35, S.heat - 0.65 / Math.max(0.1, BALANCE.OVERHEAT_LOCK) * dt);
-      if (R() < dt * 9) { var c = Math.cos(S.aim), s = Math.sin(S.aim); puff(TUR.x + c * 30, TUR.y + s * 30, 2, 0.6); }
-      if (S.overheat <= 0) { S.overheat = 0; sound.play('ready'); }
+      t.overheat -= dt;
+      t.heat = Math.max(0.35, t.heat - 0.65 / Math.max(0.1, BALANCE.OVERHEAT_LOCK) * dt);
+      if (R() < dt * 9) { var c = Math.cos(t.aim), s = Math.sin(t.aim); puff(t.x + c * 30, TUR.y + s * 30, 2, 0.6); }
+      if (t.overheat <= 0) { t.overheat = 0; sound.play('ready'); }
     } else {
-      S.heat = Math.max(0, S.heat - BALANCE.COOL_RATE * dt);
+      t.heat = Math.max(0, t.heat - BALANCE.COOL_RATE * dt);
     }
   }
   function killFx(t, force, squash, color) {
@@ -1374,8 +1399,8 @@
     }
   }
   function sniperHitsTurret(cause) {
-    S.heat = Math.min(1, S.heat + 0.25);
-    if (S.heat >= 1) triggerOverheat();
+    // Every barrel takes the knock.
+    S.turrets.forEach(function (t) { t.heat = Math.min(1, t.heat + 0.25); if (t.heat >= 1) triggerOverheat(t); });
     hurtWall(3, cause || 'sniper');
     addText('ping!', TUR.x + rr(-14, 14), TUR.y - 38, RED, 20, 'minor');
     S.parts.push({ k: 'tink', x: TUR.x, y: TUR.y - 6, life: 0.25, max: 0.25, c: RED, id: nextId++ });
@@ -1572,17 +1597,20 @@
   function update(dt) {
     S.t += dt;
     if (S.mode === 'play') {
-      if (keys.left) S.aim = Math.max(AIM_MIN, S.aim - 2.3 * dt);
-      if (keys.right) S.aim = Math.min(AIM_MAX, S.aim + 2.3 * dt);
-      S.fireCD -= dt;
-      updateHeat(dt);
-      if ((S.firing || keys.fire) && S.fireCD <= 0 && S.overheat <= 0) fireVolley();
+      S.turrets.forEach(function (t, i) {
+        var mine = i === me;
+        if (mine && keys.left) t.aim = Math.max(AIM_MIN, t.aim - 2.3 * dt);
+        if (mine && keys.right) t.aim = Math.min(AIM_MAX, t.aim + 2.3 * dt);
+        t.fireCD -= dt;
+        updateHeat(dt, t);
+        if ((t.firing || (mine && keys.fire)) && t.fireCD <= 0 && t.overheat <= 0) fireVolley(t);
+      });
       updateWave(dt);
       if (S.mode === 'shop') return;
       updateDelivery(dt);
       fadeInk(dt);
     }
-    S.recoil = Math.max(0, S.recoil - dt * 8);
+    S.turrets.forEach(function (t) { t.recoil = Math.max(0, t.recoil - dt * 8); });
     updatePlanes(dt);
     updateBombs(dt);
     SKY.update(dt);
@@ -1899,22 +1927,26 @@
     G.beginPath(); G.moveTo(a + jt(0.5), y + jt(0.5)); G.quadraticCurveTo(mid + jt(1), y + sag * 2, b + jt(0.5), y + jt(0.5)); ink(INK, 3.4); G.stroke();
     G.beginPath(); G.rect(a - 5, y - 4, 9, 7); G.rect(b - 4, y - 4, 9, 7); G.fillStyle = BLUE; G.fill(); ink(INK, 1.6); G.stroke();
   }
-  function drawBarrel() {
-    var len = 31 - S.recoil * 6, hot = clamp((S.heat - 0.35) / 0.65, 0, 1);
-    if (S.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
-    G.save(); G.translate(TUR.x, TUR.y); G.rotate(S.aim);
+  // Two barrels (co-op) each wear their player's color as a band behind the muzzle: the host blue, the guest red.
+  var GUN_COLORS = [BLUE, RED];
+  function drawBarrel(t) {
+    var len = 31 - t.recoil * 6, hot = clamp((t.heat - 0.35) / 0.65, 0, 1);
+    if (t.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
+    G.save(); G.translate(t.x, TUR.y); G.rotate(t.aim);
     G.fillStyle = PAPER; G.fillRect(2, -4, len - 2, 8);
     if (hot > 0) { G.globalAlpha = 0.45 * hot; G.fillStyle = RED; G.fillRect(2, -4, len - 2, 8); G.globalAlpha = 1; }
+    if (S.turrets.length > 1) { G.fillStyle = GUN_COLORS[t.by] || INK; G.fillRect(len - 11, -4, 5, 8); }
     G.beginPath(); L(2, -4, len, -4, 0.4); L(2, 4, len, 4, 0.4); L(len, -4.5, len, 4.5, 0.3); ink(hot > 0.7 ? RED : INK, 2.4); G.stroke();
     G.restore();
   }
-  // A thin gauge arcing over the dome: fills left to right as the gun heats, blinks red when locked.
-  function drawHeatRing() {
-    if (S.mode !== 'play' || (S.heat < 0.03 && S.overheat <= 0)) return;
-    var r = 25, start = Math.PI * 1.08, span = Math.PI * 0.84, end = start + span * S.heat;
+  // A thin gauge arcing over the dome: fills left to right as the gun heats, blinks red when locked. With two barrels,
+  // the guest's gauge sits outside the host's.
+  function drawHeatRing(t, i) {
+    if (S.mode !== 'play' || (t.heat < 0.03 && t.overheat <= 0)) return;
+    var r = 25 + i * 5, start = Math.PI * 1.08, span = Math.PI * 0.84, end = start + span * t.heat;
     G.save();
     G.setLineDash([2, 4]); G.beginPath(); G.arc(BK.x, BK.top, r, start, start + span); ink('rgba(46,46,51,0.25)', 1.5); G.stroke(); G.setLineDash([]);
-    var col = S.overheat > 0 ? (Math.floor(S.t * 8) % 2 ? RED : INK) : S.heat > 0.7 ? RED : INK;
+    var col = t.overheat > 0 ? (Math.floor(S.t * 8) % 2 ? RED : INK) : t.heat > 0.7 ? RED : INK;
     G.beginPath(); G.arc(BK.x, BK.top, r, start, end); ink(col, 3); G.stroke();
     G.restore();
   }
@@ -1935,9 +1967,9 @@
   }
   function drawBunker() {
     pen(9001);
-    var i, dipping = S.aim > -0.05 || S.aim < -Math.PI + 0.05;
-    // Tipped down, the barrel leans out over the wall, so it draws in front of the bunker.
-    if (!dipping) drawBarrel();
+    var i, dipping = function (t) { return t.aim > -0.05 || t.aim < -Math.PI + 0.05; };
+    // Tipped down, a barrel leans out over the wall, so it draws in front of the bunker.
+    S.turrets.forEach(function (t) { if (!dipping(t)) drawBarrel(t); });
     var dome = [];
     for (i = 0; i <= 10; i++) { var an = Math.PI + (i / 10) * Math.PI; dome.push(BK.x + Math.cos(an) * 19, BK.top + Math.sin(an) * 19); }
     G.beginPath(); G.moveTo(BK.x - 19, BK.top); G.arc(BK.x, BK.top, 19, Math.PI, 0); G.closePath(); G.fillStyle = PAPER; G.fill();
@@ -1963,8 +1995,8 @@
       G.beginPath(); G.moveTo(ch[0], ch[1]); for (i = 2; i < ch.length; i += 2) G.lineTo(ch[i], ch[i + 1]); G.closePath(); G.fillStyle = PAPER; G.fill();
       G.beginPath(); SP([232, 595, 226, 590, 219, 586, 214, 581, 210, 576], false, 0.3); ink(INK, 2.2); G.stroke();
     }
-    if (dipping) drawBarrel();
-    drawHeatRing();
+    S.turrets.forEach(function (t) { if (dipping(t)) drawBarrel(t); });
+    S.turrets.forEach(drawHeatRing);
   }
   // ---------- the flagpole ----------
   // A supply with one job: "It boosts morale." (shop.js). The squad fires FIRE faster while it flies. The first time,
@@ -2055,7 +2087,7 @@
       else if (q.k === 'puff') { G.globalAlpha = a * 0.55; G.beginPath(); Ci(q.x, q.y, q.r, 0.6); ink(INK, 1.6); G.stroke(); }
       else if (q.k === 'star') {
         G.globalAlpha = 1; G.beginPath();
-        for (var i = 0; i < 6; i++) { var an = S.aim + i * Math.PI / 3; L(q.x + Math.cos(an) * 2, q.y + Math.sin(an) * 2, q.x + Math.cos(an) * 7, q.y + Math.sin(an) * 7, 0.5); }
+        for (var i = 0; i < 6; i++) { var an = (q.a != null ? q.a : S.turrets[0].aim) + i * Math.PI / 3; L(q.x + Math.cos(an) * 2, q.y + Math.sin(an) * 2, q.x + Math.cos(an) * 7, q.y + Math.sin(an) * 7, 0.5); }
         ink(INK, 2); G.stroke();
       } else if (q.k === 'deflate') { G.beginPath(); SP([q.x - 14, q.y, q.x - 8, q.y - 6, q.x - 2, q.y - 2, q.x + 4, q.y - 7, q.x + 10, q.y - 2, q.x + 15, q.y], false, 0.5); G.fillStyle = RED_FILL; G.fill(); ink(RED, 1.8); G.stroke(); }
       else if (q.k === 'tink') { G.beginPath(); L(q.x, q.y, q.x + 6, q.y - 5, 0.4); L(q.x, q.y, q.x + 7, q.y + 2, 0.4); L(q.x, q.y, q.x - 6, q.y - 6, 0.4); L(q.x, q.y, q.x - 5, q.y + 3, 0.4); ink(q.c === HAT ? '#d29a00' : q.c, 2); G.stroke(); }
@@ -2105,10 +2137,11 @@
       G.restore();
     });
   }
+  // Only this device's barrel gets the guide.
   function drawAimGuide() {
-    var c = Math.cos(S.aim), s = Math.sin(S.aim);
+    var t = gun(), c = Math.cos(t.aim), s = Math.sin(t.aim);
     G.save(); G.setLineDash([2, 8]);
-    G.beginPath(); G.moveTo(TUR.x + c * 40, TUR.y + s * 40); G.lineTo(TUR.x + c * 125, TUR.y + s * 125);
+    G.beginPath(); G.moveTo(t.x + c * 40, TUR.y + s * 40); G.lineTo(t.x + c * 125, TUR.y + s * 125);
     ink('rgba(46,46,51,0.28)', 2); G.stroke();
     G.restore();
   }
@@ -2369,7 +2402,7 @@
     p.drops = [DEMO.CATCH_X, DEMO.SHOOT_X].sort(function (a, b) { return dir * (a - b); });
     p.kits = p.drops.map(function () { return { type: 'rifle', fall: 1, sway: 0, armor: 0 }; });
     S.planes.push(p);
-    S.aim = -Math.PI / 2;
+    S.turrets[0].aim = -Math.PI / 2;
     demo = { n: n, rest: -1, shotAt: {} };
     speak(DEMO.LINES[n % DEMO.LINES.length], S.recruits[n % 2].id, false, 0.8);
   }
@@ -2381,9 +2414,10 @@
       var catching = t.x < 120, off = catching ? -32 : 14, tx = t.x, ty = t.y + off;
       for (var k = 0; k < 2; k++) { var flight = Math.hypot(tx - TUR.x, ty - TUR.y) / 700; ty = t.y + off + t.fall * flight; }
       var want = clamp(Math.atan2(ty - TUR.y, tx - TUR.x), AIM_MIN, AIM_MAX);
-      S.aim += clamp(want - S.aim, -DEMO.TURN * dt, DEMO.TURN * dt);
+      var gun0 = S.turrets[0];
+      gun0.aim += clamp(want - gun0.aim, -DEMO.TURN * dt, DEMO.TURN * dt);
       var last = demo.shotAt[t.id];
-      if (t.y >= (catching ? DEMO.CATCH_AT : DEMO.SHOOT_AT) && Math.abs(want - S.aim) < 0.03 && (last == null || S.t - last > DEMO.RETRY)) {
+      if (t.y >= (catching ? DEMO.CATCH_AT : DEMO.SHOOT_AT) && Math.abs(want - gun0.aim) < 0.03 && (last == null || S.t - last > DEMO.RETRY)) {
         demo.shotAt[t.id] = S.t; shoot();
       }
       return;
@@ -2453,7 +2487,7 @@
   }
   function die() {
     emit('game_over', { wave: S.wave, score: S.score, cause: S.lastHit || 'unknown' });
-    S.mode = 'dying'; S.wallHP = 0; S.dieT = 1.6; S.firing = false;
+    S.mode = 'dying'; S.wallHP = 0; S.dieT = 1.6; S.turrets.forEach(function (t) { t.firing = false; });
     explode(BK.x, BK.top + 10, 46, 'final');
     S.shake = 0.8;
     pauseBtn.hidden = true;
@@ -2571,18 +2605,19 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden && wrap.classList.contains('full')) setFull(true); });
   fullBtn.addEventListener('click', toggleFull);
 
-  function clearInput() { keys.left = keys.right = keys.fire = false; S.firing = false; }
+  function clearInput() { keys.left = keys.right = keys.fire = false; if (S.turrets) S.turrets.forEach(function (t) { t.firing = false; }); }
 
   // ---------- input ----------
   function toLogical(e) {
     var r = cv.getBoundingClientRect();
     return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
   }
+  // Aims this device's barrel at a point on the page (from its own mount).
   function aimAt(p) {
-    var a = Math.atan2(p.y - TUR.y, p.x - TUR.x);
+    var t = gun(), a = Math.atan2(p.y - TUR.y, p.x - t.x);
     // Below-left angles continue past -PI so the range stays one continuous sweep.
     if (a > Math.PI / 2) a -= Math.PI * 2;
-    S.aim = clamp(a, AIM_MIN, AIM_MAX);
+    t.aim = clamp(a, AIM_MIN, AIM_MAX);
   }
   cv.addEventListener('pointerdown', function (e) {
     if (S.mode !== 'play') return;
@@ -2591,16 +2626,16 @@
     var chip = callChipAt(toLogical(e));
     if (chip) { if (chip.kind === 'bomber') callStrike(); else callFighter(); e.preventDefault(); return; }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    aimAt(toLogical(e)); S.firing = true;
+    aimAt(toLogical(e)); gun().firing = true;
     // Touch (or a pen) on the page marks the run as touch on the board and in play stats; menus don't count.
     if (e.pointerType === 'touch' || e.pointerType === 'pen') { S.input = 'touch'; LBOARD.touched(); }
     e.preventDefault();
   });
   cv.addEventListener('pointermove', function (e) {
     if (S.mode !== 'play') return;
-    if (e.pointerType === 'mouse' || S.firing) aimAt(toLogical(e));
+    if (e.pointerType === 'mouse' || gun().firing) aimAt(toLogical(e));
   });
-  function stopFire() { S.firing = false; }
+  function stopFire() { gun().firing = false; }
   cv.addEventListener('pointerup', stopFire);
   cv.addEventListener('pointercancel', stopFire);
   cv.addEventListener('lostpointercapture', stopFire);
@@ -2636,7 +2671,8 @@
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = false;
     else if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') keys.fire = false;
   });
-  window.addEventListener('blur', function () { keys.left = keys.right = keys.fire = false; S.firing = false; });
+  // Leaving the window lets go of this device's controls only.
+  window.addEventListener('blur', function () { keys.left = keys.right = keys.fire = false; if (S.turrets) gun().firing = false; });
   document.addEventListener('visibilitychange', function () { if (document.hidden && S.mode === 'play') togglePause(); });
   window.addEventListener('resize', fit);
 

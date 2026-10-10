@@ -159,9 +159,9 @@
   check(!S.bubbles.length, 'not while anything is on the page');
   S.planes = [];
   // An overheated gun, now and then.
-  S.overheat = 0; S.talk.heatT = -1e9; stub([0], function () { triggerOverheat(); });
+  S.turrets[0].overheat = 0; S.talk.heatT = -1e9; stub([0], function () { triggerOverheat(); });
   check(S.bubbles.some(function (b) { return b.s === 'Easy on the trigger!'; }), 'an overheated gun gets a word');
-  S.bubbles = []; S.overheat = 0; stub([0], function () { triggerOverheat(); });
+  S.bubbles = []; S.turrets[0].overheat = 0; stub([0], function () { triggerOverheat(); });
   check(!S.bubbles.length, 'but not every time');
   // Making Master Sergeant.
   var sarge = S.recruits[0]; sarge.name = 'Doodle'; sarge.rank = 4; sarge.waves = 17; S.bubbles = [];
@@ -180,7 +180,7 @@
   // ======== The second pass (after the second win) ========
 
   // ---- Rounds fired: every bullet and rocket from your turret, on both end cards and in play stats.
-  RUN.force = 160; newGame(); S.mods.double = true; S.mods.spread = true; S.mods.rockets = true; S.volleys = 3;
+  RUN.force = 160; newGame(); S.mods.double = true; S.mods.spread = true; S.mods.rockets = true; S.turrets[0].volleys = 3;
   shoot();
   check(S.stats.shots === 7, 'one pull with the double barrel, spread shot and a rocket fires seven: ' + S.stats.shots);
   check(runReport().stats.shots === 7, 'play stats get it');

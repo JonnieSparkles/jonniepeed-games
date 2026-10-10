@@ -46,7 +46,7 @@
     observe: function () {
       var o = {
         mode: S.mode, t: S.t, wave: S.wave, score: S.score, coins: S.coins, wall: S.wallHP, maxWall: S.mods.maxHP,
-        heat: S.heat, overheat: S.overheat, aim: S.aim, turret: { x: TUR.x, y: TUR.y }, bulletSpeed: 700,
+        heat: S.turrets[0].heat, overheat: S.turrets[0].overheat, aim: S.turrets[0].aim, turret: { x: TUR.x, y: TUR.y }, bulletSpeed: 700,
         aimMin: AIM_MIN, aimMax: AIM_MAX, ground: GROUND, bunker: { x1: BK.x1, x2: BK.x2, top: BK.top },
         captureSpeed: CAPTURE_SPEED, slotsFree: freeSlot(0) >= 0, slots: S.mods.slots,
         mats: activeTramps().map(function (m) { return { x1: m.x1, x2: m.x2, y: m.y }; }),

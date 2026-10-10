@@ -16,38 +16,38 @@
   check(!safe.dead, 'a fall well to the side squashes nobody');
 
   // The barrel tips just below horizontal, enough to clear the wall.
-  aimAt({ x: 300, y: 640 }); check(Math.abs(S.aim - AIM_MAX) < 1e-9 && S.aim > 0, 'below right clamps to the dip limit');
-  aimAt({ x: 100, y: 640 }); check(Math.abs(S.aim - AIM_MIN) < 1e-9 && S.aim < -Math.PI, 'below left clamps to the dip limit');
-  aimAt({ x: 100, y: 400 }); check(S.aim > -Math.PI && S.aim < -Math.PI / 2, 'upper left unchanged');
+  aimAt({ x: 300, y: 640 }); check(Math.abs(S.turrets[0].aim - AIM_MAX) < 1e-9 && S.turrets[0].aim > 0, 'below right clamps to the dip limit');
+  aimAt({ x: 100, y: 640 }); check(Math.abs(S.turrets[0].aim - AIM_MIN) < 1e-9 && S.turrets[0].aim < -Math.PI, 'below left clamps to the dip limit');
+  aimAt({ x: 100, y: 400 }); check(S.turrets[0].aim > -Math.PI && S.turrets[0].aim < -Math.PI / 2, 'upper left unchanged');
 
   // A lander at the wall can be shot when the crew is empty.
   newGame(); S.recruits = [];
   spawnTrooper(250, 300); var atWall = S.troopers[0]; land(atWall); atWall.x = BK.x2 + 7; atWall.atWall = true;
-  S.aim = AIM_MAX; fireVolley();
+  S.turrets[0].aim = AIM_MAX; fireVolley();
   for (var i = 0; i < 60 && !atWall.dead; i++) updateBullets(1 / 60);
   check(atWall.dead, 'a dipped shot kills a lander at the wall');
 
   // Each volley costs a point, heats the gun, and enough of them lock it.
   newGame(); S.score = 100; fireVolley();
-  check(S.score === 100 - BALANCE.SHOT_COST && S.heat > 0, 'a volley costs a point and adds heat');
+  check(S.score === 100 - BALANCE.SHOT_COST && S.turrets[0].heat > 0, 'a volley costs a point and adds heat');
   S.score = 0; fireVolley(); check(S.score === 0, 'score never goes negative');
   newGame(); keys.fire = true; var locked = false, shotsWhileLocked = 0;
   for (var j = 0; j < 60 * 6; j++) {
-    var before = S.volleys, wasLocked = S.overheat > 0; update(1 / 60);
-    if (S.overheat > 0) locked = true;
+    var before = S.turrets[0].volleys, wasLocked = S.turrets[0].overheat > 0; update(1 / 60);
+    if (S.turrets[0].overheat > 0) locked = true;
     // The trigger frame and the unlock frame may fire; nothing in between.
-    if (wasLocked && S.overheat > 0 && S.volleys > before) shotsWhileLocked++;
+    if (wasLocked && S.turrets[0].overheat > 0 && S.turrets[0].volleys > before) shotsWhileLocked++;
   }
   keys.fire = false;
   check(locked, 'holding fire overheats the gun');
   check(shotsWhileLocked === 0, 'no shots while locked');
   for (var k = 0; k < 60 * 3; k++) update(1 / 60);
-  check(S.overheat === 0 && S.heat < 0.35, 'the gun cools and unlocks');
-  newGame(); fireVolley(); var plain = S.heat;
+  check(S.turrets[0].overheat === 0 && S.turrets[0].heat < 0.35, 'the gun cools and unlocks');
+  newGame(); fireVolley(); var plain = S.turrets[0].heat;
   newGame(); S.mods.cool = 2; fireVolley();
-  check(Math.abs(S.heat - plain * 0.64) < 1e-9, 'cooling fins cut heat per shot');
+  check(Math.abs(S.turrets[0].heat - plain * 0.64) < 1e-9, 'cooling fins cut heat per shot');
   newGame(); S.mods.fire = 4; fireVolley();
-  check(Math.abs(S.heat / BALANCE.HEAT_PER_SHOT - Math.pow(0.82, 4)) < 1e-9, 'fire-rate upgrades keep heat per second the same');
+  check(Math.abs(S.turrets[0].heat / BALANCE.HEAT_PER_SHOT - Math.pow(0.82, 4)) < 1e-9, 'fire-rate upgrades keep heat per second the same');
 
   // Midair kills leave no permanent ink; ground kills still do. Crew pieces are blue.
   newGame(); spawnTrooper(80, 280); killTrooper(S.troopers[0], 'player');
