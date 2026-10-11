@@ -389,7 +389,8 @@ async function gameDetail(env, url, game, board, mode) {
     }
   }
   const latest = await latestRuns(env, { since, game, board, mode });
-  // Leaderboard saves play stats missed are runs of the "without" side (Stick Army's co-op runs are never saved).
+  // The "with" side has no leaderboard: Stick Army's co-op runs are never saved, so the board's names, scores and the
+  // saves play stats missed all belong to the other side, and show only there.
   const withMode = mode === 1 && games[game]?.modes;
   if (withMode) latest.recent = latest.recent.filter(r => !r.board_only);
   return {
@@ -402,8 +403,8 @@ async function gameDetail(env, url, game, board, mode) {
     recent: latest.recent,
     // Board saves play stats didn't see: only meaningful for a game with a board.
     unseen: onBoards && !withMode ? latest.unseen : null, unseen_capped: latest.unseen_capped,
-    board_names: names, board_labels: boardLabels(game),
-    leaderboard: await leaderboard(env, game, board)
+    board_names: withMode ? null : names, board_labels: boardLabels(game),
+    leaderboard: withMode ? null : await leaderboard(env, game, board)
   };
 }
 

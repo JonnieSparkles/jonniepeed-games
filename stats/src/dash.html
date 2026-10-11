@@ -598,7 +598,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       sourcesCard(data.sources)));
     // Names from the leaderboards: only saved runs carry initials.
     const names = el('section', { class: 'card' }, el('h2', null, 'Names on the board'));
-    if (data.board_names == null || (!data.board_names.length && s.saves == null)) {
+    if (data.modes && data.mode === 1) {
+      names.append(el('p', { class: 'empty' }, `${data.modes.names[1]} runs aren’t saved to the leaderboard, so no names.`));
+    } else if (data.board_names == null || (!data.board_names.length && s.saves == null)) {
       names.append(el('p', { class: 'empty' }, 'This game has no leaderboard yet, so no names.'));
     } else if (!data.board_names.length) {
       names.append(el('p', { class: 'empty' }, 'No runs saved to the board in this window.'));
