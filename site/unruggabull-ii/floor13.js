@@ -848,26 +848,50 @@ var UnrugFloor13 = function (core) {
   // Cracks on its panels, clear of the sign, the eyes and the mouth, in the order they appear.
   const CRACKS = [[[8, 6], [13, 12], [11, 17]], [[66, 5], [62, 10], [64, 15], [60, 19]], [[6, 22], [11, 26], [9, 31]], [[68, 24], [63, 27], [66, 31]],
     [[16, 4], [19, 9], [17, 12]], [[58, 8], [55, 13]], [[12, 14], [18, 17]], [[62, 16], [57, 22]]];
+  // The Shredder: a steel shredding machine built across the end of the hall, drawn at the picture's full size. A riveted
+  // steel body in panels, an amber SHRED-O display, its two eyes in dark sockets, side vents with paper caught in them,
+  // a hazard-striped feed under the eyes and the mouth with its blades, fed by the runner rug. It wears down: cracks
+  // and loose panels the more damage it has taken.
+  const hr = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x * 2) / 2, Math.round(y * 2) / 2, Math.max(.5, Math.round(w * 2) / 2), Math.max(.5, Math.round(h * 2) / 2)); };
   function drawShredder() {
     const b = R.boss, x0 = BACK.x0, x1 = BACK.x1, y0 = BACK.y0, y1 = BACK.y1, w = x1 - x0, t = R.t;
-    const dead = b.st === 'dead';
-    const body = b.flash > 0 ? '#7a7e8c' : dead ? '#3a3a44' : '#4a4e5a';   // a hard hit lightens it, not a white box
-    rect(g, x0 + 4, y0 + 3, w - 8, y1 - y0 - 3, body);
-    rect(g, x0 + 4, y0 + 3, w - 8, 2, b.flash > 0 ? '#ffffff' : b.tick > 0 ? '#b8bcc8' : '#6a6e7c');   // blaster hits only glint the top edge
-    rect(g, x0 + 7, y0 + 25, w - 14, 1, '#3a3e48');
-    rect(g, x0 + 9, y0 + 21, 6, 2, '#8a8e9c'); rect(g, x1 - 15, y0 + 21, 6, 2, '#8a8e9c');
-    rect(g, 104, y0 + 6, 32, 9, '#1a1418'); txt(g, 'SHRED-O', 120, y0 + 8, '#ffd44a', 1, 'center');
+    const dead = b.st === 'dead', hit = b.flash > 0;
+    const steel = hit ? '#8a90a2' : dead ? '#34343e' : '#4c5262', dark = dead ? '#24242c' : '#32363f', lite = hit ? '#ffffff' : b.tick > 0 ? '#c8ccd8' : '#7a8092';
+    // the body: a darker frame, then three panels, a lit top edge, seams and rivets
+    hr(x0 + 3, y0 + 2, w - 6, y1 - y0 - 2, '#1a1418');
+    hr(x0 + 4, y0 + 3, w - 8, y1 - y0 - 3, dark);
+    for (const [a, c] of [[x0 + 5, x0 + 24], [x0 + 25.5, x1 - 25.5], [x1 - 24, x1 - 5]]) hr(a, y0 + 4, c - a, y1 - y0 - 17, steel);
+    hr(x0 + 4, y0 + 3, w - 8, 1, lite);
+    hr(x0 + 4, y0 + 3.5, w - 8, .5, hit ? '#ffffff' : '#9aa0b2');
+    for (const x of [x0 + 6, x0 + 22.5, x1 - 23.5, x1 - 7]) for (const y of [y0 + 5.5, y0 + 30]) { hr(x, y, 1, 1, '#1a1418'); hr(x, y, .5, .5, '#a8aec0'); }
+    // side vents, with shredded paper caught in the slats
+    for (const vx of [x0 + 8, x1 - 20]) {
+      hr(vx, y0 + 23, 12, 7, '#1a1418');
+      for (let i = 0; i < 4; i++) hr(vx + .5, y0 + 24 + i * 1.5, 11, .5, '#5a6070');
+      for (let i = 0; i < 3; i++) { const px = vx + 2 + i * 4 + (Math.floor(t * 3 + i) % 2) * .5; hr(px, y0 + 26 + (i % 2), .5, 3 + (i % 2), '#ecedf6'); }
+    }
+    // the display
+    hr(102.5, y0 + 5.5, 35, 10, '#1a1418'); hr(103.5, y0 + 6.5, 33, 8, '#2a0e0a');
+    txt(g, 'SHRED-O', 120, y0 + 8, '#ffd44a', 1, 'center');
+    // eye sockets
+    for (const ex of [104.5, 125.5]) { hr(ex, y0 + 15, 11, 7, '#1a1418'); hr(ex + .5, y0 + 15.5, 10, 6, '#0e0c12'); }
     shredderEyes();
-    // it wears down: more cracks the more damage it has taken
+    // it wears down: cracks, and a panel hanging loose at the end
     const wear = b.st === 'fight' || dead ? 1 - b.hp / TUNE.bossHP : 0, n = Math.floor(wear * CRACKS.length * 1.15);
-    for (let i = 0; i < Math.min(n, CRACKS.length); i++) { const c = CRACKS[i]; for (let j = 1; j < c.length; j++) line(g, x0 + c[j - 1][0], y0 + c[j - 1][1], x0 + c[j][0], y0 + c[j][1], '#24242c'); }
-    if (b.ph >= 3 && b.st === 'fight' && Math.floor(t * 9) % 4 === 0) { rect(g, x1 - 12, y0 + 9, 1, 1, '#ffd44a'); rect(g, x1 - 10, y0 + 7, 1, 1, '#fff6e2'); }
-    // the mouth, fed by the runner
+    for (let i = 0; i < Math.min(n, CRACKS.length); i++) { const c = CRACKS[i]; for (let j = 1; j < c.length; j++) line(g, x0 + c[j - 1][0], y0 + c[j - 1][1], x0 + c[j][0], y0 + c[j][1], '#14141a'); }
+    if (wear > .7) { hr(x1 - 24, y0 + 4, 19, 1, '#1a1418'); hr(x1 - 23, y0 + 5, 1, 6, '#1a1418'); }
+    if (b.ph >= 3 && b.st === 'fight' && Math.floor(t * 9) % 4 === 0) { hr(x1 - 12, y0 + 9, 1, 1, '#ffd44a'); hr(x1 - 10, y0 + 7, 1, 1, '#fff6e2'); }
+    // the feed: a hazard-striped lip over the mouth
     const my = y1 - 13, open = b.spit > 0 ? 2 : 0;
-    rect(g, x0 + 10, my - open, w - 20, 9 + open, '#09070b');
-    if (b.spit > 0) rect(g, x0 + 12, my + 2, w - 24, 4, '#3a1010');
+    hr(x0 + 8, my - 4 - open, w - 16, 3, '#1a1418');
+    for (let x = x0 + 8.5, i = 0; x < x1 - 8.5; x += 3, i++) hr(x, my - 3.5 - open, Math.min(3, x1 - 8.5 - x), 2, i % 2 ? '#1a1418' : '#ffd21e');
+    // the mouth, fed by the runner
+    hr(x0 + 10, my - open, w - 20, 9 + open, '#09070b');
+    if (b.spit > 0) hr(x0 + 12, my + 2, w - 24, 4, '#3a1010');
     shredderTeeth();
-    rect(g, PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
+    hr(PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
+    // feet, either side of the rug
+    for (const fx of [x0 + 5, x1 - 13]) { hr(fx, y1 - 2.5, 8, 2.5, '#1a1418'); hr(fx + .5, y1 - 2, 7, 1.5, '#5a6070'); }
     if (b.st === 'sleep') for (let i = 0; i < 3; i++) { const k = mod1(t * .4 + i / 3); txt(g, 'Z', x1 - 8 + Math.round(Math.sin(k * 6) * 2), Math.round(y0 + 2 - k * 16), k > .8 ? '#5a5670' : '#a8a0c0'); }
   }
   // The hall is endless at first: it runs on into the fog. In the copy room the Shredder appears far down it and
@@ -885,10 +909,11 @@ var UnrugFloor13 = function (core) {
   }
   // The Shredder is drawn on its own canvas, then onto the scene scaled about the foot of its mouth with hard pixels: it
   // swells as it lunges at you and shrinks as it recoils, breathes, and shudders when jammed or hit hard.
-  const SHC = A.canvas(W, H), shg = SHC.getContext('2d');
+  const SHC = A.canvas(W * 2, H * 2), shg = SHC.getContext('2d');
+  shg.imageSmoothingEnabled = false;
   function withShredder(fn) {
     const b = R.boss, main = g;
-    shg.clearRect(0, 0, W, H);
+    shg.setTransform(1, 0, 0, 1, 0, 0); shg.clearRect(0, 0, W * 2, H * 2); shg.setTransform(2, 0, 0, 2, 0, 0);
     g = shg; try { fn(); } finally { g = main; }
     const live = b.st === 'fight' || b.st === 'awake', fast = b.ph === 3 || b.hp < 15;
     const breathe = live ? Math.sin(R.t * (fast ? 4.2 : 2.4)) * .012 : 0;
@@ -898,7 +923,7 @@ var UnrugFloor13 = function (core) {
     // further down the hall it shrinks toward the vanishing point
     const zS = shredderZ(), kv = sc(zS) / sc(1);
     const dx = 120 - (120 - sx) * k + jx, dy = fy - (fy - sy) * k + Math.max(0, b.push || 0) * 1.5;
-    g.drawImage(SHC, sx, sy, sw, sh, Math.round(VX + (dx - VX) * kv), Math.round(HY + (dy - HY) * kv), Math.round(sw * k * kv), Math.round(sh * k * kv));
+    g.drawImage(SHC, sx * 2, sy * 2, sw * 2, sh * 2, Math.round((VX + (dx - VX) * kv) * 2) / 2, Math.round((HY + (dy - HY) * kv) * 2) / 2, Math.round(sw * k * kv * 2) / 2, Math.round(sh * k * kv * 2) / 2);
   }
   // Lights out: far down the endless hall, two red eyes open now and then, watching. Something is down there.
   function darkEyes() {

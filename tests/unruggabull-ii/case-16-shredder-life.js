@@ -47,7 +47,7 @@
     bull.u = u; R.shake = 0; R.red = 0; b.push = 0; b.pushV = 0; draw();
     // read off the picture, which is PIC times the game's coordinates
     const d = view.getImageData(102 * PIC, (BACK.y0 + 18) * PIC + 1, 14 * PIC, 1).data, xs = [];
-    for (let i = 0; i < 14 * PIC; i++) if (d[i * 4] > 120) xs.push(i);
+    for (let i = 0; i < 14 * PIC; i++) if (d[i * 4] > 120 && d[i * 4 + 1] < d[i * 4] * .6) xs.push(i);   // red (not the steel round it)
     for (let i = xs[0]; i < xs[xs.length - 1]; i++) if (d[i * 4] < 60) return i - xs[0];
     return -1;
   };
