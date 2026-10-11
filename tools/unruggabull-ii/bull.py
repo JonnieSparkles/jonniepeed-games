@@ -52,6 +52,7 @@ LEG = 24               # hip to sole
 TORSO = 18.5           # shoulders to belt
 ARM = 1.1              # how thick his arms are
 STANCE = 1.4           # how much further apart his feet are than his hips
+HORN_GOLD = True       # gold at the root of each horn, fading to cream; False for cream all the way
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
 LIT_ABOVE = FEET - 30  # side edges above this row (his waist) take a coloured outline; below it they stay black
@@ -217,11 +218,11 @@ def earring(cv, ex, ey):
 
 def horn(cv, pts):
     # gold at the root fading to cream at the tip, ridged near the head
-    capsule(cv, pts[:3], 'horn', base=.12)
+    capsule(cv, pts[:3], 'horn' if HORN_GOLD else 'ivory', base=.12)
     capsule(cv, pts[2:], 'ivory', base=.14)
     for k in (.12, .26):
         (ax, ay, _), (bx, by, _) = pts[0], pts[1]
-        T(cv, ax + (bx - ax) * k * 3, ay + (by - ay) * k * 3, 'i')
+        T(cv, ax + (bx - ax) * k * 3, ay + (by - ay) * k * 3, 'i' if HORN_GOLD else 'U')
     tx, ty, _ = pts[-2]
     T(cv, tx, ty - 1, 'X')
 
@@ -902,7 +903,7 @@ def to_js(d):
     pal = ', '.join(f"'{c}': '#{CHARS[c]}'" for c in used)
     lines = [
         '// Unruggabull for Unruggabull II, drawn by tools/unruggabull-ii/bull.py. Don\'t edit by hand: change the script and run it.',
-        '// Classic script. Not loaded by the game yet; the bull in art.js is still the one in play until the lit hall replaces it.',
+        '// Classic script, loaded before art.js, which turns the grids into the canvases the game draws.',
         '// Text grids, one character per pixel and "." for none. Every pose shares one box with his feet at FEET.',
         'var UnrugBull = (function () {',
         "  'use strict';",

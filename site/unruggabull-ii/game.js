@@ -618,14 +618,16 @@
     const sx = 1 + (b.sq || 0), sy = 1 - (b.sq || 0);
     // hit: knocked back a step toward you, rocking side to side, then he catches himself
     const st = b.stag > 0 && R.phase !== 'win' ? b.stag / .3 : 0, kx = Math.round(Math.sin(st * 14) * 3 * st * s), ky = Math.round(st * 4 * s);
-    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s * sx) + kx, Math.round(feet - 38 * s * sy) + ky, Math.round(A.POSE_W * s * sx), Math.round(A.POSE_H * s * sy));
+    const k = s * A.BULL_K;
+    g.drawImage(p, Math.round((x - A.POSE_FEET.x * k * sx + kx) * PIC) / PIC, Math.round((feet - A.POSE_FEET.y * k * sy + ky) * PIC) / PIC, A.POSE_W * k * sx, A.POSE_H * k * sy);
   }
   // Rugged: the rug is yanked out from under him. He flips up, spins in quarter turns and falls off the screen.
   function drawRugPulled(s, x, feet) {
     const t = Math.max(0, R.phaseT - .08), dy = -(190 * t - 260 * t * t) * s, rot = Math.floor(t / .09) % 4;
     g.save(); g.translate(Math.round(x + t * 14 * s), Math.round(feet - 19 * s + dy));
     if (rot) g.rotate(rot * Math.PI / 2);
-    g.drawImage(A.POSES.hurt, Math.round(-A.POSE_W / 2 * s), Math.round(-19 * s), Math.round(A.POSE_W * s), Math.round(A.POSE_H * s));
+    const k = s * A.BULL_K;
+    g.drawImage(A.POSES.hurt, -A.POSE_FEET.x * k, -A.POSE_FEET.y * k + 19 * s, A.POSE_W * k, A.POSE_H * k);
     g.restore();
   }
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
@@ -747,7 +749,6 @@
     rect(f, 0, GROUND, W, H - GROUND, '#0a0816');
     for (let i = 0; i < 9; i++) rect(f, 88 + ((i * 23) % 64), GROUND + 3 + (i % 4) * 3, 5 + (i % 3) * 3, 1, i % 2 ? '#ff9a3c' : '#e8483a');
     rect(f, 112, GROUND, 17, 1, '#000');
-    f.drawImage(A.POSES.stand, 120 - A.POSE_W / 2, GROUND - 38);
     TOWER = { sky, front };
   }
   function drawTower(t) {
@@ -762,6 +763,7 @@
       rect(g, sx - w, y, 2 * w + 1, 1, k < .28 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a');
     }
     g.drawImage(TOWER.front, 0, 0);
+    g.drawImage(A.POSES.stand, 120 - A.POSE_FEET.x * A.BULL_K, GROUND - A.POSE_FEET.y * A.BULL_K, A.POSE_W * A.BULL_K, A.POSE_H * A.BULL_K);   // at the picture's full size
     disc(g, BEACON.x, BEACON.y, 3, Math.sin(t * 3) > .4 ? '#ffd060' : '#ff9628'); A.px(g, BEACON.x, BEACON.y, '#140c08');
     g.save(); g.globalAlpha = .75;
     [[30, 92], [69, 98], [172, 95], [212, 88], [96, 104]].forEach(([x, y], i) => {

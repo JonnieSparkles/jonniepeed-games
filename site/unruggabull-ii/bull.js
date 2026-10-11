@@ -1,5 +1,5 @@
 // Unruggabull for Unruggabull II, drawn by tools/unruggabull-ii/bull.py. Don't edit by hand: change the script and run it.
-// Classic script. Not loaded by the game yet; the bull in art.js is still the one in play until the lit hall replaces it.
+// Classic script, loaded before art.js, which turns the grids into the canvases the game draws.
 // Text grids, one character per pixel and "." for none. Every pose shares one box with his feet at FEET.
 var UnrugBull = (function () {
   'use strict';
