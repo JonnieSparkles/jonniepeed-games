@@ -1392,7 +1392,21 @@ var UnrugFloor13 = function (core) {
     if (R.phase === 'boss' && !R.events.soulHint) startHint();
   }
 
+  function opening() {
+    R.banner = { text: 'FLOOR 13', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
+    live('Floor 13, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
+    Snd.play('start'); Snd.music('tower');
+  }
+  function clearCard(extra, best, clock) {
+    const rows = [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Deflects', String(R.events.deflects || 0)],
+      ['Best streak', String(R.bestStreak)], ['Formation wipes', String(R.events.wipes || 0)], ['Smashes', String(R.events.smashes || 0)], ['Longest rally', String(R.events.bestRally || 0)]];
+    if (R.continues) rows.push(['Continues', String(R.continues)]);
+    rows.push(['Best', best.souls + ' souls']);
+    return { title: 'Floor 13 clear', text: extra.newBest ? 'New best! The Unrugged drift up toward the roof.' : 'The Unrugged drift up toward the roof.',
+      rows, note: 'The elevator to floor 42 comes in a later build.' };
+  }
   return {
+    id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'The Shredder will wait. It has nowhere else to be.',
     // hooks
     use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, shotHits, shotFar, slash, hurt, blasterBack, posOf,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
@@ -1401,3 +1415,44 @@ var UnrugFloor13 = function (core) {
     TAUNTS, taunt, laugh, surgeSoon, shredderZ, darkness, startBoss, serveRally, throwPlanes, spitRow, spitFan, rollBack, killTemp
   };
 };
+
+// Floor 13 numbers; copied without retuning when the roof became a second floor.
+UnrugFloor13.TUNE = {
+    coffeeDrop: .2, rowH: .055,
+    scroll: .2,             // walking speed down the hall, depth a second
+    pullSpeed: .3, mouth: .85,
+    goal: 90,               // souls that wake the Shredder
+    wadTime: 1.25, wadLead: .2, throwChance: .6,
+    moveT: 14, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
+    darkT: 10,              // lights out in the hall: kills in the dark free double souls
+    powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
+    streakDrop: 10,         // a streak this long drops a Spread Shot
+    bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,
+    bundleT: [2.2, 1.6],    // how long a bundle takes to reach you: phase 1, then later phases
+    tell: .45,              // the Shredder's mouth glows this long before each attack
+    finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
+    attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
+    volley: { n: [3, 4, 5], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
+    bossRows: { sheet: .45, carpet: .5 },   // how fast a paper jam sheet and a staple carpet cross the floor
+    sprayEvery: .3, sprayT: 1.5,   // a side spray sends staples down both sides of the hall this often while the rug pulls, this slow
+    rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
+    // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
+    bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
+    // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
+    // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
+    // misses, for smash + smashPer × its bat-backs. Once a phase, a marathon rally of this many.
+    rally: { serve: 1, speedUp: .85, fastest: .45, count: [[1, 2], [2, 4], [3, 5]], marathon: [6, 7, 8], back: .3, backMin: .2, smash: 6, smashPer: 2, stun: 1.6 },
+    // phase 3's power surge knocks the blaster up the rug (it flies this long); a smash rolls the rug back toward you at this
+    // speed for this long, shoving anyone on it to the back of the hall and pinning them; the rewind attack rolls it back too
+    surgeFly: .6, roll: { dur: 1.6, speed: .5, pin: .3 }, rewindT: 1.4,
+    darkFormEvery: 2.2,     // lights out sends a formation this often
+    switchEvery: 3, switchFlash: 1.4,   // lights out: a light switch glows on a wall this often; shoot it and the lights flash on this long, freezing every carpshit
+    grip: .25, // crouched he's half height; gripping a pulling rug, it drags him at a quarter of the speed
+    planeT: 1.6, planeDmg: 2,  // the Shredder's paper airplanes at head height: duck them, or slash them back
+    wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
+    // the souls' hint (the mega stream's first glimpse, saved for the roof): the first time the blaster comes back in the
+    // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
+    // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
+    // run out unseen), then drop off one by one, fade apart.
+    soulHint: { souls: 3, gap: .6, fly: 1.4, hold: 4, fade: .6 }
+  };

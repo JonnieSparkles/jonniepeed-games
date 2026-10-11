@@ -1,11 +1,14 @@
 // Unruggabull II balance adapter (SPEC-005, docs/guides/01-balance-bots.md). tools/balance/run.py evaluates this
 // inside game.js's scope through a test-only bridge injected into the response; nothing here ships.
 // Progress is reported as stages, in the report's "wave" column:
+//   Roof: 10 lead-in, 11-13 rounds, 14 crescendo, 15 cleared.
 //   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 Shredder phases 1-3, 9 cleared.
 (function () {
+  var renderEffects = false, renderSteps = 0, renderedState = null;
   var log = [], lastStage = 1, ids = new WeakMap(), nextId = 1;
   function idOf(o) { if (!ids.has(o)) ids.set(o, nextId++); return ids.get(o); }
   function stage() {
+    if (R.stage === 'roof') return floor.stageNo();
     if (R.phase === 'dead') return lastStage;
     if (R.phase === 'win' || state === 'over') return 9;
     if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
@@ -23,17 +26,23 @@
     game: 'unruggabull-ii',
     // A fresh run on this seed, straight into the hall (no story, no card). Cosmetics already use their own
     // randomness, so options.fast changes nothing.
-    start: function (seedv) {
+    start: function (seedv, options) {
       log = []; emitHook = record; lastStage = 1;
-      RUN.force = seedv; newRun(); RUN.force = null;
+      renderEffects = options && options.fast === false && options.stage === 'roof'; renderSteps = 0; renderedState = null;
+      RUN.force = seedv; newRun(null, options && options.stage); RUN.force = null;
       setState('play'); card.hidden = true; crawl.hidden = true; intro = null;
       input.jump = input.slash = input.shoot = 0;
       keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = keys.kbDown = keys.padDown = false;
+      keys.kbUp = keys.padUp = false;
     },
     // Game logic only; never draws.
     step: function (dt) {
       if (state !== 'play') return;
       update(dt);
+      // Verify samples real renderer frames at every beat and five seconds of fight time.
+      if (renderEffects && (++renderSteps % 300 === 0 || (R.roof.cut ? R.roof.cut.name : R.roof.state) !== renderedState)) {
+        draw(); renderedState = R.roof.cut ? R.roof.cut.name : R.roof.state;
+      }
       if (R.phase !== 'dead') lastStage = stage();
     },
     observe: function () {
@@ -54,12 +63,24 @@
       R.rows.forEach(function (rw) { if (!rw.hit) o.rows.push({ id: idOf(rw), kind: rw.kind, z: rw.w - R.dist, speed: R.speed + (rw.v || (rw.kind === 'chairs' ? .12 : .22)) }); });
       if (R.event && R.event.souls) R.event.souls.forEach(function (sl) { if (!sl.got) o.bubbles.push({ id: idOf(sl), u: sl.u, z: sl.w - R.dist }); });
       R.pickups.forEach(function (pk) { if (!pk.got) o.pickups.push({ id: idOf(pk), kind: pk.kind, u: pk.u, z: pk.w - R.dist }); });
+      if (R.stage === 'roof') {
+        var q = R.roof, rt = floor.ROOF;
+        o.roof = { state: q.state, round: q.round, broken: q.broken, hp: q.hp, odds: q.odds,
+          stall: q.stall, beam: !!R.beam, beamU: q.beamU || 0, beamSteer: rt.beamSteer,
+          beamHit: rt.beamHit, cut: !!q.cut, ringZ: rt.ringZ, depthSpeed: rt.depthSpeed, depthMax: rt.depthMax,
+          eye: { u: q.eye.u, dir: q.eye.dir || 0, speed: rt.eyeRun + rt.eyeAccel * (1 - q.odds / rt.odds) },
+          volley: q.volley ? idOf(q.volley) : null,
+          rings: q.rings.map(function (r) { return { u: r.u, z: r.z, odds: r.odds }; }),
+          snare: q.snare ? { id: idOf(q.snare), u: q.snare.u, t: q.snare.t, hooked: q.snare.hooked } : null,
+          gust: q.gust ? { dir: q.gust.dir, t: q.gust.t } : null };
+      }
       return o;
     },
     // Player input paths only: the keyboard's held keys and the same presses the pads and keys make.
     act: function (a) {
       if (!a || state !== 'play') return;
       keys.kbLeft = !!a.left; keys.kbRight = !!a.right; keys.kbShoot = !!a.shoot; keys.kbDown = !!a.crouch;
+      if (R.stage === 'roof') { keys.kbUp = !!a.forward; keys.kbDown = !!a.back; }
       if (a.jump) press('jump');
       if (a.slash) press('slash');
     },

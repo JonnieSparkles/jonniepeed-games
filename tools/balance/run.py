@@ -173,6 +173,7 @@ def main():
     started = time.time()
     results = {'game': args.game, 'commit': git('rev-parse', '--short', 'HEAD'), 'dirty': bool(git('status', '--porcelain')), 'options': options,
                'skills': skills, 'seeds': seeds, 'cap_minutes': args.cap_minutes, 'profiles': {s: profiles[s] for s in skills},
+               'stages': current['config'].get('stages', {}),
                'columns': current['config'].get('columns', []), 'runs': play_all(current, tasks, args.jobs, 'working tree')}
 
     if args.verify:

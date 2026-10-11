@@ -61,6 +61,7 @@ var UnrugRender = (function () {
   // skirt, rail ([bottom, top]) for the wall's bands; post, how far apart the wall posts are; panel, the ceiling
   // panels; fog ([from, to]), where the far hall fades out.
   function create(W, H, set) {
+    const OPEN = !!set.openAir, PARAPET = set.parapet || 0;
     const E = set.E, C = set.C, HW = set.HW, F = W * set.f, CX = W / 2, CY = H * set.cy, N = W * H;
     const RUG = set.rug, RUGI = set.rug - set.rugEdge, POST = set.post, PANELW = set.post / 2, PANEL = set.panel;
     const SK = set.skirt, DADO = set.rail[0], RAIL = set.rail[1], FOG0 = set.fog[0], FOG1 = set.fog[1];
@@ -72,10 +73,10 @@ var UnrugRender = (function () {
     const HIT = { s: 0, t: 0, x: 0, y: 0, z: 0 };
     function trace(ox, oy, oz, dx, dy, dz) {
       let t = 1e9, s = 0;
-      if (dy < 0) { const tt = -oy / dy; if (tt > 1e-4 && tt < t) { t = tt; s = 1; } }
-      if (dy > 0) { const tt = (C - oy) / dy; if (tt > 1e-4 && tt < t) { t = tt; s = 2; } }
-      if (dx < 0) { const tt = (-HW - ox) / dx; if (tt > 1e-4 && tt < t) { t = tt; s = 3; } }
-      if (dx > 0) { const tt = (HW - ox) / dx; if (tt > 1e-4 && tt < t) { t = tt; s = 4; } }
+      if (dy < 0) { const tt = -oy / dy; if (tt > 1e-4 && tt < t && (!OPEN || Math.abs(ox + dx * tt) <= HW)) { t = tt; s = 1; } }
+      if (!OPEN && dy > 0) { const tt = (C - oy) / dy; if (tt > 1e-4 && tt < t) { t = tt; s = 2; } }
+      if (dx < 0) { const tt = (-HW - ox) / dx; if (tt > 1e-4 && tt < t && (!OPEN || (oy + dy * tt >= 0 && oy + dy * tt <= PARAPET))) { t = tt; s = 3; } }
+      if (dx > 0) { const tt = (HW - ox) / dx; if (tt > 1e-4 && tt < t && (!OPEN || (oy + dy * tt >= 0 && oy + dy * tt <= PARAPET))) { t = tt; s = 4; } }
       HIT.s = s; HIT.t = t; HIT.x = ox + dx * t; HIT.y = oy + dy * t; HIT.z = oz + dz * t;
       return HIT;
     }
@@ -98,6 +99,7 @@ var UnrugRender = (function () {
     const reflectFrom = (q, x, z, s, dx, dy, j) => {
       if (s !== 1) return;
       const h = trace(x, 0, z, dx + j, -dy, 1);
+      if (OPEN) RFD[q] = .6;
       if (h.s) { RS[q] = h.s; RX[q] = h.x; RY[q] = h.y; RZ_[q] = h.z; RFD[q] = (.45 + .55 * Math.min(1, HT[q] / 14)) * fogOf(h.z); }
     };
     for (let by = 0; by < BH; by++) for (let bx = 0; bx < BW; bx++) {
@@ -145,6 +147,7 @@ var UnrugRender = (function () {
 
     // ---------- this frame's view of the hall ----------
     let T = 0, scroll = 0, rugScroll = 0, power = 1, dark = false, edgeGlow = 0, fill = 0;
+    let dawn = 0;
     const RAILC = [.36, .2, .11], EDGEC = [.78, .52, .1];
     // SETS: the section's look (view.look): the wall's lower panels (lo), its plaster above (hi), the skirting (sk), the
     // cornice (co), the ceiling tiles (ce), the floor tiles (ti) and how polished they are (sh), and the ceiling panels'
@@ -200,6 +203,7 @@ var UnrugRender = (function () {
     // posts every POST
     function wall(y, zw) {
       eR = eG = eB = 0; rf = 0;
+      if (OPEN) { aR = .16; aG = .15; aB = .2; return; }
       if (fr(zw / POST) < .03) { aR = .06; aG = .055; aB = .075; return; }
       const n = noise(zw * 3, y * 3) * .04 - .02;
       const lo = LK.lo, hi = LK.hi;
@@ -290,7 +294,21 @@ var UnrugRender = (function () {
     const TX0 = 8, TH = new Float32Array(2 * TX0 + 1), VH = new Uint8Array(2 * TX0 + 1);
     // 1. what's on every surface this frame: albedo into alb, glow into buf, how much it reflects into shine. All in one
     // pass, row by row: the floor's rug scrolls with the rug and its tiles with the hall.
+    // The open set shares tracing, materials, light, layering and finishing with the hall.
+    // A simple texture pass suffices for its flat parapets and sky; the hall keeps its original fast pass.
+    function sky(k) { return [.012 + .05 * k + dawn * .28 * k, .009 + .025 * k + dawn * .1 * k, .025 + .04 * k]; }
     function surfaces(t) {
+      if (OPEN) {
+        for (let q = 0; q < N; q++) {
+          const i = q * 3, s = S[q];
+          material(s, HX[q], HY[q], HZ[q], t);
+          alb[i] = aR; alb[i + 1] = aG; alb[i + 2] = aB;
+          const c = s ? [eR, eG, eB] : sky(Math.min(1, ((q / W) | 0) / CY));
+          buf[i] = c[0]; buf[i + 1] = c[1]; buf[i + 2] = c[2];
+          shine[q] = s === 1 ? rf * RFD[q] : 0;
+        }
+        return;
+      }
       columns();
       const e0 = EDGEC[0], e1 = EDGEC[1], e2 = EDGEC[2], eg = edgeGlow, r0 = RAILC[0], r1 = RAILC[1], r2 = RAILC[2];
       const lo0 = LK.lo[0], lo1 = LK.lo[1], lo2 = LK.lo[2], hi0 = LK.hi[0], hi1 = LK.hi[1], hi2 = LK.hi[2], sk0 = LK.sk[0], sk1 = LK.sk[1], sk2 = LK.sk[2], co0 = LK.co[0], co1 = LK.co[1], co2 = LK.co[2];
@@ -358,7 +376,7 @@ var UnrugRender = (function () {
     const NXof = [0, 0, 0, 1, -1], NYof = [0, 1, -1, 0, 0];
     const timings = { n: 0, mat: 0, refl: 0, lit: 0, cones: 0, dust: 0, layer: 0, post: 0 };
     // what a shiny pixel reflects, into L; false if nothing
-    function reflect(q) { const s = RS[q]; if (!s) return false; material(s, RX[q], RY[q], RZ_[q], T); L[0] = aR * .18 + eR; L[1] = aG * .16 + eG; L[2] = aB * .2 + eB; return true; }
+    function reflect(q) { const s = RS[q]; if (!s) { if (OPEN && S[q] === 1) { const c = sky(.8); L[0] = c[0]; L[1] = c[1]; L[2] = c[2]; return true; } return false; } material(s, RX[q], RY[q], RZ_[q], T); L[0] = aR * .18 + eR; L[1] = aG * .16 + eG; L[2] = aB * .2 + eB; return true; }
     function addShine(q) { const f = shine[q]; if (!f) return; const i = q * 3; buf[i] += f * L[0]; buf[i + 1] += f * L[1]; buf[i + 2] += f * L[2]; }
     // the view: scroll (the hall's) and rug (the runner's own); power, how bright the ceiling panels are (0 off); house,
     // how far the office's lights are up (0 to 1); dark,
@@ -370,6 +388,7 @@ var UnrugRender = (function () {
       scroll = v.scroll; rugScroll = v.rug; power = v.power * (1 + .6 * house); fill = house * .09; dark = !!v.dark; edgeGlow = v.edgeGlow || 0;
       const rc = v.rail || [.36, .2, .11]; RAILC[0] = rc[0]; RAILC[1] = rc[1]; RAILC[2] = rc[2];
       const ec = v.edge || [.78, .52, .1]; EDGEC[0] = ec[0]; EDGEC[1] = ec[1]; EDGEC[2] = ec[2];
+      if (OPEN) { fill += v.ambient || 0; dawn = v.dawn || 0; }
       setLook(v.look);
     }
     function frame(t, v) {
@@ -413,7 +432,7 @@ var UnrugRender = (function () {
       const tl = performance.now(); timings.lit += tl - t1;
       cones();
       const tc = performance.now(); timings.cones += tc - tl;
-      dust(t);
+      if (!OPEN) dust(t);
       timings.dust += performance.now() - tc; timings.n++;
     }
     // the light at every grid point (lightAt, worked through for the hall's own surfaces)
@@ -474,7 +493,7 @@ var UnrugRender = (function () {
     const NXV = 7, NYV = 5, NZV = 16, ZV0 = 2.5, ZV1 = 20, NV = NXV * NYV * NZV;
     const VB = new Float32Array(NV * 3), VR = new Float32Array(NV * 3);
     const ZFL = new Float32Array(H), ZCE = new Float32Array(H), DZ = new Float32Array(N), runZ = new Float32Array(W), inRun = new Uint8Array(W);
-    for (let py = 0; py < H; py++) { const d = py + .5 - CY; ZFL[py] = d > .5 ? E * F / d : 1e9; ZCE[py] = d < -.5 ? (C - E) * F / -d : 1e9; }
+    for (let py = 0; py < H; py++) { const d = py + .5 - CY; ZFL[py] = d > .5 ? E * F / d : 1e9; ZCE[py] = !OPEN && d < -.5 ? (C - E) * F / -d : 1e9; }
     const XC = new Float32Array(W); for (let px = 0; px < W; px++) XC[px] = (px + .5 - CX) / F;
     const cacheB = new Int32Array(W), cacheZ = new Float32Array(W), cacheL = new Float32Array(W * 3);
     function volume() {
@@ -545,6 +564,17 @@ var UnrugRender = (function () {
         const a = glow[k]; if (!a) continue;
         const al = a / 255, i = q * 3;
         buf[i] = buf[i] * (1 - al) + LIN[glow[k - 3]] * 1.25 * al; buf[i + 1] = buf[i + 1] * (1 - al) + LIN[glow[k - 2]] * 1.25 * al; buf[i + 2] = buf[i + 2] * (1 - al) + LIN[glow[k - 1]] * 1.25 * al;
+      }
+      if (OPEN && glow) {
+        const waterline = CY + E * F / (set.reflectZ || 12);
+        for (let py = Math.ceil(waterline); py < H; py++) for (let px = 0; px < W; px++) {
+          const q = py * W + px;
+          if (S[q] !== 1 || FK[q] || lit[q * 4 + 3] > 8) continue;
+          const yy = Math.round(2 * waterline - py + Math.sin(px * .2 + py * .7) * 2);
+          if (yy < 0 || yy >= H) continue;
+          const k = (yy * W + px) * 4, a = glow[k + 3] / 255 * .25, i = q * 3;
+          buf[i] += LIN[glow[k]] * a; buf[i + 1] += LIN[glow[k + 1]] * a; buf[i + 2] += LIN[glow[k + 2]] * a;
+        }
       }
       timings.layer += performance.now() - t0;
     }

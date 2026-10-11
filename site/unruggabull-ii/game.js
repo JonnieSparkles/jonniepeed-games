@@ -34,55 +34,15 @@
 
   // ---------- tuning ----------
   const TUNE = {
-    hearts: 5,
-    move: 1.5,              // lanes a second
-    aisle: .6,              // how far from the middle he can go
-    runner: .3,             // half-width of the runner rug
-    jumpH: .2, jumpT: .65,  // jump height (of the hall) and airtime
+    hearts: 5, move: 1.5, aisle: .6, runner: .3,
+    jumpH: .2, jumpT: .65,
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
-    charges: 20, recharge: .5, // the blaster holds 20 shots and gets one back every half second, like the first game's
-    spreadT: 10, coffeeDrop: .2, rowH: .055,
+    charges: 20, recharge: .5, spreadT: 10,
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
-    hurtInv: 1.7,
-    scroll: .2,             // walking speed down the hall, depth a second
-    pullSpeed: .3, recover: .5, mouth: .85,
-    goal: 90,               // souls that wake the Shredder
-    wadTime: 1.25, wadLead: .2, throwChance: .6,
-    moveT: 14, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
-    darkT: 10,              // lights out in the hall: kills in the dark free double souls
-    powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
-    streakDrop: 10,         // a streak this long drops a Spread Shot
-    bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,
-    bundleT: [2.2, 1.6],    // how long a bundle takes to reach you: phase 1, then later phases
-    tell: .45,              // the Shredder's mouth glows this long before each attack
-    finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
-    attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
-    volley: { n: [3, 4, 5], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
-    bossRows: { sheet: .45, carpet: .5 },   // how fast a paper jam sheet and a staple carpet cross the floor
-    sprayEvery: .3, sprayT: 1.5,   // a side spray sends staples down both sides of the hall this often while the rug pulls, this slow
-    rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
-    // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
-    bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
-    deflectCharge: 3,       // each deflect gives the blaster this many charges back
-    reach: .9,              // the blaster's targets count from this far down the hall, once they're fully out of the dark
-    // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
-    // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
-    // misses, for smash + smashPer × its bat-backs. Once a phase, a marathon rally of this many.
-    rally: { serve: 1, speedUp: .85, fastest: .45, count: [[1, 2], [2, 4], [3, 5]], marathon: [6, 7, 8], back: .3, backMin: .2, smash: 6, smashPer: 2, stun: 1.6 },
-    // phase 3's power surge knocks the blaster up the rug (it flies this long); a smash rolls the rug back toward you at this
-    // speed for this long, shoving anyone on it to the back of the hall and pinning them; the rewind attack rolls it back too
-    surgeFly: .6, roll: { dur: 1.6, speed: .5, pin: .3 }, rewindT: 1.4,
-    darkFormEvery: 2.2,     // lights out sends a formation this often
-    switchEvery: 3, switchFlash: 1.4,   // lights out: a light switch glows on a wall this often; shoot it and the lights flash on this long, freezing every carpshit
-    crouchH: .1, grip: .25, // crouched he's half height; gripping a pulling rug, it drags him at a quarter of the speed
-    planeT: 1.6, planeDmg: 2,  // the Shredder's paper airplanes at head height: duck them, or slash them back
-    wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
-    // the souls' hint (the mega stream's first glimpse, saved for the roof): the first time the blaster comes back in the
-    // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
-    // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
-    // run out unseen), then drop off one by one, fade apart.
-    soulHint: { souls: 3, gap: .6, fly: 1.4, hold: 4, fade: .6 }
+    hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1
   };
+  const SHARED_TUNE = Object.assign({}, TUNE);
+  Object.assign(TUNE, UnrugFloor13.TUNE);
   const JUMP_V = 4 * TUNE.jumpH / TUNE.jumpT, GRAV = 8 * TUNE.jumpH / (TUNE.jumpT * TUNE.jumpT);
 
   // ---------- the lit picture ----------
@@ -98,7 +58,8 @@
     post: WZ / 6, panel: WZ * .4, fog: [WZ0 * 3.4, WZ0 * 12]
   };
   let RENDER = null;
-  const renderer = () => RENDER || (RENDER = UnrugRender.create(PW, PH, SET));
+  const RENDERS = {};
+  const renderer = () => RENDER = RENDERS[floor.id] || (RENDERS[floor.id] = UnrugRender.create(PW, PH, Object.assign({}, SET, floor.set || {})));
   // The two layers the scene is drawn into: things lit by the hall's light where they stand, and things that glow.
   function layerCtx() {
     const x = A.canvas(PW, PH).getContext('2d', { willReadFrequently: true });
@@ -131,10 +92,15 @@
   // Where a continue picks up: saved when the Shredder wakes, cleared when a floor starts over.
   let checkpoint = null;
   // A fresh floor, or (with a checkpoint) the copy room's end with the Shredder about to wake.
-  function newRun(at) {
+  function newRun(at, stage) {
+    const chosen = at && at.stage || stage || 'floor13';
+    floor = floors[chosen] || floors.floor13;
+    for (const key of Object.keys(TUNE)) delete TUNE[key];
+    Object.assign(TUNE, SHARED_TUNE, floor.tune);
+    if (R && R.stage !== floor.id) loadBest(floor.id);
     RUN.seed = seed = pickSeed();
     R = {
-      t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
+      stage: floor.id, t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
       beat: 0, beatT: 0, event: null,
       cubs: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
       nextCubW: 1.1, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
@@ -213,7 +179,7 @@
       if (f.fid && f.z < TUNE.wipeBy) formLost(f);   // a wipe has to be done before the formation is halfway down the hall
       f.hit = Math.max(0, f.hit - dt);
       if (!f.dead && Math.abs(f.z - bull.bz) < .045 && Math.abs(f.u - bull.u) < .12 && overlaps(f.h, .05)) {
-        if (hurtBull(1, f.form ? 'formation' : 'carpshit')) { f.dead = true; poof(f.u, f.z, f.h); formLost(f); }
+        if (hurtBull(1, f.cause || (f.form ? 'formation' : 'carpshit'))) { f.dead = true; poof(f.u, f.z, f.h); formLost(f); }
       }
       if (f.z < bull.bz - .12 || f.z < ZN) { f.dead = true; formLost(f); }
     }
@@ -224,11 +190,12 @@
 
 
   // ---------- Unruggabull ----------
-  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, kbDown: false, padDown: false };
+  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, kbDown: false, padDown: false, kbUp: false, padUp: false };
   const input = { jump: 0, slash: 0, shoot: 0 };   // buffered presses, in seconds left
   const moveDir = () => ((keys.kbRight || keys.padRight) ? 1 : 0) - ((keys.kbLeft || keys.padLeft) ? 1 : 0);
   const shooting = () => keys.kbShoot || keys.padShoot;
-  const crouchHeld = () => keys.kbDown || keys.padDown;
+  const depthDir = () => ((keys.kbUp || keys.padUp) ? 1 : 0) - ((keys.kbDown || keys.padDown) ? 1 : 0);
+  const crouchHeld = () => !floor.depthMove && (keys.kbDown || keys.padDown);
   function press(k) { if (state !== 'play') return; if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12; }
   const onRunner = () => Math.abs(bull.u) < TUNE.runner && bull.jh < .03 && !bull.mouth && !bull.spat;
   function updateBull(dt) {
@@ -243,7 +210,7 @@
     // crouched (on the ground only): half height, no moving or shooting; on a pulling rug he grips it
     b.crouch = crouchHeld() && b.jh <= 0 && R.phase !== 'win';
     // how long he's been standing about (cosmetic: his idle poses)
-    b.idle = moveDir() || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
+    b.idle = moveDir() || (floor.depthMove && depthDir()) || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
     const dir = R.phase === 'win' || b.pin > 0 || b.crouch ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
     b.u = clamp(b.u + dir * TUNE.move * dt, -TUNE.aisle, TUNE.aisle);
     if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; b.crouch = false; Snd.play('jump'); }
@@ -259,11 +226,12 @@
       if (b.crouch) { if (!R.events.gripped) { R.events.gripped = true; popText('GRIP!', PX(b.u, b.bz), YH(b.bz, .2), '#ffd44a'); } if (Math.random() < dt * 10) R.fx.push({ k: 'dust', x: PX(b.u, b.bz) + fxr(-5, 5), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .25 }); }
       if (b.bz >= TUNE.mouth) floor.draggedIn();
     }
+    else if (floor.depthMove) floor.depthMove(dt, depthDir());
     else b.bz = Math.max(0, b.bz - TUNE.recover * dt);
-    if (R.speed > .02 || dir || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
+    if (R.speed > .02 || dir || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
     // the blaster: hold Shoot to keep firing, or tap for one shot
     R.fireT -= dt;
-    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !b.crouch && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
+    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !b.crouch && !R.beam && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
   }
   function slash() {
     bull.slash = 0; bull.cd = TUNE.slashCd;
@@ -281,8 +249,8 @@
   // One shot (three with Spread Shot) for one charge. Out of charges: a click, a red flash, and a wait.
   function fire() {
     if (R.armed === false) { R.empty = .2; Snd.play('empty'); return false; }   // knocked out of his hands: go and get it
-    if (R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
-    R.charge--;
+    if (!R.gold && R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
+    if (!R.gold) R.charge--;
     if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); if (!R.fx.some(f => f.k === 'pop' && f.text === 'EMPTY')) popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
     bull.aimT = .22;
     let best = null, bz = Infinity;
@@ -293,6 +261,7 @@
     const mu = bull.u + A.MUZZLE.x / HW, mh = bull.jh - A.MUZZLE.y / (FN - CN);
     const shot = du => R.shots.push({ u: mu, z: bull.bz + .03, h: mh, du, tgt: du ? null : best, dead: false, spread: !!du });
     shot(0);
+    if (R.gold) R.shots[R.shots.length - 1].soul = true;
     if (R.spread > 0) { shot(-.6); shot(.6); }
     // the souls' streams: thin, white and gold, side by side with the bolt (a slight fan, never bending in), no extra charge
     const hs = R.hint ? R.hint.streams : 1;
@@ -355,7 +324,9 @@
     emit('soul', { amount: 1, source: source || 'temp', by: by || 'shot' });
     R.streak = R.streakT > 0 ? R.streak + 1 : 0; R.streakT = 1.6;
     if (by !== 'clear') R.bestStreak = Math.max(R.bestStreak, R.streak + 1);   // the Shredder's own souls don't count
-    R.fx.push({ k: 'wisp', x, y, sx: x, sy: y, t: 0, dur: 1.05, dx: fxr(-10, 10) });   // it floats up, then flies into the souls counter
+    const wisp = { k: 'wisp', x, y, sx: x, sy: y, t: 0, dur: 1.05, dx: fxr(-10, 10) };
+    R.fx.push(wisp);
+    if (floor.soulFreed) floor.soulFreed(wisp, source, by);   // it floats up, then flies into the souls counter
     Snd.play('soul', R.streak);
     const section = R.beat + (R.event ? R.event.kind : '');
     if (R.streak + 1 === TUNE.streakDrop && R.phase === 'hall' && R.dropAt !== section) {
@@ -403,10 +374,10 @@
     for (const f of R.fx) {
       f.t += dt;
       if (f.k === 'wisp') {
-        const up = Math.min(1, f.t / .3), k = Math.max(0, (f.t - .3) / (f.dur - .3)), e = k * k, to = meterSpot();
+        const up = Math.min(1, f.t / .3), k = Math.max(0, (f.t - .3) / (f.dur - .3)), e = k * k, to = f.to || meterSpot();
         const hx = f.sx + f.dx * up, hy = f.sy - 14 * up;
         f.x = hx + (to.x - hx) * e; f.y = hy + (to.y - hy) * e;
-        if (f.t >= f.dur) { R.shown = Math.min(R.souls, R.shown + 1); R.meterPulse = .16; }
+        if (f.t >= f.dur) { if (floor.soulLanded) floor.soulLanded(f); R.shown = Math.min(R.souls, R.shown + 1); R.meterPulse = .16; }
       }
       else if (f.k === 'pop') f.y -= 12 * dt;
       else if (f.k === 'bit') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; }
@@ -427,10 +398,11 @@
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
+    if (floor.lines && floor.lines[key] === false) return 0;
     const said = R.events.said || (R.events.said = {});
     if (said[key] || (R.talk && !over)) return 0;
     said[key] = true;
-    const text = LINES[key], plan = Snd.talkTimes(text, 'bull');
+    const text = floor.lines && floor.lines[key] || LINES[key], plan = Snd.talkTimes(text, 'bull');
     R.bark = { key, text, t: 0, times: plan.times, total: plan.total + 1.1 };
     Snd.say(text, 'bull'); live('Unruggabull: ' + text);
     return plan.total;
@@ -475,6 +447,7 @@
       return;
     }
     if (state !== 'play') return;
+    if (floor.hold && floor.hold(dt)) return;
     R.white = Math.max(0, (R.white || 0) - dt); R.zap = Math.max(0, (R.zap || 0) - dt);
     // hit-stop: a few frames' pause when something dies, so kills land
     if (R.freeze > 0) { R.freeze -= dt; return; }
@@ -495,7 +468,7 @@
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
     if (R.bark) { R.bark.t += dt; if (R.bark.t > R.bark.total) R.bark = null; }
-    if (R.phase === 'hall' && R.t > 5.2) bark('start');
+    if (floor.id === 'floor13' && R.phase === 'hall' && R.t > 5.2) bark('start');
     // one heart left: a heartbeat
     R.pulse = Math.max(0, R.pulse - dt);
     if (lowHealth()) { R.pulseT -= dt; if (R.pulseT <= 0) { R.pulseT = .9; R.pulse = .35; Snd.play('thump'); } } else R.pulseT = 0;
@@ -503,6 +476,7 @@
     floor.update(dt);
   }
   function die() {
+    if (floor.checkpoint) floor.checkpoint();
     R.statsStage = stageNo();
     R.phase = 'dead'; R.phaseT = 0; R.hearts = 0; R.bark = null;
     emit('game_over', { cause: R.lastCause || 'unknown', score: R.souls });
@@ -604,7 +578,7 @@
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
     // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
     const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
-    const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
+    const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
     let p = P.stand;
     const cheer = R.phase === 'win' && !(R.slow > 0) && R.phaseT > .5 && !air;
     if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : P.crouch;
@@ -677,7 +651,7 @@
     // blaster charge under the hearts: blue when ready, red and blinking when empty, gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
-    rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
+    rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.gold || R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
     if (dry && (R.empty > 0 || blink)) rect(g, 4, 14, 49, 3, '#d63428');
     if (R.spread > 0 && (R.spread > 2 || blink)) otxt(g, 'SPREAD', 4, 20, '#ffd44a');
     if (R.armed === false && R.phase !== 'win') { rect(g, 3, 13, 51, 5, '#1a1418'); if (blink || R.empty > 0) txt(g, 'NO BLASTER', 5, 13, '#ff5040'); }
@@ -710,7 +684,7 @@
       if (B.sub) otxt(g, B.sub, 120, y + 14, '#fff6e2', 1, 'center');
     }
     const T = R.talk;
-    if (T) {
+    if (T && !T.readout) {
       let n = 0; while (n < T.text.length && T.times[n] <= T.t) n++;
       const w = textWidth(T.text) + 6, x = Math.round(120 - w / 2), y = BACK.y0 - 18;
       A.bubble(g, x, y, T.text, 118);
@@ -857,6 +831,7 @@
   // (shaken as a whole when something hits hard), then the flashes, the HUD and the words on top, crisp.
   function draw() {
     if (state === 'title' || state === 'intro') { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); drawTitle(); return; }
+    if (floor.cutActive && floor.cutActive()) { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); floor.drawCut(); return; }
     const r = renderer();
     sceneLights(r); floor.lights(r);
     r.frame(R.t, floor.view());
@@ -885,8 +860,13 @@
   const gameEl = $('game'), card = $('card'), cardTitle = $('cardTitle'), cardText = $('cardText'), cardStats = $('cardStats'), cardNote = $('cardNote');
   const goBtn = $('go'), altBtn = $('alt'), pauseBtn = $('pause'), snd = $('snd'), fsBtn = $('fs');
   const BEST_KEY = 'unruggabull-ii-best';
+  const bestKey = stage => stage === 'roof' ? BEST_KEY + '-roof' : BEST_KEY;
   let best = { souls: 0, time: 0 }, cardKind = 'title';
   try { const v = JSON.parse(localStorage.getItem(BEST_KEY) || 'null'); if (v && typeof v.souls === 'number') best = { souls: v.souls, time: +v.time || 0 }; } catch (e) {}
+  function loadBest(stage) {
+    best = { souls: 0, time: 0 };
+    try { const v = JSON.parse(localStorage.getItem(bestKey(stage)) || 'null'); if (v) best = { souls: +v.souls || 0, time: +v.time || 0 }; } catch (e) {}
+  }
   const clock = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   function stats(rows) {
     cardStats.textContent = '';
@@ -908,22 +888,19 @@
       const land = document.createElement('span'); land.className = 'land-note'; land.textContent = ' Best played in landscape.'; cardNote.append(land);
     } else if (kind === 'pause') {
       cardTitle.textContent = 'Paused';
-      cardText.textContent = 'The Shredder will wait. It has nowhere else to be.';
+      cardText.textContent = floor.pauseText;
       goBtn.textContent = 'Resume'; altBtn.textContent = 'Restart floor'; altBtn.hidden = false;
     } else if (kind === 'clear') {
-      cardTitle.textContent = 'Floor 13 clear';
-      cardText.textContent = extra.newBest ? 'New best! The Unrugged drift up toward the roof.' : 'The Unrugged drift up toward the roof.';
-      rows.push(['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Deflects', String(R.events.deflects || 0)],
-        ['Best streak', String(R.bestStreak)], ['Formation wipes', String(R.events.wipes || 0)], ['Smashes', String(R.events.smashes || 0)], ['Longest rally', String(R.events.bestRally || 0)]);
-      if (R.continues) rows.push(['Continues', String(R.continues)]);
-      rows.push(['Best', best.souls + ' souls']);
+      const details = floor.clearCard(extra, best, clock);
+      cardTitle.textContent = details.title; cardText.textContent = details.text;
+      rows.push(...details.rows);
       goBtn.textContent = 'Play again';
-      cardNote.textContent = 'The elevator to floor 42 comes in a later build.'; cardNote.hidden = false;
+      cardNote.textContent = details.note; cardNote.hidden = !details.note;
     } else if (kind === 'rugged') {
       cardTitle.textContent = 'Rugged.';
       if (checkpoint) {
         // beaten by the Shredder: pick up at the fight with full hearts, or start the floor over
-        cardText.textContent = 'Continue from the Shredder with full hearts?';
+        cardText.textContent = floor.continueText ? floor.continueText() : 'Continue from the Shredder with full hearts?';
         altBtn.textContent = 'Restart floor'; altBtn.hidden = false;
       } else cardText.textContent = 'Continue? The floor starts over.';
       rows.push(['Souls freed', String(R.souls)], ['Best', best.souls + ' souls']);
@@ -938,7 +915,7 @@
   };
   function setState(s) {
     state = s;
-    c.setAttribute('aria-label', s === 'title' || s === 'intro' ? LABELS.title : LABELS.play);
+    c.setAttribute('aria-label', s === 'title' || s === 'intro' ? LABELS.title : floor.label || LABELS.play);
     gameEl.classList.toggle('playing', s === 'play');
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
@@ -947,6 +924,7 @@
   let statsRun = null;
   const STAGES = ['accounts', 'moving', 'all_staff', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
   function stageNo() {
+    if (floor.stageNo) return floor.stageNo();
     if (R.phase === 'win') return 9;
     if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
     if (R.phase === 'wake') return 6;
@@ -957,21 +935,18 @@
   function runReport() {
     const st = stageNo();
     return { score: R.souls, time_ms: Math.round((R.endT || R.t) * 1000), won: R.phase === 'win',
-      stats: { stage: st, stage_name: STAGES[st - 1], cause: R.phase === 'win' ? 'cleared' : (R.lastCause || 'none'), continues: R.continues || 0,
+      stats: { stage: st, stage_name: floor.stageNames ? floor.stageNames[st] : STAGES[st - 1], cause: R.phase === 'win' ? 'cleared' : (R.lastCause || 'none'), continues: R.continues || 0,
         boss_hp: Math.round(R.boss.hp), smashes: R.events.smashes || 0, best_rally: R.events.bestRally || 0, wipes: R.events.wipes || 0, deflects: R.events.deflects || 0 } };
   }
   function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', { progress: runReport }) : null; }
-  function startRun() {
+  function startRun(stage) {
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }   // restarted from pause: the open run is a quit
     checkpoint = null;
-    newRun();
+    newRun(null, stage || floor.id);
     statsStart();
     setState('play');
     card.hidden = true;
-    // up top and brief, so the hall itself is the reveal (the section's sign already hangs there, so no subtitle)
-    R.banner = { text: 'FLOOR 13', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
-    live('Floor 13, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
-    Snd.play('start'); Snd.music('tower');
+    floor.opening();
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
   // Back at the Shredder: the hall's end, full hearts, the souls you had when it woke, and it wakes again.
@@ -979,8 +954,8 @@
     newRun(checkpoint);
     statsStart();   // a continue is a run of its own, from the Shredder
     setState('play'); card.hidden = true;
-    floor.startWake();
-    live('Back at the Shredder with full hearts.');
+    if (floor.resume) floor.resume(); else floor.startWake();
+    live(floor.id === 'roof' ? floor.continueText() : 'Back at the Shredder with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
   // Phones go full screen when you start; it has to happen inside the tap.
@@ -1049,7 +1024,7 @@
     const newBest = R.souls > best.souls;
     best.souls = Math.max(best.souls, R.souls);
     if (kind === 'clear' && !R.continues) best.time = best.time ? Math.min(best.time, R.endT) : R.endT;   // fastest clear counts only without continues
-    try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) {}
+    try { localStorage.setItem(bestKey(floor.id), JSON.stringify(best)); } catch (e) {}
     showCard(kind, { newBest });
     goBtn.focus({ preventScroll: true });
   }
@@ -1057,7 +1032,7 @@
     if (cardKind === 'pause') { resumeGame(); return; }
     goFull();
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
-    if (cardKind === 'title' && !storySeen()) startIntro(); else startRun();
+    if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'floor13' : floor.id);
   });
   altBtn.addEventListener('click', () => {
     if (cardKind === 'pause') { Snd.resume(); startRun(); }
@@ -1129,14 +1104,14 @@
     Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
     k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };
-  const KEYS = { get: e => CODES[e.code] || NAMES[e.key] };
-  function clearHeld() { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; padPointers.clear(); padSync(); stickOff(null); }
+  const KEYS = { get: e => floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
+  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; padPointers.clear(); padSync(); stickOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = KEYS.get(e);
     if (state === 'play' && k) {
       e.preventDefault();
-      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true;
+      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true; else if (k === 'up') keys.kbUp = true;
       else { if (k === 'shoot') keys.kbShoot = true; if (!e.repeat) press(k); }
       return;
     }
@@ -1154,8 +1129,8 @@
       else if (e.key === 'Escape' && isFull() && !nativeFull()) setFull(false);
     }
   });
-  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; });
-  addEventListener('blur', () => { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; });
+  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; else if (k === 'up') keys.kbUp = false; });
+  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; });
 
   // Touch: a thumb stick on the left, Shoot and Slash on the right. Each finger is tracked, so a thumb can slide between
   // Shoot and Slash; they act as a finger lands on them, and Shoot keeps firing while held.
@@ -1225,14 +1200,14 @@
     stickEl.style.left = (centre.x - zr.left) + 'px'; stickEl.style.top = (centre.y - zr.top) + 'px';
     knob.style.transform = 'translate(' + Math.round(dx * kr) + 'px,' + Math.round(dy * kr) + 'px)';
     const down = dy > STICK.down && dy > Math.abs(dx) * .8, up = dy < -STICK.up && -dy > Math.abs(dx) * .6;
-    keys.padDown = down;
-    keys.padLeft = !down && dx < -STICK.side; keys.padRight = !down && dx > STICK.side;
-    if (up && upArmed) { upArmed = false; press('jump'); }
+    keys.padDown = down; keys.padUp = !!floor.depthMove && up;
+    keys.padLeft = (!down || !!floor.depthMove) && dx < -STICK.side; keys.padRight = (!down || !!floor.depthMove) && dx > STICK.side;
+    if (!floor.depthMove && up && upArmed) { upArmed = false; press('jump'); }
     if (dy > -STICK.up * .5) upArmed = true;
   }
   function stickOff(e) {
     if (e && e.pointerId !== stickId) return;
-    stickId = null; keys.padLeft = keys.padRight = keys.padDown = false;
+    stickId = null; keys.padLeft = keys.padRight = keys.padDown = keys.padUp = false;
     stickEl.classList.remove('on'); stickEl.style.left = stickEl.style.top = ''; knob.style.transform = '';
   }
   zone.addEventListener('pointerdown', e => {
@@ -1272,12 +1247,14 @@
     showCard('title');
     sndLabel();
     Snd.music('theme');
+    if (hashTokens().includes('stage=roof')) startRun('roof');
     draw();
     requestAnimationFrame(frame);
   }
   // ---------- the floor ----------
   // Made once, with the core's shared pieces. It gets the run's R and bull from newRun.
-  const floor = UnrugFloor13({
+  let floor;
+  const core = {
     A, Snd, rect, line, disc, poly, txt, otxt, textWidth, W, H, VX,
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
@@ -1285,7 +1262,9 @@
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     g, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = v; }
-  });
+  };
+  const floors = { floor13: UnrugFloor13(core), roof: UnrugRoof(core) };
+  floor = floors.floor13;
 
   start();
 })();

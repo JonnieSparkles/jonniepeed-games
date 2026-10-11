@@ -15,8 +15,52 @@ window.__balanceBot = function (profile, seed) {
   var seen = {}, plans = {}, sent = [], lastT = null, dt = 1 / 30, lastPull = 'idle', pullPlan = null;
   function noticed(o, x) { if (!(x.id in seen)) seen[x.id] = o.t; return o.t - seen[x.id] >= P.notice_s; }
   function plan(x, make) { return plans[x.id] || (plans[x.id] = make()); }
+  // Roof decisions have their own bookkeeping so Floor 13's decisions and dice stay byte-for-byte equivalent.
+  var roofSent = [], roofT = null, roofAimError = 0, roofAimT = 0;
+  function roofDecide(o) {
+    var q = o.roof, b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false, forward: false, back: false };
+    var delta = roofT === null ? 1 / 30 : Math.max(0, o.t - roofT); roofT = o.t;
+    var lag = P.reaction_ms / 1000, me = b.u, depth = b.bz, aim = q.beamU;
+    roofSent = roofSent.filter(function (x) { return x.t >= o.t - lag - 1e-6; });
+    roofSent.forEach(function (x) { me += x.dir * o.move * x.dt; aim += x.dir * q.beamSteer * x.dt; depth += (x.depth || 0) * q.depthSpeed * x.dt; });
+    me = Math.max(-o.aisle, Math.min(o.aisle, me));
+    var goal = null, aimGoal = null;
+    if (q.cut) { roofSent.push({ t: o.t, dir: 0, dt: 0 }); return a; }
+    if (q.beam && (q.state === 'beam' || q.state === 'run')) {
+      if (o.t >= roofAimT) { roofAimError = err(P.depth_err * 2); roofAimT = o.t + .5; }
+      aimGoal = q.eye.u + (q.state === 'run' ? q.eye.dir * q.eye.speed * lead : 0) + roofAimError;
+    } else if (/^round/.test(q.state)) {
+      if (!q.snare || !q.snare.hooked) { a.forward = depth < q.ringZ - .02; a.back = depth > q.ringZ + .02; }
+      if (q.snare) {
+        var sp = plan(q.snare, function () { return { cut: r() < P.fly_slash }; });
+        if (sp.cut && (q.snare.hooked || q.snare.t > .9)) a.slash = true;
+      }
+      if (q.stall > 0) { goal = q.eye.u; a.shoot = o.charge > 0; }
+      else {
+        if (q.rings.length) {
+          var rp = plan({ id: 'ring:' + q.volley }, function () { return { dodge: r() < (P.roof_dodge == null ? P.dodge : P.roof_dodge) }; });
+          if (rp.dodge) goal = q.rings.reduce(function (best, ring) { return ring.odds < best.odds ? ring : best; }).u;
+        }
+        var tgt = null;
+        o.flies.forEach(function (f) {
+          if (!noticed(o, f)) return;
+          if (f.z > b.bz + .06 && (!tgt || f.z < tgt.z)) tgt = f;
+          if (f.z - b.bz < .16 && Math.abs(f.u - me) < .28) {
+            var cp = plan(f, function () { return { cut: r() < P.fly_slash }; });
+            if (cp.cut) a.slash = true;
+          }
+        });
+        if (tgt) { if (goal === null) goal = tgt.u; a.shoot = Math.abs(tgt.u - me) < .3 && o.charge > P.charge_floor; }
+      }
+    }
+    var d = aimGoal !== null ? aimGoal - aim : goal !== null ? goal - me : 0;
+    a.left = d < -.04; a.right = d > .04;
+    roofSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), depth: (a.forward ? 1 : 0) - (a.back ? 1 : 0), dt: delta });
+    return a;
+  }
   return {
     decide: function (o) {
+      if (o.roof) return roofDecide(o);
       var b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false }, goal = null, urgent = false;
       if (lastT !== null && o.t > lastT) dt = o.t - lastT;
       lastT = o.t;
