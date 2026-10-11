@@ -134,6 +134,20 @@ async function report(request, env, end) {
 /* ---------- dashboards ---------- */
 
 const gameNames = () => Object.fromEntries(Object.entries(games).map(([id, g]) => [id, g.name]));
+// A game with levels ("levels" in games.json, in board order) gives each level its own board, and they reset together:
+// boards 1 and 2 are the first set, 3 and 4 the next (tools/check_boards.py holds games to it). A board is labelled
+// with its level, and with no board picked the leaderboard shows the newest set's first level (Stick Army's Soldier),
+// not simply the newest board.
+function boardLabels(game) {
+  const levels = games[game]?.levels, boards = scoreRules[game]?.boards;
+  if (!levels || !boards) return null;
+  return Object.fromEntries(Object.keys(boards).map(n => [n, levels[(Number(n) - 1) % levels.length]]));
+}
+function defaultBoard(game) {
+  const boards = scoreRules[game]?.boards, levels = games[game]?.levels;
+  const newest = Math.max(...Object.keys(boards).map(Number));
+  return levels ? newest - ((newest - 1) % levels.length) : newest;
+}
 // Windows are whole Eastern calendar days: "7 days" is today and the six before it, from Eastern midnight.
 const EASTERN = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23',
   year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit' });
@@ -249,7 +263,7 @@ async function overview(env, url) {
 async function leaderboard(env, game, board) {
   const boards = scoreRules[game]?.boards;
   if (!env.SCORES || !boards) return null;
-  const number = board != null ? board : Math.max(...Object.keys(boards).map(Number));
+  const number = board != null ? board : defaultBoard(game);
   const rules = boards[number];
   if (!rules) return { board: number, total: 0, rows: [] };
   const fields = [`score ${rules.higherIsBetter ? 'DESC' : 'ASC'}`];
@@ -375,7 +389,7 @@ async function gameDetail(env, url, game, board) {
     recent: latest.recent,
     // Board saves play stats didn't see: only meaningful for a game with a board.
     unseen: onBoards ? latest.unseen : null, unseen_capped: latest.unseen_capped,
-    board_names: names,
+    board_names: names, board_labels: boardLabels(game),
     leaderboard: await leaderboard(env, game, board)
   };
 }

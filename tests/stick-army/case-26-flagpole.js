@@ -26,9 +26,16 @@
   check(!eligible(flag), 'never offered again once bought');
   var wave = S.wave; continueWave();
   check(S.waveState === 'pizza', 'the pizza comes first');
-  for (var i = 0; i < 60 * 8 && S.waveState === 'pizza'; i++) update(1 / 60);
+  // Not drawn at all until its scene starts (round 19: it showed finished, vanished, then was sketched).
+  var drawn = 0, drawPole = drawFlagpole;
+  drawFlagpole = function () { drawn++; drawPole(); };
+  render();
+  for (var i = 0; i < 60 * 8 && S.waveState === 'pizza'; i++) { update(1 / 60); if (i % 30 === 0) render(); }
+  check(drawn === 0, 'not drawn before its scene');
   check(S.waveState === 'flag' && S.wave === wave, 'then the flag goes up, before the wave');
   update(1 / 60); render();
+  check(drawn > 0, 'drawn once its scene starts');
+  drawFlagpole = drawPole;
   check(S.flagUp === 0, 'the flag starts low while the pole is drawn');
   for (i = 0; i < 60 * 8 && S.flagUp < 1; i++) update(1 / 60);
   check(S.flagUp >= 1 && S.saluteT > 0 && S.waveState === 'flag', 'hoisted to the top, then saluted');

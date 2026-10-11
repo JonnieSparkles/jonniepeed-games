@@ -20,6 +20,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Veteran's markup from wave 1** (round 17): a third on prices from the start hurt the opening, not the stacking (expert bots alive at wave 10 fell from 68% to 45%). It climbs from nothing to a third by wave 10.
 - **Co-op half again harder on every wave** (round 18): two decent bots fell sooner than one in solo early on, and two experts were far stronger from wave 12, once each barrel had its own spread and double barrel (alive at wave 15: 70% against solo's 30%). The extra now grows with the waves.
 - **A Veteran Dreadnought with a quarter more health, and spread shot doing nothing or half to it** (round 17): no expert bot that reached it won, where 4 of 8 did with spread shot at full damage; the health made no difference beside that. Its health is Soldier's, and side bullets do three quarters: the bots don't aim the middle bullet, and the Dreadnought is tuned by hand anyway (below).
+- **A Veteran kit of 12 pieces, and two offers a visit** (round 19): no expert bot reached wave 15. Two offers alone cut them hard from the start (alive at wave 6 fell from 78% to 60%), whatever the kit size. A kit of 30, with three offers, leaves the run-up as it was and bites late, where stacking won the war; 36 barely bit.
 
 ## Why it's like this
 
@@ -38,6 +39,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **A bomb on the wall does 16, not 18** (round 14): since nothing is hit off the page, more planes live to drop.
 - **Nothing of consequence above the page's top rule** (round 14): "nothing 'of consequence' flies above that line. ambient things are no problem".
 - **Road tanks come early** (rounds 14 and 16): they used to straggle in after the planes and drag the wave out ("what are you doing here, man?").
+- **Tanks hurry while off the page** (round 19): tanks queued behind parked ones still crawled in at the end of waves 17 to 19. Road tanks also take the emptier side, and cargo planes come on a schedule.
 - **Seven bombs a bomber from wave 14, eight from 18** (round 11): seven spaces the carpet so one bomb falls on the bunker; eight puts two back.
 
 ### The Dreadnought
@@ -56,6 +58,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **The sky's enemies start at wave 4** (round 11): they came too late to matter.
 - **Low lanes, tank pairs and tank raids** (round 13): the playtest asked for low drops early on and stronger tanks with troops.
 - **The Red Cross plane is worth a wave bonus either way** (round 14, "more points/more penalty"), with a record and a bonus for all safe (round 16).
+- **HQ planes can be hit by accident, and pay for getting through** (round 19): "a good bonus for letting that happen". The crew's and the sentry's rounds pass by, so only your own aim costs it.
 
 ### Shop and squad
 
@@ -69,6 +72,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **A board per level, not a score multiplier** (round 17): a multiplier is hard to make fair.
 - **A "new" tag on Veteran, not a What's new note** (round 17): notes explain a board reset, and nothing reset.
 - **The record stamp on the grass at the right** (round 17): the level took its place beside Start, and it sits clear of the demo's squad there.
+- **Levels' boards reset together** (round 19): "we should cycle both boards together never separate". Board numbers then keep saying which level is which, and the play stats dashboard names them.
 
 ### Sound
 

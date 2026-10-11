@@ -527,15 +527,15 @@ window.StickArmyCoop = function (w) {
         [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'end');
     } else if (was === 'over' || was === 'won') { if (ui && ui.kind === 'end') hideCard(); }
   }
-  // The two players side by side: points, planes, catches and Red Cross planes hit, in their barrels' colors.
-  var ROWS = [['Points', 'score'], ['Planes', 'planes'], ['Captured', 'captured'], ['Red Cross', 'redCross']];
+  // The two players side by side: points, planes, catches, and Red Cross and HQ planes hit, in their barrels' colors.
+  var ROWS = [['Points', 'score'], ['Planes', 'planes'], ['Captured', 'captured'], ['Red Cross', 'redCross'], ['HQ planes', 'hq']];
   function sideBySide(S) {
     var t = el('table', 'coop-table'), me = w.me, head = el('tr');
     head.appendChild(el('th'));
     [0, 1].forEach(function (i) { var th = el('th', i ? 'red' : 'blue', i === me ? 'You' : 'Friend'); head.appendChild(th); });
     t.appendChild(head);
     ROWS.forEach(function (r) {
-      if (r[1] === 'redCross' && !(S.players[0].redCross || S.players[1].redCross)) return;
+      if ((r[1] === 'redCross' || r[1] === 'hq') && !(S.players[0][r[1]] || S.players[1][r[1]])) return;
       var tr = el('tr'); tr.appendChild(el('td', null, r[0]));
       [0, 1].forEach(function (i) { tr.appendChild(el('td', 'n', Number(S.players[i][r[1]] || 0).toLocaleString('en-US'))); });
       t.appendChild(tr);

@@ -441,6 +441,8 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   }
 
   /* ---------- one game ---------- */
+  // A board's name: "Board 3", or with levels "Veteran · board 2" (index.js boardLabels).
+  const boardName = (data, n) => (data.board_labels?.[n] ? `${data.board_labels[n]} · board ${n}` : 'Board ' + n);
   // Board pills (All boards, Board 3, Board 2…) for games with a leaderboard.
   function boardPills(data) {
     if (!data.boards.length && board == null) return null;
@@ -452,7 +454,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       return b;
     };
     return el('div', { class: 'bar' }, el('div', { class: 'pills', role: 'group', 'aria-label': 'Leaderboard board' },
-      pill(null, 'All boards'), ...known.map(n => pill(n, 'Board ' + n))));
+      pill(null, 'All boards'), ...known.map(n => pill(n, boardName(data, n)))));
   }
   // Side by side, one row per board: how play changed after a board change.
   function boardsCard(data) {
@@ -463,15 +465,15 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       el('div', { class: 'scroll' }, el('table', null,
         el('thead', null, el('tr', null, head.map((h, i) => el('th', { class: i ? 'n' : null }, h)))),
         el('tbody', null, data.boards.map(b => el('tr', null,
-          el('td', null, 'Board ' + b.board), el('td', { class: 'n' }, num(b.runs)), el('td', { class: 'n' }, num(b.visits)),
+          el('td', null, boardName(data, b.board)), el('td', { class: 'n' }, num(b.runs)), el('td', { class: 'n' }, num(b.visits)),
           el('td', { class: 'n' }, pct(b.finished, b.runs)), el('td', { class: 'n' }, pct(b.quit, b.runs)),
           el('td', { class: 'n' }, dur(b.median_ms)), el('td', { class: 'n' }, b.saves == null ? '–' : num(b.saves))))))));
   }
 
   // The leaderboard as players see it: top 10, then all 50. All-time, so the day buttons don't change it.
-  function boardCard(lb) {
+  function boardCard(lb, data) {
     if (!lb) return null;
-    const card = el('section', { class: 'card' }, el('h2', null, `Leaderboard · board ${lb.board}`),
+    const card = el('section', { class: 'card' }, el('h2', null, data.board_labels?.[lb.board] ? `Leaderboard · ${boardName(data, lb.board)}` : `Leaderboard · board ${lb.board}`),
       el('p', { class: 'desc' }, lb.total
         ? `All-time top ${Math.min(50, lb.total)} of ${num(lb.total)} saved runs, ranked as in the game. Not affected by the day buttons.`
         : 'Nothing saved on this board yet.'));
@@ -595,7 +597,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
             el('td', null, n.name), el('td', { class: 'n' }, num(n.runs)), el('td', { class: 'n' }, num(n.days)),
             el('td', { class: 'n' }, dateFmt.format(new Date(n.last))), el('td', { class: 'n' }, n.best == null ? '–' : num(n.best) + (board == null && n.board != null ? ` (${n.board})` : ''))))))));
     }
-    out.push(boardCard(data.leaderboard));
+    out.push(boardCard(data.leaderboard, data));
     out.push(names);
     const recent = runsCard(data.recent, null);
     out.push(recent);
@@ -634,7 +636,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     last = data;
     nav(data.names);
     const title = game ? data.names[game] : 'All games';
-    document.getElementById('heading').textContent = game ? 'Play stats · ' + title + (board != null ? ' · board ' + board : '') : 'Play stats';
+    document.getElementById('heading').textContent = game ? 'Play stats · ' + title + (board != null ? ' · ' + (data.board_labels?.[board] || 'board ' + board) : '') : 'Play stats';
     document.title = game ? title + ' · Play stats' : 'Play stats';
     document.getElementById('sub').textContent = `Last ${data.days} days`;
     main.replaceChildren(...(game ? renderGame(data) : renderOverview(data)).filter(Boolean));
