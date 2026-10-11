@@ -58,10 +58,10 @@ var StickArmyShop = function (w) {
   function hasMedic() { return w.S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; }); }
   // ---------- buyers ----------
   // Every purchase has a buyer, `by`: a player (0 the host, 1 the co-op guest; this device's player when left out).
-  // Each player pays from their own dog tags (game.js tagsOf) and gets their own free pick. Turret upgrades
+  // Each player pays from their own dog tags (game.js tagsOf) and gets their own gift. Turret upgrades
   // (game.js TURRET_MODS) are the buyer's barrel's, with stacks counted per barrel; everything else is the squad's,
   // bought once by anyone. Only the buyer puts a thing back, and gets the tags back. Solo is the one-player case;
-  // the rules that differ in co-op (the free pick, squad prices, the screen's labels) check w.S.coop.
+  // the rules that differ in co-op (squad prices, the screen's labels) check w.S.coop.
   var TURRET = {};
   w.TURRET_MODS.forEach(function (id) { TURRET[id] = true; });
   function coop() { return !!w.S.coop; }
@@ -127,12 +127,25 @@ var StickArmyShop = function (w) {
     for (i = order.length - 1; i > 0; i--) { j = Math.floor(w.RS() * (i + 1)); tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
     return order.filter(offerable).slice(0, n);
   }
-  // The free pick: solo's is one random offer each visit; in co-op each player's is the first of the visit's rotating
-  // supplies they take (S.shop.giftTaken, by player).
+  // The gift: each player gets one of the visit's rotating supplies on the house (S.shop.gifts, by player), until they
+  // take it (S.shop.giftTaken).
   function onHouse(it, by) {
     var S = w.S;
     if (!S.shop || S.shop.giftTaken[buyer(by)]) return false;
-    return coop() ? S.shop.offered.indexOf(it.id) >= 0 : it.id === S.shop.gift;
+    return it.id === S.shop.gifts[buyer(by)];
+  }
+  // Each player's gift, drawn in turn: a random one of the rotating supplies, not one an earlier player got if there's
+  // another, and moved to something they can take if their kit (or barrel) can't take it.
+  function drawGifts(items) {
+    var gifts = [], all = items.map(function (it, k) { return k; });
+    w.S.players.forEach(function (p, i) {
+      var fresh = all.filter(function (k) { return gifts.indexOf(items[k].id) < 0; }), pool = fresh.length ? fresh : all;
+      var g = pool[Math.floor(w.RS() * Math.max(1, pool.length))];
+      if (!items.length) { gifts.push(null); return; }
+      if (!eligible(items[g], i)) { var open = pool.concat(all).find(function (k) { return eligible(items[k], i); }); if (open != null) g = open; }
+      gifts.push(items[g].id);
+    });
+    return gifts;
   }
   function costNow(it, by) { return onHouse(it, by) ? 0 : price(it); }
   function canBuy(it, by) { return eligible(it, by) && (it.tier === 'hire' || !bought(it, by)) && w.tagsOf(buyer(by)) >= costNow(it, by); }
@@ -141,16 +154,13 @@ var StickArmyShop = function (w) {
   function openShop() {
     var S = w.S;
     S.mode = 'shop'; S.waveState = 'shop'; w.clearInput(); S.bullets = []; S.banner = null; S.delivery = null; w.washDecals();
-    // Three rotating supplies from one pool (one of them free), both radio calls from wave 3, pizza always,
-    // and every role for hire.
-    var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gift = Math.floor(w.RS() * Math.max(1, items.length));
-    // The gift goes to something that can be taken, if a full kit greys the one it fell on.
-    if (items.length && kitFull(items[gift])) { var open = items.findIndex(function (it) { return !kitFull(it); }); if (open >= 0) gift = open; }
+    // Three rotating supplies from one pool (one of them free for each player), both radio calls from wave 3, pizza
+    // always, and every role for hire.
+    var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gifts = drawGifts(items);
     var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
-      gift: items.length ? items[gift].id : null, giftTaken: {}, bought: {}, who: {}, base: snapshot(S), log: [],
-      offered: items.map(function (it) { return it.id; }) };
-    w.emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
+      gifts: gifts, giftTaken: {}, bought: {}, who: {}, base: snapshot(S), log: [] };
+    w.emit('shop_offer', Object.assign({ wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: gifts[0] }, S.coop ? { gifts: gifts } : {}));
     w.shopScreen.open();
   }
   function takeItem(id, by) {

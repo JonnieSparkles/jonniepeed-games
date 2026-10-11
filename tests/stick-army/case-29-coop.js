@@ -103,12 +103,12 @@
     gunner = 0; grantCall('bomber', 200, 300, true); gunner = null;
     check(P[0].tags - t0 + P[1].tags - t1 === RADIO.FULL_TAGS && Math.abs((P[0].tags - t0) - (P[1].tags - t1)) <= 1, 'a full radio\'s tags are split');
 
-    // The shop: each player's own tags and free pick; "Your gun" per barrel, squad things bought once by either.
+    // The shop: each player's own tags and gift; "Your gun" per barrel, squad things bought once by either.
     RUN.players = 2; RUN.force = 33; newGame(); S.players[0].tags = 200; S.players[1].tags = 200;
     var spread = ITEMS.find(function (it) { return it.id === 'spread'; }), sand = ITEMS.find(function (it) { return it.id === 'sandbags'; }), fire = ITEMS.find(function (it) { return it.id === 'fire'; });
-    openShop(); S.shop.items = [spread, sand, fire]; S.shop.offered = ['spread', 'sandbags', 'fire'];
-    check(SHOP.takeItem('spread', 0) && S.turrets[0].mods.spread && !S.turrets[1].mods.spread && S.players[0].tags === 200, 'the host\'s first supply is free, spread for the host barrel');
-    check(SHOP.takeItem('spread', 1) && S.turrets[1].mods.spread && S.players[1].tags === 200, 'and the guest gets a free pick of their own');
+    openShop(); S.shop.items = [spread, sand, fire]; S.shop.gifts = ['spread', 'spread'];
+    check(SHOP.takeItem('spread', 0) && S.turrets[0].mods.spread && !S.turrets[1].mods.spread && S.players[0].tags === 200, 'the host\'s gift is free, spread for the host barrel');
+    check(SHOP.takeItem('spread', 1) && S.turrets[1].mods.spread && S.players[1].tags === 200, 'and the guest gets a gift of their own');
     check(!SHOP.takeItem('spread', 1), 'once per barrel a visit');
     var before0 = S.players[0].tags;
     check(SHOP.price(sand) === Math.max(5, Math.round(Math.max(5, Math.round(sand.cost * SHOP.war(SHOP.WAR.SUPPLY) / 5) * 5) * COOP_HARD.SQUAD_PRICE / 5) * 5) && SHOP.price(fire) === Math.max(5, Math.round(fire.cost * SHOP.war(SHOP.WAR.SUPPLY) / 5) * 5) && SHOP.price(ITEMS.find(function (it) { return it.id === 'pizza'; })) === 25,
@@ -122,10 +122,13 @@
     check(!SHOP.putBack('sandbags', 0) && S.mods.maxHP > 100, 'only the buyer puts a thing back');
     check(SHOP.putBack('sandbags', 1) && S.mods.maxHP === 100 && S.players[1].tags === 200, 'and gets the tags back');
     check(SHOP.putBack('spread', 1) && !S.turrets[1].mods.spread && S.turrets[0].mods.spread && S.players[1].tags === 200, 'putting back the guest spread leaves the host one');
-    check(SHOP.takeItem('fire', 1) && S.players[1].tags === 200 && S.turrets[1].mods.fire === 1, 'the guest\'s free pick is back after the put-back');
+    check(SHOP.takeItem('fire', 1) && S.players[1].tags === 200 - SHOP.price(fire) && S.turrets[1].mods.fire === 1, 'only the gift is free, not whatever comes first');
+    check(SHOP.takeItem('spread', 1) && S.players[1].tags === 200 - SHOP.price(fire), 'the guest\'s gift is back after the put-back');
     check(SHOP.undo(0) && !S.turrets[0].mods.spread, 'undo takes back this player\'s last pick');
-    check(!!document.getElementById('coopReady') && /Pick one free/.test(getComputedStyle(document.querySelector('.deal.gift.pick'), '::before').content), 'co-op: the friend\'s Ready line, and "Pick one free"');
-    // Solo's shop is as it was: one free pick, one wallet, no "Your gun".
+    renderShop();
+    check(!!document.getElementById('coopReady') && document.querySelectorAll('.deal.gift').length === 1 && document.querySelector('.deal.gift').dataset.item === 'spread' && !/Free/.test(document.querySelector('[data-item="fire"] em').textContent),
+      'co-op: the friend\'s Ready line, and one gift on the house, as in solo');
+    // Solo's shop is as it was: one gift, one wallet, no "Your gun".
     RUN.players = 1; RUN.force = 33; newGame(); S.players[0].tags = 200; openShop(); renderShop();
     check(document.getElementById('gunSection').hidden && document.getElementById('supplyTitle').textContent === 'Supplies' && !/yours/.test(document.getElementById('shopCoins').textContent) && !document.getElementById('coopReady') && !/Pick one|Ready for/.test(document.getElementById('shopScreen').textContent), 'solo\'s shop looks as before');
     RUN.players = 2; RUN.force = 33; newGame(); openShop();

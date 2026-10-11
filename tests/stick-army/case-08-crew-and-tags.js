@@ -83,7 +83,7 @@
   check(/^Wave 2/.test(document.getElementById('continueBtn').textContent) && !document.getElementById('continueBtn').disabled, 'continue is always open and names the next wave');
   check(document.querySelector('#supplyItems .gift em').textContent.indexOf('Free!') >= 0, 'the gift says free');
   check(/need \d+ more/.test(document.getElementById('supplyItems').textContent), 'unaffordable items say how many more tags');
-  takeItem(S.shop.gift);
+  takeItem(S.shop.gifts[0]);
   check(!document.querySelector('#supplyItems .gift') && /Spend dog tags/.test(document.getElementById('shopHint').textContent), 'gift taken, hint moves on');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 

@@ -50,7 +50,7 @@ var StickArmyShopScreen = function (w, shop) {
     if (!c.boss) return c.night ? ' Heads up: a night raid is coming.' : '';
     return ' Heads up: ' + (c.bossKind === 'dread' ? 'the Dreadnought is' : c.twin ? 'two zeppelins are' : 'a zeppelin is') + ' coming.';
   }
-  // The shop as it stands for this device's player (w.me): their tags, their free pick, their gun.
+  // The shop as it stands for this device's player (w.me): their tags, their gift, their gun.
   function render() {
     var S = w.S, coop = !!S.coop, mine = w.tagsOf(w.me);
     $('shopWave').textContent = 'Wave ' + S.wave + ' survived';
@@ -59,9 +59,9 @@ var StickArmyShopScreen = function (w, shop) {
     var hurt = Math.round(S.stats.wallDamage - (S.waveStart.wall || 0));
     $('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' +
       (hurt > 0 ? '-' + hurt : 'untouched') + ' (' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP + ')';
-    var giftLeft = !S.shop.giftTaken[w.me] && (coop ? S.shop.offered.length : S.shop.gift);
-    $('shopHint').textContent = (coop ? (giftLeft ? 'Your first supply is on the house. Your tags are your own; anything for the squad is for both of you.' : 'Your tags are your own; anything for the squad is for both of you.')
-      : giftLeft ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
+    var giftLeft = !S.shop.giftTaken[w.me] && S.shop.gifts[w.me];
+    $('shopHint').textContent = (giftLeft ? 'One supply is on the house' + (coop ? ' for you. ' : '. ') : '') +
+      (coop ? 'Your tags are your own; anything for the squad is for both of you.' : giftLeft ? 'Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
       bossHint(w.waveCfg(S.wave + 1));
     function costLabel(it) {
       if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
@@ -81,9 +81,9 @@ var StickArmyShopScreen = function (w, shop) {
     function itemButton(it, cls, withDesc) {
       var button = document.createElement('button'), theirs = shop.othersBuy(it), packed = it.tier !== 'hire' && shop.bought(it);
       button.type = 'button'; button.dataset.item = it.id;
-      // Co-op: every supply you could take free is marked "Pick one free"; the badge is the solo gift's.
+      // This player's gift wears the badge.
       var free = shop.onHouse(it) && !theirs;
-      button.className = cls + (free ? (coop ? ' gift pick' : ' gift') : '') + (packed ? ' bought' : '');
+      button.className = cls + (free ? ' gift' : '') + (packed ? ' bought' : '');
       // A packed supply stays live: tapping it again puts it back (the buyer's only).
       button.disabled = theirs || (!packed && !shop.canBuy(it));
       var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');

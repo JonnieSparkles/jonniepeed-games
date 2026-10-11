@@ -3,9 +3,9 @@
   newGame(); var before=S.players[0].tags; award(10,50,300,'test',INK,true); award(10,50,300,'test',INK,true);
   check(S.players[0].tags>before && S.score===30,'coins separate from combo score');
   openShop(); check(S.shop.items.length===4 && S.shop.items[3].id==='pizza','three rotating supplies and pizza');
-  check(S.shop.items.slice(0,3).some(it=>it.id===S.shop.gift) && costNow(ITEMS.find(it=>it.id===S.shop.gift))===0,'one supply is on the house');
+  check(S.shop.items.slice(0,3).some(it=>it.id===S.shop.gifts[0]) && costNow(ITEMS.find(it=>it.id===S.shop.gifts[0]))===0,'one supply is on the house');
   check(S.shop.hire.length===5 && S.shop.hire.every(it=>eligible(it)),'every role for hire while a slot is free');
-  var pick=S.shop.gift, other=S.shop.items.find(it=>it.id!==pick && it.id!=='pizza').id, purse=S.players[0].tags;
+  var pick=S.shop.gifts[0], other=S.shop.items.find(it=>it.id!==pick && it.id!=='pizza').id, purse=S.players[0].tags;
   check(takeItem(pick) && S.players[0].tags===purse,'the gift is free'); check(!takeItem(pick),'each supply once per visit');
   check(costNow(ITEMS.find(it=>it.id===pick))===price(ITEMS.find(it=>it.id===pick)),'only one gift a visit');
   S.players[0].tags=0; check(!takeItem(other),'other supplies cost tags');
