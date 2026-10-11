@@ -64,6 +64,7 @@
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
     deflectCharge: 3,       // each deflect gives the blaster this many charges back
+    stackHits: 3,           // moving day: blaster hits that blast a stack of boxes apart
     // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
     // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
     // misses, for smash + smashPer × its bat-backs. Once a phase, a marathon rally of this many.
@@ -279,7 +280,6 @@
   }
   // One shot (three with Spread Shot) for one charge. Out of charges: a click, a red flash, and a wait.
   function fire() {
-    if (floor.holstered()) return false;   // moving day, say: nothing to shoot
     if (R.armed === false) { R.empty = .2; Snd.play('empty'); return false; }   // knocked out of his hands: go and get it
     if (R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
     R.charge--;
@@ -781,15 +781,16 @@
     otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 23, '#fff6e2', 1, 'center');
   }
   // The light things give off this frame, for the renderer: blaster bolts as they fly, the muzzle flash, pickups.
+  // Bolts and the flash are kept soft, so steady fire lights the hall without strobing it.
   // (The floor adds its own.)
   function sceneLights(r) {
     let n = 0;
     for (const s of R.shots) {
       if (n++ >= 10) break;
       const [x, y, z] = world(s.u, s.z, s.h);
-      if (s.soul) r.light(x, y, z, .5, .42, .2); else if (s.spread) r.light(x, y, z, .6, .45, .15); else r.light(x, y, z, .3, .55, .9);
+      if (s.soul) r.light(x, y, z, .3, .25, .12); else if (s.spread) r.light(x, y, z, .32, .24, .08); else r.light(x, y, z, .16, .3, .5);
     }
-    if (R.fx.some(f => f.k === 'muzzle')) { const [x, y, z] = world(bull.u + A.MUZZLE.x / HW, bull.bz, bull.jh - A.MUZZLE.y / (FN - CN)); r.light(x, y, z - .15, 1.2, .9, .4); }
+    if (R.fx.some(f => f.k === 'muzzle')) { const [x, y, z] = world(bull.u + A.MUZZLE.x / HW, bull.bz, bull.jh - A.MUZZLE.y / (FN - CN)); r.light(x, y, z - .15, .4, .3, .14); }
     for (const pk of R.pickups) {
       const z = pk.w - R.dist; if (z > 1.02 || z < ZN) continue;
       const [x, y, wz] = world(pk.u, z, pk.h);

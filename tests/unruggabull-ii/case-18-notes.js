@@ -1,4 +1,4 @@
-// Moving day (walls you can't jump, beams to duck, a clean-run bonus), the endless hall and the Shredder closing in,
+// Moving day (walls you can't jump but can blast apart, the first of each piece marked, beams to duck, a clean-run bonus), the endless hall and the Shredder closing in,
 // lights out's switches, the surge's tell and bolt, the cut line on a deflect, and the souls going back after the hint.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -19,6 +19,17 @@
   for (let i = 0; i < 700 && wall[0].w - R.dist > bull.bz - .03; i++) { if (wall[0].w - R.dist - bull.bz < .1) press('jump'); bull.u = blocked; update(1 / 60); }
   check(wall[0].hit && !E.clean, "a jump doesn't clear a stack; the run's no longer clean");
   check(R.hearts === h0 - 1, 'and furniture costs a heart');
+  check(wall[0].ob.mark && wall[0].ob.gap != null && !wall.some(bx => Math.abs(bx.u - wall[0].ob.gap) < .01), 'the first wall is marked, with its gap');
+  // or blast a way through: a few shots break a stack, and that's not a bump
+  const tMove = E.t; bull.inv = 0; R.boxes = []; E.clean = true; E.obN = 0; E.gap = 0; spawnMove(E);
+  const wall2 = R.boxes.filter(bx => bx.tall), target = wall2.reduce((a, b) => Math.abs(a.u - .15) < Math.abs(b.u - .15) ? a : b);
+  check(!wall2[0].ob.mark, 'only the first wall is marked');
+  const h2 = R.hearts;
+  for (let i = 0; i < 700 && target.w - R.dist > bull.bz - .03; i++) { bull.u = target.u - A.MUZZLE.x / HW; R.charge = TUNE.charges; keys.kbShoot = true; update(1 / 60); }
+  keys.kbShoot = false;
+  check(target.blown && target.dmg >= TUNE.stackHits, 'three hits blast a stack apart');
+  check(R.hearts === h2 && E.clean, 'and running through where it stood costs nothing');
+  draw(); E.t = tMove;   // (moving day's clock back to where it was)
   // a beam: duck under it
   bull.inv = 0; R.boxes = []; E.obN = MOVES.indexOf('beam'); spawnMove(E);
   const beam = R.rows.find(rw => rw.kind === 'beam'), h1 = R.hearts, souls = R.souls;
@@ -39,7 +50,7 @@
   for (let i = 0; i < 60 * 4 && !R.switches.length; i++) update(1 / 60);
   check(R.switches.length, 'a light switch glows on the wall');
   const sw = R.switches[0];
-  R.flies.push({ u: 0, z: .9, h: .36, hp: 1, ph: 0, hit: 0, dead: false });
+  R.flies = [{ u: 0, z: .9, h: .36, hp: 1, ph: 0, hit: 0, dead: false }];   // one carpshit to freeze, out of the line of fire
   bull.u = sw.s * .5;
   for (let i = 0; i < 120 && !sw.hit; i++) { keys.kbShoot = true; update(1 / 60); }
   keys.kbShoot = false;

@@ -144,7 +144,7 @@ var UnrugRender = (function () {
     const BAYI = new Int32Array(16); for (let d = 0; d < 16; d++) BAYI[d] = d * 1025;
 
     // ---------- this frame's view of the hall ----------
-    let T = 0, scroll = 0, rugScroll = 0, power = 1, dark = false, edgeGlow = 0;
+    let T = 0, scroll = 0, rugScroll = 0, power = 1, dark = false, edgeGlow = 0, fill = 0;
     const RAILC = [.36, .2, .11], EDGEC = [.78, .52, .1];
 
     // ---------- lights ----------
@@ -166,7 +166,7 @@ var UnrugRender = (function () {
       for (let i = 0; i < XN; i++) { const j = i * 6; addLight(XL[j], XL[j + 1], XL[j + 2], XL[j + 3], XL[j + 4], XL[j + 5], false); }
     }
     function lightAt(x, y, z, nx, ny, nz, out) {
-      let r = .03, g = .03, b = .06;
+      let r = .03 + fill, g = .03 + fill, b = .06 + fill;
       if (dark) { r = .012; g = .012; b = .03; }
       for (let i = 0; i < LN; i++) {
         const vx = LX[i] - x, vy = LY[i] - y, vz = LZ[i] - z, d2 = vx * vx + vy * vy + vz * vz;
@@ -346,11 +346,14 @@ var UnrugRender = (function () {
     // what a shiny pixel reflects, into L; false if nothing
     function reflect(q) { const s = RS[q]; if (!s) return false; material(s, RX[q], RY[q], RZ_[q], T); L[0] = aR * .18 + eR; L[1] = aG * .16 + eG; L[2] = aB * .2 + eB; return true; }
     function addShine(q) { const f = shine[q]; if (!f) return; const i = q * 3; buf[i] += f * L[0]; buf[i + 1] += f * L[1]; buf[i + 2] += f * L[2]; }
-    // the view: scroll (the hall's) and rug (the runner's own); power, how bright the ceiling panels are (0 off); dark,
+    // the view: scroll (the hall's) and rug (the runner's own); power, how bright the ceiling panels are (0 off); house,
+    // how far the office's lights are up (0 to 1); dark,
     // the lights are out; rail, the section's colour for the wall rail (light, or null for none); edge, the runner's
     // edge colour (light), glowing if edgeGlow
     function setView(v) {
-      scroll = v.scroll; rugScroll = v.rug; power = v.power; dark = !!v.dark; edgeGlow = v.edgeGlow || 0;
+      // house: the office's own lights up (0 to 1): the panels brighter, and an even fill of light everywhere
+      const house = v.house || 0;
+      scroll = v.scroll; rugScroll = v.rug; power = v.power * (1 + .6 * house); fill = house * .09; dark = !!v.dark; edgeGlow = v.edgeGlow || 0;
       const rc = v.rail || [.36, .2, .11]; RAILC[0] = rc[0]; RAILC[1] = rc[1]; RAILC[2] = rc[2];
       const ec = v.edge || [.78, .52, .1]; EDGEC[0] = ec[0]; EDGEC[1] = ec[1]; EDGEC[2] = ec[2];
     }
@@ -401,7 +404,7 @@ var UnrugRender = (function () {
     // the light at every grid point (lightAt, worked through for the hall's own surfaces)
     function gridLights() {
       const lx = LX, ly = LY, lz = LZ, lr = LR, lg = LG, lb = LB, ld = LD, n = LN, gs = GSf, gq = GQ, hx = HX, hy = HY, hz = HZ, Rr = LGr, Gg = LGg, Bb = LGb;
-      const ar = dark ? .012 : .03, ab = dark ? .03 : .06;
+      const ar = dark ? .012 : .03 + fill, ab = dark ? .03 : .06 + fill;
       for (let g = 0; g < GN; g++) {
         const s = gs[g]; if (!s) continue;
         const q = gq[g], x = hx[q], y = hy[q], z = hz[q], nx = s === 3 ? 1 : s === 4 ? -1 : 0, ny = s === 1 ? 1 : s === 2 ? -1 : 0;
@@ -502,7 +505,7 @@ var UnrugRender = (function () {
       // 2. from the top down: the ceiling over each run; then light each pixel where it stands. The light changes
       // slowly, so a column keeps what it found for the next few rows at the same depth.
       inRun.fill(0); cacheB.fill(-1);
-      const amb = dark ? .07 : .13, buf_ = buf, lin_ = LIN, dz = DZ, hz = HZ, xc = XC;
+      const amb = dark ? .07 : .13 + fill * 1.2, buf_ = buf, lin_ = LIN, dz = DZ, hz = HZ, xc = XC;
       for (let py = 0; py < H; py++) {
         const zc = ZCE[py], yr = (py + .5 - CY) / F, blk = py >> 2;
         for (let px = 0, q = py * W; px < W; px++, q++) {

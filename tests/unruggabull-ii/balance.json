@@ -8,6 +8,7 @@
     { "label": "souls: katana", "key": "soul.amount:by=slash" },
     { "label": "souls: deflect", "key": "soul.amount:by=deflect" },
     { "label": "moving day souls", "key": "soul.amount:source=move" },
+    { "label": "stacks blasted", "key": "stack" },
     { "label": "lost: beams", "key": "hit.amount:cause=beam" },
     { "label": "dark bonus", "key": "soul.amount:by=dark" },
     { "label": "wipe bonus", "key": "soul.amount:by=wipe" },
