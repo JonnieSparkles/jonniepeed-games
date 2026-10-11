@@ -4,7 +4,8 @@
   const tick = s => { for (let i = 0; i < Math.ceil(s * 60); i++) update(1 / 60); };
   const fresh = () => { RUN.force = 42; newRun(null, 'roof'); setState('play'); card.hidden = true; clearHeld(); input.jump = input.slash = input.shoot = 0; };
   fresh(); floor.enter('round3'); R.roof.broken = 3; floor.enter('quiet');
-  const bells = [], played = [], music = [], oldPlay = Snd.play, oldMusic = Snd.music;
+  const bells = [], played = [], music = [], spoken = [], oldPlay = Snd.play, oldMusic = Snd.music, oldSay = Snd.say;
+  Snd.say = text => spoken.push(text);
   Snd.play = (name, arg) => { played.push(name); if (name === 'bell') bells.push(arg); };
   Snd.music = name => music.push(name);
   for (let i = 0; i < 300 && !R.roof.silenced; i++) update(1 / 60);
@@ -34,6 +35,8 @@
   check(fast > floor.ROOF.eyeRun + floor.ROOF.eyeAccel * (1 - 90 / 99), 'eye accelerates as odds fall');
   bull.inv = 0; hurtBull(5, 'carp'); continueAtBoss();
   check(R.roof.state === 'quiet' && R.hearts === 5 && R.roof.broken === 3 && R.roof.caught === R.roof.capturedTotal && !R.beam && !R.gold, 'crescendo death resumes at quiet');
+  const replies = spoken.filter(t => t === "LET'S DISCUSS THOSE ODDS.").length; tick(25);
+  check(spoken.filter(t => t === "LET'S DISCUSS THOSE ODDS.").length === replies + 1, 'crescendo continue replays his caption as well as the return');
   // Finish through the actual odds threshold, then cut, dawn and clear card.
   fresh(); floor.enter('beam'); R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = 0; tick(.05);
   check(R.roof.state === 'one' && R.roof.odds === 1 && R.talk.text === 'UNLIKELY.', '1% says UNLIKELY.');
@@ -44,5 +47,5 @@
   check(floor.view().dawn === 1 && bull.aimT === 0, 'dawn stays bright at clear and he lowers the blaster');
   fresh(); floor.enter('fusion'); const frozen = { t: R.t, qt: R.roof.t }; tick(.1);
   check(R.t === frozen.t && R.roof.t === frozen.qt && R.freeze > 0, 'fusion freezes fight for 0.14 seconds');
-  Snd.play = oldPlay; Snd.music = oldMusic; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
+  Snd.play = oldPlay; Snd.music = oldMusic; Snd.say = oldSay; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
 })();

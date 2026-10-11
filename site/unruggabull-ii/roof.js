@@ -92,6 +92,8 @@ var UnrugRoof = function (core) {
     round3: { entry: () => roundEntry(3), tick: roundTick, exit: roundExit },
     quiet: { entry() {
       clearThreats(); Q.odds = ROOF.odds; Q.stall = 0; R.gold = false; R.beam = false;
+      // A continue replays this act, including his reply; retain the other recorded outcomes.
+      if (R.events.said) { R.events.said = Object.assign({}, R.events.said); delete R.events.said.odds; }
       // The last round's line finishes before its last word cuts the music.
       Q.accounted = say('ALL SOULS ACCOUNTED FOR.'); Q.silenced = false; Q.quietT = 0;
       checkpoint();
