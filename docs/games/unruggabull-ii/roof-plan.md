@@ -7,7 +7,7 @@ The plan for the roof, the last stage: p(Loom)'s fight and the mega stream final
 
 The game's rules are in [README.md](README.md) and its design in [spec.md](spec.md); this plan adds to them. When a part lands, move what it built into README.md (rules) and spec.md (design), and add the why to [history.md](history.md).
 
-The approved storyboard is [roof-storyboard.png](roof-storyboard.png): 23 frames, read left to right, top to bottom. The page that draws them, with a note on each, is built from `tools/unruggabull-ii/roof-storyboard/` (`python3 tools/unruggabull-ii/roof-storyboard/build.py out.html`); its `board.js` has the stand-in drawing for the loom, HUD, rings, beam and cut-ins in plain code. The owner's copy is a Claude artifact: https://claude.ai/artifact/GeDrfRGvsh3rXLALE8NHZZ.
+The approved storyboard is [roof-storyboard.png](roof-storyboard.png): 23 frames, read left to right, top to bottom. The page that draws them, with a note on each, is built from `tools/unruggabull-ii/roof-storyboard/` (`python3 tools/unruggabull-ii/roof-storyboard/build.py out.html`); its `board.js` has the stand-in drawing for the loom, HUD, rings, beam and cut-ins in plain code. Each frame's caption and note are the `said` and `note` fields in `board.js`. The owner's copy is a Claude artifact (https://claude.ai/artifact/GeDrfRGvsh3rXLALE8NHZZ) that other agents can't open; everything on it is in the repo.
 
 ## The shape of it
 
