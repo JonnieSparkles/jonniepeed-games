@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roof Storyboard</title>
+<style>
+:root { --bg: #f4f1ea; --ink: #1d1a22; --soft: #5d5866; --line: #d8d2c6; --card: #ffffff; --accent: #c4501a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #121016; --ink: #ece8e0; --soft: #a39dab; --line: #2c2832; --card: #1b1820; --accent: #ff9a3c; } }
+:root[data-theme="dark"] { --bg: #121016; --ink: #ece8e0; --soft: #a39dab; --line: #2c2832; --card: #1b1820; --accent: #ff9a3c; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+.sub { color: var(--soft); margin: 0 0 16px; font-size: 15px; }
+.stage { background: #000; border-radius: 6px; overflow: hidden; }
+#view { display: block; width: 100%; height: auto; image-rendering: pixelated; touch-action: pan-y; }
+.bar { display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+.bar button { font: inherit; padding: 6px 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 6px; cursor: pointer; }
+#num, #time { color: var(--soft); font-variant-numeric: tabular-nums; }
+#act { font-weight: 600; color: var(--accent); }
+#strip { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0 14px; }
+#strip span { font-size: 12px; color: var(--soft); margin: 0 4px 0 8px; }
+#strip button { width: 30px; height: 28px; font: 13px system-ui, sans-serif; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 4px; cursor: pointer; padding: 0; }
+#strip button.cut { border-style: dashed; }
+#strip button[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+h2 { font-size: 19px; margin: 6px 0 6px; }
+#said { margin: 0 0 8px; }
+#note { margin: 0; color: var(--soft); font-size: 15px; }
+section { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 14px; }
+section h3 { font-size: 17px; margin: 0 0 8px; }
+ul { padding-left: 20px; margin: 0; } li { margin: 4px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; } td, th { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; } th { color: var(--soft); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>The roof, storyboarded</h1>
+<p class="sub">Unruggabull II's last fight, in 23 frames: getting up there, a regular boss fight, then the crescendo. Arrow keys or swipe to page through. Dashed numbers are side-view cut-ins.</p>
+<div class="stage"><canvas id="view" width="480" height="270" role="img" aria-label="The current storyboard frame"></canvas></div>
+<div class="bar"><button id="prev">← Back</button><button id="next">Next →</button><span id="act"></span><span id="num"></span><span id="time"></span></div>
+<div id="strip"></div>
+<h2 id="ftitle"></h2>
+<p id="said"></p>
+<p id="note"></p>
+
+<section>
+<h3>The timeline</h3>
+<table>
+<tr><th>Part</th><th>Length</th><th>What happens</th></tr>
+<tr><td>Getting there</td><td>about 25 s</td><td>The elevator, the walk, the lightning, the card, the odds. Plays once; a continue skips it.</td></tr>
+<tr><td>Round 1</td><td>about 30 s</td><td>Carpshits and freed souls the loom catches; the prediction rings; shoot the stalled eye to break the first spool.</td></tr>
+<tr><td>Round 2</td><td>about 40 s</td><td>Adds snares to cut and gusts toward the parapet. The second spool.</td></tr>
+<tr><td>Round 3</td><td>about 45 s</td><td>Everything, faster. The third spool. "ALL SOULS ACCOUNTED FOR." The music cuts.</td></tr>
+<tr><td>The crescendo</td><td>about 30 s</td><td>The quiet, the souls coming back, the flood, the pinch, the fusion, the beam, 1%, the threads snap, with three side-view cut-ins.</td></tr>
+</table>
+</section>
+
+<section>
+<h3>The calls in this version</h3>
+<ul>
+<li><b>A real fight first.</b> Three rounds, one spool each. The spools are its health bar; the odds are not. Breaking a spool never moves the odds, which is the joke until the beam finally does.</li>
+<li><b>A lead-in.</b> You don't walk straight into a fight: the elevator, a walk across the roof in the dark, then the lightning shows you what's at the end.</li>
+<li><b>Souls fire from the quiet on.</b> Before that, freed souls go to the loom.</li>
+<li><b>A hit doesn't break the beam.</b> Hearts still drop, so you can still lose in the crescendo, but it never stalls.</li>
+<li><b>Continues</b> start the round you died in (changed from the start of the fight, now that the fight is about two minutes). Losing in the crescendo puts you back at the quiet.</li>
+<li><b>His line at the fusion:</b> "LET'S DISCUSS THOSE ODDS."</li>
+<li><b>Side-view cut-ins</b> on three beats of the crescendo: the first soul, the beam erupting, the threads snapping. Each about a second, only when there's nothing to dodge, always cutting back behind him to play.</li>
+<li><b>The beam</b> is as wide as he is at the gun, lights the roof gold and bursts at the eye.</li>
+</ul>
+</section>
+</main>
+<script>
+/*BULL*/
+</script>
+<script>
+/*SPRITES*/
+</script>
+<script>
+/*ART*/
+</script>
+<script>
+/*BOARD*/
+</script>
+</body>
+</html>
