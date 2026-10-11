@@ -201,7 +201,7 @@ var UnrugSets = function (o) {
     } else if (it.r < .55 && near) {
       // whoever works here, eyes on the screen, fringe tapping (the work sprite's face)
       const f = A.work('type', [true], it.r < .2)[Math.floor(T * 4 + it.n) % 4], k = sc(z + .15) * .8, w = 26 * k;
-      g.drawImage(f, 7, 4, 26, 10, hp(PX(s * .79, z + .15) - w / 2), hp(YH(z + .15, top + .07) - 4 * k), hp(w), hp(10 * k));
+      g.drawImage(f, 12, 6, 56, 24, hp(PX(s * .79, z + .15) - w / 2), hp(YH(z + .15, top + .07) - 4 * k), hp(w), hp(12 * k * 26 / 28));   // its face, from the scene at full size
     }
     // the partition along the aisle, then the end panel facing you, with a name card
     cub(g, s, .62, .65, z, z1, 0, top, '#7a7e8c', '#3e475e', '#46506a');

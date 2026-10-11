@@ -432,6 +432,31 @@ def carp(f=0, look='angry', mouth_='grr', cut=False):
     return g
 
 
+# ---------- carpshits at work: the flying carpshit's body with other faces, for the scenes in art.js ----------
+FACES = {
+    'down':  [{'eyes': 'down', 'mouth': 'line'}] * 2,                                  # typing, eyes on the screen
+    'downV': [{'eyes': 'down', 'mouth': 'line', 'visor': True}] * 2,                   # the same in a green visor
+    'talk':  [{'eyes': 'side', 'mouth': 'talk'}, {'eyes': 'side', 'mouth': 'line'}],  # on a call, or telling at the cooler
+    'side':  [{'eyes': 'side', 'mouth': 'line'}] * 2,                                  # listening
+    'wide':  [{'eyes': 'wide', 'mouth': 'o'}] * 2,                                     # can't believe it
+    'shut':  [{'eyes': 'shut', 'mouth': 'snore'}] * 2,                                 # asleep
+    'smile': [{'eyes': 'down', 'mouth': 'smile'}] * 2,                                 # pleased with its copies
+}
+
+
+def face_carp(o, f):
+    cv = Canvas(FW, FH, lit_above=12)
+    x0, y0 = 5, 2
+    carp_at(cv, x0, y0, o, f, o.get('visor', False))
+    g = finish(cv)
+    fcv = Canvas(FW, FH)
+    fringe(fcv, x0, y0, RW, RH, f)
+    for (x, y), c in fcv.force.items():
+        if g[y][x] == '.':
+            g[y] = g[y][:x] + c + g[y][x + 1:]
+    return g
+
+
 # ---------- temps: carpshits in a collar and tie, popping up over a cubicle ----------
 TW, TH = 64, 46
 TX0, TY0 = 8, 12      # where the rug sits in a temp's box: room above it for a raised corner and its wad
@@ -592,31 +617,6 @@ def temp(look, state, f=0):
 
 
 # ---------- carpshits at work ----------
-WW, WH = 88, 72
-
-
-def desk(cv, mug=True, steam=0, monitor=True, saver=None):
-    # the desktop, its front edge, two legs; a monitor with its back to you; a mug
-    poly(cv, [(0, 44), (88, 44), (88, 50), (0, 50)], 'wood', hard=True, shade_fn=lambda px, py: .85 if py < 46 else .5 if py < 49 else .3)
-    for lx in (4, 80):
-        poly(cv, [(lx, 50), (lx + 4, 50), (lx + 4, 72), (lx, 72)], 'wood', hard=True, shade_fn=lambda px, py: .3)
-    if monitor:
-        poly(cv, [(20, 22), (60, 22), (60, 44), (20, 44)], 'mon', hard=True, shade_fn=lambda px, py: shade((px - 40) / 22, (py - 33) / 12, -.05))
-        poly(cv, [(35, 42), (45, 42), (46, 45), (34, 45)], 'mon', hard=True, shade_fn=lambda px, py: .35)
-        for x in range(22, 59):
-            T(cv, x, 21, '+')     # the screen's glow spilling over its top
-        for x in range(26, 55, 4):
-            T(cv, x, 25, '9'); T(cv, x + 1, 25, '9')   # vents
-    if mug:
-        poly(cv, [(68, 35), (77, 35), (77, 44), (68, 44)], 'shirt', hard=True, shade_fn=lambda px, py: shade((px - 72) / 5, (py - 39) / 5, .1))
-        ellipse(cv, 79, 39, 3, 3, 'shirt', base=-.1, hard=True)
-        ellipse(cv, 79, 39, 1.2, 1.2, 'shirt', base=-.4)
-        for x in range(69, 77):
-            T(cv, x, 39, 'D'); T(cv, x, 40, 'D')
-        if steam:
-            s = steam % 2
-            for k, (dx, dy) in enumerate(((s, -1), (1 - s, -3), (s, -5), (1 - s, -7))):
-                T(cv, 72 + dx, 34 + dy, 'z' if k > 1 else 'A')
 
 
 def carp_at(cv, x0, y0, o, f, visor=False):
@@ -629,57 +629,6 @@ def carp_at(cv, x0, y0, o, f, visor=False):
              shade_fn=lambda px, py: .82 - (py - y0 - 4) * .1 + (.15 if (px + py) % 4 == 0 else 0))
 
 
-def work(kind, f, visor=False):
-    cv = Canvas(WW, WH, lit_above=40)
-    if kind == 'type':
-        bob = 1 if f == 1 else 0
-        x0, y0 = 17, 6 + bob
-        carp_at(cv, x0, y0, {'eyes': 'down', 'mouth': 'line'}, f, visor)
-        desk(cv, True, f + 1)
-        g = finish(cv)
-        fcv = Canvas(WW, WH)
-        fringe(fcv, x0, y0, RW, RH, f, rows=list(range(y0 + 2, y0 + 16)))
-        # clacking keys, either side of the monitor
-        for (x, y) in (((14, 42), (63, 43)) if f % 2 else ((16, 43), (62, 42))):
-            T(fcv, x, y, 'p'); T(fcv, x + 1, y, 'o')
-        for (x, y), c in fcv.force.items():
-            if g[y][x] == '.':
-                g[y] = g[y][:x] + c + g[y][x + 1:]
-        return g
-    if kind == 'sleep':
-        desk(cv, False, monitor=False)
-        # the monitor, turned a little so we see its screensaver bouncing
-        poly(cv, [(2, 16), (34, 16), (34, 40), (2, 40)], 'mon', hard=True, shade_fn=lambda px, py: .3)
-        poly(cv, [(5, 19), (31, 19), (31, 37), (5, 37)], 'mon', hard=False, shade_fn=lambda px, py: 0)
-        poly(cv, [(14, 40), (22, 40), (23, 44), (13, 44)], 'mon', hard=True, shade_fn=lambda px, py: .35)
-        bx, by = [(7, 21), (17, 27), (23, 21), (12, 31)][f]
-        for dx in range(6):
-            for dy in range(4):
-                T(cv, bx + dx, by + dy, 'D' if dy else 'F')
-        for dx in (2, 3):
-            T(cv, bx + dx, by + 1, '=')
-        # slumped across the desk: the rug drapes over the front edge, fringe dangling
-        x0, y0 = 37, 30
-        rug_body(cv, x0, y0, w=RW, h=16, sag=-1.5)
-        face(cv, x0 + RW / 2, y0 + 8, {'eyes': 'shut', 'mouth': 'snore'})
-        # drool
-        T(cv, x0 + RW / 2 + 3, y0 + 14, 'p'); T(cv, x0 + RW / 2 + 3, y0 + 15 + f % 2, 'o')
-        g = finish(cv)
-        fcv = Canvas(WW, WH)
-        fringe(fcv, x0, y0, RW, 16, 0, sides=(-1,))
-        # Zs drifting up
-        def Z(x, y, n, c):
-            for k in range(n):
-                T(fcv, x + k, y, c); T(fcv, x + k, y + n - 1, c); T(fcv, x + n - 1 - k, y + k, c)
-        Z(64 + f, 22 - f * 3, 4, 'p')
-        if f > 1:
-            Z(74, 6 + (f - 2) * -2, 5, 'n')
-        for (x, y), c in fcv.force.items():
-            if 0 <= y < WH and 0 <= x < WW and g[y][x] == '.':
-                g[y] = g[y][:x] + c + g[y][x + 1:]
-        return g
-
-
 # ---------- output ----------
 def build_all():
     d = {}
@@ -687,11 +636,7 @@ def build_all():
     d['flyHit'] = carp(0, look='squeeze', mouth_='wobble')
     d['cut'] = carp(0, look='x', mouth_='o', cut=True)
     d['temps'] = {k: {s: [temp(k, s, 0), temp(k, s, 1)] if s in ('peek', 'up') else [temp(k, s, 0)] for s in TEMP_STATES} for k in LOOKS}
-    d['work'] = {
-        'type': [work('type', f) for f in range(4)],
-        'typeVisor': [work('type', f, True) for f in range(4)],
-        'sleep': [work('sleep', f) for f in range(4)],
-    }
+    d['work'] = {k: [face_carp(o, f) for f, o in enumerate(os)] for k, os in FACES.items()}
     return d
 
 
@@ -724,7 +669,7 @@ def set_js(d):
         for s_, frs in st.items():
             L.append(f'        {s_}: [' + ', '.join(grid_js(g, 10) for g in frs) + '],')
         L.append('      },')
-    L += ['    },', '    WORK: {']
+    L += ['    },', '    FACES: {']
     for k, frs in d['work'].items():
         L.append(f'      {k}: [' + ', '.join(grid_js(g, 8) for g in frs) + '],')
     L += ['    }', '  }']
@@ -737,7 +682,7 @@ def to_js(sets, main='bold'):
         '// Text grids, one character per pixel and "." for none, drawn 1:1 into the 480x270 picture (half a game unit a pixel).',
         '// Classic script, loaded before art.js. SETS holds the take written (' + main + '), with its palette; the top level is the same.',
         '// Each take: FLY (two frames of fringe flutter), FLY_HIT, CUT, TEMPS[look][state] (lists of frames, rug at the same',
-        '// spot in every frame), WORK[kind] (four frames).',
+        '// spot in every frame), FACES[name] (two frames: a carpshit at work, by its look; art.js puts them in their scenes).',
         'var UnrugSprites = (function () {',
         "  'use strict';",
         '  const SETS = {',
@@ -785,7 +730,6 @@ def save_pngs(d, folder, zoom=4):
 if __name__ == '__main__':
     set_style('boldest')
     d = build_all()
-    d['work'] = {}   # the at-work scenes (type, sleep) aren't in the game yet: it still draws its own
     js = to_js({'boldest': d}, main='boldest')
     if '--check' in sys.argv:
         if not OUT.exists() or OUT.read_text() != js:

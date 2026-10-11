@@ -193,6 +193,27 @@ var UnrugArt = (function () {
     draw(put, box, g);
     return cv;
   }
+  // A scene at the picture's full size (k: half a game unit a pixel), drawn in game units: box() and g as in sketch(),
+  // and carp(name, f, x, y) puts a carpshit from sprites.js (FACES[name]) where an old 26x10 face would have its top
+  // left, optionally clipped to rows from y0 to y1 (one half-hidden behind a desk) and flipped (facing the other way).
+  const FACE_IMG = {};
+  const faceImg = (name, f) => { const key = name + f; return FACE_IMG[key] || (FACE_IMG[key] = NS.paint(NS.FACES[name][f % 2])); };
+  function scene(w, h, draw) {
+    const cv = canvas(w * 2, h * 2), g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false; g.setTransform(2, 0, 0, 2, 0, 0);
+    const box = (x, y, bw, bh, ch) => { g.fillStyle = PAL[ch]; g.fillRect(Math.round(x), Math.round(y), Math.round(bw), Math.round(bh)); };
+    const carp = (name, f, x, y, o = {}) => {
+      const img = faceImg(name, f);
+      g.save();
+      if (o.y0 != null || o.y1 != null) { g.beginPath(); g.rect(-99, o.y0 == null ? -99 : o.y0, 999, (o.y1 == null ? 999 : o.y1) - (o.y0 == null ? -99 : o.y0)); g.clip(); }
+      if (o.flip) { g.translate(x - 1 + 14, 0); g.scale(-1, 1); g.drawImage(img, -14, y - 1, 28, 12); }
+      else g.drawImage(img, x - 1, y - 1, 28, 12);
+      g.restore();
+    };
+    draw(carp, box, g);
+    cv.k = .5;
+    return cv;
+  }
   // a desk with a monitor, its back to you, and whoever works there peeking over it
   function desk(box, mug, steam) {
     box(0, 22, 44, 3, 'N'); box(0, 25, 44, 1, 'n'); box(2, 26, 2, 10, 'n'); box(40, 26, 2, 10, 'n');
@@ -204,61 +225,63 @@ var UnrugArt = (function () {
   // gone and its place is empty). Sizes are in the game's pixels at the front of the hall; the floor draws them smaller.
   const WORK_KINDS = {
     // typing away: eyes down, fringe tapping the keys, keys clattering, a mug steaming
-    type: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive, visor) => {
-      if (alive[0]) put(face({ eyes: 'down', mouth: 'line', fringe: f % 2, visor }), 7, 4 + (f === 1 ? 1 : 0));
+    type: { w: 44, h: 36, n: 1, draw: (carp, box, g, f, alive, visor) => {
+      if (alive[0]) carp(visor ? 'downV' : 'down', f, 7, 4 + (f === 1 ? 1 : 0));
       desk(box, true, f + 1);
       if (alive[0]) { if (f % 2) { box(8, 21, 1, 1, 'M'); box(31, 20, 1, 1, 'M'); } else { box(9, 20, 1, 1, 'M'); box(30, 21, 1, 1, 'M'); } }
     } },
     // on a call: a headset, nodding, talking; behind it a chart of Q4 rug targets, going down
-    call: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive, visor) => {
+    call: { w: 44, h: 36, n: 1, draw: (carp, box, g, f, alive) => {
       box(28, 0, 16, 11, 'K'); box(29, 1, 14, 9, 'P'); box(30, 2, 12, 1, 'y');
       [6, 5, 3, 2, 1].forEach((v, i) => box(30 + Math.round(i * 2.4), 9 - v, 2, v, i > 2 ? 'i' : 'J'));
       const bob = f % 2;
       if (alive[0]) {
-        put(face({ eyes: 'side', mouth: f < 2 ? 'open' : 'line', visor }), 3, 5 + bob);
-        box(4, 4 + bob, 20, 1, 'K'); box(3, 5 + bob, 1, 5, 'K'); box(2, 8 + bob, 3, 4, 'K'); box(4, 12 + bob, 7, 1, 'K'); box(11, 11 + bob, 2, 2, 'K');
+        carp('talk', f < 2 ? 0 : 1, 3, 5 + bob);
+        box(4, 3 + bob, 20, 1, 'K'); box(2, 5 + bob, 1, 5, 'K'); box(1, 8 + bob, 3, 4, 'K'); box(3, 12 + bob, 7, 1, 'K'); box(10, 11 + bob, 2, 2, 'K');
       }
       desk(box, false);
     } },
     // asleep at the desk: slumped across it, eyes shut, drooling, Zs; the monitor on its screensaver
-    sleep: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive) => {
+    sleep: { w: 44, h: 36, n: 1, draw: (carp, box, g, f, alive) => {
       box(0, 22, 44, 3, 'N'); box(0, 25, 44, 1, 'n'); box(2, 26, 2, 10, 'n'); box(40, 26, 2, 10, 'n');
       box(1, 8, 16, 13, 'K'); box(2, 9, 14, 10, 'q'); box(7, 19, 4, 3, 'K');
       const bx = [3, 8, 11, 6][f], by = [10, 13, 10, 15][f]; box(bx, by, 4, 3, 'R'); box(bx + 1, by + 1, 2, 1, 'C');
       if (alive[0]) {
-        put(face({ eyes: 'shut', mouth: 'open' }).slice(2, 10), 17, 14);
+        carp('shut', f, 17, 12, { y0: 13 });
         txt(g, 'Z', 31 + f, 8 - f * 2, '#fff6e2'); if (f > 1) txt(g, 'Z', 37, 1, '#a8a0c0');
-        box(18, 21, 1, 1 + f % 2, 'g');
+        box(30, 21, 1, 1 + f % 2, 'g');
       }
     } },
     // the water cooler: two hovering close, one telling, the other can't believe it
-    cooler: { w: 66, h: 44, n: 2, draw: (put, box, g, f, alive) => {
+    cooler: { w: 66, h: 44, n: 2, draw: (carp, box, g, f, alive) => {
       g.drawImage(COOLER, 24, 44 - COOLER.height * 2, COOLER.width * 2, COOLER.height * 2);
       if (alive[0]) {
-        put(face({ eyes: 'side', mouth: f % 2 ? 'open' : 'line', fringe: f % 2 }), 0, 10 + (f % 2));
-        if (alive[1]) { box(8, 1, 13, 7, 'K'); box(9, 2, 11, 5, 'P'); box(12, 8, 2, 1, 'K'); if (f < 2) for (let i = 0; i <= f + 1; i++) box(11 + i * 3, 4, 1, 1, 'K'); else { box(14, 2, 1, 3, 'i'); box(14, 6, 1, 1, 'i'); } }
+        carp('talk', f % 2 ? 0 : 1, 0, 10 + (f % 2));
+        if (alive[1]) { box(8, 0, 13, 7, 'K'); box(9, 1, 11, 5, 'P'); box(12, 7, 2, 1, 'K'); if (f < 2) for (let i = 0; i <= f + 1; i++) box(11 + i * 3, 3, 1, 1, 'K'); else { box(14, 1, 1, 3, 'i'); box(14, 5, 1, 1, 'i'); } }
       }
-      if (alive[1]) put(flip(face({ eyes: f > 1 && alive[0] ? 'wide' : 'side', mouth: f > 1 && alive[0] ? 'open' : 'line', fringe: (f + 1) % 2 })), 40, 12 - (f > 1 ? 1 : 0));
+      if (alive[1]) carp(f > 1 && alive[0] ? 'wide' : 'side', f + 1, 40, 12 - (f > 1 ? 1 : 0), { flip: true });
     } },
     // the copy room: one lies on the copier's glass, and copies of it slide out into a stack
-    copier: { w: 60, h: 40, n: 1, draw: (put, box, g, f, alive) => {
+    copier: { w: 60, h: 40, n: 1, draw: (carp, box, g, f, alive) => {
+      if (alive[0]) carp('smile', f, 8, 6, { y1: 16 });
       box(4, 18, 34, 22, 'K'); box(5, 19, 32, 20, 'b'); box(5, 30, 32, 1, 'd'); box(8, 22, 6, 2, 'P'); box(30, 22, 3, 2, f % 2 ? 'X' : 'x');
       box(4, 14, 34, 4, 'K'); box(5, 15, 32, 2, 'd');
-      if (alive[0]) { box(6, 17, 30, 1, f % 2 ? 'X' : 'M'); put(face({ eyes: 'down', mouth: 'smile' }).slice(0, 9), 8, 6); }
+      if (alive[0]) box(6, 17, 30, 1, f % 2 ? 'X' : 'M');
       const n = alive[0] ? f + 1 : 4; for (let i = 0; i < n; i++) { box(38, 34 - i * 2, 18, 2, 'K'); box(39, 34 - i * 2, 16, 1, i % 2 ? 'r' : 'L'); }
       box(37, 36, 21, 2, 'd');
     } },
-    // the manager, in a tie, on the phone (the floor puts it in its office, a room set into the wall)
-    manager: { w: 26, h: 15, n: 1, draw: (put, box, g, f, alive) => {
+    // the manager, in a tie, on the phone (the floor puts it in its office, a room set into the wall): temp A's look
+    manager: { w: 26, h: 15, n: 1, draw: (carp, box, g, f, alive) => {
       if (!alive[0]) return;
-      put(face({ eyes: 'side', mouth: f % 2 ? 'open' : 'line', fringe: f % 2 }).concat(TIE), 0, 0);
-      box(3, 3, 3, 6, 'K'); box(6, 7, 2, 1, 'K');
+      const img = TEMPS[0].up[f % 2], R0 = TEMP_RUG, k = 26 / R0.w;
+      g.drawImage(img, -R0.x * k, -R0.y * k + 2, img.width * k, img.height * k);
+      box(2, 5, 3, 6, 'K'); box(5, 9, 2, 1, 'K');
     } }
   };
   const WORK = {};
   function work(kind, alive, visor) {
     const key = kind + alive.map(a => a ? 1 : 0).join('') + (visor ? 'v' : '');
-    if (!WORK[key]) { const K = WORK_KINDS[kind]; WORK[key] = [0, 1, 2, 3].map(f => sketch(K.w, K.h, (put, box, g) => K.draw(put, box, g, f, alive, visor))); }
+    if (!WORK[key]) { const K = WORK_KINDS[kind]; WORK[key] = [0, 1, 2, 3].map(f => scene(K.w, K.h, (carp, box, g) => K.draw(carp, box, g, f, alive, visor))); }
     return WORK[key];
   }
   // the manager's office furniture: a desk with a nameplate, and a framed certificate on its back wall

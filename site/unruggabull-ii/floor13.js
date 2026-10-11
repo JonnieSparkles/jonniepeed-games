@@ -1249,7 +1249,7 @@ var UnrugFloor13 = function (core) {
     // the manager, pacing behind the desk, then the desk
     const mz = z0 + .5 + .14 * Math.sin(R.t * 1.1 + wk.w * 5);
     if (!wk.carps[0].dead) {
-      const m = A.work('manager', [true])[Math.floor(R.t * 4) % 4], mk = sc(mz) * .8, mw = Math.round(m.width * mk), mh = Math.round(m.height * mk);
+      const m = A.work('manager', [true])[Math.floor(R.t * 4) % 4], mk = sc(mz) * .8 * (m.k || 1), mw = Math.round(m.width * mk), mh = Math.round(m.height * mk);
       g.drawImage(m, Math.round(PX(s * 1.9, mz) - mw / 2), Math.round(YH(mz, .42) - mh), mw, mh);
     }
     const dz = z0 + .42, dk = sc(dz) * .8, dw = Math.round(A.OFFICE_DESK.width * dk), dh = Math.round(A.OFFICE_DESK.height * dk);
