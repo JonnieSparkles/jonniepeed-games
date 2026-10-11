@@ -512,12 +512,13 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     return card;
   }
 
-  // The 50 latest runs. On the homepage each row names its game. A "board only" row is a run saved to the
-  // leaderboard that play stats never saw (a blocker, or a page from before play stats).
+  // The 50 latest runs. On the homepage each row names its game. A co-op run (a game's "with" mode) wears a tag.
+  // A run saved to the leaderboard that play stats never saw (a blocker, or a page from before play stats) is listed
+  // like any other, with what the board knows.
   function runsCard(rows, names) {
     const card = el('section', { class: 'card' }, el('h2', null, 'Latest runs'),
       el('p', { class: 'desc' }, 'The 50 most recent' + (names ? ', all games' : '') + '. Initials show when the run was saved to the board. ' +
-        '“Board only” runs were saved to the leaderboard but never reported to play stats, usually because of an ad blocker.'));
+        'A run with no device was saved to the leaderboard but never reported to play stats, usually because of an ad blocker.'));
     if (!rows || !rows.length) { card.append(el('p', { class: 'empty' }, 'No runs yet.')); return card; }
     const outcome = r => (r.outcome === 'won' ? 'Won' : r.outcome === 'over' ? 'Finished' : r.outcome === 'quit' ? 'Quit' : 'No end yet');
     const statLine = st => (st ? Object.entries(st).map(([k, v]) => `${label(k).toLowerCase()} ${typeof v === 'number' ? compact(v) : v}`).join(' · ') : '');
@@ -527,10 +528,8 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
         el('b', null, outcome(r)),
         r.time_ms == null ? null : el('span', null, dur(r.time_ms)), r.score == null ? null : el('span', null, 'score ' + num(r.score)),
         r.name ? el('b', null, r.name) : null,
-        r.board_only ? el('span', { class: 'tag' }, 'board only') : null),
-      el('div', { class: 'meta' }, r.board_only
-        ? ['not seen by play stats', r.input === 'touch' ? 'touch' : r.input ? 'keys' : null].filter(Boolean).join(' · ')
-        : [r.device, r.orientation, r.input === 'touch' ? 'touch' : r.input ? 'keys' : null, r.source ? 'from ' + r.source : null].filter(Boolean).join(' · ')),
+        r.mode ? el('span', { class: 'tag' }, r.mode) : null),
+      el('div', { class: 'meta' }, [r.device, r.orientation, r.input === 'touch' ? 'touch' : r.input ? 'keys' : null, r.source ? 'from ' + r.source : null].filter(Boolean).join(' · ')),
       r.stats ? el('div', { class: 'st' }, statLine(r.stats)) : null));
     const list = el('ul', { class: 'runs' }, items.slice(0, 15));
     card.append(list);
