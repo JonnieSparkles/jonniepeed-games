@@ -2,7 +2,7 @@
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
-  const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; };
+  const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; if (R.event && R.event.souls) { R.event.souls = []; R.event.obs = []; } };
   RUN.force = 606; startRun(); quiet(); bull.inv = 1e9;
   check(Snd.track === 'tower', 'Accounts Payable plays RugCo Tower');
 
@@ -63,7 +63,7 @@
   step(TUNE.moveT + .2);
   check(R.beat === 1 && Snd.track === 'staff', 'All Staff plays Alley Redux');
   check(R.pickups.some(pk => pk.kind === 'coffee') && R.pickups.some(pk => pk.kind === 'spread'), 'a coffee and a Spread Shot follow moving day');
-  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
+  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(TUNE.liftT + .2);   // heavy lifting first
   check(R.event && R.event.kind === 'dark' && Snd.track === 'dark', 'lights out drops to a heartbeat');
   step(TUNE.darkT);
   check(R.beat === 2 && Snd.track === 'copy', 'the copy room has its own tune');

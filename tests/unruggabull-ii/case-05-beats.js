@@ -12,8 +12,8 @@
   step(4);
   check(!R.flies.length && !R.cubs.some(cb => cb.temp && cb.temp.st === 'up'), 'nobody to shoot: no carpshits, the temps stay down');
   R.fireT = 0; R.events.shots = 0; keys.kbShoot = true; step(.5); keys.kbShoot = false;
-  check(R.events.shots > 0, 'the blaster still fires (at the stacks of boxes, if you like)');
-  check(R.boxes.some(bx => bx.tall) || R.rows.some(rw => rw.kind === 'beam' || rw.kind === 'chairs'), 'furniture fills the hall');
+  check(R.events.shots > 0, 'the blaster still fires');
+  check(R.rows.some(rw => rw.kind === 'beam' || rw.kind === 'chairs'), 'furniture fills the hall');
   for (let i = 0; i < 60 * TUNE.moveT && R.event; i++) update(1 / 60);
   check(!R.event && R.beat === 1 && beat().sign === 'ALL STAFF' && R.signs.some(sg => sg.w > R.dist), 'All Staff comes next, with its sign');
   step(3);
@@ -22,6 +22,9 @@
   R.flies = []; spawnFormation('line'); step(.6);
   check(!R.event && R.beatT > BEATS[1].time, 'the lights stay on while a formation is still coming');
   R.flies = []; update(1 / 60);
+  check(R.event && R.event.kind === 'move' && R.event.course === 'lift' && R.signs.some(sg => sg.text === 'HEAVY LIFTING'), 'then heavy lifting: the full course');
+  check(R.event.moves === MOVES && beat().sign === 'ALL STAFF', 'in All Staff still');
+  for (let i = 0; i < 60 * TUNE.liftT + 5 && R.event && R.event.kind === 'move'; i++) { bull.inv = 1e9; update(1 / 60); }
   check(R.event && R.event.kind === 'dark', 'then the lights go out');
   step(1.5);
   check(darkness() > .5, 'and the hall is dark');

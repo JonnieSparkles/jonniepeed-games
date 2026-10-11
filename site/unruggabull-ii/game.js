@@ -48,7 +48,7 @@
     pullSpeed: .3, recover: .5, mouth: .85,
     goal: 90,               // souls that wake the Shredder
     wadTime: 1.25, wadLead: .2, throwChance: .6,
-    moveT: 13, moveEvery: 1.15, moveClean: 10,   // moving day: how long, an obstacle this often, and the bonus for a clean run
+    moveT: 11, liftT: 19.5, moveClean: 10,   // moving day and heavy lifting: how long (their courses are COURSES in floor13.js, the last piece reaching you just before the end), and heavy lifting's bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
@@ -64,7 +64,6 @@
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
     deflectCharge: 3,       // each deflect gives the blaster this many charges back
-    stackHits: 3,           // moving day: blaster hits that blast a stack of boxes apart
     reach: .9,              // the blaster's targets count from this far down the hall, once they're fully out of the dark
     // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
     // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
@@ -618,18 +617,22 @@
     const sx = 1 + (b.sq || 0), sy = 1 - (b.sq || 0);
     // hit: knocked back a step toward you, rocking side to side, then he catches himself
     const st = b.stag > 0 && R.phase !== 'win' ? b.stag / .3 : 0, kx = Math.round(Math.sin(st * 14) * 3 * st * s), ky = Math.round(st * 4 * s);
-    g.drawImage(p, Math.round(x - A.POSE_W / 2 * s * sx) + kx, Math.round(feet - 38 * s * sy) + ky, Math.round(A.POSE_W * s * sx), Math.round(A.POSE_H * s * sy));
+    const k = s * A.BULL_K;
+    g.drawImage(p, Math.round((x - A.POSE_FEET.x * k * sx + kx) * PIC) / PIC, Math.round((feet - A.POSE_FEET.y * k * sy + ky) * PIC) / PIC, A.POSE_W * k * sx, A.POSE_H * k * sy);
+    // the katana's swoosh, in the glow layer so it reads in the dark: a short arc on the wind-up, the full sweep on the cut
+    if (b.slash >= 0 && !cheer) A.arcE(GLOW, x + kx, feet + ky - (b.crouch ? 14 : 20) * s, 26 * s, 11 * s, Math.PI + .2, b.slash < .07 ? Math.PI * 1.45 : Math.PI * 2 - .2);
   }
   // Rugged: the rug is yanked out from under him. He flips up, spins in quarter turns and falls off the screen.
   function drawRugPulled(s, x, feet) {
     const t = Math.max(0, R.phaseT - .08), dy = -(190 * t - 260 * t * t) * s, rot = Math.floor(t / .09) % 4;
     g.save(); g.translate(Math.round(x + t * 14 * s), Math.round(feet - 19 * s + dy));
     if (rot) g.rotate(rot * Math.PI / 2);
-    g.drawImage(A.POSES.hurt, Math.round(-A.POSE_W / 2 * s), Math.round(-19 * s), Math.round(A.POSE_W * s), Math.round(A.POSE_H * s));
+    const k = s * A.BULL_K;
+    g.drawImage(A.POSES.hurt, -A.POSE_FEET.x * k, -A.POSE_FEET.y * k + 19 * s, A.POSE_W * k, A.POSE_H * k);
     g.restore();
   }
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
-  const FX_PASS = { wisp: 'glow', cut: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
+  const FX_PASS = { wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
   function drawFx(pass) {
     for (const f of R.fx) {
       if ((FX_PASS[f.k] || 'lit') !== pass) continue;
@@ -644,7 +647,6 @@
         g.restore();
       } else if (f.k === 'pop') otxt(g, f.text, f.x, Math.round(f.y), f.col, 1, 'center');
       else if (f.k === 'bit') rect(g, f.x, f.y, 2, 1, (Math.floor(f.t * 10) + f.vx) % 2 > 0 ? '#fff6e2' : '#b8b4a8');
-      else if (f.k === 'cut') { const a = 1 - f.t / f.dur; g.save(); g.globalAlpha = a; line(g, Math.round(f.x0), Math.round(f.y0), Math.round(f.x1), Math.round(f.y1), '#ffffff'); line(g, Math.round(f.x0) + 1, Math.round(f.y0), Math.round(f.x1) + 1, Math.round(f.y1), '#7fd4ff'); g.restore(); }
       else if (f.k === 'bolt') {
         // jagged, redrawn every frame, white core in blue
         let px = f.x0, py = f.y0; const n = 7;
@@ -694,6 +696,12 @@
       const big = B.text.length <= 6, tw = textWidth(B.text) * (big ? 2 : 1), y = 17;
       g.save(); g.globalAlpha = .8; rect(g, 120 - tw / 2 - 5, y - 3, tw + 10, big ? 16 : 11, '#0a0810'); g.restore();
       otxt(g, B.text, 120, y, B.col || '#ffd44a', big ? 2 : 1, 'center');
+    } else if (B && B.top) {
+      // the floor's opening: words over the ceiling, no band across the hall, fading out
+      g.save(); g.globalAlpha = Math.max(0, Math.min(1, B.t / .15, (B.dur - B.t) / .35));
+      otxt(g, B.text, 120, 16, B.col || '#ffd44a', 2, 'center');
+      if (B.sub) otxt(g, B.sub, 120, 30, '#fff6e2', 1, 'center');
+      g.restore();
     } else if (B) {
       const y = B.y || 58;
       g.save(); g.globalAlpha = .8; rect(g, 0, y - 4, W, B.sub ? 26 : 18, '#0a0810'); g.restore();
@@ -747,7 +755,6 @@
     rect(f, 0, GROUND, W, H - GROUND, '#0a0816');
     for (let i = 0; i < 9; i++) rect(f, 88 + ((i * 23) % 64), GROUND + 3 + (i % 4) * 3, 5 + (i % 3) * 3, 1, i % 2 ? '#ff9a3c' : '#e8483a');
     rect(f, 112, GROUND, 17, 1, '#000');
-    f.drawImage(A.POSES.stand, 120 - A.POSE_W / 2, GROUND - 38);
     TOWER = { sky, front };
   }
   function drawTower(t) {
@@ -762,6 +769,7 @@
       rect(g, sx - w, y, 2 * w + 1, 1, k < .28 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a');
     }
     g.drawImage(TOWER.front, 0, 0);
+    g.drawImage(A.POSES.stand, 120 - A.POSE_FEET.x * A.BULL_K, GROUND - A.POSE_FEET.y * A.BULL_K, A.POSE_W * A.BULL_K, A.POSE_H * A.BULL_K);   // at the picture's full size
     disc(g, BEACON.x, BEACON.y, 3, Math.sin(t * 3) > .4 ? '#ffd060' : '#ff9628'); A.px(g, BEACON.x, BEACON.y, '#140c08');
     g.save(); g.globalAlpha = .75;
     [[30, 92], [69, 98], [172, 95], [212, 88], [96, 104]].forEach(([x, y], i) => {
@@ -890,12 +898,12 @@
   }
   // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
   let statsRun = null;
-  const STAGES = ['accounts', 'moving', 'all_staff', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
+  const STAGES = ['accounts', 'moving', 'all_staff', 'heavy_lifting', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
   function stageNo() {
-    if (R.phase === 'win') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
-    if (R.phase === 'wake') return 6;
-    if (R.phase === 'boss') return 5 + R.boss.ph;
+    if (R.phase === 'win') return 10;
+    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? (R.event.course === 'lift' ? 4 : 2) : 5) : [1, 3, 6][R.beat];
+    if (R.phase === 'wake') return 7;
+    if (R.phase === 'boss') return 6 + R.boss.ph;
     return R.statsStage || 1;
   }
   // what a run reports, at its end or when the page is left mid-run
@@ -913,7 +921,8 @@
     statsStart();
     setState('play');
     card.hidden = true;
-    R.banner = { text: 'FLOOR 13', sub: 'ACCOUNTING', t: 0, dur: 2.2, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 2.2 } };
+    // up top and brief, so the hall itself is the reveal (the section's sign already hangs there, so no subtitle)
+    R.banner = { text: 'FLOOR 13', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
     live('Floor 13, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
     Snd.play('start'); Snd.music('tower');
     try { c.focus({ preventScroll: true }); } catch (e) {}
@@ -1063,13 +1072,13 @@
   // Right hand: Shift or ' shoots, Enter slashes, with J/K and Z/X as alternatives.
   const CODES = {
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
-    ArrowDown: 'down', KeyS: 'down',
+    ArrowDown: 'down', KeyS: 'down', KeyC: 'down',
     ShiftLeft: 'shoot', ShiftRight: 'shoot', Quote: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot',
     Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash'
   };
   const NAMES = {
     ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
-    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', ArrowDown: 'down', s: 'down', S: 'down',
+    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', ArrowDown: 'down', s: 'down', S: 'down', c: 'down', C: 'down',
     Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
     k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };

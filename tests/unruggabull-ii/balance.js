@@ -1,16 +1,16 @@
 // Unruggabull II balance adapter (SPEC-005, docs/guides/01-balance-bots.md). tools/balance/run.py evaluates this
 // inside game.js's scope through a test-only bridge injected into the response; nothing here ships.
 // Progress is reported as stages, in the report's "wave" column:
-//   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 Shredder phases 1-3, 9 cleared.
+//   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Heavy lifting, 5 Lights out, 6 Copy Room, 7-9 Shredder phases 1-3, 10 cleared.
 (function () {
   var log = [], lastStage = 1, ids = new WeakMap(), nextId = 1;
   function idOf(o) { if (!ids.has(o)) ids.set(o, nextId++); return ids.get(o); }
   function stage() {
     if (R.phase === 'dead') return lastStage;
-    if (R.phase === 'win' || state === 'over') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
-    if (R.phase === 'wake') return 6;
-    return 5 + R.boss.ph;
+    if (R.phase === 'win' || state === 'over') return 10;
+    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? (R.event.course === 'lift' ? 4 : 2) : 5) : [1, 3, 6][R.beat];
+    if (R.phase === 'wake') return 7;
+    return 6 + R.boss.ph;
   }
   function record(type, data) {
     var e = { ev: type, wave: stage(), t: Math.round(R.t * 100) / 100 };
@@ -43,15 +43,16 @@
         runner: TUNE.runner, aimCone: TUNE.aimCone, move: TUNE.move, aisle: TUNE.aisle, pull: R.pull.st, spray: !!R.pull.spray, mouth: TUNE.mouth,
         bull: { u: b.u, bz: b.bz, jh: b.jh, cd: b.cd, inv: b.inv, busy: !!(b.mouth || b.spat), crouch: !!b.crouch },
         boss: { st: R.boss.st, ph: R.boss.ph, hp: R.boss.hp, jam: R.boss.jam, rally: R.boss.rally ? R.boss.rally.count : -1 },
-        temps: [], flies: [], projs: [], boxes: [], rows: [], pickups: []
+        temps: [], flies: [], projs: [], boxes: [], rows: [], pickups: [], bubbles: []
       };
       R.cubs.forEach(function (cb) { var tp = cb.temp; if (tp && !tp.dead) { var at = posOf(tp); o.temps.push({ id: idOf(tp), u: at.u, z: at.z, h: at.h, up: tp.pop > .4 }); } });
       // carpshits at work look like temps to the bot: up (worth a shot) once they're in reach
       (R.workers || []).forEach(function (wk) { wk.carps.forEach(function (c) { if (!c.dead) { var at = posOf(c); o.temps.push({ id: idOf(c), u: at.u, z: at.z, h: at.h, up: at.z < TUNE.reach }); } }); });
       R.flies.forEach(function (f) { if (!f.dead) o.flies.push({ id: idOf(f), u: f.u, z: f.z, h: f.h, hp: f.hp, form: !!f.form, high: !!f.high }); });
       R.projs.forEach(function (p) { if (!p.dead) o.projs.push({ id: idOf(p), kind: p.kind, u: p.u, z: p.z, h: p.h, vu: p.vu, vz: p.vz, friendly: p.friendly, rally: !!p.rally }); });
-      R.boxes.forEach(function (bx) { if (!bx.hit) o.boxes.push({ id: idOf(bx), u: bx.u, z: bx.w - R.dist, tall: !!bx.tall }); });
+      R.boxes.forEach(function (bx) { if (!bx.hit) o.boxes.push({ id: idOf(bx), u: bx.u, z: bx.w - R.dist }); });
       R.rows.forEach(function (rw) { if (!rw.hit) o.rows.push({ id: idOf(rw), kind: rw.kind, z: rw.w - R.dist, speed: R.speed + (rw.v || (rw.kind === 'chairs' ? .12 : .22)) }); });
+      if (R.event && R.event.souls) R.event.souls.forEach(function (sl) { if (!sl.got) o.bubbles.push({ id: idOf(sl), u: sl.u, z: sl.w - R.dist }); });
       R.pickups.forEach(function (pk) { if (!pk.got) o.pickups.push({ id: idOf(pk), kind: pk.kind, u: pk.u, z: pk.w - R.dist }); });
       return o;
     },

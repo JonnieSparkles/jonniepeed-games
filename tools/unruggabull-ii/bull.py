@@ -43,18 +43,23 @@ for _m, (_cs, _hx) in MAT.items():
         CHARS[_c] = _h
 
 # ---------- proportions ----------
-W, H = 64, 84          # the drawing box for one pose, with room above for a jump
-FEET = 82              # where his soles sit
-CX = 32
-SH = 14.2              # shoulder half-width at the delts
-WAIST = 6.0            # waist half-width
+W, H = 80, 96          # the drawing box for one pose, with room around for a jump and a drawn katana
+FEET = 94              # where his soles sit
+CX = 40
+SH = 15.8              # shoulder half-width at the delts
+WAIST = 5.2            # waist half-width
 LEG = 24               # hip to sole
-TORSO = 17             # shoulders to belt
+TORSO = 18.5           # shoulders to belt
+ARM = 1.1              # how thick his arms are
+STANCE = 1.4           # how much further apart his feet are than his hips
+HORN_GOLD = False      # True puts a gold band at the root of each horn (dropped: cream all the way reads cleaner)
+FRONT_HORN = .72       # the horns' roots in the front view, thinner than from behind
+HUNCH = 6              # crouched: how much shorter his back gets
+DUCK_HEAD = 6          # crouched: how far his head sinks into his shoulders, so he gets well under a beam
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
-LIT_ABOVE = 52         # side edges above this row (his waist) take a coloured outline; below it they stay black
+LIT_ABOVE = FEET - 30  # side edges above this row (his waist) take a coloured outline; below it they stay black
 
-POSES = ['stand', 'breathe', 'runA', 'runB', 'aim', 'wind', 'slash', 'crouch', 'jump']
 
 
 # ---------- the canvas and its shapes ----------
@@ -187,12 +192,16 @@ def tex_y(y):
     return y - FEET + 70
 
 
+def tex_x(x):
+    return x - CX + 32
+
+
 def furtex(cv):
     # short strands: fur tones broken up in 1x2 dabs
     for y in range(H):
         for x in range(W):
             if cv.mat[y][x] == 'fur':
-                cv.tone[y][x] += (h01(x, tex_y(y) // 2) - .5) * .16
+                cv.tone[y][x] += (h01(tex_x(x), tex_y(y) // 2) - .5) * .16
 
 
 def curls(cv):
@@ -200,7 +209,7 @@ def curls(cv):
     for y in range(H):
         for x in range(W):
             if cv.mat[y][x] == 'pomp':
-                n = h01(x // 2 + 31, tex_y(y) // 2 + 7)
+                n = h01(tex_x(x) // 2 + 31, tex_y(y) // 2 + 7)
                 cv.tone[y][x] += .16 if n > .72 else -.14 if n < .2 else 0
 
 
@@ -211,19 +220,19 @@ def earring(cv, ex, ey):
 
 
 def horn(cv, pts):
-    # gold at the root fading to cream at the tip, ridged near the head
-    capsule(cv, pts[:3], 'horn', base=.12)
+    # cream, ridged near the head (with HORN_GOLD, gold at the root)
+    capsule(cv, pts[:3], 'horn' if HORN_GOLD else 'ivory', base=.12)
     capsule(cv, pts[2:], 'ivory', base=.14)
     for k in (.12, .26):
         (ax, ay, _), (bx, by, _) = pts[0], pts[1]
-        T(cv, ax + (bx - ax) * k * 3, ay + (by - ay) * k * 3, 'i')
+        T(cv, ax + (bx - ax) * k * 3, ay + (by - ay) * k * 3, 'i' if HORN_GOLD else 'U')
     tx, ty, _ = pts[-2]
     T(cv, tx, ty - 1, 'X')
 
 
-def horn_pts(hx, hy, s):
-    # out to the side, then up: s is -1 for his left (our left from behind), 1 for his right
-    return [(hx, hy, 2.6), (hx + 4.6 * s, hy - .3, 2.4), (hx + 7.8 * s, hy - 3.2, 2.0), (hx + 8.8 * s, hy - 7.4, 1.5), (hx + 8.0 * s, hy - 10.6, .9)]
+def horn_pts(hx, hy, s, base=1.0):
+    # out to the side, then up: s is -1 for his left (our left from behind), 1 for his right. base thins the root.
+    return [(hx, hy, 2.6 * base), (hx + 4.6 * s, hy - .3, 2.4 * (1 + base) / 2), (hx + 7.8 * s, hy - 3.2, 2.0), (hx + 8.8 * s, hy - 7.4, 1.5), (hx + 8.0 * s, hy - 10.6, .9)]
 
 
 def fist(cv, hx, hy, r):
@@ -237,14 +246,15 @@ def arm(cv, sh, el, hd, fist_r):
     # shoulder, a bulging upper arm in a grey sleeve, elbow, a thick forearm, the fist
     m1 = (sh[0] + (el[0] - sh[0]) * .5, sh[1] + (el[1] - sh[1]) * .5)
     m2 = (el[0] + (hd[0] - el[0]) * .4, el[1] + (hd[1] - el[1]) * .4)
-    capsule(cv, [(sh[0], sh[1], 2.9), (m1[0], m1[1], 2.9), (el[0], el[1], 2.0), (m2[0], m2[1], 2.4), (hd[0], hd[1], 1.8)], 'fur', base=.12, hard=True)
+    k = ARM
+    capsule(cv, [(sh[0], sh[1], 2.9 * k), (m1[0], m1[1], 2.9 * k), (el[0], el[1], 2.0 * k), (m2[0], m2[1], 2.4 * k), (hd[0], hd[1], 1.8 * k)], 'fur', base=.12, hard=True)
     ex, ey = sh[0] + (el[0] - sh[0]) * .38, sh[1] + (el[1] - sh[1]) * .38
-    capsule(cv, [(sh[0], sh[1], 3.4), (ex, ey, 3.1)], 'tee', base=.02, hard=True)
-    fist(cv, hd[0], hd[1], fist_r)
+    capsule(cv, [(sh[0], sh[1], 3.4 * k), (ex, ey, 3.1 * k)], 'tee', base=.02, hard=True)
+    fist(cv, hd[0], hd[1], fist_r * k)
 
 
 def delt(cv, x, y, side):
-    ellipse(cv, x + side * (SH - 2.6), y + 2.6, 3.3, 3.2, 'tee', base=.12, hard=True)
+    ellipse(cv, x + side * (SH - 2.6), y + 2.6, 3.3 * ARM, 3.2 * ARM, 'tee', base=.12, hard=True)
 
 
 def traps(cv, x, y):
@@ -297,18 +307,27 @@ def tail(cv, x, y, sway=0, n=8):
     ellipse(cv, x - 1.4 + sway, y + 10.4 * k, 1.8, 2.0, 'fur', base=.0)
 
 
+def hilt(cv, gx, gy, ex, ey, rg=1.9):
+    # the katana's hilt: a dark cord-wrapped grip from its gold guard (gx, gy) to a small gold cap (ex, ey). Only the
+    # guard and the cap are gold, so from the front it can't run into his earring.
+    capsule(cv, [(gx, gy, 1.0), (ex, ey, 1.0)], 'sheath', base=.1, hard=True)
+    for t in (.35, .65):
+        T(cv, gx + (ex - gx) * t, gy + (ey - gy) * t, 'O')
+    ellipse(cv, gx, gy, rg, rg * .85, 'horn', base=-.1, hard=True)
+    T(cv, ex, ey, 'k')
+
+
 def katana_back(cv, x, y):
     # sheathed across his back: the tip low on his left, the hilt over his right shoulder
     a, b, c = (x - 8, y + 14), (x + 5, y - 1.5), (x + 8.2, y - 6)
     capsule(cv, [(a[0], a[1], 1.15), (b[0], b[1], 1.15)], 'sheath', hard=True)
-    capsule(cv, [(b[0], b[1], 1.0), (c[0], c[1], 1.0)], 'horn', hard=True)
-    ellipse(cv, b[0], b[1], 1.9, 1.9, 'horn', base=-.1, hard=True)
-    T(cv, b[0] + 1.6, b[1] - 1.8, 'i'); T(cv, b[0] + 2.8, b[1] - 2.8, 'i')
+    hilt(cv, b[0], b[1], c[0], c[1])
 
 
 def katana_held(cv, hx, hy, tx, ty):
     d = math.hypot(tx - hx, ty - hy); ux, uy = (tx - hx) / d, (ty - hy) / d
-    capsule(cv, [(hx - ux * 3.5, hy - uy * 3.5, 1.0), (hx + ux * .5, hy + uy * .5, 1.0)], 'horn', hard=True)
+    capsule(cv, [(hx - ux * 3.5, hy - uy * 3.5, 1.0), (hx + ux * .5, hy + uy * .5, 1.0)], 'sheath', base=.1, hard=True)
+    T(cv, hx - ux * 3.5, hy - uy * 3.5, 'k')
     capsule(cv, [(hx + ux * 1.6, hy + uy * 1.6, 1.15), (tx, ty, .7)], 'steel', base=.18, hard=True)
     ellipse(cv, hx + ux * 1.2, hy + uy * 1.2, 1.6, 1.6, 'horn', base=-.1, hard=True)
 
@@ -325,8 +344,10 @@ def blaster_back(cv, hx, hy):
 
 
 # ---------- from behind: the poses the game uses ----------
-def head_back(cv, x, y):
+def head_back(cv, x, y, look=0):
     cy = y + 11.2
+    if look:   # head turned: the tip of his snout shows past his cheek
+        ellipse(cv, x + look * (RX + .6), cy + 3.4, 2.4, 1.8, 'snout', base=.1, hard=True)
     for s in (-1, 1):
         horn(cv, horn_pts(x + s * RX * .72, y + 8.2, s))
     for s in (-1, 1):
@@ -385,7 +406,7 @@ def torso_back(cv, x, y, h):
 def legs_back(cv, x, y, L):
     poly(cv, [(x - WAIST - .4, y), (x + WAIST + .4, y), (x + WAIST + .2, y + 4), (x - WAIST - .2, y + 4)], 'jean', shade_fn=lambda px, py: shade((px + .5 - x) / 9, -.2, 0))
     for (kx, ky, fx, fy, sole), side in ((L[0], -1), (L[1], 1)):
-        capsule(cv, [(x + 3.2 * side, y + 2, 3.2), (x + kx, y + ky, 2.7), (x + fx, y + fy, 2.5)], 'jean', base=-.02)
+        capsule(cv, [(x + (3.2 + STANCE * .3) * side, y + 2, 3.2), (x + kx, y + ky, 2.7), (x + fx, y + fy, 2.5)], 'jean', base=-.02)
     for (kx, ky, fx, fy, sole), side in ((L[0], -1), (L[1], 1)):
         bx, by = x + fx, y + fy
         if sole:   # a foot kicked up behind him: the sole toward the camera
@@ -401,34 +422,84 @@ def legs_back(cv, x, y, L):
             cuff(cv, x + fx, y + fy)
 
 
+# Each pose: legs, left arm, right arm, and extras (bob moves his body down, look turns his head, lift raises the
+# katana in its sheath, spin turns the blaster on his finger). Arms and legs are named in build_pose.
+POSE = {
+    'stand':      ('stand', 'down', 'down', {}),
+    'breathe':    ('stand', 'down', 'down', {'bob': 1}),
+    'runA':       ('runA', 'fwd', 'back', {}),
+    'runB':       ('runB', 'back', 'fwd', {}),
+    'jump':       ('jump', 'up', 'up', {}),
+    'crouch':     ('crouch', 'crouch', 'crouch', {}),
+    'aim':        ('stand', 'down', 'aim', {}),
+    'kick':       ('stand', 'down', 'kick', {'bob': 1}),
+    'runAimA':    ('runA', 'fwd', 'aim', {}),
+    'runAimB':    ('runB', 'back', 'aim', {}),
+    'jumpAim':    ('jump', 'up', 'aim', {}),
+    'wind':       ('stand', 'down', 'wind', {}),
+    'slash':      ('stand', 'fwd', 'slash', {}),
+    'jumpWind':   ('jump', 'up', 'wind', {}),
+    'jumpCut':    ('jump', 'up', 'slash', {}),
+    'crouchWind': ('crouch', 'crouch', 'wind', {}),
+    'crouchCut':  ('crouch', 'fwd', 'slash', {}),
+    'hurt':       ('stand', 'flinch', 'flinch', {'bob': 1}),
+    'lookL':      ('stand', 'down', 'down', {'look': -1}),
+    'lookR':      ('stand', 'down', 'down', {'look': 1}),
+    'twirl0':     ('stand', 'down', 'twirl', {'spin': 0}),
+    'twirl1':     ('stand', 'down', 'twirl', {'spin': 1}),
+    'twirl2':     ('stand', 'down', 'twirl', {'spin': 2}),
+    'twirl3':     ('stand', 'down', 'twirl', {'spin': 3}),
+    'grip':       ('stand', 'down', 'grip', {}),
+    'gripUp':     ('stand', 'down', 'grip', {'lift': 2}),
+    'scuff':      ('scuff', 'down', 'down', {}),
+    'win':        ('stand', 'horns', 'horns', {}),
+    'winB':       ('stand', 'horns', 'horns', {'bob': -1}),
+}
+
+
+def blaster_spin(cv, hx, hy, k):
+    # the blaster from the side, turning on his finger: a gold barrel out from the hand, a short grip, the lit muzzle.
+    # k is the quarter turn: 0 points right, 1 up, 2 left, 3 down.
+    a = (0, -math.pi / 2, math.pi, math.pi / 2)[k % 4]
+    ux, uy = math.cos(a), math.sin(a)
+    px_, py_ = -uy, ux                     # across the barrel
+    capsule(cv, [(hx - px_ * 1.6, hy - py_ * 1.6, 1.3), (hx - px_ * 3.6 - ux * .8, hy - py_ * 3.6 - uy * .8, 1.2)], 'belt', base=.1, hard=True)
+    capsule(cv, [(hx - ux * 1.2, hy - uy * 1.2, 2.0), (hx + ux * 6.4, hy + uy * 6.4, 1.4)], 'horn', base=.16, hard=True)
+    ellipse(cv, hx + ux * 7.2, hy + uy * 7.2, 1.3, 1.3, 'ivory', base=.12, hard=True)
+    cv.force[(int(hx + ux * 7.6), int(hy + uy * 7.6))] = 'P'
+
+
+def horns_up(cv, hx, hy):
+    # index and little finger raised over the fist
+    for s in (-1, 1):
+        capsule(cv, [(hx + s * 1.7, hy - 1.6, 1.0), (hx + s * 2.2, hy - 5.6, .9)], 'fur', base=.22, hard=True)
+
+
 def build_pose(name):
+    legs, larm, rarm, ex = POSE[name]
     cv = Canvas()
-    x, bob = CX, 0
+    x, bob = CX, ex.get('bob', 0)
     Lk, Lf = LEG * .42, LEG * .72
-    legs_p = ((-3.6, Lk, -3.8, Lf, False), (3.6, Lk, 3.8, Lf, False))
-    larm, rarm, sword, tsway, tl = 'down', 'down', 'back', 0, 8
-    if name == 'runA':
-        bob = -1; legs_p = ((-4.0, Lk * .9, -3.8, Lf, False), (3.8, LEG * .3, 4.0, LEG * .4, True)); larm, rarm, tsway = 'fwd', 'back', -1
-    if name == 'runB':
-        legs_p = ((-3.8, LEG * .3, -4.0, LEG * .4, True), (4.0, Lk * .9, 3.8, Lf, False)); larm, rarm, tsway = 'back', 'fwd', 1
-    if name == 'jump':
-        bob = -9; legs_p = ((-6.2, LEG * .28, -5.4, LEG * .42, True), (6.2, LEG * .28, 5.4, LEG * .42, True)); larm, rarm, tsway, tl = 'up', 'up', -2, 6
-    if name == 'crouch':
-        bob = LEG * .48; legs_p = ((-11.5, 3.0, -9.6, LEG * .26, False), (11.5, 3.0, 9.6, LEG * .26, False)); larm, rarm, tl = 'crouch', 'crouch', 3
-    if name == 'aim':
-        rarm = 'aim'
-    if name == 'wind':
-        rarm, sword = 'wind', 'drawn'
-    if name == 'slash':
-        rarm, larm, sword = 'slash', 'fwd', 'drawn'
-    if name == 'breathe':
-        bob = 1
-    crouch = name == 'crouch'
+    st, sk = STANCE, STANCE * .6   # the stance, at the feet and at the knees
+    legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.6 + sk, Lk, 3.8 + st, Lf, False))
+    tsway, tl = 0, 8
+    if legs == 'runA':
+        bob -= 1; legs_p = ((-4.0 - sk, Lk * .9, -3.8 - st, Lf, False), (3.8 + sk, LEG * .3, 4.0 + sk, LEG * .4, True)); tsway = -1
+    if legs == 'runB':
+        legs_p = ((-3.8 - sk, LEG * .3, -4.0 - sk, LEG * .4, True), (4.0 + sk, Lk * .9, 3.8 + st, Lf, False)); tsway = 1
+    if legs == 'jump':
+        bob -= 9; legs_p = ((-6.2, LEG * .28, -5.4, LEG * .42, True), (6.2, LEG * .28, 5.4, LEG * .42, True)); tsway, tl = -2, 6
+    if legs == 'crouch':
+        bob += LEG * .48; legs_p = ((-11.5, 3.0, -9.6, LEG * .26, False), (11.5, 3.0, 9.6, LEG * .26, False)); tl = 3
+    if legs == 'scuff':   # the right hoof lifted and scraped back, his weight on the left
+        legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.8 + sk, Lk * .95, 4.4 + st, Lf - 4.0, True)); tsway = 1
+    crouch = legs == 'crouch'
     hipy = FEET - Lf - 5.4 + bob
-    vy = hipy - TORSO
+    hunch = HUNCH if crouch else 0   # crouched, he hunches over: a shorter back, his head down into his shoulders
+    vy = hipy - TORSO + hunch
 
     legs_back(cv, x, hipy, legs_p)
-    torso_back(cv, x, vy + (1 if crouch else 0), TORSO - (1 if crouch else 0))
+    torso_back(cv, x, vy + (1 if crouch and not hunch else 0), TORSO - hunch - (1 if crouch and not hunch else 0))
     poly(cv, [(x - WAIST, hipy - 1.5), (x + WAIST, hipy - 1.5), (x + WAIST, hipy - .5), (x - WAIST, hipy - .5)], 'navy', shade_fn=lambda px, py: .55)
     poly(cv, [(x - WAIST - .4, hipy - .5), (x + WAIST + .4, hipy - .5), (x + WAIST + .4, hipy + 1.5), (x - WAIST - .4, hipy + 1.5)], 'belt', shade_fn=lambda px, py: .6 if py == int(hipy - .5) else .4)
     tail(cv, x, hipy + 1.5, tsway, tl)
@@ -436,28 +507,40 @@ def build_pose(name):
     neck_back(cv, x, vy - 5)
     for s in (-1, 1):
         delt(cv, x, vy - 1.5, s)
-    head_back(cv, x, vy - 18 - NECK)
-    if sword == 'back':
-        katana_back(cv, x, vy + 3)
+    head_back(cv, x + ex.get('look', 0) * 1.5, vy - 18 - NECK + (DUCK_HEAD if crouch else 0), ex.get('look', 0))
+    drawn = rarm in ('wind', 'slash')
+    lift = ex.get('lift', 0)
+    if not drawn:
+        katana_back(cv, x + lift * .4, vy + 3 - lift)
     sy = vy + 1.5
     ls, rs = (x - SH + 2.4, sy), (x + SH - 2.4, sy)
     o = SH - 10.6
+    s0 = SH - 2.4   # how far out his shoulder joints are; arms hang just outside them, by his sides
     A = {
-        'down':   {'L': ((x - 13.4 - o, vy + 9.5), (x - 13.2 - o, vy + 16.5)), 'R': ((x + 13.4 + o, vy + 9.5), (x + 13.2 + o, vy + 16.5))},
-        'fwd':    {'L': ((x - 13.0 - o, vy + 9.5), (x - 11.8 - o, vy + 14)), 'R': ((x + 13.0 + o, vy + 9.5), (x + 11.8 + o, vy + 14))},
-        'back':   {'L': ((x - 14.4 - o, vy + 10), (x - 15.6 - o, vy + 17.5)), 'R': ((x + 14.4 + o, vy + 10), (x + 15.6 + o, vy + 17.5))},
+        'down':   {'L': ((x - s0 - .6, vy + 9.5), (x - s0 + .4, vy + 16.5)), 'R': ((x + s0 + .6, vy + 9.5), (x + s0 - .4, vy + 16.5))},
+        'fwd':    {'L': ((x - s0 - .4, vy + 9.5), (x - s0 + 1.4, vy + 14)), 'R': ((x + s0 + .4, vy + 9.5), (x + s0 - 1.4, vy + 14))},
+        'back':   {'L': ((x - s0 - 1.2, vy + 10), (x - s0 - 1.6, vy + 17.5)), 'R': ((x + s0 + 1.2, vy + 10), (x + s0 + 1.6, vy + 17.5))},
         'up':     {'L': ((x - 16.4 - o, vy - 1), (x - 18.5 - o, vy - 7.5)), 'R': ((x + 16.4 + o, vy - 1), (x + 18.5 + o, vy - 7.5))},
-        'crouch': {'L': ((x - 13.6 - o, vy + 8), (x - 11.5 - o, vy + 13)), 'R': ((x + 13.6 + o, vy + 8), (x + 11.5 + o, vy + 13))},
+        'horns':  {'L': ((x - 16.0 - o, vy - 2), (x - 17.0 - o, vy - 9.5)), 'R': ((x + 16.0 + o, vy - 2), (x + 17.0 + o, vy - 9.5))},
+        'flinch': {'L': ((x - s0 - 3.6, vy + 3.5), (x - s0 - 1.8, vy - 3.5)), 'R': ((x + s0 + 3.6, vy + 3.5), (x + s0 + 1.8, vy - 3.5))},
+        'crouch': {'L': ((x - s0 - 1.0, vy + 8), (x - s0 + .8, vy + 13)), 'R': ((x + s0 + 1.0, vy + 8), (x + s0 - .8, vy + 13))},
         'aim':    {'R': ((x + 15.2 + o, vy + 4.0), (x + 16.6 + o, vy - 2.6))},
+        'kick':   {'R': ((x + 15.6 + o, vy + 2.4), (x + 15.4 + o, vy - 5.0))},
         'wind':   {'R': ((x + 16.0 + o, vy - 2.5), (x + 15.0 + o, vy - 9.5))},
         'slash':  {'R': ((x + 17.0 + o, vy + .5), (x + 22.0 + o, vy + 0))},
+        'twirl':  {'R': ((x + s0 + 1.6, vy + 9.0), (x + s0 + 4.2, vy + 14.5))},
+        'grip':   {'R': ((x + s0 + 2.4, vy - 7.5 - lift), (x + 7.4 + lift * .4, vy - 1.8 - lift))},
     }
     for side, sh in (('L', ls), ('R', rs)):
         key = larm if side == 'L' else rarm
         el, hd = A[key][side]
         arm(cv, sh, el, hd, 2.9)
-        if side == 'R' and key == 'aim':
+        if key == 'horns':
+            horns_up(cv, hd[0], hd[1])
+        if side == 'R' and key in ('aim', 'kick'):
             blaster_back(cv, hd[0], hd[1] - 1.6)
+        if side == 'R' and key == 'twirl':
+            blaster_spin(cv, hd[0] + .4, hd[1] + 1.6, ex['spin'])
         if side == 'R' and key == 'wind':
             katana_held(cv, hd[0], hd[1], hd[0] - 8, hd[1] - 15)
         if side == 'R' and key == 'slash':
@@ -486,16 +569,14 @@ def build_front():
     cy = y + 11.2
     o = SH - 10.6
 
-    # the katana's hilt over his right shoulder (our left), behind him
-    capsule(cv, [(x - 8.6, vy - .5, 1.0), (x - 11.4, vy - 7.2, 1.0)], 'horn', hard=True)
-    ellipse(cv, x - 8.8, vy - .8, 1.9, 1.5, 'horn', base=-.1, hard=True)
-    T(cv, x - 10.2, vy - 4, 'i'); T(cv, x - 10.8, vy - 5.6, 'i')
+    # the katana's hilt over his right shoulder (our left), behind him, low and out from his ear
+    hilt(cv, x - 9.6, vy + .4, x - 12.6, vy - 4.6, 1.7)
 
     # legs, boots and rolled cuffs, the fly, light on the knees
-    legs_p = ((-3.6, Lk, -3.8, Lf), (3.6, Lk, 3.8, Lf))
+    legs_p = ((-3.6 - STANCE * .6, Lk, -3.8 - STANCE, Lf), (3.6 + STANCE * .6, Lk, 3.8 + STANCE, Lf))
     poly(cv, [(x - WAIST - .4, hipy), (x + WAIST + .4, hipy), (x + WAIST + .2, hipy + 4), (x - WAIST - .2, hipy + 4)], 'jean', shade_fn=lambda px, py: shade((px + .5 - x) / 9, -.3, .04))
     for (kx, ky, fx, fy), s in zip(legs_p, (-1, 1)):
-        capsule(cv, [(x + 3.2 * s, hipy + 2, 3.2), (x + kx, hipy + ky, 2.7), (x + fx, hipy + fy, 2.5)], 'jean', base=.0)
+        capsule(cv, [(x + (3.2 + STANCE * .3) * s, hipy + 2, 3.2), (x + kx, hipy + ky, 2.7), (x + fx, hipy + fy, 2.5)], 'jean', base=.0)
     for (kx, ky, fx, fy) in legs_p:
         boot_front(cv, x + fx, hipy + fy)
         cuff(cv, x + fx, hipy + fy)
@@ -575,7 +656,7 @@ def build_front():
 
     # the head: horns, ears, skull
     for s in (-1, 1):
-        horn(cv, horn_pts(x + s * RX * .72, y + 8.2, s))
+        horn(cv, horn_pts(x + s * RX * .72, y + 8.2, s, FRONT_HORN))
     for s in (-1, 1):
         ellipse(cv, x + s * (RX + 1.6), cy + .2, 3.4, 1.8, 'fur', base=.22, hard=True)
         ellipse(cv, x + s * (RX + 2.0), cy + .3, 1.9, .9, 'snout', base=-.1)
@@ -637,7 +718,7 @@ def build_front():
     earring(cv, x - RX - 3.4, cy + 1.6)               # his right ear: our left from the front
 
     # the blaster held low in his right hand (our left), then the arms over it
-    hx, hy = x - (13.2 + o), vy + 16.5
+    hx, hy = x - (SH - 2.8), vy + 16.5
     poly(cv, [(hx - 2.0, hy + .5), (hx + 2.0, hy + .5), (hx + 2.0, hy + 6.4), (hx - 2.0, hy + 6.4)], 'horn', hard=True,
          shade_fn=lambda px, py: shade((px + .5 - hx) / 2.4, (py - hy - 3) / 4, .14))
     for px in range(int(hx - 2), int(hx + 3)):
@@ -646,7 +727,7 @@ def build_front():
     T(cv, hx, hy + 7.4, 'P'); T(cv, hx - 1, hy + 7.4, 'X')
     sy = vy + 1.5
     for s in (-1, 1):
-        sh, el, hd = (x + s * (SH - 2.4), sy), (x + s * (13.4 + o), vy + 9.5), (x + s * (13.2 + o), vy + 16.5)
+        sh, el, hd = (x + s * (SH - 2.4), sy), (x + s * (SH - 1.8), vy + 9.5), (x + s * (SH - 2.8), vy + 16.5)
         arm(cv, sh, el, hd, 2.4)
         fist(cv, hd[0], hd[1], 2.9)
         T(cv, hd[0] - s * 1.8, hd[1] - .6, 'd')     # the thumb
@@ -669,9 +750,7 @@ def build_side():
     capsule(cv, [(x - .8, vy + 2, 2.6), (x - 2.0, vy + 9.5, 1.9), (x - 2.6, vy + 16, 1.7)], 'fur', base=-.12, hard=True)
     fist(cv, x - 2.6, vy + 16.4, 2.7)
     capsule(cv, [(x - 8.2, vy + 12, 1.2), (x - 4.6, vy - .6, 1.15)], 'sheath', hard=True)
-    capsule(cv, [(x - 4.9, vy - 1.4, 1.0), (x - 7.6, vy - 7.2, 1.0)], 'horn', hard=True)
-    ellipse(cv, x - 4.6, vy - .8, 1.9, 1.6, 'horn', base=-.1, hard=True)
-    T(cv, x - 6.0, vy - 3.8, 'i'); T(cv, x - 6.8, vy - 5.6, 'i')
+    hilt(cv, x - 4.6, vy - .8, x - 7.6, vy - 7.2)
     capsule(cv, [(x - 5.2, hipy + 1, 1.0), (x - 7.4, hipy + 5, .9), (x - 7.8, hipy + 10, .9)], 'fur', base=.06)
     ellipse(cv, x - 7.9, hipy + 11.4, 1.7, 2.1, 'fur', base=-.04)
     # legs: the far one a step back and in shadow
@@ -800,7 +879,7 @@ def crop(g, b):
 
 
 def build_all():
-    poses = {n: build_pose(n) for n in POSES}
+    poses = {n: build_pose(n) for n in POSE}
     pb = box(list(poses.values()))
     views = {'front': build_front(), 'side': build_side(), 'back': poses['stand']}
     vb = box(list(views.values()))
@@ -828,7 +907,7 @@ def to_js(d):
     pal = ', '.join(f"'{c}': '#{CHARS[c]}'" for c in used)
     lines = [
         '// Unruggabull for Unruggabull II, drawn by tools/unruggabull-ii/bull.py. Don\'t edit by hand: change the script and run it.',
-        '// Classic script. Not loaded by the game yet; the bull in art.js is still the one in play until the lit hall replaces it.',
+        '// Classic script, loaded before art.js, which turns the grids into the canvases the game draws.',
         '// Text grids, one character per pixel and "." for none. Every pose shares one box with his feet at FEET.',
         'var UnrugBull = (function () {',
         "  'use strict';",

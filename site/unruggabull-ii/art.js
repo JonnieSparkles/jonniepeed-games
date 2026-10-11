@@ -74,100 +74,17 @@ var UnrugArt = (function () {
   }
 
   // ---------- Unruggabull from behind ----------
-  const HEAD_B = ['H.................H', 'HH...............HH', 'hH...............Hh', '.hH....DDDDD....Hh.', '..hHHKDDDDDDDKHHh..', '....KDDDDDDDDDK....', '...KFFFFFFFFFFFK...', '..KGGGGGGGGGGGGGK..', '.KfKFFFFFFFFFFFKfK.', '.KCKFFFFFFFFFFFKfK.', '...KfFFFFFFFFFfK...', '....KKKKKKKKKKK....'];
-  const TORSO_B = ['...KKRRRRRRRRRKK...', '..KRRRRRRRRRRRRRK..', '.KTKLRRRRRRRRRRKTK.', '.KTKrrrrrrrrrrrKTK.', '.KTKRRRRRRRRRRRKTK.', '.KTKLRRRRRRRRRRKTK.', '.KTKrrrrrrrrrrrKTK.', '.KFKRRRRRRRRRRRKFK.', '..K.KZZZZZZZZZK.K..'];
-  const LEGS_B = {
-    stand: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KJJJjKjJJJK....', '....KJJJK.KJJJK....', '....KBBBK.KBBBK....', '....KKKKK.KKKKK....'],
-    runA: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KBBBKKjJJJK....', '....KKKKK.KJJJK....', '..........KBBBK....', '..........KKKKK....'],
-    runB: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KJJJjKKBBBK....', '....KJJJK.KKKKK....', '....KBBBK..........', '....KKKKK..........'],
-    jump: ['....KJJJJJJJJJK....', '...KJJJJJKJJJJJK...', '..KJJJjK...KjJJJK..', '..KBBBK.....KBBBK..', '..KKKKK.....KKKKK..'],
-    // a squat from behind: knees out wide either side of the body (drawn 3 px further left)
-    // scuffing a hoof while he waits: the right foot lifted
-    scuff: ['....KJJJJJJJJJK....', '....KJJJJKJJJJK....', '....KJJJjKjJJJK....', '....KJJJjKjJJJK....', '....KJJJK.KBBBK....', '....KBBBK.KKKKK....', '....KKKKK..........'],
-    crouch: ['', '', '..KJJJK...........KJJJK..', '.KJJJJK...........KJJJJK.', 'KJJjJK.............KJjJJK', 'KBBBK...............KBBBK', 'KKKKK...............KKKKK'],
-  };
-  // Poses share one 48x40 box: feet at y 38, centred on x 24, room above and around for the sword and blaster.
-  // Arms are drawn separately so they can swing when he runs, go up when he jumps, raise the blaster and swing the katana.
-  const POSE_W = 48, POSE_H = 40, BX = 14, BY = 10;
-  const TORSO_BARE = TORSO_B.map((r, y) => y < 2 ? r : (y === 8 ? r.slice(0, 2) + '.' + r.slice(3, 16) + '.' + r.slice(17) : r.slice(0, 1) + '..' + r.slice(3, 16) + '..' + r.slice(18)));
-  function rows(g, list, ox, oy) { list.forEach((r, y) => { for (let i = 0; i < r.length; i++) { const col = PAL[r[i]]; if (col) { g.fillStyle = col; g.fillRect(ox + i, oy + y, 1, 1); } } }); }
-  // An arm: a dark sleeve with an outline, from the shoulder to a bare hand.
-  function arm(g, sx, sy, hx, hy) {
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) line(g, sx + dx, sy + dy, hx + dx, hy + dy, '#1a1418');
-    line(g, sx, sy, hx, hy, '#222226');
-    rect(g, hx - 1, hy - 1, 3, 3, '#1a1418'); px(g, hx, hy, '#543424');
-  }
-  const SHOULDER = { L: [BX + 2, BY + 14], R: [BX + 16, BY + 14] };
-  const HAND = {
-    L: { down: [BX + 2, BY + 20], fwd: [BX + 3, BY + 18], back: [BX + 1, BY + 21], up: [BX - 2, BY + 9] },
-    R: { down: [BX + 16, BY + 20], fwd: [BX + 15, BY + 18], back: [BX + 17, BY + 21], up: [BX + 20, BY + 9],
-      aim: [BX + 20, BY + 8], kick: [BX + 19, BY + 10], wind: [BX + 6, BY + 5], cut: [BX + 25, BY + 13], hilt: [BX + 16, BY + 11], twirl: [BX + 19, BY + 17] }
-  };
-  // Where the blaster's muzzle is, relative to his feet, when aiming: the game fires bolts from here.
-  const MUZZLE = { x: BX + 20 - 24, y: BY + 2 - 38 };
-  // Horns up: index and little finger raised over a raised hand.
-  function horns(g, hx, hy) {
-    for (const x of [hx - 2, hx, hx + 2]) rect(g, x, hy - 4, 1, 3, '#1a1418');
-    for (const x of [hx - 1, hx + 1]) { px(g, x, hy - 4, '#1a1418'); rect(g, x, hy - 3, 1, 2, '#543424'); }
-  }
-  // o (idle poses): head turns his head a pixel to look aside, lift raises the katana a little in its sheath, spin turns
-  // the blaster in his hand (0 to 3).
-  function pose(legs, l, r, sword, bob = 0, rock = false, o = {}) {
-    const cv = canvas(POSE_W, POSE_H), g = cv.getContext('2d');
-    rows(g, LEGS_B[legs], legs === 'crouch' ? BX - 3 : BX, BY + 21);
-    rows(g, TORSO_BARE, BX, BY + 12 + bob);
-    rows(g, HEAD_B, BX + (o.head || 0), BY + bob);
-    if (sword === 'back') {
-      const lb = bob - (o.lift || 0), dx = o.lift ? 1 : 0;
-      line(g, BX + 4 + dx, BY + 25 + lb, BX + 15 + dx, BY + 14 + lb, '#8a93a6'); line(g, BX + 3 + dx, BY + 25 + lb, BX + 14 + dx, BY + 14 + lb, '#e8edf6');
-      rect(g, BX + 13 + dx, BY + 13 + lb, 4, 1, '#1a1418'); line(g, BX + 15 + dx, BY + 12 + lb, BX + 17 + dx, BY + 10 + lb, '#e8b030');
-    }
-    const sh = (side) => [SHOULDER[side][0], SHOULDER[side][1] + bob];
-    const lh = HAND.L[l], rh = HAND.R[r];
-    arm(g, ...sh('L'), lh[0], lh[1] + (l === 'up' ? 0 : bob));
-    if (sword === 'wind') {
-      arcE(g, 24, 22, 21, 9, Math.PI + .2, Math.PI * 1.45);
-      line(g, rh[0], rh[1], rh[0] - 10, rh[1] - 9, '#8a93a6'); line(g, rh[0] + 1, rh[1] - 1, rh[0] - 9, rh[1] - 10, '#e8edf6');
-    } else if (sword === 'cut') {
-      arcE(g, 24, 22, 21, 9, Math.PI + .2, Math.PI * 2 - .2);
-      line(g, rh[0], rh[1] + 1, rh[0] + 9, rh[1] - 4, '#8a93a6'); line(g, rh[0], rh[1], rh[0] + 9, rh[1] - 5, '#e8edf6');
-    }
-    arm(g, ...sh('R'), rh[0], rh[1]);
-    if (rock) { horns(g, lh[0], lh[1]); horns(g, rh[0], rh[1]); }
-    if (sword === 'wind' || sword === 'cut') rect(g, rh[0] - 1, rh[1] - 1, 3, 2, '#e8b030');
-    if (o.spin != null) {
-      // the blaster spun round his finger at his side: four quarter turns
-      const [hx, hy] = rh, k = o.spin % 4;
-      if (k % 2 === 0) { rect(g, hx - 4, hy - 2, 9, 4, '#1a1418'); rect(g, hx - 3, hy - 1, 7, 2, '#e8b030'); px(g, k ? hx - 3 : hx + 3, hy - 1, '#fff0aa'); }
-      else { rect(g, hx - 2, hy - 4, 4, 9, '#1a1418'); rect(g, hx - 1, hy - 3, 2, 7, '#e8b030'); px(g, hx - 1, k === 1 ? hy - 3 : hy + 3, '#fff0aa'); }
-    }
-    if (r === 'aim' || r === 'kick') {
-      // the blaster from behind: a gold block pointing into the screen, with a bright muzzle
-      rect(g, rh[0] - 3, rh[1] - 7, 7, 7, '#1a1418'); rect(g, rh[0] - 2, rh[1] - 6, 5, 5, '#e8b030'); rect(g, rh[0] - 1, rh[1] - 5, 3, 1, '#fff0aa'); rect(g, rh[0] - 2, rh[1] - 2, 5, 1, '#8c6010');
-    }
-    return cv;
-  }
-  const POSES = {
-    stand: pose('stand', 'down', 'down', 'back'),
-    runA: pose('runA', 'fwd', 'back', 'back'), runB: pose('runB', 'back', 'fwd', 'back', -1),
-    jump: pose('jump', 'up', 'up', 'back'),
-    aim: pose('stand', 'down', 'aim', 'back'), kick: pose('stand', 'down', 'kick', 'back', 1),
-    runAimA: pose('runA', 'fwd', 'aim', 'back'), runAimB: pose('runB', 'back', 'aim', 'back', -1),
-    jumpAim: pose('jump', 'up', 'aim', 'back'),
-    wind: pose('stand', 'down', 'wind', 'wind'), cut: pose('stand', 'fwd', 'cut', 'cut'),
-    jumpWind: pose('jump', 'up', 'wind', 'wind'), jumpCut: pose('jump', 'up', 'cut', 'cut'),
-    hurt: pose('stand', 'up', 'up', 'back', 1),
-    // crouched: half height, to duck high paper or grip a pulling rug; he can still slash from down there
-    crouch: pose('crouch', 'down', 'down', 'back', 6), crouchWind: pose('crouch', 'down', 'wind', 'wind', 6), crouchCut: pose('crouch', 'fwd', 'cut', 'cut', 6),
-    // standing about: breathing, glancing aside, and three things he does if you leave him long enough
-    breathe: pose('stand', 'down', 'down', 'back', 1),
-    lookL: pose('stand', 'down', 'down', 'back', 0, false, { head: -1 }), lookR: pose('stand', 'down', 'down', 'back', 0, false, { head: 1 }),
-    twirl: [0, 1, 2, 3].map(k => pose('stand', 'down', 'twirl', 'back', 0, false, { spin: k })),
-    grip: pose('stand', 'down', 'hilt', 'back'), gripUp: pose('stand', 'down', 'hilt', 'back', 0, false, { lift: 2 }),
-    scuff: pose('scuff', 'down', 'down', 'back'),
-    // the clear: horns up, bobbing
-    win: pose('stand', 'up', 'up', 'back', 0, true), winB: pose('stand', 'up', 'up', 'back', -1, true)
-  };
+  // Drawn by tools/unruggabull-ii/bull.py into bull.js (UnrugBull), at one pixel per pixel of the 480x270 picture, so
+  // the game draws him at half a game unit per pixel (BULL_K). Every pose shares one box with his feet at POSE_FEET.
+  const B = UnrugBull, BULL_K = .5;
+  const POSES = {};
+  for (const k in B.POSES) POSES[k] = B.paint(B.POSES[k]);
+  POSES.cut = POSES.slash;
+  POSES.twirl = [0, 1, 2, 3].map(k => POSES['twirl' + k]);
+  const POSE_W = POSES.stand.width, POSE_H = POSES.stand.height, POSE_FEET = { x: B.FEET.x, y: B.FEET.y };
+  // Where bolts leave the blaster, from his feet, in game units. Kept at the first bull's spot (the new one's is within
+  // half a unit of it) so his shots fly exactly as before.
+  const MUZZLE = { x: 10, y: -26 };
 
   // ---------- carpshits ----------
   const CARP = ['..KKKKKKKKKKKKKKKKKKKKKK..', 'O.KCCCCCCCCCCCCCCCCCCCCK.O', '.KCRRRRRRRRRRRRRRRRRRRRCK.', 'OKCRCRKKRRRRRRRRRRKKRCRCKO', '.KCRRRRKKRRRRRRRRKKRRRRCK.', 'OKCRRRMMMKRRRRRRKMMMRRRCKO', '.KCRCRMMKMRRRRRRMKMMRCRCK.', 'OKCRRRRRRRRKKKKRRRRRRRRCKO', '.KCRRRRRRRKrrrrKRRRRRRRCK.', 'O.KCCCCCCCCCCCCCCCCCCCCK.O', '..KKKKKKKKKKKKKKKKKKKKKK..'];
@@ -322,6 +239,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, TEMPS, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, TEMP, TEMPS, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();

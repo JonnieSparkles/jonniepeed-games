@@ -41,7 +41,7 @@ Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 
 Six inputs, the same on every floor, laid out like an old game pad:
 
-- **Move** left and right, **jump** and **crouch** on a thumb stick that floats where the thumb lands: slide to move, flick up to jump, hold down to crouch. Keys: A/D or the arrows, W, Up or Space, S or Down.
+- **Move** left and right, **jump** and **crouch** on a thumb stick that floats where the thumb lands: slide to move, flick up to jump, hold down to crouch. Keys: A/D or the arrows, W, Up or Space, S, C or Down.
 - **Crouch** (on the ground): half height, so things at head height pass over, but no moving or shooting. On a pulling runner it grips the rug and slows the drag.
 - **Shoot** (hold to keep firing). Keys: Shift or ', or J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
 - **Slash** (Enter, or K or X). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
@@ -56,7 +56,7 @@ A corridor floor of about two minutes, then the Shredder.
 - **The goal.** "Free 90 souls to wake the Shredder", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
-  - **Moving day**: an athletic stretch: furniture to zig-zag round, jump and duck under, with the first of each marked, and box walls you can blast a way through. (It replaced an audit deflect round that didn't read.)
+  - **Moving day**: a short intro to jumping and ducking (one row of chairs, one beam), early on. The full course comes after All Staff as **heavy lifting**: an athletic stretch, furniture to jump and duck one move at a time down the middle of the hall, ending with carpshit movers carrying a couch and a plank. Souls trapped in bubbles between the pieces, in different lanes, keep you moving side to side. (It replaced box walls to zig-zag round or blast through, which didn't read, and before that an audit deflect round.)
   - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap at head height to duck, a snake).
   - **Lights out**: only monitors, eyes and paper show, and blaster bolts light up the hall as they fly. Formations and single carpshits keep coming out of the dark, and every soul freed in it counts double. Shoot a glowing light switch and the lights flash on, freezing them.
   - Wiping out a whole formation pays a bonus soul for each carpshit in it.
@@ -84,7 +84,7 @@ A corridor floor of about two minutes, then the Shredder.
 
 ## Look
 
-Lit pixel art at 480 × 270, scaled up with hard pixel edges. The hall is worked out pixel by pixel in light: ceiling panels with light hanging under them, a polished floor that reflects them, dust in the air, the far hall fading into the dark, and a 64-colour palette with dithering over it all. Everything in the hall takes the light where it stands, things that glow (bolts, pickups, paper in flight, monitors, eyes) keep their own, and every blaster shot is a moving light down the hall. Lights out is real darkness, and a light switch turns the panels back on. Sprites are text grids in code, being redrawn at the new size by Claude: Unruggabull first (drawn, waiting on the rest of his poses), then the temps, carpshits, paper, pickups, souls, HUD and title. Until each is redrawn, today's sprite is drawn at twice its size and lit. Drawn at a steady 30 frames a second, so it holds on phones. The page follows the studio standards: full screen, portrait, landscape and desktop, no double-tap zoom.
+Lit pixel art at 480 × 270, scaled up with hard pixel edges. The hall is worked out pixel by pixel in light: ceiling panels with light hanging under them, a polished floor that reflects them, dust in the air, the far hall fading into the dark, and a 64-colour palette with dithering over it all. Everything in the hall takes the light where it stands, things that glow (bolts, pickups, paper in flight, monitors, eyes) keep their own, and every blaster shot is a moving light down the hall. Lights out is real darkness, and a light switch turns the panels back on. Sprites are text grids in code, being redrawn at the new size by Claude: Unruggabull first (done: drawn at the picture's full size, about 70 px tall with the horns), then the temps, carpshits, paper, pickups, souls, HUD and title. Until each is redrawn, today's sprite is drawn at twice its size and lit. Drawn at a steady 30 frames a second, so it holds on phones. The page follows the studio standards: full screen, portrait, landscape and desktop, no double-tap zoom.
 
 Still to come: each section of the hall with its own fuller set (Accounts Payable's cubicles and screens, moving day's crates, All Staff's chairs and banners, lights out's dark offices, the copy room's machines), and the Shredder built into the set, lit by its own eyes and mouth.
 

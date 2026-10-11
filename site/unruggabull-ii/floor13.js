@@ -24,7 +24,7 @@ var UnrugFloor13 = function (core) {
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
   const BEATS = [
     { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: ['poster', 'poster', 'clock', 'window', 'plant', 'door', 'cooler'], work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: 'tower', after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: 'dark' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: ['lift', 'dark'] },
     { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: ['stack', 'shelf', 'recycle', 'vending', 'notice', 'clock'], work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
   ];
   const beat = () => BEATS[R.beat];
@@ -124,14 +124,15 @@ var UnrugFloor13 = function (core) {
   // Between beats: moving day (furniture to get past) or the lights go out. Each drops its own
   // sign instead of a banner, so nothing big covers the hall.
   function startEvent(kind) {
-    R.event = { kind, t: 0, dur: kind === 'move' ? TUNE.moveT : TUNE.darkT };
-    if (kind === 'move') {
-      // moving day: no one to shoot, and Facilities has left everything in the hall (the blaster can blast the stacks)
-      Object.assign(R.event, { nextOb: 2.4, obN: 0, obs: [], clean: true, gap: 0, marked: {} });   // a beat to read the sign before the first piece
+    const C = COURSES[kind];
+    R.event = { kind: C ? 'move' : kind, t: 0, dur: C ? C.dur : TUNE.darkT };
+    if (C) {
+      // moving day, or heavy lifting later: no one to shoot, and a course of furniture to jump and duck, one move at a time
+      Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 2.4, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
-      addSign(.75, 'MOVING DAY', 'move');
-      Snd.play('start'); live('Moving day: jump the chairs, duck the beams, and find the gap in the boxes or blast a way through.');
-      bark('move');
+      addSign(.75, C.sign, 'move');
+      Snd.play('start'); live(C.say);
+      if (kind === 'move') bark('move');
     } else {
       // carpshits come out of the dark, only their eyes showing; everything freed in the dark counts double
       R.event.nextFly = 1.2; R.event.nextForm = TUNE.darkFormEvery; R.event.formN = 0; R.event.nextSwitch = 1.6; R.event.flash = 0; R.switches = [];
@@ -145,28 +146,40 @@ var UnrugFloor13 = function (core) {
   const blackout = () => (R.event && R.event.kind === 'dark') ? R.event : R.boss.dark;
   // A kill in the dark frees a second soul.
   function bonusBy() { return R.event && R.event.kind === 'dark' ? 'dark' : null; }
-  // Moving day's furniture, in order: walls of stacked boxes with one gap (zig-zag), chairs to jump, beams to duck.
-  const MOVES = ['wall', 'wall', 'chairs', 'beam', 'wall', 'chairs', 'beam', 'wall', 'wall', 'beam', 'chairs'];
-  const LANES = [-.45, -.15, .15, .45];
+  // Moving day's course, in order, each with the gap before the next: two chairs to jump, two beams to duck, one of
+  // each, and a finale carried by the movers (a couch to jump, a plank to duck).
+  const MOVES = [['chairs', 1.4], ['chairs', 1.8], ['beam', 1.4], ['beam', 1.8], ['chairs', 1.4], ['beam', 1.8], ['couch', 1.6], ['plank', 0]];
+  // Moving day, early on, is a short intro: one row of chairs, one beam, a trapped soul after each. The full course
+  // comes later as heavy lifting, after All Staff and before lights out. dur runs until the last piece has reached you.
+  const COURSES = {
+    move: { sign: 'MOVING DAY', moves: [['chairs', 2], ['beam', 2]], dur: TUNE.moveT, clean: 3, say: 'Moving day: jump the chairs, duck the beam.' },
+    lift: { sign: 'HEAVY LIFTING', moves: MOVES, dur: TUNE.liftT, clean: TUNE.moveClean, say: 'Heavy lifting: jump and duck the furniture the movers left.' }
+  };
+  const DUCKS = { beam: true, plank: true };   // these hang or are carried at head height: duck; the rest, jump
   function spawnMove(E) {
-    const kind = MOVES[E.obN++ % MOVES.length], ob = { kind, w: R.dist + 1.05, hit: false, done: false };
-    // the first of each kind is marked, so it says what it wants: arrows to the gap, DUCK, JUMP (drawn only)
-    if (!E.marked[kind]) { E.marked[kind] = true; ob.mark = true; }
-    if (kind === 'wall') {
-      // the gap swaps sides each time, so you zig-zag
-      E.gap = E.gap < 2 ? 2 + Math.floor(rnd() * 2) : Math.floor(rnd() * 2);
-      ob.gap = LANES[E.gap];
-      LANES.forEach((u, i) => { if (i !== E.gap) R.boxes.push({ w: ob.w, u, hit: 0, tall: true, ob }); });
-    } else R.rows.push({ w: ob.w, kind, hit: 0, ob, v: 1e-6 });   // left in the hall: they don't roll, so pieces never bunch up
+    const [kind, gap] = E.moves[E.obN++], ob = { kind, w: R.dist + 1.05, hit: false, done: false };
+    // the first jump and the first duck are marked, so they say what they want (drawn only)
+    const want = DUCKS[kind] ? 'duck' : 'jump';
+    if (!E.marked[want] && E.course === 'move') { E.marked[want] = true; ob.mark = true; }
+    R.rows.push({ w: ob.w, kind, hit: 0, ob, v: 1e-6 });   // left in the hall: they don't roll, so pieces keep their spacing
     E.obs.push(ob);
+    // a soul trapped in a bubble between this piece and the next, in another lane, so you move side to side too
+    if (gap) { E.lane = (E.lane + 1 + Math.floor(rnd() * 2)) % 3; E.souls.push({ w: ob.w + gap * R.speed / 2, u: [-.42, 0, .42][E.lane], got: false }); }
+    return gap;
   }
   function updateMove(E, dt) {
     E.nextOb -= dt;
-    if (E.nextOb <= 0 && E.t < E.dur - 2.5) { spawnMove(E); E.nextOb = TUNE.moveEvery; }
-    // each piece you get past cleanly frees a soul
+    if (E.nextOb <= 0 && E.obN < E.moves.length) E.nextOb = spawnMove(E);
+    // run through a trapped soul to free it
+    for (const sl of E.souls) {
+      const z = sl.w - R.dist;
+      if (!sl.got && Math.abs(z - bull.bz) < .03 && Math.abs(sl.u - bull.u) < .16 && bull.jh < .12) { sl.got = true; free(PX(sl.u, z), YH(z, .1), 'move', 'bubble'); }
+    }
+    E.souls = E.souls.filter(sl => !sl.got && sl.w - R.dist > ZN);
+    // each piece you get past cleanly frees a soul; a duck says so, since it's hard to see from behind
     for (const ob of E.obs) if (!ob.done && ob.w - R.dist < bull.bz - .04) {
       ob.done = true;
-      if (!ob.hit) free(PX(bull.u, bull.bz), YH(bull.bz, .3), 'move', 'move');
+      if (!ob.hit) { free(PX(bull.u, bull.bz), YH(bull.bz, .3), 'move', 'move'); if (DUCKS[ob.kind]) popText('DUCKED!', PX(bull.u, bull.bz), YH(bull.bz, .34), '#ffd44a'); }
     }
   }
   function updateHall(dt) {
@@ -194,9 +207,11 @@ var UnrugFloor13 = function (core) {
         if (E.kind === 'dark') Snd.play('lights');
         if (E.kind === 'move' && E.clean) {
           // not a scratch: a bonus
-          for (let i = 0; i < TUNE.moveClean; i++) free(PX(bull.u, bull.bz) + fxr(-12, 12), YH(bull.bz, .3) + fxr(-6, 6), 'move', 'clean');
-          R.fx.push({ k: 'big', text: 'NOT A SCRATCH +' + TUNE.moveClean, x: 120, y: 44, t: 0, dur: 1.3 }); Snd.play('wipe');
+          for (let i = 0; i < E.bonus; i++) free(PX(bull.u, bull.bz) + fxr(-12, 12), YH(bull.bz, .3) + fxr(-6, 6), 'move', 'clean');
+          R.fx.push({ k: 'big', text: 'NOT A SCRATCH +' + E.bonus, x: 120, y: 44, t: 0, dur: 1.3 }); Snd.play('wipe');
         }
+        // another event straight after this one (heavy lifting, then lights out): a coffee between, same section
+        if (R.evQ && R.evQ.length) { R.event = null; addPickup('coffee', .9, rr(-.4, .4)); startEvent(R.evQ.shift()); spawnHall(dt); return; }
         R.event = null; R.beat++; R.beatT = 0; R.switches = [];
         addSign(1, beat().sign);
         if (beat().pulls) { bark('copy'); R.copyAt = R.souls; }
@@ -204,9 +219,9 @@ var UnrugFloor13 = function (core) {
         if (beat().pulls) R.pull.next = R.t + 3;
         // a coffee after each event, and a Spread Shot to try out after moving day
         addPickup('coffee', .9, rr(-.4, .4));
-        if (E.kind === 'move') addPickup('spread', 1.3, rr(-.4, .4));   // lights out nearly always pays a streak drop instead
+        if (E.course === 'move') addPickup('spread', 1.3, rr(-.4, .4));   // lights out nearly always pays a streak drop instead
       }
-    } else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) startEvent(B.after);
+    } else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) { R.evQ = [].concat(B.after); startEvent(R.evQ.shift()); }
     else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
     spawnHall(dt);
     // office life now and then: a phone down the hall, a copier in the copy room (sound only, so not from the run's seed)
@@ -221,12 +236,12 @@ var UnrugFloor13 = function (core) {
       if (!R.events.jumpHint && z < .6 && R.phase === 'hall') {
         R.events.jumpHint = true; R.banner = { text: 'JUMP', t: 0, dur: 1.6, pull: true };
       }
-      // a beam hangs from the ceiling: duck under it; everything else rolls along the floor: jump it
-      if (row.kind === 'beam' && z < .6) duckHint();
-      const hits = row.kind === 'beam' ? !bull.crouch : bull.jh < TUNE.rowH;
+      // a beam hangs from the ceiling and a plank is carried at head height: duck under them; everything else, jump
+      if (DUCKS[row.kind] && z < .6) duckHint();
+      const hits = DUCKS[row.kind] ? !bull.crouch : bull.jh < TUNE.rowH;
       if (Math.abs(z - bull.bz) < .02 && hits && knock(row.ob, row.kind)) { row.hit = .001; R.events.rowHits = (R.events.rowHits || 0) + 1; obHit(row.ob); }
     }
-    R.rows = R.rows.filter(row => row.w - R.dist > ZN && row.hit < .6);
+    R.rows = R.rows.filter(row => row.w - R.dist > (DUCKS[row.kind] && !row.hit ? -.3 : ZN) && row.hit < .6);   // what you duck under carries on over you
   }
   const BOX_H = .06;
   // a moving-day obstacle that hits you: no soul for it, and the run isn't clean
@@ -235,9 +250,8 @@ var UnrugFloor13 = function (core) {
   function updateBoxes(dt) {
     for (const bx of R.boxes) {
       const z = bx.w - R.dist;
-      bx.jolt = Math.max(0, (bx.jolt || 0) - dt);
       if (bx.hit) { bx.hit += dt; continue; }
-      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && (bx.tall || bull.jh < BOX_H) && knock(bx.ob, 'box')) { bx.hit = .001; obHit(bx.ob); }
+      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && bull.jh < BOX_H && knock(bx.ob, 'box')) { bx.hit = .001; obHit(bx.ob); }
     }
     R.boxes = R.boxes.filter(bx => bx.w - R.dist > ZN && bx.hit < .5);
   }
@@ -279,8 +293,8 @@ var UnrugFloor13 = function (core) {
   // A deflect sends the paper back where it came from and gives the blaster charges back.
   function deflect(p) {
     p.friendly = true;
-    // a bright cut from his blade to the paper, so a deflect at arm's length reads as reached
-    const m = muzzleXY(); R.fx.push({ k: 'cut', x0: m.x - 4, y0: m.y + 6, x1: PX(p.u, p.z), y1: YH(p.z, p.h), t: 0, dur: .12 });
+    // a burst where the blade meets the paper (no line from him to it: that read as a laser); the swoosh is on him
+    R.fx.push({ k: 'spark', x: PX(p.u, p.z), y: YH(p.z, p.h), s: Math.max(.6, sc(p.z)), col: '#bfefff', t: 0, dur: .2, a: (p.u * 7 + p.z * 13) % 6 });
     // in the fight, paper knocked back from close to the mouth hits harder, up to double
     p.power = R.phase === 'boss' ? 1 + clamp(bull.bz / TUNE.mouth, 0, 1) : 1;
     let to = { u: 0, z: .98, h: .12 };
@@ -1016,24 +1030,10 @@ var UnrugFloor13 = function (core) {
   }
   function drawBox(bx, z) {
     const s = sc(z), w = Math.max(3, Math.round(A.BOX.width * s)), h = Math.max(2, Math.round(A.BOX.height * s));
-    const x = PX(bx.u, z) + (bx.jolt > 0 ? (Math.floor(bx.jolt * 60) % 2 ? 1 : -1) : 0);   // a shot jolts a stack
-    if (bx.blown) {
-      // blasted apart: the three boxes fly up and out, tumbling, and fade
-      const k = bx.hit;
-      g.save(); g.globalAlpha = Math.max(0, 1 - k * 2);
-      for (let i = 0; i < 3; i++) {
-        const bxx = x + (i - 1) * k * 70 * s, by = FY(z) - h * (i + 1) - (60 * k - 90 * k * k) * s * (1 + i * .4);
-        g.save(); g.translate(Math.round(bxx), Math.round(by)); g.rotate(Math.floor(k * 14 + i) % 4 * Math.PI / 2); g.drawImage(A.BOX, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
-      }
-      g.restore();
-      return;
-    }
+    const x = PX(bx.u, z);
     const y = FY(z) - (bx.hit ? Math.sin(bx.hit * 9) * 6 * s : 0);
     if (bx.hit) { g.save(); g.globalAlpha = 1 - bx.hit * 2; }
     g.drawImage(A.BOX, Math.round(x - w / 2), Math.round(y - h), w, h);
-    if (bx.tall) for (let i = 1; i < 3; i++) g.drawImage(A.BOX, Math.round(x - w / 2 + (i % 2 ? 1 : -1) * s), Math.round(y - h * (i + 1) + i * s), w, h);   // a stack too tall to jump
-    // shot at: it splits, a crack for each hit
-    if (bx.tall && bx.dmg) for (let i = 0; i < bx.dmg; i++) line(g, x - w * .3 + i * w * .25, y - h * (1.2 + i * .6), x - w * .1 + i * w * .25, y - h * (1.7 + i * .6), '#3a2a1a');
     if (bx.hit) g.restore();
   }
   function drawProj(p) {
@@ -1064,6 +1064,21 @@ var UnrugFloor13 = function (core) {
     if (p.friendly) { const k = Math.floor(p.spin) % 2; rect(g, x - w / 2 - 1 - k, y - 1, 1, 1, '#bfefff'); rect(g, x + w / 2 + k, y, 1, 1, '#bfefff'); }
   }
   const CHAIR_US = [-.5, -.3, -.1, .1, .3, .5];
+  const BEAM_H = [.178, .215];   // moving day's beam and plank: their bottom and top, as a share of the hall's height
+  // a striped bar across the hall
+  function hazard(x0, x1, yt, th, k, a, b) {
+    rect(g, x0 - 1, yt - 1, x1 - x0 + 2, th + 2, '#1a1418');
+    const seg = Math.max(2, Math.round(6 * k));
+    for (let x = Math.round(x0), i = 0; x < x1; x += seg, i++) rect(g, x, yt, Math.min(seg, x1 - x), th, i % 2 ? (b || '#1a1418') : a);
+  }
+  // a carpshit mover: hovering, as carpshits do, in a yellow hard hat, holding its end at height h
+  function mover(u, z, h, ph) {
+    const k = sc(z), img = A.CARPF[Math.floor(R.t * 6 + (ph || 0) * 6) % 2], w = img.width * k * 1.2, hh = img.height * k * 1.2;
+    const x = PX(u, z), y = YH(z, h) - (Math.floor(R.t * 4 + (ph || 0) * 4) % 2 ? k : 0);
+    shadow(u, z, 22);
+    g.drawImage(img, Math.round(x - w / 2), Math.round(y - hh), Math.round(w), Math.round(hh));
+    rect(g, x - w * .3, y - hh - 2.4 * k, w * .6, 2.4 * k, '#1a1418'); rect(g, x - w * .26, y - hh - 2 * k, w * .52, 1.8 * k, '#ffd44a'); rect(g, x - w * .36, y - hh - .5 * k, w * .72, 1.2 * k, '#b07010');
+  }
   function drawRow(row, z) {
     const k = sc(z), drop = row.hit ? row.hit * 30 * k : 0;
     if (row.hit) { g.save(); g.globalAlpha = Math.max(0, 1 - row.hit * 1.7); }
@@ -1083,10 +1098,24 @@ var UnrugFloor13 = function (core) {
       }
     } else if (row.kind === 'beam') {
       // moving day: a beam hung across the hall at head height on two ropes, striped like a hazard: duck under it
-      const x0 = PX(-.62, z), x1 = PX(.62, z), yt = YH(z, .21), yb = YH(z, .13), th = Math.max(2, yb - yt);
+      // (just above his head crouched and into it standing, so you can see a duck clear it; it carries on over him)
+      const x0 = PX(-.62, z), x1 = PX(.62, z), yt = YH(z, BEAM_H[1]), yb = YH(z, BEAM_H[0]), th = Math.max(2, yb - yt);
       for (const u of [-.5, .5]) rect(g, PX(u, z), CY(z), 1, yt - CY(z), '#8a8094');
-      rect(g, x0 - 1, yt - 1, x1 - x0 + 2, th + 2, '#1a1418');
-      for (let x = Math.round(x0), i = 0; x < x1; x += Math.max(2, Math.round(6 * k)), i++) rect(g, x, yt, Math.min(Math.max(2, Math.round(6 * k)), x1 - x), th, i % 2 ? '#1a1418' : '#e8b030');
+      hazard(x0, x1, yt, th, k, '#e8b030');
+    } else if (row.kind === 'couch') {
+      // the finale: two movers carry a couch low across the hall: jump it
+      shadow(0, z, 120);
+      mover(-.6, z, .1); mover(.6, z, .1, .3);
+      const x0 = PX(-.47, z), x1 = PX(.47, z), y = YH(z, .01);
+      rect(g, x0 - 1, y - 9 * k - 1, x1 - x0 + 2, 11 * k + 2, '#1a1418');
+      rect(g, x0, y - 9 * k, x1 - x0, 5 * k, '#4f7a3a'); rect(g, x0, y - 4 * k, x1 - x0, 6 * k, '#3a5c2a');
+      for (let i = 1; i < 3; i++) rect(g, x0 + (x1 - x0) * i / 3, y - 4 * k, 1, 6 * k, '#2a4420');
+      rect(g, x0 - 2 * k, y - 7 * k, 3 * k, 9 * k, '#2e4a22'); rect(g, x1 - k, y - 7 * k, 3 * k, 9 * k, '#2e4a22');
+    } else if (row.kind === 'plank') {
+      // and a long plank carried at head height: duck it
+      if (z > bull.bz + .02) { mover(-.64, z, BEAM_H[0] + .02); mover(.64, z, BEAM_H[0] + .02, .3); }
+      const x0 = PX(-.6, z), x1 = PX(.6, z), yt = YH(z, BEAM_H[1] - .01), yb = YH(z, BEAM_H[0]);
+      hazard(x0, x1, yt, Math.max(2, yb - yt), k, '#c08a48', '#a0703a');
     } else if (row.kind === 'carpet') {
       // a carpet of staples skittering across the whole floor, edges blinking red like all the Shredder's paper
       const w = Math.max(3, Math.round(A.STAPLE.width * k * 1.3)), h = Math.max(1, Math.round(A.STAPLE.height * k * 1.3));
@@ -1144,23 +1173,26 @@ var UnrugFloor13 = function (core) {
     }
     return LABELS[text];
   }
+  // moving day's trapped souls: a soul in a soap-bubble shine, bobbing a little above the floor
+  function trappedSouls() {
+    if (!R.event || R.event.kind !== 'move') return;
+    for (const sl of R.event.souls) {
+      const z = sl.w - R.dist; if (z > 1.02 || z < bull.bz - .02) continue;
+      faded(fadeIn(z), () => {
+        const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.GHOST.width * 2 * k), h = Math.round(A.GHOST.height * 2 * k);
+        g.drawImage(A.GHOST, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+        g.save(); g.globalAlpha = .7; g.strokeStyle = '#bfefff'; g.lineWidth = Math.max(.5, k); g.beginPath(); g.arc(x, y, Math.max(w, h) * .75, 0, 6.29); g.stroke();
+        g.globalAlpha = .9; rect(g, x - w * .4, y - h * .55, Math.max(1, k * 1.5), Math.max(1, k * 1.5), '#ffffff'); g.restore();
+      });
+    }
+  }
   function moveMarks() {
     if (!R.event || R.event.kind !== 'move') return;
-    const done = new Set();
-    for (const bx of R.boxes) {
-      const ob = bx.ob, z = bx.w - R.dist;
-      if (!ob || !ob.mark || ob.gap == null || done.has(ob) || z < bull.bz || z > 1.02) continue;
-      done.add(ob);
-      for (let j = 0; j < 3; j++) {
-        const za = Math.max(bull.bz + .02, z - .06 - j * .07), zb = za + .035, lit = Math.floor(R.t * 6) % 3 === 2 - j;
-        poly(g, lit ? '#fff6e2' : '#ffd44a', [[PX(ob.gap - .07, za), FY(za)], [PX(ob.gap + .07, za), FY(za)], [PX(ob.gap, zb), FY(zb)]]);
-      }
-    }
     for (const row of R.rows) {
       const ob = row.ob, z = row.w - R.dist;
       if (!ob || !ob.mark || row.hit || z < bull.bz || z > 1.02) continue;
-      const img = label(row.kind === 'beam' ? 'DUCK' : 'JUMP'), k = sc(z);
-      const y = row.kind === 'beam' ? YH(z, .21) - img.height - 2 : FY(z) - Math.round(A.CHAIRS[0].height * k) - img.height - 3;
+      const img = label(DUCKS[row.kind] ? 'DUCK' : 'JUMP'), k = sc(z);
+      const y = DUCKS[row.kind] ? YH(z, BEAM_H[1]) - img.height - 2 : FY(z) - Math.round(A.CHAIRS[0].height * k) - img.height - 3;
       g.drawImage(img, Math.round(VX - img.width / 2), Math.round(y));
     }
   }
@@ -1191,6 +1223,7 @@ var UnrugFloor13 = function (core) {
     }
     if (Math.floor(R.t * 13) % 11) for (const sg of R.signs) { const z = sg.w - R.dist; if (sg.neon && z < 1.02 && z > .05) drawSign(sg, z); }
     sprayLanes();
+    trappedSouls();
     moveMarks();
     if (R.phase !== 'hall') withShredder(() => { shredderEyes(); shredderTeeth(); });
     else if (R.event && R.event.kind === 'dark') darkEyes();
@@ -1364,14 +1397,6 @@ var UnrugFloor13 = function (core) {
         if (wk.kind === 'office') wk.cracked = true;
         return true;
       }
-    }
-    // moving day's stacks of boxes: a few hits blast one apart, a way through without the gap (and not a bump)
-    for (const bx of R.boxes) {
-      const z = bx.w - R.dist;
-      if (!bx.tall || bx.hit || z < bull.bz + .02 || Math.abs(s.z - z) > .06 || Math.abs(s.u - bx.u) > .1) continue;
-      s.dead = true; bx.dmg = (bx.dmg || 0) + 1; bx.jolt = .12; sparks(s.u, z, s.h); Snd.play('hit');
-      if (bx.dmg >= TUNE.stackHits) { bx.hit = .001; bx.blown = true; poof(bx.u, z, .2, 10); Snd.play('poof'); emit('stack'); }
-      break;
     }
     return s.dead;
   }
