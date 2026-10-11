@@ -755,7 +755,7 @@ var UnrugFloor13 = function (core) {
     tp.dead = true; R.freeze = .045;
     if (R.hearts < TUNE.hearts && rnd() < TUNE.coffeeDrop) addPickup('coffee', tp.cub.w - R.dist + .06, tp.cub.s * .5);
     const at = posOf(tp), x = PX(at.u, at.z), y = YH(at.z, at.h), s = sc(at.z) * .85;
-    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: tempLook(tp) }); else poof(at.u, at.z, at.h);
+    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: tempLook(tp).hit[0] }); else poof(at.u, at.z, at.h);
     free(x, y - 4, 'temp', how);
     bonusSoul(how, x, y, 'temp');
   }
@@ -972,15 +972,23 @@ var UnrugFloor13 = function (core) {
   }
   // which of the three temps sits at this desk: from where the desk is, so it never touches the run's dice
   const tempLook = tp => A.TEMPS[Math.floor(Math.abs(tp.cub.w * 7.3 + tp.cub.s)) % A.TEMPS.length];
+  // the frame for what it's doing: peeking up (and ducking back), up and glaring, the wad held up to throw, the throw
+  function tempFrame(tp) {
+    const L = tempLook(tp), t = tp.t, two = fr => fr[Math.floor(R.t * 4 + tp.cub.w * 5) % fr.length];
+    if (tp.st === 'down' || tp.pop < .8) return two(L.peek);
+    if (!tp.threw && t > .25) return L.wind[0];
+    if (tp.threw && tp.will && t < .85) return L.throw[0];
+    return two(L.up);
+  }
   // where a temp's head is drawn: left, width, foot, height
   function tempBox(tp, zt) {
     const s = sc(zt) * .85, w = Math.max(2, Math.round(26 * s)), h = Math.max(2, Math.round(15 * s));
     return { s, w, h, x: Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb: YH(zt, tp.cub.top - .12 + tp.pop * .17) };
   }
   function drawTemp(tp, zt) {
-    const { s, w, h, x, yb } = tempBox(tp, zt), img = tempLook(tp), hh = Math.round(h * img.height / 15);
-    g.drawImage(img, x, Math.round(yb - hh), w, hh);
-    if (tp.st === 'up' && tp.t > .25 && !tp.threw) g.drawImage(A.WAD, Math.round(x + w * .75), Math.round(yb - h - 4 * s), Math.max(2, Math.round(5 * s)), Math.max(2, Math.round(5 * s)));
+    // the frame is scaled so its rug fills the box; its collar and tie hang below, behind the desk's front
+    const { w, h, x, yb } = tempBox(tp, zt), img = tempFrame(tp), R0 = A.TEMP_RUG, k = w / R0.w, top = yb - h;
+    g.drawImage(img, Math.round((x - R0.x * k) * 2) / 2, Math.round((top - R0.y * k) * 2) / 2, img.width * k, img.height * k);
   }
   // the tell: a temp about to throw flashes a ! first (it glows, so it reads in the dark too)
   function tempTell(tp, zt) {
@@ -1147,8 +1155,9 @@ var UnrugFloor13 = function (core) {
       if (!tp || tp.dead || tp.pop <= 0) continue;
       tempTell(tp, z + .06);
       if (dk && tp.pop > .3) {
-        const zt = z + .06, s2 = sc(zt) * .85, w = 26 * s2, h = 15 * s2, x = PX(cb.s * .8, zt), yt = YH(zt, cb.top - .12 + tp.pop * .17) - h, e = Math.max(1, Math.round(2 * s2));
-        rect(g, x - w * .23, yt + h * .37, e, e, '#fff0aa'); rect(g, x + w * .19, yt + h * .37, e, e, '#fff0aa');
+        // its eyes, where they are on the rug (the same face as a flying carpshit's)
+        const zt = z + .06, s2 = sc(zt) * .85, w = 26 * s2, h = 15 * s2, x = PX(cb.s * .8, zt), yt = YH(zt, cb.top - .12 + tp.pop * .17) - h, e = Math.max(1, Math.round(2 * s2)), q = w / A.TEMP_RUG.w / A.CARP_EYES.k;
+        for (const ey of A.CARP_EYES) rect(g, x + ey.x * q - e / 2, yt + A.TEMP_RUG.h * w / A.TEMP_RUG.w / 2 + ey.y * q - e / 2, e, e, '#fff0aa');
       }
     }
     if (dk) for (const wk of R.workers) {
@@ -1156,8 +1165,8 @@ var UnrugFloor13 = function (core) {
       for (const c of wk.carps) if (!c.dead) { const at = workerAt(c), x = PX(at.u, at.z), y = YH(at.z, at.h), e = Math.max(1, Math.round(2 * sc(at.z))), w = 26 * sc(at.z) * .8; rect(g, x - w * .25, y - 1, e, e, '#fff0aa'); rect(g, x + w * .17, y - 1, e, e, '#fff0aa'); }
     }
     if (dk) for (const f of R.flies) {
-      const k = sc(f.z), w = 26 * k, x = PX(f.u, f.z), y = YH(f.z, f.h), e = Math.max(1, Math.round(2 * k));
-      rect(g, x - w * .23, y - 1, e, e, '#fff0aa'); rect(g, x + w * .19, y - 1, e, e, '#fff0aa');
+      const k = sc(f.z), x = PX(f.u, f.z), y = YH(f.z, f.h), e = Math.max(1, Math.round(2 * k));
+      for (const ey of A.CARP_EYES) rect(g, x + ey.x * k - e / 2, y + ey.y * k - e / 2, e, e, '#fff0aa');
     }
     if (Math.floor(R.t * 13) % 11) for (const sg of R.signs) { const z = sg.w - R.dist; if (sg.neon && z < 1.02 && z > .05) drawSign(sg, z); }
     sprayLanes();

@@ -391,7 +391,7 @@
     if (f.dead) return;
     f.dead = true; R.freeze = how === 'slash' ? .07 : .035;
     const x = PX(f.u, f.z), y = YH(f.z, f.h), s = sc(f.z);
-    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.CARPF[0] }); else poof(f.u, f.z, f.h);
+    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.CARP_CUT }); else poof(f.u, f.z, f.h);
     free(x, y - 4, f.form ? 'formation' : 'carpshit', how);
     bonusSoul(how, x, y, f.form ? 'formation' : 'carpshit');
     if (f.fid) { const F = R.forms[f.fid - 1]; F.killed++; if (!F.lost && F.killed === F.n) wipe(F, x, y); }
@@ -514,15 +514,16 @@
 
   function shadow(u, z, wpx) { const s = sc(z); rect(g, PX(u, z) - wpx * s / 2, FY(z) - 1, Math.max(1, wpx * s), Math.max(1, Math.round(2 * s)), 'rgba(8,6,12,.45)'); }
   function drawFly(f) {
-    const s = sc(f.z), w = Math.max(3, Math.round(26 * s)), h = Math.max(2, Math.round(11 * s)), x = PX(f.u, f.z), y = YH(f.z, f.h);
+    // drawn at the picture's full size (img.k game units a pixel); hit, it flinches
+    const img = f.hit > 0 ? A.CARP_HIT : A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], s = sc(f.z), w = img.width * img.k * s, h = img.height * img.k * s, x = PX(f.u, f.z), y = YH(f.z, f.h);
     shadow(f.u, f.z, 18);
-    wavy(A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], x - w / 2, y - h / 2, w, h, R.t * 14 + f.ph, Math.max(1, 1.6 * s));
-    if (f.hit > 0) { g.save(); g.globalAlpha = .6; rect(g, x - w / 2, y - h / 2, w, h, '#ffffff'); g.restore(); }
+    wavy(img, x - w / 2, y - h / 2, w, h, R.t * 14 + f.ph, Math.max(.5, s));
+    if (f.hit > 0) { g.save(); g.globalAlpha = .35; rect(g, x - w / 2, y - h / 2, w, h, '#ffffff'); g.restore(); }
   }
   // A rug in flight ripples: the sprite is drawn in thin vertical strips, each bobbing on a wave.
   function wavy(img, x, y, w, h, ph, amp) {
-    const n = 13, sw = img.width / n, dw = w / n;
-    for (let i = 0; i < n; i++) g.drawImage(img, i * sw, 0, sw, img.height, Math.round(x + i * dw), Math.round(y + Math.sin(ph + i * .75) * amp), Math.ceil(dw), Math.round(h));
+    const n = 14, sw = img.width / n, dw = w / n;
+    for (let i = 0; i < n; i++) g.drawImage(img, i * sw, 0, sw, img.height, Math.round((x + i * dw) * 2) / 2, Math.round((y + Math.sin(ph + i * .75) * amp) * 2) / 2, Math.ceil(dw * 2) / 2, Math.round(h * 2) / 2);
   }
   // Incoming paper has a jagged edge that blinks red and orange, never a round glow, so it can't pass for a pickup.
   // The Shredder's wads of shredded paper spin in quarter turns and shed strips behind them; the rally's wad has a
@@ -640,7 +641,7 @@
       if (f.k === 'wisp') drawWisp(f);
       else if (f.k === 'poof') { for (let i = 0; i < f.n; i++) { const a = i / f.n * 6.28 + f.x, r = 2 + k * 9 * f.s; rect(g, f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * .7, Math.max(1, Math.round(2 * f.s)), Math.max(1, Math.round(2 * f.s)), k < .5 ? '#fff6e2' : '#b8b4a8'); } }
       else if (f.k === 'half') {
-        const img = f.img, w = img.width * f.s, h = img.height * f.s, d = 4 + k * 14 * f.s, drop = k * k * 26;
+        const img = f.img, w = img.width * (img.k || 1) * f.s, h = img.height * (img.k || 1) * f.s, d = 4 + k * 14 * f.s, drop = k * k * 26;
         g.save(); g.globalAlpha = 1 - k * .6;
         g.drawImage(img, 0, 0, img.width / 2, img.height, Math.round(f.x - w / 2 - d), Math.round(f.y - h / 2 + drop), Math.round(w / 2), Math.round(h));
         g.drawImage(img, img.width / 2, 0, img.width / 2, img.height, Math.round(f.x + d), Math.round(f.y - h / 2 + drop * .8), Math.round(w / 2), Math.round(h));

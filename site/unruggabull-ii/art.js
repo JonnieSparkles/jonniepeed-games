@@ -89,7 +89,6 @@ var UnrugArt = (function () {
   // ---------- carpshits ----------
   const CARP = ['..KKKKKKKKKKKKKKKKKKKKKK..', 'O.KCCCCCCCCCCCCCCCCCCCCK.O', '.KCRRRRRRRRRRRRRRRRRRRRCK.', 'OKCRCRKKRRRRRRRRRRKKRCRCKO', '.KCRRRRKKRRRRRRRRKKRRRRCK.', 'OKCRRRMMMKRRRRRRKMMMRRRCKO', '.KCRCRMMKMRRRRRRMKMMRCRCK.', 'OKCRRRRRRRRKKKKRRRRRRRRCKO', '.KCRRRRRRRKrrrrKRRRRRRRCK.', 'O.KCCCCCCCCCCCCCCCCCCCCK.O', '..KKKKKKKKKKKKKKKKKKKKKK..'];
   const flipFringe = rows => rows.map((r, y) => (y === 0 || y === rows.length - 1) ? r : (ch => ch === 'O' ? '.' : ch === '.' ? 'O' : ch)(r[0]) + r.slice(1, -1) + (ch => ch === 'O' ? '.' : ch === '.' ? 'O' : ch)(r[r.length - 1]));
-  const CARPF = [spr(CARP), spr(flipFringe(CARP))];
   // Temps: carpshits in a collar and tie.
   const TIE = ['..........PKRRKP..........', '...........KRRK...........', '...........KRRK...........', '............KK............'];
   const TEMP = spr(CARP.concat(TIE));
@@ -97,7 +96,22 @@ var UnrugArt = (function () {
   const tieIn = c => TIE.map(r => r.replace(/RR/g, c + c));
   const GLASSES = CARP.slice();
   GLASSES[4] = '.KCRRYYYYYYRRRRYYYYYYRRCK.'; GLASSES[5] = 'OKCRRYMMMKYYYYYYKMMMYRRCKO'; GLASSES[6] = '.KCRCYMMKMYRRRRYMKMMYRCRK.'; GLASSES[7] = 'OKCRRYYYYYYKKKKYYYYYYRRCKO';
-  const TEMPS = [TEMP, spr(GLASSES.concat(tieIn('J'))), spr(['.......OOOOOOOOOOOO.......', '.....OOhOOOOOOOOOOhOO.....'].concat(CARP, tieIn('c')))];
+  // The carpshits and the temps themselves come from sprites.js (UnrugSprites), drawn at the picture's full size: k is
+  // game units a pixel. (The old grids above still give the carpshits at work their faces.)
+  const NS = UnrugSprites, CARP_K = .5;
+  const ns = rows => { const c = NS.paint(rows); c.k = CARP_K; return c; };
+  const CARPF = [ns(NS.FLY[0]), ns(NS.FLY[1])], CARP_HIT = ns(NS.FLY_HIT), CARP_CUT = ns(NS.CUT);
+  // where a carpshit's eyes are, from the middle of its sprite, in game units (in the dark only its eyes show)
+  const CARP_EYES = (() => {
+    const rows = NS.FLY[0], w = rows[0].length, h = rows.length, sides = [[0, 0, 0], [0, 0, 0]];
+    rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if ('nop'.includes(r[x])) { const sd = sides[x < w / 2 ? 0 : 1]; sd[0] += x; sd[1] += y; sd[2]++; } });
+    const eyes = sides.map(([sx, sy, n]) => ({ x: (sx / n - w / 2) * CARP_K, y: (sy / n - h / 2) * CARP_K }));
+    eyes.k = CARP_K;
+    return eyes;
+  })();
+  // three temps (A, B, C), each with frames for each state: peek, up, wind (the wad held up), throw, hit
+  const TEMPS = ['A', 'B', 'C'].map(key => { const o = {}; for (const st in NS.TEMPS[key]) o[st] = NS.TEMPS[key][st].map(ns); return o; });
+  const TEMP_RUG = NS.TEMP_RUG;   // where the rug sits in a temp's frame, in pixels
   const GHOST = spr(['..CCCCC..', '.........', '.KKKKKKK.', 'KMMMMMMMK', 'KMKMMMKMK', 'KMMMMMMMK', 'KMMgggMMK', '.KMKMKMK.', '..g.g.g..']);
   const HEART = spr(['.KK...KK.', 'KRRK.KRRK', 'KRLRKRRRK', 'KRRRRRRRK', '.KRRRRRK.', '..KRRRK..', '...KRK...', '....K....']);
   const HEART_EMPTY = spr(['.KK...KK.', 'KEEK.KEEK', 'KEEEKEEEK', 'KEEEEEEEK', '.KEEEEEK.', '..KEEEK..', '...KEK...', '....K....']);
@@ -253,6 +267,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, TEMP, TEMPS, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();
