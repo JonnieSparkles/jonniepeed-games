@@ -1,20 +1,24 @@
 // Unruggabull II: Salvation for the Unrugged. The core: the corridor, the run, Unruggabull, his blaster and katana,
 // carpshits, souls, effects, words, the HUD, the title, the cards, input and the frame loop. What happens on a floor
 // (its hall, its enemies and props, its boss) lives in that floor's script: this build has one, floor13.js.
-// Classic script: art.js (UnrugArt), audio.js (UnrugSound) and floor13.js (UnrugFloor13) load first.
+// Classic script: art.js (UnrugArt), audio.js (UnrugSound), render.js (UnrugRender) and floor13.js (UnrugFloor13)
+// load first.
 //
-// The corridor is fake 3D on a 240x135 canvas, seen from behind Unruggabull. Every thing has a lane u
-// (-1 left wall, 1 right wall), a depth z (0 at the camera, 1 at the far wall) and a height h (0 floor,
-// 1 ceiling); PX, FY and YH project them.
+// The corridor is seen from behind Unruggabull. Every thing has a lane u (-1 left wall, 1 right wall), a depth z
+// (0 at the camera, 1 at the far end of the hall as it was: the Shredder's spot) and a height h (0 floor, 1 ceiling);
+// PX, FY and YH project them onto the game's 240x135 coordinates. The picture is 480x270, twice that: the renderer
+// works out the hall in light, the game draws its things over it (lit where they stand, or glowing), and the HUD
+// and words go on top (see "the lit picture" and draw()).
 (function () {
   'use strict';
   const A = UnrugArt, Snd = UnrugSound;
   const rect = A.rect, line = A.line, disc = A.disc, poly = A.poly, txt = A.txt, otxt = A.otxt, textWidth = A.textWidth;
   const $ = id => document.getElementById(id);
   const c = $('c');
-  const g = c.getContext('2d');
+  const view = c.getContext('2d');   // the canvas on the page: the finished picture, then the HUD and words
+  let g = view;                      // where drawing goes now: the page, or one of the two layers (use())
   const W = 240, H = 135;
-  g.imageSmoothingEnabled = false;
+  view.imageSmoothingEnabled = false;
 
   // ---------- projection ----------
   const VX = 120, HY = 52, FN = 131, CN = -12, HW = 112, ZN = -.07;
@@ -79,6 +83,30 @@
     soulHint: { souls: 3, gap: .6, fly: 1.4, hold: 4, fade: .6 }
   };
   const JUMP_V = 4 * TUNE.jumpH / TUNE.jumpT, GRAV = 8 * TUNE.jumpH / (TUNE.jumpT * TUNE.jumpT);
+
+  // ---------- the lit picture ----------
+  // 480x270, twice the game's coordinates. The renderer's hall is worked out from the projection above, so a thing
+  // at (u, z, h) is at world (u * WHW, h * WC, WZ0 * (1 + 2z)), in units of about Unruggabull's height (he's 38 px tall
+  // at z = 0 in the game's coordinates, so 76 in the picture). One renderer for the page, made when first needed.
+  const PIC = 2, PW = W * PIC, PH = H * PIC, UNIT = 76;
+  const WK = PIC / UNIT, WC = (FN - CN) * WK, WHW = HW * WK, WZ0 = .6 * PW / UNIT, WZ = 2 * WZ0;
+  const world = (u, z, h) => [u * WHW, h * WC, WZ0 * (1 + 2 * z)];
+  const SET = {
+    E: (FN - HY) * WK, C: WC, HW: WHW, f: .6, cy: HY * PIC / PH,
+    rug: TUNE.runner * WHW, rugEdge: .04 * WHW, skirt: .03 * WC, rail: [.3 * WC, .33 * WC],
+    post: WZ / 6, panel: WZ * .4, fog: [WZ0 * 3.4, WZ0 * 12]
+  };
+  let RENDER = null;
+  const renderer = () => RENDER || (RENDER = UnrugRender.create(PW, PH, SET));
+  // The two layers the scene is drawn into: things lit by the hall's light where they stand, and things that glow.
+  function layerCtx() {
+    const x = A.canvas(PW, PH).getContext('2d', { willReadFrequently: true });
+    x.imageSmoothingEnabled = false;
+    return x;
+  }
+  const LIT = layerCtx(), GLOW = layerCtx();
+  // Draw on x from now on (the floor too).
+  function use(x) { g = x; floor.use(x); }
 
   // ---------- random ----------
   // Everything that decides a run comes from one seeded stream, so a seed replays it exactly: #seed=42 in the
@@ -599,8 +627,11 @@
     g.drawImage(A.POSES.hurt, Math.round(-A.POSE_W / 2 * s), Math.round(-19 * s), Math.round(A.POSE_W * s), Math.round(A.POSE_H * s));
     g.restore();
   }
-  function drawFx() {
+  // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
+  const FX_PASS = { wisp: 'glow', cut: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
+  function drawFx(pass) {
     for (const f of R.fx) {
+      if ((FX_PASS[f.k] || 'lit') !== pass) continue;
       const k = f.t / f.dur;
       if (f.k === 'wisp') drawWisp(f);
       else if (f.k === 'poof') { for (let i = 0; i < f.n; i++) { const a = i / f.n * 6.28 + f.x, r = 2 + k * 9 * f.s; rect(g, f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * .7, Math.max(1, Math.round(2 * f.s)), Math.max(1, Math.round(2 * f.s)), k < .5 ? '#fff6e2' : '#b8b4a8'); } }
@@ -749,14 +780,39 @@
     txt(g, 'UNRUGGABULL', x, y, '#ff9a3c', 3); txt(g, 'II', x + 12 * 12, y, '#ffd44a', 3);
     otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 23, '#fff6e2', 1, 'center');
   }
+  // The light things give off this frame, for the renderer: blaster bolts as they fly, the muzzle flash, pickups.
+  // (The floor adds its own.)
+  function sceneLights(r) {
+    let n = 0;
+    for (const s of R.shots) {
+      if (n++ >= 10) break;
+      const [x, y, z] = world(s.u, s.z, s.h);
+      if (s.soul) r.light(x, y, z, .5, .42, .2); else if (s.spread) r.light(x, y, z, .6, .45, .15); else r.light(x, y, z, .3, .55, .9);
+    }
+    if (R.fx.some(f => f.k === 'muzzle')) { const [x, y, z] = world(bull.u + A.MUZZLE.x / HW, bull.bz, bull.jh - A.MUZZLE.y / (FN - CN)); r.light(x, y, z - .15, 1.2, .9, .4); }
+    for (const pk of R.pickups) {
+      const z = pk.w - R.dist; if (z > 1.02 || z < ZN) continue;
+      const [x, y, wz] = world(pk.u, z, pk.h);
+      if (pk.kind === 'coffee') r.light(x, y, wz, .5, .2, .12); else r.light(x, y, wz, .5, .42, .12);
+    }
+  }
+  // A frame of play: the lights, the hall, the floor's things drawn into the two layers and laid over it, the finish
+  // (shaken as a whole when something hits hard), then the flashes, the HUD and the words on top, crisp.
   function draw() {
-    if (state === 'title' || state === 'intro') { g.setTransform(1, 0, 0, 1, 0, 0); drawTitle(); return; }
-    const sh = R.shake > 0 ? Math.round((Math.random() - .5) * 6 * Math.min(1, R.shake * 4)) : 0;
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    rect(g, 0, 0, W, H, '#09070b');
-    g.setTransform(1, 0, 0, 1, sh, sh ? Math.round((Math.random() - .5) * 4) : 0);
-    floor.draw();
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    if (state === 'title' || state === 'intro') { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); drawTitle(); return; }
+    const r = renderer();
+    sceneLights(r); floor.lights(r);
+    r.frame(R.t, floor.view());
+    for (const x of [LIT, GLOW]) { x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, PW, PH); x.setTransform(PIC, 0, 0, PIC, 0, 0); }
+    use(LIT); floor.draw();
+    use(GLOW); floor.glows();
+    r.layer(LIT.getImageData(0, 0, PW, PH).data, GLOW.getImageData(0, 0, PW, PH).data);
+    const sx = R.shake > 0 ? Math.round((Math.random() - .5) * 6 * Math.min(1, R.shake * 4)) : 0, sy = sx ? Math.round((Math.random() - .5) * 4) : 0;
+    use(view);
+    view.setTransform(1, 0, 0, 1, 0, 0);
+    if (sx || sy) { view.fillStyle = '#09070b'; view.fillRect(0, 0, PW, PH); }
+    r.present(view, sx * PIC, sy * PIC);
+    view.setTransform(PIC, 0, 0, PIC, 0, 0);
     if (R.red > 0) { g.save(); g.globalAlpha = R.red * 1.6; rect(g, 0, 0, W, H, '#d63428'); g.restore(); }
     // one heart left: the edges of the screen pulse red with the heartbeat
     if (lowHealth()) {
@@ -765,7 +821,7 @@
     }
     if (R.white > 0) { g.save(); g.globalAlpha = Math.min(1, R.white * 4); rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
     if (R.zap > 0) { g.save(); g.globalAlpha = Math.min(.6, R.zap * 2); rect(g, 0, 0, W, H, '#3aa8e0'); g.restore(); }
-    floor.overlay(); drawHUD(); drawWords();
+    floor.overlay(); drawFx('words'); drawHUD(); drawWords();
   }
 
   // ---------- page: card, sound, full screen ----------
@@ -1137,17 +1193,22 @@
   addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); }, { capture: true, passive: true });
 
   // ---------- loop ----------
+  // Drawn at a steady 30 frames a second, whatever the screen's rate: the lit picture takes more than a 60th of a second
+  // on a phone. The game itself still steps in 60ths, two to a frame, so it plays the same.
   // The balance harness sets looping to false and drives update() itself.
+  const STEP = 1 / 60, EVERY = 1000 / 30;
   let last = 0, looping = true;
   function frame(now) {
     if (!looping) return;
-    const dt = last ? Math.min(.05, Math.max(0, (now - last) / 1000)) : 0;
-    last = now;
-    update(dt); draw(); padRings();
     requestAnimationFrame(frame);
+    if (last && now - last < EVERY - 4) return;
+    let dt = last ? Math.min(.1, Math.max(0, (now - last) / 1000)) : 0;
+    last = now;
+    while (dt > 1e-6) { const s = Math.min(STEP, dt); update(s); dt -= s; }
+    draw(); padRings();
   }
   function start() {
-    floor.init();
+    setTimeout(renderer, 60);   // the renderer works out the hall once (a moment's work), while the title's up
     newRun();
     setState('title');
     showCard('title');
@@ -1164,7 +1225,7 @@
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
-    drawBig, drawSoulsCounter,
+    drawBig, drawSoulsCounter, world, WZ,
     g, setCheckpoint: v => { checkpoint = v; }
   });
 

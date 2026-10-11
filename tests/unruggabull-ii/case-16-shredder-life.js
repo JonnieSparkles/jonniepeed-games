@@ -45,8 +45,9 @@
   // (no shake, no red flash, so the eye sits where it's drawn; its pupil is the dark gap in the red)
   const pupil = u => {
     bull.u = u; R.shake = 0; R.red = 0; b.push = 0; b.pushV = 0; draw();
-    const d = g.getImageData(102, BACK.y0 + 18, 14, 1).data, xs = [];
-    for (let i = 0; i < 14; i++) if (d[i * 4] > 120) xs.push(i);
+    // read off the picture, which is PIC times the game's coordinates
+    const d = view.getImageData(102 * PIC, (BACK.y0 + 18) * PIC + 1, 14 * PIC, 1).data, xs = [];
+    for (let i = 0; i < 14 * PIC; i++) if (d[i * 4] > 120) xs.push(i);
     for (let i = xs[0]; i < xs[xs.length - 1]; i++) if (d[i * 4] < 60) return i - xs[0];
     return -1;
   };

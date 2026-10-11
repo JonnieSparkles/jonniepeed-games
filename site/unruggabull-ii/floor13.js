@@ -13,11 +13,12 @@ var UnrugFloor13 = function (core) {
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
-    drawBig, drawSoulsCounter,
+    drawBig, drawSoulsCounter, world, WZ,
     setCheckpoint
   } = core;
   let R = null, bull = null;
-  let g = core.g;   // swapped for an offscreen canvas while the Shredder draws (see withShredder)
+  let g = core.g;   // where drawing goes: set by the core (use), and swapped for an offscreen canvas while the Shredder draws
+  const lin = UnrugRender.lin;
 
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
@@ -718,39 +719,36 @@ var UnrugFloor13 = function (core) {
     }
   }
   // ---------- drawing ----------
-  let BG = null;
-  function buildBG() {
-    BG = A.canvas(W, H);
-    const b = BG.getContext('2d');
-    rect(b, 0, 0, W, H, '#3b3742');
-    for (const s of [-1, 1]) {
-      poly(b, '#2d2934', [[PX(s, ZN), YH(ZN, .32)], [PX(s, 1), YH(1, .32)], [PX(s, 1), FY(1)], [PX(s, ZN), FY(ZN)]]);
-      line(b, PX(s, ZN), YH(ZN, .32), PX(s, 1), YH(1, .32), '#4c4856');
-    }
-    poly(b, '#1d1a22', [[PX(-1, ZN), CY(ZN)], [PX(1, ZN), CY(ZN)], [PX(1, 1), CY(1)], [PX(-1, 1), CY(1)]]);
-    poly(b, '#28304a', [[PX(-1, ZN), FY(ZN)], [PX(1, ZN), FY(ZN)], [PX(1, 1), FY(1)], [PX(-1, 1), FY(1)]]);
-    for (const u of [-.6, .6]) line(b, PX(u, ZN), FY(ZN), PX(u, 1), FY(1), '#222a40');
-    quadF(b, '#7a1d1a', -TUNE.runner, TUNE.runner, ZN, 1);
-    rect(b, BACK.x0, BACK.y0, BACK.x1 - BACK.x0, BACK.y1 - BACK.y0, '#34303c');
+  // The renderer draws the hall itself, in light (see the core's draw()); this tells it what the hall looks like
+  // now: how far it's scrolled and the rug with it, whether the lights are out, the section's colour on the rail, and
+  // the rug's edges, which light up while it warns or pulls and flash blue as it rolls back.
+  function view() {
+    const P = R.pull, dk = darkness();
+    const edge = R.roll ? (Math.floor(R.t * 12) % 2 ? '#7fd4ff' : '#bfefff') : P.st === 'warn' ? (Math.floor(P.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : P.st === 'on' ? '#ff9628' : null;
+    return {
+      scroll: R.dist * WZ, rug: -R.roff * WZ, power: dk >= .5 ? 0 : 1 - dk * .75, dark: dk >= .5,
+      rail: R.phase === 'hall' || R.phase === 'wake' ? lin(BEATS[R.beat].rail) : null,
+      edge: edge ? lin(edge) : null, edgeGlow: edge ? 1.3 : 0
+    };
   }
-  function drawHall() {
-    g.drawImage(BG, 0, 0);
-    for (let k = 0; k < 6; k++) { const z = mod1(k / 6 - R.dist); for (const s of [-1, 1]) rect(g, PX(s, z), CY(z), 1, FY(z) - CY(z), '#26222c'); }
-    // ceiling lights; one in a while flickers (cosmetic)
-    for (let k = 0; k < 5; k++) { const z = mod1(k / 5 - R.dist), n = Math.floor(k - R.dist * 5 + 1000), flick = n % 7 === 3 && Math.random() < .25; rect(g, PX(-.25, z), CY(z) + 2, PX(.25, z) - PX(-.25, z), Math.max(1, Math.round(3 * sc(z))), flick ? '#6a6658' : '#e8e4c8'); }
-    // a chair rail along both walls, in the section's colour
-    if (R.phase === 'hall' || R.phase === 'wake') { const rail = BEATS[R.beat].rail; for (const sd of [-1, 1]) wallQuad(sd, ZN, 1 - ZN, .3, .33, rail); }
-    for (let k = 0; k < 8; k++) { const z = mod1(k / 8 - R.dist); rect(g, PX(-1, z), FY(z), PX(1, z) - PX(-1, z), 1, '#222a40'); }
-    // the runner: stripes move with the floor, or away from you when it pulls
-    const P = R.pull, edge = R.roll ? (Math.floor(R.t * 12) % 2 ? '#7fd4ff' : '#bfefff') : P.st === 'warn' ? (Math.floor(P.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : P.st === 'on' ? '#ff9628' : '#c9962e';
-    quadF(g, '#7a1d1a', -TUNE.runner, TUNE.runner, ZN, 1);
-    for (let k = 0; k < 10; k++) { const z = mod1(k / 10 + R.roff); rect(g, PX(-.26, z), FY(z) - 1, PX(.26, z) - PX(-.26, z), Math.max(1, Math.round(2 * sc(z))), '#5a1412'); }
-    quadF(g, edge, -TUNE.runner, -TUNE.runner + .04, ZN, 1); quadF(g, edge, TUNE.runner - .04, TUNE.runner, ZN, 1);
-    sprayLanes();
-    if (R.cut && R.cut.z > 0) {
-      const z = R.cut.z, y = FY(z), x0 = PX(-TUNE.runner, z), x1 = PX(TUNE.runner, z);
-      for (let x = Math.round(x0); x < x1; x++) rect(g, x, y - 1 + ((x * 7) % 3), 1, 2, '#28304a');
-    }
+  // The light the floor's things give off this frame: paper knocked back or in a rally, light switches, the monitors
+  // when the lights are out, the Shredder's eyes and its mouth as it winds up.
+  function lights(r) {
+    const at = (u, z, h, cr, cg, cb) => { const [x, y, wz] = world(u, z, h); r.light(x, y, wz, cr, cg, cb); };
+    for (const p of R.projs) if (p.friendly || p.rally) at(p.u, p.z, p.h, .25, .4, .6);
+    for (const sw of R.switches || []) { const s = switchAt(sw); if (s.z < 1.02 && s.z > .05) at(s.u, s.z, s.h, .5, .42, .15); }
+    if (darkness() >= .5) for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02 && z > ZN && cb.kind === 'cub') at(cb.s * .93, z, cb.top + .05, .04, .22, .1); }
+    const b = R.boss, zS = shredderZ();
+    // once it's woken, the end of the hall is lit, so you can see what you're fighting
+    if (zS < 1.6 && R.phase !== 'hall') at(0, zS - .25, .85, .9, .78, .62);
+    if (zS < 1.6 && (b.st === 'awake' || b.st === 'fight') && b.jam <= 0) at(0, zS - .03, .64, 1.6, .2, .1);
+    if (zS < 1.6 && b.rev > 0 && b.st === 'fight') at(0, zS - .03, .2, 1.2, .15, .08);
+  }
+  // the gap where the katana cut the rug
+  function drawCut() {
+    if (!R.cut || R.cut.z <= 0) return;
+    const z = R.cut.z, y = FY(z), x0 = PX(-TUNE.runner, z), x1 = PX(TUNE.runner, z);
+    for (let x = Math.round(x0); x < x1; x++) rect(g, x, y - 1 + ((x * 7) % 3), 1, 2, '#28304a');
   }
   // A side spray coming: the floor beside the rug flashes red while it warns, and stays tinted while it sprays.
   function sprayLanes() {
@@ -797,23 +795,6 @@ var UnrugFloor13 = function (core) {
     }
     if (R.phase === 'wake') { const k = clamp(R.phaseT / 1.2, 0, 1), z0 = R.shzWake === Infinity || R.shzWake == null ? 1.6 : R.shzWake; return z0 + (1 - z0) * k * k * (3 - 2 * k); }
     return 1;
-  }
-  // the hall beyond the far wall, fading to black: floor, runner, walls, ceiling and its lights, moving with you
-  function drawFarHall() {
-    const fog = (hex, f) => { const n = parseInt(hex.slice(1), 16), k = 1 - f; return 'rgb(' + Math.round((n >> 16) * k) + ',' + Math.round((n >> 8 & 255) * k) + ',' + Math.round((n & 255) * k) + ')'; };
-    rect(g, BACK.x0, BACK.y0, BACK.x1 - BACK.x0, BACK.y1 - BACK.y0, '#060508');
-    for (let i = 0; i < 12; i++) {
-      const z0 = 1 + i * .45, z1 = z0 + .45, f = Math.min(1, i / 11);
-      for (const sd of [-1, 1]) poly(g, fog('#2d2934', f), [[PX(sd, z0), CY(z0)], [PX(sd, z1), CY(z1)], [PX(sd, z1), FY(z1)], [PX(sd, z0), FY(z0)]]);
-      quadF(g, fog('#1d1a22', f), -1, 1, z0, z1, 1);
-      quadF(g, fog('#28304a', f), -1, 1, z0, z1, 0);
-      quadF(g, fog('#7a1d1a', f), -TUNE.runner, TUNE.runner, z0, z1, 0);
-    }
-    for (let k = 0; k < 10; k++) {
-      const z = 1 + mod1(k / 10 - R.dist / 4.5) * 4.5, f = Math.min(1, (z - 1) / 5);
-      rect(g, PX(-.25, z), CY(z) + 1, PX(.25, z) - PX(-.25, z), 1, fog('#e8e4c8', f));
-      rect(g, PX(-1, z), FY(z), PX(1, z) - PX(-1, z), 1, fog('#222a40', f));
-    }
   }
   // The Shredder is drawn on its own canvas, then onto the scene scaled about the foot of its mouth with hard pixels: it
   // swells as it lunges at you and shrinks as it recoils, breathes, and shudders when jammed or hit hard.
@@ -987,16 +968,21 @@ var UnrugFloor13 = function (core) {
   }
   // which of the three temps sits at this desk: from where the desk is, so it never touches the run's dice
   const tempLook = tp => A.TEMPS[Math.floor(Math.abs(tp.cub.w * 7.3 + tp.cub.s)) % A.TEMPS.length];
-  function drawTemp(tp, zt) {
+  // where a temp's head is drawn: left, width, foot, height
+  function tempBox(tp, zt) {
     const s = sc(zt) * .85, w = Math.max(2, Math.round(26 * s)), h = Math.max(2, Math.round(15 * s));
-    const x = Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb = YH(zt, tp.cub.top - .12 + tp.pop * .17), img = tempLook(tp), hh = Math.round(h * img.height / 15);
+    return { s, w, h, x: Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb: YH(zt, tp.cub.top - .12 + tp.pop * .17) };
+  }
+  function drawTemp(tp, zt) {
+    const { s, w, h, x, yb } = tempBox(tp, zt), img = tempLook(tp), hh = Math.round(h * img.height / 15);
     g.drawImage(img, x, Math.round(yb - hh), w, hh);
-    // the tell: a temp about to throw flashes a ! first
-    if (tp.will && tp.st === 'up' && !tp.threw && tp.t > .12 && Math.floor(tp.t * 12) % 3) {
-      const tx = Math.round(x + w / 2), ty = Math.round(yb - h - 10);
-      rect(g, tx - 3, ty - 1, 7, 9, '#1a1418'); rect(g, tx - 2, ty, 5, 7, '#fff6e2'); txt(g, '!', tx - 1, ty + 1, '#d63428');
-    }
     if (tp.st === 'up' && tp.t > .25 && !tp.threw) g.drawImage(A.WAD, Math.round(x + w * .75), Math.round(yb - h - 4 * s), Math.max(2, Math.round(5 * s)), Math.max(2, Math.round(5 * s)));
+  }
+  // the tell: a temp about to throw flashes a ! first (it glows, so it reads in the dark too)
+  function tempTell(tp, zt) {
+    if (!(tp.will && tp.st === 'up' && !tp.threw && tp.t > .12 && Math.floor(tp.t * 12) % 3)) return;
+    const { w, h, x, yb } = tempBox(tp, zt), tx = Math.round(x + w / 2), ty = Math.round(yb - h - 10);
+    rect(g, tx - 3, ty - 1, 7, 9, '#1a1418'); rect(g, tx - 2, ty, 5, 7, '#fff6e2'); txt(g, '!', tx - 1, ty + 1, '#d63428');
   }
   function drawBox(bx, z) {
     const s = sc(z), w = Math.max(3, Math.round(A.BOX.width * s)), h = Math.max(2, Math.round(A.BOX.height * s));
@@ -1088,63 +1074,47 @@ var UnrugFloor13 = function (core) {
     if (E.t > E.dur - .6) return Math.floor(E.t * 14) % 2 ? .82 : .3;
     return .82;
   }
-  // The dark is a layer with light let through it: blaster bolts light up the hall around them as they fly,
-  // the muzzle flashes, and knocked-back or rally paper glows. Each light is three soft rings, 8-bit style.
-  let DARK = null;
-  function darkLayer(dk) {
-    if (!DARK) DARK = A.canvas(W + 8, H + 8);
-    const d = DARK.getContext('2d');
-    d.globalCompositeOperation = 'source-over'; d.globalAlpha = 1;
-    d.clearRect(0, 0, DARK.width, DARK.height);
-    d.globalAlpha = dk; d.fillStyle = '#05040a'; d.fillRect(0, 0, DARK.width, DARK.height);
-    d.globalCompositeOperation = 'destination-out';
-    const light = (x, y, r) => { for (const [f, a] of [[1, .35], [.68, .55], [.4, .9]]) { d.globalAlpha = a; disc(d, x + 4, y + 4, Math.max(1, Math.round(r * f)), '#000'); } };
-    for (const s of R.shots) light(PX(s.u, s.z), YH(s.z, s.h), 22 * sc(s.z) + 6);
-    for (const f of R.fx) if (f.k === 'muzzle') light(f.x, f.y, 22);
-    for (const p of R.projs) if (p.friendly || p.rally) light(PX(p.u, p.z), YH(p.z, p.h), 10 * sc(p.z) + 3);
-    d.globalCompositeOperation = 'source-over'; d.globalAlpha = 1;
-    return DARK;
-  }
-  // In the dark only glowing things show: monitors, eyes, the neon sign, pickups, paper, bolts, the runner's
-  // edges when it warns or pulls, the Shredder's eyes and teeth, and you, rows and boxes faintly.
+  // What glows, laid over the lit hall as it is (the core's draw()): light switches, monitors, the neon sign, the
+  // warning beside the rug, a temp's tell, the Shredder's eyes and teeth once it's up, pickups, paper in flight, bolts,
+  // souls and sparks. With the lights out, eyes too: the temps', the carpshits', and something's far down the hall.
   function drawSwitch(sw) {
     const at = switchAt(sw); if (at.z > 1.02 || at.z < .05) return;
     const k = sc(at.z), x = PX(sw.s * .99, at.z), y = YH(at.z, at.h), w = Math.max(3, Math.round(9 * k)), h = Math.max(4, Math.round(13 * k)), blink = Math.floor(R.t * 6) % 2;
     rect(g, x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2, blink ? '#fff0aa' : '#ffd44a');
     rect(g, x - w / 2, y - h / 2, w, h, '#1a1418'); rect(g, x - Math.max(1, w / 4), y - h / 4, Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 3)), '#ffd44a');
   }
-  function drawGlows() {
+  function glows() {
+    const dk = darkness() >= .5;
     for (const sw of R.switches || []) drawSwitch(sw);
     for (const cb of R.cubs) {
-      const z = cubZ(cb); if (z > 1.02 || cb.kind !== 'cub') continue;
-      const k = sc(z), mx = PX(cb.s * .93, z), my = YH(z, cb.top), mw = Math.max(2, Math.round(10 * k)), mh = Math.max(2, Math.round(7 * k));
-      rect(g, mx - mw / 2 + 1, my - mh + 1, Math.max(1, mw - 2), Math.max(1, mh - 2), monitor(cb));
+      const z = cubZ(cb); if (z > 1.02) continue;
+      if (cb.kind === 'cub') {
+        const k = sc(z), mx = PX(cb.s * .93, z), my = YH(z, cb.top), mw = Math.max(2, Math.round(10 * k)), mh = Math.max(2, Math.round(7 * k));
+        rect(g, mx - mw / 2 + 1, my - mh + 1, Math.max(1, mw - 2), Math.max(1, mh - 2), monitor(cb));
+      }
       const tp = cb.temp;
-      if (tp && !tp.dead && tp.pop > .3) {
+      if (!tp || tp.dead || tp.pop <= 0) continue;
+      tempTell(tp, z + .06);
+      if (dk && tp.pop > .3) {
         const zt = z + .06, s2 = sc(zt) * .85, w = 26 * s2, h = 15 * s2, x = PX(cb.s * .8, zt), yt = YH(zt, cb.top - .12 + tp.pop * .17) - h, e = Math.max(1, Math.round(2 * s2));
         rect(g, x - w * .23, yt + h * .37, e, e, '#fff0aa'); rect(g, x + w * .19, yt + h * .37, e, e, '#fff0aa');
       }
     }
-    for (const f of R.flies) {
+    if (dk) for (const f of R.flies) {
       const k = sc(f.z), w = 26 * k, x = PX(f.u, f.z), y = YH(f.z, f.h), e = Math.max(1, Math.round(2 * k));
       rect(g, x - w * .23, y - 1, e, e, '#fff0aa'); rect(g, x + w * .19, y - 1, e, e, '#fff0aa');
     }
     if (Math.floor(R.t * 13) % 11) for (const sg of R.signs) { const z = sg.w - R.dist; if (sg.neon && z < 1.02 && z > .05) drawSign(sg, z); }
-    if (R.pull.st === 'warn' || R.pull.st === 'on') {
-      const edge = R.pull.st === 'warn' ? (Math.floor(R.pull.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : '#ff9628';
-      quadF(g, edge, -TUNE.runner, -TUNE.runner + .04, ZN, 1); quadF(g, edge, TUNE.runner - .04, TUNE.runner, ZN, 1);
-    }
     sprayLanes();
     if (R.phase !== 'hall') withShredder(() => { shredderEyes(); shredderTeeth(); });
     else if (R.event && R.event.kind === 'dark') darkEyes();
-    g.save(); g.globalAlpha = .45; drawBull();
-    for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) drawRow(row, z); }
-    for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) drawBox(bx, z); }
-    g.restore();
-    for (const pk of R.pickups) { const z = pk.w - R.dist; if (z < 1.02) drawPickup(pk, z); }
-    for (const p of R.projs) drawProj(p);
-    for (const sh of R.shots) drawShot(sh);
-    for (const f of R.fx) if (f.k === 'wisp') drawWisp(f); else if (f.k === 'big') drawBig(f);
+    const list = [];
+    for (const pk of R.pickups) { const z = pk.w - R.dist; if (z < 1.02) list.push([z, () => drawPickup(pk, z)]); }
+    for (const p of R.projs) list.push([p.z, () => drawProj(p)]);
+    for (const s of R.shots) list.push([s.z, () => drawShot(s)]);
+    list.sort((a, b) => b[0] - a[0]);
+    for (const e of list) e[1]();
+    drawFx('glow');
   }
 
   // ---------- what the core asks of the floor ----------
@@ -1179,10 +1149,11 @@ var UnrugFloor13 = function (core) {
     updateFx(dt);
     updatePhase(dt);
   }
-  // The scene: the hall and its far end, the Shredder, everything in it far to near, and the dark over it.
+  // The things in the hall, lit where they stand (the core lays them over the rendered hall): the cut in the rug, the
+  // Shredder, paper in the air, what's on the walls and at the sides, then what's on the floor and Unruggabull, far to
+  // near. Pickups, paper in flight and bolts glow, so they go with the glow (glows()).
   function draw() {
-    drawHall();
-    if (shredderZ() > 1.001) drawFarHall();
+    drawCut();
     if (shredderZ() < Infinity) withShredder(drawShredder);
     drawPaper();
     // Fixed things beside and above the aisle go down first, far to near, so nothing moving is ever cut by them.
@@ -1195,16 +1166,11 @@ var UnrugFloor13 = function (core) {
     const list = [];
     for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) list.push([z, () => drawBox(bx, z)]); }
     for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) list.push([z, () => drawRow(row, z)]); }
-    for (const pk of R.pickups) { const z = pk.w - R.dist; if (z < 1.02) list.push([z, () => drawPickup(pk, z)]); }
     for (const f of R.flies) list.push([f.z, () => drawFly(f)]);
-    for (const p of R.projs) list.push([p.z, () => drawProj(p)]);
-    for (const s of R.shots) list.push([s.z, () => drawShot(s)]);
     list.push([bull.bz - .001, drawBull]);
     list.sort((a, b) => b[0] - a[0]);
     for (const e of list) e[1]();
-    drawFx();
-    const dk = darkness();
-    if (dk) { g.drawImage(darkLayer(dk), -4, -4); if (dk > .5) drawGlows(); }
+    drawFx('lit');
   }
   // The floor's part of the HUD: the goal meter in the hall (or the souls counter), the Shredder's bar, the rally count.
   function hud() {
@@ -1269,7 +1235,7 @@ var UnrugFloor13 = function (core) {
 
   return {
     // hooks
-    init: buildBG, newRun, update, draw, overlay: drawHintSouls, hud, aim, shotHits, shotFar, slash, hurt, blasterBack, posOf,
+    use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, shotHits, shotFar, slash, hurt, blasterBack, posOf,
     holstered, bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
     // the rest of the floor by name, for the test harness and the balance bots
     BEATS, beat, spawnFormation, startEvent, MOVES, spawnMove, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
