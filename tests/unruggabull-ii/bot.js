@@ -53,9 +53,20 @@ window.__balanceBot = function (profile, seed) {
       o.rows.forEach(function (rw) {
         var pl = plan(rw, function () { return { jump: r() < P.jump_try, err: err(P.jump_err) }; });
         var dz = rw.z - b.bz - rw.speed * lead;
+        // a beam hangs at head height: duck under it (same odds and timing error as a jump)
+        if (rw.kind === 'beam') { if (pl.jump && dz < rw.speed * .3 + pl.err + .04 && dz > -.06) a.crouch = true; return; }
         if (pl.jump && dz > 0 && dz < rw.speed * .25 + pl.err + .02) a.jump = true;
       });
+      // moving day's walls of stacked boxes can't be jumped: head for the gap
+      var walls = o.boxes.filter(function (bx) { var dz = bx.z - b.bz - o.speed * lead; return bx.tall && dz > -.02 && dz < .45; });
+      if (walls.length && !urgent) {
+        var zNear = Math.min.apply(null, walls.map(function (bx) { return bx.z; }));
+        var row = walls.filter(function (bx) { return bx.z < zNear + .05; }).map(function (bx) { return bx.u; });
+        var free = [-.45, -.15, .15, .45].filter(function (u) { return !row.some(function (w) { return Math.abs(w - u) < .05; }); });
+        if (free.length) { free.sort(function (x, y) { return Math.abs(x - me) - Math.abs(y - me); }); goal = free[0]; urgent = true; }
+      }
       o.boxes.forEach(function (bx) {
+        if (bx.tall) return;
         var dz = bx.z - b.bz - o.speed * lead;
         if (dz <= 0 || dz > .25 || Math.abs(bx.u - me) > .16) return;
         var pl = plan(bx, function () { return { side: r() < P.dodge, err: err(P.jump_err) }; });

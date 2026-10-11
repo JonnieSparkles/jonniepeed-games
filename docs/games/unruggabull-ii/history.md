@@ -4,6 +4,12 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Why it's this way
 
+- **Moving day replaced the audit** (notes after the first deploy): "i still dont get the audit thing", and the owner asked for "an athletic furniture section (not too hard) but without having to worry about shooting".
+- **Furniture costs a heart** (notes): a version where it only bumped you was tried and dropped the same day: "It's okay if furniture hurts you." The casual bot suffers for it (it reaches lights out in 48% of runs, down from 75%); playtesting wins.
+- **The hall is endless until the copy room** (notes): "we shouldnt see shredder right away and instead an endless corridor. shredder slowly starts to get closer as we progress".
+- **The surge shows its cause** (notes): "losing your blaster isnt clear why that happens". A blue tell and a lightning bolt to the gun.
+- **Shorter slash reach with a longer window and a cut line** (notes): deflects "seem like the bullet i deflected was too far away to hit". Reach 0.24 became 0.19, the window 0.16 s became 0.2 s so timing stays as forgiving, and a line from the blade shows the reach.
+- **Few words on screen** (notes): "theres a lot of text on screen thats distracting". Prompts are one short line; deflect and ×2 pops went.
 - **Fun over hard** (easier Shredder and rally): the owner's direction for this demo. No phone buzz, no rank, no hard mode (his lines).
 - **Rallies are fast, in every phase, with a marathon once a phase** (fast rallies): "boss battle still feels boring … the volley sequences should be way more fast paced and a few longer", after the owner beat the last build easily. Decent bots went from 81% to 54% clears.
 - **The slash knocks paper back for 0.16 seconds, not 0.12** (fast rallies): fast returns need a forgiving swing; it made the rallies fairer without slowing them.
@@ -22,6 +28,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Tried and dropped
 
+- **The audit** (game-pad controls, dropped after the first deploy): a deflect round where the temps lobbed paper for double souls. It never read as anything in particular.
 - **A rug burrito** when he's rugged (his lines, dropped in volley match): "looks terrible". The rug is yanked out and he flips off the screen.
 - **A big AUDIT banner across the hall** (dropped in lights out): disorienting. Every beat and event gets a sign that drops from the ceiling.
 - **A surge you could jump** (volley match, dropped the same round): see above; it had to be forced.

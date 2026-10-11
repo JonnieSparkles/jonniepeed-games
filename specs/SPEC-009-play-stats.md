@@ -51,6 +51,7 @@ No IP address, user agent, cookie or device ID is stored. The rate limiter keys 
 | Thimbleful | drops caught | `golds`, `spills`, `earned` (spills won back), `storm` (0–100, how far the storm got) |
 | Don't Step on a Crack | feet walked | `steps`, `streak`, `street` (1–6), `giants` (giant steps used) |
 | Stick Army | score | `wave`, `kills`, `captured`, `popped`, `planes`, `zeppelins`, `tanks`, `crew`, `fallen`, `tags`, `cause`; after a campaign win, also `won_at`, and `endless` once it kept going |
+| Unruggabull II (switched off) | souls freed | `stage` (1–9) and `stage_name` (accounts, moving, all_staff, lights_out, copy_room, phase_1 to phase_3, cleared), `cause`, `continues`, `boss_hp`, `smashes`, `best_rally`, `wipes`, `deflects` |
 
 Stick Army reports a win as soon as the victory card shows. A winner who keeps going reports again (if the page is hidden mid-run, and at the final game over), and the last report wins.
 

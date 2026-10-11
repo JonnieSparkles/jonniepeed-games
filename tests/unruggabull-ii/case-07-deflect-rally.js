@@ -29,7 +29,7 @@
   b.surgeAt = 0;   // the forced surge has its own case
   R.projs = []; R.talk = null; R.banner = null; b.atk = 0; b.atkN = 0; bull.inv = 1e9; update(1 / 60);
   check(b.rally && R.projs.filter(p => p.rally).length === 1, 'phase three serves a rally');
-  check(R.banner && R.banner.text === 'RALLY!', 'with a prompt the first time');
+  check(R.banner && R.banner.text === 'SLASH IT BACK', 'with a prompt the first time');
   const [lo, hi] = TUNE.rally.count[2];
   check(b.rally.target >= lo && b.rally.target <= hi, 'in phase 3 it bats back ' + lo + ' to ' + hi + ' returns');
   b.rally.target = 3;

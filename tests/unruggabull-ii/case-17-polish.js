@@ -34,7 +34,7 @@
   check(R.fx.filter(f => f.k === 'pop' && f.text === 'EMPTY').length <= 1, 'one EMPTY at a time');
 
   // his caption wraps into short lines on the left
-  R.events.said = {}; R.talk = null; bark('audit', true); for (let i = 0; i < 120; i++) update(1 / 60);
+  R.events.said = {}; R.talk = null; bark('move', true); for (let i = 0; i < 120; i++) update(1 / 60);
   // the right of the screen at caption height looks the same with or without it
   const right = () => { R.shake = 0; draw(); return Array.from(g.getImageData(110, 20, 128, 22).data).join(); };
   const withIt = right(), K = R.bark; R.bark = null; const without = right(); R.bark = K;
