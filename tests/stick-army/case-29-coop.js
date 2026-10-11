@@ -82,21 +82,53 @@
     check(rec() === before && /together/.test(document.getElementById('winCount').textContent), 'a co-op win isn\'t counted, and says so');
     winScreen.hidden = true; overScreen.hidden = true;
 
-    // The shop: turret upgrades per barrel, common items once, Ready from both.
-    RUN.players = 2; RUN.force = 33; newGame(); S.coins = 999;
-    var spread = ITEMS.find(function (it) { return it.id === 'spread'; }), sand = ITEMS.find(function (it) { return it.id === 'sandbags'; });
-    openShop(); S.shop.items = [spread, sand]; S.shop.gift = null;
-    check(SHOP.takeItem('spread', 0) && S.turrets[0].mods.spread && !S.turrets[1].mods.spread && !S.mods.spread, 'the host buys spread for the host barrel');
-    check(SHOP.takeItem('spread', 1) && S.turrets[1].mods.spread, 'and the guest can buy it too, for the guest barrel');
+    // Dog tags: each player's own. A barrel's kill pays its player; tags nobody fired for are split, odd ones in turn.
+    RUN.players = 2; RUN.force = 32; newGame();
+    var P = S.players;
+    check(S.coins === 0 && P[0].tags === 0 && P[1].tags === 0, 'a co-op run starts both wallets empty');
+    gunner = 1; award(30, 200, 300, 'ouch!', INK, false); gunner = null;
+    check(P[1].tags === 2 && P[0].tags === 0, 'the guest\'s kill pays the guest');
+    award(30, 200, 300, 'wave!', BLUE, false); award(15, 200, 300, 'wave!', BLUE, false);
+    // 2 tags split 1 and 1; then 1 tag, the odd one, to the host first.
+    check(P[0].tags === 2 && P[1].tags === 3, 'tags nobody fired for are split, odd ones in turn: ' + P[0].tags + ' / ' + P[1].tags);
+    P[0].tags = 10; P[1].tags = 40;
+    gunner = 1; check(takeTags(25) === 25 && P[1].tags === 15 && P[0].tags === 10, 'a Red Cross hit costs the shooter\'s tags'); gunner = null;
+    me = 1; render(); me = 0;   // the HUD shows this device's own tags (drawn without error)
+    check(runReport().stats.tags === 25, 'play stats count both wallets');
+    // A Red Cross hit flashes only the charged player's counter.
+    gunner = 1; loseTags(5, 200, 300); gunner = null;
+    check(S.tagLossBy === 1, 'the tag loss is the shooter\'s');
+    // A full radio pays both, even when a player's shot brought it (a zeppelin's call).
+    S.calls.bomber = RADIO.SLOTS; S.calls.fighter = 0; var t0 = P[0].tags, t1 = P[1].tags;
+    gunner = 0; grantCall('bomber', 200, 300, true); gunner = null;
+    check(P[0].tags - t0 + P[1].tags - t1 === RADIO.FULL_TAGS && Math.abs((P[0].tags - t0) - (P[1].tags - t1)) <= 1, 'a full radio\'s tags are split');
+
+    // The shop: each player's own tags and free pick; "Your gun" per barrel, squad things bought once by either.
+    RUN.players = 2; RUN.force = 33; newGame(); S.players[0].tags = 200; S.players[1].tags = 200;
+    var spread = ITEMS.find(function (it) { return it.id === 'spread'; }), sand = ITEMS.find(function (it) { return it.id === 'sandbags'; }), fire = ITEMS.find(function (it) { return it.id === 'fire'; });
+    openShop(); S.shop.items = [spread, sand, fire]; S.shop.offered = ['spread', 'sandbags', 'fire'];
+    check(SHOP.takeItem('spread', 0) && S.turrets[0].mods.spread && !S.turrets[1].mods.spread && !S.mods.spread && S.players[0].tags === 200, 'the host\'s first supply is free, spread for the host barrel');
+    check(SHOP.takeItem('spread', 1) && S.turrets[1].mods.spread && S.players[1].tags === 200, 'and the guest gets a free pick of their own');
     check(!SHOP.takeItem('spread', 1), 'once per barrel a visit');
-    check(SHOP.takeItem('sandbags', 1) && !SHOP.takeItem('sandbags', 0), 'a common supply is bought once, for the team');
+    var before0 = S.players[0].tags;
+    check(SHOP.price(sand) === Math.max(5, Math.round(Math.max(5, Math.round(sand.cost * SHOP.war(SHOP.WAR.SUPPLY) / 5) * 5) * COOP_HARD.SQUAD_PRICE / 5) * 5) && SHOP.price(fire) === Math.max(5, Math.round(fire.cost * SHOP.war(SHOP.WAR.SUPPLY) / 5) * 5) && SHOP.price(ITEMS.find(function (it) { return it.id === 'pizza'; })) === 25,
+      'squad things cost more in co-op; your gun and the pizza don\'t');
+    check(SHOP.takeItem('sandbags', 1) && S.players[1].tags === 200 - SHOP.price(sand) && S.players[0].tags === before0 && !SHOP.takeItem('sandbags', 0), 'a squad supply is paid by its buyer and bought once');
     me = 0; renderShop();
-    var sandBtn = document.querySelector('[data-item="sandbags"] em').textContent;
-    check(/comrade/.test(sandBtn), 'the other player sees it chosen by the comrade: ' + sandBtn);
-    var coins = S.coins;
-    check(SHOP.putBack('spread', 1) && !S.turrets[1].mods.spread && S.turrets[0].mods.spread && S.coins > coins, 'putting back the guest spread leaves the host one');
-    check(SHOP.putBack('sandbags', 0) && S.mods.maxHP === 100, 'either player can put a common thing back');
+    var sandBtn = document.querySelector('[data-item="sandbags"]');
+    check(/Bought by your friend/.test(sandBtn.textContent) && sandBtn.disabled, 'the other player sees it bought by the friend: ' + sandBtn.querySelector('em').textContent);
+    check(!document.getElementById('gunSection').hidden && document.querySelector('#gunSection [data-item="spread"]') && document.querySelector('#gunSection [data-item="fire"]') && !document.querySelector('#gunSection [data-item="sandbags"]'), '"Your gun" lists the turret upgrades');
+    check(/your own/.test(document.getElementById('shopHint').textContent) && /\(yours\)/.test(document.getElementById('shopCoins').textContent), 'the shop says the tags are yours');
+    check(!SHOP.putBack('sandbags', 0) && S.mods.maxHP > 100, 'only the buyer puts a thing back');
+    check(SHOP.putBack('sandbags', 1) && S.mods.maxHP === 100 && S.players[1].tags === 200, 'and gets the tags back');
+    check(SHOP.putBack('spread', 1) && !S.turrets[1].mods.spread && S.turrets[0].mods.spread && S.players[1].tags === 200, 'putting back the guest spread leaves the host one');
+    check(SHOP.takeItem('fire', 1) && S.players[1].tags === 200 && S.turrets[1].mods.fire === 1, 'the guest\'s free pick is back after the put-back');
     check(SHOP.undo(0) && !S.turrets[0].mods.spread, 'undo takes back this player\'s last pick');
+    check(!!document.getElementById('coopReady') && /Pick one free/.test(getComputedStyle(document.querySelector('.deal.gift.pick'), '::before').content), 'co-op: the friend\'s Ready line, and "Pick one free"');
+    // Solo's shop is as it was: one free pick, one wallet, no "Your gun".
+    RUN.players = 1; RUN.force = 33; newGame(); S.coins = 200; openShop(); renderShop();
+    check(document.getElementById('gunSection').hidden && document.getElementById('supplyTitle').textContent === 'Supplies' && !/yours/.test(document.getElementById('shopCoins').textContent) && !document.getElementById('coopReady') && !/Pick one|Ready for/.test(document.getElementById('shopScreen').textContent), 'solo\'s shop looks as before');
+    RUN.players = 2; RUN.force = 33; newGame(); openShop();
     // Ready with no friend connected: the host goes on alone (waiting for both is in coop_room.py).
     COOP.startHost(null);
     check(COOP.ready() && S.mode === 'play', 'a host whose friend is away doesn\'t wait at the supply table');

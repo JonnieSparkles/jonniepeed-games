@@ -29,7 +29,11 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **The host runs the game** (round 18): every phone running the same game was ruled out because the logic's trigonometry can differ in the last digit between Safari and Chrome, and two copies would drift.
 - **The field is sent generally, not from a list** (round 18, the owner): everything in `S` but particles, so a new enemy reaches the guest with nothing to remember, and co-op can be taken back out as one file and its hooks.
 - **Turret upgrades are each player's own** (round 18, the owner): "each player should get own store options for turret choices". Common supplies stay common, shown to the other as chosen by the comrade; one wallet and one free pick for the team.
-- **Co-op ramps from ×1.2 to ×2 by wave 15, with a Dreadnought of twice the health** (round 18): two bots then fare about as one does in solo.
+- **Green for the second player, not red** (round 18, Oct 11): "the friend being red defeats the theme". Red is the enemy's; blue, red and green are the notebook's three pens.
+- **Each player's own dog tags and free pick** (round 18, Oct 11): one wallet and one free pick for the team was "odd and confusing", and only one player got the free pick. The shop splits into "Your gun" and "For the squad".
+- **Copy link, not the share sheet** (round 18, Oct 11): the owner's call on the link card.
+- **A three-word secret** (round 18, Oct 11): Meatball, Meatball, Sausage, checked by the page; the room still has its own one-word secret.
+- **Co-op ramps from ×1.35 to ×2.6 by wave 15, with a Dreadnought of twice the health** (round 18): with a shared wallet ×1.2 to ×2 matched solo, but once each bot had its own tags (both spending, two free picks) two experts reached wave 20 in 56% of runs against solo's 23%. Now two bots fare about as one does in solo again. On round 19 (late tanks, HQ planes) the extra planes alone didn't hold two experts back (×3 by wave 15 left them as strong: more planes are also more tags), so squad things cost half again as much in co-op (two wallets, one squad), with planes ×1.35 to ×3.
 
 ### Pace and difficulty
 

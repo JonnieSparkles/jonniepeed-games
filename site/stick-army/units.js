@@ -549,7 +549,7 @@ var StickArmyUnits = function (w) {
       if (!quiet) addText(kind === 'bomber' ? '+1 air strike' : '+1 fighter cover', x, y, BLUE, 22);
       return true;
     }
-    S.coins += RADIO.FULL_TAGS; w.flyTags(x, y, RADIO.FULL_TAGS);
+    w.gainTags(RADIO.FULL_TAGS, true); w.flyTags(x, y, RADIO.FULL_TAGS);   // nobody's shot: split in co-op
     emit('coins', { amount: RADIO.FULL_TAGS, reason: 'radio full' });
     if (!quiet) addText('radio full +' + RADIO.FULL_TAGS + ' tags', x, y, BLUE, 20);
     return false;
