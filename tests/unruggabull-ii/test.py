@@ -10,7 +10,14 @@ ROOT = Path(__file__).resolve().parents[2]
 URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/') + '/unruggabull-ii/'
 source = (ROOT / 'site/unruggabull-ii/game.js').read_text()
 assert source.count('  start();') == 1, 'game.js needs exactly one "  start();" line for the test bridge'
-source = source.replace('  start();', "  window.unrugTest = function (code) { return eval(code); };\n  start();")
+# The bridge evaluates a case inside game.js, with Floor 13's names (any the core doesn't have itself) in scope too,
+# so cases can reach the floor's functions by name as they did before the floor had its own script.
+BRIDGE = """  window.unrugTest = function (code) {
+    const own = Object.keys(floor).filter(k => { try { eval(k); return false; } catch (e) { return true; } });
+    return eval((own.length ? 'var { ' + own.join(', ') + ' } = floor;\\n' : '') + code);
+  };
+"""
+source = source.replace('  start();', BRIDGE + '  start();')
 
 
 def open_page(browser, **ctx):
