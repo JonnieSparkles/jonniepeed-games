@@ -4,8 +4,8 @@
 // Classic script; load before game.js. game.js calls StickArmySky(world) once with the same world object it gives
 // units.js, after units.js. Balloons, dive bombers, helicopters and heavy bombers are enemies and live in S.planes,
 // so the turret, rockets, flak, the sentry and fighter cover all treat them as aircraft. The Red Cross plane
-// (S.medevac) is neutral: only your own turret's shots touch it. HQ's supply planes and crates (S.hq, S.crates) are
-// yours, and no shot touches them.
+// (S.medevac) is neutral: only your own turret's shots touch it. HQ's supply planes (S.hq) are yours, and likewise
+// only your turret's shots touch them; their crates (S.crates) nothing touches.
 var StickArmySky = function (w) {
   'use strict';
   var W = w.W, GROUND = w.GROUND, BK = w.BK, TUR = w.TUR;
@@ -27,9 +27,12 @@ var StickArmySky = function (w) {
   // else, its bomb falls where it is: on the enemy, or on your crew.
   var BALLOON = { WAVE: 4, SPEED: 17, Y: [150, 230], DROP_Y: 410, HW: 13, HH: 24 };
   // HQ's supply plane: a blue transport flies low across the page (Y, SPEED) and drops a crate on a blue chute beside
-  // the bunker. Nothing can shoot it or the crate. Once it lands, the nearest free soldier runs out and fetches it
+  // the bunker. Nothing can shoot the crate. Once it lands, the nearest free soldier runs out and fetches it
   // (errand, collect); with no squad it's collected where it lands. Inside: dog tags, a wall patch or a radio call.
-  var CRATE = { WAVE: 8, Y: 250, SPEED: 150, FALL: 85, TAGS: 35, WALL: 25 };
+  // The plane itself your turret can hit (round 19: "you should be able to accidentally shoot those down ... and they
+  // should have a good bonus for letting that happen"): one hit (HW, HH) and it goes down, with its crate if it
+  // hadn't dropped it, and your combo. One that gets across untouched pays SAFE points a wave ("safe delivery!").
+  var CRATE = { WAVE: 8, Y: 250, SPEED: 150, FALL: 85, TAGS: 35, WALL: 25, HW: 36, HH: 14, SAFE: 100, DOWN: 260 };
   // A dive bomber comes in level at Y (124 since round 14, below the page's top rule; it was 112), marking its target
   // on the ground with a red crosshair, tips over at ANGLE below level with a howl, lets its heavy bomb go at RELEASE_Y
   // so it carries on to the target, then pulls out and climbs away. Three hits down it. Round 14: it lets go at 320 (it was 392), as the sixth playtest couldn't tell whether
@@ -229,15 +232,38 @@ var StickArmySky = function (w) {
   function updateHQ(dt) {
     var S = w.S;
     S.hq.forEach(function (h) {
+      if (h.hit) {
+        // Going down: it falls away smoking and breaks up on the ground.
+        h.x += h.dir * CRATE.SPEED * 0.6 * dt; h.vy = (h.vy || 0) + CRATE.DOWN * dt; h.y += h.vy * dt; h.rot = (h.rot || 0) + h.dir * 1.2 * dt;
+        if ((h.smoke = (h.smoke || 0) - dt) <= 0) { h.smoke = 0.06; w.puff(h.x, h.y, 4, 0.7); }
+        if (h.y >= GROUND - 10) { h.gone = true; w.pow(h.x, GROUND - 10, 34); w.burst(h.x, GROUND - 8, 10, INK, 160); w.puff(h.x, GROUND - 12, 8, 1); w.sound.play('boom'); }
+        return;
+      }
       h.x += h.dir * CRATE.SPEED * dt;
       if (!h.dropped && (h.x - h.dropX) * h.dir >= 0) {
         h.dropped = true;
         S.crates.push({ id: w.id(), x: clamp(h.x, 20, W - 20), y: h.y + 18, state: 'chute', kind: h.kind, call: h.call, vx: h.dir * 30, open: 0, wait: 0, dead: false });
         if (!S.crateTold) { S.crateTold = true; addText('supplies from HQ!', h.x, h.y + 46, BLUE, 20); }
       }
-      if (h.x < -90 || h.x > W + 90) h.gone = true;
+      if (h.x < -90 || h.x > W + 90) { h.gone = true; safeDelivery(h); }
     });
     S.hq = S.hq.filter(function (h) { return !h.gone; });
+  }
+  function safeDelivery(h) {
+    var S = w.S, x = clamp(h.x, 50, W - 50), pts = CRATE.SAFE * S.wave;
+    S.score += pts; S.stats.hqSafe++;
+    addText('safe delivery! +' + pts.toLocaleString('en-US'), x, h.y + 30, BLUE, 22);
+    emit('hq_safe', { pts: pts });
+  }
+  // Your turret's round brings it down: no bonus, the crate too if it hadn't let it go, and your combo.
+  function hurtHQ(h) {
+    var S = w.S, had = S.combo >= 2, lost = !h.dropped;
+    h.hit = true; h.dropped = true; h.vy = 0; S.stats.hqHit++; S.combo = 0; S.comboT = 0;
+    addText(lost ? 'friendly fire! supplies lost' : 'friendly fire!', clamp(h.x, 90, W - 90), h.y + 36, RED, 24);
+    if (had) addText('combo lost', clamp(h.x, 90, W - 90), h.y + 62, RED, 18);
+    w.burst(h.x, h.y, 8, RED, 130);
+    emit('hq_hit', { lost: lost });
+    w.sound.play('wrong');
   }
   // A landed crate, and the soldier who'll fetch it: the nearest one standing, preferring anyone not on the wall.
   function errand(live) {
@@ -534,6 +560,11 @@ var StickArmySky = function (w) {
       var m = S.medevac[i];
       if (!m.hit && w.inView(m) && Math.abs(b.x - m.x) < MEDEVAC.HW && Math.abs(b.y - m.y) < MEDEVAC.HH) { hurtMedevac(m); b.dead = true; return true; }
     }
+    // HQ's supply plane, the same way.
+    for (i = 0; i < S.hq.length; i++) {
+      var h = S.hq[i];
+      if (!h.hit && w.inView(h) && Math.abs(b.x - h.x) < CRATE.HW && Math.abs(b.y - h.y) < CRATE.HH) { hurtHQ(h); b.dead = true; return true; }
+    }
     return false;
   }
   function update(dt) {
@@ -697,7 +728,7 @@ var StickArmySky = function (w) {
   // HQ's supply plane: the friendly blue transport, low over the page, a crate under its belly until the drop.
   function drawHQ(h) {
     var G = w.G;
-    pen(h.id); G.save(); G.translate(h.x, h.y); G.scale(-h.dir * 0.8, 0.8);
+    pen(h.id); G.save(); G.translate(h.x, h.y); if (h.rot) G.rotate(h.rot); G.scale(-h.dir * 0.8, 0.8);
     G.beginPath(); SP(w.BOMBER_PTS, true, 0.6); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.14)'; G.fill(); ink(INK, 2.8); G.stroke();
     G.beginPath(); L(-16, 4, 22, 6); ink(INK, 3.6); G.stroke();
     G.beginPath(); G.arc(18, -3, 5, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();

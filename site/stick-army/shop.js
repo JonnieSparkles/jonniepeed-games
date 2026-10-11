@@ -97,9 +97,19 @@ var StickArmyShop = function (w) {
       apply: function (s) { s.mods.hired++; var r = w.makeRecruit(w.freeSlot(0), h[0]); r.fresh = true; s.recruits.push(r); } });
   });
   function price(item) { return typeof item.cost === 'function' ? item.cost() : item.flat ? item.cost : fives(item.cost * war(WAR.SUPPLY)); }
-  function eligible(item, by) { return (stacksOf(item, by)[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
-  // On offer if either barrel can still take it (a turret upgrade in co-op), or the team can.
-  function offerable(item) { return own(item) ? w.S.turrets.some(function (t, i) { return eligible(item, i); }) : eligible(item); }
+  // The kit: every lasting supply (not the pizza, patches, radio calls or hires), each stack one piece. Veteran's holds
+  // KIT pieces (game.js LEVELS; round 19, "I think it is that stuff stacks"): once it's full, what's left on offer is
+  // greyed "Kit full", so buying is building. In co-op a player's kit is the team's supplies and their own barrel's.
+  function isKit(it) { return it.tier === 'supply' && it.maxStacks !== Infinity; }
+  function kitCount(by) {
+    return ITEMS.reduce(function (n, it) { return n + (isKit(it) ? stacksOf(it, by)[it.id] || 0 : 0); }, 0);
+  }
+  function kitFull(it, by) { return isKit(it) && kitCount(by) >= w.lv().KIT; }
+  function canStack(item, by) { return (stacksOf(item, by)[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
+  function eligible(item, by) { return canStack(item, by) && !kitFull(item, by); }
+  // On offer if either barrel can still take it (a turret upgrade in co-op), or the team can. A full kit doesn't take
+  // it off the table: it shows, greyed.
+  function offerable(item) { return own(item) ? w.S.turrets.some(function (t, i) { return canStack(item, i); }) : canStack(item); }
   // Offers walk a seeded shuffle of every supply and take the first eligible ones, so for a given seed
   // the offers change only when eligibility does.
   var OFFERS = 3;
@@ -117,6 +127,8 @@ var StickArmyShop = function (w) {
     // Three rotating supplies from one pool (one of them free), both radio calls from wave 3, pizza always,
     // and every role for hire.
     var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gift = Math.floor(w.RS() * Math.max(1, items.length));
+    // The gift goes to something that can be taken, if a full kit greys the one it fell on.
+    if (items.length && kitFull(items[gift])) { var open = items.findIndex(function (it) { return !kitFull(it); }); if (open >= 0) gift = open; }
     var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
       gift: items.length ? items[gift].id : null, giftTaken: false, bought: {}, base: snapshot(S), log: [] };
@@ -220,6 +232,7 @@ var StickArmyShop = function (w) {
     function costLabel(it) {
       if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
       if (it.blocked && it.blocked() && !S.shop.bought[slot(it)]) return it.blocked();
+      if (!S.shop.bought[slot(it)] && kitFull(it)) return 'Kit full';
       if (comrades(it)) return 'Chosen by your comrade';
       if (it.tier !== 'hire' && S.shop.bought[slot(it)]) return 'Packed ✓';
       if (onHouse(it)) return 'Free!';
@@ -257,7 +270,8 @@ var StickArmyShop = function (w) {
     document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
     var up = Math.round((war(WAR.SUPPLY) - 1) * 100), vet = markup() > 1;
     document.getElementById('supplyNote').textContent = 'Dog tags come from kills, planes and cleared waves.' +
-      (vet ? ' Veteran prices: up ' + up + '%.' : up >= 10 ? ' Supplies are running short: prices are up ' + up + '%.' : '');
+      (vet ? ' Veteran prices: up ' + up + '%.' : up >= 10 ? ' Supplies are running short: prices are up ' + up + '%.' : '') +
+      (w.lv().KIT < Infinity ? ' Your kit holds ' + w.lv().KIT + '.' : '');
     // Every role is always listed, so the list never changes shape; what you can't hire is greyed.
     document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), S.shop.hire.map(function (it) { return itemButton(it, 'hire', false); }));
     // Who you hired this visit: tap one to send him back and get the tags back.
@@ -349,10 +363,12 @@ var StickArmyShop = function (w) {
       if (!named && n > 1) { var count = document.createElement('b'); count.setAttribute('aria-hidden', 'true'); count.textContent = '×' + n; chip.append(count); }
       holder.append(chip);
     });
+    // On Veteran, how full the kit is.
+    if (w.lv().KIT < Infinity) { var room = document.createElement('span'); room.className = 'kit-room'; room.textContent = kitCount() + ' of ' + w.lv().KIT; holder.append(room); }
     return items.length;
   }
 
-  return { ITEMS: ITEMS, WAR: WAR, war: war, price: price, eligible: eligible, own: own,
+  return { ITEMS: ITEMS, WAR: WAR, war: war, price: price, eligible: eligible, own: own, kitCount: kitCount, kitFull: kitFull,
     bought: function (it, by) { return !!(w.S.shop && w.S.shop.bought[slot(it, by)]); }, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
     openShop: openShop, takeItem: takeItem, putBack: putBack, undo: undo, renderShop: renderShop, continueWave: continueWave,
     updateDelivery: updateDelivery, drawCourier: drawCourier, kitItems: kitItems, renderKit: renderKit };

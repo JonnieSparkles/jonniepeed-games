@@ -70,8 +70,11 @@
   for (var f = 0; f < 600 && !S.crates.length; f++) update(1 / 60);
   var c = S.crates[0];
   check(c && c.state === 'chute' && Math.abs(c.x - BK.x) > 40 && c.kind === 'tags', 'it drops a crate beside the bunker');
-  b = playerShot(c.x, c.y - 18); hitTest(b); var b2 = playerShot(hq.x, hq.y); hitTest(b2);
-  check(!b.dead && !b2.dead && c.state === 'chute', 'shots pass them by');
+  b = playerShot(c.x, c.y + 6); hitTest(b); var b3 = allyShot(hq.x, hq.y); hitTest(b3);
+  check(!b.dead && !b3.dead && c.state === 'chute', 'shots pass the crate by, and the crew\'s pass the plane');
+  // Round 19: your own turret can bring the plane down; the crate it already dropped is safe.
+  var b2 = playerShot(hq.x, hq.y); hitTest(b2);
+  check(b2.dead && hq.hit && S.stats.hqHit === 1 && c.state === 'chute', 'your turret can hit the plane');
   render();
   var fetcher = makeRecruit(c.x < BK.x ? 0 : 4, 'rifle'), tags = S.coins; S.recruits = [fetcher];
   for (f = 0; f < 900 && S.crates.length; f++) { update(1 / 60); if (fetcher.role === 'fetch') var ran = true; }

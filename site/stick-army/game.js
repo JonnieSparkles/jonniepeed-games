@@ -24,12 +24,14 @@
   // Soldier is the campaign as it is. Veteran (docs/games/stick-army/veteran.md) goes after stacking upgrades: a
   // markup on everything in the shop climbing to PRICE by wave FROM (shop.js markup), PLANES and ARMOR from FROM (waveCfg), a Dreadnought with DREAD times
   // the health (campaign.js) and SMOKE times the smoke screen's linger (sky.js), and spread shot's side bullets only
-  // grazing it, for GRAZE of the damage (hitTest), so it pays to aim the middle one. Scoring is the same on both; each has its own board and records (KEYS). A run's level is
-  // S.level, from the title's pick (level), which the device remembers.
+  // grazing it, for GRAZE of the damage (hitTest), so it pays to aim the middle one. Round 19 ("I didn't really even
+  // notice any difference ... it is that stuff stacks"): a kit that holds KIT pieces (shop.js), so late in
+  // the war buying is choosing what to build, not taking everything. Scoring is the same on both; each has its own board and records
+  // (KEYS). A run's level is S.level, from the title's pick (level), which the device remembers.
   var LEVELS = {
-    soldier: { NAME: 'Soldier', BOARD: BOARD, PRICE: 1, FROM: Infinity, PLANES: 1, ARMOR: 0, DREAD: 1, SMOKE: 1, GRAZE: 1,
+    soldier: { NAME: 'Soldier', BOARD: BOARD, PRICE: 1, FROM: Infinity, PLANES: 1, ARMOR: 0, DREAD: 1, SMOKE: 1, GRAZE: 1, KIT: Infinity,
       KEYS: { best: 'stickarmy.best.3', wins: 'stickarmy.wins', wave: 'stickarmy.bestWave' } },
-    veteran: { NAME: 'Veteran', BOARD: VETERAN_BOARD, PRICE: 1.33, FROM: 10, PLANES: 1.2, ARMOR: 0.15, DREAD: 1, SMOKE: 1.5, GRAZE: 0.75,
+    veteran: { NAME: 'Veteran', BOARD: VETERAN_BOARD, PRICE: 1.33, FROM: 10, PLANES: 1.2, ARMOR: 0.15, DREAD: 1, SMOKE: 1.5, GRAZE: 0.75, KIT: 30,
       KEYS: { best: 'stickarmy.veteran.best', wins: 'stickarmy.veteran.wins', wave: 'stickarmy.veteran.bestWave' } }
   };
   var level = 'soldier';
@@ -56,6 +58,10 @@
   // wave 17, but a tank takes about 13 s to drive in, so the last pair still arrived after the planes, at about 31 s.
   // They were 7 s, then 8-12 s; now they all roll out in the first half of the wave and arrive with the rush.
   var ROAD = { FIRST: 4, GAP: [5, 7] };
+  // Cargo planes likewise: the first FIRST seconds in, then every GAP (times the pace). Round 19: at 6 s and every
+  // 10-15 s the last one dropped its tank about 30 s into wave 18 or 19, after the planes were done, and it trickled
+  // in at the end.
+  var CARGO = { FIRST: 5, GAP: [6, 9] };
   // Nothing of consequence flies above the page's top rule (SKY_TOP, y 100), where the score and tags are written
   // (round 14: "nothing 'of consequence' flies above that line. ambient things are no problem"). The high lanes keep a
   // plane's fin and a bomber's tail below it (they started at 98 and 104; cargo planes, heavy bombers, the zeppelins,
@@ -317,7 +323,7 @@
   // A co-op player's own tally: the points their barrel earned (its rounds, the chutes it popped that were caught,
   // its own combo), and its planes, catches and Red Cross hits for the end card. Points nobody fired for (the squad,
   // air strikes, wave bonuses) go to the team score only. `gunner` is the barrel whose round is being resolved.
-  function makePlayer() { return { score: 0, combo: 0, comboT: 0, planes: 0, captured: 0, redCross: 0, kills: 0 }; }
+  function makePlayer() { return { score: 0, combo: 0, comboT: 0, planes: 0, captured: 0, redCross: 0, hq: 0, kills: 0 }; }
   var gunner = null;
   function scorer() { return S.players && gunner != null ? S.players[gunner] || null : null; }
   function playerEvent(type, data) {
@@ -327,6 +333,7 @@
     else if (type === 'kill' && data.by === 'player') p.kills++;
     else if (type === 'capture') p.captured++;
     else if (type === 'redcross_hit') { p.redCross++; p.combo = 0; p.comboT = 0; p.score = Math.max(0, p.score - (data.pts || 0)); }
+    else if (type === 'hq_hit') { p.hq++; p.combo = 0; p.comboT = 0; }
   }
   function gun() { return S.turrets[me] || S.turrets[0]; }
 
@@ -342,7 +349,7 @@
       bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
-      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0 },
+      stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0, hqSafe: 0, hqHit: 0 },
       hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false, redCrossPaid: false,
       matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level,
       // Co-op: each player's own points, combo and counts (coop.md); null in solo.
@@ -680,7 +687,7 @@
     var c = waveCfg(n);
     // pace: the gaps between rushes, cargo planes, road tanks and the sky's arrivals shrink with the plane interval,
     // so late waves arrive together and build to a peak instead of trickling in after the planes are done.
-    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: 6, road: c.road, roadT: ROAD.FIRST,
+    S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: CARGO.FIRST, road: c.road, roadT: ROAD.FIRST,
       pace: wavePace(c), escort: substream(RW), escortT: ZEP.ESCORT_EVERY };
     SKY.start(S.spawn, c);
     S.waveState = 'active';
@@ -762,7 +769,7 @@
         if (sp.escortT <= 0) { spawnPlane('plane', sp.escort); sp.escortT = ZEP.ESCORT_EVERY * between(sp.escort, 0.8, 1.2); }
       }
       if (sp.rushes > 0) { sp.rushT -= dt; if (sp.rushT <= 0) { sp.rushes--; spawnRush(); sp.rushT = between(RW, 9, 14) * sp.pace; } }
-      if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, 10, 15) * sp.pace; } }
+      if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, CARGO.GAP[0], CARGO.GAP[1]) * sp.pace; } }
       if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, ROAD.GAP[0], ROAD.GAP[1]) * sp.pace; } }
       SKY.tick(sp, dt);
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
@@ -2390,7 +2397,9 @@
     drawRadio();
     if (S.mode === 'dying' || S.mode === 'over') { drawRubble(); if (S.mods.flag) drawFallenFlag(); }
     else {
-      if (S.mods.flag) sketchReveal(S.waveState === 'flag' ? clamp(S.flagT / FLAG.SKETCH, 0, 1) : 1, [FLAG.X - FLAG.W - 6, GROUND - FLAG.TALL - 8, FLAG.X + 6, GROUND], 'up', drawFlagpole);
+      // Bought but not yet raised, it isn't there at all until its scene sketches it in (round 19: it showed finished
+      // under the wave banner, vanished, then was drawn).
+      if (S.mods.flag && (S.waveState === 'flag' || S.flagUp >= 1)) sketchReveal(S.waveState === 'flag' ? clamp(S.flagT / FLAG.SKETCH, 0, 1) : 1, [FLAG.X - FLAG.W - 6, GROUND - FLAG.TALL - 8, FLAG.X + 6, GROUND], 'up', drawFlagpole);
       sketched('auto', [SENTRY.x - 12, SENTRY.y - 16, SENTRY.x + 14, GROUND], 'up', drawSentry);
       drawBunker(); drawDefenses();
       sketched('hospital', [SQUAD.TENT.x - SQUAD.TENT.hw, GROUND - SQUAD.TENT.h - 10, SQUAD.TENT.x + SQUAD.TENT.hw, GROUND], 'up', drawTent);
@@ -2586,6 +2595,10 @@
     dd.hidden = document.getElementById(prefix + 'RedLabel').hidden = !rc.flew;
     bonus.textContent = 'Red Cross: all safe! +' + SKY.MEDEVAC.PERFECT.toLocaleString('en-US');
     bonus.hidden = !rc.perfect;
+    // HQ's supply planes the same way: "4 of 5" got across.
+    var hq = document.getElementById(prefix + 'Hq'), flew = S.stats.hqSafe + S.stats.hqHit;
+    hq.textContent = S.stats.hqSafe + ' of ' + flew;
+    hq.hidden = document.getElementById(prefix + 'HqLabel').hidden = !flew;
   }
   world.showRedCross = showRedCross;
   function showOver() {

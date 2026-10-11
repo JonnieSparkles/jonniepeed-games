@@ -78,6 +78,8 @@
         calls: { bomber: S.calls.bomber, fighter: S.calls.fighter }, strikeActive: !!S.strike, fighterActive: !!S.fighter, spread: !!gmods.spread,
         // The Red Cross plane (sky.js), not to be hit.
         medevac: S.medevac.filter(function (m) { return !m.hit; }).map(function (m) { return { x: m.x, y: m.y, vx: m.dir * m.speed, hw: SKY.MEDEVAC.HW, hh: SKY.MEDEVAC.HH }; })
+          // HQ's supply planes, also not to be hit (round 19), in the same list so the bot holds fire for both.
+          .concat(S.hq.filter(function (h) { return !h.hit; }).map(function (h) { return { x: h.x, y: h.y, vx: h.dir * SKY.CRATE.SPEED, hw: SKY.CRATE.HW, hh: SKY.CRATE.HH }; }))
       };
       S.troopers.forEach(function (t) {
         if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy });

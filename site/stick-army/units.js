@@ -361,7 +361,10 @@ var StickArmyUnits = function (w) {
   // fires bursts at the nearest soldier in front of it within MG_RANGE. From PAIR, tanks by road come two at a time,
   // one behind the other (PAIR_GAP); from ESCORT, half of them come with infantry walking ahead of them (ESCORT_SIZE,
   // at ESCORT_SPEED, a little quicker than the tanks): a tank raid. A tank stops behind another in its way.
-  var TANK = { WAVE: 9, ROAD_WAVE: 11, PAIR: 13, ESCORT: 12, HW: 27, HH: 13, SPEED: 13, STOP: 70, FALL: 70, SHELL_EVERY: 3.2, SHELL_DAMAGE: 12, BULLET: 0.1,
+  // Round 19 ("the tanks still seem to come in, like trickle in at the end"): late waves send up to ten tanks at two
+  // stopping places, so most waited off the page in a queue and crawled in one at a time as the ones in front went
+  // down. Off the page a tank now drives in ROLL_IN times as fast, and road tanks take the side with fewer coming.
+  var TANK = { WAVE: 9, ROAD_WAVE: 11, PAIR: 13, ESCORT: 12, HW: 27, HH: 13, SPEED: 13, ROLL_IN: 3, STOP: 70, FALL: 70, SHELL_EVERY: 3.2, SHELL_DAMAGE: 12, BULLET: 0.1,
     MG_EVERY: 2.6, MG_RANGE: 200, MG_BURST: 3, MG_GAP: 0.12, MG_SHOT: 280, MG_HURT: 0.4, PAIR_GAP: 74, ESCORT_SIZE: [3, 5], ESCORT_SPEED: 20,
     BLAST: { rocket: 4, mine: 6, crash: 6, strike: 14 } };
   function tankHP(n) { return Math.round(10 + 0.8 * n); }
@@ -388,6 +391,9 @@ var StickArmyUnits = function (w) {
   // A tank by road rolls in from one edge of the page and stops, like a dropped one, within the barrel's dip.
   function spawnRoadTank() {
     var S = w.S, rnd = substream(w.RW), side = rnd() < 0.5 ? -1 : 1, hp = tankHP(S.wave);
+    // The side with fewer tanks coming (from the left, they drive right), so both stopping places fill.
+    var fromLeft = S.tanks.filter(function (t) { return !t.dead && t.dir > 0; }).length, fromRight = S.tanks.filter(function (t) { return !t.dead && t.dir < 0; }).length;
+    if (fromLeft !== fromRight) side = fromLeft < fromRight ? -1 : 1;
     var n = S.wave >= TANK.PAIR ? 2 : 1, escort = S.wave >= TANK.ESCORT && rnd() < 0.5, edge = side < 0 ? -TANK.HW - 10 : W + TANK.HW + 10;
     for (var i = 0; i < n; i++) {
       S.tanks.push({ id: w.id(), x: edge + side * i * TANK.PAIR_GAP, y: GROUND - 1 - TANK.HH, state: 'roll', road: true, dir: -side, hp: hp, maxHp: hp,
@@ -449,7 +455,10 @@ var StickArmyUnits = function (w) {
       var front = tk.x + tk.dir * TANK.HW, blocker = S.recruits.find(function (r) { return !r.dead && (r.x - front) * tk.dir > -4 && (r.x - front) * tk.dir < 6; });
       var ahead = S.tanks.some(function (o) { return o !== tk && !o.dead && o.state !== 'chute' && o.dir === tk.dir && (o.x - tk.x) * tk.dir > 0 && (o.x - tk.x) * tk.dir < 2 * TANK.HW + 8; });
       if (blocker) hurtRecruit(blocker, 2.5 * dt, 'tank');
-      else if (!ahead && (stopX - tk.x) * tk.dir > 0) { tk.x += tk.dir * Math.min(TANK.SPEED * (S.mods.wire ? 0.5 : 1) * dt, Math.abs(stopX - tk.x)); tk.tread += dt * 8; }
+      else if (!ahead && (stopX - tk.x) * tk.dir > 0) {
+        var off = tk.x < TANK.HW || tk.x > W - TANK.HW;
+        tk.x += tk.dir * Math.min(TANK.SPEED * (off ? TANK.ROLL_IN : S.mods.wire ? 0.5 : 1) * dt, Math.abs(stopX - tk.x)); tk.tread += dt * 8;
+      }
       // Tanks shell on the move as well as parked; a crew member in the way keeps the crew busy instead.
       if (!blocker && tk.x > 0 && tk.x < W) { tk.shellT -= dt; if (tk.shellT <= 0) { tk.shellT = TANK.SHELL_EVERY; fireShell(tk); } }
       if (tk.x > 0 && tk.x < W) machineGun(tk, dt);
