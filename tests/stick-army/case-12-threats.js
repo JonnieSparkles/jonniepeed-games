@@ -43,7 +43,7 @@
   check(!near.dead, 'but they are smaller than bombs');
 
   // The dipped barrel reaches a parked tank; bullets chip it, rockets hit hard, and it pays out when destroyed.
-  var hp = tk.hp; S.bullets = []; S.fireCD = 0; S.heat = 0;
+  var hp = tk.hp; S.bullets = []; S.turrets[0].fireCD = 0; S.turrets[0].heat = 0;
   aimAt({ x: tk.x + tk.dir * -20, y: tk.y }); shoot();
   for (i = 0; i < 120 && S.bullets.length; i++) updateBullets(1 / 60);
   check(tk.hp < hp && Math.abs(hp - tk.hp - TANK.BULLET) < 1e-9 && TANK.BULLET < 0.5, 'a fully dipped shot reaches the parked tank, and only chips it');

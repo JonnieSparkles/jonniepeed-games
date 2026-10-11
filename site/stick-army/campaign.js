@@ -1256,7 +1256,9 @@ var StickArmyCampaign = function (w) {
     var S = w.S;
     S.mode = 'won'; S.won = true; S.wonAt = S.wave;
     w.showRedCross('win');
-    var keys = w.lv().KEYS, wins = w.load(keys.wins, 0) + 1; w.save(keys.wins, wins);
+    // A co-op win (S.players) isn't counted in this device's wins (coop.md).
+    var keys = w.lv().KEYS, wins = w.load(keys.wins, 0) + 1;
+    if (!S.players) w.save(keys.wins, wins);
     w.saveBestWave(S.wave);
     var isBest = w.saveBest();
     document.getElementById('winScore').textContent = S.score.toLocaleString('en-US');
@@ -1269,7 +1271,7 @@ var StickArmyCampaign = function (w) {
     document.getElementById('winShots').textContent = S.stats.shots.toLocaleString('en-US');
     var vet = S.level === 'veteran';
     document.getElementById('winLevel').hidden = !vet;
-    document.getElementById('winCount').textContent = wins === 1 ? 'Your first ' + (vet ? 'Veteran ' : '') + 'win.' : (vet ? 'Veteran win number ' : 'Win number ') + wins + '.';
+    document.getElementById('winCount').textContent = S.players ? 'A win together.' : wins === 1 ? 'Your first ' + (vet ? 'Veteran ' : '') + 'win.' : (vet ? 'Veteran win number ' : 'Win number ') + wins + '.';
     var list = document.getElementById('winRoll'), roll = rollCall();
     list.replaceChildren.apply(list, roll.map(function (q) {
       var li = document.createElement('li'); li.textContent = q.text;

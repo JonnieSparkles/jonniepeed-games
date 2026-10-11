@@ -29,7 +29,7 @@ window.__balanceDriver = (function () {
 
   return {
     begin: function (c) {
-      cfg = c; B = window.__balance; B.start(c.seed, c.options || {});
+      cfg = c; B = window.__balance; B.start(c.seed, c.options || {}, c.profile);   // the profile: for a second bot (Stick Army co-op)
       bot = window.__balanceBot(c.profile, c.seed);
       buf = []; steps = 0; shopVisits = 0;
       rec = { seed: c.seed, skill: c.skill, waves: {}, offers: [], purchases: [], end: null };

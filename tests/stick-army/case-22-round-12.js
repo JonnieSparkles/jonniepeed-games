@@ -97,7 +97,7 @@
   render();
   var box = cv.getBoundingClientRect(), c0 = chips[0], kx = box.width / W, ky = box.height / H;
   cv.dispatchEvent(new PointerEvent('pointerdown', { clientX: box.left + (c0.x + 10) * kx, clientY: box.top + (c0.y + 10) * ky, pointerId: 7, bubbles: true }));
-  check(S.calls.bomber === 0 && S.strike && !S.firing, 'clicking the chip calls the strike, not the trigger');
+  check(S.calls.bomber === 0 && S.strike && !S.turrets[0].firing, 'clicking the chip calls the strike, not the trigger');
   check(callChips().length === 1 && callChips()[0].kind === 'fighter', 'the spent call leaves the HUD');
   S.calls = { bomber: 0, fighter: 0 }; check(!callChips().length, 'an empty radio shows nothing');
   render();

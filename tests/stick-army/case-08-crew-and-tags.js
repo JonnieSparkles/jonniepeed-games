@@ -29,13 +29,13 @@
   check(!tough.dead && !tough.down, 'dug in with helmets, a recruit survives a direct hit on his feet');
 
   // With no crew, a sniper's shot jolts the turret's heat and chips the wall.
-  newGame(); S.recruits = []; S.heat = 0;
+  newGame(); S.recruits = []; S.turrets[0].heat = 0;
   spawnTrooper(18, GROUND - 33); var sn = S.troopers[0]; sn.type = 'sniper'; land(sn); sn.shotCD = 0;
   var wall = S.wallHP;
   for (var i = 0; i < 240; i++) { updateTroopers(1 / 120); updateEnemyShots(1 / 120); }
-  check(S.wallHP < wall && S.heat > 0, 'sniper hits the turret');
-  newGame(); S.heat = 0.9; sniperHitsTurret();
-  check(S.overheat > 0, 'a sniper hit can tip a hot gun into overheating');
+  check(S.wallHP < wall && S.turrets[0].heat > 0, 'sniper hits the turret');
+  newGame(); S.turrets[0].heat = 0.9; sniperHitsTurret();
+  check(S.turrets[0].overheat > 0, 'a sniper hit can tip a hot gun into overheating');
 
   // Flak bursts near planes and bombs, not paratroopers.
   newGame(); S.mods.flak = true;

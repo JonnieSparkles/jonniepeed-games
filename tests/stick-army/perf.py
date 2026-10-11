@@ -26,7 +26,7 @@ source = source.replace('  function loop(now) {', '''  var perfSample = { enable
     if (perfSample.enabled) {
       if (perfSample.last) perfSample.raf.push(now - perfSample.last);
       perfSample.last = now;
-      S.wallHP = S.mods.maxHP; S.aim = -Math.PI / 2 + Math.sin(S.t * 1.1) * 1.0; S.firing = true;
+      S.wallHP = S.mods.maxHP; S.turrets[0].aim = -Math.PI / 2 + Math.sin(S.t * 1.1) * 1.0; S.turrets[0].firing = true;
     }''')
 source = source.replace('    requestAnimationFrame(loop);\n  }\n\n  function start', '''    if (perfSample.enabled) {
       perfSample.cpu.push(performance.now() - frameStart);

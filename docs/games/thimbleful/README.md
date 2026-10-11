@@ -1,6 +1,6 @@
 # Thimbleful
 
-A tiny explorer on a windowsill catches drips from a leaky watering can in her thimble, and every drop grows her sunflower. The game is at `site/thimbleful/index.html`. It has no build spec: it predates `specs/`, so its history is in git and in this doc. The folder layout follows [SPEC-003](../../../specs/SPEC-003-repo-layout.md).
+A tiny explorer on a windowsill catches drips from a leaky watering can in her thimble, and every drop grows her sunflower. The game is at `site/thimbleful/index.html`, with a card on the Side A shelf. It has no build spec: it predates `specs/`, so its history is in git and in this doc. The folder layout follows [SPEC-003](../../../specs/SPEC-003-repo-layout.md).
 
 ## How it started
 

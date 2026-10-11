@@ -37,11 +37,11 @@
   render(); run(0.3); render();
 
   // The gun heats the same on every wave, so cooling fins always pay off.
-  RUN.force = 83; newGame(); startWave(4); S.heat = 0; S.fireCD = 0; fireVolley(); var early = S.heat;
-  startWave(19); S.heat = 0; S.fireCD = 0; fireVolley();
-  check(early > 0 && S.heat === early, 'the same heat late: ' + early + ' -> ' + S.heat);
-  S.mods.cool = 1; S.heat = 0; S.fireCD = 0; fireVolley();
-  check(S.heat < early, 'fins cool it');
+  RUN.force = 83; newGame(); startWave(4); S.turrets[0].heat = 0; S.turrets[0].fireCD = 0; fireVolley(); var early = S.turrets[0].heat;
+  startWave(19); S.turrets[0].heat = 0; S.turrets[0].fireCD = 0; fireVolley();
+  check(early > 0 && S.turrets[0].heat === early, 'the same heat late: ' + early + ' -> ' + S.turrets[0].heat);
+  S.mods.cool = 1; S.turrets[0].heat = 0; S.turrets[0].fireCD = 0; fireVolley();
+  check(S.turrets[0].heat < early, 'fins cool it');
 
   // Tanks: armored cargo planes, and a tank on its chutes shrugs off bullets.
   RUN.force = 84; newGame(); startWave(12); S.spawn.timer = S.spawn.cargoT = S.spawn.roadT = S.spawn.rushT = 99;
