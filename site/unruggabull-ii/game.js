@@ -65,6 +65,7 @@
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
     deflectCharge: 3,       // each deflect gives the blaster this many charges back
     stackHits: 3,           // moving day: blaster hits that blast a stack of boxes apart
+    reach: .9,              // the blaster's targets count from this far down the hall, once they're fully out of the dark
     // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
     // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
     // misses, for smash + smashPer × its bat-backs. Once a phase, a marathon rally of this many.
@@ -286,7 +287,7 @@
     if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); if (!R.fx.some(f => f.k === 'pop' && f.text === 'EMPTY')) popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
     bull.aimT = .22;
     let best = null, bz = Infinity;
-    const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < .97 && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
+    const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < TUNE.reach && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
     floor.aim(consider);
     for (const f of R.flies) consider(f, f, .3);
     // bolts leave the muzzle of the blaster he holds up beside his head
@@ -313,7 +314,7 @@
       }
       if (floor.shotHits(s)) continue;
       for (const f of R.flies) {
-        if (f.dead || Math.abs(s.u - f.u) > .11 || Math.abs(s.z - f.z) > .06) continue;
+        if (f.dead || f.z > TUNE.reach || Math.abs(s.u - f.u) > .11 || Math.abs(s.z - f.z) > .06) continue;
         s.dead = true; f.hp--; f.hit = .1; Snd.play('hit'); sparks(f.u, f.z, f.h);
         if (f.hp <= 0) killFly(f, 'shot');
         break;

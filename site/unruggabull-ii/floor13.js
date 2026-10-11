@@ -57,7 +57,7 @@ var UnrugFloor13 = function (core) {
   }
   const workerAt = c => ({ u: c.wk.s * (c.wk.kind === 'office' ? .97 : .8) + c.du, z: c.wk.w - R.dist + (c.wk.kind === 'office' ? .08 : 0), h: c.h });
   // in reach of the blaster: not too far down the hall, and still ahead of him
-  const workerLive = c => { if (c.dead) return false; const z = c.wk.w - R.dist; return z < .95 && z > bull.bz; };
+  const workerLive = c => { if (c.dead) return false; const z = c.wk.w - R.dist; return z < TUNE.reach && z > bull.bz; };
   // a light switch on the wall in lights out, about chest height
   const switchAt = sw => ({ u: sw.s * .9, z: sw.w - R.dist, h: .32 });
   // Where a target is, for aiming and hits. Temps live behind their station.
@@ -157,7 +157,7 @@ var UnrugFloor13 = function (core) {
       E.gap = E.gap < 2 ? 2 + Math.floor(rnd() * 2) : Math.floor(rnd() * 2);
       ob.gap = LANES[E.gap];
       LANES.forEach((u, i) => { if (i !== E.gap) R.boxes.push({ w: ob.w, u, hit: 0, tall: true, ob }); });
-    } else R.rows.push({ w: ob.w, kind, hit: 0, ob, v: kind === 'beam' ? 1e-6 : 0 });
+    } else R.rows.push({ w: ob.w, kind, hit: 0, ob, v: 1e-6 });   // left in the hall: they don't roll, so pieces never bunch up
     E.obs.push(ob);
   }
   function updateMove(E, dt) {
@@ -1182,7 +1182,7 @@ var UnrugFloor13 = function (core) {
       }
     }
     if (dk) for (const wk of R.workers) {
-      const z = wk.w - R.dist; if (z > 1.5 || z < ZN || wk.kind === 'office') continue;
+      const z = wk.w - R.dist; if (z > Math.min(1.5, shredderZ() - .01) || z < ZN || wk.kind === 'office') continue;
       for (const c of wk.carps) if (!c.dead) { const at = workerAt(c), x = PX(at.u, at.z), y = YH(at.z, at.h), e = Math.max(1, Math.round(2 * sc(at.z))), w = 26 * sc(at.z) * .8; rect(g, x - w * .25, y - 1, e, e, '#fff0aa'); rect(g, x + w * .17, y - 1, e, e, '#fff0aa'); }
     }
     if (dk) for (const f of R.flies) {
@@ -1238,7 +1238,7 @@ var UnrugFloor13 = function (core) {
     updatePhase(dt);
   }
   // How much of something far down the hall shows: scenery fades in from AHEAD, what you fight from the old far end.
-  const fadeFar = z => clamp((AHEAD - z) / 1, 0, 1), fadeIn = z => clamp((1.04 - z) / .24, 0, 1);
+  const fadeFar = z => clamp((AHEAD - z) / 1, 0, 1), fadeIn = z => clamp((1.04 - z) / (1.04 - TUNE.reach), 0, 1);
   const faded = (a, fn) => { if (a <= 0) return; if (a >= 1) { fn(); return; } g.save(); g.globalAlpha *= a; fn(); g.restore(); };
   // A carpshit at work at its desk (or cooler, or copier) against the wall, or the manager in its office.
   function drawWorker(wk, z) {
@@ -1295,10 +1295,11 @@ var UnrugFloor13 = function (core) {
     drawPaper();
     // Fixed things beside and above the aisle go down first, far to near, so nothing moving is ever cut by them.
     const back = [];
-    for (const d of R.decor) { const z = d.w - R.dist; if (z < AHEAD) back.push([z, () => faded(fadeFar(z), () => drawDecor(d, z))]); }
-    for (const wk of R.workers) { const z = wk.w - R.dist; if (z < AHEAD && z > ZN - .2) back.push([z, () => faded(fadeFar(z), () => drawWorker(wk, z))]); }
-    for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02) back.push([z, () => faded(fadeIn(z), () => drawCub(cb, z))]); }
-    for (const sg of R.signs) { const z = sg.w - R.dist; if (z < 1.02 && z > .05) back.push([z, () => drawSign(sg, z)]); }
+    const zS = shredderZ(), far = Math.min(AHEAD, zS - .01);   // nothing behind the Shredder shows
+    for (const d of R.decor) { const z = d.w - R.dist; if (z < far) back.push([z, () => faded(fadeFar(z), () => drawDecor(d, z))]); }
+    for (const wk of R.workers) { const z = wk.w - R.dist; if (z < far && z > ZN - .2) back.push([z, () => faded(fadeFar(z), () => drawWorker(wk, z))]); }
+    for (const cb of R.cubs) { const z = cubZ(cb); if (z < Math.min(1.02, far)) back.push([z, () => faded(fadeIn(z), () => drawCub(cb, z))]); }
+    for (const sg of R.signs) { const z = sg.w - R.dist; if (z < Math.min(1.02, far) && z > .05) back.push([z, () => drawSign(sg, z)]); }
     back.sort((a, b) => b[0] - a[0]);
     for (const e of back) e[1]();
     const list = [];
@@ -1346,7 +1347,7 @@ var UnrugFloor13 = function (core) {
   function shotHits(s) {
     for (const cb of R.cubs) {
       const tp = cb.temp; if (!tp || tp.dead || tp.pop < .4) continue;
-      const at = posOf(tp);
+      const at = posOf(tp); if (at.z > TUNE.reach) continue;
       if (Math.abs(s.u - at.u) < .09 && Math.abs(s.z - at.z) < .06) { s.dead = true; sparks(at.u, at.z, at.h); killTemp(tp, 'shot'); break; }
     }
     if (s.dead) return true;
