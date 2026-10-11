@@ -620,6 +620,8 @@
     const st = b.stag > 0 && R.phase !== 'win' ? b.stag / .3 : 0, kx = Math.round(Math.sin(st * 14) * 3 * st * s), ky = Math.round(st * 4 * s);
     const k = s * A.BULL_K;
     g.drawImage(p, Math.round((x - A.POSE_FEET.x * k * sx + kx) * PIC) / PIC, Math.round((feet - A.POSE_FEET.y * k * sy + ky) * PIC) / PIC, A.POSE_W * k * sx, A.POSE_H * k * sy);
+    // the katana's swoosh, in the glow layer so it reads in the dark: a short arc on the wind-up, the full sweep on the cut
+    if (b.slash >= 0 && !cheer) A.arcE(GLOW, x + kx, feet + ky - (b.crouch ? 14 : 20) * s, 26 * s, 11 * s, Math.PI + .2, b.slash < .07 ? Math.PI * 1.45 : Math.PI * 2 - .2);
   }
   // Rugged: the rug is yanked out from under him. He flips up, spins in quarter turns and falls off the screen.
   function drawRugPulled(s, x, feet) {
@@ -631,7 +633,7 @@
     g.restore();
   }
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
-  const FX_PASS = { wisp: 'glow', cut: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
+  const FX_PASS = { wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
   function drawFx(pass) {
     for (const f of R.fx) {
       if ((FX_PASS[f.k] || 'lit') !== pass) continue;
@@ -646,7 +648,6 @@
         g.restore();
       } else if (f.k === 'pop') otxt(g, f.text, f.x, Math.round(f.y), f.col, 1, 'center');
       else if (f.k === 'bit') rect(g, f.x, f.y, 2, 1, (Math.floor(f.t * 10) + f.vx) % 2 > 0 ? '#fff6e2' : '#b8b4a8');
-      else if (f.k === 'cut') { const a = 1 - f.t / f.dur; g.save(); g.globalAlpha = a; line(g, Math.round(f.x0), Math.round(f.y0), Math.round(f.x1), Math.round(f.y1), '#ffffff'); line(g, Math.round(f.x0) + 1, Math.round(f.y0), Math.round(f.x1) + 1, Math.round(f.y1), '#7fd4ff'); g.restore(); }
       else if (f.k === 'bolt') {
         // jagged, redrawn every frame, white core in blue
         let px = f.x0, py = f.y0; const n = 7;
@@ -696,6 +697,12 @@
       const big = B.text.length <= 6, tw = textWidth(B.text) * (big ? 2 : 1), y = 17;
       g.save(); g.globalAlpha = .8; rect(g, 120 - tw / 2 - 5, y - 3, tw + 10, big ? 16 : 11, '#0a0810'); g.restore();
       otxt(g, B.text, 120, y, B.col || '#ffd44a', big ? 2 : 1, 'center');
+    } else if (B && B.top) {
+      // the floor's opening: words over the ceiling, no band across the hall, fading out
+      g.save(); g.globalAlpha = Math.max(0, Math.min(1, B.t / .15, (B.dur - B.t) / .35));
+      otxt(g, B.text, 120, 16, B.col || '#ffd44a', 2, 'center');
+      if (B.sub) otxt(g, B.sub, 120, 30, '#fff6e2', 1, 'center');
+      g.restore();
     } else if (B) {
       const y = B.y || 58;
       g.save(); g.globalAlpha = .8; rect(g, 0, y - 4, W, B.sub ? 26 : 18, '#0a0810'); g.restore();
@@ -915,7 +922,8 @@
     statsStart();
     setState('play');
     card.hidden = true;
-    R.banner = { text: 'FLOOR 13', sub: 'ACCOUNTING', t: 0, dur: 2.2, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 2.2 } };
+    // up top and brief, so the hall itself is the reveal (the section's sign already hangs there, so no subtitle)
+    R.banner = { text: 'FLOOR 13', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
     live('Floor 13, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
     Snd.play('start'); Snd.music('tower');
     try { c.focus({ preventScroll: true }); } catch (e) {}

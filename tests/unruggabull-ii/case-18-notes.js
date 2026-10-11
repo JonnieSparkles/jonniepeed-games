@@ -1,5 +1,5 @@
 // Moving day (walls you can't jump but can blast apart, the first of each piece marked, beams to duck, a clean-run bonus), the endless hall and the Shredder closing in,
-// lights out's switches, the surge's tell and bolt, the cut line on a deflect, and the souls going back after the hint.
+// lights out's switches, the surge's tell and bolt, the burst on a deflect, and the souls going back after the hint.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -80,10 +80,10 @@
   check(told && R.armed === false && R.fx.some(f => f.k === 'bolt'), 'a blue tell, then a bolt to the gun');
   draw();
 
-  // a deflect leaves a cut line from the blade to the paper
+  // a deflect bursts where the blade meets the paper, with no line from him to it
   R.fx = []; R.projs = []; b.atk = 1e9; b.jam = 0;
   const wad = launch('bundle', { u: bull.u, z: .5, h: .12 }, { u: bull.u, z: bull.bz, h: .12 }, .6, { w: .08, hh: .05 });
   for (let i = 0; i < 60 && wad.z > bull.bz + .12; i++) { b.atk = 1e9; update(1 / 60); }
   bull.cd = 0; press('slash'); update(1 / 60);
-  check(wad.friendly && R.fx.some(f => f.k === 'cut'), 'a deflect draws a cut line to the paper');
+  check(wad.friendly && R.fx.some(f => f.k === 'spark' && f.col === '#bfefff') && !R.fx.some(f => f.k === 'cut'), 'a deflect bursts at the paper, with no line from him');
 })();

@@ -279,8 +279,8 @@ var UnrugFloor13 = function (core) {
   // A deflect sends the paper back where it came from and gives the blaster charges back.
   function deflect(p) {
     p.friendly = true;
-    // a bright cut from his blade to the paper, so a deflect at arm's length reads as reached
-    const m = muzzleXY(); R.fx.push({ k: 'cut', x0: m.x - 4, y0: m.y + 6, x1: PX(p.u, p.z), y1: YH(p.z, p.h), t: 0, dur: .12 });
+    // a burst where the blade meets the paper (no line from him to it: that read as a laser); the swoosh is on him
+    R.fx.push({ k: 'spark', x: PX(p.u, p.z), y: YH(p.z, p.h), s: Math.max(.6, sc(p.z)), col: '#bfefff', t: 0, dur: .2, a: (p.u * 7 + p.z * 13) % 6 });
     // in the fight, paper knocked back from close to the mouth hits harder, up to double
     p.power = R.phase === 'boss' ? 1 + clamp(bull.bz / TUNE.mouth, 0, 1) : 1;
     let to = { u: 0, z: .98, h: .12 };
