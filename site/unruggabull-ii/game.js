@@ -136,8 +136,8 @@
     R = {
       t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
       beat: 0, beatT: 0, event: null,
-      cubs: [], decor: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
-      nextCubW: 1.1, nextDecorW: .6, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
+      cubs: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
+      nextCubW: 1.1, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
       charge: TUNE.charges, rechargeT: 0, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
@@ -1237,7 +1237,7 @@
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, setCheckpoint: v => { checkpoint = v; }
+    g, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = v; }
   });
 
   start();

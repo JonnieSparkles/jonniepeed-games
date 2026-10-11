@@ -146,12 +146,23 @@ var UnrugRender = (function () {
     // ---------- this frame's view of the hall ----------
     let T = 0, scroll = 0, rugScroll = 0, power = 1, dark = false, edgeGlow = 0, fill = 0;
     const RAILC = [.36, .2, .11], EDGEC = [.78, .52, .1];
+    // SETS: the section's look (view.look): the wall's lower panels (lo), its plaster above (hi), the skirting (sk), the
+    // cornice (co), the ceiling tiles (ce), the floor tiles (ti) and how polished they are (sh), and the ceiling panels'
+    // light (lamp). Left out, each is today's. The panels' own glow and the light hanging under them follow lamp.
+    const LK0 = { lo: [.11, .095, .135], hi: [.19, .18, .23], sk: [.07, .065, .085], co: [.17, .16, .2], ce: [.24, .24, .27], ti: [.13, .14, .19], sh: .5, lamp: [1.75, 1.55, 1.2] };
+    const LK = JSON.parse(JSON.stringify(LK0)), TUBE = [1.5, 1.38, 1.12], CONEC = [1, .88, .66];
+    function setLook(lk) {
+      lk = lk || LK0;
+      for (const key in LK0) { const d = LK0[key], v = lk[key] == null ? d : lk[key]; if (typeof d === 'number') LK[key] = v; else { LK[key][0] = v[0]; LK[key][1] = v[1]; LK[key][2] = v[2]; } }
+      const l = LK.lamp; TUBE[0] = 1.5 * l[0] / 1.75; TUBE[1] = 1.38 * l[1] / 1.55; TUBE[2] = 1.12 * l[2] / 1.2;
+      CONEC[0] = l[0] / 1.75; CONEC[1] = .88 * l[1] / 1.55; CONEC[2] = .66 * l[2] / 1.2;
+    }
 
     // ---------- lights ----------
     // The ceiling panels (pointing down, in a tight cone) and whatever the game adds for the frame: shots, muzzle
     // flashes, glowing things. Panels light only so far; the dark beyond is the fog's.
     const MAXL = 64, LZMAX = 30;
-    let LN = 0; const LX = new Float32Array(MAXL), LY = new Float32Array(MAXL), LZ = new Float32Array(MAXL), LR = new Float32Array(MAXL), LG = new Float32Array(MAXL), LB = new Float32Array(MAXL), LD = new Uint8Array(MAXL);
+    let LN = 0; const LP = new Float32Array(MAXL), LX = new Float32Array(MAXL), LY = new Float32Array(MAXL), LZ = new Float32Array(MAXL), LR = new Float32Array(MAXL), LG = new Float32Array(MAXL), LB = new Float32Array(MAXL), LD = new Uint8Array(MAXL);
     const addLight = (x, y, z, r, g, b, down) => { if (LN >= MAXL) return; LX[LN] = x; LY[LN] = y; LZ[LN] = z; LR[LN] = r; LG[LN] = g; LB[LN] = b; LD[LN] = down ? 1 : 0; LN++; };
     const MAXX = 32; let XN = 0; const XL = new Float32Array(MAXX * 6);   // lights added for this frame only
     const light = (x, y, z, r, g, b) => { if (XN >= MAXX) return; const i = XN * 6; XL[i] = x; XL[i + 1] = y; XL[i + 2] = z; XL[i + 3] = r; XL[i + 4] = g; XL[i + 5] = b; XN++; };
@@ -161,7 +172,7 @@ var UnrugRender = (function () {
       LN = 0;
       if (power > 0) for (let k = Math.floor((scroll - 4) / PANEL); k <= Math.floor((scroll + LZMAX) / PANEL); k++) {
         const z = (k + .35) * PANEL - scroll; if (z < -4 || z > LZMAX) continue;
-        const p = panel(k, t) * power; if (p > 0) addLight(0, C - .08, z, 1.75 * p, 1.55 * p, 1.2 * p, true);
+        const p = panel(k, t) * power; if (p > 0) { LP[LN] = p; addLight(0, C - .08, z, LK.lamp[0] * p, LK.lamp[1] * p, LK.lamp[2] * p, true); }
       }
       for (let i = 0; i < XN; i++) { const j = i * 6; addLight(XL[j], XL[j + 1], XL[j + 2], XL[j + 3], XL[j + 4], XL[j + 5], false); }
     }
@@ -191,11 +202,12 @@ var UnrugRender = (function () {
       eR = eG = eB = 0; rf = 0;
       if (fr(zw / POST) < .03) { aR = .06; aG = .055; aB = .075; return; }
       const n = noise(zw * 3, y * 3) * .04 - .02;
-      if (y < SK) { aR = .07; aG = .065; aB = .085; }
-      else if (y < DADO) { const m = fr(zw / PANELW), v = m < .04 || m > .96 || y < SK + .05 || y > DADO - .05 ? 0 : .05; aR = .11 + n + v; aG = .095 + n + v; aB = .135 + n + v * 1.2; }
+      const lo = LK.lo, hi = LK.hi;
+      if (y < SK) { aR = LK.sk[0]; aG = LK.sk[1]; aB = LK.sk[2]; }
+      else if (y < DADO) { const m = fr(zw / PANELW), v = m < .04 || m > .96 || y < SK + .05 || y > DADO - .05 ? 0 : .05; aR = lo[0] + n + v; aG = lo[1] + n + v; aB = lo[2] + n + v * 1.2; }
       else if (y < RAIL) { aR = RAILC[0]; aG = RAILC[1]; aB = RAILC[2]; }
-      else if (y > C - .16) { aR = .17; aG = .16; aB = .2; }
-      else { const st = fr(zw * 2.2) < .5 ? .012 : 0, g = y < RAIL + .5 ? (RAIL + .5 - y) * .05 : 0; aR = .19 + n + st - g; aG = .18 + n + st - g; aB = .23 + n + st - g; }
+      else if (y > C - .16) { aR = LK.co[0]; aG = LK.co[1]; aB = LK.co[2]; }
+      else { const st = fr(zw * 2.2) < .5 ? .012 : 0, g = y < RAIL + .5 ? (RAIL + .5 - y) * .05 : 0; aR = hi[0] + n + st - g; aG = hi[1] + n + st - g; aB = hi[2] + n + st - g; }
     }
     // the floor: the runner rug down the middle (its own scroll, so it can pull), polished tiles either side
     function floorMat(x, z) {
@@ -215,7 +227,7 @@ var UnrugRender = (function () {
       } else {
         const zw = z + scroll, tx = x / .8, tz = zw / .8, gx = fr(tx), gz = fr(tz);
         if (gx < .04 || gz < .04) { aR = .05; aG = .05; aB = .07; rf = .1; }
-        else { const ck = ((Math.floor(tx) + Math.floor(tz)) & 1) * .03, v = hash(Math.floor(tx), Math.floor(tz)) * .03 + noise(x * 4, zw * 4) * .03; aR = .13 + ck + v; aG = .14 + ck + v; aB = .19 + ck + v; rf = .5; }
+        else { const ck = ((Math.floor(tx) + Math.floor(tz)) & 1) * .03, v = hash(Math.floor(tx), Math.floor(tz)) * .03 + noise(x * 4, zw * 4) * .03; aR = LK.ti[0] + ck + v; aG = LK.ti[1] + ck + v; aB = LK.ti[2] + ck + v; rf = LK.sh; }
         const gm = 1 - Math.max(0, 1 - (HW - ax) * 1.6) * .5; aR *= gm; aG *= gm; aB *= gm;
       }
     }
@@ -225,11 +237,11 @@ var UnrugRender = (function () {
       const zw = z + scroll, m = mod(zw, PANEL), ax = Math.abs(x);
       if (m > PANEL * .2 && m < PANEL * .5 && ax < .45) {
         const p = power * panel(Math.floor(zw / PANEL), t), rim = m < PANEL * .2 + .05 || m > PANEL * .5 - .05 || ax > .41;
-        if (rim) { aR = .4; aG = .4; aB = .44; } else { aR = aG = aB = .3; const tube = .7 + .3 * Math.cos((x / .45) * Math.PI * 3); eR = 1.5 * p * tube; eG = 1.38 * p * tube; eB = 1.12 * p * tube; }
+        if (rim) { aR = .4; aG = .4; aB = .44; } else { aR = aG = aB = .3; const tube = .7 + .3 * Math.cos((x / .45) * Math.PI * 3); eR = TUBE[0] * p * tube; eG = TUBE[1] * p * tube; eB = TUBE[2] * p * tube; }
       } else {
         const gx = fr(x / .8 + .5), gz = fr(zw / .8);
         if (gx < .05 || gz < .05) { aR = .14; aG = .14; aB = .16; }
-        else { const vent = hash(Math.floor(x / .8 + .5), Math.floor(zw / .8)) < .06 && fr(zw / .8 * 6) < .5, n = noise(x * 6, zw * 6) * .03; if (vent) { aR = aG = .1; aB = .12; } else { aR = .24 + n; aG = .24 + n; aB = .27 + n; } }
+        else { const vent = hash(Math.floor(x / .8 + .5), Math.floor(zw / .8)) < .06 && fr(zw / .8 * 6) < .5, n = noise(x * 6, zw * 6) * .03; if (vent) { aR = aG = .1; aB = .12; } else { aR = LK.ce[0] + n; aG = LK.ce[1] + n; aB = LK.ce[2] + n; } }
       }
     }
     function material(s, x, y, z, t) {
@@ -281,6 +293,8 @@ var UnrugRender = (function () {
     function surfaces(t) {
       columns();
       const e0 = EDGEC[0], e1 = EDGEC[1], e2 = EDGEC[2], eg = edgeGlow, r0 = RAILC[0], r1 = RAILC[1], r2 = RAILC[2];
+      const lo0 = LK.lo[0], lo1 = LK.lo[1], lo2 = LK.lo[2], hi0 = LK.hi[0], hi1 = LK.hi[1], hi2 = LK.hi[2], sk0 = LK.sk[0], sk1 = LK.sk[1], sk2 = LK.sk[2], co0 = LK.co[0], co1 = LK.co[1], co2 = LK.co[2];
+      const ce0 = LK.ce[0], ce1 = LK.ce[1], ce2 = LK.ce[2], ti0 = LK.ti[0], ti1 = LK.ti[1], ti2 = LK.ti[2], tsh = LK.sh, tu0 = TUBE[0], tu1 = TUBE[1], tu2 = TUBE[2];
       for (let py = 0, q = 0; py < H; py++) {
         let fV = 0, fN18 = 0, fTz = 0, fGz = 0, fN4 = 0, kIn = 0, kRim = 0, kP = 0, kGz = 0, kVent = 0, kN6 = 0;
         const zf = RZF[py], zc = RZC[py];
@@ -308,7 +322,7 @@ var UnrugRender = (function () {
               aR = dot ? .7 : ln ? .26 : .44 + n; aG = dot ? .5 : ln ? .04 : .07 + n * .5; aB = dot ? .15 : ln ? .05 : .07; rf = .04;
             } else {
               if (FGX[q] || fGz) { aR = .05; aG = .05; aB = .07; rf = .1; }
-              else { const ft = FT[q], ck = ((ft + fTz) & 1) * .03, v = TH[ft + TX0] + NT[fN4 | FN4[q]] * .03; aR = .13 + ck + v; aG = .14 + ck + v; aB = .19 + ck + v; rf = .5; }
+              else { const ft = FT[q], ck = ((ft + fTz) & 1) * .03, v = TH[ft + TX0] + NT[fN4 | FN4[q]] * .03; aR = ti0 + ck + v; aG = ti1 + ck + v; aB = ti2 + ck + v; rf = tsh; }
               const gm = FG[q]; aR *= gm; aG *= gm; aB *= gm;
             }
             shine[q] = rf * RFD[q];
@@ -316,19 +330,19 @@ var UnrugRender = (function () {
             if (s === 2) {
               if (kIn && KI[q]) {
                 if (kRim || KR[q]) { aR = .4; aG = .4; aB = .44; }
-                else { aR = aG = aB = .3; const p = kP * KT[q]; eR = 1.5 * p; eG = 1.38 * p; eB = 1.12 * p; }
+                else { aR = aG = aB = .3; const p = kP * KT[q]; eR = tu0 * p; eG = tu1 * p; eB = tu2 * p; }
               } else if (KG[q] || kGz) { aR = .14; aG = .14; aB = .16; }
               else if (kVent && VH[KC[q] + TX0]) { aR = aG = .1; aB = .12; }
-              else { const n = NT[kN6 | KN[q]] * .03; aR = .24 + n; aG = .24 + n; aB = .27 + n; }
+              else { const n = NT[kN6 | KN[q]] * .03; aR = ce0 + n; aG = ce1 + n; aB = ce2 + n; }
             } else if (s) {
               if (cPost[px]) { aR = .06; aG = .055; aB = .075; }
               else {
                 const band = WB[q], n = NT[WN[q] | cN3[px]] * .04 - .02;
-                if (band === 0) { aR = .07; aG = .065; aB = .085; }
-                else if (band === 1) { const v = cEdge[px] || WE[q] ? 0 : .05; aR = .11 + n + v; aG = .095 + n + v; aB = .135 + n + v * 1.2; }
+                if (band === 0) { aR = sk0; aG = sk1; aB = sk2; }
+                else if (band === 1) { const v = cEdge[px] || WE[q] ? 0 : .05; aR = lo0 + n + v; aG = lo1 + n + v; aB = lo2 + n + v * 1.2; }
                 else if (band === 2) { aR = r0; aG = r1; aB = r2; }
-                else if (band === 3) { aR = .17; aG = .16; aB = .2; }
-                else { const st = cSt[px], g = WG[q]; aR = .19 + n + st - g; aG = .18 + n + st - g; aB = .23 + n + st - g; }
+                else if (band === 3) { aR = co0; aG = co1; aB = co2; }
+                else { const st = cSt[px], g = WG[q]; aR = hi0 + n + st - g; aG = hi1 + n + st - g; aB = hi2 + n + st - g; }
               }
             }
             shine[q] = 0;
@@ -356,6 +370,7 @@ var UnrugRender = (function () {
       scroll = v.scroll; rugScroll = v.rug; power = v.power * (1 + .6 * house); fill = house * .09; dark = !!v.dark; edgeGlow = v.edgeGlow || 0;
       const rc = v.rail || [.36, .2, .11]; RAILC[0] = rc[0]; RAILC[1] = rc[1]; RAILC[2] = rc[2];
       const ec = v.edge || [.78, .52, .1]; EDGEC[0] = ec[0]; EDGEC[1] = ec[1]; EDGEC[2] = ec[2];
+      setLook(v.look);
     }
     function frame(t, v) {
       const t0 = performance.now();
@@ -426,14 +441,14 @@ var UnrugRender = (function () {
     function cones() {
       for (let i = 0; i < LN; i++) {
         if (!LD[i] || LZ[i] < 1.6) continue;
-        const z = LZ[i], k = LR[i] / 1.75 * fogOf(z), top = CY - (C - .1 - E) / z * F, bot = CY + E / z * F;
+        const z = LZ[i], k = LP[i] * fogOf(z), top = CY - (C - .1 - E) / z * F, bot = CY + E / z * F;
         for (let py = Math.max(0, Math.ceil(top)); py < Math.min(H, bot); py++) {
           const f = (py - top) / (bot - top), hw = (.42 + .9 * f) / z * F, a = .06 * k * Math.pow(1 - f, 1.3);
           const x0 = Math.max(0, Math.floor(CX - hw)), x1 = Math.min(W, CX + hw);
           for (let px = x0; px < x1; px++) {
             const q = py * W + px; if (HZ[q] < z - .2) continue;
             const e = 1 - Math.abs(px - CX) / hw, w = a * (e < .25 ? e * 4 : 1);
-            buf[q * 3] += w; buf[q * 3 + 1] += w * .88; buf[q * 3 + 2] += w * .66;
+            buf[q * 3] += w * CONEC[0]; buf[q * 3 + 1] += w * CONEC[1]; buf[q * 3 + 2] += w * CONEC[2];
           }
         }
       }
