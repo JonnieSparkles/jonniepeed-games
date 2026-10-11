@@ -246,6 +246,17 @@ async function overview(env, url) {
     env.DB.prepare(`SELECT game, score_run FROM runs WHERE ${where} AND score_run IS NOT NULL`).bind(since)
   ])).map(r => r.results);
   const board = await boardNames(env, since);
+  // Runs only the leaderboard saw count too (missedSaves); the medians then come from every run's time.
+  const missed = await missedSaves(env, { since });
+  addTally(perGame, missed.runs, 'game'); addHourly(hourly, missed.runs, 'game');
+  let overallMedian = overall[0]?.time_ms ?? null;
+  if (missed.runs.length) {
+    const times = await all(env.DB.prepare(`SELECT game, time_ms FROM runs WHERE ${where} AND time_ms IS NOT NULL`).bind(since));
+    const every = times.concat(missed.runs.filter(r => r.time_ms != null).map(r => ({ game: r.game, time_ms: r.time_ms })));
+    medians.length = 0;
+    for (const id of new Set(every.map(r => r.game))) medians.push({ game: id, time_ms: middle(every.filter(r => r.game === id).map(r => r.time_ms)) });
+    overallMedian = middle(every.map(r => r.time_ms));
+  }
   const games = {};
   for (const id of Object.keys(gameNames())) games[id] = { runs: 0, visits: 0, finished: 0, won: 0, quit: 0, time_ms: 0, median_ms: null };
   for (const row of perGame) games[row.game] = { ...games[row.game], ...row, game: undefined };
@@ -255,6 +266,7 @@ async function overview(env, url) {
     const saved = await savedRuns(env, linked.map(r => r.score_run));
     for (const row of board.saves) if (games[row.game]) games[row.game].saves = 0;
     for (const row of linked) if (games[row.game] && saved.has(row.score_run)) games[row.game].saves = (games[row.game].saves || 0) + 1;
+    for (const r of missed.runs) if (games[r.game]) games[r.game].saves = (games[r.game].saves || 0) + 1;
     for (const row of board.names) {
       if (!games[row.game] || row.name === 'AAA') continue;
       const g = games[row.game]; g.names = (g.names || 0) + 1; if (row.days > 1) g.returning = (g.returning || 0) + 1;
@@ -262,9 +274,9 @@ async function overview(env, url) {
     names = { total: board.people.length, returning: board.people.filter(p => p.days > 1).length,
       several: board.people.filter(p => p.games > 1).length };
   }
-  const latest = await latestRuns(env, { since });
+  const latest = await latestRuns(env, { since, missed });
   return { ok: true, days, since, names: gameNames(), hourly, games, devices, sources: topSources(sources),
-    median_ms: overall[0]?.time_ms ?? null, people: names, recent: latest.recent, unseen: latest.unseen, unseen_capped: latest.unseen_capped };
+    median_ms: overallMedian, people: names, recent: latest.recent, unseen: latest.unseen, unseen_capped: latest.unseen_capped };
 }
 
 // The leaderboard as players see it: the top 50 of one board, ranked by that board's rules in scores/games.json
@@ -291,13 +303,60 @@ async function leaderboard(env, game, board) {
   } catch (_) { return null; }
 }
 
-// The 50 latest runs for one game (or all games), newest first, with initials for runs saved to a board.
-// Players whose blocker stops the stats report still reach the leaderboard (a different address), so saves with
-// no matching stats run are listed too, marked board_only, and counted as `unseen`. Only saves made since play
-// stats first saw a run count, so older saves aren't taken for blocked players. Run totals elsewhere stay
-// play-stats-only.
+// Runs play stats never saw. Players whose blocker stops the stats report still reach the leaderboard (a different
+// address), so a save with no matching stats run is a real run that went unreported. They count like any run in
+// the totals, the charts and the feed, with what the board knows: when, score, play time, input and a win (Stick
+// Army's `won`). Device, orientation and source stay unknown, and each counts as its own sitting. Only saves made
+// since play stats first saw a run count, so older saves aren't taken for blocked players. Up to SAVE_CAP.
 const SAVE_CAP = 5000;
-async function latestRuns(env, { since, game, board, mode }) {
+async function missedSaves(env, { since, game, board }) {
+  if (!env.SCORES) return { runs: [], capped: false };
+  try {
+    const first = await env.DB.prepare(`SELECT MIN(started_at) AS t FROM runs WHERE game <> '${TEST}'`).first();
+    if (!first?.t) return { runs: [], capped: false };
+    const from = first.t > since ? first.t : since;
+    const known = game ? [game] : Object.keys(games);
+    let sw = `board > 0 AND created_at >= ? AND game IN (${known.map(() => '?').join(',')})`;
+    const sa = [from, ...known];
+    if (board != null) { sw += ' AND board = ?'; sa.push(board); }
+    const saves = await all(env.SCORES.prepare(`SELECT run_id, game, board, name, score, input, meta, created_at FROM scores
+      WHERE ${sw} ORDER BY created_at DESC LIMIT ${SAVE_CAP + 1}`).bind(...sa));
+    // Runs play stats saw that carry a board run ID, from a day before the window so a run that started
+    // just before it still matches its save.
+    const seen = new Set((await all(env.DB.prepare('SELECT score_run FROM runs WHERE score_run IS NOT NULL AND started_at >= ?')
+      .bind(new Date(Date.parse(from) - DAY).toISOString()))).map(r => r.score_run));
+    const runs = saves.slice(0, SAVE_CAP).filter(save => !seen.has(save.run_id)).map(save => {
+      const meta = parseStats(save.meta), ms = Number.isInteger(meta?.time_ms) ? meta.time_ms : null;
+      return { game: save.game, board: save.board, board_only: true, started_at: new Date(Date.parse(save.created_at) - (ms || 0)).toISOString(),
+        device: null, orientation: null, source: null, outcome: meta?.won === 1 ? 'won' : 'over', time_ms: ms, score: save.score,
+        input: save.input, name: save.name, saved: true, stats: null };
+    }).filter(r => r.started_at >= since);
+    return { runs, capped: saves.length > SAVE_CAP };
+  } catch (_) { return { runs: [], capped: false }; }
+}
+// Folds missed runs into tallies (TALLY rows, optionally keyed by `by`) and hourly rows (HOURLY, keyed by `by` too).
+function addTally(rows, missed, by) {
+  for (const r of missed) {
+    let t = rows.find(x => !by || x[by] === r[by]);
+    if (!t) { t = { runs: 0, visits: 0, finished: 0, won: 0, quit: 0, time_ms: 0 }; if (by) t[by] = r[by]; rows.push(t); }
+    t.runs++; t.visits++; t.finished++; if (r.outcome === 'won') t.won++; t.time_ms += r.time_ms || 0;
+  }
+  return rows;
+}
+function addHourly(rows, missed, by) {
+  for (const r of missed) {
+    const hour = r.started_at.slice(0, 13);
+    let h = rows.find(x => x.hour === hour && (!by || x[by] === r[by]));
+    if (!h) { h = { hour, runs: 0, finished: 0, won: 0, quit: 0 }; if (by) h[by] = r[by]; rows.push(h); }
+    h.runs++; h.finished++; if (r.outcome === 'won') h.won++;
+  }
+  return rows;
+}
+const middle = list => { const v = list.filter(x => x != null).sort((a, b) => a - b); return v.length ? v[(v.length + 1) / 2 - 1 | 0] : null; };
+
+// The 50 latest runs for one game (or all games), newest first, with initials for runs saved to a board, and the
+// runs only the leaderboard saw (missedSaves), counted as `unseen`.
+async function latestRuns(env, { since, game, board, mode, missed }) {
   let where = `started_at >= ?1 AND game <> '${TEST}'`;
   const args = [since];
   if (game) { args.push(game); where += ` AND game = ?${args.length}`; }
@@ -315,30 +374,10 @@ async function latestRuns(env, { since, game, board, mode }) {
         const byRun = new Map(saved.map(r => [r.run_id, r.name]));
         for (const r of recent) if (byRun.has(r.score_run)) r.name = byRun.get(r.score_run);
       }
-      const first = await env.DB.prepare(`SELECT MIN(started_at) AS t FROM runs WHERE game <> '${TEST}'`).first();
-      if (first?.t) {
-        const from = first.t > since ? first.t : since;
-        const known = game ? [game] : Object.keys(games);
-        let sw = `board > 0 AND created_at >= ? AND game IN (${known.map(() => '?').join(',')})`;
-        const sa = [from, ...known];
-        if (board != null) { sw += ' AND board = ?'; sa.push(board); }
-        const saves = await all(env.SCORES.prepare(`SELECT run_id, game, board, name, score, input, meta, created_at FROM scores
-          WHERE ${sw} ORDER BY created_at DESC LIMIT ${SAVE_CAP + 1}`).bind(...sa));
-        capped = saves.length > SAVE_CAP;
-        // Runs play stats saw that carry a board run ID, from a day before the window so a run that started
-        // just before it still matches its save.
-        const seen = new Set((await all(env.DB.prepare('SELECT score_run FROM runs WHERE score_run IS NOT NULL AND started_at >= ?')
-          .bind(new Date(Date.parse(from) - DAY).toISOString()))).map(r => r.score_run));
-        const missing = saves.slice(0, SAVE_CAP).filter(save => !seen.has(save.run_id));
-        unseen = missing.length;
-        boardOnly = missing.slice(0, 50).map(save => {
-          const meta = parseStats(save.meta), ms = Number.isInteger(meta?.time_ms) ? meta.time_ms : null;
-          return { game: save.game, board_only: true, started_at: new Date(Date.parse(save.created_at) - (ms || 0)).toISOString(),
-            device: null, orientation: null, source: null, outcome: 'over', time_ms: ms, score: save.score, input: save.input,
-            name: save.name, saved: true, stats: null };
-        });
-      }
     } catch (_) { /* the stats runs still show */ }
+    const found = missed || await missedSaves(env, { since, game, board });
+    unseen = found.runs.length; capped = found.capped;
+    boardOnly = found.runs.slice(0, 50).map(({ board: _, ...r }) => r);
   }
   // A run of a game's "with" mode (Stick Army's co-op) carries that mode's name, for its tag in the feed.
   const modeTag = (game, st) => { const m = games[game]?.modes; return m && st && st[m.stat] === true ? m.names[1] : undefined; };
@@ -372,12 +411,34 @@ async function gameDetail(env, url, game, board, mode) {
     env.DB.prepare(`SELECT board, ${TALLY} FROM runs WHERE ${inGame} AND board > 0 GROUP BY board ORDER BY board DESC`).bind(game, since),
     env.DB.prepare(median(inGame + ' AND board > 0', 'board')).bind(game, since)
   ])).map(r => r.results);
+  // Runs only the leaderboard saw count too, on every side but a game's "with" mode (Stick Army's co-op runs are
+  // never saved): in the tallies, per day, per board, run length and scores (missedSaves).
+  const withMode = mode === 1 && games[game]?.modes;
+  const missed = await missedSaves(env, { since, game, board });
+  const extra = withMode ? [] : missed.runs;
+  // The per-board table covers every run, whatever the mode.
+  if (missed.runs.length) { addTally(boards, missed.runs.filter(r => r.board > 0), 'board'); boards.sort((a, b) => b.board - a.board); }
+  if (extra.length) {
+    addTally(summary, extra); addHourly(hourly, extra);
+    for (const r of extra) {
+      const i = inputs.find(x => x.input === r.input);
+      if (i) i.n++; else inputs.push({ input: r.input, n: 1 });
+      reports.unshift([r.time_ms, r.score, r.outcome, null]);
+    }
+    const times = await all(env.DB.prepare(`SELECT time_ms FROM runs WHERE ${where} AND time_ms IS NOT NULL`).bind(...args));
+    mid.length = 0; mid.push({ time_ms: middle(times.map(r => r.time_ms).concat(extra.map(r => r.time_ms))) });
+  }
+  if (missed.runs.length) {
+    const perBoard = await all(env.DB.prepare(`SELECT board, time_ms FROM runs WHERE ${inGame} AND board > 0 AND time_ms IS NOT NULL`).bind(game, since));
+    boardMedians.length = 0;
+    for (const b of boards) boardMedians.push({ board: b.board, time_ms: middle(perBoard.filter(r => r.board === b.board).map(r => r.time_ms).concat(missed.runs.filter(r => r.board === b.board).map(r => r.time_ms))) });
+  }
   // A game without a leaderboard (no run reports a board, nothing saved) shows no board figures at all.
   const found = await boardNames(env, since, game, board);
   const onBoards = found && (summary[0].boarded || boards.length || found.saves.length) ? found : null;
   let names = null, saves = null;
   if (onBoards) {
-    saves = (await savedRuns(env, linked.map(r => r.score_run))).size;
+    saves = (await savedRuns(env, linked.map(r => r.score_run))).size + extra.length;
     // Each name's best on the newest board it saved to, with that board's number.
     const bestOf = new Map();
     for (const b of onBoards.bests) {
@@ -390,20 +451,18 @@ async function gameDetail(env, url, game, board, mode) {
     if (board == null && boards.length) {
       const ids = await env.DB.prepare(`SELECT board, score_run FROM runs WHERE ${inGame} AND score_run IS NOT NULL`).bind(game, since).all();
       const savedIds = await savedRuns(env, ids.results.map(r => r.score_run));
-      for (const b of boards) b.saves = ids.results.filter(r => r.board === b.board && savedIds.has(r.score_run)).length;
+      for (const b of boards) b.saves = ids.results.filter(r => r.board === b.board && savedIds.has(r.score_run)).length + missed.runs.filter(r => r.board === b.board).length;
     }
   }
-  const latest = await latestRuns(env, { since, game, board, mode });
+  const latest = await latestRuns(env, { since, game, board, mode, missed: withMode ? { runs: [], capped: false } : missed });
   // The "with" side has no leaderboard: Stick Army's co-op runs are never saved, so the board's names, scores and the
   // saves play stats missed all belong to the other side, and show only there.
-  const withMode = mode === 1 && games[game]?.modes;
-  if (withMode) latest.recent = latest.recent.filter(r => !r.board_only);
   return {
     ok: true, game, board, mode, modes: games[game]?.modes || null, days, since, names: gameNames(), hourly,
     boards: boards.map(b => ({ ...b, median_ms: boardMedians.find(m => m.board === b.board)?.time_ms ?? null })),
     summary: { ...summary[0], boarded: undefined, median_ms: mid[0]?.time_ms ?? null, saves },
     devices, inputs, sources: topSources(sources),
-    capped: reports.length > REPORT_CAP,
+    capped: reports.length > REPORT_CAP || missed.capped,
     reports: reports.slice(0, REPORT_CAP).map(r => [r.time_ms, r.score, r.outcome, parseStats(r.stats)]),
     recent: latest.recent,
     // Board saves play stats didn't see: only meaningful for a game with a board.
