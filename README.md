@@ -9,11 +9,7 @@ Live site: https://jonniepeed.games/ · Scores API: https://scores.jonniepeed.ga
 ```
 site/                   everything that gets published
   index.html            studio page: logo, game shelf, pixel easter egg (assets/studio/ident.js), sound (assets/studio/audio.js)
-  thimbleful/           catch-the-drips game, with a "Just watch" mode (#watch)
-  stick-army/           notebook turret game with recruits and a between-wave shop (Side B demo, noindexed)
-  dont-step-on-a-crack/  first-person sidewalk game; title screen runs a demo walk, Mom Cam in the HUD
-  dont-click-this/      up to four players on phones or computers: send a link, find each other (unlisted; the first game on rooms)
-  unruggabull-ii/       8-bit sequel to Unruggabull, floor 13 so far: corridor shooter, katana, the Shredder (unlisted, noindexed)
+  <slug>/               one folder per game, its entry index.html (each game's doc is docs/games/<slug>/README.md)
   assets/               shared fonts, leaderboard, play stats and rooms clients (rooms.js), dark mark and favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.png and external-game thumbnails
   <slug>/og.png         game-owned social preview card
@@ -46,7 +42,7 @@ brand/                  source logo and cover art files, not published
   logo-animated-original.mp4      the original animated logo as made, with audio
 ```
 
-Unruggabull lives in its own repo and is linked from the shelf at https://unruggabull.ar.io. Its 8-bit sequel, Unruggabull II, is built here ([living doc](docs/games/unruggabull-ii/README.md)).
+Each game's doc is `docs/games/<slug>/README.md`; list `docs/games/` to see them all (Standards, "Game docs first"). Some games live in their own repos and are only linked from the shelf (`site/index.html`).
 
 ## Standards
 
@@ -58,7 +54,7 @@ These apply to every change:
 - **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games.
 - **Relative links, clean directory URLs.** Player links use `<slug>/` from the studio and `../` from games back home, preserving the site mount. Assets remain relative; entry files remain `index.html`. No slashless aliases or `<base>` bootstrap. Arweave manifests need the directory entries described below. The one exception is `site/404.html`: GitHub Pages serves it at whatever missing path was asked for, so its assets use absolute `https://jonniepeed.games/` URLs (which `stamp.py` still versions) and its home links use `/`.
 - **Asset ownership.** Only shared files belong at the top of `site/assets/`. Studio-only files belong in `assets/studio/`; game-owned files, including `og.png` and `thumb.<ext>`, belong in `site/<slug>/`. Keep image formats. Retiring a game removes its shelf and `GAMES` entries too; permanent scores API records remain.
-- **Game docs first.** Everything about one game lives in its folder, `docs/games/<slug>/`, named like its `site/` folder. Player help stays inside the game.
+- **Game docs first.** Everything about one game lives in its folder, `docs/games/<slug>/`, named like its `site/` folder. Player help stays inside the game. This README names no game's status, tests or tools, so adding or changing a game never touches it (two games built at once would otherwise collide here): a game's shelf, its checks, bots and trailer go in its own README.
   - **`README.md`** is the living doc: the game as it is now, with its rules, tuning, code entry points and validation. Read it before changing the game, and update it in the same change. Keep it to the present; why a value changed goes in `history.md`.
   - **Specs** are plans for the game or a feature of it, named for what they are, without a number: `spec.md` for the game itself, then names like `campaign.md` or `coop.md`. Write one before building something big. Once it's built, give it a status line saying so and leave the plan as it was decided.
   - **`history.md`** keeps why things are the way they are and what was tried and dropped, a line or two each with its round, so a later change doesn't undo a fix or retry a dead end ([Stick Army's](docs/games/stick-army/history.md)). Check it before changing a value. Add a line when a playtest changes something for a reason worth keeping, or when an idea is tried and dropped; the rest of a round's story goes in its pull request. A game with only a little of this keeps it as a short section of its README.
@@ -89,7 +85,7 @@ These apply to every change:
 
 [Side B](specs/SPEC-004-side-b.md) is the development shelf. Hold the studio's rainbow egg with a pointer, Space or Enter: about 1.4 seconds to full power, then three more seconds as the puddle grows. Or enter `#side-b` directly. The **Side A** button returns to Games. The selected shelf lasts for this tab's visit in `sessionStorage`, including reloads and game/home round trips; a new session defaults to Side A. Side B is discoverable, not private.
 
-Stick Army is the only launch card, labelled **demo**, with an online board for each level (board 1 Soldier, board 2 Veteran). Two games are unlisted: they have no card on either shelf and are reached only by their direct links, Don't click this at `dont-click-this/` ([05: Rooms](docs/guides/05-rooms.md)) and Unruggabull II at `unruggabull-ii/` (noindexed, local scores only). To promote one after approval, give it a card (or, for a Side B card, remove its card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute), remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
+Which shelf each game is on (Side A, Side B, or unlisted, with no card and reached only by its link) is in its own doc and in `site/index.html`. To promote one after approval, give it a card (or, for a Side B card, remove its card's `data-side`, `data-badge`, `.badge` span and initial `hidden` attribute), remove the game's noindex tag, and update its living doc. **Play stats:** ask Jonnie whether to switch the game's stats on now, if they aren't already (see [Turning a game's stats off and on](docs/guides/03-play-stats.md#turning-a-games-stats-off-and-on)). Run applicable browser/preview checks, stamp last, and publish through the manual Pages workflow. An **update** label/build and any **archive** exhibit remain future work; Side B does not change leaderboard rules or enable automated publishing.
 
 ## Browser checks
 
@@ -103,39 +99,32 @@ In another terminal:
 
 ```sh
 CHROMIUM=/usr/bin/chromium python3 tests/studio/test.py
-CHROMIUM=/usr/bin/chromium python3 tests/stick-army/test.py
-CHROMIUM=/usr/bin/chromium python3 tests/stick-army/ui.py
-CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py
-CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
-CHROMIUM=/usr/bin/chromium python3 tests/stick-army/coop.py
-CHROMIUM=/usr/bin/chromium python3 tests/unruggabull-ii/test.py
 CHROMIUM=/usr/bin/chromium python3 stats/test/games.py
-CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py             # these three also need a local rooms Worker (05: Rooms)
-CHROMIUM=/usr/bin/chromium python3 tests/dont-click-this/test.py
-CHROMIUM=/usr/bin/chromium python3 tests/stick-army/coop_room.py
+CHROMIUM=/usr/bin/chromium python3 tests/rooms/test.py             # also needs a local rooms Worker (05: Rooms)
 ```
 
-Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`); Stick Army has its own [validation details](docs/games/stick-army/README.md#validation-and-generated-assets).
+Those are the shared checks: the studio page, play stats and rooms. Each game's own checks are listed in its doc (`docs/games/<slug>/README.md`), harnesses in `tests/<slug>/`; run them when you change that game, and every game's that loads shared code you change (Standards, "Shared code stays compatible").
+
+Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` overrides the local server URL and may include a site mount, such as `http://127.0.0.1:8001/jonniepeed-games`. The studio check uses controlled browser time and real pointer/keyboard/touch input; a response-only bridge checks hold timing, cancellation and canvas pixels without shipping test hooks. It covers shelf visibility/focus/tab order/accessibility, badges, hash/session restore, game round trips, denied storage, no-JavaScript fallback, themes, viewport sizes and reduced motion. `SCREENSHOTS` selects its screenshot directory (default `/tmp/studio-screenshots`).
 
 ## Balance bots
 
-Stick Army and Unruggabull II have balance bots ([SPEC-005](specs/SPEC-005-balance-bots.md); see [the guide](docs/guides/01-balance-bots.md)). They play seeded runs headless at casual, decent and expert skill and report survival, causes of death, per-wave (or per-stage) events and shop picks. Run them by hand; the runner serves `site/` itself:
+Games can have balance bots ([SPEC-005](specs/SPEC-005-balance-bots.md); see [the guide](docs/guides/01-balance-bots.md)): a game has them when it has `tests/<slug>/balance.json`, and its doc says how it uses them. They play seeded runs headless at casual, decent and expert skill and report survival, causes of death, per-wave (or per-stage) events and shop picks. Run them by hand; the runner serves `site/` itself:
 
 ```sh
-python3 tools/balance/run.py stick-army --runs 200
-python3 tools/balance/run.py stick-army --runs 200 --skills decent --ref main
-python3 tools/balance/run.py unruggabull-ii --runs 100
+python3 tools/balance/run.py <slug> --runs 200
+python3 tools/balance/run.py <slug> --runs 200 --skills decent --ref main
 ```
 
 Output goes to `work/balance/` (git-ignored). A tuning PR for an opted-in game includes a before/after summary for at least the decent profile. Bots measure difficulty, not fun; playtesting wins.
 
 ## Trailers
 
-Don't Step on a Crack, Thimbleful and Unruggabull have trailers ([the guide](docs/guides/04-trailers.md)). Each is cut from real play: a scripted player plays seeded takes under a fake clock, every frame is captured, and the game's own sound is re-rendered from what it played. Dry-run the takes first; it's quick and plays exactly like the filmed run:
+Games can have trailers ([the guide](docs/guides/04-trailers.md)): a game has one when it has `tests/<slug>/trailer/`. Each is cut from real play: a scripted player plays seeded takes under a fake clock, every frame is captured, and the game's own sound is re-rendered from what it played. Dry-run the takes first; it's quick and plays exactly like the filmed run:
 
 ```sh
-python3 tools/trailer/make.py dont-step-on-a-crack --dry
-python3 tools/trailer/make.py dont-step-on-a-crack
+python3 tools/trailer/make.py <slug> --dry
+python3 tools/trailer/make.py <slug>
 ```
 
 Output goes to `work/trailer/` (git-ignored). Trailer videos stay out of the repo, so clones and deploys stay light: post the cut from `work/trailer/<slug>/<slug>-trailer.mp4` to YouTube and social platforms. The same command rebuilds the exact cut from the repo.
@@ -206,7 +195,7 @@ The new layout requires a path manifest (`manifest: "arweave/paths"`, version `0
 
 - Root `index: {"path": "index.html"}` and an `index.html` entry pointing to the uploaded studio page.
 - Exact, case-sensitive paths for every published file relative to `site/`, including moved images, fonts and scripts; no leading slash or `site/` prefix. Upload only `site/`; `brand/` stays out.
-- Every game folder's physical `<slug>/index.html` entry plus a `<slug>/` entry pointing to **the same transaction ID**. Include unlisted Stick Army; discover game folders rather than using shelf membership. Preserve the trailing slash. No slashless `<slug>` entries, old paths, duplicate uploads or missing-asset fallback to HTML.
+- Every game folder's physical `<slug>/index.html` entry plus a `<slug>/` entry pointing to **the same transaction ID**. Include Side B and unlisted games; discover game folders rather than using shelf membership. Preserve the trailing slash. No slashless `<slug>` entries, old paths, duplicate uploads or missing-asset fallback to HTML.
 
 In the follow-up, confirm the uploader and receipt format, add any needed support, and validate missing IDs, collisions and exact asset paths. Run stamp before uploading files and build a fresh manifest from those exact upload receipts; upload the manifest with `application/x.arweave-manifest+json`. Test all clean game/home links, assets and `#tune` through an ar.io gateway at a manifest-ID mount and an ArNS root where available. Record the test manifest ID, gateway base URL and results before manually updating the production ArNS pointer. The gateway acceptance check is deferred to that follow-up. Old Arweave copies remain immutable history.
 

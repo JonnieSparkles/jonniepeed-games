@@ -1,6 +1,6 @@
 # Don't Step on a Crack
 
-A first-person walk home along a sidewalk. Every crack, line or pothole you land on breaks one of Mom's vertebrae, and the Mom Cam in the corner shows it. The game is at `site/dont-step-on-a-crack/index.html`. Its leaderboard comes from [SPEC-001](../../../specs/SPEC-001-leaderboards.md) and its folder layout from [SPEC-003](../../../specs/SPEC-003-repo-layout.md). There is no build spec for the game itself, so its history is in git and in this doc.
+A first-person walk home along a sidewalk. Every crack, line or pothole you land on breaks one of Mom's vertebrae, and the Mom Cam in the corner shows it. The game is at `site/dont-step-on-a-crack/index.html`, with a card on the Side A shelf. Its leaderboard comes from [SPEC-001](../../../specs/SPEC-001-leaderboards.md) and its folder layout from [SPEC-003](../../../specs/SPEC-003-repo-layout.md). There is no build spec for the game itself, so its history is in git and in this doc.
 
 ## How it started
 
