@@ -735,43 +735,80 @@
   // Souls drift up the threads to p(Loom)'s beacon on the roof while carpshits circle. Static layers are cached once.
   const GROUND = 122, BEACON = { x: 120, y: 40 };
   let TOWER = null;
-  function skyline(b, list, col, win, k) {
-    for (const [x, y, w] of list) {
-      rect(b, x, y, w, GROUND - y, col);
-      for (let wy = y + 4; wy < GROUND - 3; wy += 5) for (let wx = x + 3; wx < x + w - 2; wx += 4) if (((wx * k + wy * 7) % 17) < 2) rect(b, wx, wy, 1, 2, win);
+  // The title's backdrop, drawn once at the picture's full size (in its pixels, so twice the game's units): a dithered
+  // dusk sky with stars, the city in two layers with lit windows and rooftop clutter, the threads of souls running up to
+  // RugCo Tower's beacon, the tower with its window grid and the sunset catching its edges, and the street.
+  const hash2 = (a, b) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  function skyline(b, list, col, edge, win, k) {
+    const R = (x, y, w, h, c) => { b.fillStyle = c; b.fillRect(x, y, w, h); }, G = GROUND * 2;
+    for (const [ux, uy, uw] of list) {
+      const x = ux * 2, y = uy * 2, w = uw * 2;
+      R(x, y, w, G - y, col); R(x + w - 1, y, 1, G - y, edge);
+      // something on the roof: an antenna, a water tower, a vent
+      const r = hash2(x, k);
+      if (r < .3) R(x + w * .3 | 0, y - 9, 1, 9, col);
+      else if (r < .55) { R(x + 4, y - 6, 8, 5, col); R(x + 5, y - 1, 1, 1, col); R(x + 10, y - 1, 1, 1, col); }
+      else if (r < .75) R(x + w - 9, y - 3, 6, 3, col);
+      for (let wy = y + 5; wy < G - 4; wy += 6) for (let wx = x + 3; wx < x + w - 3; wx += 5) {
+        const h = hash2(wx * 3 + k, wy);
+        if (h < .16) R(wx, wy, 2, 3, h < .04 ? '#fff6c8' : win); else if (h < .5) R(wx, wy, 2, 3, edge);
+      }
     }
   }
   function buildTower() {
-    const sky = A.canvas(W, H), front = A.canvas(W, H), s = sky.getContext('2d'), f = front.getContext('2d');
-    ['#0b0920', '#100c28', '#171033', '#21123d', '#2f1545', '#41184a', '#561a4a', '#6c1d47', '#6c1d47'].forEach((col, i) => rect(s, 0, i * 15, W, 16, col));
-    for (let i = 0; i < 60; i++) A.px(s, (i * 97 + 13) % W, 30 + (i * 53) % 50, i % 7 ? '#6f6596' : '#ffffff');
+    const PW2 = W * 2, PH2 = H * 2, G = GROUND * 2;
+    const sky = A.canvas(PW2, PH2), front = A.canvas(PW2, PH2), s = sky.getContext('2d'), f = front.getContext('2d');
+    const R = (b, x, y, w, h, c) => { b.fillStyle = c; b.fillRect(x, y, w, h); };
+    // the sky: eight bands of dusk, dithered into each other
+    const BANDS = ['#0b0920', '#100c28', '#171033', '#21123d', '#2f1545', '#41184a', '#561a4a', '#6c1d47', '#7a2246'];
+    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    for (let y = 0; y < PH2; y++) {
+      const v = Math.min(BANDS.length - 1.001, y / 30), i0 = Math.floor(v), fr = v - i0;
+      for (let x = 0; x < PW2; x++) { s.fillStyle = fr * 16 > BAYER[(y & 3) * 4 + (x & 3)] ? BANDS[i0 + 1] : BANDS[i0]; s.fillRect(x, y, 1, 1); }
+    }
+    for (let i = 0; i < 110; i++) { const x = Math.floor(hash2(i, 1) * PW2), y = Math.floor(hash2(i, 2) * 150), c = i % 9 ? '#6f6596' : '#ffffff'; R(s, x, y, 1, 1, c); if (i % 23 === 0) { R(s, x - 1, y, 3, 1, '#a8a0d0'); R(s, x, y - 1, 1, 3, '#a8a0d0'); R(s, x, y, 1, 1, '#ffffff'); } }
     // the threads run from the beacon down into the city, behind the buildings
-    for (const [x, y] of [[18, 87], [52, 78], [81, 90], [160, 89], [189, 76], [225, 86]]) line(f, BEACON.x, BEACON.y, x, y, '#6a4f86');
-    skyline(f, [[0, 87, 20], [18, 93, 17], [33, 80, 20], [52, 90, 15], [69, 96, 22], [150, 94, 20], [168, 83, 18], [186, 91, 15], [201, 78, 21], [220, 88, 20]], '#1a1230', '#ffbf5a', 13);
-    rect(f, 105, 50, 30, GROUND - 50, '#120d22'); rect(f, 105, 50, 1, GROUND - 50, '#2c2246'); rect(f, 134, 50, 1, GROUND - 50, '#2c2246');
-    rect(f, 109, 44, 22, 6, '#120d22'); rect(f, 116, 35, 8, 9, '#120d22'); rect(f, 119, 28, 2, 7, '#2c2246');
-    for (let wy = 66; wy < GROUND - 3; wy += 5) for (let wx = 108; wx < 133; wx += 5) rect(f, wx, wy, 2, 2, ((wx * 7 + wy * 3) % 13) === 0 ? '#ff9a3c' : '#221a38');
-    rect(f, 107, 54, 26, 9, '#1a1418'); txt(f, 'RUGCO', 120, 56, '#ff9a3c', 1, 'center');
-    skyline(f, [[0, 100, 26], [22, 106, 18], [40, 97, 23], [64, 108, 20], [147, 104, 21], [166, 97, 23], [189, 106, 18], [207, 100, 33]], '#0d0a1a', '#ffd060', 11);
-    rect(f, 0, GROUND, W, H - GROUND, '#0a0816');
-    for (let i = 0; i < 9; i++) rect(f, 88 + ((i * 23) % 64), GROUND + 3 + (i % 4) * 3, 5 + (i % 3) * 3, 1, i % 2 ? '#ff9a3c' : '#e8483a');
-    rect(f, 112, GROUND, 17, 1, '#000');
+    f.globalAlpha = .7;
+    for (const [x, y] of [[18, 87], [52, 78], [81, 90], [160, 89], [189, 76], [225, 86]]) { f.strokeStyle = '#7a5aa0'; f.lineWidth = 1; f.beginPath(); f.moveTo(BEACON.x * 2 + .5, BEACON.y * 2 + .5); f.lineTo(x * 2 + .5, y * 2 + .5); f.stroke(); }
+    f.globalAlpha = 1;
+    skyline(f, [[0, 87, 20], [18, 93, 17], [33, 80, 20], [52, 90, 15], [69, 96, 22], [150, 94, 20], [168, 83, 18], [186, 91, 15], [201, 78, 21], [220, 88, 20]], '#1a1230', '#2a1c48', '#ffbf5a', 13);
+    // RugCo Tower: a shaft, two setbacks, a spire and the beacon's mast; the sunset catches both edges
+    const T0 = 210, T1 = 270;
+    R(f, T0, 100, T1 - T0, G - 100, '#120d22');
+    R(f, T0 + 8, 88, T1 - T0 - 16, 12, '#120d22'); R(f, T0 + 22, 70, T1 - T0 - 44, 18, '#120d22'); R(f, 238, 56, 4, 14, '#1c1630');
+    for (const [a, b2, y0] of [[T0, T1, 100], [T0 + 8, T1 - 8, 88], [T0 + 22, T1 - 22, 70]]) { R(f, a, y0, 1, G - y0, '#ff9a3c'); R(f, b2 - 1, y0, 1, G - y0, '#e8483a'); R(f, a, y0, b2 - a, 1, '#3a2654'); }
+    for (let wy = 132; wy < G - 6; wy += 9) for (let wx = T0 + 5; wx < T1 - 6; wx += 7) {
+      const h = hash2(wx, wy * 3);
+      R(f, wx, wy, 4, 5, h < .14 ? '#ff9a3c' : h < .2 ? '#ffd060' : '#221a38');
+      if (h < .14) R(f, wx, wy, 4, 1, '#ffd8a0');
+    }
+    // its sign, in orange neon
+    R(f, 214, 108, 52, 18, '#1a1418'); R(f, 215, 109, 50, 16, '#2a0e0a');
+    f.save(); f.globalAlpha = .35; txt(f, 'RUGCO', 240, 111, '#ff9a3c', 2, 'center'); f.restore();
+    txt(f, 'RUGCO', 240, 112, '#ffb060', 2, 'center');
+    skyline(f, [[0, 100, 26], [22, 106, 18], [40, 97, 23], [64, 108, 20], [147, 104, 21], [166, 97, 23], [189, 106, 18], [207, 100, 33]], '#0d0a1a', '#181230', '#ffd060', 11);
+    // the street, with the city's lights on it
+    R(f, 0, G, PW2, PH2 - G, '#0a0816');
+    for (let i = 0; i < 16; i++) R(f, 150 + ((i * 47) % 180), G + 5 + (i % 5) * 4, 6 + (i % 3) * 6, 1, i % 2 ? '#ff9a3c' : '#e8483a');
+    R(f, 0, G, PW2, 1, '#1e1636');
     TOWER = { sky, front };
   }
   function drawTower(t) {
     if (!TOWER) buildTower();
-    g.drawImage(TOWER.sky, 0, 0);
+    g.drawImage(TOWER.sky, 0, 0, W, H);
     // the sun sinks behind the tower in scrolling stripes
     const sx = 120, sy = 96, Rs = 38;
-    for (let dy = -Rs; dy <= Rs; dy++) {
-      const y = sy + dy; if (y >= GROUND) break;
-      const w = Math.floor(Math.sqrt(Rs * Rs - dy * dy)), k = (dy + Rs) / (2 * Rs);
-      if (dy > 2) { const gap = 1 + Math.floor(dy / 10), ph = (((dy + Math.floor(t * 5)) % 8) + 8) % 8; if (ph < gap) continue; }
-      rect(g, sx - w, y, 2 * w + 1, 1, k < .28 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a');
+    for (let d2 = -Rs * 2; d2 <= Rs * 2; d2++) {   // in half units: the picture's own rows
+      const dy = d2 / 2, y = sy + dy; if (y >= GROUND) break;
+      const w = Math.floor(Math.sqrt(Rs * Rs - dy * dy) * 2) / 2, k = (dy + Rs) / (2 * Rs);
+      if (d2 > 4) { const gap = 2 + Math.floor(d2 / 10), ph = (((d2 + Math.floor(t * 10)) % 16) + 16) % 16; if (ph < gap) continue; }
+      g.fillStyle = k < .2 ? '#fff27a' : k < .32 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a'; g.fillRect(sx - w, y, 2 * w + .5, .5);
     }
-    g.drawImage(TOWER.front, 0, 0);
+    g.drawImage(TOWER.front, 0, 0, W, H);
     g.drawImage(A.POSES.stand, 120 - A.POSE_FEET.x * A.BULL_K, GROUND - A.POSE_FEET.y * A.BULL_K, A.POSE_W * A.BULL_K, A.POSE_H * A.BULL_K);   // at the picture's full size
-    disc(g, BEACON.x, BEACON.y, 3, Math.sin(t * 3) > .4 ? '#ffd060' : '#ff9628'); A.px(g, BEACON.x, BEACON.y, '#140c08');
+    const on = Math.sin(t * 3) > .4;
+    g.save(); g.globalAlpha = on ? .35 : .18; disc(g, BEACON.x, BEACON.y, 6, '#ff9628'); g.restore();
+    disc(g, BEACON.x, BEACON.y, 2, on ? '#fff0a0' : '#ff9628');
     g.save(); g.globalAlpha = .75;
     [[30, 92], [69, 98], [172, 95], [212, 88], [96, 104]].forEach(([x, y], i) => {
       const k = mod1(t * .12 + i / 5);
@@ -783,12 +820,10 @@
   function drawTitle() {
     drawTower(R.t);
     if (state === 'intro') return;
-    // the logo: orange with a gold II, a red lip under each stroke and a dark outline
-    const s = 'UNRUGGABULL II', x = Math.round(120 - textWidth(s, 3) / 2), y = 4;
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [-1, 1], [1, 1], [0, 2], [1, 2], [-1, 2]]) txt(g, s, x + dx, y + dy, '#1a1418', 3);
-    txt(g, s, x, y + 1, '#961e16', 3);
-    txt(g, 'UNRUGGABULL', x, y, '#ff9a3c', 3); txt(g, 'II', x + 12 * 12, y, '#ffd44a', 3);
-    otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 23, '#fff6e2', 1, 'center');
+    // the logo (art.js), at the picture's full size
+    const L = A.logo(), lw = A.uw(L), lh = A.uh(L);
+    g.drawImage(L, Math.round((120 - lw / 2 - 5) * 2) / 2, 3, lw, lh);
+    otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 3 + lh + 1, '#fff6e2', 1, 'center');
   }
   // The light things give off this frame, for the renderer: blaster bolts as they fly, the muzzle flash, pickups.
   // Bolts and the flash are kept soft, so steady fire lights the hall without strobing it.

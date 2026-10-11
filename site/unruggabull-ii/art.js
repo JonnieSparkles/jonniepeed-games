@@ -112,6 +112,41 @@ var UnrugArt = (function () {
   // three temps (A, B, C), each with frames for each state: peek, up, wind (the wad held up), throw, hit
   const TEMPS = ['A', 'B', 'C'].map(key => { const o = {}; for (const st in NS.TEMPS[key]) o[st] = NS.TEMPS[key][st].map(ns); return o; });
   const TEMP_RUG = NS.TEMP_RUG;
+  // ---------- the logo ----------
+  // UNRUGGABULL II in a 5x7 block face, 4x6 picture pixels a cell, leaning forward with speed streaks trailing off the
+  // left: gold-white above the horizon line, orange to red below, a black outline and a drop shadow, the II in gold
+  // with a glint. Drawn once at the picture's full size (k: half a game unit a pixel).
+  const LOGO_F = { U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'], N: ['10001', '11001', '11101', '10111', '10011', '10001', '10001'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'], G: ['01110', '10001', '10000', '10111', '10001', '10001', '01111'],
+    A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+    L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'], I: ['111', '010', '010', '010', '010', '010', '111'] };
+  let LOGO = null;
+  function logo() {
+    if (LOGO) return LOGO;
+    const cw = 4, ch = 6, H = 7 * ch, lean = 1.8, cells = [];
+    let x = 0;
+    for (const [word, ii] of [['UNRUGGABULL', false], ['II', true]]) {
+      for (const c of word) {
+        const f = LOGO_F[c];
+        f.forEach((row, y) => { for (let i = 0; i < row.length; i++) if (row[i] === '1') cells.push({ x: x + i * cw + Math.round((6 - y) * lean), y: y * ch, ii }); });
+        x += f[0].length * cw + 6;
+      }
+      x += 8;
+    }
+    const w = x - 14 + 40, cv = canvas(w + 8, H + 10), g = cv.getContext('2d'), ox = 40, oy = 3;
+    const fill = (c, yy) => c.ii ? (yy < .5 ? '#fff27a' : '#ffd21e') : yy < .47 ? (yy < .2 ? '#fff6e2' : '#ffd24a') : yy < .7 ? '#ff7a2a' : '#d8241a';
+    // speed streaks off the left of each row
+    const rows = {};
+    for (const c of cells) rows[c.y] = Math.min(rows[c.y] == null ? 1e9 : rows[c.y], c.x);
+    for (const y in rows) for (let k = 0; k < 3; k++) { g.fillStyle = k ? 'rgba(255,154,60,.5)' : '#ff9a3c'; g.fillRect(ox + rows[y] - 12 - k * 12 - (y % 3) * 3, oy + +y + 3, 9 - k * 2, 1); }
+    g.fillStyle = 'rgba(0,0,0,.55)'; for (const c of cells) g.fillRect(ox + c.x + 3, oy + c.y + 4, cw, ch);
+    g.fillStyle = '#0a080d'; for (const c of cells) g.fillRect(ox + c.x - 2, oy + c.y - 2, cw + 4, ch + 4);
+    for (const c of cells) for (let yy = 0; yy < ch; yy++) { g.fillStyle = fill(c, (c.y + yy) / H); g.fillRect(ox + c.x, oy + c.y + yy, cw, 1); }
+    const gl = cells.filter(c => c.ii)[2];
+    if (gl) { g.fillStyle = '#ffffff'; g.fillRect(ox + gl.x + 1, oy + gl.y + 1, 1, 1); g.fillRect(ox + gl.x, oy + gl.y + 2, 3, 1); g.fillRect(ox + gl.x + 1, oy + gl.y + 3, 1, 1); }
+    cv.k = .5;
+    return (LOGO = cv);
+  }
   // a sprite's size in game units (the new ones are drawn at half a unit a pixel)
   const uw = img => img.width * (img.k || 1), uh = img => img.height * (img.k || 1);   // where the rug sits in a temp's frame, in pixels
   const GHOST = ns(NS.CAST.SOUL);
@@ -281,6 +316,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, uw, uh, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, uw, uh, logo, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();
