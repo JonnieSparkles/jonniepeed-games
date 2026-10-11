@@ -111,35 +111,25 @@ var UnrugArt = (function () {
   })();
   // three temps (A, B, C), each with frames for each state: peek, up, wind (the wad held up), throw, hit
   const TEMPS = ['A', 'B', 'C'].map(key => { const o = {}; for (const st in NS.TEMPS[key]) o[st] = NS.TEMPS[key][st].map(ns); return o; });
-  const TEMP_RUG = NS.TEMP_RUG;   // where the rug sits in a temp's frame, in pixels
-  const GHOST = spr(['..CCCCC..', '.........', '.KKKKKKK.', 'KMMMMMMMK', 'KMKMMMKMK', 'KMMMMMMMK', 'KMMgggMMK', '.KMKMKMK.', '..g.g.g..']);
-  const HEART = spr(['.KK...KK.', 'KRRK.KRRK', 'KRLRKRRRK', 'KRRRRRRRK', '.KRRRRRK.', '..KRRRK..', '...KRK...', '....K....']);
-  const HEART_EMPTY = spr(['.KK...KK.', 'KEEK.KEEK', 'KEEEKEEEK', 'KEEEEEEEK', '.KEEEEEK.', '..KEEEK..', '...KEK...', '....K....']);
-  const WAD = spr(['.PPP.', 'PPpPP', 'PpPPp', 'PPPpP', '.PPP.']);
+  const TEMP_RUG = NS.TEMP_RUG;
+  // a sprite's size in game units (the new ones are drawn at half a unit a pixel)
+  const uw = img => img.width * (img.k || 1), uh = img => img.height * (img.k || 1);   // where the rug sits in a temp's frame, in pixels
+  const GHOST = ns(NS.CAST.SOUL);
+  const HEART = ns(NS.CAST.HEART);
+  const HEART_EMPTY = ns(NS.CAST.HEART_EMPTY);
+  const WAD = ns(NS.CAST.WAD);
   // What the Shredder spits: a wad of shredded paper, strips sticking out every way, a few with red ink.
   // The game spins it in quarter turns and gives it a jagged red edge, so it never reads as a pickup.
-  const BUNDLE = spr([
-    '.....P......',
-    '..P..P...R..',
-    '...P.P..P...',
-    '....PPPPP...',
-    'PP.PpPPpPP.P',
-    '..PPPyPPpPPP',
-    '.RPPpPPyPP..',
-    'P..PPPpPPP..',
-    '...PPPPPP.P.',
-    '..P..R.P..P.',
-    '.P...P..P...',
-    '.....P......']);
-  const STAPLE = spr(['YYYYYYYYY', 'Yy.....yY', 'Y.......Y']);
+  const BUNDLE = ns(NS.CAST.BUNDLE);
+  const STAPLE = ns(NS.CAST.STAPLE);
   // A paper airplane coming at you, seen nose-on: the Shredder throws them at head height. Duck.
-  const PLANE = spr(['....P....', '...PpP...', '..PPpPP..', '.PPP.PPP.', 'PPp...pPP']);
+  const PLANE = ns(NS.CAST.PLANE);
   // Hall dressing: a water cooler and a stack of copy paper
   const COOLER = spr(['..KKKKK..', '.KcggggK.', 'KcgggggcK', 'KcgMggggK', 'KcgMggggK', 'KcgggggcK', '.KcccccK.', '..KKKKK..', '.KPPPPPK.', '.KPpRpPK.', '.KPPPPPK.', '.KPPPPPK.', '.KpPPPpK.', '.KPPPPPK.', '.KPPPPPK.', '.KKKKKKK.']);
   const STACK = spr(['KKKKKKKKKK', 'KPPPPPPPPK', 'KppppppppK', 'KPPPPPPPPK', 'KppppppppK', 'KPPPPPPPPK', 'KppppppppK', 'KKKKKKKKKK']);
   // Pickups: a RugCo coffee mug (a heart back) and the Spread Shot
-  const COFFEE = spr(['..p..p...', '...p..p..', '.KKKKKK..', '.KFFFFKKK', '.KPPPPK.K', '.KPRRPK.K', '.KPPPPKKK', '.KPPPPK..', '..KKKK...']);
-  const SPREAD = spr(['M....M....M', '.M...M...M.', '..M..M..M..', '...M.M.M...', '....MMM....', '...KWWWK...', '...KwWwK...', '....KKK....']);
+  const COFFEE = ns(NS.CAST.COFFEE);
+  const SPREAD = ns(NS.CAST.SPREAD);
   // A rolling office chair, from behind
   // A rolling office chair, rolling at you: high back, arms, seat, gas lift, a five-star base, casters in two frames.
   const CHAIR_TOP = ['.....KKKKKKKKKKKK.....', '....KjjjjjjjjjjjjK....', '...KjJJJJJJJJJJJJjK...', '...KjJJjJJJJJJjJJjK...', '...KjJJJJJJJJJJJJjK...', '...KjJJJJJJJJJJJJjK...', '...KjJJjJJJJJJjJJjK...', '...KjJJJJJJJJJJJJjK...',
@@ -290,6 +280,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, uw, uh, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();

@@ -747,7 +747,7 @@ var UnrugFloor13 = function (core) {
       // a trail of gold sparkles behind it, then the soul itself, drawn double size with a glow
       for (let j = 1; j <= 5; j++) { const q = Math.max(0, e - j * .045), t = at(q); if (Math.floor(R.t * 20 + j) % 2) rect(g, Math.round(t.x), Math.round(t.y), 1, 1, j < 3 ? '#fff0aa' : '#ffd44a'); }
       disc(g, Math.round(x), Math.round(y), 9, 'rgba(255,212,74,.22)');
-      g.drawImage(A.GHOST, Math.round(x - 9), Math.round(y - 9), 18, 18);
+      g.drawImage(A.GHOST, Math.round(x - 9), Math.round(y - 11), 18, 22);
     }
   }
   function killTemp(tp, how) {
@@ -1007,8 +1007,8 @@ var UnrugFloor13 = function (core) {
   function drawProj(p) {
     const s = sc(p.z), bundle = p.kind === 'bundle' || p.kind === 'scrap', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : p.kind === 'plane' ? A.PLANE : A.STAPLE;
     const big = (p.kind === 'scrap' ? .6 : 1) * (p.friendly ? 1 : bundle ? (p.rally ? 1.4 : 1.2) : 1.35), blink = Math.floor(R.t * 10 + p.spin) % 2;
-    const w = Math.max(2, Math.round(img.width * s * big)), h = Math.max(1, Math.round(img.height * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
-    if (p.friendly) shadow(p.u, p.z, img.width * .8);
+    const w = Math.max(2, Math.round(A.uw(img) * s * big)), h = Math.max(1, Math.round(A.uh(img) * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
+    if (p.friendly) shadow(p.u, p.z, A.uw(img) * .8);
     else if (bundle) for (let k = 1; k <= 3; k++) {
       const tz = p.z - p.vz * k * .05, tu = p.u - p.vu * k * .05, j = (k * 7 + Math.floor(p.spin)) % 5 - 2;
       rect(g, PX(tu, tz) + j, YH(tz, p.h) + ((k * 3) % 4) - 2, Math.max(1, Math.round(3 * sc(tz))), 1, k === 1 ? '#f2eee2' : '#b8b4a8');
@@ -1064,7 +1064,7 @@ var UnrugFloor13 = function (core) {
       rect(g, x0 - 1, pt - 1, x1 - x0 + 2, pb - pt + 2, '#1a1418'); rect(g, x0, pt, x1 - x0, pb - pt, '#9a6a3a'); rect(g, x0, pt, x1 - x0, Math.max(1, (pb - pt) * .3), '#b88850');
     } else if (row.kind === 'carpet') {
       // a carpet of staples skittering across the whole floor, edges blinking red like all the Shredder's paper
-      const w = Math.max(3, Math.round(A.STAPLE.width * k * 1.3)), h = Math.max(1, Math.round(A.STAPLE.height * k * 1.3));
+      const w = Math.max(3, Math.round(A.uw(A.STAPLE) * k * 1.3)), h = Math.max(1, Math.round(A.uh(A.STAPLE) * k * 1.3));
       const sil = tinted(A.STAPLE, Math.floor(R.t * 10) % 2 ? '#ff3020' : '#ff9628');
       for (let u = -.6; u <= .61; u += .15) {
         const x = Math.round(PX(u, z) - w / 2 + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0)), y = Math.round(FY(z) - h - 1 - (Math.floor(R.t * 12 + u * 7) % 2));
@@ -1125,7 +1125,7 @@ var UnrugFloor13 = function (core) {
     for (const sl of R.event.souls) {
       const z = sl.w - R.dist; if (z > 1.02 || z < bull.bz - .02) continue;
       faded(fadeIn(z), () => {
-        const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.GHOST.width * 2 * k), h = Math.round(A.GHOST.height * 2 * k);
+        const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.uw(A.GHOST) * 2 * k), h = Math.round(A.uh(A.GHOST) * 2 * k);
         g.drawImage(A.GHOST, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
         g.save(); g.globalAlpha = .7; g.strokeStyle = '#bfefff'; g.lineWidth = Math.max(.5, k); g.beginPath(); g.arc(x, y, Math.max(w, h) * .75, 0, 6.29); g.stroke();
         g.globalAlpha = .9; rect(g, x - w * .4, y - h * .55, Math.max(1, k * 1.5), Math.max(1, k * 1.5), '#ffffff'); g.restore();
@@ -1297,7 +1297,7 @@ var UnrugFloor13 = function (core) {
     if (R.phase === 'hall') {
       // the goal: free enough souls and the Shredder wakes
       const shown = Math.min(R.souls, R.shown), k = Math.min(1, shown / TUNE.goal), full = k >= 1 && Math.floor(R.t * 6) % 2, pulse = R.meterPulse > 0;
-      g.drawImage(A.GHOST, 74, pulse ? 2 : 3);
+      g.drawImage(A.GHOST, 74, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
       rect(g, 86, 4, 64, 7, pulse ? '#fff6e2' : '#1a1418'); rect(g, 87, 5, 62, 5, '#3a2f5e'); rect(g, 87, 5, Math.round(62 * k), 5, full || pulse ? '#ffd44a' : '#7fd4ff');
       otxt(g, shown + '/' + TUNE.goal, 154, 5, pulse ? '#ffd44a' : '#fff6e2');
       // while lights out doubles souls

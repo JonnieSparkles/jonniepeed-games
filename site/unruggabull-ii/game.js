@@ -447,7 +447,7 @@
   }
   function drawWisp(f) {
     const k = f.t / f.dur;
-    g.save(); g.globalAlpha = k > .85 ? .5 : .9; g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore();
+    g.save(); g.globalAlpha = k > .85 ? .5 : .9; g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore();
   }
   function talk(text, who) {
     const plan = Snd.talkTimes(text, who);
@@ -567,7 +567,7 @@
   function drawPickup(pk, z) {
     if (pk.kind === 'blaster') { drawDropped(pk, z); return; }
     const coffee = pk.kind === 'coffee', img = coffee ? A.COFFEE : A.SPREAD, k = sc(z), bob = Math.sin(pk.t * 4) * .015;
-    const w = Math.max(4, Math.round(img.width * k * 1.8)), h = Math.max(4, Math.round(img.height * k * 1.8)), x = PX(pk.u, z), y = YH(z, pk.h + bob);
+    const w = Math.max(4, Math.round(A.uw(img) * k * 1.8)), h = Math.max(4, Math.round(A.uh(img) * k * 1.8)), x = PX(pk.u, z), y = YH(z, pk.h + bob);
     const col = coffee ? '#ff7050' : '#ffd44a', flash = Math.floor(pk.t * 8) % 2, bw = Math.max(2, Math.round(w * .9));
     g.save();
     g.globalAlpha = .14 + .06 * flash; rect(g, x - bw / 2, CY(z), bw, y - CY(z), col);
@@ -658,7 +658,7 @@
         }
       }
       else if (f.k === 'strip') rect(g, Math.round(f.x), Math.round(f.y), 1, 2, Math.floor(f.t * 12 + f.vx) % 2 ? '#f2eee2' : '#b8b4a8');
-      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore(); }
+      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore(); }
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
@@ -673,7 +673,7 @@
     }
   }
   function drawHUD() {
-    for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 4);
+    for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
     // blaster charge under the hearts: blue when ready, red and blinking when empty, gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
@@ -686,7 +686,7 @@
   // The souls freed so far, top right, with a ghost that bobs as each one lands.
   function drawSoulsCounter() {
     const n = String(Math.min(R.souls, R.shown)), tw = textWidth(n), pulse = R.meterPulse > 0;
-    g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 2 : 3);
+    g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
     otxt(g, n, W - 4, 5, pulse ? '#ffd44a' : '#fff6e2', 1, 'right');
   }
   function drawWords() {
@@ -775,7 +775,7 @@
     g.save(); g.globalAlpha = .75;
     [[30, 92], [69, 98], [172, 95], [212, 88], [96, 104]].forEach(([x, y], i) => {
       const k = mod1(t * .12 + i / 5);
-      g.drawImage(A.GHOST, Math.round(x + (BEACON.x - 4 - x) * k + Math.sin(t * 2 + i) * 3), Math.round(y + (BEACON.y - 6 - y) * k));
+      g.drawImage(A.GHOST, Math.round(x + (BEACON.x - 4 - x) * k + Math.sin(t * 2 + i) * 3), Math.round(y + (BEACON.y - 6 - y) * k), A.uw(A.GHOST), A.uh(A.GHOST));
     });
     g.restore();
     [[66, 60], [160, 50], [84, 46], [150, 74], [40, 72]].forEach(([x, y], i) => wavy(A.CARPF[(Math.floor(t * 8) + i) % 2], x, Math.round(y + Math.sin(t * 2.5 + i) * 2), 13, 6, t * 12 + i, 1));
