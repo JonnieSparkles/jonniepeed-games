@@ -1,6 +1,6 @@
 # Unruggabull II: Salvation for the Unrugged
 
-An 8-bit sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
+A sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
 Status: Floor 13 is built as the first playable slice, at `site/unruggabull-ii/`, on Side B as a noindexed demo. The rest of the climb follows in later stages. Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
@@ -156,4 +156,3 @@ Not part of the mega stream: the real p(Loom) music and its heavy version (the m
 - The mega stream on the roof: can a hit break the beam back into streams, or is it pure payoff? (In the mockup a hit doesn't break it.)
 - What Unruggabull says as the streams fuse (a line for the recording script).
 - Which floor is in the middle, 42 or 77, and so where the near miss happens.
-- The label: the game is lit pixel art at 480 × 270 now, not 8-bit. Call it a 16-bit sequel, or drop the label? (The first line here, the page's description and the share card's alt text still say 8-bit.)

@@ -34,6 +34,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **One renderer for the page** (the lit renderer): the first speed test built three renderers in one page, and the browser then compiled the code for some of them half as well, a different one in each browser. Built one at a time, each in a fresh page, the numbers held steady, so the game makes one and keeps it.
 - **Glowing things are laid on unlit** (the lit renderer): the threats and rewards have to read at a glance in a dark hall, so bolts, pickups, paper in flight, monitors, switches, the temps' tell and the Shredder's eyes go on as they are, over what's lit, as lights out already did. Everything else takes the light where it stands, and a soft floor of light keeps him, rows and boxes faintly there in the dark.
 - **Today's bull for now** (the lit renderer): the new one has 9 of the 27 poses the game uses, and swapping between two bulls mid-run (standing, then the old one running and shooting) looked worse than either. He goes in when the rest of his poses are drawn.
+- **No "8-bit" label** (the lit renderer): with the hall lit at 480 × 270 the game isn't 8-bit any more, and the owner chose to drop the label rather than call it 16-bit. The page, the share card's alt text and the spec just call it a sequel. (Unruggabull's voice is still crushed to 8-bit sound.)
 
 ## Tried and dropped
 
