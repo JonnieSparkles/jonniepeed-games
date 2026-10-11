@@ -173,6 +173,31 @@ def stick_army(browser):
     print('PASS stick-army: start, game over with cause, win at the victory card, keep going, restart from pause')
 
 
+def unruggabull_ii(browser):
+    context, page, errors = new_page(browser, viewport={'width': 1000, 'height': 800})
+    source = (ROOT / 'site/unruggabull-ii/game.js').read_text()
+    source = source.replace('  start();', "  window.unrugTest = function (code) { return eval(code); };\n  start();")
+    page.route('**/unruggabull-ii/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
+    page.add_init_script("try { localStorage.setItem('unruggabull-ii-story', '1'); } catch (e) {}")
+    page.goto(SITE + '/unruggabull-ii/')
+    page.click('#go')
+    start = check_start(beacons(page)[0], 'unruggabull-ii', None)
+    # rugged in the hall: a game over with how far he got and what did it
+    page.evaluate("unrugTest('R.souls = 37; R.lastCause = \"chairs\"; R.beat = 1; for (let i = 0; i < 5; i++) { bull.inv = 0; hurtBull(1, \"chairs\"); } for (let i = 0; i < 60 * 2.2; i++) update(1 / 60);')")
+    end = check_end(beacons(page)[1], start, 'over', ['stage', 'stage_name', 'cause', 'continues', 'boss_hp'])
+    assert end['score'] == 37 and end['stats']['stage'] == 3 and end['stats']['cause'] == 'chairs', end
+    # play again from the rugged card, then restart from pause: the open run reports as quit, then a new one starts
+    page.click('#go')
+    second = check_start(beacons(page)[2], 'unruggabull-ii', None)
+    page.evaluate("unrugTest('pauseGame()')")
+    page.click('#alt')
+    check_end(beacons(page)[3], second, 'quit', ['stage'])
+    check_start(beacons(page)[4], 'unruggabull-ii', None)
+    assert not errors, errors
+    context.close()
+    print('PASS unruggabull-ii: start, rugged with stage and cause, restart from pause')
+
+
 def automated_is_quiet(browser):
     # Without the override, an automated browser (the harnesses, the balance bots) sends nothing at all.
     context, page, errors = new_page(browser, record=False)
@@ -195,5 +220,6 @@ with sync_playwright() as p:
     thimbleful(browser)
     crack(browser)
     stick_army(browser)
+    unruggabull_ii(browser)
     automated_is_quiet(browser)
     browser.close()

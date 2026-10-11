@@ -158,7 +158,8 @@ def skill_section(name, runs, columns, ref_runs=None):
     stuck = sum(1 for r in runs if r.get('stuck'))
     if stuck:
         odd.append('%d run(s) got stuck in the shop.' % stuck)
-    if columns and not any(r['waves'].get(w, {}).get('capture', 0) for r in runs for w in r['waves']):
+    # Only for games that track captures (Stick Army); others have nothing to capture.
+    if any(c['key'] == 'capture' for c in columns) and not any(r['waves'].get(w, {}).get('capture', 0) for r in runs for w in r['waves']):
         odd.append('No captures in any run.')
     if odd:
         lines.append('**Odd:** ' + ' '.join(odd))
