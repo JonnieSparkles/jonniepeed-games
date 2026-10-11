@@ -62,6 +62,7 @@ A corridor floor of about two minutes, then the Shredder.
   - Wiping out a whole formation pays a bonus soul for each carpshit in it.
   - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
   - Rows that span the aisle (office chairs from All Staff on, a paper jam's sheet) give jumping a job, after the first section.
+  - Carpshits at work line the walls, the office's own: typing (some in an accountant's green visor), on calls, asleep at their desks, gossiping at the water cooler, copying themselves in the copy room, a manager pacing in an office set into the wall. They never fight back, and a shot frees the soul inside (p(Loom) wove them from souls), double in the dark.
   - Pickups float at jump height, lit by a beam from the ceiling: coffee (a heart back) and the Spread Shot. A streak of 10 kills drops a Spread Shot.
   - Each beat and event drops its own sign from the ceiling and has its own music, with stings for the events. No banners across the hall during play.
   - Paper blows down the corridor the whole time.

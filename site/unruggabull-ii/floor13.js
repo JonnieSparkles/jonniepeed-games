@@ -23,9 +23,9 @@ var UnrugFloor13 = function (core) {
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
   const BEATS = [
-    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: ['poster', 'poster', 'clock', 'window', 'plant', 'door', 'cooler'], rail: '#3a5a8a', music: 'tower', after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], rail: '#961e16', music: 'staff', after: 'dark' },
-    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: ['stack', 'shelf', 'recycle', 'vending', 'notice', 'clock'], rail: '#b8a878', music: 'copy' }
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: ['poster', 'poster', 'clock', 'window', 'plant', 'door', 'cooler'], work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: 'tower', after: 'move' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: 'dark' },
+    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: ['stack', 'shelf', 'recycle', 'vending', 'notice', 'clock'], work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
   ];
   const beat = () => BEATS[R.beat];
   // ---------- the hall: stations (cubicles or copiers) with temps, signs, decor ----------
@@ -35,16 +35,35 @@ var UnrugFloor13 = function (core) {
     const kind = beat().station;
     const sides = both || rnd() < .35 ? [-1, 1] : [rnd() < .5 ? -1 : 1];
     for (const s of sides) {
+      if (R.workers.some(wk => wk.s === s && Math.abs(wk.w - w) < (wk.kind === 'office' ? .3 : .2))) continue;   // a worker's spot
       const cb = { w, s, kind, top: STATION_TOP[kind], temp: null };
       if (temps && rnd() < (chance == null ? beat().temps : chance)) cb.temp = { cub: cb, st: 'hidden', t: 0, pop: 0, trig: rr(.45, .8), pops: 0, threw: false, dead: false };
       R.cubs.push(cb);
     }
   }
+  // Scenery comes into view this far down the hall (decor and the carpshits at work), out of the fog, and is drawn
+  // from there; what you fight still arrives at the old far end (z 1) and fades in out of the dark.
+  const AHEAD = 3.5;
+  // Carpshits at work: typing (some in an accountant's green visor), on calls, asleep at their desks, gossiping at
+  // the water cooler, copying themselves in the copy room, and a manager in an office set into the wall. They never
+  // fight back; a shot frees the soul inside (p(Loom) wove them from souls). Each has one or two carpshits (carps),
+  // each a target: du across from its spot, h how high it is.
+  const WORK_SPOTS = { type: [[0, .15]], call: [[-.03, .16]], sleep: [[.01, .1]], cooler: [[-.14, .16], [.14, .15]], copier: [[-.06, .17]], office: [[0, .45]] };
+  function addWorker(w) {
+    const list = beat().work, kind = list[Math.floor(rnd() * list.length)];
+    const wk = { w, s: rnd() < .5 ? -1 : 1, kind, visor: kind === 'type' && Math.random() < .5, carps: [] };
+    WORK_SPOTS[kind].forEach(([du, h], i) => wk.carps.push({ wk, i, du, h, dead: false }));
+    R.workers.push(wk);
+  }
+  const workerAt = c => ({ u: c.wk.s * (c.wk.kind === 'office' ? .97 : .8) + c.du, z: c.wk.w - R.dist + (c.wk.kind === 'office' ? .08 : 0), h: c.h });
+  // in reach of the blaster: not too far down the hall, and still ahead of him
+  const workerLive = c => { if (c.dead) return false; const z = c.wk.w - R.dist; return z < .95 && z > bull.bz; };
   // a light switch on the wall in lights out, about chest height
   const switchAt = sw => ({ u: sw.s * .9, z: sw.w - R.dist, h: .32 });
   // Where a target is, for aiming and hits. Temps live behind their station.
   function posOf(o) {
     if (o.sw) return switchAt(o);
+    if (o.wk) return workerAt(o);
     if (o.cub) return { u: o.cub.s * .8, z: cubZ(o.cub) + .06, h: o.cub.top - .07 + o.pop * .17 };
     return o;
   }
@@ -62,11 +81,13 @@ var UnrugFloor13 = function (core) {
     while (R.dist + 1.05 >= R.nextCubW) {
       addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38);
     }
-    while (R.dist + 1.05 >= R.nextDecorW) {
+    while (R.dist + AHEAD >= R.nextDecorW) {
       // each section has its own mix of things on the walls and floor (cosmetic, so not from the run's seed)
       R.decor.push({ w: R.nextDecorW, s: Math.random() < .5 ? -1 : 1, kind: B.decor[Math.floor(Math.random() * B.decor.length)], col: Math.random() });
       R.nextDecorW += fxr(.16, .3);
     }
+    // carpshits at work along the walls, coming into view far down the hall
+    while (R.dist + AHEAD >= R.nextWorkW) { addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
     if (B.fly && !ev) {
       R.nextFly -= dt;
       if (R.nextFly <= 0) {
@@ -239,6 +260,7 @@ var UnrugFloor13 = function (core) {
     }
     R.cubs = R.cubs.filter(cb => cubZ(cb) > ZN - .16);
     R.decor = R.decor.filter(d => d.w - R.dist > ZN - .3);
+    R.workers = R.workers.filter(wk => wk.w - R.dist > ZN - .3);
     R.signs = R.signs.filter(sg => sg.w - R.dist > ZN);
   }
   // ---------- projectiles: paper wads, shredded-paper bundles, staples ----------
@@ -1147,10 +1169,10 @@ var UnrugFloor13 = function (core) {
     for (const sw of R.switches || []) drawSwitch(sw);
     for (const cb of R.cubs) {
       const z = cubZ(cb); if (z > 1.02) continue;
-      if (cb.kind === 'cub') {
+      if (cb.kind === 'cub') faded(fadeIn(z), () => {
         const k = sc(z), mx = PX(cb.s * .93, z), my = YH(z, cb.top), mw = Math.max(2, Math.round(10 * k)), mh = Math.max(2, Math.round(7 * k));
         rect(g, mx - mw / 2 + 1, my - mh + 1, Math.max(1, mw - 2), Math.max(1, mh - 2), monitor(cb));
-      }
+      });
       const tp = cb.temp;
       if (!tp || tp.dead || tp.pop <= 0) continue;
       tempTell(tp, z + .06);
@@ -1158,6 +1180,10 @@ var UnrugFloor13 = function (core) {
         const zt = z + .06, s2 = sc(zt) * .85, w = 26 * s2, h = 15 * s2, x = PX(cb.s * .8, zt), yt = YH(zt, cb.top - .12 + tp.pop * .17) - h, e = Math.max(1, Math.round(2 * s2));
         rect(g, x - w * .23, yt + h * .37, e, e, '#fff0aa'); rect(g, x + w * .19, yt + h * .37, e, e, '#fff0aa');
       }
+    }
+    if (dk) for (const wk of R.workers) {
+      const z = wk.w - R.dist; if (z > 1.5 || z < ZN || wk.kind === 'office') continue;
+      for (const c of wk.carps) if (!c.dead) { const at = workerAt(c), x = PX(at.u, at.z), y = YH(at.z, at.h), e = Math.max(1, Math.round(2 * sc(at.z))), w = 26 * sc(at.z) * .8; rect(g, x - w * .25, y - 1, e, e, '#fff0aa'); rect(g, x + w * .17, y - 1, e, e, '#fff0aa'); }
     }
     if (dk) for (const f of R.flies) {
       const k = sc(f.z), w = 26 * k, x = PX(f.u, f.z), y = YH(f.z, f.h), e = Math.max(1, Math.round(2 * k));
@@ -1169,7 +1195,7 @@ var UnrugFloor13 = function (core) {
     if (R.phase !== 'hall') withShredder(() => { shredderEyes(); shredderTeeth(); });
     else if (R.event && R.event.kind === 'dark') darkEyes();
     const list = [];
-    for (const pk of R.pickups) { const z = pk.w - R.dist; if (z < 1.02) list.push([z, () => drawPickup(pk, z)]); }
+    for (const pk of R.pickups) { const z = pk.w - R.dist; if (z < 1.02) list.push([z, () => faded(fadeIn(z), () => drawPickup(pk, z))]); }
     for (const p of R.projs) list.push([p.z, () => drawProj(p)]);
     for (const s of R.shots) list.push([s.z, () => drawShot(s)]);
     list.sort((a, b) => b[0] - a[0]);
@@ -1187,6 +1213,8 @@ var UnrugFloor13 = function (core) {
       R.pull.count = 1;   // the runner has been explained already
       for (let w = .15; w < 1.05; w += .45) R.decor.push({ w, s: w < .5 ? -1 : 1, kind: 'stack', col: 0 });
     }
+    R.workers = []; R.nextWorkW = R.dist + .5;
+    if (!at) while (R.dist + AHEAD >= R.nextWorkW) { addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
     for (let w = .2; w < 1.05; w += .36) addCubs(w, false);
     if (!at) addSign(.95, BEATS[0].sign);
   }
@@ -1209,6 +1237,55 @@ var UnrugFloor13 = function (core) {
     updateFx(dt);
     updatePhase(dt);
   }
+  // How much of something far down the hall shows: scenery fades in from AHEAD, what you fight from the old far end.
+  const fadeFar = z => clamp((AHEAD - z) / 1, 0, 1), fadeIn = z => clamp((1.04 - z) / .24, 0, 1);
+  const faded = (a, fn) => { if (a <= 0) return; if (a >= 1) { fn(); return; } g.save(); g.globalAlpha *= a; fn(); g.restore(); };
+  // A carpshit at work at its desk (or cooler, or copier) against the wall, or the manager in its office.
+  function drawWorker(wk, z) {
+    if (wk.kind === 'office') { drawOffice(wk, z); return; }
+    const K = A.WORK_KINDS[wk.kind], frames = A.work(wk.kind, wk.carps.map(c => !c.dead), wk.visor), f = Math.floor(R.t * 4 + wk.w * 7) % 4;
+    const k = sc(z) * .8, w = Math.max(2, Math.round(K.w * k)), h = Math.max(2, Math.round(K.h * k));
+    g.drawImage(frames[f], Math.round(PX(wk.s * .8, z) - w / 2), Math.round(FY(z) - h), w, h);
+  }
+  // The manager's office: a window in the wall, and through it a room behind the wall. You look into it at an angle,
+  // so the room runs on down the hall behind the window, and as you pass you see further into it: its back wall with a
+  // certificate and a lamp's glow, its floor and ceiling, its far end, a desk, and the manager pacing on the phone.
+  // A shot through the glass cracks it.
+  function drawOffice(wk, z) {
+    const s = wk.s, z0 = z, z1 = z + .16, h0 = .26, h1 = .66, U = 2.4, e1 = z0 + 1.1;
+    const quad = (pts, col) => poly(g, col, pts);
+    const P = (u, zz, h) => [PX(s * u, zz), YH(zz, h)];
+    const win = [P(1, z0, h1), P(1, z1, h1), P(1, z1, h0), P(1, z0, h0)];
+    quad([P(1, z0 - .012, h1 + .03), P(1, z1 + .012, h1 + .03), P(1, z1 + .012, h0 - .03), P(1, z0 - .012, h0 - .03)], '#1a1418');
+    g.save(); g.beginPath(); win.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.clip();
+    quad([P(1, z0, 0), P(U, z0, 0), P(U, e1, 0), P(1, e1, 0)], '#7a5434');   // its floor
+    quad([P(1, z0, .85), P(U, z0, .85), P(U, e1, .85), P(1, e1, .85)], '#3a3048');   // its ceiling
+    quad([P(U, z0, .85), P(U, e1, .85), P(U, e1, 0), P(U, z0, 0)], '#5e4e74');   // the back wall
+    quad([P(1, e1, .85), P(U, e1, .85), P(U, e1, 0), P(1, e1, 0)], '#4a3c5c');   // the far end
+    // a lamp's warm glow on the back wall, and the certificate
+    quad([P(U, z0 + .55, .75), P(U, z0 + .8, .75), P(U, z0 + .8, .3), P(U, z0 + .55, .3)], '#8a6e66');
+    quad([P(U, z0 + .62, .62), P(U, z0 + .72, .62), P(U, z0 + .72, .5), P(U, z0 + .62, .5)], '#f2eee2');
+    quad([P(1.6, z0 + .45, .85), P(2.1, z0 + .45, .85), P(2.1, z0 + .62, .85), P(1.6, z0 + .62, .85)], '#e8e4c8');   // its ceiling light
+    // the manager, pacing behind the desk, then the desk
+    const mz = z0 + .5 + .14 * Math.sin(R.t * 1.1 + wk.w * 5);
+    if (!wk.carps[0].dead) {
+      const m = A.work('manager', [true])[Math.floor(R.t * 4) % 4], mk = sc(mz) * .8, mw = Math.round(m.width * mk), mh = Math.round(m.height * mk);
+      g.drawImage(m, Math.round(PX(s * 1.9, mz) - mw / 2), Math.round(YH(mz, .42) - mh), mw, mh);
+    }
+    const dz = z0 + .42, dk = sc(dz) * .8, dw = Math.round(A.OFFICE_DESK.width * dk), dh = Math.round(A.OFFICE_DESK.height * dk);
+    g.drawImage(A.OFFICE_DESK, Math.round(PX(s * 1.5, dz) - dw / 2), Math.round(FY(dz) - dh), dw, dh);
+    // the wall's thickness, where you see it: the window's far side and its sill
+    quad([P(1, z1, h1), P(1.07, z1, h1), P(1.07, z1, h0), P(1, z1, h0)], '#4c4856');
+    quad([P(1, z0, h0), P(1, z1, h0), P(1.07, z1, h0), P(1.07, z0, h0)], '#6a6676');
+    g.restore();
+    // the glass: a glint, and cracks once it's been shot through
+    g.save(); g.globalAlpha = .35;
+    line(g, ...P(1, z0 + .02, h1 - .04), ...P(1, z0 + .06, h1 - .16), '#c8d0dc');
+    line(g, ...P(1, z0 + .05, h1 - .04), ...P(1, z0 + .08, h1 - .1), '#c8d0dc');
+    g.restore();
+    if (wk.cracked) { const [cx, cy] = P(1, z0 + .08, .45), r = 10 * sc(z0 + .08); for (let i = 0; i < 6; i++) { const a = i * 1.05 + .3; line(g, cx, cy, cx + Math.cos(a) * r, cy + Math.sin(a) * r * 1.4, '#e8e4d8'); } }
+  }
+
   // The things in the hall, lit where they stand (the core lays them over the rendered hall): the cut in the rug, the
   // Shredder, paper in the air, what's on the walls and at the sides, then what's on the floor and Unruggabull, far to
   // near. Pickups, paper in flight and bolts glow, so they go with the glow (glows()).
@@ -1218,15 +1295,16 @@ var UnrugFloor13 = function (core) {
     drawPaper();
     // Fixed things beside and above the aisle go down first, far to near, so nothing moving is ever cut by them.
     const back = [];
-    for (const d of R.decor) { const z = d.w - R.dist; if (z < 1.02) back.push([z, () => drawDecor(d, z)]); }
-    for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02) back.push([z, () => drawCub(cb, z)]); }
+    for (const d of R.decor) { const z = d.w - R.dist; if (z < AHEAD) back.push([z, () => faded(fadeFar(z), () => drawDecor(d, z))]); }
+    for (const wk of R.workers) { const z = wk.w - R.dist; if (z < AHEAD && z > ZN - .2) back.push([z, () => faded(fadeFar(z), () => drawWorker(wk, z))]); }
+    for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02) back.push([z, () => faded(fadeIn(z), () => drawCub(cb, z))]); }
     for (const sg of R.signs) { const z = sg.w - R.dist; if (z < 1.02 && z > .05) back.push([z, () => drawSign(sg, z)]); }
     back.sort((a, b) => b[0] - a[0]);
     for (const e of back) e[1]();
     const list = [];
-    for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) list.push([z, () => drawBox(bx, z)]); }
-    for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) list.push([z, () => drawRow(row, z)]); }
-    for (const f of R.flies) list.push([f.z, () => drawFly(f)]);
+    for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) list.push([z, () => faded(fadeIn(z), () => drawBox(bx, z))]); }
+    for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) list.push([z, () => faded(fadeIn(z), () => drawRow(row, z))]); }
+    for (const f of R.flies) list.push([f.z, () => faded(fadeIn(f.z), () => drawFly(f))]);
     list.push([bull.bz - .001, drawBull]);
     list.sort((a, b) => b[0] - a[0]);
     for (const e of list) e[1]();
@@ -1262,6 +1340,7 @@ var UnrugFloor13 = function (core) {
   function aim(consider) {
     for (const cb of R.cubs) if (cb.temp && !cb.temp.dead && cb.temp.pop > .3) consider(cb.temp, posOf(cb.temp), TUNE.aimCone);
     for (const sw of R.switches || []) consider(sw, switchAt(sw), .5);
+    for (const wk of R.workers) for (const c of wk.carps) if (workerLive(c)) consider(c, workerAt(c), TUNE.aimCone);
   }
   // A shot hitting one of the floor's own targets (checked before carpshits). True if it stopped the shot.
   function shotHits(s) {
@@ -1273,6 +1352,18 @@ var UnrugFloor13 = function (core) {
     if (s.dead) return true;
     for (const sw of R.switches || []) { const at = switchAt(sw); if (!sw.hit && Math.abs(s.z - at.z) < .07 && Math.abs(s.u - at.u) < .2) { s.dead = true; hitSwitch(sw); break; } }
     if (s.dead) return true;
+    // a carpshit at work: one shot frees its soul
+    for (const wk of R.workers) for (const c of wk.carps) {
+      if (!workerLive(c)) continue;
+      const at = workerAt(c);
+      if (Math.abs(s.u - at.u) < .1 && Math.abs(s.z - at.z) < .06) {
+        s.dead = true; c.dead = true; Snd.play('hit'); sparks(at.u, at.z, at.h); poof(at.u, at.z, at.h, 8);
+        const x = PX(at.u, at.z), y = YH(at.z, at.h);
+        free(x, y - 4, 'worker', 'shot'); bonusSoul('shot', x, y, 'worker');
+        if (wk.kind === 'office') wk.cracked = true;
+        return true;
+      }
+    }
     // moving day's stacks of boxes: a few hits blast one apart, a way through without the gap (and not a bump)
     for (const bx of R.boxes) {
       const z = bx.w - R.dist;
@@ -1307,7 +1398,7 @@ var UnrugFloor13 = function (core) {
     use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, shotHits, shotFar, slash, hurt, blasterBack, posOf,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
     // the rest of the floor by name, for the test harness and the balance bots
-    BEATS, beat, spawnFormation, startEvent, MOVES, spawnMove, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
+    BEATS, beat, spawnFormation, startEvent, MOVES, spawnMove, addWorker, workerAt, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
     TAUNTS, taunt, laugh, surgeSoon, shredderZ, darkness, startBoss, serveRally, throwPlanes, spitRow, spitFan, rollBack, killTemp
   };
 };
