@@ -125,6 +125,8 @@ Once the middle floor is chosen: at its set piece the souls come back further th
 
 ### The roof finale (build with the roof)
 
+The whole roof, from the elevator to dawn, is planned in [roof-plan.md](roof-plan.md), with its storyboard. Where the two differ, the plan wins: it adds a lead-in and three rounds before the finale, makes three spools p(Loom)'s health (the odds don't move until the beam), and adds three side-view cut-ins. The finale below is its last act.
+
 The corridor, from behind him, as on Floor 13. Timings are from the finale mockup and are starting points.
 
 1. **The fight.** p(Loom)'s health bar is its odds, at 99%. The normal blaster barely moves the number (each hit on its eye takes off a fraction of a percent, and it drifts back up). Souls freed here get caught and woven into the loom, where you can see them trapped. Lines: "Probability of your survival: 1%", "Recalculating", "All souls accounted for."
@@ -154,6 +156,4 @@ Not part of the mega stream: the real p(Loom) music and its heavy version (the m
 - The leaderboard metric: souls freed, floors, or time.
 - The Unruggabull recording script (15 to 20 lines). A first draft is in the game as `LINES`; it needs Jonnie's approval before recording.
 - p(Loom)'s voice (see Sound). Does it start breaking down as its odds fall?
-- The mega stream on the roof: can a hit break the beam back into streams, or is it pure payoff? (In the mockup a hit doesn't break it.)
-- What Unruggabull says as the streams fuse (a line for the recording script).
 - Which floor is in the middle, 42 or 77, and so where the near miss happens.
