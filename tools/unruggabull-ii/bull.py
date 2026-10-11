@@ -52,7 +52,8 @@ LEG = 24               # hip to sole
 TORSO = 18.5           # shoulders to belt
 ARM = 1.1              # how thick his arms are
 STANCE = 1.4           # how much further apart his feet are than his hips
-HORN_GOLD = True       # gold at the root of each horn, fading to cream; False for cream all the way
+HORN_GOLD = False      # True puts a gold band at the root of each horn (dropped: cream all the way reads cleaner)
+FRONT_HORN = .72       # the horns' roots in the front view, thinner than from behind
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
 LIT_ABOVE = FEET - 30  # side edges above this row (his waist) take a coloured outline; below it they stay black
@@ -217,7 +218,7 @@ def earring(cv, ex, ey):
 
 
 def horn(cv, pts):
-    # gold at the root fading to cream at the tip, ridged near the head
+    # cream, ridged near the head (with HORN_GOLD, gold at the root)
     capsule(cv, pts[:3], 'horn' if HORN_GOLD else 'ivory', base=.12)
     capsule(cv, pts[2:], 'ivory', base=.14)
     for k in (.12, .26):
@@ -227,9 +228,9 @@ def horn(cv, pts):
     T(cv, tx, ty - 1, 'X')
 
 
-def horn_pts(hx, hy, s):
-    # out to the side, then up: s is -1 for his left (our left from behind), 1 for his right
-    return [(hx, hy, 2.6), (hx + 4.6 * s, hy - .3, 2.4), (hx + 7.8 * s, hy - 3.2, 2.0), (hx + 8.8 * s, hy - 7.4, 1.5), (hx + 8.0 * s, hy - 10.6, .9)]
+def horn_pts(hx, hy, s, base=1.0):
+    # out to the side, then up: s is -1 for his left (our left from behind), 1 for his right. base thins the root.
+    return [(hx, hy, 2.6 * base), (hx + 4.6 * s, hy - .3, 2.4 * (1 + base) / 2), (hx + 7.8 * s, hy - 3.2, 2.0), (hx + 8.8 * s, hy - 7.4, 1.5), (hx + 8.0 * s, hy - 10.6, .9)]
 
 
 def fist(cv, hx, hy, r):
@@ -652,7 +653,7 @@ def build_front():
 
     # the head: horns, ears, skull
     for s in (-1, 1):
-        horn(cv, horn_pts(x + s * RX * .72, y + 8.2, s))
+        horn(cv, horn_pts(x + s * RX * .72, y + 8.2, s, FRONT_HORN))
     for s in (-1, 1):
         ellipse(cv, x + s * (RX + 1.6), cy + .2, 3.4, 1.8, 'fur', base=.22, hard=True)
         ellipse(cv, x + s * (RX + 2.0), cy + .3, 1.9, .9, 'snout', base=-.1)
