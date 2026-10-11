@@ -3,7 +3,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   'use strict';
   const { A, clamp, disc, line, world, PX, FY, YH, sc, muzzleXY } = core;
   const C = tuning.effects, LM = tuning.art;
-  let souls = [], clock = 0, kick = 0, decay = 1, heldUntil = 0, flashes = 0;
+  let souls = [], clock = 0, kick = 0, decay = 1, heldUntil = 0, flashes = 0, dawnBase = 0, dawnStarts = [];
   const flights = new WeakMap(), wisps = new WeakMap();
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
   const silhouette = A.canvas(A.GHOST.width, A.GHOST.height), ink = silhouette.getContext('2d');
@@ -17,7 +17,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
       bright: .62 + row * .055, arrived: -10 };
     souls.push(s); return i;
   }
-  function reset(n) { souls = []; clock = 0; kick = 0; heldUntil = 0; flashes = 0; while (souls.length < n) add(); }
+  function reset(n) { souls = []; clock = 0; kick = 0; heldUntil = 0; flashes = 0; dawnBase = 0; dawnStarts = []; while (souls.length < n) add(); }
   function slot(i, t = clock) {
     const s = souls[i];
     if (!s) return spot(i);
@@ -26,7 +26,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   }
   function shake(intensity, seconds) { if (intensity > kick) { kick = intensity; decay = intensity / seconds; } }
   function tick(dt, Q, R, beam) {
-    clock += dt; kick = Math.max(0, kick - dt * decay);
+    clock += dt; if (!Q.cut) kick = Math.max(0, kick - dt * decay);
     if (Q.state === 'walk') while (flashes < C.distant.length && Q.t >= C.distant[flashes]) { flashes++; core.Snd.play('thunder', .35); }
     if (Q.state === 'pinch') shake(Math.min(1, Q.t / C.pinchBuild) * C.shake.pinch, .12);
     if (beam) shake(Q.onEye ? C.shake.beamEye : C.shake.beam, .1);
@@ -37,7 +37,8 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     const k = Math.max(kick, Math.min(1, R.shake * 4) * 3) * (reduced && reduced.matches ? .5 : 1);
     return [Math.round((Math.random() - .5) * k * 2), Math.round((Math.random() - .5) * k)];
   }
-  function entry(name, Q) {
+  function entry(name, Q, R) {
+    if (name === 'dawn') dawnBase = R.shown;
     if (name === 'fusion') shake(C.shake.fusion, .55);
     if (name === 'snap') shake(C.shake.snap, C.snapDecay);
     if (name === 'return' || name === 'flood') Q.flights.forEach((f, j) => {
@@ -85,7 +86,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
       const pulse = Q.state === 'quiet' ? .65 + .25 * Math.sin(clock * s.rate * 2 + s.phase) : .82;
       const wake = Q.state === 'wake' ? clamp(Q.t / C.wakeRise, .15, 1) : 1;
       const arrival = Math.max(0, 1 - (clock - s.arrived) / C.arrivalPulse);
-      drawSoul(g, i, p, (pulse + arrival * .35) * s.bright * wake, flash(Q) > .06, s.size * (1 + arrival * .2));
+      drawSoul(g, i, p, Q.state === 'flash' ? 1 : (pulse + arrival * .35) * s.bright * wake, Q.state === 'flash' || flash(Q) > .06, s.size * (1 + arrival * .2));
     }
   }
   function flightPoint(f, time, m) {
@@ -105,8 +106,10 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   }
   function dawnSoul(i, count) {
     const p = slot(i), s = souls[i];
+    const delay = (i / Math.max(1, count - 1) * .7 + s.phase / (Math.PI * 2) * .3) * C.dawnStagger;
+    dawnStarts[i] = { y: p.y, delay };
     return { k: 'rise', x: p.x, y: p.y, sx: p.x, sy: p.y, ph: s.phase, vy: -12, t: 0, dur: tuning.time.dawn,
-      roofRise: true, size: s.size * 1.2, delay: (i / Math.max(1, count - 1) * .7 + s.phase / (Math.PI * 2) * .3) * C.dawnStagger };
+      roofRise: true, size: s.size * 1.2, delay };
   }
   function riseMotion(f) {
     if (!f.roofRise) return false;
@@ -132,13 +135,17 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   }
   return { reset, tick, entry, slot, flash, capture, landed, wispMotion, riseMotion, dawnSoul, drawWarp, drawFlights, soulLights,
     shake, offset, drawRise, spool() { shake(C.shake.spool, .3); heldUntil = clock + C.hitStop; }, frameHeld: () => clock < heldUntil,
-    countAtDawn(Q) {
+    displayedCount(Q, R) { return ['dawn', 'clear'].includes(Q.state) ? dawnBase + Math.max(0, R.shown - dawnBase) + released(Q) : Math.min(R.souls, R.shown); }
+  };
+  function released(Q) {
       let n = 0;
       for (let i = 0; i < Q.dawnCount; i++) {
-        const s = souls[i], delay = (i / Math.max(1, Q.dawnCount - 1) * .7 + s.phase / (Math.PI * 2) * .3) * C.dawnStagger;
-        const k = Math.max(0, (Q.t - delay) / (tuning.time.dawn - delay));
+        const s = dawnStarts[i]; if (!s) continue;
+        const delay = s.delay;
+        const time = Q.state === 'clear' ? tuning.time.dawn : Q.t;
+        const k = Math.max(0, (time - delay) / (tuning.time.dawn - delay));
         if (s.y - k * (s.y + 16) <= 4) n++;
       }
       return n;
-    } };
+  }
 };

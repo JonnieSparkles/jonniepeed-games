@@ -174,7 +174,7 @@ Read the repo's README standards and this game's README first. Code is in `site/
 
 ## Part B: the polish
 
-**Motion, lighting, feel and sound built (2026-10-11).** Cosmetic soul slots, bob/sway/depth, walk glows and lightning silhouettes, capture curves/arrival pulses, asynchronous quiet pulses, three shake-loose bell returns, staggered accelerating flood curves/trails and individual dawn rises are implemented in `roof-effects.js`. All captives remain exact; flying drawing is capped at 96 souls per frame (plus three faint trail stamps each), represented by up to eight warm lights. Dawn's counter recounts liberated captives for presentation; score is not incremented twice.
+**Motion, lighting, feel and sound built (2026-10-11).** Cosmetic soul slots, bob/sway/depth, walk glows and lightning silhouettes, capture curves/arrival pulses, asynchronous quiet pulses, three shake-loose bell returns, staggered accelerating flood curves/trails and individual dawn rises are implemented in `roof-effects.js`. All captives remain exact; flying drawing is capped at 96 souls per frame (plus three faint trail stamps each), represented by up to eight warm lights. Dawn adds each rising captive to the displayed pre-dawn total and keeps it on the clear card; seeded run score is unchanged.
 
 Renderer lights cover the orange/red/white eye, lightning with two distant walk flashes, six flickering beam lights, soul light and two-second warm dawn. One shake function handles spools, pinch, fusion, beam and snap, halved for reduced motion. Spool hit-stop holds the picture for 0.05 seconds inside the existing intermission; fight clocks and input retain Part A timing. Rain leans more clearly before/during gusts.
 
@@ -197,3 +197,5 @@ Done afterward, from the storyboard and the art tools (`tools/unruggabull-ii/bul
 - Which floor comes right before the roof, and so where the elevator comes from.
 - p(Loom)'s voice (see spec.md, Sound).
 - The ending after dawn (the core escaping into the Sky Wrecker): its own storyboard.
+
+Roof fixes: the dawn display and clear card never reset the counter; the full lightning state draws the whole loom and captives as dark silhouettes with a thin rim. Dawn counting uses each soul's actual starting position. Snap/fusion shake decay pauses inside named cut-ins so the impulse is still visible when play returns.

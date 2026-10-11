@@ -70,7 +70,7 @@ var UnrugRoof = function (core) {
     R.phase = ['elevator', 'walk', 'flash', 'wake', 'odds'].includes(name) ? 'wake' : name === 'clear' ? 'win' : 'boss';
     emit('roof_state', { state: name });
     if (STATES[name].entry) STATES[name].entry();
-    effects.entry(name, Q);
+    effects.entry(name, Q, R);
   }
   function roundEntry(n) {
     Q.intermission = 0; Q.pendingRound = 0;
@@ -455,18 +455,29 @@ var UnrugRoof = function (core) {
     for (const s of R.shots) drawShot(s);
     drawFx('glow'); drawRain();
   }
+  const flashShape = A.canvas(W, H), flashInk = flashShape.getContext('2d');
+  function drawFlashLoom() {
+    // Reuse the stand-in geometry, then mask it to a silhouette after the scene flash.
+    const previous = g; flashInk.clearRect(0, 0, W, H); g = flashInk;
+    drawLoom(); effects.drawWarp(g, Q); g = previous;
+    flashInk.globalCompositeOperation = 'source-in'; flashInk.fillStyle = '#6b6871'; flashInk.fillRect(0, 0, W, H);
+    g.drawImage(flashShape, -.5, 0); g.drawImage(flashShape, .5, 0);
+    flashInk.fillStyle = '#13111c'; flashInk.fillRect(0, 0, W, H); g.drawImage(flashShape, 0, 0);
+    flashInk.globalCompositeOperation = 'source-over';
+  }
   function overlay() {
     const flash = effects.flash(Q);
     if (flash > .01) { g.save(); g.globalAlpha = flash * .5; rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
-    if (Q.state === 'flash') { g.save(); g.globalAlpha = flash; effects.drawWarp(g, Q); g.restore(); }
+    if (Q.state === 'flash') drawFlashLoom();
     if (Q.state !== 'elevator') return;
     const opening = clamp(Q.t / ROOF.time.elevator, 0, 1), half = W / 2 * (1 - opening);
     rect(g, 0, 0, half, H, '#24222f'); rect(g, W - half, 0, half, H, '#24222f');
     if (half > 10) txt(g, 'R', W / 2, 10, '#ffd44a', 2, 'center');
   }
   function drawCut(name = Q.cut.name) { rect(g, 0, 0, W, H, '#000000'); txt(g, name.toUpperCase(), W / 2, H / 2, '#ffffff', 2, 'center'); }
+  function displayedCount() { return effects.displayedCount(Q, R); }
   function hud() {
-    drawSoulsCounter(Q.state === 'dawn' ? effects.countAtDawn(Q) : undefined);
+    drawSoulsCounter(displayedCount());
     if (['elevator', 'walk', 'flash'].includes(Q.state)) return;
     otxt(g, 'P(LOOM)', 56, 5, '#ffd44a');
     rect(g, 86, 4, 90, 7, '#1a1824'); rect(g, 87, 5, 88, 5, '#2e2048');
@@ -491,8 +502,8 @@ var UnrugRoof = function (core) {
     frameHeld: effects.frameHeld, shakeOffset: () => effects.offset(R), wispMotion: effects.wispMotion, riseMotion: effects.riseMotion, drawRise: effects.drawRise,
     pauseText: 'The loom waits.', continueText: () => 'Continue from ' + (isRound() ? 'round ' + Q.round : 'the quiet') + ' with full hearts?',
     clearCard(extra, best, clock) { return { title: 'Roof clear', text: 'The Unrugged drift up into the dawn.',
-      rows: [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Continues', String(R.continues)], ['Best', best.souls + ' souls']], note: '' }; },
+      rows: [['Souls freed (including dawn)', String(displayedCount())], ['Time', clock(R.endT)], ['Continues', String(R.continues)], ['Best', best.souls + ' souls']], note: '' }; },
     // Test bridge / Part B seams. No shipped controls can call these.
-    ROOF, STATES, enter, eyeAt, volley, launchSnare, startGust, beamActive, drawLoom, drawEye, drawSpool, drawWarp, soulSpot, effects
+    displayedCount, ROOF, STATES, enter, eyeAt, volley, launchSnare, startGust, beamActive, drawLoom, drawEye, drawSpool, drawWarp, soulSpot, effects
   };
 };
