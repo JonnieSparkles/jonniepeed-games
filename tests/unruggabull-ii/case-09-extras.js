@@ -7,7 +7,7 @@
 
   // lights out: ten seconds, eyes keep coming, and every kill in the dark frees two souls
   RUN.force = 909; startRun(); bull.inv = 1e9;
-  R.beat = 1; R.beatT = BEATS[1].time; R.flies = []; update(1 / 60); if (R.event && R.event.course === 'lift') { R.event = null; startEvent(R.evQ.shift()); }   // (past heavy lifting, straight to lights out)
+  R.beat = 1; R.beatT = BEATS[1].time; R.flies = []; update(1 / 60);
   check(R.event && R.event.kind === 'dark' && R.event.dur === TUNE.darkT, 'lights out lasts ' + TUNE.darkT + ' seconds');
   check(R.signs.some(sg => sg.neon && sg.text.startsWith('LIGHTS OUT')), 'with a neon sign');
   R.flies = []; step(3);

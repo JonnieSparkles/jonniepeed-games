@@ -53,8 +53,8 @@ window.__balanceBot = function (profile, seed) {
       o.rows.forEach(function (rw) {
         var pl = plan(rw, function () { return { jump: r() < P.jump_try, err: err(P.jump_err) }; });
         var dz = rw.z - b.bz - rw.speed * lead;
-        // a beam hangs at head height, and a plank is carried there: duck under it (same odds and timing error as a jump)
-        if (rw.kind === 'beam' || rw.kind === 'plank') { if (pl.jump && dz < rw.speed * .3 + pl.err + .04 && dz > -.06) a.crouch = true; return; }
+        // a beam hangs at head height: duck under it (same odds and timing error as a jump)
+        if (rw.kind === 'beam') { if (pl.jump && dz < rw.speed * .3 + pl.err + .04 && dz > -.06) a.crouch = true; return; }
         if (pl.jump && dz > 0 && dz < rw.speed * .25 + pl.err + .02) a.jump = true;
       });
       o.boxes.forEach(function (bx) {

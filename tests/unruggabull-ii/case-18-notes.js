@@ -11,8 +11,8 @@
   R.beatT = BEATS[0].time; update(1 / 60);
   check(R.event && R.event.kind === 'move', 'moving day');
   const E = R.event;
-  // the course: chairs, beams and the movers' couch and plank, the first jump and first duck marked
-  check(MOVES.length >= 8 && MOVES.some(m => m[0] === 'couch') && MOVES.some(m => m[0] === 'plank') && !MOVES.some(m => m[0] === 'wall'), 'a course of jumps and ducks, no walls');
+  // the course: a couple of chairs and a couple of beams, the first jump and first duck marked
+  check(MOVES.filter(m => m[0] === 'chairs').length === 2 && MOVES.filter(m => m[0] === 'beam').length === 2, 'a couple of jumps and a couple of ducks');
   R.boxes = []; R.rows = []; E.moves = MOVES; E.dur = 1e9; E.nextOb = 1e9; E.obN = 0; E.marked = {}; E.souls = [];
   spawnMove(E);
   const chairs = R.rows.find(rw => rw.kind === 'chairs');
@@ -42,7 +42,7 @@
   check(!(R.event && R.event.kind === 'move') && R.souls >= before + E.bonus, 'not a scratch: a bonus');
 
   // lights out: shoot a switch and the lights flash on, freezing the carpshits
-  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); if (R.event && R.event.course === 'lift') { R.event = null; startEvent(R.evQ.shift()); }   // (past heavy lifting, straight to lights out)
+  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60);
   check(R.event && R.event.kind === 'dark', 'lights out');
   for (let i = 0; i < 60 * 4 && !R.switches.length; i++) update(1 / 60);
   check(R.switches.length, 'a light switch glows on the wall');
