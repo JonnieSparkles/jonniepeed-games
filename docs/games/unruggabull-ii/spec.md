@@ -56,7 +56,7 @@ A corridor floor of about two minutes, then the Shredder.
 - **The goal.** "Free 90 souls to wake the Shredder", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
-  - **Moving day**: an athletic stretch: furniture to zig-zag round, jump and duck under, with the first of each marked, and box walls you can blast a way through. (It replaced an audit deflect round that didn't read.)
+  - **Moving day**: an athletic stretch: a course of furniture to jump and duck, one move at a time down the middle of the hall, the first of each marked, ending with carpshit movers carrying a couch and a plank. Souls trapped in bubbles between the pieces, in different lanes, keep you moving side to side. (It replaced box walls to zig-zag round or blast through, which didn't read, and before that an audit deflect round.)
   - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap at head height to duck, a snake).
   - **Lights out**: only monitors, eyes and paper show, and blaster bolts light up the hall as they fly. Formations and single carpshits keep coming out of the dark, and every soul freed in it counts double. Shoot a glowing light switch and the lights flash on, freezing them.
   - Wiping out a whole formation pays a bonus soul for each carpshit in it.

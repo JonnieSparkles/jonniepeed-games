@@ -48,7 +48,7 @@
     pullSpeed: .3, recover: .5, mouth: .85,
     goal: 90,               // souls that wake the Shredder
     wadTime: 1.25, wadLead: .2, throwChance: .6,
-    moveT: 13, moveEvery: 1.15, moveClean: 10,   // moving day: how long, an obstacle this often, and the bonus for a clean run
+    moveT: 19.5, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
@@ -64,7 +64,6 @@
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
     deflectCharge: 3,       // each deflect gives the blaster this many charges back
-    stackHits: 3,           // moving day: blaster hits that blast a stack of boxes apart
     reach: .9,              // the blaster's targets count from this far down the hall, once they're fully out of the dark
     // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
     // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then

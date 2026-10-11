@@ -9,7 +9,7 @@
     { "label": "souls: deflect", "key": "soul.amount:by=deflect" },
     { "label": "souls: at work", "key": "soul.amount:source=worker" },
     { "label": "moving day souls", "key": "soul.amount:source=move" },
-    { "label": "stacks blasted", "key": "stack" },
+    { "label": "moving day: trapped souls", "key": "soul.amount:by=bubble" },
     { "label": "lost: beams", "key": "hit.amount:cause=beam" },
     { "label": "dark bonus", "key": "soul.amount:by=dark" },
     { "label": "wipe bonus", "key": "soul.amount:by=wipe" },

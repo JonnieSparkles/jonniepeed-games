@@ -1,4 +1,4 @@
-// Moving day (walls you can't jump but can blast apart, the first of each piece marked, beams to duck, a clean-run bonus), the endless hall and the Shredder closing in,
+// Moving day (a course of chairs and beams, the first jump and duck marked, souls trapped between, a clean-run bonus), the endless hall and the Shredder closing in,
 // lights out's switches, the surge's tell and bolt, the burst on a deflect, and the souls going back after the hint.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -11,36 +11,33 @@
   R.beatT = BEATS[0].time; update(1 / 60);
   check(R.event && R.event.kind === 'move', 'moving day');
   const E = R.event;
-  // a wall: three tall stacks, one gap; jumping doesn't clear it
-  R.boxes = []; R.rows = []; E.nextOb = 1e9; E.gap = 0; E.obN = 0; spawnMove(E);
-  const wall = R.boxes.filter(bx => bx.tall);
-  check(wall.length === 3, 'a wall of three stacks with one gap');
-  const blocked = wall[0].u; bull.u = blocked; bull.inv = 0; const h0 = R.hearts;
-  for (let i = 0; i < 700 && wall[0].w - R.dist > bull.bz - .03; i++) { if (wall[0].w - R.dist - bull.bz < .1) press('jump'); bull.u = blocked; update(1 / 60); }
-  check(wall[0].hit && !E.clean, "a jump doesn't clear a stack; the run's no longer clean");
-  check(R.hearts === h0 - 1, 'and furniture costs a heart');
-  check(wall[0].ob.mark && wall[0].ob.gap != null && !wall.some(bx => Math.abs(bx.u - wall[0].ob.gap) < .01), 'the first wall is marked, with its gap');
-  // or blast a way through: a few shots break a stack, and that's not a bump
-  const tMove = E.t; bull.inv = 0; R.boxes = []; E.clean = true; E.obN = 0; E.gap = 0; spawnMove(E);
-  const wall2 = R.boxes.filter(bx => bx.tall), target = wall2.reduce((a, b) => Math.abs(a.u - .15) < Math.abs(b.u - .15) ? a : b);
-  check(!wall2[0].ob.mark, 'only the first wall is marked');
-  const h2 = R.hearts;
-  for (let i = 0; i < 700 && target.w - R.dist > bull.bz - .03; i++) { bull.u = target.u - A.MUZZLE.x / HW; R.charge = TUNE.charges; keys.kbShoot = true; update(1 / 60); }
-  keys.kbShoot = false;
-  check(target.blown && target.dmg >= TUNE.stackHits, 'three hits blast a stack apart');
-  check(R.hearts === h2 && E.clean, 'and running through where it stood costs nothing');
-  draw(); E.t = tMove;   // (moving day's clock back to where it was)
+  // the course: chairs, beams and the movers' couch and plank, the first jump and first duck marked
+  check(MOVES.length >= 8 && MOVES.some(m => m[0] === 'couch') && MOVES.some(m => m[0] === 'plank') && !MOVES.some(m => m[0] === 'wall'), 'a course of jumps and ducks, no walls');
+  R.boxes = []; R.rows = []; E.nextOb = 1e9; E.obN = 0; E.marked = {}; E.souls = [];
+  spawnMove(E);
+  const chairs = R.rows.find(rw => rw.kind === 'chairs');
+  check(chairs && chairs.ob.mark && E.souls.length === 1, 'the first chairs are marked, with a trapped soul after them');
+  // stand in the chairs' way without jumping: a heart, and the run's no longer clean
+  bull.inv = 0; const h0 = R.hearts;
+  for (let i = 0; i < 700 && chairs.w - R.dist > bull.bz - .03; i++) update(1 / 60);
+  check(chairs.hit && !E.clean && R.hearts === h0 - 1, 'furniture costs a heart, and the run is no longer clean');
+  // run through the trapped soul to free it
+  const sl = E.souls[0], s0 = R.souls;
+  for (let i = 0; i < 700 && !sl.got && sl.w - R.dist > bull.bz - .05; i++) { bull.u = sl.u; update(1 / 60); }
+  check(sl.got && R.souls > s0, 'running through a trapped soul frees it');
+  bull.u = 0; E.clean = true;
+  draw();
   // a beam: duck under it
-  bull.inv = 0; R.boxes = []; E.obN = MOVES.indexOf('beam'); spawnMove(E);
+  bull.inv = 0; R.boxes = []; R.rows = []; E.obN = MOVES.findIndex(m => m[0] === 'beam'); spawnMove(E);
   const beam = R.rows.find(rw => rw.kind === 'beam'), h1 = R.hearts, souls = R.souls;
   keys.kbDown = true;
   for (let i = 0; i < 700 && beam.w - R.dist > bull.bz - .1; i++) update(1 / 60);
   keys.kbDown = false; update(1 / 60);
   check(R.hearts === h1, 'crouched, the beam goes over');
-  check(R.souls > souls, 'and clearing it frees a soul');
+  check(R.souls > souls && R.fx.some(f => f.k === 'pop' && f.text === 'DUCKED!'), 'and clearing it frees a soul, with a DUCKED!');
   draw();
   // a clean run pays a bonus
-  bull.inv = 1e9; E.clean = true; E.nextOb = 0; const before = R.souls;
+  bull.inv = 1e9; E.clean = true; E.nextOb = 0; E.obN = Math.min(E.obN, MOVES.length - 1); const before = R.souls;
   for (let i = 0; i < 60 * TUNE.moveT && R.event; i++) update(1 / 60);
   check(!R.event && R.souls >= before + TUNE.moveClean, 'not a scratch: a bonus');
 
