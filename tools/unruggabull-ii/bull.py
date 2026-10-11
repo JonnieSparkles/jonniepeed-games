@@ -10,7 +10,7 @@ four tones per material, K for black outlines.
 
 The look (October 2026, picked over several rounds of mockups): muscular, with wide shoulders, a narrow waist and a
 real neck; dark brown fur; a big warm-brown pompadour; clear glasses over half-lidded eyes; cream-to-gold horns; an
-orange-tan snout; the red puffer vest open over a dark tee with grey sleeves; dog tags; jeans rolled at the ankle;
+orange-tan snout; the red puffer vest open over a dark tee with charcoal sleeves; dog tags; jeans rolled at the ankle;
 brown boots; a gold earring in his right ear; the gold blaster, and the katana on his back. Sized for a 480x270 hall
 (about 70 px with the horns). Lit edges take a dark tone of their own colour; only edges turned away stay black.
 """
@@ -28,7 +28,7 @@ MAT = {
     'horn':   ('ijkl', ['6a3414', 'ad6a1c', 'e3a733', 'fff07e']),
     'ivory':  ('UVWX', ['8a6a3c', 'c4a670', 'ead6a6', 'fff8e4']),
     'vest':   ('mnop', ['561024', '981c24', 'cf362b', 'f7704b']),
-    'tee':    ('qrst', ['5c5a6a', '8e8c9a', 'bcbac4', 'e6e4ea']),
+    'tee':    ('qrst', ['1c1a24', '2c2a38', '403e52', '56546c']),   # charcoal sleeves: light grey read as shoulder pads from behind
     'navy':   ('1234', ['0e1224', '1a2036', '28304c', '3a4466']),
     'jean':   ('uvwx', ['141b3f', '1f336f', '2e4f95', '4a74b8']),
     'belt':   ('yzAB', ['1e1218', '38231c', '573a28', '7a5a3c']),
@@ -57,6 +57,7 @@ FRONT_HORN = .72       # the horns' roots in the front view, thinner than from b
 HUNCH = 6              # crouched: how much shorter his back gets
 DUCK_HEAD = 6          # crouched: how far his head sinks into his shoulders, so he gets well under a beam
 SLEEVE = 1.0           # how full the tee's sleeves and shoulder caps are
+CAP = .8               # the shoulder caps on their own, a little slimmer
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
 LIT_ABOVE = FEET - 30  # side edges above this row (his waist) take a coloured outline; below it they stay black
@@ -255,7 +256,7 @@ def arm(cv, sh, el, hd, fist_r):
 
 
 def delt(cv, x, y, side):
-    ellipse(cv, x + side * (SH - 2.6), y + 2.6, 3.3 * ARM * SLEEVE, 3.2 * ARM * SLEEVE, 'tee', base=.12, hard=True)
+    ellipse(cv, x + side * (SH - 2.6), y + 2.6, 3.3 * ARM * SLEEVE * CAP, 3.2 * ARM * SLEEVE * CAP, 'tee', base=.12, hard=True)
 
 
 def traps(cv, x, y):
@@ -631,7 +632,7 @@ def build_front():
         T(cv, x - 8.5 + k * 15.5, vy + 1 + k * 14.5, 'L' if i % 5 else 'M')
     T(cv, x + 1.6, vy + 8.8, 'k')
 
-    # traps, the neck with its cords, the tee's neckline, the dog tags; grey sleeves; the vest's collar
+    # traps, the neck with its cords, the tee's neckline, the dog tags; charcoal sleeves; the vest's collar
     traps(cv, x, vy - 5)
     cv.begin()
     ntop, nbot = cy + 3, vy + .5
