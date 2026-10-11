@@ -51,6 +51,7 @@ Best souls and fastest clear are kept in `localStorage` (`unruggabull-ii-best`),
 ## Code entry points
 
 - `art.js` (`UnrugArt`): palette, 3x5 font, sprites as text grids, and the bull's poses from behind, cached once.
+- `bull.js` (`UnrugBull`): the new Unruggabull for the lit hall, not loaded by the game yet (the bull in `art.js` is still the one in play). Nine poses from behind (`stand`, `breathe`, `runA`, `runB`, `aim`, `wind`, `slash`, `crouch`, `jump`) in one box with his feet at `FEET`, the blaster's muzzle in the aim pose at `MUZZLE`, a front, side and back turnaround in `VIEWS`, the blaster on its own, and `paint(rows)` to turn a grid into a canvas. About 70 px tall with the horns, sized for a 480×270 hall. It's written by `tools/unruggabull-ii/bull.py`, which poses him from shaded parts; change the script and run it rather than editing the grids, and `--png DIR` saves every frame as an image.
 - `audio.js` (`UnrugSound`): `init`, `play(name)`, `muted`, `toggle`, `music('theme' | 'tower' | 'staff' | 'dark' | 'copy' | 'shred' | null)`, `tempo(rate)` (a rally speeds the music up), `play('bell', n)` for a soul joining the blaster, `say(text, who)` for blip talk, `hush()` to cut a line short, and `talkTimes` so captions type out in step with it. The chip sequencer and all six tracks live here.
 - `game.js`: `TUNE` holds the numbers (charges, recharge, Spread Shot time, the souls' hint as `soulHint`) and `BEATS` the hall's three beats with their music. `newRun`, `update(dt)` and `draw()` are the core; `updateHall` runs the beats and events, `updatePull`, `updateBoss` and `updatePhase` the runner, the Shredder and the floor's flow, and `STORY` with `startIntro` the opening. The corridor projection (`PX`, `FY`, `YH`) and the far-wall box `BACK` are at the top; `drawTower` is the title scene. Stations, decor and signs are drawn before anything that moves, so they never cut through it.
 
@@ -71,3 +72,5 @@ Serve `site/` on port 8000 and run `python3 tests/unruggabull-ii/test.py`. The c
 Difficulty is measured with the balance bots above; a full clear takes about two minutes. It still needs playtesting on real phones, and playtesting wins.
 
 `python3 tools/og/make.py --game unruggabull-ii` rebuilds the share card and shelf thumbnail from the title screen.
+
+`python3 tools/unruggabull-ii/bull.py --check` fails if `bull.js` is out of date with the script that draws him.

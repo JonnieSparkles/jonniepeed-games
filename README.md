@@ -22,6 +22,7 @@ tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in 
 tools/check_boards.py   checks game BOARD constants before deploying
 tools/balance/          balance bots: seeded headless runs at several skill levels, with reports
 tools/trailer/          trailers: scripted gameplay captured frame by frame, the game's own sound, music and the cut
+tools/unruggabull-ii/    Unruggabull II's bull: posed in code and written to site/unruggabull-ii/bull.js as text grids
 scores/                Cloudflare Worker, D1 schema, rules and API tests (not published with site/)
 stats/                  play stats Worker, D1 schema, private dashboards and tests (not published with site/)
 rooms/                  rooms Worker: plays together over the internet from a link, and its test (not published with site/)
