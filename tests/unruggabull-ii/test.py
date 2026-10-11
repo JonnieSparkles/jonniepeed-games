@@ -140,13 +140,30 @@ with sync_playwright() as p:
         page.wait_for_timeout(100)
         assert page.evaluate("unrugTest('R.stage === \"roof\" && RUN.seed === 42 && state === \"play\" && R.roof.state === \"elevator\"')"), name
         assert page.locator('#card').is_hidden() and page.locator('#crawl').is_hidden(), name
-        page.evaluate("unrugTest('looping=false; floor.enter(\"round1\"); draw()')")
+        page.evaluate("unrugTest('looping=false; floor.enter(\"round1\"); floor.volley(); draw()')")
+        assert page.evaluate("""unrugTest('R.roof.rings.every(r => PX(r.u,r.z)-Math.max(15,textWidth(r.odds+\"%\")/2)>0 && PX(r.u,r.z)+Math.max(15,textWidth(r.odds+\"%\")/2)<W && FY(r.z)+4<H && FY(r.z)-14>0)')"""), f'{name}: rings and percentage labels fit'
+        page.keyboard.down('ArrowUp')
+        page.evaluate("unrugTest('for(let i=0;i<24;i++) update(1/60)')")
+        page.keyboard.up('ArrowUp')
+        assert page.evaluate("unrugTest('bull.bz > .1 && bull.jh === 0 && !keys.kbUp')"), f'{name}: arrow up walks forward'
         stage = page.locator('.stage').bounding_box()
+        canvas = page.locator('#c').bounding_box()
+        assert canvas['y'] >= 0 and canvas['y'] + canvas['height'] <= size[1] + 1, f'{name}: whole roof canvas fits vertically'
         assert page.evaluate('document.documentElement.scrollWidth') <= size[0], name
         assert stage['x'] >= 0 and stage['x'] + stage['width'] <= size[0] + 1, name
         if touch:
             # Browsers require a tap to enter full screen; the hash starts play without that gesture.
             assert page.locator('#stickzone').is_visible() and page.locator('.pad[data-k="shoot"]').is_visible(), name
+            box = page.locator('#stickzone').bounding_box()
+            cx, cy = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
+            page.dispatch_event('#stickzone', 'pointerdown', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
+            page.dispatch_event('#stickzone', 'pointermove', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy - 40})
+            page.evaluate("unrugTest('for(let i=0;i<30;i++) update(1/60)')")
+            assert page.evaluate("unrugTest('bull.bz === floor.ROOF.depthMax && bull.jh === 0')"), f'{name}: stick up walks forward'
+            page.dispatch_event('#stickzone', 'pointermove', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy + 40})
+            page.evaluate("unrugTest('for(let i=0;i<60;i++) update(1/60)')")
+            page.dispatch_event('#stickzone', 'pointerup', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
+            assert page.evaluate("unrugTest('bull.bz === 0 && !bull.crouch && !keys.padUp && !keys.padDown')"), f'{name}: stick down walks back and release clears input'
         assert not errors, (name, errors)
         print('PASS roof hash/layout', name)
         context.close()

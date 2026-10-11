@@ -4,6 +4,8 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Why it's this way
 
+- **A packed warp and time to fight** (roof Part A follow-up, PR #84): the first framework reached the quiet with only a few captives and cleared in about 2¼ minutes. Earlier-floor captives and more frequent small carp groups now fill the warp and counter; all souls return and rise at dawn. Rows with slight overlap preserve readable silhouettes. Rings moved up the roof with real forward/back movement so their depth matters and phone edges cannot crop them. Spaced openings lengthen the rounds through attacks rather than extra health; roof-only recharge and ring weights keep the larger fight playable without changing Floor 13.
+
 - **The roof framework precedes its polish** (roof Part A): the approved storyboard needs a complete playable fight before art, sound and feel can be tuned. Floors share the same core and renderer; the spools gate the three rounds while the 99% odds only yield to the mega stream. Every beat has a replaceable drawing and timing seam, and Floor 13's existing seeded outcomes and pictures remain unchanged.
 
 - **Moving day replaced the audit** (notes after the first deploy): "i still dont get the audit thing", and the owner asked for "an athletic furniture section (not too hard) but without having to worry about shooting".

@@ -33,6 +33,7 @@
       setState('play'); card.hidden = true; crawl.hidden = true; intro = null;
       input.jump = input.slash = input.shoot = 0;
       keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = keys.kbDown = keys.padDown = false;
+      keys.kbUp = keys.padUp = false;
     },
     // Game logic only; never draws.
     step: function (dt) {
@@ -66,7 +67,7 @@
         var q = R.roof, rt = floor.ROOF;
         o.roof = { state: q.state, round: q.round, broken: q.broken, hp: q.hp, odds: q.odds,
           stall: q.stall, beam: !!R.beam, beamU: q.beamU || 0, beamSteer: rt.beamSteer,
-          beamHit: rt.beamHit, cut: !!q.cut,
+          beamHit: rt.beamHit, cut: !!q.cut, ringZ: rt.ringZ, depthSpeed: rt.depthSpeed, depthMax: rt.depthMax,
           eye: { u: q.eye.u, dir: q.eye.dir || 0, speed: rt.eyeRun + rt.eyeAccel * (1 - q.odds / rt.odds) },
           volley: q.volley ? idOf(q.volley) : null,
           rings: q.rings.map(function (r) { return { u: r.u, z: r.z, odds: r.odds }; }),
@@ -79,6 +80,7 @@
     act: function (a) {
       if (!a || state !== 'play') return;
       keys.kbLeft = !!a.left; keys.kbRight = !!a.right; keys.kbShoot = !!a.shoot; keys.kbDown = !!a.crouch;
+      if (R.stage === 'roof') { keys.kbUp = !!a.forward; keys.kbDown = !!a.back; }
       if (a.jump) press('jump');
       if (a.slash) press('slash');
     },

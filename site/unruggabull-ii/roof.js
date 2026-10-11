@@ -8,22 +8,23 @@ var UnrugRoof = function (core) {
       flood: 3, pinch: 1, fusion: 0, lines: 4.5, beam: 2.5, one: 2, snap: 0, dawn: 5, clear: 0 },
     cuts: { soul: 1, beam: .65, snap: 1.5 },
     walkSpeed: .1, aisle: .84, parapetH: .09,
-    roundLengths: [30, 40, 45], openings: [4, 5, 7], stall: 2, hitsPerSpool: [12, 14, 16],
+    roundLengths: [30, 40, 45], openings: [2, 2, 2], volleyEvery: [6, 6, 6], stall: 2.3, hitsPerSpool: [10, 10, 10],
     eyeZ: .86, eyeH: .71, eyeLimit: .95, eyeFollow: 1.3, eyeHit: .15, aimCone: .5,
-    flyEvery: [3.2, 2.8, 2.2], flyHP: 1, flyH: .35,
-    ringOdds: [[71, 21, 8], [78, 16, 6], [88, 9, 3]], ringLanes: [-.58, 0, .58],
-    ringTell: 1.4, orbGap: .35, orbFly: .85, ringRadius: .19, ringDepth: .16, orbH: .1,
+    flyEvery: [2.8, 2.5, 2.0], flyGroup: [2, 3, 4], flySpread: .12, flyHP: 1, flyH: .35, recharge: .35,
+    ringOdds: [[75, 21, 4], [81, 16, 3], [90, 9, 1]], ringLanes: [-.58, 0, .58],
+    ringTell: 1.4, orbGap: .35, orbFly: .85, ringRadius: .19, ringDepth: .16, ringZ: .28, depthMax: .36, depthSpeed: .45, orbH: .1,
     snareEvery: [0, 9, 6], snareFly: 1.1, snareSpeed: .24, snareHook: .18, reelEnd: .7, flinch: 1,
     gustEvery: [0, 12, 9], gustTell: .8, gustT: 1.2, gustForce: 1.2,
     odds: 99, minimum: 1, drain: 10, creep: 3, beamSteer: 1.8, beamLimit: 1.1, beamHit: .2,
     eyeRun: .4, eyeAccel: .55, beamFlyEvery: 4, returnGap: 1.5, returnFly: 1.2,
-    initialCaught: 6, recalculatingGap: 5,
+    initialCaught: 100, recalculatingGap: 5,
     freeze: .14, lightningFrame: 1 / 30, reelJump: .12, throwPin: .4,
     eyeHitZ: .04, eyeHitH: .15, spoolFlash: .6, beamFlash: .1, aimHold: .15,
     firstFly: 1, fightBanner: 1, warmAmbient: .25, darkAmbient: .1, flashAmbient: .7,
     deadWait: 1.9, glowOdds: 100, spools: 3, hitCost: 1, otherRingChance: .5,
     art: { left: 52, right: 188, top: 4, beam: 12, rail: 47, cloth: 60, base: 79,
-      spools: [80, 120, 160], rain: 55, beamMuzzle: 16, beamEnd: 5 }
+      spools: [80, 120, 160], rain: 55, beamMuzzle: 16, beamEnd: 5,
+      warpColumns: 10, warpRows: 6, soulScale: .45, soulOverlap: .65, flightCap: 96 }
   };
   const {
     A, Snd, rect, line, disc, poly, txt, otxt, textWidth, W, H, PX, FY, YH, sc, clamp, TUNE,
@@ -67,13 +68,14 @@ var UnrugRoof = function (core) {
   function roundEntry(n) {
     Q.intermission = 0; Q.pendingRound = 0;
     Q.round = n; Q.broken = n - 1; Q.hp = ROOF.hitsPerSpool[n - 1]; Q.odds = ROOF.odds;
-    Q.stall = 0; Q.flinch = 0; Q.nextVolley = ROOF.roundLengths[n - 1] / ROOF.openings[n - 1];
+    Q.roundStart = R.t; Q.stall = 0; Q.flinch = 0; Q.nextVolley = ROOF.volleyEvery[n - 1];
+    Q.nextOpening = ROOF.roundLengths[n - 1] / ROOF.openings[n - 1];
     Q.nextFly = ROOF.firstFly; Q.nextSnare = ROOF.snareEvery[n - 1]; Q.nextGust = ROOF.gustEvery[n - 1];
     Q.recalc = 0; clearThreats(); bull.bz = 0;
     Snd.music('roof');
     checkpoint();
   }
-  function roundExit() { clearThreats(); Q.stall = 0; }
+  function roundExit() { emit('roof_round_time', { amount: Math.round((R.t - Q.roundStart) * 100) / 100 }); clearThreats(); Q.stall = 0; }
   const STATES = {
     elevator: { entry() { Snd.music(null); Snd.play('storm'); } },
     walk: {},
@@ -96,20 +98,31 @@ var UnrugRoof = function (core) {
       if (R.events.said) { R.events.said = Object.assign({}, R.events.said); delete R.events.said.odds; }
       // The last round's line finishes before its last word cuts the music.
       Q.accounted = say('ALL SOULS ACCOUNTED FOR.'); Q.silenced = false; Q.quietT = 0;
+      emit('roof_quiet', { amount: Q.caught + R.fx.filter(f => f.caught).length });
+      emit('roof_quiet_score', { amount: R.souls });
       checkpoint();
     }, tick(dt) {
       Q.eye.u += clamp(-Q.eye.u, -ROOF.eyeFollow * dt, ROOF.eyeFollow * dt);
       if (!Q.silenced && (!R.talk || R.talk.t >= Q.accounted)) { Q.silenced = true; Snd.music(null); }
       if (Q.silenced) Q.quietT += dt;
     }, ready: () => Q.quietT >= ROOF.time.quiet, exit() { cutIn('soul', ROOF.cuts.soul); } },
-    return: { entry() { R.gold = true; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0; say('ERROR. ERR.'); }, tick(dt) {
+    return: { entry() {
+      R.gold = true; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0;
+      Q.flights = Array.from({ length: Math.min(ROOF.spools, Q.caught) }, (_, i) => soulFlight(Q.caught - 1 - i, i * ROOF.returnGap));
+      say('ERROR. ERR.');
+    }, tick(dt) {
       Q.returnT += dt;
-      while (Q.returned < ROOF.spools && Q.returnT >= Q.returned * ROOF.returnGap + ROOF.returnFly) {
+      while (Q.returned < Q.flights.length && Q.returnT >= Q.returned * ROOF.returnGap + ROOF.returnFly) {
         const n = Q.returned++; Q.caught = Math.max(0, Q.caught - 1); Snd.play('bell', n); emit('roof_return', { amount: 1 });
       }
     } },
-    flood: { entry() { Q.floodFrom = Q.caught; Snd.music('roofHeavy'); }, tick() {
-      const due = Math.floor(Q.floodFrom * Math.min(1, Q.t / ROOF.time.flood));
+    flood: { entry() {
+      Q.floodFrom = Q.caught;
+      Q.flights = Array.from({ length: Q.floodFrom }, (_, i) => soulFlight(Q.floodFrom - 1 - i,
+        i / Math.max(1, Q.floodFrom - 1) * (ROOF.time.flood - ROOF.returnFly)));
+      Snd.music('roofHeavy');
+    }, tick() {
+      const due = Q.flights.filter(f => Q.t + 1e-9 >= f.delay + ROOF.returnFly).length;
       const returned = Q.floodFrom - Q.caught;
       if (due > returned) { emit('roof_return', { amount: due - returned }); Q.caught = Q.floodFrom - due; }
     }, exit() { Q.caught = 0; } },
@@ -123,15 +136,12 @@ var UnrugRoof = function (core) {
     one: { entry() { clearThreats(); Q.odds = ROOF.minimum; say('UNLIKELY.'); }, ready: () => Q.t >= ROOF.time.one && !R.talk },
     snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); cutIn('snap', ROOF.cuts.snap); } },
     dawn: { entry() {
-      R.gold = false; R.beam = false; Snd.music(null); Snd.play('chord'); Q.dawnFreed = 0;
+      R.gold = false; R.beam = false; Snd.music(null); Snd.play('chord');
       Object.assign(bull, { aimT: 0, slash: -1, jh: 0, jv: 0, crouch: false, sq: 0, stag: 0 });
-      for (let i = 0; i < Q.initialSouls + R.souls; i++) {
-        if (i >= 40) break;
+      Q.dawnCount = Q.capturedTotal;
+      for (let i = 0; i < Q.dawnCount; i++) {
         R.fx.push({ k: 'rise', x: 60 + Math.random() * 120, y: 20 + Math.random() * 50, vy: -12, ph: Math.random() * 6, t: 0, dur: ROOF.time.dawn });
       }
-    }, tick() {
-      const due = Math.min(Q.initialSouls, Math.floor(Q.initialSouls * Q.t / ROOF.time.dawn));
-      while (Q.dawnFreed < due) { Q.dawnFreed++; free(120, LM.rail, 'loom', 'clear'); }
     } },
     clear: { entry() { R.endT = R.t; endRun('clear'); } }
   };
@@ -142,13 +152,13 @@ var UnrugRoof = function (core) {
     R = r; bull = b; R.speed = 0;
     Q = R.roof = { state: null, t: 0, round: 1, broken: 0, hp: ROOF.hitsPerSpool[0], odds: 0,
       eye: { u: 0, z: ROOF.eyeZ, h: ROOF.eyeH, eye: true }, caught: ROOF.initialCaught,
-      initialSouls: ROOF.initialCaught, capturedTotal: ROOF.initialCaught, history: [], rings: [], stall: 0, flinch: 0, hot: 0, cut: null, recalc: 0 };
+      capturedTotal: ROOF.initialCaught, history: [], rings: [], stall: 0, flinch: 0, hot: 0, cut: null, recalc: 0 };
     if (at) {
       Object.assign(R, { t: at.t, souls: at.souls, shown: at.souls, continues: at.continues + 1, bestStreak: at.bestStreak });
       Object.assign(R.events, at.events);
       Q.broken = at.broken; Q.caught = at.caught; Q.capturedTotal = at.capturedTotal;
       enter(at.roofState);
-    } else enter('elevator');
+    } else { R.souls = R.shown = ROOF.initialCaught; enter('elevator'); }
   }
   function cutIn(name, seconds) { Q.cut = { name, left: seconds, seconds }; emit('roof_cut', { name }); }
   function hold(dt) {
@@ -175,16 +185,17 @@ var UnrugRoof = function (core) {
       if (ready) enter(ORDER[ORDER.indexOf(Q.state) + 1]);
     }
   }
-  function spawnCarp() {
-    R.flies.push({ u: rr(-ROOF.aisle, ROOF.aisle), z: 1, h: ROOF.flyH, hp: ROOF.flyHP, ph: rnd() * 6,
-      hit: 0, dead: false, cause: 'carp' });
+  function spawnCarp(count = 1) {
+    const u = rr(-ROOF.aisle + ROOF.flySpread, ROOF.aisle - ROOF.flySpread);
+    for (let i = 0; i < count; i++) R.flies.push({ u: clamp(u + (i - (count - 1) / 2) * ROOF.flySpread, -ROOF.aisle, ROOF.aisle),
+      z: 1, h: ROOF.flyH, hp: ROOF.flyHP, form: count > 1, ph: (count > 1 ? Math.random() : rnd()) * 6, hit: 0, dead: false, cause: 'carp' });
   }
   function volley() {
     const likely = ROOF.ringLanes.reduce((a, u, i) => Math.abs(u - bull.u) < Math.abs(ROOF.ringLanes[a] - bull.u) ? i : a, 0);
     const others = [0, 1, 2].filter(i => i !== likely);
     if (rnd() < ROOF.otherRingChance) others.reverse();
     const odds = ROOF.ringOdds[Q.round - 1], lanes = [likely, ...others];
-    Q.rings = lanes.map((i, k) => ({ u: ROOF.ringLanes[i], z: bull.bz, odds: odds[k] }));
+    Q.rings = lanes.map((i, k) => ({ u: ROOF.ringLanes[i], z: ROOF.ringZ, odds: odds[k] }));
     const weighted = () => { let n = rnd() * ROOF.glowOdds; for (let i = 0; i < odds.length; i++) { n -= odds[i]; if (n < 0) return i; } return 2; };
     Q.volley = { t: 0, orbs: [0, weighted(), weighted()].map((target, i) => ({ target, delay: ROOF.ringTell + i * ROOF.orbGap, landed: false })) };
     emit('roof_volley');
@@ -201,7 +212,12 @@ var UnrugRoof = function (core) {
       if (Math.abs(bull.u - r.u) < ROOF.ringRadius && Math.abs(bull.bz - r.z) < ROOF.ringDepth && bull.jh < ROOF.orbH) hurtBull(ROOF.hitCost, 'orb');
       if (R.phase === 'dead') return;
     }
-    if (v.orbs.every(o => o.landed)) { Q.volley = null; Q.rings = []; Q.stall = ROOF.stall; emit('roof_stall'); }
+    if (v.orbs.every(o => o.landed)) {
+      Q.volley = null; Q.rings = [];
+      if (Q.t >= Q.nextOpening) {
+        Q.stall = ROOF.stall; Q.nextOpening += ROOF.roundLengths[Q.round - 1] / ROOF.openings[Q.round - 1]; emit('roof_stall');
+      }
+    }
   }
   function launchSnare() {
     Q.snare = { u: bull.u, z: bull.bz, t: 0, hooked: false }; Snd.play('snare'); emit('roof_snare');
@@ -211,13 +227,17 @@ var UnrugRoof = function (core) {
     if (!s) return;
     s.t += dt;
     if (!s.hooked && s.t >= ROOF.snareFly) {
-      if (Math.abs(bull.u - s.u) < ROOF.snareHook && bull.jh < ROOF.reelJump) s.hooked = true;
+      if (Math.abs(bull.u - s.u) < ROOF.snareHook && Math.abs(bull.bz - s.z) < ROOF.ringDepth && bull.jh < ROOF.reelJump) s.hooked = true;
       else { Q.snare = null; return; }
     }
     if (s.hooked) {
-      bull.bz += (ROOF.snareSpeed + TUNE.recover) * dt;
+      bull.bz += ROOF.snareSpeed * dt;
       if (bull.bz >= ROOF.reelEnd) { Q.snare = null; hurtBull(ROOF.hitCost, 'snare'); bull.bz = 0; bull.pin = ROOF.throwPin; }
     }
+  }
+  function depthMove(dt, dir) {
+    if (Q.snare && Q.snare.hooked) return;
+    bull.bz = clamp(bull.bz + (bull.pin > 0 ? 0 : dir) * ROOF.depthSpeed * dt, 0, ROOF.depthMax);
   }
   function startGust() { Q.gust = { t: 0, dir: rnd() < ROOF.otherRingChance ? -1 : 1, blown: false }; emit('roof_gust'); }
   function updateGust(dt) {
@@ -234,9 +254,9 @@ var UnrugRoof = function (core) {
     Q.stall = Math.max(0, Q.stall - dt); Q.flinch = Math.max(0, Q.flinch - dt);
     if (Q.stall <= 0 && Q.flinch <= 0) Q.eye.u += clamp(bull.u - Q.eye.u, -ROOF.eyeFollow * dt, ROOF.eyeFollow * dt);
     Q.nextFly -= dt;
-    if (Q.nextFly <= 0) { spawnCarp(); Q.nextFly = ROOF.flyEvery[Q.round - 1]; }
+    if (Q.nextFly <= 0) { spawnCarp(ROOF.flyGroup[Q.round - 1]); Q.nextFly = ROOF.flyEvery[Q.round - 1]; }
     Q.nextVolley -= dt;
-    if (Q.nextVolley <= 0 && !Q.volley && Q.stall <= 0) { volley(); Q.nextVolley = ROOF.roundLengths[Q.round - 1] / ROOF.openings[Q.round - 1]; }
+    if (Q.nextVolley <= 0 && !Q.volley && Q.stall <= 0) { volley(); Q.nextVolley = ROOF.volleyEvery[Q.round - 1]; }
     updateVolley(dt);
     if (R.phase === 'dead') return;
     if (Q.round >= 2) {
@@ -323,16 +343,23 @@ var UnrugRoof = function (core) {
       for (let j = 0; j < cracks; j++) line(g, x - 8 + j * 5, LM.top, x - 5 + j * 5, LM.beam, '#1a1824');
     }
   }
-  function drawWarp() {
-    for (let i = 0; i < 42; i++) {
+  function soulSpot(i) {
+    // All captives are drawn: sixty thread gaps, with shallow overlapping stacks as the warp fills.
+    const slots = LM.warpColumns * LM.warpRows, slot = i % slots, layer = Math.floor(i / slots);
+    return { x: LM.left + 15 + slot % LM.warpColumns * (LM.right - LM.left - 34) / LM.warpColumns + layer * LM.soulOverlap,
+      y: LM.beam + 5 + Math.floor(slot / LM.warpColumns) * (LM.cloth - LM.beam - 12) / LM.warpRows + layer * LM.soulOverlap };
+  }
+  function soulFlight(i, delay) { return Object.assign({ delay }, soulSpot(i)); }
+  function drawWarp(layer = 'all') {
+    if (layer !== 'souls') for (let i = 0; i < 42; i++) {
       const x = LM.left + 14 + i * 2.5, broken = Math.floor(i / 14) < Q.broken;
       const dead = ['snap', 'dawn', 'clear'].includes(Q.state);
       line(g, x, LM.beam, x + (broken ? Math.sin(R.t + i) * 2 : 0), dead || broken ? LM.beam + 5 : LM.cloth, '#8c7a68');
     }
-    for (let i = 0; i < Math.min(55, Q.caught); i++) {
-      const x = LM.left + 17 + (i * 23) % 98, y = LM.beam + 6 + (i * 13) % 28;
-      g.save(); g.globalAlpha = Q.state === 'quiet' ? .5 + .4 * Math.sin(Q.t * 3) : .8;
-      g.drawImage(A.GHOST, x, y, A.uw(A.GHOST) * .65, A.uh(A.GHOST) * .65); g.restore();
+    if (layer !== 'threads') for (let i = 0; i < Q.caught; i++) {
+      const { x, y } = soulSpot(i);
+      g.save(); g.globalAlpha = ['elevator', 'walk'].includes(Q.state) ? .2 : Q.state === 'quiet' ? .5 + .4 * Math.sin(Q.t * 3) : .8;
+      g.drawImage(A.GHOST, x, y, A.uw(A.GHOST) * LM.soulScale, A.uh(A.GHOST) * LM.soulScale); g.restore();
     }
   }
   function drawEye() {
@@ -351,7 +378,7 @@ var UnrugRoof = function (core) {
     rect(g, LM.left, LM.top, LM.right - LM.left, LM.beam - LM.top, '#3b3a48');
     for (let i = 0; i < 9; i++) line(g, LM.left + 10 + i * 15, LM.top, LM.left + 10 + i * 15 + (i - 4) * 6, 0, '#5e5e6c');
     for (let i = 0; i < 3; i++) drawSpool(i);
-    drawWarp(); rect(g, LM.left + 12, LM.rail - 2, LM.right - LM.left - 24, 4, '#4b4a58');
+    drawWarp('threads'); rect(g, LM.left + 12, LM.rail - 2, LM.right - LM.left - 24, 4, '#4b4a58');
     rect(g, LM.left + 12, LM.cloth, LM.right - LM.left - 24, LM.base - LM.cloth, '#761c1e');
     drawEye(); g.restore();
   }
@@ -384,10 +411,16 @@ var UnrugRoof = function (core) {
   function drawStreams() {
     if (!['return', 'flood', 'pinch'].includes(Q.state)) return;
     const m = muzzleXY(), n = Q.state === 'return' ? 3 : 5, pinch = Q.state === 'pinch' ? Math.min(1, Q.t / ROOF.time.pinch) : 0;
+    let drawn = 0;
+    const time = Q.state === 'return' ? Q.returnT : Q.state === 'flood' ? Q.t : ROOF.time.flood;
+    for (const f of Q.flights || []) {
+      const k = (time - f.delay) / ROOF.returnFly;
+      if (k < 0 || k >= 1 || drawn >= LM.flightCap) continue;
+      drawn++;
+      g.drawImage(A.GHOST, f.x + (m.x - f.x) * k - 4,
+        f.y + (m.y - f.y) * k - Math.sin(k * Math.PI) * 15 - 5, A.uw(A.GHOST), A.uh(A.GHOST));
+    }
     for (let i = 0; i < n; i++) {
-      const fromX = LM.spools[i % 3], k = Q.state === 'return' ? clamp((Q.returnT - i * ROOF.returnGap) / ROOF.returnFly, 0, 1) : (R.t * .8 + i / n) % 1;
-      const x = fromX + (m.x - fromX) * k, y = LM.beam + (m.y - LM.beam) * k - Math.sin(k * Math.PI) * 15;
-      if (Q.state !== 'return' || (k > 0 && k < 1)) g.drawImage(A.GHOST, x - 4, y - 5, A.uw(A.GHOST), A.uh(A.GHOST));
       const endX = PX(Q.eye.u, ROOF.eyeZ) + (i - (n - 1) / 2) * 5 * (1 - pinch);
       g.strokeStyle = '#fff09a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(m.x, m.y);
       g.quadraticCurveTo((m.x + endX) / 2 + (i - 2) * 8 * (1 - pinch), (m.y + LM.rail) / 2, endX, LM.rail); g.stroke();
@@ -403,6 +436,7 @@ var UnrugRoof = function (core) {
     drawBull(); drawFx('lit');
   }
   function glows() {
+    drawWarp('souls');
     if (!['elevator', 'walk'].includes(Q.state)) drawEye();
     drawRings();
     if (Q.snare) {
@@ -438,17 +472,17 @@ var UnrugRoof = function (core) {
   }
   const noop = () => {};
   return {
-    id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2] },
+    id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools, recharge: ROOF.recharge }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2] },
     lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) and its three spools.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
-    aim, shotHits, shotFar: () => false, posOf: o => o, slash, hurt: noop, blasterBack: noop, bonusBy: () => null,
+    aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, hurt: noop, blasterBack: noop, bonusBy: () => null,
     endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop, soulFreed, soulLanded,
     cutActive: () => !!Q.cut, cutIn, drawCut,
     pauseText: 'The loom waits.', continueText: () => 'Continue from ' + (isRound() ? 'round ' + Q.round : 'the quiet') + ' with full hearts?',
     clearCard(extra, best, clock) { return { title: 'Roof clear', text: 'The Unrugged drift up into the dawn.',
       rows: [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Continues', String(R.continues)], ['Best', best.souls + ' souls']], note: '' }; },
     // Test bridge / Part B seams. No shipped controls can call these.
-    ROOF, STATES, enter, eyeAt, volley, launchSnare, startGust, beamActive, drawLoom, drawEye, drawSpool, drawWarp
+    ROOF, STATES, enter, eyeAt, volley, launchSnare, startGust, beamActive, drawLoom, drawEye, drawSpool, drawWarp, soulSpot
   };
 };

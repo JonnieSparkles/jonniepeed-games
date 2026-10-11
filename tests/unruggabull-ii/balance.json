@@ -51,7 +51,10 @@
     { "label": "spool hits", "key": "roof_spool_damage.amount" },
     { "label": "souls caught", "key": "roof_caught.amount" },
     { "label": "souls returned", "key": "roof_return.amount" },
-    { "label": "snares cut", "key": "roof_snare_cut" }
+    { "label": "snares cut", "key": "roof_snare_cut" },
+    { "label": "round seconds", "key": "roof_round_time.amount" },
+    { "label": "quiet captives", "key": "roof_quiet.amount" },
+    { "label": "quiet counter", "key": "roof_quiet_score.amount" }
   ],
   "stages": {"1": "Accounts Payable", "2": "Moving day", "3": "All Staff", "4": "Lights out", "5": "Copy Room", "6": "Shredder 1", "7": "Shredder 2", "8": "Shredder 3", "9": "Floor 13 cleared", "10": "Roof lead-in", "11": "Roof round 1", "12": "Roof round 2", "13": "Roof round 3", "14": "Roof crescendo", "15": "Roof cleared" },
   "causes": ["orb", "snare", "carp"]

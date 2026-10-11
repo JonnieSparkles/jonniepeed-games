@@ -190,11 +190,12 @@
 
 
   // ---------- Unruggabull ----------
-  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, kbDown: false, padDown: false };
+  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, kbDown: false, padDown: false, kbUp: false, padUp: false };
   const input = { jump: 0, slash: 0, shoot: 0 };   // buffered presses, in seconds left
   const moveDir = () => ((keys.kbRight || keys.padRight) ? 1 : 0) - ((keys.kbLeft || keys.padLeft) ? 1 : 0);
   const shooting = () => keys.kbShoot || keys.padShoot;
-  const crouchHeld = () => keys.kbDown || keys.padDown;
+  const depthDir = () => ((keys.kbUp || keys.padUp) ? 1 : 0) - ((keys.kbDown || keys.padDown) ? 1 : 0);
+  const crouchHeld = () => !floor.depthMove && (keys.kbDown || keys.padDown);
   function press(k) { if (state !== 'play') return; if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12; }
   const onRunner = () => Math.abs(bull.u) < TUNE.runner && bull.jh < .03 && !bull.mouth && !bull.spat;
   function updateBull(dt) {
@@ -209,7 +210,7 @@
     // crouched (on the ground only): half height, no moving or shooting; on a pulling rug he grips it
     b.crouch = crouchHeld() && b.jh <= 0 && R.phase !== 'win';
     // how long he's been standing about (cosmetic: his idle poses)
-    b.idle = moveDir() || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
+    b.idle = moveDir() || (floor.depthMove && depthDir()) || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
     const dir = R.phase === 'win' || b.pin > 0 || b.crouch ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
     b.u = clamp(b.u + dir * TUNE.move * dt, -TUNE.aisle, TUNE.aisle);
     if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; b.crouch = false; Snd.play('jump'); }
@@ -225,8 +226,9 @@
       if (b.crouch) { if (!R.events.gripped) { R.events.gripped = true; popText('GRIP!', PX(b.u, b.bz), YH(b.bz, .2), '#ffd44a'); } if (Math.random() < dt * 10) R.fx.push({ k: 'dust', x: PX(b.u, b.bz) + fxr(-5, 5), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .25 }); }
       if (b.bz >= TUNE.mouth) floor.draggedIn();
     }
+    else if (floor.depthMove) floor.depthMove(dt, depthDir());
     else b.bz = Math.max(0, b.bz - TUNE.recover * dt);
-    if (R.speed > .02 || dir || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
+    if (R.speed > .02 || dir || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
     // the blaster: hold Shoot to keep firing, or tap for one shot
     R.fireT -= dt;
     if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !b.crouch && !R.beam && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
@@ -576,7 +578,7 @@
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
     // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
     const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
-    const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
+    const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
     let p = P.stand;
     const cheer = R.phase === 'win' && !(R.slow > 0) && R.phaseT > .5 && !air;
     if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : P.crouch;
@@ -1102,14 +1104,14 @@
     Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
     k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };
-  const KEYS = { get: e => CODES[e.code] || NAMES[e.key] };
-  function clearHeld() { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; padPointers.clear(); padSync(); stickOff(null); }
+  const KEYS = { get: e => floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
+  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; padPointers.clear(); padSync(); stickOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = KEYS.get(e);
     if (state === 'play' && k) {
       e.preventDefault();
-      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true;
+      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true; else if (k === 'up') keys.kbUp = true;
       else { if (k === 'shoot') keys.kbShoot = true; if (!e.repeat) press(k); }
       return;
     }
@@ -1127,8 +1129,8 @@
       else if (e.key === 'Escape' && isFull() && !nativeFull()) setFull(false);
     }
   });
-  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; });
-  addEventListener('blur', () => { keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; });
+  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; else if (k === 'up') keys.kbUp = false; });
+  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; });
 
   // Touch: a thumb stick on the left, Shoot and Slash on the right. Each finger is tracked, so a thumb can slide between
   // Shoot and Slash; they act as a finger lands on them, and Shoot keeps firing while held.
@@ -1198,14 +1200,14 @@
     stickEl.style.left = (centre.x - zr.left) + 'px'; stickEl.style.top = (centre.y - zr.top) + 'px';
     knob.style.transform = 'translate(' + Math.round(dx * kr) + 'px,' + Math.round(dy * kr) + 'px)';
     const down = dy > STICK.down && dy > Math.abs(dx) * .8, up = dy < -STICK.up && -dy > Math.abs(dx) * .6;
-    keys.padDown = down;
-    keys.padLeft = !down && dx < -STICK.side; keys.padRight = !down && dx > STICK.side;
-    if (up && upArmed) { upArmed = false; press('jump'); }
+    keys.padDown = down; keys.padUp = !!floor.depthMove && up;
+    keys.padLeft = (!down || !!floor.depthMove) && dx < -STICK.side; keys.padRight = (!down || !!floor.depthMove) && dx > STICK.side;
+    if (!floor.depthMove && up && upArmed) { upArmed = false; press('jump'); }
     if (dy > -STICK.up * .5) upArmed = true;
   }
   function stickOff(e) {
     if (e && e.pointerId !== stickId) return;
-    stickId = null; keys.padLeft = keys.padRight = keys.padDown = false;
+    stickId = null; keys.padLeft = keys.padRight = keys.padDown = keys.padUp = false;
     stickEl.classList.remove('on'); stickEl.style.left = stickEl.style.top = ''; knob.style.transform = '';
   }
   zone.addEventListener('pointerdown', e => {

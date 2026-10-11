@@ -43,7 +43,7 @@
   tick(12);
   check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && cardTitle.textContent === 'Roof clear', 'snap, dawn and roof clear');
   check(R.roof.history.includes('snap') && R.roof.history.includes('dawn') && played.includes('snap') && played.includes('chord'), 'snap and dawn beats call sound hooks');
-  check(R.souls === floor.ROOF.initialCaught, 'dawn rolls freed souls into counter');
+  check(R.souls === floor.ROOF.initialCaught, 'earlier-floor souls are counted exactly once through dawn');
   check(floor.view().dawn === 1 && bull.aimT === 0, 'dawn stays bright at clear and he lowers the blaster');
   fresh(); floor.enter('fusion'); const frozen = { t: R.t, qt: R.roof.t }; tick(.1);
   check(R.t === frozen.t && R.roof.t === frozen.qt && R.freeze > 0, 'fusion freezes fight for 0.14 seconds');
