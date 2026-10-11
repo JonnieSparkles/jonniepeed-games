@@ -27,15 +27,15 @@
   check(waveCfg(29).divers + waveCfg(29).helis + waveCfg(29).bombers > waveCfg(19).divers + waveCfg(19).helis + waveCfg(19).bombers, 'endless keeps ramping');
 
   // The Red Cross plane: the crew's fire passes it by; your turret's first hit costs tags and the combo, once.
-  RUN.force = 61; quiet(6); S.coins = 100; S.combo = 3; S.comboT = 1;
+  RUN.force = 61; quiet(6); S.players[0].tags = 100; S.combo = 3; S.comboT = 1;
   var med = SKY.spawnMedevac(RW); med.x = 200;
   check(S.texts.some(function (q) { return /Red Cross/.test(q.s); }), 'the first one says so');
   var b = allyShot(med.x, med.y); S.bullets = [b]; hitTest(b);
-  check(!b.dead && S.coins === 100 && !med.hit, "the crew's fire passes it by");
+  check(!b.dead && S.players[0].tags === 100 && !med.hit, "the crew's fire passes it by");
   b = playerShot(med.x, med.y); hitTest(b);
-  check(b.dead && med.hit && S.coins === 100 - Math.round(SKY.MEDEVAC.TAGS * SKY.MEDEVAC.HIT) && S.combo === 0 && heard('redcross_hit'), 'your hit costs tags and the combo');
+  check(b.dead && med.hit && S.players[0].tags === 100 - Math.round(SKY.MEDEVAC.TAGS * SKY.MEDEVAC.HIT) && S.combo === 0 && heard('redcross_hit'), 'your hit costs tags and the combo');
   b = playerShot(med.x, med.y); hitTest(b);
-  check(!b.dead && S.coins === 100 - Math.round(SKY.MEDEVAC.TAGS * SKY.MEDEVAC.HIT), 'only once');
+  check(!b.dead && S.players[0].tags === 100 - Math.round(SKY.MEDEVAC.TAGS * SKY.MEDEVAC.HIT), 'only once');
   var x0 = med.x; run(0.5);
   check(Math.abs(med.x - x0) > SKY.MEDEVAC.SPEED * 0.5 * 2, 'then it flees');
   render();
@@ -76,9 +76,9 @@
   var b2 = playerShot(hq.x, hq.y); hitTest(b2);
   check(b2.dead && hq.hit && S.stats.hqHit === 1 && c.state === 'chute', 'your turret can hit the plane');
   render();
-  var fetcher = makeRecruit(c.x < BK.x ? 0 : 4, 'rifle'), tags = S.coins; S.recruits = [fetcher];
+  var fetcher = makeRecruit(c.x < BK.x ? 0 : 4, 'rifle'), tags = S.players[0].tags; S.recruits = [fetcher];
   for (f = 0; f < 900 && S.crates.length; f++) { update(1 / 60); if (fetcher.role === 'fetch') var ran = true; }
-  check(ran && heard('crate_caught', function (d) { return d.by === 'crew'; }) && S.coins >= tags + SKY.CRATE.TAGS, 'a soldier runs out and fetches it');
+  check(ran && heard('crate_caught', function (d) { return d.by === 'crew'; }) && S.players[0].tags >= tags + SKY.CRATE.TAGS, 'a soldier runs out and fetches it');
   run(4); check(Math.abs(fetcher.x - fetcher.homeX) < 1, 'and goes back to his post');
   // With no squad, it's collected where it lands: here a wall patch.
   quiet(8); hq = SKY.spawnCrate(RW); hq.kind = 'wall'; S.wallHP = S.mods.maxHP - 100;

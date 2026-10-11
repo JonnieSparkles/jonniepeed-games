@@ -574,7 +574,7 @@ window.StickArmyCoop = function (w) {
     }
     if (S.mode !== 'shop' || !S.shop) { if (shopShown) { sc.shop.hidden = true; shopShown = ''; } return; }
     if (pressing) return;
-    var key = JSON.stringify([S.players && S.players.map(function (p) { return p.tags; }), S.wave, S.wallHP, S.pizzaOrder, S.calls, S.mods, S.turrets.map(function (t) { return t.mods; }), S.recruits.length, S.bed && S.bed.r && S.bed.r.id,
+    var key = JSON.stringify([S.players.map(function (p) { return p.tags; }), S.wave, S.wallHP, S.pizzaOrder, S.calls, S.mods, S.turrets.map(function (t) { return t.mods; }), S.recruits.length, S.bed && S.bed.r && S.bed.r.id,
       S.shop.bought, S.shop.log, S.shop.giftTaken, S.shop.who, S.shop.ready, friend]);
     if (key === shopShown) return;
     var first = !shopShown;
@@ -586,7 +586,7 @@ window.StickArmyCoop = function (w) {
   // Ready: the next wave waits for both players at the supply table (game.js asks before continuing).
   function ready() {
     if (guest) { ask('ready'); return true; }
-    if (!host || !w.S.players || w.S.mode !== 'shop' || !w.S.shop) return false;
+    if (!host || !w.S.coop || w.S.mode !== 'shop' || !w.S.shop) return false;
     markReady(0);
     return true;
   }
@@ -600,7 +600,7 @@ window.StickArmyCoop = function (w) {
   // After the shop draws: Ready instead of Continue, and who's ready.
   function afterShop() {
     var S = w.S, btn = document.getElementById('continueBtn');
-    if (!S.players) { var old = document.getElementById('coopReady'); if (old) { old.parentNode.classList.remove('coop-foot'); old.remove(); } return; }
+    if (!S.coop) { var old = document.getElementById('coopReady'); if (old) { old.parentNode.classList.remove('coop-foot'); old.remove(); } return; }
     if (!S.shop || !btn) return;
     var r = S.shop.ready || {}, me = w.me, other = 1 - me, line = document.getElementById('coopReady');
     // Only the friend's state: the button says yours.
@@ -617,7 +617,7 @@ window.StickArmyCoop = function (w) {
     if (mode === endShown) return;
     endShown = mode;
     ['over', 'win'].forEach(function (k) { var old = document.getElementById('coopTable-' + k); if (old) old.remove(); });
-    if (!S.players || (mode !== 'over' && mode !== 'won')) return;
+    if (!S.coop || (mode !== 'over' && mode !== 'won')) return;
     var card = (mode === 'won' ? w.screens().win : w.screens().over).querySelector('.big-score');
     if (!card) return;
     var t = sideBySide(S); t.id = 'coopTable-' + (mode === 'won' ? 'win' : 'over');

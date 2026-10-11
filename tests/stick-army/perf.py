@@ -57,8 +57,8 @@ with sync_playwright() as p:
     cdp.send('Emulation.setCPUThrottlingRate', {'rate':4})
     page.evaluate('''stress => armyTest(`
       R=mulberry(6); newGame(); StickArmySound.muted=true; if (typeof muted !== 'undefined') muted=true; S.mods.slots=8;
-      ['double','spread','flak','rockets','auto','mines'].forEach(function(id){ ITEMS.find(function(it){return it.id===id;}).apply(S); });
-      S.mods.fire=2;
+      ['double','spread','flak','rockets','auto','mines'].forEach(function(id){ var it = ITEMS.find(function(q){return q.id===id;}); it.apply(SHOP.own(it) ? { mods: S.turrets[0].mods } : S); });
+      S.turrets[0].mods.fire=2;
       [0,4,1,5,2,6,3,7].forEach(function(slot,i){S.recruits.push(makeRecruit(slot,i<2?'engineer':i<4?'bazooka':'rifle'));});
       startWave(6); S.banner=null;
       for(var i=0;i<620;i++) addDecal({kind:'splat',x:rr(12,388),y:GROUND-rr(0,8),r:rr(1,7),color:RED,a:0.3,seed:i});

@@ -16,23 +16,23 @@
   function closeShop() { shopScreen.hidden = true; S.shop = null; S.mode = 'play'; }
 
   // The shop: who you hired this visit shows under the roles, and a tap sends him back with the tags.
-  RUN.force = 91; newGame(); S.wave = 6; S.coins = 500; S.mods.slots = 4; S.recruits = [makeRecruit(0, 'medic'), makeRecruit(4, 'rifle')];
+  RUN.force = 91; newGame(); S.wave = 6; S.players[0].tags = 500; S.mods.slots = 4; S.recruits = [makeRecruit(0, 'medic'), makeRecruit(4, 'rifle')];
   openShop();
   var chips = document.getElementById('hiredItems');
   function medicBtn() { return document.querySelector('#hireItems [data-item="hire-medic"]'); }
   check(chips.hidden && medicBtn().disabled && /Have one/.test(medicBtn().textContent) && roles().length === 5, 'nobody hired yet; one medic at a time, greyed "Have one"');
-  takeItem('hire-rifle'); takeItem('hire-engineer'); var spent = S.coins;
+  takeItem('hire-rifle'); takeItem('hire-engineer'); var spent = S.players[0].tags;
   check(S.recruits.length === 4 && !chips.hidden && chips.children.length === 2, 'two hires, two chips');
   // Every role stays listed, so the list never changes shape.
   check(roles().length === 5 && /Have one/.test(medicBtn().textContent), 'a full squad lists every role');
   chips.querySelector('[data-hired="hire-rifle"]').click();
   var types = S.recruits.map(function (r) { return r.type; }).sort().join();
-  check(types === 'engineer,medic,rifle' && S.mods.hired === 1 && S.coins > spent && chips.children.length === 1, 'sent back: ' + types);
+  check(types === 'engineer,medic,rifle' && S.mods.hired === 1 && S.players[0].tags > spent && chips.children.length === 1, 'sent back: ' + types);
   chips.querySelector('[data-hired="hire-engineer"]').click();
-  check(S.recruits.length === 2 && S.coins === 500 && chips.hidden, 'all sent back, every tag returned');
+  check(S.recruits.length === 2 && S.players[0].tags === 500 && chips.hidden, 'all sent back, every tag returned');
   closeShop();
   // With no medic, a full squad shows him greyed with the rest.
-  RUN.force = 92; newGame(); S.wave = 6; S.coins = 500; S.mods.slots = 3; S.recruits = unlockedSlots().map(function (sl) { return makeRecruit(sl, 'rifle'); });
+  RUN.force = 92; newGame(); S.wave = 6; S.players[0].tags = 500; S.mods.slots = 3; S.recruits = unlockedSlots().map(function (sl) { return makeRecruit(sl, 'rifle'); });
   openShop();
   check(medicBtn().disabled && !/Have one/.test(medicBtn().textContent), 'no medic: he shows, greyed with a price, while the squad is full');
   closeShop();

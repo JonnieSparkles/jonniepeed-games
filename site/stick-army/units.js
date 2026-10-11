@@ -1,4 +1,5 @@
-// Stick Army units beyond the basic trooper and plane: the zeppelin boss, side rushers, tanks and the air strike.
+// Stick Army units beyond the basic trooper and plane: the zeppelin boss, side rushers, tanks, the air strike and the
+// pizza courier.
 // Classic script; load before game.js. game.js calls StickArmyUnits(world) once. The world object carries its
 // constants and helpers, and live values (state S, canvas G, line boil, the wave and combat streams RW and RC,
 // sound) through getters, so this file never reaches into game.js's scope. Effect helpers are wrappers, so harness
@@ -732,11 +733,48 @@ var StickArmyUnits = function (w) {
     G.restore();
   }
 
+  // ---------- the pizza courier ----------
+  // A pizza ordered in the shop (shop.js continueWave sets S.delivery) is its own scene before the wave: the courier
+  // rides along the ground, hands the pizza over in the middle of the page (+25 wall, +1 health a soldier, the
+  // wounded back up) and rides off, and the wave starts as he goes (game.js updateWave).
+  function updateDelivery(dt) {
+    var S = w.S;
+    var d = S.delivery;
+    if (!d) return;
+    if (d.phase === 'arrive') {
+      d.x = Math.min(200, d.x + dt * 145);
+      if (d.x === 200) {
+        d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.nextWave || S.wave });
+        S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(w.crewMax(r), r.hp + 1); if (r.down) w.standUp(r, 'pizza'); } });
+        w.sound.play('pizza'); w.say('pizza time!', 4242, false, 0.1, 200, GROUND - 60);
+      }
+    } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
+    else {
+      d.x += dt * 145;
+      if (d.x > W + 35) S.delivery = null;
+    }
+  }
+  function drawCourier() {
+    var S = w.S, G = w.G, d = S.delivery;
+    if (!d) return;
+    var x = d.x, y = GROUND - 17; pen(8080);
+    G.beginPath(); Ci(x - 13, y + 12, 8); Ci(x + 16, y + 12, 8); ink(INK, 2.3); G.stroke();
+    G.beginPath(); SP([x - 13,y + 12,x - 5,y - 4,x + 9,y + 12,x - 13,y + 12],false); L(x - 5,y - 4,x + 11,y - 4); L(x + 11,y - 8,x + 16,y + 12); ink(BLUE,2.4); G.stroke();
+    stick(x - 5, y - 30, [7,17,18,17,3,33,-5,29], INK, 2.3);
+    G.beginPath(); L(x - 12,y - 34,x + 2,y - 34); ink(RED,4); G.stroke();
+    var bx = d.phase === 'serve' ? x + 26 : x - 27, by = d.phase === 'serve' ? y - 28 : y - 9;
+    if (d.phase !== 'leave') {
+      G.fillStyle=PAPER; G.fillRect(bx-10,by-5,22,9); G.beginPath(); L(bx-10,by-5,bx+12,by-5,0.3); L(bx+12,by-5,bx+12,by+4,0.3); L(bx+12,by+4,bx-10,by+4,0.3); L(bx-10,by+4,bx-10,by-5,0.3); ink(RED,1.7); G.stroke();
+      G.beginPath(); Ci(bx,by,2); ink(RED,1.2); G.stroke();
+    }
+  }
+
   return { ZEP: ZEP, fighterTarget: fighterTarget, zeppelinHP: zeppelinHP, spawnZeppelin: spawnZeppelin, zeppelinOnScreen: zeppelinOnScreen, planeHit: planeHit,
     updateZeppelin: updateZeppelin, hurtZeppelin: hurtZeppelin, inGondola: inGondola, zeppelinDown: zeppelinDown, drawZeppelin: drawZeppelin, drawSticker: drawSticker, STICKER: STICKER, drawPlate: drawPlate, PLATE: PLATE, drawBossBar: drawBossBar,
     RUSH: RUSH, spawnRush: spawnRush,
     TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
     RADIO: RADIO, callsHeld: callsHeld, grantCall: grantCall, STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike,
-    FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, updateRadio: updateRadio, drawRadio: drawRadio };
+    FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, updateRadio: updateRadio, drawRadio: drawRadio,
+    updateDelivery: updateDelivery, drawCourier: drawCourier };
 };

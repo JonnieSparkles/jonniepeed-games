@@ -71,9 +71,9 @@
   S.recruits = [];
 
   // Shooting it down pays out, its crew bail out, and it crashes.
-  var score = S.score, tags = S.coins, downed = S.stats.planes, before = S.troopers.length;
+  var score = S.score, tags = S.players[0].tags, downed = S.stats.planes, before = S.troopers.length;
   z.hp = 1; damagePlane(z, 1, 'player', 200, 160);
-  check(z.state === 'fall' && S.score >= score + 250 + 30 * 5 && S.coins > tags && S.stats.planes === downed + 1, 'shooting it down pays out');
+  check(z.state === 'fall' && S.score >= score + 250 + 30 * 5 && S.players[0].tags > tags && S.stats.planes === downed + 1, 'shooting it down pays out');
   check(S.troopers.length - before === 3 && S.banner.s === 'zeppelin down!', 'its crew bail out');
   render();
   for (i = 0; i < 600 && S.planes.indexOf(z) >= 0; i++) update(1 / 60);

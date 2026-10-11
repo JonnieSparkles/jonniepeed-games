@@ -133,6 +133,15 @@ async function report(request, env, end) {
 
 /* ---------- dashboards ---------- */
 
+// A game with modes ("modes" in games.json: a true/false stat its runs report, and a name for each side, as
+// { "stat": "coop", "names": ["Solo", "Co-op"] }) can narrow its page to one side (?mode=0 without the stat, 1 with).
+// A run counts on the "without" side until it reports, since a run's stats come with its end.
+const STAT_NAME = /^[a-z_]{1,24}$/;
+function modeWhere(game, mode) {
+  const m = games[game]?.modes;
+  if (!m || mode == null || !STAT_NAME.test(m.stat)) return '';
+  return mode ? ` AND json_extract(stats, '$.${m.stat}') = 1` : ` AND IFNULL(json_extract(stats, '$.${m.stat}'), 0) = 0`;
+}
 const gameNames = () => Object.fromEntries(Object.entries(games).map(([id, g]) => [id, g.name]));
 // A game with levels ("levels" in games.json, in board order) gives each level its own board, and they reset together:
 // boards 1 and 2 are the first set, 3 and 4 the next (tools/check_boards.py holds games to it). A board is labelled
@@ -288,11 +297,12 @@ async function leaderboard(env, game, board) {
 // stats first saw a run count, so older saves aren't taken for blocked players. Run totals elsewhere stay
 // play-stats-only.
 const SAVE_CAP = 5000;
-async function latestRuns(env, { since, game, board }) {
+async function latestRuns(env, { since, game, board, mode }) {
   let where = `started_at >= ?1 AND game <> '${TEST}'`;
   const args = [since];
   if (game) { args.push(game); where += ` AND game = ?${args.length}`; }
   if (board != null) { args.push(board); where += ` AND board = ?${args.length}`; }
+  where += modeWhere(game, mode);
   const recent = await all(env.DB.prepare(`SELECT game, started_at, device, orientation, source, outcome, time_ms, score, input,
     score_run, stats FROM runs WHERE ${where} ORDER BY started_at DESC LIMIT 50`).bind(...args));
   let boardOnly = [], unseen = null, capped = false;
@@ -337,11 +347,11 @@ async function latestRuns(env, { since, game, board }) {
   };
 }
 
-async function gameDetail(env, url, game, board) {
+async function gameDetail(env, url, game, board, mode) {
   const { days, since } = windowFor(url);
-  // The board filter narrows every figure; the list of boards and the per-board table always cover them all.
+  // The board and mode filters narrow every figure; the list of boards and the per-board table always cover them all.
   const inGame = 'game = ?1 AND started_at >= ?2';
-  const where = board != null ? inGame + ' AND board = ?3' : inGame;
+  const where = (board != null ? inGame + ' AND board = ?3' : inGame) + modeWhere(game, mode);
   const args = board != null ? [game, since, board] : [game, since];
   const [hourly, summary, devices, inputs, sources, mid, reports, linked, boards, boardMedians] = (await env.DB.batch([
     env.DB.prepare(`SELECT ${HOURLY} FROM runs WHERE ${where} GROUP BY hour`).bind(...args),
@@ -378,9 +388,13 @@ async function gameDetail(env, url, game, board) {
       for (const b of boards) b.saves = ids.results.filter(r => r.board === b.board && savedIds.has(r.score_run)).length;
     }
   }
-  const latest = await latestRuns(env, { since, game, board });
+  const latest = await latestRuns(env, { since, game, board, mode });
+  // The "with" side has no leaderboard: Stick Army's co-op runs are never saved, so the board's names, scores and the
+  // saves play stats missed all belong to the other side, and show only there.
+  const withMode = mode === 1 && games[game]?.modes;
+  if (withMode) latest.recent = latest.recent.filter(r => !r.board_only);
   return {
-    ok: true, game, board, days, since, names: gameNames(), hourly,
+    ok: true, game, board, mode, modes: games[game]?.modes || null, days, since, names: gameNames(), hourly,
     boards: boards.map(b => ({ ...b, median_ms: boardMedians.find(m => m.board === b.board)?.time_ms ?? null })),
     summary: { ...summary[0], boarded: undefined, median_ms: mid[0]?.time_ms ?? null, saves },
     devices, inputs, sources: topSources(sources),
@@ -388,9 +402,9 @@ async function gameDetail(env, url, game, board) {
     reports: reports.slice(0, REPORT_CAP).map(r => [r.time_ms, r.score, r.outcome, parseStats(r.stats)]),
     recent: latest.recent,
     // Board saves play stats didn't see: only meaningful for a game with a board.
-    unseen: onBoards ? latest.unseen : null, unseen_capped: latest.unseen_capped,
-    board_names: names, board_labels: boardLabels(game),
-    leaderboard: await leaderboard(env, game, board)
+    unseen: onBoards && !withMode ? latest.unseen : null, unseen_capped: latest.unseen_capped,
+    board_names: withMode ? null : names, board_labels: boardLabels(game),
+    leaderboard: withMode ? null : await leaderboard(env, game, board)
   };
 }
 
@@ -413,10 +427,11 @@ async function dashboard(request, env, url) {
   if (url.pathname === '/dash') return Response.redirect(url.origin + '/dash/' + url.search, 302);
   if (url.pathname === '/dash/api/overview') return json(await overview(env, url));
   if (url.pathname === '/dash/api/game') {
-    const game = url.searchParams.get('game'), boardText = url.searchParams.get('board');
+    const game = url.searchParams.get('game'), boardText = url.searchParams.get('board'), modeText = url.searchParams.get('mode');
     if (boardText != null && !/^[1-9]\d{0,5}$/.test(boardText)) return json({ ok: false, error: 'bad_board' }, 400);
-    const board = boardText == null ? null : Number(boardText);
-    return own(games, game) ? json(await gameDetail(env, url, game, board)) : json({ ok: false, error: 'bad_game' }, 400);
+    if (modeText != null && !/^[01]$/.test(modeText)) return json({ ok: false, error: 'bad_mode' }, 400);
+    const board = boardText == null ? null : Number(boardText), mode = modeText == null ? null : Number(modeText);
+    return own(games, game) ? json(await gameDetail(env, url, game, board, mode)) : json({ ok: false, error: 'bad_game' }, 400);
   }
   const match = /^\/dash\/(?:([a-z0-9-]+)\/)?$/.exec(url.pathname);
   if (match && (!match[1] || own(games, match[1]))) return html(page);

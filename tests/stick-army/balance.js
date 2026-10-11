@@ -66,7 +66,7 @@
     },
     // g: which barrel's view (co-op's second bot sees its own barrel).
     observe: function (g) {
-      var gt = S.turrets[g || 0] || S.turrets[0], gmods = gt.mods || S.mods;
+      var gt = S.turrets[g || 0] || S.turrets[0], gmods = gt.mods;
       var o = {
         mode: S.mode, t: S.t, wave: S.wave, score: S.score, coins: tagsOf(g || 0), wall: S.wallHP, maxWall: S.mods.maxHP,
         heat: gt.heat, overheat: gt.overheat, aim: gt.aim, turret: { x: gt.x, y: TUR.y }, bulletSpeed: 700,
@@ -99,7 +99,7 @@
         var mine = function (it) { return item(it, g); };
         o.shop = { items: S.shop.items.map(mine), hire: S.shop.hire.map(mine), gift: S.shop.gift, hireStep: Math.round(15 * SHOP.war(SHOP.WAR.HIRE)) };
         // Co-op prices squad things up and rounds again, so the next hire's step is measured, not estimated.
-        if (S.players) { var rifle = ITEMS.find(function (it) { return it.id === 'hire-rifle'; }), p0 = price(rifle); S.mods.hired++; o.shop.hireStep = price(rifle) - p0; S.mods.hired--; }
+        if (S.coop) { var rifle = ITEMS.find(function (it) { return it.id === 'hire-rifle'; }), p0 = price(rifle); S.mods.hired++; o.shop.hireStep = price(rifle) - p0; S.mods.hired--; }
         // Co-op: each bot shops with its own tags, its own gun and anything for the squad.
         o.mods = JSON.parse(JSON.stringify(S.mods));
       }

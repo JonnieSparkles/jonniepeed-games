@@ -126,7 +126,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   let days = [7, 30, 90].includes(Number(params.get('days'))) ? Number(params.get('days')) : 30;
   // A game's page can be narrowed to one leaderboard board (?board=3). Scores on different boards follow different rules.
   let board = game && /^[1-9]\d{0,5}$/.test(params.get('board') || '') ? Number(params.get('board')) : null;
-  const query = () => `?days=${days}${board != null ? '&board=' + board : ''}`;
+  // A game with modes (Stick Army: Solo, Co-op) can be narrowed to one (?mode=0 or 1; index.js modeWhere).
+  let mode = game && /^[01]$/.test(params.get('mode') || '') ? Number(params.get('mode')) : null;
+  const query = () => `?days=${days}${board != null ? '&board=' + board : ''}${mode != null ? '&mode=' + mode : ''}`;
   let last = null;
 
   /* ---------- small helpers ---------- */
@@ -456,6 +458,17 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     return el('div', { class: 'bar' }, el('div', { class: 'pills', role: 'group', 'aria-label': 'Leaderboard board' },
       pill(null, 'All boards'), ...known.map(n => pill(n, boardName(data, n)))));
   }
+  // Mode pills (All, Solo, Co-op) for games with modes.
+  function modePills(data) {
+    if (!data.modes) return null;
+    const pill = (value, text) => {
+      const b = el('button', { class: 'pill', type: 'button', 'aria-pressed': value === mode ? 'true' : 'false' }, text);
+      b.addEventListener('click', () => { if (value === mode) return; mode = value; history.replaceState(null, '', location.pathname + query()); load(); });
+      return b;
+    };
+    return el('div', { class: 'bar' }, el('div', { class: 'pills', role: 'group', 'aria-label': 'Mode' },
+      pill(null, 'All'), ...data.modes.names.map((n, i) => pill(i, n))));
+  }
   // Side by side, one row per board: how play changed after a board change.
   function boardsCard(data) {
     if (board != null || data.boards.length < 2) return null;
@@ -533,7 +546,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 
   function renderGame(data) {
     const s = data.summary, out = [];
-    out.push(boardPills(data));
+    out.push(boardPills(data), modePills(data));
     out.push(el('div', { class: 'tiles' },
       tile('Runs', compact(s.runs)),
       tile('Sittings', compact(s.visits), 'page visits with at least one run'),
@@ -544,7 +557,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       tile('Time played', dur(s.time_ms)),
       s.saves == null ? null : tile('Saved to the board', compact(s.saves), pct(s.saves, s.runs) + ' of runs'),
       unseenTile(data)));
-    if (!s.runs) { out.push(el('p', { class: 'empty' }, `No runs${board != null ? ' on board ' + board : ''} in the last ${data.days} days yet.`)); if (data.recent?.length) out.push(runsCard(data.recent, null)); return out.filter(Boolean); }
+    if (!s.runs) { out.push(el('p', { class: 'empty' }, `No ${mode != null && data.modes ? data.modes.names[mode] + ' ' : ''}runs${board != null ? ' on board ' + board : ''} in the last ${data.days} days yet.`)); if (data.recent?.length) out.push(runsCard(data.recent, null)); return out.filter(Boolean); }
     out.push(boardsCard(data));
     const series = [
       { name: 'Finished', color: SERIES[0], pick: r => r.finished },
@@ -585,7 +598,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
       sourcesCard(data.sources)));
     // Names from the leaderboards: only saved runs carry initials.
     const names = el('section', { class: 'card' }, el('h2', null, 'Names on the board'));
-    if (data.board_names == null || (!data.board_names.length && s.saves == null)) {
+    if (data.modes && data.mode === 1) {
+      names.append(el('p', { class: 'empty' }, `${data.modes.names[1]} runs aren’t saved to the leaderboard, so no names.`));
+    } else if (data.board_names == null || (!data.board_names.length && s.saves == null)) {
       names.append(el('p', { class: 'empty' }, 'This game has no leaderboard yet, so no names.'));
     } else if (!data.board_names.length) {
       names.append(el('p', { class: 'empty' }, 'No runs saved to the board in this window.'));

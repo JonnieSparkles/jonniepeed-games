@@ -25,12 +25,12 @@
   check(dbl >= 110 && dbl <= 130 && dbl % 5 === 0, 'supplies about three times by wave 19: ' + dbl);
   check(rifle >= 125 && rifle <= 145, 'soldiers about four times: ' + rifle);
   check(price(item('pizza')) === 25, 'pizza is always 25');
-  S.coins = 0; openShop();
+  S.players[0].tags = 0; openShop();
   check(costNow(item(S.shop.gift)) === 0 && /prices are up/.test(document.getElementById('supplyNote').textContent), 'the gift is free, and the shop says why prices are up');
   closeShop();
 
   // Patch the wall: not offered with the wall full, and greyed "Wall is full" if it fills during the visit.
-  RUN.force = 102; newGame(); S.wave = 8; S.coins = 999; S.wallHP = S.mods.maxHP;
+  RUN.force = 102; newGame(); S.wave = 8; S.players[0].tags = 999; S.wallHP = S.mods.maxHP;
   for (var v = 0; v < 6; v++) { openShop(); check(!S.shop.items.some(function (it) { return it.id === 'repair'; }), 'no patch offered with the wall full'); closeShop(); S.wave++; }
   S.wallHP = S.mods.maxHP - 10; openShop();
   if (!S.shop.items.some(function (it) { return it.id === 'repair'; })) S.shop.items.unshift(item('repair'));
@@ -67,10 +67,10 @@
   check(DREAD.AIM >= 1.2 && DREAD.SHELL_WALL <= 14 && DREAD.APPROACH >= 3, 'a fight you can react to, after a build-up');
 
   // The Red Cross plane: across untouched, it pays points and tags; hit, it pays nothing.
-  RUN.force = 105; quiet(12); S.coins = 0;
+  RUN.force = 105; quiet(12); S.players[0].tags = 0;
   var med = SKY.spawnMedevac(RW), score0 = S.score; med.x = W + 60; med.dir = 1;
   run(0.5);
-  check(!S.medevac.length && S.score === score0 + SKY.medevacPts(12) && S.coins === SKY.medevacTags(12) && heard('redcross_safe'), 'safe passage pays');
+  check(!S.medevac.length && S.score === score0 + SKY.medevacPts(12) && S.players[0].tags === SKY.medevacTags(12) && heard('redcross_safe'), 'safe passage pays');
   med = SKY.spawnMedevac(RW); med.x = 200;
   hitTest({ x: med.x, y: med.y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false });
   var paid = seen.filter(function (e) { return e.type === 'redcross_safe'; }).length; med.x = W + 60; med.dir = 1; run(0.5);

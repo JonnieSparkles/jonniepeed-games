@@ -7,40 +7,40 @@
 
   // The shop: a packed supply goes back with a tap, and the tags come back. Undo puts back the last thing taken,
   // hires included. Putting back a slot also puts back the hire that needed it.
-  RUN.force = 81; newGame(); S.wave = 5; S.coins = 500; S.mods.slots = 4; S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'rifle'), makeRecruit(1, 'rifle')];
-  openShop(); var coins0 = S.coins, wall0 = S.wallHP;
-  var pick = S.shop.items.find(function (it) { return it.id !== 'pizza' && it.id !== S.shop.gift && eligible(it) && costNow(it) <= S.coins; });
-  check(takeItem(pick.id) && S.coins === coins0 - price(pick), 'buy a supply');
+  RUN.force = 81; newGame(); S.wave = 5; S.players[0].tags = 500; S.mods.slots = 4; S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'rifle'), makeRecruit(1, 'rifle')];
+  openShop(); var coins0 = S.players[0].tags, wall0 = S.wallHP;
+  var pick = S.shop.items.find(function (it) { return it.id !== 'pizza' && it.id !== S.shop.gift && eligible(it) && costNow(it) <= S.players[0].tags; });
+  check(takeItem(pick.id) && S.players[0].tags === coins0 - price(pick), 'buy a supply');
   var row = document.querySelector('#supplyItems [data-item="' + pick.id + '"]');
   check(!row.disabled && /put back/.test(row.textContent) && !document.getElementById('undoBtn').hidden, 'it can go back');
   row.click();
-  check(S.coins === coins0 && !S.shop.bought[pick.id] && !(S.mods.stacks[pick.id]) && document.getElementById('undoBtn').hidden, 'put back: tags refunded, nothing packed');
+  check(S.players[0].tags === coins0 && !S.shop.bought[pick.id] && !(SHOP.stacksOf(pick)[pick.id]) && document.getElementById('undoBtn').hidden, 'put back: tags refunded, nothing packed');
   takeItem('hire-rifle'); var hired = S.recruits.length;
   check(hired === 4 && S.mods.hired === 1, 'hire one');
   document.getElementById('undoBtn').click();
-  check(S.recruits.length === 3 && S.mods.hired === 0 && S.coins === coins0, 'undo puts the hire back');
+  check(S.recruits.length === 3 && S.mods.hired === 0 && S.players[0].tags === coins0, 'undo puts the hire back');
   // Room for one more, then a hire into it: putting back the slot puts back the hire too.
   S.shop.items.push(item('slot'));
   takeItem('slot'); takeItem('hire-rifle'); takeItem('hire-engineer');
   check(S.mods.slots === 5 && S.recruits.length === 5, 'a slot and two hires');
   SHOP.putBack('slot');
-  check(S.mods.slots === 4 && S.recruits.length === 4 && S.coins === coins0 - Math.round(35 * SHOP.war(SHOP.WAR.HIRE) / 5) * 5 && S.mods.hired === 1, 'without the slot only one hire fits: ' + S.coins);
+  check(S.mods.slots === 4 && S.recruits.length === 4 && S.players[0].tags === coins0 - Math.round(35 * SHOP.war(SHOP.WAR.HIRE) / 5) * 5 && S.mods.hired === 1, 'without the slot only one hire fits: ' + S.players[0].tags);
   check(S.wallHP === wall0, 'the wall is as it was');
   shopScreen.hidden = true; S.shop = null; S.mode = 'play';
 
   // The Red Cross plane: the tags fly out of the counter, which flashes red, and late in the run it costs more.
-  RUN.force = 82; newGame(); startWave(12); S.coins = 200; S.combo = 4; S.comboT = 1; S.parts = [];
+  RUN.force = 82; newGame(); startWave(12); S.players[0].tags = 200; S.combo = 4; S.comboT = 1; S.parts = [];
   check(waveCfg(8).medevac === 1 && waveCfg(9).medevac === 2 && waveCfg(14).medevac === 3, 'more Red Cross planes late');
   var med = SKY.spawnMedevac(RW); med.x = 200;
   hitTest({ x: med.x, y: med.y, vx: 0, vy: -1, owner: 'player', kind: 'bullet', life: 1, dead: false });
-  check(S.coins === 200 - Math.round(SKY.medevacTags(12) * SKY.MEDEVAC.HIT) && SKY.medevacTags(12) > SKY.MEDEVAC.TAGS && S.tagLoss > 0 && S.parts.some(function (q) { return q.k === 'tagout'; }), 'tags fly out of the counter');
+  check(S.players[0].tags === 200 - Math.round(SKY.medevacTags(12) * SKY.MEDEVAC.HIT) && SKY.medevacTags(12) > SKY.MEDEVAC.TAGS && S.tagLoss > 0 && S.parts.some(function (q) { return q.k === 'tagout'; }), 'tags fly out of the counter');
   render(); run(0.3); render();
 
   // The gun heats the same on every wave, so cooling fins always pay off.
   RUN.force = 83; newGame(); startWave(4); S.turrets[0].heat = 0; S.turrets[0].fireCD = 0; fireVolley(); var early = S.turrets[0].heat;
   startWave(19); S.turrets[0].heat = 0; S.turrets[0].fireCD = 0; fireVolley();
   check(early > 0 && S.turrets[0].heat === early, 'the same heat late: ' + early + ' -> ' + S.turrets[0].heat);
-  S.mods.cool = 1; S.turrets[0].heat = 0; S.turrets[0].fireCD = 0; fireVolley();
+  S.turrets[0].mods.cool = 1; S.turrets[0].heat = 0; S.turrets[0].fireCD = 0; fireVolley();
   check(S.turrets[0].heat < early, 'fins cool it');
 
   // Tanks: armored cargo planes, and a tank on its chutes shrugs off bullets.

@@ -29,7 +29,7 @@
   // The pause card lists the kit, and hides the line for a fresh run.
   newGame(); togglePause();
   check(document.getElementById('pauseKit').hidden, 'no kit line on a fresh run');
-  togglePause(); S.mods.stacks.double = 1; S.mods.stacks.cool = 2; S.mods.stacks.repair = 3; togglePause();
+  togglePause(); S.turrets[0].mods.stacks.double = 1; S.turrets[0].mods.stacks.cool = 2; S.mods.stacks.repair = 3; togglePause();
   var kit = document.getElementById('pauseKit').textContent;
   check(/Double barrel/.test(kit) && /Cooling fins ×2/.test(kit) && !/Patch/.test(kit), 'pause shows owned upgrades, not repeat buys');
   togglePause();

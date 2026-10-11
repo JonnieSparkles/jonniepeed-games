@@ -153,7 +153,7 @@ with Phones() as phones:
     check(True, 'the host comes back, its game plays on and the guest with it')
 
     # A wave that starts while the host is offline (both Ready in the shop) pauses at once.
-    js(host, 'S.coins = 50; openShop(); "ok"')
+    js(host, 'S.players[0].tags = 50; openShop(); "ok"')
     wait(guest, "() => !document.getElementById('shopScreen').hidden && !!document.getElementById('coopReady')")
     guest.click('#continueBtn')
     wait(host, "() => armyTest('!!(S.shop && S.shop.ready && S.shop.ready[1])')")
