@@ -43,9 +43,9 @@ for _m, (_cs, _hx) in MAT.items():
         CHARS[_c] = _h
 
 # ---------- proportions ----------
-W, H = 64, 84          # the drawing box for one pose, with room above for a jump
-FEET = 82              # where his soles sit
-CX = 32
+W, H = 80, 96          # the drawing box for one pose, with room around for a jump and a drawn katana
+FEET = 94              # where his soles sit
+CX = 40
 SH = 15.8              # shoulder half-width at the delts
 WAIST = 5.2            # waist half-width
 LEG = 24               # hip to sole
@@ -54,9 +54,8 @@ ARM = 1.1              # how thick his arms are
 STANCE = 1.4           # how much further apart his feet are than his hips
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
-LIT_ABOVE = 52         # side edges above this row (his waist) take a coloured outline; below it they stay black
+LIT_ABOVE = FEET - 30  # side edges above this row (his waist) take a coloured outline; below it they stay black
 
-POSES = ['stand', 'breathe', 'runA', 'runB', 'aim', 'wind', 'slash', 'crouch', 'jump']
 
 
 # ---------- the canvas and its shapes ----------
@@ -189,12 +188,16 @@ def tex_y(y):
     return y - FEET + 70
 
 
+def tex_x(x):
+    return x - CX + 32
+
+
 def furtex(cv):
     # short strands: fur tones broken up in 1x2 dabs
     for y in range(H):
         for x in range(W):
             if cv.mat[y][x] == 'fur':
-                cv.tone[y][x] += (h01(x, tex_y(y) // 2) - .5) * .16
+                cv.tone[y][x] += (h01(tex_x(x), tex_y(y) // 2) - .5) * .16
 
 
 def curls(cv):
@@ -202,7 +205,7 @@ def curls(cv):
     for y in range(H):
         for x in range(W):
             if cv.mat[y][x] == 'pomp':
-                n = h01(x // 2 + 31, tex_y(y) // 2 + 7)
+                n = h01(tex_x(x) // 2 + 31, tex_y(y) // 2 + 7)
                 cv.tone[y][x] += .16 if n > .72 else -.14 if n < .2 else 0
 
 
@@ -337,8 +340,10 @@ def blaster_back(cv, hx, hy):
 
 
 # ---------- from behind: the poses the game uses ----------
-def head_back(cv, x, y):
+def head_back(cv, x, y, look=0):
     cy = y + 11.2
+    if look:   # head turned: the tip of his snout shows past his cheek
+        ellipse(cv, x + look * (RX + .6), cy + 3.4, 2.4, 1.8, 'snout', base=.1, hard=True)
     for s in (-1, 1):
         horn(cv, horn_pts(x + s * RX * .72, y + 8.2, s))
     for s in (-1, 1):
@@ -413,30 +418,78 @@ def legs_back(cv, x, y, L):
             cuff(cv, x + fx, y + fy)
 
 
+# Each pose: legs, left arm, right arm, and extras (bob moves his body down, look turns his head, lift raises the
+# katana in its sheath, spin turns the blaster on his finger). Arms and legs are named in build_pose.
+POSE = {
+    'stand':      ('stand', 'down', 'down', {}),
+    'breathe':    ('stand', 'down', 'down', {'bob': 1}),
+    'runA':       ('runA', 'fwd', 'back', {}),
+    'runB':       ('runB', 'back', 'fwd', {}),
+    'jump':       ('jump', 'up', 'up', {}),
+    'crouch':     ('crouch', 'crouch', 'crouch', {}),
+    'aim':        ('stand', 'down', 'aim', {}),
+    'kick':       ('stand', 'down', 'kick', {'bob': 1}),
+    'runAimA':    ('runA', 'fwd', 'aim', {}),
+    'runAimB':    ('runB', 'back', 'aim', {}),
+    'jumpAim':    ('jump', 'up', 'aim', {}),
+    'wind':       ('stand', 'down', 'wind', {}),
+    'slash':      ('stand', 'fwd', 'slash', {}),
+    'jumpWind':   ('jump', 'up', 'wind', {}),
+    'jumpCut':    ('jump', 'up', 'slash', {}),
+    'crouchWind': ('crouch', 'crouch', 'wind', {}),
+    'crouchCut':  ('crouch', 'fwd', 'slash', {}),
+    'hurt':       ('stand', 'flinch', 'flinch', {'bob': 1}),
+    'lookL':      ('stand', 'down', 'down', {'look': -1}),
+    'lookR':      ('stand', 'down', 'down', {'look': 1}),
+    'twirl0':     ('stand', 'down', 'twirl', {'spin': 0}),
+    'twirl1':     ('stand', 'down', 'twirl', {'spin': 1}),
+    'twirl2':     ('stand', 'down', 'twirl', {'spin': 2}),
+    'twirl3':     ('stand', 'down', 'twirl', {'spin': 3}),
+    'grip':       ('stand', 'down', 'grip', {}),
+    'gripUp':     ('stand', 'down', 'grip', {'lift': 2}),
+    'scuff':      ('scuff', 'down', 'down', {}),
+    'win':        ('stand', 'horns', 'horns', {}),
+    'winB':       ('stand', 'horns', 'horns', {'bob': -1}),
+}
+
+
+def blaster_spin(cv, hx, hy, k):
+    # the blaster from the side, turning on his finger: a gold barrel out from the hand, a short grip, the lit muzzle.
+    # k is the quarter turn: 0 points right, 1 up, 2 left, 3 down.
+    a = (0, -math.pi / 2, math.pi, math.pi / 2)[k % 4]
+    ux, uy = math.cos(a), math.sin(a)
+    px_, py_ = -uy, ux                     # across the barrel
+    capsule(cv, [(hx - px_ * 1.6, hy - py_ * 1.6, 1.3), (hx - px_ * 3.6 - ux * .8, hy - py_ * 3.6 - uy * .8, 1.2)], 'belt', base=.1, hard=True)
+    capsule(cv, [(hx - ux * 1.2, hy - uy * 1.2, 2.0), (hx + ux * 6.4, hy + uy * 6.4, 1.4)], 'horn', base=.16, hard=True)
+    ellipse(cv, hx + ux * 7.2, hy + uy * 7.2, 1.3, 1.3, 'ivory', base=.12, hard=True)
+    cv.force[(int(hx + ux * 7.6), int(hy + uy * 7.6))] = 'P'
+
+
+def horns_up(cv, hx, hy):
+    # index and little finger raised over the fist
+    for s in (-1, 1):
+        capsule(cv, [(hx + s * 1.7, hy - 1.6, 1.0), (hx + s * 2.2, hy - 5.6, .9)], 'fur', base=.22, hard=True)
+
+
 def build_pose(name):
+    legs, larm, rarm, ex = POSE[name]
     cv = Canvas()
-    x, bob = CX, 0
+    x, bob = CX, ex.get('bob', 0)
     Lk, Lf = LEG * .42, LEG * .72
     st, sk = STANCE, STANCE * .6   # the stance, at the feet and at the knees
     legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.6 + sk, Lk, 3.8 + st, Lf, False))
-    larm, rarm, sword, tsway, tl = 'down', 'down', 'back', 0, 8
-    if name == 'runA':
-        bob = -1; legs_p = ((-4.0 - sk, Lk * .9, -3.8 - st, Lf, False), (3.8 + sk, LEG * .3, 4.0 + sk, LEG * .4, True)); larm, rarm, tsway = 'fwd', 'back', -1
-    if name == 'runB':
-        legs_p = ((-3.8 - sk, LEG * .3, -4.0 - sk, LEG * .4, True), (4.0 + sk, Lk * .9, 3.8 + st, Lf, False)); larm, rarm, tsway = 'back', 'fwd', 1
-    if name == 'jump':
-        bob = -9; legs_p = ((-6.2, LEG * .28, -5.4, LEG * .42, True), (6.2, LEG * .28, 5.4, LEG * .42, True)); larm, rarm, tsway, tl = 'up', 'up', -2, 6
-    if name == 'crouch':
-        bob = LEG * .48; legs_p = ((-11.5, 3.0, -9.6, LEG * .26, False), (11.5, 3.0, 9.6, LEG * .26, False)); larm, rarm, tl = 'crouch', 'crouch', 3
-    if name == 'aim':
-        rarm = 'aim'
-    if name == 'wind':
-        rarm, sword = 'wind', 'drawn'
-    if name == 'slash':
-        rarm, larm, sword = 'slash', 'fwd', 'drawn'
-    if name == 'breathe':
-        bob = 1
-    crouch = name == 'crouch'
+    tsway, tl = 0, 8
+    if legs == 'runA':
+        bob -= 1; legs_p = ((-4.0 - sk, Lk * .9, -3.8 - st, Lf, False), (3.8 + sk, LEG * .3, 4.0 + sk, LEG * .4, True)); tsway = -1
+    if legs == 'runB':
+        legs_p = ((-3.8 - sk, LEG * .3, -4.0 - sk, LEG * .4, True), (4.0 + sk, Lk * .9, 3.8 + st, Lf, False)); tsway = 1
+    if legs == 'jump':
+        bob -= 9; legs_p = ((-6.2, LEG * .28, -5.4, LEG * .42, True), (6.2, LEG * .28, 5.4, LEG * .42, True)); tsway, tl = -2, 6
+    if legs == 'crouch':
+        bob += LEG * .48; legs_p = ((-11.5, 3.0, -9.6, LEG * .26, False), (11.5, 3.0, 9.6, LEG * .26, False)); tl = 3
+    if legs == 'scuff':   # the right hoof lifted and scraped back, his weight on the left
+        legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.8 + sk, Lk * .95, 4.4 + st, Lf - 4.0, True)); tsway = 1
+    crouch = legs == 'crouch'
     hipy = FEET - Lf - 5.4 + bob
     vy = hipy - TORSO
 
@@ -449,9 +502,11 @@ def build_pose(name):
     neck_back(cv, x, vy - 5)
     for s in (-1, 1):
         delt(cv, x, vy - 1.5, s)
-    head_back(cv, x, vy - 18 - NECK)
-    if sword == 'back':
-        katana_back(cv, x, vy + 3)
+    head_back(cv, x + ex.get('look', 0) * 1.5, vy - 18 - NECK, ex.get('look', 0))
+    drawn = rarm in ('wind', 'slash')
+    lift = ex.get('lift', 0)
+    if not drawn:
+        katana_back(cv, x + lift * .4, vy + 3 - lift)
     sy = vy + 1.5
     ls, rs = (x - SH + 2.4, sy), (x + SH - 2.4, sy)
     o = SH - 10.6
@@ -461,17 +516,26 @@ def build_pose(name):
         'fwd':    {'L': ((x - s0 - .4, vy + 9.5), (x - s0 + 1.4, vy + 14)), 'R': ((x + s0 + .4, vy + 9.5), (x + s0 - 1.4, vy + 14))},
         'back':   {'L': ((x - s0 - 1.2, vy + 10), (x - s0 - 1.6, vy + 17.5)), 'R': ((x + s0 + 1.2, vy + 10), (x + s0 + 1.6, vy + 17.5))},
         'up':     {'L': ((x - 16.4 - o, vy - 1), (x - 18.5 - o, vy - 7.5)), 'R': ((x + 16.4 + o, vy - 1), (x + 18.5 + o, vy - 7.5))},
+        'horns':  {'L': ((x - 16.0 - o, vy - 2), (x - 17.0 - o, vy - 9.5)), 'R': ((x + 16.0 + o, vy - 2), (x + 17.0 + o, vy - 9.5))},
+        'flinch': {'L': ((x - s0 - 3.6, vy + 3.5), (x - s0 - 1.8, vy - 3.5)), 'R': ((x + s0 + 3.6, vy + 3.5), (x + s0 + 1.8, vy - 3.5))},
         'crouch': {'L': ((x - s0 - 1.0, vy + 8), (x - s0 + .8, vy + 13)), 'R': ((x + s0 + 1.0, vy + 8), (x + s0 - .8, vy + 13))},
         'aim':    {'R': ((x + 15.2 + o, vy + 4.0), (x + 16.6 + o, vy - 2.6))},
+        'kick':   {'R': ((x + 15.6 + o, vy + 2.4), (x + 15.4 + o, vy - 5.0))},
         'wind':   {'R': ((x + 16.0 + o, vy - 2.5), (x + 15.0 + o, vy - 9.5))},
         'slash':  {'R': ((x + 17.0 + o, vy + .5), (x + 22.0 + o, vy + 0))},
+        'twirl':  {'R': ((x + s0 + 1.6, vy + 9.0), (x + s0 + 4.2, vy + 14.5))},
+        'grip':   {'R': ((x + s0 + 2.4, vy - 7.5 - lift), (x + 7.4 + lift * .4, vy - 1.8 - lift))},
     }
     for side, sh in (('L', ls), ('R', rs)):
         key = larm if side == 'L' else rarm
         el, hd = A[key][side]
         arm(cv, sh, el, hd, 2.9)
-        if side == 'R' and key == 'aim':
+        if key == 'horns':
+            horns_up(cv, hd[0], hd[1])
+        if side == 'R' and key in ('aim', 'kick'):
             blaster_back(cv, hd[0], hd[1] - 1.6)
+        if side == 'R' and key == 'twirl':
+            blaster_spin(cv, hd[0] + .4, hd[1] + 1.6, ex['spin'])
         if side == 'R' and key == 'wind':
             katana_held(cv, hd[0], hd[1], hd[0] - 8, hd[1] - 15)
         if side == 'R' and key == 'slash':
@@ -810,7 +874,7 @@ def crop(g, b):
 
 
 def build_all():
-    poses = {n: build_pose(n) for n in POSES}
+    poses = {n: build_pose(n) for n in POSE}
     pb = box(list(poses.values()))
     views = {'front': build_front(), 'side': build_side(), 'back': poses['stand']}
     vb = box(list(views.values()))
