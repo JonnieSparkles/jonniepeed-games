@@ -46,10 +46,11 @@ for _m, (_cs, _hx) in MAT.items():
 W, H = 64, 84          # the drawing box for one pose, with room above for a jump
 FEET = 82              # where his soles sit
 CX = 32
-SH = 14.2              # shoulder half-width at the delts
-WAIST = 6.0            # waist half-width
+SH = 15.8              # shoulder half-width at the delts
+WAIST = 5.2            # waist half-width
 LEG = 24               # hip to sole
-TORSO = 17             # shoulders to belt
+TORSO = 18.5           # shoulders to belt
+ARM = 1.1              # how thick his arms are
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
 LIT_ABOVE = 52         # side edges above this row (his waist) take a coloured outline; below it they stay black
@@ -237,14 +238,15 @@ def arm(cv, sh, el, hd, fist_r):
     # shoulder, a bulging upper arm in a grey sleeve, elbow, a thick forearm, the fist
     m1 = (sh[0] + (el[0] - sh[0]) * .5, sh[1] + (el[1] - sh[1]) * .5)
     m2 = (el[0] + (hd[0] - el[0]) * .4, el[1] + (hd[1] - el[1]) * .4)
-    capsule(cv, [(sh[0], sh[1], 2.9), (m1[0], m1[1], 2.9), (el[0], el[1], 2.0), (m2[0], m2[1], 2.4), (hd[0], hd[1], 1.8)], 'fur', base=.12, hard=True)
+    k = ARM
+    capsule(cv, [(sh[0], sh[1], 2.9 * k), (m1[0], m1[1], 2.9 * k), (el[0], el[1], 2.0 * k), (m2[0], m2[1], 2.4 * k), (hd[0], hd[1], 1.8 * k)], 'fur', base=.12, hard=True)
     ex, ey = sh[0] + (el[0] - sh[0]) * .38, sh[1] + (el[1] - sh[1]) * .38
-    capsule(cv, [(sh[0], sh[1], 3.4), (ex, ey, 3.1)], 'tee', base=.02, hard=True)
-    fist(cv, hd[0], hd[1], fist_r)
+    capsule(cv, [(sh[0], sh[1], 3.4 * k), (ex, ey, 3.1 * k)], 'tee', base=.02, hard=True)
+    fist(cv, hd[0], hd[1], fist_r * k)
 
 
 def delt(cv, x, y, side):
-    ellipse(cv, x + side * (SH - 2.6), y + 2.6, 3.3, 3.2, 'tee', base=.12, hard=True)
+    ellipse(cv, x + side * (SH - 2.6), y + 2.6, 3.3 * ARM, 3.2 * ARM, 'tee', base=.12, hard=True)
 
 
 def traps(cv, x, y):
@@ -297,18 +299,27 @@ def tail(cv, x, y, sway=0, n=8):
     ellipse(cv, x - 1.4 + sway, y + 10.4 * k, 1.8, 2.0, 'fur', base=.0)
 
 
+def hilt(cv, gx, gy, ex, ey, rg=1.9):
+    # the katana's hilt: a dark cord-wrapped grip from its gold guard (gx, gy) to a small gold cap (ex, ey). Only the
+    # guard and the cap are gold, so from the front it can't run into his earring.
+    capsule(cv, [(gx, gy, 1.0), (ex, ey, 1.0)], 'sheath', base=.1, hard=True)
+    for t in (.35, .65):
+        T(cv, gx + (ex - gx) * t, gy + (ey - gy) * t, 'O')
+    ellipse(cv, gx, gy, rg, rg * .85, 'horn', base=-.1, hard=True)
+    T(cv, ex, ey, 'k')
+
+
 def katana_back(cv, x, y):
     # sheathed across his back: the tip low on his left, the hilt over his right shoulder
     a, b, c = (x - 8, y + 14), (x + 5, y - 1.5), (x + 8.2, y - 6)
     capsule(cv, [(a[0], a[1], 1.15), (b[0], b[1], 1.15)], 'sheath', hard=True)
-    capsule(cv, [(b[0], b[1], 1.0), (c[0], c[1], 1.0)], 'horn', hard=True)
-    ellipse(cv, b[0], b[1], 1.9, 1.9, 'horn', base=-.1, hard=True)
-    T(cv, b[0] + 1.6, b[1] - 1.8, 'i'); T(cv, b[0] + 2.8, b[1] - 2.8, 'i')
+    hilt(cv, b[0], b[1], c[0], c[1])
 
 
 def katana_held(cv, hx, hy, tx, ty):
     d = math.hypot(tx - hx, ty - hy); ux, uy = (tx - hx) / d, (ty - hy) / d
-    capsule(cv, [(hx - ux * 3.5, hy - uy * 3.5, 1.0), (hx + ux * .5, hy + uy * .5, 1.0)], 'horn', hard=True)
+    capsule(cv, [(hx - ux * 3.5, hy - uy * 3.5, 1.0), (hx + ux * .5, hy + uy * .5, 1.0)], 'sheath', base=.1, hard=True)
+    T(cv, hx - ux * 3.5, hy - uy * 3.5, 'k')
     capsule(cv, [(hx + ux * 1.6, hy + uy * 1.6, 1.15), (tx, ty, .7)], 'steel', base=.18, hard=True)
     ellipse(cv, hx + ux * 1.2, hy + uy * 1.2, 1.6, 1.6, 'horn', base=-.1, hard=True)
 
@@ -442,12 +453,13 @@ def build_pose(name):
     sy = vy + 1.5
     ls, rs = (x - SH + 2.4, sy), (x + SH - 2.4, sy)
     o = SH - 10.6
+    s0 = SH - 2.4   # how far out his shoulder joints are; arms hang just outside them, by his sides
     A = {
-        'down':   {'L': ((x - 13.4 - o, vy + 9.5), (x - 13.2 - o, vy + 16.5)), 'R': ((x + 13.4 + o, vy + 9.5), (x + 13.2 + o, vy + 16.5))},
-        'fwd':    {'L': ((x - 13.0 - o, vy + 9.5), (x - 11.8 - o, vy + 14)), 'R': ((x + 13.0 + o, vy + 9.5), (x + 11.8 + o, vy + 14))},
-        'back':   {'L': ((x - 14.4 - o, vy + 10), (x - 15.6 - o, vy + 17.5)), 'R': ((x + 14.4 + o, vy + 10), (x + 15.6 + o, vy + 17.5))},
+        'down':   {'L': ((x - s0 - .6, vy + 9.5), (x - s0 + .4, vy + 16.5)), 'R': ((x + s0 + .6, vy + 9.5), (x + s0 - .4, vy + 16.5))},
+        'fwd':    {'L': ((x - s0 - .4, vy + 9.5), (x - s0 + 1.4, vy + 14)), 'R': ((x + s0 + .4, vy + 9.5), (x + s0 - 1.4, vy + 14))},
+        'back':   {'L': ((x - s0 - 1.2, vy + 10), (x - s0 - 1.6, vy + 17.5)), 'R': ((x + s0 + 1.2, vy + 10), (x + s0 + 1.6, vy + 17.5))},
         'up':     {'L': ((x - 16.4 - o, vy - 1), (x - 18.5 - o, vy - 7.5)), 'R': ((x + 16.4 + o, vy - 1), (x + 18.5 + o, vy - 7.5))},
-        'crouch': {'L': ((x - 13.6 - o, vy + 8), (x - 11.5 - o, vy + 13)), 'R': ((x + 13.6 + o, vy + 8), (x + 11.5 + o, vy + 13))},
+        'crouch': {'L': ((x - s0 - 1.0, vy + 8), (x - s0 + .8, vy + 13)), 'R': ((x + s0 + 1.0, vy + 8), (x + s0 - .8, vy + 13))},
         'aim':    {'R': ((x + 15.2 + o, vy + 4.0), (x + 16.6 + o, vy - 2.6))},
         'wind':   {'R': ((x + 16.0 + o, vy - 2.5), (x + 15.0 + o, vy - 9.5))},
         'slash':  {'R': ((x + 17.0 + o, vy + .5), (x + 22.0 + o, vy + 0))},
@@ -486,10 +498,8 @@ def build_front():
     cy = y + 11.2
     o = SH - 10.6
 
-    # the katana's hilt over his right shoulder (our left), behind him
-    capsule(cv, [(x - 8.6, vy - .5, 1.0), (x - 11.4, vy - 7.2, 1.0)], 'horn', hard=True)
-    ellipse(cv, x - 8.8, vy - .8, 1.9, 1.5, 'horn', base=-.1, hard=True)
-    T(cv, x - 10.2, vy - 4, 'i'); T(cv, x - 10.8, vy - 5.6, 'i')
+    # the katana's hilt over his right shoulder (our left), behind him, low and out from his ear
+    hilt(cv, x - 9.6, vy + .4, x - 12.6, vy - 4.6, 1.7)
 
     # legs, boots and rolled cuffs, the fly, light on the knees
     legs_p = ((-3.6, Lk, -3.8, Lf), (3.6, Lk, 3.8, Lf))
@@ -637,7 +647,7 @@ def build_front():
     earring(cv, x - RX - 3.4, cy + 1.6)               # his right ear: our left from the front
 
     # the blaster held low in his right hand (our left), then the arms over it
-    hx, hy = x - (13.2 + o), vy + 16.5
+    hx, hy = x - (SH - 2.8), vy + 16.5
     poly(cv, [(hx - 2.0, hy + .5), (hx + 2.0, hy + .5), (hx + 2.0, hy + 6.4), (hx - 2.0, hy + 6.4)], 'horn', hard=True,
          shade_fn=lambda px, py: shade((px + .5 - hx) / 2.4, (py - hy - 3) / 4, .14))
     for px in range(int(hx - 2), int(hx + 3)):
@@ -646,7 +656,7 @@ def build_front():
     T(cv, hx, hy + 7.4, 'P'); T(cv, hx - 1, hy + 7.4, 'X')
     sy = vy + 1.5
     for s in (-1, 1):
-        sh, el, hd = (x + s * (SH - 2.4), sy), (x + s * (13.4 + o), vy + 9.5), (x + s * (13.2 + o), vy + 16.5)
+        sh, el, hd = (x + s * (SH - 2.4), sy), (x + s * (SH - 1.8), vy + 9.5), (x + s * (SH - 2.8), vy + 16.5)
         arm(cv, sh, el, hd, 2.4)
         fist(cv, hd[0], hd[1], 2.9)
         T(cv, hd[0] - s * 1.8, hd[1] - .6, 'd')     # the thumb
@@ -669,9 +679,7 @@ def build_side():
     capsule(cv, [(x - .8, vy + 2, 2.6), (x - 2.0, vy + 9.5, 1.9), (x - 2.6, vy + 16, 1.7)], 'fur', base=-.12, hard=True)
     fist(cv, x - 2.6, vy + 16.4, 2.7)
     capsule(cv, [(x - 8.2, vy + 12, 1.2), (x - 4.6, vy - .6, 1.15)], 'sheath', hard=True)
-    capsule(cv, [(x - 4.9, vy - 1.4, 1.0), (x - 7.6, vy - 7.2, 1.0)], 'horn', hard=True)
-    ellipse(cv, x - 4.6, vy - .8, 1.9, 1.6, 'horn', base=-.1, hard=True)
-    T(cv, x - 6.0, vy - 3.8, 'i'); T(cv, x - 6.8, vy - 5.6, 'i')
+    hilt(cv, x - 4.6, vy - .8, x - 7.6, vy - 7.2)
     capsule(cv, [(x - 5.2, hipy + 1, 1.0), (x - 7.4, hipy + 5, .9), (x - 7.8, hipy + 10, .9)], 'fur', base=.06)
     ellipse(cv, x - 7.9, hipy + 11.4, 1.7, 2.1, 'fur', base=-.04)
     # legs: the far one a step back and in shadow
