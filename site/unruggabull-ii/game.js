@@ -793,6 +793,13 @@
     R(f, 0, G, PW2, 1, '#1e1636');
     TOWER = { sky, front };
   }
+  // the bull on the title: three quarters of his size in play, scaled once with hard pixels
+  const TITLE_K = .75;
+  let titleBull = null;
+  const TITLE_BULL = () => titleBull || (titleBull = (() => {
+    const src = A.POSES.stand, w = Math.round(src.width * TITLE_K), h = Math.round(src.height * TITLE_K), c = A.canvas(w, h), x = c.getContext('2d');
+    x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, w, h); return c;
+  })());
   function drawTower(t) {
     if (!TOWER) buildTower();
     g.drawImage(TOWER.sky, 0, 0, W, H);
@@ -805,7 +812,11 @@
       g.fillStyle = k < .2 ? '#fff27a' : k < .32 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a'; g.fillRect(sx - w, y, 2 * w + .5, .5);
     }
     g.drawImage(TOWER.front, 0, 0, W, H);
-    g.drawImage(A.POSES.stand, 120 - A.POSE_FEET.x * A.BULL_K, GROUND - A.POSE_FEET.y * A.BULL_K, A.POSE_W * A.BULL_K, A.POSE_H * A.BULL_K);   // at the picture's full size
+    // him, a bit smaller than in play, with the sunset outlining him so he stands out against the dark tower
+    const tk = A.BULL_K * TITLE_K, bx = 120 - A.POSE_FEET.x * tk, by = GROUND - A.POSE_FEET.y * tk, bw = A.POSE_W * tk, bh = A.POSE_H * tk;
+    const rim = tinted(TITLE_BULL(), '#ffc870');
+    for (const [dx, dy] of [[-.5, 0], [.5, 0], [0, -.5], [-.5, -.5], [.5, -.5]]) g.drawImage(rim, bx + dx, by + dy, bw, bh);
+    g.drawImage(TITLE_BULL(), bx, by, bw, bh);
     const on = Math.sin(t * 3) > .4;
     g.save(); g.globalAlpha = on ? .35 : .18; disc(g, BEACON.x, BEACON.y, 6, '#ff9628'); g.restore();
     disc(g, BEACON.x, BEACON.y, 2, on ? '#fff0a0' : '#ff9628');
