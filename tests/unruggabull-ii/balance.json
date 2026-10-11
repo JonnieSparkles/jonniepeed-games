@@ -43,6 +43,16 @@
     { "label": "blaster back", "key": "pickup:item=blaster" },
     { "label": "boss dmg: blaster", "key": "boss_damage.amount:by=blaster" },
     { "label": "boss dmg: deflects", "key": "boss_damage.amount:by=deflect" },
-    { "label": "boss dmg: smash", "key": "boss_damage.amount:by=smash" }
-  ]
+    { "label": "boss dmg: smash", "key": "boss_damage.amount:by=smash" },
+    { "label": "lost: roof orbs", "key": "hit.amount:cause=orb" },
+    { "label": "lost: roof snares", "key": "hit.amount:cause=snare" },
+    { "label": "lost: roof carps", "key": "hit.amount:cause=carp" },
+    { "label": "spools snapped", "key": "roof_spool.amount" },
+    { "label": "spool hits", "key": "roof_spool_damage.amount" },
+    { "label": "souls caught", "key": "roof_caught.amount" },
+    { "label": "souls returned", "key": "roof_return.amount" },
+    { "label": "snares cut", "key": "roof_snare_cut" }
+  ],
+  "stages": {"1": "Accounts Payable", "2": "Moving day", "3": "All Staff", "4": "Lights out", "5": "Copy Room", "6": "Shredder 1", "7": "Shredder 2", "8": "Shredder 3", "9": "Floor 13 cleared", "10": "Roof lead-in", "11": "Roof round 1", "12": "Roof round 2", "13": "Roof round 3", "14": "Roof crescendo", "15": "Roof cleared" },
+  "causes": ["orb", "snare", "carp"]
 }

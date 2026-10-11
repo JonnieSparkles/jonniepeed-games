@@ -95,7 +95,7 @@ Each section of the hall has its own set and colours: Accounts Payable's cubicle
 - **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. Floor 13 changes tune by section: "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room, and a heavier version for the Shredder.
 - **Blip talk:** everyone except Unruggabull and p(Loom) talks in blips while their line types out.
 - **Unruggabull's voice:** Jonnie's recordings, crushed to 8-bit, shipped as small data in the code rather than audio files. Until lines are recorded, he talks in blips too: about fifteen short lines in bubbles over his head (`LINES` in `game.js`), which double as the recording script.
-- **p(Loom)'s voice** (roof stage): the only synth voice. SAM was used for the storyboard but has no license, so the options are a small formant synth of our own, pre-rendered SAM shipped as crushed audio, or sam-js as is. Decide when the roof is built.
+- **p(Loom)'s voice** (roof stage): the only synth voice. SAM was used for the storyboard but has no license, so the options are a small formant synth of our own, pre-rendered SAM shipped as crushed audio, or sam-js as is. Decide in roof Part B; Part A uses existing blips.
 
 ## The mega stream
 
@@ -123,31 +123,30 @@ The first time the blaster comes back in the Shredder's phase 3, a handful of so
 
 Once the middle floor is chosen: at its set piece the souls come back further than on Floor 13. Four or five streams, and they start to bend in toward each other, then it falls apart just short (the streams scatter, a sour note, back to normal). Same rules as the hint: no explanation.
 
-### The roof finale (build with the roof)
+### The roof finale (Part A built)
 
-The whole roof, from the elevator to dawn, is planned in [roof-plan.md](roof-plan.md), with its storyboard. Where the two differ, the plan wins: it adds a lead-in and three rounds before the finale, makes three spools p(Loom)'s health (the odds don't move until the beam), and adds three side-view cut-ins. The finale below is its last act.
+The whole roof framework is playable with stand-in shapes from elevator to dawn. [roof-plan.md](roof-plan.md) and its 23-frame storyboard define the beats; the implemented rules and entry points are in [README.md](README.md). Part B supplies the roof art, cut-in drawing, new sound and feel. The inaccessible finale artifacts are not implementation dependencies: bending streams implement the Pinch in plain code.
 
-The corridor, from behind him, as on Floor 13. Timings are from the finale mockup and are starting points.
+The corridor view stays behind him. The open-air set shares Floor 13's lit renderer, without its ceiling or wall bands; a sky gradient, low parapets, rain streaks and reflected glows establish the wet roof.
 
-1. **The fight.** p(Loom)'s health bar is its odds, at 99%. The normal blaster barely moves the number (each hit on its eye takes off a fraction of a percent, and it drifts back up). Souls freed here get caught and woven into the loom, where you can see them trapped. Lines: "Probability of your survival: 1%", "Recalculating", "All souls accounted for."
-2. **The quiet.** The music cuts out completely. Carpshits on screen dissolve back into the loom. Just the rain, the storm and his blaster.
-3. **The souls come back.** One soul breaks out of the loom and floats to his gun, and it fires a second stream with a single bell note (D5). A "!" pops over his head. Then a third (F5), then a fourth (A5), about 1.5 seconds apart (mockup: 1.8, 3.3 and 4.5 seconds in).
-4. **The flood.** About a second later every trapped soul pours out at once into the gun, with a rising run of notes. Five streams.
-5. **The pinch.** The streams bend in and merge over about half a second, firing faster as they squeeze.
-6. **The fusion.** A white flash, a short freeze (about 0.14 seconds), screen shake, and one beam down the corridor into the loom. The beam is the brightest thing in the game and far bigger than in the mockup (the owner's note on the roof mockup: much bigger, hitting much harder). The beam roars (a low saw and squares through a wobbling filter, plus hiss), and a heavier, faster version of the p(Loom) music slams in. p(Loom): "That outcome was not in the model."
-7. **The fight with the beam.** The beam melts carpshits in its lane, bends behind him as he moves, and drains the odds while it's on the eye (mockup: 10% a second, so about 10 seconds of good aim). The eye moves side to side, so the player has to track it. Lines as the odds fall: "Probability of capture: zero", then "Recalculating. Recalculating."
-8. **The end.** At 1%: "Unlikely." The threads snap, every trapped soul drifts up into the night, and a major chord rings out. Then the story continues as planned: the core escapes into the Sky Wrecker.
+1. **Getting there.** Elevator, an eight-second walk, a lightning frame and silhouette, the waking eye and card, then the three modeled-survival lines and odds filling to 99%. This plays once; continues skip it.
+2. **Three rounds.** Health is three spools; normal hits never move the odds. Carpshits, labeled probability rings and orbs form round 1. After a volley the eye stalls white-hot for two seconds, exposing the current spool to blaster hits. Its snap leaves missing warp and “NO CHANGE.” at 99%. Round 2 adds slashable snares and rain-telegraphed gusts; round 3 is faster. Freed souls count, then hang caught in the warp. “ALL SOULS ACCOUNTED FOR.” ends the rounds and cuts music on its last word.
+3. **Quiet and return.** Two seconds with movement and no threats, then the first-soul cut. Three souls reach the blaster with bells D5, F5 and A5, about 1.5 seconds apart. The charge bar turns gold and cannot run dry from this return onward. “ERROR. ERR.” stutters in the readout.
+4. **Flood and pinch.** The remaining souls flood back, music builds, and five simple bending streams squeeze into one. The fusion flashes and freezes for 0.14 seconds before the beam cut (0.65 seconds). This view is a nonplayable hook, drawn as a black screen and its name until Part B.
+5. **The lines.** p(Loom): “THAT OUTCOME WAS NOT IN THE MODEL.” His caption: “LET'S DISCUSS THOSE ODDS.”
+6. **The beam.** A thick continuous polygon from the muzzle, steered left/right. On the eye it drains ten percentage points a second; off it the odds creep back at three points a second. It melts carpshits in its lane, and damage to him never interrupts it. The eye runs along its rail faster as odds fall: “PROBABILITY OF CAPTURE: ZERO.”, then “RECALCULATING.” when caught again.
+7. **Dawn.** At 1%, “UNLIKELY.” and a beat, then the snap cut (1.5 seconds). Threads loosen, the eye goes dark, rain stops, sunrise opens and the chord hook rings. The souls drift up and the counter keeps rolling before clear. The core's escape into the Sky Wrecker needs its own ending storyboard.
 
-No charges while the beam is on. Done when the quiet is really quiet, each returning stream lands on its own note, and the fusion is the loudest, brightest moment in the game.
+All three cuts freeze fight timers and hold input. Five hearts; a continue preserves broken spools and caught souls and resumes the round lost, or the quiet for a crescendo death. Nominal round lengths set opening frequency; spool damage determines the actual pacing. The direct roof entry seeds six placeholder captives, counted during dawn, while souls freed during the rounds are counted only once. Floor 13's normal Start and clear remain separate until the intervening floors exist.
 
-Not part of the mega stream: the real p(Loom) music and its heavy version (the mockup's tracks are placeholders, and the music has to rival the first game's), and drag-to-move with auto-fire, which the finale mockup uses and is a separate controls decision.
+The sound hooks are wired, but the roof music/heavy version, storm, thunder, snare, gust, beam, snap and chord are silent until Part B. p(Loom) uses the existing blip fallback; its final voice is still open. Playable side/top-down views and drag-to-move with auto-fire stay dropped.
 
 ## Later stages
 
 1. Floor G cold open and the elevator arena (operator, supply drops: Spread Shot, Bull Run, Spare Vest).
 2. Floor 42, Human Rugsources: lights out, the projector, policy walls, trust falls. Teaches deflect properly.
 3. Floor 77, the Boardroom: the endless table run, the vote, "Motion to adjourn".
-4. The long ride and the roof: Horns Up, p(Loom)'s odds bar, predicted hits, thread cutting, the mega stream finale (above), the escape at 1%. The middle floor (42 or 77) brings the mega stream's near miss.
+4. The long ride (Horns Up), roof Part B (art, sound and feel), and the ending after dawn (the core escaping into the Sky Wrecker). The middle floor (42 or 77) brings the mega stream's near miss.
 5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../../guides/00-leaderboards.md)).
 
 ## Open questions

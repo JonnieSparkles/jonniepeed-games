@@ -1,0 +1,41 @@
+// Roof lead-in, spool health, prediction volleys and caught souls through the same core bridge.
+(function () {
+  const check = (ok, why) => { if (!ok) throw new Error(why); };
+  const tick = seconds => { for (let i = 0; i < Math.ceil(seconds * 60); i++) update(1 / 60); };
+  const fresh = () => { RUN.force = 42; checkpoint = null; newRun(null, 'roof'); setState('play'); card.hidden = true; clearHeld(); input.jump = input.slash = input.shoot = 0; };
+  fresh();
+  const lines = [], oldSay = Snd.say; Snd.say = text => lines.push(text);
+  tick(36);
+  check(R.roof.state === 'round1', 'roof lead-in reaches round1');
+  check(R.roof.history.slice(0, 6).join() === 'elevator,walk,flash,wake,odds,round1', 'every lead-in state is visited in order');
+  check(['HELLO, UNRUGGABULL.', 'I HAVE MODELED THIS MEETING.', 'PROBABILITY OF YOUR SURVIVAL: 1%.'].every(t => lines.includes(t)), 'approved opening lines are spoken');
+  check(R.roof.odds === 99 && R.roof.broken === 0, 'first round starts at 99% with three spools');
+  fresh(); floor.enter('round1');
+  const q = R.roof, hp = q.hp, hit = () => floor.shotHits({ u: q.eye.u, z: q.eye.z, h: q.eye.h });
+  hit(); check(q.hp === hp, 'a closed eye cannot damage a spool');
+  q.stall = 2; hit(); check(q.hp === hp - 1 && q.odds === 99, 'a stalled eye damages its spool without changing odds');
+  for (let i = 0; i < 30 && q.hp > 0; i++) hit();
+  hit(); check(q.broken === 1 && q.odds === 99 && q.hp === 0, 'extra shots cannot break a second spool in the transition');
+  check(R.talk.text === 'NO CHANGE.' && q.hot > 0, 'spool break flashes and says NO CHANGE.');
+  tick(3); check(q.state === 'round2' && q.broken === 1 && q.odds === 99, 'broken spool advances to round2');
+  floor.enter('round3'); q.stall = 2; for (let i = 0; i < 30 && q.hp > 0; i++) hit(); tick(3);
+  check(q.state === 'quiet' && q.broken === 3, 'last spool reaches the quiet');
+  check(lines.includes('ALL SOULS ACCOUNTED FOR.'), 'last round ends on the approved line');
+  fresh(); floor.enter('round1');
+  const caught = R.roof.caught;
+  const f = { u: 0, z: .4, h: .2, hp: 1, ph: 0, hit: 0, dead: false };
+  R.flies.push(f); killFly(f, 'shot'); tick(1.3);
+  check(R.souls === 1 && R.shown === 1 && R.roof.caught === caught + 1, 'a freed soul is counted and ends up hung in the warp');
+  floor.volley();
+  check(R.roof.rings.length === 3 && R.roof.rings.reduce((n, r) => n + r.odds, 0) === 100, 'three predictions add to 100%');
+  check(R.roof.volley.orbs[0].target === 0, 'first orb lands in the likely ring');
+  bull.inv = 100; tick(3.1); check(R.roof.stall > 0 && !R.roof.volley, 'volley completion exposes the white-hot eye');
+  // Continue captures live outcomes (including souls still flying), keeps broken spools, and skips the lead-in.
+  fresh(); floor.enter('round2'); free(120, 80, 'carpshit', 'shot');
+  R.roof.caught = 9; bull.inv = 0; hurtBull(5, 'orb');
+  check(checkpoint.roofState === 'round2', 'round2 death records round2');
+  continueAtBoss();
+  check(R.roof.state === 'round2' && R.roof.broken === 1 && R.hearts === 5 && R.souls === 1 && R.roof.caught === 10, 'round2 continue preserves outcomes and full hearts');
+  check(R.roof.history.join() === 'round2' && R.continues === 1, 'continue skips elevator and walk');
+  Snd.say = oldSay; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
+})();

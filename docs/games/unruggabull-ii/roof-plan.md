@@ -75,7 +75,11 @@ This is the spec's mega stream finale (spec.md, "The roof finale"), with these c
 
 **Losing in the crescendo** puts him back at the quiet with full hearts.
 
-## Part A: the framework (Codex or any agent)
+## Part A: the framework (done)
+
+Built in `roof.js`, with per-run floors, the shared open-air renderer, all mechanics and cut hooks, bridge tests and roof bots. Art, new sounds and feel remain Part B. Floor 13 remains the title Start and its clear still ends that floor.
+
+Implementation choices: round lengths set volley frequency rather than a forced phase clock; spools take 12/14/16 stalled-eye hits. A roof-only run starts with six stand-in captives, which enter the score during dawn; round souls are not counted twice. The other two prediction lanes are shuffled, the first orb is always likely and later orbs use the displayed weights. Beam carps provide the existing heart hazard while its lane melts them. The three bell arrivals precede a timed flood of the remaining warp; simple bending streams replace the inaccessible mockup logic. `--option stage=roof` is the bot entry, and effects-on verification draws actual frames. The next-floor connection and ending after dawn remain outside Part A, as planned.
 
 Goal: the whole roof playable from start to clear, using stand-in drawing built from what the game already has. Everything is tested and bot-run, so Part B is only art, sound and feel.
 
