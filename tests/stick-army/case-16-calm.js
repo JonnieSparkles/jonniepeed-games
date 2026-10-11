@@ -136,7 +136,7 @@
   var deals = function () { return [].slice.call(document.querySelectorAll('#supplyItems .deal')); };
   var gift = deals().find(function (b) { return b.classList.contains('gift'); }), plain = deals().find(function (b) { return !b.classList.contains('gift') && !b.disabled; });
   check(gift && plain && look(gift) === look(plain), 'the gift is not highlighted as if chosen: ' + (gift && look(gift)) + ' vs ' + (plain && look(plain)));
-  var pick = S.shop.items.find(function (it) { return it.id !== S.shop.gift && it.id !== 'pizza' && eligible(it) && costNow(it) <= S.players[0].tags; });
+  var pick = S.shop.items.find(function (it) { return it.id !== S.shop.gifts[0] && it.id !== 'pizza' && eligible(it) && costNow(it) <= S.players[0].tags; });
   check(takeItem(pick.id), 'buy one');
   S.players[0].tags = 0; renderShop(); document.activeElement.blur();
   var packed = document.querySelector('#supplyItems [data-item="' + pick.id + '"]'), grey = deals().find(function (b) { return b.disabled && !b.classList.contains('bought'); });

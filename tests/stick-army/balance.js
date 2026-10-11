@@ -97,7 +97,7 @@
       S.recruits.forEach(function (r) { if (!r.dead) o.recruits.push({ id: r.id, type: r.type, x: r.x, hp: r.hp, max: crewMax(r) }); });
       if (S.mode === 'shop' && S.shop) {
         var mine = function (it) { return item(it, g); };
-        o.shop = { items: S.shop.items.map(mine), hire: S.shop.hire.map(mine), gift: S.shop.gift, hireStep: Math.round(15 * SHOP.war(SHOP.WAR.HIRE)) };
+        o.shop = { items: S.shop.items.map(mine), hire: S.shop.hire.map(mine), gift: S.shop.gifts[0], hireStep: Math.round(15 * SHOP.war(SHOP.WAR.HIRE)) };
         // Co-op prices squad things up and rounds again, so the next hire's step is measured, not estimated.
         if (S.coop) { var rifle = ITEMS.find(function (it) { return it.id === 'hire-rifle'; }), p0 = price(rifle); S.mods.hired++; o.shop.hireStep = price(rifle) - p0; S.mods.hired--; }
         // Co-op: each bot shops with its own tags, its own gun and anything for the squad.

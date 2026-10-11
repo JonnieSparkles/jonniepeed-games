@@ -9,7 +9,7 @@
   // hires included. Putting back a slot also puts back the hire that needed it.
   RUN.force = 81; newGame(); S.wave = 5; S.players[0].tags = 500; S.mods.slots = 4; S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'rifle'), makeRecruit(1, 'rifle')];
   openShop(); var coins0 = S.players[0].tags, wall0 = S.wallHP;
-  var pick = S.shop.items.find(function (it) { return it.id !== 'pizza' && it.id !== S.shop.gift && eligible(it) && costNow(it) <= S.players[0].tags; });
+  var pick = S.shop.items.find(function (it) { return it.id !== 'pizza' && it.id !== S.shop.gifts[0] && eligible(it) && costNow(it) <= S.players[0].tags; });
   check(takeItem(pick.id) && S.players[0].tags === coins0 - price(pick), 'buy a supply');
   var row = document.querySelector('#supplyItems [data-item="' + pick.id + '"]');
   check(!row.disabled && /put back/.test(row.textContent) && !document.getElementById('undoBtn').hidden, 'it can go back');

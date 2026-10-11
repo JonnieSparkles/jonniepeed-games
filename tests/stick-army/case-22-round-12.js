@@ -26,7 +26,7 @@
   check(rifle >= 125 && rifle <= 145, 'soldiers about four times: ' + rifle);
   check(price(item('pizza')) === 25, 'pizza is always 25');
   S.players[0].tags = 0; openShop();
-  check(costNow(item(S.shop.gift)) === 0 && /prices are up/.test(document.getElementById('supplyNote').textContent), 'the gift is free, and the shop says why prices are up');
+  check(costNow(item(S.shop.gifts[0])) === 0 && /prices are up/.test(document.getElementById('supplyNote').textContent), 'the gift is free, and the shop says why prices are up');
   closeShop();
 
   // Patch the wall: not offered with the wall full, and greyed "Wall is full" if it fills during the visit.

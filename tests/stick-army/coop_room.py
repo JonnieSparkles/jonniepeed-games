@@ -100,13 +100,13 @@ with Phones() as phones:
 
     # The supply table: the guest shops through the host with its own tags; "Your gun" is each player's own, the squad's
     # things are bought once by either.
-    js(host, 'S.players[0].tags = 300; S.players[1].tags = 300; openShop(); S.shop.items = ["spread", "sandbags", "pizza"].map(function (id) { return ITEMS.find(function (q) { return q.id === id; }); }); S.shop.offered = ["spread", "sandbags"]; renderShop(); "ok"')
+    js(host, 'S.players[0].tags = 300; S.players[1].tags = 300; openShop(); S.shop.items = ["spread", "sandbags", "pizza"].map(function (id) { return ITEMS.find(function (q) { return q.id === id; }); }); S.shop.gifts = ["spread", "spread"]; renderShop(); "ok"')
     wait(guest, "() => !document.getElementById('shopScreen').hidden && document.querySelector('[data-item=\"spread\"]')")
     check(True, "the guest sees the supply table")
     check(guest.is_visible('#gunSection [data-item="spread"]') and '(yours)' in guest.text_content('#shopCoins'), 'the guest sees "Your gun" and its own tags')
     guest.click('#gunSection [data-item="spread"]')
     wait(host, "() => armyTest('!!S.turrets[1].mods.spread && !S.turrets[0].mods.spread && S.players[1].tags === 300')")
-    check(True, "the guest's spread shot goes on the guest's barrel, as its free pick")
+    check(True, "the guest's spread shot goes on the guest's barrel, as its gift")
     guest.click('[data-item="sandbags"]')
     wait(host, "() => /Bought by your friend/.test(document.querySelector('[data-item=\"sandbags\"] em').textContent)")
     check(host.is_enabled('[data-item="spread"]') and js(host, 'S.players[1].tags') < 300 and js(host, 'S.players[0].tags') == 300,
