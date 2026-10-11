@@ -41,6 +41,7 @@ window.UnrugSound = (function () {
     NOISE = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const nd = NOISE.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
     if (want) playTrack(want);
+    roofSound(roofWant);
     return true;
   }
 
@@ -136,7 +137,21 @@ window.UnrugSound = (function () {
 
   const TOWER_LEAD = 'B4 - - - - - E5 - G5 - - - F#5 - E5 - | G5 - - - - - E5 - C5 - - - D5 - E5 - | F#5 - - - - - D5 - A4 - - - B4 - C5 - | B4 - - - - - - - - - - - E5 . E5 . | E5 - G5 - B5 - - - A5 - G5 - F#5 - E5 - | G5 - - - E5 - - - C6 - - - B5 - A5 - | A5 - - - F#5 - - - D6 - - - C6 - A5 - | B5 - - - - - - - D#5 - F#5 - B5 - - -';
   const THEME_VERSE = 'A4 - - D5 - - F5 - E5 - D5 - C5 - D5 - | F5 - - - - - D5 - Bb4 - - - C5 - D5 - | C5 - - F5 - - A5 - G5 - F5 - E5 - F5 - | G5 - - - - - - - E5 - - - C5 - - - | A4 - - D5 - - F5 - E5 - D5 - C5 - D5 - | F5 - - - - - G5 - A5 - - - Bb5 - A5 - | G5 - - - F5 - - - E5 - - - D5 - E5 - | C#5 - - - - - - - E5 - - - A5 - - -';
+  function roofTrack(heavy) {
+    return { bpm: heavy ? 184 : 168, scale: E_MINOR, chords: ['Em', 'C', 'D', 'B'],
+      lead: { wave: 'p12', vol: .075, gate: .65, notes:
+        'E5 . B4 . E5 . G5 . F#5 . E5 . D5 . B4 . | C5 . E5 . G5 . E5 . B4 . C5 . E5 . G5 . | D5 . F#5 . A5 . F#5 . E5 . D5 . C5 . A4 . | B4 . D#5 . F#5 . D#5 . B4 . F#5 . D#5 . B5 .' },
+      leads: heavy ? [{ wave: 'p50', vol: .045, gate: .7, shift: -12 }] : [],
+      riff: { wave: 'sawtooth', vol: heavy ? .038 : .02, gate: .7, drive: true,
+        pat: heavy ? 'M M M M R . M M M M M M F . M M' : 'M . M . R . M . M . M . F . M .' },
+      arp: { wave: 'p25', vol: .018, gate: .45, mode: 'updown' },
+      bass: { wave: 'triangle', vol: .28, gate: .75, pat: 'R . R O R . R . R . R O F . O .' },
+      drums: { pat: heavy ? 'KKhHS.hKKKhHS.hK' : 'k.h.s.h.k.h.s.hh', crash: [0], fills: { 3: heavy ? 'KKKKSSSSSSSSSSSS' : 'k.h.s.h.k.s.ssss' } } };
+  }
   const TRACKS = {
+    // Replaceable roof placeholders: the same tense E-minor motif, intensified at fusion.
+    roof: { sections: [roofTrack(false)] },
+    roofHeavy: { sections: [roofTrack(true)] },
     // Title: the main theme. An intro bar, a verse, a soaring chorus, and the verse again a step higher.
     theme: { loopFrom: 1, sections: [{
       bpm: 152, chords: ['Dm', 'Bb', 'C', 'A'],
@@ -220,7 +235,7 @@ window.UnrugSound = (function () {
   function stopTrack() {
     if (!P.id) return;
     clearInterval(P.timer); P.timer = 0;
-    if (P.out && ctx) { const o = P.out; o.gain.setTargetAtTime(0, ctx.currentTime, .03); setTimeout(() => { try { o.disconnect(); } catch (e) {} }, 400); }
+    if (P.out && ctx) { const o = P.out; if (/^roof/.test(P.id)) { o.gain.cancelScheduledValues(ctx.currentTime); o.gain.setValueAtTime(0, ctx.currentTime); } else o.gain.setTargetAtTime(0, ctx.currentTime, .03); setTimeout(() => { try { o.disconnect(); } catch (e) {} }, 400); }
     P.id = null; P.out = null;
   }
   function playTrack(id) {
@@ -256,6 +271,7 @@ window.UnrugSound = (function () {
 
   // ---------- blip talk ----------
   const VOICES = {
+    loom: { f: 96, wave: 'p12', ms: 38 }, // Keep the original fallback's caption cadence.
     narrator: { f: 392, wave: 'triangle', ms: 40 },
     shredder: { f: 140, wave: 'sawtooth', ms: 40 },
     announcer: { f: 620, wave: 'p25', ms: 38 },
@@ -293,9 +309,58 @@ window.UnrugSound = (function () {
     duckUntil = ctx.currentTime;
   }
 
+  // Sustained roof noise lives on its own bus. No timers or samples; all nodes stop on exit.
+  let roofWant = null, stormLoop = null, beamLoop = null;
+  function loopSound(beam) {
+    const out = ctx.createGain(); out.gain.value = 0; out.connect(sfxBus);
+    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = beam ? 650 : 1500; filter.Q.value = beam ? 2 : .6; filter.connect(out);
+    const nodes = [], gains = [];
+    const noise = ctx.createBufferSource(); noise.buffer = NOISE; noise.loop = true;
+    const ng = ctx.createGain(); ng.gain.value = beam ? .13 : .09; noise.connect(ng); ng.connect(filter); noise.start(); nodes.push(noise);
+    for (const [wave, f, volume] of beam ? [['sawtooth', 55, .09], ['square', 56.2, .035]] : []) {
+      const o = ctx.createOscillator(), gain = ctx.createGain(); o.type = wave; o.frequency.value = f; gain.gain.value = volume;
+      o.connect(gain); gain.connect(filter); o.start(); nodes.push(o); gains.push(gain);
+    }
+    if (!beam) {
+      // A steady soft rain above the slower, low-pass wind swells.
+      const rain = ctx.createBufferSource(), high = ctx.createBiquadFilter(), level = ctx.createGain();
+      rain.buffer = NOISE; rain.loop = true; high.type = 'bandpass'; high.frequency.value = 3200; high.Q.value = .5; level.gain.value = .025;
+      rain.connect(high); high.connect(level); level.connect(out); rain.start(); nodes.push(rain); gains.push(high, level);
+    }
+    const lfo = ctx.createOscillator(), depth = ctx.createGain(); lfo.frequency.value = beam ? 7 : .27; depth.gain.value = beam ? 420 : 800;
+    lfo.connect(depth); depth.connect(filter.frequency); lfo.start(); nodes.push(lfo);
+    return { out, filter, nodes, gains, noise, ng, lfo, depth };
+  }
+  function stopLoop(loop) {
+    if (!loop) return;
+    loop.out.gain.cancelScheduledValues(ctx.currentTime); loop.out.gain.setValueAtTime(0, ctx.currentTime);
+    loop.nodes.forEach(n => { try { n.stop(); } catch (e) {} n.disconnect(); });
+    loop.gains.concat([loop.out, loop.filter, loop.ng, loop.depth]).forEach(n => n.disconnect());
+  }
+  function roofSound(value) {
+    roofWant = value;
+    if (!ctx) return;
+    if (value && value.storm) { if (!stormLoop) stormLoop = loopSound(false); stormLoop.out.gain.setTargetAtTime(.7 + (value.gust || 0) * .7, ctx.currentTime, .15); }
+    else { stopLoop(stormLoop); stormLoop = null; }
+    if (value && value.beam) { if (!beamLoop) beamLoop = loopSound(true); beamLoop.out.gain.setTargetAtTime(value.onEye ? 1.4 : .8, ctx.currentTime, .04); }
+    else { stopLoop(beamLoop); beamLoop = null; }
+  }
+  function twang(t, f, vol = .2) {
+    osc(sfxBus, 'p12', f, t, .45, vol, { to: f * .72, sustain: .08 });
+    osc(sfxBus, 'triangle', f * .5, t, .65, vol * .5, { sustain: .12 });
+  }
   // ---------- sound effects ----------
   let shotN = 0;
   const SFX = {
+    storm: t => { noiseHit(sfxBus, t, .4, .04, 'lowpass', 1600); roofSound({ storm: true, beam: false }); },
+    thunder: (t, power = 1) => { noiseHit(sfxBus, t + .12, 1.6, .34 * power, 'lowpass', 380, .8, 60); osc(sfxBus, 'sine', 58, t + .15, 1.2, .17 * power, { to: 27, sustain: .12 }); },
+    snare: t => noiseHit(sfxBus, t, .15, .18, 'bandpass', 6000, 3, 900),
+    snareCut: t => twang(t, 730, .14),
+    gust: t => noiseHit(sfxBus, t, 1.1, .16, 'bandpass', 1200, .6, 240),
+    spoolSnap: t => { twang(t, 180, .26); noiseHit(sfxBus, t, .12, .4, 'highpass', 2400); },
+    beam: t => { osc(sfxBus, 'sawtooth', 65, t, .6, .18, { to: 48, sustain: .9 }); noiseHit(sfxBus, t, .7, .25, 'lowpass', 2300, 1, 500); },
+    snap: t => { noiseHit(sfxBus, t, .35, .65, 'highpass', 1500, 1, 300); for (let i = 0; i < 9; i++) twang(t + i * .015, 95 + i * 67, .13); },
+    chord: t => { [62, 66, 69, 74, 78].forEach((m, i) => osc(sfxBus, i < 3 ? 'triangle' : 'p50', hz(m), t + i * .018, 3.2, i < 3 ? .12 : .055, { attack: .018, sustain: .2 })); },
     // the blaster: a bright laser zap sweeping down, a sparkle on top, a punchy low kick under it and a crack of noise.
     // It steps through three pitches so steady fire sings instead of droning; Spread Shot adds a fat detuned buzz.
     shot: (t, spread) => {
@@ -363,7 +428,7 @@ window.UnrugSound = (function () {
   };
 
   const api = {
-    init,
+    init, roofSound,
     onready: null,
     get ready() { return !!ctx && ctx.state === 'running'; },
     get muted() { return muted; },
@@ -371,6 +436,7 @@ window.UnrugSound = (function () {
     // Switch the music: 'theme', 'tower', 'staff', 'dark', 'copy', 'shred' or null. Remembered until sound can start.
     music(id) {
       id = id || null;
+      if (id && !/^roof/.test(id)) roofSound(null);
       if (id === want && (P.id === id || !ctx)) return;
       want = id;
       if (!ctx) return;

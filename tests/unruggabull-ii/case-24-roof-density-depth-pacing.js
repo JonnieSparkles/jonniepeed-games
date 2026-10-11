@@ -6,7 +6,7 @@
   fresh('walk');
   const rt = floor.ROOF;
   check(R.roof.caught === rt.initialCaught && R.souls === rt.initialCaught, 'earlier-floor captives hang from the walk and are already counted');
-  R.roof.caught = 240;
+  R.roof.caught = 240; floor.effects.reset(240); floor.enter('wake');
   const image = g.drawImage; let ghosts = 0;
   g.drawImage = function (img, ...args) { if (img === A.GHOST) ghosts++; return image.call(this, img, ...args); };
   floor.drawWarp(); g.drawImage = image;
@@ -46,13 +46,16 @@
   fresh('return');
   const oldEmit = emitHook; let returned = 0;
   emitHook = (type, data) => { if (type === 'roof_return') returned += data.amount; };
-  const count = 240; R.roof.caught = R.roof.capturedTotal = count; R.souls = R.shown = count;
+  const count = 240; R.roof.caught = R.roof.capturedTotal = count; R.souls = R.shown = count; floor.effects.reset(count);
   floor.enter('return'); tick(rt.time.return + .02);
   check(R.roof.state === 'flood' && R.roof.flights.length === count - rt.spools, 'every soul after the three bells gets its own flood flight');
   tick(1.5);
   ghosts = 0; g.drawImage = function (img, ...args) { if (img === A.GHOST) ghosts++; return image.call(this, img, ...args); };
   floor.glows(); g.drawImage = image;
-  check(ghosts > R.roof.caught && ghosts - R.roof.caught <= rt.art.flightCap, 'the flood caps simultaneous drawing while every flight remains scheduled');
+  check(ghosts > 0 && ghosts <= rt.art.flightCap * 4, 'flood draws at most 96 souls with three faint trail stamps each, while every flight remains scheduled');
+  ghosts = 0; g.drawImage = function (img, ...args) { if (img === A.GHOST) ghosts++; return image.call(this, img, ...args); };
+  floor.drawWarp('souls'); g.drawImage = image;
+  check(ghosts === 0, 'by one second every soul has left its actual warp slot, even before all arrivals');
   const before = JSON.stringify(R.roof), seeded = seed; draw(); draw();
   check(JSON.stringify(R.roof) === before && seed === seeded, 'drawing individual flights changes no outcomes');
   tick(rt.time.flood - 1.5 + .02);

@@ -172,7 +172,16 @@ Read the repo's README standards and this game's README first. Code is in `site/
 - The bots clear it at sensible rates.
 - Floor 13 looks and plays the same: run its bots before and after, and compare run for run, ignoring `elapsed`.
 
-## Part B: the polish (in Claude)
+## Part B: the polish
+
+**Motion, lighting, feel and sound built (2026-10-11).** Cosmetic soul slots, bob/sway/depth, walk glows and lightning silhouettes, capture curves/arrival pulses, asynchronous quiet pulses, three shake-loose bell returns, staggered accelerating flood curves/trails and individual dawn rises are implemented in `roof-effects.js`. All captives remain exact; flying drawing is capped at 96 souls per frame (plus three faint trail stamps each), represented by up to eight warm lights. Dawn's counter recounts liberated captives for presentation; score is not incremented twice.
+
+Renderer lights cover the orange/red/white eye, lightning with two distant walk flashes, six flickering beam lights, soul light and two-second warm dawn. One shake function handles spools, pinch, fusion, beam and snap, halved for reduced motion. Spool hit-stop holds the picture for 0.05 seconds inside the existing intermission; fight clocks and input retain Part A timing. Rain leans more clearly before/during gusts.
+
+`audio.js` now synthesizes the storm, thunder, snare/cut, gust, spool snap, beam roar, final snap, major chord and low machine readout. Replaceable roof fight/heavy tracks use the existing sequencer at 168/184 BPM. The quiet is storm only; music resumes with the heavier track at fusion. All use the existing mute. Bridge and real Web Audio render checks cover the effects and sounds.
+
+**Still left:** p(Loom)'s art, roof set art, beam look, cut-in pictures, and real-phone tuning/playtests. Existing shapes/sprites and black named cuts remain. The final voice remains a later art/sound choice.
+
 
 Done afterward, from the storyboard and the art tools (`tools/unruggabull-ii/bull.py`, `sprites.py`):
 
@@ -180,8 +189,8 @@ Done afterward, from the storyboard and the art tools (`tools/unruggabull-ii/bul
 - **The roof set.** The storm sky and clouds, the city far below, the units, vents and water tank, puddles on the wet roof, rain, the lightning, and dawn.
 - **The side cut-ins.** Him in profile (`VIEWS.side` and the blaster), the loom in profile, and the beam erupting.
 - **The beam's look.** Its glow and impact, the gold light on the roof, and torn thread.
-- **Sound.** Rain and wind, thunder, the p(Loom) music and its heavy version, the beam's roar, the snap, the major chord, p(Loom)'s voice.
-- **Feel and timing.** Shake, freezes and pacing, tuned on a phone. Bot tuning for difficulty.
+- **Sound (placeholder implementation done).** Chip-synth hooks, two sequencer tracks and a low pulse voice are replaceable; final sound/voice tuning remains.
+- **Feel and timing (effects done).** Shake and picture hit-stop are built without outcome changes. Phone tuning and playtests remain.
 
 ## Still open
 

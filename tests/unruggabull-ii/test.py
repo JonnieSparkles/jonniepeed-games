@@ -49,6 +49,23 @@ with sync_playwright() as p:
     assert not errors, errors
     context.close()
 
+    from roof_audio import check_audio
+    check_audio(browser, ROOT)
+
+    # The preference can change between runs; only the presentation offset is reduced.
+    for motion, expected in [('no-preference', [10, 5]), ('reduce', [5, 2])]:
+        context, page, errors = open_page(browser, reduced_motion=motion)
+        page.clock.install()
+        offset = page.evaluate("""unrugTest(`newRun(null, 'roof'); R.shake = 0;
+          floor.effects.shake(10, 1);
+          (() => { const random = Math.random; Math.random = () => .99;
+            try { return floor.shakeOffset(); } finally { Math.random = random; } })()`)
+        """)
+        assert offset == expected, (motion, offset)
+        assert not errors, errors
+        context.close()
+    print('PASS roof reduced motion halves shake')
+
     # Layout: desktop, phone portrait and phone landscape. Phones go full screen on Start and show the pads.
     for name, size, touch in [('desktop', (1280, 800), False), ('phone portrait', (390, 844), True), ('phone landscape', (844, 390), True)]:
         context, page, errors = open_page(browser, viewport={'width': size[0], 'height': size[1]}, has_touch=touch, is_mobile=touch)

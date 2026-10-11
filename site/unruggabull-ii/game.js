@@ -374,15 +374,17 @@
     for (const f of R.fx) {
       f.t += dt;
       if (f.k === 'wisp') {
-        const up = Math.min(1, f.t / .3), k = Math.max(0, (f.t - .3) / (f.dur - .3)), e = k * k, to = f.to || meterSpot();
-        const hx = f.sx + f.dx * up, hy = f.sy - 14 * up;
-        f.x = hx + (to.x - hx) * e; f.y = hy + (to.y - hy) * e;
+        if (!(floor.wispMotion && floor.wispMotion(f))) {
+          const up = Math.min(1, f.t / .3), k = Math.max(0, (f.t - .3) / (f.dur - .3)), e = k * k, to = f.to || meterSpot();
+          const hx = f.sx + f.dx * up, hy = f.sy - 14 * up;
+          f.x = hx + (to.x - hx) * e; f.y = hy + (to.y - hy) * e;
+        }
         if (f.t >= f.dur) { if (floor.soulLanded) floor.soulLanded(f); R.shown = Math.min(R.souls, R.shown + 1); R.meterPulse = .16; }
       }
       else if (f.k === 'pop') f.y -= 12 * dt;
       else if (f.k === 'bit') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; }
       else if (f.k === 'strip') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= .96; }
-      else if (f.k === 'rise' && f.t > 0) { f.y += f.vy * dt; f.x += Math.sin(f.t * 3 + f.ph) * 10 * dt; }
+      else if (f.k === 'rise' && f.t > 0 && !(floor.riseMotion && floor.riseMotion(f))) { f.y += f.vy * dt; f.x += Math.sin(f.t * 3 + f.ph) * 10 * dt; }
       else if (f.k === 'smoke') { f.y -= 14 * dt; f.x += Math.sin(f.t * 4) * 4 * dt; }
     }
     R.fx = R.fx.filter(f => f.t < f.dur);
@@ -632,7 +634,7 @@
         }
       }
       else if (f.k === 'strip') rect(g, Math.round(f.x), Math.round(f.y), 1, 2, Math.floor(f.t * 12 + f.vx) % 2 ? '#f2eee2' : '#b8b4a8');
-      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore(); }
+      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { if (floor.drawRise && floor.drawRise(f, g)) continue; g.save(); g.globalAlpha = f.alpha === undefined ? Math.min(1, (f.dur - f.t) / 1.5) : f.alpha; g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore(); }
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
@@ -658,8 +660,8 @@
     floor.hud();
   }
   // The souls freed so far, top right, with a ghost that bobs as each one lands.
-  function drawSoulsCounter() {
-    const n = String(Math.min(R.souls, R.shown)), tw = textWidth(n), pulse = R.meterPulse > 0;
+  function drawSoulsCounter(displayed) {
+    const n = String(displayed === undefined ? Math.min(R.souls, R.shown) : displayed), tw = textWidth(n), pulse = R.meterPulse > 0;
     g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
     otxt(g, n, W - 4, 5, pulse ? '#ffd44a' : '#fff6e2', 1, 'right');
   }
@@ -832,6 +834,7 @@
   function draw() {
     if (state === 'title' || state === 'intro') { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); drawTitle(); return; }
     if (floor.cutActive && floor.cutActive()) { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); floor.drawCut(); return; }
+    if (floor.frameHeld && floor.frameHeld()) return;
     const r = renderer();
     sceneLights(r); floor.lights(r);
     r.frame(R.t, floor.view());
@@ -839,7 +842,8 @@
     use(LIT); floor.draw();
     use(GLOW); floor.glows();
     r.layer(LIT.getImageData(0, 0, PW, PH).data, GLOW.getImageData(0, 0, PW, PH).data);
-    const sx = R.shake > 0 ? Math.round((Math.random() - .5) * 6 * Math.min(1, R.shake * 4)) : 0, sy = sx ? Math.round((Math.random() - .5) * 4) : 0;
+    const offset = floor.shakeOffset ? floor.shakeOffset() : null;
+    const sx = offset ? offset[0] : R.shake > 0 ? Math.round((Math.random() - .5) * 6 * Math.min(1, R.shake * 4)) : 0, sy = offset ? offset[1] : sx ? Math.round((Math.random() - .5) * 4) : 0;
     use(view);
     view.setTransform(1, 0, 0, 1, 0, 0);
     if (sx || sy) { view.fillStyle = '#09070b'; view.fillRect(0, 0, PW, PH); }
