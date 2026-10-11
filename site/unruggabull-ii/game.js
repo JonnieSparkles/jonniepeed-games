@@ -554,7 +554,7 @@
   // brought it back to you.
   function drawDropped(pk, z) {
     if (pk.t < TUNE.surgeFly) return;
-    const k = Math.max(.5, sc(z) * 1.3), w = Math.round(A.BLASTER.width * k), h = Math.round(A.BLASTER.height * k), x = Math.round(PX(pk.u, z) - w / 2), y = Math.round(FY(z) - h - 1);
+    const k = Math.max(.5, sc(z) * 1.3), w = Math.round(A.uw(A.BLASTER) * k), h = Math.round(A.uh(A.BLASTER) * k), x = Math.round(PX(pk.u, z) - w / 2), y = Math.round(FY(z) - h - 1);
     const near = z < .3, flash = Math.floor(pk.t * 8) % 2, sil = tinted(A.BLASTER, near ? (flash ? '#ffffff' : '#ffd44a') : (flash ? '#bfefff' : '#3aa8e0'));
     shadow(pk.u, z, 10);
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, x + dx, y + dy, w, h);
@@ -664,7 +664,7 @@
       else if (f.k === 'toss') {
         // the blaster spinning up the rug after the surge
         const pk = f.pk, z = pk.w - R.dist, tx = PX(pk.u, z), ty = FY(z) - 4, q = k, s2 = Math.max(.5, sc(z) * 1.3);
-        const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.BLASTER.width * s2), h = Math.round(A.BLASTER.height * s2);
+        const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.uw(A.BLASTER) * s2), h = Math.round(A.uh(A.BLASTER) * s2);
         g.save(); g.translate(Math.round(bx), Math.round(by)); g.rotate(Math.floor(f.t * 16) % 4 * Math.PI / 2); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
       }
       else if (f.k === 'muzzle') { const m = k < .5 ? 9 : 7; g.drawImage(A.FLASH, Math.round(f.x - m / 2), Math.round(f.y - m / 2), m, m); }

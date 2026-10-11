@@ -139,7 +139,8 @@ var UnrugArt = (function () {
   const CHAIR = spr(['...KKKKKK...', '...KJJJJK...', '...KJjjJK...', '...KJJJJK...', '...KKKKKK...', '.....KK.....', '.KKKKKKKKKK.', '.KJJJJJJJJK.', '.KKKKKKKKKK.', '.....KK.....', '..KKKKKKKK..', '.K.K....K.K.', '.KK......KK.']);
   const FLASH = spr(['...M...', '..MOM..', '.MOMOM.', 'MOMMMOM', '.MOMOM.', '..MOM..', '...M...']);
   // His blaster from the side, for when the Shredder's surge knocks it out of his hands and it lies on the floor.
-  const BLASTER = spr(['.KKKKKKKK...', 'KWWWWWWWWKKK', 'KWMMWWWWWWCK', 'KWWWWWWWWKKK', '.KwwKKKKKK..', '.KwwK.......', '..KK........']);
+  // the blaster on its own (knocked out of his hands, lying on the rug): the bull's own, from bull.js, at full size
+  const BLASTER = (() => { const c = B.paint(B.BLASTER); c.k = BULL_K; return c; })();
   // A file box, about knee high
   // A cardboard carton left on the floor (an obstacle: step round it or jump it), drawn at the picture's full size
   // (32x18, so half a game unit per pixel). Dull brown with brown tape and a printed arrow, nothing bright, so it
