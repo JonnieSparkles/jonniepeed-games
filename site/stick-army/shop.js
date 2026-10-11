@@ -98,7 +98,12 @@ var StickArmyShop = function (w) {
       blocked: h[0] === 'medic' ? function () { return hasMedic() ? 'Have one' : ''; } : null,
       apply: function (s) { s.mods.hired++; var r = w.makeRecruit(w.freeSlot(0), h[0]); r.fresh = true; s.recruits.push(r); } });
   });
-  function price(item) { return typeof item.cost === 'function' ? item.cost() : item.flat ? item.cost : fives(item.cost * war(WAR.SUPPLY)); }
+  function price(item) {
+    if (item.flat) return item.cost;
+    var n = typeof item.cost === 'function' ? item.cost() : fives(item.cost * war(WAR.SUPPLY));
+    // Co-op: two wallets fund one squad, so its things cost more (game.js COOP_HARD.SQUAD_PRICE); your gun's don't.
+    return twin() && !own(item) ? fives(n * w.COOP_HARD.SQUAD_PRICE) : n;
+  }
   // The kit: every lasting supply (not the pizza, patches, radio calls or hires), each stack one piece. Veteran's holds
   // KIT pieces (game.js LEVELS; round 19, "I think it is that stuff stacks"): once it's full, what's left on offer is
   // greyed "Kit full", so buying is building. In co-op a player's kit is the team's supplies and their own barrel's.

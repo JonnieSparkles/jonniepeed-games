@@ -104,6 +104,8 @@
     check(SHOP.takeItem('spread', 1) && S.turrets[1].mods.spread && S.players[1].tags === 200, 'and the guest gets a free pick of their own');
     check(!SHOP.takeItem('spread', 1), 'once per barrel a visit');
     var before0 = S.players[0].tags;
+    check(SHOP.price(sand) === Math.max(5, Math.round(Math.max(5, Math.round(sand.cost * SHOP.war(SHOP.WAR.SUPPLY) / 5) * 5) * COOP_HARD.SQUAD_PRICE / 5) * 5) && SHOP.price(fire) === Math.max(5, Math.round(fire.cost * SHOP.war(SHOP.WAR.SUPPLY) / 5) * 5) && SHOP.price(ITEMS.find(function (it) { return it.id === 'pizza'; })) === 25,
+      'squad things cost more in co-op; your gun and the pizza don\'t');
     check(SHOP.takeItem('sandbags', 1) && S.players[1].tags === 200 - SHOP.price(sand) && S.players[0].tags === before0 && !SHOP.takeItem('sandbags', 0), 'a squad supply is paid by its buyer and bought once');
     me = 0; renderShop();
     var sandBtn = document.querySelector('[data-item="sandbags"]');

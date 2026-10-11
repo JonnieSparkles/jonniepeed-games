@@ -37,8 +37,9 @@
   var level = 'soldier';
   // Co-op (coop.md) is harder: two gunners are a lot more firepower, more so once each barrel has its own upgrades.
   // COOP_HARD scales the planes and bombers from MORE[0] on wave 1 to MORE[1] by wave FULL, and the Dreadnought's
-  // health by DREAD. Tuned with the balance bots playing two barrels (run.py --option coop=1).
-  var COOP_HARD = { MORE: [1.35, 2.6], FULL: 15, DREAD: 2 }, coopLevels = {};
+  // health by DREAD. Two wallets fund one squad, so things for the squad cost SQUAD_PRICE times as much (shop.js);
+  // each player's own gun upgrades keep their price. Tuned with the balance bots playing two barrels (run.py --option coop=1).
+  var COOP_HARD = { MORE: [1.35, 3], FULL: 15, DREAD: 2, SQUAD_PRICE: 1.5 }, coopLevels = {};
   function coopMore(n) { var k = Math.min(1, Math.max(0, (n - 1) / (COOP_HARD.FULL - 1))); return COOP_HARD.MORE[0] + (COOP_HARD.MORE[1] - COOP_HARD.MORE[0]) * k; }
   function lv() {
     var L = LEVELS[S && S.level] || LEVELS.soldier;
@@ -876,7 +877,7 @@
   world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadLine = squadLine;
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   // Co-op's shop (shop.js): turret upgrades are each barrel's own; a guest's taps go to the host (coop.js).
-  world.TURRET_MODS = TURRET_MODS;
+  world.TURRET_MODS = TURRET_MODS; world.COOP_HARD = COOP_HARD;
   world.coopRemote = function (action, id) { if (!(COOP && COOP.guest)) return false; COOP.ask('shop', { a: action, id: id }); return true; };
   var SHOP = StickArmyShop(world), ITEMS = SHOP.ITEMS, price = SHOP.price, eligible = SHOP.eligible, OFFERS = SHOP.OFFERS, offer = SHOP.offer,
     onHouse = SHOP.onHouse, costNow = SHOP.costNow, openShop = SHOP.openShop, takeItem = SHOP.takeItem, renderShop = SHOP.renderShop,
