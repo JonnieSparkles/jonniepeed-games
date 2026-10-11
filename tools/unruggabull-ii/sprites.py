@@ -36,9 +36,17 @@ MAT = {
     'grey':  ('TUVW', ['3a3a46', '6a6a7a', 'a2a2b0', 'd6d6e0']),
     'frame': ('XYZ0', ['14141e', '2c2c3a', '50506a', '8a8aa6']),
     'visor': ('1234', ['0e3a20', '1f6a40', '3aa86a', '8ce0a8']),
-    'wood':  ('5678', ['2a1810', '4a3020', '7a5434', 'a87a4a']),
     'mon':   ('9$%&', ['16181e', '262830', '3e424e', '62677a']),
 }
+# the rest of the cast: paper, hearts, souls, coffee, staples (one style only: bold)
+MAT.update({
+    'paper': ('!#()', ['8a8a9a', 'c4c4d2', 'ecedf6', 'ffffff']),
+    'heart': (',-/:', ['8a0c1a', 'e01e3a', 'ff4a5a', 'ffa0a8']),
+    'dim':   (';<>?', ['2a2634', '3e3a4a', '57526a', '78738e']),
+    'soul':  ('@[]^', ['3a6a9a', '7ab8e8', 'bfe8ff', 'ffffff']),
+    'brew':  ('_{|}', ['2a140a', '5a2e14', '8a4a1e', 'c07a38']),
+    'steel': ('5678', ['3e3e4a', '7e8090', 'c4c6d4', 'f4f6ff']),
+})
 MAT_V1 = {k: (v[0], list(v[1])) for k, v in MAT.items()}
 # The bold takes: hotter, more saturated colours that hold up under the hall's light, so a carpshit reads at game size.
 BOLD_COLS = {
@@ -629,6 +637,100 @@ def carp_at(cv, x0, y0, o, f, visor=False):
              shade_fn=lambda px, py: .82 - (py - y0 - 4) * .1 + (.15 if (px + py) % 4 == 0 else 0))
 
 
+# ---------- the rest of the cast: souls, hearts, paper, coffee, the Spread Shot ----------
+# At twice the old sprites' size (so half a game unit a pixel, like everything else), flat and bold. Paper is white
+# and crumpled or sharp; what you can pick up is round and warm, and the game adds its glow and outline.
+def soul():
+    cv = Canvas(18, 22, lit_above=99)
+    ellipse(cv, 9, 2.5, 5, 1.6, 'gold', base=.4, hard=True)                 # its halo
+    for x in range(6, 13):
+        T(cv, x, 2.5, '.')
+    capsule(cv, [(9, 10, 6.2), (9, 14, 6.2)], 'soul', base=.25, hard=True)  # the body
+    for k, x in enumerate((4, 9, 14)):
+        ellipse(cv, x, 19 + (k % 2), 2.2, 1.8, 'soul', base=.1)              # its wavy hem
+    g = finish(cv)
+    rows = [list(r) for r in g]
+    for x, y in ((6, 11), (7, 11), (6, 12), (7, 12), (11, 11), (12, 11), (11, 12), (12, 12), (8, 15), (9, 15), (10, 15)):
+        rows[y][x] = 'K'
+    return [''.join(r) for r in rows]
+
+
+def heart(mat):
+    cv = Canvas(20, 18, lit_above=99)
+    for x in (6, 13):
+        ellipse(cv, x, 6, 4.6, 4.6, mat, base=.25)
+    poly(cv, [(1.6, 7), (18.4, 7), (10, 16)], mat, shade_fn=lambda px, py: shade((px - 10) / 9, (py - 9) / 8, .15))
+    if mat == 'heart':
+        T(cv, 5, 4, ':'); T(cv, 6, 4, ':'); T(cv, 4, 5, ':')
+    return finish(cv)
+
+
+def paper_wad():
+    cv = Canvas(14, 14, lit_above=99)
+    ellipse(cv, 7, 7, 5.2, 4.8, 'paper', base=.3, hard=True)
+    for x, y in ((5, 5), (6, 6), (8, 4), (9, 8), (4, 8), (7, 9), (10, 6)):
+        T(cv, x, y, '!')
+    return finish(cv)
+
+
+def bundle():
+    cv = Canvas(26, 26, lit_above=99)
+    import random
+    rnd = random.Random(7)
+    for k in range(14):
+        a = k / 14 * math.tau + rnd.uniform(-.2, .2)
+        r0, r1 = 3, rnd.uniform(9, 11.5)
+        mat = 'rug' if k % 5 == 2 else 'paper'
+        capsule(cv, [(13 + math.cos(a) * r0, 13 + math.sin(a) * r0, .8), (13 + math.cos(a) * r1, 13 + math.sin(a) * r1, .7)], mat, base=.2)
+    ellipse(cv, 13, 13, 5, 4.6, 'paper', base=.15, hard=True)
+    for x, y in ((11, 12), (14, 11), (12, 15), (15, 14)):
+        T(cv, x, y, '!')
+    return finish(cv)
+
+
+def staple():
+    cv = Canvas(20, 8, lit_above=99)
+    poly(cv, [(1, 1), (19, 1), (19, 3), (1, 3)], 'steel', shade_fn=lambda px, py: .55 if py < 2 else .3)
+    for x in (1, 17):
+        poly(cv, [(x, 3), (x + 2, 3), (x + 2, 7), (x, 7)], 'steel', shade_fn=lambda px, py: .25)
+    return finish(cv)
+
+
+def plane():
+    cv = Canvas(20, 12, lit_above=99)
+    poly(cv, [(10, 1), (19, 10), (10, 7)], 'paper', shade_fn=lambda px, py: .45)
+    poly(cv, [(10, 1), (1, 10), (10, 7)], 'paper', shade_fn=lambda px, py: .75)
+    poly(cv, [(9, 7), (11, 7), (10, 11)], 'paper', shade_fn=lambda px, py: .2)
+    return finish(cv)
+
+
+def coffee():
+    cv = Canvas(20, 22, lit_above=99)
+    capsule(cv, [(15, 12, 2.6), (15, 15, 2.6)], 'paper', base=.3, hard=True)     # the handle
+    T(cv, 15, 13, '.'); T(cv, 15, 14, '.')
+    poly(cv, [(3, 8), (15, 8), (14, 20), (4, 20)], 'paper', hard=True, shade_fn=lambda px, py: shade((px - 9) / 7, -.2, .3))
+    poly(cv, [(3.4, 12), (14.6, 12), (14.3, 16), (3.7, 16)], 'rug', shade_fn=lambda px, py: shade((px - 9) / 7, 0, .2))   # RugCo red band
+    ellipse(cv, 9, 8, 6, 1.6, 'brew', base=.3, hard=True)                          # the coffee
+    for x, y in ((7, 2), (7, 4), (8, 3), (11, 1), (11, 3), (12, 2)):
+        T(cv, x, y, ')')                                                            # steam
+    return finish(cv)
+
+
+def spread():
+    cv = Canvas(24, 20, lit_above=99)
+    for a in (-.6, 0, .6):                                                           # three bolts fanning out
+        tip = (12 + math.sin(a) * 10, 15 - math.cos(a) * 12)
+        capsule(cv, [(12, 15, 1.6), (tip[0], tip[1], 1.2)], 'gold', base=.35, hard=True)
+        ellipse(cv, tip[0], tip[1], 2, 2, 'gold', base=.6, hard=True)
+    ellipse(cv, 12, 16, 4.2, 3, 'tieB', base=.3, hard=True)                          # the emitter
+    return finish(cv)
+
+
+def cast():
+    return {'SOUL': soul(), 'HEART': heart('heart'), 'HEART_EMPTY': heart('dim'), 'WAD': paper_wad(), 'BUNDLE': bundle(),
+            'STAPLE': staple(), 'PLANE': plane(), 'COFFEE': coffee(), 'SPREAD': spread()}
+
+
 # ---------- output ----------
 def build_all():
     d = {}
@@ -637,6 +739,7 @@ def build_all():
     d['cut'] = carp(0, look='x', mouth_='o', cut=True)
     d['temps'] = {k: {s: [temp(k, s, 0), temp(k, s, 1)] if s in ('peek', 'up') else [temp(k, s, 0)] for s in TEMP_STATES} for k in LOOKS}
     d['work'] = {k: [face_carp(o, f) for f, o in enumerate(os)] for k, os in FACES.items()}
+    d['cast'] = cast()
     return d
 
 
@@ -652,7 +755,7 @@ def all_grids(d):
             out += fr
     for fr in d['work'].values():
         out += fr
-    return out
+    return out + list(d.get('cast', {}).values())
 
 
 def set_js(d):
@@ -669,7 +772,7 @@ def set_js(d):
         for s_, frs in st.items():
             L.append(f'        {s_}: [' + ', '.join(grid_js(g, 10) for g in frs) + '],')
         L.append('      },')
-    L += ['    },', '    FACES: {']
+    L += ['    },', '    CAST: {'] + [f'      {k}: {grid_js(g, 8)},' for k, g in d['cast'].items()] + ['    },', '    FACES: {']
     for k, frs in d['work'].items():
         L.append(f'      {k}: [' + ', '.join(grid_js(g, 8) for g in frs) + '],')
     L += ['    }', '  }']
