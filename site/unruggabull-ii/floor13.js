@@ -14,7 +14,7 @@ var UnrugFloor13 = function (core) {
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    setCheckpoint
+    glowLayer, setCheckpoint
   } = core;
   let R = null, bull = null;
   let g = core.g;   // where drawing goes: set by the core (use), and swapped for an offscreen canvas while the Shredder draws
@@ -23,12 +23,61 @@ var UnrugFloor13 = function (core) {
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
   const BEATS = [
-    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: ['poster', 'poster', 'clock', 'window', 'plant', 'door', 'cooler'], work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: 'tower', after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: 'dark' },
-    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: ['stack', 'shelf', 'recycle', 'vending', 'notice', 'clock'], work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: 'tower', after: 'move' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: 'dark' },
+    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
   ];
   const beat = () => BEATS[R.beat];
-  // ---------- the hall: stations (cubicles or copiers) with temps, signs, decor ----------
+  // ---------- the sets: each section's look and dressing (sets13.js) ----------
+  const SETS = UnrugSets({ VX, HY, sc, PX, FY, CY, YH });
+  const SET_ORDER = ['ap', 'move', 'staff', 'dark', 'copy'];
+  // the section now: a beat, or the event in it; the copy room's set carries on to the Shredder
+  function secNow() {
+    if (R.phase !== 'hall') return 'copy';
+    if (R.event) return R.event.kind === 'move' ? 'move' : 'dark';
+    return ['ap', 'staff', 'copy'][R.beat];
+  }
+  // Each slot gets its section the first time it comes into view, from where the sections should begin (what's left
+  // of this one at walking pace, then each one's length), and keeps it, so nothing in view ever changes.
+  let setMemo = new Map(), setCache = null;
+  function secAt(layer, n, w) {
+    const key = layer + n;
+    let sec = setMemo.get(key);
+    if (sec) return sec;
+    let i = SET_ORDER.indexOf(secNow()), end = R.dist;
+    const E = R.event, B = beat();
+    end += R.phase !== 'hall' ? Infinity : E ? Math.max(0, E.dur - E.t) * TUNE.scroll : B.after ? Math.max(0, B.time - R.beatT) * TUNE.scroll : Infinity;
+    const LEN = { ap: BEATS[0].time, move: TUNE.moveT, staff: BEATS[1].time, dark: TUNE.darkT, copy: Infinity };
+    while (w >= end && i < SET_ORDER.length - 1) { i++; end += LEN[SET_ORDER[i]] * TUNE.scroll; }
+    sec = SET_ORDER[i]; setMemo.set(key, sec);
+    return sec;
+  }
+  // a station, a worker or an office already stands there
+  const setTaken = (layer, s, w) => layer === 'piece'
+    ? R.cubs.some(cb => cb.s === s && Math.abs(cb.w - w) < .2) || R.workers.some(wk => wk.s === s && Math.abs(wk.w - w) < (wk.kind === 'office' ? .42 : .26))
+    : R.workers.some(wk => wk.s === s && wk.kind === 'office' && Math.abs(wk.w - w) < .36);
+  // what's in view this frame (worked out once a frame)
+  function setItems() {
+    if (setCache && setCache.t === R.t && setCache.d === R.dist) return setCache.list;
+    SETS.time(R.t);
+    const list = SETS.items(R.dist + ZN - .35, R.dist + AHEAD, secAt, setTaken);
+    setCache = { t: R.t, d: R.dist, list };
+    return list;
+  }
+  // the hall's colours and light for the section, eased over a couple of seconds when it changes
+  const LOOK0 = { lo: [.11, .095, .135], hi: [.19, .18, .23], sk: [.07, .065, .085], co: [.17, .16, .2], ce: [.24, .24, .27], ti: [.13, .14, .19], sh: .5, lamp: [1.75, 1.55, 1.2] };
+  let look = null, lookT = 0;
+  function lookNow() {
+    const want = Object.assign({}, LOOK0, SETS.view(secNow()).look || {}), dt = clamp(R.t - lookT, 0, .1); lookT = R.t;
+    if (!look) look = JSON.parse(JSON.stringify(want));
+    const k = Math.min(1, dt / 1.5);
+    for (const key in LOOK0) {
+      if (typeof LOOK0[key] === 'number') look[key] += (want[key] - look[key]) * k;
+      else for (let c = 0; c < 3; c++) look[key][c] += (want[key][c] - look[key][c]) * k;
+    }
+    return look;
+  }
+  // ---------- the hall: stations (cubicles or copiers) with temps, signs ----------
   const cubZ = cb => cb.w - R.dist;
   const STATION_TOP = { cub: .38, copier: .32 };
   function addCubs(w, temps, both, chance) {
@@ -41,7 +90,7 @@ var UnrugFloor13 = function (core) {
       R.cubs.push(cb);
     }
   }
-  // Scenery comes into view this far down the hall (decor and the carpshits at work), out of the fog, and is drawn
+  // Scenery comes into view this far down the hall (the sets and the carpshits at work), out of the fog, and is drawn
   // from there; what you fight still arrives at the old far end (z 1) and fades in out of the dark.
   const AHEAD = 3.5;
   // Carpshits at work: typing (some in an accountant's green visor), on calls, asleep at their desks, gossiping at
@@ -80,11 +129,6 @@ var UnrugFloor13 = function (core) {
     const B = beat(), ev = R.event && R.event.kind;
     while (R.dist + 1.05 >= R.nextCubW) {
       addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38);
-    }
-    while (R.dist + AHEAD >= R.nextDecorW) {
-      // each section has its own mix of things on the walls and floor (cosmetic, so not from the run's seed)
-      R.decor.push({ w: R.nextDecorW, s: Math.random() < .5 ? -1 : 1, kind: B.decor[Math.floor(Math.random() * B.decor.length)], col: Math.random() });
-      R.nextDecorW += fxr(.16, .3);
     }
     // carpshits at work along the walls, coming into view far down the hall
     while (R.dist + AHEAD >= R.nextWorkW) { addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
@@ -267,7 +311,6 @@ var UnrugFloor13 = function (core) {
       }
     }
     R.cubs = R.cubs.filter(cb => cubZ(cb) > ZN - .16);
-    R.decor = R.decor.filter(d => d.w - R.dist > ZN - .3);
     R.workers = R.workers.filter(wk => wk.w - R.dist > ZN - .3);
     R.signs = R.signs.filter(sg => sg.w - R.dist > ZN);
   }
@@ -704,7 +747,7 @@ var UnrugFloor13 = function (core) {
       // a trail of gold sparkles behind it, then the soul itself, drawn double size with a glow
       for (let j = 1; j <= 5; j++) { const q = Math.max(0, e - j * .045), t = at(q); if (Math.floor(R.t * 20 + j) % 2) rect(g, Math.round(t.x), Math.round(t.y), 1, 1, j < 3 ? '#fff0aa' : '#ffd44a'); }
       disc(g, Math.round(x), Math.round(y), 9, 'rgba(255,212,74,.22)');
-      g.drawImage(A.GHOST, Math.round(x - 9), Math.round(y - 9), 18, 18);
+      g.drawImage(A.GHOST, Math.round(x - 9), Math.round(y - 11), 18, 22);
     }
   }
   function killTemp(tp, how) {
@@ -712,7 +755,7 @@ var UnrugFloor13 = function (core) {
     tp.dead = true; R.freeze = .045;
     if (R.hearts < TUNE.hearts && rnd() < TUNE.coffeeDrop) addPickup('coffee', tp.cub.w - R.dist + .06, tp.cub.s * .5);
     const at = posOf(tp), x = PX(at.u, at.z), y = YH(at.z, at.h), s = sc(at.z) * .85;
-    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: tempLook(tp) }); else poof(at.u, at.z, at.h);
+    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: tempLook(tp).hit[0] }); else poof(at.u, at.z, at.h);
     free(x, y - 4, 'temp', how);
     bonusSoul(how, x, y, 'temp');
   }
@@ -765,7 +808,8 @@ var UnrugFloor13 = function (core) {
     const edge = R.roll ? (Math.floor(R.t * 12) % 2 ? '#7fd4ff' : '#bfefff') : P.st === 'warn' ? (Math.floor(P.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : P.st === 'on' ? '#ff9628' : null;
     return {
       scroll: R.dist * WZ, rug: -R.roff * WZ, power: dk >= .5 ? 0 : 1 - dk * .75, dark: dk >= .5, house,
-      rail: R.phase === 'hall' || R.phase === 'wake' ? lin(BEATS[R.beat].rail) : null,
+      rail: R.phase === 'hall' || R.phase === 'wake' ? (R.event ? (R.event.kind === 'move' ? lin('#e8b030') : null) : lin(BEATS[R.beat].rail)) : null,
+      look: lookNow(),
       edge: edge ? lin(edge) : null, edgeGlow: edge ? 1.3 : 0
     };
   }
@@ -776,6 +820,11 @@ var UnrugFloor13 = function (core) {
     for (const p of R.projs) if (p.friendly || p.rally) at(p.u, p.z, p.h, .25, .4, .6);
     for (const sw of R.switches || []) { const s = switchAt(sw); if (s.z < 1.02 && s.z > .05) at(s.u, s.z, s.h, .5, .42, .15); }
     if (darkness() >= .5) for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02 && z > ZN && cb.kind === 'cub') at(cb.s * .93, z, cb.top + .05, .04, .22, .1); }
+    // what the set gives off (screens, signs, lamps, a vending machine), the nearest few
+    const want = [];
+    for (const it of setItems()) { const z = it.w - R.dist; if (z < 1.3 && z > -.1) SETS.lights(it, z, (u, zz, h, cr, cg, cb) => want.push([zz, u, h, cr, cg, cb])); }
+    want.sort((a, b) => a[0] - b[0]);
+    for (const [z, u, h, cr, cg, cb] of want.slice(0, 8)) at(u, z, h, cr, cg, cb);
     const b = R.boss, zS = shredderZ();
     // once it's woken, the end of the hall is lit, so you can see what you're fighting
     if (zS < 1.6 && R.phase !== 'hall') at(0, zS - .25, .85, .9, .78, .62);
@@ -799,26 +848,50 @@ var UnrugFloor13 = function (core) {
   // Cracks on its panels, clear of the sign, the eyes and the mouth, in the order they appear.
   const CRACKS = [[[8, 6], [13, 12], [11, 17]], [[66, 5], [62, 10], [64, 15], [60, 19]], [[6, 22], [11, 26], [9, 31]], [[68, 24], [63, 27], [66, 31]],
     [[16, 4], [19, 9], [17, 12]], [[58, 8], [55, 13]], [[12, 14], [18, 17]], [[62, 16], [57, 22]]];
+  // The Shredder: a steel shredding machine built across the end of the hall, drawn at the picture's full size. A riveted
+  // steel body in panels, an amber SHRED-O display, its two eyes in dark sockets, side vents with paper caught in them,
+  // a hazard-striped feed under the eyes and the mouth with its blades, fed by the runner rug. It wears down: cracks
+  // and loose panels the more damage it has taken.
+  const hr = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x * 2) / 2, Math.round(y * 2) / 2, Math.max(.5, Math.round(w * 2) / 2), Math.max(.5, Math.round(h * 2) / 2)); };
   function drawShredder() {
     const b = R.boss, x0 = BACK.x0, x1 = BACK.x1, y0 = BACK.y0, y1 = BACK.y1, w = x1 - x0, t = R.t;
-    const dead = b.st === 'dead';
-    const body = b.flash > 0 ? '#7a7e8c' : dead ? '#3a3a44' : '#4a4e5a';   // a hard hit lightens it, not a white box
-    rect(g, x0 + 4, y0 + 3, w - 8, y1 - y0 - 3, body);
-    rect(g, x0 + 4, y0 + 3, w - 8, 2, b.flash > 0 ? '#ffffff' : b.tick > 0 ? '#b8bcc8' : '#6a6e7c');   // blaster hits only glint the top edge
-    rect(g, x0 + 7, y0 + 25, w - 14, 1, '#3a3e48');
-    rect(g, x0 + 9, y0 + 21, 6, 2, '#8a8e9c'); rect(g, x1 - 15, y0 + 21, 6, 2, '#8a8e9c');
-    rect(g, 104, y0 + 6, 32, 9, '#1a1418'); txt(g, 'SHRED-O', 120, y0 + 8, '#ffd44a', 1, 'center');
+    const dead = b.st === 'dead', hit = b.flash > 0;
+    const steel = hit ? '#8a90a2' : dead ? '#34343e' : '#4c5262', dark = dead ? '#24242c' : '#32363f', lite = hit ? '#ffffff' : b.tick > 0 ? '#c8ccd8' : '#7a8092';
+    // the body: a darker frame, then three panels, a lit top edge, seams and rivets
+    hr(x0 + 3, y0 + 2, w - 6, y1 - y0 - 2, '#1a1418');
+    hr(x0 + 4, y0 + 3, w - 8, y1 - y0 - 3, dark);
+    for (const [a, c] of [[x0 + 5, x0 + 24], [x0 + 25.5, x1 - 25.5], [x1 - 24, x1 - 5]]) hr(a, y0 + 4, c - a, y1 - y0 - 17, steel);
+    hr(x0 + 4, y0 + 3, w - 8, 1, lite);
+    hr(x0 + 4, y0 + 3.5, w - 8, .5, hit ? '#ffffff' : '#9aa0b2');
+    for (const x of [x0 + 6, x0 + 22.5, x1 - 23.5, x1 - 7]) for (const y of [y0 + 5.5, y0 + 30]) { hr(x, y, 1, 1, '#1a1418'); hr(x, y, .5, .5, '#a8aec0'); }
+    // side vents, with shredded paper caught in the slats
+    for (const vx of [x0 + 8, x1 - 20]) {
+      hr(vx, y0 + 23, 12, 7, '#1a1418');
+      for (let i = 0; i < 4; i++) hr(vx + .5, y0 + 24 + i * 1.5, 11, .5, '#5a6070');
+      for (let i = 0; i < 3; i++) { const px = vx + 2 + i * 4 + (Math.floor(t * 3 + i) % 2) * .5; hr(px, y0 + 26 + (i % 2), .5, 3 + (i % 2), '#ecedf6'); }
+    }
+    // the display
+    hr(102.5, y0 + 5.5, 35, 10, '#1a1418'); hr(103.5, y0 + 6.5, 33, 8, '#2a0e0a');
+    txt(g, 'SHRED-O', 120, y0 + 8, '#ffd44a', 1, 'center');
+    // eye sockets
+    for (const ex of [104.5, 125.5]) { hr(ex, y0 + 15, 11, 7, '#1a1418'); hr(ex + .5, y0 + 15.5, 10, 6, '#0e0c12'); }
     shredderEyes();
-    // it wears down: more cracks the more damage it has taken
+    // it wears down: cracks, and a panel hanging loose at the end
     const wear = b.st === 'fight' || dead ? 1 - b.hp / TUNE.bossHP : 0, n = Math.floor(wear * CRACKS.length * 1.15);
-    for (let i = 0; i < Math.min(n, CRACKS.length); i++) { const c = CRACKS[i]; for (let j = 1; j < c.length; j++) line(g, x0 + c[j - 1][0], y0 + c[j - 1][1], x0 + c[j][0], y0 + c[j][1], '#24242c'); }
-    if (b.ph >= 3 && b.st === 'fight' && Math.floor(t * 9) % 4 === 0) { rect(g, x1 - 12, y0 + 9, 1, 1, '#ffd44a'); rect(g, x1 - 10, y0 + 7, 1, 1, '#fff6e2'); }
-    // the mouth, fed by the runner
+    for (let i = 0; i < Math.min(n, CRACKS.length); i++) { const c = CRACKS[i]; for (let j = 1; j < c.length; j++) line(g, x0 + c[j - 1][0], y0 + c[j - 1][1], x0 + c[j][0], y0 + c[j][1], '#14141a'); }
+    if (wear > .7) { hr(x1 - 24, y0 + 4, 19, 1, '#1a1418'); hr(x1 - 23, y0 + 5, 1, 6, '#1a1418'); }
+    if (b.ph >= 3 && b.st === 'fight' && Math.floor(t * 9) % 4 === 0) { hr(x1 - 12, y0 + 9, 1, 1, '#ffd44a'); hr(x1 - 10, y0 + 7, 1, 1, '#fff6e2'); }
+    // the feed: a hazard-striped lip over the mouth
     const my = y1 - 13, open = b.spit > 0 ? 2 : 0;
-    rect(g, x0 + 10, my - open, w - 20, 9 + open, '#09070b');
-    if (b.spit > 0) rect(g, x0 + 12, my + 2, w - 24, 4, '#3a1010');
+    hr(x0 + 8, my - 4 - open, w - 16, 3, '#1a1418');
+    for (let x = x0 + 8.5, i = 0; x < x1 - 8.5; x += 3, i++) hr(x, my - 3.5 - open, Math.min(3, x1 - 8.5 - x), 2, i % 2 ? '#1a1418' : '#ffd21e');
+    // the mouth, fed by the runner
+    hr(x0 + 10, my - open, w - 20, 9 + open, '#09070b');
+    if (b.spit > 0) hr(x0 + 12, my + 2, w - 24, 4, '#3a1010');
     shredderTeeth();
-    rect(g, PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
+    hr(PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
+    // feet, either side of the rug
+    for (const fx of [x0 + 5, x1 - 13]) { hr(fx, y1 - 2.5, 8, 2.5, '#1a1418'); hr(fx + .5, y1 - 2, 7, 1.5, '#5a6070'); }
     if (b.st === 'sleep') for (let i = 0; i < 3; i++) { const k = mod1(t * .4 + i / 3); txt(g, 'Z', x1 - 8 + Math.round(Math.sin(k * 6) * 2), Math.round(y0 + 2 - k * 16), k > .8 ? '#5a5670' : '#a8a0c0'); }
   }
   // The hall is endless at first: it runs on into the fog. In the copy room the Shredder appears far down it and
@@ -836,10 +909,11 @@ var UnrugFloor13 = function (core) {
   }
   // The Shredder is drawn on its own canvas, then onto the scene scaled about the foot of its mouth with hard pixels: it
   // swells as it lunges at you and shrinks as it recoils, breathes, and shudders when jammed or hit hard.
-  const SHC = A.canvas(W, H), shg = SHC.getContext('2d');
+  const SHC = A.canvas(W * 2, H * 2), shg = SHC.getContext('2d');
+  shg.imageSmoothingEnabled = false;
   function withShredder(fn) {
     const b = R.boss, main = g;
-    shg.clearRect(0, 0, W, H);
+    shg.setTransform(1, 0, 0, 1, 0, 0); shg.clearRect(0, 0, W * 2, H * 2); shg.setTransform(2, 0, 0, 2, 0, 0);
     g = shg; try { fn(); } finally { g = main; }
     const live = b.st === 'fight' || b.st === 'awake', fast = b.ph === 3 || b.hp < 15;
     const breathe = live ? Math.sin(R.t * (fast ? 4.2 : 2.4)) * .012 : 0;
@@ -849,7 +923,7 @@ var UnrugFloor13 = function (core) {
     // further down the hall it shrinks toward the vanishing point
     const zS = shredderZ(), kv = sc(zS) / sc(1);
     const dx = 120 - (120 - sx) * k + jx, dy = fy - (fy - sy) * k + Math.max(0, b.push || 0) * 1.5;
-    g.drawImage(SHC, sx, sy, sw, sh, Math.round(VX + (dx - VX) * kv), Math.round(HY + (dy - HY) * kv), Math.round(sw * k * kv), Math.round(sh * k * kv));
+    g.drawImage(SHC, sx * 2, sy * 2, sw * 2, sh * 2, Math.round((VX + (dx - VX) * kv) * 2) / 2, Math.round((HY + (dy - HY) * kv) * 2) / 2, Math.round(sw * k * kv * 2) / 2, Math.round(sh * k * kv * 2) / 2);
   }
   // Lights out: far down the endless hall, two red eyes open now and then, watching. Something is down there.
   function darkEyes() {
@@ -914,89 +988,6 @@ var UnrugFloor13 = function (core) {
   }
   // Monitors are green.
   const monitor = () => '#5ac08a';
-  // Wall and floor dressing for each beat: posters and water coolers, all-staff streamers, paper stacks.
-  const POSTERS = ['#ffd44a', '#7fd4ff', '#ff7050', '#5ac08a'];
-  // a flat rectangle on a side wall, from depth z to z + dz, between heights h0 and h1 (as a share of the hall)
-  function wallQuad(s, z, dz, h0, h1, col, u) {
-    const uu = u == null ? s : u, z1 = z + dz;
-    poly(g, col, [[PX(uu, z), YH(z, h1)], [PX(uu, z1), YH(z1, h1)], [PX(uu, z1), YH(z1, h0)], [PX(uu, z), YH(z, h0)]]);
-  }
-  // a little picture on a motivational poster: a mountain, a cat, a graph going up, a rug
-  function posterPic(s, z, z1, kind) {
-    const zc = (z + z1) / 2, x = PX(s, zc), y = YH(zc, .575), k = sc(zc), d = Math.max(1, Math.round(2 * k));
-    if (kind === 0) { line(g, x - 3 * d, y + 2 * d, x, y - 2 * d, '#1a1418'); line(g, x, y - 2 * d, x + 3 * d, y + 2 * d, '#1a1418'); rect(g, x - d / 2, y - 2 * d, d, d, '#ffffff'); }
-    else if (kind === 1) { rect(g, x - 2 * d, y - d, 4 * d, 3 * d, '#1a1418'); rect(g, x - 2 * d, y - 2 * d, d, d, '#1a1418'); rect(g, x + d, y - 2 * d, d, d, '#1a1418'); }
-    else if (kind === 2) { line(g, x - 3 * d, y + 2 * d, x - d, y, '#1a1418'); line(g, x - d, y, x, y + d, '#1a1418'); line(g, x, y + d, x + 3 * d, y - 2 * d, '#1a1418'); }
-    else { rect(g, x - 3 * d, y - d, 6 * d, 2 * d, '#d63428'); rect(g, x - 3 * d, y - d, 6 * d, Math.max(1, d / 2), '#ffd44a'); }
-  }
-  function drawDecor(d, z) {
-    const s = d.s, k = sc(z);
-    if (d.kind === 'poster') {
-      // a framed motivational poster with a picture and a caption line
-      const z1 = z + .07, col = POSTERS[Math.floor(d.col * 4)];
-      wallQuad(s, z, .07, .44, .67, '#1a1418');
-      poly(g, '#e8e4d8', [[PX(s, z), YH(z, .66)], [PX(s, z1), YH(z1, .66)], [PX(s, z1), YH(z1, .46)], [PX(s, z), YH(z, .46)]]);
-      poly(g, col, [[PX(s, z + .008), YH(z + .008, .63)], [PX(s, z1 - .008), YH(z1 - .008, .63)], [PX(s, z1 - .008), YH(z1 - .008, .52)], [PX(s, z + .008), YH(z + .008, .52)]]);
-      posterPic(s, z, z1, Math.floor(d.col * 16) % 4);
-      wallQuad(s, z + .015, .04, .48, .495, '#7c8494');
-    } else if (d.kind === 'clock') {
-      // a round wall clock, its second hand ticking
-      const zc = z + .02, x = PX(s, zc), y = YH(zc, .62), r = Math.max(2, Math.round(5 * k));
-      disc(g, x, y, r + 1, '#1a1418'); disc(g, x, y, r, '#fff6e2');
-      const a = Math.floor(R.t) * Math.PI / 30;
-      line(g, x, y, Math.round(x + Math.sin(a) * r * .8), Math.round(y - Math.cos(a) * r * .8), '#d63428');
-      line(g, x, y, x, Math.round(y - r * .6), '#1a1418');
-    } else if (d.kind === 'window') {
-      // a tall window onto the city at night, lit windows in the towers outside
-      wallQuad(s, z, .16, .3, .74, '#1a1418');
-      wallQuad(s, z + .008, .144, .32, .72, '#16203a');
-      for (let i = 0; i < 6; i++) { const zz = z + .02 + i * .022, hh = .32 + ((i * 37 + Math.floor(d.col * 9)) % 5) * .05; wallQuad(s, zz, .016, .32, hh, '#0c1020'); if (i % 2) wallQuad(s, zz + .005, .005, hh - .06, hh - .04, '#ffd44a'); }
-      wallQuad(s, z + .078, .006, .32, .72, '#1a1418');
-    } else if (d.kind === 'door') {
-      // an office door with a nameplate
-      wallQuad(s, z, .1, 0, .58, '#1a1418');
-      wallQuad(s, z + .008, .084, 0, .56, '#6a4a30');
-      wallQuad(s, z + .02, .05, .44, .5, '#e8b030');
-      wallQuad(s, z + .07, .01, .26, .3, '#e8e4c8');
-    } else if (d.kind === 'banner') {
-      // ALL STAFF, on a strip of red across the wall
-      wallQuad(s, z, .28, .7, .8, '#961e16');
-      for (let i = 0; i < 7; i++) wallQuad(s, z + .02 + i * .036, .02, .73, .77, '#ffd44a');
-    } else if (d.kind === 'notice') {
-      // a cork notice board with pinned notes
-      wallQuad(s, z, .12, .38, .62, '#1a1418');
-      wallQuad(s, z + .006, .108, .4, .6, '#a0703a');
-      for (let i = 0; i < 4; i++) wallQuad(s, z + .015 + i * .025, .018, .44 + (i % 2) * .06, .52 + (i % 2) * .06, i % 3 ? '#fff6e2' : '#ffd44a');
-    } else if (d.kind === 'shelf') {
-      // a shelf of paper reams
-      for (const h of [.3, .5]) { wallQuad(s, z, .14, h - .02, h, '#4a4e5a'); for (let i = 0; i < 5; i++) wallQuad(s, z + .01 + i * .026, .02, h, h + .07, i % 2 ? '#f2eee2' : '#c8d0dc'); }
-    } else if (d.kind === 'plant' || d.kind === 'balloons' || d.kind === 'recycle' || d.kind === 'vending') {
-      const x = PX(s * .93, z), y = FY(z), u = Math.max(1, k);
-      if (d.kind === 'plant') {
-        rect(g, x - 3 * u, y - 5 * u, 6 * u, 5 * u, '#8c4a2a');
-        for (let i = 0; i < 6; i++) disc(g, Math.round(x + Math.sin(i * 2.1) * 4 * u), Math.round(y - 9 * u - i * 2 * u), Math.max(1, Math.round(3 * u)), i % 2 ? '#2a7a4a' : '#3a9a5a');
-      } else if (d.kind === 'balloons') {
-        for (let i = 0; i < 3; i++) { const bx = x + (i - 1) * 5 * u, by = y - (26 + (i % 2) * 5) * u + Math.sin(R.t * 2 + i + d.col * 6) * u; line(g, Math.round(bx), Math.round(by), Math.round(x), Math.round(y), '#e8e4c8'); disc(g, Math.round(bx), Math.round(by), Math.max(1, Math.round(3 * u)), ['#d63428', '#ffd44a', '#3aa8e0'][i]); }
-      } else if (d.kind === 'recycle') {
-        rect(g, x - 4 * u, y - 9 * u, 8 * u, 9 * u, '#2a5aa0'); rect(g, x - 4 * u, y - 10 * u, 8 * u, u, '#1a1418'); rect(g, x - 2 * u, y - 7 * u, 4 * u, 3 * u, '#fff6e2');
-      } else {
-        // a vending machine, its window glowing
-        rect(g, x - 7 * u, y - 30 * u, 14 * u, 30 * u, '#1a1418'); rect(g, x - 6 * u, y - 29 * u, 12 * u, 28 * u, '#d63428');
-        rect(g, x - 4 * u, y - 26 * u, 6 * u, 16 * u, '#7fd4ff'); for (let i = 0; i < 4; i++) rect(g, x - 4 * u, y - 24 * u + i * 4 * u, 6 * u, Math.max(1, u), '#fff6e2');
-        rect(g, x + 3 * u, y - 24 * u, 2 * u, 6 * u, '#ffd44a');
-      }
-    } else if (d.kind === 'streamer') {
-      const z1 = z + .3;
-      poly(g, '#961e16', [[PX(s, z), YH(z, .74)], [PX(s, z1), YH(z1, .74)], [PX(s, z1), YH(z1, .68)], [PX(s, z), YH(z, .68)]]);
-      for (let i = 0; i < 4; i++) { const zz = z + i * .08; rect(g, PX(s, zz) - (s > 0 ? 1 : 0), YH(zz, .68), 1, Math.max(1, Math.round(6 * sc(zz))), '#ffd44a'); }
-    } else if (d.kind === 'cooler') {
-      const w = Math.max(2, Math.round(A.COOLER.width * k)), h = Math.max(3, Math.round(A.COOLER.height * k));
-      g.drawImage(A.COOLER, Math.round(PX(s * .93, z) - w / 2), Math.round(FY(z) - h), w, h);
-    } else if (d.kind === 'stack') {
-      const w = Math.max(2, Math.round(A.STACK.width * k)), h = Math.max(2, Math.round(A.STACK.height * k));
-      g.drawImage(A.STACK, Math.round(PX(s * .93, z) - w / 2), Math.round(FY(z) - h), w, h);
-    }
-  }
   function drawSign(sg, z) {
     // drawn at 1x so the 3x5 lettering stays crisp, hung high so it passes over the action; it drops in with a bounce
     const w = sg.img.width, h = sg.img.height, rest = YH(z, .93), k = clamp((R.t - (sg.born || 0)) / .5, 0, 1);
@@ -1006,15 +997,23 @@ var UnrugFloor13 = function (core) {
   }
   // which of the three temps sits at this desk: from where the desk is, so it never touches the run's dice
   const tempLook = tp => A.TEMPS[Math.floor(Math.abs(tp.cub.w * 7.3 + tp.cub.s)) % A.TEMPS.length];
+  // the frame for what it's doing: peeking up (and ducking back), up and glaring, the wad held up to throw, the throw
+  function tempFrame(tp) {
+    const L = tempLook(tp), t = tp.t, two = fr => fr[Math.floor(R.t * 4 + tp.cub.w * 5) % fr.length];
+    if (tp.st === 'down' || tp.pop < .8) return two(L.peek);
+    if (!tp.threw && t > .25) return L.wind[0];
+    if (tp.threw && tp.will && t < .85) return L.throw[0];
+    return two(L.up);
+  }
   // where a temp's head is drawn: left, width, foot, height
   function tempBox(tp, zt) {
     const s = sc(zt) * .85, w = Math.max(2, Math.round(26 * s)), h = Math.max(2, Math.round(15 * s));
     return { s, w, h, x: Math.round(PX(tp.cub.s * .8, zt) - w / 2), yb: YH(zt, tp.cub.top - .12 + tp.pop * .17) };
   }
   function drawTemp(tp, zt) {
-    const { s, w, h, x, yb } = tempBox(tp, zt), img = tempLook(tp), hh = Math.round(h * img.height / 15);
-    g.drawImage(img, x, Math.round(yb - hh), w, hh);
-    if (tp.st === 'up' && tp.t > .25 && !tp.threw) g.drawImage(A.WAD, Math.round(x + w * .75), Math.round(yb - h - 4 * s), Math.max(2, Math.round(5 * s)), Math.max(2, Math.round(5 * s)));
+    // the frame is scaled so its rug fills the box; its collar and tie hang below, behind the desk's front
+    const { w, h, x, yb } = tempBox(tp, zt), img = tempFrame(tp), R0 = A.TEMP_RUG, k = w / R0.w, top = yb - h;
+    g.drawImage(img, Math.round((x - R0.x * k) * 2) / 2, Math.round((top - R0.y * k) * 2) / 2, img.width * k, img.height * k);
   }
   // the tell: a temp about to throw flashes a ! first (it glows, so it reads in the dark too)
   function tempTell(tp, zt) {
@@ -1033,8 +1032,8 @@ var UnrugFloor13 = function (core) {
   function drawProj(p) {
     const s = sc(p.z), bundle = p.kind === 'bundle' || p.kind === 'scrap', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : p.kind === 'plane' ? A.PLANE : A.STAPLE;
     const big = (p.kind === 'scrap' ? .6 : 1) * (p.friendly ? 1 : bundle ? (p.rally ? 1.4 : 1.2) : 1.35), blink = Math.floor(R.t * 10 + p.spin) % 2;
-    const w = Math.max(2, Math.round(img.width * s * big)), h = Math.max(1, Math.round(img.height * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
-    if (p.friendly) shadow(p.u, p.z, img.width * .8);
+    const w = Math.max(2, Math.round(A.uw(img) * s * big)), h = Math.max(1, Math.round(A.uh(img) * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
+    if (p.friendly) shadow(p.u, p.z, A.uw(img) * .8);
     else if (bundle) for (let k = 1; k <= 3; k++) {
       const tz = p.z - p.vz * k * .05, tu = p.u - p.vu * k * .05, j = (k * 7 + Math.floor(p.spin)) % 5 - 2;
       rect(g, PX(tu, tz) + j, YH(tz, p.h) + ((k * 3) % 4) - 2, Math.max(1, Math.round(3 * sc(tz))), 1, k === 1 ? '#f2eee2' : '#b8b4a8');
@@ -1090,7 +1089,7 @@ var UnrugFloor13 = function (core) {
       rect(g, x0 - 1, pt - 1, x1 - x0 + 2, pb - pt + 2, '#1a1418'); rect(g, x0, pt, x1 - x0, pb - pt, '#9a6a3a'); rect(g, x0, pt, x1 - x0, Math.max(1, (pb - pt) * .3), '#b88850');
     } else if (row.kind === 'carpet') {
       // a carpet of staples skittering across the whole floor, edges blinking red like all the Shredder's paper
-      const w = Math.max(3, Math.round(A.STAPLE.width * k * 1.3)), h = Math.max(1, Math.round(A.STAPLE.height * k * 1.3));
+      const w = Math.max(3, Math.round(A.uw(A.STAPLE) * k * 1.3)), h = Math.max(1, Math.round(A.uh(A.STAPLE) * k * 1.3));
       const sil = tinted(A.STAPLE, Math.floor(R.t * 10) % 2 ? '#ff3020' : '#ff9628');
       for (let u = -.6; u <= .61; u += .15) {
         const x = Math.round(PX(u, z) - w / 2 + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0)), y = Math.round(FY(z) - h - 1 - (Math.floor(R.t * 12 + u * 7) % 2));
@@ -1151,7 +1150,7 @@ var UnrugFloor13 = function (core) {
     for (const sl of R.event.souls) {
       const z = sl.w - R.dist; if (z > 1.02 || z < bull.bz - .02) continue;
       faded(fadeIn(z), () => {
-        const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.GHOST.width * 2 * k), h = Math.round(A.GHOST.height * 2 * k);
+        const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.uw(A.GHOST) * 2 * k), h = Math.round(A.uh(A.GHOST) * 2 * k);
         g.drawImage(A.GHOST, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
         g.save(); g.globalAlpha = .7; g.strokeStyle = '#bfefff'; g.lineWidth = Math.max(.5, k); g.beginPath(); g.arc(x, y, Math.max(w, h) * .75, 0, 6.29); g.stroke();
         g.globalAlpha = .9; rect(g, x - w * .4, y - h * .55, Math.max(1, k * 1.5), Math.max(1, k * 1.5), '#ffffff'); g.restore();
@@ -1181,8 +1180,9 @@ var UnrugFloor13 = function (core) {
       if (!tp || tp.dead || tp.pop <= 0) continue;
       tempTell(tp, z + .06);
       if (dk && tp.pop > .3) {
-        const zt = z + .06, s2 = sc(zt) * .85, w = 26 * s2, h = 15 * s2, x = PX(cb.s * .8, zt), yt = YH(zt, cb.top - .12 + tp.pop * .17) - h, e = Math.max(1, Math.round(2 * s2));
-        rect(g, x - w * .23, yt + h * .37, e, e, '#fff0aa'); rect(g, x + w * .19, yt + h * .37, e, e, '#fff0aa');
+        // its eyes, where they are on the rug (the same face as a flying carpshit's)
+        const zt = z + .06, s2 = sc(zt) * .85, w = 26 * s2, h = 15 * s2, x = PX(cb.s * .8, zt), yt = YH(zt, cb.top - .12 + tp.pop * .17) - h, e = Math.max(1, Math.round(2 * s2)), q = w / A.TEMP_RUG.w / A.CARP_EYES.k;
+        for (const ey of A.CARP_EYES) rect(g, x + ey.x * q - e / 2, yt + A.TEMP_RUG.h * w / A.TEMP_RUG.w / 2 + ey.y * q - e / 2, e, e, '#fff0aa');
       }
     }
     if (dk) for (const wk of R.workers) {
@@ -1190,8 +1190,8 @@ var UnrugFloor13 = function (core) {
       for (const c of wk.carps) if (!c.dead) { const at = workerAt(c), x = PX(at.u, at.z), y = YH(at.z, at.h), e = Math.max(1, Math.round(2 * sc(at.z))), w = 26 * sc(at.z) * .8; rect(g, x - w * .25, y - 1, e, e, '#fff0aa'); rect(g, x + w * .17, y - 1, e, e, '#fff0aa'); }
     }
     if (dk) for (const f of R.flies) {
-      const k = sc(f.z), w = 26 * k, x = PX(f.u, f.z), y = YH(f.z, f.h), e = Math.max(1, Math.round(2 * k));
-      rect(g, x - w * .23, y - 1, e, e, '#fff0aa'); rect(g, x + w * .19, y - 1, e, e, '#fff0aa');
+      const k = sc(f.z), x = PX(f.u, f.z), y = YH(f.z, f.h), e = Math.max(1, Math.round(2 * k));
+      for (const ey of A.CARP_EYES) rect(g, x + ey.x * k - e / 2, y + ey.y * k - e / 2, e, e, '#fff0aa');
     }
     if (Math.floor(R.t * 13) % 11) for (const sg of R.signs) { const z = sg.w - R.dist; if (sg.neon && z < 1.02 && z > .05) drawSign(sg, z); }
     sprayLanes();
@@ -1211,12 +1211,12 @@ var UnrugFloor13 = function (core) {
   // ---------- what the core asks of the floor ----------
   // A fresh run (or a continue, from a checkpoint): the stations and sign it starts with.
   function newRun(r, b, at) {
+    setMemo = new Map(); setCache = null; look = null;
     R = r; bull = b;
     if (at) {
       Object.assign(R, { beat: BEATS.length - 1, t: at.t, souls: at.souls, shown: at.souls, continues: at.continues + 1, bestStreak: at.bestStreak, speed: 0 });
       Object.assign(R.events, at.events, { bossAt: 0 });
       R.pull.count = 1;   // the runner has been explained already
-      for (let w = .15; w < 1.05; w += .45) R.decor.push({ w, s: w < .5 ? -1 : 1, kind: 'stack', col: 0 });
     }
     R.workers = []; R.nextWorkW = R.dist + .5;
     if (!at) while (R.dist + AHEAD >= R.nextWorkW) { addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
@@ -1274,7 +1274,7 @@ var UnrugFloor13 = function (core) {
     // the manager, pacing behind the desk, then the desk
     const mz = z0 + .5 + .14 * Math.sin(R.t * 1.1 + wk.w * 5);
     if (!wk.carps[0].dead) {
-      const m = A.work('manager', [true])[Math.floor(R.t * 4) % 4], mk = sc(mz) * .8, mw = Math.round(m.width * mk), mh = Math.round(m.height * mk);
+      const m = A.work('manager', [true])[Math.floor(R.t * 4) % 4], mk = sc(mz) * .8 * (m.k || 1), mw = Math.round(m.width * mk), mh = Math.round(m.height * mk);
       g.drawImage(m, Math.round(PX(s * 1.9, mz) - mw / 2), Math.round(YH(mz, .42) - mh), mw, mh);
     }
     const dz = z0 + .42, dk = sc(dz) * .8, dw = Math.round(A.OFFICE_DESK.width * dk), dh = Math.round(A.OFFICE_DESK.height * dk);
@@ -1301,7 +1301,8 @@ var UnrugFloor13 = function (core) {
     // Fixed things beside and above the aisle go down first, far to near, so nothing moving is ever cut by them.
     const back = [];
     const zS = shredderZ(), far = Math.min(AHEAD, zS - .01);   // nothing behind the Shredder shows
-    for (const d of R.decor) { const z = d.w - R.dist; if (z < far) back.push([z, () => faded(fadeFar(z), () => drawDecor(d, z))]); }
+    const gl = glowLayer();
+    for (const it of setItems()) { const z = it.w - R.dist; if (z < far) back.push([z, () => faded(fadeFar(z), () => { if (fadeFar(z) < 1) { gl.save(); gl.globalAlpha = fadeFar(z); } SETS.draw(it, z, g, gl); if (fadeFar(z) < 1) gl.restore(); })]); }
     for (const wk of R.workers) { const z = wk.w - R.dist; if (z < far && z > ZN - .2) back.push([z, () => faded(fadeFar(z), () => drawWorker(wk, z))]); }
     for (const cb of R.cubs) { const z = cubZ(cb); if (z < Math.min(1.02, far)) back.push([z, () => faded(fadeIn(z), () => drawCub(cb, z))]); }
     for (const sg of R.signs) { const z = sg.w - R.dist; if (z < Math.min(1.02, far) && z > .05) back.push([z, () => drawSign(sg, z)]); }
@@ -1321,7 +1322,7 @@ var UnrugFloor13 = function (core) {
     if (R.phase === 'hall') {
       // the goal: free enough souls and the Shredder wakes
       const shown = Math.min(R.souls, R.shown), k = Math.min(1, shown / TUNE.goal), full = k >= 1 && Math.floor(R.t * 6) % 2, pulse = R.meterPulse > 0;
-      g.drawImage(A.GHOST, 74, pulse ? 2 : 3);
+      g.drawImage(A.GHOST, 74, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
       rect(g, 86, 4, 64, 7, pulse ? '#fff6e2' : '#1a1418'); rect(g, 87, 5, 62, 5, '#3a2f5e'); rect(g, 87, 5, Math.round(62 * k), 5, full || pulse ? '#ffd44a' : '#7fd4ff');
       otxt(g, shown + '/' + TUNE.goal, 154, 5, pulse ? '#ffd44a' : '#fff6e2');
       // while lights out doubles souls
@@ -1396,7 +1397,7 @@ var UnrugFloor13 = function (core) {
     use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, shotHits, shotFar, slash, hurt, blasterBack, posOf,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
     // the rest of the floor by name, for the test harness and the balance bots
-    BEATS, beat, spawnFormation, startEvent, MOVES, spawnMove, addWorker, workerAt, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
+    BEATS, beat, spawnFormation, startEvent, MOVES, setItems, spawnMove, addWorker, workerAt, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
     TAUNTS, taunt, laugh, surgeSoon, shredderZ, darkness, startBoss, serveRally, throwPlanes, spitRow, spitFan, rollBack, killTemp
   };
 };

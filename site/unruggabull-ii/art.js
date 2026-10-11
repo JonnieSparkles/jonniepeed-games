@@ -89,7 +89,6 @@ var UnrugArt = (function () {
   // ---------- carpshits ----------
   const CARP = ['..KKKKKKKKKKKKKKKKKKKKKK..', 'O.KCCCCCCCCCCCCCCCCCCCCK.O', '.KCRRRRRRRRRRRRRRRRRRRRCK.', 'OKCRCRKKRRRRRRRRRRKKRCRCKO', '.KCRRRRKKRRRRRRRRKKRRRRCK.', 'OKCRRRMMMKRRRRRRKMMMRRRCKO', '.KCRCRMMKMRRRRRRMKMMRCRCK.', 'OKCRRRRRRRRKKKKRRRRRRRRCKO', '.KCRRRRRRRKrrrrKRRRRRRRCK.', 'O.KCCCCCCCCCCCCCCCCCCCCK.O', '..KKKKKKKKKKKKKKKKKKKKKK..'];
   const flipFringe = rows => rows.map((r, y) => (y === 0 || y === rows.length - 1) ? r : (ch => ch === 'O' ? '.' : ch === '.' ? 'O' : ch)(r[0]) + r.slice(1, -1) + (ch => ch === 'O' ? '.' : ch === '.' ? 'O' : ch)(r[r.length - 1]));
-  const CARPF = [spr(CARP), spr(flipFringe(CARP))];
   // Temps: carpshits in a collar and tie.
   const TIE = ['..........PKRRKP..........', '...........KRRK...........', '...........KRRK...........', '............KK............'];
   const TEMP = spr(CARP.concat(TIE));
@@ -97,35 +96,75 @@ var UnrugArt = (function () {
   const tieIn = c => TIE.map(r => r.replace(/RR/g, c + c));
   const GLASSES = CARP.slice();
   GLASSES[4] = '.KCRRYYYYYYRRRRYYYYYYRRCK.'; GLASSES[5] = 'OKCRRYMMMKYYYYYYKMMMYRRCKO'; GLASSES[6] = '.KCRCYMMKMYRRRRYMKMMYRCRK.'; GLASSES[7] = 'OKCRRYYYYYYKKKKYYYYYYRRCKO';
-  const TEMPS = [TEMP, spr(GLASSES.concat(tieIn('J'))), spr(['.......OOOOOOOOOOOO.......', '.....OOhOOOOOOOOOOhOO.....'].concat(CARP, tieIn('c')))];
-  const GHOST = spr(['..CCCCC..', '.........', '.KKKKKKK.', 'KMMMMMMMK', 'KMKMMMKMK', 'KMMMMMMMK', 'KMMgggMMK', '.KMKMKMK.', '..g.g.g..']);
-  const HEART = spr(['.KK...KK.', 'KRRK.KRRK', 'KRLRKRRRK', 'KRRRRRRRK', '.KRRRRRK.', '..KRRRK..', '...KRK...', '....K....']);
-  const HEART_EMPTY = spr(['.KK...KK.', 'KEEK.KEEK', 'KEEEKEEEK', 'KEEEEEEEK', '.KEEEEEK.', '..KEEEK..', '...KEK...', '....K....']);
-  const WAD = spr(['.PPP.', 'PPpPP', 'PpPPp', 'PPPpP', '.PPP.']);
+  // The carpshits and the temps themselves come from sprites.js (UnrugSprites), drawn at the picture's full size: k is
+  // game units a pixel. (The old grids above still give the carpshits at work their faces.)
+  const NS = UnrugSprites, CARP_K = .5;
+  const ns = rows => { const c = NS.paint(rows); c.k = CARP_K; return c; };
+  const CARPF = [ns(NS.FLY[0]), ns(NS.FLY[1])], CARP_HIT = ns(NS.FLY_HIT), CARP_CUT = ns(NS.CUT);
+  // where a carpshit's eyes are, from the middle of its sprite, in game units (in the dark only its eyes show)
+  const CARP_EYES = (() => {
+    const rows = NS.FLY[0], w = rows[0].length, h = rows.length, sides = [[0, 0, 0], [0, 0, 0]];
+    rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if ('nop'.includes(r[x])) { const sd = sides[x < w / 2 ? 0 : 1]; sd[0] += x; sd[1] += y; sd[2]++; } });
+    const eyes = sides.map(([sx, sy, n]) => ({ x: (sx / n - w / 2) * CARP_K, y: (sy / n - h / 2) * CARP_K }));
+    eyes.k = CARP_K;
+    return eyes;
+  })();
+  // three temps (A, B, C), each with frames for each state: peek, up, wind (the wad held up), throw, hit
+  const TEMPS = ['A', 'B', 'C'].map(key => { const o = {}; for (const st in NS.TEMPS[key]) o[st] = NS.TEMPS[key][st].map(ns); return o; });
+  const TEMP_RUG = NS.TEMP_RUG;
+  // ---------- the logo ----------
+  // UNRUGGABULL II in a 5x7 block face, 4x6 picture pixels a cell, leaning forward with speed streaks trailing off the
+  // left: gold-white above the horizon line, orange to red below, a black outline and a drop shadow, the II in gold
+  // with a glint. Drawn once at the picture's full size (k: half a game unit a pixel).
+  const LOGO_F = { U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'], N: ['10001', '11001', '11101', '10111', '10011', '10001', '10001'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'], G: ['01110', '10001', '10000', '10111', '10001', '10001', '01111'],
+    A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+    L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'], I: ['111', '010', '010', '010', '010', '010', '111'] };
+  let LOGO = null;
+  function logo() {
+    if (LOGO) return LOGO;
+    const cw = 4, ch = 6, H = 7 * ch, lean = 1.8, cells = [];
+    let x = 0;
+    for (const [word, ii] of [['UNRUGGABULL', false], ['II', true]]) {
+      for (const c of word) {
+        const f = LOGO_F[c];
+        f.forEach((row, y) => { for (let i = 0; i < row.length; i++) if (row[i] === '1') cells.push({ x: x + i * cw + Math.round((6 - y) * lean), y: y * ch, ii }); });
+        x += f[0].length * cw + 6;
+      }
+      x += 8;
+    }
+    const w = x - 14 + 40, cv = canvas(w + 8, H + 10), g = cv.getContext('2d'), ox = 40, oy = 3;
+    const fill = (c, yy) => c.ii ? (yy < .5 ? '#fff27a' : '#ffd21e') : yy < .47 ? (yy < .2 ? '#fff6e2' : '#ffd24a') : yy < .7 ? '#ff7a2a' : '#d8241a';
+    // speed streaks off the left of each row
+    const rows = {};
+    for (const c of cells) rows[c.y] = Math.min(rows[c.y] == null ? 1e9 : rows[c.y], c.x);
+    for (const y in rows) for (let k = 0; k < 3; k++) { g.fillStyle = k ? 'rgba(255,154,60,.5)' : '#ff9a3c'; g.fillRect(ox + rows[y] - 12 - k * 12 - (y % 3) * 3, oy + +y + 3, 9 - k * 2, 1); }
+    g.fillStyle = 'rgba(0,0,0,.55)'; for (const c of cells) g.fillRect(ox + c.x + 3, oy + c.y + 4, cw, ch);
+    g.fillStyle = '#0a080d'; for (const c of cells) g.fillRect(ox + c.x - 2, oy + c.y - 2, cw + 4, ch + 4);
+    for (const c of cells) for (let yy = 0; yy < ch; yy++) { g.fillStyle = fill(c, (c.y + yy) / H); g.fillRect(ox + c.x, oy + c.y + yy, cw, 1); }
+    const gl = cells.filter(c => c.ii)[2];
+    if (gl) { g.fillStyle = '#ffffff'; g.fillRect(ox + gl.x + 1, oy + gl.y + 1, 1, 1); g.fillRect(ox + gl.x, oy + gl.y + 2, 3, 1); g.fillRect(ox + gl.x + 1, oy + gl.y + 3, 1, 1); }
+    cv.k = .5;
+    return (LOGO = cv);
+  }
+  // a sprite's size in game units (the new ones are drawn at half a unit a pixel)
+  const uw = img => img.width * (img.k || 1), uh = img => img.height * (img.k || 1);   // where the rug sits in a temp's frame, in pixels
+  const GHOST = ns(NS.CAST.SOUL);
+  const HEART = ns(NS.CAST.HEART);
+  const HEART_EMPTY = ns(NS.CAST.HEART_EMPTY);
+  const WAD = ns(NS.CAST.WAD);
   // What the Shredder spits: a wad of shredded paper, strips sticking out every way, a few with red ink.
   // The game spins it in quarter turns and gives it a jagged red edge, so it never reads as a pickup.
-  const BUNDLE = spr([
-    '.....P......',
-    '..P..P...R..',
-    '...P.P..P...',
-    '....PPPPP...',
-    'PP.PpPPpPP.P',
-    '..PPPyPPpPPP',
-    '.RPPpPPyPP..',
-    'P..PPPpPPP..',
-    '...PPPPPP.P.',
-    '..P..R.P..P.',
-    '.P...P..P...',
-    '.....P......']);
-  const STAPLE = spr(['YYYYYYYYY', 'Yy.....yY', 'Y.......Y']);
+  const BUNDLE = ns(NS.CAST.BUNDLE);
+  const STAPLE = ns(NS.CAST.STAPLE);
   // A paper airplane coming at you, seen nose-on: the Shredder throws them at head height. Duck.
-  const PLANE = spr(['....P....', '...PpP...', '..PPpPP..', '.PPP.PPP.', 'PPp...pPP']);
+  const PLANE = ns(NS.CAST.PLANE);
   // Hall dressing: a water cooler and a stack of copy paper
   const COOLER = spr(['..KKKKK..', '.KcggggK.', 'KcgggggcK', 'KcgMggggK', 'KcgMggggK', 'KcgggggcK', '.KcccccK.', '..KKKKK..', '.KPPPPPK.', '.KPpRpPK.', '.KPPPPPK.', '.KPPPPPK.', '.KpPPPpK.', '.KPPPPPK.', '.KPPPPPK.', '.KKKKKKK.']);
   const STACK = spr(['KKKKKKKKKK', 'KPPPPPPPPK', 'KppppppppK', 'KPPPPPPPPK', 'KppppppppK', 'KPPPPPPPPK', 'KppppppppK', 'KKKKKKKKKK']);
   // Pickups: a RugCo coffee mug (a heart back) and the Spread Shot
-  const COFFEE = spr(['..p..p...', '...p..p..', '.KKKKKK..', '.KFFFFKKK', '.KPPPPK.K', '.KPRRPK.K', '.KPPPPKKK', '.KPPPPK..', '..KKKK...']);
-  const SPREAD = spr(['M....M....M', '.M...M...M.', '..M..M..M..', '...M.M.M...', '....MMM....', '...KWWWK...', '...KwWwK...', '....KKK....']);
+  const COFFEE = ns(NS.CAST.COFFEE);
+  const SPREAD = ns(NS.CAST.SPREAD);
   // A rolling office chair, from behind
   // A rolling office chair, rolling at you: high back, arms, seat, gas lift, a five-star base, casters in two frames.
   const CHAIR_TOP = ['.....KKKKKKKKKKKK.....', '....KjjjjjjjjjjjjK....', '...KjJJJJJJJJJJJJjK...', '...KjJJjJJJJJJjJJjK...', '...KjJJJJJJJJJJJJjK...', '...KjJJJJJJJJJJJJjK...', '...KjJJjJJJJJJjJJjK...', '...KjJJJJJJJJJJJJjK...',
@@ -135,7 +174,8 @@ var UnrugArt = (function () {
   const CHAIR = spr(['...KKKKKK...', '...KJJJJK...', '...KJjjJK...', '...KJJJJK...', '...KKKKKK...', '.....KK.....', '.KKKKKKKKKK.', '.KJJJJJJJJK.', '.KKKKKKKKKK.', '.....KK.....', '..KKKKKKKK..', '.K.K....K.K.', '.KK......KK.']);
   const FLASH = spr(['...M...', '..MOM..', '.MOMOM.', 'MOMMMOM', '.MOMOM.', '..MOM..', '...M...']);
   // His blaster from the side, for when the Shredder's surge knocks it out of his hands and it lies on the floor.
-  const BLASTER = spr(['.KKKKKKKK...', 'KWWWWWWWWKKK', 'KWMMWWWWWWCK', 'KWWWWWWWWKKK', '.KwwKKKKKK..', '.KwwK.......', '..KK........']);
+  // the blaster on its own (knocked out of his hands, lying on the rug): the bull's own, from bull.js, at full size
+  const BLASTER = (() => { const c = B.paint(B.BLASTER); c.k = BULL_K; return c; })();
   // A file box, about knee high
   // A cardboard carton left on the floor (an obstacle: step round it or jump it), drawn at the picture's full size
   // (32x18, so half a game unit per pixel). Dull brown with brown tape and a printed arrow, nothing bright, so it
@@ -179,6 +219,27 @@ var UnrugArt = (function () {
     draw(put, box, g);
     return cv;
   }
+  // A scene at the picture's full size (k: half a game unit a pixel), drawn in game units: box() and g as in sketch(),
+  // and carp(name, f, x, y) puts a carpshit from sprites.js (FACES[name]) where an old 26x10 face would have its top
+  // left, optionally clipped to rows from y0 to y1 (one half-hidden behind a desk) and flipped (facing the other way).
+  const FACE_IMG = {};
+  const faceImg = (name, f) => { const key = name + f; return FACE_IMG[key] || (FACE_IMG[key] = NS.paint(NS.FACES[name][f % 2])); };
+  function scene(w, h, draw) {
+    const cv = canvas(w * 2, h * 2), g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false; g.setTransform(2, 0, 0, 2, 0, 0);
+    const box = (x, y, bw, bh, ch) => { g.fillStyle = PAL[ch]; g.fillRect(Math.round(x), Math.round(y), Math.round(bw), Math.round(bh)); };
+    const carp = (name, f, x, y, o = {}) => {
+      const img = faceImg(name, f);
+      g.save();
+      if (o.y0 != null || o.y1 != null) { g.beginPath(); g.rect(-99, o.y0 == null ? -99 : o.y0, 999, (o.y1 == null ? 999 : o.y1) - (o.y0 == null ? -99 : o.y0)); g.clip(); }
+      if (o.flip) { g.translate(x - 1 + 14, 0); g.scale(-1, 1); g.drawImage(img, -14, y - 1, 28, 12); }
+      else g.drawImage(img, x - 1, y - 1, 28, 12);
+      g.restore();
+    };
+    draw(carp, box, g);
+    cv.k = .5;
+    return cv;
+  }
   // a desk with a monitor, its back to you, and whoever works there peeking over it
   function desk(box, mug, steam) {
     box(0, 22, 44, 3, 'N'); box(0, 25, 44, 1, 'n'); box(2, 26, 2, 10, 'n'); box(40, 26, 2, 10, 'n');
@@ -190,61 +251,63 @@ var UnrugArt = (function () {
   // gone and its place is empty). Sizes are in the game's pixels at the front of the hall; the floor draws them smaller.
   const WORK_KINDS = {
     // typing away: eyes down, fringe tapping the keys, keys clattering, a mug steaming
-    type: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive, visor) => {
-      if (alive[0]) put(face({ eyes: 'down', mouth: 'line', fringe: f % 2, visor }), 7, 4 + (f === 1 ? 1 : 0));
+    type: { w: 44, h: 36, n: 1, draw: (carp, box, g, f, alive, visor) => {
+      if (alive[0]) carp(visor ? 'downV' : 'down', f, 7, 4 + (f === 1 ? 1 : 0));
       desk(box, true, f + 1);
       if (alive[0]) { if (f % 2) { box(8, 21, 1, 1, 'M'); box(31, 20, 1, 1, 'M'); } else { box(9, 20, 1, 1, 'M'); box(30, 21, 1, 1, 'M'); } }
     } },
     // on a call: a headset, nodding, talking; behind it a chart of Q4 rug targets, going down
-    call: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive, visor) => {
+    call: { w: 44, h: 36, n: 1, draw: (carp, box, g, f, alive) => {
       box(28, 0, 16, 11, 'K'); box(29, 1, 14, 9, 'P'); box(30, 2, 12, 1, 'y');
       [6, 5, 3, 2, 1].forEach((v, i) => box(30 + Math.round(i * 2.4), 9 - v, 2, v, i > 2 ? 'i' : 'J'));
       const bob = f % 2;
       if (alive[0]) {
-        put(face({ eyes: 'side', mouth: f < 2 ? 'open' : 'line', visor }), 3, 5 + bob);
-        box(4, 4 + bob, 20, 1, 'K'); box(3, 5 + bob, 1, 5, 'K'); box(2, 8 + bob, 3, 4, 'K'); box(4, 12 + bob, 7, 1, 'K'); box(11, 11 + bob, 2, 2, 'K');
+        carp('talk', f < 2 ? 0 : 1, 3, 5 + bob);
+        box(4, 3 + bob, 20, 1, 'K'); box(2, 5 + bob, 1, 5, 'K'); box(1, 8 + bob, 3, 4, 'K'); box(3, 12 + bob, 7, 1, 'K'); box(10, 11 + bob, 2, 2, 'K');
       }
       desk(box, false);
     } },
     // asleep at the desk: slumped across it, eyes shut, drooling, Zs; the monitor on its screensaver
-    sleep: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive) => {
+    sleep: { w: 44, h: 36, n: 1, draw: (carp, box, g, f, alive) => {
       box(0, 22, 44, 3, 'N'); box(0, 25, 44, 1, 'n'); box(2, 26, 2, 10, 'n'); box(40, 26, 2, 10, 'n');
       box(1, 8, 16, 13, 'K'); box(2, 9, 14, 10, 'q'); box(7, 19, 4, 3, 'K');
       const bx = [3, 8, 11, 6][f], by = [10, 13, 10, 15][f]; box(bx, by, 4, 3, 'R'); box(bx + 1, by + 1, 2, 1, 'C');
       if (alive[0]) {
-        put(face({ eyes: 'shut', mouth: 'open' }).slice(2, 10), 17, 14);
+        carp('shut', f, 17, 12, { y0: 13 });
         txt(g, 'Z', 31 + f, 8 - f * 2, '#fff6e2'); if (f > 1) txt(g, 'Z', 37, 1, '#a8a0c0');
-        box(18, 21, 1, 1 + f % 2, 'g');
+        box(30, 21, 1, 1 + f % 2, 'g');
       }
     } },
     // the water cooler: two hovering close, one telling, the other can't believe it
-    cooler: { w: 66, h: 44, n: 2, draw: (put, box, g, f, alive) => {
+    cooler: { w: 66, h: 44, n: 2, draw: (carp, box, g, f, alive) => {
       g.drawImage(COOLER, 24, 44 - COOLER.height * 2, COOLER.width * 2, COOLER.height * 2);
       if (alive[0]) {
-        put(face({ eyes: 'side', mouth: f % 2 ? 'open' : 'line', fringe: f % 2 }), 0, 10 + (f % 2));
-        if (alive[1]) { box(8, 1, 13, 7, 'K'); box(9, 2, 11, 5, 'P'); box(12, 8, 2, 1, 'K'); if (f < 2) for (let i = 0; i <= f + 1; i++) box(11 + i * 3, 4, 1, 1, 'K'); else { box(14, 2, 1, 3, 'i'); box(14, 6, 1, 1, 'i'); } }
+        carp('talk', f % 2 ? 0 : 1, 0, 10 + (f % 2));
+        if (alive[1]) { box(8, 0, 13, 7, 'K'); box(9, 1, 11, 5, 'P'); box(12, 7, 2, 1, 'K'); if (f < 2) for (let i = 0; i <= f + 1; i++) box(11 + i * 3, 3, 1, 1, 'K'); else { box(14, 1, 1, 3, 'i'); box(14, 5, 1, 1, 'i'); } }
       }
-      if (alive[1]) put(flip(face({ eyes: f > 1 && alive[0] ? 'wide' : 'side', mouth: f > 1 && alive[0] ? 'open' : 'line', fringe: (f + 1) % 2 })), 40, 12 - (f > 1 ? 1 : 0));
+      if (alive[1]) carp(f > 1 && alive[0] ? 'wide' : 'side', f + 1, 40, 12 - (f > 1 ? 1 : 0), { flip: true });
     } },
     // the copy room: one lies on the copier's glass, and copies of it slide out into a stack
-    copier: { w: 60, h: 40, n: 1, draw: (put, box, g, f, alive) => {
+    copier: { w: 60, h: 40, n: 1, draw: (carp, box, g, f, alive) => {
+      if (alive[0]) carp('smile', f, 8, 6, { y1: 16 });
       box(4, 18, 34, 22, 'K'); box(5, 19, 32, 20, 'b'); box(5, 30, 32, 1, 'd'); box(8, 22, 6, 2, 'P'); box(30, 22, 3, 2, f % 2 ? 'X' : 'x');
       box(4, 14, 34, 4, 'K'); box(5, 15, 32, 2, 'd');
-      if (alive[0]) { box(6, 17, 30, 1, f % 2 ? 'X' : 'M'); put(face({ eyes: 'down', mouth: 'smile' }).slice(0, 9), 8, 6); }
+      if (alive[0]) box(6, 17, 30, 1, f % 2 ? 'X' : 'M');
       const n = alive[0] ? f + 1 : 4; for (let i = 0; i < n; i++) { box(38, 34 - i * 2, 18, 2, 'K'); box(39, 34 - i * 2, 16, 1, i % 2 ? 'r' : 'L'); }
       box(37, 36, 21, 2, 'd');
     } },
-    // the manager, in a tie, on the phone (the floor puts it in its office, a room set into the wall)
-    manager: { w: 26, h: 15, n: 1, draw: (put, box, g, f, alive) => {
+    // the manager, in a tie, on the phone (the floor puts it in its office, a room set into the wall): temp A's look
+    manager: { w: 26, h: 15, n: 1, draw: (carp, box, g, f, alive) => {
       if (!alive[0]) return;
-      put(face({ eyes: 'side', mouth: f % 2 ? 'open' : 'line', fringe: f % 2 }).concat(TIE), 0, 0);
-      box(3, 3, 3, 6, 'K'); box(6, 7, 2, 1, 'K');
+      const img = TEMPS[0].up[f % 2], R0 = TEMP_RUG, k = 26 / R0.w;
+      g.drawImage(img, -R0.x * k, -R0.y * k + 2, img.width * k, img.height * k);
+      box(2, 5, 3, 6, 'K'); box(5, 9, 2, 1, 'K');
     } }
   };
   const WORK = {};
   function work(kind, alive, visor) {
     const key = kind + alive.map(a => a ? 1 : 0).join('') + (visor ? 'v' : '');
-    if (!WORK[key]) { const K = WORK_KINDS[kind]; WORK[key] = [0, 1, 2, 3].map(f => sketch(K.w, K.h, (put, box, g) => K.draw(put, box, g, f, alive, visor))); }
+    if (!WORK[key]) { const K = WORK_KINDS[kind]; WORK[key] = [0, 1, 2, 3].map(f => scene(K.w, K.h, (carp, box, g) => K.draw(carp, box, g, f, alive, visor))); }
     return WORK[key];
   }
   // the manager's office furniture: a desk with a nameplate, and a framed certificate on its back wall
@@ -253,6 +316,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, TEMP, TEMPS, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, uw, uh, logo, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();

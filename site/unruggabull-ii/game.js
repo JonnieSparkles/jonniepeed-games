@@ -136,8 +136,8 @@
     R = {
       t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
       beat: 0, beatT: 0, event: null,
-      cubs: [], decor: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
-      nextCubW: 1.1, nextDecorW: .6, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
+      cubs: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
+      nextCubW: 1.1, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
       charge: TUNE.charges, rechargeT: 0, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
@@ -391,7 +391,7 @@
     if (f.dead) return;
     f.dead = true; R.freeze = how === 'slash' ? .07 : .035;
     const x = PX(f.u, f.z), y = YH(f.z, f.h), s = sc(f.z);
-    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.CARPF[0] }); else poof(f.u, f.z, f.h);
+    if (how === 'slash') R.fx.push({ k: 'half', x, y, s, t: 0, dur: .5, img: A.CARP_CUT }); else poof(f.u, f.z, f.h);
     free(x, y - 4, f.form ? 'formation' : 'carpshit', how);
     bonusSoul(how, x, y, f.form ? 'formation' : 'carpshit');
     if (f.fid) { const F = R.forms[f.fid - 1]; F.killed++; if (!F.lost && F.killed === F.n) wipe(F, x, y); }
@@ -447,7 +447,7 @@
   }
   function drawWisp(f) {
     const k = f.t / f.dur;
-    g.save(); g.globalAlpha = k > .85 ? .5 : .9; g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore();
+    g.save(); g.globalAlpha = k > .85 ? .5 : .9; g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore();
   }
   function talk(text, who) {
     const plan = Snd.talkTimes(text, who);
@@ -514,15 +514,16 @@
 
   function shadow(u, z, wpx) { const s = sc(z); rect(g, PX(u, z) - wpx * s / 2, FY(z) - 1, Math.max(1, wpx * s), Math.max(1, Math.round(2 * s)), 'rgba(8,6,12,.45)'); }
   function drawFly(f) {
-    const s = sc(f.z), w = Math.max(3, Math.round(26 * s)), h = Math.max(2, Math.round(11 * s)), x = PX(f.u, f.z), y = YH(f.z, f.h);
+    // drawn at the picture's full size (img.k game units a pixel); hit, it flinches
+    const img = f.hit > 0 ? A.CARP_HIT : A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], s = sc(f.z), w = img.width * img.k * s, h = img.height * img.k * s, x = PX(f.u, f.z), y = YH(f.z, f.h);
     shadow(f.u, f.z, 18);
-    wavy(A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], x - w / 2, y - h / 2, w, h, R.t * 14 + f.ph, Math.max(1, 1.6 * s));
-    if (f.hit > 0) { g.save(); g.globalAlpha = .6; rect(g, x - w / 2, y - h / 2, w, h, '#ffffff'); g.restore(); }
+    wavy(img, x - w / 2, y - h / 2, w, h, R.t * 14 + f.ph, Math.max(.5, s));
+    if (f.hit > 0) { g.save(); g.globalAlpha = .35; rect(g, x - w / 2, y - h / 2, w, h, '#ffffff'); g.restore(); }
   }
   // A rug in flight ripples: the sprite is drawn in thin vertical strips, each bobbing on a wave.
   function wavy(img, x, y, w, h, ph, amp) {
-    const n = 13, sw = img.width / n, dw = w / n;
-    for (let i = 0; i < n; i++) g.drawImage(img, i * sw, 0, sw, img.height, Math.round(x + i * dw), Math.round(y + Math.sin(ph + i * .75) * amp), Math.ceil(dw), Math.round(h));
+    const n = 14, sw = img.width / n, dw = w / n;
+    for (let i = 0; i < n; i++) g.drawImage(img, i * sw, 0, sw, img.height, Math.round((x + i * dw) * 2) / 2, Math.round((y + Math.sin(ph + i * .75) * amp) * 2) / 2, Math.ceil(dw * 2) / 2, Math.round(h * 2) / 2);
   }
   // Incoming paper has a jagged edge that blinks red and orange, never a round glow, so it can't pass for a pickup.
   // The Shredder's wads of shredded paper spin in quarter turns and shed strips behind them; the rally's wad has a
@@ -553,7 +554,7 @@
   // brought it back to you.
   function drawDropped(pk, z) {
     if (pk.t < TUNE.surgeFly) return;
-    const k = Math.max(.5, sc(z) * 1.3), w = Math.round(A.BLASTER.width * k), h = Math.round(A.BLASTER.height * k), x = Math.round(PX(pk.u, z) - w / 2), y = Math.round(FY(z) - h - 1);
+    const k = Math.max(.5, sc(z) * 1.3), w = Math.round(A.uw(A.BLASTER) * k), h = Math.round(A.uh(A.BLASTER) * k), x = Math.round(PX(pk.u, z) - w / 2), y = Math.round(FY(z) - h - 1);
     const near = z < .3, flash = Math.floor(pk.t * 8) % 2, sil = tinted(A.BLASTER, near ? (flash ? '#ffffff' : '#ffd44a') : (flash ? '#bfefff' : '#3aa8e0'));
     shadow(pk.u, z, 10);
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, x + dx, y + dy, w, h);
@@ -566,7 +567,7 @@
   function drawPickup(pk, z) {
     if (pk.kind === 'blaster') { drawDropped(pk, z); return; }
     const coffee = pk.kind === 'coffee', img = coffee ? A.COFFEE : A.SPREAD, k = sc(z), bob = Math.sin(pk.t * 4) * .015;
-    const w = Math.max(4, Math.round(img.width * k * 1.8)), h = Math.max(4, Math.round(img.height * k * 1.8)), x = PX(pk.u, z), y = YH(z, pk.h + bob);
+    const w = Math.max(4, Math.round(A.uw(img) * k * 1.8)), h = Math.max(4, Math.round(A.uh(img) * k * 1.8)), x = PX(pk.u, z), y = YH(z, pk.h + bob);
     const col = coffee ? '#ff7050' : '#ffd44a', flash = Math.floor(pk.t * 8) % 2, bw = Math.max(2, Math.round(w * .9));
     g.save();
     g.globalAlpha = .14 + .06 * flash; rect(g, x - bw / 2, CY(z), bw, y - CY(z), col);
@@ -640,7 +641,7 @@
       if (f.k === 'wisp') drawWisp(f);
       else if (f.k === 'poof') { for (let i = 0; i < f.n; i++) { const a = i / f.n * 6.28 + f.x, r = 2 + k * 9 * f.s; rect(g, f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * .7, Math.max(1, Math.round(2 * f.s)), Math.max(1, Math.round(2 * f.s)), k < .5 ? '#fff6e2' : '#b8b4a8'); } }
       else if (f.k === 'half') {
-        const img = f.img, w = img.width * f.s, h = img.height * f.s, d = 4 + k * 14 * f.s, drop = k * k * 26;
+        const img = f.img, w = img.width * (img.k || 1) * f.s, h = img.height * (img.k || 1) * f.s, d = 4 + k * 14 * f.s, drop = k * k * 26;
         g.save(); g.globalAlpha = 1 - k * .6;
         g.drawImage(img, 0, 0, img.width / 2, img.height, Math.round(f.x - w / 2 - d), Math.round(f.y - h / 2 + drop), Math.round(w / 2), Math.round(h));
         g.drawImage(img, img.width / 2, 0, img.width / 2, img.height, Math.round(f.x + d), Math.round(f.y - h / 2 + drop * .8), Math.round(w / 2), Math.round(h));
@@ -657,13 +658,13 @@
         }
       }
       else if (f.k === 'strip') rect(g, Math.round(f.x), Math.round(f.y), 1, 2, Math.floor(f.t * 12 + f.vx) % 2 ? '#f2eee2' : '#b8b4a8');
-      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4), Math.round(f.y - 4)); g.restore(); }
+      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore(); }
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
         // the blaster spinning up the rug after the surge
         const pk = f.pk, z = pk.w - R.dist, tx = PX(pk.u, z), ty = FY(z) - 4, q = k, s2 = Math.max(.5, sc(z) * 1.3);
-        const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.BLASTER.width * s2), h = Math.round(A.BLASTER.height * s2);
+        const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.uw(A.BLASTER) * s2), h = Math.round(A.uh(A.BLASTER) * s2);
         g.save(); g.translate(Math.round(bx), Math.round(by)); g.rotate(Math.floor(f.t * 16) % 4 * Math.PI / 2); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
       }
       else if (f.k === 'muzzle') { const m = k < .5 ? 9 : 7; g.drawImage(A.FLASH, Math.round(f.x - m / 2), Math.round(f.y - m / 2), m, m); }
@@ -672,7 +673,7 @@
     }
   }
   function drawHUD() {
-    for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 4);
+    for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
     // blaster charge under the hearts: blue when ready, red and blinking when empty, gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
@@ -685,7 +686,7 @@
   // The souls freed so far, top right, with a ghost that bobs as each one lands.
   function drawSoulsCounter() {
     const n = String(Math.min(R.souls, R.shown)), tw = textWidth(n), pulse = R.meterPulse > 0;
-    g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 2 : 3);
+    g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
     otxt(g, n, W - 4, 5, pulse ? '#ffd44a' : '#fff6e2', 1, 'right');
   }
   function drawWords() {
@@ -734,47 +735,95 @@
   // Souls drift up the threads to p(Loom)'s beacon on the roof while carpshits circle. Static layers are cached once.
   const GROUND = 122, BEACON = { x: 120, y: 40 };
   let TOWER = null;
-  function skyline(b, list, col, win, k) {
-    for (const [x, y, w] of list) {
-      rect(b, x, y, w, GROUND - y, col);
-      for (let wy = y + 4; wy < GROUND - 3; wy += 5) for (let wx = x + 3; wx < x + w - 2; wx += 4) if (((wx * k + wy * 7) % 17) < 2) rect(b, wx, wy, 1, 2, win);
+  // The title's backdrop, drawn once at the picture's full size (in its pixels, so twice the game's units): a dithered
+  // dusk sky with stars, the city in two layers with lit windows and rooftop clutter, the threads of souls running up to
+  // RugCo Tower's beacon, the tower with its window grid and the sunset catching its edges, and the street.
+  const hash2 = (a, b) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  function skyline(b, list, col, edge, win, k) {
+    const R = (x, y, w, h, c) => { b.fillStyle = c; b.fillRect(x, y, w, h); }, G = GROUND * 2;
+    for (const [ux, uy, uw] of list) {
+      const x = ux * 2, y = uy * 2, w = uw * 2;
+      R(x, y, w, G - y, col); R(x + w - 1, y, 1, G - y, edge);
+      // something on the roof: an antenna, a water tower, a vent
+      const r = hash2(x, k);
+      if (r < .3) R(x + w * .3 | 0, y - 9, 1, 9, col);
+      else if (r < .55) { R(x + 4, y - 6, 8, 5, col); R(x + 5, y - 1, 1, 1, col); R(x + 10, y - 1, 1, 1, col); }
+      else if (r < .75) R(x + w - 9, y - 3, 6, 3, col);
+      for (let wy = y + 5; wy < G - 4; wy += 6) for (let wx = x + 3; wx < x + w - 3; wx += 5) {
+        const h = hash2(wx * 3 + k, wy);
+        if (h < .16) R(wx, wy, 2, 3, h < .04 ? '#fff6c8' : win); else if (h < .5) R(wx, wy, 2, 3, edge);
+      }
     }
   }
   function buildTower() {
-    const sky = A.canvas(W, H), front = A.canvas(W, H), s = sky.getContext('2d'), f = front.getContext('2d');
-    ['#0b0920', '#100c28', '#171033', '#21123d', '#2f1545', '#41184a', '#561a4a', '#6c1d47', '#6c1d47'].forEach((col, i) => rect(s, 0, i * 15, W, 16, col));
-    for (let i = 0; i < 60; i++) A.px(s, (i * 97 + 13) % W, 30 + (i * 53) % 50, i % 7 ? '#6f6596' : '#ffffff');
+    const PW2 = W * 2, PH2 = H * 2, G = GROUND * 2;
+    const sky = A.canvas(PW2, PH2), front = A.canvas(PW2, PH2), s = sky.getContext('2d'), f = front.getContext('2d');
+    const R = (b, x, y, w, h, c) => { b.fillStyle = c; b.fillRect(x, y, w, h); };
+    // the sky: eight bands of dusk, dithered into each other
+    const BANDS = ['#0b0920', '#100c28', '#171033', '#21123d', '#2f1545', '#41184a', '#561a4a', '#6c1d47', '#7a2246'];
+    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    for (let y = 0; y < PH2; y++) {
+      const v = Math.min(BANDS.length - 1.001, y / 30), i0 = Math.floor(v), fr = v - i0;
+      for (let x = 0; x < PW2; x++) { s.fillStyle = fr * 16 > BAYER[(y & 3) * 4 + (x & 3)] ? BANDS[i0 + 1] : BANDS[i0]; s.fillRect(x, y, 1, 1); }
+    }
+    for (let i = 0; i < 110; i++) { const x = Math.floor(hash2(i, 1) * PW2), y = Math.floor(hash2(i, 2) * 150), c = i % 9 ? '#6f6596' : '#ffffff'; R(s, x, y, 1, 1, c); if (i % 23 === 0) { R(s, x - 1, y, 3, 1, '#a8a0d0'); R(s, x, y - 1, 1, 3, '#a8a0d0'); R(s, x, y, 1, 1, '#ffffff'); } }
     // the threads run from the beacon down into the city, behind the buildings
-    for (const [x, y] of [[18, 87], [52, 78], [81, 90], [160, 89], [189, 76], [225, 86]]) line(f, BEACON.x, BEACON.y, x, y, '#6a4f86');
-    skyline(f, [[0, 87, 20], [18, 93, 17], [33, 80, 20], [52, 90, 15], [69, 96, 22], [150, 94, 20], [168, 83, 18], [186, 91, 15], [201, 78, 21], [220, 88, 20]], '#1a1230', '#ffbf5a', 13);
-    rect(f, 105, 50, 30, GROUND - 50, '#120d22'); rect(f, 105, 50, 1, GROUND - 50, '#2c2246'); rect(f, 134, 50, 1, GROUND - 50, '#2c2246');
-    rect(f, 109, 44, 22, 6, '#120d22'); rect(f, 116, 35, 8, 9, '#120d22'); rect(f, 119, 28, 2, 7, '#2c2246');
-    for (let wy = 66; wy < GROUND - 3; wy += 5) for (let wx = 108; wx < 133; wx += 5) rect(f, wx, wy, 2, 2, ((wx * 7 + wy * 3) % 13) === 0 ? '#ff9a3c' : '#221a38');
-    rect(f, 107, 54, 26, 9, '#1a1418'); txt(f, 'RUGCO', 120, 56, '#ff9a3c', 1, 'center');
-    skyline(f, [[0, 100, 26], [22, 106, 18], [40, 97, 23], [64, 108, 20], [147, 104, 21], [166, 97, 23], [189, 106, 18], [207, 100, 33]], '#0d0a1a', '#ffd060', 11);
-    rect(f, 0, GROUND, W, H - GROUND, '#0a0816');
-    for (let i = 0; i < 9; i++) rect(f, 88 + ((i * 23) % 64), GROUND + 3 + (i % 4) * 3, 5 + (i % 3) * 3, 1, i % 2 ? '#ff9a3c' : '#e8483a');
-    rect(f, 112, GROUND, 17, 1, '#000');
+    f.globalAlpha = .7;
+    for (const [x, y] of [[18, 87], [52, 78], [81, 90], [160, 89], [189, 76], [225, 86]]) { f.strokeStyle = '#7a5aa0'; f.lineWidth = 1; f.beginPath(); f.moveTo(BEACON.x * 2 + .5, BEACON.y * 2 + .5); f.lineTo(x * 2 + .5, y * 2 + .5); f.stroke(); }
+    f.globalAlpha = 1;
+    skyline(f, [[0, 87, 20], [18, 93, 17], [33, 80, 20], [52, 90, 15], [69, 96, 22], [150, 94, 20], [168, 83, 18], [186, 91, 15], [201, 78, 21], [220, 88, 20]], '#1a1230', '#2a1c48', '#ffbf5a', 13);
+    // RugCo Tower: a shaft, two setbacks, a spire and the beacon's mast; the sunset catches both edges
+    const T0 = 210, T1 = 270;
+    R(f, T0, 100, T1 - T0, G - 100, '#120d22');
+    R(f, T0 + 8, 88, T1 - T0 - 16, 12, '#120d22'); R(f, T0 + 22, 70, T1 - T0 - 44, 18, '#120d22'); R(f, 238, 56, 4, 14, '#1c1630');
+    for (const [a, b2, y0] of [[T0, T1, 100], [T0 + 8, T1 - 8, 88], [T0 + 22, T1 - 22, 70]]) { R(f, a, y0, 1, G - y0, '#ff9a3c'); R(f, b2 - 1, y0, 1, G - y0, '#e8483a'); R(f, a, y0, b2 - a, 1, '#3a2654'); }
+    for (let wy = 132; wy < G - 6; wy += 9) for (let wx = T0 + 5; wx < T1 - 6; wx += 7) {
+      const h = hash2(wx, wy * 3);
+      R(f, wx, wy, 4, 5, h < .14 ? '#ff9a3c' : h < .2 ? '#ffd060' : '#221a38');
+      if (h < .14) R(f, wx, wy, 4, 1, '#ffd8a0');
+    }
+    // its sign, in orange neon
+    R(f, 214, 108, 52, 18, '#1a1418'); R(f, 215, 109, 50, 16, '#2a0e0a');
+    f.save(); f.globalAlpha = .35; txt(f, 'RUGCO', 240, 111, '#ff9a3c', 2, 'center'); f.restore();
+    txt(f, 'RUGCO', 240, 112, '#ffb060', 2, 'center');
+    skyline(f, [[0, 100, 26], [22, 106, 18], [40, 97, 23], [64, 108, 20], [147, 104, 21], [166, 97, 23], [189, 106, 18], [207, 100, 33]], '#0d0a1a', '#181230', '#ffd060', 11);
+    // the street, with the city's lights on it
+    R(f, 0, G, PW2, PH2 - G, '#0a0816');
+    for (let i = 0; i < 16; i++) R(f, 150 + ((i * 47) % 180), G + 5 + (i % 5) * 4, 6 + (i % 3) * 6, 1, i % 2 ? '#ff9a3c' : '#e8483a');
+    R(f, 0, G, PW2, 1, '#1e1636');
     TOWER = { sky, front };
   }
+  // the bull on the title: three quarters of his size in play, scaled once with hard pixels
+  const TITLE_K = .75;
+  let titleBull = null;
+  const TITLE_BULL = () => titleBull || (titleBull = (() => {
+    const src = A.POSES.stand, w = Math.round(src.width * TITLE_K), h = Math.round(src.height * TITLE_K), c = A.canvas(w, h), x = c.getContext('2d');
+    x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, w, h); return c;
+  })());
   function drawTower(t) {
     if (!TOWER) buildTower();
-    g.drawImage(TOWER.sky, 0, 0);
+    g.drawImage(TOWER.sky, 0, 0, W, H);
     // the sun sinks behind the tower in scrolling stripes
     const sx = 120, sy = 96, Rs = 38;
-    for (let dy = -Rs; dy <= Rs; dy++) {
-      const y = sy + dy; if (y >= GROUND) break;
-      const w = Math.floor(Math.sqrt(Rs * Rs - dy * dy)), k = (dy + Rs) / (2 * Rs);
-      if (dy > 2) { const gap = 1 + Math.floor(dy / 10), ph = (((dy + Math.floor(t * 5)) % 8) + 8) % 8; if (ph < gap) continue; }
-      rect(g, sx - w, y, 2 * w + 1, 1, k < .28 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a');
+    for (let d2 = -Rs * 2; d2 <= Rs * 2; d2++) {   // in half units: the picture's own rows
+      const dy = d2 / 2, y = sy + dy; if (y >= GROUND) break;
+      const w = Math.floor(Math.sqrt(Rs * Rs - dy * dy) * 2) / 2, k = (dy + Rs) / (2 * Rs);
+      if (d2 > 4) { const gap = 2 + Math.floor(d2 / 10), ph = (((d2 + Math.floor(t * 10)) % 16) + 16) % 16; if (ph < gap) continue; }
+      g.fillStyle = k < .2 ? '#fff27a' : k < .32 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a'; g.fillRect(sx - w, y, 2 * w + .5, .5);
     }
-    g.drawImage(TOWER.front, 0, 0);
-    g.drawImage(A.POSES.stand, 120 - A.POSE_FEET.x * A.BULL_K, GROUND - A.POSE_FEET.y * A.BULL_K, A.POSE_W * A.BULL_K, A.POSE_H * A.BULL_K);   // at the picture's full size
-    disc(g, BEACON.x, BEACON.y, 3, Math.sin(t * 3) > .4 ? '#ffd060' : '#ff9628'); A.px(g, BEACON.x, BEACON.y, '#140c08');
+    g.drawImage(TOWER.front, 0, 0, W, H);
+    // him, a bit smaller than in play, with the sunset outlining him so he stands out against the dark tower
+    const tk = A.BULL_K * TITLE_K, bx = 120 - A.POSE_FEET.x * tk, by = GROUND - A.POSE_FEET.y * tk, bw = A.POSE_W * tk, bh = A.POSE_H * tk;
+    const rim = tinted(TITLE_BULL(), '#ffc870');
+    for (const [dx, dy] of [[-.5, 0], [.5, 0], [0, -.5], [-.5, -.5], [.5, -.5]]) g.drawImage(rim, bx + dx, by + dy, bw, bh);
+    g.drawImage(TITLE_BULL(), bx, by, bw, bh);
+    const on = Math.sin(t * 3) > .4;
+    g.save(); g.globalAlpha = on ? .35 : .18; disc(g, BEACON.x, BEACON.y, 6, '#ff9628'); g.restore();
+    disc(g, BEACON.x, BEACON.y, 2, on ? '#fff0a0' : '#ff9628');
     g.save(); g.globalAlpha = .75;
     [[30, 92], [69, 98], [172, 95], [212, 88], [96, 104]].forEach(([x, y], i) => {
       const k = mod1(t * .12 + i / 5);
-      g.drawImage(A.GHOST, Math.round(x + (BEACON.x - 4 - x) * k + Math.sin(t * 2 + i) * 3), Math.round(y + (BEACON.y - 6 - y) * k));
+      g.drawImage(A.GHOST, Math.round(x + (BEACON.x - 4 - x) * k + Math.sin(t * 2 + i) * 3), Math.round(y + (BEACON.y - 6 - y) * k), A.uw(A.GHOST), A.uh(A.GHOST));
     });
     g.restore();
     [[66, 60], [160, 50], [84, 46], [150, 74], [40, 72]].forEach(([x, y], i) => wavy(A.CARPF[(Math.floor(t * 8) + i) % 2], x, Math.round(y + Math.sin(t * 2.5 + i) * 2), 13, 6, t * 12 + i, 1));
@@ -782,12 +831,10 @@
   function drawTitle() {
     drawTower(R.t);
     if (state === 'intro') return;
-    // the logo: orange with a gold II, a red lip under each stroke and a dark outline
-    const s = 'UNRUGGABULL II', x = Math.round(120 - textWidth(s, 3) / 2), y = 4;
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [-1, 1], [1, 1], [0, 2], [1, 2], [-1, 2]]) txt(g, s, x + dx, y + dy, '#1a1418', 3);
-    txt(g, s, x, y + 1, '#961e16', 3);
-    txt(g, 'UNRUGGABULL', x, y, '#ff9a3c', 3); txt(g, 'II', x + 12 * 12, y, '#ffd44a', 3);
-    otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 23, '#fff6e2', 1, 'center');
+    // the logo (art.js), at the picture's full size
+    const L = A.logo(), lw = A.uw(L), lh = A.uh(L);
+    g.drawImage(L, Math.round((120 - lw / 2 - 5) * 2) / 2, 3, lw, lh);
+    otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 3 + lh + 1, '#fff6e2', 1, 'center');
   }
   // The light things give off this frame, for the renderer: blaster bolts as they fly, the muzzle flash, pickups.
   // Bolts and the flash are kept soft, so steady fire lights the hall without strobing it.
@@ -1237,7 +1284,7 @@
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, setCheckpoint: v => { checkpoint = v; }
+    g, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = v; }
   });
 
   start();
