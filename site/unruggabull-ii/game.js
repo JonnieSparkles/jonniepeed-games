@@ -1073,13 +1073,13 @@
   // Right hand: Shift or ' shoots, Enter slashes, with J/K and Z/X as alternatives.
   const CODES = {
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
-    ArrowDown: 'down', KeyS: 'down',
+    ArrowDown: 'down', KeyS: 'down', KeyC: 'down',
     ShiftLeft: 'shoot', ShiftRight: 'shoot', Quote: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot',
     Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash'
   };
   const NAMES = {
     ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
-    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', ArrowDown: 'down', s: 'down', S: 'down',
+    ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', ArrowDown: 'down', s: 'down', S: 'down', c: 'down', C: 'down',
     Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
     k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };

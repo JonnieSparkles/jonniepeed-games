@@ -54,6 +54,8 @@ ARM = 1.1              # how thick his arms are
 STANCE = 1.4           # how much further apart his feet are than his hips
 HORN_GOLD = False      # True puts a gold band at the root of each horn (dropped: cream all the way reads cleaner)
 FRONT_HORN = .72       # the horns' roots in the front view, thinner than from behind
+HUNCH = 0              # crouched: how much shorter his back gets
+DUCK_HEAD = 0          # crouched: how far his head sinks into his shoulders
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
 LIT_ABOVE = FEET - 30  # side edges above this row (his waist) take a coloured outline; below it they stay black
@@ -493,10 +495,11 @@ def build_pose(name):
         legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.8 + sk, Lk * .95, 4.4 + st, Lf - 4.0, True)); tsway = 1
     crouch = legs == 'crouch'
     hipy = FEET - Lf - 5.4 + bob
-    vy = hipy - TORSO
+    hunch = HUNCH if crouch else 0   # crouched, he hunches over: a shorter back, his head down into his shoulders
+    vy = hipy - TORSO + hunch
 
     legs_back(cv, x, hipy, legs_p)
-    torso_back(cv, x, vy + (1 if crouch else 0), TORSO - (1 if crouch else 0))
+    torso_back(cv, x, vy + (1 if crouch and not hunch else 0), TORSO - hunch - (1 if crouch and not hunch else 0))
     poly(cv, [(x - WAIST, hipy - 1.5), (x + WAIST, hipy - 1.5), (x + WAIST, hipy - .5), (x - WAIST, hipy - .5)], 'navy', shade_fn=lambda px, py: .55)
     poly(cv, [(x - WAIST - .4, hipy - .5), (x + WAIST + .4, hipy - .5), (x + WAIST + .4, hipy + 1.5), (x - WAIST - .4, hipy + 1.5)], 'belt', shade_fn=lambda px, py: .6 if py == int(hipy - .5) else .4)
     tail(cv, x, hipy + 1.5, tsway, tl)
@@ -504,7 +507,7 @@ def build_pose(name):
     neck_back(cv, x, vy - 5)
     for s in (-1, 1):
         delt(cv, x, vy - 1.5, s)
-    head_back(cv, x + ex.get('look', 0) * 1.5, vy - 18 - NECK, ex.get('look', 0))
+    head_back(cv, x + ex.get('look', 0) * 1.5, vy - 18 - NECK + (DUCK_HEAD if crouch else 0), ex.get('look', 0))
     drawn = rarm in ('wind', 'slash')
     lift = ex.get('lift', 0)
     if not drawn:
