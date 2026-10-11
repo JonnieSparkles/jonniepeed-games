@@ -340,7 +340,12 @@ async function latestRuns(env, { since, game, board, mode }) {
       }
     } catch (_) { /* the stats runs still show */ }
   }
-  const listed = recent.map(({ score_run, stats, ...r }) => ({ ...r, saved: Boolean(score_run && r.name), stats: parseStats(stats) }));
+  // A run of a game's "with" mode (Stick Army's co-op) carries that mode's name, for its tag in the feed.
+  const modeTag = (game, st) => { const m = games[game]?.modes; return m && st && st[m.stat] === true ? m.names[1] : undefined; };
+  const listed = recent.map(({ score_run, stats, ...r }) => {
+    const st = parseStats(stats);
+    return { ...r, saved: Boolean(score_run && r.name), stats: st, mode: modeTag(r.game, st) };
+  });
   return {
     recent: listed.concat(boardOnly).sort((a, b) => (a.started_at < b.started_at ? 1 : a.started_at > b.started_at ? -1 : 0)).slice(0, 50),
     unseen, unseen_capped: capped
