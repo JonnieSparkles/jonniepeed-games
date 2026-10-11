@@ -51,6 +51,7 @@ WAIST = 5.2            # waist half-width
 LEG = 24               # hip to sole
 TORSO = 18.5           # shoulders to belt
 ARM = 1.1              # how thick his arms are
+STANCE = 0.0           # how much further apart his feet are than his hips
 NECK = 6               # neck between the jaw and the collar
 RX, RY = 6.6, 6.6      # the skull
 LIT_ABOVE = 52         # side edges above this row (his waist) take a coloured outline; below it they stay black
@@ -396,7 +397,7 @@ def torso_back(cv, x, y, h):
 def legs_back(cv, x, y, L):
     poly(cv, [(x - WAIST - .4, y), (x + WAIST + .4, y), (x + WAIST + .2, y + 4), (x - WAIST - .2, y + 4)], 'jean', shade_fn=lambda px, py: shade((px + .5 - x) / 9, -.2, 0))
     for (kx, ky, fx, fy, sole), side in ((L[0], -1), (L[1], 1)):
-        capsule(cv, [(x + 3.2 * side, y + 2, 3.2), (x + kx, y + ky, 2.7), (x + fx, y + fy, 2.5)], 'jean', base=-.02)
+        capsule(cv, [(x + (3.2 + STANCE * .3) * side, y + 2, 3.2), (x + kx, y + ky, 2.7), (x + fx, y + fy, 2.5)], 'jean', base=-.02)
     for (kx, ky, fx, fy, sole), side in ((L[0], -1), (L[1], 1)):
         bx, by = x + fx, y + fy
         if sole:   # a foot kicked up behind him: the sole toward the camera
@@ -416,12 +417,13 @@ def build_pose(name):
     cv = Canvas()
     x, bob = CX, 0
     Lk, Lf = LEG * .42, LEG * .72
-    legs_p = ((-3.6, Lk, -3.8, Lf, False), (3.6, Lk, 3.8, Lf, False))
+    st, sk = STANCE, STANCE * .6   # the stance, at the feet and at the knees
+    legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.6 + sk, Lk, 3.8 + st, Lf, False))
     larm, rarm, sword, tsway, tl = 'down', 'down', 'back', 0, 8
     if name == 'runA':
-        bob = -1; legs_p = ((-4.0, Lk * .9, -3.8, Lf, False), (3.8, LEG * .3, 4.0, LEG * .4, True)); larm, rarm, tsway = 'fwd', 'back', -1
+        bob = -1; legs_p = ((-4.0 - sk, Lk * .9, -3.8 - st, Lf, False), (3.8 + sk, LEG * .3, 4.0 + sk, LEG * .4, True)); larm, rarm, tsway = 'fwd', 'back', -1
     if name == 'runB':
-        legs_p = ((-3.8, LEG * .3, -4.0, LEG * .4, True), (4.0, Lk * .9, 3.8, Lf, False)); larm, rarm, tsway = 'back', 'fwd', 1
+        legs_p = ((-3.8 - sk, LEG * .3, -4.0 - sk, LEG * .4, True), (4.0 + sk, Lk * .9, 3.8 + st, Lf, False)); larm, rarm, tsway = 'back', 'fwd', 1
     if name == 'jump':
         bob = -9; legs_p = ((-6.2, LEG * .28, -5.4, LEG * .42, True), (6.2, LEG * .28, 5.4, LEG * .42, True)); larm, rarm, tsway, tl = 'up', 'up', -2, 6
     if name == 'crouch':
@@ -502,10 +504,10 @@ def build_front():
     hilt(cv, x - 9.6, vy + .4, x - 12.6, vy - 4.6, 1.7)
 
     # legs, boots and rolled cuffs, the fly, light on the knees
-    legs_p = ((-3.6, Lk, -3.8, Lf), (3.6, Lk, 3.8, Lf))
+    legs_p = ((-3.6 - STANCE * .6, Lk, -3.8 - STANCE, Lf), (3.6 + STANCE * .6, Lk, 3.8 + STANCE, Lf))
     poly(cv, [(x - WAIST - .4, hipy), (x + WAIST + .4, hipy), (x + WAIST + .2, hipy + 4), (x - WAIST - .2, hipy + 4)], 'jean', shade_fn=lambda px, py: shade((px + .5 - x) / 9, -.3, .04))
     for (kx, ky, fx, fy), s in zip(legs_p, (-1, 1)):
-        capsule(cv, [(x + 3.2 * s, hipy + 2, 3.2), (x + kx, hipy + ky, 2.7), (x + fx, hipy + fy, 2.5)], 'jean', base=.0)
+        capsule(cv, [(x + (3.2 + STANCE * .3) * s, hipy + 2, 3.2), (x + kx, hipy + ky, 2.7), (x + fx, hipy + fy, 2.5)], 'jean', base=.0)
     for (kx, ky, fx, fy) in legs_p:
         boot_front(cv, x + fx, hipy + fy)
         cuff(cv, x + fx, hipy + fy)
