@@ -27,11 +27,11 @@
   }
   // g: whose shop it is in co-op (a turret upgrade is each barrel's own).
   function item(it, g) {
-    var cost = costNow(it), bought = it.tier !== 'hire' && SHOP.bought(it, g); // hiring repeats
-    return { id: it.id, name: it.name, tier: it.tier, cost: cost, gift: onHouse(it), bought: bought, can: !bought && eligible(it, g) && S.coins >= cost };
+    var cost = costNow(it, g), bought = it.tier !== 'hire' && SHOP.bought(it, g); // hiring repeats
+    return { id: it.id, name: it.name, tier: it.tier, cost: cost, gift: onHouse(it, g), bought: bought, can: !bought && eligible(it, g) && tagsOf(g || 0) >= cost };
   }
   // Co-op (options.coop, run.py --option coop=1): a second bot plays the guest's barrel (the second), with the same
-  // profile, its own seed and the same reaction delay; it buys only its own barrel's upgrades, the first bot the rest.
+  // profile, its own seed and the same reaction delay, and shops with its own tags (its gun and the squad's things).
   var bot2 = null, buf2 = [], steps2 = 0, lag2 = 0, shopped2 = -1;
   function act2(a) {
     var t = S.turrets[1];
@@ -68,7 +68,7 @@
     observe: function (g) {
       var gt = S.turrets[g || 0] || S.turrets[0], gmods = gt.mods || S.mods;
       var o = {
-        mode: S.mode, t: S.t, wave: S.wave, score: S.score, coins: S.coins, wall: S.wallHP, maxWall: S.mods.maxHP,
+        mode: S.mode, t: S.t, wave: S.wave, score: S.score, coins: tagsOf(g || 0), wall: S.wallHP, maxWall: S.mods.maxHP,
         heat: gt.heat, overheat: gt.overheat, aim: gt.aim, turret: { x: gt.x, y: TUR.y }, bulletSpeed: 700,
         aimMin: AIM_MIN, aimMax: AIM_MAX, ground: GROUND, bunker: { x1: BK.x1, x2: BK.x2, top: BK.top },
         captureSpeed: CAPTURE_SPEED, slotsFree: freeSlot(0) >= 0, slots: S.mods.slots,
@@ -98,8 +98,7 @@
       if (S.mode === 'shop' && S.shop) {
         var mine = function (it) { return item(it, g); };
         o.shop = { items: S.shop.items.map(mine), hire: S.shop.hire.map(mine), gift: S.shop.gift, hireStep: Math.round(15 * SHOP.war(SHOP.WAR.HIRE)) };
-        // The second bot shops for its own barrel only.
-        if (g) { o.shop.items = o.shop.items.filter(function (it) { return SHOP.own(it); }); o.shop.hire = []; o.shop.gift = null; }
+        // Co-op: each bot shops with its own tags, its own gun and anything for the squad.
         o.mods = JSON.parse(JSON.stringify(S.mods));
       }
       return o;

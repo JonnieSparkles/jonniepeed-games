@@ -59,9 +59,11 @@ var StickArmyShop = function (w) {
   }
   function hasMedic() { return w.S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; }); }
   // ---------- co-op (coop.md) ----------
-  // With two barrels, turret upgrades (game.js TURRET_MODS) are each player's own: bought for the buyer's barrel, with
-  // stacks counted per barrel. Everything else is common, bought once for the team. `by` is the buyer (0 the host,
-  // 1 the guest; this device's player when left out). Solo has one barrel and none of this applies.
+  // With two barrels each player has their own dog tags (game.js tagsOf) and their own free pick: the first of the
+  // visit's rotating supplies they take. Turret upgrades (game.js TURRET_MODS) are each player's own: bought for the
+  // buyer's barrel, with stacks counted per barrel, and shown under "Your gun". Everything else is for the squad,
+  // bought once by either player. Only the buyer puts a thing back, and gets the tags back. `by` is the buyer (0 the
+  // host, 1 the guest; this device's player when left out). Solo has one barrel and none of this applies.
   var TURRET = {};
   w.TURRET_MODS.forEach(function (id) { TURRET[id] = true; });
   function twin() { var t = w.S.turrets; return !!(t && t.length > 1); }
@@ -118,9 +120,14 @@ var StickArmyShop = function (w) {
     for (i = order.length - 1; i > 0; i--) { j = Math.floor(w.RS() * (i + 1)); tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
     return order.filter(offerable).slice(0, n);
   }
-  // One random offer each visit is on the house.
-  function onHouse(it) { var S = w.S; return S.shop && it.id === S.shop.gift && !S.shop.giftTaken; }
-  function costNow(it) { return onHouse(it) ? 0 : price(it); }
+  // One random offer each visit is on the house; in co-op, each player's first rotating supply (S.shop.giftTaken by player).
+  function onHouse(it, by) {
+    var S = w.S;
+    if (!S.shop) return false;
+    if (twin()) return (S.shop.offered || []).indexOf(it.id) >= 0 && !S.shop.giftTaken[buyer(by)];
+    return it.id === S.shop.gift && !S.shop.giftTaken;
+  }
+  function costNow(it, by) { return onHouse(it, by) ? 0 : price(it); }
   function openShop() {
     var S = w.S;
     S.mode = 'shop'; S.waveState = 'shop'; w.clearInput(); S.bullets = []; S.banner = null; S.delivery = null; w.washDecals();
@@ -131,7 +138,8 @@ var StickArmyShop = function (w) {
     if (items.length && kitFull(items[gift])) { var open = items.findIndex(function (it) { return !kitFull(it); }); if (open >= 0) gift = open; }
     var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
-      gift: items.length ? items[gift].id : null, giftTaken: false, bought: {}, base: snapshot(S), log: [] };
+      gift: items.length ? items[gift].id : null, giftTaken: twin() ? {} : false, bought: {}, base: snapshot(S), log: [],
+      offered: items.map(function (it) { return it.id; }) };
     w.emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
     shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
     // Every visit starts at the top of the list.
@@ -152,9 +160,10 @@ var StickArmyShop = function (w) {
     var S = w.S, item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
     // Supplies sell once per visit (per barrel, for a co-op turret upgrade); hiring repeats while slots and tags last.
     if (!item || (S.shop.bought[slot(item, by)] && item.tier !== 'hire') || !eligible(item, by)) return false;
-    var gift = onHouse(item), cost = costNow(item);
-    if (S.coins < cost) return false;
-    S.coins -= cost; if (gift) S.shop.giftTaken = true;
+    var gift = onHouse(item, by), cost = costNow(item, by);
+    if (w.tagsOf(buyer(by)) < cost) return false;
+    w.spendTags(cost, buyer(by));
+    if (gift) { if (twin()) S.shop.giftTaken[buyer(by)] = true; else S.shop.giftTaken = true; }
     if (!replay) w.emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
     var stacks = stacksOf(item, by);
     S.shop.bought[slot(item, by)] = true; stacks[id] = (stacks[id] || 0) + 1;
@@ -167,27 +176,25 @@ var StickArmyShop = function (w) {
   // order. It restores that and takes the rest again, so prices, the gift and hiring stay consistent. Anything that
   // only worked because of what went back (a hire into a slot you returned) goes back too.
   function snapshot(S) {
-    return { coins: S.coins, wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
+    return { coins: S.coins, tags: S.players ? S.players.map(function (p) { return p.tags; }) : null, wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
       turrets: S.turrets.map(function (t) { return t.mods ? JSON.parse(JSON.stringify(t.mods)) : null; }),
       pizzaOrder: S.pizzaOrder, recruits: S.recruits.map(function (r) { return Object.assign({}, r); }),
       bed: S.bed ? { r: Object.assign({}, S.bed.r), since: S.bed.since } : null, usedNames: Object.assign({}, S.usedNames) };
   }
-  // In co-op either player can put a common thing back; a turret upgrade only goes back from its own barrel.
+  // In co-op only the buyer puts a thing back (the tags were theirs).
   function putBack(id, by) {
     var S = w.S;
     if (by == null && remote('back', id)) return true;
     if (S.mode !== 'shop' || !S.shop) return false;
-    var item = ITEMS.find(function (it) { return it.id === id; }), at = -1, i;
-    if (!twin() || (item && own(item))) at = S.shop.log.lastIndexOf(logEntry(id, by));
-    else for (i = S.shop.log.length - 1; i >= 0 && at < 0; i--) if (parseEntry(S.shop.log[i]).id === id) at = i;
+    var at = S.shop.log.lastIndexOf(logEntry(id, by));
     if (at < 0) return false;
     var keep = S.shop.log.slice(), b = S.shop.base;
     keep.splice(at, 1);
-    S.coins = b.coins; S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
+    S.coins = b.coins; (b.tags || []).forEach(function (t, i) { S.players[i].tags = t; }); S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
     (b.turrets || []).forEach(function (m, i) { if (m && S.turrets[i]) S.turrets[i].mods = JSON.parse(JSON.stringify(m)); });
     S.pizzaOrder = b.pizzaOrder; S.recruits = b.recruits.map(function (r) { return Object.assign({}, r); }); w.resizeMats();
     S.bed = b.bed ? { r: Object.assign({}, b.bed.r), since: b.bed.since } : null; S.usedNames = Object.assign({}, b.usedNames);
-    S.shop.bought = {}; S.shop.giftTaken = false; S.shop.log = []; if (S.shop.who) S.shop.who = {};
+    S.shop.bought = {}; S.shop.giftTaken = twin() ? {} : false; S.shop.log = []; if (S.shop.who) S.shop.who = {};
     keep.forEach(function (k) { var e = twin() ? parseEntry(k) : { id: k }; buy(e.id, true, e.by); });
     w.emit('refund', { item: id });
     w.sound.play('tink'); renderShop();
@@ -211,6 +218,19 @@ var StickArmyShop = function (w) {
     }
     return null;
   }
+  // The "Your gun" section (co-op only), made once beside the supplies.
+  function gunSection() {
+    var s = document.getElementById('gunSection');
+    if (s) return s;
+    s = document.createElement('section'); s.id = 'gunSection'; s.setAttribute('aria-labelledby', 'gunTitle'); s.hidden = true;
+    var h = document.createElement('h3'); h.id = 'gunTitle'; h.textContent = 'Your gun';
+    var note = document.createElement('p'); note.className = 'tag-note'; note.textContent = 'For your barrel only.';
+    var list = document.createElement('div'); list.className = 'deal-list';
+    s.append(h, note, list);
+    var supplies = document.getElementById('supplyItems').closest('section');
+    supplies.parentNode.insertBefore(s, supplies);
+    return s;
+  }
   function bossHint(c) {
     if (!c.boss) return c.night ? ' Heads up: a night raid is coming.' : '';
     return ' Heads up: ' + (c.bossKind === 'dread' ? 'the Dreadnought is' : c.twin ? 'two zeppelins are' : 'a zeppelin is') + ' coming.';
@@ -218,22 +238,25 @@ var StickArmyShop = function (w) {
   function renderShop() {
     var S = w.S;
     document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
-    document.getElementById('shopCoins').textContent = S.coins + ' dog tags';
+    var mine = w.tagsOf(w.me);
+    document.getElementById('shopCoins').textContent = mine + ' dog tags' + (twin() ? ' (yours)' : '');
     var news = document.getElementById('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
     var hurt = Math.round(S.stats.wallDamage - (S.waveStart.wall || 0));
     document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' +
       (hurt > 0 ? '-' + hurt : 'untouched') + ' (' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP + ')';
-    document.getElementById('shopHint').textContent = (S.shop.gift && !S.shop.giftTaken ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
+    var giftLeft = twin() ? (S.shop.offered || []).length && !S.shop.giftTaken[w.me] : S.shop.gift && !S.shop.giftTaken;
+    document.getElementById('shopHint').textContent = (twin() ? (giftLeft ? 'Your first supply is on the house. Your tags are your own; anything for the squad is for both of you.' : 'Your tags are your own; anything for the squad is for both of you.')
+      : giftLeft ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
       bossHint(w.waveCfg(S.wave + 1));
     // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
-    function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[slot(it)]) && S.coins >= costNow(it); }
-    // Co-op: a common supply the other player took is theirs to show as chosen.
+    function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[slot(it)]) && mine >= costNow(it); }
+    // Co-op: a squad supply the other player bought shows as theirs (only they can put it back).
     function comrades(it) { return twin() && it.tier !== 'hire' && S.shop.bought[slot(it)] && S.shop.who && S.shop.who[slot(it)] !== w.me; }
     function costLabel(it) {
       if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
       if (it.blocked && it.blocked() && !S.shop.bought[slot(it)]) return it.blocked();
       if (!S.shop.bought[slot(it)] && kitFull(it)) return 'Kit full';
-      if (comrades(it)) return 'Chosen by your comrade';
+      if (comrades(it)) return 'Bought by your friend';
       if (it.tier !== 'hire' && S.shop.bought[slot(it)]) return 'Packed ✓';
       if (onHouse(it)) return 'Free!';
       return price(it) + ' tags';
@@ -241,24 +264,26 @@ var StickArmyShop = function (w) {
     // How many more tags an unaffordable supply needs. It sits on its own line under the price, so the row keeps
     // its width and doesn't jump when the balance changes.
     function needMore(it) {
-      return it.tier !== 'hire' && !S.shop.bought[slot(it)] && !onHouse(it) && eligible(it) && S.coins < price(it) ? price(it) - S.coins : 0;
+      return it.tier !== 'hire' && !S.shop.bought[slot(it)] && !onHouse(it) && eligible(it) && mine < price(it) ? price(it) - mine : 0;
     }
     function itemButton(it, cls, withDesc) {
       var button = document.createElement('button'), packed = it.tier !== 'hire' && S.shop.bought[slot(it)];
       button.type = 'button'; button.dataset.item = it.id;
-      button.className = cls + (onHouse(it) ? ' gift' : '') + (packed ? ' bought' : '');
-      // A packed supply stays live: tapping it again puts it back.
-      button.disabled = !packed && !canBuy(it);
+      // Co-op: every supply you could take free is marked "Pick one free"; the badge is the solo gift's.
+      var free = onHouse(it) && !comrades(it);
+      button.className = cls + (free ? (twin() ? ' gift pick' : ' gift') : '') + (packed ? ' bought' : '');
+      // A packed supply stays live: tapping it again puts it back (in co-op, the buyer's only).
+      button.disabled = comrades(it) || (!packed && !canBuy(it));
       var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
       w.drawItemIcon(icon, it.id);
       var name = document.createElement('strong'); name.textContent = it.name;
       var label = document.createElement('em'); label.textContent = it.tier === 'hire' ? (it.blocked && it.blocked()) || String(price(it)) : costLabel(it);
       button.append(icon, name);
-      if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc + (own(it) ? ' For your barrel.' : ''); button.append(desc); }
+      if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
       else button.title = it.desc;
-      if (onHouse(it)) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
+      if (free) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
       if (needMore(it)) { var more = document.createElement('small'); more.textContent = 'need ' + needMore(it) + ' more'; label.append(more); }
-      if (packed) { var back = document.createElement('small'); back.textContent = 'tap to put back'; label.append(back); }
+      if (packed && !comrades(it)) { var back = document.createElement('small'); back.textContent = 'tap to put back'; label.append(back); }
       button.append(label);
       button.addEventListener('click', function () {
         if (packed) { putBack(it.id); return; }
@@ -267,7 +292,12 @@ var StickArmyShop = function (w) {
       });
       return button;
     }
-    document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.map(function (it) { return itemButton(it, 'deal', true); }));
+    // Co-op: the turret upgrades on offer go under "Your gun", above the squad's supplies.
+    var gunList = twin() ? S.shop.items.filter(own) : [], gun = gunSection();
+    gun.hidden = !gunList.length;
+    gun.querySelector('.deal-list').replaceChildren.apply(gun.querySelector('.deal-list'), gunList.map(function (it) { return itemButton(it, 'deal', true); }));
+    document.getElementById('supplyTitle').textContent = twin() ? 'For the squad' : 'Supplies';
+    document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.filter(function (it) { return gunList.indexOf(it) < 0; }).map(function (it) { return itemButton(it, 'deal', true); }));
     var up = Math.round((war(WAR.SUPPLY) - 1) * 100), vet = markup() > 1;
     document.getElementById('supplyNote').textContent = 'Dog tags come from kills, planes and cleared waves.' +
       (vet ? ' Veteran prices: up ' + up + '%.' : up >= 10 ? ' Supplies are running short: prices are up ' + up + '%.' : '') +
@@ -275,7 +305,9 @@ var StickArmyShop = function (w) {
     // Every role is always listed, so the list never changes shape; what you can't hire is greyed.
     document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), S.shop.hire.map(function (it) { return itemButton(it, 'hire', false); }));
     // Who you hired this visit: tap one to send him back and get the tags back.
-    var hired = document.getElementById('hiredItems'), hires = S.shop.log.map(function (e) { return twin() ? parseEntry(e).id : e; }).filter(function (id) { return /^hire-/.test(id); });
+    // Co-op: your own hires (only the buyer sends one back).
+    var hired = document.getElementById('hiredItems'), hires = S.shop.log.map(function (e) { return twin() ? parseEntry(e) : { id: e }; })
+      .filter(function (e) { return /^hire-/.test(e.id) && (!twin() || e.by === w.me); }).map(function (e) { return e.id; });
     hired.replaceChildren.apply(hired, hires.map(function (id) {
       var it = ITEMS.find(function (q) { return q.id === id; }), chip = document.createElement('button'), icon = document.createElement('canvas'), name = document.createElement('span');
       chip.type = 'button'; chip.className = 'hired-chip'; chip.dataset.hired = id; chip.title = 'Send back';

@@ -151,7 +151,7 @@ var StickArmySky = function (w) {
   }
   function safePassage(m) {
     var S = w.S, x = clamp(m.x, 40, W - 40), tags = medevacTags(S.wave), pts = medevacPts(S.wave);
-    S.score += pts; S.coins += tags; S.stats.redCross++; w.flyTags(x, m.y, tags);
+    S.score += pts; w.gainTags(tags); S.stats.redCross++; w.flyTags(x, m.y, tags);
     addText('safe passage! +' + pts.toLocaleString('en-US'), x, m.y + 30, BLUE, 22);
     emit('redcross_safe', { tags: tags, pts: pts });
     emit('coins', { amount: tags, reason: 'safe passage' });
@@ -161,9 +161,11 @@ var StickArmySky = function (w) {
   // the combo is gone.
   // The tags lost show under the counter (loseTags), so the line over the plane gives the points.
   function hurtMedevac(m) {
-    var S = w.S, lost = Math.min(S.coins, Math.round(medevacTags(S.wave) * MEDEVAC.HIT)), pts = Math.min(S.score, medevacPts(S.wave)), had = S.combo >= 2;
+    // The tags come out of the shooter's wallet (co-op: game.js takeTags).
+    var S = w.S, pts = Math.min(S.score, medevacPts(S.wave)), had = S.combo >= 2;
     m.hit = true; m.speed *= MEDEVAC.FLEE; S.stats.redCrossHit++;
-    S.coins -= lost; S.score -= pts; S.combo = 0; S.comboT = 0;
+    var lost = w.takeTags(Math.round(medevacTags(S.wave) * MEDEVAC.HIT));
+    S.score -= pts; S.combo = 0; S.comboT = 0;
     w.loseTags(lost, m.x, m.y);
     addText('Red Cross hit!' + (pts ? ' -' + pts.toLocaleString('en-US') : ''), m.x, m.y + 36, RED, 24);
     if (had) addText('combo lost', m.x, m.y + 62, RED, 18);
@@ -282,7 +284,7 @@ var StickArmySky = function (w) {
     w.award(40, x, y - 24, 'supplies!', BLUE, false);
     if (c.kind === 'wall' && S.wallHP < S.mods.maxHP) { w.repairWall(CRATE.WALL, 'crate'); addText('+' + CRATE.WALL + ' wall', x, y, BLUE, 22); }
     else if (c.kind === 'call') w.grantCall(c.call, x, y);
-    else { S.coins += CRATE.TAGS; w.flyTags(x, y, CRATE.TAGS); emit('coins', { amount: CRATE.TAGS, reason: 'crate' }); addText('+' + CRATE.TAGS + ' tags', x, y, BLUE, 22); }
+    else { w.gainTags(CRATE.TAGS); w.flyTags(x, y, CRATE.TAGS); emit('coins', { amount: CRATE.TAGS, reason: 'crate' }); addText('+' + CRATE.TAGS + ' tags', x, y, BLUE, 22); }
     emit('crate_caught', { kind: c.kind, by: by ? 'crew' : 'none' });
     if (by) w.say('got it!', by.id);
     w.sound.play('recruit');

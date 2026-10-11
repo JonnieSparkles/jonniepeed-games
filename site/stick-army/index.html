@@ -38,6 +38,7 @@
   --ink-soft: #5d5a55;
   --enemy: #c8433a;
   --ally: #2f6fdc;
+  --friend: #2e8b4a;
   --hat: #f2c230;
   --font-display: "Cabin Sketch", "Schoolbell", "Comic Sans MS", cursive;
   --font-hand: "Schoolbell", "Comic Sans MS", "Chalkboard SE", cursive;
@@ -153,6 +154,7 @@ body {
 .hired-chip:hover, .hired-chip:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
 .undo { margin-right: auto; min-height: 44px; padding: 4px 10px; font: 18px var(--font-hand); color: var(--ink-soft); background: none; border: 0; border-bottom: 2px dashed var(--rule); cursor: pointer; max-width: 55%; text-align: left; }
 .undo:hover, .undo:focus-visible { color: var(--ink); outline: 2px solid var(--ally); outline-offset: 2px; }
+.deal.gift.pick::before { content: "Pick one free"; }
 .deal.gift::before { content: "On the house"; position: absolute; top: -9px; right: 12px; padding: 0 6px; font: 14px var(--font-hand); color: var(--paper); background: var(--ally); border-radius: 6px 3px 7px 3px; transform: rotate(2deg); }
 .deal { position: relative; }
 .deal em s { color: var(--ink-soft); font-size: 15px; }
@@ -532,14 +534,14 @@ body {
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="audio.js?v=9f03c91bfb"></script>
 <script src="icons.js?v=9a7c1a9955"></script>
-<script src="units.js?v=034c77a329"></script>
-<script src="sky.js?v=4ab91b596f"></script>
+<script src="units.js?v=71106cb22d"></script>
+<script src="sky.js?v=0db708c04f"></script>
 <script src="squad.js?v=e52c64b27c"></script>
 <script src="campaign.js?v=72f6926c48"></script>
 <script src="board.js?v=ac0dd645e0"></script>
-<script src="shop.js?v=09df698402"></script>
+<script src="shop.js?v=f1ef1ae0b1"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
-<script src="coop.js?v=a0ba83eed4"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=523405a94c"></script>
+<script src="coop.js?v=113f424529"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=b0e5416945"></script>
 </body>
 </html>

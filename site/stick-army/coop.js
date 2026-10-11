@@ -331,12 +331,15 @@ window.StickArmyCoop = function (w) {
     '.coop-card .btn { font-size: 24px; min-height: 46px; padding: 4px 18px 6px; }',
     '.coop-card .btn:disabled { opacity: .45; cursor: default; }',
     '.coop-card .nope { color: var(--enemy); }',
+    '.coop-card.shake { animation: coop-shake .35s; } @keyframes coop-shake { 25% { translate: -6px 0; } 75% { translate: 6px 0; } }',
+    '@media (prefers-reduced-motion: reduce) { .coop-card.shake { animation: none; } }',
     '.coop-link { margin: 0; font-size: 15px; line-height: 1.2; color: var(--ink-soft); word-break: break-all; user-select: all; }',
     '.coop-table { width: 100%; border-collapse: collapse; font-size: 19px; }',
     '.coop-table th { font-weight: 400; text-align: right; }',
-    '.coop-table th.blue { color: var(--ally); } .coop-table th.red { color: var(--enemy); }',
+    '.coop-table th.blue { color: var(--ally); } .coop-table th.green { color: var(--friend, #2e8b4a); }',
     '.coop-table td { color: var(--ink-soft); padding: 1px 0; } .coop-table td.n { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }',
-    '.coop-ready { margin: 0 8px 0 auto; align-self: center; font-size: 17px; color: var(--ink-soft); }',
+    '.shop-foot.coop-foot { flex-wrap: wrap; row-gap: 2px; }',
+    '.coop-ready { flex-basis: 100%; margin: 0; text-align: right; font-size: 17px; color: var(--ink-soft); }',
     '.coop-status { position: absolute; left: 50%; top: 106px; transform: translateX(-50%) rotate(-1deg); margin: 0; padding: 2px 10px 3px; font: 17px var(--font-hand);',
     '  color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 12px 5px 12px 5px; pointer-events: none; white-space: nowrap; }'
   ].join('\n');
@@ -376,30 +379,47 @@ window.StickArmyCoop = function (w) {
   function forget() { history.replaceState(null, '', location.pathname + location.search); }
 
   // ---------- starting a match (the host) ----------
-  function askSecret(wrong) {
+  // The secret is three picks (the owner, Oct 11): Meatball, Meatball, Sausage. Each step offers the right word and two
+  // decoys; a wrong pick starts over. The room itself is opened with its own secret (rooms/, "meatball"); the three
+  // steps are this page's.
+  var SECRET = ['Meatball', 'Meatball', 'Sausage'];
+  function askSecret(wrong, got) {
     leaveRoom();
-    var line = el('p', 'tag' + (wrong ? ' nope' : ''), wrong ? "Nope. That's not the secret." : 'Starting a match takes the secret word.');
-    var pool = DECOYS.slice(), picks = ['Meatball'];
+    got = got || [];
+    var step = got.length, want = SECRET[step];
+    var line = el('p', 'tag' + (wrong ? ' nope' : ''), wrong ? "Nope. That's not the secret." : step ? got.join(', ') + ', …' : 'Starting a match takes the secret: three words.');
+    var pool = DECOYS.concat(['Meatball', 'Sausage']).filter(function (d) { return d !== want; }), picks = [want];
     while (picks.length < 3) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
     picks.sort(function () { return Math.random() - 0.5; });
-    showCard(['Play with a ', 'friend'], [line], picks.map(function (word) { return { label: word, ghost: true, fn: function () { openRoom(word); } }; })
-      .concat([{ label: 'Cancel', ghost: true, fn: cancel }]), 'secret');
+    showCard(['Play with a ', 'friend'], [line], picks.map(function (word) {
+      return { label: word, ghost: true, fn: function () {
+        if (word !== want) return askSecret(true);
+        if (step + 1 < SECRET.length) return askSecret(false, got.concat([word]));
+        openRoom();
+      } };
+    }).concat([{ label: 'Cancel', ghost: true, fn: cancel }]), 'secret');
+    if (wrong && ui) { var c = ui.card; c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); }
   }
-  function openRoom(word) {
+  function openRoom() {
     showCard(['Play with a ', 'friend'], ['Checking the secret…'], [], 'checking');
     role = 'host';
-    var r = Rooms.open({ game: GAME, max: 2, secret: word.toLowerCase() });
+    var r = Rooms.open({ game: GAME, max: 2, secret: 'meatball' });
     store.set('stickarmy.coop.host.' + r.code, '1');
     use(r);
   }
   function invite() {
     if (role !== 'host' || started) return;
     var link = el('p', 'coop-link', room ? room.link : '');
-    var share = navigator.share ? { label: 'Send link', fn: function () { Rooms.share({ title: 'Stick Army', text: 'Defend the page with me.', url: room.link }); } }
-      : { label: 'Copy link', fn: function () { Rooms.copy(room.link).then(function (r) { if (r === 'copied') status('Link copied'); setTimeout(function () { status(''); }, 1500); }); } };
+    // Copy link everywhere (the owner, Oct 11): the phone's share sheet was more in the way than a copy.
+    var share = { label: 'Copy link', id: 'coopCopy', fn: function () {
+      Rooms.copy(room.link).then(function (r) {
+        var b = document.getElementById('coopCopy');
+        if (b && r === 'copied') { b.textContent = 'Copied!'; setTimeout(function () { if (b.isConnected) b.textContent = 'Copy link'; }, 1500); }
+      });
+    } };
     share.ghost = friend;
     showCard(['Send the ', 'link'], [link, friend ? 'Your friend is here!' : 'Waiting for your friend…',
-      'You get the blue barrel, your friend the red one. You play ' + w.lv().NAME + ', your pick.'],
+      'You get the blue barrel, your friend the green one. You play ' + w.lv().NAME + ', your pick.'],
       [share, { label: 'Start', fn: startMatch, off: !friend, id: 'coopStart' }, { label: 'Cancel', ghost: true, fn: cancel }], 'invite');
   }
   function startMatch() {
@@ -427,7 +447,7 @@ window.StickArmyCoop = function (w) {
       friend = r.others.length > 0;
       // A host page with no run (a reload mid-match loses it) tells a guest still drawing the old one ('lobby').
       if (role === 'host') { if (!started) { invite(); ask('lobby'); } else resend(); }
-      else { if (!started) showCard(['Waiting for your ', 'friend'], ["You're in. Your friend starts the match.", 'You get the red barrel.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting'); ask('hi'); }
+      else { if (!started) showCard(['Waiting for your ', 'friend'], ["You're in. Your friend starts the match.", 'You get the green barrel.'], [{ label: 'Leave', ghost: true, fn: leaveToTitle }], 'waiting'); ask('hi'); }
     });
     r.on('join', function (seat) {
       if (role === 'host') { friend = true; if (started) { resend(); flash('Your friend is back'); } else invite(); }
@@ -532,7 +552,7 @@ window.StickArmyCoop = function (w) {
   function sideBySide(S) {
     var t = el('table', 'coop-table'), me = w.me, head = el('tr');
     head.appendChild(el('th'));
-    [0, 1].forEach(function (i) { var th = el('th', i ? 'red' : 'blue', i === me ? 'You' : 'Friend'); head.appendChild(th); });
+    [0, 1].forEach(function (i) { var th = el('th', i ? 'green' : 'blue', i === me ? 'You' : 'Friend'); head.appendChild(th); });
     t.appendChild(head);
     ROWS.forEach(function (r) {
       if ((r[1] === 'redCross' || r[1] === 'hq') && !(S.players[0][r[1]] || S.players[1][r[1]])) return;
@@ -554,7 +574,7 @@ window.StickArmyCoop = function (w) {
     }
     if (S.mode !== 'shop' || !S.shop) { if (shopShown) { sc.shop.hidden = true; shopShown = ''; } return; }
     if (pressing) return;
-    var key = JSON.stringify([S.coins, S.wave, S.wallHP, S.pizzaOrder, S.calls, S.mods, S.turrets.map(function (t) { return t.mods; }), S.recruits.length, S.bed && S.bed.r && S.bed.r.id,
+    var key = JSON.stringify([S.players && S.players.map(function (p) { return p.tags; }), S.wave, S.wallHP, S.pizzaOrder, S.calls, S.mods, S.turrets.map(function (t) { return t.mods; }), S.recruits.length, S.bed && S.bed.r && S.bed.r.id,
       S.shop.bought, S.shop.log, S.shop.giftTaken, S.shop.who, S.shop.ready, friend]);
     if (key === shopShown) return;
     var first = !shopShown;
@@ -580,12 +600,14 @@ window.StickArmyCoop = function (w) {
   // After the shop draws: Ready instead of Continue, and who's ready.
   function afterShop() {
     var S = w.S, btn = document.getElementById('continueBtn');
-    if (!S.players || !S.shop || !btn) return;
+    if (!S.players) { var old = document.getElementById('coopReady'); if (old) { old.parentNode.classList.remove('coop-foot'); old.remove(); } return; }
+    if (!S.shop || !btn) return;
     var r = S.shop.ready || {}, me = w.me, other = 1 - me, line = document.getElementById('coopReady');
-    if (!line) { line = el('p', 'coop-ready'); line.id = 'coopReady'; line.setAttribute('role', 'status'); btn.parentNode.insertBefore(line, btn); }
+    // Only the friend's state: the button says yours.
+    if (!line) { line = el('p', 'coop-ready'); line.id = 'coopReady'; line.setAttribute('role', 'status'); btn.parentNode.insertBefore(line, btn.parentNode.firstChild); btn.parentNode.classList.add('coop-foot'); }
     btn.textContent = r[me] ? 'Ready ✓' : 'Ready for wave ' + (S.wave + 1);
     var away = role === 'host' && !friend;
-    line.textContent = (r[me] ? 'You ✓' : 'You …') + ' · ' + (away ? 'Friend away' : r[other] ? 'Friend ✓' : 'Friend …');
+    line.textContent = away ? 'Friend away' : r[other] ? 'Friend ready ✓' : 'Friend shopping…';
   }
   w.afterShop = afterShop;
   // The host's own end cards get the two players side by side under the score.

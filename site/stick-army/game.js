@@ -38,7 +38,7 @@
   // Co-op (coop.md) is harder: two gunners are a lot more firepower, more so once each barrel has its own upgrades.
   // COOP_HARD scales the planes and bombers from MORE[0] on wave 1 to MORE[1] by wave FULL, and the Dreadnought's
   // health by DREAD. Tuned with the balance bots playing two barrels (run.py --option coop=1).
-  var COOP_HARD = { MORE: [1.2, 2], FULL: 15, DREAD: 2 }, coopLevels = {};
+  var COOP_HARD = { MORE: [1.35, 2.6], FULL: 15, DREAD: 2 }, coopLevels = {};
   function coopMore(n) { var k = Math.min(1, Math.max(0, (n - 1) / (COOP_HARD.FULL - 1))); return COOP_HARD.MORE[0] + (COOP_HARD.MORE[1] - COOP_HARD.MORE[0]) * k; }
   function lv() {
     var L = LEVELS[S && S.level] || LEVELS.soldier;
@@ -97,6 +97,8 @@
   var PAPER = tok('--paper', '#fbf8ef'), RULE = tok('--rule', '#cfdcec'), MARGIN = tok('--margin', '#e6a2a0');
   var INK = tok('--ink', '#2e2e33'), INK2 = tok('--ink-soft', '#5d5a55');
   var RED = tok('--enemy', '#c8433a'), BLUE = tok('--ally', '#2f6fdc'), HAT = tok('--hat', '#f2c230');
+  // Co-op's second player writes in green: blue, red and green are the notebook's three pens, and red is the enemy's.
+  var GREEN = tok('--friend', '#2e8b4a');
   var RED_FILL = 'rgba(200,67,58,0.14)', INK_FILL = 'rgba(46,46,51,0.07)', EMPTY = '#aaa395';
   var HAND = '"Schoolbell", "Comic Sans MS", "Chalkboard SE", cursive';
   var DISPLAY = '"Cabin Sketch", "Schoolbell", "Comic Sans MS", cursive';
@@ -323,7 +325,31 @@
   // A co-op player's own tally: the points their barrel earned (its rounds, the chutes it popped that were caught,
   // its own combo), and its planes, catches and Red Cross hits for the end card. Points nobody fired for (the squad,
   // air strikes, wave bonuses) go to the team score only. `gunner` is the barrel whose round is being resolved.
-  function makePlayer() { return { score: 0, combo: 0, comboT: 0, planes: 0, captured: 0, redCross: 0, hq: 0, kills: 0 }; }
+  function makePlayer() { return { score: 0, tags: 0, combo: 0, comboT: 0, planes: 0, captured: 0, redCross: 0, hq: 0, kills: 0 }; }
+  // Dog tags. Solo has one wallet, S.coins. In co-op each player has their own (p.tags, coop.md, Oct 11): tags from
+  // what a barrel shoots are its player's, and tags nobody fired for (the squad, wave bonuses, crates, safe passage)
+  // are split evenly, an odd one going to each player in turn (S.tagOdd). In solo these do exactly what they replaced.
+  function tagsOf(by) { return S.players ? S.players[by].tags : S.coins; }
+  function gainTags(n) {
+    if (!S.players) { S.coins += n; return; }
+    var p = scorer();
+    if (p) { p.tags += n; return; }
+    var half = Math.floor(n / 2), first = S.tagOdd || 0;
+    S.players[0].tags += half; S.players[1].tags += half;
+    if (n - 2 * half) { S.players[first].tags += 1; S.tagOdd = 1 - first; }
+  }
+  // Up to n tags, from the shooter's wallet (co-op) or from both, half each; returns how many went.
+  function takeTags(n) {
+    var t;
+    if (!S.players) { t = Math.min(S.coins, n); S.coins -= t; return t; }
+    var p = scorer();
+    if (p) { t = Math.min(p.tags, n); p.tags -= t; return t; }
+    var a = Math.min(S.players[0].tags, Math.ceil(n / 2)), b = Math.min(S.players[1].tags, n - a);
+    S.players[0].tags -= a; S.players[1].tags -= b;
+    return a + b;
+  }
+  // A purchase in the shop, from the buyer's wallet (shop.js).
+  function spendTags(n, by) { if (S.players) S.players[by].tags -= n; else S.coins -= n; }
   var gunner = null;
   function scorer() { return S.players && gunner != null ? S.players[gunner] || null : null; }
   function playerEvent(type, data) {
@@ -486,7 +512,7 @@
     S.score += pts;
     if (p) p.score += pts;
     var tags = Math.max(1, Math.round(base / 15)) + Math.floor(mult / 3);
-    S.coins += tags; flyTags(x, y, tags);
+    gainTags(tags); flyTags(x, y, tags);
     emit('coins', { amount: tags, reason: OUCH.indexOf(label) >= 0 ? 'kill' : label.replace(/!+$/, '') });
     if (quiet) return;
     // Every kind of trooper cry merges with the others, under the first one's word.
@@ -780,7 +806,7 @@
         // A wave that never touched the wall pays extra: half the wave bonus again, and a tag a wave.
         var untouched = S.stats.wallDamage - S.waveStart.wall < 0.5, extra = untouched ? 50 * S.wave : 0;
         if (untouched) waveTags += S.wave;
-        S.score += bonus + extra; S.coins += waveTags; flyTags(200, 330, waveTags);
+        S.score += bonus + extra; gainTags(waveTags); flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave, untouched: untouched }); emit('coins', { amount: waveTags, reason: 'wave' });
         S.news = []; serveWave(S.news); careAtWaveEnd(S.news);
         S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
@@ -832,6 +858,8 @@
     FIGHTER = UNITS.FIGHTER, callFighter = function () { return COOP && COOP.guest ? COOP.ask('call', 'fighter') : UNITS.callFighter(); }, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio;
   // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
+  world.gainTags = function (n) { gainTags(n); }; world.takeTags = function (n) { return takeTags(n); }; world.tagsOf = function (by) { return tagsOf(by); };
+  world.spendTags = function (n, by) { spendTags(n, by); };
   world.grantCall = grantCall; world.activeTramps = activeTramps; world.loseTags = function (n, x, y) { loseTags(n, x, y); }; world.standing = standing; world.repairWall = repairWall;
   world.dogTag = function (x, y, rot, sc) { dogTag(x, y, rot, sc); };
   Object.defineProperties(world, { CAPTURE_SPEED: { get: function () { return CAPTURE_SPEED; } }, PLANE_PTS: { get: function () { return PLANE_PTS; } } });
@@ -1997,8 +2025,8 @@
     G.beginPath(); G.moveTo(a + jt(0.5), y + jt(0.5)); G.quadraticCurveTo(mid + jt(1), y + sag * 2, b + jt(0.5), y + jt(0.5)); ink(INK, 3.4); G.stroke();
     G.beginPath(); G.rect(a - 5, y - 4, 9, 7); G.rect(b - 4, y - 4, 9, 7); G.fillStyle = BLUE; G.fill(); ink(INK, 1.6); G.stroke();
   }
-  // Two barrels (co-op) each wear their player's color as a band behind the muzzle: the host blue, the guest red.
-  var GUN_COLORS = [BLUE, RED];
+  // Two barrels (co-op) each wear their player's color as a band behind the muzzle: the host blue, the guest green.
+  var GUN_COLORS = [BLUE, GREEN];
   function drawBarrel(t) {
     var len = 31 - t.recoil * 6, hot = clamp((t.heat - 0.35) / 0.65, 0, 1);
     if (t.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
@@ -2291,12 +2319,12 @@
     });
   }
   // On the night raid the whole page goes dark, so the HUD is written in chalk (sky.js drawNight).
-  var CHALK = { INK: '#f1ebdd', INK2: '#c8cede', TAGS: '#c8cede', BLUE: '#93b8ff', RED: '#ff9484' };
-  var hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
+  var CHALK = { INK: '#f1ebdd', INK2: '#c8cede', TAGS: '#c8cede', BLUE: '#93b8ff', RED: '#ff9484', GREEN: '#8fd6a5' };
+  var hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN };
   var HUD_GAP = 8;
   function drawHUD() {
     pen(4242);
-    var chalk = S.night > 0.5 && !S.smoke, c = chalk ? CHALK : { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
+    var chalk = S.night > 0.5 && !S.smoke, c = chalk ? CHALK : { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN };
     hud = c;
     G.save();
     G.textAlign = 'left';
@@ -2310,7 +2338,7 @@
         if (pw > 84) G.font = Math.max(10, Math.floor(15 * 84 / pw)) + 'px ' + HAND;
         G.fillStyle = c.BLUE; G.fillText(ps[0], px, 28); px += G.measureText(ps[0]).width;
         G.fillStyle = c.INK2; G.fillText(' · ', px, 28); px += G.measureText(' · ').width;
-        G.fillStyle = c.RED; G.fillText(ps[1], px, 28);
+        G.fillStyle = c.GREEN; G.fillText(ps[1], px, 28);
       }
       // A long score shrinks to stop short of the wave label (round 14: six digits ran into "wave 10").
       var sc = S.score.toLocaleString('en-US');
@@ -2323,7 +2351,7 @@
       dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
       var lose = S.tagLoss > 0, jig = lose ? Math.sin(S.t * 60) * 2.5 * Math.min(1, S.tagLoss) : 0;
       G.save(); G.translate(302 + jig, 58); var pulse = 1 + (S.tagPulse || 0) * 0.9; G.scale(pulse, pulse);
-      G.fillStyle = lose ? c.RED : c.TAGS; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(S.coins), 0, 0); G.restore();
+      G.fillStyle = lose ? c.RED : c.TAGS; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(tagsOf(me)), 0, 0); G.restore();
       if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = c.RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }
       G.fillStyle = c.INK;
       G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
@@ -2339,7 +2367,7 @@
       else if (S.wave === DREAD.WAVE) { G.fillStyle = c.RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
     }
     // The title uses the bottom of the page for Start and the chips.
-    if (S.mode === 'title') { G.restore(); hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED }; return; }
+    if (S.mode === 'title') { G.restore(); hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN }; return; }
     var y1 = 648, bx = 112, bw = 186, hp = Math.max(0, S.wallHP);
     G.textAlign = 'left'; G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
     G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : chalk ? 'rgba(147,184,255,0.55)' : 'rgba(47,111,220,0.4)';
@@ -2648,7 +2676,7 @@
     var st = {
       wave: S.wave, kills: S.stats.kills, captured: S.stats.captured, popped: S.stats.popped, planes: S.stats.planes,
       zeppelins: S.stats.zeppelins, tanks: S.stats.tanks, wall_damage: Math.round(S.stats.wallDamage), shots: S.stats.shots,
-      crew: S.recruits.filter(function (r) { return !r.dead; }).length + (S.bed ? 1 : 0), fallen: S.fallen.length, tags: S.coins
+      crew: S.recruits.filter(function (r) { return !r.dead; }).length + (S.bed ? 1 : 0), fallen: S.fallen.length, tags: S.players ? S.players[0].tags + S.players[1].tags : S.coins
     };
     if ((S.mode === 'over' || S.mode === 'dying') && S.lastHit) st.cause = S.lastHit;
     if (S.won) st.won_at = S.wonAt;

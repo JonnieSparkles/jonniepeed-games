@@ -45,7 +45,13 @@ with Phones() as phones:
     host.goto(phones.url('stick-army/'))
     host.click('#coopBtn')
     check(card(host) == 'Play with a friend', 'Play with a friend asks for the secret')
+    # Three words: Meatball, Meatball, Sausage; a wrong one starts over.
     host.click('#coopScreen button:text-is("Meatball")')
+    wrong = host.evaluate("() => [...document.querySelectorAll('#coopScreen button')].map(b => b.textContent).find(t => t !== 'Meatball' && t !== 'Cancel')")
+    host.click('#coopScreen button:text-is("%s")' % wrong)
+    check('Nope' in host.text_content('#coopScreen'), 'a wrong second word: nope, start over')
+    for word in ('Meatball', 'Meatball', 'Sausage'):
+        host.click('#coopScreen button:text-is("%s")' % word)
     wait(host, "() => document.getElementById('coopStart')")
     check(card(host) == 'Send the link' and host.is_disabled('#coopStart'), 'the link card waits for a friend, Start greyed')
     link = host.text_content('.coop-link')
@@ -92,19 +98,22 @@ with Phones() as phones:
     wait(guest, "() => document.getElementById('pauseScreen').hidden")
     check(True, 'and resumes both')
 
-    # The supply table: the guest shops through the host; turret upgrades are each player's own, common ones shared.
-    js(host, 'S.coins = 600; openShop(); S.shop.items = ["spread", "sandbags", "pizza"].map(function (id) { return ITEMS.find(function (q) { return q.id === id; }); }); S.shop.gift = null; renderShop(); "ok"')
+    # The supply table: the guest shops through the host with its own tags; "Your gun" is each player's own, the squad's
+    # things are bought once by either.
+    js(host, 'S.players[0].tags = 300; S.players[1].tags = 300; openShop(); S.shop.items = ["spread", "sandbags", "pizza"].map(function (id) { return ITEMS.find(function (q) { return q.id === id; }); }); S.shop.offered = ["spread", "sandbags"]; renderShop(); "ok"')
     wait(guest, "() => !document.getElementById('shopScreen').hidden && document.querySelector('[data-item=\"spread\"]')")
     check(True, "the guest sees the supply table")
-    guest.click('[data-item="spread"]')
-    wait(host, "() => armyTest('!!S.turrets[1].mods.spread && !S.turrets[0].mods.spread')")
-    check(True, "the guest's spread shot goes on the guest's barrel")
+    check(guest.is_visible('#gunSection [data-item="spread"]') and '(yours)' in guest.text_content('#shopCoins'), 'the guest sees "Your gun" and its own tags')
+    guest.click('#gunSection [data-item="spread"]')
+    wait(host, "() => armyTest('!!S.turrets[1].mods.spread && !S.turrets[0].mods.spread && S.players[1].tags === 300')")
+    check(True, "the guest's spread shot goes on the guest's barrel, as its free pick")
     guest.click('[data-item="sandbags"]')
-    wait(host, "() => /comrade/.test(document.querySelector('[data-item=\"sandbags\"] em').textContent)")
-    check(host.is_enabled('[data-item="spread"]'), 'the host sees the sandbags chosen by the comrade, and can still buy spread for its own barrel')
+    wait(host, "() => /Bought by your friend/.test(document.querySelector('[data-item=\"sandbags\"] em').textContent)")
+    check(host.is_enabled('[data-item="spread"]') and js(host, 'S.players[1].tags') < 300 and js(host, 'S.players[0].tags') == 300,
+          'the host sees the sandbags bought by the friend, paid from the friend\'s tags, and can still take spread free for its own barrel')
     wait(guest, "() => /Packed/.test(document.querySelector('[data-item=\"sandbags\"] em').textContent)")
     host.click('#continueBtn')
-    wait(guest, "() => /Friend ✓/.test(document.getElementById('coopReady').textContent)")
+    wait(guest, "() => /Friend ready ✓/.test(document.getElementById('coopReady').textContent)")
     check(js(host, 'S.mode') == 'shop', 'the host is ready; the wave waits for the guest, who sees it')
     guest.click('#continueBtn')
     wait(host, "() => armyTest('S.mode') === 'play'")
