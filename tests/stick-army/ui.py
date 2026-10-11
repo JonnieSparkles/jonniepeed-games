@@ -36,7 +36,7 @@ with sync_playwright() as p:
         else:
             page.keyboard.press('ArrowLeft');page.keyboard.press('Space')
         page.keyboard.press('p'); assert page.locator('#pauseScreen').is_visible(); page.click('#resumeBtn')
-        page.evaluate('armyTest("newGame(); S.wallHP=55; S.coins=125; S.recruits=[makeRecruit(0, \'rifle\')]; S.recruits[0].hp=1; openShop();")')
+        page.evaluate('armyTest("newGame(); S.wallHP=55; S.players[0].tags=125; S.recruits=[makeRecruit(0, \'rifle\')]; S.recruits[0].hp=1; openShop();")')
         page.screenshot(path=str(OUT/f'shop-{width}.png'))
         assert not page.locator('#continueBtn').is_disabled()
         footer=page.locator('#continueBtn').bounding_box()

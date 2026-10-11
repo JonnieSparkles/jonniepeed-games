@@ -1,6 +1,7 @@
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
-  function equip(id) { ITEMS.find(it=>it.id===id).apply(S); }
+  // Turret upgrades go on the barrel, everything else on the squad (shop.js buy).
+  function equip(id) { var it = ITEMS.find(it=>it.id===id); it.apply(SHOP.own(it) ? { mods: S.turrets[0].mods } : S); }
   newGame(); equip('double'); equip('spread'); equip('pierce'); equip('rockets');
   for(var i=0;i<4;i++) shoot();
   check(S.bullets.filter(b=>b.kind==='bullet').length===24 && S.bullets.filter(b=>b.kind==='rocket').length===1,'double/spread/rocket composition');

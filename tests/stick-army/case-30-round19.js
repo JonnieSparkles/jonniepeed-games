@@ -48,13 +48,13 @@
 
   // Veteran's kit: KIT pieces, each stack one; then what's on offer is greyed "Kit full".
   check(LEVELS.soldier.KIT === Infinity && LEVELS.veteran.KIT > 0, 'the levels');
-  level = 'veteran'; RUN.force = 3; newGame(); RUN.force = null; S.coins = 1e6; S.wave = 6;
+  level = 'veteran'; RUN.force = 3; newGame(); RUN.force = null; S.players[0].tags = 1e6; S.wave = 6;
   openShop();
   var kit = ITEMS.filter(function (it) { return it.tier === 'supply' && it.maxStacks !== Infinity && !it.available; });
   var n = 0;
-  kit.forEach(function (it) { for (var k = 0; k < it.maxStacks && n < LEVELS.veteran.KIT; k++) { S.mods.stacks[it.id] = (S.mods.stacks[it.id] || 0) + 1; n++; } });
+  kit.forEach(function (it) { for (var k = 0; k < it.maxStacks && n < LEVELS.veteran.KIT; k++) { SHOP.stacksOf(it)[it.id] = (SHOP.stacksOf(it)[it.id] || 0) + 1; n++; } });
   check(SHOP.kitCount() === LEVELS.veteran.KIT, 'the kit counts every stack');
-  var more = kit.find(function (it) { return (S.mods.stacks[it.id] || 0) < it.maxStacks; });
+  var more = kit.find(function (it) { return (SHOP.stacksOf(it)[it.id] || 0) < it.maxStacks; });
   check(more && !eligible(more) && SHOP.kitFull(more), 'a full kit takes no more');
   check(eligible(ITEMS.find(function (it) { return it.id === 'pizza'; })), 'the pizza is never kit');
   S.shop.items = [more].concat(S.shop.items.filter(function (it) { return it.id === 'pizza'; })); renderShop();
@@ -63,7 +63,7 @@
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   // Soldier: no cap.
   level = 'soldier'; newGame();
-  kit.forEach(function (it) { S.mods.stacks[it.id] = it.maxStacks; });
+  kit.forEach(function (it) { SHOP.stacksOf(it)[it.id] = it.maxStacks; });
   check(!SHOP.kitFull(kit[0]), 'Soldier has no kit cap');
 
   RUN.force = null; level = 'soldier'; reset(); S.mode = 'title';

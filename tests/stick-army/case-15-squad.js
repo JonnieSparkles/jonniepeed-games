@@ -98,7 +98,7 @@
   overScreen.hidden = true;
 
   // Drawn in: as a wave starts, what you just bought is sketched onto the page one piece at a time.
-  RUN.force = 28; newGame(); S.wave = 8; S.coins = 999; openShop();
+  RUN.force = 28; newGame(); S.wave = 8; S.players[0].tags = 999; openShop();
   ['auto', 'hospital'].forEach(function (id) { var it = ITEMS.find(function (x) { return x.id === id; }); it.apply(S); S.shop.bought[id] = true; });
   takeItem('hire-rifle'); var hire = S.recruits[S.recruits.length - 1];
   continueWave(); S.spawn.timer = 99;

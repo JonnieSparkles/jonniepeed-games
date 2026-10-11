@@ -54,8 +54,8 @@
   // The wave start comes one thing at a time. HQ's bomber at the first tank wave is in the banner, not a label.
   RUN.force = 32; newGame(); S.texts = []; startWave(TANK.WAVE);
   check(S.calls.bomber === 1 && S.banner.sub === 'tanks! +1 air strike from HQ' && !S.texts.length, 'the HQ call is in the banner');
-  newGame(); S.calls.bomber = 1; S.calls.fighter = 1; var tags0 = S.coins; startWave(TANK.WAVE);
-  check(/radio full/.test(S.banner.sub) && S.coins === tags0 + RADIO.FULL_TAGS && !S.texts.length, 'a full radio is in the banner too');
+  newGame(); S.calls.bomber = 1; S.calls.fighter = 1; var tags0 = S.players[0].tags; startWave(TANK.WAVE);
+  check(/radio full/.test(S.banner.sub) && S.players[0].tags === tags0 + RADIO.FULL_TAGS && !S.texts.length, 'a full radio is in the banner too');
   // So is the zeppelin's.
   newGame(); startWave(5); S.texts = []; var zep = spawnZeppelin(); zep.x = 200; zeppelinDown(zep, 'player');
   check(S.banner.sub === 'catch the crew! +1 air strike' && !S.texts.some(function (q) { return /air strike/.test(q.s); }), 'the zeppelin reward is in its banner');
@@ -68,7 +68,7 @@
   check(widest < W - 30, 'banner subtitles fit: ' + widest);
 
   // Pizza is its own scene before the wave: no banner, sketches or enemies until he has served.
-  RUN.force = 33; newGame(); S.wave = 4; S.coins = 999; openShop();
+  RUN.force = 33; newGame(); S.wave = 4; S.players[0].tags = 999; openShop();
   takeItem('pizza'); ITEMS.find(function (x) { return x.id === 'wire'; }).apply(S); S.shop.bought.wire = true;
   continueWave();
   check(S.waveState === 'pizza' && !S.banner && sketchProgress('wire') === 0, 'the courier comes first; new purchases wait undrawn');
@@ -131,14 +131,14 @@
   check(decals.indexOf(mark) < 0, 'and old marks go');
 
   // In the shop, the gift looks like any other row until it's taken, and bought supplies don't look unavailable.
-  RUN.force = 36; newGame(); S.wave = 4; S.coins = 999; openShop(); document.activeElement.blur();
+  RUN.force = 36; newGame(); S.wave = 4; S.players[0].tags = 999; openShop(); document.activeElement.blur();
   function look(b) { var c = getComputedStyle(b); return [c.backgroundColor, c.borderTopColor, c.color, c.boxShadow].join(' / '); }
   var deals = function () { return [].slice.call(document.querySelectorAll('#supplyItems .deal')); };
   var gift = deals().find(function (b) { return b.classList.contains('gift'); }), plain = deals().find(function (b) { return !b.classList.contains('gift') && !b.disabled; });
   check(gift && plain && look(gift) === look(plain), 'the gift is not highlighted as if chosen: ' + (gift && look(gift)) + ' vs ' + (plain && look(plain)));
-  var pick = S.shop.items.find(function (it) { return it.id !== S.shop.gift && it.id !== 'pizza' && eligible(it) && costNow(it) <= S.coins; });
+  var pick = S.shop.items.find(function (it) { return it.id !== S.shop.gift && it.id !== 'pizza' && eligible(it) && costNow(it) <= S.players[0].tags; });
   check(takeItem(pick.id), 'buy one');
-  S.coins = 0; renderShop(); document.activeElement.blur();
+  S.players[0].tags = 0; renderShop(); document.activeElement.blur();
   var packed = document.querySelector('#supplyItems [data-item="' + pick.id + '"]'), grey = deals().find(function (b) { return b.disabled && !b.classList.contains('bought'); });
   check(packed.classList.contains('bought') && /Packed/.test(packed.textContent) && /put back/.test(packed.textContent) && !packed.disabled, 'a bought supply says it is packed, and can go back');
   check(grey && getComputedStyle(packed).color !== getComputedStyle(grey).color && getComputedStyle(packed).borderTopColor !== getComputedStyle(grey).borderTopColor, 'and does not look unavailable');

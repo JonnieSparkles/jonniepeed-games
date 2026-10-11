@@ -1,11 +1,9 @@
-// Stick Army field supplies: the item list, the shop between waves, the kit display and the pizza courier.
-// Classic script; load before game.js. game.js calls StickArmyShop(world) once with the world object it gives
-// units.js and squad.js, and keeps aliases (ITEMS, openShop, takeItem and so on) for harnesses and tune.js.
+// Stick Army field supplies: the item list, prices, what's offered, and buying, putting back and undo between waves.
+// The bookkeeping only: the shop screen is shop-screen.js, which draws what this decides. Classic script; load
+// before game.js. game.js calls StickArmyShop(world) once with the world object it gives units.js and squad.js, and
+// keeps aliases (ITEMS, openShop, takeItem and so on) for harnesses and tune.js.
 var StickArmyShop = function (w) {
   'use strict';
-  var GROUND = w.GROUND, W = w.W, INK = w.INK, RED = w.RED, BLUE = w.BLUE, PAPER = w.PAPER;
-  var L = w.L, SP = w.SP, Ci = w.Ci, ink = w.ink, pen = w.pen, stick = w.stick;
-  var shopScreen = document.getElementById('shopScreen'), pauseBtn = document.getElementById('pauseBtn');
 
   // ---------- field supplies: all upgrades are run-local ----------
   var ITEMS = [
@@ -58,22 +56,26 @@ var StickArmyShop = function (w) {
     if (s.bed) w.SQUAD.train(s.bed.r, 1);
   }
   function hasMedic() { return w.S.recruits.some(function (r) { return !r.dead && r.type === 'medic'; }); }
-  // ---------- co-op (coop.md) ----------
-  // With two barrels each player has their own dog tags (game.js tagsOf) and their own free pick: the first of the
-  // visit's rotating supplies they take. Turret upgrades (game.js TURRET_MODS) are each player's own: bought for the
-  // buyer's barrel, with stacks counted per barrel, and shown under "Your gun". Everything else is for the squad,
-  // bought once by either player. Only the buyer puts a thing back, and gets the tags back. `by` is the buyer (0 the
-  // host, 1 the guest; this device's player when left out). Solo has one barrel and none of this applies.
+  // ---------- buyers ----------
+  // Every purchase has a buyer, `by`: a player (0 the host, 1 the co-op guest; this device's player when left out).
+  // Each player pays from their own dog tags (game.js tagsOf) and gets their own free pick. Turret upgrades
+  // (game.js TURRET_MODS) are the buyer's barrel's, with stacks counted per barrel; everything else is the squad's,
+  // bought once by anyone. Only the buyer puts a thing back, and gets the tags back. Solo is the one-player case;
+  // the rules that differ in co-op (the free pick, squad prices, the screen's labels) check w.S.coop.
   var TURRET = {};
   w.TURRET_MODS.forEach(function (id) { TURRET[id] = true; });
-  function twin() { var t = w.S.turrets; return !!(t && t.length > 1); }
-  function own(it) { return twin() && !!TURRET[it.id]; }
+  function coop() { return !!w.S.coop; }
+  function own(it) { return !!TURRET[it.id]; }
   function buyer(by) { return by == null ? w.me : by; }
   function stacksOf(it, by) { return own(it) ? w.S.turrets[buyer(by)].mods.stacks : w.S.mods.stacks; }
   // What a purchase is filed under in the visit: a turret upgrade per buyer ('spread@1'), anything else by its id.
   function slot(it, by) { return own(it) ? it.id + '@' + buyer(by) : it.id; }
-  function logEntry(id, by) { return twin() ? id + '@' + buyer(by) : id; }
-  function parseEntry(e) { var at = e.indexOf('@'); return at < 0 ? { id: e, by: 0 } : { id: e.slice(0, at), by: Number(e.slice(at + 1)) }; }
+  // The visit's log lists every purchase in order as 'id@buyer'.
+  function entry(id, by) { return id + '@' + buyer(by); }
+  function parse(e) { var at = e.lastIndexOf('@'); return { id: e.slice(0, at), by: Number(e.slice(at + 1)) }; }
+  function bought(it, by) { var S = w.S; return !!(S.shop && S.shop.bought[slot(it, by)]); }
+  // A squad supply someone else bought: shown as theirs, and only they can put it back.
+  function othersBuy(it, by) { var S = w.S; return it.tier !== 'hire' && bought(it, by) && S.shop.who[slot(it, by)] !== buyer(by); }
   // A guest's taps go to the host (coop.js); true when they did.
   function remote(action, id) { return !!(w.coopRemote && w.coopRemote(action, id)); }
   // War prices: supplies run short as the war drags on. After wave WAR.FROM, prices rise WAR.SUPPLY a wave (about three
@@ -102,7 +104,7 @@ var StickArmyShop = function (w) {
     if (item.flat) return item.cost;
     var n = typeof item.cost === 'function' ? item.cost() : fives(item.cost * war(WAR.SUPPLY));
     // Co-op: two wallets fund one squad, so its things cost more (game.js COOP_HARD.SQUAD_PRICE); your gun's don't.
-    return twin() && !own(item) ? fives(n * w.COOP_HARD.SQUAD_PRICE) : n;
+    return coop() && !own(item) ? fives(n * w.COOP_HARD.SQUAD_PRICE) : n;
   }
   // The kit: every lasting supply (not the pizza, patches, radio calls or hires), each stack one piece. Veteran's holds
   // KIT pieces (game.js LEVELS; round 19, "I think it is that stuff stacks"): once it's full, what's left on offer is
@@ -114,8 +116,8 @@ var StickArmyShop = function (w) {
   function kitFull(it, by) { return isKit(it) && kitCount(by) >= w.lv().KIT; }
   function canStack(item, by) { return (stacksOf(item, by)[item.id] || 0) < item.maxStacks && (!item.available || item.available()); }
   function eligible(item, by) { return canStack(item, by) && !kitFull(item, by); }
-  // On offer if either barrel can still take it (a turret upgrade in co-op), or the team can. A full kit doesn't take
-  // it off the table: it shows, greyed.
+  // On offer if any barrel can still take it (a turret upgrade), or the squad can. A full kit doesn't take it off the
+  // table: it shows, greyed.
   function offerable(item) { return own(item) ? w.S.turrets.some(function (t, i) { return canStack(item, i); }) : canStack(item); }
   // Offers walk a seeded shuffle of every supply and take the first eligible ones, so for a given seed
   // the offers change only when eligibility does.
@@ -125,14 +127,17 @@ var StickArmyShop = function (w) {
     for (i = order.length - 1; i > 0; i--) { j = Math.floor(w.RS() * (i + 1)); tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
     return order.filter(offerable).slice(0, n);
   }
-  // One random offer each visit is on the house; in co-op, each player's first rotating supply (S.shop.giftTaken by player).
+  // The free pick: solo's is one random offer each visit; in co-op each player's is the first of the visit's rotating
+  // supplies they take (S.shop.giftTaken, by player).
   function onHouse(it, by) {
     var S = w.S;
-    if (!S.shop) return false;
-    if (twin()) return (S.shop.offered || []).indexOf(it.id) >= 0 && !S.shop.giftTaken[buyer(by)];
-    return it.id === S.shop.gift && !S.shop.giftTaken;
+    if (!S.shop || S.shop.giftTaken[buyer(by)]) return false;
+    return coop() ? S.shop.offered.indexOf(it.id) >= 0 : it.id === S.shop.gift;
   }
   function costNow(it, by) { return onHouse(it, by) ? 0 : price(it); }
+  function canBuy(it, by) { return eligible(it, by) && (it.tier === 'hire' || !bought(it, by)) && w.tagsOf(buyer(by)) >= costNow(it, by); }
+
+  // ---------- a visit ----------
   function openShop() {
     var S = w.S;
     S.mode = 'shop'; S.waveState = 'shop'; w.clearInput(); S.bullets = []; S.banner = null; S.delivery = null; w.washDecals();
@@ -143,270 +148,100 @@ var StickArmyShop = function (w) {
     if (items.length && kitFull(items[gift])) { var open = items.findIndex(function (it) { return !kitFull(it); }); if (open >= 0) gift = open; }
     var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
     S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire'; }),
-      gift: items.length ? items[gift].id : null, giftTaken: twin() ? {} : false, bought: {}, base: snapshot(S), log: [],
+      gift: items.length ? items[gift].id : null, giftTaken: {}, bought: {}, who: {}, base: snapshot(S), log: [],
       offered: items.map(function (it) { return it.id; }) };
     w.emit('shop_offer', { wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: S.shop.gift });
-    shopScreen.hidden = false; pauseBtn.hidden = true; renderShop();
-    // Every visit starts at the top of the list.
-    shopScreen.scrollTop = 0; shopScreen.querySelector('.shop-stock').scrollTop = 0;
-    w.sound.play('shop');
-    shopScreen.querySelector('button:not(:disabled)').focus({ preventScroll: true });
+    w.shopScreen.open();
   }
   function takeItem(id, by) {
     var S = w.S;
     if (by == null && remote('take', id)) return true;
     if (S.mode !== 'shop' || !S.shop || !buy(id, false, by)) return false;
-    w.sound.play('recruit'); renderShop();
-    if (S.mode === 'shop') (shopScreen.querySelector('.shop-stock button:not(:disabled)') || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    w.shopScreen.taken(id);
     return true;
   }
   // replay: buying again after a put-back, so the purchase isn't reported twice.
   function buy(id, replay, by) {
     var S = w.S, item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
-    // Supplies sell once per visit (per barrel, for a co-op turret upgrade); hiring repeats while slots and tags last.
-    if (!item || (S.shop.bought[slot(item, by)] && item.tier !== 'hire') || !eligible(item, by)) return false;
+    // Supplies sell once per visit (per barrel, for a turret upgrade); hiring repeats while slots and tags last.
+    if (!item || (bought(item, by) && item.tier !== 'hire') || !eligible(item, by)) return false;
     var gift = onHouse(item, by), cost = costNow(item, by);
     if (w.tagsOf(buyer(by)) < cost) return false;
     w.spendTags(cost, buyer(by));
-    if (gift) { if (twin()) S.shop.giftTaken[buyer(by)] = true; else S.shop.giftTaken = true; }
+    if (gift) S.shop.giftTaken[buyer(by)] = true;
     if (!replay) w.emit('purchase', { item: id, tier: item.tier, cost: cost, gift: gift });
     var stacks = stacksOf(item, by);
-    S.shop.bought[slot(item, by)] = true; stacks[id] = (stacks[id] || 0) + 1;
+    S.shop.bought[slot(item, by)] = true; S.shop.who[slot(item, by)] = buyer(by); stacks[id] = (stacks[id] || 0) + 1;
     item.apply(own(item) ? { mods: S.turrets[buyer(by)].mods } : S);
-    if (twin()) (S.shop.who || (S.shop.who = {}))[slot(item, by)] = buyer(by);
-    S.shop.log.push(logEntry(id, by));
+    S.shop.log.push(entry(id, by));
     return true;
   }
   // Putting something back: the shop remembers what you had when it opened (snapshot) and what you took since, in
   // order. It restores that and takes the rest again, so prices, the gift and hiring stay consistent. Anything that
   // only worked because of what went back (a hire into a slot you returned) goes back too.
   function snapshot(S) {
-    return { coins: S.coins, tags: S.players ? S.players.map(function (p) { return p.tags; }) : null, wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
-      turrets: S.turrets.map(function (t) { return t.mods ? JSON.parse(JSON.stringify(t.mods)) : null; }),
+    return { tags: S.players.map(function (p) { return p.tags; }), wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
+      turrets: S.turrets.map(function (t) { return JSON.parse(JSON.stringify(t.mods)); }),
       pizzaOrder: S.pizzaOrder, recruits: S.recruits.map(function (r) { return Object.assign({}, r); }),
       bed: S.bed ? { r: Object.assign({}, S.bed.r), since: S.bed.since } : null, usedNames: Object.assign({}, S.usedNames) };
   }
-  // In co-op only the buyer puts a thing back (the tags were theirs).
   function putBack(id, by) {
     var S = w.S;
     if (by == null && remote('back', id)) return true;
     if (S.mode !== 'shop' || !S.shop) return false;
-    var at = S.shop.log.lastIndexOf(logEntry(id, by));
+    var at = S.shop.log.lastIndexOf(entry(id, by));
     if (at < 0) return false;
     var keep = S.shop.log.slice(), b = S.shop.base;
     keep.splice(at, 1);
-    S.coins = b.coins; (b.tags || []).forEach(function (t, i) { S.players[i].tags = t; }); S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
-    (b.turrets || []).forEach(function (m, i) { if (m && S.turrets[i]) S.turrets[i].mods = JSON.parse(JSON.stringify(m)); });
+    b.tags.forEach(function (t, i) { S.players[i].tags = t; }); S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
+    b.turrets.forEach(function (m, i) { S.turrets[i].mods = JSON.parse(JSON.stringify(m)); });
     S.pizzaOrder = b.pizzaOrder; S.recruits = b.recruits.map(function (r) { return Object.assign({}, r); }); w.resizeMats();
     S.bed = b.bed ? { r: Object.assign({}, b.bed.r), since: b.bed.since } : null; S.usedNames = Object.assign({}, b.usedNames);
-    S.shop.bought = {}; S.shop.giftTaken = twin() ? {} : false; S.shop.log = []; if (S.shop.who) S.shop.who = {};
-    keep.forEach(function (k) { var e = twin() ? parseEntry(k) : { id: k }; buy(e.id, true, e.by); });
+    S.shop.bought = {}; S.shop.who = {}; S.shop.giftTaken = {}; S.shop.log = [];
+    keep.forEach(function (k) { var e = parse(k); buy(e.id, true, e.by); });
     w.emit('refund', { item: id });
-    w.sound.play('tink'); renderShop();
-    var again = shopScreen.querySelector('[data-item="' + id + '"]:not(:disabled)');
-    (again || document.getElementById('continueBtn')).focus({ preventScroll: true });
+    w.shopScreen.returned(id);
     return true;
   }
-  // Undo puts back this player's last pick (in co-op, the guest's goes through the host).
+  // Undo puts back this player's last pick (a guest's goes through the host).
   function undo(by) {
-    var S = w.S;
     if (by == null && remote('undo')) return true;
     var last = lastOf(by);
     return !!last && putBack(last.id, last.by);
   }
+  // This player's last pick, or null.
   function lastOf(by) {
     var S = w.S;
     if (!S.shop) return null;
-    for (var i = S.shop.log.length - 1; i >= 0; i--) {
-      var e = twin() ? parseEntry(S.shop.log[i]) : { id: S.shop.log[i], by: undefined };
-      if (!twin() || e.by === buyer(by)) return e;
-    }
+    for (var i = S.shop.log.length - 1; i >= 0; i--) { var e = parse(S.shop.log[i]); if (e.by === buyer(by)) return e; }
     return null;
   }
-  // The "Your gun" section (co-op only), made once beside the supplies.
-  function gunSection() {
-    var s = document.getElementById('gunSection');
-    if (s) return s;
-    s = document.createElement('section'); s.id = 'gunSection'; s.setAttribute('aria-labelledby', 'gunTitle'); s.hidden = true;
-    var h = document.createElement('h3'); h.id = 'gunTitle'; h.textContent = 'Your gun';
-    var note = document.createElement('p'); note.className = 'tag-note'; note.textContent = 'For your barrel only.';
-    var list = document.createElement('div'); list.className = 'deal-list';
-    s.append(h, note, list);
-    var supplies = document.getElementById('supplyItems').closest('section');
-    supplies.parentNode.insertBefore(s, supplies);
-    return s;
-  }
-  function bossHint(c) {
-    if (!c.boss) return c.night ? ' Heads up: a night raid is coming.' : '';
-    return ' Heads up: ' + (c.bossKind === 'dread' ? 'the Dreadnought is' : c.twin ? 'two zeppelins are' : 'a zeppelin is') + ' coming.';
-  }
-  function renderShop() {
+  // This player's hires this visit, in order (the screen's send-back chips).
+  function hiresOf(by) {
     var S = w.S;
-    document.getElementById('shopWave').textContent = 'Wave ' + S.wave + ' survived';
-    var mine = w.tagsOf(w.me);
-    document.getElementById('shopCoins').textContent = mine + ' dog tags' + (twin() ? ' (yours)' : '');
-    var news = document.getElementById('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
-    var hurt = Math.round(S.stats.wallDamage - (S.waveStart.wall || 0));
-    document.getElementById('shopReport').textContent = (S.stats.kills - S.waveStart.kills) + ' down · ' + (S.stats.captured - S.waveStart.captured) + ' recruited · wall ' +
-      (hurt > 0 ? '-' + hurt : 'untouched') + ' (' + Math.ceil(S.wallHP) + '/' + S.mods.maxHP + ')';
-    var giftLeft = twin() ? (S.shop.offered || []).length && !S.shop.giftTaken[w.me] : S.shop.gift && !S.shop.giftTaken;
-    document.getElementById('shopHint').textContent = (twin() ? (giftLeft ? 'Your first supply is on the house. Your tags are your own; anything for the squad is for both of you.' : 'Your tags are your own; anything for the squad is for both of you.')
-      : giftLeft ? 'One supply is on the house. Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
-      bossHint(w.waveCfg(S.wave + 1));
-    // Supplies are compact rows, one of them on the house; hiring is a grid of role chips.
-    function canBuy(it) { return eligible(it) && (it.tier === 'hire' || !S.shop.bought[slot(it)]) && mine >= costNow(it); }
-    // Co-op: a squad supply the other player bought shows as theirs (only they can put it back).
-    function comrades(it) { return twin() && it.tier !== 'hire' && S.shop.bought[slot(it)] && S.shop.who && S.shop.who[slot(it)] !== w.me; }
-    function costLabel(it) {
-      if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
-      if (it.blocked && it.blocked() && !S.shop.bought[slot(it)]) return it.blocked();
-      if (!S.shop.bought[slot(it)] && kitFull(it)) return 'Kit full';
-      if (comrades(it)) return 'Bought by your friend';
-      if (it.tier !== 'hire' && S.shop.bought[slot(it)]) return 'Packed ✓';
-      if (onHouse(it)) return 'Free!';
-      return price(it) + ' tags';
-    }
-    // How many more tags an unaffordable supply needs. It sits on its own line under the price, so the row keeps
-    // its width and doesn't jump when the balance changes.
-    function needMore(it) {
-      return it.tier !== 'hire' && !S.shop.bought[slot(it)] && !onHouse(it) && eligible(it) && mine < price(it) ? price(it) - mine : 0;
-    }
-    function itemButton(it, cls, withDesc) {
-      var button = document.createElement('button'), packed = it.tier !== 'hire' && S.shop.bought[slot(it)];
-      button.type = 'button'; button.dataset.item = it.id;
-      // Co-op: every supply you could take free is marked "Pick one free"; the badge is the solo gift's.
-      var free = onHouse(it) && !comrades(it);
-      button.className = cls + (free ? (twin() ? ' gift pick' : ' gift') : '') + (packed ? ' bought' : '');
-      // A packed supply stays live: tapping it again puts it back (in co-op, the buyer's only).
-      button.disabled = comrades(it) || (!packed && !canBuy(it));
-      var icon = document.createElement('canvas'); icon.className = 'supply-icon'; icon.width = icon.height = 132; icon.setAttribute('aria-hidden', 'true');
-      w.drawItemIcon(icon, it.id);
-      var name = document.createElement('strong'); name.textContent = it.name;
-      var label = document.createElement('em'); label.textContent = it.tier === 'hire' ? (it.blocked && it.blocked()) || String(price(it)) : costLabel(it);
-      button.append(icon, name);
-      if (withDesc) { var desc = document.createElement('span'); desc.textContent = it.desc; button.append(desc); }
-      else button.title = it.desc;
-      if (free) { var was = document.createElement('s'); was.textContent = price(it); label.prepend(was, ' '); }
-      if (needMore(it)) { var more = document.createElement('small'); more.textContent = 'need ' + needMore(it) + ' more'; label.append(more); }
-      if (packed && !comrades(it)) { var back = document.createElement('small'); back.textContent = 'tap to put back'; label.append(back); }
-      button.append(label);
-      button.addEventListener('click', function () {
-        if (packed) { putBack(it.id); return; }
-        // On a phone the hired row can sit just below the fold; bring it up so the send-back chip is in sight.
-        if (takeItem(it.id) && it.tier === 'hire') document.getElementById('hiredItems').scrollIntoView({ block: 'nearest' });
-      });
-      return button;
-    }
-    // Co-op: the turret upgrades on offer go under "Your gun", above the squad's supplies.
-    var gunList = twin() ? S.shop.items.filter(own) : [], gun = gunSection();
-    gun.hidden = !gunList.length;
-    gun.querySelector('.deal-list').replaceChildren.apply(gun.querySelector('.deal-list'), gunList.map(function (it) { return itemButton(it, 'deal', true); }));
-    document.getElementById('supplyTitle').textContent = twin() ? 'For the squad' : 'Supplies';
-    document.getElementById('supplyItems').replaceChildren.apply(document.getElementById('supplyItems'), S.shop.items.filter(function (it) { return gunList.indexOf(it) < 0; }).map(function (it) { return itemButton(it, 'deal', true); }));
-    var up = Math.round((war(WAR.SUPPLY) - 1) * 100), vet = markup() > 1;
-    document.getElementById('supplyNote').textContent = 'Dog tags come from kills, planes and cleared waves.' +
-      (vet ? ' Veteran prices: up ' + up + '%.' : up >= 10 ? ' Supplies are running short: prices are up ' + up + '%.' : '') +
-      (w.lv().KIT < Infinity ? ' Your kit holds ' + w.lv().KIT + '.' : '');
-    // Every role is always listed, so the list never changes shape; what you can't hire is greyed.
-    document.getElementById('hireItems').replaceChildren.apply(document.getElementById('hireItems'), S.shop.hire.map(function (it) { return itemButton(it, 'hire', false); }));
-    // Who you hired this visit: tap one to send him back and get the tags back.
-    // Co-op: your own hires (only the buyer sends one back).
-    var hired = document.getElementById('hiredItems'), hires = S.shop.log.map(function (e) { return twin() ? parseEntry(e) : { id: e }; })
-      .filter(function (e) { return /^hire-/.test(e.id) && (!twin() || e.by === w.me); }).map(function (e) { return e.id; });
-    hired.replaceChildren.apply(hired, hires.map(function (id) {
-      var it = ITEMS.find(function (q) { return q.id === id; }), chip = document.createElement('button'), icon = document.createElement('canvas'), name = document.createElement('span');
-      chip.type = 'button'; chip.className = 'hired-chip'; chip.dataset.hired = id; chip.title = 'Send back';
-      icon.width = icon.height = 88; icon.setAttribute('aria-hidden', 'true'); w.drawItemIcon(icon, id);
-      name.textContent = it.name + ' ↩'; chip.setAttribute('aria-label', 'Send back the ' + it.name.toLowerCase());
-      chip.append(icon, name); chip.addEventListener('click', function () { putBack(id); });
-      return chip;
-    }));
-    hired.hidden = !hires.length;
-    document.getElementById('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire. Catch them on the mat for free.';
-    // The squad as it stands, redrawn as you hire, train or put things back (round 14: "show squad status on store"):
-    // every slot as in the HUD, with roles, stripes and health, and names, waves and kills.
-    w.drawSquadRow(document.getElementById('shopSquadRow'), true);
-    document.getElementById('shopSquad').textContent = w.squadLine(true) || 'Nobody yet. Catch them on the mat, or hire.';
-    renderKit(document.getElementById('loadout'), false);
-    // Undo puts back the last thing taken, hires included.
-    var undoBtn = document.getElementById('undoBtn'), last = lastOf();
-    undoBtn.hidden = !last;
-    if (last) undoBtn.textContent = '↩ Undo ' + ITEMS.find(function (it) { return it.id === last.id; }).name.toLowerCase();
-    document.getElementById('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
-    if (w.afterShop) w.afterShop();
+    return S.shop ? S.shop.log.map(parse).filter(function (e) { return /^hire-/.test(e.id) && e.by === buyer(by); }).map(function (e) { return e.id; }) : [];
   }
   function continueWave() {
     var S = w.S;
     if (S.mode !== 'shop') return;
     w.queueSketches(S.shop.bought);
-    shopScreen.hidden = true; S.shop = null; w.clearInput(); S.mode = 'play'; pauseBtn.hidden = false;
+    S.shop = null; w.clearInput(); S.mode = 'play';
+    w.shopScreen.close();
     // A pizza ordered in the shop is its own little scene before the wave: the courier rides in, everyone is fed,
-    // and the wave starts as he rides off (updateWave). New purchases wait, undrawn, until then. A new flagpole goes
-    // up next, in its own scene (game.js openWave). Without either, the wave starts now.
+    // and the wave starts as he rides off (updateWave, units.js updateDelivery). New purchases wait, undrawn, until
+    // then. A new flagpole goes up next, in its own scene (game.js openWave). Without either, the wave starts now.
     if (S.pizzaOrder) {
       S.pizzaOrder = false; S.waveState = 'pizza'; S.nextWave = S.wave + 1;
       S.delivery = { x: -30, phase: 'arrive', wait: 0 };
     } else w.openWave(S.wave + 1);
-    document.activeElement.blur();
   }
-  // The courier rides along the ground before the wave; the pizza lands at the handoff in the middle of the page.
-  function updateDelivery(dt) {
-    var S = w.S;
-    var d = S.delivery;
-    if (!d) return;
-    if (d.phase === 'arrive') {
-      d.x = Math.min(200, d.x + dt * 145);
-      if (d.x === 200) {
-        d.phase = 'serve'; d.wait = 1.2; w.repairWall(25, 'pizza'); w.emit('pizza', { wave: S.nextWave || S.wave });
-        S.recruits.forEach(function (r) { if (!r.dead) { r.hp = Math.min(w.crewMax(r), r.hp + 1); if (r.down) w.standUp(r, 'pizza'); } });
-        w.sound.play('pizza'); w.say('pizza time!', 4242, false, 0.1, 200, GROUND - 60);
-      }
-    } else if (d.phase === 'serve') { d.wait -= dt; if (d.wait <= 0) d.phase = 'leave'; }
-    else {
-      d.x += dt * 145;
-      if (d.x > W + 35) S.delivery = null;
-    }
-  }
-  function drawCourier() {
-    var S = w.S, G = w.G, d = S.delivery;
-    if (!d) return;
-    var x = d.x, y = GROUND - 17; pen(8080);
-    G.beginPath(); Ci(x - 13, y + 12, 8); Ci(x + 16, y + 12, 8); ink(INK, 2.3); G.stroke();
-    G.beginPath(); SP([x - 13,y + 12,x - 5,y - 4,x + 9,y + 12,x - 13,y + 12],false); L(x - 5,y - 4,x + 11,y - 4); L(x + 11,y - 8,x + 16,y + 12); ink(BLUE,2.4); G.stroke();
-    stick(x - 5, y - 30, [7,17,18,17,3,33,-5,29], INK, 2.3);
-    G.beginPath(); L(x - 12,y - 34,x + 2,y - 34); ink(RED,4); G.stroke();
-    var bx = d.phase === 'serve' ? x + 26 : x - 27, by = d.phase === 'serve' ? y - 28 : y - 9;
-    if (d.phase !== 'leave') {
-      G.fillStyle=PAPER; G.fillRect(bx-10,by-5,22,9); G.beginPath(); L(bx-10,by-5,bx+12,by-5,0.3); L(bx+12,by-5,bx+12,by+4,0.3); L(bx+12,by+4,bx-10,by+4,0.3); L(bx-10,by+4,bx-10,by-5,0.3); ink(RED,1.7); G.stroke();
-      G.beginPath(); Ci(bx,by,2); ink(RED,1.2); G.stroke();
-    }
+  // Owned upgrades: this player's kit, the squad's lasting supplies and their own barrel's. Repeatable buys (repairs,
+  // pizza, hires) aren't kit.
+  function kitItems(by) {
+    return ITEMS.filter(function (it) { return stacksOf(it, by)[it.id] && it.maxStacks !== Infinity; });
   }
 
-  // Owned upgrades as pencil icons: icon-only with counts in the shop, icon and name on the pause card.
-  // Repeatable buys (repairs, pizza, hires) aren't kit.
-  function kitItems() {
-    return ITEMS.filter(function (it) { return stacksOf(it)[it.id] && it.maxStacks !== Infinity; });
-  }
-  function renderKit(holder, named) {
-    var items = kitItems();
-    holder.replaceChildren();
-    if (!items.length) { var none = document.createElement('span'); none.className = 'kit-empty'; none.textContent = 'No kit yet. A fresh page.'; holder.append(none); }
-    items.forEach(function (it) {
-      var n = stacksOf(it)[it.id], chip = document.createElement('span'), icon = document.createElement('canvas'), text = document.createElement('span');
-      chip.className = 'kit-item'; chip.title = it.name + (n > 1 ? ' ×' + n : '');
-      icon.width = icon.height = 88; icon.setAttribute('aria-hidden', 'true'); w.drawItemIcon(icon, it.id);
-      text.className = named ? 'kit-name' : 'sr'; text.textContent = it.name + (n > 1 ? ' ×' + n : '');
-      chip.append(icon, text);
-      if (!named && n > 1) { var count = document.createElement('b'); count.setAttribute('aria-hidden', 'true'); count.textContent = '×' + n; chip.append(count); }
-      holder.append(chip);
-    });
-    // On Veteran, how full the kit is.
-    if (w.lv().KIT < Infinity) { var room = document.createElement('span'); room.className = 'kit-room'; room.textContent = kitCount() + ' of ' + w.lv().KIT; holder.append(room); }
-    return items.length;
-  }
-
-  return { ITEMS: ITEMS, WAR: WAR, war: war, price: price, eligible: eligible, own: own, kitCount: kitCount, kitFull: kitFull,
-    bought: function (it, by) { return !!(w.S.shop && w.S.shop.bought[slot(it, by)]); }, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
-    openShop: openShop, takeItem: takeItem, putBack: putBack, undo: undo, renderShop: renderShop, continueWave: continueWave,
-    updateDelivery: updateDelivery, drawCourier: drawCourier, kitItems: kitItems, renderKit: renderKit };
+  return { ITEMS: ITEMS, WAR: WAR, war: war, markup: markup, price: price, eligible: eligible, canBuy: canBuy, own: own, stacksOf: stacksOf,
+    kitCount: kitCount, kitFull: kitFull, bought: bought, othersBuy: othersBuy, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
+    openShop: openShop, takeItem: takeItem, putBack: putBack, undo: undo, lastOf: lastOf, hiresOf: hiresOf, continueWave: continueWave, kitItems: kitItems };
 };

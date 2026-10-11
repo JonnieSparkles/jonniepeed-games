@@ -44,9 +44,9 @@
   for (var k = 0; k < 60 * 3; k++) update(1 / 60);
   check(S.turrets[0].overheat === 0 && S.turrets[0].heat < 0.35, 'the gun cools and unlocks');
   newGame(); fireVolley(); var plain = S.turrets[0].heat;
-  newGame(); S.mods.cool = 2; fireVolley();
+  newGame(); S.turrets[0].mods.cool = 2; fireVolley();
   check(Math.abs(S.turrets[0].heat - plain * 0.64) < 1e-9, 'cooling fins cut heat per shot');
-  newGame(); S.mods.fire = 4; fireVolley();
+  newGame(); S.turrets[0].mods.fire = 4; fireVolley();
   check(Math.abs(S.turrets[0].heat / BALANCE.HEAT_PER_SHOT - Math.pow(0.82, 4)) < 1e-9, 'fire-rate upgrades keep heat per second the same');
 
   // Midair kills leave no permanent ink; ground kills still do. Crew pieces are blue.

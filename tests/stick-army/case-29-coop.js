@@ -6,16 +6,16 @@
   var players = RUN.players;
   try {
     RUN.force = 29; newGame();
-    check(S.turrets.length === 1 && S.turrets[0].x === TUR.x && !S.turrets[0].mods, 'solo: one barrel at the middle, on S.mods');
-    S.mods.spread = true; S.bullets = []; fireVolley();
-    check(S.bullets.length === 3 && S.bullets.every(function (b) { return b.gun === 0; }), 'solo spread comes from S.mods, rounds marked as player 0');
+    check(S.turrets.length === 1 && S.turrets[0].x === TUR.x && S.turrets[0].mods && !S.coop && S.players.length === 1 && !('coins' in S) && !('spread' in S.mods), 'solo: one player, one barrel at the middle with its own upgrades');
+    S.turrets[0].mods.spread = true; S.bullets = []; fireVolley();
+    check(S.bullets.length === 3 && S.bullets.every(function (b) { return b.gun === 0; }), 'solo spread comes from the barrel, rounds marked as player 0');
 
     RUN.players = 2; RUN.force = 29; newGame();
     var a = S.turrets[0], b = S.turrets[1];
     check(S.turrets.length === 2 && a.x < TUR.x && b.x > TUR.x && a.gun === 0 && b.gun === 1, 'co-op: two barrels side by side');
     check(a.mods && b.mods && a.mods !== b.mods, 'each barrel has its own upgrades');
     // Each player's own upgrades.
-    a.mods.spread = true; S.mods.spread = false; S.bullets = [];
+    a.mods.spread = true; S.bullets = [];
     fireVolley(a); fireVolley(b);
     check(S.bullets.filter(function (q) { return q.gun === 0; }).length === 3 && S.bullets.filter(function (q) { return q.gun === 1; }).length === 1, 'spread on the host barrel only');
     var ha = a.heat, hb = b.heat;
@@ -49,7 +49,7 @@
 
     // Scores: each barrel's own points and combo; the team score has everything.
     RUN.players = 2; RUN.force = 31; newGame();
-    check(S.players && S.players.length === 2 && S.players[0].score === 0, 'a co-op run keeps each player\'s tally');
+    check(S.coop && S.players.length === 2 && S.players[0].score === 0, 'a co-op run keeps each player\'s tally');
     var p0 = S.players[0], p1 = S.players[1], team = S.score;
     gunner = 1; award(10, 200, 300, 'ouch!', INK, true); award(10, 200, 300, 'ouch!', INK, true); gunner = null;
     check(p1.score === 10 + 20 && p1.combo === 2 && p0.score === 0 && S.combo === 0 && S.score === team + 30, 'the guest\'s hits build the guest\'s own combo and score');
@@ -85,7 +85,7 @@
     // Dog tags: each player's own. A barrel's kill pays its player; tags nobody fired for are split, odd ones in turn.
     RUN.players = 2; RUN.force = 32; newGame();
     var P = S.players;
-    check(S.coins === 0 && P[0].tags === 0 && P[1].tags === 0, 'a co-op run starts both wallets empty');
+    check(P[0].tags === 0 && P[1].tags === 0, 'a co-op run starts both wallets empty');
     gunner = 1; award(30, 200, 300, 'ouch!', INK, false); gunner = null;
     check(P[1].tags === 2 && P[0].tags === 0, 'the guest\'s kill pays the guest');
     award(30, 200, 300, 'wave!', BLUE, false); award(15, 200, 300, 'wave!', BLUE, false);
@@ -107,7 +107,7 @@
     RUN.players = 2; RUN.force = 33; newGame(); S.players[0].tags = 200; S.players[1].tags = 200;
     var spread = ITEMS.find(function (it) { return it.id === 'spread'; }), sand = ITEMS.find(function (it) { return it.id === 'sandbags'; }), fire = ITEMS.find(function (it) { return it.id === 'fire'; });
     openShop(); S.shop.items = [spread, sand, fire]; S.shop.offered = ['spread', 'sandbags', 'fire'];
-    check(SHOP.takeItem('spread', 0) && S.turrets[0].mods.spread && !S.turrets[1].mods.spread && !S.mods.spread && S.players[0].tags === 200, 'the host\'s first supply is free, spread for the host barrel');
+    check(SHOP.takeItem('spread', 0) && S.turrets[0].mods.spread && !S.turrets[1].mods.spread && S.players[0].tags === 200, 'the host\'s first supply is free, spread for the host barrel');
     check(SHOP.takeItem('spread', 1) && S.turrets[1].mods.spread && S.players[1].tags === 200, 'and the guest gets a free pick of their own');
     check(!SHOP.takeItem('spread', 1), 'once per barrel a visit');
     var before0 = S.players[0].tags;
@@ -126,7 +126,7 @@
     check(SHOP.undo(0) && !S.turrets[0].mods.spread, 'undo takes back this player\'s last pick');
     check(!!document.getElementById('coopReady') && /Pick one free/.test(getComputedStyle(document.querySelector('.deal.gift.pick'), '::before').content), 'co-op: the friend\'s Ready line, and "Pick one free"');
     // Solo's shop is as it was: one free pick, one wallet, no "Your gun".
-    RUN.players = 1; RUN.force = 33; newGame(); S.coins = 200; openShop(); renderShop();
+    RUN.players = 1; RUN.force = 33; newGame(); S.players[0].tags = 200; openShop(); renderShop();
     check(document.getElementById('gunSection').hidden && document.getElementById('supplyTitle').textContent === 'Supplies' && !/yours/.test(document.getElementById('shopCoins').textContent) && !document.getElementById('coopReady') && !/Pick one|Ready for/.test(document.getElementById('shopScreen').textContent), 'solo\'s shop looks as before');
     RUN.players = 2; RUN.force = 33; newGame(); openShop();
     // Ready with no friend connected: the host goes on alone (waiting for both is in coop_room.py).

@@ -30,7 +30,7 @@
   var fresh = waveContent(3);
   RUN.force = 42; newGame(); S.mods.maxHP = S.wallHP = 1e6;
   for (i = 0; i < 2400; i++) { aimBot(); update(1 / 60); }
-  S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'bazooka')]; S.mods.fire = 2; S.mods.helmet = 1;
+  S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'bazooka')]; S.turrets[0].mods.fire = 2; S.mods.helmet = 1;
   var played = waveContent(3);
   check(fresh.length > 5 && JSON.stringify(fresh) === JSON.stringify(played), 'wave 3 content matches after different play');
   RUN.force = 43; newGame();
@@ -61,7 +61,7 @@
     RUN.force = 77; newGame(); R = mulberry(effectsSeed);
     for (var k = 0; k < 3600 && S.mode === 'play'; k++) { aimBot(); update(1 / 60); if (draw) render(); }
     clearInput(); R = savedR;
-    return JSON.stringify([S.score, S.coins, S.wallHP, S.stats, S.troopers.map(function (t) { return [t.type, Math.round(t.x * 100), Math.round(t.y * 100)]; }), S.wave, S.mode]);
+    return JSON.stringify([S.score, S.players[0].tags, S.wallHP, S.stats, S.troopers.map(function (t) { return [t.type, Math.round(t.x * 100), Math.round(t.y * 100)]; }), S.wave, S.mode]);
   }
   var base = outcome(1, false);
   check(base === outcome(2, false), 'effects randomness does not change outcomes');

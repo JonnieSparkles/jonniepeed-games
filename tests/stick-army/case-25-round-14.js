@@ -29,9 +29,9 @@
   hitTest(playerShot(4, pl.y));
   check(pl.state !== 'fly' || pl.hp < hp0, 'a shot that hits it where it shows counts');
   // The Red Cross plane too.
-  S.planes = []; S.troopers = []; S.coins = 100; var med = SKY.spawnMedevac(RW); med.x = -10;
+  S.planes = []; S.troopers = []; S.players[0].tags = 100; var med = SKY.spawnMedevac(RW); med.x = -10;
   hitTest(playerShot(10, med.y));
-  check(!med.hit && S.coins === 100, 'nor the Red Cross plane');
+  check(!med.hit && S.players[0].tags === 100, 'nor the Red Cross plane');
   S.medevac = [];
   // The crew don't aim at a tank still rolling in off the page.
   S.tanks = []; spawnRoadTank(); var tk = S.tanks[0]; S.tanks = [tk]; S.troopers = []; tk.x = -20;
@@ -93,12 +93,12 @@
   check(SKY.heavyHP(13) === 50 && SKY.heavyHP(16) === 61 && SKY.heavyHP(19) === 71, 'tougher heavy bombers');
 
   // ---- The Red Cross plane: a wave bonus in points and its tags across; hit, the same points and 1.5x the tags.
-  RUN.force = 153; quiet(14); S.coins = 0; S.score = 5000;
+  RUN.force = 153; quiet(14); S.players[0].tags = 0; S.score = 5000;
   med = SKY.spawnMedevac(RW); med.x = W + 60; med.dir = 1; run(0.5);
-  check(S.score === 5000 + 1400 && S.coins === SKY.medevacTags(14) && heard('redcross_safe', function (e) { return e.pts === 1400; }), 'safe passage pays: ' + S.score + ', ' + S.coins);
-  S.coins = 200; S.score = 5000; med = SKY.spawnMedevac(RW); med.x = 200;
+  check(S.score === 5000 + 1400 && S.players[0].tags === SKY.medevacTags(14) && heard('redcross_safe', function (e) { return e.pts === 1400; }), 'safe passage pays: ' + S.score + ', ' + S.players[0].tags);
+  S.players[0].tags = 200; S.score = 5000; med = SKY.spawnMedevac(RW); med.x = 200;
   hitTest(playerShot(med.x, med.y));
-  check(S.score === 5000 - 1400 && S.coins === 200 - 75 && heard('redcross_hit', function (e) { return e.pts === 1400 && e.lost === 75; }), 'a hit costs points and tags: ' + S.score + ', ' + S.coins);
+  check(S.score === 5000 - 1400 && S.players[0].tags === 200 - 75 && heard('redcross_hit', function (e) { return e.pts === 1400 && e.lost === 75; }), 'a hit costs points and tags: ' + S.score + ', ' + S.players[0].tags);
   S.score = 300; med = SKY.spawnMedevac(RW); med.x = 200; hitTest(playerShot(med.x, med.y));
   check(S.score === 0, 'never below zero');
   S.medevac = [];
@@ -117,7 +117,7 @@
   check(SKETCH.DRAWN.indexOf('sandbags') >= 0, 'sketched in when bought');
 
   // ---- The squad in the shop: every slot, and names, waves and kills; it follows what you hire.
-  RUN.force = 155; newGame(); S.coins = 500;
+  RUN.force = 155; newGame(); S.players[0].tags = 500;
   var vet = makeRecruit(0, 'rifle'); vet.rank = 2; vet.name = 'Doodle'; vet.waves = 7; vet.kills = 12;
   S.recruits = [vet, makeRecruit(1, 'engineer')];
   openShop();
@@ -127,7 +127,7 @@
   check(/2 rookies/.test(line.textContent), 'and follows a hire: ' + line.textContent);
   SHOP.undo();
   check(/1 rookie\./.test(line.textContent), 'and a put-back');
-  S.recruits = []; SHOP.renderShop();
+  S.recruits = []; renderShop();
   check(/^Nobody yet/.test(line.textContent), 'or says nobody yet');
   shopScreen.hidden = true; S.shop = null; S.mode = 'play';
 
@@ -180,7 +180,7 @@
   // ======== The second pass (after the second win) ========
 
   // ---- Rounds fired: every bullet and rocket from your turret, on both end cards and in play stats.
-  RUN.force = 160; newGame(); S.mods.double = true; S.mods.spread = true; S.mods.rockets = true; S.turrets[0].volleys = 3;
+  RUN.force = 160; newGame(); S.turrets[0].mods.double = true; S.turrets[0].mods.spread = true; S.turrets[0].mods.rockets = true; S.turrets[0].volleys = 3;
   shoot();
   check(S.stats.shots === 7, 'one pull with the double barrel, spread shot and a rocket fires seven: ' + S.stats.shots);
   check(runReport().stats.shots === 7, 'play stats get it');

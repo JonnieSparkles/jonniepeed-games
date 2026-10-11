@@ -112,7 +112,7 @@
   check(!S.shop.items.some(function (it) { return it.id === 'strike'; }), 'no strikes for sale at first');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
   newGame(); S.wave = 8; openShop(); var strike = S.shop.items.find(function (it) { return it.id === 'strike'; });
-  S.coins = 100; var had = S.calls.bomber;
+  S.players[0].tags = 100; var had = S.calls.bomber;
   check(strike && takeItem('strike') && S.calls.bomber === had + 1, 'strikes for sale later on');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 

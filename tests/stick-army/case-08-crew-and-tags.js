@@ -38,7 +38,7 @@
   check(S.turrets[0].overheat > 0, 'a sniper hit can tip a hot gun into overheating');
 
   // Flak bursts near planes and bombs, not paratroopers.
-  newGame(); S.mods.flak = true;
+  newGame(); S.turrets[0].mods.flak = true;
   spawnTrooper(200, 300); var para = S.troopers[0]; para.open = 1;
   S.bullets = [{ x: para.x + 18, y: para.y + 10, vx: 0, vy: -700, owner: 'player', kind: 'bullet', flak: true, pierce: 1, hits: [], life: 1, dead: false }];
   hitTest(S.bullets[0]);
@@ -48,7 +48,7 @@
   explode(200, 150, 24, 'flak', 'player');
   check(!jumper.dead, 'flak bursts spare paratroopers');
   // A direct hit is still a hit: flak rounds kill a body and pop a canopy like plain bullets.
-  newGame(); S.mods.flak = true; spawnTrooper(80, 300); var body = S.troopers[0]; body.open = 1;
+  newGame(); S.turrets[0].mods.flak = true; spawnTrooper(80, 300); var body = S.troopers[0]; body.open = 1;
   var round = { x: body.x, y: body.y + 12, vx: 0, vy: -700, owner: 'player', kind: 'bullet', flak: true, pierce: 1, hits: [], life: 1, dead: false };
   hitTest(round); check(body.dead && round.dead, 'a flak round kills on a direct hit');
   spawnTrooper(300, 300); var canopy = S.troopers[S.troopers.length - 1]; canopy.open = 1;
@@ -56,29 +56,29 @@
   check(canopy.state === 'free', 'and pops a chute on a canopy hit');
 
   // Hiring: pick a role while a slot is free; every hire raises the next price by 15, and roles can repeat.
-  newGame(); S.coins = 500; openShop();
+  newGame(); S.players[0].tags = 500; openShop();
   var hire = ITEMS.find(function (it) { return it.id === 'hire-rifle'; }), baz = ITEMS.find(function (it) { return it.id === 'hire-bazooka'; });
   check(S.shop.hire.indexOf(hire) >= 0 && price(hire) === 35 && price(baz) === 55, 'roles priced by role');
-  var purse = S.coins;
-  check(takeItem('hire-rifle') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.coins === purse - 35, 'hiring adds a rifleman');
+  var purse = S.players[0].tags;
+  check(takeItem('hire-rifle') && S.recruits.length === 1 && S.recruits[0].type === 'rifle' && S.players[0].tags === purse - 35, 'hiring adds a rifleman');
   check(price(hire) === 50 && price(baz) === 70, 'the next hire costs more, whatever the role');
   check(takeItem('hire-rifle') && takeItem('hire-bazooka') && S.recruits.map(function (r) { return r.type; }).join() === 'rifle,rifle,bazooka', 'roles can repeat in one visit');
   check(takeItem('hire-medic') && !eligible(ITEMS.find(function (it) { return it.id === 'hire-medic'; })), 'one medic at a time');
   check(!takeItem('hire-sniper') && freeSlot(0) < 0, 'no hiring when the squad is full');
   check(/Squad full/.test(document.getElementById('hireNote').textContent), 'the shop says the squad is full');
-  S.mods.stacks.double = 1; renderShop();
+  S.turrets[0].mods.stacks.double = 1; renderShop();
   check(document.querySelectorAll('#loadout .kit-item').length === 1 && /Double barrel/.test(document.getElementById('loadout').textContent), 'the shop shows the kit as icons');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 
   // Dog tags fly from the kill to the counter.
-  newGame(); var before = S.coins; award(10, 120, 400, 'test', INK, true);
+  newGame(); var before = S.players[0].tags; award(10, 120, 400, 'test', INK, true);
   var tag = S.parts.find(function (q) { return q.k === 'tag'; });
-  check(S.coins > before && tag && tag.n === S.coins - before, 'earned tags fly to the counter');
+  check(S.players[0].tags > before && tag && tag.n === S.players[0].tags - before, 'earned tags fly to the counter');
   for (var j = 0; j < 120; j++) updateParts(1 / 60);
   check(!S.parts.some(function (q) { return q.k === 'tag'; }) && S.tagPulse >= 0, 'tags arrive and disappear');
 
   // Shop copy speaks in dog tags, marks the gift and says what's short.
-  newGame(); S.coins = 10; openShop();
+  newGame(); S.players[0].tags = 10; openShop();
   check(/dog tags/.test(document.getElementById('shopCoins').textContent), 'balance shown in dog tags');
   check(/^Wave 2/.test(document.getElementById('continueBtn').textContent) && !document.getElementById('continueBtn').disabled, 'continue is always open and names the next wave');
   check(document.querySelector('#supplyItems .gift em').textContent.indexOf('Free!') >= 0, 'the gift says free');

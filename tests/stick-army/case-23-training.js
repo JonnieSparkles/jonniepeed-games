@@ -31,7 +31,7 @@
   S.wave = 10; check(!eligible(item('elite')), 'Elite Training waits for Boot Camp');
 
   // Boot Camp: everyone in the squad gets a stripe now, the soldier in the tent too, and rookies get their names.
-  RUN.force = 132; newGame(); S.wave = 6; S.coins = 2000; S.mods.slots = 6; S.mods.hospital = true;
+  RUN.force = 132; newGame(); S.wave = 6; S.players[0].tags = 2000; S.mods.slots = 6; S.mods.hospital = true;
   var vet = makeRecruit(0, 'rifle'), rook = makeRecruit(4, 'engineer'), patient = makeRecruit(1, 'bazooka');
   vet.waves = 7; vet.rank = 2; vet.name = 'Doodle';
   patient.down = true; patient.hp = 0; S.bed = { r: patient, since: 6 };

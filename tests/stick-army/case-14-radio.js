@@ -14,8 +14,8 @@
 
   // The radio holds two calls of either kind. A free call with the radio full pays out in tags instead.
   S.calls.fighter = 1; check(callsHeld() === RADIO.SLOTS, 'two calls fill the radio');
-  var coins = S.coins; grantCall('bomber', 200, 300);
-  check(S.calls.bomber === 1 && S.coins === coins + RADIO.FULL_TAGS, 'a full radio turns a free call into tags');
+  var coins = S.players[0].tags; grantCall('bomber', 200, 300);
+  check(S.calls.bomber === 1 && S.players[0].tags === coins + RADIO.FULL_TAGS, 'a full radio turns a free call into tags');
 
   // Fighter cover: one fast pass across the sky that guns down planes and bombs, ignoring the ground.
   quiet(); S.calls = { bomber: 0, fighter: 1 };
@@ -46,11 +46,11 @@
   newGame(); S.wave = 2; openShop();
   check(!S.shop.items.some(function (it) { return it.id === 'fighter'; }), 'no fighters for sale at first');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
-  newGame(); S.wave = 3; S.coins = 500; openShop();
+  newGame(); S.wave = 3; S.players[0].tags = 500; openShop();
   check(S.shop.items.some(function (it) { return it.id === 'fighter'; }) && S.shop.items.some(function (it) { return it.id === 'strike'; }), 'both calls for sale from wave 3');
   check(takeItem('fighter') && S.calls.fighter === 1, 'buying fighter cover puts it on the radio');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
-  newGame(); S.wave = 9; S.coins = 500; S.calls = { bomber: 1, fighter: 1 }; openShop();
+  newGame(); S.wave = 9; S.players[0].tags = 500; S.calls = { bomber: 1, fighter: 1 }; openShop();
   check(!takeItem('fighter') && !takeItem('strike') && /Radio full/.test(document.querySelector('[data-item="fighter"]').textContent), 'a full radio sells no more calls, and says so');
   S.mode = 'play'; S.shop = null; shopScreen.hidden = true;
 
