@@ -7,7 +7,10 @@ var UnrugArt = (function () {
     K: '#1a1418', H: '#f2b632', h: '#b0701a', D: '#281a14', F: '#543424', f: '#3a241a', S: '#ce8e60', s: '#9c6440',
     G: '#101014', g: '#8cd2ff', c: '#3aa8e0', R: '#d63428', r: '#961e16', L: '#ff7050', T: '#222226', C: '#ffd44a',
     J: '#34549a', j: '#243a6c', B: '#603c24', W: '#e8b030', w: '#8c6010', Z: '#46281a', M: '#fff0aa', O: '#ff9628',
-    P: '#f2eee2', p: '#b8b4a8', Y: '#c8d0dc', y: '#7c8494', E: '#3a3344', e: '#8a8094'
+    P: '#f2eee2', p: '#b8b4a8', Y: '#c8d0dc', y: '#7c8494', E: '#3a3344', e: '#8a8094',
+    // the office: desk wood, a monitor's back and its screen, a mug and its steam, copier beige, an accountant's visor
+    n: '#4a3020', N: '#7a5434', m: '#5e6270', q: '#2a2c34', x: '#2f7a4c', X: '#9cf0b4', u: '#e8e4d8', v: '#c8d0dc',
+    b: '#c8bfa8', d: '#9a917c', i: '#e2483a', V: '#3aa86a', k: '#1f6a40'
   };
 
   function canvas(w, h) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; }
@@ -219,8 +222,106 @@ var UnrugArt = (function () {
   // A file box, about knee high
   const BOX = spr(['KKKKKKKKKKKKKKKK', 'KSSSSSSSSSSSSSSK', 'KssssssssssssssK', 'KSSSSKKKKKKSSSSK', 'KSSSSKPPPPKSSSSK', 'KSSSSKKKKKKSSSSK', 'KSSSSSSSSSSSSSSK', 'KssssssssssssssK', 'KKKKKKKKKKKKKKKK']);
 
+  // ---------- carpshits at work: Floor 13's office life ----------
+  // A carpshit's face with a calmer look than the angry one: eyes on the screen ('down'), 'shut', 'wide' or to the
+  // 'side'; a mouth in a 'line', 'open' (talking) or a 'smile'; an accountant's green visor; its fringe flicked.
+  const setAt = (row, i, t) => row.slice(0, i) + t + row.slice(i + t.length);
+  function face(o) {
+    let r = o.fringe ? flipFringe(CARP) : CARP.slice();
+    r[3] = setAt(setAt(r[3], 6, 'RR'), 18, 'RR'); r[4] = setAt(setAt(r[4], 6, 'KKK'), 17, 'KKK');   // brows level
+    if (o.eyes === 'down') { r[5] = setAt(setAt(r[5], 6, 'MMMM'), 16, 'MMMM'); r[6] = setAt(setAt(r[6], 6, 'MKKM'), 16, 'MKKM'); }
+    if (o.eyes === 'shut') { r[4] = setAt(setAt(r[4], 6, 'RRR'), 17, 'RRR'); r[5] = setAt(setAt(r[5], 6, 'RRRR'), 16, 'RRRR'); r[6] = setAt(setAt(r[6], 6, 'KKKK'), 16, 'KKKK'); }
+    if (o.eyes === 'wide') { r[4] = setAt(setAt(r[4], 6, 'RRR'), 17, 'RRR'); r[3] = setAt(setAt(r[3], 6, 'KKK'), 17, 'KKK'); r[5] = setAt(setAt(r[5], 6, 'MMMM'), 16, 'MMMM'); r[6] = setAt(setAt(r[6], 6, 'MKKM'), 16, 'MKKM'); }
+    if (o.eyes === 'side') { r[5] = setAt(setAt(r[5], 6, 'MMMK'), 16, 'MMMK'); r[6] = setAt(setAt(r[6], 6, 'MMMK'), 16, 'MMMK'); }
+    if (o.mouth === 'line') { r[7] = setAt(r[7], 11, 'RRRR'); r[8] = setAt(r[8], 10, 'RKKKKR'); }
+    if (o.mouth === 'open') { r[7] = setAt(r[7], 11, 'KKKK'); r[8] = setAt(r[8], 10, 'KrrrrK'); }
+    if (o.mouth === 'smile') { r[7] = setAt(r[7], 10, 'KRRRRK'); r[8] = setAt(r[8], 10, 'RKKKKR'); }
+    if (o.visor) { r[1] = setAt(r[1], 2, 'K' + 'k'.repeat(20) + 'K'); r[2] = setAt(r[2], 1, 'K' + 'V'.repeat(22) + 'K'); r[3] = setAt(r[3], 2, 'k'.repeat(22)); }
+    return r;
+  }
+  // a sprite drawn with put (text rows), box (a rectangle of one colour) and the canvas itself
+  function sketch(w, h, draw) {
+    const cv = canvas(w, h), g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const put = (rows, ox, oy) => rows.forEach((r, y) => { for (let i = 0; i < r.length; i++) { const c = PAL[r[i]]; if (c) { g.fillStyle = c; g.fillRect(ox + i, oy + y, 1, 1); } } });
+    const box = (x, y, bw, bh, ch) => { g.fillStyle = PAL[ch]; g.fillRect(Math.round(x), Math.round(y), Math.round(bw), Math.round(bh)); };
+    draw(put, box, g);
+    return cv;
+  }
+  // a desk with a monitor, its back to you, and whoever works there peeking over it
+  function desk(box, mug, steam) {
+    box(0, 22, 44, 3, 'N'); box(0, 25, 44, 1, 'n'); box(2, 26, 2, 10, 'n'); box(40, 26, 2, 10, 'n');
+    box(10, 12, 20, 11, 'K'); box(11, 13, 18, 9, 'm'); box(12, 14, 16, 1, 'q'); box(18, 21, 4, 1, 'q');
+    if (mug) { box(34, 17, 5, 5, 'K'); box(35, 18, 3, 4, 'u'); box(36, 19, 1, 1, 'R'); box(38, 19, 2, 2, 'K'); if (steam) { box(36 + (steam % 2), 14, 1, 2, 'v'); box(35 + (steam % 2), 12, 1, 1, 'v'); } }
+  }
+  const flip = rows => rows.map(r => r.split('').reverse().join(''));
+  // What each one looks like, in four frames, with alive[i] saying whether its i-th carpshit is still there (shot, it's
+  // gone and its place is empty). Sizes are in the game's pixels at the front of the hall; the floor draws them smaller.
+  const WORK_KINDS = {
+    // typing away: eyes down, fringe tapping the keys, keys clattering, a mug steaming
+    type: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive, visor) => {
+      if (alive[0]) put(face({ eyes: 'down', mouth: 'line', fringe: f % 2, visor }), 7, 4 + (f === 1 ? 1 : 0));
+      desk(box, true, f + 1);
+      if (alive[0]) { if (f % 2) { box(8, 21, 1, 1, 'M'); box(31, 20, 1, 1, 'M'); } else { box(9, 20, 1, 1, 'M'); box(30, 21, 1, 1, 'M'); } }
+    } },
+    // on a call: a headset, nodding, talking; behind it a chart of Q4 rug targets, going down
+    call: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive, visor) => {
+      box(28, 0, 16, 11, 'K'); box(29, 1, 14, 9, 'P'); box(30, 2, 12, 1, 'y');
+      [6, 5, 3, 2, 1].forEach((v, i) => box(30 + Math.round(i * 2.4), 9 - v, 2, v, i > 2 ? 'i' : 'J'));
+      const bob = f % 2;
+      if (alive[0]) {
+        put(face({ eyes: 'side', mouth: f < 2 ? 'open' : 'line', visor }), 3, 5 + bob);
+        box(4, 4 + bob, 20, 1, 'K'); box(3, 5 + bob, 1, 5, 'K'); box(2, 8 + bob, 3, 4, 'K'); box(4, 12 + bob, 7, 1, 'K'); box(11, 11 + bob, 2, 2, 'K');
+      }
+      desk(box, false);
+    } },
+    // asleep at the desk: slumped across it, eyes shut, drooling, Zs; the monitor on its screensaver
+    sleep: { w: 44, h: 36, n: 1, draw: (put, box, g, f, alive) => {
+      box(0, 22, 44, 3, 'N'); box(0, 25, 44, 1, 'n'); box(2, 26, 2, 10, 'n'); box(40, 26, 2, 10, 'n');
+      box(1, 8, 16, 13, 'K'); box(2, 9, 14, 10, 'q'); box(7, 19, 4, 3, 'K');
+      const bx = [3, 8, 11, 6][f], by = [10, 13, 10, 15][f]; box(bx, by, 4, 3, 'R'); box(bx + 1, by + 1, 2, 1, 'C');
+      if (alive[0]) {
+        put(face({ eyes: 'shut', mouth: 'open' }).slice(2, 10), 17, 14);
+        txt(g, 'Z', 31 + f, 8 - f * 2, '#fff6e2'); if (f > 1) txt(g, 'Z', 37, 1, '#a8a0c0');
+        box(18, 21, 1, 1 + f % 2, 'g');
+      }
+    } },
+    // the water cooler: two hovering close, one telling, the other can't believe it
+    cooler: { w: 66, h: 44, n: 2, draw: (put, box, g, f, alive) => {
+      g.drawImage(COOLER, 24, 44 - COOLER.height * 2, COOLER.width * 2, COOLER.height * 2);
+      if (alive[0]) {
+        put(face({ eyes: 'side', mouth: f % 2 ? 'open' : 'line', fringe: f % 2 }), 0, 10 + (f % 2));
+        if (alive[1]) { box(8, 1, 13, 7, 'K'); box(9, 2, 11, 5, 'P'); box(12, 8, 2, 1, 'K'); if (f < 2) for (let i = 0; i <= f + 1; i++) box(11 + i * 3, 4, 1, 1, 'K'); else { box(14, 2, 1, 3, 'i'); box(14, 6, 1, 1, 'i'); } }
+      }
+      if (alive[1]) put(flip(face({ eyes: f > 1 && alive[0] ? 'wide' : 'side', mouth: f > 1 && alive[0] ? 'open' : 'line', fringe: (f + 1) % 2 })), 40, 12 - (f > 1 ? 1 : 0));
+    } },
+    // the copy room: one lies on the copier's glass, and copies of it slide out into a stack
+    copier: { w: 60, h: 40, n: 1, draw: (put, box, g, f, alive) => {
+      box(4, 18, 34, 22, 'K'); box(5, 19, 32, 20, 'b'); box(5, 30, 32, 1, 'd'); box(8, 22, 6, 2, 'P'); box(30, 22, 3, 2, f % 2 ? 'X' : 'x');
+      box(4, 14, 34, 4, 'K'); box(5, 15, 32, 2, 'd');
+      if (alive[0]) { box(6, 17, 30, 1, f % 2 ? 'X' : 'M'); put(face({ eyes: 'down', mouth: 'smile' }).slice(0, 9), 8, 6); }
+      const n = alive[0] ? f + 1 : 4; for (let i = 0; i < n; i++) { box(38, 34 - i * 2, 18, 2, 'K'); box(39, 34 - i * 2, 16, 1, i % 2 ? 'r' : 'L'); }
+      box(37, 36, 21, 2, 'd');
+    } },
+    // the manager, in a tie, on the phone (the floor puts it in its office, a room set into the wall)
+    manager: { w: 26, h: 15, n: 1, draw: (put, box, g, f, alive) => {
+      if (!alive[0]) return;
+      put(face({ eyes: 'side', mouth: f % 2 ? 'open' : 'line', fringe: f % 2 }).concat(TIE), 0, 0);
+      box(3, 3, 3, 6, 'K'); box(6, 7, 2, 1, 'K');
+    } }
+  };
+  const WORK = {};
+  function work(kind, alive, visor) {
+    const key = kind + alive.map(a => a ? 1 : 0).join('') + (visor ? 'v' : '');
+    if (!WORK[key]) { const K = WORK_KINDS[kind]; WORK[key] = [0, 1, 2, 3].map(f => sketch(K.w, K.h, (put, box, g) => K.draw(put, box, g, f, alive, visor))); }
+    return WORK[key];
+  }
+  // the manager's office furniture: a desk with a nameplate, and a framed certificate on its back wall
+  const OFFICE_DESK = sketch(40, 12, (put, box) => { box(0, 3, 40, 3, 'N'); box(0, 6, 40, 6, 'n'); box(12, 0, 12, 3, 'C'); box(14, 1, 8, 1, 'K'); });
+  const CERT = sketch(10, 8, (put, box) => { box(0, 0, 10, 8, 'K'); box(1, 1, 8, 6, 'P'); box(2, 3, 6, 1, 'J'); box(2, 5, 4, 1, 'J'); });
+
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, TEMPS, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, MUZZLE, CARPF, TEMP, TEMPS, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();

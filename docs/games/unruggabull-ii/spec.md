@@ -1,6 +1,6 @@
 # Unruggabull II: Salvation for the Unrugged
 
-An 8-bit sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
+A sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
 Status: Floor 13 is built as the first playable slice, at `site/unruggabull-ii/`, on Side B as a noindexed demo. The rest of the climb follows in later stages. Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
@@ -56,12 +56,13 @@ A corridor floor of about two minutes, then the Shredder.
 - **The goal.** "Free 90 souls to wake the Shredder", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
-  - **Moving day**: an athletic stretch with nothing to shoot: furniture to zig-zag round, jump and duck under. (It replaced an audit deflect round that didn't read.)
+  - **Moving day**: an athletic stretch: furniture to zig-zag round, jump and duck under, with the first of each marked, and box walls you can blast a way through. (It replaced an audit deflect round that didn't read.)
   - **All Staff**: carpshits come down the hall in formations (a V, a line with a gap at head height to duck, a snake).
   - **Lights out**: only monitors, eyes and paper show, and blaster bolts light up the hall as they fly. Formations and single carpshits keep coming out of the dark, and every soul freed in it counts double. Shoot a glowing light switch and the lights flash on, freezing them.
   - Wiping out a whole formation pays a bonus soul for each carpshit in it.
   - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
   - Rows that span the aisle (office chairs from All Staff on, a paper jam's sheet) give jumping a job, after the first section.
+  - Carpshits at work line the walls, the office's own: typing (some in an accountant's green visor), on calls, asleep at their desks, gossiping at the water cooler, copying themselves in the copy room, a manager pacing in an office set into the wall. They never fight back, and a shot frees the soul inside (p(Loom) wove them from souls), double in the dark.
   - Pickups float at jump height, lit by a beam from the ceiling: coffee (a heart back) and the Spread Shot. A streak of 10 kills drops a Spread Shot.
   - Each beat and event drops its own sign from the ceiling and has its own music, with stings for the events. No banners across the hall during play.
   - Paper blows down the corridor the whole time.
@@ -83,7 +84,9 @@ A corridor floor of about two minutes, then the Shredder.
 
 ## Look
 
-8-bit on purpose: a 240 × 135 canvas scaled up with hard pixel edges, one shared 16-colour palette, sprites as text grids in code. The one cheat is the corridor zoom, smoother than an NES could manage. The page follows the studio standards: full screen, portrait, landscape and desktop, no double-tap zoom.
+Lit pixel art at 480 × 270, scaled up with hard pixel edges. The hall is worked out pixel by pixel in light: ceiling panels with light hanging under them, a polished floor that reflects them, dust in the air, the far hall fading into the dark, and a 64-colour palette with dithering over it all. Everything in the hall takes the light where it stands, things that glow (bolts, pickups, paper in flight, monitors, eyes) keep their own, and every blaster shot is a moving light down the hall. Lights out is real darkness, and a light switch turns the panels back on. Sprites are text grids in code, being redrawn at the new size by Claude: Unruggabull first (drawn, waiting on the rest of his poses), then the temps, carpshits, paper, pickups, souls, HUD and title. Until each is redrawn, today's sprite is drawn at twice its size and lit. Drawn at a steady 30 frames a second, so it holds on phones. The page follows the studio standards: full screen, portrait, landscape and desktop, no double-tap zoom.
+
+Still to come: each section of the hall with its own fuller set (Accounts Payable's cubicles and screens, moving day's crates, All Staff's chairs and banners, lights out's dark offices, the copy room's machines), and the Shredder built into the set, lit by its own eyes and mouth.
 
 ## Sound
 
@@ -129,7 +132,7 @@ The corridor, from behind him, as on Floor 13. Timings are from the finale mocku
 3. **The souls come back.** One soul breaks out of the loom and floats to his gun, and it fires a second stream with a single bell note (D5). A "!" pops over his head. Then a third (F5), then a fourth (A5), about 1.5 seconds apart (mockup: 1.8, 3.3 and 4.5 seconds in).
 4. **The flood.** About a second later every trapped soul pours out at once into the gun, with a rising run of notes. Five streams.
 5. **The pinch.** The streams bend in and merge over about half a second, firing faster as they squeeze.
-6. **The fusion.** A white flash, a short freeze (about 0.14 seconds), screen shake, and one beam down the corridor into the loom. The beam roars (a low saw and squares through a wobbling filter, plus hiss), and a heavier, faster version of the p(Loom) music slams in. p(Loom): "That outcome was not in the model."
+6. **The fusion.** A white flash, a short freeze (about 0.14 seconds), screen shake, and one beam down the corridor into the loom. The beam is the brightest thing in the game and far bigger than in the mockup (the owner's note on the roof mockup: much bigger, hitting much harder). The beam roars (a low saw and squares through a wobbling filter, plus hiss), and a heavier, faster version of the p(Loom) music slams in. p(Loom): "That outcome was not in the model."
 7. **The fight with the beam.** The beam melts carpshits in its lane, bends behind him as he moves, and drains the odds while it's on the eye (mockup: 10% a second, so about 10 seconds of good aim). The eye moves side to side, so the player has to track it. Lines as the odds fall: "Probability of capture: zero", then "Recalculating. Recalculating."
 8. **The end.** At 1%: "Unlikely." The threads snap, every trapped soul drifts up into the night, and a major chord rings out. Then the story continues as planned: the core escapes into the Sky Wrecker.
 
