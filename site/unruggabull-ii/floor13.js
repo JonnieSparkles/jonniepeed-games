@@ -24,7 +24,7 @@ var UnrugFloor13 = function (core) {
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
   const BEATS = [
     { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, decor: ['poster', 'poster', 'clock', 'window', 'plant', 'door', 'cooler'], work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: 'tower', after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: ['lift', 'dark'] },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', decor: ['streamer', 'streamer', 'balloons', 'banner', 'window', 'plant'], work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: 'dark' },
     { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, decor: ['stack', 'shelf', 'recycle', 'vending', 'notice', 'clock'], work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
   ];
   const beat = () => BEATS[R.beat];
@@ -127,7 +127,7 @@ var UnrugFloor13 = function (core) {
     const C = COURSES[kind];
     R.event = { kind: C ? 'move' : kind, t: 0, dur: C ? C.dur : TUNE.darkT };
     if (C) {
-      // moving day, or heavy lifting later: no one to shoot, and a course of furniture to jump and duck, one move at a time
+      // moving day: no one to shoot, and a course of furniture to jump and duck, one move at a time
       Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 2.4, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
       addSign(.75, C.sign, 'move');
@@ -146,16 +146,10 @@ var UnrugFloor13 = function (core) {
   const blackout = () => (R.event && R.event.kind === 'dark') ? R.event : R.boss.dark;
   // A kill in the dark frees a second soul.
   function bonusBy() { return R.event && R.event.kind === 'dark' ? 'dark' : null; }
-  // Moving day's course, in order, each with the gap before the next: two chairs to jump, two beams to duck, one of
-  // each, and a finale carried by the movers (a couch to jump, a plank to duck).
-  const MOVES = [['chairs', 1.4], ['chairs', 1.8], ['beam', 1.4], ['beam', 1.8], ['chairs', 1.4], ['beam', 1.8], ['couch', 1.6], ['plank', 0]];
-  // Moving day, early on, is a short intro: one row of chairs, one beam, a trapped soul after each. The full course
-  // comes later as heavy lifting, after All Staff and before lights out. dur runs until the last piece has reached you.
-  const COURSES = {
-    move: { sign: 'MOVING DAY', moves: [['chairs', 2], ['beam', 2]], dur: TUNE.moveT, clean: 3, say: 'Moving day: jump the chairs, duck the beam.' },
-    lift: { sign: 'HEAVY LIFTING', moves: MOVES, dur: TUNE.liftT, clean: TUNE.moveClean, say: 'Heavy lifting: jump and duck the furniture the movers left.' }
-  };
-  const DUCKS = { beam: true, plank: true };   // these hang or are carried at head height: duck; the rest, jump
+  // Moving day: a short course to introduce jumping and ducking, in order, each with the gap before the next.
+  const MOVES = [['chairs', 1.8], ['beam', 1.8], ['chairs', 1.8], ['beam', 1.8]];
+  const COURSES = { move: { sign: 'MOVING DAY', moves: MOVES, dur: TUNE.moveT, clean: TUNE.moveClean, say: 'Moving day: jump the chairs, duck the beams.' } };
+  const DUCKS = { beam: true };   // beams hang at head height: duck; the rest, jump
   function spawnMove(E) {
     const [kind, gap] = E.moves[E.obN++], ob = { kind, w: R.dist + 1.05, hit: false, done: false };
     // the first jump and the first duck are marked, so they say what they want (drawn only)
@@ -210,7 +204,7 @@ var UnrugFloor13 = function (core) {
           for (let i = 0; i < E.bonus; i++) free(PX(bull.u, bull.bz) + fxr(-12, 12), YH(bull.bz, .3) + fxr(-6, 6), 'move', 'clean');
           R.fx.push({ k: 'big', text: 'NOT A SCRATCH +' + E.bonus, x: 120, y: 44, t: 0, dur: 1.3 }); Snd.play('wipe');
         }
-        // another event straight after this one (heavy lifting, then lights out): a coffee between, same section
+        // another event straight after this one, if the section lists more than one: a coffee between, same section
         if (R.evQ && R.evQ.length) { R.event = null; addPickup('coffee', .9, rr(-.4, .4)); startEvent(R.evQ.shift()); spawnHall(dt); return; }
         R.event = null; R.beat++; R.beatT = 0; R.switches = [];
         addSign(1, beat().sign);
@@ -233,10 +227,10 @@ var UnrugFloor13 = function (core) {
       row.w -= (row.v || (row.kind === 'chairs' ? .12 : .22)) * dt;   // chairs roll toward you; paper skids faster; the Shredder's rows set their own speed
       const z = row.w - R.dist;
       if (row.hit) { row.hit += dt; continue; }
-      if (!R.events.jumpHint && z < .6 && R.phase === 'hall') {
+      if (!R.events.jumpHint && z < .6 && R.phase === 'hall' && !DUCKS[row.kind]) {
         R.events.jumpHint = true; R.banner = { text: 'JUMP', t: 0, dur: 1.6, pull: true };
       }
-      // a beam hangs from the ceiling and a plank is carried at head height: duck under them; everything else, jump
+      // a beam hangs from the ceiling: duck under it; everything else, jump
       if (DUCKS[row.kind] && z < .6) duckHint();
       const hits = DUCKS[row.kind] ? !bull.crouch : bull.jh < TUNE.rowH;
       if (Math.abs(z - bull.bz) < .02 && hits && knock(row.ob, row.kind)) { row.hit = .001; R.events.rowHits = (R.events.rowHits || 0) + 1; obHit(row.ob); }
@@ -1029,11 +1023,11 @@ var UnrugFloor13 = function (core) {
     rect(g, tx - 3, ty - 1, 7, 9, '#1a1418'); rect(g, tx - 2, ty, 5, 7, '#fff6e2'); txt(g, '!', tx - 1, ty + 1, '#d63428');
   }
   function drawBox(bx, z) {
-    const s = sc(z), w = Math.max(3, Math.round(A.BOX.width * s)), h = Math.max(2, Math.round(A.BOX.height * s));
+    const s = sc(z), w = Math.max(3, A.BOX.width / 2 * s), h = Math.max(2, A.BOX.height / 2 * s);   // the carton is drawn at full size: half a unit a pixel
     const x = PX(bx.u, z);
     const y = FY(z) - (bx.hit ? Math.sin(bx.hit * 9) * 6 * s : 0);
     if (bx.hit) { g.save(); g.globalAlpha = 1 - bx.hit * 2; }
-    g.drawImage(A.BOX, Math.round(x - w / 2), Math.round(y - h), w, h);
+    g.drawImage(A.BOX, Math.round((x - w / 2) * 2) / 2, Math.round((y - h) * 2) / 2, w, h);
     if (bx.hit) g.restore();
   }
   function drawProj(p) {
@@ -1064,21 +1058,8 @@ var UnrugFloor13 = function (core) {
     if (p.friendly) { const k = Math.floor(p.spin) % 2; rect(g, x - w / 2 - 1 - k, y - 1, 1, 1, '#bfefff'); rect(g, x + w / 2 + k, y, 1, 1, '#bfefff'); }
   }
   const CHAIR_US = [-.5, -.3, -.1, .1, .3, .5];
-  const BEAM_H = [.178, .215];   // moving day's beam and plank: their bottom and top, as a share of the hall's height
-  // a striped bar across the hall
-  function hazard(x0, x1, yt, th, k, a, b) {
-    rect(g, x0 - 1, yt - 1, x1 - x0 + 2, th + 2, '#1a1418');
-    const seg = Math.max(2, Math.round(6 * k));
-    for (let x = Math.round(x0), i = 0; x < x1; x += seg, i++) rect(g, x, yt, Math.min(seg, x1 - x), th, i % 2 ? (b || '#1a1418') : a);
-  }
-  // a carpshit mover: hovering, as carpshits do, in a yellow hard hat, holding its end at height h
-  function mover(u, z, h, ph) {
-    const k = sc(z), img = A.CARPF[Math.floor(R.t * 6 + (ph || 0) * 6) % 2], w = img.width * k * 1.2, hh = img.height * k * 1.2;
-    const x = PX(u, z), y = YH(z, h) - (Math.floor(R.t * 4 + (ph || 0) * 4) % 2 ? k : 0);
-    shadow(u, z, 22);
-    g.drawImage(img, Math.round(x - w / 2), Math.round(y - hh), Math.round(w), Math.round(hh));
-    rect(g, x - w * .3, y - hh - 2.4 * k, w * .6, 2.4 * k, '#1a1418'); rect(g, x - w * .26, y - hh - 2 * k, w * .52, 1.8 * k, '#ffd44a'); rect(g, x - w * .36, y - hh - .5 * k, w * .72, 1.2 * k, '#b07010');
-  }
+  const BEAM_H = [.2, .235];   // moving day's plank: its underside and top, as a share of the hall's height
+
   function drawRow(row, z) {
     const k = sc(z), drop = row.hit ? row.hit * 30 * k : 0;
     if (row.hit) { g.save(); g.globalAlpha = Math.max(0, 1 - row.hit * 1.7); }
@@ -1097,25 +1078,16 @@ var UnrugFloor13 = function (core) {
         for (let x = Math.round(x0), i = 0; x < x1; x += seg, i++) rect(g, x, y, Math.min(seg, x1 - x), th, i % 2 ? '#1a1418' : '#ffd44a');
       }
     } else if (row.kind === 'beam') {
-      // moving day: a beam hung across the hall at head height on two ropes, striped like a hazard: duck under it
-      // (just above his head crouched and into it standing, so you can see a duck clear it; it carries on over him)
-      const x0 = PX(-.62, z), x1 = PX(.62, z), yt = YH(z, BEAM_H[1]), yb = YH(z, BEAM_H[0]), th = Math.max(2, yb - yt);
-      for (const u of [-.5, .5]) rect(g, PX(u, z), CY(z), 1, yt - CY(z), '#8a8094');
-      hazard(x0, x1, yt, th, k, '#e8b030');
-    } else if (row.kind === 'couch') {
-      // the finale: two movers carry a couch low across the hall: jump it
-      shadow(0, z, 120);
-      mover(-.6, z, .1); mover(.6, z, .1, .3);
-      const x0 = PX(-.47, z), x1 = PX(.47, z), y = YH(z, .01);
-      rect(g, x0 - 1, y - 9 * k - 1, x1 - x0 + 2, 11 * k + 2, '#1a1418');
-      rect(g, x0, y - 9 * k, x1 - x0, 5 * k, '#4f7a3a'); rect(g, x0, y - 4 * k, x1 - x0, 6 * k, '#3a5c2a');
-      for (let i = 1; i < 3; i++) rect(g, x0 + (x1 - x0) * i / 3, y - 4 * k, 1, 6 * k, '#2a4420');
-      rect(g, x0 - 2 * k, y - 7 * k, 3 * k, 9 * k, '#2e4a22'); rect(g, x1 - k, y - 7 * k, 3 * k, 9 * k, '#2e4a22');
-    } else if (row.kind === 'plank') {
-      // and a long plank carried at head height: duck it
-      if (z > bull.bz + .02) { mover(-.64, z, BEAM_H[0] + .02); mover(.64, z, BEAM_H[0] + .02, .3); }
-      const x0 = PX(-.6, z), x1 = PX(.6, z), yt = YH(z, BEAM_H[1] - .01), yb = YH(z, BEAM_H[0]);
-      hazard(x0, x1, yt, Math.max(2, yb - yt), k, '#c08a48', '#a0703a');
+      // moving day: a plank across two stepladders, at head height: duck under it. The ladders stand on the floor, so
+      // you can see where it is (a bar hung from the ceiling read as clipping you either way); its underside is well
+      // above his head crouched and level with his face standing. It carries on over him as he passes.
+      const x0 = PX(-.62, z), x1 = PX(.62, z), pt = YH(z, BEAM_H[1]), pb = YH(z, BEAM_H[0]), lw = Math.max(1, Math.round(1.5 * k));
+      for (const u of [-.58, .58]) {
+        const xc = PX(u, z), half = 9 * k, fy = FY(z);
+        for (const dx of [-half, half]) for (const [c, w] of [['#1a1418', lw + 2], ['#b8b0a0', lw]]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(xc + dx, fy); g.lineTo(xc + dx * .25, pb); g.stroke(); }
+        for (let i = 1; i < 4; i++) { const hw = half * (1 - .75 * i / 4); rect(g, xc - hw, fy + (pb - fy) * i / 4, hw * 2, Math.max(1, k), '#8a8478'); }
+      }
+      rect(g, x0 - 1, pt - 1, x1 - x0 + 2, pb - pt + 2, '#1a1418'); rect(g, x0, pt, x1 - x0, pb - pt, '#9a6a3a'); rect(g, x0, pt, x1 - x0, Math.max(1, (pb - pt) * .3), '#b88850');
     } else if (row.kind === 'carpet') {
       // a carpet of staples skittering across the whole floor, edges blinking red like all the Shredder's paper
       const w = Math.max(3, Math.round(A.STAPLE.width * k * 1.3)), h = Math.max(1, Math.round(A.STAPLE.height * k * 1.3));
@@ -1163,7 +1135,7 @@ var UnrugFloor13 = function (core) {
     rect(g, x - w / 2, y - h / 2, w, h, '#1a1418'); rect(g, x - Math.max(1, w / 4), y - h / 4, Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 3)), '#ffd44a');
   }
   // Moving day's first wall, beam and row of chairs say what they want: arrows on the floor run into the wall's gap,
-  // and a hazard-yellow DUCK or JUMP hangs on the beam or rides the chairs.
+  // and a hazard-yellow DUCK or JUMP rides the plank or the chairs.
   const LABELS = {};
   function label(text) {
     if (!LABELS[text]) {

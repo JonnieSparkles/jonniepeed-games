@@ -22,9 +22,6 @@
   R.flies = []; spawnFormation('line'); step(.6);
   check(!R.event && R.beatT > BEATS[1].time, 'the lights stay on while a formation is still coming');
   R.flies = []; update(1 / 60);
-  check(R.event && R.event.kind === 'move' && R.event.course === 'lift' && R.signs.some(sg => sg.text === 'HEAVY LIFTING'), 'then heavy lifting: the full course');
-  check(R.event.moves === MOVES && beat().sign === 'ALL STAFF', 'in All Staff still');
-  for (let i = 0; i < 60 * TUNE.liftT + 5 && R.event && R.event.kind === 'move'; i++) { bull.inv = 1e9; update(1 / 60); }
   check(R.event && R.event.kind === 'dark', 'then the lights go out');
   step(1.5);
   check(darkness() > .5, 'and the hall is dark');

@@ -137,7 +137,21 @@ var UnrugArt = (function () {
   // His blaster from the side, for when the Shredder's surge knocks it out of his hands and it lies on the floor.
   const BLASTER = spr(['.KKKKKKKK...', 'KWWWWWWWWKKK', 'KWMMWWWWWWCK', 'KWWWWWWWWKKK', '.KwwKKKKKK..', '.KwwK.......', '..KK........']);
   // A file box, about knee high
-  const BOX = spr(['KKKKKKKKKKKKKKKK', 'KSSSSSSSSSSSSSSK', 'KssssssssssssssK', 'KSSSSKKKKKKSSSSK', 'KSSSSKPPPPKSSSSK', 'KSSSSKKKKKKSSSSK', 'KSSSSSSSSSSSSSSK', 'KssssssssssssssK', 'KKKKKKKKKKKKKKKK']);
+  // A cardboard carton left on the floor (an obstacle: step round it or jump it), drawn at the picture's full size
+  // (32x18, so half a game unit per pixel). Dull brown with brown tape and a printed arrow, nothing bright, so it
+  // can't be taken for a pickup.
+  const BOX = (() => {
+    const cv = canvas(32, 18), g = cv.getContext('2d'), r = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    r(0, 0, 32, 18, '#1a1418');
+    r(1, 1, 30, 4, '#9a6a3a'); r(1, 1, 30, 1, '#ab7a46');           // the top, with a crease where the flaps meet
+    r(1, 3, 30, 1, '#7e5430');
+    r(1, 5, 30, 12, '#76492a'); r(1, 14, 30, 3, '#5e3a20');         // the front, darker toward the floor
+    r(26, 5, 5, 12, '#5a361c');                                      // the shaded right edge
+    r(14, 1, 4, 16, '#8a6038'); r(14, 1, 4, 1, '#9a7044');           // packing tape over the top and down the front
+    r(4, 8, 1, 4, '#3e2614'); r(3, 9, 3, 1, '#3e2614'); r(7, 8, 1, 4, '#3e2614'); r(6, 9, 3, 1, '#3e2614');   // printed this-way-up arrows
+    r(20, 10, 4, 1, '#4e3018'); r(20, 12, 3, 1, '#4e3018');          // a scrawled label
+    return cv;
+  })();
 
   // ---------- carpshits at work: Floor 13's office life ----------
   // A carpshit's face with a calmer look than the angry one: eyes on the screen ('down'), 'shut', 'wide' or to the
