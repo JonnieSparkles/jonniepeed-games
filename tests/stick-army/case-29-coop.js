@@ -95,6 +95,13 @@
     gunner = 1; check(takeTags(25) === 25 && P[1].tags === 15 && P[0].tags === 10, 'a Red Cross hit costs the shooter\'s tags'); gunner = null;
     me = 1; render(); me = 0;   // the HUD shows this device's own tags (drawn without error)
     check(runReport().stats.tags === 25, 'play stats count both wallets');
+    // A Red Cross hit flashes only the charged player's counter.
+    gunner = 1; loseTags(5, 200, 300); gunner = null;
+    check(S.tagLossBy === 1, 'the tag loss is the shooter\'s');
+    // A full radio pays both, even when a player's shot brought it (a zeppelin's call).
+    S.calls.bomber = RADIO.SLOTS; S.calls.fighter = 0; var t0 = P[0].tags, t1 = P[1].tags;
+    gunner = 0; grantCall('bomber', 200, 300, true); gunner = null;
+    check(P[0].tags - t0 + P[1].tags - t1 === RADIO.FULL_TAGS && Math.abs((P[0].tags - t0) - (P[1].tags - t1)) <= 1, 'a full radio\'s tags are split');
 
     // The shop: each player's own tags and free pick; "Your gun" per barrel, squad things bought once by either.
     RUN.players = 2; RUN.force = 33; newGame(); S.players[0].tags = 200; S.players[1].tags = 200;

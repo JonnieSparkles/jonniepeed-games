@@ -331,9 +331,10 @@
   // what a barrel shoots are its player's, and tags nobody fired for (the squad, wave bonuses, crates, safe passage)
   // are split evenly, an odd one going to each player in turn (S.tagOdd). In solo these do exactly what they replaced.
   function tagsOf(by) { return S.players ? S.players[by].tags : S.coins; }
-  function gainTags(n) {
+  // split: tags nobody fired for, even while a round is being resolved (a full radio after a zeppelin goes down).
+  function gainTags(n, split) {
     if (!S.players) { S.coins += n; return; }
-    var p = scorer();
+    var p = split ? null : scorer();
     if (p) { p.tags += n; return; }
     var half = Math.floor(n / 2), first = S.tagOdd || 0;
     S.players[0].tags += half; S.players[1].tags += half;
@@ -570,8 +571,9 @@
   }
   // Losing tags (the Red Cross plane): they fly out of the counter toward what cost them, and the counter flashes red
   // with the amount under it (drawHUD).
+  // Co-op: the counter that flashes is the charged player's (S.tagLossBy; null when both paid).
   function loseTags(n, x, y) {
-    S.tagLoss = 1.2; S.tagLost = n;
+    S.tagLoss = 1.2; S.tagLost = n; S.tagLossBy = S.players && gunner != null ? gunner : null;
     for (var i = 0; i < Math.min(6, Math.ceil(n / 8)); i++) S.parts.push({ k: 'tagout', x0: TAG_HUD.x, y0: TAG_HUD.y, x1: x + rr(-20, 20), y1: y + rr(-10, 20), x: TAG_HUD.x, y: TAG_HUD.y, t: -i * 0.06, dur: rr(0.5, 0.7), life: 1, max: 1, rot: rr(-0.6, 0.6), id: nextId++ });
   }
   // Effects thin out when the page is busy: past FX.BUSY particles, bursts throw a third of the flecks, every other
@@ -859,7 +861,7 @@
     FIGHTER = UNITS.FIGHTER, callFighter = function () { return COOP && COOP.guest ? COOP.ask('call', 'fighter') : UNITS.callFighter(); }, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio;
   // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
-  world.gainTags = function (n) { gainTags(n); }; world.takeTags = function (n) { return takeTags(n); }; world.tagsOf = function (by) { return tagsOf(by); };
+  world.gainTags = function (n, split) { gainTags(n, split); }; world.takeTags = function (n) { return takeTags(n); }; world.tagsOf = function (by) { return tagsOf(by); };
   world.spendTags = function (n, by) { spendTags(n, by); };
   world.grantCall = grantCall; world.activeTramps = activeTramps; world.loseTags = function (n, x, y) { loseTags(n, x, y); }; world.standing = standing; world.repairWall = repairWall;
   world.dogTag = function (x, y, rot, sc) { dogTag(x, y, rot, sc); };
@@ -2350,7 +2352,7 @@
       drawCallChips(); pen(4242);
       G.fillStyle = c.TAGS; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
       dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
-      var lose = S.tagLoss > 0, jig = lose ? Math.sin(S.t * 60) * 2.5 * Math.min(1, S.tagLoss) : 0;
+      var lose = S.tagLoss > 0 && (S.tagLossBy == null || S.tagLossBy === me), jig = lose ? Math.sin(S.t * 60) * 2.5 * Math.min(1, S.tagLoss) : 0;
       G.save(); G.translate(302 + jig, 58); var pulse = 1 + (S.tagPulse || 0) * 0.9; G.scale(pulse, pulse);
       G.fillStyle = lose ? c.RED : c.TAGS; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(tagsOf(me)), 0, 0); G.restore();
       if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = c.RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }

@@ -98,6 +98,8 @@
       if (S.mode === 'shop' && S.shop) {
         var mine = function (it) { return item(it, g); };
         o.shop = { items: S.shop.items.map(mine), hire: S.shop.hire.map(mine), gift: S.shop.gift, hireStep: Math.round(15 * SHOP.war(SHOP.WAR.HIRE)) };
+        // Co-op prices squad things up and rounds again, so the next hire's step is measured, not estimated.
+        if (S.players) { var rifle = ITEMS.find(function (it) { return it.id === 'hire-rifle'; }), p0 = price(rifle); S.mods.hired++; o.shop.hireStep = price(rifle) - p0; S.mods.hired--; }
         // Co-op: each bot shops with its own tags, its own gun and anything for the squad.
         o.mods = JSON.parse(JSON.stringify(S.mods));
       }
