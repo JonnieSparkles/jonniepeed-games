@@ -25,6 +25,9 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **The chairs are proper office chairs, and no taller than his jump** (polish): "the chairs u jump over … look terrible". Drawn bigger they stood taller than his jump, which read as unjumpable.
 - **The souls' hint is unannounced, white and gold, and never bends in** (mega stream hint): it's the first glimpse of the mega stream, which fuses only on the roof against p(Loom) (the owner's "shining star"). It has to feel like something odd and good happened, not a power-up: Spread Shot already fires three ways in gold, so the streams are the souls' own colours and the souls are seen flying into the gun. Bending in is saved for the middle floor's near miss.
 - **No frame round the stick; round arcade buttons** (fast rallies): "the control pad shouldn't have the outer rectangle", and the buttons "can look cooler". Both orientations stay; landscape plays best.
+- **A new Unruggabull for the lit hall** (the new bull): the owner wanted a fresh pass for this release that "doesnt need to match the first game completely", "more mature" meaning a step up in quality rather than an older bull. Drawn in code from posable parts, so every frame changes together. He's muscular, with wide shoulders and a narrow waist, after drafts that "looks fat"; he has dark brown fur ("the middle of the dark brown range") and a real neck ("notice how he has more of a neck here"). The face and outfit come from the owner's poster: a big warm-brown pompadour, clear glasses over half-lidded eyes, cream-to-gold horns, an orange-tan snout, the red vest open over a dark tee with grey sleeves, dog tags, rolled cuffs and the earring in his right ear. He keeps the gold blaster ("blaster"), not the poster's pistol.
+- **His hair sweeps back into a ducktail** (the new bull): with lighter fur, the plain back of his head read as a blank face looking at you.
+- **On dark brown fur, his hair stands out by being warmer and redder, not lighter** (the new bull): the poster's brown hair works against black fur; on dark brown it would blend in.
 
 ## Tried and dropped
 
@@ -34,3 +37,6 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **A surge you could jump** (volley match, dropped the same round): see above; it had to be forced.
 - **A D-pad** (game-pad controls, dropped in thumb stick).
 - **A bot that decides once per rally whether to try** (fast rallies): it skipped about a third of rallies, which no player does, and its fixed depth error made fast returns either impossible or free. It now always tries, with a timing error in time.
+- **Three directions for the new bull** (the new bull): Heavy (today's outfit with more weight), Brawler (top-heavy, sleeveless, taped wrists) and Jacket (a red bomber with a horns emblem on the back). The owner was "meh on all of them". The Jacket's all-red sank into the red runner in the lit hall.
+- **A tank top for the new bull** (the new bull): it showed the V best, but the owner picked the fitted vest.
+- **Shades** (the new bull): the poster's clear glasses with visible, half-lidded eyes carry his deadpan look instead.
