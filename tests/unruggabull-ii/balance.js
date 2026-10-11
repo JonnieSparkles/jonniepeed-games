@@ -1,16 +1,16 @@
 // Unruggabull II balance adapter (SPEC-005, docs/guides/01-balance-bots.md). tools/balance/run.py evaluates this
 // inside game.js's scope through a test-only bridge injected into the response; nothing here ships.
 // Progress is reported as stages, in the report's "wave" column:
-//   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 Shredder phases 1-3, 9 cleared.
+//   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Heavy lifting, 5 Lights out, 6 Copy Room, 7-9 Shredder phases 1-3, 10 cleared.
 (function () {
   var log = [], lastStage = 1, ids = new WeakMap(), nextId = 1;
   function idOf(o) { if (!ids.has(o)) ids.set(o, nextId++); return ids.get(o); }
   function stage() {
     if (R.phase === 'dead') return lastStage;
-    if (R.phase === 'win' || state === 'over') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
-    if (R.phase === 'wake') return 6;
-    return 5 + R.boss.ph;
+    if (R.phase === 'win' || state === 'over') return 10;
+    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? (R.event.course === 'lift' ? 4 : 2) : 5) : [1, 3, 6][R.beat];
+    if (R.phase === 'wake') return 7;
+    return 6 + R.boss.ph;
   }
   function record(type, data) {
     var e = { ev: type, wave: stage(), t: Math.round(R.t * 100) / 100 };

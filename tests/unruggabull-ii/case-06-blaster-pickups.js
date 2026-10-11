@@ -63,7 +63,7 @@
   step(TUNE.moveT + .2);
   check(R.beat === 1 && Snd.track === 'staff', 'All Staff plays Alley Redux');
   check(R.pickups.some(pk => pk.kind === 'coffee') && R.pickups.some(pk => pk.kind === 'spread'), 'a coffee and a Spread Shot follow moving day');
-  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
+  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(TUNE.liftT + .2);   // heavy lifting first
   check(R.event && R.event.kind === 'dark' && Snd.track === 'dark', 'lights out drops to a heartbeat');
   step(TUNE.darkT);
   check(R.beat === 2 && Snd.track === 'copy', 'the copy room has its own tune');

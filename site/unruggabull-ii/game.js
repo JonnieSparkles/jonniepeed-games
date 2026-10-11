@@ -48,7 +48,7 @@
     pullSpeed: .3, recover: .5, mouth: .85,
     goal: 90,               // souls that wake the Shredder
     wadTime: 1.25, wadLead: .2, throwChance: .6,
-    moveT: 19.5, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
+    moveT: 11, liftT: 19.5, moveClean: 10,   // moving day and heavy lifting: how long (their courses are COURSES in floor13.js, the last piece reaching you just before the end), and heavy lifting's bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
@@ -898,12 +898,12 @@
   }
   // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
   let statsRun = null;
-  const STAGES = ['accounts', 'moving', 'all_staff', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
+  const STAGES = ['accounts', 'moving', 'all_staff', 'heavy_lifting', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
   function stageNo() {
-    if (R.phase === 'win') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
-    if (R.phase === 'wake') return 6;
-    if (R.phase === 'boss') return 5 + R.boss.ph;
+    if (R.phase === 'win') return 10;
+    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? (R.event.course === 'lift' ? 4 : 2) : 5) : [1, 3, 6][R.beat];
+    if (R.phase === 'wake') return 7;
+    if (R.phase === 'boss') return 6 + R.boss.ph;
     return R.statsStage || 1;
   }
   // what a run reports, at its end or when the page is left mid-run

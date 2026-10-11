@@ -13,7 +13,7 @@
   const E = R.event;
   // the course: chairs, beams and the movers' couch and plank, the first jump and first duck marked
   check(MOVES.length >= 8 && MOVES.some(m => m[0] === 'couch') && MOVES.some(m => m[0] === 'plank') && !MOVES.some(m => m[0] === 'wall'), 'a course of jumps and ducks, no walls');
-  R.boxes = []; R.rows = []; E.nextOb = 1e9; E.obN = 0; E.marked = {}; E.souls = [];
+  R.boxes = []; R.rows = []; E.moves = MOVES; E.dur = 1e9; E.nextOb = 1e9; E.obN = 0; E.marked = {}; E.souls = [];
   spawnMove(E);
   const chairs = R.rows.find(rw => rw.kind === 'chairs');
   check(chairs && chairs.ob.mark && E.souls.length === 1, 'the first chairs are marked, with a trapped soul after them');
@@ -37,12 +37,12 @@
   check(R.souls > souls && R.fx.some(f => f.k === 'pop' && f.text === 'DUCKED!'), 'and clearing it frees a soul, with a DUCKED!');
   draw();
   // a clean run pays a bonus
-  bull.inv = 1e9; E.clean = true; E.nextOb = 0; E.obN = Math.min(E.obN, MOVES.length - 1); const before = R.souls;
-  for (let i = 0; i < 60 * TUNE.moveT && R.event; i++) update(1 / 60);
-  check(!R.event && R.souls >= before + TUNE.moveClean, 'not a scratch: a bonus');
+  bull.inv = 1e9; E.clean = true; E.dur = E.t + 8; E.nextOb = 0; E.obN = Math.min(E.obN, E.moves.length - 1); const before = R.souls;
+  for (let i = 0; i < 60 * TUNE.moveT && R.event && R.event.kind === 'move'; i++) update(1 / 60);
+  check(!(R.event && R.event.kind === 'move') && R.souls >= before + E.bonus, 'not a scratch: a bonus');
 
   // lights out: shoot a switch and the lights flash on, freezing the carpshits
-  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60);
+  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); if (R.event && R.event.course === 'lift') { R.event = null; startEvent(R.evQ.shift()); }   // (past heavy lifting, straight to lights out)
   check(R.event && R.event.kind === 'dark', 'lights out');
   for (let i = 0; i < 60 * 4 && !R.switches.length; i++) update(1 / 60);
   check(R.switches.length, 'a light switch glows on the wall');
