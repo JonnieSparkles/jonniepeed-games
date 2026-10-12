@@ -32,9 +32,9 @@ def check_music(browser, root):
       S.music('roofA',{boundary:'bar'});check(S.musicState.playing==='roofC','bar switch waits');
       while(window.musicNow<6.9){window.musicNow+=.025;audioTest('pump()');}
       check(S.musicState.playing==='roofA','bar switch applies');
-      S.roofCue('spool');check(audioTest('!!musicFx'),'spool stinger schedules an overlay');
+      S.roofCue('spool');check(audioTest('!!musicFx'),'spool power chord plays on the music overlay');
       S.roofCue('cut');check(S.track===null&&audioTest('P.id===null&&P.timer===0&&musicFx===null'),'hard cut kills transport and music overlays');
-      S.roofCue('flood');check(audioTest('!!musicFx'),'riser grows from silence');
+      S.roofCue('flood');check(S.track===null&&audioTest('musicFx===null'),'the flood leaves the music silent; the returning souls play it');
       S.roofCue('fusion');check(S.track==='roofBHeavy'&&S.musicState.playing==='roofBHeavy','heavy slam remembers selected candidate');
       S.roofCue('one');check(S.track===null&&audioTest('!!musicFx'),'one percent drops to a held note');
       S.roofCue('dawn');check(S.track===null&&audioTest('musicFx===null'),'dawn releases held music and plays the chord');

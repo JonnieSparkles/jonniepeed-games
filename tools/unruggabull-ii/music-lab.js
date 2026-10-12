@@ -10,7 +10,11 @@
     if (!delayed) cancel(); unlock();
     if (name !== 'dawn') sound.roofSound({ storm: true });
     if (name === 'bells') { sound.play('bell', 0); later(() => sound.play('bell', 1), 1.5); later(() => sound.play('bell', 2), 3); }
-    else if (name === 'fusion') { later(() => sound.roofCue('fusion', {candidate:byId('choice').value}), .14); checkStems(['drums','bass','lead','harmony','power','heavy']); }
+    else if (name === 'flood') {
+      // As in the roof: the souls rush in on a climbing scale, then the pinch sweep (the game spreads them over its flood).
+      sound.roofCue('flood'); for (let i = 0; i < 12; i++) later(() => sound.play('rush', i), .6 + i * .055); later(() => sound.play('pinch', 1), 1.3);
+    }
+    else if (name === 'fusion') { sound.play('beam'); sound.roofSound({ storm: true, beam: true, onEye: true }); later(() => sound.roofCue('fusion', {candidate:byId('choice').value}), .14); checkStems(['drums','bass','lead','harmony','power','heavy']); }
     else {
       sound.roofCue(name, {candidate:byId('choice').value, seconds:name==='one'?3:4});
       if (name === 'dawn') sound.roofSound(null);
