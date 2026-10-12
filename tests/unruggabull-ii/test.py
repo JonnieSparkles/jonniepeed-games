@@ -75,6 +75,8 @@ with sync_playwright() as p:
         width = page.evaluate('document.documentElement.scrollWidth')
         assert width <= size[0], f'{name}: no sideways scroll ({width}px)'
         assert page.locator('#go').is_visible(), f'{name}: Start is visible'
+        assert page.locator('#cardTitle').inner_text() == 'The 13th Floor: Accounting', f'{name}: branded title'
+        assert page.locator('#cardTitle').evaluate('(el) => el.scrollWidth <= el.clientWidth'), f'{name}: branded title fits'
         page.locator('#go').click()
         page.wait_for_timeout(300)
         assert page.locator('#crawl').is_visible(), f'{name}: the first Start tells the story'

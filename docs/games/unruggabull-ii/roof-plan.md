@@ -21,7 +21,7 @@ About 3½ minutes in all, in three acts. All times are starting points.
 | Round 3 | about 45 s | Everything, faster. Break spool 3. "ALL SOULS ACCOUNTED FOR." Music cuts. |
 | The crescendo | about 30 s | The quiet, souls come back, flood, pinch, fusion, the beam, 1%, the threads snap. Three side-view cut-ins. |
 
-The view is the corridor, from behind him, like Floor 13, except during the three short cut-ins.
+The view is the corridor, from behind him, like the 13th Floor, except during the three short cut-ins.
 
 ## The rules
 
@@ -44,7 +44,7 @@ The view is the corridor, from behind him, like Floor 13, except during the thre
   - Snares: the eye fires a thread down the roof. If it hooks him, it reels him toward the loom. A slash cuts it ("CUT"), and the eye flinches for a second ("RECALCULATING."). Reeled all the way in, he loses a heart and is thrown back.
   - Gusts: the rain leans a beat before each gust, then wind pushes him across the roof. The parapet stops him, so nothing falls off, but it pins him there for the next volley.
 - **Round 3, everything.** Carpshits, rings and snares together, faster. When the last spool snaps, the loom sags, the eye drifts back to the middle, and it says "ALL SOULS ACCOUNTED FOR." The music cuts out on the last word.
-- **Hearts and continues.** Five hearts as on Floor 13. A continue skips the lead-in and starts the round he died in, with full hearts. Broken spools stay broken, and the souls caught so far stay caught.
+- **Hearts and continues.** Five hearts as on the 13th Floor. A continue skips the lead-in and starts the round he died in, with full hearts. Broken spools stay broken, and the souls caught so far stay caught.
 
 ### The crescendo (frames 12 to 23)
 
@@ -77,9 +77,9 @@ This is the spec's mega stream finale (spec.md, "The roof finale"), with these c
 
 ## Part A: the framework (done)
 
-Built in `roof.js`, with per-run floors, the shared open-air renderer, all mechanics and cut hooks, bridge tests and roof bots. Art, new sounds and feel remain Part B. Floor 13 remains the title Start and its clear still ends that floor.
+Built in `roof.js`, with per-run floors, the shared open-air renderer, all mechanics and cut hooks, bridge tests and roof bots. Art, new sounds and feel remain Part B. The 13th Floor remains the title Start and its clear still ends that floor.
 
-Implementation choices: nominal 30/40/45-second rounds now pace two eye openings, with six-second volleys between them; each spool takes ten stalled-eye hits and a stall lasts 2.3 seconds. Groups of 2/3/4 carpshits arrive every 2.8/2.5/2 seconds using existing formation movement. Roof charges refill every 0.35 seconds to keep those groups playable. A roof-only run begins with 100 earlier-floor captives, already counted. All captives are drawn in overlapping rows with about 60 distinct silhouettes at the quiet; the counter reaches the 200s. Every remaining captive gets its own flood flight, with only simultaneous drawing capped at 96, and dawn raises the same captured population without scoring it twice. Rings sit at depth 0.28, reachable through roof-only forward/back movement in a 0–0.36 band (stick up/down or W/S and arrow keys; Space still jumps). The weights are 75/21/4, 81/16/3 and 90/9/1 to keep the longer fight's variance playable. The likely ring remains nearest the player; the other two lanes shuffle, the first orb is always likely and later orbs use the displayed weights. Beam carps remain the existing heart hazard. Three bell arrivals precede the complete flood and simple bending streams. `--option stage=roof` remains the bot entry, with completed-round timing and quiet population/counter events added to the report. Roof bot ring-reading chances are separate from unchanged Floor 13 decisions. Actual bot clears now take about 3¼ minutes; PR #84 contains the 100-seed rates, causes and medians. Effects-on verification draws actual frames. The next-floor connection and ending after dawn remain outside Part A, as planned.
+Implementation choices: nominal 30/40/45-second rounds now pace two eye openings, with six-second volleys between them; each spool takes ten stalled-eye hits and a stall lasts 2.3 seconds. Groups of 2/3/4 carpshits arrive every 2.8/2.5/2 seconds using existing formation movement. Roof charges refill every 0.35 seconds to keep those groups playable. A roof-only run begins with 100 earlier-floor captives, already counted. All captives are drawn in overlapping rows with about 60 distinct silhouettes at the quiet; the counter reaches the 200s. Every remaining captive gets its own flood flight, with only simultaneous drawing capped at 96, and dawn raises the same captured population without scoring it twice. Rings sit at depth 0.28, reachable through roof-only forward/back movement in a 0–0.36 band (stick up/down or W/S and arrow keys; Space still jumps). The weights are 75/21/4, 81/16/3 and 90/9/1 to keep the longer fight's variance playable. The likely ring remains nearest the player; the other two lanes shuffle, the first orb is always likely and later orbs use the displayed weights. Beam carps remain the existing heart hazard. Three bell arrivals precede the complete flood and simple bending streams. `--option stage=roof` remains the bot entry, with completed-round timing and quiet population/counter events added to the report. Roof bot ring-reading chances are separate from unchanged decisions for the 13th Floor. Actual bot clears now take about 3¼ minutes; PR #84 contains the 100-seed rates, causes and medians. Effects-on verification draws actual frames. The next-floor connection and ending after dawn remain outside Part A, as planned.
 
 **Follow-up completed:** fuller warp and exact flood/dawn populations; rings raised and reachable on all tested phone layouts; longer rounds through attack pacing rather than additional health; difficulty recalibrated and timing/count coverage added. The owner approved drawing every captive in overlapping rows so roughly 60 silhouettes stand out. Art, sound and feel remain Part B.
 
@@ -89,13 +89,13 @@ Read the repo's README standards and this game's README first. Code is in `site/
 - classic scripts, no modules
 - split files near 2,000 lines
 - run `python3 tools/stamp.py` after any change in `site/`
-- Floor 13 must play exactly as before
+- the 13th Floor must play exactly as before
 
 1. **Floors in the core.**
-   - `game.js` builds Floor 13 directly (`UnrugFloor13(core)`, line ~1280). Generalise this to a floor chosen per run, sharing the same core pieces.
-   - Floor-13-only numbers in `TUNE`, the opening banner and the clear card move to the floor or become per floor.
+   - `game.js` builds the 13th Floor directly (`UnrugFloor13(core)`, line ~1280). Generalise this to a floor chosen per run, sharing the same core pieces.
+   - Numbers specific to the 13th Floor in `TUNE`, the opening banner and the clear card move to the floor or become per floor.
    - Add a way to start on the roof directly, for testing and for review: a `#stage=roof` hash, next to the existing `#seed=`.
-   - The title's Start still goes to Floor 13. What happens after Floor 13's clear doesn't change yet (the floors in between don't exist).
+   - The title's Start still goes to the 13th Floor. What happens after the 13th Floor's clear doesn't change yet (the floors in between don't exist).
 2. **`roof.js` (`UnrugRoof`).**
    - A new floor script, loaded after `floor13.js`, shaped like it: the core calls it once and gets back its hooks.
    - It owns a state machine for the parts above:
@@ -109,7 +109,7 @@ Read the repo's README standards and this game's README first. Code is in `site/
    - The lit renderer (`render.js`) draws a hall with walls and a ceiling. Give it an open-air set: no ceiling and no wall bands, with a sky above the horizon, low parapets for walls, and a wet floor that still reflects.
    - Keep it a `set` option or a sibling of `create`, not a fork.
    - The sky can be a flat dark gradient for now. Lightning is a full-screen flash plus a raised ambient light for a few frames. Rain can be simple streaks.
-   - Floor 13's look must not change: check it with the screenshot cases.
+   - the 13th Floor's look must not change: check it with the screenshot cases.
 4. **p(Loom) as stand-in drawing.**
    - A big frame of rectangles at the far end: two posts, a top beam, three spools, vertical warp lines, a rail, the eye (discs; `loom()` in the storyboard's `board.js` is a starting point), and the red cloth feeding into the existing runner.
    - Trapped souls are the existing `GHOST` sprite hung in the warp.
@@ -118,9 +118,9 @@ Read the repo's README standards and this game's README first. Code is in `site/
 5. **The HUD.**
    - The odds bar: label `P(LOOM)`, a red fill, the percentage, and a flash when it's hot.
    - Three spool pips under it.
-   - The souls counter as on Floor 13.
+   - The souls counter as on the 13th Floor.
    - The charge bar's gold state in the crescendo.
-   - p(Loom)'s orange readout, top centre, typing out with `Snd.say` like other talkers (its voice is undecided; use blips for now). His caption as on Floor 13.
+   - p(Loom)'s orange readout, top centre, typing out with `Snd.say` like other talkers (its voice is undecided; use blips for now). His caption as on the 13th Floor.
 6. **The mechanics, all of them, as written above:**
    - souls caught by the loom
    - prediction rings with percentages and orbs
@@ -152,7 +152,7 @@ Read the repo's README standards and this game's README first. Code is in `site/
      - the odds drain on the eye and creep back off it
      - the clear
      - a continue in round 2 starts round 2
-   - Floor 13's existing 22 cases must still pass.
+   - the 13th Floor's existing 22 cases must still pass.
 10. **Bots.**
     - Teach the bot the roof: hit the stalled eye, stand in low-odds rings, slash snares, keep the beam on the eye.
     - Add roof stages to the report (the lead-in, rounds 1 to 3, the crescendo, cleared) and roof causes (`orb`, `snare`, `carp`).
@@ -168,9 +168,9 @@ Read the repo's README standards and this game's README first. Code is in `site/
 **Part A is done when:**
 - `#stage=roof` plays from the elevator to dawn, with stand-in art.
 - Every state above is reachable.
-- The tests pass, Floor 13's included.
+- The tests pass, the 13th Floor's included.
 - The bots clear it at sensible rates.
-- Floor 13 looks and plays the same: run its bots before and after, and compare run for run, ignoring `elapsed`.
+- the 13th Floor looks and plays the same: run its bots before and after, and compare run for run, ignoring `elapsed`.
 
 ## Part B: the polish
 
@@ -206,4 +206,4 @@ The pattern/order sequencer, per-channel/note envelopes, duty-selected pulse lea
 
 Three plain D-minor candidate pairs in `music-roof.js` can be auditioned in the actual fight with `#music=a/b/c`: A galloping chip-metal, B dark synthwave, C epic chip with a detuned pulse choir. Each pair shares a hook and A/B sections, 30–60 seconds before looping, with the heavy version about 12.5% faster and a saw lead. A is the starting default, not the final selection.
 
-`tools/unruggabull-ii/music-lab.html` uses the exact game audio/data on a phone: six candidates, all roof cues, a 58-second arc, stem/tempo/transition controls and the six Floor 13 references. The FIGHT downbeat and round layers, spool stingers, hard cut on the final accounted word, storm-only quiet, in-key bells, flood/pinch riser, heavy slam at freeze end, held D5 at 1%, and D-major chord across snap/dawn are wired without changing fight timers. Final fight/heavy compositions still need to be written, auditioned, chosen and tuned; loom/set/beam/cut art and phone playtesting also remain.
+`tools/unruggabull-ii/music-lab.html` uses the exact game audio/data on a phone: six candidates, all roof cues, a 58-second arc, stem/tempo/transition controls and the six reference tracks for the 13th Floor. The FIGHT downbeat and round layers, spool stingers, hard cut on the final accounted word, storm-only quiet, in-key bells, flood/pinch riser, heavy slam at freeze end, held D5 at 1%, and D-major chord across snap/dawn are wired without changing fight timers. Final fight/heavy compositions still need to be written, auditioned, chosen and tuned; loom/set/beam/cut art and phone playtesting also remain.

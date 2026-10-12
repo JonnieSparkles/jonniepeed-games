@@ -186,6 +186,7 @@ def unruggabull_ii(browser):
     page.evaluate("unrugTest('R.souls = 37; R.lastCause = \"chairs\"; R.beat = 1; for (let i = 0; i < 5; i++) { bull.inv = 0; hurtBull(1, \"chairs\"); } for (let i = 0; i < 60 * 2.2; i++) update(1 / 60);')")
     end = check_end(beacons(page)[1], start, 'over', ['stage', 'stage_name', 'cause', 'continues', 'boss_hp'])
     assert end['score'] == 37 and end['stats']['stage'] == 3 and end['stats']['cause'] == 'chairs', end
+    assert end['stats']['stage_name'] == 'the 13th Floor: All Staff', end
     # play again from the rugged card, then restart from pause: the open run reports as quit, then a new one starts
     page.click('#go')
     second = check_start(beacons(page)[2], 'unruggabull-ii', None)

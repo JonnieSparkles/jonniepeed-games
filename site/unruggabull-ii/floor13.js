@@ -1,4 +1,4 @@
-// Unruggabull II: Floor 13, Accounting, and its boss, the Shredder. Classic script; load after art.js and audio.js
+// Unruggabull II: The 13th Floor, Accounting, and its boss, the Shredder. Classic script; load after art.js and audio.js
 // and before game.js, which calls UnrugFloor13(core) once with the pieces the floors share and gets back the floor's
 // hooks (listed at the bottom). The core hands over R and bull at each fresh run (newRun).
 //
@@ -784,8 +784,8 @@ var UnrugFloor13 = function (core) {
       if (R.phaseT > 1.6 && !R.talk) bark('clear');
       if (R.phaseT > 2.1 && !R.events.clearBanner) {
         R.events.clearBanner = true;
-        R.banner = { text: 'FLOOR 13 CLEAR', sub: 'SOULS FREED: ' + R.souls, t: 0, dur: 99 };
-        Snd.play('clear'); live('Floor 13 clear.');
+        R.banner = { text: 'THE 13TH FLOOR CLEAR', sub: 'SOULS FREED: ' + R.souls, t: 0, dur: 99 };
+        Snd.play('clear'); live('The 13th Floor clear.');
       }
       if (R.banner && R.events.clearBanner) R.banner.sub = 'SOULS FREED: ' + R.souls;
       if (R.phaseT > 4.4) endRun('clear');
@@ -1393,8 +1393,8 @@ var UnrugFloor13 = function (core) {
   }
 
   function opening() {
-    R.banner = { text: 'FLOOR 13', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
-    live('Floor 13, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
+    R.banner = { text: 'THE 13TH FLOOR', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
+    live('The 13th Floor, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
     Snd.play('start'); Snd.music('tower');
   }
   function clearCard(extra, best, clock) {
@@ -1402,7 +1402,7 @@ var UnrugFloor13 = function (core) {
       ['Best streak', String(R.bestStreak)], ['Formation wipes', String(R.events.wipes || 0)], ['Smashes', String(R.events.smashes || 0)], ['Longest rally', String(R.events.bestRally || 0)]];
     if (R.continues) rows.push(['Continues', String(R.continues)]);
     rows.push(['Best', best.souls + ' souls']);
-    return { title: 'Floor 13 clear', text: extra.newBest ? 'New best! The Unrugged drift up toward the roof.' : 'The Unrugged drift up toward the roof.',
+    return { title: 'The 13th Floor clear', text: extra.newBest ? 'New best! The Unrugged drift up toward the roof.' : 'The Unrugged drift up toward the roof.',
       rows, note: 'The elevator to floor 42 comes in a later build.' };
   }
   return {

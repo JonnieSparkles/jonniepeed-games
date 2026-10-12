@@ -393,10 +393,10 @@
   }
   // Unruggabull's lines: each once per run, over his head, in his own blips until Jonnie's recordings exist.
   const LINES = {
-    start: 'FLOOR THIRTEEN. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
+    start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
     dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
-    low: 'BEEN WORSE. NOT MUCH.', clear: 'FLOOR THIRTEEN: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
+    low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
@@ -882,8 +882,8 @@
     const rows = [];
     altBtn.hidden = true; cardNote.hidden = true;
     if (kind === 'title') {
-      cardTitle.textContent = 'Floor 13: Accounting';
-      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on floor 13 to wake the Shredder, then beat it.';
+      cardTitle.textContent = 'The 13th Floor: Accounting';
+      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on the 13th Floor to wake the Shredder, then beat it.';
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
@@ -915,7 +915,7 @@
   }
   const LABELS = {
     title: 'Title screen: Unruggabull, katana on his back, faces RugCo Tower at sunset while souls drift up to a beacon on its roof.',
-    play: 'Unruggabull, seen from behind, in an office hallway on floor 13 of RugCo Tower. Cubicles line the hall, a red runner rug leads to a shredder at the far end.'
+    play: 'Unruggabull, seen from behind, in an office hallway on the 13th Floor of RugCo Tower. Cubicles line the hall, a red runner rug leads to a shredder at the far end.'
   };
   function setState(s) {
     state = s;
@@ -926,7 +926,7 @@
   }
   // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
   let statsRun = null;
-  const STAGES = ['accounts', 'moving', 'all_staff', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
+  const STAGES = ['Accounts Payable', 'Moving day', 'All Staff', 'Lights out', 'Copy Room', 'Shredder phase 1', 'Shredder phase 2', 'Shredder phase 3', 'Clear'].map(name => 'the 13th Floor: ' + name);
   function stageNo() {
     if (floor.stageNo) return floor.stageNo();
     if (R.phase === 'win') return 9;
@@ -972,7 +972,7 @@
     'But the Rugfather was only middle management.',
     'Every carpshit our hero unrugged left a soul behind: the Unrugged. Small, fringed and very polite, they drifted up to the roof of RugCo Tower and did not come back down.',
     'Something up there has been catching them and weaving them back into carpshits. RugCo calls it p(Loom). It puts your odds of stopping it at one percent.',
-    'Our hero would like to discuss those odds. He will need a sword.'
+    'Our hero would like to discuss those odds. First stop: the 13th Floor. He will need a sword.'
   ];
   const STORY_KEY = 'unruggabull-ii-story';
   const crawl = $('crawl'), crawlText = $('crawlText'), skipBtn = $('skip');

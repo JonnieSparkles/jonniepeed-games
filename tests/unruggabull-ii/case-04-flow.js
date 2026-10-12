@@ -17,7 +17,7 @@
   check(intro.i === 1, 'another moves on');
   key('keydown', 'Escape');
   check(state === 'play' && crawl.hidden && storySeen(), 'Escape skips to the floor');
-  check(R.banner && R.banner.text === 'FLOOR 13' && R.banner.then.text === 'FREE ' + TUNE.goal + ' SOULS', 'the floor opens with its goal');
+  check(R.banner && R.banner.text === 'THE 13TH FLOOR' && R.banner.then.text === 'FREE ' + TUNE.goal + ' SOULS', 'the floor opens with its goal');
   setState('title'); showCard('title');
   check(!altBtn.hidden && altBtn.textContent === 'Watch the story', 'the story can be watched again');
   goBtn.click();
