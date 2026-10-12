@@ -9,9 +9,11 @@
 // Channel defaults accept those effects too. Noise notes k/s/h select pitch-drop kick, snare and hat.
 // Add an object to UnrugRoofMusic or registerTrack(id,data). stems() applies on the next bar;
 // music(id,{boundary:'bar'|'beat',slam:true}), music(null,{hard:true}), stinger(name), roofCue(name).
-// Roof cues: storm-only lead; fight downbeat; harmony/power added in rounds 2/3; spool stingers;
-// hard cut at the last accounted word; flood/pinch riser; heavy downbeat after fusion freeze;
-// 1% held D5; snap/dawn D-major chord, then quiet. #music=a/b/c selects a candidate.
+// A pattern channel with drive:true goes through the overdrive (Saga II's distorted power chords).
+// Roof cues: storm-only lead; fight downbeat; harmony/power added in rounds 2/3; a crashing power chord at each spool;
+// hard cut at the last accounted word; the flood is the souls' own climbing notes (play('rush')) and the pinch sweep;
+// heavy downbeat after the fusion freeze, with the beam's choir roar; 1% held D5; snap/dawn D-major chord, then quiet.
+// Saga II is roofA; #music=b/c selects an earlier candidate.
 // Characters talk in blips, one tone per letter, timed to match the caption as it types out.
 // Browsers only allow audio after a tap or key press: `ready` is false until then, and `onready` is
 // called whenever that changes so the Sound button can show what's really happening.
@@ -308,7 +310,7 @@ window.UnrugSound = (function () {
         if (P.pendingTempo) { P.rate = P.pendingTempo; P.pendingTempo = 0; }
       }
       const S = P.comp[P.si], t = P.next, duration = S.stepDur / P.rate;
-      for (const ch of S.chans) if (P.stems.has(ch.stem)) for (const e of ch.byStep[P.step] || []) patternNote(P.out, ch, e, t, duration);
+      for (const ch of S.chans) if (P.stems.has(ch.stem)) for (const e of ch.byStep[P.step] || []) patternNote(ch.drive ? P.drive : P.out, ch, e, t, duration);
       P.next += duration * (P.step % 2 ? 1 - S.swing : 1 + S.swing); P.step++;
       if (P.step >= S.steps) { P.step = 0; P.si = P.si + 1 < P.comp.length ? P.si + 1 : P.loopFrom; }
     }
@@ -366,6 +368,18 @@ window.UnrugSound = (function () {
     const stepDur = 60 / data.bpm / 4, at = ctx.currentTime + .005;
     for (const e of noteEvents(data.notes)) patternNote(fxBus(), data, e, at + e.step * stepDur, stepDur);
   }
+  // A spool snaps: one distorted power chord on D with a heavy kick and a crash, on the music's overlay bus
+  // so the hard cut silences it like the rest of the music.
+  function spoolHit() {
+    if (!ctx || ctx.state !== 'running') return;
+    restoreDuck(); const out = fxBus(), t = ctx.currentTime + .005;
+    const d = ctx.createGain(), sh = shaper(3), lp = ctx.createBiquadFilter(), post = ctx.createGain();
+    d.gain.value = 4; lp.type = 'lowpass'; lp.frequency.value = 3500; post.gain.value = .3;
+    d.connect(sh); sh.connect(lp); lp.connect(post); post.connect(out);
+    for (const m of [50, 57, 62]) osc(d, 'p25', hz(m), t, 1.1, .3, { sustain: .6 });
+    DRUM.K(t, out); DRUM.c(t, out); noiseHit(out, t, 1.2, .3, 'highpass', 4000);
+    setTimeout(() => [d, sh, lp, post].forEach(n => n.disconnect()), 2500);
+  }
   function riser(seconds = 4) {
     if (!ctx || ctx.state !== 'running') return;
     restoreDuck(); stopMusicFx(); const out = fxBus(), t = ctx.currentTime + .005;
@@ -383,8 +397,8 @@ window.UnrugSound = (function () {
       const stems = base.concat(name === 'round3' ? ['harmony', 'power'] : ['harmony']);
       if (want !== id) api.music(id, { slam: true, stems }); else api.stems(stems);
     }
-    else if (name === 'spool') stinger('spool');
-    else if (name === 'flood') riser(options.seconds || 4);
+    else if (name === 'spool') spoolHit();
+    else if (name === 'flood') stopMusicFx();   // the souls play the flood themselves: play('rush', n), then play('pinch')
     else if (name === 'fusion') { stopMusicFx(); api.music(id + 'Heavy', { slam: true }); }
     else if (name === 'one') { api.music(null, { hard: true }); if (ctx) osc(fxBus(), 'p50', hz(74), ctx.currentTime + .005, options.seconds || 2, .09, { attack: .015, sustain: .9 }); }
     else if (name === 'snap' || name === 'dawn') { api.music(null, { hard: true }); if (!options.continueChord) api.play('chord'); }
@@ -451,6 +465,53 @@ window.UnrugSound = (function () {
     lfo.connect(depth); depth.connect(filter.frequency); lfo.start(); nodes.push(lfo);
     return { out, filter, nodes, gains, noise, ng, lfo, depth };
   }
+  function shaper(amount) { const s = ctx.createWaveShaper(), c = new Float32Array(1024); for (let i = 0; i < 1024; i++) c[i] = Math.tanh(amount * (i / 511.5 - 1)); s.curve = c; return s; }
+  // The beam's roar: thunder underneath (detuned saws on low D and A, overdriven, a filter that bursts open, a sub),
+  // the mockup's buzzing hum wobbling seven times a second, and the freed souls singing in it: an 'aah' choir
+  // (saws through vowel filters) walking Dm, Bb, F, A every 2.4 s, a high voice over it, and stray bell pings.
+  function beamRoar() {
+    const t = ctx.currentTime, out = ctx.createGain(); out.gain.value = 0; out.connect(sfxBus);
+    const nodes = [], gains = [];
+    const add = o => { o.start(t); nodes.push(o); return o; };
+    const oscN = (type, f, detune = 0) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = detune; return add(o); };
+    const g = v => { const x = ctx.createGain(); x.gain.value = v; gains.push(x); return x; };
+    const node = n => { gains.push(n); return n; };
+    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.Q.value = 3; filter.connect(out);
+    filter.frequency.setValueAtTime(160, t); filter.frequency.exponentialRampToValueAtTime(1300, t + .6);
+    const lfo = add(ctx.createOscillator()), depth = g(300); lfo.frequency.value = 5; lfo.connect(depth); depth.connect(filter.frequency);
+    const noise = ctx.createBufferSource(); noise.buffer = NOISE; noise.loop = true; add(noise);
+    const ng = g(.06); noise.connect(ng);
+    // thunder
+    const drive = g(3), sh = node(shaper(3)), post = g(.085); drive.connect(sh); sh.connect(post); post.connect(filter);
+    for (const [f, d, v] of [[36.7, 0, .5], [36.7, 11, .5], [55, -7, .35], [73.4, 5, .3]]) { const o = oscN('sawtooth', f, d), gg = g(v); o.connect(gg); gg.connect(drive); }
+    const sub = oscN('sine', 36.7), sg = g(.09); sub.connect(sg); sg.connect(out);
+    const bp = node(ctx.createBiquadFilter()); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = .7; ng.connect(bp); bp.connect(filter);
+    // the hum
+    const hf = node(ctx.createBiquadFilter()); hf.type = 'lowpass'; hf.frequency.value = 700; hf.Q.value = 3; const hg = g(1.4); hf.connect(hg); hg.connect(out);
+    const hl = add(ctx.createOscillator()), hd = g(450); hl.frequency.value = 7; hl.connect(hd); hd.connect(hf.frequency);
+    for (const [wave, f, v] of [['sawtooth', 55, .09], ['square', 56.2, .035], ['sawtooth', 110.4, .04]]) { const o = oscN(wave, f), gg = g(v); o.connect(gg); gg.connect(hf); }
+    const hn = g(.1); noise.connect(hn); hn.connect(hf);
+    // the choir
+    const voice = g(0); voice.gain.setValueAtTime(0, t); voice.gain.linearRampToValueAtTime(1, t + .7); voice.connect(out);
+    const sum = g(1);
+    for (const [f, q, v] of [[730, 5, 1], [1090, 7, .7], [2440, 9, .25]]) { const b = node(ctx.createBiquadFilter()); b.type = 'bandpass'; b.frequency.value = f; b.Q.value = q; const bg = g(v); sum.connect(b); b.connect(bg); bg.connect(voice); }
+    const CH = [[50, 57, 62, 65, 69, 74], [46, 53, 58, 62, 65, 70], [53, 57, 60, 65, 69, 72], [45, 52, 57, 61, 64, 69]], HIGH = [81, 82, 84, 85], voices = [];
+    for (let i = 0; i < 6; i++) for (const d of [-11, 10]) {
+      const o = oscN('sawtooth', hz(CH[0][i]), d), v = add(ctx.createOscillator()), vd = g(hz(CH[0][i]) * .008), og = g(.04);
+      v.frequency.value = 4.8 + (i % 3) * .35; v.connect(vd); vd.connect(o.frequency); o.connect(og); og.connect(sum); voices.push([o, i]);
+    }
+    const hi = oscN('triangle', hz(HIGH[0])), hv = add(ctx.createOscillator()), hd2 = g(hz(81) * .01), hig = g(.05);
+    hv.frequency.value = 5.4; hv.connect(hd2); hd2.connect(hi.frequency); hi.connect(hig); hig.connect(voice);
+    // The chord walk and the bell pings are scheduled for two minutes; the beam never lasts that long.
+    for (let k = 0; k < 50; k++) {
+      const at = t + k * 2.4, c = k % 4;
+      for (const [o, i] of voices) o.frequency.setTargetAtTime(hz(CH[c][i]), at, .08);
+      hi.frequency.setTargetAtTime(hz(HIGH[c]), at, .1);
+    }
+    const ping = oscN('triangle', hz(86)), pg = g(0); ping.connect(pg); pg.connect(out);
+    for (let k = 0; k < 80; k++) { const at = t + .9 + k * 1.45; ping.frequency.setValueAtTime(hz([86, 89, 93, 98][k % 4]), at); pg.gain.setValueAtTime(.05, at); pg.gain.exponentialRampToValueAtTime(.0005, at + 1); }
+    return { out, filter, nodes, gains, noise, ng, lfo, depth };
+  }
   function stopLoop(loop) {
     if (!loop) return;
     loop.out.gain.cancelScheduledValues(ctx.currentTime); loop.out.gain.setValueAtTime(0, ctx.currentTime);
@@ -462,7 +523,7 @@ window.UnrugSound = (function () {
     if (!ctx) return;
     if (value && value.storm) { if (!stormLoop) stormLoop = loopSound(false); stormLoop.out.gain.setTargetAtTime(.7 + (value.gust || 0) * .7, ctx.currentTime, .15); }
     else { stopLoop(stormLoop); stormLoop = null; }
-    if (value && value.beam) { if (!beamLoop) beamLoop = loopSound(true); beamLoop.out.gain.setTargetAtTime(value.onEye ? 1.4 : .8, ctx.currentTime, .04); }
+    if (value && value.beam) { if (!beamLoop) beamLoop = beamRoar(); beamLoop.out.gain.setTargetAtTime(value.onEye ? 1.4 : .8, ctx.currentTime, .04); }
     else { stopLoop(beamLoop); beamLoop = null; }
   }
   function twang(t, f, vol = .2) {
@@ -478,7 +539,17 @@ window.UnrugSound = (function () {
     snareCut: t => twang(t, 730, .14),
     gust: t => noiseHit(sfxBus, t, 1.1, .16, 'bandpass', 1200, .6, 240),
     spoolSnap: t => { twang(t, 180, .26); noiseHit(sfxBus, t, .12, .4, 'highpass', 2400); },
-    beam: t => { osc(sfxBus, 'sawtooth', 65, t, .6, .18, { to: 48, sustain: .9 }); noiseHit(sfxBus, t, .7, .25, 'lowpass', 2300, 1, 500); },
+    // the fusion: a sub boom, a crash and a falling power chord, then the souls' choir in one blast with bells over it
+    beam: t => {
+      osc(sfxBus, 'sine', 90, t, 1.4, .385, { to: 28, sustain: .4 });
+      noiseHit(sfxBus, t, 1.6, .35, 'lowpass', 5000, 1, 200); noiseHit(sfxBus, t, .08, .35, 'highpass', 3000);
+      osc(sfxBus, 'sawtooth', 73.4, t, 1, .084, { to: 40, sustain: .5 }); osc(sfxBus, 'sawtooth', 110, t, 1, .063, { to: 55, sustain: .5 });
+      [62, 65, 69, 74, 77, 81, 86].forEach((m, i) => { osc(sfxBus, 'sawtooth', hz(m), t, .9, .03, { attack: .01, sustain: .5 }); osc(sfxBus, 'triangle', hz(m + 12), t + i * .03, 2.4, .05, { attack: .01, sustain: .3 }); });
+    },
+    // the flood: one note per returning soul, climbing the D minor scale from D5 (n is how far the flood has got, 0-11)
+    rush: (t, n) => { const m = [74, 76, 77, 79, 81, 82, 84, 86, 88, 89, 91, 93][Math.max(0, Math.min(11, n || 0))]; osc(sfxBus, 'triangle', hz(m), t, .14, .1, { sustain: .15 }); },
+    // the pinch: the five streams squeezing into one, a rising sweep (seconds: how long the pinch lasts)
+    pinch: (t, seconds) => { const d = seconds || .45; osc(sfxBus, 'square', 300, t, d, .06, { to: 1500, sustain: .3 }); osc(sfxBus, 'sawtooth', 150, t, d, .04, { to: 760, sustain: .3 }); },
     snap: t => { noiseHit(sfxBus, t, .35, .65, 'highpass', 1500, 1, 300); for (let i = 0; i < 9; i++) twang(t + i * .015, 95 + i * 67, .13); },
     chord: t => { [62, 66, 69, 74, 78].forEach((m, i) => osc(sfxBus, i < 3 ? 'triangle' : 'p50', hz(m), t + i * .018, 3.2, i < 3 ? .12 : .055, { attack: .018, sustain: .2 })); },
     // the blaster: a bright laser zap sweeping down, a sparkle on top, a punchy low kick under it and a crack of noise.
