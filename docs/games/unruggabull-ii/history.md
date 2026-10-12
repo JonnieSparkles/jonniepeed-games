@@ -78,6 +78,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
   - **Moving day's souls** "render in front of what theyre actually behind. hard to tell where they are": they were drawn with the glow, over everything. Now they're in depth order with a shadow.
   - **A black bar** in the lit renderer: the bloom's two blur passes had rows and columns swapped, so the pass going down read past the end of the buffer and turned the bottom rows NaN, which shows as black wherever there was bloom (seen as a bar across his legs). Since the lit renderer; fixed, and bloom now covers the whole picture.
 - **The souls' streams and their goodbye, Oct 12:** the owner: the hall's Spread Shot and the Shredder's soul streams were "the same upgrade in the end. so its not THAT special". Side by side they were both gold bolts in a fan. The streams became ribbons of light from the blaster's muzzle ("it needs to look like it's coming from the blaster"), and the two souls got an ending: a salute and "GOOD LUCK." after the Shredder dies, then the clear ("ppl can wait 4.5s"). Floor 48 keeps the bending-in for itself, and the roof the fusion.
+- **Cutting the rug, again, Oct 12:** "still awkward bc its not clear when u can do it or what happened". Now a dashed cut line flashes across the rug whenever a cut is possible, with "little tiny scissor icons" (the owner), gold near the mouth; and a JAMMED x3 bar drains for the jam, ending in a "PTOO!".
 
 ## Tried and dropped
 
@@ -86,6 +87,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **The souls leaving at the last stand** (soul streams round), to explain why the blaster can't finish the Shredder: "not a fan unless its more intentional". They leave at the goodbye instead.
 - **A souls' rescue** (soul streams round): him pinned in the Shredder's blue fields, the souls firing for him. Saved: the souls coming back to help is the roof's reveal, and it takes the controls away mid-fight.
 - **Changing the hall's pickup instead** (soul streams round), to faster fire or bigger blasts, keeping Spread Shot for the souls. Not needed once the streams looked their own; bigger blasts would also shrink the roof's beam.
+- **Paper jam sheets** (the Copy Room's rows, and a Shredder attack in phase 2): "low horizontal bars… what r those? they clip some of our new extended cubicles". A mock of fan-fold printer paper spewing from a jammed copier didn't look right either, so they're gone: the Copy Room has its desks, and the Shredder sends a staple carpet instead.
 - **The staple side spray** (notes round): staples streaming down both sides during a pull, then spinning as stars. They didn't look great, and a shredded-paper blizzard from its side vents lost to the live floor in stills.
 - **Shots and staples, round one** (notes round): a bale of shreddings and a file folder for the bundle; a staple point first, chunky side on, a strip. Only the paper ball was kept.
 

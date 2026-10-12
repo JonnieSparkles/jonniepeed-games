@@ -25,7 +25,7 @@ var UnrugFloor13 = function (core) {
   const BEATS = [
     { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: 'tower', after: 'move' },
     { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: 'dark' },
-    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, rows: 'sheet', pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
+    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
   ];
   const beat = () => BEATS[R.beat];
   // ---------- the sets: each section's look and dressing (sets13.js) ----------
@@ -145,7 +145,7 @@ var UnrugFloor13 = function (core) {
       R.nextForm -= dt;
       if (R.nextForm <= 0 && R.beatT < B.time - 5) { spawnFormation(['v', 'line', 'snake'][R.formN++ % 3]); R.nextForm = rr(3.8, 4.8); }
     }
-    // Rows of rolling office chairs (or a paper jam's sheet) span the whole aisle: the only way past is over.
+    // Rows of rolling office chairs span the whole aisle: the only way past is over.
     if (B.rows && !ev) {
       R.nextRow -= dt;
       if (R.nextRow <= 0) { R.rows.push({ w: R.dist + 1.05, kind: B.rows, hit: 0 }); R.nextRow = rr(7, 10); }
@@ -380,7 +380,7 @@ var UnrugFloor13 = function (core) {
           if (p.rally && rl && b.st === 'fight') {
             // it misses: a smash, and the Shredder reels
             const dmg = TUNE.rally.smash + TUNE.rally.smashPer * rl.count;
-            b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
+            b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); b.jamMax = b.jam; b.jamTag = 'STUNNED x3'; R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
             shove(-14); b.shudder = .8; taunt('smash');
             if (rl.marathon) {
               // the long one: a bigger finish
@@ -582,20 +582,20 @@ var UnrugFloor13 = function (core) {
     for (let i = -2; i <= 2; i++) launch('plane', { u: i * .1, z: .95, h: .2 }, { u: clamp(bull.u + i * .3, -.7, .7), z: bull.bz, h: .21 }, TUNE.planeT, { w: .06, hh: .03 });
     R.boss.spit = .3; Snd.play('spit'); duckHint();
   }
-  // Rows from its mouth that cover the whole floor: a paper jam sheet, or a carpet of staples. Jump them.
+  // A row from its mouth that covers the whole floor: a carpet of staples. Jump it.
   function spitRow(kind) {
     R.rows.push({ w: R.dist + .93, kind, hit: 0, v: TUNE.bossRows[kind] });
     R.boss.spit = .35; Snd.play('spit');
   }
   // Each phase cycles through its own attacks; 'marathon' is a long rally, once a phase (a normal one after that).
-  const ATTACKS = [['rally', 'bundle', 'volley', 'marathon', 'planes'], ['fan', 'marathon', 'bundle', 'planes', 'rally', 'sheet', 'volley'], ['rally', 'surge', 'marathon', 'rewind', 'planes', 'rally', 'fan', 'volley', 'carpet']];
+  const ATTACKS = [['rally', 'bundle', 'volley', 'marathon', 'planes'], ['fan', 'marathon', 'bundle', 'planes', 'rally', 'carpet', 'volley'], ['rally', 'surge', 'marathon', 'rewind', 'planes', 'rally', 'fan', 'volley', 'carpet']];
   function attack(kind) {
     shove(7);   // it lunges as it spits
     if (kind === 'bundle') spitBundle();
     else if (kind === 'volley') R.boss.volley = { left: TUNE.volley.n[R.boss.ph - 1], t: 0 };
     else if (kind === 'planes') throwPlanes();
     else if (kind === 'fan') spitFan();
-    else if (kind === 'sheet' || kind === 'carpet') spitRow(kind);
+    else if (kind === 'carpet') spitRow(kind);
     else if (kind === 'surge') { if (R.armed === false) serveRally(); else if (soulsHold()) fizzle(); else surge(); }
     else if (kind === 'rewind') { rollBack(TUNE.rewindT); launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: 0, h: .12 }, TUNE.bundleT[1], { w: .08, hh: .05 }); R.boss.spit = .25; Snd.play('spit'); }
     else serveRally(kind === 'marathon');
@@ -611,10 +611,9 @@ var UnrugFloor13 = function (core) {
   // Cutting the rug jams it; ride the rug in close before you cut and the jam lasts longer, up to double at the mouth.
   function jam(bz) {
     const b = R.boss, close = clamp((bz || 0) / TUNE.mouth, 0, 1);
-    b.jam = TUNE.jamT * (1 + TUNE.rideJam * close); b.volley = null; endPull();
+    b.jam = TUNE.jamT * (1 + TUNE.rideJam * close); b.jamMax = b.jam; b.jamTag = 'JAMMED x3'; b.volley = null; endPull();
     R.events.jams = (R.events.jams || 0) + 1; emit('jam', { amount: Math.round(b.jam * 10) / 10 }); bark('jam');
     Snd.play('jam');
-    popText(close > .5 ? 'BIG JAM! x3' : 'JAMMED! x3', 120, BACK.y0 - 2, close > .5 ? '#ff9628' : '#ffd44a');
   }
   function bossDamage(n, by) {
     const b = R.boss;
@@ -708,6 +707,10 @@ var UnrugFloor13 = function (core) {
     if (wear > .6 && Math.random() < dt * (wear - .5) * 5) { const c = CRACKS[Math.floor(Math.random() * CRACKS.length)][0]; R.fx.push({ k: 'spark', x: BACK.x0 + c[0], y: BACK.y0 + c[1], s: .6, col: '#ffd44a', t: 0, dur: .22, a: Math.random() * 6 }); }
     if (b.jam > 0) {
       b.jam -= dt;
+      if (b.jam <= 0 && b.jamTag !== 'STUNNED x3') {   // it spits the rug back out
+        popText('PTOO!', 120, BACK.y1 - 6, '#ff9628'); Snd.play('spit'); R.shake = Math.max(R.shake, .15);
+        for (let i = 0; i < 10; i++) R.fx.push({ k: 'spark', x: 120 + fxr(-8, 8), y: BACK.y1 - 4, s: .9, col: i % 2 ? '#9a2a1e' : '#e0a030', t: 0, dur: .4, a: Math.random() * 6 });
+      }
       if (Math.random() < dt * 8) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 10, BACK.x1 - 10), y: BACK.y0 + 4, t: 0, dur: 1 });
       return;
     }
@@ -1274,18 +1277,42 @@ var UnrugFloor13 = function (core) {
         for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, dx, dy, w, h);
         g.drawImage(A.STAPLE, 0, 0, w, h); g.restore();
       }
-    } else {
-      // a sheet of paper skidding along the floor, wall to wall, with a fold that flaps
-      // a jammed sheet as wide as the hall, curling up at you: outlined, printed, its top edge flapping
-      const flap = Math.floor(R.t * 10) % 2 ? .075 : .055, x0 = PX(-.66, z), x1 = PX(.66, z), yb = FY(z), yt = YH(z, flap), hgt = Math.max(2, yb - yt);
-      rect(g, x0 - 1, yt - 1, x1 - x0 + 2, hgt + 2, '#1a1418');
-      rect(g, x0, yt, x1 - x0, hgt, '#f2eee2');
-      rect(g, x0, yb - Math.max(1, Math.round(2 * k)), x1 - x0, Math.max(1, Math.round(2 * k)), '#b8b4a8');
-      for (let i = 1; i <= 3; i++) { const ly = Math.round(yt + hgt * i / 4); for (let u = -.58; u < .58; u += .16) rect(g, PX(u, z), ly, Math.max(2, Math.round(9 * k)), 1, i === 1 ? '#d63428' : '#7c8494'); }
-      // the corner folds back on alternate frames
-      if (Math.floor(R.t * 10) % 2) { rect(g, x1 - Math.round(8 * k), yt, Math.round(8 * k), Math.max(1, Math.round(3 * k)), '#b8b4a8'); }
     }
     if (row.hit) g.restore();
+  }
+  // When you can cut the rug (the owner: "not clear when u can do it or what happened"): while it pulls him and he's
+  // on it, a dashed "cut here" line flashes across the rug just ahead of his feet, with tiny scissors snipping at each
+  // end (the owner's touch). In the fight it turns gold close to the mouth, where a cut jams it longer. Cosmetic.
+  const SCISS = [['b.....b', '.b...b.', '..b.b..', '...p...', '.hh.hh.', '.hh.hh.'], ['...b...', '...b...', '...b...', '...p...', '.hh.hh.', '.hh.hh.']];
+  function scissors(x, y, dir, open, col) {
+    const pat = SCISS[open ? 0 : 1];
+    for (let r = 0; r < pat.length; r++) for (let c = 0; c < pat[r].length; c++) {
+      const ch = pat[r][c]; if (ch === '.') continue;
+      const px = x + dir * (5 - r), py = y + (c - 3);   // turned on its side, blades pointing along the line
+      rect(g, px - .5, py - .5, 2, 2, '#1a1418');
+    }
+    for (let r = 0; r < pat.length; r++) for (let c = 0; c < pat[r].length; c++) {
+      const ch = pat[r][c]; if (ch === '.') continue;
+      rect(g, x + dir * (5 - r), y + (c - 3), 1, 1, ch === 'h' ? '#ff9628' : ch === 'p' ? '#1a1418' : col);
+    }
+  }
+  function cutCue() {
+    const P = R.pull;
+    if (P.st !== 'on' || !onRunner() || bull.crouch) return;
+    const z = bull.bz + .07, close = clamp(bull.bz / TUNE.mouth, 0, 1), gold = R.phase === 'boss' && close > .5, on = Math.floor(R.t * 6) % 2;
+    const rw = TUNE.runner - .02, x0 = PX(-rw, z), x1 = PX(rw, z), y = FY(z), col = gold ? '#ffd44a' : '#ffffff';
+    for (let x = x0, i = 0; x < x1; x += 3, i++) rect(g, x, y - .5, Math.min(2, x1 - x), 1, on ? col : gold ? '#ff9628' : '#c8c0b0');
+    const open = Math.floor(R.t * 8) % 2;
+    scissors(x0 - 8, y, 1, open, col); scissors(x1 + 8, y, -1, open, col);
+  }
+  // What happened: while it's jammed, a JAMMED x3 tag over it with a gold bar draining for as long as your shots do
+  // triple damage; when it runs out it spits the rug back out (PTOO!, in updateBoss).
+  function jamBar() {
+    const b = R.boss;
+    if (!(b.jam > 0) || b.st !== 'fight' || !b.jamMax) return;
+    const text = b.jamTag || 'JAMMED x3', tw = textWidth(text), x = 120 - Math.round(tw / 2), y = BACK.y0 - 13;
+    rect(g, x - 3, y - 2, tw + 6, 13, '#1a1418'); otxt(g, text, x, y, '#ffd44a');
+    rect(g, x - 2, y + 7, tw + 4, 3, '#3a2a10'); rect(g, x - 2, y + 7, Math.round((tw + 4) * b.jam / b.jamMax), 3, '#ffd44a');
   }
   function drawPaper() {
     for (let i = 0; i < 8; i++) {
@@ -1370,6 +1397,7 @@ var UnrugFloor13 = function (core) {
     }
     if (Math.floor(R.t * 13) % 11) for (const sg of R.signs) { const z = sg.w - R.dist; if (sg.neon && z < 1.02 && z > .05) drawSign(sg, z); }
     sprayLanes();
+    cutCue(); jamBar();
     moveMarks();
     if (R.phase !== 'hall') withShredder(() => { shredderEyes(); shredderTeeth(); });
     else if (R.event && R.event.kind === 'dark') darkEyes();
@@ -1615,7 +1643,7 @@ UnrugFloor13.TUNE = {
     finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
     attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
     volley: { n: [3, 4, 5], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
-    bossRows: { sheet: .45, carpet: .5 },   // how fast a paper jam sheet and a staple carpet cross the floor
+    bossRows: { carpet: .5 },   // how fast a staple carpet crosses the floor
     liveEdge: .04,   // a live floor: how far past the rug's edge your feet can be before it shocks you
     rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
