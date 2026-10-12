@@ -51,6 +51,8 @@ with sync_playwright() as p:
 
     from roof_audio import check_audio
     check_audio(browser, ROOT)
+    from music_system import check_music
+    check_music(browser, ROOT)
 
     # The preference can change between runs; only the presentation offset is reduced.
     for motion, expected in [('no-preference', [10, 5]), ('reduce', [5, 2])]:
