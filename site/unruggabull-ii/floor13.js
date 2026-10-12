@@ -510,7 +510,9 @@ var UnrugFloor13 = function (core) {
     const [lo, hi] = TUNE.rally.count[b.ph - 1];
     const marathon = !!long && !b.marathonDone;   // once a phase, a rally goes the distance
     if (marathon) b.marathonDone = true;
-    b.rally = { count: 0, target: marathon ? TUNE.rally.marathon[b.ph - 1] : lo + Math.floor(rnd() * (hi - lo + 1)), marathon };
+    // at its last stand the rally is short: it bats back once, then misses, and that's the finish
+    const last = b.hp <= TUNE.lastStand;
+    b.rally = { count: 0, target: last ? 1 : marathon ? TUNE.rally.marathon[b.ph - 1] : lo + Math.floor(rnd() * (hi - lo + 1)), marathon: marathon && !last };
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.rally.serve, { w: .09, hh: .06, rally: true });
     b.spit = .25; Snd.play('spit');
     if (marathon) {
@@ -608,6 +610,9 @@ var UnrugFloor13 = function (core) {
   function bossDamage(n, by) {
     const b = R.boss;
     if (b.st !== 'fight') return;
+    // its last stand: the blaster can wear it down only so far; the finish has to be its own paper sent back at it
+    if ((by || 'blaster') === 'blaster') n = Math.max(0, Math.min(n, b.hp - TUNE.lastStand));
+    if (n <= 0) { b.tick = .05; return; }
     emit('boss_damage', { amount: n, by: by || 'blaster' });
     b.hp = Math.max(0, b.hp - n);
     if (n >= 2) { b.flash = .07; shove(-Math.min(12, 2 + n * .6)); } else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
@@ -638,7 +643,7 @@ var UnrugFloor13 = function (core) {
     const b = R.boss;
     if (b.st !== 'fight' || R.armed === false) return false;
     if (b.surgeAt > 0 && b.surgeAt < .9) return true;
-    const list = ATTACKS[b.ph - 1];
+    const list = b.hp <= TUNE.lastStand ? ['rally'] : ATTACKS[b.ph - 1];
     return b.rev > 0 && list[b.atkN % list.length] === 'surge';
   }
   function updateBody(dt) {
@@ -698,7 +703,8 @@ var UnrugFloor13 = function (core) {
       return;
     }
     // no attacks while the runner warns or sprays, and a rally waits for a pull to end
-    const list = ATTACKS[ph - 1], next = list[b.atkN % list.length];
+    // at its last stand it only serves: win a rally to finish it
+    const list = b.hp <= TUNE.lastStand ? ['rally'] : ATTACKS[ph - 1], next = list[b.atkN % list.length];
     if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (R.pull.spray || next === 'rally' || next === 'marathon' || next === 'rewind')) || b.rally || R.roll) return;
     const was = b.atk;
     b.atk -= dt;
@@ -1385,7 +1391,8 @@ var UnrugFloor13 = function (core) {
       const fill = b.st === 'awake' ? b.bar : b.hp / TUNE.bossHP;   // it ticks up to full while the Shredder wakes
       otxt(g, 'SHRED-O', 86, 5, '#ffd44a', 1, 'right');
       rect(g, 89, 4, 74, 7, '#1a1418'); rect(g, 90, 5, 72, 5, '#3a2f5e');
-      rect(g, 90, 5, Math.round(72 * fill), 5, b.jam > 0 ? '#ffd44a' : b.flash > 0 ? '#ffffff' : '#e2483a');
+      const last = b.st === 'fight' && b.hp <= TUNE.lastStand && Math.floor(R.t * 6) % 2;   // its last sliver blinks: finish it with a rally
+      rect(g, 90, 5, Math.round(72 * fill), 5, b.jam > 0 ? '#ffd44a' : b.flash > 0 || last ? '#ffffff' : '#e2483a');
       rect(g, 90 + Math.round(72 * .66), 5, 1, 5, '#1a1418'); rect(g, 90 + Math.round(72 * .33), 5, 1, 5, '#1a1418');
     }
     // the rally counter: it grows as the rally goes on, and flashes with each return
@@ -1512,5 +1519,6 @@ UnrugFloor13.TUNE = {
     // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
     // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
     // run out unseen), then drop off one by one, fade apart.
+    lastStand: 6,           // the blaster can't take it below this: a rally or a deflected bundle finishes it
     soulHint: { souls: 2, wait: .7, gap: 1.1, fly: 2 }
   };

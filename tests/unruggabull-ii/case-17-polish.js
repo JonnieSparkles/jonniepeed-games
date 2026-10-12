@@ -41,7 +41,7 @@
   check(K && withIt === without, 'his caption stays on the left');
 
   // the clear: the souls drift up past him, and NO BLASTER doesn't linger
-  quiet(); R.armed = false; R.souls = 120; b.hp = .1; bossDamage(1, 'blaster');
+  quiet(); R.armed = false; R.souls = 120; b.hp = .1; bossDamage(1, 'smash');
   step(4);
   check(R.fx.filter(f => f.k === 'rise').length === 40, 'forty souls drift up at the clear');
   draw();
