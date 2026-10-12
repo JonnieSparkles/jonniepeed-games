@@ -433,6 +433,8 @@ POSE = {
     'runB':       ('runB', 'back', 'fwd', {}),
     'jump':       ('jump', 'up', 'up', {}),
     'crouch':     ('crouch', 'crouch', 'crouch', {}),
+    'crouchWalkA': ('crouchA', 'crouch', 'crouch', {}),   # a low shuffle, for when the hall carries him along crouched
+    'crouchWalkB': ('crouchB', 'crouch', 'crouch', {}),
     'aim':        ('stand', 'down', 'aim', {}),
     'kick':       ('stand', 'down', 'kick', {'bob': 1}),
     'runAimA':    ('runA', 'fwd', 'aim', {}),
@@ -493,9 +495,15 @@ def build_pose(name):
         bob -= 9; legs_p = ((-6.2, LEG * .28, -5.4, LEG * .42, True), (6.2, LEG * .28, 5.4, LEG * .42, True)); tsway, tl = -2, 6
     if legs == 'crouch':
         bob += LEG * .48; legs_p = ((-11.5, 3.0, -9.6, LEG * .26, False), (11.5, 3.0, 9.6, LEG * .26, False)); tl = 3
+    if legs in ('crouchA', 'crouchB'):   # a crouched shuffle: one boot lifted and stepping in, the body rocking onto the other
+        sd = -1 if legs == 'crouchA' else 1
+        bob += LEG * .48 - .5
+        lift = lambda k: (k * 10.5, 1.5, k * 8.4, LEG * .26 - 2.6, False)
+        plant = lambda k: (k * 12.2, 3.4, k * 10.2, LEG * .26, False)
+        legs_p = (lift(-1) if sd < 0 else plant(-1), lift(1) if sd > 0 else plant(1)); tl = 3; tsway = -sd
     if legs == 'scuff':   # the right hoof lifted and scraped back, his weight on the left
         legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.8 + sk, Lk * .95, 4.4 + st, Lf - 4.0, True)); tsway = 1
-    crouch = legs == 'crouch'
+    crouch = legs in ('crouch', 'crouchA', 'crouchB')
     hipy = FEET - Lf - 5.4 + bob
     hunch = HUNCH if crouch else 0   # crouched, he hunches over: a shorter back, his head down into his shoulders
     vy = hipy - TORSO + hunch

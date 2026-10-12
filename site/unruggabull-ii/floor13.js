@@ -522,6 +522,14 @@ var UnrugFloor13 = function (core) {
   }
   // Phase 3's power surge: a flash of static that knocks the blaster out of his hands and up the rug. No dodging it:
   // now it's a volley match until a smash rolls the rug back with the blaster on it.
+  // Once the two souls are in the gun, they hold it: the surge still comes, but it breaks on them in a shower of gold.
+  const soulsHold = () => R.hint && R.hint.landed >= TUNE.soulHint.souls;
+  function fizzle() {
+    shove(6);
+    const m = muzzleXY(); R.fx.push({ k: 'bolt', x0: 120, y0: BACK.y0 + 19, x1: m.x, y1: m.y, t: 0, dur: .3 });
+    for (let j = 0; j < 12; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-5, 5), y: m.y + fxr(-5, 5), s: .8, col: j % 2 ? '#ffd44a' : '#ffffff', t: 0, dur: .4, a: Math.random() * 6 });
+    R.shake = Math.max(R.shake, .15); Snd.play('surge');
+  }
   function surge() {
     shove(10);
     // the cause, plainly: a bolt of blue lightning from its eyes to the blaster in his hand
@@ -577,7 +585,7 @@ var UnrugFloor13 = function (core) {
     else if (kind === 'planes') throwPlanes();
     else if (kind === 'fan') spitFan();
     else if (kind === 'sheet' || kind === 'carpet') spitRow(kind);
-    else if (kind === 'surge') { if (R.armed === false) serveRally(); else surge(); }
+    else if (kind === 'surge') { if (R.armed === false) serveRally(); else if (soulsHold()) fizzle(); else surge(); }
     else if (kind === 'rewind') { rollBack(TUNE.rewindT); launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: 0, h: .12 }, TUNE.bundleT[1], { w: .08, hh: .05 }); R.boss.spit = .25; Snd.play('spit'); }
     else serveRally(kind === 'marathon');
   }

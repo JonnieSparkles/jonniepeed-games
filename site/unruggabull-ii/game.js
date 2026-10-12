@@ -600,7 +600,7 @@
     const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
     let p = P.stand;
     const cheer = R.phase === 'win' && !(R.slow > 0) && R.phaseT > .5 && !air;
-    if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : P.crouch;
+    if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : running ? (Math.floor(b.step * .6) % 2 ? P.crouchWalkB : P.crouchWalkA) : P.crouch;   // carried along crouched, he shuffles
     else if (b.slash >= 0) p = b.slash < .07 ? (air ? P.jumpWind : P.wind) : (air ? P.jumpCut : P.cut);
     else if (b.inv > TUNE.hurtInv - .3 && R.phase !== 'win') p = P.hurt;
     else if (air) p = aim ? P.jumpAim : P.jump;

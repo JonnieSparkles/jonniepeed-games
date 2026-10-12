@@ -48,6 +48,8 @@
     const n = bells.length;
     keys.kbShoot = true; step(12); keys.kbShoot = false;
     check(R.hint && R.hint.streams === 3, 'the streams stay with him');
+    attack('surge'); quiet();
+    check(R.armed === true && R.hint && R.hint.streams === 3, 'with the souls in the gun, a surge breaks on them');
     // knocked out of his hands, they wait; won back, they're there again, with no new souls or bells
     R.armed = false; quiet(); update(1 / 60);
     check(R.hint && R.hint.streams === 3, 'they wait while the blaster is gone');
