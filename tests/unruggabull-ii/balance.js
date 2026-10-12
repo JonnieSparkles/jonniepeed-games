@@ -18,6 +18,7 @@
   function record(type, data) {
     var e = { ev: type, wave: stage(), t: Math.round(R.t * 100) / 100 };
     for (var k in data) e[k] = data[k];
+    if (R.stage === 'elevator' && ['hit', 'game_over'].includes(type)) e.kind = R.elevator.snapped ? 'after_snap' : 'before_snap';
     log.push(e);
   }
   // The harness drives the game: the page's frame loop stops, and sound never starts without a tap anyway.
@@ -85,7 +86,7 @@
       }
       if (R.stage === 'elevator') {
         o.arena = { state: R.elevator.state, facing: b.facing, dropSpeed: floor.arena.ARENA.dropSpeed,
-          enemies: R.arena.enemies.map(e => ({ id: idOf(e), kind: e.kind, u: e.u, h: e.h, age: e.age, dropping: e.dropping, dir: e.dir })),
+          enemies: R.arena.enemies.map(e => ({ id: idOf(e), kind: e.kind, u: e.u, h: e.h, age: e.age, armored: e.armored, dropping: e.dropping, dir: e.dir })),
           thrown: R.arena.thrown.map(p => ({ id: idOf(p), u: p.u, h: p.h, vu: p.vu, vh: p.vh, friendly: p.friendly })),
           crate: R.elevator.crate && !R.elevator.crate.got ? { u: R.elevator.crate.u } : null };
       }

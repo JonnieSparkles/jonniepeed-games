@@ -210,6 +210,19 @@ with sync_playwright() as p:
             page.keyboard.press('e')
         assert page.evaluate("unrugTest('!R.heldDrop && R.spread === 10')"), name
         assert page.evaluate('document.documentElement.scrollWidth') <= size[0], name
+        if touch:
+            page.evaluate("unrugTest('newRun(null, \"elevator\"); setState(\"play\"); setFull(true); for(let i=0;i<60;i++)update(1/60);draw();')")
+            page.wait_for_timeout(100)
+            canvas = page.locator('#c').bounding_box()
+            # Operator/cap, panel, full caption and crate at its starting position.
+            for label, (x, y, w, h) in {'operator': (163, 97, 16, 23), 'panel': (187, 65, 8, 27),
+                                      'caption': (159, 85, 24, 6), 'crate': (161.6, 107, 18, 15)}.items():
+                a = {'x': canvas['x'] + x * canvas['width'] / 240,
+                     'y': canvas['y'] + y * canvas['height'] / 135,
+                     'width': w * canvas['width'] / 240, 'height': h * canvas['height'] / 135}
+                for selector in ['#stickzone', '.shoot', '.slash']:
+                    b = page.locator(selector).bounding_box()
+                    assert a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x'] or a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y'], f'{name}: {label} clear of {selector}'
         assert not errors, (name, errors)
         context.close()
         print('PASS elevator hash/input/layout', name)

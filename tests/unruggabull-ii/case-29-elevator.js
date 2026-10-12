@@ -7,8 +7,8 @@
     fresh();
     check(R.stage === 'elevator' && R.heldDrop === null && R.elevator.indicator === 13, 'direct ride starts at 13 with no held supply');
     check(R.talk.text === 'Floor?' && Snd.track === 'hornsUp', 'operator asks Floor? over muzak');
-    tick(3); check(R.elevator.state === 'climb' && R.elevator.indicator > 13, 'car climbs');
-    tick(1); check(R.arena.enemies.length === 2 && R.arena.enemies.every(e => e.h > .4 && e.dropping && Math.abs(e.u) <= .12), 'wave drops through hatch');
+    tick(2.7); check(R.elevator.state === 'climb' && R.elevator.indicator > 13, 'car climbs');
+    tick(.2); check(R.arena.enemies.length === 1 && R.arena.enemies.every(e => e.h > .4 && e.dropping && Math.abs(e.u) <= .12), 'wave drops through hatch');
     const prev = R.elevator.indicator; tick(1); check(R.elevator.indicator > prev, 'indicator counts upward');
     fresh(); floor.enter('climb');
     const right = enemy('crawler', .35, .14); fire(); tick(.15);

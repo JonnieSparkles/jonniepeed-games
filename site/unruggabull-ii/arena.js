@@ -6,11 +6,11 @@ var UnrugArena = function (core, tuning) {
   const ARENA = Object.assign({ floorY: 122, width: 110, height: 140, limit: .88,
     shotSpeed: 3.2, shotRadius: .07, enemyRadius: .075, slashReach: .29, slashHeight: .23,
     dropSpeed: .6, crawlerSpeed: .24, flyerSpeed: .32, flyerH: .18, crawlerH: .06,
-    bodyH: .2, muzzleH: .14, escapeT: 5, flyerHP: 2, firstThrow: [.55, .9], throwEvery: [2.4, 3.4], flyerLife: 7, wadSpeed: .55, chargeSpeed: 2.5 }, tuning);
-  let R, bull, g = core.g;
+    bodyH: .2, muzzleH: .14, escapeT: 5, firstThrow: [.55, .9], throwEvery: [2.4, 3.4], flyerLife: 7, wadSpeed: .55, chargeSpeed: 2.5 }, tuning);
+  let R, bull, swing = 0, g = core.g;
   const X = u => 120 + u * ARENA.width, Y = h => ARENA.floorY - h * ARENA.height;
   const side = UnrugBull.paint(UnrugBull.VIEWS.side);
-  function newRun(r, b) { R = r; bull = b; bull.u = -.55; bull.facing = 1; R.arena = { enemies: [], thrown: [], pickups: [] }; }
+  function newRun(r, b) { R = r; bull = b; bull.u = -.55; bull.facing = 1; swing = 0; R.arena = { enemies: [], thrown: [], pickups: [] }; }
   const facing = () => bull.facing || 1;
   function move(dt) {
     if (moveDir() && !bull.crouch) bull.facing = moveDir();
@@ -32,13 +32,23 @@ var UnrugArena = function (core, tuning) {
     if (e.dead) return;
     e.dead = true; free(X(e.u), Y(e.h), e.kind, by); Snd.play('poof');
   }
+  // All three attacks share armor; arrival and Bull Run still destroy outright.
+  function hit(e, by) {
+    if (e.dead) return;
+    if (!e.armored) { kill(e, by); return; }
+    e.armored = false; Snd.play('armorClank'); emit('arena_armor', { kind: e.kind, by });
+    R.fx.push({ k: 'spark', x: X(e.u), y: Y(e.h) - 5, s: .6, col: '#fff6e2', t: 0, dur: .22, a: Math.random() * 6 });
+  }
   function near(u, h, radius = 0) {
     const ahead = (u - bull.u) * facing();
     return ahead > -.04 - radius && ahead < ARENA.slashReach + radius &&
       Math.abs(h - (bull.jh + .1)) < ARENA.slashHeight + radius;
   }
   function slashHits() {
-    for (const e of R.arena.enemies) if (!e.dead && near(e.u, e.h, ARENA.enemyRadius)) kill(e, 'slash');
+    if (bull.slash === 0) swing++;
+    for (const e of R.arena.enemies) if (!e.dead && e.slashSwing !== swing && near(e.u, e.h, ARENA.enemyRadius)) {
+      e.slashSwing = swing; hit(e, 'slash');
+    }
     for (const p of R.arena.thrown) if (!p.dead && !p.friendly && near(p.u, p.h)) {
       p.friendly = true;
       const target = p.src && !p.src.dead ? p.src : null;
@@ -49,9 +59,9 @@ var UnrugArena = function (core, tuning) {
       R.events.deflects = (R.events.deflects || 0) + 1; emit('deflect', { kind: 'arena_wad' }); Snd.play('deflect');
     }
   }
-  function spawn(kind) {
+  function spawn(kind, options = {}) {
     const e = { kind, u: rr(-.12, .12), h: .69, age: 0, dropping: true, dead: false,
-      dir: rr(0, 1) < .5 ? -1 : 1, hp: kind === 'flyer' ? ARENA.flyerHP : 1, nextThrow: rr(...ARENA.firstThrow) };
+      dir: rr(0, 1) < .5 ? -1 : 1, armored: !!options.armored, nextThrow: rr(...ARENA.firstThrow) };
     R.arena.enemies.push(e); emit('arena_spawn', { kind }); return e;
   }
   // Existing paper, not a new enemy: flyers occasionally throw a wad. It can only be dodged or deflected.
@@ -98,13 +108,13 @@ var UnrugArena = function (core, tuning) {
   function shots(dt) {
     for (const s of R.shots) {
       const oldU = s.u; s.u += s.vu * dt; s.h += s.vh * dt;
-      for (const e of R.arena.enemies) if (!e.dead && crossed(s, oldU, e, ARENA.shotRadius)) { s.dead = true; if (--e.hp <= 0) kill(e, 'shot'); break; }
+      for (const e of R.arena.enemies) if (!e.dead && crossed(s, oldU, e, ARENA.shotRadius)) { s.dead = true; hit(e, 'shot'); break; }
     }
     R.shots = R.shots.filter(s => !s.dead && Math.abs(s.u) < 1.15 && s.h > 0 && s.h < .85);
     for (const p of R.arena.thrown) {
       const oldU = p.u; p.u += p.vu * dt; p.h += p.vh * dt;
       if (p.friendly) {
-        for (const e of R.arena.enemies) if (!e.dead && crossed(p, oldU, e, ARENA.shotRadius)) { p.dead = true; kill(e, 'deflect'); break; }
+        for (const e of R.arena.enemies) if (!e.dead && crossed(p, oldU, e, ARENA.shotRadius)) { p.dead = true; hit(e, 'deflect'); break; }
       } else if (touches(p.u, p.h, .035)) {
         if (R.bullRun > 0) p.dead = true;
         else if (hurtBull(1, 'arena_wad')) p.dead = true;
@@ -139,7 +149,12 @@ var UnrugArena = function (core, tuning) {
     if (bull.slash >= 0) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.beginPath(); g.arc(10, -14, 20, -1.2, 1.2); g.stroke(); }
     g.restore();
   }
-  function drawEnemy(e) { const img = A.CARPF[Math.floor(R.t * 8) % 2]; g.drawImage(img, X(e.u) - 10, Y(e.h) - 6, 20, 12); }
+  function drawEnemy(e) { const img = A.CARPF[Math.floor(R.t * 8) % 2]; g.drawImage(img, X(e.u) - 10, Y(e.h) - 6, 20, 12); if (e.armored) drawArmor(e); }
+  function drawArmor(e) {
+    const x = X(e.u), y = Y(e.h);
+    rect(g, x - 7, y - 9, 14, 5, '#d8c8a8'); rect(g, x - 9, y - 5, 18, 2, '#fff6e2');
+    line(g, x, y - 9, x, y - 5, '#4b4a58');
+  }
   function drawShot(s) { line(g, X(s.u) - Math.sign(s.vu) * 7, Y(s.h), X(s.u), Y(s.h), R.spread > 0 ? '#ffd44a' : '#7fd4ff'); }
   function drawThrown(p) { disc(g, X(p.u), Y(p.h), 2, p.friendly ? '#7fd4ff' : '#ff7050'); }
   function drawPickup(p) { const img = p.kind === 'coffee' ? A.COFFEE : A.SPREAD; g.drawImage(img, X(p.u) - 5, Y(p.h) - 5, 10, 10); }
@@ -148,6 +163,6 @@ var UnrugArena = function (core, tuning) {
   function lights(r) {
     for (const s of R.shots.slice(0, 10)) r.light(X(s.u) * 2, Y(s.h) * 2, 0, .12, .24, .4);
   }
-  return { ARENA, X, Y, newRun, update, fire, slashHits, spawn, throwWad, kill, near, touches, addPickup,
-    draw, glows, lights, drawBull, drawEnemy, drawShot, drawThrown, drawPickup, use: x => { g = x; } };
+  return { ARENA, X, Y, newRun, update, fire, slashHits, spawn, throwWad, kill, hit, near, touches, addPickup,
+    draw, glows, lights, drawBull, drawEnemy, drawArmor, drawShot, drawThrown, drawPickup, use: x => { g = x; } };
 };

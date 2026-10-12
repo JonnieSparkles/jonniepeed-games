@@ -483,6 +483,7 @@ window.UnrugSound = (function () {
   // ---------- sound effects ----------
   let shotN = 0;
   const SFX = {
+    armorClank: t => { noiseHit(sfxBus, t, .08, .16, 'highpass', 2800); twang(t, 780, .08); },
     cableSnap: t => { noiseHit(sfxBus, t, .22, .32, 'highpass', 1800); twang(t, 135, .18); },
     ding: t => { osc(sfxBus, 'sine', hz(84), t, .8, .16, { attack: .005, sustain: .1 }); osc(sfxBus, 'triangle', hz(96), t, .5, .05); },
     storm: t => { noiseHit(sfxBus, t, .4, .04, 'lowpass', 1600); roofSound({ storm: true, beam: false }); },

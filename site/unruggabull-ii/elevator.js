@@ -3,10 +3,10 @@ var UnrugElevator = function (core) {
   'use strict';
   const { A, Snd, TUNE, rect, line, txt, clamp, emit, talk, updateFx, endRun, drawSoulsCounter } = core;
   const ELEVATOR = { time: { ask: 1.8, climb: 30, snap: .45, open: 1.2, exit: .8 }, from: 13, fight: true,
-    destination: { floor: 99, label: 'R', stage: 'roof' }, snapAt: .8, lastWave: 29,
-    warmup: { every: 12, size: 2 }, heavy: { every: 2, sizes: [2, 2, 3] },
-    firstWave: 2, crateSpeed: .32, crateStart: .77, deadWait: 1.9,
-    arena: { floorY: 122, limit: .88, flyerH: .34, dropSpeed: .467, crawlerSpeed: .24, flyerSpeed: .27, flyerLife: 3.4, wadSpeed: .4 } };
+    destination: { floor: 99, label: 'R', stage: 'roof' }, snapAt: .6, lastWave: 29,
+    warmup: { every: 2.5, sizes: [1, 2] }, heavy: { every: 2, sizes: [2, 2, 3] },
+    firstWave: 1, crateSpeed: .32, crateStart: .46, deadWait: 1.9,
+    arena: { floorY: 122, limit: .88, flyerH: .26, dropSpeed: .3, crawlerSpeed: .24, flyerSpeed: .27, flyerLife: 3.4, wadSpeed: .2, firstThrow: [.8, 1.2], throwEvery: [4, 5] } };
   const arena = UnrugArena(core, ELEVATOR.arena);
   let R, bull, Q, g = core.g;
   function enter(name) {
@@ -23,8 +23,8 @@ var UnrugElevator = function (core) {
       if (Q.fight) {
         Q.nextWave -= dt;
         if (Q.nextWave <= 0 && Q.climbed <= ELEVATOR.lastWave) {
-          const size = Q.snapped ? ELEVATOR.heavy.sizes[Math.min(Q.heavyWaves++, ELEVATOR.heavy.sizes.length - 1)] : ELEVATOR.warmup.size;
-          for (let i = 0; i < size; i++) arena.spawn((Q.wave + i) % 2 ? 'flyer' : 'crawler');
+          const size = Q.snapped ? ELEVATOR.heavy.sizes[Math.min(Q.heavyWaves++, ELEVATOR.heavy.sizes.length - 1)] : ELEVATOR.warmup.sizes[Q.wave % ELEVATOR.warmup.sizes.length];
+          for (let i = 0; i < size; i++) arena.spawn((Q.wave + i) % 2 ? 'flyer' : 'crawler', { armored: Q.snapped && Q.heavyWaves % 2 === 1 && i === Math.floor(Q.heavyWaves / 2) % size });
           Q.wave++; Q.nextWave = Q.snapped ? ELEVATOR.heavy.every : ELEVATOR.warmup.every;
           emit('elevator_wave', { kind: Q.snapped ? 'heavy' : 'warmup', amount: size });
         }
@@ -101,9 +101,9 @@ var UnrugElevator = function (core) {
   function drawHatch() { rect(g, 102, 22, 36, 4, '#1a1824'); line(g, 102, 27, 138, 27, '#b0a088'); }
   function drawOperator() {
     // Existing ghost rug plus two cap rectangles; no collision or target in the arena.
-    g.drawImage(A.GHOST, 210, 102, 14, 18); rect(g, 209, 100, 16, 3, '#c43428'); rect(g, 213, 97, 8, 3, '#c43428');
-    rect(g, 226, 65, 8, 27, '#3b3a48');
-    for (let i = 0; i < 4; i++) rect(g, 229, 69 + i * 5, 2, 2, '#ffd44a');
+    g.drawImage(A.GHOST, 164, 102, 14, 18); rect(g, 163, 100, 16, 3, '#c43428'); rect(g, 167, 97, 8, 3, '#c43428');
+    rect(g, 187, 65, 8, 27, '#3b3a48');
+    for (let i = 0; i < 4; i++) rect(g, 190, 69 + i * 5, 2, 2, '#ffd44a');
   }
   function drawIndicator() {
     rect(g, 106, 30, 28, 9, '#1a1824');
@@ -118,7 +118,7 @@ var UnrugElevator = function (core) {
     drawSoulsCounter();
     if (R.talk && R.talk.who === 'operator') {
       const t = R.talk; let n = 0; while (n < t.text.length && t.times[n] <= t.t) n++;
-      txt(g, t.text.slice(0, n), 209, 85, '#fff6e2', 1, 'center');
+      txt(g, t.text.slice(0, n), 171, 85, '#fff6e2', 1, 'center');
     }
   }
   const noop = () => {};

@@ -7,14 +7,14 @@
     travelHook = null; checkpoint = null; RUN.force = 42;
     newRun(Object.assign({ stage: 'elevator', transfer: true, souls: 7, from: 13 }, options));
     RUN.force = null; setState('play'); clearHeld(); input.jump = input.slash = input.shoot = 0;
-    bull.inv = 1e9; emitHook = (type, data) => events.push({ type, data });
+    bull.inv = 1e9; emitHook = (type, data) => events.push({ type, data, t: R.t });
   };
   try {
     fresh();
     check(cues[0].id === 'hornsUp' && cues[0].options.pattern === 'intro', 'long ride starts Horns Up on muzak intro');
     check(R.elevator.from === 13 && R.elevator.fight, 'long ride is the default from 13');
-    tick(25.7);
-    check(!R.elevator.snapped && !events.some(e => e.type === 'elevator_heavy'), 'game holds intro before 80 percent');
+    tick(19.7);
+    check(!R.elevator.snapped && !events.some(e => e.type === 'elevator_heavy'), 'game holds intro before 60 percent');
     tick(.14);
     check(R.elevator.state === 'snap' && R.elevator.snapped && Snd.track === null && R.shake > 0, 'snap cuts muzak with jolt');
     const at = R.elevator.climbed;
@@ -27,7 +27,8 @@
     tick(4);
     const warm = events.filter(e => e.type === 'elevator_wave' && e.data.kind === 'warmup');
     const heavy = events.filter(e => e.type === 'elevator_wave' && e.data.kind === 'heavy');
-    check(warm.length > 1 && warm.every(e => e.data.amount >= 2), 'warmup arrives a few at a time');
+    check(warm.length > 1 && warm.every(e => e.data.amount >= 1 && e.data.amount <= 2), 'warmup stays light');
+    check(warm[0].t <= 3 && warm.every((e, i) => !i || e.t - warm[i - 1].t <= 3), 'warmup never waits more than three seconds');
     check(heavy.length >= 3 && heavy[0].data.amount < heavy.at(-1).data.amount, 'post-snap waves accelerate and grow');
     check(events.some(e => e.type === 'arena_throw'), 'flyers throw during an untouched actual wave');
     // No-fight uses the same ride hooks; it is configuration, not another registered stage.

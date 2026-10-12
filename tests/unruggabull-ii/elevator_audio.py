@@ -1,7 +1,7 @@
 """The replaceable muzak, operator voice and ding use the real sequencer/audio graph."""
 def check_elevator_audio(browser, root):
     source = (root / 'site/unruggabull-ii/audio.js').read_text().replace('  return api;', '  window.audioTest = code => eval(code);\n  return api;')
-    for hook in ('pleaseHold', 'hornsIntro', 'hornsHeavy', 'cableSnap', 'ding', 'operator', 'arrival'):
+    for hook in ('pleaseHold', 'hornsIntro', 'hornsHeavy', 'cableSnap', 'armorClank', 'ding', 'operator', 'arrival'):
         page = browser.new_page()
         page.evaluate('''() => { window.AudioContext = class extends OfflineAudioContext {
           constructor() { super(1, 48000 * 4, 48000); Object.defineProperty(this, 'state', {value: 'running'}); }
@@ -16,7 +16,7 @@ def check_elevator_audio(browser, root):
           } else if (hook === 'hornsIntro' || hook === 'hornsHeavy') {
             UnrugSound.music('hornsUp', {slam:true, pattern:hook === 'hornsIntro' ? 'intro' : 'heavy'});
           } else if (hook === 'operator') UnrugSound.say('Floor?', 'operator');
-          else UnrugSound.play('ding');
+          else UnrugSound.play(hook);
           audioTest('clearInterval(P.timer)');
           const b = await audioTest('ctx.startRendering()'), d = b.getChannelData(0);
           return { finite: d.every(Number.isFinite), energy: d.reduce((n,v) => n + v*v, 0) };
@@ -47,4 +47,4 @@ def check_elevator_audio(browser, root):
     page.evaluate("UnrugSound.music(null,{hard:true})")
     assert page.evaluate("audioTest('P.id === null && P.timer === 0')")
     page.close()
-    print('PASS elevator audio: Please Hold, Horns Up intro/heavy/loop/jump, snap, ding, operator and silence')
+    print('PASS elevator audio: Please Hold, Horns Up intro/heavy/loop/jump, snap, armor clank, ding, operator and silence')
