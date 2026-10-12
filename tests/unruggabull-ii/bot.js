@@ -58,43 +58,62 @@ window.__balanceBot = function (profile, seed) {
     roofSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), depth: (a.forward ? 1 : 0) - (a.back ? 1 : 0), dt: delta });
     return a;
   }
-  // Arena decisions use separate bookkeeping and dice only on this stage.
+  // The long ride's fight, side on (arena decisions keep their own bookkeeping and dice, used only on this stage).
+  // It faces and shoots the nearest carpshit, jumping to shoot the high ones; ducks a dive coming through where it
+  // stands (or cuts it); knocks paper back or jumps it; keeps a little room; then takes the crate and walks out.
   var arenaSent = [], arenaT = null;
   function arenaDecide(o) {
-    var q = o.arena, b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false };
+    var q = o.arena, b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false };
     var delta = arenaT === null ? 1 / 30 : Math.max(0, o.t - arenaT); arenaT = o.t;
-    var lag = P.reaction_ms / 1000, me = b.u;
-    arenaSent = arenaSent.filter(x => x.t >= o.t - lag - 1e-6);
+    var lagS = P.reaction_ms / 1000, me = b.u;
+    arenaSent = arenaSent.filter(x => x.t >= o.t - lagS - 1e-6);
     arenaSent.forEach(x => { me += x.dir * o.move * x.dt; });
     me = Math.max(-o.aisle, Math.min(o.aisle, me));
-    var goal = null, target = null;
+    // which way it faces now: the last way it pressed, if that hasn't shown up yet
+    var facing = q.facing; arenaSent.forEach(x => { if (x.dir) facing = x.dir; });
+    q = Object.assign({}, q, { facing: facing });
+    if (q.locked) { arenaSent.push({ t: o.t, dir: 0, dt: delta }); return a; }
+    var goal = null, target = null, duck = false, turn = 0;
     q.enemies.forEach(function (e) {
-      if (!noticed(o, e)) return;
-      if (!target || Math.abs(e.u - me) < Math.abs(target.u - me)) target = e;
-      var pl = plan(e, () => ({ slash: r() < P.fly_slash, jump: r() < P.jump_try }));
-      var du = e.u + e.dir * .3 * lead - me;
-      if (Math.abs(du) < .3 && Math.abs(e.h - (e.dropping ? (q.dropSpeed || .6) * lead : 0) - b.jh - .1) < .28 && pl.slash) a.slash = true;
-      if (e.kind === 'flyer' && !e.dropping && Math.abs(du) < .35 && pl.jump && !b.jh) a.jump = true;
+      if (!noticed(o, e) || e.dropping || e.entering) return;
+      var du = e.u - me;
+      // a dive: it rears, then curves down through where he stood
+      if (e.rearing || e.swoop) {
+        var dp = plan({ id: e.id + ':dive' + (e.dives + (e.swoop ? 0 : 1)) }, () => ({ duck: r() < P.dodge, cut: r() < P.fly_slash }));
+        var coming = e.swoop ? e.swoop.k < .62 && Math.abs(du) < .4 : Math.abs(du) < .5;
+        if (coming && dp.duck && (e.swoop || Math.abs(du) < .3)) duck = true;
+        else if (e.swoop && dp.cut && Math.abs(du) < .28 && du * q.facing > -.02 && Math.abs(e.h - b.jh - .1) < .2) a.slash = true;
+      }
+      if (!target || Math.abs(du) < Math.abs(target.u - me)) target = e;
+      if (Math.abs(du) < .26 && du * q.facing > 0 && Math.abs(e.h - b.jh - .1) < .2 && plan(e, () => ({ cut: r() < P.fly_slash, jump: r() < P.jump_try })).cut) a.slash = true;
     });
     if (target) {
-      var side = target.u >= me ? 1 : -1;
-      if (q.facing !== side) goal = me + side * .12;
-      else if (Math.abs(target.u - me) > .65) goal = target.u - side * .45;
-      a.shoot = q.facing === side && Math.abs(target.h - b.jh - .14) < .12 && o.charge > P.charge_floor;
+      var side = target.u >= me ? 1 : -1, tp = plan(target, () => ({ cut: r() < P.fly_slash, jump: r() < P.jump_try }));
+      if (q.facing !== side) turn = side;
+      else if (Math.abs(target.u - me) > .7) goal = target.u - side * .5;
+      else if (Math.abs(target.u - me) < .2) goal = target.u - side * .4;   // too close: back off
+      var muzzle = b.jh + .129, high = target.h > .2;
+      if (high && tp.jump && !b.jh && q.facing === side && !duck) a.jump = true;
+      a.shoot = q.facing === side && Math.abs(target.h - muzzle) < .07 && o.charge > P.charge_floor;
     }
     q.thrown.forEach(function (p) {
       if (p.friendly || !noticed(o, p)) return;
-      var pl = plan(p, () => ({ deflect: r() < P.deflect_try }));
-      if (Math.abs(p.u + p.vu * lead - me) < .3 && pl.deflect) {
-        if ((p.u - me) * q.facing < 0) goal = me + Math.sign(p.u - me) * .12;
-        else a.slash = true;
-      }
+      var du = p.u + p.vu * lead - me, toward = p.vu * (me - p.u) > 0;
+      if (!toward || Math.abs(du) > .35) return;
+      var pl = plan(p, () => ({ deflect: r() < P.deflect_try, hop: r() < P.dodge }));
+      if (pl.deflect && (p.u - me) * q.facing > 0 && Math.abs(du) < .26) a.slash = true;
+      else if (pl.deflect && (p.u - me) * q.facing < 0) turn = Math.sign(p.u - me);
+      else if (pl.hop && Math.abs(du) < .16 && !b.jh) a.jump = true;
     });
-    // No chance to ignore the supply forever: once combat ends, walk to the visible sliding crate.
-    if (q.crate) goal = q.crate.u - .32 * lead;
+    if (goal !== null) goal = Math.max(-.6, Math.min(.6, goal));
+    // the top: the crate, then the doorway
+    if (q.crate) goal = q.crate.u - .05;
+    else if (q.exit) goal = 0;
+    if (duck && !b.jh) { a.crouch = true; a.jump = false; a.shoot = false; goal = null; }
     var d = goal === null ? 0 : goal - me;
     a.left = d < -.025; a.right = d > .025;
-    arenaSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: delta });
+    if (turn && goal === null && !a.crouch) { a.left = turn < 0; a.right = turn > 0; }   // a tap to face the other way
+    arenaSent.push({ t: o.t, dir: a.crouch ? 0 : (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: delta });
     return a;
   }
   return {

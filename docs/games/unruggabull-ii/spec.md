@@ -2,7 +2,7 @@
 
 A sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
-Status: the 13th Floor, a 13→R elevator arena and the roof framework are built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed. The plain ride, Floor 48 and ending follow later; the long ride is the current elevator framework. Once a stage ships, [README.md](README.md) and the code are the source of truth.
+Status: the 13th Floor, the long ride (13→R for now) and the roof framework are built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed. The plain ride, Floor 48 and ending follow later. Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
 The original game stays in its own repo (painted art, ES modules, desktop). Its `level-2` branch is the start of a later helicopter release, not part of this game.
 
@@ -27,10 +27,10 @@ About eleven minutes for a full run. Two engines carry the whole game: the **cor
 | 13 | the 13th Floor: Accounting | Mid-boss: the Shredder | Corridor |
 | ↑ | Plain ride (planned) | Operator, “Floor?”, Please Hold, supply crate, open doors; no fight | Arena set, no combat |
 | 48 | Floor 48 (contents TBD) | TBD | TBD |
-| ↑ | The long ride (framework built) | Cable snaps near the top; Horns Up turns heavy; supply crate | Arena |
+| ↑ | The long ride (built) | p(Loom) takes the cable, drops the car and reels it up; 30 seconds of Horns Up; supply crate | Arena |
 | R | The roof | Final boss: p(Loom) | Corridor |
 
-The decided climb is **13th Floor → plain ride → Floor 48 → long ride → roof**. Floor 48 and the plain ride are not stages yet, so the playable build temporarily takes the long ride straight from the 13th Floor and counts 13→R. Its start floor and destination are ride data; later the long ride starts at 48. Combat is switchable per ride (`ELEVATOR.fight` / per-run `fight`); the no-fight configuration is tested with the operator, muzak, crate and handoff but is not registered as another stage. [elevator-plan.md](elevator-plan.md) records current behavior and the art/music seams.
+The decided climb is **13th Floor → plain ride → Floor 48 → long ride → roof**. Floor 48 and the plain ride are not stages yet, so the playable build temporarily takes the long ride straight from the 13th Floor and counts 13→R. Its start floor and destination are ride data; later the long ride starts at 48. Combat is switchable per ride (`ELEVATOR.fight` / per-run `fight`); the no-fight configuration is tested with the operator, muzak, crate and handoff but is not registered as another stage. [long-ride-plan.md](long-ride-plan.md) is the long ride's design; [elevator-plan.md](elevator-plan.md) records the supply drops and the plain ride's provisional choices.
 
 Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 
@@ -81,17 +81,19 @@ A corridor floor of about two minutes, then the Shredder.
 - **Clear.** The final hit runs in slow motion before the Shredder blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. “Take the elevator” continues this run through the ride to the roof; Play again stays. The long ride currently skips the planned plain ride and Floor 48.
 - **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by the Shredder, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
 
-## Elevator and drops (built framework)
+## Elevator and drops (built)
 
-A side-view car interior, no scrolling: back-wall doors, counting floor indicator, central hatch and an unhittable operator by the button panel. He asks “Floor?” in blips. Existing carpshits drop in small warm-up groups: flyers swoop and throw paper during descent; crawlers land/scuttle. Shooting and slashing free their souls; slashing also returns paper. Same hearts, charges, crouch and jump controls.
+A side-view car in its shaft, no scrolling: walnut and brass, art-deco doors with windows onto the shaft, a needle dial over them, a hatch in the ceiling, the sides open to the shaft sliding past, and the operator (one of the Unrugged, in a bellhop's cap and jacket) on his stool by the buttons. Unruggabull is drawn side on (`UnrugBull.SIDES`). Same hearts, charges, crouch and jump controls as every stage; crouch ducks the dives.
 
-**The long ride:** a 30-second climb, with the cable snap at 60% (currently floor 64 on the temporary 13→R route). The snap cuts the muzak, jolts the car and flickers its lights for a short beat, then jumps into the heavy part of **Horns Up**. It is one track: its intro is Please Hold's tune, looping until the game's snap cue selects the heavy section. The heavy section does not begin on a timer in the track. After the snap he says “Here I come, p(Loom).” in his caption, in blips until recorded. Light singles/pairs arrive every 2.5 seconds before the snap, with no scheduled empty wait over three seconds. Waves then arrive every two seconds, grow from pairs to triples and mix plain and armored crawlers/flyers. Armor is a flag on either type: a visible placeholder helmet clanks/sparks off on the first bolt, slash or returned paper; a second hit frees the same soul as usual. One slash hits each carp once. The heavy section lasts the remaining twelve seconds of climbing. At the destination the remaining wave releases its souls, a ding hard-cuts music, the doors open and a crate slides out, grabbable immediately. The roof's lead-in picks up with doors already open; direct roof testing retains its original door-opening sequence.
+**The long ride** ([long-ride-plan.md](long-ride-plan.md)), about a minute: “Floor?”, Please Hold and a climb with small talk and no carpshits; p(Loom) takes the dial (the lights brown out, the muzak sags, its eye fills the dial: “Probability of arrival: zero percent.”); a cut-in above the car as its threads take the cable and let go; the drop in red emergency light; the brakes; the threads burst through the hatch (“Recalculating. Bring him up.”) and a second cut-in as they reel the car up; Horns Up turns heavy (“Here I come, p(Loom).”) for 30 seconds of fight; the top, a ding, the doors open on the roof, the operator's crate and “Floor?” / “Roof.”, and he walks out with his back to us. He can't act during the cut-ins.
 
-**The plain ride (configuration only):** no spawns, throws, snap or heavy music. Operator, “Floor?”, Please Hold, a supply crate, open doors and the handoff. It will be a stage before Floor 48 once that floor exists.
+**The fight:** every carpshit flies, sliding down the threads either side of him, in pairs and three at a time for the last floors, at most seven on screen, armored ones from about nine seconds in. They flap, bank, keep their distance from him and from each other, throw glowing paper (slash it back at them) and every few seconds rear and dive through where he's standing (duck, slash or move). Backed against a wall, he gets no shelter: the next one flies in from the open shaft behind him, and one with no room to keep its distance climbs over him to the other side. Armor: the first hit knocks a steel helmet off with a clank, the second frees the soul. At the top the threads let go and the last carpshits' souls are his.
 
-Carry one drop; activate by E or tapping the icon. Spread Shot is held until used, then three ways for ten seconds. Bull Run charges for five seconds, invulnerable and destroying contact threats: down the corridor lane, across the arena toward his facing (turning at walls), or under normal player movement on the roof, where it only clears carps, snares and orbs. It does nothing to p(Loom). Spare Vest automatically gets him back up at the fallen position with full hearts once. Used supplies stay consumed on continues. The operator chooses a Vest at two hearts or fewer; otherwise Spread Shot/Bull Run alternate, starting with Spread. A Vest leaves the alternation in place. A new crate replaces an existing held drop. Choice and input are provisional review items, not additional enemies or dialogue.
+**The crate:** the long ride's gives full hearts, or 20 bonus souls if he's already full. **The plain ride** (configuration only, `fight: false`): no fight, Please Hold, the doors and a supply drop in the crate (below), then the handoff. It will be a stage before Floor 48 once that floor exists.
 
-A continue in the ride restarts its clock/waves with full hearts and its entry souls/seed stream. `#stage=elevator` starts the 13→R ride with no held drop. Stand-in shapes and existing sprites use the shared renderer's lit/glow and palette/dither finish; no new pixel art or final composition is included.
+Carry one drop; activate by E or tapping the icon. Spread Shot is held until used, then three ways for ten seconds. Bull Run charges for five seconds, invulnerable and destroying contact threats: down the corridor lane, across the arena toward his facing (turning at walls), or under normal player movement on the roof, where it only clears carps, snares and orbs. It does nothing to p(Loom). Spare Vest automatically gets him back up at the fallen position with full hearts once. Used supplies stay consumed on continues. The plain ride's operator chooses a Vest at two hearts or fewer; otherwise Spread Shot/Bull Run alternate, starting with Spread. A Vest leaves the alternation in place. A new crate replaces an existing held drop.
+
+Rugged in the long ride, Continue goes back to the threads with full hearts and the souls he came in with; Restart floor starts the ride over. `#stage=elevator` starts the 13→R ride with no held drop.
 
 ## Look
 
@@ -104,9 +106,9 @@ Each section of the hall has its own set and colours: Accounts Payable's cubicle
 `audio.js` with the usual small API (`init`, `play`, `muted`, plus `music(name)` and `say(text)` for blip talk).
 
 - **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. The 13th Floor changes tune by section: "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room, and a heavier version for the Shredder.
-- **Blip talk:** everyone except Unruggabull and p(Loom) talks in blips while their line types out.
+- **Blip talk:** everyone talks in blips while their line types out (Unruggabull and p(Loom) until their own voices exist).
 - **Unruggabull's voice:** Jonnie's recordings, crushed to 8-bit, shipped as small data in the code rather than audio files. Until lines are recorded, he talks in blips too: about fifteen short lines in bubbles over his head (`LINES` in `game.js`), which double as the recording script.
-- **p(Loom)'s voice** (roof stage): the only synth voice. SAM was used for the storyboard but has no license, so the options are a small formant synth of our own, pre-rendered SAM shipped as crushed audio, or sam-js as is. Decide in roof Part B; Part A uses existing blips.
+- **p(Loom)'s voice:** the only synth voice. SAM was used for the storyboard and the long-ride prototype but its license isn't clear, so the game doesn't ship it or load it. Until our own voice is built, p(Loom) talks in its lower machine-pulse blips on the long ride and the roof, with its captions timed as before.
 
 ## The mega stream
 
@@ -153,12 +155,16 @@ All three cuts freeze fight timers and hold input. Five hearts; a continue prese
 
 Sound hooks now synthesize storm rain/wind, delayed thunder, snare whip/cut, gust, spool crack/twang, beam roar, final snap and a dawn major chord. The fight track is Saga II (152, heavy 170 BPM, D minor): Coheed-style metal with distorted power chords, a clean echoing intro, a choppy verse and an eight-bar chorus reaching for D, F and A, with a twin guitar from round 2 and the souls' choir from round 3; its heavy version opens on the chorus and adds a tapping solo. Two earlier candidates stay for comparison (`#music=b`, `#music=c`). Spool snaps are one crashing power chord. The final accounted word cuts music without a tail. Quiet/return have only storm ambience and the three D-minor bells; 1% drops to held D5, and a D-major chord crosses snap into dawn. A lower machine pulse voice preserves the previous 38 ms letter cadence. Its final voice is still open. Souls have cosmetic jitter, independent bob/sway, row depth and arrival/quiet pulses. They curve into reserved warp slots, shake loose for the three bells, and depart their actual slots over one second during the flood; arrivals retain their original three-second timing. At most 96 flying souls and three faint trail stamps each are drawn per frame, with eight distributed warm lights. Dawn uses the full count with staggered rises, side-to-side drift and fade; the displayed counter adds released captives to the pre-dawn total and preserves that total on the clear card; seeded run score stays unchanged. The eye supplies orange/red/white light, two distant flashes precede the reveal, the beam supplies six gold lights, and dawn warms in two seconds. Shake uses one decaying function, halved under reduced motion. Spool snaps hold the picture for three frames during their existing intermission, preserving outcomes and input.
 
+Roof fixes: the dawn display and clear card never reset the counter; the full lightning state draws the whole loom and captives as dark silhouettes with a thin rim. Dawn counting uses each soul's actual starting position. Snap/fusion shake decay pauses inside named cut-ins so the impulse is still visible when play returns.
+
+The music system and unlinked phone music lab are ready for composition. Pattern/order, envelopes, vibrato, arpeggios, slides, echoes, stems, beat/bar switches, hard cuts, downbeat slams and stingers are implemented. The six original tracks for the 13th Floor render byte-identically. The fight track is chosen (Saga II); art and phone playtesting remain.
+
 Playable side/top-down views and drag-to-move with auto-fire stay dropped.
 
 ## Later stages
 
 1. The plain ride as its own stage and Floor 48 (contents TBD).
-2. The long ride's finished art, Horns Up composition and feel; its framework now runs from 13 until Floor 48 exists.
+2. The long ride's phone playtest and polish (more side poses, the fight's difficulty); it runs from 13 until Floor 48 exists.
 3. Roof Part B (art, final music/voice and feel) and the ending after dawn (the core escaping into the Sky Wrecker).
 4. Floor G cold open/back alley using the arena; its place in the decided climb is not part of this change.
 5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../../guides/00-leaderboards.md)).
@@ -170,7 +176,3 @@ Playable side/top-down views and drag-to-move with auto-fire stay dropped.
 - The Unruggabull recording script (15 to 20 lines). A first draft is in the game as `LINES`; it needs Jonnie's approval before recording.
 - p(Loom)'s voice (see Sound). Does it start breaking down as its odds fall?
 - Floor 48 contents, including whether the mega stream near miss belongs there.
-
-Roof fixes: the dawn display and clear card never reset the counter; the full lightning state draws the whole loom and captives as dark silhouettes with a thin rim. Dawn counting uses each soul's actual starting position. Snap/fusion shake decay pauses inside named cut-ins so the impulse is still visible when play returns.
-
-The music system and unlinked phone music lab are ready for composition. Pattern/order, envelopes, vibrato, arpeggios, slides, echoes, stems, beat/bar switches, hard cuts, downbeat slams and stingers are implemented. The six original tracks for the 13th Floor render byte-identically. The fight track is chosen (Saga II); art and phone playtesting remain.

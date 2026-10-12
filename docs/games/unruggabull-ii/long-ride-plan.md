@@ -1,6 +1,6 @@
 # The long ride, redone
 
-Status: designed and approved as a playable prototype, 12 October 2026; **not yet in the game**. The game still plays the long ride from [elevator-plan.md](elevator-plan.md). This plan replaces that ride's story, look, music and fight. Moving it into the game is the next job.
+Status: designed and approved as a playable prototype, 12 October 2026, and **in the game** since the port that followed (the long ride in `elevator.js` and `arena.js`; how it plays now is in the [README](README.md#arena-elevator-and-supplies)). It replaced the ride from [elevator-plan.md](elevator-plan.md): story, look, music and fight. The prototype stays in `tools/unruggabull-ii/long-ride/` as the reference.
 
 The prototype is `tools/unruggabull-ii/long-ride/`. Build it with `python3 tools/unruggabull-ii/long-ride/build.py work/long-ride.html` and open the file: it plays the whole ride, on a phone or with keys, and a beat list jumps to any moment. It uses the game's own `bull.js`, `sprites.js` and `art.js`, so new art drawn there shows up in it.
 
@@ -49,13 +49,13 @@ About 63 seconds. The times are the prototype's.
 
 ## Sound
 
-- **Horns Up is the original storyboard's track** (in `synth.js`, with the storyboard's synth): muzak until the brownout, heavy from the reel, looping its riff, breakdown and solo sections for the fight. It replaces the placeholder in `site/unruggabull-ii/music-elevator.js`.
-- **p(Loom) speaks with SAM** (sam-js from a CDN in the prototype; the game's own voice is still to be decided); everyone else in blips.
+- **Horns Up is the original storyboard's track** (in `synth.js`, with the storyboard's synth): muzak until the brownout, heavy from the reel, looping its riff, breakdown and solo sections for the fight. It replaced the placeholder in `site/unruggabull-ii/music-elevator.js`.
+- **p(Loom) speaks with SAM on the prototype page** (sam-js from a CDN); the game doesn't (below). Everyone else in blips.
 - Effects: the wind and slack of the cable, the fall, the brakes, the hook and reel, the slam, the ding, the doors and thunder, the swoop, the clank, empty/drained/ready for the blaster.
 
 ## Lines
 
-Approved: "Floor?", "Here I come, p(Loom).", the operator's "Floor?" at the roof. Drafts waiting on Jonnie:
+All approved:
 
 | Who | Line |
 | --- | --- |
@@ -72,17 +72,17 @@ Cut: "Long way up." / "Since 1987, sir." (the 1987 joke needs lore the player do
 
 ## Moving it into the game
 
-One pull request, by the Claude chat that built the prototype:
+Done in one pull request: the beats, set, cut-ins, lighting, words and fight above are the game's now. Decided on the way in:
 
-1. Replace the long ride's drawing seams in `elevator.js`/`arena.js` with the prototype's car, shaft, dial, doors, operator, cut-ins, threads, lighting and carpshit/bull drawing; use `UnrugBull.SIDES` for the bull.
-2. Replace its state path with the beats above (no warm-up fight; banter; eye; cut-ins; drop; brakes; threads; reel; 30-second fight; top; doors; crate; walk out).
-3. Move the arena's fight to the prototype's rules (flyers only, swoops, spacing, paper, armor) on the seeded stream, keeping the game's charge and hearts.
-4. Horns Up from `synth.js` into `music-elevator.js` in the sequencer's format.
-5. Keep the 13th Floor and the roof identical to main (bots run for run, screenshots, `--verify`), all tests passing; retune the ride's bots; update the README, spec, history and this plan's status.
+- **Lines:** the drafts above are approved as written; "Long way up." / "Since 1987, sir." stay cut.
+- **Crouch** stays in the arena, for ducking the dives. Same controls on every stage.
+- **p(Loom)'s voice:** no SAM (its license isn't clear and our own voice isn't built yet). It talks in the machine blips it uses on the roof, keeping its lines and caption timing.
+- **The plain ride's drops** are as they were; only the long ride's crate changed (full hearts, or 20 souls if full).
+- **Horns Up** is the storyboard's track in the sequencer's pattern format (`tools/unruggabull-ii/horns-up.js` writes it), on the section tracks' own synth.
+- **Standing at a wall** no longer makes the fight safe (Jonnie's note on the prototype): dives curve through where he's standing, waves come down the threads on both sides of him, in through the open shaft behind him when he's against a wall, and one with no room to keep its distance climbs over him.
+- **Timing:** the crate comes over at 58.0 s (59.2 on the prototype), and he can walk out once the operator has asked (58.6 s); he answers "Roof." on his way out.
 
 ## Open
 
-- The draft lines above.
-- The supply drops: the long ride now gives full hearts or bonus souls. Whether the plain ride keeps the Spread Shot / Bull Run / Spare Vest drops is open.
-- Crouch has little use now that nothing crawls; keep it for ducking dives, or drop it in the arena.
-- Phone playtesting of the fight's difficulty (a scripted bot cleared it losing 0–2 hearts).
+- Phone playtesting of the fight's difficulty. The balance bots (100 seeds each) clear it 66/98/100 times (casual/decent/expert), losing 3.6/1.8/0.3 hearts on average, most of them in the last floors.
+- More side poses (a hurt fall, a turn) and p(Loom)'s own voice.
