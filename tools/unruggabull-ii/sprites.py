@@ -655,6 +655,27 @@ def soul():
     return [''.join(r) for r in rows]
 
 
+
+def bull_soul():
+    """Unruggabull's own soul, rising when he's rugged: a soul with his horns, ears and a muzzle, all in the soul's
+    ghostly blue (the owner's pick over cream horns), and a halo."""
+    cv = Canvas(30, 28, lit_above=99)
+    ellipse(cv, 15, 2.5, 6, 1.6, 'gold', base=.4, hard=True)                 # its halo
+    for x in range(11, 20):
+        T(cv, x, 2.5, '.')
+    for d in (-1, 1):
+        capsule(cv, [(15 + d * 5, 10, 1.9), (15 + d * 9, 8.5, 1.5), (15 + d * 11.5, 5, 1.0)], 'soul', base=.35, hard=True)  # horns
+        ellipse(cv, 15 + d * 7.4, 12, 2.2, 1.3, 'soul', base=.1, hard=True)    # ears
+    capsule(cv, [(15, 13, 6.4), (15, 18, 6.6)], 'soul', base=.25, hard=True)   # the body
+    for k, x in enumerate((9.5, 15, 20.5)):
+        ellipse(cv, x, 24 + (k % 2), 2.4, 1.9, 'soul', base=.1)               # its wavy hem
+    ellipse(cv, 15, 18.2, 4.2, 2.6, 'soul', base=.55, hard=True)              # the muzzle
+    g = finish(cv)
+    rows = [list(r) for r in g]
+    for x, y in ((11, 13), (12, 13), (11, 14), (12, 14), (17, 13), (18, 13), (17, 14), (18, 14), (13, 18), (17, 18)):
+        rows[y][x] = 'K'                                                       # eyes and nostrils
+    return [''.join(r) for r in rows]
+
 def heart(mat):
     cv = Canvas(20, 18, lit_above=99)
     for x in (6, 13):
@@ -740,7 +761,7 @@ def spread():
 
 
 def cast():
-    return {'SOUL': soul(), 'HEART': heart('heart'), 'HEART_EMPTY': heart('dim'), 'WAD': paper_wad(), 'BUNDLE': bundle(),
+    return {'SOUL': soul(), 'BULL_SOUL': bull_soul(), 'HEART': heart('heart'), 'HEART_EMPTY': heart('dim'), 'WAD': paper_wad(), 'BUNDLE': bundle(),
             'STAPLE': staple(), 'PLANE': plane(), 'COFFEE': coffee(), 'SPREAD': spread()}
 
 

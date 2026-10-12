@@ -150,6 +150,7 @@ var UnrugArt = (function () {
   // a sprite's size in game units (the new ones are drawn at half a unit a pixel)
   const uw = img => img.width * (img.k || 1), uh = img => img.height * (img.k || 1);   // where the rug sits in a temp's frame, in pixels
   const GHOST = ns(NS.CAST.SOUL);
+  const BULL_SOUL = ns(NS.CAST.BULL_SOUL);
   const HEART = ns(NS.CAST.HEART);
   const HEART_EMPTY = ns(NS.CAST.HEART_EMPTY);
   const WAD = ns(NS.CAST.WAD);
@@ -316,6 +317,6 @@ var UnrugArt = (function () {
 
   return {
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
-    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, uw, uh, logo, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
+    POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, uw, uh, logo, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, BULL_SOUL, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };
 })();

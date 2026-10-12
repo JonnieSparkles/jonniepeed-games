@@ -26,7 +26,7 @@
   RUN.force = 404; startRun();
   for (let i = 0; i < 5; i++) { bull.inv = 0; hurtBull(1); }
   check(R.phase === 'dead' && R.hearts === 0, 'five hits and you are rugged');
-  step(2.2);
+  step(TUNE.deadWait + .3);
   check(state === 'over' && cardTitle.textContent === 'Rugged.' && goBtn.textContent === 'Continue', 'RUGGED. CONTINUE?');
   goBtn.click();
   check(state === 'play' && R.hearts === TUNE.hearts && R.souls === 0 && R.phase === 'hall', 'continue starts the floor over');

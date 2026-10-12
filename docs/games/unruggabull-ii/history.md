@@ -74,6 +74,8 @@ Why things are the way they are, and what was tried and dropped, so a later chan
   - **The Shredder's shots:** the paper ball ("isnt bad for shred o"), and the spinning staple stars ("I like the spinning ones").
   - **The live floor:** the staple side spray "dont look great". Its point was "to force the player to decide whether to stay on the carpet or not", so the floor beside the rug goes live instead, in the surge's blue, and the rug insulates. Picked from stills over a paper blizzard ("it's number one").
   - **Desks:** "a little visually more interesting… just a touch of something", so each has a green banker's lamp and a stack of folders.
+  - **Rugged:** the flip off the screen was "weird". The owner asked for him to fall or vanish and "a bull soul" to rise, and picked the all-ghost version over cream horns, from a moving mock.
+  - **A black bar** in the lit renderer: the bloom's two blur passes had rows and columns swapped, so the pass going down read past the end of the buffer and turned the bottom rows NaN, which shows as black wherever there was bloom (seen as a bar across his legs). Since the lit renderer; fixed, and bloom now covers the whole picture.
 
 ## Tried and dropped
 
@@ -82,7 +84,8 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Shots and staples, round one** (notes round): a bale of shreddings and a file folder for the bundle; a staple point first, chunky side on, a strip. Only the paper ball was kept.
 
 - **The audit** (game-pad controls, dropped after the first deploy): a deflect round where the temps lobbed paper for double souls. It never read as anything in particular.
-- **A rug burrito** when he's rugged (his lines, dropped in volley match): "looks terrible". The rug is yanked out and he flips off the screen.
+- **A rug burrito** when he's rugged (his lines, dropped in volley match): "looks terrible". The rug was yanked out and he flipped off the screen.
+- **The flip off the screen** (notes round): he flipped up and spun off the bottom in quarter turns; "the animation is weird". His bull soul rises instead.
 - **A big AUDIT banner across the hall** (dropped in lights out): disorienting. Every beat and event gets a sign that drops from the ceiling.
 - **A surge you could jump** (volley match, dropped the same round): see above; it had to be forced.
 - **A D-pad** (game-pad controls, dropped in thumb stick).

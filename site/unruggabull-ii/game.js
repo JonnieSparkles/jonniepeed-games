@@ -35,6 +35,7 @@
   // ---------- tuning ----------
   const TUNE = {
     hearts: 5, move: 1.5, aisle: .6, runner: .3,
+    deadWait: 2.8,   // rugged: seconds before the card, long enough for his soul to rise
     jumpH: .2, jumpT: .65,
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38, aimWork: .8,
     charges: 20, recharge: .5, spreadT: 10,
@@ -592,8 +593,8 @@
     const b = bull;
     if (b.mouth > 0) return;
     const s = sc(b.bz), x = PX(b.u, b.bz), feet = YH(b.bz, b.jh);
-    if (R.phase !== 'dead' || R.phaseT < .3) shadow(b.u, b.bz, 14 * (1 - .5 * Math.min(1, b.jh / TUNE.jumpH)));   // the shadow shrinks as he rises
-    if (R.phase === 'dead') { drawRugPulled(s, x, YH(b.bz, 0)); return; }
+    if (R.phase !== 'dead' || R.phaseT < 1) shadow(b.u, b.bz, 14 * (1 - .5 * Math.min(1, b.jh / TUNE.jumpH)));   // the shadow shrinks as he rises
+    if (R.phase === 'dead') { drawSoulDeath(s, x, YH(b.bz, 0)); return; }
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
     // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
     const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
@@ -617,17 +618,30 @@
     if (b.slash >= 0 && !cheer) A.arcE(GLOW, x + kx, feet + ky - (b.crouch ? 14 : 20) * s, 26 * s, 11 * s, Math.PI + .2, b.slash < .07 ? Math.PI * 1.45 : Math.PI * 2 - .2);
   }
   // Rugged: the rug is yanked out from under him. He flips up, spins in quarter turns and falls off the screen.
-  function drawRugPulled(s, x, feet) {
-    const t = Math.max(0, R.phaseT - .08), dy = -(190 * t - 260 * t * t) * s, rot = Math.floor(t / .09) % 4;
-    g.save(); g.translate(Math.round(x + t * 14 * s), Math.round(feet - 19 * s + dy));
-    if (rot) g.rotate(rot * Math.PI / 2);
-    const k = s * A.BULL_K;
-    g.drawImage(A.POSES.hurt, -A.POSE_FEET.x * k, -A.POSE_FEET.y * k + 19 * s, A.POSE_W * k, A.POSE_H * k);
-    g.restore();
+  // Rugged: he's hit, sinks to his knees and flickers out in blue sparkles, and his soul rises, a bull's soul with its
+  // halo, drifting up to rest under the RUGGED banner (the owner's idea, over flipping off the screen). Drawn from the
+  // clock alone; the soul is drawn with the glow, so it shows in the dark.
+  function drawSoulDeath(s, x, feet) {
+    const t = R.phaseT, P = A.POSES, k = s * A.BULL_K;
+    const pose = (img, a) => { g.save(); g.globalAlpha = a; g.drawImage(img, Math.round(x - A.POSE_FEET.x * k), Math.round(feet - A.POSE_FEET.y * k), A.POSE_W * k, A.POSE_H * k); g.restore(); };
+    if (t < .35) pose(P.hurt, 1);
+    else if (t < 1.1) { const out = Math.max(0, (t - .8) / .3); if (!(out > 0 && Math.floor(t * 30) % 2)) pose(P.crouch, 1 - out * .6); }
+    if (t > .8 && t < 1.3) for (let i = 0; i < 8; i++) {   // the sparkles he goes out in
+      const a = i * 2.4 + t * 6, r = (t - .8) * 40 * s;
+      rect(g, x + Math.cos(a) * r * .8, feet - 20 * s - Math.sin(a) * r * .6 - (t - .8) * 30 * s, Math.max(1, s * 1.5), Math.max(1, s * 1.5), i % 2 ? '#bfe8ff' : '#ffffff');
+    }
+    R.soulAt = [x, feet - 24 * s, VX + (x - VX) * .4, 92];   // where his soul rises from and comes to rest (drawn in the glow)
+  }
+  // his soul, `u` seconds after it appears at (x0, y0), easing to rest at (x1, y1) with a gentle sway
+  function bullSoul(u, x0, y0, x1, y1) {
+    const img = A.BULL_SOUL, w = A.uw(img) * 1.5, h = A.uh(img) * 1.5, e = Math.min(1, u / 1.6), ease = 1 - (1 - e) * (1 - e);
+    const y = y0 + (y1 - y0) * ease + Math.sin(u * 2.6) * 2 * e, x = x0 + (x1 - x0) * ease + Math.sin(u * 3.2) * 4 * (1 - e * .5);
+    g.save(); g.globalAlpha = Math.min(1, u * 2.5); g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h); g.restore();
   }
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
   const FX_PASS = { wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
   function drawFx(pass) {
+    if (pass === 'glow' && R.phase === 'dead' && R.soulAt && R.phaseT > 1) bullSoul(R.phaseT - 1, ...R.soulAt);
     for (const f of R.fx) {
       if ((FX_PASS[f.k] || 'lit') !== pass) continue;
       const k = f.t / f.dur;

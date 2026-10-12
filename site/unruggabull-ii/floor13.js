@@ -833,7 +833,7 @@ var UnrugFloor13 = function (core) {
       if (R.phaseT > 4.4) endRun('clear');
     } else if (R.phase === 'dead') {
       if (R.phaseT > .12 && !(R.events.said && R.events.said.rugged)) { if (R.talk) { R.talk = null; Snd.hush(); } bark('rugged', true); }   // his WHOA! cuts off a taunt
-      if (R.phaseT > 1.9) endRun('rugged');
+      if (R.phaseT > TUNE.deadWait) endRun('rugged');
     }
   }
   // ---------- drawing ----------

@@ -141,6 +141,7 @@ var UnrugArena = function (core, tuning) {
   }
   // Each drawing seam can be replaced without touching physics.
   function drawBull() {
+    if (R.phase === 'dead') { drawDeath(); return; }
     const y = Y(bull.jh), bob = bull.jh ? 0 : Math.sin(bull.step) * .6;
     g.save(); g.translate(X(bull.u), y + bob); g.scale(facing(), bull.crouch ? .5 : 1);
     g.rotate(R.bullRun > 0 ? .24 : bull.jh > 0 ? -.08 : Math.sin(bull.step) * .025);
@@ -148,6 +149,16 @@ var UnrugArena = function (core, tuning) {
     g.drawImage(side, -side.width * .25, -UnrugBull.VIEW_FEET.y * .5, side.width * .5, side.height * .5);
     if (bull.slash >= 0) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.beginPath(); g.arc(10, -14, 20, -1.2, 1.2); g.stroke(); }
     g.restore();
+  }
+  // rugged, side on: he sinks, flickers out in blue sparkles, and his bull's soul rises (as in the hall)
+  function drawDeath() {
+    const t = R.phaseT, x = X(bull.u), y = Y(0);
+    if (t < 1.1 && !(t > .8 && Math.floor(t * 30) % 2)) {
+      g.save(); g.translate(x, y); g.scale(facing(), t < .35 ? 1 : .55); g.globalAlpha = t > .8 ? .5 : 1;
+      g.drawImage(side, -side.width * .25, -UnrugBull.VIEW_FEET.y * .5, side.width * .5, side.height * .5); g.restore();
+    }
+    if (t > .8 && t < 1.3) for (let i = 0; i < 8; i++) { const a = i * 2.4 + t * 6, r = (t - .8) * 40; rect(g, x + Math.cos(a) * r * .8, y - 14 - Math.sin(a) * r * .6 - (t - .8) * 30, 1.5, 1.5, i % 2 ? '#bfe8ff' : '#ffffff'); }
+    R.soulAt = [x, y - 16, x, y - 34];   // his soul, drawn with the glow by the core
   }
   function drawEnemy(e) { const img = A.CARPF[Math.floor(R.t * 8) % 2]; g.drawImage(img, X(e.u) - 10, Y(e.h) - 6, 20, 12); if (e.armored) drawArmor(e); }
   function drawArmor(e) {

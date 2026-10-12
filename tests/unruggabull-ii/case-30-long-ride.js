@@ -46,7 +46,7 @@
     fresh({ fight: false }); floor.enter('open'); bull.u = floor.ELEVATOR.crateStart;
     tick(1.21);
     check(R.elevator.state === 'exit' && R.elevator.crate.got && R.elevator.crate.u === floor.ELEVATOR.crateStart, 'crate collected at creation before sliding away');
-    fresh({ from: 48, fight: false }); R.souls += 4; bull.inv = 0; hurtBull(5, 'test'); tick(2); goBtn.click();
+    fresh({ from: 48, fight: false }); R.souls += 4; bull.inv = 0; hurtBull(5, 'test'); tick(3); goBtn.click();
     check(R.elevator.from === 48 && !R.elevator.fight && R.elevator.indicator === 48 && R.souls === 7, 'continue retains ride configuration and entry souls');
     // Replay is still the secondary clear-card button and restarts the original floor.
     newRun(); setState('play'); R.phase = 'win'; R.endT = 1; endRun('clear');

@@ -56,7 +56,7 @@
     newRun(); setState('play'); R.souls = R.shown = 123; R.hearts = 1; R.phase = 'win'; R.endT = 130;
     const oldSeed = seed; endRun('clear'); check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again' && !altBtn.hidden, 'elevator is primary, replay secondary'); goBtn.click();
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters ride, full hearts');
-    floor.enter('climb'); bull.inv = 1e9; tick(3); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'crawler'); tick(2);
+    floor.enter('climb'); bull.inv = 1e9; tick(3); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'crawler'); tick(3);
     check(state === 'over' && checkpoint.souls === 123, 'ride continue card saves entry souls'); goBtn.click();
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && R.elevator.state === 'ask' && R.continues === 1, 'continue restarts entire ride');
     floor.enter('climb'); R.elevator.snapped = true; R.elevator.climbed = 29.99; enemy('crawler', .5, .1); tick(.02);

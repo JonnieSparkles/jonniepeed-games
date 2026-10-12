@@ -21,7 +21,7 @@ var UnrugRoof = function (core) {
     freeze: .14, lightningFrame: 1 / 30, reelJump: .12, throwPin: .4,
     eyeHitZ: .04, eyeHitH: .15, spoolFlash: .6, beamFlash: .1, aimHold: .15,
     firstFly: 1, fightBanner: 1, warmAmbient: .25, darkAmbient: .1, flashAmbient: .7,
-    deadWait: 1.9, glowOdds: 100, spools: 3, hitCost: 1, otherRingChance: .5,
+    deadWait: 2.8, glowOdds: 100, spools: 3, hitCost: 1, otherRingChance: .5,
     effects: { jitterX: 5, jitterY: 3, sway: 1.2, bob: .8, curve: 32, captureLift: 14,
       walkAlpha: .055, wakeRise: 1.3, arrivalPulse: .35, pullLoose: .22, departSpan: 1, flightLift: 16, trailGap: .025,
       dawnStagger: 1.2, dawnSway: 4, dawnWarm: 2, distant: [2.2, 5.4], flashDecay: .06,

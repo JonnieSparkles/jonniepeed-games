@@ -619,8 +619,8 @@ var UnrugRender = (function () {
         }
       }
       for (let pass = 0; pass < 2; pass++) {
-        blur(bA, bB, QW, QH, 3, QW * 3);   // across
-        blur(bB, bA, QH, QW, QW * 3, 3);   // down
+        blur(bA, bB, QH, QW, 3, QW * 3);   // across: QH rows of QW cells
+        blur(bB, bA, QW, QH, QW * 3, 3);   // down: QW columns of QH cells
       }
       // which quarter cells have bloom in any of the four around them
       for (let y = 0; y < QH; y++) for (let x = 0; x < QW; x++) { const k = (y * QW + x) * 3; nz[y * QW + x] = bA[k] + bA[k + 1] + bA[k + 2] > .002 ? 1 : 0; }
