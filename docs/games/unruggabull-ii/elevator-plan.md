@@ -1,6 +1,6 @@
 # Elevator rides
 
-Status: the **long ride** framework is built; final art, composition and feel remain separate. The decided climb is **13th Floor → plain ride → Floor 48 (contents TBD) → long ride → roof**. Floor 48 and the plain ride do not exist as stages yet, so the playable long ride temporarily starts at 13 and counts to R. [README.md](README.md) gives current rules; [spec.md](spec.md) keeps the remaining climb/open questions.
+Status: the **long ride** framework is built; final art, composition and feel remain separate. The long ride's story, look, music and fight have since been redesigned in a playable prototype: [long-ride-plan.md](long-ride-plan.md), which replaces this ride's content when it moves into the game. The decided climb is **13th Floor → plain ride → Floor 48 (contents TBD) → long ride → roof**. Floor 48 and the plain ride do not exist as stages yet, so the playable long ride temporarily starts at 13 and counts to R. [README.md](README.md) gives current rules; [spec.md](spec.md) keeps the remaining climb/open questions.
 
 ## Built
 
