@@ -696,10 +696,16 @@ def bundle():
 
 
 def staple():
-    cv = Canvas(20, 8, lit_above=99)
-    poly(cv, [(1, 1), (19, 1), (19, 3), (1, 3)], 'steel', shade_fn=lambda px, py: .55 if py < 2 else .3)
-    for x in (1, 17):
-        poly(cv, [(x, 3), (x + 2, 3), (x + 2, 7), (x, 7)], 'steel', shade_fn=lambda px, py: .25)
+    """The Shredder's staples: four locked into a throwing star, points out (the owner's pick: "the spinning ones").
+    The game spins it as it flies."""
+    cv = Canvas(20, 20, lit_above=99)
+    c = 10
+    for k in range(4):
+        a = k * math.pi / 2
+        x1, y1 = c + math.cos(a) * 8.5, c + math.sin(a) * 8.5
+        capsule(cv, [(c + math.cos(a) * 2, c + math.sin(a) * 2, 1.4), (x1, y1, .8)], 'steel', base=.35, hard=True)
+        T(cv, x1, y1, TONE['steel'][3])
+    ellipse(cv, c, c, 2.4, 2.4, 'rug', base=.4, hard=True)
     return finish(cv)
 
 

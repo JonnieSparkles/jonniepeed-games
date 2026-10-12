@@ -7,7 +7,7 @@ var UnrugSprites = (function () {
   'use strict';
   const SETS = {
   boldest: {
-    PAL: { '!': '#8a8a9a', '#': '#c4c4d2', '(': '#ecedf6', ')': '#ffffff', '-': '#e01e3a', '/': '#ff4a5a', '3': '#3ad070', '4': '#a0ffb8', '5': '#3e3e4a', '6': '#7e8090', '7': '#c4c6d4', ':': '#ffa0a8', '<': '#3e3a4a', '=': '#ffd44a', '>': '#57526a', '?': '#78738e', 'A': '#eceef6', 'B': '#ffffff', 'D': '#9a1850', 'E': '#d42a6a', 'F': '#ff6a9a', 'G': '#10206a', 'H': '#2048b0', 'I': '#3a78f0', 'J': '#8ab8ff', 'K': '#0a080d', 'M': '#107a6a', 'N': '#20b89a', 'O': '#6af0d0', 'P': '#2a140a', 'Q': '#5a2e14', 'R': '#8a4a1e', 'S': '#c07a38', 'T': '#50505e', 'U': '#8a8a9a', 'V': '#c8c8d4', 'W': '#f4f4fa', 'X': '#14141e', '[': '#7ab8e8', ']': '#bfe8ff', '^': '#ffffff', 'a': '#8a0c0a', 'b': '#e0241a', 'c': '#ff4422', 'd': '#ff8650', 'e': '#a05a00', 'f': '#f0a400', 'g': '#ffd21e', 'h': '#fff27a', 'j': '#f8e8b8', 'k': '#fff6dc', 'n': '#e8e2d0', 'o': '#fffaf0', 'p': '#ffffff', 'q': '#200810', 'r': '#4a0c18', 's': '#8a1c30', 't': '#d04460', 'v': '#a07830', 'w': '#d0a850', 'x': '#f0d080', 'z': '#b8bacc', '|': '#8a4a1e', '}': '#c07a38' },
+    PAL: { '!': '#8a8a9a', '#': '#c4c4d2', '(': '#ecedf6', ')': '#ffffff', '-': '#e01e3a', '/': '#ff4a5a', '3': '#3ad070', '4': '#a0ffb8', '7': '#c4c6d4', '8': '#f4f6ff', ':': '#ffa0a8', '<': '#3e3a4a', '=': '#ffd44a', '>': '#57526a', '?': '#78738e', 'A': '#eceef6', 'B': '#ffffff', 'D': '#9a1850', 'E': '#d42a6a', 'F': '#ff6a9a', 'G': '#10206a', 'H': '#2048b0', 'I': '#3a78f0', 'J': '#8ab8ff', 'K': '#0a080d', 'M': '#107a6a', 'N': '#20b89a', 'O': '#6af0d0', 'P': '#2a140a', 'Q': '#5a2e14', 'R': '#8a4a1e', 'S': '#c07a38', 'T': '#50505e', 'U': '#8a8a9a', 'V': '#c8c8d4', 'W': '#f4f4fa', 'X': '#14141e', '[': '#7ab8e8', ']': '#bfe8ff', '^': '#ffffff', 'a': '#8a0c0a', 'b': '#e0241a', 'c': '#ff4422', 'd': '#ff8650', 'e': '#a05a00', 'f': '#f0a400', 'g': '#ffd21e', 'h': '#fff27a', 'j': '#f8e8b8', 'k': '#fff6dc', 'n': '#e8e2d0', 'o': '#fffaf0', 'p': '#ffffff', 'q': '#200810', 'r': '#4a0c18', 's': '#8a1c30', 't': '#d04460', 'v': '#a07830', 'w': '#d0a850', 'x': '#f0d080', 'z': '#b8bacc', '|': '#8a4a1e', '}': '#c07a38' },
     FLY: [[
       '......KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK......',
       '.....KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK.....',
@@ -1227,14 +1227,26 @@ var UnrugSprites = (function () {
         '.......KKKKKKKKKK.......'
       ],
       STAPLE: [
-        'KKKKKKKKKKKKKKKKKKKK',
-        'K777777777777777777K',
-        'K666666666666666666K',
-        'K55KKKKKKKKKKKKKK55K',
-        'K55KKKKKKKKKKKKKK55K',
-        'K55KK..........KK55K',
-        'K55KK..........KK55K',
-        'KKKK............KKKK'
+        '........KKKK........',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.KKKKKKKK88KKKKKKKK.',
+        'KKKKKKKKdKKdKKKKKKKK',
+        'K8888888KddK8888888K',
+        'K8778888KddK8888778K',
+        'KKKKKKKKcKKcKKKKKKKK',
+        '.KKKKKKKK88KKKKKKKK.',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '.......KK88KK.......',
+        '........KKKK........'
       ],
       PLANE: [
         '........KKK.........',

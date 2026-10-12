@@ -615,6 +615,12 @@ var UnrugFloor13 = function (core) {
     if (n <= 0) { b.tick = .05; return; }
     emit('boss_damage', { amount: n, by: by || 'blaster' });
     b.hp = Math.max(0, b.hp - n);
+    // reaching its last stand is an event: it staggers, smoke pours out of it, the music drops, then it serves the final rally
+    if (!b.lastStand && b.hp > 0 && b.hp <= TUNE.lastStand) {
+      b.lastStand = true; b.atk = Math.max(b.atk, 2); b.shudder = 1.6; R.freeze = Math.max(R.freeze, .12); R.shake = Math.max(R.shake, .4);
+      for (let i = 0; i < 14; i++) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 8, BACK.x1 - 8), y: fxr(BACK.y0 + 10, BACK.y1 - 8), t: -i * .06, dur: fxr(.8, 1.3) });
+      Snd.duck && Snd.duck(1.8);
+    }
     if (n >= 2) { b.flash = .07; shove(-Math.min(12, 2 + n * .6)); } else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
     if (b.hitSnd <= 0) { Snd.play('bosshit'); b.hitSnd = .09; }
     if (b.hp <= 0) defeat();
@@ -1104,8 +1110,8 @@ var UnrugFloor13 = function (core) {
         line(g, Math.round(cx + Math.cos(a) * r0), Math.round(cy + Math.sin(a) * r0 * .8), Math.round(cx + Math.cos(a) * (r0 + l)), Math.round(cy + Math.sin(a) * (r0 + l) * .8), k % 3 ? (p.friendly ? '#7fd4ff' : '#ffb080') : '#ffffff');
       }
     }
-    const rot = bundle ? Math.floor(p.spin * .8) % 4 : 0, ix = -Math.round(w / 2), iy = -Math.round(h / 2);
-    g.save(); g.translate(Math.round(x), Math.round(y)); if (rot) g.rotate(rot * Math.PI / 2);
+    const star = img === A.STAPLE, rot = bundle ? Math.floor(p.spin * .8) % 4 : 0, ix = -Math.round(w / 2), iy = -Math.round(h / 2);
+    g.save(); g.translate(Math.round(x), Math.round(y)); if (star) g.rotate(R.t * 12 + p.spin); else if (rot) g.rotate(rot * Math.PI / 2);   // the staple stars spin as they fly
     const ring = (col, d) => { const sil = tinted(img, col); for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d]]) g.drawImage(sil, ix + dx, iy + dy, w, h); };
     if (p.rally && !p.friendly) { ring('#d63428', 2); ring(blink ? '#ffffff' : '#ffb080', 1); }
     else if (!p.friendly) ring(blink ? '#ff3020' : '#ff9628', 1);
@@ -1151,8 +1157,9 @@ var UnrugFloor13 = function (core) {
       const sil = tinted(A.STAPLE, Math.floor(R.t * 10) % 2 ? '#ff3020' : '#ff9628');
       for (let u = -.6; u <= .61; u += .15) {
         const x = Math.round(PX(u, z) - w / 2 + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0)), y = Math.round(FY(z) - h - 1 - (Math.floor(R.t * 12 + u * 7) % 2));
-        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, x + dx, y + dy, w, h);
-        g.drawImage(A.STAPLE, x, y, w, h);
+        g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(R.t * 10 + u * 5); g.translate(-w / 2, -h / 2);   // a carpet of them, spinning
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, dx, dy, w, h);
+        g.drawImage(A.STAPLE, 0, 0, w, h); g.restore();
       }
     } else {
       // a sheet of paper skidding along the floor, wall to wall, with a fold that flaps
