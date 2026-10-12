@@ -1,0 +1,179 @@
+<title>The Long Ride</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Limelight&family=Silkscreen&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: a lobby plaque over a single stage. The scene is the page; the beat list and the lines to approve sit under it. */
+:root{
+  --bg:#120c0f; --panel:#1d1417; --raise:#281c1f; --line:#3d2c2a;
+  --fg:#f2e6d4; --dim:#b39f8d; --brass:#e0a93a; --brass-deep:#8a6420; --loom:#ff7a2a;
+  --display:"Limelight", "Didot", Georgia, serif;
+  --pixel:"Silkscreen", ui-monospace, Menlo, Consolas, monospace;
+  --body:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:16px;line-height:1.55;padding-inline:16px}
+.wrap{max-width:980px;margin:0 auto;padding-block:28px 72px;display:flex;flex-direction:column;gap:40px}
+p{margin:0}
+h1,h2{margin:0;font-weight:400;text-wrap:balance}
+h1{font-family:var(--display);font-size:clamp(34px,7vw,64px);line-height:1;color:var(--brass);letter-spacing:.02em}
+h2{font-family:var(--display);font-size:clamp(22px,3.4vw,30px);color:var(--fg)}
+.eyebrow{font-family:var(--pixel);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--loom)}
+.dim{color:var(--dim)}
+.head{display:flex;flex-direction:column;gap:10px}
+.head p.dim{max-width:64ch}
+
+.stage{display:flex;flex-direction:column;gap:12px}
+.screen{position:relative;border:3px solid var(--brass-deep);border-radius:4px;background:#000;box-shadow:0 0 0 1px #000,0 0 0 4px var(--panel)}
+#stage{display:block;width:100%;height:auto;aspect-ratio:16/9;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%}
+#start{position:absolute;inset:0;margin:auto;width:max-content;height:max-content;font-family:var(--pixel);font-size:14px;letter-spacing:.1em;text-transform:uppercase;background:var(--brass);color:#1a1012;border:0;border-radius:4px;padding:14px 20px;cursor:pointer}
+#start:focus-visible,.ctl button:focus-visible,.beats button:focus-visible,#scrub:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+.ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ctl button{font-family:var(--pixel);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg);background:var(--raise);border:2px solid var(--line);border-radius:4px;padding:9px 12px;cursor:pointer}
+.ctl button:hover{border-color:var(--brass)}
+.ctl button[aria-pressed="true"]{border-color:var(--brass);color:var(--brass)}
+.scrubrow{display:flex;gap:12px;align-items:center;flex:1 1 260px;min-width:0}
+#scrub{flex:1;min-width:0;accent-color:var(--brass)}
+#clockX{font-family:var(--pixel);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:4.5ch;text-align:right}
+#now{font-family:var(--pixel);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass)}
+
+.cols{display:grid;gap:32px}
+@media (min-width:820px){.cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.beats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.beats li{border-bottom:1px solid var(--line)}
+.beats button{width:100%;display:grid;grid-template-columns:5ch minmax(0,1fr);gap:12px;align-items:baseline;text-align:left;background:none;border:0;color:var(--fg);font:inherit;padding:10px 4px;cursor:pointer}
+.beats button:hover .bt{color:var(--brass)}
+.beats .tm{font-family:var(--pixel);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.beats .bt{display:block;font-weight:700}
+.beats .bd{display:block;color:var(--dim);font-size:15px}
+.beats li.on .bt{color:var(--brass)}
+.beats li.on .tm{color:var(--brass)}
+
+.lines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.lines li{display:grid;grid-template-columns:12ch minmax(0,1fr);gap:12px;align-items:baseline}
+.who{font-family:var(--pixel);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.who.loom{color:var(--loom)}
+.say{font-size:17px}
+.tag{font-family:var(--pixel);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--loom);margin-left:8px}
+.notes{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;color:var(--dim);max-width:62ch}
+.notes li::marker{color:var(--brass)}
+.notes b{color:var(--fg);font-weight:700}
+.block{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+.screen{touch-action:none;user-select:none;-webkit-user-select:none}
+#card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;text-align:center}
+#card[hidden]{display:none}
+#cardTitle{font-family:var(--display);font-size:clamp(26px,6vw,46px);color:var(--brass)}
+#cardText{max-width:44ch;color:var(--fg)}
+.cardbtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.cardbtns button{font-family:var(--pixel);font-size:13px;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:12px 16px;cursor:pointer;border:2px solid var(--brass);background:var(--raise);color:var(--fg)}
+.cardbtns button:first-child:not([hidden]){background:var(--brass);color:#1a1012}
+.cardbtns button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+.pad{display:none;justify-content:space-between;align-items:center;gap:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+.pad button{font-family:var(--pixel);text-transform:uppercase;letter-spacing:.06em;color:var(--fg);background:var(--raise);border:2px solid var(--line);cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent}
+.pad button.down{border-color:var(--brass);background:var(--brass-deep)}
+.dpad{display:grid;grid-template-columns:repeat(3,56px);gap:8px}
+.dpad button{height:56px;border-radius:10px;font-size:18px}
+.acts{display:grid;grid-template-columns:repeat(2,68px);grid-template-rows:repeat(2,52px);gap:8px}
+.acts button{border-radius:999px;font-size:12px}
+.acts .shoot{grid-column:1/3;background:#2a4a66;border-color:#3aa8e0}
+.acts .slash{background:#5a1e1a;border-color:#d63428}
+@media (pointer:coarse){.pad{display:flex}.keys{display:none}}
+#clock{font-family:var(--pixel);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.keys{font-size:14px}
+@media (pointer:coarse) and (orientation:landscape){
+  .stage{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px}
+  .pad{display:contents}
+  .dpad{grid-column:1;grid-row:1;grid-template-columns:repeat(2,52px);grid-template-areas:"l r" "d d"}
+  .dpad [data-k=left]{grid-area:l}.dpad [data-k=right]{grid-area:r}.dpad [data-k=down]{grid-area:d}
+  .screen{grid-column:2;grid-row:1;width:100%;max-width:calc((100dvh - 20px) * 16 / 9);justify-self:center}
+  .acts{grid-column:3;grid-row:1}
+  .ctl,.keys{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <p class="eyebrow">Unruggabull II &middot; elevator pass, draft 3, playable</p>
+    <h1>The Long Ride</h1>
+    <p class="dim">The last ride up, now playable, from the muzak to the roof. It's redrawn and restaged so the cable makes sense: p(Loom)'s threads wind around the cable and take it, let the car drop, then reel it up because it wants his soul. Survive the 30-second Horns Up fight, grab the crate and walk out onto the roof. Sound on: it plays the storyboard's own Horns Up.</p>
+  </header>
+
+  <section class="stage" aria-label="The long ride, playable">
+    <div class="screen">
+      <canvas id="stage" width="480" height="270" role="img" aria-label="Side view inside RugCo Tower's brass and walnut elevator. Unruggabull fights carpshits that drop through the ceiling hatch while the old operator sits on his stool. A floor dial above the doors climbs toward R."></canvas>
+      <button id="start" type="button">Play the ride</button>
+      <div id="card" hidden>
+        <p id="cardTitle">Rugged.</p>
+        <p id="cardText"></p>
+        <div class="cardbtns"><button id="retry" type="button">Try the fight again</button><button id="again" type="button">Ride again</button></div>
+      </div>
+    </div>
+    <div class="pad" aria-label="Touch controls">
+      <div class="dpad"><button type="button" data-k="left" aria-label="Left">&#9664;</button><button type="button" data-k="down" aria-label="Crouch">&#9660;</button><button type="button" data-k="right" aria-label="Right">&#9654;</button></div>
+      <div class="acts"><button type="button" data-k="jump" class="jump">Jump</button><button type="button" data-k="slash" class="slash">Slash</button><button type="button" data-k="shoot" class="shoot">Shoot</button></div>
+    </div>
+    <p class="keys dim">Arrows or WASD to move, Up or Space to jump, Down to crouch. Hold &rsquo; (next to Enter), Shift, J or Z to shoot; Enter, K or X to slash. Twenty shots, one back every half second; slash paper back at whoever threw it to get three back at once.</p>
+    <div class="ctl">
+      <button id="play" type="button">Pause</button>
+      <button id="restart" type="button">From the top</button>
+      <button id="snd" type="button" aria-pressed="true">Sound on</button>
+      <span id="clock">0:00</span>
+      <span id="now">&ldquo;Floor?&rdquo;</span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="block">
+      <div class="head"><p class="eyebrow">Beat by beat</p><h2>What happens</h2><p class="dim">Tap a beat to jump there and play from it.</p></div>
+      <ol class="beats" id="beats"></ol>
+    </section>
+
+    <section class="block">
+      <div class="head"><p class="eyebrow">Your call</p><h2>Lines to approve</h2>
+        <p class="dim">New lines are marked draft. p(Loom) speaks with SAM, as in the storyboard; everyone else talks in blips until recorded.</p></div>
+      <ul class="lines">
+        <li><span class="who">Operator</span><span class="say">Floor?</span></li>
+        <li><span class="who">Unruggabull</span><span class="say">You ever get off?<span class="tag">draft</span></span></li>
+        <li><span class="who">Operator</span><span class="say">Floor?</span></li>
+        <li><span class="who">Unruggabull</span><span class="say">&hellip;The roof.<span class="tag">draft</span></span></li>
+        <li><span class="who">Operator</span><span class="say">Very good, sir.<span class="tag">draft</span></span></li>
+        <li><span class="who loom">p(Loom)</span><span class="say">Probability of arrival: zero percent.<span class="tag">draft</span></span></li>
+        <li><span class="who">Operator</span><span class="say">&hellip;Floor?<span class="tag">draft</span></span></li>
+        <li><span class="who loom">p(Loom)</span><span class="say">Recalculating. Bring him up.<span class="tag">draft</span></span></li>
+        <li><span class="who">Unruggabull</span><span class="say">Here I come, p(Loom).</span></li>
+        <li><span class="who">Operator</span><span class="say">Floor?<span class="tag">at the roof</span></span></li>
+        <li><span class="who">Unruggabull</span><span class="say">Roof.<span class="tag">draft</span></span></li>
+      </ul>
+
+      <div class="head"><p class="eyebrow">What changed from the game build</p></div>
+      <ul class="notes">
+        <li><b>p(Loom) takes the cable.</b> It takes over the floor dial, then a cut-in shows its threads winding down the cable until it glows orange: it's p(Loom)'s thread now. It lets the car drop, the brakes catch, and it reels the car up.</li>
+        <li><b>The real Horns Up.</b> The storyboard's track: muzak until the power browns out, then heavy metal from the moment the threads start reeling, for a 30-second fight to the top.</li>
+        <li><b>A car worth looking at.</b> Walnut panels, brass, a needle dial that swings back on the drop, windows in the doors that show the shaft rushing past, and an operator on his stool.</li>
+        <li><b>Armor you can read.</b> A riveted steel helmet; the first hit knocks it off with a clank.</li>
+        <li><b>Still to decide:</b> carpshits slide down the threads into the car after the snap. Keep that as the reason the fight gets heavy?</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sam-js@0.3.1/dist/samjs.min.js"></script>
+<script>
+/*BULL*/
+</script>
+<script>
+/*SPRITES*/
+</script>
+<script>
+/*ART*/
+</script>
+<script>
+/*SYNTH*/
+</script>
+<script>
+/*RIDE*/
+</script>
