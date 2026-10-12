@@ -69,7 +69,7 @@
       (R.workers || []).forEach(function (wk) { wk.carps.forEach(function (c) { if (!c.dead) { var at = posOf(c); o.temps.push({ id: idOf(c), u: at.u, z: at.z, h: at.h, up: at.z < TUNE.reach }); } }); });
       R.flies.forEach(function (f) { if (!f.dead) o.flies.push({ id: idOf(f), u: f.u, z: f.z, h: f.h, hp: f.hp, form: !!f.form, high: !!f.high }); });
       R.projs.forEach(function (p) { if (!p.dead) o.projs.push({ id: idOf(p), kind: p.kind, u: p.u, z: p.z, h: p.h, vu: p.vu, vz: p.vz, friendly: p.friendly, rally: !!p.rally }); });
-      R.boxes.forEach(function (bx) { if (!bx.hit) o.boxes.push({ id: idOf(bx), u: bx.u, z: bx.w - R.dist }); });
+      R.boxes.forEach(function (bx) { if (!bx.hit) o.boxes.push({ id: idOf(bx), u: bx.u, z: bx.w - R.dist, s: bx.s || 0, inner: bx.inner }); });
       R.rows.forEach(function (rw) { if (!rw.hit) o.rows.push({ id: idOf(rw), kind: rw.kind, z: rw.w - R.dist, speed: R.speed + (rw.v || (rw.kind === 'chairs' ? .12 : .22)) }); });
       if (R.event && R.event.souls) R.event.souls.forEach(function (sl) { if (!sl.got) o.bubbles.push({ id: idOf(sl), u: sl.u, z: sl.w - R.dist }); });
       R.pickups.forEach(function (pk) { if (!pk.got) o.pickups.push({ id: idOf(pk), kind: pk.kind, u: pk.u, z: pk.w - R.dist }); });

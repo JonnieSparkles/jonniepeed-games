@@ -75,7 +75,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Tried and dropped
 
-- **The 13th Floor's floor boxes, round one and two** (notes round): a carpshit hiding in a moving box, caution tape, spilled staples; then a stapler trap, a paper cutter, a shred bin. "Boring and not threatening"; potted plants are being tried next.
+- **The 13th Floor's floor boxes, round one and two** (notes round): a carpshit hiding in a moving box, caution tape, spilled staples; then a stapler trap, a paper cutter, a shred bin. "Boring and not threatening"; then potted plants ("no potted plants"). Stepping back, the owner asked what they were for (a watch-your-feet hazard) and suggested "a low cubicle desk sticking out onto the carpet": desks it is.
 - **Shots and staples, round one** (notes round): a bale of shreddings and a file folder for the bundle; a staple point first, chunky side on, a strip. Only the paper ball was kept.
 
 - **The audit** (game-pad controls, dropped after the first deploy): a deflect round where the temps lobbed paper for double souls. It never read as anything in particular.

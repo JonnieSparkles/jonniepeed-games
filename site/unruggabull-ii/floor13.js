@@ -154,7 +154,9 @@ var UnrugFloor13 = function (core) {
     if (B.boxes && !ev) {
       R.nextBox -= dt;
       if (R.nextBox <= 0) {
-        R.boxes.push({ w: R.dist + 1.05, u: [-.45, -.15, .15, .45][Math.floor(rnd() * 4)], hit: 0 });
+        // a low cubicle desk sticking out from one side into the aisle: one lane deep, or two, right up to the runner
+        const i = Math.floor(rnd() * 4), sd = i < 2 ? -1 : 1, inner = [-.3, -.02, .02, .3][i];
+        R.boxes.push({ w: R.dist + 1.05, s: sd, inner, u: (inner + sd * DESK_OUT) / 2, hit: 0 });
         R.nextBox = rr(3.5, 5.5);
       }
     }
@@ -284,7 +286,8 @@ var UnrugFloor13 = function (core) {
     }
     R.rows = R.rows.filter(row => row.w - R.dist > (DUCKS[row.kind] && !row.hit ? -.3 : ZN) && row.hit < .6);   // what you duck under carries on over you
   }
-  const BOX_H = .045;   // a little cushion: the tail of a jump still clears it
+  const BOX_H = .045;
+  const DESK_OUT = .7;   // where a desk meets the cubicle wall   // a little cushion: the tail of a jump still clears it
   // a moving-day obstacle that hits you: no soul for it, and the run isn't clean
   function obHit(ob) { if (!ob) return; ob.hit = true; if (R.event && R.event.kind === 'move') R.event.clean = false; }
   const knock = (ob, cause) => hurtBull(1, cause);
@@ -292,7 +295,8 @@ var UnrugFloor13 = function (core) {
     for (const bx of R.boxes) {
       const z = bx.w - R.dist;
       if (bx.hit) { bx.hit += dt; continue; }
-      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && bull.jh < BOX_H && knock(bx.ob, 'box')) { bx.hit = .001; obHit(bx.ob); }
+      const inPath = bx.s ? bx.s * (bull.u - bx.inner) > -.06 : Math.abs(bx.u - bull.u) < .14;   // a desk: anywhere from its end to the wall
+      if (Math.abs(z - bull.bz) < .02 && inPath && bull.jh < BOX_H && knock(bx.ob, 'box')) { bx.hit = .001; obHit(bx.ob); }
     }
     R.boxes = R.boxes.filter(bx => bx.w - R.dist > ZN && bx.hit < .5);
   }
@@ -1083,7 +1087,30 @@ var UnrugFloor13 = function (core) {
     poly(g, '#ffd44a', [[PX(u0, z0), FY(z0)], [PX(u1, z0), FY(z0)], [PX(u1, z1), FY(z1)], [PX(u0, z1), FY(z1)]]);
     g.restore();
   }
+  // A low cubicle desk sticking out of the cubicles into the aisle: a laminate top on a modesty panel, its end
+  // trimmed in hazard tape, a keyboard and a mug on it. Hit it and it judders and fades.
+  function drawDesk(bx, z) {
+    const s = bx.s, u0 = bx.inner, u1 = s * DESK_OUT, z1 = z + .06, top = .1, k = sc(z);
+    const jud = bx.hit ? Math.sin(bx.hit * 40) * 2 * k : 0;
+    if (!bx.hit) jumpCue(z, Math.min(u0, u1), Math.max(u0, u1));
+    if (bx.hit) { g.save(); g.globalAlpha = Math.max(0, 1 - bx.hit * 2); }
+    const P = (u, zz, h) => [PX(u, zz) + jud, YH(zz, h)];
+    poly(g, '#1a1418', [P(u0, z, top + .012), P(u1, z, top + .012), P(u1, z, 0), P(u0, z, 0)]);
+    poly(g, '#4a4e5c', [P(u0, z, top - .008), P(u1, z, top - .008), P(u1, z, 0), P(u0, z, 0)]);           // the modesty panel
+    poly(g, '#d8d0bc', [P(u0, z, top), P(u1, z, top), P(u1, z1, top), P(u0, z1, top)]);                // the laminate top
+    poly(g, '#a8a090', [P(u0, z, top), P(u1, z, top), P(u1, z, top - .012), P(u0, z, top - .012)]);    // its front edge
+    // the end that sticks into the aisle: hazard tape down it, so it reads as in your way
+    const ex0 = PX(u0, z) + jud, ey0 = YH(z, top), ey1 = FY(z), ew = Math.max(1.5, 3 * k);
+    for (let y = ey0, i = 0; y < ey1; y += Math.max(1, 2 * k), i++) rect(g, ex0 - (s > 0 ? 0 : ew), y, ew, Math.max(1, 2 * k), i % 2 ? '#1a1418' : '#ffd21e');
+    // a keyboard and a mug on it
+    const kx = PX(u0 + s * .12, z + .02) + jud, ky = YH(z + .02, top), kw = Math.max(2, 10 * k);
+    rect(g, kx - kw / 2, ky - Math.max(1, 1.5 * k), kw, Math.max(1, 1.5 * k), '#2a2c34');
+    const mx = PX(u0 + s * .26, z + .03) + jud, my = YH(z + .03, top);
+    rect(g, mx - 1.5 * k, my - 4 * k, Math.max(1, 3 * k), Math.max(1, 4 * k), '#e2483a');
+    if (bx.hit) g.restore();
+  }
   function drawBox(bx, z) {
+    if (bx.s) { drawDesk(bx, z); return; }
     if (!bx.hit) jumpCue(z, bx.u - .13, bx.u + .13);
     const s = sc(z), w = Math.max(3, A.BOX.width / 2 * s), h = Math.max(2, A.BOX.height / 2 * s);   // the carton is drawn at full size: half a unit a pixel
     const x = PX(bx.u, z);
