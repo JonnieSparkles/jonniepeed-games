@@ -75,6 +75,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
   - **The live floor:** the staple side spray "dont look great". Its point was "to force the player to decide whether to stay on the carpet or not", so the floor beside the rug goes live instead, in the surge's blue, and the rug insulates. Picked from stills over a paper blizzard ("it's number one").
   - **Desks:** "a little visually more interesting… just a touch of something", so each has a green banker's lamp and a stack of folders.
   - **Rugged:** the flip off the screen was "weird". The owner asked for him to fall or vanish and "a bull soul" to rise, and picked the all-ghost version over cream horns, from a moving mock.
+  - **Moving day's souls** "render in front of what theyre actually behind. hard to tell where they are": they were drawn with the glow, over everything. Now they're in depth order with a shadow.
   - **A black bar** in the lit renderer: the bloom's two blur passes had rows and columns swapped, so the pass going down read past the end of the buffer and turned the bottom rows NaN, which shows as black wherever there was bloom (seen as a bar across his legs). Since the lit renderer; fixed, and bloom now covers the whole picture.
 
 ## Tried and dropped

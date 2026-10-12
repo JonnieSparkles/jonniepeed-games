@@ -1279,17 +1279,14 @@ var UnrugFloor13 = function (core) {
     return LABELS[text];
   }
   // moving day's trapped souls: a soul in a soap-bubble shine, bobbing a little above the floor
-  function trappedSouls() {
-    if (!R.event || R.event.kind !== 'move') return;
-    for (const sl of R.event.souls) {
-      const z = sl.w - R.dist; if (z > 1.02 || z < bull.bz - .02) continue;
-      faded(fadeIn(z), () => {
-        const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.uw(A.GHOST) * 2 * k), h = Math.round(A.uh(A.GHOST) * 2 * k);
-        g.drawImage(A.GHOST, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
-        g.save(); g.globalAlpha = .7; g.strokeStyle = '#bfefff'; g.lineWidth = Math.max(.5, k); g.beginPath(); g.arc(x, y, Math.max(w, h) * .75, 0, 6.29); g.stroke();
-        g.globalAlpha = .9; rect(g, x - w * .4, y - h * .55, Math.max(1, k * 1.5), Math.max(1, k * 1.5), '#ffffff'); g.restore();
-      });
-    }
+  // A soul trapped in a bubble on moving day, drawn in depth order with the furniture, so what's in front hides it,
+  // with a shadow under it.
+  function drawTrapped(sl, z) {
+    const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.uw(A.GHOST) * 2 * k), h = Math.round(A.uh(A.GHOST) * 2 * k);
+    shadow(sl.u, z, A.uw(A.GHOST) * 1.6);   // its shadow on the floor says where it is
+    g.drawImage(A.GHOST, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+    g.save(); g.globalAlpha = .7; g.strokeStyle = '#bfefff'; g.lineWidth = Math.max(.5, k); g.beginPath(); g.arc(x, y, Math.max(w, h) * .75, 0, 6.29); g.stroke();
+    g.globalAlpha = .9; rect(g, x - w * .4, y - h * .55, Math.max(1, k * 1.5), Math.max(1, k * 1.5), '#ffffff'); g.restore();
   }
   function moveMarks() {
     if (!R.event || R.event.kind !== 'move') return;
@@ -1329,7 +1326,6 @@ var UnrugFloor13 = function (core) {
     }
     if (Math.floor(R.t * 13) % 11) for (const sg of R.signs) { const z = sg.w - R.dist; if (sg.neon && z < 1.02 && z > .05) drawSign(sg, z); }
     sprayLanes();
-    trappedSouls();
     moveMarks();
     if (R.phase !== 'hall') withShredder(() => { shredderEyes(); shredderTeeth(); });
     else if (R.event && R.event.kind === 'dark') darkEyes();
@@ -1446,6 +1442,7 @@ var UnrugFloor13 = function (core) {
     for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) list.push([z, () => faded(fadeIn(z), () => drawBox(bx, z))]); }
     for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) list.push([z, () => faded(fadeIn(z), () => drawRow(row, z))]); }
     for (const f of R.flies) list.push([f.z, () => faded(fadeIn(f.z), () => drawFly(f))]);
+    if (R.event && R.event.kind === 'move') for (const sl of R.event.souls) { const z = sl.w - R.dist; if (z <= 1.02 && z >= bull.bz - .02) list.push([z, () => faded(fadeIn(z), () => drawTrapped(sl, z))]); }
     list.push([bull.bz - .001, drawBull]);
     list.sort((a, b) => b[0] - a[0]);
     for (const e of list) e[1]();
