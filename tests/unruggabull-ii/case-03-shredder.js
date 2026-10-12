@@ -50,7 +50,7 @@
   check(R.phase === 'win' && b.st === 'dead', 'out of health, the Shredder is beaten');
   const souls = R.souls; step(6.5);
   check(R.souls === souls + TUNE.bossSouls, 'its souls come out one at a time');
-  check(state === 'over' && !card.hidden && cardTitle.textContent === 'The 13th Floor clear' && goBtn.textContent === 'Play again', 'the clear card shows');
+  check(state === 'over' && !card.hidden && cardTitle.textContent === 'The 13th Floor clear' && goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again', 'the clear card shows');
   check(JSON.parse(localStorage.getItem('unruggabull-ii-best')).souls === R.souls, 'the best is saved');
   check(cardStats.textContent.includes('Time'), 'the card shows the time');
 })();

@@ -30,7 +30,14 @@
       log = []; emitHook = record; lastStage = 1;
       renderEffects = options && options.fast === false && ['roof', 'elevator'].includes(options.stage); renderSteps = 0; renderedState = null;
       travelHook = options && options.stage === 'elevator' ? function () { endRun('clear'); return true; } : null;
-      RUN.force = seedv; newRun(null, options && options.stage); RUN.force = null;
+      RUN.force = seedv;
+      if (options && options.stage === 'elevator' && (options.from != null || options.fight != null)) {
+        const ride = floors.elevator.ELEVATOR;
+        newRun({ stage: 'elevator', transfer: true, souls: 0,
+          from: options.from == null ? ride.from : Number(options.from),
+          fight: options.fight == null ? ride.fight : options.fight !== false && options.fight !== 'false' });
+      } else newRun(null, options && options.stage);
+      RUN.force = null;
       setState('play'); card.hidden = true; crawl.hidden = true; intro = null;
       input.jump = input.slash = input.shoot = 0;
       keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = keys.kbDown = keys.padDown = false;
@@ -77,7 +84,7 @@
           gust: q.gust ? { dir: q.gust.dir, t: q.gust.t } : null };
       }
       if (R.stage === 'elevator') {
-        o.arena = { state: R.elevator.state, facing: b.facing,
+        o.arena = { state: R.elevator.state, facing: b.facing, dropSpeed: floor.arena.ARENA.dropSpeed,
           enemies: R.arena.enemies.map(e => ({ id: idOf(e), kind: e.kind, u: e.u, h: e.h, age: e.age, dropping: e.dropping, dir: e.dir })),
           thrown: R.arena.thrown.map(p => ({ id: idOf(p), u: p.u, h: p.h, vu: p.vu, vh: p.vh, friendly: p.friendly })),
           crate: R.elevator.crate && !R.elevator.crate.got ? { u: R.elevator.crate.u } : null };

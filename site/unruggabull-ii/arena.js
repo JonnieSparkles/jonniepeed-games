@@ -6,7 +6,7 @@ var UnrugArena = function (core, tuning) {
   const ARENA = Object.assign({ floorY: 122, width: 110, height: 140, limit: .88,
     shotSpeed: 3.2, shotRadius: .07, enemyRadius: .075, slashReach: .29, slashHeight: .23,
     dropSpeed: .6, crawlerSpeed: .24, flyerSpeed: .32, flyerH: .18, crawlerH: .06,
-    bodyH: .2, muzzleH: .14, escapeT: 5, chargeSpeed: 2.5 }, tuning);
+    bodyH: .2, muzzleH: .14, escapeT: 5, flyerHP: 2, firstThrow: [.55, .9], throwEvery: [2.4, 3.4], flyerLife: 7, wadSpeed: .55, chargeSpeed: 2.5 }, tuning);
   let R, bull, g = core.g;
   const X = u => 120 + u * ARENA.width, Y = h => ARENA.floorY - h * ARENA.height;
   const side = UnrugBull.paint(UnrugBull.VIEWS.side);
@@ -51,13 +51,13 @@ var UnrugArena = function (core, tuning) {
   }
   function spawn(kind) {
     const e = { kind, u: rr(-.12, .12), h: .69, age: 0, dropping: true, dead: false,
-      dir: rr(0, 1) < .5 ? -1 : 1, nextThrow: rr(3, 5) };
+      dir: rr(0, 1) < .5 ? -1 : 1, hp: kind === 'flyer' ? ARENA.flyerHP : 1, nextThrow: rr(...ARENA.firstThrow) };
     R.arena.enemies.push(e); emit('arena_spawn', { kind }); return e;
   }
   // Existing paper, not a new enemy: flyers occasionally throw a wad. It can only be dodged or deflected.
   function throwWad(e) {
     const du = bull.u - e.u, dh = bull.jh + .12 - e.h, length = Math.max(.05, Math.hypot(du, dh));
-    const p = { u: e.u, h: e.h, vu: du / length * .55, vh: dh / length * .55, src: e, friendly: false, dead: false };
+    const p = { u: e.u, h: e.h, vu: du / length * ARENA.wadSpeed, vh: dh / length * ARENA.wadSpeed, src: e, friendly: false, dead: false };
     R.arena.thrown.push(p); emit('arena_throw'); return p;
   }
   const touches = (u, h, radius = ARENA.enemyRadius) => Math.abs(u - bull.u) < radius + .06 &&
@@ -66,6 +66,11 @@ var UnrugArena = function (core, tuning) {
     for (const e of R.arena.enemies) {
       if (e.dead) continue;
       e.age += dt;
+      // Throws start during the descent, before a flyer enters the horizontal firing lane.
+      if (e.kind === 'flyer') {
+        e.nextThrow -= dt;
+        if (e.nextThrow <= 0) { throwWad(e); e.nextThrow = rr(...ARENA.throwEvery); }
+      }
       if (e.dropping) {
         e.h = Math.max(e.kind === 'crawler' ? ARENA.crawlerH : ARENA.flyerH, e.h - ARENA.dropSpeed * dt);
         if (e.h <= (e.kind === 'crawler' ? ARENA.crawlerH : ARENA.flyerH)) { e.dropping = false; e.age = 0; }
@@ -73,14 +78,15 @@ var UnrugArena = function (core, tuning) {
         e.u += e.dir * (e.kind === 'crawler' ? ARENA.crawlerSpeed : ARENA.flyerSpeed) * dt;
         if (e.kind === 'flyer') {
           e.h = ARENA.flyerH + Math.sin(e.age * 3) * .09;
-          e.nextThrow -= dt; if (e.nextThrow <= 0) { throwWad(e); e.nextThrow = rr(4, 6); }
+          // Swoop height is simulation data; flapping is drawing only.
         }
       }
       if (touches(e.u, e.h)) {
         if (R.bullRun > 0) kill(e, 'bullRun');
         else if (hurtBull(1, e.kind)) e.dead = true;
       }
-      if (Math.abs(e.u) > 1.05 || (!e.dropping && e.age > ARENA.escapeT)) e.dead = true;
+      if (e.kind === 'flyer' && Math.abs(e.u) > .9) { e.u = clamp(e.u, -.9, .9); e.dir *= -1; }
+      if (Math.abs(e.u) > 1.05 || (!e.dropping && e.age > (e.kind === 'flyer' ? ARENA.flyerLife : ARENA.escapeT))) e.dead = true;
       if (R.phase === 'dead') break;
     }
     R.arena.enemies = R.arena.enemies.filter(e => !e.dead);
@@ -92,7 +98,7 @@ var UnrugArena = function (core, tuning) {
   function shots(dt) {
     for (const s of R.shots) {
       const oldU = s.u; s.u += s.vu * dt; s.h += s.vh * dt;
-      for (const e of R.arena.enemies) if (!e.dead && crossed(s, oldU, e, ARENA.shotRadius)) { s.dead = true; kill(e, 'shot'); break; }
+      for (const e of R.arena.enemies) if (!e.dead && crossed(s, oldU, e, ARENA.shotRadius)) { s.dead = true; if (--e.hp <= 0) kill(e, 'shot'); break; }
     }
     R.shots = R.shots.filter(s => !s.dead && Math.abs(s.u) < 1.15 && s.h > 0 && s.h < .85);
     for (const p of R.arena.thrown) {

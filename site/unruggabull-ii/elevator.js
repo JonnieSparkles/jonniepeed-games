@@ -1,11 +1,12 @@
-// First arena stage. Destination is data: later rides can reuse this engine and state machine.
+// Long ride arena stage. Start, destination and combat are data; plain rides reuse its hooks.
 var UnrugElevator = function (core) {
   'use strict';
   const { A, Snd, TUNE, rect, line, txt, clamp, emit, talk, updateFx, endRun, drawSoulsCounter } = core;
-  const ELEVATOR = { time: { ask: 1.8, climb: 30, open: 1.2, exit: .8 }, from: 13,
-    destination: { floor: 99, label: 'R', stage: 'roof' }, waveEvery: 4.8, lastWave: 24,
-    firstWave: 2, waveSize: 1, crateSpeed: .32, crateStart: .77, crateWait: 1, deadWait: 1.9,
-    arena: { floorY: 122, limit: .88 } };
+  const ELEVATOR = { time: { ask: 1.8, climb: 30, snap: .45, open: 1.2, exit: .8 }, from: 13, fight: true,
+    destination: { floor: 99, label: 'R', stage: 'roof' }, snapAt: .8, lastWave: 29,
+    warmup: { every: 12, size: 2 }, heavy: { every: 2, sizes: [2, 2, 3] },
+    firstWave: 2, crateSpeed: .32, crateStart: .77, deadWait: 1.9,
+    arena: { floorY: 122, limit: .88, flyerH: .34, dropSpeed: .467, crawlerSpeed: .24, flyerSpeed: .27, flyerLife: 3.4, wadSpeed: .4 } };
   const arena = UnrugArena(core, ELEVATOR.arena);
   let R, bull, Q, g = core.g;
   function enter(name) {
@@ -14,16 +15,29 @@ var UnrugElevator = function (core) {
     if (STATES[name].entry) STATES[name].entry();
   }
   const STATES = {
-    ask: { entry() { talk('Floor?', 'operator'); Snd.music('pleaseHold', { slam: true }); }, tick() { if (Q.t >= ELEVATOR.time.ask) enter('climb'); } },
+    ask: { entry() { talk('Floor?', 'operator'); Snd.music(Q.fight ? 'hornsUp' : 'pleaseHold', { slam: true, pattern: Q.fight ? 'intro' : undefined }); }, tick() { if (Q.t >= ELEVATOR.time.ask) enter('climb'); } },
     climb: { tick(dt) {
       Q.climbed = Math.min(ELEVATOR.time.climb, Q.climbed + dt);
-      Q.indicator = Math.min(Q.destination.floor, ELEVATOR.from + Math.floor((Q.destination.floor - ELEVATOR.from) * Q.climbed / ELEVATOR.time.climb));
-      Q.nextWave -= dt;
-      if (Q.nextWave <= 0 && Q.climbed <= ELEVATOR.lastWave) {
-        for (let i = 0; i < ELEVATOR.waveSize; i++) arena.spawn((Q.wave + i) % 2 ? 'flyer' : 'crawler');
-        Q.wave++; Q.nextWave = ELEVATOR.waveEvery; emit('elevator_wave');
+      Q.indicator = Math.min(Q.destination.floor, Q.from + Math.floor((Q.destination.floor - Q.from) * Q.climbed / ELEVATOR.time.climb));
+      if (Q.fight && !Q.snapped && Q.climbed >= ELEVATOR.time.climb * ELEVATOR.snapAt) { enter('snap'); return; }
+      if (Q.fight) {
+        Q.nextWave -= dt;
+        if (Q.nextWave <= 0 && Q.climbed <= ELEVATOR.lastWave) {
+          const size = Q.snapped ? ELEVATOR.heavy.sizes[Math.min(Q.heavyWaves++, ELEVATOR.heavy.sizes.length - 1)] : ELEVATOR.warmup.size;
+          for (let i = 0; i < size; i++) arena.spawn((Q.wave + i) % 2 ? 'flyer' : 'crawler');
+          Q.wave++; Q.nextWave = Q.snapped ? ELEVATOR.heavy.every : ELEVATOR.warmup.every;
+          emit('elevator_wave', { kind: Q.snapped ? 'heavy' : 'warmup', amount: size });
+        }
       }
       if (Q.climbed >= ELEVATOR.time.climb) enter('open');
+    } },
+    snap: { entry() {
+      Q.snapped = true; R.shake = .7; R.white = .06;
+      Snd.music(null, { hard: true }); Snd.play('cableSnap'); emit('elevator_snap');
+    }, tick() {
+      if (Q.t < ELEVATOR.time.snap) return;
+      Snd.music('hornsUp', { slam: true, pattern: 'heavy' }); core.bark('here', true);
+      Q.nextWave = 0; emit('elevator_heavy'); enter('climb');
     } },
     open: { entry() {
       // Arrival clears the last wave, including its souls, before the doors open.
@@ -32,14 +46,12 @@ var UnrugElevator = function (core) {
       Q.indicator = Q.destination.floor; Snd.music(null, { hard: true }); Snd.play('ding'); emit('elevator_ding');
     }, tick() { if (Q.t >= ELEVATOR.time.open) enter('supply'); } },
     supply: { entry() {
-      Q.crate = { u: ELEVATOR.crateStart, kind: core.drops.choose(), got: false }; Snd.play('appear');
+      Q.crate = { u: ELEVATOR.crateStart, kind: core.drops.choose(), got: false }; Snd.play('appear'); grabCrate();
     }, tick(dt) {
       const p = Q.crate;
       p.u = Math.max(-.8, p.u - ELEVATOR.crateSpeed * dt);
       // Crate stops; it never disappears if the player misses it.
-      if (Q.t >= ELEVATOR.crateWait && arena.touches(p.u, .04, .09)) {
-        p.got = true; core.drops.give(p.kind); enter('exit');
-      }
+      grabCrate();
     } },
     exit: { tick() {
       if (Q.t < ELEVATOR.time.exit) return;
@@ -49,15 +61,21 @@ var UnrugElevator = function (core) {
       core.travel(Q.destination.stage, { ride: Q.destination });
     } }
   };
+  function grabCrate() {
+    const p = Q.crate;
+    if (p && !p.got && arena.touches(p.u, .04, .09)) { p.got = true; core.drops.give(p.kind); enter('exit'); }
+  }
   function newRun(r, b, at) {
     R = r; bull = b; R.speed = 0; R.phase = 'boss';
     if (at) { R.souls = R.shown = at.souls || 0; R.continues = (at.continues || 0) + (at.transfer ? 0 : 1); }
     arena.newRun(R, bull);
-    Q = R.elevator = { state: null, t: 0, climbed: 0, indicator: ELEVATOR.from, nextWave: ELEVATOR.firstWave,
-      wave: 0, destination: Object.assign({}, ELEVATOR.destination, at && at.destination), crate: null };
+    Q = R.elevator = { state: null, t: 0, climbed: 0, from: at && at.from != null ? at.from : ELEVATOR.from,
+      fight: at && at.fight != null ? at.fight : ELEVATOR.fight, snapped: false, indicator: 0, nextWave: ELEVATOR.firstWave,
+      wave: 0, heavyWaves: 0, destination: Object.assign({}, ELEVATOR.destination, at && at.destination), crate: null };
+    Q.indicator = Q.from;
     // Continue starts this ride again, with its entry souls and the original seeded stream.
     core.setCheckpoint({ stage: 'elevator', souls: R.souls, continues: R.continues,
-      heldDrop: at && at.heldDrop || null, dropNext: at && at.dropNext || 'spread', destination: Q.destination,
+      heldDrop: at && at.heldDrop || null, dropNext: at && at.dropNext || 'spread', destination: Q.destination, from: Q.from, fight: Q.fight,
       seedState: core.seedState(), runSeed: core.runSeed() });
     enter('ask');
   }
@@ -66,7 +84,7 @@ var UnrugElevator = function (core) {
     Q.t += dt; STATES[Q.state].tick(dt);
     // A handoff changes the core's active floor; don't tick the previous run again.
     if (R.phase === 'win') return;
-    arena.update(dt, Q.state === 'climb');
+    arena.update(dt, Q.fight && (Q.state === 'climb' || Q.state === 'snap'));
   }
   // ---------- small stand-in art seams ----------
   function drawCar() {
@@ -107,9 +125,9 @@ var UnrugElevator = function (core) {
   return {
     id: 'elevator', tune: { scroll: 0, aisle: .88, move: 1.2, bossHP: 0 }, set: { flat: true },
     label: 'Unruggabull in side view inside the climbing elevator, with a ceiling hatch and its Unrugged operator.',
-    lines: { low: false, rugged: false, spread: false, deflect: false },
+    lines: { low: false, rugged: false, spread: false, deflect: false, here: 'Here I come, p(Loom).' },
     newRun, update, opening: noop, resume: noop, use(x) { g = x; arena.use(x); },
-    view: () => ({ ambient: .55 }), lights: arena.lights,
+    view: () => ({ ambient: Q.state === 'snap' ? (Math.floor(Q.t * 30) % 2 ? .08 : .75) : .55 }), lights: arena.lights,
     draw() { drawCar(); arena.draw(); drawCrate(); }, glows() { arena.glows(); drawIndicator(); }, overlay: noop, hud,
     fire: arena.fire, slashHits: arena.slashHits, muzzleXY: () => ({ x: arena.X(bull.u + (bull.facing || 1) * .12), y: arena.Y(bull.jh + .14) }),
     soulFreed(f) { f.to = { x: 220, y: 7 }; },

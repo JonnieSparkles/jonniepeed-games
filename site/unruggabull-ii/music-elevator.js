@@ -14,3 +14,24 @@ window.UnrugElevatorMusic = {
     } } }
   }
 };
+
+// Horns Up is one track: the intro is the same muzak, held until the GAME's cable-snap cue.
+// Named pattern starts/holds let a composer replace sections without retiming the ride.
+window.UnrugElevatorMusic.hornsUp = {
+  name: 'Horns Up (placeholder)', key: 'C', bpm: 92, swing: .08,
+  order: ['intro', 'heavy'], loop: 0, startPattern: 'intro', holdPattern: true,
+  stems: ['lead', 'bass', 'harmony', 'drums'],
+  patterns: {
+    intro: window.UnrugElevatorMusic.pleaseHold.patterns.A,
+    heavy: { bars: 2, bpm: 168, swing: 0, channels: {
+      lead: { stem: 'lead', wave: 'sawtooth', vol: .07,
+        notes: 'E5 . E5 . G5 - A5 - G5 . E5 . D5 - C5 - | F5 . A5 . G5 - F5 - E5 . D5 . C5 - - -' },
+      bass: { stem: 'bass', wave: 'triangle', vol: .22,
+        notes: 'C2 C2 C3 C2 C2 C2 G2 C2 C2 C2 C3 C2 C2 C2 G2 C2 | F2 F2 F3 F2 F2 F2 C3 F2 C2 C2 G2 G2 C2 - - -' },
+      harmony: { stem: 'harmony', wave: 'pulse', duty: .25, vol: .035,
+        notes: 'C4 . G4 . C4 . G4 . C4 . G4 . C4 . G4 . | F4 . A4 . F4 . A4 . C4 . G4 . C4 - - -' },
+      drums: { stem: 'drums', wave: 'noise', vol: .55,
+        notes: 'K h h h S h h h K h h h S h h H | K h h h S h h h K h K h S h h H' }
+    } }
+  }
+};

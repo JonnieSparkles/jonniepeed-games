@@ -73,7 +73,7 @@ window.__balanceBot = function (profile, seed) {
       if (!target || Math.abs(e.u - me) < Math.abs(target.u - me)) target = e;
       var pl = plan(e, () => ({ slash: r() < P.fly_slash, jump: r() < P.jump_try }));
       var du = e.u + e.dir * .3 * lead - me;
-      if (Math.abs(du) < .3 && Math.abs(e.h - (e.dropping ? .6 * lead : 0) - b.jh - .1) < .28 && pl.slash) a.slash = true;
+      if (Math.abs(du) < .3 && Math.abs(e.h - (e.dropping ? (q.dropSpeed || .6) * lead : 0) - b.jh - .1) < .28 && pl.slash) a.slash = true;
       if (e.kind === 'flyer' && !e.dropping && Math.abs(du) < .35 && pl.jump && !b.jh) a.jump = true;
     });
     if (target) {

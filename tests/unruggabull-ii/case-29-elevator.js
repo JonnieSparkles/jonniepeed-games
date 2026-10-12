@@ -6,9 +6,9 @@
   try {
     fresh();
     check(R.stage === 'elevator' && R.heldDrop === null && R.elevator.indicator === 13, 'direct ride starts at 13 with no held supply');
-    check(R.talk.text === 'Floor?' && Snd.track === 'pleaseHold', 'operator asks Floor? over muzak');
+    check(R.talk.text === 'Floor?' && Snd.track === 'hornsUp', 'operator asks Floor? over muzak');
     tick(3); check(R.elevator.state === 'climb' && R.elevator.indicator > 13, 'car climbs');
-    tick(1); check(R.arena.enemies.length === 1 && R.arena.enemies.every(e => e.h > .4 && e.dropping && Math.abs(e.u) <= .12), 'wave drops through hatch');
+    tick(1); check(R.arena.enemies.length === 2 && R.arena.enemies.every(e => e.h > .4 && e.dropping && Math.abs(e.u) <= .12), 'wave drops through hatch');
     const prev = R.elevator.indicator; tick(1); check(R.elevator.indicator > prev, 'indicator counts upward');
     fresh(); floor.enter('climb');
     const right = enemy('crawler', .35, .14); fire(); tick(.15);
@@ -18,7 +18,7 @@
     const left = enemy('crawler', bull.u - .36, .14); fire(); const bolt = R.shots[0]; check(bolt.vu < 0, 'left-facing bolt flies left'); tick(.15); check(left.dead, 'left bolt hits target');
     const behind = enemy('crawler', bull.u + .2, .08), ahead = enemy('crawler', bull.u - .2, .08); slash();
     check(ahead.dead && !behind.dead, 'slash arc only cuts in front');
-    R.arena.enemies = []; const thrower = enemy('flyer', -.6, .18); const wad = floor.arena.throwWad(thrower);
+    R.arena.enemies = []; const thrower = enemy('flyer', -.6, floor.arena.ARENA.flyerH); const wad = floor.arena.throwWad(thrower);
     Object.assign(wad, { u: bull.u - .2, h: .12 }); R.charge = 1; bull.cd = 0; slash();
     check(wad.friendly && wad.vu < 0 && R.charge === 4, 'side deflect returns paper and three charges');
     tick(.2); check(thrower.dead && R.souls === 4, 'returned wad frees source soul');
@@ -54,12 +54,12 @@
     }
     // Real clear button, carry the seeded stream and souls. No phantom direct-roof captives.
     newRun(); setState('play'); R.souls = R.shown = 123; R.hearts = 1; R.phase = 'win'; R.endT = 130;
-    const oldSeed = seed; endRun('clear'); check(altBtn.textContent === 'Take the elevator' && !altBtn.hidden, 'clear offers elevator'); altBtn.click();
+    const oldSeed = seed; endRun('clear'); check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again' && !altBtn.hidden, 'elevator is primary, replay secondary'); goBtn.click();
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters ride, full hearts');
     floor.enter('climb'); bull.inv = 1e9; tick(3); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'crawler'); tick(2);
     check(state === 'over' && checkpoint.souls === 123, 'ride continue card saves entry souls'); goBtn.click();
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && R.elevator.state === 'ask' && R.continues === 1, 'continue restarts entire ride');
-    floor.enter('climb'); R.elevator.climbed = 29.99; enemy('crawler', .5, .1); tick(.02);
+    floor.enter('climb'); R.elevator.snapped = true; R.elevator.climbed = 29.99; enemy('crawler', .5, .1); tick(.02);
     check(R.elevator.indicator === 99 && R.elevator.state === 'open' && Snd.track === null && !R.arena.enemies.length && R.souls === 124, 'arrival clears last wave and stops muzak');
     tick(1.3); check(R.elevator.state === 'supply' && floor.doorOpening() === 1 && R.elevator.crate.kind === 'spread', 'doors open then supply slides out');
     bull.u = R.elevator.crate.u - .33; tick(1.01); const count = R.souls;
@@ -67,7 +67,7 @@
     tick(.9); check(R.stage === 'roof' && R.roof.state === 'elevator' && R.roof.fromRide && R.souls === count && R.roof.caught === count && R.roof.capturedTotal === count && R.hearts === 5 && R.heldDrop === 'spread', 'roof starts doors lead-in with carried souls and drop');
     // Numeric destinations are parameters; floor label R is only the default.
     newRun({ stage: 'elevator', transfer: true, souls: 0, destination: { floor: 42, label: '42', stage: 'floor13' } });
-    floor.enter('climb'); R.elevator.climbed = 29.99; tick(.02); check(R.elevator.indicator === 42, 'destination parameter');
+    floor.enter('climb'); R.elevator.snapped = true; R.elevator.climbed = 29.99; tick(.02); check(R.elevator.indicator === 42, 'destination parameter');
     fresh(); floor.enter('open'); R.hearts = 1; tick(1.3); check(R.elevator.crate.kind === 'vest', 'actual operator hands out vest when hurt');
     // Exactly 5 seconds of charge, then normal damage again.
     fresh(); drops.give('vest'); R.hearts = 1; hurtBull(1, 'test'); bull.inv = 0; hurtBull(5, 'test');

@@ -916,7 +916,7 @@
       cardTitle.textContent = details.title; cardText.textContent = details.text;
       rows.push(...details.rows);
       goBtn.textContent = 'Play again';
-      if (floor.id === 'floor13') { altBtn.textContent = 'Take the elevator'; altBtn.hidden = false; }
+      if (floor.id === 'floor13') { goBtn.textContent = 'Take the elevator'; altBtn.textContent = 'Play again'; altBtn.hidden = false; }
       cardNote.textContent = floor.id === 'floor13' ? 'The elevator climbs to the roof.' : details.note; cardNote.hidden = !details.note;
     } else if (kind === 'rugged') {
       cardTitle.textContent = 'Rugged.';
@@ -1065,13 +1065,14 @@
     if (cardKind === 'pause') { resumeGame(); return; }
     goFull();
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
+    if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator'); return; }
     if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'floor13' : floor.id);
   });
   altBtn.addEventListener('click', () => {
     if (cardKind === 'pause') { Snd.resume(); startRun(); }
     else if (cardKind === 'title') { goFull(); startIntro(); }
     else if (cardKind === 'rugged') { goFull(); startRun(); }
-    else if (cardKind === 'clear' && floor.id === 'floor13') { goFull(); travel('elevator'); }
+    else if (cardKind === 'clear' && floor.id === 'floor13') { goFull(); startRun('floor13'); }
   });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
 

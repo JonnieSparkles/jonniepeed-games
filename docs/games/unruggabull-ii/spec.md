@@ -2,7 +2,7 @@
 
 A sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
-Status: the 13th Floor, a 13→R elevator arena and the roof framework are built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed. The remaining floors, long ride and ending follow later. Once a stage ships, [README.md](README.md) and the code are the source of truth.
+Status: the 13th Floor, a 13→R elevator arena and the roof framework are built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed. The plain ride, Floor 48 and ending follow later; the long ride is the current elevator framework. Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
 The original game stays in its own repo (painted art, ES modules, desktop). Its `level-2` branch is the start of a later helicopter release, not part of this game.
 
@@ -24,16 +24,13 @@ About eleven minutes for a full run. Two engines carry the whole game: the **cor
 
 | Floor | Name | Ends with | Engine |
 | --- | --- | --- | --- |
-| R | The roof | Final boss: p(Loom) | Corridor |
-| ↑ | The long ride, floors 78 to 98 | Cable snaps, the metal kicks in | Arena |
-| 77 | The Boardroom | Set piece: the endless table | Corridor |
-| ↑ | Elevator | Supply drop from the operator | Arena |
-| 42 | Human Rugsources | Set piece: the projector, lights out | Corridor |
-| ↑ | Elevator | Supply drop from the operator | Arena |
 | 13 | the 13th Floor: Accounting | Mid-boss: the Shredder | Corridor |
-| G | Back Alley | Cold open: the katana arrives, the Welcome Mat | Arena |
+| ↑ | Plain ride (planned) | Operator, “Floor?”, Please Hold, supply crate, open doors; no fight | Arena set, no combat |
+| 48 | Floor 48 (contents TBD) | TBD | TBD |
+| ↑ | The long ride (framework built) | Cable snaps near the top; Horns Up turns heavy; supply crate | Arena |
+| R | The roof | Final boss: p(Loom) | Corridor |
 
-The current build skips the planned middle floors: the 13th Floor clear offers a 30-second elevator ride directly to the roof. The destination is a parameter for later 13→42, 42→77 and 78→98 rides. The arena and drops are built; [elevator-plan.md](elevator-plan.md) lists implementation choices and the remaining art/music pass. Souls carry throughout, hearts refill at stage boundaries through one setting, and the roof receives the carried captives.
+The decided climb is **13th Floor → plain ride → Floor 48 → long ride → roof**. Floor 48 and the plain ride are not stages yet, so the playable build temporarily takes the long ride straight from the 13th Floor and counts 13→R. Its start floor and destination are ride data; later the long ride starts at 48. Combat is switchable per ride (`ELEVATOR.fight` / per-run `fight`); the no-fight configuration is tested with the operator, muzak, crate and handoff but is not registered as another stage. [elevator-plan.md](elevator-plan.md) records current behavior and the art/music seams.
 
 Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 
@@ -81,12 +78,16 @@ A corridor floor of about two minutes, then the Shredder.
   - **The souls' hint** (the first glimpse of the mega stream, below): the first time the blaster comes back in phase 3, a few souls leave the counter and fly into it, and for a few seconds it fires two, then three streams. Then it quietly goes back to normal. Nothing explains it.
   - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
-- **Clear.** The final hit runs in slow motion before the Shredder blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. “Take the elevator” continues this run through the ride to the roof; Play again stays. The ride currently skips the planned middle floors.
+- **Clear.** The final hit runs in slow motion before the Shredder blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. “Take the elevator” continues this run through the ride to the roof; Play again stays. The long ride currently skips the planned plain ride and Floor 48.
 - **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by the Shredder, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
 
 ## Elevator and drops (built framework)
 
-A side-view car interior, no scrolling: back-wall doors, counting floor indicator, central hatch and an unhittable operator by the button panel. He asks “Floor?” in blips. Existing carpshits drop through the hatch: flyers flap/swoop and crawlers land/scuttle. Shooting and slashing free their souls; slashing also returns paper. Same hearts, charges, crouch and jump controls. Five alternating waves make the 30-second climb a breather. At the destination the remaining wave releases its souls, a ding hard-cuts “Please Hold”, the doors open and a crate slides out to grab. The roof's lead-in picks up with doors already open; direct roof testing retains its original door-opening sequence.
+A side-view car interior, no scrolling: back-wall doors, counting floor indicator, central hatch and an unhittable operator by the button panel. He asks “Floor?” in blips. Existing carpshits drop in small warm-up groups: flyers swoop and throw paper during descent; crawlers land/scuttle. Shooting and slashing free their souls; slashing also returns paper. Same hearts, charges, crouch and jump controls.
+
+**The long ride:** a 30-second climb, with the cable snap at 80% (currently floor 81 on the temporary 13→R route). The snap cuts the muzak, jolts the car and flickers its lights for a short beat, then jumps into the heavy part of **Horns Up**. It is one track: its intro is Please Hold's tune, looping until the game's snap cue selects the heavy section. The heavy section does not begin on a timer in the track. After the snap he says “Here I come, p(Loom).” in his caption, in blips until recorded. Waves then arrive faster and grow toward the top. At the destination the remaining wave releases its souls, a ding hard-cuts music, the doors open and a crate slides out, grabbable immediately. The roof's lead-in picks up with doors already open; direct roof testing retains its original door-opening sequence.
+
+**The plain ride (configuration only):** no spawns, throws, snap or heavy music. Operator, “Floor?”, Please Hold, a supply crate, open doors and the handoff. It will be a stage before Floor 48 once that floor exists.
 
 Carry one drop; activate by E or tapping the icon. Spread Shot is held until used, then three ways for ten seconds. Bull Run charges for five seconds, invulnerable and destroying contact threats: down the corridor lane, across the arena toward his facing (turning at walls), or under normal player movement on the roof, where it only clears carps, snares and orbs. It does nothing to p(Loom). Spare Vest automatically gets him back up at the fallen position with full hearts once. Used supplies stay consumed on continues. The operator chooses a Vest at two hearts or fewer; otherwise Spread Shot/Bull Run alternate, starting with Spread. A Vest leaves the alternation in place. A new crate replaces an existing held drop. Choice and input are provisional review items, not additional enemies or dialogue.
 
@@ -114,7 +115,7 @@ Inspired by Raiden, where stacked weapon power-ups fuse into one huge beam. Here
 | Where | What the player sees |
 | --- | --- |
 | the 13th Floor, the Shredder (built) | A hint: a few souls come back, two or three streams for a few seconds. No fusion, no explanation. |
-| The middle floor (42 or 77, not chosen yet) | A near miss: four or five streams, they start to bend in, then it falls apart. |
+| Floor 48 (contents TBD; near miss not decided) | Planned possible near miss: four or five streams, they start to bend in, then it falls apart. |
 | The roof, p(Loom) | The reveal: the full sequence below, then the rest of the fight with the beam. |
 
 Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain code to port: the [Mega Stream Lab](https://claude.ai/artifact/AAjXJuSUmn1cJB4ttbPnDS) (the stream levels and the fusion, with three snap styles; the pick is **Pinch**) and the [Mega Stream Finale](https://claude.ai/artifact/MqfeHREtfJp24VcdGqACx4) (the roof against p(Loom); its **Behind** view is the approved one, and the side, top-down and director's cut views were dropped).
@@ -131,7 +132,7 @@ The first time the blaster comes back in the Shredder's phase 3, a handful of so
 
 ### The near miss on the middle floor (build with that floor)
 
-Once the middle floor is chosen: at its set piece the souls come back further than on the 13th Floor. Four or five streams, and they start to bend in toward each other, then it falls apart just short (the streams scatter, a sour note, back to normal). Same rules as the hint: no explanation.
+If the near miss belongs on Floor 48 (contents still TBD): at its set piece the souls come back further than on the 13th Floor. Four or five streams, and they start to bend in toward each other, then it falls apart just short (the streams scatter, a sour note, back to normal). Same rules as the hint: no explanation.
 
 ### The roof finale (Part A and motion/light/sound built)
 
@@ -147,7 +148,7 @@ The corridor view stays behind him. The open-air set shares the 13th Floor's lit
 6. **The beam.** A thick continuous polygon from the muzzle, steered left/right. On the eye it drains ten percentage points a second; off it the odds creep back at three points a second. It melts carpshits in its lane, and damage to him never interrupts it. The eye runs along its rail faster as odds fall: “PROBABILITY OF CAPTURE: ZERO.”, then “RECALCULATING.” when caught again.
 7. **Dawn.** At 1%, “UNLIKELY.” and a beat, then the snap cut (1.5 seconds). Threads loosen, the eye goes dark, rain stops, sunrise opens and the chord hook rings. The souls drift up and the counter keeps rolling before clear. The core's escape into the Sky Wrecker needs its own ending storyboard.
 
-All three cuts freeze fight timers and hold input. Five hearts; a continue preserves broken spools and caught souls and resumes the round lost, or the quiet for a crescendo death. Nominal 30/40/45-second round lengths space two openings per round; missed openings extend the fight without increasing health. The direct roof entry seeds 100 earlier-floor captives from one `ROOF.initialCaught` number, already in the score. Every captive is drawn across six rows of ten thread gaps, with slightly offset overlapping layers so roughly 60 silhouettes remain readable when the counter reaches the 200s. The flood and dawn use the full captured count, with no double scoring. Roof charges refill every 0.35 seconds to support the larger groups, while the 13th Floor remains at 0.5 seconds. Bot clear-time medians are now about 3¼ minutes rather than 2¼; the PR records timings per round and skill. The 13th Floor's clear now connects through the 13→R ride; the planned intervening floors remain later work.
+All three cuts freeze fight timers and hold input. Five hearts; a continue preserves broken spools and caught souls and resumes the round lost, or the quiet for a crescendo death. Nominal 30/40/45-second round lengths space two openings per round; missed openings extend the fight without increasing health. The direct roof entry seeds 100 earlier-floor captives from one `ROOF.initialCaught` number, already in the score. Every captive is drawn across six rows of ten thread gaps, with slightly offset overlapping layers so roughly 60 silhouettes remain readable when the counter reaches the 200s. The flood and dawn use the full captured count, with no double scoring. Roof charges refill every 0.35 seconds to support the larger groups, while the 13th Floor remains at 0.5 seconds. Bot clear-time medians are now about 3¼ minutes rather than 2¼; the PR records timings per round and skill. The 13th Floor's clear now connects through the temporary 13→R long ride; the plain ride and Floor 48 remain later work.
 
 Sound hooks now synthesize storm rain/wind, delayed thunder, snare whip/cut, gust, spool crack/twang, beam roar, final snap and a dawn major chord. The sequencer supplies three D-minor candidate directions with matching heavy versions (160/180, 126/142 and 140/158 BPM), plain pattern/order data and bar-queued layers. The final accounted word cuts music without a tail. Quiet/return have only storm ambience and the three D-minor bells; 1% drops to held D5, and a D-major chord crosses snap into dawn. A lower machine pulse voice preserves the previous 38 ms letter cadence. Its final voice is still open. Souls have cosmetic jitter, independent bob/sway, row depth and arrival/quiet pulses. They curve into reserved warp slots, shake loose for the three bells, and depart their actual slots over one second during the flood; arrivals retain their original three-second timing. At most 96 flying souls and three faint trail stamps each are drawn per frame, with eight distributed warm lights. Dawn uses the full count with staggered rises, side-to-side drift and fade; the displayed counter adds released captives to the pre-dawn total and preserves that total on the clear card; seeded run score stays unchanged. The eye supplies orange/red/white light, two distant flashes precede the reveal, the beam supplies six gold lights, and dawn warms in two seconds. Shake uses one decaying function, halved under reduced motion. Spool snaps hold the picture for three frames during their existing intermission, preserving outcomes and input.
 
@@ -155,10 +156,10 @@ Playable side/top-down views and drag-to-move with auto-fire stay dropped.
 
 ## Later stages
 
-1. Floor G cold open using the built arena engine. The first elevator and supply drops are built; future destinations reuse them.
-2. Floor 42, Human Rugsources: lights out, the projector, policy walls, trust falls. Teaches deflect properly.
-3. Floor 77, the Boardroom: the endless table run, the vote, "Motion to adjourn".
-4. The long ride (Horns Up), roof Part B (art, sound and feel), and the ending after dawn (the core escaping into the Sky Wrecker). The middle floor (42 or 77) brings the mega stream's near miss.
+1. The plain ride as its own stage and Floor 48 (contents TBD).
+2. The long ride's finished art, Horns Up composition and feel; its framework now runs from 13 until Floor 48 exists.
+3. Roof Part B (art, final music/voice and feel) and the ending after dawn (the core escaping into the Sky Wrecker).
+4. Floor G cold open/back alley using the arena; its place in the decided climb is not part of this change.
 5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../../guides/00-leaderboards.md)).
 
 ## Open questions
@@ -167,7 +168,7 @@ Playable side/top-down views and drag-to-move with auto-fire stay dropped.
 - The leaderboard metric: souls freed, floors, or time.
 - The Unruggabull recording script (15 to 20 lines). A first draft is in the game as `LINES`; it needs Jonnie's approval before recording.
 - p(Loom)'s voice (see Sound). Does it start breaking down as its odds fall?
-- Which floor is in the middle, 42 or 77, and so where the near miss happens.
+- Floor 48 contents, including whether the mega stream near miss belongs there.
 
 Roof fixes: the dawn display and clear card never reset the counter; the full lightning state draws the whole loom and captives as dark silhouettes with a thin rim. Dawn counting uses each soul's actual starting position. Snap/fusion shake decay pauses inside named cut-ins so the impulse is still visible when play returns.
 
