@@ -178,7 +178,7 @@ Read the repo's README standards and this game's README first. Code is in `site/
 
 Renderer lights cover the orange/red/white eye, lightning with two distant walk flashes, six flickering beam lights, soul light and two-second warm dawn. One shake function handles spools, pinch, fusion, beam and snap, halved for reduced motion. Spool hit-stop holds the picture for 0.05 seconds inside the existing intermission; fight clocks and input retain Part A timing. Rain leans more clearly before/during gusts.
 
-`audio.js` now synthesizes the storm, thunder, snare/cut, gust, spool snap, beam roar, final snap, major chord and low machine readout. Replaceable roof fight/heavy tracks use the existing sequencer at 168/184 BPM. The quiet is storm only; music resumes with the heavier track at fusion. All use the existing mute. Bridge and real Web Audio render checks cover the effects and sounds.
+`audio.js` now synthesizes the storm, thunder, snare/cut, gust, spool snap, beam roar, final snap, major chord and low machine readout. Replaceable D-minor fight/heavy candidates use the extended chip sequencer: A 160/180 BPM, B 126/142 BPM, C 140/158 BPM. The quiet is storm only; music resumes with the heavier track at fusion. All use the existing mute. Bridge and real Web Audio render checks cover the effects and sounds.
 
 **Still left:** p(Loom)'s art, roof set art, beam look, cut-in pictures, and real-phone tuning/playtests. Existing shapes/sprites and black named cuts remain. The final voice remains a later art/sound choice.
 
@@ -199,3 +199,11 @@ Done afterward, from the storyboard and the art tools (`tools/unruggabull-ii/bul
 - The ending after dawn (the core escaping into the Sky Wrecker): its own storyboard.
 
 Roof fixes: the dawn display and clear card never reset the counter; the full lightning state draws the whole loom and captives as dark silhouettes with a thin rim. Dawn counting uses each soul's actual starting position. Snap/fusion shake decay pauses inside named cut-ins so the impulse is still visible when play returns.
+
+## Music preparation: ready, final tracks still to come
+
+The pattern/order sequencer, per-channel/note envelopes, duty-selected pulse leads, triangle bass, noise drums, optional saw/square lead, vibrato, chip arpeggios, slides, echoes, queued stems/tempo, beat/bar switches, hard cuts, downbeat slams and stingers are built. The six existing tracks keep their old data/compiler/synthesis and render byte-identically.
+
+Three plain D-minor candidate pairs in `music-roof.js` can be auditioned in the actual fight with `#music=a/b/c`: A galloping chip-metal, B dark synthwave, C epic chip with a detuned pulse choir. Each pair shares a hook and A/B sections, 30–60 seconds before looping, with the heavy version about 12.5% faster and a saw lead. A is the starting default, not the final selection.
+
+`tools/unruggabull-ii/music-lab.html` uses the exact game audio/data on a phone: six candidates, all roof cues, a 58-second arc, stem/tempo/transition controls and the six Floor 13 references. The FIGHT downbeat and round layers, spool stingers, hard cut on the final accounted word, storm-only quiet, in-key bells, flood/pinch riser, heavy slam at freeze end, held D5 at 1%, and D-major chord across snap/dawn are wired without changing fight timers. Final fight/heavy compositions still need to be written, auditioned, chosen and tuned; loom/set/beam/cut art and phone playtesting also remain.

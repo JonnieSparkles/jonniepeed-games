@@ -37,7 +37,7 @@ var UnrugRoof = function (core) {
     popText, talk, live, endRun, drawBull, drawFly, drawShot, drawFx, drawSoulsCounter, world, moveDir, setCheckpoint
   } = core;
   const LM = ROOF.art;
-  let R, bull, Q, g = core.g;
+  let R, bull, Q, g = core.g, musicChoice = 'a', musicCut = false;
   const effects = UnrugRoofEffects(core, ROOF, soulSpot);
   const isRound = () => /^round[123]$/.test(Q.state);
   const beamActive = () => ['lines', 'beam', 'run', 'one'].includes(Q.state);
@@ -79,12 +79,12 @@ var UnrugRoof = function (core) {
     Q.nextOpening = ROOF.roundLengths[n - 1] / ROOF.openings[n - 1];
     Q.nextFly = ROOF.firstFly; Q.nextSnare = ROOF.snareEvery[n - 1]; Q.nextGust = ROOF.gustEvery[n - 1];
     Q.recalc = 0; clearThreats(); bull.bz = 0;
-    Snd.music('roof');
+    Snd.roofCue(n === 1 ? 'fight' : 'round' + n, { candidate: musicChoice });
     checkpoint();
   }
   function roundExit() { emit('roof_round_time', { amount: Math.round((R.t - Q.roundStart) * 100) / 100 }); clearThreats(); Q.stall = 0; }
   const STATES = {
-    elevator: { entry() { Snd.music(null); Snd.play('storm'); } },
+    elevator: { entry() { Snd.roofCue('lead', { candidate: musicChoice }); Snd.play('storm'); } },
     walk: {},
     flash: { entry() { Snd.play('thunder', 1); } },
     wake: { tick(dt) { Q.eye.u += clamp(-Q.eye.u, -ROOF.eyeFollow * dt, ROOF.eyeFollow * dt); }, entry() { Q.eye.u = -ROOF.eyeLimit; R.banner = { text: 'P(LOOM)', sub: "RUGCO'S AI. IT HAS RUN THE NUMBERS.", t: 0, dur: ROOF.time.wake, y: 96 }; } },
@@ -104,12 +104,14 @@ var UnrugRoof = function (core) {
       // A continue replays this act, including his reply; retain the other recorded outcomes.
       if (R.events.said) { R.events.said = Object.assign({}, R.events.said); delete R.events.said.odds; }
       // The last round's line finishes before its last word cuts the music.
+      musicCut = false;
       Q.accounted = say('ALL SOULS ACCOUNTED FOR.'); Q.silenced = false; Q.quietT = 0;
       emit('roof_quiet', { amount: Q.caught + R.fx.filter(f => f.caught).length });
       emit('roof_quiet_score', { amount: R.souls });
       checkpoint();
     }, tick(dt) {
       Q.eye.u += clamp(-Q.eye.u, -ROOF.eyeFollow * dt, ROOF.eyeFollow * dt);
+      if (!musicCut && R.talk && R.talk.t >= R.talk.times[R.talk.text.length - 1]) { musicCut = true; Snd.roofCue('cut'); }
       if (!Q.silenced && (!R.talk || R.talk.t >= Q.accounted)) { Q.silenced = true; Snd.music(null); }
       if (Q.silenced) Q.quietT += dt;
     }, ready: () => Q.quietT >= ROOF.time.quiet, exit() { cutIn('soul', ROOF.cuts.soul); } },
@@ -127,23 +129,23 @@ var UnrugRoof = function (core) {
       Q.floodFrom = Q.caught;
       Q.flights = Array.from({ length: Q.floodFrom }, (_, i) => soulFlight(Q.floodFrom - 1 - i,
         i / Math.max(1, Q.floodFrom - 1) * (ROOF.time.flood - ROOF.returnFly)));
-      // The silence holds through the flood; the heavy track starts at fusion.
+      Snd.roofCue('flood', { seconds: ROOF.time.flood + ROOF.time.pinch });
     }, tick() {
       const due = Q.flights.filter(f => Q.t + 1e-9 >= f.delay + ROOF.returnFly).length;
       const returned = Q.floodFrom - Q.caught;
       if (due > returned) { emit('roof_return', { amount: due - returned }); Q.caught = Q.floodFrom - due; }
     }, exit() { Q.caught = 0; } },
     pinch: {},
-    fusion: { entry() { R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); Snd.music('roofHeavy'); }, exit() { cutIn('beam', ROOF.cuts.beam); } },
+    fusion: { entry() { R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); }, tick() { Snd.roofCue('fusion'); }, exit() { cutIn('beam', ROOF.cuts.beam); } },
     lines: { entry() { R.beam = true; Q.beamU = 0; Q.line = 0; say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick() {
       if (!Q.line && (!R.talk || R.talk.t >= R.talk.total)) { Q.line = 1; core.bark('odds', true); }
     }, ready: () => Q.line === 1 && !R.bark },
     beam: { entry() { R.gold = true; R.beam = true; Q.eye.u = 0; Q.nextFly = ROOF.beamFlyEvery; }, tick: beamTick },
     run: { entry() { Q.eye.dir = 1; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
-    one: { entry() { clearThreats(); Q.odds = ROOF.minimum; say('UNLIKELY.'); }, ready: () => Q.t >= ROOF.time.one && !R.talk },
-    snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); cutIn('snap', ROOF.cuts.snap); } },
+    one: { entry() { clearThreats(); Q.odds = ROOF.minimum; Snd.roofCue('one', { seconds: ROOF.time.one }); say('UNLIKELY.'); }, ready: () => Q.t >= ROOF.time.one && !R.talk },
+    snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); Snd.roofCue('snap'); cutIn('snap', ROOF.cuts.snap); } },
     dawn: { entry() {
-      R.gold = false; R.beam = false; Snd.roofSound(null); Snd.music(null); Snd.play('chord');
+      R.gold = false; R.beam = false; Snd.roofSound(null); Snd.roofCue('dawn', { continueChord: true });
       Object.assign(bull, { aimT: 0, slash: -1, jh: 0, jv: 0, crouch: false, sq: 0, stag: 0 });
       Q.dawnCount = Q.capturedTotal;
       for (let i = 0; i < Q.dawnCount; i++) {
@@ -157,6 +159,8 @@ var UnrugRoof = function (core) {
   const ORDER = Object.keys(STATES);
   function newRun(r, b, at) {
     R = r; bull = b; R.speed = 0;
+    const chosenMusic = new URLSearchParams(location.hash.slice(1)).get('music');
+    musicChoice = /^[abc]$/.test(chosenMusic) ? chosenMusic : 'a';
     Q = R.roof = { state: null, t: 0, round: 1, broken: 0, hp: ROOF.hitsPerSpool[0], odds: 0,
       eye: { u: 0, z: ROOF.eyeZ, h: ROOF.eyeH, eye: true }, caught: ROOF.initialCaught,
       capturedTotal: ROOF.initialCaught, history: [], rings: [], stall: 0, flinch: 0, hot: 0, cut: null, recalc: 0 };
@@ -289,7 +293,7 @@ var UnrugRoof = function (core) {
     if (isRound() && Q.stall > 0 && !Q.intermission) {
       Q.hp--; emit('roof_spool_damage', { amount: 1 });
       if (Q.hp <= 0) {
-        effects.spool(); Snd.play('spoolSnap'); Q.broken++; Q.hot = ROOF.spoolFlash; Q.odds = ROOF.odds; say('NO CHANGE.'); emit('roof_spool', { amount: 1 });
+        effects.spool(); Snd.play('spoolSnap'); Snd.roofCue('spool'); Q.broken++; Q.hot = ROOF.spoolFlash; Q.odds = ROOF.odds; say('NO CHANGE.'); emit('roof_spool', { amount: 1 });
         if (Q.round < 3) { Q.pendingRound = Q.round + 1; Q.intermission = R.talk.total; clearThreats(); }
         else { clearThreats(); Q.pendingRound = 0; Q.intermission = R.talk.total; }
       }

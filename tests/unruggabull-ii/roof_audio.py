@@ -6,6 +6,7 @@ def check_audio(browser, root):
         page.evaluate('''() => { window.AudioContext = class extends OfflineAudioContext {
           constructor() { super(1, 48000 * 4, 48000); Object.defineProperty(this, 'state', {value: 'running'}); }
         }; }''')
+        page.add_script_tag(content=(root / 'site/unruggabull-ii/music-roof.js').read_text())
         page.add_script_tag(content=audio)
         result = page.evaluate('''async hook => {
           UnrugSound.init();
@@ -26,7 +27,7 @@ def check_audio(browser, root):
         if hook == 'loom':
             assert page.evaluate("audioTest('VOICES.loom.f < VOICES.shredder.f && VOICES.loom.wave !== VOICES.shredder.wave')")
         if hook == 'roofHeavy':
-            assert page.evaluate("audioTest('TRACKS.roofHeavy.sections[0].bpm > TRACKS.roof.sections[0].bpm')")
+            assert page.evaluate("audioTest('TRACKS.roofHeavy.bpm > TRACKS.roof.bpm')")
             page.evaluate('UnrugSound.music(null)')
             assert page.evaluate("audioTest('P.id === null && P.timer === 0')"), 'quiet has no active sequencer'
         if hook == 'storm':
@@ -39,6 +40,7 @@ def check_audio(browser, root):
     page.evaluate('''() => { window.AudioContext = class extends OfflineAudioContext {
       constructor() { super(1, 48000 * 2, 48000); Object.defineProperty(this, 'state', {value: 'running'}); }
     }; }''')
+    page.add_script_tag(content=(root / 'site/unruggabull-ii/music-roof.js').read_text())
     page.add_script_tag(content=audio)
     page.evaluate('UnrugSound.init(); UnrugSound.roofSound({storm:true,beam:true,onEye:true}); UnrugSound.toggle()')
     assert page.evaluate("audioTest('!!stormLoop && !!beamLoop && muted')")

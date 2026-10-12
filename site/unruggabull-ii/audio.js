@@ -1,6 +1,17 @@
 // Unruggabull II sound: everything is synthesized with Web Audio, no audio files.
 // Music runs on a small chip sequencer: two pulse leads, a pulse arpeggio, a triangle bass and noise drums,
 // with an overdriven saw for the heavier parts (the title theme adds extra channels, VRC6 style).
+// New tracks are plain pattern/order data (music-roof.js); the six section tracks below stay unchanged.
+// Example: {bpm:160,key:'Dm',swing:0,loop:0,order:['A'],stems:['lead'],patterns:{A:{bars:1,
+//   channels:{pulse1:{stem:'lead',wave:'pulse',duty:.25,vol:.07,notes:'D5 - F5 - A5 - D6 - . . . . . . . .'}}}}}.
+// Notes: '-' holds, '.' rests, or {note:'D5',len:2,chord:['F5','A5'],vol:.06,envelope:{attack:.01,
+// decay:.04,sustain:.5,release:.08},vibrato:{rate:6,depth:.01},arp:[0,7,12],slide:'A4',echo:{delay:.2,feedback:.25,repeats:2}}.
+// Channel defaults accept those effects too. Noise notes k/s/h select pitch-drop kick, snare and hat.
+// Add an object to UnrugRoofMusic or registerTrack(id,data). stems() applies on the next bar;
+// music(id,{boundary:'bar'|'beat',slam:true}), music(null,{hard:true}), stinger(name), roofCue(name).
+// Roof cues: storm-only lead; fight downbeat; harmony/power added in rounds 2/3; spool stingers;
+// hard cut at the last accounted word; flood/pinch riser; heavy downbeat after fusion freeze;
+// 1% held D5; snap/dawn D-major chord, then quiet. #music=a/b/c selects a candidate.
 // Characters talk in blips, one tone per letter, timed to match the caption as it types out.
 // Browsers only allow audio after a tap or key press: `ready` is false until then, and `onready` is
 // called whenever that changes so the Sound button can show what's really happening.
@@ -8,7 +19,7 @@ window.UnrugSound = (function () {
   'use strict';
   const KEY = 'unruggabull-ii-muted';
   const MUSIC_LEVEL = .5, DUCKED = .16;
-  let ctx = null, master, musicBus, sfxBus, voiceBus, NOISE = null, want = null, duckUntil = 0;
+  let ctx = null, master, musicBus, sfxBus, voiceBus, NOISE = null, want = null, wantOptions = {}, duckUntil = 0;
   const WAVES = {};
   let muted = false;
   try { muted = localStorage.getItem(KEY) === '1'; } catch (e) {}
@@ -40,7 +51,7 @@ window.UnrugSound = (function () {
     }
     NOISE = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const nd = NOISE.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
-    if (want) playTrack(want);
+    if (want) playTrack(want, wantOptions);
     roofSound(roofWant);
     return true;
   }
@@ -137,21 +148,7 @@ window.UnrugSound = (function () {
 
   const TOWER_LEAD = 'B4 - - - - - E5 - G5 - - - F#5 - E5 - | G5 - - - - - E5 - C5 - - - D5 - E5 - | F#5 - - - - - D5 - A4 - - - B4 - C5 - | B4 - - - - - - - - - - - E5 . E5 . | E5 - G5 - B5 - - - A5 - G5 - F#5 - E5 - | G5 - - - E5 - - - C6 - - - B5 - A5 - | A5 - - - F#5 - - - D6 - - - C6 - A5 - | B5 - - - - - - - D#5 - F#5 - B5 - - -';
   const THEME_VERSE = 'A4 - - D5 - - F5 - E5 - D5 - C5 - D5 - | F5 - - - - - D5 - Bb4 - - - C5 - D5 - | C5 - - F5 - - A5 - G5 - F5 - E5 - F5 - | G5 - - - - - - - E5 - - - C5 - - - | A4 - - D5 - - F5 - E5 - D5 - C5 - D5 - | F5 - - - - - G5 - A5 - - - Bb5 - A5 - | G5 - - - F5 - - - E5 - - - D5 - E5 - | C#5 - - - - - - - E5 - - - A5 - - -';
-  function roofTrack(heavy) {
-    return { bpm: heavy ? 184 : 168, scale: E_MINOR, chords: ['Em', 'C', 'D', 'B'],
-      lead: { wave: 'p12', vol: .075, gate: .65, notes:
-        'E5 . B4 . E5 . G5 . F#5 . E5 . D5 . B4 . | C5 . E5 . G5 . E5 . B4 . C5 . E5 . G5 . | D5 . F#5 . A5 . F#5 . E5 . D5 . C5 . A4 . | B4 . D#5 . F#5 . D#5 . B4 . F#5 . D#5 . B5 .' },
-      leads: heavy ? [{ wave: 'p50', vol: .045, gate: .7, shift: -12 }] : [],
-      riff: { wave: 'sawtooth', vol: heavy ? .038 : .02, gate: .7, drive: true,
-        pat: heavy ? 'M M M M R . M M M M M M F . M M' : 'M . M . R . M . M . M . F . M .' },
-      arp: { wave: 'p25', vol: .018, gate: .45, mode: 'updown' },
-      bass: { wave: 'triangle', vol: .28, gate: .75, pat: 'R . R O R . R . R . R O F . O .' },
-      drums: { pat: heavy ? 'KKhHS.hKKKhHS.hK' : 'k.h.s.h.k.h.s.hh', crash: [0], fills: { 3: heavy ? 'KKKKSSSSSSSSSSSS' : 'k.h.s.h.k.s.ssss' } } };
-  }
   const TRACKS = {
-    // Replaceable roof placeholders: the same tense E-minor motif, intensified at fusion.
-    roof: { sections: [roofTrack(false)] },
-    roofHeavy: { sections: [roofTrack(true)] },
     // Title: the main theme. An intro bar, a verse, a soaring chorus, and the verse again a step higher.
     theme: { loopFrom: 1, sections: [{
       bpm: 152, chords: ['Dm', 'Bb', 'C', 'A'],
@@ -231,19 +228,108 @@ window.UnrugSound = (function () {
       drums: { pat: 'KKh.S.hKKKh.S.hK', fills: { 3: 'KKh.S.hKKKSSSSSS', 7: 'KKKKSSSSSSSSSSSS' }, crash: [0, 4] }
     }] }
   };
-  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1 };   // rate: tempo multiplier (a rally speeds the music up)
-  function stopTrack() {
+  Object.assign(TRACKS, window.UnrugRoofMusic || {});
+  if (TRACKS.roofA) { TRACKS.roof = TRACKS.roofA; TRACKS.roofHeavy = TRACKS.roofAHeavy; }
+  // Pattern format is opt-in: the original six section tracks retain their exact compiler and synth.
+  function noteEvents(notes) {
+    const list = typeof notes === 'string' ? toks(notes) : notes, events = []; let step = 0, last;
+    for (const token of list) {
+      if (token === '-') { if (last) last.len++; step++; continue; }
+      if (token === '.') { last = null; step++; continue; }
+      const data = typeof token === 'object' ? Object.assign({}, token) : { note: token };
+      last = Object.assign(data, { step, len: data.len || 1 }); events.push(last); step += last.len;
+    }
+    return events;
+  }
+  function compilePatterns(track) {
+    if (!(track.bpm > 0) || !track.order.length || track.loop < 0 || track.loop >= track.order.length) throw new Error('Invalid track tempo/order/loop');
+    return track.order.map(name => {
+      const pattern = track.patterns[name]; if (!pattern) throw new Error('Missing pattern ' + name);
+      const chans = Object.entries(pattern.channels).map(([name, cfg]) => {
+        const byStep = {}; for (const e of noteEvents(cfg.notes)) {
+          if (e.step + e.len > pattern.bars * 16) throw new Error('Notes exceed pattern: ' + name);
+          (byStep[e.step] = byStep[e.step] || []).push(e);
+        }
+        return Object.assign({ name, stem: name }, cfg, { byStep });
+      });
+      return { steps: pattern.bars * 16, stepDur: 60 / (pattern.bpm || track.bpm) / 4, swing: Math.max(0, Math.min(.45, pattern.swing || track.swing || 0)), chans };
+    });
+  }
+  function chipTone(dest, channel, event, t, duration, pitch, volume) {
+    const cfg = Object.assign({}, channel, event), envelope = Object.assign({ attack: .004, decay: .03, sustain: .65, release: .025 }, channel.envelope, event.envelope);
+    const tone = ctx.createOscillator(), gain = ctx.createGain();
+    const wave = cfg.wave === 'pulse' ? (cfg.duty === .125 ? 'p12' : cfg.duty === .5 ? 'p50' : 'p25') : cfg.wave || 'triangle';
+    if (WAVES[wave]) tone.setPeriodicWave(WAVES[wave]); else tone.type = wave;
+    tone.detune.value = cfg.detune || 0;
+    const f = hz(pitch), slide = cfg.slide, arp = cfg.arp;
+    tone.frequency.setValueAtTime(f, t);
+    if (typeof slide === 'string') tone.frequency.exponentialRampToValueAtTime(hz(midi(slide)), t + duration);
+    else if (slide) { tone.frequency.setValueAtTime(f * Math.pow(2, slide.semitones / 12), t); tone.frequency.exponentialRampToValueAtTime(f, t + Math.min(duration, slide.seconds || duration)); }
+    if (arp && arp.length) for (let j = 0, q = 0; q < duration; j++, q += 1 / (cfg.arpHz || 16)) tone.frequency.setValueAtTime(f * Math.pow(2, arp[j % arp.length] / 12), t + q);
+    const attack = Math.min(duration * .4, envelope.attack), decay = Math.min(duration * .4, envelope.decay), release = Math.max(.005, envelope.release), end = t + duration + release;
+    gain.gain.setValueAtTime(.0001, t); gain.gain.linearRampToValueAtTime(volume, t + attack);
+    gain.gain.linearRampToValueAtTime(Math.max(.0001, volume * envelope.sustain), t + attack + decay);
+    gain.gain.setValueAtTime(Math.max(.0001, volume * envelope.sustain), t + duration); gain.gain.exponentialRampToValueAtTime(.0001, end);
+    if (cfg.vibrato) {
+      const v = cfg.vibrato, lfo = ctx.createOscillator(), depth = ctx.createGain(); lfo.frequency.value = v.rate || 5.5; depth.gain.value = f * (v.depth || .01);
+      lfo.connect(depth); depth.connect(tone.frequency); lfo.start(t + Math.min(duration, v.delay || 0)); lfo.stop(end); lfo.onended = () => { lfo.disconnect(); depth.disconnect(); };
+    }
+    tone.connect(gain); gain.connect(dest); tone.start(t); tone.stop(end + .01); tone.onended = () => { tone.disconnect(); gain.disconnect(); };
+  }
+  function patternNote(dest, channel, event, t, stepDur) {
+    if (channel.wave === 'noise') {
+      const preset = { k: 'K', K: 'K', s: 's', S: 'S', h: 'h', H: 'o', c: 'c', T: 'T' }[event.note];
+      if (!preset) return;
+      const out = ctx.createGain(), vol = event.vol == null ? (channel.vol == null ? .5 : channel.vol) : event.vol, env = Object.assign({attack:.001,decay:.04,sustain:.7,release:.06},channel.envelope,event.envelope);
+      if (!(vol > 0)) return;
+      out.gain.setValueAtTime(.0001,t); out.gain.linearRampToValueAtTime(vol,t+env.attack); out.gain.linearRampToValueAtTime(Math.max(.0001,vol*env.sustain),t+env.attack+env.decay); out.gain.setValueAtTime(Math.max(.0001,vol*env.sustain),t+Math.max(env.attack+env.decay,event.len*stepDur)); out.gain.exponentialRampToValueAtTime(.0001,t+Math.max(env.attack+env.decay,event.len*stepDur)+env.release); out.connect(dest); DRUM[preset](t, out);
+      // Disconnect after the longest preset tail; no interval or source remains.
+      const tail = ctx.createOscillator(); tail.connect(ctx.createGain()); tail.start(t); tail.stop(t + 1); tail.onended = () => out.disconnect(); return;
+    }
+    const duration = event.len * stepDur * (event.gate || channel.gate || .9), pitches = [event.note].concat(event.chord || []).map(n => typeof n === 'number' ? n : midi(n));
+    const vol = event.vol == null ? (channel.vol == null ? .07 : channel.vol) : event.vol, echo = event.echo === undefined ? channel.echo : event.echo;
+    if (!(vol > 0)) return;
+    for (const pitch of pitches) {
+      chipTone(dest, channel, event, t, duration, pitch, vol);
+      if (echo) for (let i = 1; i <= Math.min(4, echo.repeats == null ? 1 : echo.repeats); i++) {
+        const level = vol * Math.pow(echo.feedback == null ? .25 : echo.feedback, i);
+        if (level > 0) chipTone(dest, channel, event, t + i * (echo.delay || .2), duration, pitch, level);
+      }
+    }
+  }
+  function restoreDuck() { if (duckUntil && ctx.currentTime > duckUntil) { duckUntil = 0; musicBus.gain.setTargetAtTime(MUSIC_LEVEL, ctx.currentTime, .08); } }
+  function pumpPatterns() {
+    while (P.id && P.next < ctx.currentTime + .12) {
+      if (P.pendingTrack && P.step % (P.pendingTrack.boundary === 'beat' ? 4 : 16) === 0) {
+        const next = P.pendingTrack, at = P.next; P.pendingTrack = null; playTrack(next.id, Object.assign({}, next.options, { at, slam: true })); return;
+      }
+      if (P.step % 16 === 0) {
+        if (P.pendingStems) { P.stems = P.pendingStems; P.pendingStems = null; }
+        if (P.pendingTempo) { P.rate = P.pendingTempo; P.pendingTempo = 0; }
+      }
+      const S = P.comp[P.si], t = P.next, duration = S.stepDur / P.rate;
+      for (const ch of S.chans) if (P.stems.has(ch.stem)) for (const e of ch.byStep[P.step] || []) patternNote(P.out, ch, e, t, duration);
+      P.next += duration * (P.step % 2 ? 1 - S.swing : 1 + S.swing); P.step++;
+      if (P.step >= S.steps) { P.step = 0; P.si = P.si + 1 < P.comp.length ? P.si + 1 : P.loopFrom; }
+    }
+    restoreDuck();
+  }
+  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1, modern: false, stems: new Set(), pendingStems: null, pendingTempo: 0, pendingTrack: null };   // rate: tempo multiplier (a rally speeds the music up)
+  function stopTrack(hard = false, at) {
+    P.pendingTrack = null; P.pendingStems = null; P.pendingTempo = 0;
     if (!P.id) return;
     clearInterval(P.timer); P.timer = 0;
-    if (P.out && ctx) { const o = P.out; if (/^roof/.test(P.id)) { o.gain.cancelScheduledValues(ctx.currentTime); o.gain.setValueAtTime(0, ctx.currentTime); } else o.gain.setTargetAtTime(0, ctx.currentTime, .03); setTimeout(() => { try { o.disconnect(); } catch (e) {} }, 400); }
+    if (P.out && ctx) { const o = P.out; if (hard || /^roof/.test(P.id)) { const cut = at == null ? ctx.currentTime : at; o.gain.cancelScheduledValues(cut); o.gain.setValueAtTime(0, cut); } else o.gain.setTargetAtTime(0, ctx.currentTime, .03); setTimeout(() => { try { o.disconnect(); } catch (e) {} }, 400); }
     P.id = null; P.out = null;
   }
-  function playTrack(id) {
-    stopTrack();
+  function playTrack(id, options = {}) {
+    stopTrack(!!options.slam, options.at);
     if (!ctx || !TRACKS[id]) return;
     const tr = TRACKS[id];
-    tr.comp = tr.comp || tr.sections.map(compile);
-    P.id = id; P.comp = tr.comp; P.loopFrom = tr.loopFrom || 0; P.si = 0; P.step = 0; P.next = ctx.currentTime + .08;
+    tr.comp = tr.comp || (tr.patterns ? compilePatterns(tr) : tr.sections.map(compile));
+    P.id = id; P.comp = tr.comp; P.loopFrom = tr.patterns ? tr.loop || 0 : tr.loopFrom || 0; P.si = 0; P.step = 0; P.next = options.at == null ? ctx.currentTime + (options.slam ? .005 : .08) : options.at;
+    P.modern = !!tr.patterns; P.stems = new Set(options.stems || tr.stems || []);
+    if (P.modern) { P.next = options.at == null ? ctx.currentTime + .005 : options.at; P.rate = 1; }
     P.out = ctx.createGain(); P.out.gain.value = 1; P.out.connect(musicBus);
     // Overdrive for the saw riff: gain into tanh, a speaker-cabinet low-pass, then back down.
     P.drive = ctx.createGain(); P.drive.gain.value = 8;
@@ -257,8 +343,10 @@ window.UnrugSound = (function () {
   }
   function pump() {
     if (!P.id || !ctx) return;
+    if (P.modern) { if (P.next < ctx.currentTime - .1) P.next = ctx.currentTime + .005; pumpPatterns(); return; }
     if (P.next < ctx.currentTime - .1) P.next = ctx.currentTime + .05;
     while (P.next < ctx.currentTime + .12) {
+      if (P.pendingTrack && P.step % (P.pendingTrack.boundary === 'beat' ? 4 : 16) === 0) { const next = P.pendingTrack, at = P.next; playTrack(next.id, Object.assign({}, next.options, { at, slam: true })); return; }
       const S = P.comp[P.si], t = P.next, stepDur = S.stepDur / P.rate;
       for (const ch of S.chans) { const evs = ch.byStep[P.step]; if (evs) for (const e of evs) osc(ch.drive ? P.drive : P.out, ch.wave, hz(e.m), t, e.len * stepDur * (e.g || ch.gate || .9), ch.vol, { vib: ch.vib }); }
       const d = S.drums[P.step]; if (DRUM[d]) DRUM[d](t, P.out);
@@ -269,6 +357,38 @@ window.UnrugSound = (function () {
     if (duckUntil && ctx.currentTime > duckUntil) { duckUntil = 0; musicBus.gain.setTargetAtTime(MUSIC_LEVEL, ctx.currentTime, .08); }
   }
 
+  let musicFx = null, roofChoice = 'a';
+  function fxBus() { if (!musicFx) { musicFx = ctx.createGain(); musicFx.connect(musicBus); } return musicFx; }
+  function stopMusicFx() { if (!ctx || !musicFx) return; const out = musicFx; out.gain.setValueAtTime(0, ctx.currentTime); musicFx = null; setTimeout(() => out.disconnect(), 6000); }
+  function stinger(name) {
+    if (!ctx || ctx.state !== 'running') return;
+    const tr = TRACKS[P.id || want] || TRACKS['roof' + roofChoice.toUpperCase()], data = tr && tr.stingers && tr.stingers[name]; if (!data) return;
+    const stepDur = 60 / data.bpm / 4, at = ctx.currentTime + .005;
+    for (const e of noteEvents(data.notes)) patternNote(fxBus(), data, e, at + e.step * stepDur, stepDur);
+  }
+  function riser(seconds = 4) {
+    if (!ctx || ctx.state !== 'running') return;
+    restoreDuck(); stopMusicFx(); const out = fxBus(), t = ctx.currentTime + .005;
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(1, t + seconds);
+    osc(out, 'sawtooth', hz(38), t, seconds, .08, { to: hz(74), attack: .01, sustain: 1 });
+    noiseHit(out, t, seconds, .12, 'bandpass', 140, .7, 4200);
+    for (let i = 0; i < seconds * 8; i++) osc(out, 'p12', hz([62,65,69,74][i % 4]), t + i / 8, .1, .025);
+  }
+  function roofCue(name, options = {}) {
+    if (options.candidate) roofChoice = /^[abc]$/.test(options.candidate) ? options.candidate : 'a';
+    const id = 'roof' + roofChoice.toUpperCase(), base = ['drums', 'bass', 'lead'];
+    if (name === 'lead' || name === 'quiet' || name === 'cut') { api.music(null, { hard: true }); return; }
+    if (name === 'fight') { stopMusicFx(); api.music(id, { slam: true, stems: base }); }
+    else if (name === 'round2' || name === 'round3') {
+      const stems = base.concat(name === 'round3' ? ['harmony', 'power'] : ['harmony']);
+      if (want !== id) api.music(id, { slam: true, stems }); else api.stems(stems);
+    }
+    else if (name === 'spool') stinger('spool');
+    else if (name === 'flood') riser(options.seconds || 4);
+    else if (name === 'fusion') { stopMusicFx(); api.music(id + 'Heavy', { slam: true }); }
+    else if (name === 'one') { api.music(null, { hard: true }); if (ctx) osc(fxBus(), 'p50', hz(74), ctx.currentTime + .005, options.seconds || 2, .09, { attack: .015, sustain: .9 }); }
+    else if (name === 'snap' || name === 'dawn') { api.music(null, { hard: true }); if (!options.continueChord) api.play('chord'); }
+  }
   // ---------- blip talk ----------
   const VOICES = {
     loom: { f: 96, wave: 'p12', ms: 38 }, // Keep the original fallback's caption cadence.
@@ -434,17 +554,28 @@ window.UnrugSound = (function () {
     get muted() { return muted; },
     play(name, arg) { if (!ctx || ctx.state !== 'running' || !SFX[name]) return; SFX[name](ctx.currentTime + .005, arg); },
     // Switch the music: 'theme', 'tower', 'staff', 'dark', 'copy', 'shred' or null. Remembered until sound can start.
-    music(id) {
+    music(id, options = {}) {
       id = id || null;
-      if (id && !/^roof/.test(id)) roofSound(null);
-      if (id === want && (P.id === id || !ctx)) return;
-      want = id;
+      if (id && !/^roof/.test(id)) { roofSound(null); stopMusicFx(); }
+      if (options.hard) stopMusicFx();
+      if (ctx && P.id && id && id !== P.id && ['bar', 'beat'].includes(options.boundary)) { want = id; P.pendingTrack = { id, boundary: options.boundary, options }; return; }
+      if (id === want && (P.id === id || !ctx) && !options.slam && !options.hard) return;
+      want = id; wantOptions = options;
       if (!ctx) return;
-      if (id) playTrack(id); else stopTrack();
+      if (id) playTrack(id, options); else stopTrack(!!options.hard);
     },
     get track() { return want; },
     // Tempo: 1 is the track's own; above 1 plays it faster at the same pitch.
-    tempo(r) { P.rate = Math.max(.5, Math.min(2, r || 1)); },
+    tempo(r) { const value = Math.max(.5, Math.min(2, r || 1)); if (P.modern) P.pendingTempo = value; else P.rate = value; },
+    stems(names) { if (!ctx) wantOptions = Object.assign({}, wantOptions, { stems: names }); P.pendingStems = new Set(names); },
+    stinger, riser, roofCue,
+    registerTrack(id, data) {
+      delete data.comp; TRACKS[id] = data;
+      if (id === 'roofA') TRACKS.roof = data; if (id === 'roofAHeavy') TRACKS.roofHeavy = data;
+      if (ctx && P.id === id) P.pendingTrack = { id, boundary: 'bar', options: { stems: [...P.stems] } };
+    },
+    get musicState() { return { playing: P.id, pending: P.pendingTrack && P.pendingTrack.id, stems: [...P.stems], nextStems: P.pendingStems && [...P.pendingStems], rate: P.rate }; },
+    tracks() { return Object.entries(TRACKS).filter(([id]) => !['roof', 'roofHeavy'].includes(id)).map(([id, tr]) => ({ id, name: tr.name || id, key: tr.key, bpm: tr.bpm || tr.sections[0].bpm, stems: tr.patterns ? [...new Set(Object.values(tr.patterns).flatMap(p => Object.values(p.channels).map(c => c.stem)))] : [], seconds: tr.patterns ? compilePatterns(tr).reduce((n,p) => n + p.steps*p.stepDur, 0) : tr.sections.map(compile).reduce((n,p)=>n+p.steps*p.stepDur,0) })); },
     say, talkTimes, hush,
     toggle() {
       muted = !muted;
