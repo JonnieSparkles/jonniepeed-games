@@ -77,10 +77,15 @@ Why things are the way they are, and what was tried and dropped, so a later chan
   - **Rugged:** the flip off the screen was "weird". The owner asked for him to fall or vanish and "a bull soul" to rise, and picked the all-ghost version over cream horns, from a moving mock.
   - **Moving day's souls** "render in front of what theyre actually behind. hard to tell where they are": they were drawn with the glow, over everything. Now they're in depth order with a shadow.
   - **A black bar** in the lit renderer: the bloom's two blur passes had rows and columns swapped, so the pass going down read past the end of the buffer and turned the bottom rows NaN, which shows as black wherever there was bloom (seen as a bar across his legs). Since the lit renderer; fixed, and bloom now covers the whole picture.
+- **The souls' streams and their goodbye, Oct 12:** the owner: the hall's Spread Shot and the Shredder's soul streams were "the same upgrade in the end. so its not THAT special". Side by side they were both gold bolts in a fan. The streams became ribbons of light from the blaster's muzzle ("it needs to look like it's coming from the blaster"), and the two souls got an ending: a salute and "GOOD LUCK." after the Shredder dies, then the clear ("ppl can wait 4.5s"). Floor 48 keeps the bending-in for itself, and the roof the fusion.
 
 ## Tried and dropped
 
 - **The 13th Floor's floor boxes, round one and two** (notes round): a carpshit hiding in a moving box, caution tape, spilled staples; then a stapler trap, a paper cutter, a shred bin. "Boring and not threatening"; then potted plants ("no potted plants"). Stepping back, the owner asked what they were for (a watch-your-feet hazard) and suggested "a low cubicle desk sticking out onto the carpet": desks it is.
+- **Souls riding the streams** (soul streams round): a soul now and then on a ribbon. "Distracting."
+- **The souls leaving at the last stand** (soul streams round), to explain why the blaster can't finish the Shredder: "not a fan unless its more intentional". They leave at the goodbye instead.
+- **A souls' rescue** (soul streams round): him pinned in the Shredder's blue fields, the souls firing for him. Saved: the souls coming back to help is the roof's reveal, and it takes the controls away mid-fight.
+- **Changing the hall's pickup instead** (soul streams round), to faster fire or bigger blasts, keeping Spread Shot for the souls. Not needed once the streams looked their own; bigger blasts would also shrink the roof's beam.
 - **The staple side spray** (notes round): staples streaming down both sides during a pull, then spinning as stars. They didn't look great, and a shredded-paper blizzard from its side vents lost to the live floor in stills.
 - **Shots and staples, round one** (notes round): a bale of shreddings and a file folder for the bundle; a staple point first, chunky side on, a strip. Only the paper ball was kept.
 

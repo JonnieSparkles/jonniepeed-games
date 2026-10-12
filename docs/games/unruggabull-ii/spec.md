@@ -122,13 +122,14 @@ Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain c
 
 ### The hint on the 13th Floor (built)
 
-The first time the blaster comes back in the Shredder's phase 3, two souls fly slowly into it instead of into the counter, the fight holding its breath while they come, and it fires three streams for the rest of the fight. With the souls in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the streams wear it down, and paper sent back finishes it.
+The first time the blaster comes back in the Shredder's phase 3, two souls fly slowly into it instead of into the counter, the fight holding its breath while they come, and it fires three streams for the rest of the fight: ribbons of light from the blaster's muzzle, straight down the hall beside the bolt. With the souls in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the streams wear it down, and paper sent back finishes it.
 
 - Nothing announces it: no banner, no pickup text, and no live-region line beyond "Blaster back."
 - It mustn't look like Spread Shot, which already fires three ways: the souls visibly fly into the gun, the streams are the souls' colours (pale white with the halo's gold), and each stream comes in with a single soft bell note.
 - The streams stay parallel or fan slightly. They never bend together; bending in is saved for later.
 - The extra streams do normal damage and cost no extra charges; with the Shredder's brace and its last stand, they help without making the blaster the finisher.
 - Done when a first-time player notices something odd and good happened, and can't say what.
+- **Goodbye** (Oct 12): when the Shredder's beaten, the two souls leave the gun, salute and say "GOOD LUCK.", then rise with every soul freed on the floor, before the clear. Their only line before the roof. On Floor 48 the souls could come back and leave the same way, reluctantly.
 
 ### The near miss on the middle floor (build with that floor)
 

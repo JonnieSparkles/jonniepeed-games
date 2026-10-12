@@ -278,9 +278,10 @@
     shot(0);
     if (R.gold) R.shots[R.shots.length - 1].soul = true;
     if (R.spread > 0) { shot(-.6); shot(.6); }
-    // the souls' streams: thin, white and gold, side by side with the bolt (a slight fan, never bending in), no extra charge
+    // the souls' streams: a shot either side of the bolt, flying straight beside it (never bending in), no extra charge;
+    // drawn as ribbons of light from the muzzle (drawStreams)
     const hs = R.hint ? R.hint.streams : 1;
-    if (hs > 1) for (const o of hs === 2 ? [1] : [-1, 1]) R.shots.push({ u: mu + o * .08, z: bull.bz + .03, h: mh, du: o * .06, tgt: null, dead: false, soul: true });
+    if (hs > 1) for (const o of hs === 2 ? [1] : [-1, 1]) R.shots.push({ u: mu + o * .07, z: bull.bz + .03, h: mh, du: 0, tgt: null, dead: false, soul: true, side: o });
     R.events.shots = (R.events.shots || 0) + 1;
     const k = sc(bull.bz);
     R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k, t: 0, dur: .08 });
@@ -324,6 +325,48 @@
 
 
   function muzzleXY() { if (floor.muzzleXY) return floor.muzzleXY(); const k = sc(bull.bz); return { x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k }; }
+  // The souls' streams (the owner's pick over gold bolts, which read as a second Spread Shot): one ribbon of light a
+  // side, from the blaster's muzzle through each of that side's shots in turn, a white core in a gold glow, rippling
+  // more the further it gets from the gun and narrowing with distance. While he fires, each stream starts at the
+  // muzzle, which glows; when he stops, it comes off the gun and flies on. Drawn with the glow; cosmetic.
+  function drawStreams() {
+    const k0 = sc(bull.bz), mx = PX(bull.u, bull.bz) + A.MUZZLE.x * k0, my = YH(bull.bz, bull.jh) + A.MUZZLE.y * k0;
+    let atGun = false;
+    for (const side of [-1, 1]) {
+      const list = R.shots.filter(s => s.soul && s.side === side && !s.dead).sort((a, b) => a.z - b.z);
+      if (!list.length) continue;
+      let run = [];
+      if (list[0].z - bull.bz < .5) { run.push({ x: mx, y: my, z: bull.bz }); atGun = true; }
+      for (const s of list) {
+        if (run.length && s.z - run[run.length - 1].z > .6) { ribbon(run, side); run = []; }
+        run.push({ s, z: s.z });
+      }
+      ribbon(run, side);
+    }
+    if (atGun) { disc(g, mx, my, 4 * k0, 'rgba(255,212,74,.35)'); disc(g, mx, my, 2 * k0, '#fff6dc'); }
+  }
+  // one stretch of a stream: from node to node, four steps between each, rippling sideways
+  function ribbon(run, side) {
+    if (run.length < 2) return;
+    const pts = [], wob = z => Math.sin(z * 26 - R.t * 18 + side * 2) * .011 * Math.min(1, (z - bull.bz) * 5);
+    const spot = n => [PX(n.s.u + wob(n.z), n.z), YH(n.z, n.s.h)];
+    for (let i = 0; i < run.length - 1; i++) {
+      const a = run[i], b = run[i + 1];
+      for (let j = 0; j < 4; j++) {
+        const f = j / 4, z = a.z + (b.z - a.z) * f;
+        if (!a.s) { const [x1, y1] = spot(b); pts.push([a.x + (x1 - a.x) * f, a.y + (y1 - a.y) * f, z]); }   // out of the muzzle
+        else pts.push([PX(a.s.u + (b.s.u - a.s.u) * f + wob(z), z), YH(z, a.s.h + (b.s.h - a.s.h) * f), z]);
+      }
+    }
+    const end = run[run.length - 1]; pts.push([...spot(end), end.z]);
+    g.lineCap = 'round';
+    for (const [col, w] of [['rgba(255,212,74,.3)', 4.5], ['rgba(255,236,160,.85)', 2.2], ['#ffffff', 1]]) {
+      g.strokeStyle = col;
+      for (let i = 0; i < pts.length - 1; i++) { g.lineWidth = Math.max(.6, w * sc(pts[i][2])); g.beginPath(); g.moveTo(pts[i][0], pts[i][1]); g.lineTo(pts[i + 1][0], pts[i + 1][1]); g.stroke(); }
+    }
+    disc(g, pts[pts.length - 1][0], pts[pts.length - 1][1], Math.max(1, 1.6 * sc(end.z)), '#fff6dc');
+  }
+  // a gold shot on the roof, once the souls are back (R.gold): white in gold
   function drawSoulShot(s) {
     const k = sc(s.z), z0 = Math.max(ZN, s.z - .14), z1 = Math.max(ZN, s.z - .06), x = PX(s.u, s.z), y = YH(s.z, s.h), r = Math.max(1, Math.round(2.2 * k));
     line(g, PX(s.u - s.du * .14, z0), YH(z0, s.h), PX(s.u - s.du * .06, z1), YH(z1, s.h), '#b0701a');
@@ -524,7 +567,7 @@
   // white-hot edge inside the red. Paper you knocked back loses the edge, throws a shadow and sparkles blue.
   // A blaster bolt: a long two-tone tail, a flickering glow ring and a white-hot core. Spread bolts are gold.
   function drawShot(s) {
-    if (s.soul) { drawSoulShot(s); return; }
+    if (s.soul) { if (!s.side) drawSoulShot(s); return; }   // the streams' shots are drawn as ribbons (drawStreams)
     const k = sc(s.z), z0 = Math.max(ZN, s.z - .1), z1 = Math.max(ZN, s.z - .045), x = PX(s.u, s.z), y = YH(s.z, s.h);
     const u0 = s.u - (s.du || 0) * .045, r = Math.max(1, Math.round(2.5 * k)), gold = s.spread;
     line(g, PX(u0 - (s.du || 0) * .05, z0), YH(z0, s.h), PX(u0, z1), YH(z1, s.h), gold ? '#b0701a' : '#243a6c');
@@ -641,6 +684,7 @@
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
   const FX_PASS = { wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
   function drawFx(pass) {
+    if (pass === 'glow') drawStreams();
     if (pass === 'glow' && R.phase === 'dead' && R.soulAt && R.phaseT > 1) bullSoul(R.phaseT - 1, ...R.soulAt);
     for (const f of R.fx) {
       if ((FX_PASS[f.k] || 'lit') !== pass) continue;
