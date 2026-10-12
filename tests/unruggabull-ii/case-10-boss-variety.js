@@ -1,4 +1,4 @@
-// The Shredder's attack patterns: volleys, paper jam sheets and staple carpets; riding the rug in for a longer jam
+// The Shredder's attack patterns: volleys and staple carpets; riding the rug in for a longer jam
 // and harder deflects; the live floor during pulls.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -45,16 +45,17 @@
   check(b.jam > TUNE.jamT * 1.8, 'ride it in close and the jam lasts nearly twice as long (' + b.jam.toFixed(2) + ')');
   b.jam = 0; bull.bz = 0;
 
-  // phase 2: staple fans, bundles, a paper jam sheet to jump, volleys
+  // phase 2: staple fans, bundles, a staple carpet to jump, volleys (no paper sheets any more)
   reset(); b.hp = 60; update(1 / 60);
   check(b.ph === 2, 'phase two');
-  reset(); fire(ATTACKS[1].indexOf('sheet'));
-  const sheet = R.rows.find(rw => rw.kind === 'sheet');
-  check(sheet && sheet.v === TUNE.bossRows.sheet, 'phase 2 slides a paper jam sheet out of its mouth');
+  check(!ATTACKS.some(l => l.includes('sheet')) && !BEATS.some(B => B.rows === 'sheet'), 'no paper sheets anywhere');
+  reset(); fire(ATTACKS[1].indexOf('carpet'));
+  const sheet = R.rows.find(rw => rw.kind === 'carpet');
+  check(sheet && sheet.v === TUNE.bossRows.carpet, 'phase 2 sends a staple carpet out of its mouth');
   b.atk = 1e9; bull.inv = 0;
   for (let i = 0; i < 300 && sheet.w - R.dist - bull.bz > .12; i++) update(1 / 60);
   const hearts = R.hearts; press('jump'); step(1);
-  check(R.hearts === hearts && !sheet.hit, 'jumping clears the sheet');
+  check(R.hearts === hearts && !sheet.hit, 'jumping clears the carpet');
   bull.inv = 1e9;
 
   // a live floor: some pulls make the floor beside the rug live, but not the rug

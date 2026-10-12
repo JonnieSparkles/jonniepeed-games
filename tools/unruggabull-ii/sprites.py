@@ -656,6 +656,26 @@ def soul():
 
 
 
+
+def soul_salute():
+    """A soul saluting, its arm out to the elbow and back up to its brow: the two souls from the blaster saying goodbye
+    when the Shredder's beaten. Drawn facing us; the game flips it for the other one."""
+    cv = Canvas(24, 22, lit_above=99)
+    ellipse(cv, 9, 2.5, 5, 1.6, 'gold', base=.4, hard=True)                 # its halo
+    for x in range(6, 13):
+        T(cv, x, 2.5, '.')
+    capsule(cv, [(9, 10, 6.2), (9, 14, 6.2)], 'soul', base=.25, hard=True)  # the body
+    for k, x in enumerate((4, 9, 14)):
+        ellipse(cv, x, 19 + (k % 2), 2.2, 1.8, 'soul', base=.1)              # its wavy hem
+    capsule(cv, [(14.6, 14, 1.2), (19.6, 11, 1.1)], 'soul', base=.45, hard=True)   # the upper arm, out to the elbow
+    capsule(cv, [(19.6, 11, 1.1), (14.2, 7.4, 1.0)], 'soul', base=.6, hard=True)   # the forearm, back to its brow
+    ellipse(cv, 13.4, 7.2, 1.6, 1.0, 'soul', base=.8, hard=True)                 # a flat hand
+    g = finish(cv)
+    rows = [list(r) for r in g]
+    for x, y in ((6, 11), (7, 11), (6, 12), (7, 12), (11, 11), (12, 11), (11, 12), (12, 12), (8, 15), (9, 15), (10, 15)):
+        rows[y][x] = 'K'
+    return [''.join(r) for r in rows]
+
 def bull_soul():
     """Unruggabull's own soul, rising when he's rugged: a soul with his horns, ears and a muzzle, all in the soul's
     ghostly blue (the owner's pick over cream horns), and a halo."""
@@ -761,7 +781,7 @@ def spread():
 
 
 def cast():
-    return {'SOUL': soul(), 'BULL_SOUL': bull_soul(), 'HEART': heart('heart'), 'HEART_EMPTY': heart('dim'), 'WAD': paper_wad(), 'BUNDLE': bundle(),
+    return {'SOUL': soul(), 'SOUL_SALUTE': soul_salute(), 'BULL_SOUL': bull_soul(), 'HEART': heart('heart'), 'HEART_EMPTY': heart('dim'), 'WAD': paper_wad(), 'BUNDLE': bundle(),
             'STAPLE': staple(), 'PLANE': plane(), 'COFFEE': coffee(), 'SPREAD': spread()}
 
 

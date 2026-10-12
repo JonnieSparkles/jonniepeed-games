@@ -22,7 +22,6 @@
     { "label": "lost: formations", "key": "hit.amount:cause=formation" },
     { "label": "lost: boxes", "key": "hit.amount:cause=box" },
     { "label": "lost: chairs", "key": "hit.amount:cause=chairs" },
-    { "label": "lost: sheets", "key": "hit.amount:cause=sheet" },
     { "label": "lost: rug", "key": "hit.amount:cause=rug" },
     { "label": "lost: bundles", "key": "hit.amount:cause=bundle" },
     { "label": "lost: staples", "key": "hit.amount:cause=staple" },

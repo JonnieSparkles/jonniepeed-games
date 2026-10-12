@@ -60,7 +60,7 @@ A corridor floor of about two minutes, then the Shredder.
   - **Lights out**: only monitors, eyes and paper show, and blaster bolts light up the hall as they fly. Formations and single carpshits keep coming out of the dark, and every soul freed in it counts double. Shoot a glowing light switch and the lights flash on, freezing them.
   - Wiping out a whole formation pays a bonus soul for each carpshit in it.
   - **Copy Room**: temps behind copiers, and the runner starts pulling. It ends at the goal.
-  - Rows that span the aisle (office chairs from All Staff on, a paper jam's sheet) give jumping a job, after the first section.
+  - Rows that span the aisle (office chairs in All Staff) give jumping a job, after the first section.
   - Carpshits at work line the walls, the office's own: typing (some in an accountant's green visor), on calls, asleep at their desks, gossiping at the water cooler, copying themselves in the copy room, a manager pacing in an office set into the wall. They never fight back, and a shot frees the soul inside (p(Loom) wove them from souls), double in the dark.
   - Pickups float at jump height, lit by a beam from the ceiling: coffee (a heart back) and the Spread Shot. A streak of 10 kills drops a Spread Shot.
   - Each beat and event drops its own sign from the ceiling and has its own music, with stings for the events. No banners across the hall during play.
@@ -72,7 +72,7 @@ A corridor floor of about two minutes, then the Shredder.
   - Its mouth glows red just before every attack.
   - In every phase it throws a flight of paper airplanes across the hall at head height: duck, or slash them back.
   - Phase 1: it spits wads of shredded paper (deflect them into its mouth for heavy damage) and quick volleys of smaller scraps to knock back tap-tap-tap.
-  - Phase 2: staple fans you have to dodge or deflect, paper jam sheets across the floor to jump, and longer pulls.
+  - Phase 2: staple fans you have to dodge or deflect, staple carpets across the floor to jump, and longer pulls.
   - Phase 2 starts the rallies: it serves a white-hot bundle and bats your deflects back, quicker each time, until it misses for a smash.
   - Phase 3 (the volley match) opens with the lights out ("power saving mode") and a power surge you can't dodge, which knocks the blaster up the rug. Win a rally and the rug rolls back with it; a rolling rug pins you at the back of the hall. It also rewinds the rug while spitting at you, and sends staple carpets to jump and volleys.
   - **The souls' hint** (the first glimpse of the mega stream, below): the first time the blaster comes back in phase 3, a few souls leave the counter and fly into it, and for a few seconds it fires two, then three streams. Then it quietly goes back to normal. Nothing explains it.
@@ -122,13 +122,14 @@ Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain c
 
 ### The hint on the 13th Floor (built)
 
-The first time the blaster comes back in the Shredder's phase 3, two souls fly slowly into it instead of into the counter, the fight holding its breath while they come, and it fires three streams for the rest of the fight. With the souls in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the streams wear it down, and paper sent back finishes it.
+The first time the blaster comes back in the Shredder's phase 3, two souls fly slowly into it instead of into the counter, the fight holding its breath while they come, and it fires three streams for the rest of the fight: ribbons of light from the blaster's muzzle, straight down the hall beside the bolt. With the souls in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the streams wear it down, and paper sent back finishes it.
 
 - Nothing announces it: no banner, no pickup text, and no live-region line beyond "Blaster back."
 - It mustn't look like Spread Shot, which already fires three ways: the souls visibly fly into the gun, the streams are the souls' colours (pale white with the halo's gold), and each stream comes in with a single soft bell note.
 - The streams stay parallel or fan slightly. They never bend together; bending in is saved for later.
 - The extra streams do normal damage and cost no extra charges; with the Shredder's brace and its last stand, they help without making the blaster the finisher.
 - Done when a first-time player notices something odd and good happened, and can't say what.
+- **Goodbye** (Oct 12): when the Shredder's beaten, the two souls leave the gun, salute and say "GOOD LUCK.", then rise with every soul freed on the floor, before the clear. Their only line before the roof. On Floor 48 the souls could come back and leave the same way, reluctantly.
 
 ### The near miss on the middle floor (build with that floor)
 

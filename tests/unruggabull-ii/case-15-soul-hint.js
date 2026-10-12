@@ -1,6 +1,7 @@
 // The souls' hint (the mega stream's first glimpse): the first time the blaster comes back in the Shredder's fight, two
 // souls leave the counter and fly into the gun, and it fires two then three soul streams for the rest of the fight.
-// Nothing announces it, the counter keeps its souls, and the streams cost no extra charges.
+// Nothing announces it, the counter keeps its souls, and the streams cost no extra charges. When the Shredder's beaten,
+// the two souls say goodbye before the clear.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -31,14 +32,14 @@
     check(R.hint && R.hint.landed === T.souls && R.hint.streams === 3, 'three streams once the souls are in');
     check(bells.length === 2 && bells[0] === 0 && bells[1] === 1, 'one bell for each new stream (' + bells.join(',') + ')');
     check(R.souls === souls, 'the counter keeps its souls');
-    // firing: the bolt plus two soul streams, side by side and fanning slightly, for one charge
+    // firing: the bolt plus two soul streams, one each side flying straight beside it, for one charge
     R.shots = []; R.fireT = 0; const charge = R.charge;
     keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
     const soul = R.shots.filter(s => s.soul), bolt = R.shots.filter(s => !s.soul);
     check(bolt.length === 1 && soul.length === 2, 'a bolt and two soul streams');
     check(R.charge === charge - 1, 'for one charge');
-    check(soul.every(s => Math.abs(s.du) <= .1 && !s.tgt && !s.spread), 'parallel or fanning slightly, never homing in, and not Spread Shot');
-    check(soul[0].du * soul[1].du < 0, 'one each side');
+    check(soul.every(s => s.du === 0 && !s.tgt && !s.spread), 'parallel, never homing in, and not Spread Shot');
+    check(soul[0].side * soul[1].side < 0, 'one each side');
     draw();
     // a soul stream does normal blaster damage
     R.shots = soul.slice(0, 1); const hp = b.hp; b.jam = 0;
@@ -58,5 +59,21 @@
     check(R.armed === true && R.hint && R.hint.streams === 3 && bells.length === n, 'and come back with it, without a sound');
     R.shots = []; R.fireT = 0; keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
     check(R.shots.filter(s => s.soul).length === 2, 'still a bolt and two streams');
+    draw();
+    // goodbye: once it's beaten (after its last line) the souls leave the gun, salute, say good luck and rise with the
+    // rest; the clear waits for them
+    const Y = TUNE.soulBye; bells.length = 0; R.shots = []; R.projs = [];
+    bossDamage(b.hp, 'deflect');
+    check(R.phase === 'win' && R.hint && R.hint.streams === 3, 'beaten, with the souls still in the gun');
+    let saw = false, rose = 0;
+    for (let i = 0; i < 60 * 30 && R.phase === 'win' && state !== 'over'; i++) {
+      update(1 / 60);
+      if (R.hint && R.hint.bye && !saw) { saw = true; check(R.hint.streams === 1, 'they leave the gun'); }
+      if (R.hint && R.hint.bye && R.hint.bye.t > Y.say + .2 && R.hint.bye.t < Y.say + .3) { draw(); check(!R.events.clearBanner, 'the clear waits while they say goodbye'); }
+      rose = Math.max(rose, R.fx.filter(f => f.k === 'rise').length);
+    }
+    check(saw && bells.length === 2, 'goodbye, with a bell as they come out and one as they speak (' + bells + ')');
+    check(rose === Math.min(40, R.souls), 'and the floor\'s souls rise with them');
+    check(state === 'over' && cardTitle.textContent === 'The 13th Floor clear', 'then the clear card');
   } finally { Snd.play = play; }
 })();
