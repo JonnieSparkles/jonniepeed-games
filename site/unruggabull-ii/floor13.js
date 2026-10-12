@@ -510,9 +510,9 @@ var UnrugFloor13 = function (core) {
     const [lo, hi] = TUNE.rally.count[b.ph - 1];
     const marathon = !!long && !b.marathonDone;   // once a phase, a rally goes the distance
     if (marathon) b.marathonDone = true;
-    // at its last stand the rally is short: it bats back once, then misses, and that's the finish
+    // at its last stand it's a proper rally, at the short end of the phase's range: win it and that's the finish
     const last = b.hp <= TUNE.lastStand;
-    b.rally = { count: 0, target: last ? 1 : marathon ? TUNE.rally.marathon[b.ph - 1] : lo + Math.floor(rnd() * (hi - lo + 1)), marathon: marathon && !last };
+    b.rally = { count: 0, target: last ? lo : marathon ? TUNE.rally.marathon[b.ph - 1] : lo + Math.floor(rnd() * (hi - lo + 1)), marathon: marathon && !last };
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.rally.serve, { w: .09, hh: .06, rally: true });
     b.spit = .25; Snd.play('spit');
     if (marathon) {
