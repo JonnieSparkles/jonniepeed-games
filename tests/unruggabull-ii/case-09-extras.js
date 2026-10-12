@@ -82,7 +82,7 @@
   check(R.phase === 'win', 'still clearing');
   step(4);
   const text = cardStats.textContent;
-  check(state === 'over' && cardTitle.textContent === 'Floor 13 clear', 'cleared');
+  check(state === 'over' && cardTitle.textContent === 'The 13th Floor clear', 'cleared');
   check(text.includes('Deflects7') && text.includes('Best streak9') && text.includes('Smashes2') && text.includes('Continues1'), 'the clear card shows deflects, best streak, smashes and continues: ' + text);
   check(((JSON.parse(localStorage.getItem('unruggabull-ii-best')).time) || 0) === bestTime, 'a clear with continues does not set the fastest time');
 

@@ -148,6 +148,7 @@ var UnrugRender = (function () {
     // ---------- this frame's view of the hall ----------
     let T = 0, scroll = 0, rugScroll = 0, power = 1, dark = false, edgeGlow = 0, fill = 0;
     let dawn = 0;
+    const sunrise = () => OPEN ? [.3 * dawn, .12 * dawn, -.025 * dawn] : [0, 0, 0];
     const RAILC = [.36, .2, .11], EDGEC = [.78, .52, .1];
     // SETS: the section's look (view.look): the wall's lower panels (lo), its plaster above (hi), the skirting (sk), the
     // cornice (co), the ceiling tiles (ce), the floor tiles (ti) and how polished they are (sh), and the ceiling panels'
@@ -181,6 +182,7 @@ var UnrugRender = (function () {
     }
     function lightAt(x, y, z, nx, ny, nz, out) {
       let r = .03 + fill, g = .03 + fill, b = .06 + fill;
+      if (OPEN) { const c = sunrise(); r += c[0]; g += c[1]; b += c[2]; }
       if (dark) { r = .012; g = .012; b = .03; }
       for (let i = 0; i < LN; i++) {
         const vx = LX[i] - x, vy = LY[i] - y, vz = LZ[i] - z, d2 = vx * vx + vy * vy + vz * vz;
@@ -443,6 +445,7 @@ var UnrugRender = (function () {
         const s = gs[g]; if (!s) continue;
         const q = gq[g], x = hx[q], y = hy[q], z = hz[q], nx = s === 3 ? 1 : s === 4 ? -1 : 0, ny = s === 1 ? 1 : s === 2 ? -1 : 0;
         let r = ar, gg = ar, b = ab;
+        if (OPEN) { const c = sunrise(); r += c[0]; gg += c[1]; b += c[2]; }
         for (let i = 0; i < n; i++) {
           const vz = lz[i] - z; if (vz > 9.5 || vz < -9.5) continue;
           const vx = lx[i] - x, vy = ly[i] - y, d2 = vx * vx + vy * vy + vz * vz; if (d2 > 90) continue;

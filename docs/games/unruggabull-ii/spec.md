@@ -2,7 +2,7 @@
 
 A sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
-Status: Floor 13 is built as the first playable slice, at `site/unruggabull-ii/`, on Side B as a noindexed demo. The rest of the climb follows in later stages. Once a stage ships, [README.md](README.md) and the code are the source of truth.
+Status: the 13th Floor is built as the first playable slice, at `site/unruggabull-ii/`, on Side B as a noindexed demo. The rest of the climb follows in later stages. Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
 The original game stays in its own repo (painted art, ES modules, desktop). Its `level-2` branch is the start of a later helicopter release, not part of this game.
 
@@ -14,7 +14,7 @@ Absurd lore told with a straight face. The opening crawl, narrated in blips:
 2. But the Rugfather was only middle management.
 3. Every carpshit our hero unrugged left a soul behind: the Unrugged. Small, fringed and very polite, they drifted up toward the roof of RugCo Tower and did not come back down.
 4. Something up there has been catching them and weaving them back into carpshits. RugCo calls it p(Loom). It puts your odds of stopping it at one percent.
-5. Our hero would like to discuss those odds. He will need a sword.
+5. Our hero would like to discuss those odds. First stop: the 13th Floor. He will need a sword.
 
 No crypto jargon (no HODL, diamond hands, liquidity or airdrops). "Unrugged" and rug pulls stay as the brand.
 
@@ -30,7 +30,7 @@ About eleven minutes for a full run. Two engines carry the whole game: the **cor
 | ↑ | Elevator | Supply drop from the operator | Arena |
 | 42 | Human Rugsources | Set piece: the projector, lights out | Corridor |
 | ↑ | Elevator | Supply drop from the operator | Arena |
-| 13 | Accounting | Mid-boss: the Shredder | Corridor |
+| 13 | the 13th Floor: Accounting | Mid-boss: the Shredder | Corridor |
 | G | Back Alley | Cold open: the katana arrives, the Welcome Mat | Arena |
 
 Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
@@ -48,7 +48,7 @@ Six inputs, the same on every floor, laid out like an old game pad:
 
 M toggles sound, F full screen, P or Escape pause.
 
-## Floor 13: Accounting (this stage)
+## the 13th Floor: Accounting (this stage)
 
 A corridor floor of about two minutes, then the Shredder.
 
@@ -79,7 +79,7 @@ A corridor floor of about two minutes, then the Shredder.
   - **The souls' hint** (the first glimpse of the mega stream, below): the first time the blaster comes back in phase 3, a few souls leave the counter and fly into it, and for a few seconds it fires two, then three streams. Then it quietly goes back to normal. Nothing explains it.
   - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
-- **Clear.** The final hit runs in slow motion before the Shredder blows. "FLOOR 13 CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. The elevator to floor 42 is the next stage.
+- **Clear.** The final hit runs in slow motion before the Shredder blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. The elevator to floor 42 is the next stage.
 - **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by the Shredder, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
 
 ## Look
@@ -92,7 +92,7 @@ Each section of the hall has its own set and colours: Accounts Payable's cubicle
 
 `audio.js` with the usual small API (`init`, `play`, `muted`, plus `music(name)` and `say(text)` for blip talk).
 
-- **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. Floor 13 changes tune by section: "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room, and a heavier version for the Shredder.
+- **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. The 13th Floor changes tune by section: "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room, and a heavier version for the Shredder.
 - **Blip talk:** everyone except Unruggabull and p(Loom) talks in blips while their line types out.
 - **Unruggabull's voice:** Jonnie's recordings, crushed to 8-bit, shipped as small data in the code rather than audio files. Until lines are recorded, he talks in blips too: about fifteen short lines in bubbles over his head (`LINES` in `game.js`), which double as the recording script.
 - **p(Loom)'s voice** (roof stage): the only synth voice. SAM was used for the storyboard but has no license, so the options are a small formant synth of our own, pre-rendered SAM shipped as crushed audio, or sam-js as is. Decide in roof Part B; Part A uses existing blips.
@@ -103,13 +103,13 @@ Inspired by Raiden, where stacked weapon power-ups fuse into one huge beam. Here
 
 | Where | What the player sees |
 | --- | --- |
-| Floor 13, the Shredder (built) | A hint: a few souls come back, two or three streams for a few seconds. No fusion, no explanation. |
+| the 13th Floor, the Shredder (built) | A hint: a few souls come back, two or three streams for a few seconds. No fusion, no explanation. |
 | The middle floor (42 or 77, not chosen yet) | A near miss: four or five streams, they start to bend in, then it falls apart. |
 | The roof, p(Loom) | The reveal: the full sequence below, then the rest of the fight with the beam. |
 
 Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain code to port: the [Mega Stream Lab](https://claude.ai/artifact/AAjXJuSUmn1cJB4ttbPnDS) (the stream levels and the fusion, with three snap styles; the pick is **Pinch**) and the [Mega Stream Finale](https://claude.ai/artifact/MqfeHREtfJp24VcdGqACx4) (the roof against p(Loom); its **Behind** view is the approved one, and the side, top-down and director's cut views were dropped).
 
-### The hint on Floor 13 (built)
+### The hint on the 13th Floor (built)
 
 The first time the blaster comes back in the Shredder's phase 3, a handful of souls fly into it instead of into the counter, and for about four seconds it fires two or three streams. Then it quietly goes back to normal.
 
@@ -121,25 +121,27 @@ The first time the blaster comes back in the Shredder's phase 3, a handful of so
 
 ### The near miss on the middle floor (build with that floor)
 
-Once the middle floor is chosen: at its set piece the souls come back further than on Floor 13. Four or five streams, and they start to bend in toward each other, then it falls apart just short (the streams scatter, a sour note, back to normal). Same rules as the hint: no explanation.
+Once the middle floor is chosen: at its set piece the souls come back further than on the 13th Floor. Four or five streams, and they start to bend in toward each other, then it falls apart just short (the streams scatter, a sour note, back to normal). Same rules as the hint: no explanation.
 
-### The roof finale (Part A built)
+### The roof finale (Part A and motion/light/sound built)
 
-The whole roof framework is playable with stand-in shapes from elevator to dawn. [roof-plan.md](roof-plan.md) and its 23-frame storyboard define the beats; the implemented rules and entry points are in [README.md](README.md). Part B supplies the roof art, cut-in drawing, new sound and feel. The inaccessible finale artifacts are not implementation dependencies: bending streams implement the Pinch in plain code.
+The whole roof framework is playable with stand-in shapes from elevator to dawn. [roof-plan.md](roof-plan.md) and its 23-frame storyboard define the beats; the implemented rules and entry points are in [README.md](README.md). Motion, light, synthesized sound and placeholder music are built. Part B still supplies loom/set art, beam styling, cut-in pictures and phone tuning. The inaccessible finale artifacts are not implementation dependencies: bending streams implement the Pinch in plain code.
 
-The corridor view stays behind him. The open-air set shares Floor 13's lit renderer, without its ceiling or wall bands; a sky gradient, low parapets, rain streaks and reflected glows establish the wet roof.
+The corridor view stays behind him. The open-air set shares the 13th Floor's lit renderer, without its ceiling or wall bands; a sky gradient, low parapets, rain streaks and reflected glows establish the wet roof.
 
 1. **Getting there.** Elevator, an eight-second walk, a lightning frame and silhouette, the waking eye and card, then the three modeled-survival lines and odds filling to 99%. This plays once; continues skip it.
 2. **Three rounds.** Health is three spools; normal hits never move the odds. Carpshits, labeled probability rings and orbs form round 1. Volleys arrive every six seconds; once a paced opening is due, a completed volley stalls the eye white-hot for 2.3 seconds, exposing the current spool to ten blaster hits. Earlier volleys keep it closed. Small groups of 2/3/4 carpshits keep their spacing, arriving more frequently each round. Rings and their labels sit at depth 0.28; he walks forward/back through a lower 0–0.36 band with up/down on the stick or W/S and arrow keys (Space remains jump). A spool's snap leaves missing warp and “NO CHANGE.” at 99%. Round 2 adds slashable snares and rain-telegraphed gusts; round 3 is faster. Freed souls count, then hang caught in the warp. “ALL SOULS ACCOUNTED FOR.” ends the rounds and cuts music on its last word.
 3. **Quiet and return.** Two seconds with movement and no threats, then the first-soul cut. Three souls reach the blaster with bells D5, F5 and A5, about 1.5 seconds apart. The charge bar turns gold and cannot run dry from this return onward. “ERROR. ERR.” stutters in the readout.
-4. **Flood and pinch.** Every remaining captive has an individual scheduled flight back to the gun; simultaneous sprites may be capped without changing the count. Music builds, and five simple bending streams squeeze into one. The fusion flashes and freezes for 0.14 seconds before the beam cut (0.65 seconds). This view is a nonplayable hook, drawn as a black screen and its name until Part B.
+4. **Flood and pinch.** Every remaining captive has an individual scheduled flight back to the gun; simultaneous sprites may be capped without changing the count. The music stays silent through the return and flood; five simple bending streams squeeze into one, then the heavier track slams in at fusion. The fusion flashes and freezes for 0.14 seconds before the beam cut (0.65 seconds). This view is a nonplayable hook, drawn as a black screen and its name until Part B.
 5. **The lines.** p(Loom): “THAT OUTCOME WAS NOT IN THE MODEL.” His caption: “LET'S DISCUSS THOSE ODDS.”
 6. **The beam.** A thick continuous polygon from the muzzle, steered left/right. On the eye it drains ten percentage points a second; off it the odds creep back at three points a second. It melts carpshits in its lane, and damage to him never interrupts it. The eye runs along its rail faster as odds fall: “PROBABILITY OF CAPTURE: ZERO.”, then “RECALCULATING.” when caught again.
 7. **Dawn.** At 1%, “UNLIKELY.” and a beat, then the snap cut (1.5 seconds). Threads loosen, the eye goes dark, rain stops, sunrise opens and the chord hook rings. The souls drift up and the counter keeps rolling before clear. The core's escape into the Sky Wrecker needs its own ending storyboard.
 
-All three cuts freeze fight timers and hold input. Five hearts; a continue preserves broken spools and caught souls and resumes the round lost, or the quiet for a crescendo death. Nominal 30/40/45-second round lengths space two openings per round; missed openings extend the fight without increasing health. The direct roof entry seeds 100 earlier-floor captives from one `ROOF.initialCaught` number, already in the score. Every captive is drawn across six rows of ten thread gaps, with slightly offset overlapping layers so roughly 60 silhouettes remain readable when the counter reaches the 200s. The flood and dawn use the full captured count, with no double scoring. Roof charges refill every 0.35 seconds to support the larger groups, while Floor 13 remains at 0.5 seconds. Bot clear-time medians are now about 3¼ minutes rather than 2¼; the PR records timings per round and skill. Floor 13's normal Start and clear remain separate until the intervening floors exist.
+All three cuts freeze fight timers and hold input. Five hearts; a continue preserves broken spools and caught souls and resumes the round lost, or the quiet for a crescendo death. Nominal 30/40/45-second round lengths space two openings per round; missed openings extend the fight without increasing health. The direct roof entry seeds 100 earlier-floor captives from one `ROOF.initialCaught` number, already in the score. Every captive is drawn across six rows of ten thread gaps, with slightly offset overlapping layers so roughly 60 silhouettes remain readable when the counter reaches the 200s. The flood and dawn use the full captured count, with no double scoring. Roof charges refill every 0.35 seconds to support the larger groups, while the 13th Floor remains at 0.5 seconds. Bot clear-time medians are now about 3¼ minutes rather than 2¼; the PR records timings per round and skill. The 13th Floor's normal Start and clear remain separate until the intervening floors exist.
 
-The sound hooks are wired, but the roof music/heavy version, storm, thunder, snare, gust, beam, snap and chord are silent until Part B. p(Loom) uses the existing blip fallback; its final voice is still open. Playable side/top-down views and drag-to-move with auto-fire stay dropped.
+Sound hooks now synthesize storm rain/wind, delayed thunder, snare whip/cut, gust, spool crack/twang, beam roar, final snap and a dawn major chord. The sequencer supplies three D-minor candidate directions with matching heavy versions (160/180, 126/142 and 140/158 BPM), plain pattern/order data and bar-queued layers. The final accounted word cuts music without a tail. Quiet/return have only storm ambience and the three D-minor bells; 1% drops to held D5, and a D-major chord crosses snap into dawn. A lower machine pulse voice preserves the previous 38 ms letter cadence. Its final voice is still open. Souls have cosmetic jitter, independent bob/sway, row depth and arrival/quiet pulses. They curve into reserved warp slots, shake loose for the three bells, and depart their actual slots over one second during the flood; arrivals retain their original three-second timing. At most 96 flying souls and three faint trail stamps each are drawn per frame, with eight distributed warm lights. Dawn uses the full count with staggered rises, side-to-side drift and fade; the displayed counter adds released captives to the pre-dawn total and preserves that total on the clear card; seeded run score stays unchanged. The eye supplies orange/red/white light, two distant flashes precede the reveal, the beam supplies six gold lights, and dawn warms in two seconds. Shake uses one decaying function, halved under reduced motion. Spool snaps hold the picture for three frames during their existing intermission, preserving outcomes and input.
+
+Playable side/top-down views and drag-to-move with auto-fire stay dropped.
 
 ## Later stages
 
@@ -156,3 +158,7 @@ The sound hooks are wired, but the roof music/heavy version, storm, thunder, sna
 - The Unruggabull recording script (15 to 20 lines). A first draft is in the game as `LINES`; it needs Jonnie's approval before recording.
 - p(Loom)'s voice (see Sound). Does it start breaking down as its odds fall?
 - Which floor is in the middle, 42 or 77, and so where the near miss happens.
+
+Roof fixes: the dawn display and clear card never reset the counter; the full lightning state draws the whole loom and captives as dark silhouettes with a thin rim. Dawn counting uses each soul's actual starting position. Snap/fusion shake decay pauses inside named cut-ins so the impulse is still visible when play returns.
+
+The music system and unlinked phone music lab are ready for composition. Pattern/order, envelopes, vibrato, arpeggios, slides, echoes, stems, beat/bar switches, hard cuts, downbeat slams and stingers are implemented. The six original tracks for the 13th Floor render byte-identically. The three current directions are placeholders; final tracks, art and phone playtesting remain.

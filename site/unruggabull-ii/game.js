@@ -374,15 +374,17 @@
     for (const f of R.fx) {
       f.t += dt;
       if (f.k === 'wisp') {
-        const up = Math.min(1, f.t / .3), k = Math.max(0, (f.t - .3) / (f.dur - .3)), e = k * k, to = f.to || meterSpot();
-        const hx = f.sx + f.dx * up, hy = f.sy - 14 * up;
-        f.x = hx + (to.x - hx) * e; f.y = hy + (to.y - hy) * e;
+        if (!(floor.wispMotion && floor.wispMotion(f))) {
+          const up = Math.min(1, f.t / .3), k = Math.max(0, (f.t - .3) / (f.dur - .3)), e = k * k, to = f.to || meterSpot();
+          const hx = f.sx + f.dx * up, hy = f.sy - 14 * up;
+          f.x = hx + (to.x - hx) * e; f.y = hy + (to.y - hy) * e;
+        }
         if (f.t >= f.dur) { if (floor.soulLanded) floor.soulLanded(f); R.shown = Math.min(R.souls, R.shown + 1); R.meterPulse = .16; }
       }
       else if (f.k === 'pop') f.y -= 12 * dt;
       else if (f.k === 'bit') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; }
       else if (f.k === 'strip') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= .96; }
-      else if (f.k === 'rise' && f.t > 0) { f.y += f.vy * dt; f.x += Math.sin(f.t * 3 + f.ph) * 10 * dt; }
+      else if (f.k === 'rise' && f.t > 0 && !(floor.riseMotion && floor.riseMotion(f))) { f.y += f.vy * dt; f.x += Math.sin(f.t * 3 + f.ph) * 10 * dt; }
       else if (f.k === 'smoke') { f.y -= 14 * dt; f.x += Math.sin(f.t * 4) * 4 * dt; }
     }
     R.fx = R.fx.filter(f => f.t < f.dur);
@@ -391,10 +393,10 @@
   }
   // Unruggabull's lines: each once per run, over his head, in his own blips until Jonnie's recordings exist.
   const LINES = {
-    start: 'FLOOR THIRTEEN. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
+    start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
     dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
-    low: 'BEEN WORSE. NOT MUCH.', clear: 'FLOOR THIRTEEN: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
+    low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
@@ -632,7 +634,7 @@
         }
       }
       else if (f.k === 'strip') rect(g, Math.round(f.x), Math.round(f.y), 1, 2, Math.floor(f.t * 12 + f.vx) % 2 ? '#f2eee2' : '#b8b4a8');
-      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { g.save(); g.globalAlpha = Math.min(1, (f.dur - f.t) / 1.5); g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore(); }
+      else if (f.k === 'rise' && f.t > 0 && f.y > -12) { if (floor.drawRise && floor.drawRise(f, g)) continue; g.save(); g.globalAlpha = f.alpha === undefined ? Math.min(1, (f.dur - f.t) / 1.5) : f.alpha; g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore(); }
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
@@ -658,8 +660,8 @@
     floor.hud();
   }
   // The souls freed so far, top right, with a ghost that bobs as each one lands.
-  function drawSoulsCounter() {
-    const n = String(Math.min(R.souls, R.shown)), tw = textWidth(n), pulse = R.meterPulse > 0;
+  function drawSoulsCounter(displayed) {
+    const n = String(displayed === undefined ? Math.min(R.souls, R.shown) : displayed), tw = textWidth(n), pulse = R.meterPulse > 0;
     g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
     otxt(g, n, W - 4, 5, pulse ? '#ffd44a' : '#fff6e2', 1, 'right');
   }
@@ -832,6 +834,7 @@
   function draw() {
     if (state === 'title' || state === 'intro') { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); drawTitle(); return; }
     if (floor.cutActive && floor.cutActive()) { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); floor.drawCut(); return; }
+    if (floor.frameHeld && floor.frameHeld()) return;
     const r = renderer();
     sceneLights(r); floor.lights(r);
     r.frame(R.t, floor.view());
@@ -839,7 +842,8 @@
     use(LIT); floor.draw();
     use(GLOW); floor.glows();
     r.layer(LIT.getImageData(0, 0, PW, PH).data, GLOW.getImageData(0, 0, PW, PH).data);
-    const sx = R.shake > 0 ? Math.round((Math.random() - .5) * 6 * Math.min(1, R.shake * 4)) : 0, sy = sx ? Math.round((Math.random() - .5) * 4) : 0;
+    const offset = floor.shakeOffset ? floor.shakeOffset() : null;
+    const sx = offset ? offset[0] : R.shake > 0 ? Math.round((Math.random() - .5) * 6 * Math.min(1, R.shake * 4)) : 0, sy = offset ? offset[1] : sx ? Math.round((Math.random() - .5) * 4) : 0;
     use(view);
     view.setTransform(1, 0, 0, 1, 0, 0);
     if (sx || sy) { view.fillStyle = '#09070b'; view.fillRect(0, 0, PW, PH); }
@@ -878,8 +882,8 @@
     const rows = [];
     altBtn.hidden = true; cardNote.hidden = true;
     if (kind === 'title') {
-      cardTitle.textContent = 'Floor 13: Accounting';
-      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on floor 13 to wake the Shredder, then beat it.';
+      cardTitle.textContent = 'The 13th Floor: Accounting';
+      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on the 13th Floor to wake the Shredder, then beat it.';
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
@@ -911,7 +915,7 @@
   }
   const LABELS = {
     title: 'Title screen: Unruggabull, katana on his back, faces RugCo Tower at sunset while souls drift up to a beacon on its roof.',
-    play: 'Unruggabull, seen from behind, in an office hallway on floor 13 of RugCo Tower. Cubicles line the hall, a red runner rug leads to a shredder at the far end.'
+    play: 'Unruggabull, seen from behind, in an office hallway on the 13th Floor of RugCo Tower. Cubicles line the hall, a red runner rug leads to a shredder at the far end.'
   };
   function setState(s) {
     state = s;
@@ -922,7 +926,7 @@
   }
   // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
   let statsRun = null;
-  const STAGES = ['accounts', 'moving', 'all_staff', 'lights_out', 'copy_room', 'phase_1', 'phase_2', 'phase_3', 'cleared'];
+  const STAGES = ['Accounts Payable', 'Moving day', 'All Staff', 'Lights out', 'Copy Room', 'Shredder phase 1', 'Shredder phase 2', 'Shredder phase 3', 'Clear'].map(name => 'the 13th Floor: ' + name);
   function stageNo() {
     if (floor.stageNo) return floor.stageNo();
     if (R.phase === 'win') return 9;
@@ -968,7 +972,7 @@
     'But the Rugfather was only middle management.',
     'Every carpshit our hero unrugged left a soul behind: the Unrugged. Small, fringed and very polite, they drifted up to the roof of RugCo Tower and did not come back down.',
     'Something up there has been catching them and weaving them back into carpshits. RugCo calls it p(Loom). It puts your odds of stopping it at one percent.',
-    'Our hero would like to discuss those odds. He will need a sword.'
+    'Our hero would like to discuss those odds. First stop: the 13th Floor. He will need a sword.'
   ];
   const STORY_KEY = 'unruggabull-ii-story';
   const crawl = $('crawl'), crawlText = $('crawlText'), skipBtn = $('skip');
