@@ -711,9 +711,17 @@ var UnrugFloor13 = function (core) {
   // A glimpse of the mega stream, saved for the roof. Nothing announces it: a few souls leave the counter and fly into
   // the gun, each of the first two lands with one soft bell and adds a stream, and a few seconds later the streams quietly
   // drop off. The counter keeps its souls; the streams do normal damage and cost nothing extra.
+  // It takes its time, so it registers: a beat before the first soul lifts off the counter, the souls slow and far
+  // apart, the music ducked under the bells, the Shredder and the runner holding off until the last one lands, and a
+  // tiny hitch in time as each one hits the gun.
   function startHint() {
+    const T = TUNE.soulHint;
     R.events.soulHint = true;
-    R.hint = { t: 0, landed: 0, streams: 1, endT: 0 };
+    R.hint = { t: -T.wait, landed: 0, streams: 1, endT: 0 };
+    const arrive = T.wait + (T.souls - 1) * T.gap + T.fly;
+    R.boss.atk = Math.max(R.boss.atk, arrive + .6);
+    if (R.pull.st === 'idle') R.pull.next = Math.max(R.pull.next, R.t + arrive + 1);
+    Snd.duck && Snd.duck(arrive + .5);
   }
   function updateHint(dt) {
     const H = R.hint, T = TUNE.soulHint;
@@ -726,6 +734,7 @@ var UnrugFloor13 = function (core) {
       const m = muzzleXY();
       for (let j = 0; j < 6; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-3, 3), y: m.y + fxr(-3, 3), s: .7, col: j % 2 ? '#ffd44a' : '#f4f0ff', t: 0, dur: .3, a: Math.random() * 6 });
       if (i < 2) { H.streams = i + 2; Snd.play('bell', i); }
+      R.freeze = Math.max(R.freeze, .1); R.shake = Math.max(R.shake, .08);
       if (H.landed === T.souls) H.endT = H.t + T.hold;
     }
     if (H.endT && H.t >= H.endT) {
@@ -1476,5 +1485,5 @@ UnrugFloor13.TUNE = {
     // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
     // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
     // run out unseen), then drop off one by one, fade apart.
-    soulHint: { souls: 3, gap: .6, fly: 1.4, hold: 4, fade: .6 }
+    soulHint: { souls: 3, wait: .7, gap: 1.1, fly: 2, hold: 5, fade: .6 }
   };

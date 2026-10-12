@@ -634,6 +634,8 @@ window.UnrugSound = (function () {
 
   const api = {
     init, roofSound,
+    // Hold the music down for a moment (the souls' hint), as a line of talk does.
+    duck(seconds) { if (!ctx) return; musicBus.gain.setTargetAtTime(DUCKED, ctx.currentTime, .25); duckUntil = Math.max(duckUntil, ctx.currentTime + seconds); },
     onready: null,
     get ready() { return !!ctx && ctx.state === 'running'; },
     get muted() { return muted; },
