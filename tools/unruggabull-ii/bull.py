@@ -746,37 +746,98 @@ def build_front():
     return finish(cv)
 
 
-def build_side():
-    # facing right, so we see his left side
+
+# ---------- side poses: the arena's moves, from the same puppet as the turnaround's side view ----------
+_Lk, _Lf = LEG * .42, LEG * .72
+STAND_LEGS = ((-.6, _Lk, -1.4, _Lf), (2.0, _Lk, 1.2, _Lf))   # (knee x, knee y, foot x, foot y) from the hips: far leg, near leg
+SIDE_NEAR = {   # elbow and hand of the near arm, from (x, vy)
+    'down': lambda x, vy: ((x + 1.4, vy + 9.5), (x + 2.6, vy + 16.4)),
+    'aim':  lambda x, vy: ((x + 5.6, vy + 7.6), (x + 10.4, vy + 9.2)),
+    'rest': lambda x, vy: ((x + 3.4, vy + 9.6), (x + 7.4, vy + 13.0)),
+    'twirl': lambda x, vy: ((x + 3.0, vy + 9.4), (x + 6.6, vy + 12.6)),
+    'wind': lambda x, vy: ((x - 2.8, vy + 1.0), (x - 1.8, vy - 6.0)),
+    'cut':  lambda x, vy: ((x + 6.2, vy + 5.2), (x + 11.6, vy + 8.2)),
+    'flinch': lambda x, vy: ((x - 3.2, vy + 5.0), (x - 6.4, vy + 1.2)),
+}
+SIDE_FAR = {
+    'down': lambda x, vy: ((x - 2.0, vy + 9.5), (x - 2.6, vy + 16.0)),
+    'swingF': lambda x, vy: ((x + 1.6, vy + 9.0), (x + 4.4, vy + 14.6)),
+    'swingB': lambda x, vy: ((x - 3.6, vy + 9.0), (x - 6.6, vy + 14.2)),
+    'up': lambda x, vy: ((x + 1.0, vy + 7.5), (x + 3.6, vy + 11.0)),
+    'flinch': lambda x, vy: ((x - 4.0, vy + 4.0), (x - 7.4, vy + .5)),
+}
+_C = 7.0   # crouch depth
+SIDE_POSE = {
+    'stand':  (STAND_LEGS, 'down', 'down', {}),
+    'aim':    (STAND_LEGS, 'aim', 'down', {}),
+    'idle':   (STAND_LEGS, 'rest', 'down', {'lean': -.4}),
+    'twirl0': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 0}),
+    'twirl1': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 1}),
+    'twirl2': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 2}),
+    'twirl3': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 3}),
+
+    'run0':   (((-3.0, _Lk - .4, -6.2, _Lf - 1.4), (4.4, _Lk - 1.0, 6.4, _Lf)), 'aim', 'swingF', {'lean': 1.0, 'tail': 1}),
+    'run1':   (((2.4, _Lk - 2.6, -1.8, _Lf - 5.6), (1.6, _Lk, .6, _Lf)), 'aim', 'down', {'lean': 1.0, 'bob': -1, 'tail': 0}),
+    'run2':   (((4.4, _Lk - 1.0, 6.4, _Lf), (-3.0, _Lk - .4, -6.2, _Lf - 1.4)), 'aim', 'swingB', {'lean': 1.0, 'tail': -1}),
+    'run3':   (((1.6, _Lk, .6, _Lf), (2.4, _Lk - 2.6, -1.8, _Lf - 5.6)), 'aim', 'down', {'lean': 1.0, 'bob': -1, 'tail': 0}),
+    'jump':   (((1.4, _Lk - 3.4, -3.4, _Lf - 6.4), (5.4, _Lk - 4.6, 2.8, _Lf - 7.2)), 'aim', 'up', {'lean': .6, 'tail': 2}),
+    'crouch': (((-1.0, _Lk - _C + 1.2, -3.4, _Lf - _C), (6.4, _Lk - _C - .4, 2.4, _Lf - _C)), 'aim', 'up', {'bob': _C, 'lean': 1.6, 'tail': -1}),
+    'wind':   (STAND_LEGS, 'wind', 'swingB', {'lean': -.6}),
+    'cut':    (((-3.0, _Lk - .4, -5.2, _Lf), (4.0, _Lk - .8, 5.0, _Lf)), 'cut', 'swingB', {'lean': 1.8, 'tail': 1}),
+    'hurt':   (((-1.6, _Lk, -3.2, _Lf), (1.0, _Lk, 2.4, _Lf)), 'flinch', 'flinch', {'lean': -2.2, 'tail': -2}),
+}
+
+
+def blaster_side(cv, hx, hy):
+    # the blaster in his fist, pointing the way he faces: build_blaster's shape, with its grip in his hand
+    ox, oy = hx - 3.6, hy - 5.6
+    poly(cv, [(ox + 1.5, oy + 4), (ox + 6, oy + 4), (ox + 4.4, oy + 12), (ox - .4, oy + 12)], 'belt', hard=True,
+         shade_fn=lambda px, py: shade((px - ox - 2) / 4, (py - oy - 8) / 5, .1))
+    ellipse(cv, ox + 6.6, oy + 2.6, 7.4, 3.8, 'horn', base=.12, hard=True)
+    capsule(cv, [(ox + 11, oy + 1.8, 1.9), (ox + 19.6, oy + 1.8, 1.6)], 'horn', base=.18, hard=True)
+    for rx in (13.4, 16.4):
+        ellipse(cv, ox + rx, oy + 1.8, .9, 2.3, 'ivory', base=.1, hard=True)
+    ellipse(cv, ox + 20.6, oy + 1.8, 1.3, 1.9, 'ivory', base=.15, hard=True)
+    T(cv, ox + 21, oy + 1, 'P'); T(cv, ox + 21, oy + 2, 'P')
+    T(cv, ox + 2, oy + 0, 'l'); T(cv, ox + 3, oy - .4, 'l')
+
+
+def build_side(name='stand'):
+    # facing right, so we see his left side. name picks a side pose (SIDE_POSE); 'stand' is the turnaround's view.
+    legs, near, far, ex = SIDE_POSE[name]
     cv = Canvas()
-    x = CX - 2
+    xl = CX - 2                       # hips and legs
+    x = xl + ex.get('lean', 0)        # everything above the belt
     Lk, Lf = LEG * .42, LEG * .72
-    hipy = FEET - Lf - 5.4
+    hipy = FEET - Lf - 5.4 + ex.get('bob', 0)
     vy = hipy - TORSO
     y = vy - 18 - NECK
     cy = y + 11.2
 
     # the far arm, the katana across his back, the tail
-    capsule(cv, [(x - .8, vy + 2, 2.6), (x - 2.0, vy + 9.5, 1.9), (x - 2.6, vy + 16, 1.7)], 'fur', base=-.12, hard=True)
-    fist(cv, x - 2.6, vy + 16.4, 2.7)
+    fe, fh = SIDE_FAR[far](x, vy)
+    capsule(cv, [(x - .8, vy + 2, 2.6), (fe[0], fe[1], 1.9), (fh[0], fh[1], 1.7)], 'fur', base=-.12, hard=True)
+    fist(cv, fh[0], fh[1] + .4, 2.7)
     capsule(cv, [(x - 8.2, vy + 12, 1.2), (x - 4.6, vy - .6, 1.15)], 'sheath', hard=True)
-    hilt(cv, x - 4.6, vy - .8, x - 7.6, vy - 7.2)
-    capsule(cv, [(x - 5.2, hipy + 1, 1.0), (x - 7.4, hipy + 5, .9), (x - 7.8, hipy + 10, .9)], 'fur', base=.06)
-    ellipse(cv, x - 7.9, hipy + 11.4, 1.7, 2.1, 'fur', base=-.04)
+    if near not in ('wind', 'cut'):
+        hilt(cv, x - 4.6, vy - .8, x - 7.6, vy - 7.2)
+    sw = ex.get('tail', 0)
+    capsule(cv, [(xl - 5.2, hipy + 1, 1.0), (xl - 7.4 - sw * .5, hipy + 5, .9), (xl - 7.8 - sw, hipy + 10, .9)], 'fur', base=.06)
+    ellipse(cv, xl - 7.9 - sw, hipy + 11.4, 1.7, 2.1, 'fur', base=-.04)
     # legs: the far one a step back and in shadow
-    for (dx, base) in ((-1.4, -.16), (1.2, .02)):
-        capsule(cv, [(x - 1 + dx, hipy + 2, 3.5), (x + .8 + dx, hipy + Lk, 2.9), (x + dx, hipy + Lf, 2.6)], 'jean', base=base)
-        bx, by = x + dx, hipy + Lf
+    for (dx, base), (kx, ky, fx, fy) in zip(((-1.4, -.16), (1.2, .02)), legs):
+        capsule(cv, [(xl - 1 + dx, hipy + 2, 3.5), (xl + kx, hipy + ky, 2.9), (xl + fx, hipy + fy, 2.6)], 'jean', base=base)
+        bx, by = xl + fx, hipy + fy
         poly(cv, [(bx - 2.8, by), (bx + 2.4, by), (bx + 3.2, by + 2.2), (bx + 6.6, by + 3.2), (bx + 6.8, by + 5.4), (bx - 3.0, by + 5.4)], 'boot',
              shade_fn=lambda px, py, bx=bx, by=by, b=base: shade((px - bx - 1) / 6, (py - by - 1.5) / 3.5, .02 + b))
         T(cv, bx + 4.2, by + 3, 'F'); T(cv, bx + 5.2, by + 3.2, 'E')
         for px in range(int(bx - 3), int(bx + 7)):
             T(cv, px, by + 5, 'C')
         cuff(cv, bx, by)
-        T(cv, x + .8 + dx + 1.2, hipy + Lk, 'x')
-    ellipse(cv, x - 1.4, hipy + 2.4, 5.0, 4.0, 'jean', base=.0)
+        T(cv, xl + kx + 1.2, hipy + ky, 'x')
+    ellipse(cv, xl - 1.4, hipy + 2.4, 5.0, 4.0, 'jean', base=.0)
     for py in range(int(hipy + 1), int(hipy + 10)):
-        T(cv, x - 1.4 + (py - hipy) * .05, py, 'u')
+        T(cv, xl - 1.4 + (py - hipy) * .05, py, 'u')
     # the torso in profile: a deep chest, a straight back, a narrow waist; the dark tee at the open front
     cv.begin()
     front = lambda t: x + 4.0 + 4.6 * math.sin(min(1, t * 1.6 + .25) * math.pi * .6) * (1 - t * .55)
@@ -847,10 +908,20 @@ def build_side():
         T(cv, x + 5.0 - k * 1.6, y - .6 + k * .5, 'h' if k < 3 else 'g')
     horn(cv, [(x - 1.4, y + 7.4, 2.4), (x + 1.8, y + 5.8, 2.2), (x + 3.8, y + 2.8, 1.8), (x + 4.2, y - .8, 1.3), (x + 3.2, y - 3.8, .8)])
 
-    # the near arm
+    # the near arm, and whatever's in its hand
+    el, hd = SIDE_NEAR[near](x, vy)
+    if near in ('aim', 'rest'):
+        blaster_side(cv, hd[0], hd[1])
     ellipse(cv, x + .2, vy + 2.4, 3.6 * SLEEVE, 3.6 * SLEEVE, 'tee', base=.12, hard=True)
-    arm(cv, (x + .2, vy + 2), (x + 1.4, vy + 9.5), (x + 2.6, vy + 16.4), 2.4)
-    fist(cv, x + 2.6, vy + 16.4, 2.9)
+    arm(cv, (x + .2, vy + 2), el, hd, 2.4)
+    fist(cv, hd[0], hd[1], 2.9)
+    if near == 'twirl':
+        blaster_spin(cv, hd[0] + .6, hd[1] + 1.4, (4 - ex['spin']) % 4)
+        fist(cv, hd[0], hd[1], 2.6)
+    if near == 'wind':
+        katana_held(cv, hd[0], hd[1], hd[0] - 10, hd[1] - 13)
+    if near == 'cut':
+        katana_held(cv, hd[0], hd[1], hd[0] + 16, hd[1] + 3)
     furtex(cv)
     return finish(cv)
 
@@ -894,7 +965,11 @@ def build_all():
     views = {'front': build_front(), 'side': build_side(), 'back': poses['stand']}
     vb = box(list(views.values()))
     blaster = build_blaster()
+    sides = {n: build_side(n) for n in SIDE_POSE if n != 'stand'}
+    sb = box(list(sides.values()))
     out = {
+        'sides': {n: crop(g, sb) for n, g in sides.items()},
+        'sideFeet': [CX - 2 - sb[0], FEET - sb[1]],
         'poses': {n: crop(g, pb) for n, g in poses.items()},
         'feet': [CX - pb[0], FEET - pb[1]],
         'views': {n: crop(g, vb) for n, g in views.items()},
@@ -903,6 +978,11 @@ def build_all():
     }
     aim = out['poses']['aim']
     ps = [(x, y) for y, r in enumerate(aim) for x, c in enumerate(r) if c == 'P']
+    sa = out['sides']['aim']
+    sp = [(x, y) for y, r in enumerate(sa) for x, c in enumerate(r) if c == 'P']
+    mx = max(p[0] for p in sp)
+    sp = [p for p in sp if p[0] == mx]
+    out['sideMuzzle'] = [round(mx - out['sideFeet'][0], 1), round(sum(p[1] for p in sp) / len(sp) - out['sideFeet'][1], 1)]
     out['muzzle'] = [round(sum(p[0] for p in ps) / len(ps) - out['feet'][0], 1), round(sum(p[1] for p in ps) / len(ps) - out['feet'][1], 1)]
     return out
 
@@ -913,7 +993,7 @@ def grid_js(rows, indent):
 
 
 def to_js(d):
-    used = sorted({c for g in list(d['poses'].values()) + list(d['views'].values()) + [d['blaster']] for r in g for c in r} - {'.'})
+    used = sorted({c for g in list(d['poses'].values()) + list(d['views'].values()) + list(d['sides'].values()) + [d['blaster']] for r in g for c in r} - {'.'})
     pal = ', '.join(f"'{c}': '#{CHARS[c]}'" for c in used)
     lines = [
         '// Unruggabull for Unruggabull II, drawn by tools/unruggabull-ii/bull.py. Don\'t edit by hand: change the script and run it.',
@@ -940,6 +1020,15 @@ def to_js(d):
     lines += [
         '  };',
         f"  const VIEW_FEET = {{ x: {d['viewFeet'][0]}, y: {d['viewFeet'][1]} }};",
+        '  // Side poses for the arena (facing right), in one box with his feet at SIDE_FEET; SIDE_MUZZLE is the aim poses\' muzzle.',
+        '  const SIDES = {',
+    ]
+    for n, g in d['sides'].items():
+        lines.append(f'    {n}: {grid_js(g, 6)},')
+    lines += [
+        '  };',
+        f"  const SIDE_FEET = {{ x: {d['sideFeet'][0]}, y: {d['sideFeet'][1]} }};",
+        f"  const SIDE_MUZZLE = {{ x: {d['sideMuzzle'][0]}, y: {d['sideMuzzle'][1]} }};",
         '  // The blaster on its own, from the side.',
         f"  const BLASTER = {grid_js(d['blaster'], 4)};",
         '',
@@ -952,7 +1041,7 @@ def to_js(d):
         '    return cv;',
         '  }',
         '',
-        '  return { PAL, POSES, FEET, MUZZLE, VIEWS, VIEW_FEET, BLASTER, paint };',
+        '  return { PAL, POSES, FEET, MUZZLE, VIEWS, VIEW_FEET, SIDES, SIDE_FEET, SIDE_MUZZLE, BLASTER, paint };',
         '})();',
         '',
     ]
@@ -963,7 +1052,7 @@ def save_pngs(d, folder):
     from PIL import Image
     folder = Path(folder); folder.mkdir(parents=True, exist_ok=True)
     rgb = {c: tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for c, h in CHARS.items()}
-    items = [('pose-' + n, g) for n, g in d['poses'].items()] + [('view-' + n, g) for n, g in d['views'].items()] + [('blaster', d['blaster'])]
+    items = [('pose-' + n, g) for n, g in d['poses'].items()] + [('view-' + n, g) for n, g in d['views'].items()] + [('side-' + n, g) for n, g in d['sides'].items()] + [('blaster', d['blaster'])]
     for name, g in items:
         im = Image.new('RGBA', (len(g[0]), len(g)), (0, 0, 0, 0))
         for y, r in enumerate(g):
