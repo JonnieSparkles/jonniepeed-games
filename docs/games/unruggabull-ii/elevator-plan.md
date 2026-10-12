@@ -1,0 +1,39 @@
+# Elevator rides
+
+Status: the **long ride** framework is built; final art, composition and feel remain separate. The decided climb is **13th Floor → plain ride → Floor 48 (contents TBD) → long ride → roof**. Floor 48 and the plain ride do not exist as stages yet, so the playable long ride temporarily starts at 13 and counts to R. [README.md](README.md) gives current rules; [spec.md](spec.md) keeps the remaining climb/open questions.
+
+## Built
+
+- `arena.js`: one side-view screen using the shared jump/crouch/charge/input contract, mirrored `UnrugBull.VIEWS.side`, horizontal bolts and Spread Shot, directional slash/deflect, flyers and crawlers, paper returns, souls and pickups. `ARENA` owns dimensions, speeds and contact tests. Sprite/effect drawings remain small replacement functions.
+- `elevator.js`: `ELEVATOR`, `STATES`, start floor (`from`), destination `{floor,label,stage}` and `fight` are data. Defaults are 13→99 (`R`, roof), fight on. Per-run overrides and continues preserve these choices; later the long ride can start at 48. `ask` → `climb` → `snap` → `climb` → `open` → `supply` → `exit` is the long ride's state path.
+- A 30-second climb. Warm-up singles/pairs start at one second and repeat every 2.5 seconds, with no scheduled empty wait over three seconds. Groups of 2/2/3 arrive about two seconds apart after the cable snap at 60%, leaving twelve seconds for the heavy build. Flyers throw during descent, swoop above the standing firing lane and live long enough for actual paper/deflect play. Crawlers land and scuttle. The indicator is the timer. Arrival releases remaining enemies' souls, stops music on the ding and opens the doors.
+- Any crawler or flyer can have `armored: true`. Its placeholder helmet is in `arena.drawArmor`; the first bolt, slash or deflect strips it with the existing spark effect and a clank, the second kills for the usual soul. Each swing hits a carp once; arrival and Bull Run still destroy outright. Alternating heavy waves mix armor into the build.
+- The snap hard-cuts muzak, shakes the car and flickers its light for 0.45 seconds, then jumps the music to heavy. His caption says “Here I come, p(Loom).” in blips. The jolt is a stand-in; no new pixel art.
+- `music-elevator.js`: separate **Please Hold** for a plain ride; **Horns Up** is one plain track object with `intro` (the same muzak tune) and `heavy` patterns. Its intro holds indefinitely until the GAME's snap cue selects heavy; each selected section loops itself. The sequencer's named `pattern` start/hold options preserve the section across sound unlock and live replacement. Ding stops either track.
+- `fight: false` uses the same hooks without spawns, paper, a snap or heavy music: operator, “Floor?”, Please Hold, open doors, supply crate and handoff. This configuration is tested from 48 through the roof, including a continue. It is not another registered stage yet.
+- The crate is collectible on creation, before sliding, including if he is already standing on the right. Otherwise it slides and stops until collected. The operator is outside every collision/target collection and asks only “Floor?”. He, the panel and caption sit beside the doors clear of the phone pads; the crate starts nearby. Portrait and 844×390 landscape full-screen screenshots are committed beside this plan.
+- One held supply, shared HUD icon, E/tap activation, ten-second Spread, five-second invulnerable Bull Run and one-use automatic Vest; used drops stay used on continues. Healthy drops alternate Spread/Bull Run, starting with Spread; two hearts or fewer gives Vest without advancing alternation.
+- The main button on the 13th Floor clear is **Take the elevator**; **Play again** is secondary. Transfers carry souls, the seeded stream, continues and held supply. `RUN.refillBetweenStages` controls full hearts at boundaries. The roof receives actual captives and keeps already-open doors on handoff; its direct test behavior stays unchanged.
+- Shared renderer flat layers/lights and its glow/bloom/palette/dither finish. Bridge mechanics/configuration/run tests, desktop/portrait/landscape controls, actual Web Audio section/cue checks, seeded bots and renderer replay verification.
+
+## Choices to review
+
+- Healthy drops still start with Spread. **With only one ride in the playable run, a healthy player cannot receive Bull Run from the operator.** Keep the rule for now; the second ride after Floor 48 makes it alternate naturally. A crate replaces any held supply; Vest is automatic.
+- E and tapping the held icon. Full hearts at each boundary through one setting; lives remain open.
+- The bull starts left of the hatch. Warm-up/snap/heavy pacing and hatch descent are starting points for real-phone tuning; 100-seed clears are 88/100 casual, 99/100 decent and 100/100 expert, median 34.9/34.8/34.8 seconds including supply. Mean hearts lost are 2.61/1.40/0.58. Casual loses 1.16 before the snap and 1.45 after it per run; all twelve deaths are after it. Slower hatch descent/paper and lower swoops give delayed reactions room while flyers still throw before reaching the firing lane. The PR includes throws and replay/main comparisons too.
+- Bull Run fixes the corridor lane and charges into depth; in side view it charges toward facing and turns at walls. On the roof movement remains under player control and it removes carps/snares/orbs without touching loom health/odds.
+- Arrival frees remaining enemies' souls; enemies that escape/time out pay none. The supply waits for pickup, with no forced collection or extra button.
+- The transferred roof keeps its four-second lead-in timer but shows already-open doors. Plain-mode configuration currently uses the same climb duration; its eventual stage can set its own timing once Floor 48 exists.
+
+## Art, music and feel pass still left
+
+- **Car:** replace `drawCar`, `drawDoors`, `drawHatch`, `drawIndicator`; wall/door/panel rectangles are stand-ins.
+- **Cable snap:** draw the cable/ceiling moment and replace the generic shake/light flicker with the intended snap/jolt picture and feel. Keep the state/cue seam and outcome clock.
+- **Operator:** replace `drawOperator` with the old Unrugged bellhop, on duty since 1987. Current ghost rug/cap rectangles are a stand-in. No additional dialogue.
+- **The armor:** replace the separate `arena.drawArmor` helmet stand-in and tune its clank/spark feedback, preserving one hit to strip it for either carp type.
+- **Side-view poses:** replace arena `drawBull` bob/tilt with run, jump, crouch, shoot, slash and horns-down poses. Record his approved “Here I come, p(Loom).” caption later.
+- **Crates/drop icons:** replace `drawCrate` and `drops.drawIcon` independently; rectangles/existing Spread/Heart sprites are placeholders.
+- **Please Hold and Horns Up for real:** compose Please Hold, then Horns Up as one intro/heavy track sharing that tune. Preserve the named sections, game-controlled snap jump and ding cut. Tune the cable sound too.
+- Flight/scuttle poses, combat feedback, transitions, crate readability and real-phone timing remain for the next pass.
+
+The plain ride stage, Floor 48 contents, back alley and ending are not built here. The configurable arena/ride seams are ready for them.

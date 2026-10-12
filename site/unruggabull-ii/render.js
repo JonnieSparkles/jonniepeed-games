@@ -395,6 +395,12 @@ var UnrugRender = (function () {
     }
     function frame(t, v) {
       const t0 = performance.now();
+      if (set.flat) {
+        buf.fill(0); LN = 0;
+        fill = v.ambient || .5;
+        for (let i = 0; i < XN; i++) { const j = i * 6; addLight(XL[j], XL[j + 1], XL[j + 2], XL[j + 3], XL[j + 4], XL[j + 5], false); }
+        XN = 0; return;
+      }
       T = t; setView(v);
       buildLights(t); XN = 0;
       surfaces(t);
@@ -529,6 +535,19 @@ var UnrugRender = (function () {
     }
     function layer(lit, glow) {
       const t0 = performance.now();
+      if (set.flat) {
+        for (let q = 0; q < N; q++) {
+          const py = (q / W) | 0, px = q - py * W, i = q * 3, k = q * 4, a = lit[k + 3] / 255;
+          let r = fill, g = fill, b = fill;
+          for (let n = 0; n < LN; n++) {
+            const dx = (px - LX[n]) / 55, dy = (py - LY[n]) / 55, power = 1 / (1 + dx * dx + dy * dy);
+            r += LR[n] * power; g += LG[n] * power; b += LB[n] * power;
+          }
+          buf[i] = LIN[lit[k]] * r * a; buf[i + 1] = LIN[lit[k + 1]] * g * a; buf[i + 2] = LIN[lit[k + 2]] * b * a;
+          if (glow) { const ga = glow[k + 3] / 255; for (let c = 0; c < 3; c++) buf[i + c] = buf[i + c] * (1 - ga) + LIN[glow[k + c]] * 1.25 * ga; }
+        }
+        timings.layer += performance.now() - t0; return;
+      }
       volume();
       // 1. from the bottom up: the floor under each run of drawn pixels
       inRun.fill(0);

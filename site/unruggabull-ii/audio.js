@@ -230,7 +230,7 @@ window.UnrugSound = (function () {
       drums: { pat: 'KKh.S.hKKKh.S.hK', fills: { 3: 'KKh.S.hKKKSSSSSS', 7: 'KKKKSSSSSSSSSSSS' }, crash: [0, 4] }
     }] }
   };
-  Object.assign(TRACKS, window.UnrugRoofMusic || {});
+  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {});
   if (TRACKS.roofA) { TRACKS.roof = TRACKS.roofA; TRACKS.roofHeavy = TRACKS.roofAHeavy; }
   // Pattern format is opt-in: the original six section tracks retain their exact compiler and synth.
   function noteEvents(notes) {
@@ -312,11 +312,11 @@ window.UnrugSound = (function () {
       const S = P.comp[P.si], t = P.next, duration = S.stepDur / P.rate;
       for (const ch of S.chans) if (P.stems.has(ch.stem)) for (const e of ch.byStep[P.step] || []) patternNote(ch.drive ? P.drive : P.out, ch, e, t, duration);
       P.next += duration * (P.step % 2 ? 1 - S.swing : 1 + S.swing); P.step++;
-      if (P.step >= S.steps) { P.step = 0; P.si = P.si + 1 < P.comp.length ? P.si + 1 : P.loopFrom; }
+      if (P.step >= S.steps) { P.step = 0; P.si = P.patternLoop == null ? (P.si + 1 < P.comp.length ? P.si + 1 : P.loopFrom) : P.patternLoop; }
     }
     restoreDuck();
   }
-  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1, modern: false, stems: new Set(), pendingStems: null, pendingTempo: 0, pendingTrack: null };   // rate: tempo multiplier (a rally speeds the music up)
+  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1, modern: false, patternLoop: null, stems: new Set(), pendingStems: null, pendingTempo: 0, pendingTrack: null };   // rate: tempo multiplier (a rally speeds the music up)
   function stopTrack(hard = false, at) {
     P.pendingTrack = null; P.pendingStems = null; P.pendingTempo = 0;
     if (!P.id) return;
@@ -330,6 +330,16 @@ window.UnrugSound = (function () {
     const tr = TRACKS[id];
     tr.comp = tr.comp || (tr.patterns ? compilePatterns(tr) : tr.sections.map(compile));
     P.id = id; P.comp = tr.comp; P.loopFrom = tr.patterns ? tr.loop || 0 : tr.loopFrom || 0; P.si = 0; P.step = 0; P.next = options.at == null ? ctx.currentTime + (options.slam ? .005 : .08) : options.at;
+    P.patternLoop = null;
+    if (tr.patterns) {
+      const pattern = options.pattern || tr.startPattern;
+      if (pattern) {
+        const index = tr.order.indexOf(pattern);
+        if (index < 0) throw new Error('Missing start pattern ' + pattern);
+        P.si = index;
+        if (options.loopPattern || tr.holdPattern) P.patternLoop = index;
+      }
+    }
     P.modern = !!tr.patterns; P.stems = new Set(options.stems || tr.stems || []);
     if (P.modern) { P.next = options.at == null ? ctx.currentTime + .005 : options.at; P.rate = 1; }
     P.out = ctx.createGain(); P.out.gain.value = 1; P.out.connect(musicBus);
@@ -406,6 +416,7 @@ window.UnrugSound = (function () {
   // ---------- blip talk ----------
   const VOICES = {
     loom: { f: 96, wave: 'p12', ms: 38 }, // Keep the original fallback's caption cadence.
+    operator: { f: 210, wave: 'triangle', ms: 55 },
     narrator: { f: 392, wave: 'triangle', ms: 40 },
     shredder: { f: 140, wave: 'sawtooth', ms: 40 },
     announcer: { f: 620, wave: 'p25', ms: 38 },
@@ -533,6 +544,9 @@ window.UnrugSound = (function () {
   // ---------- sound effects ----------
   let shotN = 0;
   const SFX = {
+    armorClank: t => { noiseHit(sfxBus, t, .08, .16, 'highpass', 2800); twang(t, 780, .08); },
+    cableSnap: t => { noiseHit(sfxBus, t, .22, .32, 'highpass', 1800); twang(t, 135, .18); },
+    ding: t => { osc(sfxBus, 'sine', hz(84), t, .8, .16, { attack: .005, sustain: .1 }); osc(sfxBus, 'triangle', hz(96), t, .5, .05); },
     storm: t => { noiseHit(sfxBus, t, .4, .04, 'lowpass', 1600); roofSound({ storm: true, beam: false }); },
     thunder: (t, power = 1) => { noiseHit(sfxBus, t + .12, 1.6, .34 * power, 'lowpass', 380, .8, 60); osc(sfxBus, 'sine', 58, t + .15, 1.2, .17 * power, { to: 27, sustain: .12 }); },
     snare: t => noiseHit(sfxBus, t, .15, .18, 'bandpass', 6000, 3, 900),
@@ -641,11 +655,12 @@ window.UnrugSound = (function () {
     stems(names) { if (!ctx) wantOptions = Object.assign({}, wantOptions, { stems: names }); P.pendingStems = new Set(names); },
     stinger, riser, roofCue,
     registerTrack(id, data) {
+      const heldPattern = P.id === id && P.patternLoop != null ? TRACKS[id].order[P.si] : null;
       delete data.comp; TRACKS[id] = data;
       if (id === 'roofA') TRACKS.roof = data; if (id === 'roofAHeavy') TRACKS.roofHeavy = data;
-      if (ctx && P.id === id) P.pendingTrack = { id, boundary: 'bar', options: { stems: [...P.stems] } };
+      if (ctx && P.id === id) P.pendingTrack = { id, boundary: 'bar', options: Object.assign({ stems: [...P.stems] }, heldPattern && data.order.includes(heldPattern) ? { pattern: heldPattern, loopPattern: true } : {}) };
     },
-    get musicState() { return { playing: P.id, pending: P.pendingTrack && P.pendingTrack.id, stems: [...P.stems], nextStems: P.pendingStems && [...P.pendingStems], rate: P.rate }; },
+    get musicState() { return { pattern: P.modern && P.id ? TRACKS[P.id].order[P.si] : null, patternLoop: P.patternLoop, playing: P.id, pending: P.pendingTrack && P.pendingTrack.id, stems: [...P.stems], nextStems: P.pendingStems && [...P.pendingStems], rate: P.rate }; },
     tracks() { return Object.entries(TRACKS).filter(([id]) => !['roof', 'roofHeavy'].includes(id)).map(([id, tr]) => ({ id, name: tr.name || id, key: tr.key, bpm: tr.bpm || tr.sections[0].bpm, stems: tr.patterns ? [...new Set(Object.values(tr.patterns).flatMap(p => Object.values(p.channels).map(c => c.stem)))] : [], seconds: tr.patterns ? compilePatterns(tr).reduce((n,p) => n + p.steps*p.stepDur, 0) : tr.sections.map(compile).reduce((n,p)=>n+p.steps*p.stepDur,0) })); },
     say, talkTimes, hush,
     toggle() {
