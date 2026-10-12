@@ -16,9 +16,11 @@
   check(R.rows.some(rw => rw.kind === 'beam' || rw.kind === 'chairs'), 'furniture fills the hall');
   for (let i = 0; i < 60 * TUNE.moveT && R.event; i++) update(1 / 60);
   check(!R.event && R.beat === 1 && beat().sign === 'ALL STAFF' && R.signs.some(sg => sg.w > R.dist), 'All Staff comes next, with its sign');
-  step(3);
-  check(R.flies.filter(f => f.form).length >= 4, 'carpshits arrive in formations');
-  step(BEATS[1].time - 3 - .5);
+  step(2);
+  check(!R.flies.some(f => f.form), 'a breather while the section\'s sign drops');
+  step(2);
+  check(R.flies.filter(f => f.form).length >= 4, 'then carpshits arrive in formations');
+  step(BEATS[1].time - 4 - .5);
   R.flies = []; spawnFormation('line'); step(.6);
   check(!R.event && R.beatT > BEATS[1].time, 'the lights stay on while a formation is still coming');
   R.flies = []; update(1 / 60);

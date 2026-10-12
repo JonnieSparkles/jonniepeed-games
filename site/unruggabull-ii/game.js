@@ -36,7 +36,7 @@
   const TUNE = {
     hearts: 5, move: 1.5, aisle: .6, runner: .3,
     jumpH: .2, jumpT: .65,
-    fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
+    fireEvery: .2, shotSpeed: 2.2, aimCone: .38, aimWork: .8,
     charges: 20, recharge: .5, spreadT: 10,
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
     hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1
@@ -270,6 +270,7 @@
     const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < TUNE.reach && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
     floor.aim(consider);
     for (const f of R.flies) consider(f, f, .3);
+    if (!best && floor.aimIdle) floor.aimIdle(consider);
     // bolts leave the muzzle of the blaster he holds up beside his head
     const mu = bull.u + A.MUZZLE.x / HW, mh = bull.jh - A.MUZZLE.y / (FN - CN);
     const shot = du => R.shots.push({ u: mu, z: bull.bz + .03, h: mh, du, tgt: du ? null : best, dead: false, spread: !!du });
@@ -832,13 +833,16 @@
   // Bolts and the flash are kept soft, so steady fire lights the hall without strobing it.
   // (The floor adds its own.)
   function sceneLights(r) {
+    // With the lights on, bolts are only a soft touch of light (the nearest few), so steady fire doesn't flash the
+    // hall or cost frames; in the dark they're the light you see by.
+    const dim = floor.darkness ? floor.darkness() >= .5 : true, k = dim ? 1 : .55, most = dim ? 10 : 3;
     let n = 0;
     for (const s of R.shots) {
-      if (n++ >= 10) break;
+      if (n++ >= most) break;
       const [x, y, z] = world(s.u, s.z, s.h);
-      if (s.soul) r.light(x, y, z, .3, .25, .12); else if (s.spread) r.light(x, y, z, .32, .24, .08); else r.light(x, y, z, .16, .3, .5);
+      if (s.soul) r.light(x, y, z, .3 * k, .25 * k, .12 * k); else if (s.spread) r.light(x, y, z, .32 * k, .24 * k, .08 * k); else r.light(x, y, z, .16 * k, .3 * k, .5 * k);
     }
-    if (R.fx.some(f => f.k === 'muzzle')) { const [x, y, z] = world(bull.u + A.MUZZLE.x / HW, bull.bz, bull.jh - A.MUZZLE.y / (FN - CN)); r.light(x, y, z - .15, .4, .3, .14); }
+    if (R.fx.some(f => f.k === 'muzzle')) { const [x, y, z] = world(bull.u + A.MUZZLE.x / HW, bull.bz, bull.jh - A.MUZZLE.y / (FN - CN)); r.light(x, y, z - .15, .4 * k, .3 * k, .14 * k); }
     for (const pk of R.pickups) {
       const z = pk.w - R.dist; if (z > 1.02 || z < ZN) continue;
       const [x, y, wz] = world(pk.u, z, pk.h);

@@ -125,6 +125,8 @@ var UnrugFloor13 = function (core) {
     rect(b, 0, 0, img.width, 11, style === 'neon' ? fg : '#1a1418'); rect(b, 1, 1, img.width - 2, 9, bg); txt(b, text, 4, 3, fg);
     R.signs.push({ w: R.dist + w, img, text, born: R.t, neon: style === 'neon' });
   }
+  // Each section starts like a new scene: a breather while its sign drops before anything comes at you.
+  const BREATHER = 2.5;
   function spawnHall(dt) {
     const B = beat(), ev = R.event && R.event.kind;
     while (R.dist + 1.05 >= R.nextCubW) {
@@ -251,6 +253,7 @@ var UnrugFloor13 = function (core) {
         // another event straight after this one, if the section lists more than one: a coffee between, same section
         if (R.evQ && R.evQ.length) { R.event = null; addPickup('coffee', .9, rr(-.4, .4)); startEvent(R.evQ.shift()); spawnHall(dt); return; }
         R.event = null; R.beat++; R.beatT = 0; R.switches = [];
+        R.nextFly = Math.max(R.nextFly, BREATHER); R.nextForm = Math.max(R.nextForm, BREATHER + .8); R.nextRow = Math.max(R.nextRow, BREATHER + 1.5); R.nextBox = Math.max(R.nextBox, BREATHER);
         addSign(1, beat().sign);
         if (beat().pulls) { bark('copy'); R.copyAt = R.souls; }
         Snd.music(beat().music);
@@ -281,7 +284,7 @@ var UnrugFloor13 = function (core) {
     }
     R.rows = R.rows.filter(row => row.w - R.dist > (DUCKS[row.kind] && !row.hit ? -.3 : ZN) && row.hit < .6);   // what you duck under carries on over you
   }
-  const BOX_H = .06;
+  const BOX_H = .045;   // a little cushion: the tail of a jump still clears it
   // a moving-day obstacle that hits you: no soul for it, and the run isn't clean
   function obHit(ob) { if (!ob) return; ob.hit = true; if (R.event && R.event.kind === 'move') R.event.clean = false; }
   const knock = (ob, cause) => hurtBull(1, cause);
@@ -807,7 +810,7 @@ var UnrugFloor13 = function (core) {
     house += clamp(want - house, -dt / 2.5, dt / 2.5);
     const edge = R.roll ? (Math.floor(R.t * 12) % 2 ? '#7fd4ff' : '#bfefff') : P.st === 'warn' ? (Math.floor(P.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : P.st === 'on' ? '#ff9628' : null;
     return {
-      scroll: R.dist * WZ, rug: -R.roff * WZ, power: dk >= .5 ? 0 : 1 - dk * .75, dark: dk >= .5, house,
+      scroll: R.dist * WZ, rug: -R.roff * WZ, power: dk >= .5 ? 0 : 1 - dk * .75, dark: dk >= .5, house, steady: true,
       rail: R.phase === 'hall' || R.phase === 'wake' ? (R.event ? (R.event.kind === 'move' ? lin('#e8b030') : null) : lin(BEATS[R.beat].rail)) : null,
       look: lookNow(),
       edge: edge ? lin(edge) : null, edgeGlow: edge ? 1.3 : 0
@@ -1021,7 +1024,19 @@ var UnrugFloor13 = function (core) {
     const { w, h, x, yb } = tempBox(tp, zt), tx = Math.round(x + w / 2), ty = Math.round(yb - h - 10);
     rect(g, tx - 3, ty - 1, 7, 9, '#1a1418'); rect(g, tx - 2, ty, 5, 7, '#fff6e2'); txt(g, '!', tx - 1, ty + 1, '#d63428');
   }
+  // The jump cue: while something on the floor is at the distance to jump it, the floor under it glows yellow and
+  // pulses, so the moment to jump reads on a phone, where depth is hard to judge.
+  const JUMP_CUE = [.06, .45];   // seconds before it reaches him
+  function jumpCue(z, u0, u1) {
+    if (!(R.speed > 0)) return;
+    const ta = (z - bull.bz) / R.speed; if (ta < JUMP_CUE[0] || ta > JUMP_CUE[1]) return;
+    const z0 = z - .02, z1 = z + .035;
+    g.save(); g.globalAlpha = Math.floor(R.t * 12) % 2 ? .7 : .45;
+    poly(g, '#ffd44a', [[PX(u0, z0), FY(z0)], [PX(u1, z0), FY(z0)], [PX(u1, z1), FY(z1)], [PX(u0, z1), FY(z1)]]);
+    g.restore();
+  }
   function drawBox(bx, z) {
+    if (!bx.hit) jumpCue(z, bx.u - .13, bx.u + .13);
     const s = sc(z), w = Math.max(3, A.BOX.width / 2 * s), h = Math.max(2, A.BOX.height / 2 * s);   // the carton is drawn at full size: half a unit a pixel
     const x = PX(bx.u, z);
     const y = FY(z) - (bx.hit ? Math.sin(bx.hit * 9) * 6 * s : 0);
@@ -1060,6 +1075,7 @@ var UnrugFloor13 = function (core) {
   const BEAM_H = [.2, .235];   // moving day's plank: its underside and top, as a share of the hall's height
 
   function drawRow(row, z) {
+    if (!row.hit && !DUCKS[row.kind]) jumpCue(z, -.66, .66);
     const k = sc(z), drop = row.hit ? row.hit * 30 * k : 0;
     if (row.hit) { g.save(); g.globalAlpha = Math.max(0, 1 - row.hit * 1.7); }
     if (row.kind === 'chairs') {
@@ -1347,7 +1363,11 @@ var UnrugFloor13 = function (core) {
   function aim(consider) {
     for (const cb of R.cubs) if (cb.temp && !cb.temp.dead && cb.temp.pop > .3) consider(cb.temp, posOf(cb.temp), TUNE.aimCone);
     for (const sw of R.switches || []) consider(sw, switchAt(sw), .5);
-    for (const wk of R.workers) for (const c of wk.carps) if (workerLive(c)) consider(c, workerAt(c), TUNE.aimCone);
+  }
+  // With nothing coming at him, the blaster leans further out, to the carpshits at work along the walls.
+  function aimIdle(consider) {
+    if (R.phase !== 'hall') return;   // in the fight, every bolt goes at the Shredder
+    for (const wk of R.workers) for (const c of wk.carps) if (workerLive(c)) consider(c, workerAt(c), TUNE.aimWork);
   }
   // A shot hitting one of the floor's own targets (checked before carpshits). True if it stopped the shot.
   function shotHits(s) {
@@ -1367,6 +1387,8 @@ var UnrugFloor13 = function (core) {
         s.dead = true; c.dead = true; Snd.play('hit'); sparks(at.u, at.z, at.h); poof(at.u, at.z, at.h, 8);
         const x = PX(at.u, at.z), y = YH(at.z, at.h);
         free(x, y - 4, 'worker', 'shot'); bonusSoul('shot', x, y, 'worker');
+        // its paperwork goes everywhere (cosmetic)
+        for (let i = 0; i < 7; i++) R.fx.push({ k: 'bit', x: x + fxr(-4, 4), y: y - 2, vx: fxr(-45, 45), vy: fxr(-80, -35), t: 0, dur: fxr(.5, .9) });
         if (wk.kind === 'office') wk.cracked = true;
         return true;
       }
@@ -1408,7 +1430,7 @@ var UnrugFloor13 = function (core) {
   return {
     id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'The Shredder will wait. It has nowhere else to be.',
     // hooks
-    use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, shotHits, shotFar, slash, hurt, blasterBack, posOf,
+    use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, aimIdle, shotHits, shotFar, slash, hurt, blasterBack, posOf,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
     // the rest of the floor by name, for the test harness and the balance bots
     BEATS, beat, spawnFormation, startEvent, MOVES, setItems, spawnMove, addWorker, workerAt, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
@@ -1418,7 +1440,7 @@ var UnrugFloor13 = function (core) {
 
 // Floor 13 numbers; copied without retuning when the roof became a second floor.
 UnrugFloor13.TUNE = {
-    coffeeDrop: .2, rowH: .055,
+    coffeeDrop: .2, rowH: .04,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, mouth: .85,
     goal: 90,               // souls that wake the Shredder
