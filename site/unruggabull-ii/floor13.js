@@ -1107,6 +1107,12 @@ var UnrugFloor13 = function (core) {
     rect(g, kx - kw / 2, ky - Math.max(1, 1.5 * k), kw, Math.max(1, 1.5 * k), '#2a2c34');
     const mx = PX(u0 + s * .26, z + .03) + jud, my = YH(z + .03, top);
     rect(g, mx - 1.5 * k, my - 4 * k, Math.max(1, 3 * k), Math.max(1, 4 * k), '#e2483a');
+    // a touch of life: a little green-shaded banker's lamp on the far end, lit, and a leaning stack of folders
+    const lx = PX(u1 - s * .1, z + .04) + jud, ly = YH(z + .04, top);
+    rect(g, lx - .5 * k, ly - 7 * k, Math.max(.5, 1 * k), 7 * k, '#c8a040');
+    rect(g, lx - 4 * k, ly - 9 * k, 8 * k, Math.max(1, 3 * k), '#1f7a44'); rect(g, lx - 4 * k, ly - 9 * k, 8 * k, Math.max(.5, .8 * k), '#3cba6a');
+    const fx = PX(u0 + s * .4, z + .02) + jud, fy = YH(z + .02, top);
+    for (let i = 0; i < 3; i++) rect(g, fx - 4 * k + i * .6 * k, fy - (i + 1) * 1.6 * k, 8 * k, Math.max(.5, 1.4 * k), ['#e8c070', '#f2eee2', '#d8a850'][i]);
     if (bx.hit) g.restore();
   }
   function drawBox(bx, z) {
