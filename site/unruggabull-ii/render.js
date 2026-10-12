@@ -146,7 +146,7 @@ var UnrugRender = (function () {
     const BAYI = new Int32Array(16); for (let d = 0; d < 16; d++) BAYI[d] = d * 1025;
 
     // ---------- this frame's view of the hall ----------
-    let T = 0, scroll = 0, rugScroll = 0, power = 1, dark = false, edgeGlow = 0, fill = 0;
+    let T = 0, scroll = 0, rugScroll = 0, power = 1, dark = false, edgeGlow = 0, fill = 0, steady = false;
     let dawn = 0;
     const sunrise = () => OPEN ? [.3 * dawn, .12 * dawn, -.025 * dawn] : [0, 0, 0];
     const RAILC = [.36, .2, .11], EDGEC = [.78, .52, .1];
@@ -170,12 +170,14 @@ var UnrugRender = (function () {
     const addLight = (x, y, z, r, g, b, down) => { if (LN >= MAXL) return; LX[LN] = x; LY[LN] = y; LZ[LN] = z; LR[LN] = r; LG[LN] = g; LB[LN] = b; LD[LN] = down ? 1 : 0; LN++; };
     const MAXX = 32; let XN = 0; const XL = new Float32Array(MAXX * 6);   // lights added for this frame only
     const light = (x, y, z, r, g, b) => { if (XN >= MAXX) return; const i = XN * 6; XL[i] = x; XL[i + 1] = y; XL[i + 2] = z; XL[i + 3] = r; XL[i + 4] = g; XL[i + 5] = b; XN++; };
-    // one panel in eleven is dead and one in seven flickers
-    const panel = (k, t) => { if (mod(k, 11) === 5) return 0; if (mod(k, 7) === 3) { const f = Math.sin(t * 31) * Math.sin(t * 7.7 + k); return f > .55 || (t % 3.1 < .12) ? .1 : 1; } return 1; };
+    // one panel in eleven is dead and one in seven flickers, unless the view asks for steady light (every panel on,
+    // each lighting a broad soft pool, so nothing strobes as the hall scrolls by)
+    const panel = (k, t) => { if (steady) return 1; if (mod(k, 11) === 5) return 0; if (mod(k, 7) === 3) { const f = Math.sin(t * 31) * Math.sin(t * 7.7 + k); return f > .55 || (t % 3.1 < .12) ? .1 : 1; } return 1; };
     function buildLights(t) {
       LN = 0;
-      if (power > 0) for (let k = Math.floor((scroll - 4) / PANEL); k <= Math.floor((scroll + LZMAX) / PANEL); k++) {
-        const z = (k + .35) * PANEL - scroll; if (z < -4 || z > LZMAX) continue;
+      const zmax = steady ? 14 : LZMAX;   // steady light: the far panels are part of the even fill, not lights of their own
+      if (power > 0) for (let k = Math.floor((scroll - 4) / PANEL); k <= Math.floor((scroll + zmax) / PANEL); k++) {
+        const z = (k + .35) * PANEL - scroll; if (z < -4 || z > zmax) continue;
         const p = panel(k, t) * power; if (p > 0) { LP[LN] = p; addLight(0, C - .08, z, LK.lamp[0] * p, LK.lamp[1] * p, LK.lamp[2] * p, true); }
       }
       for (let i = 0; i < XN; i++) { const j = i * 6; addLight(XL[j], XL[j + 1], XL[j + 2], XL[j + 3], XL[j + 4], XL[j + 5], false); }
@@ -191,7 +193,7 @@ var UnrugRender = (function () {
         if (dot <= 0) continue;
         const d = Math.sqrt(d2);
         let em = 1;
-        if (LD[i]) { const cd = -vy / d; if (cd > 0) { const c2 = cd * cd, c4 = c2 * c2; em = c4 * c4 * 3.2 + .16; } else em = .16; }
+        if (LD[i]) { const cd = -vy / d; if (cd > 0) { const c2 = cd * cd, c4 = c2 * c2; em = steady ? c2 * 1.15 + .34 : c4 * c4 * 3.2 + .16; } else em = steady ? .34 : .16; }
         const a = (dot / d) * em / (1 + .1 * d2);
         r += LR[i] * a; g += LG[i] * a; b += LB[i] * a;
       }
@@ -387,7 +389,7 @@ var UnrugRender = (function () {
     function setView(v) {
       // house: the office's own lights up (0 to 1): the panels brighter, and an even fill of light everywhere
       const house = v.house || 0;
-      scroll = v.scroll; rugScroll = v.rug; power = v.power * (1 + .6 * house); fill = house * .09; dark = !!v.dark; edgeGlow = v.edgeGlow || 0;
+      scroll = v.scroll; rugScroll = v.rug; power = v.power * (1 + .6 * house); fill = house * .09; dark = !!v.dark; edgeGlow = v.edgeGlow || 0; steady = !!v.steady;
       const rc = v.rail || [.36, .2, .11]; RAILC[0] = rc[0]; RAILC[1] = rc[1]; RAILC[2] = rc[2];
       const ec = v.edge || [.78, .52, .1]; EDGEC[0] = ec[0]; EDGEC[1] = ec[1]; EDGEC[2] = ec[2];
       if (OPEN) { fill += v.ambient || 0; dawn = v.dawn || 0; }
@@ -468,10 +470,10 @@ var UnrugRender = (function () {
     // light hanging in the air under each ceiling panel, in front of whatever's behind it
     function cones() {
       for (let i = 0; i < LN; i++) {
-        if (!LD[i] || LZ[i] < 1.6) continue;
+        if (!LD[i] || LZ[i] < (steady ? 3 : 1.6)) continue;   // steady light: no shafts sweeping past close by
         const z = LZ[i], k = LP[i] * fogOf(z), top = CY - (C - .1 - E) / z * F, bot = CY + E / z * F;
         for (let py = Math.max(0, Math.ceil(top)); py < Math.min(H, bot); py++) {
-          const f = (py - top) / (bot - top), hw = (.42 + .9 * f) / z * F, a = .06 * k * Math.pow(1 - f, 1.3);
+          const f = (py - top) / (bot - top), hw = (.42 + .9 * f) / z * F, a = (steady ? .035 : .06) * k * Math.pow(1 - f, 1.3);
           const x0 = Math.max(0, Math.floor(CX - hw)), x1 = Math.min(W, CX + hw);
           for (let px = x0; px < x1; px++) {
             const q = py * W + px; if (HZ[q] < z - .2) continue;
@@ -617,8 +619,8 @@ var UnrugRender = (function () {
         }
       }
       for (let pass = 0; pass < 2; pass++) {
-        blur(bA, bB, QW, QH, 3, QW * 3);   // across
-        blur(bB, bA, QH, QW, QW * 3, 3);   // down
+        blur(bA, bB, QH, QW, 3, QW * 3);   // across: QH rows of QW cells
+        blur(bB, bA, QW, QH, QW * 3, 3);   // down: QW columns of QH cells
       }
       // which quarter cells have bloom in any of the four around them
       for (let y = 0; y < QH; y++) for (let x = 0; x < QW; x++) { const k = (y * QW + x) * 3; nz[y * QW + x] = bA[k] + bA[k + 1] + bA[k + 2] > .002 ? 1 : 0; }

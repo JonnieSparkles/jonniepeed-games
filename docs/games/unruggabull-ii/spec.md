@@ -68,7 +68,7 @@ A corridor floor of about two minutes, then the Shredder.
 - **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, slash while standing on it to cut the rug and stop it, or crouch to grip it and slow the drag. The first pull shows a prompt.
 - **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner. An old-school card names it while its health bar fills.
   - In every phase the runner pulls on a steady beat, and cutting the rug jams it: blaster shots do triple damage while it's jammed. Ride the rug in close before cutting and the jam lasts longer, and paper knocked back from close hits harder.
-  - From phase 2, some pulls spray staples down both sides of the hall, so you choose: ride the rug toward the mouth, or jump staples at the side.
+  - From phase 2, some pulls make the floor beside the rug live, so you choose: ride the rug toward the mouth, or jump at the side.
   - Its mouth glows red just before every attack.
   - In every phase it throws a flight of paper airplanes across the hall at head height: duck, or slash them back.
   - Phase 1: it spits wads of shredded paper (deflect them into its mouth for heavy damage) and quick volleys of smaller scraps to knock back tap-tap-tap.
@@ -122,12 +122,12 @@ Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain c
 
 ### The hint on the 13th Floor (built)
 
-The first time the blaster comes back in the Shredder's phase 3, a handful of souls fly into it instead of into the counter, and for about four seconds it fires two or three streams. Then it quietly goes back to normal.
+The first time the blaster comes back in the Shredder's phase 3, two souls fly slowly into it instead of into the counter, the fight holding its breath while they come, and it fires three streams for the rest of the fight. With the souls in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the streams wear it down, and paper sent back finishes it.
 
 - Nothing announces it: no banner, no pickup text, and no live-region line beyond "Blaster back."
 - It mustn't look like Spread Shot, which already fires three ways: the souls visibly fly into the gun, the streams are the souls' colours (pale white with the halo's gold), and each stream comes in with a single soft bell note.
 - The streams stay parallel or fan slightly. They never bend together; bending in is saved for later.
-- The gameplay effect is small: the extra streams do normal damage and cost no extra charges.
+- The extra streams do normal damage and cost no extra charges; with the Shredder's brace and its last stand, they help without making the blaster the finisher.
 - Done when a first-time player notices something odd and good happened, and can't say what.
 
 ### The near miss on the middle floor (build with that floor)

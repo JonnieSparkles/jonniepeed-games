@@ -1,5 +1,5 @@
 // The Shredder's attack patterns: volleys, paper jam sheets and staple carpets; riding the rug in for a longer jam
-// and harder deflects; side sprays during pulls.
+// and harder deflects; the live floor during pulls.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -57,21 +57,23 @@
   check(R.hearts === hearts && !sheet.hit, 'jumping clears the sheet');
   bull.inv = 1e9;
 
-  // side spray: some pulls send staples down both sides, but not down the rug
+  // a live floor: some pulls make the floor beside the rug live, but not the rug
   reset(); b.atk = 1e9; bull.u = 0; bull.bz = 0; bull.inv = 0; b.atkN = 0;
   R.pull.count = 1; R.pull.st = 'idle'; R.pull.next = R.t; update(1 / 60);
-  check(R.pull.st === 'warn' && R.pull.spray, 'every other pull in phase 2 sprays, and you know while it warns');
+  check(R.pull.st === 'warn' && R.pull.spray, 'every other pull in phase 2 makes the floor live, and you know while it warns');
   check(R.banner && R.banner.text === 'RIDE THE RUG', 'with a prompt the first time');
   draw(); step(.9);
-  check(R.pull.st === 'on' && R.pull.spray, 'then it pulls and sprays');
-  b.atk = 0; step(.6);
-  const spray = R.projs.filter(p => p.kind === 'staple');
-  check(spray.length >= 2 && spray.every(p => Math.abs(p.vu * 1.2 + p.u) > .4 || Math.abs(p.u) > .3), 'staples go down the sides');
-  check(!R.projs.some(p => p.kind !== 'staple'), 'and nothing else is thrown during a spray');
+  check(R.pull.st === 'on' && R.pull.spray, 'then it pulls and the floor goes live');
+  b.atk = 0; step(.6); draw();
+  check(R.projs.length === 0, 'and nothing is thrown while it is live');
   bull.u = 0; const onRug = R.hearts; R.pull.dur = 99;
   for (let i = 0; i < 60 * 1.5; i++) { bull.u = 0; if (bull.bz > .6) bull.bz = .3; update(1 / 60); }
-  check(R.hearts === onRug, 'riding the rug keeps you clear of the spray');
-  endPull(); bull.inv = 1e9; bull.bz = 0;
+  check(R.hearts === onRug, 'riding the rug keeps you clear of the live floor');
+  bull.u = .5; bull.inv = 0; update(1 / 60);
+  check(R.hearts === onRug - 1 && R.lastCause === 'live', 'standing beside the rug gets you a shock');
+  bull.inv = 0; bull.jh = .2; const air = R.hearts; update(1 / 60);
+  check(R.hearts === air, 'but not in the air');
+  endPull(); bull.inv = 1e9; bull.bz = 0; bull.u = 0;
 
   // phase 3: the rally, fans, a staple carpet to jump, volleys
   reset(); b.hp = 30; update(1 / 60); b.dark = null;

@@ -5,7 +5,7 @@ var UnrugElevator = function (core) {
   const ELEVATOR = { time: { ask: 1.8, climb: 30, snap: .45, open: 1.2, exit: .8 }, from: 13, fight: true,
     destination: { floor: 99, label: 'R', stage: 'roof' }, snapAt: .6, lastWave: 29,
     warmup: { every: 2.5, sizes: [1, 2] }, heavy: { every: 2, sizes: [2, 2, 3] },
-    firstWave: 1, crateSpeed: .32, crateStart: .46, deadWait: 1.9,
+    firstWave: 1, crateSpeed: .32, crateStart: .46, deadWait: 2.8,
     arena: { floorY: 122, limit: .88, flyerH: .26, dropSpeed: .3, crawlerSpeed: .24, flyerSpeed: .27, flyerLife: 3.4, wadSpeed: .2, firstThrow: [.8, 1.2], throwEvery: [4, 5] } };
   const arena = UnrugArena(core, ELEVATOR.arena);
   let R, bull, Q, g = core.g;

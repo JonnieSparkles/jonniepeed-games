@@ -45,9 +45,12 @@
   R.shots.push({ u: 0, z: .95, h: .2, tgt: null, dead: false }); update(1 / 60);
   check(near(hp2 - b.hp, TUNE.shotDmg * TUNE.jamMult), 'jammed, the blaster does triple damage');
 
-  b.jam = 0; b.hp = .1;
-  R.shots.push({ u: 0, z: .95, h: .2, tgt: null, dead: false }); update(1 / 60);
-  check(R.phase === 'win' && b.st === 'dead', 'out of health, the Shredder is beaten');
+  b.jam = 0; b.hp = TUNE.lastStand + .1;
+  for (let i = 0; i < 20; i++) { R.shots.push({ u: 0, z: .95, h: .2, tgt: null, dead: false }); update(1 / 60); }
+  check(b.st === 'fight' && Math.abs(b.hp - TUNE.lastStand) < 1e-6, 'the blaster can only bring it to its last stand');
+  b.atkN = 0; check(R.boss.hp <= TUNE.lastStand, 'at its last stand it only serves');
+  bossDamage(TUNE.lastStand, 'deflect');
+  check(R.phase === 'win' && b.st === 'dead', 'out of health, the Shredder is beaten: paper sent back finishes it');
   const souls = R.souls; step(6.5);
   check(R.souls === souls + TUNE.bossSouls, 'its souls come out one at a time');
   check(state === 'over' && !card.hidden && cardTitle.textContent === 'The 13th Floor clear' && goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again', 'the clear card shows');

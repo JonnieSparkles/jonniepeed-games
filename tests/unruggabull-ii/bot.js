@@ -143,13 +143,15 @@ window.__balanceBot = function (profile, seed) {
       });
       o.boxes.forEach(function (bx) {
         var dz = bx.z - b.bz - o.speed * lead;
-        if (dz <= 0 || dz > .25 || Math.abs(bx.u - me) > .16) return;
+        // a desk sticking out from one side: in the way anywhere from its end to the wall
+        var inWay = bx.s ? bx.s * (me - bx.inner) > -.08 : Math.abs(bx.u - me) <= .16;
+        if (dz <= 0 || dz > .25 || !inWay) return;
         var pl = plan(bx, function () { return { side: r() < P.dodge, err: err(P.jump_err) }; });
-        if (pl.side && !urgent) { goal = clamp(me + (bx.u >= me ? -.3 : .3)); urgent = true; }
+        if (pl.side && !urgent) { goal = clamp(bx.s ? bx.inner - bx.s * .22 : me + (bx.u >= me ? -.3 : .3)); urgent = true; }
         else if (dz < o.speed * .25 + pl.err + .02) a.jump = true;
       });
       // The runner warns, then pulls: step off it, or stay on and slash to cut it (which jams the Shredder), riding it
-      // `ride` of the way toward the mouth first for a longer jam. A side spray makes the rug the safe place: get on it.
+      // `ride` of the way toward the mouth first for a longer jam. A live floor makes the rug the safe place: get on it.
       if (o.pull === 'warn' && lastPull !== 'warn') pullPlan = { cut: r() < P.cut_try };
       lastPull = o.pull;
       var pulling = o.pull === 'warn' || o.pull === 'on', onRug = Math.abs(me) < o.runner + .05, cutAt = P.ride * (o.mouth || .85);

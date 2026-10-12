@@ -61,7 +61,7 @@
   // beaten at the Shredder: continue from the fight with full hearts, or start the floor over
   const atSouls = checkpoint.souls;
   bull.inv = 0; for (let i = 0; i < TUNE.hearts; i++) { bull.inv = 0; hurtBull(1, 'bundle'); }
-  step(2.2);
+  step(TUNE.deadWait + .3);
   check(state === 'over' && cardTitle.textContent === 'Rugged.' && goBtn.textContent === 'Continue' && !altBtn.hidden && altBtn.textContent === 'Restart floor', 'beaten by the Shredder, you can continue there or restart');
   goBtn.click();
   check(state === 'play' && R.phase === 'wake' && R.hearts === TUNE.hearts && R.souls === atSouls && R.continues === 1, 'continue picks up at the Shredder with full hearts');
@@ -71,7 +71,7 @@
   // the clear card shows the run's stats; a clear with continues doesn't set the fastest time
   const bestTime = (JSON.parse(localStorage.getItem('unruggabull-ii-best') || '{}').time) || 0;
   R.events.deflects = 7; R.events.smashes = 2; R.bestStreak = 9;
-  R.boss.hp = .1; R.shots.push({ u: 0, z: .95, h: .2, tgt: null, dead: false }); update(1 / 60);
+  R.boss.hp = .1; bossDamage(1, 'deflect'); update(1 / 60);
   check(R.phase === 'win' && R.white > 0 && R.slow > 0, 'the final hit flashes white and slows time');
   step(.4); const p0 = R.phaseT; step(.5);
   check(R.phaseT - p0 < .25, 'time runs slow for a moment');
@@ -90,7 +90,7 @@
   RUN.force = 910; startRun();
   check(!checkpoint, 'a new floor clears the checkpoint');
   for (let i = 0; i < TUNE.hearts; i++) { bull.inv = 0; hurtBull(1); }
-  step(2.2);
+  step(TUNE.deadWait + .3);
   check(altBtn.hidden && goBtn.textContent === 'Continue', 'rugged in the hall: continue starts over');
   goBtn.click();
   check(R.phase === 'hall' && R.souls === 0 && R.continues === 0, 'from the top');

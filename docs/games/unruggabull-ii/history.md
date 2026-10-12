@@ -59,10 +59,34 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **The title and its logo** (the owner's picks): the same scene ("i want the same scene for now"), redrawn at full size: a dithered dusk sky, the city with lit windows and rooftop clutter, RugCo Tower with its window grid and the sunset on its edges, a neon RUGCO sign, finer sun stripes. The logo was picked from seven takes (chunky bevel, woven rug, arcade chrome, chrome with fringe, chrome charging, deep extrude, neon): "chrome, charging", block letters gold-white over orange-red, leaning forward with speed streaks. He stands a quarter smaller there, with a warm sunset rim round him so he stands out against the dark tower.
 - **The roof's plan** (roof storyboard, [roof-plan.md](roof-plan.md)): the owner asked for a lead-in, so you don't just get up there and start fighting, and for "some regular boss fighting before the build up crescendo", so the roof got an elevator, a walk and a lightning reveal, then three rounds with three spools as p(Loom)'s health. The odds stay at 99% through the rounds so that only the beam moves them. Side-view cut-ins on the crescendo's quiet beats were the owner's ask too; the playable side and top-down views stay dropped. The owner's picks: a hit doesn't break the beam, souls fire from the quiet on, and his line at the fusion is "LET'S DISCUSS THOSE ODDS." With the fight about two minutes long, a continue starts the round he died in. The build is split so the framework can go to another agent without the art.
 
+- **The 13th Floor notes round, Oct 12** (the owner's phone playtest):
+  - **Jumping:** "hard to gauge when you should be able to jump", so there's a little cushion, plus a yellow floor pulse at the moment to jump.
+  - **Lighting:** "the ceiling lighting flickers… distracting", so it's steady now.
+  - **Carpshits at work:** they "feel like you should be able to shoot them, but they never get targeted", so the blaster leans out to them when nothing else is ahead.
+  - **Pacing:** "sequence after sequence smashed together", so there's a breather after moving day and after lights out.
+  - **Moving day:** "needs more space between obstacles", so the gaps are 2.6 seconds.
+  - **The weapon tease:**
+    - "a little more pause in there… huh, the heck was that?", so it's slower and the fight holds its breath.
+    - "three souls … but only two chimes", so it's two souls now, and the streams stay ("more time with the upgraded blaster").
+    - "shred o zaps the blaster right after its upgraded", so the souls hold the gun against surges.
+  - **The finish:** "encourage volley as the finish", so the blaster stops at its last stand, which is staged as an event and ends on a proper rally ("we don't need the last volley to be too short").
+  - **Cut the rug:** the owner kept the three-beat mockup ("the rug cut sequence", without its chevrons).
+  - **The Shredder's shots:** the paper ball ("isnt bad for shred o"), and the spinning staple stars ("I like the spinning ones").
+  - **The live floor:** the staple side spray "dont look great". Its point was "to force the player to decide whether to stay on the carpet or not", so the floor beside the rug goes live instead, in the surge's blue, and the rug insulates. Picked from stills over a paper blizzard ("it's number one").
+  - **Desks:** "a little visually more interesting… just a touch of something", so each has a green banker's lamp and a stack of folders.
+  - **Rugged:** the flip off the screen was "weird". The owner asked for him to fall or vanish and "a bull soul" to rise, and picked the all-ghost version over cream horns, from a moving mock.
+  - **Moving day's souls** "render in front of what theyre actually behind. hard to tell where they are": they were drawn with the glow, over everything. Now they're in depth order with a shadow.
+  - **A black bar** in the lit renderer: the bloom's two blur passes had rows and columns swapped, so the pass going down read past the end of the buffer and turned the bottom rows NaN, which shows as black wherever there was bloom (seen as a bar across his legs). Since the lit renderer; fixed, and bloom now covers the whole picture.
+
 ## Tried and dropped
 
+- **The 13th Floor's floor boxes, round one and two** (notes round): a carpshit hiding in a moving box, caution tape, spilled staples; then a stapler trap, a paper cutter, a shred bin. "Boring and not threatening"; then potted plants ("no potted plants"). Stepping back, the owner asked what they were for (a watch-your-feet hazard) and suggested "a low cubicle desk sticking out onto the carpet": desks it is.
+- **The staple side spray** (notes round): staples streaming down both sides during a pull, then spinning as stars. They didn't look great, and a shredded-paper blizzard from its side vents lost to the live floor in stills.
+- **Shots and staples, round one** (notes round): a bale of shreddings and a file folder for the bundle; a staple point first, chunky side on, a strip. Only the paper ball was kept.
+
 - **The audit** (game-pad controls, dropped after the first deploy): a deflect round where the temps lobbed paper for double souls. It never read as anything in particular.
-- **A rug burrito** when he's rugged (his lines, dropped in volley match): "looks terrible". The rug is yanked out and he flips off the screen.
+- **A rug burrito** when he's rugged (his lines, dropped in volley match): "looks terrible". The rug was yanked out and he flipped off the screen.
+- **The flip off the screen** (notes round): he flipped up and spun off the bottom in quarter turns; "the animation is weird". His bull soul rises instead.
 - **A big AUDIT banner across the hall** (dropped in lights out): disorienting. Every beat and event gets a sign that drops from the ceiling.
 - **A surge you could jump** (volley match, dropped the same round): see above; it had to be forced.
 - **A D-pad** (game-pad controls, dropped in thumb stick).

@@ -35,8 +35,9 @@
   // ---------- tuning ----------
   const TUNE = {
     hearts: 5, move: 1.5, aisle: .6, runner: .3,
+    deadWait: 2.8,   // rugged: seconds before the card, long enough for his soul to rise
     jumpH: .2, jumpT: .65,
-    fireEvery: .2, shotSpeed: 2.2, aimCone: .38,
+    fireEvery: .2, shotSpeed: 2.2, aimCone: .38, aimWork: .8,
     charges: 20, recharge: .5, spreadT: 10,
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
     hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1
@@ -270,6 +271,7 @@
     const consider = (o, at, cone) => { if (at.z > bull.bz + .05 && at.z < TUNE.reach && Math.abs(at.u - bull.u) < cone && at.z < bz) { best = o; bz = at.z; } };
     floor.aim(consider);
     for (const f of R.flies) consider(f, f, .3);
+    if (!best && floor.aimIdle) floor.aimIdle(consider);
     // bolts leave the muzzle of the blaster he holds up beside his head
     const mu = bull.u + A.MUZZLE.x / HW, mh = bull.jh - A.MUZZLE.y / (FN - CN);
     const shot = du => R.shots.push({ u: mu, z: bull.bz + .03, h: mh, du, tgt: du ? null : best, dead: false, spread: !!du });
@@ -591,15 +593,15 @@
     const b = bull;
     if (b.mouth > 0) return;
     const s = sc(b.bz), x = PX(b.u, b.bz), feet = YH(b.bz, b.jh);
-    if (R.phase !== 'dead' || R.phaseT < .3) shadow(b.u, b.bz, 14 * (1 - .5 * Math.min(1, b.jh / TUNE.jumpH)));   // the shadow shrinks as he rises
-    if (R.phase === 'dead') { drawRugPulled(s, x, YH(b.bz, 0)); return; }
+    if (R.phase !== 'dead' || R.phaseT < 1) shadow(b.u, b.bz, 14 * (1 - .5 * Math.min(1, b.jh / TUNE.jumpH)));   // the shadow shrinks as he rises
+    if (R.phase === 'dead') { drawSoulDeath(s, x, YH(b.bz, 0)); return; }
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
     // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
     const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
     const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
     let p = P.stand;
     const cheer = R.phase === 'win' && !(R.slow > 0) && R.phaseT > .5 && !air;
-    if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : P.crouch;
+    if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : running ? (Math.floor(b.step * .6) % 2 ? P.crouchWalkB : P.crouchWalkA) : P.crouch;   // carried along crouched, he shuffles
     else if (b.slash >= 0) p = b.slash < .07 ? (air ? P.jumpWind : P.wind) : (air ? P.jumpCut : P.cut);
     else if (b.inv > TUNE.hurtInv - .3 && R.phase !== 'win') p = P.hurt;
     else if (air) p = aim ? P.jumpAim : P.jump;
@@ -616,17 +618,30 @@
     if (b.slash >= 0 && !cheer) A.arcE(GLOW, x + kx, feet + ky - (b.crouch ? 14 : 20) * s, 26 * s, 11 * s, Math.PI + .2, b.slash < .07 ? Math.PI * 1.45 : Math.PI * 2 - .2);
   }
   // Rugged: the rug is yanked out from under him. He flips up, spins in quarter turns and falls off the screen.
-  function drawRugPulled(s, x, feet) {
-    const t = Math.max(0, R.phaseT - .08), dy = -(190 * t - 260 * t * t) * s, rot = Math.floor(t / .09) % 4;
-    g.save(); g.translate(Math.round(x + t * 14 * s), Math.round(feet - 19 * s + dy));
-    if (rot) g.rotate(rot * Math.PI / 2);
-    const k = s * A.BULL_K;
-    g.drawImage(A.POSES.hurt, -A.POSE_FEET.x * k, -A.POSE_FEET.y * k + 19 * s, A.POSE_W * k, A.POSE_H * k);
-    g.restore();
+  // Rugged: he's hit, sinks to his knees and flickers out in blue sparkles, and his soul rises, a bull's soul with its
+  // halo, drifting up to rest under the RUGGED banner (the owner's idea, over flipping off the screen). Drawn from the
+  // clock alone; the soul is drawn with the glow, so it shows in the dark.
+  function drawSoulDeath(s, x, feet) {
+    const t = R.phaseT, P = A.POSES, k = s * A.BULL_K;
+    const pose = (img, a) => { g.save(); g.globalAlpha = a; g.drawImage(img, Math.round(x - A.POSE_FEET.x * k), Math.round(feet - A.POSE_FEET.y * k), A.POSE_W * k, A.POSE_H * k); g.restore(); };
+    if (t < .35) pose(P.hurt, 1);
+    else if (t < 1.1) { const out = Math.max(0, (t - .8) / .3); if (!(out > 0 && Math.floor(t * 30) % 2)) pose(P.crouch, 1 - out * .6); }
+    if (t > .8 && t < 1.3) for (let i = 0; i < 8; i++) {   // the sparkles he goes out in
+      const a = i * 2.4 + t * 6, r = (t - .8) * 40 * s;
+      rect(g, x + Math.cos(a) * r * .8, feet - 20 * s - Math.sin(a) * r * .6 - (t - .8) * 30 * s, Math.max(1, s * 1.5), Math.max(1, s * 1.5), i % 2 ? '#bfe8ff' : '#ffffff');
+    }
+    R.soulAt = [x, feet - 24 * s, VX + (x - VX) * .4, 92];   // where his soul rises from and comes to rest (drawn in the glow)
+  }
+  // his soul, `u` seconds after it appears at (x0, y0), easing to rest at (x1, y1) with a gentle sway
+  function bullSoul(u, x0, y0, x1, y1) {
+    const img = A.BULL_SOUL, w = A.uw(img) * 1.5, h = A.uh(img) * 1.5, e = Math.min(1, u / 1.6), ease = 1 - (1 - e) * (1 - e);
+    const y = y0 + (y1 - y0) * ease + Math.sin(u * 2.6) * 2 * e, x = x0 + (x1 - x0) * ease + Math.sin(u * 3.2) * 4 * (1 - e * .5);
+    g.save(); g.globalAlpha = Math.min(1, u * 2.5); g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h); g.restore();
   }
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
   const FX_PASS = { wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
   function drawFx(pass) {
+    if (pass === 'glow' && R.phase === 'dead' && R.soulAt && R.phaseT > 1) bullSoul(R.phaseT - 1, ...R.soulAt);
     for (const f of R.fx) {
       if ((FX_PASS[f.k] || 'lit') !== pass) continue;
       const k = f.t / f.dur;
@@ -832,13 +847,16 @@
   // Bolts and the flash are kept soft, so steady fire lights the hall without strobing it.
   // (The floor adds its own.)
   function sceneLights(r) {
+    // With the lights on, bolts are only a soft touch of light (the nearest few), so steady fire doesn't flash the
+    // hall or cost frames; in the dark they're the light you see by.
+    const dim = floor.darkness ? floor.darkness() >= .5 : true, k = dim ? 1 : .55, most = dim ? 10 : 3;
     let n = 0;
     for (const s of R.shots) {
-      if (n++ >= 10) break;
+      if (n++ >= most) break;
       const [x, y, z] = world(s.u, s.z, s.h);
-      if (s.soul) r.light(x, y, z, .3, .25, .12); else if (s.spread) r.light(x, y, z, .32, .24, .08); else r.light(x, y, z, .16, .3, .5);
+      if (s.soul) r.light(x, y, z, .3 * k, .25 * k, .12 * k); else if (s.spread) r.light(x, y, z, .32 * k, .24 * k, .08 * k); else r.light(x, y, z, .16 * k, .3 * k, .5 * k);
     }
-    if (R.fx.some(f => f.k === 'muzzle')) { const [x, y, z] = world(bull.u + A.MUZZLE.x / HW, bull.bz, bull.jh - A.MUZZLE.y / (FN - CN)); r.light(x, y, z - .15, .4, .3, .14); }
+    if (R.fx.some(f => f.k === 'muzzle')) { const [x, y, z] = world(bull.u + A.MUZZLE.x / HW, bull.bz, bull.jh - A.MUZZLE.y / (FN - CN)); r.light(x, y, z - .15, .4 * k, .3 * k, .14 * k); }
     for (const pk of R.pickups) {
       const z = pk.w - R.dist; if (z > 1.02 || z < ZN) continue;
       const [x, y, wz] = world(pk.u, z, pk.h);

@@ -69,7 +69,7 @@
   b.atkN = ATTACKS[2].indexOf('rewind'); b.atk = 0; update(1 / 60);
   check(R.roll && R.projs.some(p => p.kind === 'bundle'), 'rewind: the rug rolls back and a bundle comes');
 
-  // rugged: the rug is yanked out and he flips off the screen
+  // rugged: the rug is yanked out, he kneels and flickers out, and his bull's soul rises
   R.roll = null; bull.inv = 0;
   for (let i = 0; i < TUNE.hearts; i++) { bull.inv = 0; hurtBull(1, 'bundle'); }
   check(R.phase === 'dead', 'rugged');
@@ -77,4 +77,8 @@
   check(R.roff > roff + .3, 'the rug is yanked out from under him');
   for (const t of [.3, .6, 1]) { while (R.phaseT < t) update(1 / 60); draw(); }
   check(R.events.said.rugged && LINES.rugged === 'WHOA!', 'WHOA!');
+  step(1.2); draw();
+  check(R.phase === 'dead' && state !== 'over' && R.soulAt && R.soulAt[1] > R.soulAt[3], 'his soul rises, and the card waits for it (' + [state, R.phase, R.phaseT.toFixed(2)] + ')');
+  step(TUNE.deadWait);
+  check(state === 'over', 'then the card');
 })();

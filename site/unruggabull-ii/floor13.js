@@ -125,6 +125,8 @@ var UnrugFloor13 = function (core) {
     rect(b, 0, 0, img.width, 11, style === 'neon' ? fg : '#1a1418'); rect(b, 1, 1, img.width - 2, 9, bg); txt(b, text, 4, 3, fg);
     R.signs.push({ w: R.dist + w, img, text, born: R.t, neon: style === 'neon' });
   }
+  // Each section starts like a new scene: a breather while its sign drops before anything comes at you.
+  const BREATHER = 2.5;
   function spawnHall(dt) {
     const B = beat(), ev = R.event && R.event.kind;
     while (R.dist + 1.05 >= R.nextCubW) {
@@ -152,7 +154,9 @@ var UnrugFloor13 = function (core) {
     if (B.boxes && !ev) {
       R.nextBox -= dt;
       if (R.nextBox <= 0) {
-        R.boxes.push({ w: R.dist + 1.05, u: [-.45, -.15, .15, .45][Math.floor(rnd() * 4)], hit: 0 });
+        // a low cubicle desk sticking out from one side into the aisle: one lane deep, or two, right up to the runner
+        const i = Math.floor(rnd() * 4), sd = i < 2 ? -1 : 1, inner = [-.3, -.02, .02, .3][i];
+        R.boxes.push({ w: R.dist + 1.05, s: sd, inner, u: (inner + sd * DESK_OUT) / 2, hit: 0 });
         R.nextBox = rr(3.5, 5.5);
       }
     }
@@ -172,7 +176,7 @@ var UnrugFloor13 = function (core) {
     R.event = { kind: C ? 'move' : kind, t: 0, dur: C ? C.dur : TUNE.darkT };
     if (C) {
       // moving day: no one to shoot, and a course of furniture to jump and duck, one move at a time
-      Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 2.4, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
+      Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 1.8, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
       addSign(.75, C.sign, 'move');
       Snd.play('start'); live(C.say);
@@ -191,7 +195,7 @@ var UnrugFloor13 = function (core) {
   // A kill in the dark frees a second soul.
   function bonusBy() { return R.event && R.event.kind === 'dark' ? 'dark' : null; }
   // Moving day: a short course to introduce jumping and ducking, in order, each with the gap before the next.
-  const MOVES = [['chairs', 1.8], ['beam', 1.8], ['chairs', 1.8], ['beam', 1.8]];
+  const MOVES = [['chairs', 2.6], ['beam', 2.6], ['chairs', 2.6], ['beam', 2.6]];   // seconds after each piece before the next: room to land, read the next one and grab a soul
   const COURSES = { move: { sign: 'MOVING DAY', moves: MOVES, dur: TUNE.moveT, clean: TUNE.moveClean, say: 'Moving day: jump the chairs, duck the beams.' } };
   const DUCKS = { beam: true };   // beams hang at head height: duck; the rest, jump
   function spawnMove(E) {
@@ -251,6 +255,7 @@ var UnrugFloor13 = function (core) {
         // another event straight after this one, if the section lists more than one: a coffee between, same section
         if (R.evQ && R.evQ.length) { R.event = null; addPickup('coffee', .9, rr(-.4, .4)); startEvent(R.evQ.shift()); spawnHall(dt); return; }
         R.event = null; R.beat++; R.beatT = 0; R.switches = [];
+        R.nextFly = Math.max(R.nextFly, BREATHER); R.nextForm = Math.max(R.nextForm, BREATHER + .8); R.nextRow = Math.max(R.nextRow, BREATHER + 1.5); R.nextBox = Math.max(R.nextBox, BREATHER);
         addSign(1, beat().sign);
         if (beat().pulls) { bark('copy'); R.copyAt = R.souls; }
         Snd.music(beat().music);
@@ -281,7 +286,8 @@ var UnrugFloor13 = function (core) {
     }
     R.rows = R.rows.filter(row => row.w - R.dist > (DUCKS[row.kind] && !row.hit ? -.3 : ZN) && row.hit < .6);   // what you duck under carries on over you
   }
-  const BOX_H = .06;
+  const BOX_H = .045;
+  const DESK_OUT = .7;   // where a desk meets the cubicle wall   // a little cushion: the tail of a jump still clears it
   // a moving-day obstacle that hits you: no soul for it, and the run isn't clean
   function obHit(ob) { if (!ob) return; ob.hit = true; if (R.event && R.event.kind === 'move') R.event.clean = false; }
   const knock = (ob, cause) => hurtBull(1, cause);
@@ -289,7 +295,8 @@ var UnrugFloor13 = function (core) {
     for (const bx of R.boxes) {
       const z = bx.w - R.dist;
       if (bx.hit) { bx.hit += dt; continue; }
-      if (Math.abs(z - bull.bz) < .02 && Math.abs(bx.u - bull.u) < .14 && bull.jh < BOX_H && knock(bx.ob, 'box')) { bx.hit = .001; obHit(bx.ob); }
+      const inPath = bx.s ? bx.s * (bull.u - bx.inner) > -.06 : Math.abs(bx.u - bull.u) < .14;   // a desk: anywhere from its end to the wall
+      if (Math.abs(z - bull.bz) < .02 && inPath && bull.jh < BOX_H && knock(bx.ob, 'box')) { bx.hit = .001; obHit(bx.ob); }
     }
     R.boxes = R.boxes.filter(bx => bx.w - R.dist > ZN && bx.hit < .5);
   }
@@ -394,7 +401,7 @@ var UnrugFloor13 = function (core) {
         continue;
       }
       if (Math.abs(p.z - bull.bz) < .045 && Math.abs(p.u - bull.u) < .1 + p.w && overlaps(p.h, p.hh)) {
-        if (hurtBull(1, p.rally ? 'rally' : p.spray ? 'spray' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); if (R.hearts > 0) taunt('miss'); } continue; }
+        if (hurtBull(1, p.rally ? 'rally' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); if (R.hearts > 0) taunt('miss'); } continue; }
       }
       if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); } }
     }
@@ -434,15 +441,21 @@ var UnrugFloor13 = function (core) {
   function updatePull(dt) {
     const P = R.pull;
     P.t += dt;
+    // dragged along the rug: dust kicks up at his heels (cosmetic)
+    if (P.st === 'on' && onRunner() && !bull.crouch && bull.jh <= 0 && Math.random() < dt * 14) {
+      const x = PX(bull.u, bull.bz) + fxr(-9, 9), y = FY(bull.bz) - fxr(0, 3);
+      R.fx.push({ k: 'smoke', x, y, t: 0, dur: fxr(.3, .5) });
+    }
     const can = (R.phase === 'hall' && beat().pulls && !R.event) ||
       (R.phase === 'boss' && R.boss.st === 'fight' && R.boss.jam <= 0 && !R.boss.rally && !R.roll);
     if (P.st === 'idle') {
       if (can && R.t >= P.next) {
         P.st = 'warn'; P.t = 0; Snd.play('warn');
-        // from phase 2 every other pull sprays staples down both sides, and the sides flash red while it warns:
-        // ride the rug toward the mouth, or dodge at the sides
-        P.spray = R.phase === 'boss' && R.boss.ph >= 2 && (P.count + 1) % 2 === 0; P.sprayT = .2;
-        if (P.spray && !R.events.sprayHint && !R.talk) { R.events.sprayHint = true; R.banner = { text: 'RIDE THE RUG', t: 0, dur: 99, pull: true }; live('Side spray coming: staples down both sides. Ride the rug, or jump them.'); }
+        // from phase 2 every other pull also makes the floor beside the rug live (still called a spray in the code): it
+        // shimmers blue while it warns, then shocks anyone standing off the rug. Ride the rug toward the mouth, or jump.
+        P.spray = R.phase === 'boss' && R.boss.ph >= 2 && (P.count + 1) % 2 === 0; P.sprayT = 0;
+        if (P.spray) Snd.play('rev');
+        if (P.spray && !R.events.sprayHint && !R.talk) { R.events.sprayHint = true; R.banner = { text: 'RIDE THE RUG', t: 0, dur: 99, pull: true }; live('The floor beside the rug is going live. Ride the rug.'); }
       }
     } else if (!can && P.st !== 'cut') {
       endPull();
@@ -458,9 +471,13 @@ var UnrugFloor13 = function (core) {
       if (P.spray) {
         P.sprayT -= dt;
         if (P.sprayT <= 0) {
-          P.sprayT = TUNE.sprayEvery;
-          for (const sd of [-1, 1]) { const u = sd * rr(.48, .62); launch('staple', { u: sd * rr(.34, .42), z: .95, h: .03 }, { u, z: bull.bz - .02, h: .03 }, TUNE.sprayT, { w: .06, hh: .03, spray: true }); }
-          R.boss.spit = .15;
+          P.sprayT = .45; Snd.play('surge');
+        }
+        // off the rug with your feet on the floor, you get a shock
+        if (bull.jh < .03 && Math.abs(bull.u) > TUNE.runner + TUNE.liveEdge && !bull.mouth && !bull.spat && hurtBull(1, 'live')) {
+          const k = sc(bull.bz), x = PX(bull.u, bull.bz), y = YH(bull.bz, 0);
+          for (let i = 0; i < 10; i++) R.fx.push({ k: 'spark', x: x + fxr(-10, 10) * k, y: y - fxr(0, 40) * k, s: .8, col: Math.random() < .5 ? '#7fd4ff' : '#ffffff', t: 0, dur: fxr(.15, .3), a: Math.random() * 6 });
+          Snd.play('surge');
         }
       }
       if (P.t >= P.dur) endPull();
@@ -502,7 +519,9 @@ var UnrugFloor13 = function (core) {
     const [lo, hi] = TUNE.rally.count[b.ph - 1];
     const marathon = !!long && !b.marathonDone;   // once a phase, a rally goes the distance
     if (marathon) b.marathonDone = true;
-    b.rally = { count: 0, target: marathon ? TUNE.rally.marathon[b.ph - 1] : lo + Math.floor(rnd() * (hi - lo + 1)), marathon };
+    // at its last stand it's a proper rally, at the short end of the phase's range: win it and that's the finish
+    const last = b.hp <= TUNE.lastStand;
+    b.rally = { count: 0, target: last ? lo : marathon ? TUNE.rally.marathon[b.ph - 1] : lo + Math.floor(rnd() * (hi - lo + 1)), marathon: marathon && !last };
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, TUNE.rally.serve, { w: .09, hh: .06, rally: true });
     b.spit = .25; Snd.play('spit');
     if (marathon) {
@@ -514,6 +533,14 @@ var UnrugFloor13 = function (core) {
   }
   // Phase 3's power surge: a flash of static that knocks the blaster out of his hands and up the rug. No dodging it:
   // now it's a volley match until a smash rolls the rug back with the blaster on it.
+  // Once the two souls are in the gun, they hold it: the surge still comes, but it breaks on them in a shower of gold.
+  const soulsHold = () => R.hint && R.hint.landed >= TUNE.soulHint.souls;
+  function fizzle() {
+    shove(6);
+    const m = muzzleXY(); R.fx.push({ k: 'bolt', x0: 120, y0: BACK.y0 + 19, x1: m.x, y1: m.y, t: 0, dur: .3 });
+    for (let j = 0; j < 12; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-5, 5), y: m.y + fxr(-5, 5), s: .8, col: j % 2 ? '#ffd44a' : '#ffffff', t: 0, dur: .4, a: Math.random() * 6 });
+    R.shake = Math.max(R.shake, .15); Snd.play('surge');
+  }
   function surge() {
     shove(10);
     // the cause, plainly: a bolt of blue lightning from its eyes to the blaster in his hand
@@ -569,7 +596,7 @@ var UnrugFloor13 = function (core) {
     else if (kind === 'planes') throwPlanes();
     else if (kind === 'fan') spitFan();
     else if (kind === 'sheet' || kind === 'carpet') spitRow(kind);
-    else if (kind === 'surge') { if (R.armed === false) serveRally(); else surge(); }
+    else if (kind === 'surge') { if (R.armed === false) serveRally(); else if (soulsHold()) fizzle(); else surge(); }
     else if (kind === 'rewind') { rollBack(TUNE.rewindT); launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: 0, h: .12 }, TUNE.bundleT[1], { w: .08, hh: .05 }); R.boss.spit = .25; Snd.play('spit'); }
     else serveRally(kind === 'marathon');
   }
@@ -592,8 +619,17 @@ var UnrugFloor13 = function (core) {
   function bossDamage(n, by) {
     const b = R.boss;
     if (b.st !== 'fight') return;
+    // its last stand: the blaster can wear it down only so far; the finish has to be its own paper sent back at it
+    if ((by || 'blaster') === 'blaster') n = Math.max(0, Math.min(n, b.hp - TUNE.lastStand));
+    if (n <= 0) { b.tick = .05; return; }
     emit('boss_damage', { amount: n, by: by || 'blaster' });
     b.hp = Math.max(0, b.hp - n);
+    // reaching its last stand is an event: it staggers, smoke pours out of it, the music drops, then it serves the final rally
+    if (!b.lastStand && b.hp > 0 && b.hp <= TUNE.lastStand) {
+      b.lastStand = true; b.atk = Math.max(b.atk, 2); b.shudder = 1.6; R.freeze = Math.max(R.freeze, .12); R.shake = Math.max(R.shake, .4);
+      for (let i = 0; i < 14; i++) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 8, BACK.x1 - 8), y: fxr(BACK.y0 + 10, BACK.y1 - 8), t: -i * .06, dur: fxr(.8, 1.3) });
+      Snd.duck && Snd.duck(1.8);
+    }
     if (n >= 2) { b.flash = .07; shove(-Math.min(12, 2 + n * .6)); } else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
     if (b.hitSnd <= 0) { Snd.play('bosshit'); b.hitSnd = .09; }
     if (b.hp <= 0) defeat();
@@ -622,7 +658,7 @@ var UnrugFloor13 = function (core) {
     const b = R.boss;
     if (b.st !== 'fight' || R.armed === false) return false;
     if (b.surgeAt > 0 && b.surgeAt < .9) return true;
-    const list = ATTACKS[b.ph - 1];
+    const list = b.hp <= TUNE.lastStand ? ['rally'] : ATTACKS[b.ph - 1];
     return b.rev > 0 && list[b.atkN % list.length] === 'surge';
   }
   function updateBody(dt) {
@@ -636,6 +672,9 @@ var UnrugFloor13 = function (core) {
     b.blink = (b.blink || 0) - dt;
     if (b.blink < -fxr(2.5, 5)) b.blink = .12;
     // it chews: shredded strips drop out of its mouth onto the rug
+    // jammed: smoke curls out of its mouth and sparks spit at the corners
+    if (b.jam > 0 && b.st === 'fight' && Math.random() < dt * 9) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 16, BACK.x1 - 16), y: BACK.y1 - 12, t: 0, dur: fxr(.6, 1) });
+    if (b.jam > 0 && b.st === 'fight' && Math.random() < dt * 6) R.fx.push({ k: 'spark', x: Math.random() < .5 ? BACK.x0 + 12 : BACK.x1 - 12, y: BACK.y1 - 9, s: .6, col: '#ffd44a', t: 0, dur: .2, a: Math.random() * 6 });
     if ((b.st === 'fight' || b.st === 'awake') && b.jam <= 0 && Math.random() < dt * (R.pull.st === 'on' ? 14 : 5))
       R.fx.push({ k: 'strip', x: fxr(BACK.x0 + 14, BACK.x1 - 14), y: BACK.y1 - 5, vx: fxr(-8, 8), vy: fxr(8, 18), t: 0, dur: fxr(.4, .7) });
     if (b.st === 'fight' && b.hp < 15) { if (Math.random() < dt * 3) shove(fxr(-2, 2)); taunt('low'); }
@@ -678,8 +717,9 @@ var UnrugFloor13 = function (core) {
       if (b.volley.t <= 0) { spitScrap(); b.volley.t = TUNE.volley.gap; if (--b.volley.left <= 0) b.volley = null; }
       return;
     }
-    // no attacks while the runner warns or sprays, and a rally waits for a pull to end
-    const list = ATTACKS[ph - 1], next = list[b.atkN % list.length];
+    // no attacks while the runner warns or the floor is live, and a rally waits for a pull to end
+    // at its last stand it only serves: win a rally to finish it
+    const list = b.hp <= TUNE.lastStand ? ['rally'] : ATTACKS[ph - 1], next = list[b.atkN % list.length];
     if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (R.pull.spray || next === 'rally' || next === 'marathon' || next === 'rewind')) || b.rally || R.roll) return;
     const was = b.atk;
     b.atk -= dt;
@@ -705,32 +745,34 @@ var UnrugFloor13 = function (core) {
     talk('RUG NOT FOUND.', 'shredder');
   }
   // ---------- the souls' hint ----------
-  // A glimpse of the mega stream, saved for the roof. Nothing announces it: a few souls leave the counter and fly into
-  // the gun, each of the first two lands with one soft bell and adds a stream, and a few seconds later the streams quietly
-  // drop off. The counter keeps its souls; the streams do normal damage and cost nothing extra.
+  // A glimpse of the mega stream, saved for the roof. Nothing announces it: the first time he wins the blaster back,
+  // two souls leave the counter and fly into the gun, each landing with one soft bell and adding a stream, and the
+  // streams stay with him for the rest of the fight (they pause while the blaster's knocked away and come back with it).
+  // The counter keeps its souls; the streams do normal damage and cost nothing extra.
+  // It takes its time, so it registers: a beat before the first soul lifts off the counter, the souls slow and far
+  // apart, the music ducked under the bells, the Shredder and the runner holding off until the last one lands, and a
+  // tiny hitch in time as each one hits the gun.
   function startHint() {
+    const T = TUNE.soulHint;
     R.events.soulHint = true;
-    R.hint = { t: 0, landed: 0, streams: 1, endT: 0 };
+    R.hint = { t: -T.wait, landed: 0, streams: 1 };
+    const arrive = T.wait + (T.souls - 1) * T.gap + T.fly;
+    R.boss.atk = Math.max(R.boss.atk, arrive + .6);
+    if (R.pull.st === 'idle') R.pull.next = Math.max(R.pull.next, R.t + arrive + 1);
+    Snd.duck && Snd.duck(arrive + .5);
   }
   function updateHint(dt) {
     const H = R.hint, T = TUNE.soulHint;
     if (!H) return;
-    if (R.armed === false || R.phase !== 'boss') { R.hint = null; return; }
+    if (R.phase !== 'boss') { R.hint = null; return; }
+    if (R.armed === false) return;   // knocked out of his hands: the streams wait for him
     H.t += dt;
-    if (H.endT && !shooting()) H.endT += dt;   // the hold only runs while he's firing
     while (H.landed < T.souls && H.t >= H.landed * T.gap + T.fly) {
       const i = H.landed++;
       const m = muzzleXY();
       for (let j = 0; j < 6; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-3, 3), y: m.y + fxr(-3, 3), s: .7, col: j % 2 ? '#ffd44a' : '#f4f0ff', t: 0, dur: .3, a: Math.random() * 6 });
-      if (i < 2) { H.streams = i + 2; Snd.play('bell', i); }
-      if (H.landed === T.souls) H.endT = H.t + T.hold;
-    }
-    if (H.endT && H.t >= H.endT) {
-      // back to normal, one stream at a time, without a sound
-      H.streams--; H.endT = H.t + T.fade;
-      // the soul that made that stream leaves the gun and goes back to the counter
-      const m = muzzleXY(); R.fx.push({ k: 'wisp', x: m.x, y: m.y, sx: m.x, sy: m.y, t: 0, dur: 1.2, dx: fxr(-14, 14) });
-      if (H.streams <= 1) R.hint = null;
+      H.streams = i + 2; Snd.play('bell', i);
+      R.freeze = Math.max(R.freeze, .1); R.shake = Math.max(R.shake, .08);
     }
   }
   // the souls on their way from the counter to the gun, drawn over the scene
@@ -791,7 +833,7 @@ var UnrugFloor13 = function (core) {
       if (R.phaseT > 4.4) endRun('clear');
     } else if (R.phase === 'dead') {
       if (R.phaseT > .12 && !(R.events.said && R.events.said.rugged)) { if (R.talk) { R.talk = null; Snd.hush(); } bark('rugged', true); }   // his WHOA! cuts off a taunt
-      if (R.phaseT > 1.9) endRun('rugged');
+      if (R.phaseT > TUNE.deadWait) endRun('rugged');
     }
   }
   // ---------- drawing ----------
@@ -807,7 +849,7 @@ var UnrugFloor13 = function (core) {
     house += clamp(want - house, -dt / 2.5, dt / 2.5);
     const edge = R.roll ? (Math.floor(R.t * 12) % 2 ? '#7fd4ff' : '#bfefff') : P.st === 'warn' ? (Math.floor(P.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : P.st === 'on' ? '#ff9628' : null;
     return {
-      scroll: R.dist * WZ, rug: -R.roff * WZ, power: dk >= .5 ? 0 : 1 - dk * .75, dark: dk >= .5, house,
+      scroll: R.dist * WZ, rug: -R.roff * WZ, power: dk >= .5 ? 0 : 1 - dk * .75, dark: dk >= .5, house, steady: true,
       rail: R.phase === 'hall' || R.phase === 'wake' ? (R.event ? (R.event.kind === 'move' ? lin('#e8b030') : null) : lin(BEATS[R.beat].rail)) : null,
       look: lookNow(),
       edge: edge ? lin(edge) : null, edgeGlow: edge ? 1.3 : 0
@@ -831,18 +873,60 @@ var UnrugFloor13 = function (core) {
     if (zS < 1.6 && (b.st === 'awake' || b.st === 'fight') && b.jam <= 0) at(0, zS - .03, .64, 1.6, .2, .1);
     if (zS < 1.6 && b.rev > 0 && b.st === 'fight') at(0, zS - .03, .2, 1.2, .15, .08);
   }
-  // the gap where the katana cut the rug
+  // Where the katana cut the rug: torn across with a ragged edge and loose threads, and the far piece whips away
+  // toward the Shredder, opening a gap of bare floor.
   function drawCut() {
     if (!R.cut || R.cut.z <= 0) return;
-    const z = R.cut.z, y = FY(z), x0 = PX(-TUNE.runner, z), x1 = PX(TUNE.runner, z);
-    for (let x = Math.round(x0); x < x1; x++) rect(g, x, y - 1 + ((x * 7) % 3), 1, 2, '#28304a');
+    const z = R.cut.z, gap = Math.min(.14, R.cut.t * .55), zf = z + gap, rw = TUNE.runner;
+    const fade = R.cut.t > .9 ? 1 - (R.cut.t - .9) / .3 : 1;
+    g.save(); g.globalAlpha = Math.max(0, fade);
+    poly(g, '#1e1c26', [[PX(-rw, z), FY(z)], [PX(rw, z), FY(z)], [PX(rw, zf), FY(zf)], [PX(-rw, zf), FY(zf)]]);
+    for (const [zz, dir] of [[z, -1], [zf, 1]]) {
+      const y = FY(zz), x0 = PX(-rw, zz), x1 = PX(rw, zz), k = sc(zz);
+      for (let x = Math.round(x0), i = 0; x < x1; x += Math.max(1, Math.round(2 * k)), i++) {
+        const jag = (i * 7) % 3, len = Math.max(1, Math.round((1 + (i * 5) % 3) * k * 1.5));
+        rect(g, x, y + dir * jag * k * .5 - (dir < 0 ? len : 0), 1, len, i % 3 ? '#8a1c18' : '#f0e0b0');   // ragged weave, loose threads
+      }
+    }
+    g.restore();
   }
-  // A side spray coming: the floor beside the rug flashes red while it warns, and stays tinted while it sprays.
+  const mh = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+  // A live floor: the floor beside the rug goes live. While it warns, a blue shimmer creeps down from the Shredder; then
+  // arcs crawl the tiles on both sides and stop at the rug's edge with a spit of sparks (the rug insulates). Cosmetic: it
+  // hashes the clock, no randomness.
   function sprayLanes() {
     const P = R.pull;
     if (!P.spray || (P.st !== 'warn' && P.st !== 'on')) return;
-    g.save(); g.globalAlpha = P.st === 'warn' ? (Math.floor(P.t * 8) % 2 ? .35 : .12) : .14;
-    for (const sd of [-1, 1]) quadF(g, '#d63428', sd > 0 ? TUNE.runner + .04 : -.66, sd > 0 ? .66 : -TUNE.runner - .04, ZN, 1);
+    const rn = TUNE.runner + .04, warn = P.st === 'warn', t = R.t, fr = Math.floor(t * 20);
+    const reach = warn ? Math.min(1, P.t / .9) : 1, zFar = 1, zNear = zFar - (zFar - ZN) * reach;
+    g.save();
+    g.globalAlpha = warn ? .10 + .08 * Math.sin(t * 30) : .22;
+    for (const sd of [-1, 1]) quadF(g, '#3aa8e0', sd > 0 ? rn : -.66, sd > 0 ? .66 : -rn, zNear, zFar);
+    g.globalAlpha = 1;
+    // the tile seams light up
+    for (const sd of [-1, 1]) for (let zz = .02; zz < zFar; zz += .08) {
+      if (zz < zNear) continue;
+      const a = warn ? .25 : .5 + .4 * mh(zz * 50, fr);
+      g.globalAlpha = a; quadF(g, '#7fd4ff', sd > 0 ? rn : -.66, sd > 0 ? .66 : -rn, zz, zz + .004);
+    }
+    g.globalAlpha = 1;
+    // arcs
+    const n = warn ? 2 : 6;
+    for (const sd of [-1, 1]) for (let i = 0; i < n; i++) {
+      const z = zNear + (zFar - zNear) * ((i / n + mh(i, sd) * .1 + t * .25) % 1), k = sc(z);
+      if (z < ZN + .01) continue;
+      const pts = []; const segs = 7;
+      for (let j = 0; j <= segs; j++) {
+        const u = sd * (rn + (.66 - rn) * j / segs), dz = (mh(i * 13 + j, fr + sd) - .5) * .06;
+        pts.push([PX(u, z + dz), FY(z + dz) - (j && j < segs ? mh(j, fr * 3 + i) * 3 * k : 0)]);
+      }
+      for (const [col, w] of [['#3aa8e0', Math.max(1, 3 * k)], ['#e8f8ff', Math.max(.5, 1 * k)]]) {
+        g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach(([x, y], j) => j ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
+      }
+      // it stops at the rug's edge with a spit of sparks
+      const [ex, ey] = pts[0];
+      for (let q = 0; q < 3; q++) rect(g, ex + (mh(q, fr + i) - .5) * 6 * k, ey - mh(q + 9, fr + i) * 5 * k, Math.max(1, k), Math.max(1, k), q ? '#ffffff' : '#7fd4ff');
+    }
     g.restore();
   }
   // Cracks on its panels, clear of the sign, the eyes and the mouth, in the order they appear.
@@ -889,6 +973,13 @@ var UnrugFloor13 = function (core) {
     hr(x0 + 10, my - open, w - 20, 9 + open, '#09070b');
     if (b.spit > 0) hr(x0 + 12, my + 2, w - 24, 4, '#3a1010');
     shredderTeeth();
+    // jammed: the torn end of the rug stuffed in its mouth, a flap hanging out
+    if (b.jam > 0 && !dead) {
+      hr(x0 + 13, my + 1, w - 26, 6, '#1a1418'); hr(x0 + 14, my + 1.5, w - 28, 5, '#9a2a1e');
+      for (const yy of [my + 2.5, my + 5]) hr(x0 + 14, yy, w - 28, .5, '#e0a030');
+      hr(115, my + 6, 10, 4, '#9a2a1e'); hr(115, my + 8, 10, .5, '#e0a030');
+      for (let i = 0; i < 6; i++) hr(115.5 + i * 1.6, my + 10, .5, 1 + (i % 2), '#f0e0b0');
+    }
     hr(PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
     // feet, either side of the rug
     for (const fx of [x0 + 5, x1 - 13]) { hr(fx, y1 - 2.5, 8, 2.5, '#1a1418'); hr(fx + .5, y1 - 2, 7, 1.5, '#5a6070'); }
@@ -1021,7 +1112,48 @@ var UnrugFloor13 = function (core) {
     const { w, h, x, yb } = tempBox(tp, zt), tx = Math.round(x + w / 2), ty = Math.round(yb - h - 10);
     rect(g, tx - 3, ty - 1, 7, 9, '#1a1418'); rect(g, tx - 2, ty, 5, 7, '#fff6e2'); txt(g, '!', tx - 1, ty + 1, '#d63428');
   }
+  // The jump cue: while something on the floor is at the distance to jump it, the floor under it glows yellow and
+  // pulses, so the moment to jump reads on a phone, where depth is hard to judge.
+  const JUMP_CUE = [.06, .45];   // seconds before it reaches him
+  function jumpCue(z, u0, u1) {
+    if (!(R.speed > 0)) return;
+    const ta = (z - bull.bz) / R.speed; if (ta < JUMP_CUE[0] || ta > JUMP_CUE[1]) return;
+    const z0 = z - .02, z1 = z + .035;
+    g.save(); g.globalAlpha = Math.floor(R.t * 12) % 2 ? .7 : .45;
+    poly(g, '#ffd44a', [[PX(u0, z0), FY(z0)], [PX(u1, z0), FY(z0)], [PX(u1, z1), FY(z1)], [PX(u0, z1), FY(z1)]]);
+    g.restore();
+  }
+  // A low cubicle desk sticking out of the cubicles into the aisle: a laminate top on a modesty panel, its end
+  // trimmed in hazard tape, a keyboard and a mug on it. Hit it and it judders and fades.
+  function drawDesk(bx, z) {
+    const s = bx.s, u0 = bx.inner, u1 = s * DESK_OUT, z1 = z + .06, top = .1, k = sc(z);
+    const jud = bx.hit ? Math.sin(bx.hit * 40) * 2 * k : 0;
+    if (!bx.hit) jumpCue(z, Math.min(u0, u1), Math.max(u0, u1));
+    if (bx.hit) { g.save(); g.globalAlpha = Math.max(0, 1 - bx.hit * 2); }
+    const P = (u, zz, h) => [PX(u, zz) + jud, YH(zz, h)];
+    poly(g, '#1a1418', [P(u0, z, top + .012), P(u1, z, top + .012), P(u1, z, 0), P(u0, z, 0)]);
+    poly(g, '#4a4e5c', [P(u0, z, top - .008), P(u1, z, top - .008), P(u1, z, 0), P(u0, z, 0)]);           // the modesty panel
+    poly(g, '#d8d0bc', [P(u0, z, top), P(u1, z, top), P(u1, z1, top), P(u0, z1, top)]);                // the laminate top
+    poly(g, '#a8a090', [P(u0, z, top), P(u1, z, top), P(u1, z, top - .012), P(u0, z, top - .012)]);    // its front edge
+    // the end that sticks into the aisle: hazard tape down it, so it reads as in your way
+    const ex0 = PX(u0, z) + jud, ey0 = YH(z, top), ey1 = FY(z), ew = Math.max(1.5, 3 * k);
+    for (let y = ey0, i = 0; y < ey1; y += Math.max(1, 2 * k), i++) rect(g, ex0 - (s > 0 ? 0 : ew), y, ew, Math.max(1, 2 * k), i % 2 ? '#1a1418' : '#ffd21e');
+    // a keyboard and a mug on it
+    const kx = PX(u0 + s * .12, z + .02) + jud, ky = YH(z + .02, top), kw = Math.max(2, 10 * k);
+    rect(g, kx - kw / 2, ky - Math.max(1, 1.5 * k), kw, Math.max(1, 1.5 * k), '#2a2c34');
+    const mx = PX(u0 + s * .26, z + .03) + jud, my = YH(z + .03, top);
+    rect(g, mx - 1.5 * k, my - 4 * k, Math.max(1, 3 * k), Math.max(1, 4 * k), '#e2483a');
+    // a touch of life: a little green-shaded banker's lamp on the far end, lit, and a leaning stack of folders
+    const lx = PX(u1 - s * .1, z + .04) + jud, ly = YH(z + .04, top);
+    rect(g, lx - .5 * k, ly - 7 * k, Math.max(.5, 1 * k), 7 * k, '#c8a040');
+    rect(g, lx - 4 * k, ly - 9 * k, 8 * k, Math.max(1, 3 * k), '#1f7a44'); rect(g, lx - 4 * k, ly - 9 * k, 8 * k, Math.max(.5, .8 * k), '#3cba6a');
+    const fx = PX(u0 + s * .4, z + .02) + jud, fy = YH(z + .02, top);
+    for (let i = 0; i < 3; i++) rect(g, fx - 4 * k + i * .6 * k, fy - (i + 1) * 1.6 * k, 8 * k, Math.max(.5, 1.4 * k), ['#e8c070', '#f2eee2', '#d8a850'][i]);
+    if (bx.hit) g.restore();
+  }
   function drawBox(bx, z) {
+    if (bx.s) { drawDesk(bx, z); return; }
+    if (!bx.hit) jumpCue(z, bx.u - .13, bx.u + .13);
     const s = sc(z), w = Math.max(3, A.BOX.width / 2 * s), h = Math.max(2, A.BOX.height / 2 * s);   // the carton is drawn at full size: half a unit a pixel
     const x = PX(bx.u, z);
     const y = FY(z) - (bx.hit ? Math.sin(bx.hit * 9) * 6 * s : 0);
@@ -1047,8 +1179,8 @@ var UnrugFloor13 = function (core) {
         line(g, Math.round(cx + Math.cos(a) * r0), Math.round(cy + Math.sin(a) * r0 * .8), Math.round(cx + Math.cos(a) * (r0 + l)), Math.round(cy + Math.sin(a) * (r0 + l) * .8), k % 3 ? (p.friendly ? '#7fd4ff' : '#ffb080') : '#ffffff');
       }
     }
-    const rot = bundle ? Math.floor(p.spin * .8) % 4 : 0, ix = -Math.round(w / 2), iy = -Math.round(h / 2);
-    g.save(); g.translate(Math.round(x), Math.round(y)); if (rot) g.rotate(rot * Math.PI / 2);
+    const star = img === A.STAPLE, rot = bundle ? Math.floor(p.spin * .8) % 4 : 0, ix = -Math.round(w / 2), iy = -Math.round(h / 2);
+    g.save(); g.translate(Math.round(x), Math.round(y)); if (star) g.rotate(R.t * 12 + p.spin); else if (rot) g.rotate(rot * Math.PI / 2);   // the staple stars spin as they fly
     const ring = (col, d) => { const sil = tinted(img, col); for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d]]) g.drawImage(sil, ix + dx, iy + dy, w, h); };
     if (p.rally && !p.friendly) { ring('#d63428', 2); ring(blink ? '#ffffff' : '#ffb080', 1); }
     else if (!p.friendly) ring(blink ? '#ff3020' : '#ff9628', 1);
@@ -1060,6 +1192,7 @@ var UnrugFloor13 = function (core) {
   const BEAM_H = [.2, .235];   // moving day's plank: its underside and top, as a share of the hall's height
 
   function drawRow(row, z) {
+    if (!row.hit && !DUCKS[row.kind]) jumpCue(z, -.66, .66);
     const k = sc(z), drop = row.hit ? row.hit * 30 * k : 0;
     if (row.hit) { g.save(); g.globalAlpha = Math.max(0, 1 - row.hit * 1.7); }
     if (row.kind === 'chairs') {
@@ -1093,8 +1226,9 @@ var UnrugFloor13 = function (core) {
       const sil = tinted(A.STAPLE, Math.floor(R.t * 10) % 2 ? '#ff3020' : '#ff9628');
       for (let u = -.6; u <= .61; u += .15) {
         const x = Math.round(PX(u, z) - w / 2 + (row.hit ? Math.sin(u * 9 + row.hit * 8) * 6 : 0)), y = Math.round(FY(z) - h - 1 - (Math.floor(R.t * 12 + u * 7) % 2));
-        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, x + dx, y + dy, w, h);
-        g.drawImage(A.STAPLE, x, y, w, h);
+        g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(R.t * 10 + u * 5); g.translate(-w / 2, -h / 2);   // a carpet of them, spinning
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(sil, dx, dy, w, h);
+        g.drawImage(A.STAPLE, 0, 0, w, h); g.restore();
       }
     } else {
       // a sheet of paper skidding along the floor, wall to wall, with a fold that flaps
@@ -1145,17 +1279,14 @@ var UnrugFloor13 = function (core) {
     return LABELS[text];
   }
   // moving day's trapped souls: a soul in a soap-bubble shine, bobbing a little above the floor
-  function trappedSouls() {
-    if (!R.event || R.event.kind !== 'move') return;
-    for (const sl of R.event.souls) {
-      const z = sl.w - R.dist; if (z > 1.02 || z < bull.bz - .02) continue;
-      faded(fadeIn(z), () => {
-        const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.uw(A.GHOST) * 2 * k), h = Math.round(A.uh(A.GHOST) * 2 * k);
-        g.drawImage(A.GHOST, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
-        g.save(); g.globalAlpha = .7; g.strokeStyle = '#bfefff'; g.lineWidth = Math.max(.5, k); g.beginPath(); g.arc(x, y, Math.max(w, h) * .75, 0, 6.29); g.stroke();
-        g.globalAlpha = .9; rect(g, x - w * .4, y - h * .55, Math.max(1, k * 1.5), Math.max(1, k * 1.5), '#ffffff'); g.restore();
-      });
-    }
+  // A soul trapped in a bubble on moving day, drawn in depth order with the furniture, so what's in front hides it,
+  // with a shadow under it.
+  function drawTrapped(sl, z) {
+    const k = sc(z), x = PX(sl.u, z), y = YH(z, .1) + Math.sin(R.t * 4 + sl.u * 5) * 2 * k, w = Math.round(A.uw(A.GHOST) * 2 * k), h = Math.round(A.uh(A.GHOST) * 2 * k);
+    shadow(sl.u, z, A.uw(A.GHOST) * 1.6);   // its shadow on the floor says where it is
+    g.drawImage(A.GHOST, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+    g.save(); g.globalAlpha = .7; g.strokeStyle = '#bfefff'; g.lineWidth = Math.max(.5, k); g.beginPath(); g.arc(x, y, Math.max(w, h) * .75, 0, 6.29); g.stroke();
+    g.globalAlpha = .9; rect(g, x - w * .4, y - h * .55, Math.max(1, k * 1.5), Math.max(1, k * 1.5), '#ffffff'); g.restore();
   }
   function moveMarks() {
     if (!R.event || R.event.kind !== 'move') return;
@@ -1195,7 +1326,6 @@ var UnrugFloor13 = function (core) {
     }
     if (Math.floor(R.t * 13) % 11) for (const sg of R.signs) { const z = sg.w - R.dist; if (sg.neon && z < 1.02 && z > .05) drawSign(sg, z); }
     sprayLanes();
-    trappedSouls();
     moveMarks();
     if (R.phase !== 'hall') withShredder(() => { shredderEyes(); shredderTeeth(); });
     else if (R.event && R.event.kind === 'dark') darkEyes();
@@ -1312,6 +1442,7 @@ var UnrugFloor13 = function (core) {
     for (const bx of R.boxes) { const z = bx.w - R.dist; if (z < 1.02) list.push([z, () => faded(fadeIn(z), () => drawBox(bx, z))]); }
     for (const row of R.rows) { const z = row.w - R.dist; if (z < 1.02) list.push([z, () => faded(fadeIn(z), () => drawRow(row, z))]); }
     for (const f of R.flies) list.push([f.z, () => faded(fadeIn(f.z), () => drawFly(f))]);
+    if (R.event && R.event.kind === 'move') for (const sl of R.event.souls) { const z = sl.w - R.dist; if (z <= 1.02 && z >= bull.bz - .02) list.push([z, () => faded(fadeIn(z), () => drawTrapped(sl, z))]); }
     list.push([bull.bz - .001, drawBull]);
     list.sort((a, b) => b[0] - a[0]);
     for (const e of list) e[1]();
@@ -1333,7 +1464,8 @@ var UnrugFloor13 = function (core) {
       const fill = b.st === 'awake' ? b.bar : b.hp / TUNE.bossHP;   // it ticks up to full while the Shredder wakes
       otxt(g, 'SHRED-O', 86, 5, '#ffd44a', 1, 'right');
       rect(g, 89, 4, 74, 7, '#1a1418'); rect(g, 90, 5, 72, 5, '#3a2f5e');
-      rect(g, 90, 5, Math.round(72 * fill), 5, b.jam > 0 ? '#ffd44a' : b.flash > 0 ? '#ffffff' : '#e2483a');
+      const last = b.st === 'fight' && b.hp <= TUNE.lastStand && Math.floor(R.t * 6) % 2;   // its last sliver blinks: finish it with a rally
+      rect(g, 90, 5, Math.round(72 * fill), 5, b.jam > 0 ? '#ffd44a' : b.flash > 0 || last ? '#ffffff' : '#e2483a');
       rect(g, 90 + Math.round(72 * .66), 5, 1, 5, '#1a1418'); rect(g, 90 + Math.round(72 * .33), 5, 1, 5, '#1a1418');
     }
     // the rally counter: it grows as the rally goes on, and flashes with each return
@@ -1347,7 +1479,11 @@ var UnrugFloor13 = function (core) {
   function aim(consider) {
     for (const cb of R.cubs) if (cb.temp && !cb.temp.dead && cb.temp.pop > .3) consider(cb.temp, posOf(cb.temp), TUNE.aimCone);
     for (const sw of R.switches || []) consider(sw, switchAt(sw), .5);
-    for (const wk of R.workers) for (const c of wk.carps) if (workerLive(c)) consider(c, workerAt(c), TUNE.aimCone);
+  }
+  // With nothing coming at him, the blaster leans further out, to the carpshits at work along the walls.
+  function aimIdle(consider) {
+    if (R.phase !== 'hall') return;   // in the fight, every bolt goes at the Shredder
+    for (const wk of R.workers) for (const c of wk.carps) if (workerLive(c)) consider(c, workerAt(c), TUNE.aimWork);
   }
   // A shot hitting one of the floor's own targets (checked before carpshits). True if it stopped the shot.
   function shotHits(s) {
@@ -1367,6 +1503,8 @@ var UnrugFloor13 = function (core) {
         s.dead = true; c.dead = true; Snd.play('hit'); sparks(at.u, at.z, at.h); poof(at.u, at.z, at.h, 8);
         const x = PX(at.u, at.z), y = YH(at.z, at.h);
         free(x, y - 4, 'worker', 'shot'); bonusSoul('shot', x, y, 'worker');
+        // its paperwork goes everywhere (cosmetic)
+        for (let i = 0; i < 7; i++) R.fx.push({ k: 'bit', x: x + fxr(-4, 4), y: y - 2, vx: fxr(-45, 45), vy: fxr(-80, -35), t: 0, dur: fxr(.5, .9) });
         if (wk.kind === 'office') wk.cracked = true;
         return true;
       }
@@ -1408,7 +1546,7 @@ var UnrugFloor13 = function (core) {
   return {
     id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'The Shredder will wait. It has nowhere else to be.',
     // hooks
-    use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, shotHits, shotFar, slash, hurt, blasterBack, posOf,
+    use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, aimIdle, shotHits, shotFar, slash, hurt, blasterBack, posOf,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
     // the rest of the floor by name, for the test harness and the balance bots
     BEATS, beat, spawnFormation, startEvent, MOVES, setItems, spawnMove, addWorker, workerAt, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
@@ -1418,12 +1556,12 @@ var UnrugFloor13 = function (core) {
 
 // Floor 13 numbers; copied without retuning when the roof became a second floor.
 UnrugFloor13.TUNE = {
-    coffeeDrop: .2, rowH: .055,
+    coffeeDrop: .2, rowH: .04,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, mouth: .85,
     goal: 90,               // souls that wake the Shredder
     wadTime: 1.25, wadLead: .2, throwChance: .6,
-    moveT: 14, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
+    moveT: 16, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
@@ -1434,7 +1572,7 @@ UnrugFloor13.TUNE = {
     attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
     volley: { n: [3, 4, 5], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
     bossRows: { sheet: .45, carpet: .5 },   // how fast a paper jam sheet and a staple carpet cross the floor
-    sprayEvery: .3, sprayT: 1.5,   // a side spray sends staples down both sides of the hall this often while the rug pulls, this slow
+    liveEdge: .04,   // a live floor: how far past the rug's edge your feet can be before it shocks you
     rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
@@ -1454,5 +1592,6 @@ UnrugFloor13.TUNE = {
     // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
     // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
     // run out unseen), then drop off one by one, fade apart.
-    soulHint: { souls: 3, gap: .6, fly: 1.4, hold: 4, fade: .6 }
+    lastStand: 6,           // the blaster can't take it below this: a rally or a deflected bundle finishes it
+    soulHint: { souls: 2, wait: .7, gap: 1.1, fly: 2 }
   };
