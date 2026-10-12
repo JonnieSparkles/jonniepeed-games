@@ -174,7 +174,7 @@ var UnrugFloor13 = function (core) {
     R.event = { kind: C ? 'move' : kind, t: 0, dur: C ? C.dur : TUNE.darkT };
     if (C) {
       // moving day: no one to shoot, and a course of furniture to jump and duck, one move at a time
-      Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 2.4, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
+      Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 1.8, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
       addSign(.75, C.sign, 'move');
       Snd.play('start'); live(C.say);
@@ -193,7 +193,7 @@ var UnrugFloor13 = function (core) {
   // A kill in the dark frees a second soul.
   function bonusBy() { return R.event && R.event.kind === 'dark' ? 'dark' : null; }
   // Moving day: a short course to introduce jumping and ducking, in order, each with the gap before the next.
-  const MOVES = [['chairs', 1.8], ['beam', 1.8], ['chairs', 1.8], ['beam', 1.8]];
+  const MOVES = [['chairs', 2.6], ['beam', 2.6], ['chairs', 2.6], ['beam', 2.6]];   // seconds after each piece before the next: room to land, read the next one and grab a soul
   const COURSES = { move: { sign: 'MOVING DAY', moves: MOVES, dur: TUNE.moveT, clean: TUNE.moveClean, say: 'Moving day: jump the chairs, duck the beams.' } };
   const DUCKS = { beam: true };   // beams hang at head height: duck; the rest, jump
   function spawnMove(E) {
@@ -437,6 +437,11 @@ var UnrugFloor13 = function (core) {
   function updatePull(dt) {
     const P = R.pull;
     P.t += dt;
+    // dragged along the rug: dust kicks up at his heels (cosmetic)
+    if (P.st === 'on' && onRunner() && !bull.crouch && bull.jh <= 0 && Math.random() < dt * 14) {
+      const x = PX(bull.u, bull.bz) + fxr(-9, 9), y = FY(bull.bz) - fxr(0, 3);
+      R.fx.push({ k: 'smoke', x, y, t: 0, dur: fxr(.3, .5) });
+    }
     const can = (R.phase === 'hall' && beat().pulls && !R.event) ||
       (R.phase === 'boss' && R.boss.st === 'fight' && R.boss.jam <= 0 && !R.boss.rally && !R.roll);
     if (P.st === 'idle') {
@@ -639,6 +644,9 @@ var UnrugFloor13 = function (core) {
     b.blink = (b.blink || 0) - dt;
     if (b.blink < -fxr(2.5, 5)) b.blink = .12;
     // it chews: shredded strips drop out of its mouth onto the rug
+    // jammed: smoke curls out of its mouth and sparks spit at the corners
+    if (b.jam > 0 && b.st === 'fight' && Math.random() < dt * 9) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 16, BACK.x1 - 16), y: BACK.y1 - 12, t: 0, dur: fxr(.6, 1) });
+    if (b.jam > 0 && b.st === 'fight' && Math.random() < dt * 6) R.fx.push({ k: 'spark', x: Math.random() < .5 ? BACK.x0 + 12 : BACK.x1 - 12, y: BACK.y1 - 9, s: .6, col: '#ffd44a', t: 0, dur: .2, a: Math.random() * 6 });
     if ((b.st === 'fight' || b.st === 'awake') && b.jam <= 0 && Math.random() < dt * (R.pull.st === 'on' ? 14 : 5))
       R.fx.push({ k: 'strip', x: fxr(BACK.x0 + 14, BACK.x1 - 14), y: BACK.y1 - 5, vx: fxr(-8, 8), vy: fxr(8, 18), t: 0, dur: fxr(.4, .7) });
     if (b.st === 'fight' && b.hp < 15) { if (Math.random() < dt * 3) shove(fxr(-2, 2)); taunt('low'); }
@@ -708,16 +716,17 @@ var UnrugFloor13 = function (core) {
     talk('RUG NOT FOUND.', 'shredder');
   }
   // ---------- the souls' hint ----------
-  // A glimpse of the mega stream, saved for the roof. Nothing announces it: a few souls leave the counter and fly into
-  // the gun, each of the first two lands with one soft bell and adds a stream, and a few seconds later the streams quietly
-  // drop off. The counter keeps its souls; the streams do normal damage and cost nothing extra.
+  // A glimpse of the mega stream, saved for the roof. Nothing announces it: the first time he wins the blaster back,
+  // two souls leave the counter and fly into the gun, each landing with one soft bell and adding a stream, and the
+  // streams stay with him for the rest of the fight (they pause while the blaster's knocked away and come back with it).
+  // The counter keeps its souls; the streams do normal damage and cost nothing extra.
   // It takes its time, so it registers: a beat before the first soul lifts off the counter, the souls slow and far
   // apart, the music ducked under the bells, the Shredder and the runner holding off until the last one lands, and a
   // tiny hitch in time as each one hits the gun.
   function startHint() {
     const T = TUNE.soulHint;
     R.events.soulHint = true;
-    R.hint = { t: -T.wait, landed: 0, streams: 1, endT: 0 };
+    R.hint = { t: -T.wait, landed: 0, streams: 1 };
     const arrive = T.wait + (T.souls - 1) * T.gap + T.fly;
     R.boss.atk = Math.max(R.boss.atk, arrive + .6);
     if (R.pull.st === 'idle') R.pull.next = Math.max(R.pull.next, R.t + arrive + 1);
@@ -726,23 +735,15 @@ var UnrugFloor13 = function (core) {
   function updateHint(dt) {
     const H = R.hint, T = TUNE.soulHint;
     if (!H) return;
-    if (R.armed === false || R.phase !== 'boss') { R.hint = null; return; }
+    if (R.phase !== 'boss') { R.hint = null; return; }
+    if (R.armed === false) return;   // knocked out of his hands: the streams wait for him
     H.t += dt;
-    if (H.endT && !shooting()) H.endT += dt;   // the hold only runs while he's firing
     while (H.landed < T.souls && H.t >= H.landed * T.gap + T.fly) {
       const i = H.landed++;
       const m = muzzleXY();
       for (let j = 0; j < 6; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-3, 3), y: m.y + fxr(-3, 3), s: .7, col: j % 2 ? '#ffd44a' : '#f4f0ff', t: 0, dur: .3, a: Math.random() * 6 });
-      if (i < 2) { H.streams = i + 2; Snd.play('bell', i); }
+      H.streams = i + 2; Snd.play('bell', i);
       R.freeze = Math.max(R.freeze, .1); R.shake = Math.max(R.shake, .08);
-      if (H.landed === T.souls) H.endT = H.t + T.hold;
-    }
-    if (H.endT && H.t >= H.endT) {
-      // back to normal, one stream at a time, without a sound
-      H.streams--; H.endT = H.t + T.fade;
-      // the soul that made that stream leaves the gun and goes back to the counter
-      const m = muzzleXY(); R.fx.push({ k: 'wisp', x: m.x, y: m.y, sx: m.x, sy: m.y, t: 0, dur: 1.2, dx: fxr(-14, 14) });
-      if (H.streams <= 1) R.hint = null;
     }
   }
   // the souls on their way from the counter to the gun, drawn over the scene
@@ -843,11 +844,22 @@ var UnrugFloor13 = function (core) {
     if (zS < 1.6 && (b.st === 'awake' || b.st === 'fight') && b.jam <= 0) at(0, zS - .03, .64, 1.6, .2, .1);
     if (zS < 1.6 && b.rev > 0 && b.st === 'fight') at(0, zS - .03, .2, 1.2, .15, .08);
   }
-  // the gap where the katana cut the rug
+  // Where the katana cut the rug: torn across with a ragged edge and loose threads, and the far piece whips away
+  // toward the Shredder, opening a gap of bare floor.
   function drawCut() {
     if (!R.cut || R.cut.z <= 0) return;
-    const z = R.cut.z, y = FY(z), x0 = PX(-TUNE.runner, z), x1 = PX(TUNE.runner, z);
-    for (let x = Math.round(x0); x < x1; x++) rect(g, x, y - 1 + ((x * 7) % 3), 1, 2, '#28304a');
+    const z = R.cut.z, gap = Math.min(.14, R.cut.t * .55), zf = z + gap, rw = TUNE.runner;
+    const fade = R.cut.t > .9 ? 1 - (R.cut.t - .9) / .3 : 1;
+    g.save(); g.globalAlpha = Math.max(0, fade);
+    poly(g, '#1e1c26', [[PX(-rw, z), FY(z)], [PX(rw, z), FY(z)], [PX(rw, zf), FY(zf)], [PX(-rw, zf), FY(zf)]]);
+    for (const [zz, dir] of [[z, -1], [zf, 1]]) {
+      const y = FY(zz), x0 = PX(-rw, zz), x1 = PX(rw, zz), k = sc(zz);
+      for (let x = Math.round(x0), i = 0; x < x1; x += Math.max(1, Math.round(2 * k)), i++) {
+        const jag = (i * 7) % 3, len = Math.max(1, Math.round((1 + (i * 5) % 3) * k * 1.5));
+        rect(g, x, y + dir * jag * k * .5 - (dir < 0 ? len : 0), 1, len, i % 3 ? '#8a1c18' : '#f0e0b0');   // ragged weave, loose threads
+      }
+    }
+    g.restore();
   }
   // A side spray coming: the floor beside the rug flashes red while it warns, and stays tinted while it sprays.
   function sprayLanes() {
@@ -901,6 +913,13 @@ var UnrugFloor13 = function (core) {
     hr(x0 + 10, my - open, w - 20, 9 + open, '#09070b');
     if (b.spit > 0) hr(x0 + 12, my + 2, w - 24, 4, '#3a1010');
     shredderTeeth();
+    // jammed: the torn end of the rug stuffed in its mouth, a flap hanging out
+    if (b.jam > 0 && !dead) {
+      hr(x0 + 13, my + 1, w - 26, 6, '#1a1418'); hr(x0 + 14, my + 1.5, w - 28, 5, '#9a2a1e');
+      for (const yy of [my + 2.5, my + 5]) hr(x0 + 14, yy, w - 28, .5, '#e0a030');
+      hr(115, my + 6, 10, 4, '#9a2a1e'); hr(115, my + 8, 10, .5, '#e0a030');
+      for (let i = 0; i < 6; i++) hr(115.5 + i * 1.6, my + 10, .5, 1 + (i % 2), '#f0e0b0');
+    }
     hr(PX(-TUNE.runner, 1), my + 9, PX(TUNE.runner, 1) - PX(-TUNE.runner, 1), 4, '#5a1412');
     // feet, either side of the rug
     for (const fx of [x0 + 5, x1 - 13]) { hr(fx, y1 - 2.5, 8, 2.5, '#1a1418'); hr(fx + .5, y1 - 2, 7, 1.5, '#5a6070'); }
@@ -1454,7 +1473,7 @@ UnrugFloor13.TUNE = {
     pullSpeed: .3, mouth: .85,
     goal: 90,               // souls that wake the Shredder
     wadTime: 1.25, wadLead: .2, throwChance: .6,
-    moveT: 14, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
+    moveT: 16, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
@@ -1485,5 +1504,5 @@ UnrugFloor13.TUNE = {
     // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
     // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
     // run out unseen), then drop off one by one, fade apart.
-    soulHint: { souls: 3, wait: .7, gap: 1.1, fly: 2, hold: 5, fade: .6 }
+    soulHint: { souls: 2, wait: .7, gap: 1.1, fly: 2 }
   };

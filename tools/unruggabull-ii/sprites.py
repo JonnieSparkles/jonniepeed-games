@@ -674,17 +674,24 @@ def paper_wad():
 
 
 def bundle():
-    cv = Canvas(26, 26, lit_above=99)
-    import random
-    rnd = random.Random(7)
-    for k in range(14):
-        a = k / 14 * math.tau + rnd.uniform(-.2, .2)
-        r0, r1 = 3, rnd.uniform(9, 11.5)
-        mat = 'rug' if k % 5 == 2 else 'paper'
-        capsule(cv, [(13 + math.cos(a) * r0, 13 + math.sin(a) * r0, .8), (13 + math.cos(a) * r1, 13 + math.sin(a) * r1, .7)], mat, base=.2)
-    ellipse(cv, 13, 13, 5, 4.6, 'paper', base=.15, hard=True)
-    for x, y in ((11, 12), (14, 11), (12, 15), (15, 14)):
-        T(cv, x, y, '!')
+    """The Shredder's paper bundle: a crumpled ball of ruled paper, blue rules and a red margin, creased (the owner's
+    pick over a starburst of shreddings, which read as a splat)."""
+    cv = Canvas(24, 22, lit_above=99)
+    ellipse(cv, 12, 11, 10.4, 9.6, 'paper', base=.15, hard=True)
+    inside = lambda x, y: ((x + .5 - 12) / 10.4) ** 2 + ((y + .5 - 11) / 9.6) ** 2 < .82
+    for ry in (5, 9, 13, 17):
+        for x in range(3, 22):
+            y = ry + (1 if math.sin(x * .9 + ry) > .55 else 0) - (1 if math.sin(x * .5 + ry * 2) < -.7 else 0)
+            if inside(x, y):
+                T(cv, x, y, TONE['tieB'][2])
+    for y in range(2, 21):
+        x = 7 + (1 if y > 11 else 0)
+        if inside(x, y):
+            T(cv, x, y, TONE['rug'][2])
+    for (x0, y0, x1, y1) in ((10, 4, 14, 8), (14, 8, 12, 12), (12, 12, 17, 15), (5, 12, 9, 15), (16, 4, 19, 7)):
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        for k in range(n + 1):
+            T(cv, round(x0 + (x1 - x0) * k / n), round(y0 + (y1 - y0) * k / n), TONE['paper'][1])
     return finish(cv)
 
 

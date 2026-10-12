@@ -1,6 +1,6 @@
-// The souls' hint (the mega stream's first glimpse): the first time the blaster comes back in the Shredder's fight, a few
-// souls leave the counter and fly into the gun, it fires two then three soul streams for a few seconds, then quietly
-// goes back to one. Nothing announces it, the counter keeps its souls, and the streams cost no extra charges.
+// The souls' hint (the mega stream's first glimpse): the first time the blaster comes back in the Shredder's fight, two
+// souls leave the counter and fly into the gun, and it fires two then three soul streams for the rest of the fight.
+// Nothing announces it, the counter keeps its souls, and the streams cost no extra charges.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -27,7 +27,7 @@
     // the souls fly into the gun; the first two each add a stream with one bell
     const T = TUNE.soulHint;
     let most = 1, drew = false;
-    for (let i = 0; i < 60 * (T.gap * T.souls + T.fly + .2); i++) { quiet(); update(1 / 60); most = Math.max(most, R.hint ? R.hint.streams : 1); if (!drew && R.hint && R.hint.t > T.fly * .5) { draw(); drew = true; } }
+    for (let i = 0; i < 60 * (T.wait + T.gap * T.souls + T.fly + .2); i++) { quiet(); update(1 / 60); most = Math.max(most, R.hint ? R.hint.streams : 1); if (!drew && R.hint && R.hint.t > T.fly * .5) { draw(); drew = true; } }
     check(R.hint && R.hint.landed === T.souls && R.hint.streams === 3, 'three streams once the souls are in');
     check(bells.length === 2 && bells[0] === 0 && bells[1] === 1, 'one bell for each new stream (' + bells.join(',') + ')');
     check(R.souls === souls, 'the counter keeps its souls');
@@ -44,18 +44,17 @@
     R.shots = soul.slice(0, 1); const hp = b.hp; b.jam = 0;
     for (let i = 0; i < 60 && R.shots.length; i++) { quiet(); update(1 / 60); }
     check(Math.abs((hp - b.hp) - TUNE.shotDmg * .5) < 1e-6, 'a soul stream does normal damage (' + (hp - b.hp) + ')');
-    // then, quietly, back to normal
+    // it stays: still three streams after a long while firing
     const n = bells.length;
-    step(T.hold + 1);
-    check(R.hint && R.hint.streams === 3, 'the hold only runs while he fires');
-    keys.kbShoot = true; step(T.hold + T.fade * 2 + .2); keys.kbShoot = false;
-    check(!R.hint, 'a few seconds later it goes back to one stream');
-    check(bells.length === n, 'without a sound');
-    R.shots = []; R.fireT = 0; keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
-    check(R.shots.length === 1, 'one bolt again');
-    // only once: the next time the blaster comes back, nothing
-    R.armed = false; R.pickups.push({ kind: 'blaster', w: R.dist + bull.bz, u: bull.u, h: 0, t: 1, still: true, rug: true });
+    keys.kbShoot = true; step(12); keys.kbShoot = false;
+    check(R.hint && R.hint.streams === 3, 'the streams stay with him');
+    // knocked out of his hands, they wait; won back, they're there again, with no new souls or bells
+    R.armed = false; quiet(); update(1 / 60);
+    check(R.hint && R.hint.streams === 3, 'they wait while the blaster is gone');
+    R.pickups.push({ kind: 'blaster', w: R.dist + bull.bz, u: bull.u, h: 0, t: 1, still: true, rug: true });
     quiet(); update(1 / 60);
-    check(R.armed === true && !R.hint, 'only the first time');
+    check(R.armed === true && R.hint && R.hint.streams === 3 && bells.length === n, 'and come back with it, without a sound');
+    R.shots = []; R.fireT = 0; keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
+    check(R.shots.filter(s => s.soul).length === 2, 'still a bolt and two streams');
   } finally { Snd.play = play; }
 })();
