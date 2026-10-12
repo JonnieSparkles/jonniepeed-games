@@ -30,7 +30,7 @@
     { "label": "lost: scraps", "key": "hit.amount:cause=scrap" },
     { "label": "lost: carpets", "key": "hit.amount:cause=carpet" },
     { "label": "lost: planes", "key": "hit.amount:cause=plane" },
-    { "label": "lost: side spray", "key": "hit.amount:cause=spray" },
+    { "label": "lost: live floor", "key": "hit.amount:cause=live" },
     { "label": "coffee", "key": "pickup:item=coffee" },
     { "label": "spread", "key": "pickup:item=spread" },
     { "label": "blaster empty", "key": "empty" },

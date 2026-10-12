@@ -401,7 +401,7 @@ var UnrugFloor13 = function (core) {
         continue;
       }
       if (Math.abs(p.z - bull.bz) < .045 && Math.abs(p.u - bull.u) < .1 + p.w && overlaps(p.h, p.hh)) {
-        if (hurtBull(1, p.rally ? 'rally' : p.spray ? 'spray' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); if (R.hearts > 0) taunt('miss'); } continue; }
+        if (hurtBull(1, p.rally ? 'rally' : p.kind)) { p.dead = true; poof(p.u, p.z, p.h); if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); if (R.hearts > 0) taunt('miss'); } continue; }
       }
       if (p.z < bull.bz - .1 || p.z < ZN || p.h < -.05) { p.dead = true; if (p.rally) { R.boss.rally = null; emit('rally_lost'); laugh(); } }
     }
@@ -451,10 +451,11 @@ var UnrugFloor13 = function (core) {
     if (P.st === 'idle') {
       if (can && R.t >= P.next) {
         P.st = 'warn'; P.t = 0; Snd.play('warn');
-        // from phase 2 every other pull sprays staples down both sides, and the sides flash red while it warns:
-        // ride the rug toward the mouth, or dodge at the sides
-        P.spray = R.phase === 'boss' && R.boss.ph >= 2 && (P.count + 1) % 2 === 0; P.sprayT = .2;
-        if (P.spray && !R.events.sprayHint && !R.talk) { R.events.sprayHint = true; R.banner = { text: 'RIDE THE RUG', t: 0, dur: 99, pull: true }; live('Side spray coming: staples down both sides. Ride the rug, or jump them.'); }
+        // from phase 2 every other pull also makes the floor beside the rug live (still called a spray in the code): it
+        // shimmers blue while it warns, then shocks anyone standing off the rug. Ride the rug toward the mouth, or jump.
+        P.spray = R.phase === 'boss' && R.boss.ph >= 2 && (P.count + 1) % 2 === 0; P.sprayT = 0;
+        if (P.spray) Snd.play('rev');
+        if (P.spray && !R.events.sprayHint && !R.talk) { R.events.sprayHint = true; R.banner = { text: 'RIDE THE RUG', t: 0, dur: 99, pull: true }; live('The floor beside the rug is going live. Ride the rug.'); }
       }
     } else if (!can && P.st !== 'cut') {
       endPull();
@@ -470,9 +471,13 @@ var UnrugFloor13 = function (core) {
       if (P.spray) {
         P.sprayT -= dt;
         if (P.sprayT <= 0) {
-          P.sprayT = TUNE.sprayEvery;
-          for (const sd of [-1, 1]) { const u = sd * rr(.48, .62); launch('staple', { u: sd * rr(.34, .42), z: .95, h: .03 }, { u, z: bull.bz - .02, h: .03 }, TUNE.sprayT, { w: .06, hh: .03, spray: true }); }
-          R.boss.spit = .15;
+          P.sprayT = .45; Snd.play('surge');
+        }
+        // off the rug with your feet on the floor, you get a shock
+        if (bull.jh < .03 && Math.abs(bull.u) > TUNE.runner + TUNE.liveEdge && !bull.mouth && !bull.spat && hurtBull(1, 'live')) {
+          const k = sc(bull.bz), x = PX(bull.u, bull.bz), y = YH(bull.bz, 0);
+          for (let i = 0; i < 10; i++) R.fx.push({ k: 'spark', x: x + fxr(-10, 10) * k, y: y - fxr(0, 40) * k, s: .8, col: Math.random() < .5 ? '#7fd4ff' : '#ffffff', t: 0, dur: fxr(.15, .3), a: Math.random() * 6 });
+          Snd.play('surge');
         }
       }
       if (P.t >= P.dur) endPull();
@@ -712,7 +717,7 @@ var UnrugFloor13 = function (core) {
       if (b.volley.t <= 0) { spitScrap(); b.volley.t = TUNE.volley.gap; if (--b.volley.left <= 0) b.volley = null; }
       return;
     }
-    // no attacks while the runner warns or sprays, and a rally waits for a pull to end
+    // no attacks while the runner warns or the floor is live, and a rally waits for a pull to end
     // at its last stand it only serves: win a rally to finish it
     const list = b.hp <= TUNE.lastStand ? ['rally'] : ATTACKS[ph - 1], next = list[b.atkN % list.length];
     if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (R.pull.spray || next === 'rally' || next === 'marathon' || next === 'rewind')) || b.rally || R.roll) return;
@@ -885,12 +890,43 @@ var UnrugFloor13 = function (core) {
     }
     g.restore();
   }
-  // A side spray coming: the floor beside the rug flashes red while it warns, and stays tinted while it sprays.
+  const mh = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+  // A live floor: the floor beside the rug goes live. While it warns, a blue shimmer creeps down from the Shredder; then
+  // arcs crawl the tiles on both sides and stop at the rug's edge with a spit of sparks (the rug insulates). Cosmetic: it
+  // hashes the clock, no randomness.
   function sprayLanes() {
     const P = R.pull;
     if (!P.spray || (P.st !== 'warn' && P.st !== 'on')) return;
-    g.save(); g.globalAlpha = P.st === 'warn' ? (Math.floor(P.t * 8) % 2 ? .35 : .12) : .14;
-    for (const sd of [-1, 1]) quadF(g, '#d63428', sd > 0 ? TUNE.runner + .04 : -.66, sd > 0 ? .66 : -TUNE.runner - .04, ZN, 1);
+    const rn = TUNE.runner + .04, warn = P.st === 'warn', t = R.t, fr = Math.floor(t * 20);
+    const reach = warn ? Math.min(1, P.t / .9) : 1, zFar = 1, zNear = zFar - (zFar - ZN) * reach;
+    g.save();
+    g.globalAlpha = warn ? .10 + .08 * Math.sin(t * 30) : .22;
+    for (const sd of [-1, 1]) quadF(g, '#3aa8e0', sd > 0 ? rn : -.66, sd > 0 ? .66 : -rn, zNear, zFar);
+    g.globalAlpha = 1;
+    // the tile seams light up
+    for (const sd of [-1, 1]) for (let zz = .02; zz < zFar; zz += .08) {
+      if (zz < zNear) continue;
+      const a = warn ? .25 : .5 + .4 * mh(zz * 50, fr);
+      g.globalAlpha = a; quadF(g, '#7fd4ff', sd > 0 ? rn : -.66, sd > 0 ? .66 : -rn, zz, zz + .004);
+    }
+    g.globalAlpha = 1;
+    // arcs
+    const n = warn ? 2 : 6;
+    for (const sd of [-1, 1]) for (let i = 0; i < n; i++) {
+      const z = zNear + (zFar - zNear) * ((i / n + mh(i, sd) * .1 + t * .25) % 1), k = sc(z);
+      if (z < ZN + .01) continue;
+      const pts = []; const segs = 7;
+      for (let j = 0; j <= segs; j++) {
+        const u = sd * (rn + (.66 - rn) * j / segs), dz = (mh(i * 13 + j, fr + sd) - .5) * .06;
+        pts.push([PX(u, z + dz), FY(z + dz) - (j && j < segs ? mh(j, fr * 3 + i) * 3 * k : 0)]);
+      }
+      for (const [col, w] of [['#3aa8e0', Math.max(1, 3 * k)], ['#e8f8ff', Math.max(.5, 1 * k)]]) {
+        g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach(([x, y], j) => j ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
+      }
+      // it stops at the rug's edge with a spit of sparks
+      const [ex, ey] = pts[0];
+      for (let q = 0; q < 3; q++) rect(g, ex + (mh(q, fr + i) - .5) * 6 * k, ey - mh(q + 9, fr + i) * 5 * k, Math.max(1, k), Math.max(1, k), q ? '#ffffff' : '#7fd4ff');
+    }
     g.restore();
   }
   // Cracks on its panels, clear of the sign, the eyes and the mouth, in the order they appear.
@@ -1539,7 +1575,7 @@ UnrugFloor13.TUNE = {
     attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
     volley: { n: [3, 4, 5], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
     bossRows: { sheet: .45, carpet: .5 },   // how fast a paper jam sheet and a staple carpet cross the floor
-    sprayEvery: .3, sprayT: 1.5,   // a side spray sends staples down both sides of the hall this often while the rug pulls, this slow
+    liveEdge: .04,   // a live floor: how far past the rug's edge your feet can be before it shocks you
     rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },

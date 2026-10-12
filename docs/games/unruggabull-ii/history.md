@@ -72,10 +72,13 @@ Why things are the way they are, and what was tried and dropped, so a later chan
   - **The finish:** "encourage volley as the finish", so the blaster stops at its last stand, which is staged as an event and ends on a proper rally ("we don't need the last volley to be too short").
   - **Cut the rug:** the owner kept the three-beat mockup ("the rug cut sequence", without its chevrons).
   - **The Shredder's shots:** the paper ball ("isnt bad for shred o"), and the spinning staple stars ("I like the spinning ones").
+  - **The live floor:** the staple side spray "dont look great". Its point was "to force the player to decide whether to stay on the carpet or not", so the floor beside the rug goes live instead, in the surge's blue, and the rug insulates. Picked from stills over a paper blizzard ("it's number one").
+  - **Desks:** "a little visually more interesting… just a touch of something", so each has a green banker's lamp and a stack of folders.
 
 ## Tried and dropped
 
 - **The 13th Floor's floor boxes, round one and two** (notes round): a carpshit hiding in a moving box, caution tape, spilled staples; then a stapler trap, a paper cutter, a shred bin. "Boring and not threatening"; then potted plants ("no potted plants"). Stepping back, the owner asked what they were for (a watch-your-feet hazard) and suggested "a low cubicle desk sticking out onto the carpet": desks it is.
+- **The staple side spray** (notes round): staples streaming down both sides during a pull, then spinning as stars. They didn't look great, and a shredded-paper blizzard from its side vents lost to the live floor in stills.
 - **Shots and staples, round one** (notes round): a bale of shreddings and a file folder for the bundle; a staple point first, chunky side on, a strip. Only the paper ball was kept.
 
 - **The audit** (game-pad controls, dropped after the first deploy): a deflect round where the temps lobbed paper for double souls. It never read as anything in particular.

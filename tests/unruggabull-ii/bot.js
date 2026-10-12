@@ -151,7 +151,7 @@ window.__balanceBot = function (profile, seed) {
         else if (dz < o.speed * .25 + pl.err + .02) a.jump = true;
       });
       // The runner warns, then pulls: step off it, or stay on and slash to cut it (which jams the Shredder), riding it
-      // `ride` of the way toward the mouth first for a longer jam. A side spray makes the rug the safe place: get on it.
+      // `ride` of the way toward the mouth first for a longer jam. A live floor makes the rug the safe place: get on it.
       if (o.pull === 'warn' && lastPull !== 'warn') pullPlan = { cut: r() < P.cut_try };
       lastPull = o.pull;
       var pulling = o.pull === 'warn' || o.pull === 'on', onRug = Math.abs(me) < o.runner + .05, cutAt = P.ride * (o.mouth || .85);

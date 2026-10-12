@@ -68,7 +68,7 @@ A corridor floor of about two minutes, then the Shredder.
 - **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, slash while standing on it to cut the rug and stop it, or crouch to grip it and slow the drag. The first pull shows a prompt.
 - **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner. An old-school card names it while its health bar fills.
   - In every phase the runner pulls on a steady beat, and cutting the rug jams it: blaster shots do triple damage while it's jammed. Ride the rug in close before cutting and the jam lasts longer, and paper knocked back from close hits harder.
-  - From phase 2, some pulls spray staples down both sides of the hall, so you choose: ride the rug toward the mouth, or jump staples at the side.
+  - From phase 2, some pulls make the floor beside the rug live, so you choose: ride the rug toward the mouth, or jump at the side.
   - Its mouth glows red just before every attack.
   - In every phase it throws a flight of paper airplanes across the hall at head height: duck, or slash them back.
   - Phase 1: it spits wads of shredded paper (deflect them into its mouth for heavy damage) and quick volleys of smaller scraps to knock back tap-tap-tap.
