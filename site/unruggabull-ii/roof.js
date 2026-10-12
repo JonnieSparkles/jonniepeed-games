@@ -16,7 +16,7 @@ var UnrugRoof = function (core) {
     snareEvery: [0, 9, 6], snareFly: 1.1, snareSpeed: .24, snareHook: .18, reelEnd: .7, flinch: 1,
     gustEvery: [0, 12, 9], gustTell: .8, gustT: 1.2, gustForce: 1.2,
     odds: 99, minimum: 1, drain: 10, creep: 3, beamSteer: 1.8, beamLimit: 1.1, beamHit: .2,
-    eyeRun: .4, eyeAccel: .55, beamFlyEvery: 4, returnGap: 1.5, returnFly: 1.2,
+    eyeRun: .4, eyeAccel: .55, beamFlyEvery: 4, returnGap: 1.5, returnFly: 1.2, rushGap: .055,
     initialCaught: 100, recalculatingGap: 5,
     freeze: .14, lightningFrame: 1 / 30, reelJump: .12, throwPin: .4,
     eyeHitZ: .04, eyeHitH: .15, spoolFlash: .6, beamFlash: .1, aimHold: .15,
@@ -37,7 +37,7 @@ var UnrugRoof = function (core) {
     popText, talk, live, endRun, drawBull, drawFly, drawShot, drawFx, drawSoulsCounter, world, moveDir, setCheckpoint
   } = core;
   const LM = ROOF.art;
-  let R, bull, Q, g = core.g, musicChoice = 'a', musicCut = false;
+  let R, bull, Q, g = core.g, musicChoice = 'a', musicCut = false, rushAt = -Infinity;
   const effects = UnrugRoofEffects(core, ROOF, soulSpot);
   const isRound = () => /^round[123]$/.test(Q.state);
   const beamActive = () => ['lines', 'beam', 'run', 'one'].includes(Q.state);
@@ -126,16 +126,20 @@ var UnrugRoof = function (core) {
       }
     } },
     flood: { entry() {
-      Q.floodFrom = Q.caught;
+      Q.floodFrom = Q.caught; rushAt = -Infinity;
       Q.flights = Array.from({ length: Q.floodFrom }, (_, i) => soulFlight(Q.floodFrom - 1 - i,
         i / Math.max(1, Q.floodFrom - 1) * (ROOF.time.flood - ROOF.returnFly)));
       Snd.roofCue('flood', { seconds: ROOF.time.flood + ROOF.time.pinch });
     }, tick() {
       const due = Q.flights.filter(f => Q.t + 1e-9 >= f.delay + ROOF.returnFly).length;
       const returned = Q.floodFrom - Q.caught;
-      if (due > returned) { emit('roof_return', { amount: due - returned }); Q.caught = Q.floodFrom - due; }
+      if (due > returned) {
+        emit('roof_return', { amount: due - returned }); Q.caught = Q.floodFrom - due;
+        // Each soul landing in the gun plays a note climbing the scale, at most one every ROOF.rushGap seconds.
+        if (R.t - rushAt >= ROOF.rushGap) { rushAt = R.t; Snd.play('rush', Math.floor(12 * due / Math.max(1, Q.floodFrom))); }
+      }
     }, exit() { Q.caught = 0; } },
-    pinch: {},
+    pinch: { entry() { Snd.play('pinch', ROOF.time.pinch); } },
     fusion: { entry() { R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); }, tick() { Snd.roofCue('fusion'); }, exit() { cutIn('beam', ROOF.cuts.beam); } },
     lines: { entry() { R.beam = true; Q.beamU = 0; Q.line = 0; say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick() {
       if (!Q.line && (!R.talk || R.talk.t >= R.talk.total)) { Q.line = 1; core.bark('odds', true); }
