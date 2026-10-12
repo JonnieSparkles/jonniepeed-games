@@ -8,7 +8,7 @@
   var log = [], lastStage = 1, ids = new WeakMap(), nextId = 1;
   function idOf(o) { if (!ids.has(o)) ids.set(o, nextId++); return ids.get(o); }
   function stage() {
-    if (R.stage === 'roof') return floor.stageNo();
+    if (R.stage === 'roof' || R.stage === 'elevator') return floor.stageNo();
     if (R.phase === 'dead') return lastStage;
     if (R.phase === 'win' || state === 'over') return 9;
     if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
@@ -28,7 +28,8 @@
     // randomness, so options.fast changes nothing.
     start: function (seedv, options) {
       log = []; emitHook = record; lastStage = 1;
-      renderEffects = options && options.fast === false && options.stage === 'roof'; renderSteps = 0; renderedState = null;
+      renderEffects = options && options.fast === false && ['roof', 'elevator'].includes(options.stage); renderSteps = 0; renderedState = null;
+      travelHook = options && options.stage === 'elevator' ? function () { endRun('clear'); return true; } : null;
       RUN.force = seedv; newRun(null, options && options.stage); RUN.force = null;
       setState('play'); card.hidden = true; crawl.hidden = true; intro = null;
       input.jump = input.slash = input.shoot = 0;
@@ -40,8 +41,9 @@
       if (state !== 'play') return;
       update(dt);
       // Verify samples real renderer frames at every beat and five seconds of fight time.
-      if (renderEffects && (++renderSteps % 300 === 0 || (R.roof.cut ? R.roof.cut.name : R.roof.state) !== renderedState)) {
-        draw(); renderedState = R.roof.cut ? R.roof.cut.name : R.roof.state;
+      var q = R.roof || R.elevator, currentState = q && (q.cut ? q.cut.name : q.state);
+      if (renderEffects && (++renderSteps % 300 === 0 || currentState !== renderedState)) {
+        draw(); renderedState = currentState;
       }
       if (R.phase !== 'dead') lastStage = stage();
     },
@@ -73,6 +75,12 @@
           rings: q.rings.map(function (r) { return { u: r.u, z: r.z, odds: r.odds }; }),
           snare: q.snare ? { id: idOf(q.snare), u: q.snare.u, t: q.snare.t, hooked: q.snare.hooked } : null,
           gust: q.gust ? { dir: q.gust.dir, t: q.gust.t } : null };
+      }
+      if (R.stage === 'elevator') {
+        o.arena = { state: R.elevator.state, facing: b.facing,
+          enemies: R.arena.enemies.map(e => ({ id: idOf(e), kind: e.kind, u: e.u, h: e.h, age: e.age, dropping: e.dropping, dir: e.dir })),
+          thrown: R.arena.thrown.map(p => ({ id: idOf(p), u: p.u, h: p.h, vu: p.vu, vh: p.vh, friendly: p.friendly })),
+          crate: R.elevator.crate && !R.elevator.crate.got ? { u: R.elevator.crate.u } : null };
       }
       return o;
     },

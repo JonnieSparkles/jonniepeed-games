@@ -228,7 +228,7 @@ window.UnrugSound = (function () {
       drums: { pat: 'KKh.S.hKKKh.S.hK', fills: { 3: 'KKh.S.hKKKSSSSSS', 7: 'KKKKSSSSSSSSSSSS' }, crash: [0, 4] }
     }] }
   };
-  Object.assign(TRACKS, window.UnrugRoofMusic || {});
+  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {});
   if (TRACKS.roofA) { TRACKS.roof = TRACKS.roofA; TRACKS.roofHeavy = TRACKS.roofAHeavy; }
   // Pattern format is opt-in: the original six section tracks retain their exact compiler and synth.
   function noteEvents(notes) {
@@ -392,6 +392,7 @@ window.UnrugSound = (function () {
   // ---------- blip talk ----------
   const VOICES = {
     loom: { f: 96, wave: 'p12', ms: 38 }, // Keep the original fallback's caption cadence.
+    operator: { f: 210, wave: 'triangle', ms: 55 },
     narrator: { f: 392, wave: 'triangle', ms: 40 },
     shredder: { f: 140, wave: 'sawtooth', ms: 40 },
     announcer: { f: 620, wave: 'p25', ms: 38 },
@@ -472,6 +473,7 @@ window.UnrugSound = (function () {
   // ---------- sound effects ----------
   let shotN = 0;
   const SFX = {
+    ding: t => { osc(sfxBus, 'sine', hz(84), t, .8, .16, { attack: .005, sustain: .1 }); osc(sfxBus, 'triangle', hz(96), t, .5, .05); },
     storm: t => { noiseHit(sfxBus, t, .4, .04, 'lowpass', 1600); roofSound({ storm: true, beam: false }); },
     thunder: (t, power = 1) => { noiseHit(sfxBus, t + .12, 1.6, .34 * power, 'lowpass', 380, .8, 60); osc(sfxBus, 'sine', 58, t + .15, 1.2, .17 * power, { to: 27, sustain: .12 }); },
     snare: t => noiseHit(sfxBus, t, .15, .18, 'bandpass', 6000, 3, 900),

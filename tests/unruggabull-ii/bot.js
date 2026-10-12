@@ -58,8 +58,48 @@ window.__balanceBot = function (profile, seed) {
     roofSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), depth: (a.forward ? 1 : 0) - (a.back ? 1 : 0), dt: delta });
     return a;
   }
+  // Arena decisions use separate bookkeeping and dice only on this stage.
+  var arenaSent = [], arenaT = null;
+  function arenaDecide(o) {
+    var q = o.arena, b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false };
+    var delta = arenaT === null ? 1 / 30 : Math.max(0, o.t - arenaT); arenaT = o.t;
+    var lag = P.reaction_ms / 1000, me = b.u;
+    arenaSent = arenaSent.filter(x => x.t >= o.t - lag - 1e-6);
+    arenaSent.forEach(x => { me += x.dir * o.move * x.dt; });
+    me = Math.max(-o.aisle, Math.min(o.aisle, me));
+    var goal = null, target = null;
+    q.enemies.forEach(function (e) {
+      if (!noticed(o, e)) return;
+      if (!target || Math.abs(e.u - me) < Math.abs(target.u - me)) target = e;
+      var pl = plan(e, () => ({ slash: r() < P.fly_slash, jump: r() < P.jump_try }));
+      var du = e.u + e.dir * .3 * lead - me;
+      if (Math.abs(du) < .3 && Math.abs(e.h - (e.dropping ? .6 * lead : 0) - b.jh - .1) < .28 && pl.slash) a.slash = true;
+      if (e.kind === 'flyer' && !e.dropping && Math.abs(du) < .35 && pl.jump && !b.jh) a.jump = true;
+    });
+    if (target) {
+      var side = target.u >= me ? 1 : -1;
+      if (q.facing !== side) goal = me + side * .12;
+      else if (Math.abs(target.u - me) > .65) goal = target.u - side * .45;
+      a.shoot = q.facing === side && Math.abs(target.h - b.jh - .14) < .12 && o.charge > P.charge_floor;
+    }
+    q.thrown.forEach(function (p) {
+      if (p.friendly || !noticed(o, p)) return;
+      var pl = plan(p, () => ({ deflect: r() < P.deflect_try }));
+      if (Math.abs(p.u + p.vu * lead - me) < .3 && pl.deflect) {
+        if ((p.u - me) * q.facing < 0) goal = me + Math.sign(p.u - me) * .12;
+        else a.slash = true;
+      }
+    });
+    // No chance to ignore the supply forever: once combat ends, walk to the visible sliding crate.
+    if (q.crate) goal = q.crate.u - .32 * lead;
+    var d = goal === null ? 0 : goal - me;
+    a.left = d < -.025; a.right = d > .025;
+    arenaSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: delta });
+    return a;
+  }
   return {
     decide: function (o) {
+      if (o.arena) return arenaDecide(o);
       if (o.roof) return roofDecide(o);
       var b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false }, goal = null, urgent = false;
       if (lastT !== null && o.t > lastT) dt = o.t - lastT;

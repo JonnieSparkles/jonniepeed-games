@@ -188,4 +188,31 @@ with sync_playwright() as p:
         assert not errors, (name, errors)
         print('PASS roof hash/layout', name)
         context.close()
+    # Side-view hash and existing controls, including a real pointer tap on the carried icon.
+    for name, size, touch in [('desktop', (1280, 800), False), ('phone portrait', (390, 844), True), ('phone landscape', (844, 390), True)]:
+        context, page, errors = open_page(browser, url=URL + '#stage=elevator&seed=42', viewport={'width': size[0], 'height': size[1]}, has_touch=touch, is_mobile=touch)
+        page.clock.install()
+        page.evaluate("unrugTest('looping=false; clearHeld();')")
+        assert page.evaluate("unrugTest('R.stage === \"elevator\" && RUN.seed === 42 && R.heldDrop === null && state === \"play\"')"), name
+        assert page.locator('#card').is_hidden() and page.locator('#crawl').is_hidden(), name
+        page.keyboard.down('ArrowRight')
+        page.evaluate("unrugTest('for(let i=0;i<12;i++) update(1/60)')")
+        page.keyboard.up('ArrowRight')
+        assert page.evaluate("unrugTest('bull.u > -.55 && bull.facing === 1')"), name
+        page.keyboard.press('ArrowUp')
+        page.evaluate("unrugTest('update(1/60)')")
+        assert page.evaluate("unrugTest('bull.jh > 0')"), name
+        page.evaluate("unrugTest('drops.give(\"spread\"); draw()')")
+        if touch:
+            canvas = page.locator('#c').bounding_box()
+            page.touchscreen.tap(canvas['x'] + canvas['width'] * 64 / 240, canvas['y'] + canvas['height'] * 24 / 135)
+        else:
+            page.keyboard.press('e')
+        assert page.evaluate("unrugTest('!R.heldDrop && R.spread === 10')"), name
+        assert page.evaluate('document.documentElement.scrollWidth') <= size[0], name
+        assert not errors, (name, errors)
+        context.close()
+        print('PASS elevator hash/input/layout', name)
+    from elevator_audio import check_elevator_audio
+    check_elevator_audio(browser, ROOT)
     browser.close()

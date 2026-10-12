@@ -58,7 +58,7 @@ var UnrugRoof = function (core) {
     // Save outcomes, not cosmetic positions. Re-entering a round restores its intact spool at full health.
     setCheckpoint({ stage: 'roof', roofState: isRound() ? Q.state : stageNo() === 10 ? 'round1' : 'quiet',
       broken: Q.broken, caught: (isRound() ? Q.caught : Q.capturedTotal) + R.fx.filter(f => f.caught).length, capturedTotal: Q.capturedTotal + R.fx.filter(f => f.caught).length, souls: R.souls, t: R.t, continues: R.continues,
-      bestStreak: R.bestStreak, events: Object.assign({}, R.events) });
+      heldDrop: R.heldDrop, dropNext: R.dropNext, bestStreak: R.bestStreak, events: Object.assign({}, R.events) });
   }
   function clearThreats() { R.flies = []; R.shots = []; Q.volley = null; Q.rings = []; Q.snare = null; Q.gust = null; }
   function enter(name) {
@@ -164,13 +164,14 @@ var UnrugRoof = function (core) {
     Q = R.roof = { state: null, t: 0, round: 1, broken: 0, hp: ROOF.hitsPerSpool[0], odds: 0,
       eye: { u: 0, z: ROOF.eyeZ, h: ROOF.eyeH, eye: true }, caught: ROOF.initialCaught,
       capturedTotal: ROOF.initialCaught, history: [], rings: [], stall: 0, flinch: 0, hot: 0, cut: null, recalc: 0 };
-    effects.reset(at ? at.capturedTotal + Math.max(0, at.caught - at.capturedTotal) : Q.caught);
-    if (at) {
+    if (at && at.transfer) { Q.caught = Q.capturedTotal = at.souls; Q.fromRide = !!at.ride; }
+    effects.reset(at && !at.transfer ? at.capturedTotal + Math.max(0, at.caught - at.capturedTotal) : Q.caught);
+    if (at && !at.transfer) {
       Object.assign(R, { t: at.t, souls: at.souls, shown: at.souls, continues: at.continues + 1, bestStreak: at.bestStreak });
       Object.assign(R.events, at.events);
       Q.broken = at.broken; Q.caught = at.caught; Q.capturedTotal = at.capturedTotal;
       enter(at.roofState);
-    } else { R.souls = R.shown = ROOF.initialCaught; enter('elevator'); }
+    } else { R.souls = R.shown = Q.caught; enter('elevator'); }
   }
   function cutIn(name, seconds) { Q.cut = { name, left: seconds, seconds }; emit('roof_cut', { name }); }
   function hold(dt) {
@@ -333,6 +334,13 @@ var UnrugRoof = function (core) {
     for (const f of R.flies) if (!f.dead && Math.abs(f.u - Q.beamU) < ROOF.beamHit) core.killFly(f, 'beam');
     if (Q.odds <= ROOF.minimum) enter('one');
   }
+  function bullRun() {
+    if (Q.snare) Q.snare = null;
+    if (Q.volley) for (const o of Q.volley.orbs) {
+      const r = Q.rings[o.target];
+      if (!o.landed && Math.abs(bull.u - r.u) < ROOF.ringRadius && Math.abs(bull.bz - r.z) < ROOF.ringDepth && Q.volley.t >= o.delay) o.landed = true;
+    }
+  }
   function eyeAt() { return Q.eye; }
   function aim(consider) { if (isRound() && Q.stall > 0 && !Q.intermission) consider(Q.eye, Q.eye, ROOF.aimCone); }
   function view() {
@@ -474,7 +482,7 @@ var UnrugRoof = function (core) {
     if (flash > .01) { g.save(); g.globalAlpha = flash * .5; rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
     if (Q.state === 'flash') drawFlashLoom();
     if (Q.state !== 'elevator') return;
-    const opening = clamp(Q.t / ROOF.time.elevator, 0, 1), half = W / 2 * (1 - opening);
+    const opening = Q.fromRide ? 1 : clamp(Q.t / ROOF.time.elevator, 0, 1), half = W / 2 * (1 - opening);
     rect(g, 0, 0, half, H, '#24222f'); rect(g, W - half, 0, half, H, '#24222f');
     if (half > 10) txt(g, 'R', W / 2, 10, '#ffd44a', 2, 'center');
   }
@@ -500,7 +508,7 @@ var UnrugRoof = function (core) {
     lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) and its three spools.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
-    aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, hurt: noop, blasterBack: noop, bonusBy: () => null,
+    bullRun, aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, hurt: noop, blasterBack: noop, bonusBy: () => null,
     endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop, soulFreed, soulLanded,
     cutActive: () => !!Q.cut, cutIn, drawCut,
     frameHeld: effects.frameHeld, shakeOffset: () => effects.offset(R), wispMotion: effects.wispMotion, riseMotion: effects.riseMotion, drawRise: effects.drawRise,
