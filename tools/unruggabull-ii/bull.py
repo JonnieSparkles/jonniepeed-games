@@ -746,6 +746,7 @@ SIDE_NEAR = {   # elbow and hand of the near arm, from (x, vy)
     'down': lambda x, vy: ((x + 1.4, vy + 9.5), (x + 2.6, vy + 16.4)),
     'aim':  lambda x, vy: ((x + 5.6, vy + 7.6), (x + 10.4, vy + 9.2)),
     'rest': lambda x, vy: ((x + 3.4, vy + 9.6), (x + 7.4, vy + 13.0)),
+    'twirl': lambda x, vy: ((x + 3.0, vy + 9.4), (x + 6.6, vy + 12.6)),
     'wind': lambda x, vy: ((x - 2.8, vy + 1.0), (x - 1.8, vy - 6.0)),
     'cut':  lambda x, vy: ((x + 6.2, vy + 5.2), (x + 11.6, vy + 8.2)),
     'flinch': lambda x, vy: ((x - 3.2, vy + 5.0), (x - 6.4, vy + 1.2)),
@@ -762,6 +763,11 @@ SIDE_POSE = {
     'stand':  (STAND_LEGS, 'down', 'down', {}),
     'aim':    (STAND_LEGS, 'aim', 'down', {}),
     'idle':   (STAND_LEGS, 'rest', 'down', {'lean': -.4}),
+    'twirl0': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 0}),
+    'twirl1': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 1}),
+    'twirl2': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 2}),
+    'twirl3': (STAND_LEGS, 'twirl', 'down', {'lean': -.4, 'spin': 3}),
+
     'run0':   (((-3.0, _Lk - .4, -6.2, _Lf - 1.4), (4.4, _Lk - 1.0, 6.4, _Lf)), 'aim', 'swingF', {'lean': 1.0, 'tail': 1}),
     'run1':   (((2.4, _Lk - 2.6, -1.8, _Lf - 5.6), (1.6, _Lk, .6, _Lf)), 'aim', 'down', {'lean': 1.0, 'bob': -1, 'tail': 0}),
     'run2':   (((4.4, _Lk - 1.0, 6.4, _Lf), (-3.0, _Lk - .4, -6.2, _Lf - 1.4)), 'aim', 'swingB', {'lean': 1.0, 'tail': -1}),
@@ -901,6 +907,9 @@ def build_side(name='stand'):
     ellipse(cv, x + .2, vy + 2.4, 3.6 * SLEEVE, 3.6 * SLEEVE, 'tee', base=.12, hard=True)
     arm(cv, (x + .2, vy + 2), el, hd, 2.4)
     fist(cv, hd[0], hd[1], 2.9)
+    if near == 'twirl':
+        blaster_spin(cv, hd[0] + .6, hd[1] + 1.4, (4 - ex['spin']) % 4)
+        fist(cv, hd[0], hd[1], 2.6)
     if near == 'wind':
         katana_held(cv, hd[0], hd[1], hd[0] - 10, hd[1] - 13)
     if near == 'cut':
