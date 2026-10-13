@@ -440,5 +440,11 @@ var UnrugIntro = (function () {
     }
     return null;
   }
-  return { LINES, LABELS, draw, tap, reset, ready, W, H };
+  // The way out of the last still, q 0..1: the doorway's light swells over the picture until it is all warm white.
+  function exit(g, q) {
+    const e = ease(clamp(q));
+    glow(g, 262, 150, 60 + 330 * e, 'rgba(255,214,140,A)', Math.min(1, .3 + e));
+    g.save(); g.globalAlpha = ease(clamp((q - .45) / .55)); rect(g, 0, 0, W, H, '#fff1cf'); g.restore();
+  }
+  return { LINES, LABELS, draw, exit, tap, reset, ready, W, H };
 })();

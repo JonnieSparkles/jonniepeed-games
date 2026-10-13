@@ -526,6 +526,7 @@
 
   // ---------- one tick ----------
   function update(dt) {
+    if (fadeIn && (fadeIn.t += dt) >= FADE) fadeIn = null;
     if (state === 'intro') { R.t += dt; updateIntro(dt); return; }
     if (state === 'title' || state === 'over') {
       R.t += dt;
@@ -971,6 +972,8 @@
     if (R.white > 0) { g.save(); g.globalAlpha = Math.min(1, R.white * 4); rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
     if (R.zap > 0) { g.save(); g.globalAlpha = Math.min(.6, R.zap * 2); rect(g, 0, 0, W, H, '#3aa8e0'); g.restore(); }
     floor.overlay(); drawFx('words'); drawHUD(); drawWords();
+    // out of the intro's light, in six steps
+    if (fadeIn) { g.save(); g.globalAlpha = Math.ceil((1 - fadeIn.t / FADE) * 6) / 6; rect(g, 0, 0, W, H, LIGHT); g.restore(); }
   }
 
   // ---------- page: card, sound, full screen ----------
@@ -1037,6 +1040,7 @@
     state = s;
     if (s !== 'intro') c.setAttribute('aria-label', s === 'title' ? LABELS.title : floor.label || LABELS.play);   // the intro labels each still
     gameEl.classList.toggle('playing', s === 'play');
+    gameEl.classList.toggle('intro', s === 'intro');   // the intro takes the whole screen in full screen
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
   }
@@ -1103,6 +1107,10 @@
   const STORY_KEY = 'unruggabull-ii-story';
   const crawl = $('crawl'), crawlText = $('crawlText'), more = $('more'), moreTap = $('moreTap'), skipBtn = $('skip');
   let intro = null;
+  // The way out of the last still: its doorway's light fills the picture (OUT seconds), then the run opens out of that
+  // light, clearing over FADE seconds. Skip and Escape cut straight to the run.
+  const OUT = 1.1, FADE = .9, LIGHT = '#fff1cf';
+  let fadeIn = null;
   function storySeen() { try { return localStorage.getItem(STORY_KEY) === '1'; } catch (e) { return false; } }
   function loadStills() {
     if (window.UnrugIntroStills || document.getElementById('introStills')) return;
@@ -1114,7 +1122,7 @@
   function startIntro() {
     loadStills(); Intro.reset();
     setState('intro'); card.hidden = true; crawl.hidden = false;
-    crawlText.textContent = ''; more.hidden = true;
+    crawlText.textContent = ''; more.hidden = true; crawl.style.opacity = '';
     intro = { i: -1, t: 0, wait: 0 };   // waiting for the pictures
     try { skipBtn.focus({ preventScroll: true }); } catch (e) {}
   }
@@ -1129,30 +1137,37 @@
     if (!intro) return;
     if (intro.i < 0) { intro.wait += dt; if (Intro.ready() || intro.wait > 4) introLine(0); return; }
     intro.t += dt;
+    if (intro.out != null) { intro.out += dt; if (intro.out >= OUT) endIntro(true); return; }
     let n = 0; while (n < intro.text.length && intro.times[n] <= intro.t) n++;
     if (crawlText.textContent.length !== n) crawlText.textContent = intro.text.slice(0, n);
     // the still waits for a tap; once its line is said, a blinking arrow says so ("Tap" on the first one)
     const said = intro.t > intro.total + .25;
     if (more.hidden === said) { more.hidden = !said; moreTap.hidden = intro.i !== 0; }
   }
-  function nextLine() { if (intro.i + 1 < STORY.length) introLine(intro.i + 1); else endIntro(); }
+  function nextLine() { if (intro.i + 1 < STORY.length) introLine(intro.i + 1); else leaveIntro(); }
+  function leaveIntro() {
+    Snd.hush(); intro.out = 0; crawl.style.opacity = '0'; more.hidden = true;
+    try { localStorage.setItem(STORY_KEY, '1'); } catch (e) {}
+  }
   function advanceIntro() {
-    if (!intro || intro.i < 0) return;
+    if (!intro || intro.i < 0 || intro.out != null) return;
     if (intro.t < intro.total) { intro.t = intro.total; Snd.hush(); } else nextLine();
   }
-  function endIntro() {
+  function endIntro(lit) {
     Snd.hush(); intro = null; crawl.hidden = true;
     try { localStorage.setItem(STORY_KEY, '1'); } catch (e) {}
     startRun();
+    fadeIn = lit === true ? { t: 0 } : null;
   }
   function drawIntro() {
     view.setTransform(1, 0, 0, 1, 0, 0);
-    if (intro && intro.i >= 0) Intro.draw(view, intro.i, intro.t, intro.plan);
+    if (intro && intro.i >= 0) { Intro.draw(view, intro.i, intro.t, intro.plan); if (intro.out != null) Intro.exit(view, intro.out / OUT); }
     else { view.fillStyle = '#08070c'; view.fillRect(0, 0, PW, PH); }
   }
   skipBtn.addEventListener('click', e => { e.stopPropagation(); if (state === 'intro') endIntro(); });
-  $('stage').addEventListener('click', e => {
-    if (state !== 'intro' || skipBtn.contains(e.target)) return;
+  // a tap anywhere moves on (on a tall phone that includes the black round the picture), except on a button
+  gameEl.addEventListener('click', e => {
+    if (state !== 'intro' || e.target.closest('button')) return;
     if (intro && intro.i >= 0 && e.target === c) {
       const r = c.getBoundingClientRect(), gag = Intro.tap(intro.i, (e.clientX - r.left) / r.width * Intro.W, (e.clientY - r.top) / r.height * Intro.H, intro.t, intro.plan);
       if (gag != null) { if (gag) Snd.play(gag); return; }
