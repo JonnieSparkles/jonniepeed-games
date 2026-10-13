@@ -10,7 +10,8 @@ owner's, and the shot list (the project's unruggabull-ii-intro.md) says which is
 
 SRC_DIR holds still1.png .. still6.png, and the owner's Rugfather strips, alive.png (13 cells of 256 x 256) and dead.png
 (5 cells), drawn at twice their own pixel grid. Two frames are kept, halved back to that grid: alive cell 8 (side on,
-an arm reaching left: still 3, teaching) and dead cell 1 (the burning heap: still 1). His front (alive cell 2) is
+an arm reaching left: still 3, teaching) and dead cell 1 (the burning heap: still 1), plus that heap shrunk to lie far
+down the alley (a mock-up the owner asked to compare). His front (alive cell 2) is
 already in the game as portrait.js, so the intro uses that. Needs Pillow and numpy.
 
 The dither: the same matrix as render.js, at four times its strength. In the hall it only has to smooth light that is
@@ -102,13 +103,24 @@ def image(idx):
 
 
 # the Rugfather's frames the intro needs (portrait.js has the front), as (strip, cell)
-SPRITES = {'reach': ('alive', 7), 'heap': ('dead', 0)}
+# (strip, cell, scale): scale 1 is the art's own pixel grid; heapFar is the heap shrunk to lie far down the alley
+SPRITES = {'reach': ('alive', 7, 1), 'heap': ('dead', 0, 1), 'heapFar': ('dead', 0, .36)}
 
 
 def sprite(src, name):
-    strip, cell = SPRITES[name]
+    strip, cell, scale = SPRITES[name]
     im = Image.open(src / f'{strip}.png').convert('RGBA').crop((cell * 256, 0, cell * 256 + 256, 256))
-    a = np.asarray(im)[::2, ::2].copy()             # drawn at 2x: every other pixel is the art
+    if scale == 1:
+        a = np.asarray(im)[::2, ::2].copy()             # drawn at 2x: every other pixel is the art
+    else:
+        # averaged down, colour weighted by coverage so the edges don't go dark
+        n = round(128 * scale)
+        f = np.asarray(im, float)
+        f[..., :3] *= f[..., 3:] / 255
+        sm = np.asarray(Image.fromarray(f.astype(np.uint8), 'RGBA').resize((n, n), Image.BOX), float)
+        cov = sm[..., 3:] / 255
+        sm[..., :3] = np.where(cov > 0, sm[..., :3] / np.maximum(cov, 1e-6), 0)
+        a = np.clip(sm, 0, 255).astype(np.uint8)
     a[a[..., 3] < 128] = 0
     a[..., 3][a[..., 3] >= 128] = 255
     ys, xs = np.nonzero(a[..., 3])

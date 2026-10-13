@@ -19,7 +19,7 @@ h1{font-family:var(--display);font-weight:400;font-size:18px;margin:0;color:var(
 .stage{position:relative;width:min(100%,calc((100svh - 40px) * 16 / 9));margin-inline:auto;aspect-ratio:16/9;border-radius:8px;overflow:hidden;box-shadow:0 0 0 2px var(--edge);background:#09070b}
 canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;outline:none}
 .crawl{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;padding:10px 12px;background:rgba(9,7,11,.84);cursor:pointer}
-.crawl p{margin:0;font-size:clamp(13px,2.4vw,18px);line-height:1.35;min-height:2.7em;text-wrap:pretty}
+.crawl p{margin:0;font-size:clamp(16px,3.2vw,24px);line-height:1.3;min-height:2.6em;text-wrap:pretty}
 button{font-family:var(--display);font-size:14px;background:var(--gold);color:var(--bg);border:0;border-radius:4px;padding:10px 18px;box-shadow:0 3px 0 var(--gold-deep);cursor:pointer}
 button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-deep)}
 button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
@@ -29,7 +29,8 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .veil p{margin:0;color:var(--muted);font-size:14px;max-width:40ch}
 .jump{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .jump button{font-size:11px;padding:8px 12px;background:transparent;color:var(--cream);border:2px solid var(--edge);box-shadow:none}
-.jump button[aria-current="true"]{border-color:var(--gold);color:var(--gold)}
+.jump button[aria-current="true"],.jump button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.opt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;color:var(--muted);font-size:14px}
 .notes{display:grid;gap:6px;color:var(--muted);font-size:14px;line-height:1.45;margin:0;padding-left:18px}
 .notes b{color:var(--cream);font-weight:600}
 /* landscape phones: the picture fills the screen, the page's words step aside */
@@ -50,10 +51,12 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
     <div class="veil" id="veil"><button id="play" type="button">Play with sound</button><p id="veilNote">About 30 seconds.</p></div>
   </div>
   <div class="jump" id="jump" aria-label="Jump to a still"></div>
+  <div class="opt jump" role="group" aria-label="Still 1: where the Rugfather lies"><span>Still 1, the Rugfather:</span><button type="button" id="near" aria-pressed="true">In the garage</button><button type="button" id="far" aria-pressed="false">Far down the alley</button></div>
   <p class="sr" id="live" aria-live="polite" style="position:absolute;left:-9999px"></p>
   <ul class="notes">
     <li><b>Still 6:</b> no bull yet. The ledger is shown as if you're the one holding it, until we decide how he appears.</li>
-    <li><b>The Rugfather</b> is your strip at its own pixel size: the burning heap (1), his front (2 and 4), the reaching frame (3).</li>
+    <li><b>The Rugfather</b> is your strip at its own pixel size: the burning heap (1), his front (2 and 4), the reaching frame (3). Everywhere he breathes, his fringe stirs, his fire flickers, his eyes glow and blink, and embers drift off him.</li>
+    <li><b>Still 1</b> has both places for him; flip them with the buttons under the picture.</li>
     <li><b>Not in yet:</b> the title card and the hand-off into the stairwell. In the game the last tap goes straight to play.</li>
   </ul>
 </main>
@@ -89,6 +92,9 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
   }
   function next() { if (run.i + 1 < I.LINES.length) still(run.i + 1); else end(); }
   function advance() { if (!run) return; if (run.t < run.plan.total) { run.t = run.plan.total; Snd.hush(); } else next(); }
+  const near = document.getElementById('near'), far = document.getElementById('far');
+  const place = v => { I.options.heapFar = v; near.setAttribute('aria-pressed', !v); far.setAttribute('aria-pressed', v); };
+  near.onclick = () => place(false); far.onclick = () => place(true);
   play.onclick = e => { e.stopPropagation(); Snd.init(); begin(0); };
   skip.addEventListener('click', e => { e.stopPropagation(); if (run) end(); });
   document.getElementById('stage').addEventListener('click', e => {
@@ -112,7 +118,7 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
   }
   requestAnimationFrame(frame);
   // for checking frames: __shot(i, t) draws still i at t seconds and holds it
-  window.__shot = (i, t, gag) => { window.__still = true; run = null; I.reset(); const plan = Snd.talkTimes(I.LINES[i], 'narrator'); if (gag) I.tap(i, gag[0], gag[1], gag[2], plan); I.draw(g, i, t, plan); return plan.total + I.HOLD; };
+  window.__shot = (i, t, gag, opt) => { I.options.heapFar = !!(opt && opt.far); window.__still = true; run = null; I.reset(); const plan = Snd.talkTimes(I.LINES[i], 'narrator'); if (gag) I.tap(i, gag[0], gag[1], gag[2], plan); I.draw(g, i, t, plan); return plan.total + I.HOLD; };
 })();
 </script>
 </body>

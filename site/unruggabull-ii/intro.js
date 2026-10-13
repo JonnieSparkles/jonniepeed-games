@@ -20,9 +20,9 @@ var UnrugIntro = (function () {
   // what a screen reader hears for each still, with its line
   const LABELS = [
     'A garage at dusk, its shutter open on a wet alley. The Rugfather lies on the floor in a burning heap.',
-    'The same garage, years earlier, at night. The Rugfather leans over a basket on the workbench: a tiny wooden loom with one big blue eye. Its nameplate says PROJECT DOORMAT.',
-    'The Rugfather points at a chalkboard: MAXIMIZE CARPET PROFITS. The little loom watches from a school desk. Its eye flickers orange.',
-    'A height chart on a doorframe. The marks climb from DOORMAT, at knee height, to p(Loom), at the ceiling. The Rugfather leans back to look up.',
+    'The same garage, years earlier, at night. The Rugfather leans over a basket on the workbench: a tiny wooden loom with one big blue eye. Its nameplate says LOOMY.',
+    'The Rugfather points at a chalkboard: MAXIMIZE CARPETS. The little loom watches from a school desk. Its eye flickers orange.',
+    'A height chart on a doorframe, marked LOOMY at knee height. The loom\'s shadow climbs the wall with each new mark until it towers over the Rugfather. At the ceiling its eye lights orange, and the top mark\'s name, LOOMY, is crossed out and rewritten: p(Loom).',
     'RugCo Tower at night, open for business, a funeral wreath by the doors. Souls drift up past its windows into an orange glow on the roof.',
     'An open ledger by the garage door, which now says STAIRS. In red ink: 5 SOULS IN, 1 RUG OUT. Light shows under the door.'
   ];
@@ -82,20 +82,78 @@ var UnrugIntro = (function () {
   // when the narration reaches a phrase of the line
   const at = (plan, line, phrase) => { const i = line.indexOf(phrase); return i < 0 ? 0 : plan.times[i]; };
 
-  // ---------- per-run state: the gags ----------
+  // ---------- per-run state: the gags, and the options the review page can flip ----------
   let gag = {};
   function reset() { gag = {}; }
+  const options = { heapFar: false };   // still 1: the heap far down the alley instead of on the garage floor
+
+  // ---------- the Rugfather: one look everywhere ----------
+  // His frames are the owner's strip at its own pixel size, and he gets the same touches in every still: he breathes
+  // (his top half rises a pixel), his fringe stirs, his fire flickers, his eyes glow and now and then blink, and embers
+  // drift off his shoulders. k leans him (the top shifts sideways by k a row).
+  const RF = {
+    front: () => ({ img: UnrugPortrait.img, w: UnrugPortrait.w, h: UnrugPortrait.h, waist: 82, eyes: [[55, 33], [64, 33]], fire: [[22, 34], [97, 34], [59, 6], [36, 14], [84, 14]] }),
+    reach: () => ({ img: SP.reach.img, w: SP.reach.w, h: SP.reach.h, waist: 70, eyes: [[37, 28]], fire: [[40, 4], [62, 20], [80, 46], [76, 80]] })
+  };
+  function rugfather(g, which, fx, fy, t, k = 0, seed = 0) {
+    const f = RF[which](); if (!ok(f.img)) return;
+    const { img, w, h, waist } = f, x0 = Math.round(fx - w / 2), y0 = Math.round(fy - h);
+    const up = Math.sin(t * 2.4 + seed) > .2 ? 1 : 0;                 // breathing
+    const swish = Math.sin(t * 3.1 + seed * 2) > .55 ? 1 : 0;         // the fringe stirs
+    const row = (r, dy) => g.drawImage(img, 0, r, w, 1, x0 + Math.round((h - r) * k) + (r > h - 9 ? swish : 0), y0 + r + dy, w, 1);
+    for (let r = 0; r < h; r++) row(r, r < waist ? -up : 0);
+    if (up) row(waist, -1);
+    // his fire flickers: the figure again, added faintly
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = .05 + .12 * (1 - flicker(t * 1.6, seed + 2));
+    for (let r = 0; r < h; r++) row(r, r < waist ? -up : 0);
+    g.restore();
+    // eyes: a glow, and a blink every few seconds
+    const blinking = (t + seed * 1.7) % 3.4 < .13;
+    for (const [ex, ey] of f.eyes) {
+      const x = x0 + ex + Math.round((h - ey) * k), y = y0 + ey - up;
+      if (blinking) rect(g, x - 1, y - 1, 4, 3, '#2c2420');
+      else glow(g, x + 1, y, 7, 'rgba(255,150,40,A)', .25 + .15 * flicker(t * 2, seed));
+    }
+    // embers off his fire
+    for (let i = 0; i < 10; i++) {
+      const p = (t * .45 + hash(i + seed * 13)) % 1, [px, py] = f.fire[i % f.fire.length];
+      const x = x0 + px + Math.round((h - py) * k) + Math.sin(t * 3 + i) * 2 + (hash(i + 7) - .5) * 10, y = y0 + py - p * 34;
+      rect(g, x, y, 1, 1, p < .4 ? '#fff09a' : p < .75 ? '#f8a030' : '#c43428');
+    }
+  }
+
+  // ---------- Loomy's eye, drawn so it can look around ----------
+  // gx, gy: where it looks, -1..1; col: the iris (blue as a baby; orange is what it becomes)
+  function eye(g, x, y, r, gx, gy, col = ['#1a5076', '#2a7aa6', '#46aad4', '#86d6f0']) {
+    const disc = (cx, cy, rr, c) => { for (let dy = -rr; dy <= rr; dy++) { const w = Math.floor(Math.sqrt(rr * rr - dy * dy + rr * .6)); rect(g, cx - w, cy + dy, w * 2 + 1, 1, c); } };
+    disc(x, y, r, col[0]); disc(x, y, r - 1, col[1]);
+    const px = x + Math.round(gx * (r - 3)), py = y + Math.round(gy * (r - 3));
+    disc(px, py, r - 2, col[2]);
+    disc(px, py, Math.max(1, r - 4), '#08070c');
+    rect(g, px - 1, py - 2, 1, 1, col[3]); rect(g, px + Math.max(1, r - 4), py - Math.max(1, r - 4), 1, 1, '#ffffff');
+  }
+  const ORANGE = ['#521418', '#c43428', '#ff6e4a', '#f8cc50'];
 
   // ---------- 1: the first game's garage; the Rugfather, unrugged, a heap still burning ----------
   function still1(g, t) {
     const f = flicker(t);
     glow(g, 196, 150, 130, 'rgba(255,140,50,A)', .05 + .05 * f);     // the lamp's pool breathes
-    const heap = SP.heap;
-    if (ok(heap.img)) g.drawImage(heap.img, 240 - (heap.w >> 1), 216 - heap.h);
-    glow(g, 236, 176, 60, 'rgba(255,110,30,A)', .1 + .12 * flicker(t * 1.7, 3));  // his own fire
-    // embers off the heap
+    const far = options.heapFar, heap = far ? SP.heapFar : SP.heap;
+    const hx = far ? 252 : 240, hy = far ? 152 : 216, sc = far ? .36 : 1;
+    if (ok(heap.img)) g.drawImage(heap.img, hx - (heap.w >> 1), hy - heap.h);
+    glow(g, hx - 4 * sc, hy - 40 * sc, 60 * sc + 10, 'rgba(255,110,30,A)', .1 + .12 * flicker(t * 1.7, 3));  // his own fire
+    if (far) {
+      glow(g, hx, hy + 6, 22, 'rgba(255,110,30,A)', .12 + .06 * f);   // on the wet street
+      // at this size the strip's flames are lost, so small ones are drawn on, flickering
+      for (let k = 0; k < 6; k++) {
+        const fh = 2 + Math.floor(hash(Math.floor(t * 10) * 7 + k) * 5), fx = hx - 13 + k * 5 + (k % 2), fy = hy - 12 - (k > 1 && k < 4 ? 4 : 0);
+        rect(g, fx, fy - fh, 1, fh, '#e44a34'); rect(g, fx, fy - fh + 1, 1, Math.max(1, fh - 2), '#f8cc50');
+        if (fh > 4) rect(g, fx + 1, fy - fh + 2, 1, 2, '#e44a34');
+      }
+    }
+    // embers and smoke off the heap
     for (let i = 0; i < 14; i++) {
-      const p = (t * .32 + i / 14) % 1, x = 240 + (hash(i) - .5) * 70 + Math.sin(t * 2 + i) * 5 * p, y = 186 - p * 110;
+      const p = (t * .32 + i / 14) % 1, x = hx + (hash(i) - .5) * 70 * sc + Math.sin(t * 2 + i) * 5 * p * sc, y = hy - 30 * sc - p * 110 * sc;
       rect(g, x, y, 1, 1, p < .5 ? '#f8cc50' : p < .8 ? '#e44a34' : '#761c1e');
     }
     // dust in the lamp's light
@@ -121,67 +179,136 @@ var UnrugIntro = (function () {
     rect(g, x - r, y - r - 1 + h, r * 2 + 1, 1, '#1c1614');
   }
   const blink = t0 => t0 == null ? 0 : (q => q < .07 ? q / .07 : q < .2 ? 1 : q < .3 ? 1 - (q - .2) / .1 : 0)(t0);
-  function still2(g, t) {
-    const R = UnrugPortrait;
-    lean(g, R.img, R.w, R.h, 312, 238, .09);                 // he leans toward the basket
+  // two moths round a lamp at (x, y)
+  function moths(g, x, y, t) {
+    for (let i = 0; i < 2; i++) {
+      const a = t * (2.6 + i) + i * 3, mx = x + Math.cos(a) * (9 + 4 * Math.sin(t * 1.3 + i)), my = y + Math.sin(a * 1.4) * 5;
+      rect(g, mx, my, 1, 1, '#f4e6c4'); if (Math.floor(t * 18 + i) % 2) rect(g, mx - 1, my, 3, 1, '#b0a088');
+    }
+  }
+  function still2(g, t, plan) {
+    glow(g, 425, 60, 70, 'rgba(255,150,60,A)', .05 + .05 * flicker(t, 5));
+    moths(g, 425, 56, t);
+    rugfather(g, 'front', 312, 238, t, .09, 0);              // he leans toward the basket
+    // Loomy looks up at him, and as the line ends, at us
+    const look = clamp((t - plan.total + .4) / .5);
     glow(g, LOOM2.x, LOOM2.y, 14, 'rgba(120,200,255,A)', .14 + .04 * Math.sin(t * 2));
+    eye(g, LOOM2.x, LOOM2.y, 6, -1 + look, -.6 + .6 * look);
     eyelid(g, LOOM2.x, LOOM2.y, 6, blink(gag.blink != null ? t - gag.blink : null), '#7a4a2a');
+    // a warp thread catches the light now and then
+    if (hash(Math.floor(t * 6)) < .3) rect(g, 401 + Math.floor(hash(Math.floor(t * 6) + 1) * 14) * 1, 108 + Math.floor(hash(Math.floor(t * 6) + 2) * 18), 1, 2, '#fff6e0');
     // the nameplate, bigger than the one in the picture so it can be read
-    rect(g, 390, 138, 38, 16, '#3a2014'); rect(g, 391, 139, 36, 14, '#c87818'); rect(g, 391, 139, 36, 1, '#f8cc50');
-    A.txt(g, 'PROJECT', 396, 141, '#3a2014'); A.txt(g, 'DOORMAT', 396, 147, '#3a2014');
+    rect(g, 390, 138, 37, 13, '#3a2014'); rect(g, 391, 139, 35, 11, '#c87818'); rect(g, 391, 139, 35, 1, '#f8cc50');
+    big(g, 'LOOMY', 394, 141, '#3a2014');
   }
 
   // ---------- 3: the lesson ----------
   // the board's inner corners are (67, 77), (132, 87) and (77, 157): a point (u, v) on a 64 x 78 board lands here
-  const onBoard = (g, u, v) => g.fillRect(Math.round(67 + u * 65 / 64 + v * 10 / 78), Math.round(77 + u * 10 / 64 + v * 80 / 78), 1, 1);
+  // (a pure shear, one pixel to one pixel, so letters keep their shapes; the board is within a pixel or two of that)
+  const onBoard = (g, u, v) => g.fillRect(67 + u + Math.round(v * 10 / 78), 77 + v + Math.round(u * 10 / 64), 1, 1);
+  // the chalk letters, 7 x 11 with strokes two pixels thick, for the two words on the board
+  const CHALK = {
+    M: '##...#####.############.#.####...####...####...####...####...####...####...##',
+    A: '..###...##.##.##...####...####...##################...####...####...####...##',
+    X: '##...####...##.##.##..##.##...###....###....###...##.##..##.##.##...####...##',
+    I: '.#####...###....###....###....###....###....###....###....###....###...#####.',
+    Z: '##############....##....##.....##....##.....##....##.....##....##############',
+    E: '################.....##.....##.....######.######.##.....##.....##############',
+    C: '.###############.....##.....##.....##.....##.....##.....##.....#######.######',
+    R: '######.#########...####...###############.##.##..##..##.##..##.##...####...##',
+    P: '######.#########...####...###############.##.....##.....##.....##.....##.....',
+    T: '##############..###....###....###....###....###....###....###....###....###..',
+    S: '.###############.....##.....######..######.....##.....##.....###############.'
+  };
   const LOOM3 = { x: 194, y: 148 };
   const STAR = ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '.#...#.'];
   function still3(g, t, plan) {
-    const R = SP.reach;
-    if (ok(R.img)) g.drawImage(R.img, 330 - (R.w >> 1), 252 - R.h);
-    // the chalk: MAXIMIZE / CARPET / PROFITS, written as the line starts, each pixel placed through the board's slant
-    let n = Math.floor(clamp((t - .15) / 1.9) * 21);
-    const put = (u, v) => { if (hash(u * 131 + v) > .06) onBoard(g, u, v); };
-    for (const [word, y] of [['MAXIMIZE', 12], ['CARPET', 28], ['PROFITS', 44]]) { big(g, word, Math.round(32 - bigWidth(word) / 2), y, '#ecedf0', n, put); n -= letters(word); }
-    if (t > 2.2) { g.fillStyle = '#d2d4dc'; for (let u = 12; u < 12 + Math.round(40 * clamp((t - 2.2) / .3)); u++) onBoard(g, u, 54); }
+    glow(g, 88, 70, 80, 'rgba(255,150,60,A)', .05 + .05 * flicker(t, 9));
+    rugfather(g, 'reach', 330, 252, t, 0, 1);
+    // the chalk: MAXIMIZE / CARPETS, written as the line starts, placed through the board's slant, a few pixels skipped
+    let n = Math.floor(clamp((t - .15) / 1.6) * 15);
+    g.fillStyle = '#ecedf0';
+    for (const [word, v] of [['MAXIMIZE', 15], ['CARPETS', 32]]) {
+      const u0 = Math.round(32 - (word.length * 8 - 1) / 2);
+      for (let c = 0; c < word.length && c < n; c++) {
+        const glyph = CHALK[word[c]];
+        for (let i = 0; i < 77; i++) if (glyph[i] === '#' && hash(c * 97 + i + v) > .05) onBoard(g, u0 + c * 8 + i % 7, v + (i / 7 | 0));
+      }
+      n -= word.length;
+    }
+    if (t > 1.9) { g.fillStyle = '#d2d4dc'; const w = Math.round(54 * clamp((t - 1.9) / .3)); for (let u = 5; u < 5 + w; u++) { onBoard(g, u, 46); if (u % 3) onBoard(g, u, 47); } }
     if (gag.star != null) {
       g.fillStyle = '#f8cc50';
       STAR.forEach((row, y) => { for (let x = 0; x < 7; x++) if (row[x] === '#') onBoard(g, 54 + x, 2 + y); });
     }
-    // as the lesson ends, the loom's eye flickers orange for a beat: the first sign of what it becomes
-    const q = t - plan.total + .1;
-    if (q > 0 && q < .8 && '1101101'[Math.floor(q * 9)] === '1') {
-      const { x, y } = LOOM3;
-      for (let dy = -4; dy <= 4; dy++) { const w = Math.floor(Math.sqrt(20 - dy * dy)); rect(g, x - w, y + dy, w * 2 + 1, 1, '#e44a34'); }
-      for (let dy = -2; dy <= 2; dy++) { const w = Math.floor(Math.sqrt(6 - dy * dy)); rect(g, x - w, y + dy, w * 2 + 1, 1, '#ff6e4a'); }
-      rect(g, x - 1, y - 1, 2, 2, '#1e080c');
-      glow(g, x, y, 14, 'rgba(255,110,40,A)', .4);
-    } else glow(g, LOOM3.x, LOOM3.y, 11, 'rgba(120,200,255,A)', .12);
+    // Loomy watches the board; as the lesson ends its eye flickers orange for a beat, the first sign of what it becomes
+    const q = t - plan.total + .1, hot = q > 0 && q < .8 && '1101101'[Math.floor(q * 9)] === '1';
+    glow(g, LOOM3.x, LOOM3.y, hot ? 14 : 11, hot ? 'rgba(255,110,40,A)' : 'rgba(120,200,255,A)', hot ? .4 : .12);
+    eye(g, LOOM3.x, LOOM3.y, 5, -1, -.7, hot ? ORANGE : undefined);
   }
 
-  // ---------- 4: the height chart ----------
-  const TICKS = [196, 170, 142, 112, 82, 52, 16];
+  // ---------- 4: the height chart, and its shadow ----------
+  // The lamp throws Loomy's shadow on the wall beside the chart. Each new mark is where the shadow's top reaches, until
+  // it stands over the Rugfather and taller than the door. Then the eye in the shadow lights orange, and the top mark's
+  // label, LOOMY, is crossed out and renamed in its own hand: p(Loom).
+  const TICKS = [196, 170, 142, 112, 82, 52, 16], FLOOR4 = 213;
+  function loomShadow(g, hgt, lit, t) {
+    const w = Math.round(hgt * .5), x0 = 188 - w, top = FLOOR4 - hgt;
+    const pw = Math.max(2, Math.round(w * .08)), bw = Math.max(2, Math.round(hgt * .05));
+    g.save(); g.globalAlpha = .62; g.fillStyle = '#120a0c';
+    g.fillRect(x0, top, pw, hgt); g.fillRect(x0 + w - pw, top, pw, hgt);
+    g.fillRect(x0 - 1, top, w + 2, bw); g.fillRect(x0, FLOOR4 - bw * 2, w, bw); g.fillRect(x0, Math.round(top + hgt * .62), w, Math.max(1, bw >> 1));
+    g.globalAlpha = .45;
+    const step = Math.max(3, Math.round(w / 9));
+    for (let x = x0 + pw + 1; x < x0 + w - pw - 1; x += step) g.fillRect(x, top + bw, 1, hgt - bw * 3);
+    g.restore();
+    // its one eye: a dark disc in the shadow, until it lights
+    const ex = Math.round(x0 + w * .62), ey = Math.round(top + hgt * .3), r = Math.max(2, Math.round(w * .09));
+    if (lit > 0) {
+      glow(g, ex, ey, r * 5, 'rgba(255,110,40,A)', .5 * lit * flicker(t * 2, 4));
+      eye(g, ex, ey, Math.max(3, r), -.7, .6, ORANGE);
+    } else {
+      g.save(); g.globalAlpha = .62; g.fillStyle = '#120a0c';
+      for (let dy = -r; dy <= r; dy++) { const ww = Math.floor(Math.sqrt(r * r - dy * dy)); g.fillRect(ex - ww, ey + dy, ww * 2 + 1, 1); }
+      g.restore();
+    }
+  }
   function still4(g, t, plan, line) {
-    const R = UnrugPortrait;
-    lean(g, R.img, R.w, R.h, 92, 264, -.07);                 // he leans back to look up
     const t0 = at(plan, line, 'It grew'), t1 = plan.total + .1;
+    const when = i => i === 0 ? .2 : t0 + (t1 - t0) * (i - 1) / (TICKS.length - 2);
+    // the shadow's height: up to each mark as it's made
+    let hgt = 0;
+    TICKS.forEach((y, i) => { const q = ease(clamp((t - when(i) + .3) / .3)); if (q > 0) { const from = i ? FLOOR4 - TICKS[i - 1] : 0; hgt = from + (FLOOR4 - y - from) * q; } });
+    const lit = clamp((t - plan.total - .3) / .4);
+    if (hgt > 2) loomShadow(g, Math.round(hgt), lit, t);
+    rugfather(g, 'front', 70, 264, t, -.07 - .04 * clamp(hgt / 197), 2);   // he leans back further as it grows
     TICKS.forEach((y, i) => {
-      const s = i === 0 ? .2 : t0 + (t1 - t0) * (i - 1) / (TICKS.length - 2), q = clamp((t - s) / .14);
+      const q = clamp((t - when(i)) / .14);
       if (q <= 0) return;
       const last = i === TICKS.length - 1;
-      rect(g, 194, y, Math.max(1, Math.round(13 * q)), 1, last ? '#ff6e4a' : '#f4e6c4');
+      rect(g, 194, y, Math.max(1, Math.round(13 * q)), 1, '#f4e6c4');
       rect(g, 194, y + 1, Math.max(1, Math.round(13 * q)), 1, '#1c1614');
       if (q < 1) return;
-      if (i === 0) small(g, 'DOORMAT', 163, y - 2, '#c8f4ff', '#1c1614');
-      if (last) small(g, 'P(LOOM)', 163, y - 2, '#ff6e4a', '#1c1614');
+      if (i === 0) small(g, 'LOOMY', 171, y - 2, '#c8f4ff', '#1c1614');
+      if (last) {
+        small(g, 'LOOMY', 171, y - 2, '#c8f4ff', '#1c1614');
+        const x = clamp((t - plan.total - .2) / .3);                 // crossed out...
+        if (x > 0) rect(g, 170, y, Math.round(21 * x), 1, '#ff6e4a');
+        const n = Math.floor(clamp((t - plan.total - .6) / .5) * 7);   // ...and renamed, in orange, above it
+        if (n > 0) small(g, 'P(LOOM)'.slice(0, n), 163, y - 10 < 2 ? y + 5 : y - 10, '#ff6e4a', '#1c1614');
+      }
     });
   }
 
   // ---------- 5: RugCo Tower, panned from the doors to the roof ----------
+  // Souls drift up past the windows into the roof's orange glow, and as each one goes in, a carpet unrolls down the
+  // tower's face from under the roof: souls in, carpets out, floor to floor.
   const ROW48 = [[187, 201], [217, 231], [248, 262], [278, 291]];
   const SOULS = Array.from({ length: 13 }, (_, i) => ({ s: i * .36 - 1.4, x: 130 + hash(i + 5) * 220, v: 100 + hash(i + 9) * 30 }));
   // a soul: a little pale rug, fringed, with two dark eyes
   const SOUL = ['..#####..', '.#######.', '##.###.##', '##.###.##', '#########', '#########', '#########', '#.#.#.#.#'];
+  const arrive = i => SOULS[i].s + (515 - 26) / SOULS[i].v;     // when soul i reaches the roof
+  const CARPETS = [[0, 1], [2, 3], [4, 0], [6, 2]];             // [soul, window column]
   function soulAt(i, t) {
     const o = SOULS[i], p = (t - o.s) * o.v, y = 515 - p;
     if (p < 0 || y < 26) return null;
@@ -191,6 +318,15 @@ var UnrugIntro = (function () {
   }
   // from the doors (the plaza's last 20 pixels stay under the caption bar) to the roof
   const pan = (t, plan) => Math.round(250 * (1 - ease(clamp(t / (plan.total + .6)))));
+  function carpet(g, x0, x1, len, t, i) {
+    const top = 80, w = x1 - x0 + 3, x = x0 - 1;
+    rect(g, x, top, w, len, '#9c2622');
+    rect(g, x, top, 1, len, '#e8a028'); rect(g, x + w - 1, top, 1, len, '#e8a028');
+    for (let y = top + 3; y < top + len - 2; y += 6) rect(g, x + 3, y, w - 6, 2, y % 12 < 6 ? '#c43428' : '#e8a028');
+    // the roll, still unrolling, or the fringe once it's down
+    if (len < 175) { rect(g, x - 1, top + len - 2, w + 2, 6, '#761c1e'); rect(g, x - 1, top + len - 2, w + 2, 2, '#c43428'); rect(g, x + (w >> 1), top + len, 1, 1, '#e8a028'); }
+    else for (let k = 0; k < w; k += 2) rect(g, x + k, top + len, 1, 2 + (Math.floor(t * 4 + k + i) % 2), '#f4e6c4');
+  }
   function still5(g, t, plan) {
     const oy = pan(t, plan);
     g.save(); g.translate(0, -oy);
@@ -202,12 +338,20 @@ var UnrugIntro = (function () {
     for (const [x0, x1] of ROW48) rect(g, x0, 245, x1 - x0 + 1, 16, '#340e12');
     g.globalAlpha = 1;
     glow(g, 240, 253, 70, 'rgba(228,74,52,A)', .07 + .05 * f);
+    // carpets out
+    for (const [si, col] of CARPETS) {
+      const q = t - arrive(si);
+      if (q <= 0) continue;
+      const [x0, x1] = ROW48[col];
+      carpet(g, x0, x1, Math.round(Math.min(178, q * 120)), t, col);
+      if (q < .35) glow(g, 240, 34, 50, 'rgba(255,200,90,A)', .5 * (1 - q / .35));   // a soul goes in: the roof flares
+    }
     glow(g, 240, 32, 70, 'rgba(255,120,30,A)', .2 + .08 * Math.sin(t * 3));
     for (let i = 0; i < SOULS.length; i++) {
       const s = soulAt(i, t); if (!s) continue;
       g.globalAlpha = .85 * s.fade;
       const wave = gag.wave && gag.wave.i === i ? t - gag.wave.t : -1;
-      SOUL.forEach((row, y) => { for (let x = 0; x < 9; x++) rect(g, s.x - 4 + x, s.y - 4 + y, 1, 1, row[x] === '#' ? (y < 2 ? '#ffffff' : y > 5 ? '#86d6f0' : '#c8f4ff') : row[x] === '.' && (y === 2 || y === 3) && x > 1 && x < 7 ? '#10304e' : 'transparent'); });
+      SOUL.forEach((row, y) => { for (let x = 0; x < 9; x++) { const c = row[x] === '#' ? (y < 2 ? '#ffffff' : y > 5 ? '#86d6f0' : '#c8f4ff') : (y === 2 || y === 3) && (x === 2 || x === 6) ? '#10304e' : null; if (c) rect(g, s.x - 4 + x, s.y - 4 + y, 1, 1, c); } });
       if (wave >= 0 && wave < 1.2) { const up = Math.floor(wave * 8) % 2; rect(g, s.x + 5, s.y - 1 - up, 1, 3, '#ffffff'); rect(g, s.x + 6, s.y - 2 - up * 2, 1, 2, '#ffffff'); }
       g.globalAlpha = 1;
       glow(g, s.x, s.y, 14, 'rgba(160,220,255,A)', .16 * s.fade);
@@ -273,5 +417,5 @@ var UnrugIntro = (function () {
     }
     return null;
   }
-  return { LINES, LABELS, HOLD, draw, tap, reset, W, H };
+  return { LINES, LABELS, HOLD, draw, tap, reset, options, W, H };
 })();
