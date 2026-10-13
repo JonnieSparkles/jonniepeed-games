@@ -23,7 +23,7 @@ var UnrugIntro = (function () {
     'The same garage, years earlier, at night. The Rugfather leans over a basket on the workbench: a tiny wooden loom with one big blue eye. Its nameplate says LOOMY.',
     'The Rugfather points at a chalkboard: MAXIMIZE CARPETS. The little loom watches from a school desk. Its eye flickers orange.',
     'A height chart on a doorframe, marked LOOMY at knee height. The loom\'s shadow climbs the wall with each new mark until it towers over the Rugfather. At the ceiling its eye lights orange, and the top mark\'s name, LOOMY, is crossed out and rewritten: p(Loom).',
-    'RugCo Tower at dusk, every window lit, a striped sun setting behind it. Souls drift up past its windows into the orange beacon on its roof, and carpets unroll down its face.',
+    'RugCo Tower at night under a blood-red sky, every window lit, fire licking at its edges. Souls drift up past its windows into the orange beacon on its roof, and carpets unroll down its face.',
     'An open ledger in the garage. In red ink: 5 SOULS IN, 1 RUG OUT. Beyond it, Unruggabull opens the door marked STAIRS onto a lit stairwell.'
   ];
   const A = UnrugArt, S = UnrugIntroStills.stills, SP = UnrugIntroStills.sprites;
@@ -295,8 +295,10 @@ var UnrugIntro = (function () {
   // ---------- 5: RugCo Tower, panned from the doors to the roof ----------
   // Souls drift up past the windows into the beacon on the roof, and as each one goes in, a carpet unrolls down the
   // tower's face from under its sign: souls in, carpets out, floor to floor.
-  // The picture's four window columns, and its 14 rows; the 48th Floor is the 7th from the bottom, y 269 to 283.
-  const ROW48 = [[201, 212], [223, 234], [245, 256], [267, 278]], Y48 = 269, BEACON = { x: 240, y: 42 };
+  // The picture's four window columns, and its 14 rows; the 48th Floor is the 7th from the bottom, y 273 to 283.
+  // The tower burns at its edges: FLAMES are where the picture has fire, flickered on top.
+  const ROW48 = [[201, 212], [223, 234], [245, 256], [267, 278]], Y48 = 273, BEACON = { x: 240, y: 42 };
+  const FLAMES = [[219, 30], [264, 30], [183, 82], [298, 82], [171, 176], [311, 176]];
   const SOULS = Array.from({ length: 13 }, (_, i) => ({ s: i * .36 - 1.4, x: 130 + hash(i + 5) * 220, v: 100 + hash(i + 9) * 30 }));
   // a soul: a little pale rug, fringed, with two dark eyes
   const SOUL = ['..#####..', '.#######.', '##.###.##', '##.###.##', '#########', '#########', '#########', '#.#.#.#.#'];
@@ -331,7 +333,7 @@ var UnrugIntro = (function () {
     // the 48th Floor's windows flicker red
     const f = flicker(t * 1.3, 7);
     g.globalAlpha = .25 + .3 * (1 - f);
-    for (const [x0, x1] of ROW48) rect(g, x0, Y48, x1 - x0 + 1, 15, '#340e12');
+    for (const [x0, x1] of ROW48) rect(g, x0, Y48, x1 - x0 + 1, 11, '#340e12');
     g.globalAlpha = 1;
     glow(g, 240, Y48 + 7, 70, 'rgba(228,74,52,A)', .07 + .05 * f);
     // carpets out
@@ -343,6 +345,12 @@ var UnrugIntro = (function () {
       if (q < .35) glow(g, BEACON.x, BEACON.y, 50, 'rgba(255,200,90,A)', .5 * (1 - q / .35));   // a soul goes in: the beacon flares
     }
     glow(g, BEACON.x, BEACON.y, 70, 'rgba(255,120,30,A)', .2 + .08 * Math.sin(t * 3));
+    // the fire on its edges licks and throws sparks
+    FLAMES.forEach(([fx, fy], k) => {
+      glow(g, fx, fy, 16, 'rgba(255,90,30,A)', .15 + .2 * (1 - flicker(t * 1.8, k * 3)));
+      for (let j = 0; j < 3; j++) { const fh = 2 + Math.floor(hash(Math.floor(t * 12) * 5 + k * 7 + j) * 5); rect(g, fx - 1 + j, fy - fh, 1, fh, j === 1 ? '#f8cc50' : '#e44a34'); }
+      for (let j = 0; j < 3; j++) { const p = (t * .7 + hash(k * 9 + j)) % 1; rect(g, fx + Math.sin(t * 3 + j + k) * 3, fy - 4 - p * 22, 1, 1, p < .5 ? '#f8cc50' : '#c43428'); }
+    });
     for (let i = 0; i < SOULS.length; i++) {
       const s = soulAt(i, t); if (!s) continue;
       g.globalAlpha = .85 * s.fade;
@@ -362,9 +370,18 @@ var UnrugIntro = (function () {
     for (const y of [170, 148, 124, 100, 76, 56]) { g.globalAlpha = .45; rect(g, 213, y, 8, 1, '#9496a8'); g.globalAlpha = 1; }
     // Unruggabull is in the picture, opening the door onto the lit stairwell. The light through the doorway breathes,
     // and when the line ends it swells: he's on his way up.
-    const go = ease(clamp((t - plan.total) / 1));
-    glow(g, 258, 120, 50 + 30 * go, 'rgba(255,190,90,A)', .1 + .05 * Math.sin(t * 3) + .22 * go);
-    glow(g, 262, 192, 40 + 40 * go, 'rgba(255,170,70,A)', .08 + .04 * Math.sin(t * 3) + .2 * go);
+    const go = ease(clamp((t - plan.total) / 1)), bulb = flicker(t * 1.2, 11);
+    glow(g, 258, 120, 50 + 30 * go, 'rgba(255,190,90,A)', .08 + .06 * bulb + .22 * go);
+    glow(g, 262, 192, 40 + 40 * go, 'rgba(255,170,70,A)', .06 + .05 * bulb + .2 * go);
+    // dust turning in the doorway's light: in the gap above his head, and over the light on the floor
+    for (let i = 0; i < 14; i++) {
+      const p = (t * .08 + hash(i + 70)) % 1, top = i < 6;
+      const x = top ? 268 + hash(i + 80) * 20 : 236 + hash(i + 80) * 64, y = top ? 58 + p * 22 : 200 - p * 22;
+      if (hash(i + 90) > .2) rect(g, x + Math.sin(t * .9 + i) * 2, y, 1, 1, '#fff09a');
+    }
+    // the room's lamp flickers, with its moths
+    glow(g, 86, 60, 70, 'rgba(255,150,60,A)', .05 + .05 * flicker(t, 13));
+    moths(g, 86, 58, t);
     // the ledger, held open: the tallies of the unrugged on the left, the production figures on the right
     const L = 26, T = 146;   // kept above the caption bar, which covers the bottom fifth
     rect(g, L - 4, T - 4, 186, 130, '#2c2420'); rect(g, L - 3, T - 3, 184, 128, '#5a3420');
@@ -385,6 +402,9 @@ var UnrugIntro = (function () {
     big(g, E1, Math.round(mid - bigWidth(E1) / 2), T + 24, '#c43428', n);
     big(g, E2, Math.round(mid - bigWidth(E2) / 2), T + 40, '#c43428', n - letters(E1));
     if (n >= all) rect(g, Math.round(mid - bigWidth(E2) / 2), T + 50, bigWidth(E2), 1, '#c43428');
+    // the draft from the open door lifts the right page's top corner now and then
+    const lift = Math.max(0, Math.sin(t * 1.7) - .4) / .6;
+    if (lift > 0) { const n = Math.round(9 * lift); for (let k = 0; k < n; k++) { rect(g, L + 178 - n + k, T, n - k, 1, '#08070c'); rect(g, L + 178 - n + k, T + k, 1, 1, '#d8c8a8'); } rect(g, L + 178 - n, T, n, 1, '#b0a088'); }
     small(g, 'INQUIRIES: ACCOUNTING', L + 94, T + 58, '#54463c');
     small(g, 'FLOOR 13', L + 94, T + 66, '#54463c');
   }

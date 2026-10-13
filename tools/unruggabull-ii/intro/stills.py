@@ -75,9 +75,9 @@ def tower(a):
     halo = (box[..., 2] > box[..., 0] + 10) & ~blue & (lum(box) < .22)
     k = np.clip((lum(box[halo]) - .09) / .12, 0, 1)[:, None]
     box[halo] = box[halo] * (1 - k) + np.array([110, 40, 18]) * k
-    # The 48th Floor: of the 14 rows of windows, the 7th from the bottom (row 8 from the top, y 269 to 283), a dim
+    # The 48th Floor: of the 14 rows of windows, the 7th from the bottom (row 8 from the top, y 273 to 283), a dim
     # red-orange, darker and redder than the warm windows around it (the eye's attack red). The game flickers it on top.
-    y0, y1, x0, x1 = 266, 287, 198, 282
+    y0, y1, x0, x1 = 270, 287, 198, 282
     box = a[y0:y1, x0:x1]
     lit = (box[..., 0] > 120) & (box[..., 0] > box[..., 2] + 40)
     box[lit] = ramp(lum(box[lit]), [(0, (30, 6, 8)), (.4, (96, 20, 16)), (.7, (170, 40, 20)), (1, (220, 80, 34))])
