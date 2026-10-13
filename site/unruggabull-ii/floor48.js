@@ -59,7 +59,7 @@ var UnrugFloor48 = function (core) {
     // exposed and the streams whip through it (whip seconds, or until every tank is cracked); then p(Loom)'s beat (locked)
     collapse: { souls: 2, firstSoul: 1.6, soulEvery: .8, whip: 10, reserve: 16, reserveHp: 2, reserveSouls: 4, bendMax: .85 },
     ploom: { pan: .6, eye: .3, say: .8, threads: 1.3, snap: 1.75, yank: 2.6, free: 3.05, salute: 3.5, rise: 4.3, close: 4.1, white: 4.7, lobby: 5.3 },
-    lobby: { walkIn: 1.1, dialFrom: 61, dingAt: 5.4, doorsT: 1.2, doorU: .6, doorway: .1, walkOut: 1, portraitU: -.12 },
+    lobby: { walkIn: 1.1, dialFrom: 61, dingAt: 5.4, doorsT: 1.2, doorU: .6, doorway: .25, walkOut: 1, portraitU: -.12 },
     deadWait: 2.8
   };
   const td = UnrugTopdown(core, { world: F48.world, bounds: { x0: 30, y0: F48.wallH + 4, x1: 786, y1: 440 } });
@@ -925,17 +925,17 @@ var UnrugFloor48 = function (core) {
     P(60, 246, 360, 14, '#7a1d1a'); P(60, 246, 360, 2, '#c9962e'); P(60, 258, 360, 2, '#c9962e');
     for (let x = 70; x < 412; x += 14) P(x, 251, 4, 4, '#c9962e');
     // potted ferns
-    for (const x of [44, 280]) { P(x - 9, 214, 18, 26, '#3a2a1e'); P(x - 8, 215, 16, 24, '#8a6420'); P(x - 8, 215, 16, 2, '#c9962e');
+    for (const x of [44, 268]) { P(x - 9, 214, 18, 26, '#3a2a1e'); P(x - 8, 215, 16, 24, '#8a6420'); P(x - 8, 215, 16, 2, '#c9962e');
       for (let i = 0; i < 9; i++) { const a = -2.6 + i * .3; for (let r = 0; r < 22; r += 2) P(Math.round(x + Math.cos(a) * r), Math.round(214 + Math.sin(a) * r * .9), 2, 2, r > 14 ? '#3aa86a' : '#1f6a40'); } }
     // sconces
-    for (const x of [100, 300]) { P(x - 3, 70, 6, 14, '#8a6420'); P(x - 2, 70, 4, 1, '#ffd44a'); }
-    // the elevator: a brass frame, the dial over it
+    for (const x of [100]) { P(x - 3, 70, 6, 14, '#8a6420'); P(x - 2, 70, 4, 1, '#ffd44a'); }
+    // the elevator: the same bronze frame, arch and doorway as the car's (elevator.js), the call buttons beside it
     const dx = 2 * arena.X(F48.lobby.doorU);
-    P(dx - 48, 64, 96, 176, '#2a170f'); P(dx - 46, 66, 92, 174, '#c9962e'); P(dx - 44, 68, 88, 172, '#8a6420');
-    c.fillStyle = '#8a6420'; c.beginPath(); c.arc(dx, 62, 26, Math.PI, 0); c.fill();
-    c.fillStyle = '#c9962e'; c.beginPath(); c.arc(dx, 62, 24, Math.PI, 0); c.fill();
-    P(dx + 52, 140, 10, 22, '#2a170f'); P(dx + 53, 141, 8, 20, '#c9962e');
-    for (const yy of [145, 154]) { P(dx + 55, yy, 4, 4, '#3a2a1a'); P(dx + 56, yy + 1, 2, 2, '#f2e6c8'); }
+    P(dx - 80, 70, 160, 170, '#2a170f'); P(dx - 78, 72, 156, 168, '#6a4a18'); P(dx - 76, 74, 152, 166, '#c9962e'); P(dx - 74, 76, 148, 164, '#8a6420');
+    c.fillStyle = '#8a6420'; c.beginPath(); c.arc(dx, 70, 30, Math.PI, 0); c.fill();
+    c.fillStyle = '#c9962e'; c.beginPath(); c.arc(dx, 70, 28, Math.PI, 0); c.fill();
+    P(dx + 86, 140, 10, 22, '#2a170f'); P(dx + 87, 141, 8, 20, '#c9962e');
+    for (const yy of [145, 154]) { P(dx + 89, yy, 4, 4, '#3a2a1a'); P(dx + 90, yy + 1, 2, 2, '#f2e6c8'); }
     return cv;
   }
   // The Rugfather's portrait: the owner's sprite (portrait.js, frame 2 of his strip at half size, finer than the game's
@@ -962,28 +962,38 @@ var UnrugFloor48 = function (core) {
     PORTRAIT.x = px;
     drawPortrait(px, PORTRAIT.y);
     drawPlaque(px + Math.round(PW8 / 2) - 62, PORTRAIT.y + PH8 + 4);
-    // the dial over the doors: the car counting down to 48
+    // the dial over the doors, as in the car: the car counting down to 48
     const dx = 2 * arena.X(F48.lobby.doorU), floorNo = dialAt(L.t);
-    g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(dx, 62, 20, Math.PI, 0); g.fill();
+    g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(dx, 70, 24, Math.PI, 0); g.fill();
     const a = Math.PI + clamp((floorNo - 13) / 86, 0, 1) * Math.PI;
-    for (let i = 0; i <= 8; i++) { const b = Math.PI + i / 8 * Math.PI; core.line(g, dx + Math.cos(b) * 16, 62 + Math.sin(b) * 16, dx + Math.cos(b) * 19, 62 + Math.sin(b) * 19, '#3a2a1a'); }
-    core.line(g, dx, 61, dx + Math.cos(a) * 15, 61 + Math.sin(a) * 15, '#c8302a');
-    txt(g, String(floorNo), Math.round(dx - textWidth(String(floorNo)) / 2), 50, '#3a2a1a', 1);
-    // the doors, opening on the car and its operator
-    const open = doorsOpen(), lw = Math.round(42 * (1 - open));
-    rect(g, dx - 42, 70, 84, 170, '#3a2118');
+    for (let i = 0; i <= 10; i++) { const b = Math.PI + i / 10 * Math.PI; core.line(g, dx + Math.cos(b) * 20, 70 + Math.sin(b) * 20, dx + Math.cos(b) * 23, 70 + Math.sin(b) * 23, '#3a2a1a'); }
+    core.line(g, dx, 69, dx + Math.cos(a) * 19, 69 + Math.sin(a) * 19, '#c8302a'); core.line(g, dx + 1, 69, dx + 1 + Math.cos(a) * 18, 69 + Math.sin(a) * 18, '#c8302a');
+    core.disc(g, dx, 69, 2, '#3a2a1a');
+    txt(g, String(floorNo), Math.round(dx - textWidth(String(floorNo)) / 2), 56, '#3a2a1a', 1);
+    rect(g, dx - 24, 70, 48, 3, '#6a4a18');
+    // the doors, as the car's: two bronze leaves with a sunburst and a window each, opening on the car and its operator
+    const open = doorsOpen(), lw = Math.round(72 * (1 - open)), here = L.t > F48.lobby.dingAt - 1.2;
+    rect(g, dx - 72, 76, 144, 164, '#3a2118');
     if (open > 0) {
-      rect(g, dx - 42, 70, 84, 170, '#3a2118'); rect(g, dx - 40, 72, 80, 100, '#4a2a1c'); rect(g, dx - 42, 200, 84, 40, '#5e1614');
-      const S2 = A.GHOST, ox = dx + 10, oy = 150; g.drawImage(S2, ox, oy, S2.width * 2, S2.height * 2);
+      rect(g, dx - 72, 76, 144, 100, '#4a2a1c'); rect(g, dx - 72, 76, 144, 3, '#6a4a18'); rect(g, dx - 72, 176, 144, 64, '#5e1614'); rect(g, dx - 72, 176, 144, 2, '#c9962e');
+      const S2 = A.GHOST, ox = dx + 30, oy = 150; g.drawImage(S2, ox, oy, S2.width * 2, S2.height * 2);
       rect(g, ox + 7, oy - 2, 22, 10, '#1a1418'); rect(g, ox + 8, oy - 1, 20, 8, '#c8302a'); rect(g, ox + 8, oy + 5, 20, 2, '#ffd44a');
       rect(g, ox + 4, oy + 30, 28, 12, '#1a1418'); rect(g, ox + 5, oy + 30, 26, 11, '#a8261e');
     }
-    for (const [x, right] of [[dx - 42, 0], [dx + 42 - lw, 1]]) {
+    for (const [x, right] of [[dx - 72, 0], [dx + 72 - lw, 1]]) {
       if (lw <= 0) break;
-      rect(g, x, 70, lw, 170, '#2a170f'); rect(g, x + 1, 71, lw - 2, 168, '#b8862e');
-      for (let i = 0; i < 6; i++) { const cx = right ? x : x + lw, s = right ? -1 : 1; core.line(g, cx, 236, cx + s * Math.sin(.25 + i * .2) * 40, 236 - Math.cos(.25 + i * .2) * 150, '#9a6a24'); }
+      rect(g, x, 76, lw, 164, '#2a170f'); rect(g, x + 1, 77, lw - 2, 162, '#7a5a2e');
+      const cx = right ? x : x + lw;
+      for (let i = 0; i < 7; i++) { const b = (right ? -1 : 1) * (.25 + i * .2); core.line(g, cx, 236, cx + Math.sin(b) * 60 * (right ? -1 : 1), 236 - Math.cos(b) * 140, '#8a6634'); }
+      rect(g, x + 1, 77, lw - 2, 2, '#a07a3e');
+      if (lw > 16) {
+        // the window: the shaft, dark, until the car's light comes up behind it
+        const wx = x + Math.round(lw / 2) - 5;
+        rect(g, wx - 1, 99, 12, 84, '#2a170f'); rect(g, wx, 100, 10, 82, here ? '#5a3a20' : '#0e0a0c');
+        if (here) rect(g, wx, 100, 10, 2, '#ffcf7a');
+      }
     }
-    rect(g, dx - 1, 70, 2, 170, '#2a170f');
+    rect(g, dx - 1, 76, 2, 164, '#2a170f');
     if (L.t > F48.lobby.dingAt + .4 + F48.lobby.doorsT && L.out <= 0) {
       const bob = Math.round(Math.sin(R.t * 5) * 2);
       otxt(g, 'GOING UP', dx, 34 + bob, '#ffd44a', 1, 'center');
@@ -1005,7 +1015,7 @@ var UnrugFloor48 = function (core) {
   }
   function lobbyGlows() {
     g.save(); g.scale(.5, .5);
-    for (const x of [100, 300]) { arena.glow(x, 76, 40, '#ffcf7a', .35); core.disc(g, x, 76, 3, '#fff0c0'); }
+    for (const x of [100]) { arena.glow(x, 76, 40, '#ffcf7a', .35); core.disc(g, x, 76, 3, '#fff0c0'); }
     arena.glow(PORTRAIT.x + PW8 / 2, PORTRAIT.y + 40, 80, '#ff7a2a', .2 + .03 * Math.sin(R.t * 2.3));
     g.restore();
     arena.glows();
@@ -1064,7 +1074,7 @@ var UnrugFloor48 = function (core) {
       core.disc(g, 18, H - 15, 7, '#ff7a2a'); core.disc(g, 18, H - 15, 4, '#ffd060'); core.disc(g, 18, H - 15, 2, '#140806');
       otxt(g, 'P(LOOM)', 34, H - 22, '#ff7a2a', 1); otxt(g, s, 34, H - 14, '#ffd060', 2);
     } else if (T2.speaker === 'operator') {
-      const dx = 2 * arena.X(F48.lobby.doorU) + 28, w = textWidth(s) * 2 + 12, x = clamp(dx - w / 2, 4, W - w - 4), y = 120;
+      const dx = 2 * arena.X(F48.lobby.doorU) + 48, w = textWidth(s) * 2 + 12, x = clamp(dx - w / 2, 4, W - w - 4), y = 120;
       rect(g, x - 2, y - 2, w + 4, 24, '#1a1418'); rect(g, x, y, w, 20, '#fff6e2'); txt(g, s, x + 6, y + 5, '#1a1418', 2);
     }
     g.restore();

@@ -1,7 +1,7 @@
 """The Rugfather's portrait for the 48th Floor's lobby, from the owner's sprite strip.
 
 art/rugfather-strip.png is his strip as he sent it (Oct 13): 13 frames in 256-pixel cells. The portrait is the second
-frame (cell 1), trimmed to what's drawn and halved (2 x 2 averaged, alpha premultiplied) so it sits in the 480 x 270
+frame (cell 1), trimmed to what's drawn and halved (2 x 2 averaged, alpha premultiplied; his art is drawn in 2 x 2 blocks, so this is its own pixel grid) so it sits in the 480 x 270
 picture at a clean scale, finer than the game's own pixels. Writes site/unruggabull-ii/portrait.js; run it again after
 changing the strip or the frame:  python3 tools/unruggabull-ii/portrait.py
 """
@@ -15,6 +15,11 @@ CELL, FRAME = 256, 1
 
 strip = Image.open(HERE / 'art' / 'rugfather-strip.png').convert('RGBA')
 cell = strip.crop((FRAME * CELL, 0, (FRAME + 1) * CELL, CELL))
+# touch-ups, in the frame's own pixels (x, y, w, h, the colour): the owner's "white dot" up by his right ear, buffed
+# out with the dark of the pixel above it (Oct 13). The strip itself stays as he sent it.
+for x, y, w, h, col in [(178, 44, 2, 2, (16, 8, 11, 255))]:
+    for i in range(w):
+        for j in range(h): cell.putpixel((x + i, y + j), col)
 cell = cell.crop(cell.getbbox())
 if cell.width % 2: cell = cell.crop((0, 0, cell.width + 1, cell.height))
 half = cell.convert('RGBa').reduce(2).convert('RGBA')
