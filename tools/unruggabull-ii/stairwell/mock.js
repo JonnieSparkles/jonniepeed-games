@@ -29,7 +29,7 @@
   function drawSide(g, img, x, y, feet = SF, face = 1, alpha = 1) {
     g.save(); g.globalAlpha = alpha; g.translate(Math.round(x), Math.round(y)); g.scale(face, 1); g.drawImage(img, -feet.x, -feet.y); g.restore();
   }
-  const runFrame = (set, t) => set['run' + (Math.floor(t * 11) % 4)];
+  const runFrame = (set, t) => set['run' + (Math.floor(Math.max(0, t) * 11) % 4)];
 
   // ---------- small things: carpshits, bolts, souls, words ----------
   const CW = Math.round(A.CARPF[0].width * .72), CH = Math.round(A.CARPF[0].height * .72);
@@ -242,9 +242,16 @@
   const LOOK0 = { lo: [.11, .095, .135], hi: [.19, .18, .23], sk: [.07, .065, .085], co: [.17, .16, .2], ce: [.24, .24, .27], ti: [.13, .14, .19], sh: .5, lamp: [1.75, 1.55, 1.2] };
   let R3 = null, SETS = null;
   const LIT = canvas(PW, PH).getContext('2d', { willReadFrequently: true }), GLO = canvas(PW, PH).getContext('2d', { willReadFrequently: true });
-  const HALL = canvas(W, H), HG = HALL.getContext('2d');
-  // the hall at time t, with him from behind in pose `pose` (or none), into HALL
-  function hall(t, pose, dist = .3) {
+  // The hall doesn't move (a still camera, steady lights), so each picture of it is rendered once, with him in each
+  // pose from behind (or not there), and kept: phones get a cheap frame, and the renderer is made at load, not mid-scene.
+  const HALLS = new Map();
+  function hall(t, pose) {
+    let img = HALLS.get(pose || 'none');
+    if (!img) { img = renderHall(0, pose); HALLS.set(pose || 'none', img); }
+    return img;
+  }
+  function renderHall(t, pose, dist = .3) {
+    const HALL = canvas(W, H), HG = HALL.getContext('2d');
     if (!R3) { R3 = UnrugRender.create(PW, PH, SET); SETS = UnrugSets({ VX, HY, sc, PX, FY, CY, YH }); }
     SETS.time(t);
     const items = SETS.items(dist + ZN - .35, dist + 3.5, () => 'ap', () => false);
@@ -308,7 +315,7 @@
   }
 
   // the far face during the swing: the end wall square on, the doorway open onto the hall
-  const FACE = canvas(W, H), FG = FACE.getContext('2d'), SIDEV = canvas(W, H), SG = SIDEV.getContext('2d');
+  const BUF = canvas(W, H), FACE = canvas(W, H), FG = FACE.getContext('2d'), SIDEV = canvas(W, H), SG = SIDEV.getContext('2d');
   const DW = { x: 165, y: 48, w: 150, h: 214 }, HS0 = .8;
   function face(g, hallImg, push) {
     // push 0..1: the camera goes through the doorway; the wall grows past the screen and the hall comes up to full size
@@ -392,8 +399,7 @@
         const turnK = span(t, T.swing, T.swing + T.turn), pushK = span(t, T.swing + T.turn, T.hall);
         const hallImg = hall(t, null);
         if (turnK < 1) {
-          SG.setTransform(1, 0, 0, 1, 0, 0); sideView(SG, T.swing, true);
-          face(FG, hallImg, 0);
+          if (SIDEV.made !== scene) { SG.setTransform(1, 0, 0, 1, 0, 0); SG.clearRect(0, 0, W, H); sideView(SG, T.swing, true); face(FG, hallImg, 0); SIDEV.made = scene; }
           swingDraw(g, SIDEV, FACE, turnK);
         } else face(g, hallImg, ease(pushK));
         // him, carried round: from where he stood to the middle, side on turning to his back halfway
@@ -420,7 +426,7 @@
         if (t >= T.raise && t < T.raise + .08) words(g, () => { g.save(); g.globalAlpha = .5; A.rect(g, 0, 0, 240, 135, '#ffffff'); g.restore(); });
       }
       const [sx, sy] = shakeAt(t, T.kick, .25, 4);
-      if (sx || sy) { const c = g.getImageData(0, 0, W, H); g.putImageData(c, sx, sy); }
+      if (sx || sy) { BUF.getContext('2d').drawImage(g.canvas, 0, 0); g.fillStyle = '#07050a'; g.fillRect(0, 0, W, H); g.drawImage(BUF, sx, sy); }
     }
     return { name: 'door', T, end: T.end, cues, draw, label: t => t < T.stop ? 'the last flight, the cue at full tilt' : t < T.kick ? 'half a second: the music stops' : t < T.hall ? (opt.door === 'swing' ? 'the swing, then through the door' : 'the door at the camera, cut on the impact') : t < T.raise ? (beat ? 'the muzak: "...oh."' : 'the band from the kick') : 'blaster up: the band, THE 13TH FLOOR' };
   }
@@ -458,7 +464,7 @@
   const CUE_IDS = { alley: 'stairAlley', runner: 'stairRunner', build: 'stairBuild' };
   for (const k in M.CUES) Snd.registerTrack(CUE_IDS[k], M.CUES[k]);
   const opt = { scene: 'rug', cue: 'alley', fanfare: 0, door: 'swing', entry: 'beat', slow: false };
-  let scene = null, t = 0, playing = false, last = 0, nextCue = 0;
+  let scene = null, t = 0, playing = false, last = 0, nextCue = 0, drawn = 0;
   function build() { scene = (opt.scene === 'rug' ? rugScene : doorScene)(Object.assign({ cueId: CUE_IDS[opt.cue] }, opt)); $('scrub').max = scene.end.toFixed(2); }
   function frame() {
     out.setTransform(1, 0, 0, 1, 0, 0); out.clearRect(0, 0, W, H);
@@ -467,11 +473,12 @@
   }
   function loop(now) {
     if (!playing) return;
-    const dt = Math.min(.05, (now - last) / 1000) * (opt.slow ? .25 : 1); last = now; t += dt;
+    // the first animation frame can be stamped a touch before Play was pressed: never run the clock backwards
+    const dt = clamp((now - last) / 1000, 0, .05) * (opt.slow ? .25 : 1); last = Math.max(last, now); t += dt;
     if (!opt.slow) while (nextCue < scene.cues.length && scene.cues[nextCue][0] <= t) { try { scene.cues[nextCue][1](); } catch (e) { console.error(e); } nextCue++; }
     if (t >= scene.end) { t = scene.end; stop(false); }
-    frame();
     if (playing) requestAnimationFrame(loop);
+    if (!playing || now - drawn >= 30) { drawn = now; try { frame(); } catch (e) { console.error(e); } }
   }
   function unlock() { Snd.init(); FX.init(); }
   function play() {
@@ -521,5 +528,6 @@
     }, 3000);
   };
   build(); t = 0; frame();
+  setTimeout(() => { for (const p of [null, BACK.stand, BACK.aim, BACK.runA, BACK.runB]) hall(0, p); }, 300);
   window.STAIRS = { opt, seek: s => { t = s; frame(); }, get scene() { return scene; }, build };
 })();
