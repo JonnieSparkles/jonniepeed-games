@@ -1,6 +1,6 @@
 // The Shredder's life: it lunges as it attacks, rears back before, recoils when hit, laughs and taunts when you miss a
 // return (rationed), roars into a new phase; its eyes follow you; it drops shredded strips while it chews. And Shoot
-// greys out while you're crouched.
+// stays lit while you're crouched.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -63,10 +63,10 @@
   reset(); b.hp = 60; update(1 / 60);
   check(b.ph === 2 && b.pushV > 5, 'it roars into phase 2');
 
-  // Shoot greys out while you're crouched
+  // Shoot stays lit while you're crouched (you can fire crouched, at double cost)
   document.body.classList.add('touch');
   bull.jh = 0; keys.kbDown = true; update(1 / 60); padRings();
-  check(document.querySelector('.pad.shoot').classList.contains('off'), 'Shoot greys out while crouched');
+  check(!document.querySelector('.pad.shoot').classList.contains('off'), 'Shoot stays lit while crouched');
   keys.kbDown = false; update(1 / 60); padRings();
-  check(!document.querySelector('.pad.shoot').classList.contains('off'), 'and comes back when he stands');
+  check(!document.querySelector('.pad.shoot').classList.contains('off'), 'and when he stands');
 })();

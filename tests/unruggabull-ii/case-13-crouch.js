@@ -1,4 +1,4 @@
-// Crouch: Down or S (or down on the thumb stick); ducking a high line of carpshits and the Shredder's paper airplanes;
+// Crouch: Down or S (or down on the thumb stick); shooting crouched at double charge cost; ducking a high line of carpshits and the Shredder's paper airplanes;
 // gripping a pulling rug.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -8,14 +8,22 @@
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; R.freeze = 0; };
   quiet();
 
-  // S crouches while held: half height, no moving, no shooting; let go and he stands
+  // S crouches while held: half height, no moving, but he can shoot, for two charges a shot; let go and he stands
   key('keydown', 's', 'KeyS'); update(1 / 60);
   check(bull.crouch, 'S crouches');
   const u = bull.u; key('keydown', 'ArrowLeft', 'ArrowLeft'); step(.3); key('keyup', 'ArrowLeft', 'ArrowLeft');
   check(bull.u === u, 'no moving while crouched');
-  R.events.shots = 0; R.fireT = 0; keys.kbShoot = true; step(.4); keys.kbShoot = false;
-  check(!R.events.shots, 'no shooting while crouched');
-  draw();
+  R.events.shots = 0; R.fireT = 0; R.charge = TUNE.charges; R.shots = [];
+  keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
+  check(R.events.shots === 1 && R.shots.length >= 1 && R.charge === TUNE.charges - TUNE.crouchCost, 'he can shoot crouched, for ' + TUNE.crouchCost + ' charges a shot');
+  const low = R.shots[0].h; draw();
+  step(TUNE.fireEvery + .1); R.charge = 1; R.fireT = 0; R.shots = []; R.hot = false; R.heat = 0;
+  keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
+  check(R.shots.length >= 1 && R.charge === 0 && R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT'), 'the last charge still fires, and then it overheats');
+  key('keyup', 's', 'KeyS'); step(.1); R.charge = TUNE.charges; R.hot = false; R.heat = 0; R.fireT = 0; R.shots = []; R.fx = [];
+  keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
+  check(R.charge === TUNE.charges - 1 && R.shots[0].h > low, 'standing, a shot costs one charge, and the bolt leaves from higher up');
+  key('keydown', 's', 'KeyS'); update(1 / 60);
   key('keyup', 's', 'KeyS'); update(1 / 60);
   check(!bull.crouch, 'and he stands when you let go');
   key('keydown', 'ArrowDown', 'ArrowDown'); update(1 / 60);

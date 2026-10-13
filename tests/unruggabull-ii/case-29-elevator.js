@@ -26,7 +26,9 @@
     tick(.4); check(thrower.dead && R.souls === 4, 'returned paper frees its thrower');
     // crouch, jump; what touches him
     fresh(); keys.kbDown = true; update(1 / 60); const old = bull.u; keys.kbRight = true; tick(.1);
-    check(bull.crouch && bull.u === old && !fireCrouched(), 'crouch stops movement and shooting');
+    check(bull.crouch && bull.u === old, 'crouch stops movement');
+    R.charge = TUNE.charges; R.fireT = 0; R.hot = false; const c0 = R.charge;
+    check(fireCrouched() && R.charge === c0 - TUNE.crouchCost, 'but he can shoot crouched, for double the charge');
     function fireCrouched() { const n = R.shots.length; press('shoot'); tick(.05); return R.shots.length !== n; }
     press('jump'); tick(.05); check(bull.jh > 0 && !bull.crouch, 'jump out of crouch');
     keys.kbDown = keys.kbRight = false;

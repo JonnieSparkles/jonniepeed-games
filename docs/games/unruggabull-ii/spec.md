@@ -41,7 +41,7 @@ Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 Six inputs, the same on every floor, laid out like an old game pad:
 
 - **Move** left and right, **jump** and **crouch** on a thumb stick that floats where the thumb lands: slide to move, flick up to jump, hold down to crouch. Keys: A/D or the arrows, W, Up or Space, S, C or Down.
-- **Crouch** (on the ground): half height, so things at head height pass over, but no moving or shooting. On a pulling runner it grips the rug and slows the drag.
+- **Crouch** (on the ground): half height, so things at head height pass over, but no moving. He can shoot from it, for two charges a shot, so ducking is never a dead stop. On a pulling runner it grips the rug and slows the drag.
 - **Shoot** (hold to keep firing). Keys: Shift or ', or J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
 - **Slash** (Enter, or K or X). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 

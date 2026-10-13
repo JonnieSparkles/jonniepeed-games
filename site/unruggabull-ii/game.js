@@ -41,7 +41,7 @@
     charges: 20, recharge: .5, spreadT: 10,
     overheat: 1, cool: 3,   // run it dry and the blaster overheats: overheat seconds with no recharge, then it won't fire until it's back to cool charges; it sputters if you pull the trigger meanwhile
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
-    hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1
+    hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1, crouchCost: 2
   };
   const SHARED_TUNE = Object.assign({}, TUNE);
   Object.assign(TUNE, UnrugFloor13.TUNE);
@@ -227,7 +227,7 @@
     if (b.mouth > 0) { b.mouth -= dt; if (b.mouth <= 0) { b.mouth = 0; b.spat = .45; b.inv = Math.max(b.inv, 1.6); } return; }
     if (b.spat > 0) { b.spat = Math.max(0, b.spat - dt); b.bz = Math.max(0, b.bz - dt * 2); b.jh = Math.sin(b.spat / .45 * Math.PI) * .1; return; }
     b.pin = Math.max(0, (b.pin || 0) - dt);
-    // crouched (on the ground only): half height, no moving or shooting; on a pulling rug he grips it
+    // crouched (on the ground only): half height, no moving, but he can shoot (at TUNE.crouchCost charges a shot); on a pulling rug he grips it
     b.crouch = crouchHeld() && b.jh <= 0 && R.phase !== 'win';
     // how long he's been standing about (cosmetic: his idle poses)
     b.idle = moveDir() || (floor.depthMove && depthDir()) || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
@@ -251,7 +251,7 @@
     if (R.speed > .02 || dir || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
     // the blaster: hold Shoot to keep firing, or tap for one shot
     R.fireT -= dt;
-    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !b.crouch && !R.beam && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
+    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !R.beam && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
   }
   function slash() {
     bull.slash = 0; bull.cd = TUNE.slashCd;
@@ -286,7 +286,7 @@
     if (R.armed === false) { R.empty = .2; Snd.play('empty'); return false; }   // knocked out of his hands: go and get it
     if (!R.gold && (R.charge < 1 || hot())) return sputter();
     R.hot = false;
-    if (!R.gold) R.charge--;
+    if (!R.gold) R.charge = Math.max(0, R.charge - (bull.crouch ? TUNE.crouchCost : 1));   // crouched, a shot costs double (the last charge still fires)
     if (!R.gold && R.charge < 1) overheat(PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3));
     bull.aimT = .22;
     if (floor.fire) {
@@ -299,7 +299,7 @@
     for (const f of R.flies) consider(f, f, .3);
     if (!best && floor.aimIdle) floor.aimIdle(consider);
     // bolts leave the muzzle of the blaster he holds up beside his head
-    const mu = bull.u + A.MUZZLE.x / HW, mh = bull.jh - A.MUZZLE.y / (FN - CN);
+    const my = A.MUZZLE.y + (bull.crouch ? 7 : 0), mu = bull.u + A.MUZZLE.x / HW, mh = bull.jh - my / (FN - CN);   // crouched, the muzzle sits lower
     const shot = du => R.shots.push({ u: mu, z: bull.bz + .03, h: mh, du, tgt: du ? null : best, dead: false, spread: !!du });
     shot(0);
     if (R.gold) R.shots[R.shots.length - 1].soul = true;
@@ -311,7 +311,7 @@
     if (hs > 1) for (const o of hs === 2 ? [1] : [-1, 1]) R.shots.push({ u: mu + o * .07, z: bull.bz + .03, h: mh, du: 0, tgt: null, dead: false, soul: true, side: o });
     R.events.shots = (R.events.shots || 0) + 1;
     const k = sc(bull.bz);
-    R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k, t: 0, dur: .08 });
+    R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + my * k, t: 0, dur: .08 });
     Snd.play('shot', R.spread > 0);
     if (hs > 1) Snd.play('hintStream');
     return true;
@@ -1321,7 +1321,7 @@
   }
   function padRings() {
     if (!document.body.classList.contains('touch')) return;
-    ring(shootPad, 'shoot', R.armed === false ? 0 : R.charge / TUNE.charges, R.armed === false || bull.crouch ? 'off' : R.charge < 4 ? 'low' : '');
+    ring(shootPad, 'shoot', R.armed === false ? 0 : R.charge / TUNE.charges, R.armed === false ? 'off' : R.charge < 4 ? 'low' : '');
     ring(slashPad, 'slash', 1 - bull.cd / TUNE.slashCd);
   }
   function padSync() {
