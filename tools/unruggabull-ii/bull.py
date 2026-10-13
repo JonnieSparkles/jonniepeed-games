@@ -779,6 +779,7 @@ SIDE_NEAR = {   # elbow and hand of the near arm, from (x, vy)
     'wind': lambda x, vy: ((x - 2.8, vy + 1.0), (x - 1.8, vy - 6.0)),
     'cut':  lambda x, vy: ((x + 6.2, vy + 5.2), (x + 11.6, vy + 8.2)),
     'flinch': lambda x, vy: ((x - 3.2, vy + 5.0), (x - 6.4, vy + 1.2)),
+    'hip':  lambda x, vy: ((x - 5.6, vy + 9.2), (x + .8, vy + 14.6)),
 }
 SIDE_FAR = {
     'down': lambda x, vy: ((x - 2.0, vy + 9.5), (x - 2.6, vy + 16.0)),
@@ -786,6 +787,7 @@ SIDE_FAR = {
     'swingB': lambda x, vy: ((x - 3.6, vy + 9.0), (x - 6.6, vy + 14.2)),
     'up': lambda x, vy: ((x + 1.0, vy + 7.5), (x + 3.6, vy + 11.0)),
     'flinch': lambda x, vy: ((x - 4.0, vy + 4.0), (x - 7.4, vy + .5)),
+    'hip': lambda x, vy: ((x - 7.4, vy + 8.6), (x - 2.0, vy + 14.8)),
 }
 _C = 7.0   # crouch depth
 SIDE_POSE = {
@@ -815,6 +817,43 @@ SIDE_MOVES = {
     'brace': (((-2.6, _Lk - .2, -4.4, _Lf), (6.0, _Lk - 7.4, 3.4, _Lf - 9.4)), 'rest', 'up', {'lean': -2.0, 'bob': 1, 'tail': -1}),
     'kick':  (((-3.6, _Lk - .6, -6.0, _Lf), (7.4, _Lk - 6.2, 14.4, _Lk - 5.6)), 'rest', 'flinch', {'lean': -3.0, 'tail': -2, 'kick': True}),
 }
+
+# catching his breath at the door: hands on his hips, knees soft, the upper body bent forward (bend = degrees, done
+# on the finished grid by bend()); two heaves and the half-risen frame between that and standing.
+_B = 2.4
+HUFF_LEGS = ((( -.4, _Lk - _B + .8, -3.2, _Lf - _B), (4.8, _Lk - _B - .8, 2.2, _Lf - _B)))
+SIDE_MOVES.update({
+    'huff0': (HUFF_LEGS, 'hip', 'hip', {'bob': _B, 'bend': 38, 'tail': -1}),
+    'huff1': (HUFF_LEGS, 'hip', 'hip', {'bob': _B, 'bend': 46, 'tail': 0}),
+    'rise':  (STAND_LEGS, 'hip', 'hip', {'bend': 14, 'tail': 0}),
+})
+
+
+def bend(g, pivot, seam, deg):
+    """Bends the finished pose forward at the belt: rows above the pivot lean over (a shear with the height squashed by cos),
+    and the head, from the seam up, goes along as one rigid piece."""
+    a = math.radians(deg)
+    c, t = math.cos(a), math.tan(a)
+    out = [row[:] for row in g]
+    for y in range(pivot):
+        out[y] = ['.'] * W
+    d0 = round(pivot - (pivot - seam) * c)
+    shift0 = round((pivot - d0) * t)
+    for y in range(d0, pivot):
+        h = pivot - y
+        src = pivot - round(h / c)
+        sh = round(h * t)
+        for x in range(W):
+            ch = g[src][x]
+            if ch != '.' and 0 <= x + sh < W:
+                out[y][x + sh] = ch
+    for y in range(seam):
+        for x in range(W):
+            ch = g[y][x]
+            ny = y + d0 - seam + 3
+            if ch != '.' and 0 <= x + shift0 < W and 0 <= ny < H:
+                out[ny][x + shift0] = ch
+    return out
 
 
 def blaster_side(cv, hx, hy):
@@ -962,7 +1001,10 @@ def build_side(name='stand', bare=False):
     if near == 'cut':
         katana_held(cv, hd[0], hd[1], hd[0] + 16, hd[1] + 3)
     furtex(cv)
-    return finish(cv)
+    g = finish(cv)
+    if ex.get('bend'):
+        g = bend(g, int(hipy + 1.5), int(cy + 9), ex['bend'])
+    return g
 
 
 def build_blaster():

@@ -66,7 +66,11 @@
   R.arena.enemies = []; S.Q.script = S.SECTIONS[2].script.length; update(1 / 60);
   R.souls = 25; bull.u = S.UX(370); update(1 / 60);
   check(S.Q.st === 'door' && Snd.track === null, 'at the door: the music stops');
-  step(S.STAIRS.door.line + .05);
+  step(S.STAIRS.door.walk + .5);
+  check(S.Q.breath === 'huff', 'a breather first: bent over, hands on his hips');
+  step(S.STAIRS.door.up + S.STAIRS.door.rise - S.STAIRS.door.walk - .5 + .05);
+  check(S.Q.breath === 'ready' && S.Q.stT < S.STAIRS.door.line && !R.bark, 'he stands back up, ready, before the line');
+  step(S.STAIRS.door.line - S.STAIRS.door.up - S.STAIRS.door.rise + .05);
   check(R.bark && R.bark.text === 'OK... HERE WE GO.', 'he catches his breath: OK... HERE WE GO.');
   step(S.STAIRS.door.kick - S.STAIRS.door.line);
   check(Snd.track === 'floorHall', 'the band slams in on the kick');

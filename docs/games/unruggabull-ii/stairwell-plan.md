@@ -34,7 +34,7 @@ A person takes about 70 to 75 seconds. The scripted bot on the page is a rough c
 ### The door
 
 - At the top landing: the end wall turns toward us, a steel door in it (a lit wire-glass window, a 13 plate, a push bar) in a pale frame, the 13 / ACCOUNTING sign on the back wall beside it, a caged lamp over it, a mat in front of it. The rails end in posts at the top of each flight.
-- He walks up, the music stops dead (a low fluorescent hum), and **he catches his breath**: about 0.6 s of heaving, then "OK... HERE WE GO." in his caption. Then he braces (`MOVES.brace`, a creak) and kicks (`MOVES.kick`): the door bursts, **the band (`floorHall`) slams in on the kick**, the door flies at the camera, and it cuts on the impact (a white flash) to the 13th Floor from behind, with a shake. He raises the blaster; THE 13TH FLOOR, then FREE 90 SOULS; play.
+- He walks up, the music stops dead (a low fluorescent hum), and **he catches his breath**: bent over with his hands on his hips, heaving, with sweat flying (`MOVES.huff0`/`huff1`, about 1.35 s). He stands back up (`MOVES.rise`, then the ready pose) and only then, "OK... HERE WE GO." in his caption. Then he braces (`MOVES.brace`, a creak) and kicks (`MOVES.kick`): the door bursts, **the band (`floorHall`) slams in on the kick**, the door flies at the camera, and it cuts on the impact (a white flash) to the 13th Floor from behind, with a shake. He raises the blaster; THE 13TH FLOOR, then FREE 90 SOULS; play.
 - Timings from the walk up: kick at 2.5 s, impact 2.83 s, the hall 2.91 s, the banner 3.07 s.
 
 ## Music
@@ -58,7 +58,7 @@ The game's, side on: move, jump, crouch, shoot (charges, five a second), slash (
 ## New poses (in `bull.js`, made by `bull.py`)
 
 - `SIDES_BARE`: every side pose with no katana on his back, in the `SIDES` box.
-- `MOVES`: `brace` (weight back, the near knee chambered) and `kick` (the boot sole-first), in their own box with his feet at `MOVES_FEET`.
+- `MOVES`: `huff0`/`huff1` (hands on his hips, knees soft, the upper body bent forward 38° and 46°: the bend is done on the finished grid by `bend()`), `rise` (the half-risen frame), `brace` (weight back, the near knee chambered) and `kick` (the boot sole-first), in their own box with his feet at `MOVES_FEET`.
 - `RAISED`: from the front, the katana held straight up in his right hand, his left fist pumped, the blaster in his belt, feet at `RAISED_FEET`. One hand, because his arms don't reach over his head with both.
 
 The existing grids are unchanged (`bull.py --check` passes).
