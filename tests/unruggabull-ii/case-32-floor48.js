@@ -31,8 +31,8 @@
     bull.cd = 0; twin.flick = { x: 1, y: 0 }; press('slash'); tick(.05);
     check(R.td.thrown[0] && R.td.thrown[0].friendly && R.charge === charge + TUNE.deflectCharge, 'the katana knocks a bobbin back for charges');
     tick(1.2); check(a2.dead, 'the bobbin goes back to whoever threw it');
-    const r1 = enemy('roll', 0, -80), xl = bull.x; tick(.02); bull.cd = 0; twin.flick = { x: 0, y: -1 }; press('slash'); tick(.02);
-    check(bull.y < 420 - 5, 'the slash lunges');
+    const r1 = enemy('roll', 0, -80), xl = bull.x; tick(.02); bull.cd = 0; twin.flick = { x: 0, y: -1 }; press('slash'); tick(.12);
+    check(bull.y < 420 - 3 && bull.y > 420 - 12, 'the slash lunges a little');
     // machines: damage, the chain to the loom, a loom down
     fresh(); bull.inv = 1e9;
     const tank = machine(1, 'tank'), loom = machine(1, 'loom'), hp0 = loom.hp;

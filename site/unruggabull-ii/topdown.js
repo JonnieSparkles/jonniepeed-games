@@ -14,7 +14,8 @@ var UnrugTopdown = function (core, tuning) {
     speed: 108, radius: 7, accel: 14,
     fireEvery: .12, shotSpeed: 360, shotLife: .85, shotRadius: 3, spreadAngle: .2,
     assist: { stick: .2, keys: .16, mouse: .07 },   // how far (radians) the blaster leans to a target in its line
-    slashT: .17, slashCd: .32, slashReach: 46, slashArc: 1.35, lunge: 30, lungeT: .09, slashDamage: 4,
+    slashT: .17, slashCd: .32, slashReach: 46, slashArc: 1.35, lunge: 7.5, lungeT: .09,   // the lunge: a quarter of the first build's 30 (owner, Oct 13)
+    slashDamage: 4,
     knock: 150, contactKick: 60,
     flyer: { r: 11, h: 15, speed: 60, turn: 2.6, spread: 26, hp: 1 },
     armored: { r: 12, h: 17, speed: 46, keep: [115, 160], throwFirst: [2.4, 3.4], throwEvery: [4.6, 6.6], bobbin: 104, inFlight: 2, hp: 2 },

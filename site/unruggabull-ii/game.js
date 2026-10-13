@@ -985,7 +985,7 @@
       rows.push(...details.rows);
       goBtn.textContent = 'Play again';
       if (floor.id === 'floor13') { goBtn.textContent = 'Take the elevator'; altBtn.textContent = 'Play again'; altBtn.hidden = false; }
-      cardNote.textContent = floor.id === 'floor13' ? 'UNRUGGED, ' + R.souls + ' UNITS. RECLAMATION, FLOOR 48.' : details.note;   // the routing slip (lore chat, Oct 12) cardNote.hidden = !details.note;
+      cardNote.textContent = floor.id === 'floor13' ? 'UNRUGGED, ' + R.souls + ' UNITS. RECLAMATION, 48TH FLOOR.' : details.note;   // the routing slip (lore chat, Oct 12) cardNote.hidden = !details.note;
     } else if (kind === 'rugged') {
       cardTitle.textContent = 'Rugged.';
       if (checkpoint) {

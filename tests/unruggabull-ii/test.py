@@ -248,7 +248,7 @@ with sync_playwright() as p:
             page.evaluate("unrugTest('update(1/60)')")
             assert page.evaluate("unrugTest('bull.slash >= 0 || bull.cd > 0')"), f'{name}: right-click slashes'
         else:
-            assert page.locator('#stickzone').is_visible() and page.locator('#aimzone').is_visible() and page.locator('.pad.slash').is_visible(), f'{name}: sticks and Slash'
+            assert page.locator('#stickzone').is_visible() and page.locator('#aimzone').is_visible() and not page.locator('.pad.slash').is_visible(), f'{name}: two sticks, no Slash button (the flick slashes)'
             assert not page.locator('.pad.shoot').is_visible(), f'{name}: no Shoot button on the twin sticks'
             box = page.locator('#aimzone').bounding_box()
             assert box['x'] >= 0 and box['x'] + box['width'] <= size[0] + 1, f'{name}: aim stick across the screen (full screen fits it vertically, below)'
@@ -275,7 +275,7 @@ with sync_playwright() as p:
             assert page.evaluate(f"unrugTest('bull.y < {y0} - 10 && twin.padX === 0 && twin.padY === 0')"), f'{name}: the move stick moves him up, release stops'
             page.evaluate("unrugTest('setFull(true); draw()')")
             page.wait_for_timeout(50)
-            for sel in ['#stickzone', '#aimzone', '.pad.slash']:
+            for sel in ['#stickzone', '#aimzone']:
                 b = page.locator(sel).bounding_box()
                 assert b and b['y'] + b['height'] <= size[1] + 1 and b['x'] + b['width'] <= size[0] + 1, f'{name}: {sel} fits full screen'
             page.evaluate("unrugTest('floor.startLobby(true); update(1/60); twinClass()')")
