@@ -374,7 +374,7 @@
     if (combo) Object.assign(T, { face: 1.62, stepEnd: 1.95, brace: 2.05, kick: 2.32, flyEnd: 2.62, fly: 2.34, impact: 2.84, hall: 2.92 });
     else if (wall) Object.assign(T, { face: 1.62, stepEnd: 1.95, brace: 2.05, kick: 2.32, flyEnd: 2.62, push0: 2.52, hall: 3.15 });
     else if (opt.door === 'swing') T.hall = T.swing + T.turn + T.push; else { T.fly = T.kick + .05; T.impact = T.kick + .33; T.hall = T.impact + .08; }
-    T.oh = T.hall + .3; T.raise = T.hall + (beat ? 1.5 : .15); T.banner = T.raise + .05; T.end = T.banner + 3.6;
+    T.oh = T.hall + .3; T.hush = T.hall + 1.5; T.lift = beat ? T.hush + .1 : T.hall + .15; T.raise = beat ? T.hush + .4 : T.lift; T.banner = T.raise + .05; T.end = T.banner + 3.6;
     const st = 170;
     const stopX = wall ? LW.cx : 392;
     const bx = t => t < T.stop ? lerp(80, stopX, ease(span(t, 0, T.stop)) * .2 + span(t, 0, T.stop) * .8) : stopX;
@@ -386,7 +386,7 @@
       [T.brace, () => FX.creak()],
       [T.kick, () => { FX.kick(); if (beat) Snd.music('floorOpen', { slam: true, stems: ['drums', 'bass', 'lead'] }); else Snd.music('floorHall', { slam: true, stems: ['drums', 'bass', 'lead'] }); }],
       ...(combo ? [[T.impact, () => FX.impact()]] : wall ? [[T.push0, () => FX.whoosh()]] : opt.door === 'swing' ? [[T.swing, () => FX.whoosh()]] : [[T.impact, () => FX.impact()]]),
-      ...(beat ? [[T.raise, () => { Snd.music('floorHall', { slam: true, stems: ['drums', 'bass', 'lead'] }); Snd.play('start'); }]] : [[T.raise, () => Snd.play('start')]])
+      ...(beat ? [[T.hush, () => Snd.music(null, { hard: true })], [T.raise, () => { Snd.music('floorHall', { slam: true, stems: ['drums', 'bass', 'lead'] }); Snd.play('start'); }]] : [[T.raise, () => Snd.play('start')]])
     ];
     // the side view at time t (him included unless noBull), into g
     function sideView(g, t, noBull) {
@@ -421,7 +421,7 @@
       vignette(g);
     }
     function draw(g, t) {
-      const pose = t >= T.raise ? BACK.aim : t >= T.hall ? BACK.stand : null;
+      const pose = t >= T.lift ? BACK.aim : t >= T.hall ? BACK.stand : null;
       if (t < (combo ? T.kick + .02 : wall ? T.push0 : opt.door === 'swing' ? T.swing : T.kick)) {
         sideView(g, t);
       } else if (combo && t < T.hall) {
@@ -473,7 +473,7 @@
         const img = hall(t, pose);
         const [sx, sy] = opt.door === 'fly' || combo ? shakeAt(t, T.hall, .3, 6) : [0, 0];
         g.fillStyle = '#07050a'; g.fillRect(0, 0, W, H); g.drawImage(img, sx, sy);
-        if (beat && t >= T.oh && t < T.raise + .4) bark(g, '...OH.', span(t, T.oh, T.oh + .6));
+        if (beat && t >= T.oh && t < T.hush) bark(g, '...OH.', span(t, T.oh, T.oh + .6));
         if (t >= T.banner && t < T.banner + 1.6) topBanner(g, 'THE 13TH FLOOR', span(t, T.banner, T.banner + 1.6));
         else if (t >= T.banner + 1.6 && t < T.banner + 3.2) topBanner(g, 'FREE 90 SOULS', span(t, T.banner + 1.6, T.banner + 3.2));
         if (t >= T.raise && t < T.raise + .08) words(g, () => { g.save(); g.globalAlpha = .5; A.rect(g, 0, 0, 240, 135, '#ffffff'); g.restore(); });
@@ -481,7 +481,7 @@
       const [sx, sy] = shakeAt(t, T.kick, .25, 4);
       if (sx || sy) { BUF.getContext('2d').drawImage(g.canvas, 0, 0); g.fillStyle = '#07050a'; g.fillRect(0, 0, W, H); g.drawImage(BUF, sx, sy); }
     }
-    return { name: 'door', T, end: T.end, cues, draw, label: t => t < T.stop ? 'the last flight, the cue at full tilt' : t < T.kick ? (wall ? 'the music stops; he turns to the door and braces' : 'half a second: the music stops') : t < T.hall ? (combo ? 'the reverse shot: the door flies at us; cut on the impact' : wall ? 'he walks up into it; the camera follows him through' : opt.door === 'swing' ? 'the swing, then through the door' : 'the door at the camera, cut on the impact') : t < T.raise ? (beat ? 'the muzak: "...oh."' : 'the band from the kick') : 'blaster up: the band, THE 13TH FLOOR' };
+    return { name: 'door', T, end: T.end, cues, draw, label: t => t < T.stop ? 'the last flight, the cue at full tilt' : t < T.kick ? (wall ? 'the music stops; he turns to the door and braces' : 'half a second: the music stops') : t < T.hall ? (combo ? 'the reverse shot: the door flies at us; cut on the impact' : wall ? 'he walks up into it; the camera follows him through' : opt.door === 'swing' ? 'the swing, then through the door' : 'the door at the camera, cut on the impact') : t < T.hush ? (beat ? 'the muzak: "...oh."' : 'the band from the kick') : t < T.raise ? 'a beat of silence: blaster up' : 'blaster up: the band, THE 13TH FLOOR' };
   }
 
   // ---------- new sounds, synthesized here (the game's own play through Snd) ----------
@@ -523,7 +523,7 @@
     else if (Snd.musicState.playing === id) Snd.stems(stems);
     else Snd.music(id, { boundary: 'bar', stems });
   }
-  const opt = { scene: 'rug', cue: 'neon', fanfare: 0, door: 'swing', entry: 'beat', slow: false };
+  const opt = { scene: 'rug', cue: 'neon', fanfare: 0, door: 'combo', entry: 'beat', slow: false };
   let scene = null, t = 0, playing = false, last = 0, nextCue = 0, drawn = 0;
   function build() { scene = (opt.scene === 'rug' ? rugScene : doorScene)(Object.assign({}, opt)); $('scrub').max = scene.end.toFixed(2); }
   function frame() {
