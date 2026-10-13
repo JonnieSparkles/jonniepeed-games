@@ -35,6 +35,9 @@ var UnrugFloor48 = function (core) {
     hp: { tank: 14, spinner: 20, loom: 210, press: 22, animator: 22 },
     souls: { tank: 5, spinner: 3, loom: 10, press: 3, animator: 3, line: 8 },
     toLoom: 10, coffee: .3,                       // a part breaking hurts its loom this much (the line's chain)
+    // the last loom standing overloads (owner, Oct 13: the last one "takes forever"): it takes `mult` times the damage,
+    // and at each of `stages` of its health a chunk blows off it (a blast that kills carpshits, `souls` freed, a freeze)
+    overload: { mult: 2, stages: [.75, .5, .25], souls: 4, blast: 52, stop: .1, holes: [[.22, .3], [.72, .22], [.48, .62]] },
     blast: { tank: [86, 14], spinner: [72, 14], press: [72, 14], animator: [72, 14], loom: [128, 22] },   // radius, damage to machines
     chainDelay: .12, cascade: .16,
     // production: seconds between rugs off each line (by its index), the belt's speed, the press's beat, by panic level
@@ -282,9 +285,29 @@ var UnrugFloor48 = function (core) {
   }
 
   // ---------- machines: damage, breaking, chains ----------
+  // the last loom standing, overloading
+  const overloaded = m => m.kind === 'loom' && !m.dead && Q.panic === 2 && Q.st === 'fight';
+  // a chunk blowing off the overloading loom at each stage of its health
+  function stages(m) {
+    if (!overloaded(m)) return;
+    const P = F48.overload;
+    if (m.stage == null) m.stage = P.stages.filter(f => m.hp / m.max <= f).length;   // stages already passed don't all go at once
+    while (m.stage < P.stages.length && m.hp / m.max <= P.stages[m.stage]) {
+      const [hx, hy] = P.holes[m.stage], top = m.y0 - m.H, x = m.x0 + hx * (m.x1 - m.x0), y = top + hy * (m.y1 - top);
+      m.stage++;
+      boom(x, m.y1, 1.1); Snd.play('machineBreak'); Snd.play('tankBurst');
+      R.freeze = Math.max(R.freeze, P.stop); Q.shake = Math.max(Q.shake, .7); R.white = Math.max(R.white || 0, .05);
+      td.blast(x, m.y1, P.blast, 'blast');
+      soulsFrom(x, m.y1, P.souls, 'loom', 'shot');
+      for (let i = 0; i < 14; i++) { const a = Math.random() * 6.28, sp = 60 + Math.random() * 140; R.td.fx.push({ k: 'debris', x, y: m.y1, h: m.y1 - y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .6, vh: 60 + Math.random() * 120, s: 2 + Math.round(Math.random() * 3), r: 0, vr: (Math.random() - .5) * 20, col: ['#8a6420', '#ff7a2a', '#3a2a1e', '#ffd060'][i % 4], t: 0, dur: .9 + Math.random() * .6 }); }
+      emit('f48_loom_stage', { stage: m.stage });
+    }
+  }
   function hurt(m, dmg, by) {
     if (m.dead || Q.st !== 'fight') return;
+    if (overloaded(m)) dmg *= F48.overload.mult;
     m.hp -= dmg; m.flash = .07; m.lastBy = by;
+    if (m.hp > 0) stages(m);
     if (Q.hitSnd <= 0) { Snd.play('machineHit'); Q.hitSnd = .05; }
     R.events.machineDamage = (R.events.machineDamage || 0) + Math.min(dmg, m.hp + dmg);
     emit('f48_hit', { kind: m.kind, by, amount: dmg });
@@ -334,7 +357,7 @@ var UnrugFloor48 = function (core) {
     }
     Q.chain = Q.chain.filter(c => !c.done);
   }
-  function hurtChain(m, dmg) { if (Q.st !== 'fight') return; m.hp -= dmg; m.flash = .1; R.events.chainDamage = (R.events.chainDamage || 0) + dmg; if (m.hp <= 0) breakMachine(m, 'chain'); }
+  function hurtChain(m, dmg) { if (Q.st !== 'fight') return; if (overloaded(m)) dmg *= F48.overload.mult; m.hp -= dmg; m.flash = .1; R.events.chainDamage = (R.events.chainDamage || 0) + dmg; if (m.hp <= 0) breakMachine(m, 'chain'); else stages(m); }
   // ---------- chain reactions ----------
   // A break set off by a blast (by 'chain') within the window of the last link adds to the chain; anything else starts
   // a new one. Called out from the third link, with a hit-stop on the beats; the bonus is paid when it ends.
@@ -429,7 +452,7 @@ var UnrugFloor48 = function (core) {
     if (Q.panic < 3) {
       Snd.factoryCue(Q.panic === 1 ? 'panic' : 'heavy', { candidate: Q.music });
       Snd.play('lineDown'); Snd.play('klaxon', Q.panic);
-      R.banner = { text: Q.panic === 1 ? 'PRODUCTION PANIC' : 'LAST LINE', sub: Q.panic === 1 ? 'THE OTHER LINES SPEED UP' : 'FLAT OUT', t: 0, dur: 2, top: true, col: Q.panic > 1 ? '#ff5a4a' : '#ffd44a' };
+      R.banner = { text: Q.panic === 1 ? 'PRODUCTION PANIC' : 'LAST LINE', sub: Q.panic === 1 ? 'THE OTHER LINES SPEED UP' : 'ITS LOOM IS OVERLOADING', t: 0, dur: 2, top: true, col: Q.panic > 1 ? '#ff5a4a' : '#ffd44a' };
       core.bark(Q.panic === 1 ? 'f48line' : 'f48panic');
       if (!Q.qc) Q.qcPending = { t: F48.qc.delay, n: Q.panic - 1 };
       saveCheckpoint();
@@ -750,6 +773,8 @@ var UnrugFloor48 = function (core) {
     if (Q.t > 4.4 && !Q.events.said) { Q.events.said = true; core.bark('f48start'); }
     if (Q.t > 1 && !Q.events.pa && Q.panic === 0) { Q.events.pa = true; say('RECLAMATION IS AHEAD OF SCHEDULE.', 2.6); }
     if (Q.st === 'fight') { stepLines(dt); stepHazards(dt); stepChain(dt); stepCues(); stepQC(dt); stepCombo(); }
+    // the overloading loom throws sparks (drawn only)
+    if (Q.st === 'fight' && Q.panic === 2) { const lm = Q.machines.find(overloaded); if (lm && Math.random() < dt * 14) { const x = lm.x0 + Math.random() * (lm.x1 - lm.x0); R.td.fx.push({ k: 'spark', x, y: lm.y1, h: 10 + Math.random() * lm.H, vx: fxr(-70, 70), vy: fxr(-20, 30), vh: fxr(20, 90), col: Math.random() < .5 ? '#ffd060' : '#ff7a2a', t: 0, dur: .4 }); } }
     else if (Q.st === 'collapse') { stepChain(dt); stepCollapse(dt); if (Q.st === 'lobby') return; }
     td.update(dt);
     stepFx(dt);
@@ -932,6 +957,15 @@ var UnrugFloor48 = function (core) {
     };
     // a hit flashes it bright: the same drawing again, added on top (a canvas filter here cost a sixth of the frame rate)
     g.save(); one(); if (m.flash > 0) { g.globalCompositeOperation = 'lighter'; one(); } g.restore();
+    if (overloaded(m)) {
+      // overloading: the frame glows red-hot in pulses, and the holes the chunks left
+      const top = m.y0 - m.H, w = m.x1 - m.x0, h = m.y1 - top;
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = .16 + .1 * Math.sin(t * 9); rect(g, m.x0, top, w, h, '#ff3a10'); g.restore();
+      for (let i = 0; i < (m.stage || 0); i++) {
+        const [hx, hy] = F48.overload.holes[i], x = Math.round(m.x0 + hx * w), y = Math.round(top + hy * h);
+        rect(g, x - 7, y - 5, 14, 10, '#ff7a2a'); rect(g, x - 6, y - 4, 12, 8, '#140a08'); rect(g, x - 3, y - 6, 6, 2, '#140a08'); rect(g, x + 5, y - 1, 3, 4, '#140a08');
+      }
+    }
   }
   // p(Loom)'s laser: while it warns, a flickering line where it will start; then the beam, white in red, with a green
   // emitter either side of its gap
@@ -1260,6 +1294,6 @@ var UnrugFloor48 = function (core) {
     pauseText: 'The factory waits.',
     continueText: () => Q && Q.panic ? 'Back in the factory with full hearts? Lines you shut down stay down.' : 'Back in the factory with full hearts?',
     clearCard, afterClear: () => startLobby(false),
-    F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
+    F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, hurtMachine: hurt, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
   };
 };

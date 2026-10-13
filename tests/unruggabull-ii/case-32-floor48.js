@@ -149,6 +149,16 @@
     for (let i = 0; i < 60 * 12 && Q().qc && R.hearts === 5; i++) { const L = Q().qc; bull.x = L.g1 + 60 < 780 ? L.g1 + 60 : L.g0 - 60; bull.y = 420; clearAll(); update(1 / 60); }
     check(R.hearts === 4 && R.lastCause === 'laser', 'out of the gap, the laser costs a heart');
     check(state === 'play', 'still playing');
+    // the last loom overloads: double damage, and chunks blow off it at 75/50/25%
+    fresh(); bull.inv = 1e9;
+    F.breakMachine(machine(0, 'loom'), 'shot'); F.breakMachine(machine(1, 'loom'), 'shot'); tick(.5);
+    const last = machine(2, 'loom'), sl0 = R.souls; last.hp = last.max;
+    { const hp1 = last.hp; F.hurtMachine(last, 1, 'shot'); check(last.hp === hp1 - F48.overload.mult, 'the last loom takes double damage'); }
+    last.hp = Math.round(last.max * .76); F.hurtMachine(last, 4, 'shot');
+    check(last.stage === 1 && R.souls >= sl0 + F48.overload.souls, 'a chunk blows off it at 75%, freeing souls');
+    last.hp = Math.round(last.max * .3); F.hurtMachine(last, 30, 'shot');
+    check(last.stage === 3, 'two stages passed in one hit both go');
+    check(machine(0, 'loom').dead && !Q().machines.filter(m => m.kind === 'loom' && m.line !== 2).some(m => m.stage), 'only the last loom breaks up in stages');
     // the presses: the shadow, then the slam
     fresh(); const pr = machine(0, 'press'); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; bull.inv = 0; R.hearts = 5;
     let warned = false; for (let i = 0; i < 60 * 3 && R.hearts === 5; i++) { update(1 / 60); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; if (pr.warn > 0) warned = true; }

@@ -132,3 +132,7 @@ He picked chain callouts and p(Loom)'s laser, and wanted deflects to actually ha
 
 "SLOW AF" (canvas filters; fixed, a frame is about 25 ms again), the laser not always escapable (the gap is now near him), a small sound for the souls' streams, mouse buttons on every floor, the elevator doors' sunburst, and the roof's "Floor?" / "Roof." before he can leave.
 
+### Round 5, third pass
+
+"ok this is sick!" A touch brighter (about 15%); the chain bonus under its callout; and the last loom, which "takes forever", now overloads: double damage, red-hot, three chunks blowing off at 75/50/25%.
+
