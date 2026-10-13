@@ -915,7 +915,6 @@
   }
   function drawTitle() {
     drawTower(R.t);
-    if (state === 'intro') return;
     // the logo (art.js), at the picture's full size
     const L = A.logo(), lw = A.uw(L), lh = A.uh(L);
     g.drawImage(L, Math.round((120 - lw / 2 - 5) * 2) / 2, 3, lw, lh);
@@ -944,7 +943,8 @@
   // A frame of play: the lights, the hall, the floor's things drawn into the two layers and laid over it, the finish
   // (shaken as a whole when something hits hard), then the flashes, the HUD and the words on top, crisp.
   function draw() {
-    if (state === 'title' || state === 'intro') { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); drawTitle(); return; }
+    if (state === 'intro') { use(view); drawIntro(); return; }
+    if (state === 'title') { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); drawTitle(); return; }
     if (floor.cutActive && floor.cutActive()) { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); floor.drawCut(); return; }
     if (floor.frameHeld && floor.frameHeld()) return;
     const r = renderer();
@@ -996,7 +996,7 @@
     altBtn.hidden = true; cardNote.hidden = true;
     if (kind === 'title') {
       cardTitle.textContent = 'The 13th Floor: Accounting';
-      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on the 13th Floor to wake SHRED-O, then beat it.';
+      cardText.textContent = "Every soul you ever freed is still on RugCo's books. Free " + TUNE.goal + ' on the 13th Floor until Accounting notices.';
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
@@ -1035,7 +1035,7 @@
   };
   function setState(s) {
     state = s;
-    c.setAttribute('aria-label', s === 'title' || s === 'intro' ? LABELS.title : floor.label || LABELS.play);
+    if (s !== 'intro') c.setAttribute('aria-label', s === 'title' ? LABELS.title : floor.label || LABELS.play);   // the intro labels each still
     gameEl.classList.toggle('playing', s === 'play');
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
@@ -1095,39 +1095,49 @@
   function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
 
   // ---------- the story so far ----------
-  // Told in blips over the tower on the first Start; a tap shows the whole line, another moves on, Skip ends it.
-  const STORY = [
-    'When we last saw our hero, he had just unrugged the Rugfather behind a garage door that took thirteen seconds to open.',
-    'But the Rugfather was only middle management.',
-    'Every carpshit our hero unrugged left a soul behind: the Unrugged. Small, fringed and very polite, they drifted up to the roof of RugCo Tower and did not come back down.',
-    'Something up there has been catching them and weaving them back into carpshits. RugCo calls it p(Loom). It puts your odds of stopping it at one percent.',
-    'Our hero would like to discuss those odds. First stop: the 13th Floor. He will need a sword.'
-  ];
+  // The intro (intro.js): six illustrated stills, a narrated line each, on the first Start. A tap finishes a line; once
+  // it's said a blinking arrow shows and the still waits, still moving, for another tap. A tap on a still's gag (Loomy,
+  // a soul) plays the gag instead. Skip or Escape ends it. The pictures (intro-stills.js, about 290 KB) are fetched
+  // only for a device that hasn't seen the story, or when Watch the story is pressed; the intro waits up to 4 s for them.
+  const Intro = UnrugIntro, STORY = Intro.LINES;
   const STORY_KEY = 'unruggabull-ii-story';
-  const crawl = $('crawl'), crawlText = $('crawlText'), skipBtn = $('skip');
+  const crawl = $('crawl'), crawlText = $('crawlText'), more = $('more'), moreTap = $('moreTap'), skipBtn = $('skip');
   let intro = null;
   function storySeen() { try { return localStorage.getItem(STORY_KEY) === '1'; } catch (e) { return false; } }
+  function loadStills() {
+    if (window.UnrugIntroStills || document.getElementById('introStills')) return;
+    const meta = document.querySelector('meta[name="intro-stills"]'), s = document.createElement('script');
+    s.id = 'introStills'; s.src = meta ? meta.content : 'intro-stills.js';
+    document.head.append(s);
+  }
+  if (!storySeen()) loadStills();
   function startIntro() {
+    loadStills(); Intro.reset();
     setState('intro'); card.hidden = true; crawl.hidden = false;
-    introLine(0);
+    crawlText.textContent = ''; more.hidden = true;
+    intro = { i: -1, t: 0, wait: 0 };   // waiting for the pictures
     try { skipBtn.focus({ preventScroll: true }); } catch (e) {}
   }
   function introLine(i) {
     const text = STORY[i], plan = Snd.talkTimes(text, 'narrator');
     Snd.hush(); Snd.say(text, 'narrator');
-    intro = { i, t: 0, text, times: plan.times, total: plan.total };
-    crawlText.textContent = ''; live(text);
+    intro = { i, t: 0, text, plan, times: plan.times, total: plan.total };
+    crawlText.textContent = ''; more.hidden = true;
+    c.setAttribute('aria-label', Intro.LABELS[i]); live(Intro.LABELS[i] + ' ' + text);
   }
   function updateIntro(dt) {
     if (!intro) return;
+    if (intro.i < 0) { intro.wait += dt; if (Intro.ready() || intro.wait > 4) introLine(0); return; }
     intro.t += dt;
     let n = 0; while (n < intro.text.length && intro.times[n] <= intro.t) n++;
     if (crawlText.textContent.length !== n) crawlText.textContent = intro.text.slice(0, n);
-    if (intro.t > intro.total + 1.8) nextLine();
+    // the still waits for a tap; once its line is said, a blinking arrow says so ("Tap" on the first one)
+    const said = intro.t > intro.total + .25;
+    if (more.hidden === said) { more.hidden = !said; moreTap.hidden = intro.i !== 0; }
   }
   function nextLine() { if (intro.i + 1 < STORY.length) introLine(intro.i + 1); else endIntro(); }
   function advanceIntro() {
-    if (!intro) return;
+    if (!intro || intro.i < 0) return;
     if (intro.t < intro.total) { intro.t = intro.total; Snd.hush(); } else nextLine();
   }
   function endIntro() {
@@ -1135,8 +1145,20 @@
     try { localStorage.setItem(STORY_KEY, '1'); } catch (e) {}
     startRun();
   }
+  function drawIntro() {
+    view.setTransform(1, 0, 0, 1, 0, 0);
+    if (intro && intro.i >= 0) Intro.draw(view, intro.i, intro.t, intro.plan);
+    else { view.fillStyle = '#08070c'; view.fillRect(0, 0, PW, PH); }
+  }
   skipBtn.addEventListener('click', e => { e.stopPropagation(); if (state === 'intro') endIntro(); });
-  $('stage').addEventListener('click', e => { if (state === 'intro' && !skipBtn.contains(e.target)) advanceIntro(); });
+  $('stage').addEventListener('click', e => {
+    if (state !== 'intro' || skipBtn.contains(e.target)) return;
+    if (intro && intro.i >= 0 && e.target === c) {
+      const r = c.getBoundingClientRect(), gag = Intro.tap(intro.i, (e.clientX - r.left) / r.width * Intro.W, (e.clientY - r.top) / r.height * Intro.H, intro.t, intro.plan);
+      if (gag != null) { if (gag) Snd.play(gag); return; }
+    }
+    advanceIntro();
+  });
   function pauseGame() {
     if (state !== 'play') return;
     setState('pause'); clearHeld();

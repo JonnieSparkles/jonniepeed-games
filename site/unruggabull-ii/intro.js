@@ -1,7 +1,7 @@
 // Unruggabull II's intro: six illustrated stills with a narrated line each (the shot list is the project's
 // unruggabull-ii-intro.md). The pictures are intro-stills.js; everything moving or lettered is drawn here on top:
 // the Rugfather (portrait.js and two frames of his strip), the chalkboard, the height chart, the souls, the ledger.
-// Classic script (UnrugIntro); load after art.js, portrait.js and intro-stills.js.
+// Classic script (UnrugIntro); load after art.js and portrait.js. intro-stills.js can come before or after.
 //
 // The game owns the pacing: it types each line with Snd.talkTimes, then waits for a tap (owner, 13 Oct: let people
 // look and read as long as they like), showing a blinking arrow once the line is said. Everything keeps moving while it
@@ -27,7 +27,11 @@ var UnrugIntro = (function () {
     'RugCo Tower at night under a blood-red sky, every window lit, fire licking at its edges. Souls drift up past its windows into the orange beacon on its roof, and carpets unroll down its face.',
     'An open ledger in the garage. In red ink: 5 SOULS IN, 1 RUG OUT. Beyond it, Unruggabull opens the door marked STAIRS onto a lit stairwell.'
   ];
-  const A = UnrugArt, S = UnrugIntroStills.stills, SP = UnrugIntroStills.sprites;
+  // The pictures (intro-stills.js) may load after this script: the game fetches them only for a device that hasn't
+  // seen the story. Until they're in, a still draws dark with its overlays.
+  const A = UnrugArt, NONE = { img: null, w: 0, h: 0 };
+  let S = [], SP = {};
+  const ready = () => !!window.UnrugIntroStills && UnrugIntroStills.stills.every(s => ok(s.img));
   const ok = img => img && img.complete && img.naturalWidth > 0;
 
   // ---------- drawing helpers ----------
@@ -93,7 +97,7 @@ var UnrugIntro = (function () {
   // drift off his shoulders. k leans him (the top shifts sideways by k a row).
   const RF = {
     front: () => ({ img: UnrugPortrait.img, w: UnrugPortrait.w, h: UnrugPortrait.h, waist: 82, eyes: [[55, 33], [64, 33]], fire: [[22, 34], [97, 34], [59, 6], [36, 14], [84, 14]] }),
-    reach: () => ({ img: SP.reach.img, w: SP.reach.w, h: SP.reach.h, waist: 70, eyes: [[37, 28]], fire: [[40, 4], [62, 20], [80, 46], [76, 80]] })
+    reach: () => ({ img: (SP.reach || NONE).img, w: (SP.reach || NONE).w, h: (SP.reach || NONE).h, waist: 70, eyes: [[37, 28]], fire: [[40, 4], [62, 20], [80, 46], [76, 80]] })
   };
   function rugfather(g, which, fx, fy, t, k = 0, seed = 0) {
     const f = RF[which](); if (!ok(f.img)) return;
@@ -138,7 +142,7 @@ var UnrugIntro = (function () {
   function still1(g, t) {
     const f = flicker(t);
     glow(g, 196, 150, 130, 'rgba(255,140,50,A)', .05 + .05 * f);     // the lamp's pool breathes
-    const heap = SP.heap, hx = 240, hy = 216, sc = 1;
+    const heap = SP.heap || NONE, hx = 240, hy = 216, sc = 1;
     if (ok(heap.img)) g.drawImage(heap.img, hx - (heap.w >> 1), hy - heap.h);
     glow(g, hx - 4, hy - 40, 70, 'rgba(255,110,30,A)', .1 + .12 * flicker(t * 1.7, 3));  // his own fire
     // embers and smoke off the heap
@@ -331,7 +335,7 @@ var UnrugIntro = (function () {
   function still5(g, t, plan) {
     const oy = pan(t, plan);
     g.save(); g.translate(0, -oy);
-    if (ok(S[4].img)) g.drawImage(S[4].img, 0, 0);
+    if (S[4] && ok(S[4].img)) g.drawImage(S[4].img, 0, 0);
     // RUGCO on the lit sign under the roof
     g.fillStyle = '#521418';
     [...'RUGCO'].forEach((ch, c) => { const glyph = CHALK[ch]; for (let i = 0; i < 77; i++) if (glyph[i] === '#') g.fillRect(221 + c * 8 + i % 7, 77 + (i / 7 | 0), 1, 1); });
@@ -388,11 +392,11 @@ var UnrugIntro = (function () {
     glow(g, 86, 60, 70, 'rgba(255,150,60,A)', .05 + .05 * flicker(t, 13));
     moths(g, 86, 58, t);
     // the ledger, held open: the tallies of the unrugged on the left, the production figures on the right
-    const L = 26, T = 146;   // kept above the caption bar, which covers the bottom fifth
-    rect(g, L - 4, T - 4, 186, 130, '#2c2420'); rect(g, L - 3, T - 3, 184, 128, '#5a3420');
-    rect(g, L, T, 88, 124, '#f4e6c4'); rect(g, L + 90, T, 88, 124, '#f4e6c4');
-    rect(g, L + 86, T, 2, 124, '#d8c8a8'); rect(g, L + 90, T, 2, 124, '#d8c8a8'); rect(g, L + 88, T - 3, 2, 127, '#3e332c');
-    for (let y = T + 16; y < T + 124; y += 9) { rect(g, L + 3, y, 82, 1, '#d8c8a8'); rect(g, L + 93, y, 82, 1, '#d8c8a8'); }
+    const L = 26, T = 118;   // the equation kept above the caption bar, which covers up to a third with a long line
+    rect(g, L - 4, T - 4, 186, 156, '#2c2420'); rect(g, L - 3, T - 3, 184, 154, '#5a3420');
+    rect(g, L, T, 88, 152, '#f4e6c4'); rect(g, L + 90, T, 88, 152, '#f4e6c4');
+    rect(g, L + 86, T, 2, 152, '#d8c8a8'); rect(g, L + 90, T, 2, 152, '#d8c8a8'); rect(g, L + 88, T - 3, 2, 155, '#3e332c');
+    for (let y = T + 16; y < T + 152; y += 9) { rect(g, L + 3, y, 82, 1, '#d8c8a8'); rect(g, L + 93, y, 82, 1, '#d8c8a8'); }
     small(g, 'UNRUGGED', L + 4, T + 4, '#3a2014');
     for (let r = 0; r < 6; r++) for (let k = 0; k < 4 + (r * 3) % 4; k++) {
       const x = L + 6 + k * 10, y = T + 18 + r * 9;
@@ -419,7 +423,8 @@ var UnrugIntro = (function () {
   function draw(g, i, t, plan) {
     g.save(); g.imageSmoothingEnabled = false;
     rect(g, 0, 0, W, H, '#08070c');
-    if (i !== 4 && ok(S[i].img)) g.drawImage(S[i].img, 0, 0);
+    if (window.UnrugIntroStills) { S = UnrugIntroStills.stills; SP = UnrugIntroStills.sprites; }
+    if (i !== 4 && S[i] && ok(S[i].img)) g.drawImage(S[i].img, 0, 0);
     DRAW[i](g, t, plan, LINES[i]);
     g.restore();
   }
@@ -435,5 +440,5 @@ var UnrugIntro = (function () {
     }
     return null;
   }
-  return { LINES, LABELS, draw, tap, reset, W, H };
+  return { LINES, LABELS, draw, tap, reset, ready, W, H };
 })();
