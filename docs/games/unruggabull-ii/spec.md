@@ -41,7 +41,7 @@ Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 Six inputs, the same on every floor, laid out like an old game pad:
 
 - **Move** left and right, **jump** and **crouch** on a thumb stick that floats where the thumb lands: slide to move, flick up to jump, hold down to crouch. Keys: A/D or the arrows, W, Up or Space, S, C or Down.
-- **Crouch** (on the ground): half height, so things at head height pass over, but no moving or shooting. On a pulling runner it grips the rug and slows the drag.
+- **Crouch** (on the ground): half height, so things at head height pass over, but no moving. He can shoot from it, for two charges a shot, so ducking is never a dead stop. On a pulling runner it grips the rug and slows the drag.
 - **Shoot** (hold to keep firing). Keys: Shift or ', or J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
 - **Slash** (Enter, or K or X). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 
@@ -125,7 +125,7 @@ Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain c
 
 ### The hint on the 13th Floor (built)
 
-In the Shredder's phase 3 its surge takes the blaster into its mouth, and its own paper knocked back wears it down. The paper that takes it to its last stand stuns it: one soul leaves the counter, pulls the blaster out of its teeth and brings it back to him charged, then stays in the gun, firing a stream beside the bolt: a ribbon of light from the blaster's muzzle, straight down the hall. He finishes it with the blaster while it's stunned (the owner, Oct 13: the volley stuns it, the souls bring the blaster back, the blaster finishes it). One soul here, two on the 48th Floor, three on the roof: the bells count up the climb (D; D, F; D, F, A), and the roof's three "hit" (the owner, Oct 12; more than three would be odd). With the soul in the gun, the Shredder's surges break on them instead of knocking the blaster away.
+In the Shredder's phase 3 its surge takes the blaster up into the air above its head, and its own paper knocked back wears it down. The paper that takes it to its last stand stuns it: one soul leaves the counter, takes the blaster and brings it back to him charged, then stays in the gun, firing a stream beside the bolt: a ribbon of light from the blaster's muzzle, straight down the hall. He finishes it with the blaster while it's stunned (the owner, Oct 13: the volley stuns it, the souls bring the blaster back, the blaster finishes it). One soul here, two on the 48th Floor, three on the roof: the bells count up the climb (D; D, F; D, F, A), and the roof's three "hit" (the owner, Oct 12; more than three would be odd). With the soul in the gun, the Shredder's surges break on them instead of knocking the blaster away.
 
 - Nothing announces it: no banner, no pickup text, and no live-region line beyond "Blaster back."
 - It mustn't look like Spread Shot, which already fires three ways: the souls visibly fly into the gun, the streams are the souls' colours (pale white with the halo's gold), and the stream comes in with a single soft bell note.

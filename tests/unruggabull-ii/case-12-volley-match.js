@@ -37,7 +37,8 @@
   bull.u = .45; bull.jh = 0; b.atk = 1e9;
   for (let i = 0; i < 90 && R.armed !== false; i++) { b.atk = 1e9; update(1 / 60); }
   check(R.armed === false && b.gun && !R.pickups.some(pk => pk.kind === 'blaster') && R.fx.some(f => f.k === 'toss' && f.tx), 'the surge pulls the blaster out of his hands and into its mouth');
-  check(R.talk && R.talk.text === 'CONFISCATED.' && R.banner && R.banner.text === 'KNOCK ITS PAPER BACK', 'it says so, with a prompt, the first time');
+  check(R.fx.some(f => f.k === 'big' && f.text === 'BLASTER GONE!'), 'a big BLASTER GONE! so you can\'t miss losing it');
+  check(R.talk && R.talk.text === 'CONFISCATED.', 'it says so, the first time');
   step(TUNE.surgeFly + .1); draw();
   R.events.shots = 0; R.fireT = 0; keys.kbShoot = true; step(.5); keys.kbShoot = false;
   check(!R.events.shots && !R.shots.length, 'no blaster, no shots');

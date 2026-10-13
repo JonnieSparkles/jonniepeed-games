@@ -10,7 +10,9 @@
   check(R.pull.st === 'warn', 'the runner warns before it pulls');
   step(1);
   check(R.pull.st === 'on' && R.banner && R.banner.pull && R.banner.text === 'STEP OFF OR SLASH', 'the first pull shows a prompt');
-  bull.u = 0; step(.5);
+  bull.u = 0; bull.cd = 0; press('slash'); update(1 / 60);
+  check(R.pull.st === 'on' && !R.events.cuts, 'a slash right as the rug starts to pull doesn\'t cut it: it gets its grip first');
+  step(.5);
   check(bull.bz > .1, 'standing on the runner drags you toward the shredder');
   bull.u = .5; step(.5);
   check(bull.bz < .01, 'stepping off lets you walk back');
