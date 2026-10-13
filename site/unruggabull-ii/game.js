@@ -204,7 +204,7 @@
 
 
   // ---------- Unruggabull ----------
-  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, kbDown: false, padDown: false, kbUp: false, padUp: false };
+  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, mouseShoot: false, kbDown: false, padDown: false, kbUp: false, padUp: false };
   const input = { jump: 0, slash: 0, shoot: 0 };   // buffered presses, in seconds left
   // Twin-stick floors (floor.twin() true; the 48th Floor's factory): analog move and aim. Keys: WASD move, the arrows aim
   // and fire; the mouse aims (picture pixels on the canvas) and its left button fires; the thumb sticks move and aim,
@@ -213,7 +213,7 @@
     aimX: 0, aimY: 0, aiming: false, flick: null, mouse: { x: 0, y: 0, on: false, down: false, t: -99 } };
   const twinOn = () => !!(floor && floor.twin && floor.twin());
   const moveDir = () => ((keys.kbRight || keys.padRight) ? 1 : 0) - ((keys.kbLeft || keys.padLeft) ? 1 : 0);
-  const shooting = () => keys.kbShoot || keys.padShoot;
+  const shooting = () => keys.kbShoot || keys.padShoot || keys.mouseShoot;
   const depthDir = () => ((keys.kbUp || keys.padUp) ? 1 : 0) - ((keys.kbDown || keys.padDown) ? 1 : 0);
   const crouchHeld = () => !floor.depthMove && (keys.kbDown || keys.padDown);
   function press(k) { if (k === 'drop' && state === 'play') { drops.use(); return; } if (state !== 'play') return; if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12; }
@@ -1246,7 +1246,7 @@
     KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot', KeyE: 'drop' };
   const TWIN_HOLD = { mUp: 'up', mDown: 'down', mLeft: 'left', mRight: 'right', aUp: 'aimUp', aDown: 'aimDown', aLeft: 'aimLeft', aRight: 'aimRight' };
   const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
-  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
+  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = KEYS.get(e);
@@ -1272,19 +1272,22 @@
     }
   });
   addEventListener('keyup', e => { const k = KEYS.get(e); if (TWIN_HOLD[k]) { twin.kb[TWIN_HOLD[k]] = 0; return; } if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; else if (k === 'up') keys.kbUp = false; });
-  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; });
-  // The mouse, on twin-stick floors: it aims where it points; the left button fires, the right one slashes.
+  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.mouseShoot = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; });
+  // The mouse: on every floor the left button fires (held, it keeps firing) and the right one slashes (owner, Oct 13).
+  // On twin-stick floors it also aims where it points.
   const toPic = e => { const box = c.getBoundingClientRect(); return { x: (e.clientX - box.left) * PW / box.width, y: (e.clientY - box.top) * PH / box.height }; };
   c.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || !twinOn()) return; const p = toPic(e); twin.mouse.x = p.x; twin.mouse.y = p.y; twin.mouse.on = true; twin.mouse.t = R ? R.t : 0; });
   c.addEventListener('pointerdown', e => {
-    if (e.pointerType !== 'mouse' || !twinOn() || state !== 'play') return;
-    const p = toPic(e); twin.mouse.x = p.x; twin.mouse.y = p.y; twin.mouse.on = true; twin.mouse.t = R.t;
+    if (e.pointerType !== 'mouse' || state !== 'play') return;
+    const p = toPic(e), tw = twinOn();
+    if (tw) { twin.mouse.x = p.x; twin.mouse.y = p.y; twin.mouse.on = true; twin.mouse.t = R.t; }
     if (R.heldDrop) { const icon = drops.DROPS.icon; if (p.x / PIC >= icon.x && p.x / PIC <= icon.x + icon.w && p.y / PIC >= icon.y && p.y / PIC <= icon.y + icon.h) return; }
     e.preventDefault();
-    if (e.button === 2) press('slash'); else if (e.button === 0) { twin.mouse.down = true; press('shoot'); }
+    if (e.button === 2) press('slash');
+    else if (e.button === 0) { if (tw) twin.mouse.down = true; else keys.mouseShoot = true; press('shoot'); }
   });
-  addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) twin.mouse.down = false; });
-  c.addEventListener('contextmenu', e => { if (twinOn()) e.preventDefault(); });
+  addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) { twin.mouse.down = false; keys.mouseShoot = false; } });
+  c.addEventListener('contextmenu', e => { if (state === 'play') e.preventDefault(); });
 
   // Touch: a thumb stick on the left, Shoot and Slash on the right. Each finger is tracked, so a thumb can slide between
   // Shoot and Slash; they act as a finger lands on them, and Shoot keeps firing while held.
@@ -1387,10 +1390,11 @@
   zone.addEventListener('pointermove', e => { if (e.pointerId !== stickId) return; e.preventDefault(); stickAt(e.clientX, e.clientY); });
   zone.addEventListener('pointerup', stickOff); zone.addEventListener('pointercancel', stickOff);
   // The aim stick (twin-stick floors only): it floats like the move stick. Held past a small dead zone it aims and fires;
-  // out and back within a fifth of a second it's a flick, and he slashes that way.
+  // out and back within a fifth of a second it's a flick, and he slashes the way it went out (its furthest point, not
+  // where the thumb let go, which on a real flick is back near the middle); a quick tap slashes at the nearest threat.
   const aimZone = $('aimzone'), aimEl = $('aimstick'), aimKnob = $('aimknob');
   const AIM = { r: 44, dead: 10, flickT: .22, flickD: 22 };
-  let aimId = null, aimC = null, aimT0 = 0, aimFar = 0, aimLast = null;
+  let aimId = null, aimC = null, aimT0 = 0, aimFar = 0, aimLast = null, aimPeak = null;
   function aimAt(x, y) {
     let dx = x - aimC.x, dy = y - aimC.y;
     const far = Math.hypot(dx, dy), max = AIM.r * 1.4;
@@ -1398,15 +1402,17 @@
     const zr = aimZone.getBoundingClientRect(), d = Math.hypot(dx, dy), kr = Math.min(1, AIM.r / Math.max(1, d));
     aimEl.style.left = (aimC.x - zr.left) + 'px'; aimEl.style.top = (aimC.y - zr.top) + 'px';
     aimKnob.style.transform = 'translate(' + Math.round(dx * kr) + 'px,' + Math.round(dy * kr) + 'px)';
+    if (d >= aimFar) aimPeak = { dx, dy };
     aimFar = Math.max(aimFar, d); aimLast = { dx, dy };
     if (d > AIM.dead) { twin.aimX = dx / d; twin.aimY = dy / d; twin.aiming = true; } else twin.aiming = false;
   }
   function aimOff(e) {
     if (e && e.pointerId !== aimId) return;
-    if (e && aimLast && performance.now() / 1000 - aimT0 < AIM.flickT && aimFar > AIM.flickD) {
-      const d = Math.hypot(aimLast.dx, aimLast.dy) || 1; twin.flick = { x: aimLast.dx / d, y: aimLast.dy / d }; press('slash');
-    }
-    aimId = null; twin.aiming = false; aimLast = null;
+    const quick = e && aimId !== null && performance.now() / 1000 - aimT0 < AIM.flickT;
+    if (quick && aimPeak && aimFar > AIM.flickD) {
+      const d = Math.hypot(aimPeak.dx, aimPeak.dy) || 1; twin.flick = { x: aimPeak.dx / d, y: aimPeak.dy / d }; press('slash');
+    } else if (quick && aimFar <= AIM.flickD) { twin.flick = { auto: true }; press('slash'); }
+    aimId = null; twin.aiming = false; aimLast = null; aimPeak = null;
     if (aimEl) { aimEl.classList.remove('on'); aimEl.style.left = aimEl.style.top = ''; aimKnob.style.transform = ''; }
   }
   if (aimZone) {
@@ -1414,7 +1420,7 @@
       e.stopPropagation();
       if (aimId !== null) return;
       e.preventDefault();
-      aimId = e.pointerId; aimC = { x: e.clientX, y: e.clientY }; aimT0 = performance.now() / 1000; aimFar = 0; aimZone.classList.add('used');
+      aimId = e.pointerId; aimC = { x: e.clientX, y: e.clientY }; aimT0 = performance.now() / 1000; aimFar = 0; aimPeak = null; aimZone.classList.add('used');
       try { aimZone.setPointerCapture(e.pointerId); } catch (_) {}
       aimEl.classList.add('on'); aimAt(e.clientX, e.clientY);
     });

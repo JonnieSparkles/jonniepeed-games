@@ -14,6 +14,16 @@ var UnrugArt = (function () {
   };
 
   function canvas(w, h) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; }
+  // A sprite with a canvas filter baked in (a hit flash, a tint), made once and kept. Setting ctx.filter while drawing
+  // costs about a full-canvas pass per draw call in software; the 48th Floor ran at a sixth of its speed on it (Oct 13).
+  const TINTS = new Map();
+  function tinted(img, filter) {
+    if (!filter || filter === 'none') return img;
+    let m = TINTS.get(img); if (!m) TINTS.set(img, m = {});
+    if (m[filter]) return m[filter];
+    const c = canvas(img.width, img.height), x = c.getContext('2d'); x.filter = filter; x.drawImage(img, 0, 0);
+    return (m[filter] = c);
+  }
   function paint(w, h, layers) {
     const cv = canvas(w, h), g = cv.getContext('2d');
     for (const [rows, ox, oy] of layers) rows.forEach((r, y) => {
@@ -316,7 +326,7 @@ var UnrugArt = (function () {
   const OFFICE_DESK = sketch(40, 12, (put, box) => { box(0, 3, 40, 3, 'N'); box(0, 6, 40, 6, 'n'); box(12, 0, 12, 3, 'C'); box(14, 1, 8, 1, 'K'); });
   const CERT = sketch(10, 8, (put, box) => { box(0, 0, 10, 8, 'K'); box(1, 1, 8, 6, 'P'); box(2, 3, 6, 1, 'J'); box(2, 5, 4, 1, 'J'); });
 
-  return {
+  return { tinted,
     PAL, canvas, paint, spr, rect, px, line, disc, poly, arcE, txt, otxt, textWidth, bubble,
     POSES, POSE_W, POSE_H, POSE_FEET, BULL_K, MUZZLE, CARPF, CARP_HIT, CARP_CUT, CARP_EYES, TEMPS, TEMP_RUG, uw, uh, logo, WORK_KINDS, work, OFFICE_DESK, CERT, GHOST, BULL_SOUL, SOUL_SALUTE, HEART, HEART_EMPTY, WAD, BUNDLE, STAPLE, BOX, COOLER, STACK, COFFEE, SPREAD, CHAIR, CHAIRS, FLASH, BLASTER, PLANE
   };

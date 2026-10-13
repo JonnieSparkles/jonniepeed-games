@@ -112,6 +112,7 @@
           cables: F.st === 'fight' ? floor.cables().map(function (c) { return { id: idOf(F.machines[c.line * 5]) + ':' + c.kind, line: c.line, kind: c.kind, x: (c.x0 + c.x1) / 2, y: (c.y0 + c.y1) / 2 }; }) : [],
           pickups: td.pickups.map(function (p) { return { id: idOf(p), kind: p.kind, x: p.x, y: p.y }; }),
           cranes: F.crane.map(function (c, i) { return { st: c.st, x: c.x, dir: c.dir, y: floor.LINES[i].y + floor.F48.crane.dy }; }),
+          qc: F.qc ? { n: F.qc.n, dir: F.qc.dir, pos: F.qc.pos, sgn: F.qc.sgn, g0: F.qc.g0, g1: F.qc.g1 } : null,
           tangle: b.tangle || 0,
           whip: F.collapse && F.collapse.phase === 'whip' ? F.collapse.reserve.filter(function (k) { return !k.broken; }).map(function (k) { return { x: k.x }; }) : null,
           lobby: F.lobby ? { t: F.lobby.t, open: F.lobby.ding && F.lobby.t > floor.F48.lobby.dingAt + .4 + floor.F48.lobby.doorsT, doorU: floor.F48.lobby.doorU, u: b.u } : null };

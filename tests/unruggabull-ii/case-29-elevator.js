@@ -82,7 +82,10 @@
     let full = R.souls; R.elevator.crate = null; R.elevator.t = T.crate; tick(1 / 60); bull.u = R.elevator.crate.u; tick(1 / 60);
     check(R.elevator.crate.gave === 'souls', 'full hearts: bonus souls'); tick(.5); check(R.souls === full + 20, 'twenty bonus souls');
     // walk out the doors: his back to us, onto the roof with what he has
-    bull.u = .5; at(T.doors + floor.ELEVATOR.exitAfter + .1); check(!R.arena.out, 'he walks out only from the doorway');
+    // in the doorway early, he waits for the exchange: FLOOR? then ROOF., then out (owner, Oct 13)
+    bull.u = 0; at(T.doors + floor.ELEVATOR.exitAfter + .1); check(!R.arena.out, 'on the long ride he waits in the doorway for the exchange');
+    at(T.doors + floor.ELEVATOR.ask.roof + .05); check(R.talk && R.talk.text === 'ROOF.' && !R.arena.out, 'FLOOR? and ROOF. play before he leaves');
+    bull.u = .5; at(T.doors + floor.ELEVATOR.ask.out + .1); check(!R.arena.out, 'he walks out only from the doorway');
     bull.u = 0; tick(.1); check(R.arena.out > 0 && R.arena.locked, 'in the doorway he walks out');
     full = R.souls; tick(1.2);
     check(R.stage === 'roof' && R.roof.state === 'elevator' && R.roof.fromRide && R.souls === full && R.roof.caught === full && R.hearts === 5, 'the roof starts its lead-in with the carried souls');

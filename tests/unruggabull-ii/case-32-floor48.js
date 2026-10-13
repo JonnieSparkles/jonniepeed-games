@@ -32,6 +32,17 @@
     bull.cd = 0; twin.flick = { x: 1, y: 0 }; press('slash'); tick(.05);
     check(R.td.thrown[0] && R.td.thrown[0].friendly && R.charge === charge + TUNE.deflectCharge, 'the katana knocks a bobbin back for charges');
     tick(1.2); check(a2.dead, 'the bobbin goes back to whoever threw it');
+    // deflects made easier (owner, Oct 13): a bobbin close behind him is caught by a slash aimed the other way, and a tap
+    // (no direction) slashes at the nearest bobbin
+    R.td.thrown.length = 0; td.clearThreats('test');
+    const pb = { x: bull.x - 40, y: bull.y, h: 18, vx: 100, vy: 0, src: null, friendly: false, dead: false, r: 0, t: 0 }; R.td.thrown.push(pb);
+    bull.cd = 0; twin.flick = { x: 1, y: 0 }; press('slash'); tick(.03);
+    check(pb.friendly, 'a slash catches a bobbin close behind him');
+    R.td.thrown.length = 0;
+    const tb = { x: bull.x - 30, y: bull.y - 30, h: 18, vx: 70, vy: 70, src: null, friendly: false, dead: false, r: 0, t: 0 }; R.td.thrown.push(tb);
+    bull.cd = 0; twin.flick = { auto: true }; press('slash'); tick(.03);
+    check(tb.friendly && bull.sx < 0 && bull.sy < 0, 'a tap slashes at the nearest bobbin');
+    R.td.thrown.length = 0; tick(.4); bull.x = 650; bull.y = 420; bull.kx = bull.ky = 0;
     // bolts pass through bobbins: only the katana answers them; a thrower winds up first
     const a3 = enemy('armored', 0, -140); a3.nextThrow = 0; R.td.thrown = []; tick(.1);
     check(a3.wind > 0 && !R.td.thrown.length, 'an armored carpshit winds up before it throws');
@@ -116,6 +127,38 @@
     fresh(); bull.inv = 1e9; R.td.pickups.length = 0;
     F.breakMachine(machine(0, 'press'), 'shot'); tick(.05);
     check(R.td.pickups.some(p => p.kind === 'rapid'), 'the first press broken always drops Rapid');
+    // chain reactions: a line going down end to end is a chain, called out, and pays its bonus when it ends
+    fresh(); bull.inv = 1e9;
+    F.breakMachine(machine(1, 'loom'), 'shot');
+    let called = 0; for (let i = 0; i < 120; i++) { update(1 / 60); if (Q().callout) called = Math.max(called, Q().callout.n); }
+    check(called >= F48.combo.min, 'a line coming down end to end is called out as a chain (x' + called + ')');
+    tick(1);
+    check(!Q().combo && Q().bestChain >= F48.combo.min, 'the chain ends and its best is kept for the card');
+    // p(Loom)'s QUALITY CONTROL: after a line goes down, a laser sweeps with a gap; in the gap it passes him
+    const clearAll = () => { td.clearThreats('test'); R.td.thrown.length = 0; };
+    tick(F48.qc.delay - 1.6);
+    check(Q().qc && Q().qc.dir === 'x' && R.talk && R.talk.text === 'QUALITY CONTROL.', 'a line down: p(Loom) calls quality control');
+    bull.inv = 0; R.hearts = 5; bull.x = 640;
+    for (let i = 0; i < 60 * 12 && Q().qc; i++) { bull.y = (Q().qc.g0 + Q().qc.g1) / 2; clearAll(); update(1 / 60); }
+    check(!Q().qc && R.hearts === 5, 'standing in the gap, the sweep passes him');
+    // the second line: the laser comes down the room; out of the gap it costs a heart
+    const ln2 = [0, 2].find(i => !Q().down[i]); F.breakMachine(machine(ln2, 'loom'), 'shot'); bull.inv = 1e9;
+    for (let i = 0; i < 60 * 4 && !Q().qc; i++) { clearAll(); update(1 / 60); }
+    check(Q().qc && Q().qc.dir === 'y', 'the second sweep comes down the room');
+    bull.inv = 0; R.hearts = 5; bull.y = 420;
+    for (let i = 0; i < 60 * 12 && Q().qc && R.hearts === 5; i++) { const L = Q().qc; bull.x = L.g1 + 60 < 780 ? L.g1 + 60 : L.g0 - 60; bull.y = 420; clearAll(); update(1 / 60); }
+    check(R.hearts === 4 && R.lastCause === 'laser', 'out of the gap, the laser costs a heart');
+    check(state === 'play', 'still playing');
+    // the last loom overloads: double damage, and chunks blow off it at 75/50/25%
+    fresh(); bull.inv = 1e9;
+    F.breakMachine(machine(0, 'loom'), 'shot'); F.breakMachine(machine(1, 'loom'), 'shot'); tick(.5);
+    const last = machine(2, 'loom'), sl0 = R.souls; last.hp = last.max;
+    { const hp1 = last.hp; F.hurtMachine(last, 1, 'shot'); check(last.hp === hp1 - F48.overload.mult, 'the last loom takes double damage'); }
+    last.hp = Math.round(last.max * .76); F.hurtMachine(last, 4, 'shot');
+    check(last.stage === 1 && R.souls >= sl0 + F48.overload.souls, 'a chunk blows off it at 75%, freeing souls');
+    last.hp = Math.round(last.max * .3); F.hurtMachine(last, 30, 'shot');
+    check(last.stage === 3, 'two stages passed in one hit both go');
+    check(machine(0, 'loom').dead && !Q().machines.filter(m => m.kind === 'loom' && m.line !== 2).some(m => m.stage), 'only the last loom breaks up in stages');
     // the presses: the shadow, then the slam
     fresh(); const pr = machine(0, 'press'); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; bull.inv = 0; R.hearts = 5;
     let warned = false; for (let i = 0; i < 60 * 3 && R.hearts === 5; i++) { update(1 / 60); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; if (pr.warn > 0) warned = true; }
