@@ -523,7 +523,7 @@
     else if (Snd.musicState.playing === id) Snd.stems(stems);
     else Snd.music(id, { boundary: 'bar', stems });
   }
-  const opt = { scene: 'rug', cue: 'neon', fanfare: 0, door: 'combo', entry: 'beat', slow: false };
+  const opt = { scene: 'rug', cue: 'flight', fanfare: 3, door: 'combo', entry: 'beat', slow: false };
   let scene = null, t = 0, playing = false, last = 0, nextCue = 0, drawn = 0;
   function build() { scene = (opt.scene === 'rug' ? rugScene : doorScene)(Object.assign({}, opt)); $('scrub').max = scene.end.toFixed(2); }
   function frame() {

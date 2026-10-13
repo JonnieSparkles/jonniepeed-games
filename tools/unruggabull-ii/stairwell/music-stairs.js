@@ -135,6 +135,39 @@ window.UnrugStairsMusic = (function () {
         Z
       } };
   }
+  // 4, "Over the Top", cut for Flight Risk: the same climbing hits, but up Flight Risk's own stairs (G, A, C, D) to a
+  // big E major chord, at Flight Risk's tempo so the cue slams back in on the beat, with a roll into its downbeat.
+  function fanfare4(k) {
+    const s = l => shift(l, k);
+    const two = (a, b) => `${a} . ${a} - - - - - ${b} . ${b} - - - - -`;
+    const pw = (a, b) => [{ note: a, chord: [shift(a, 7), shift(a, 12)], len: 1 }, '.', { note: a, chord: [shift(a, 7), shift(a, 12)], len: 6 },
+      { note: b, chord: [shift(b, 7), shift(b, 12)], len: 1 }, '.', { note: b, chord: [shift(b, 7), shift(b, 12)], len: 6 }];
+    return { name: 'Fanfare 4: Over the Top, up the stairs', bpm: 162, swing: 0, loop: 3, order: ['A', 'B', 'C', 'Z'], stems: ['all'],
+      patterns: {
+        A: { bars: 1, channels: {
+          lead: { stem: 'all', wave: 'pulse', duty: .5, vol: .1, gate: .9, notes: s(two('G5', 'A5')) },
+          harm: { stem: 'all', wave: 'pulse', duty: .25, vol: .055, gate: .9, notes: s(two('D5', 'E5')) },
+          harm2: { stem: 'all', wave: 'pulse', duty: .125, vol: .04, gate: .9, notes: s(two('B4', 'C#5')) },
+          pow: { stem: 'all', wave: 'sawtooth', vol: .045, gate: .8, drive: true, notes: pw(s('G2'), s('A2')) },
+          bass: { stem: 'all', wave: 'triangle', vol: .3, gate: .85, notes: s(two('G2', 'A2')) },
+          dr: { stem: 'all', wave: 'noise', vol: .55, notes: 'c . K . . . T T c . K . . . T T' } } },
+        B: { bars: 1, channels: {
+          lead: { stem: 'all', wave: 'pulse', duty: .5, vol: .1, gate: .9, notes: s(two('C6', 'D6')) },
+          harm: { stem: 'all', wave: 'pulse', duty: .25, vol: .055, gate: .9, notes: s(two('G5', 'A5')) },
+          harm2: { stem: 'all', wave: 'pulse', duty: .125, vol: .04, gate: .9, notes: s(two('E5', 'F#5')) },
+          pow: { stem: 'all', wave: 'sawtooth', vol: .05, gate: .8, drive: true, notes: pw(s('C3'), s('D3')) },
+          bass: { stem: 'all', wave: 'triangle', vol: .3, gate: .85, notes: s(two('C3', 'D3')) },
+          dr: { stem: 'all', wave: 'noise', vol: .55, notes: 'c . K . . . T T c . K . T T T T' } } },
+        C: { bars: 1, channels: {
+          lead: { stem: 'all', wave: 'pulse', duty: .5, vol: .11, gate: 1, notes: [{ note: s('E6'), len: 12, vibrato: { rate: 7, depth: .016, delay: .2 } }, '.', '.', '.', '.'] },
+          lead2: { stem: 'all', wave: 'pulse', duty: .25, vol: .06, gate: 1, notes: [held(s('G#5'), [s('B5')], 12), '.', '.', '.', '.'] },
+          choir: { stem: 'all', wave: 'sawtooth', vol: .03, gate: 1, notes: [held(s('E4'), [s('G#4'), s('B4'), s('E5')], 12), '.', '.', '.', '.'] },
+          pow: { stem: 'all', wave: 'sawtooth', vol: .06, gate: 1, drive: true, notes: [held(s('E2'), [s('B2'), s('E3')], 12), '.', '.', '.', '.'] },
+          bass: { stem: 'all', wave: 'triangle', vol: .34, gate: .95, notes: s('E2 - - - - - - - - - - - B1 C#2 D#2 D#2') },
+          dr: { stem: 'all', wave: 'noise', vol: .6, notes: 'c . . . . . . . . . . . S S S S' } } },
+        Z
+      } };
+  }
   // Each cue, section by section: which track plays and on which stems. Moving between sections lands on the next bar.
   const STEMS = { 1: ['drums', 'bass', 'lead'], 2: ['drums', 'bass', 'lead', 'harmony'], 3: ['drums', 'bass', 'lead', 'harmony', 'power'] };
   const CUES = {
@@ -146,5 +179,5 @@ window.UnrugStairsMusic = (function () {
   const KEYSHIFT = { neon: -2, flight: 0 };   // the fanfares sit in the cue's key: D major for Neon, E for Flight Risk
   // a fanfare's length in seconds: every bar before the silent one
   const seconds = tr => tr.order.slice(0, -1).reduce((n, p) => n + tr.patterns[p].bars * 16, 0) * 60 / tr.bpm / 4;
-  return { CUES, KEYSHIFT, FANFARES: [fanfare1, fanfare2, fanfare3], seconds, shift, STEMS };
+  return { CUES, KEYSHIFT, FANFARES: [fanfare1, fanfare2, fanfare3, fanfare4], seconds, shift, STEMS };
 })();
