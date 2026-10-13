@@ -11,7 +11,12 @@
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; if (R.event && R.event.souls) { R.event.souls = []; R.event.obs = []; } };
   RUN.force = 606; startRun(); quiet(); bull.inv = 1e9;
-  check(Snd.track === 'floorHall' && stems() === 'drums,bass,lead', 'Accounts Payable plays the shuffle (its cold open first): drums, bass and lead');
+  check(Snd.track === 'floorOpen' && stems() === 'drums,bass,lead', 'Accounts Payable opens on the office muzak');
+  // the band crashes in on the next beat when the first bad guy shows: here the first carpshit coming into range
+  R.flies.push({ u: 0, z: TUNE.reach - .01, h: .42, hp: 2, ph: 0, hit: 0, dead: false }); update(1 / 60);
+  const drop = lastMusic();
+  check(Snd.track === 'floorHall' && drop.o.boundary === 'beat' && stems() === 'drums,bass,lead', 'the drop: the shuffle on the next beat, drums, bass and lead');
+  R.flies = [];
 
   // charges: 20 shots, then a click and a wait; one back every half second
   check(R.charge === TUNE.charges, 'the blaster starts full');
@@ -69,11 +74,15 @@
   bull.inv = 1e9; R.event = null; R.beat = 0; R.beatT = BEATS[0].time; update(1 / 60);
   check(R.event && R.event.kind === 'move' && Snd.track === 'floorHall' && stems() === 'drums,bass,lead,harmony', 'moving day adds the harmony');
   step(TUNE.moveT + .2);
-  check(R.beat === 1 && Snd.track === 'floorHall' && stems() === 'drums,bass,lead,harmony,power', 'All Staff adds the power, on the same track');
+  const staff = lastMusic();
+  check(R.beat === 1 && Snd.track === 'floorStaff' && staff.o.boundary === 'bar' && stems() === 'drums,bass,lead,harmony,power', 'All Staff steps up to its own section on the next bar, the full band');
   check(!calls.some(c => ['tower', 'staff', 'dark', 'copy', 'shred'].includes(c.music)), 'the old section tracks never play');
   check(R.pickups.some(pk => pk.kind === 'coffee') && R.pickups.some(pk => pk.kind === 'spread'), 'a coffee and a Spread Shot follow moving day');
   R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
-  check(R.event && R.event.kind === 'dark' && Snd.track === 'floorHall' && stems() === 'dark', 'lights out drops to the muzak over the PA');
+  check(R.event && R.event.kind === 'rush' && Snd.track === 'floorRush' && lastMusic().o.boundary === 'bar' && stems() === 'drums,bass,lead,harmony,power,heavy', 'rush hour goes heavy on the next bar');
+  R.flies = []; R.event.t = R.event.dur; update(1 / 60); step(.2);
+  const dark = lastMusic();
+  check(R.event && R.event.kind === 'dark' && Snd.track === 'floorHall' && dark.o.boundary === 'bar' && stems() === 'dark', 'lights out drops to the muzak over the PA');
   step(TUNE.darkT);
   const copy = lastMusic();
   check(R.beat === 2 && Snd.track === 'floorCopy' && copy.o.boundary === 'bar' && !copy.o.slam && stems() === 'drums,bass,lead,harmony,power', 'the copy room switches to its step up on the next bar, the full band back');

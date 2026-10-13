@@ -19,6 +19,8 @@
     { "label": "hearts lost", "key": "hit.amount" },
     { "label": "lost: paper", "key": "hit.amount:cause=wad" },
     { "label": "lost: carpshits", "key": "hit.amount:cause=carpshit" },
+    { "label": "lost: rush hour", "key": "hit.amount:cause=rush" },
+    { "label": "rush hour: untouched bonus", "key": "soul.amount:source=rush" },
     { "label": "lost: formations", "key": "hit.amount:cause=formation" },
     { "label": "lost: boxes", "key": "hit.amount:cause=box" },
     { "label": "lost: chairs", "key": "hit.amount:cause=chairs" },

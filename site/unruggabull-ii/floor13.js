@@ -27,12 +27,22 @@ var UnrugFloor13 = function (core) {
   const STEMS = { hall: ['drums', 'bass', 'lead'], move: ['drums', 'bass', 'lead', 'harmony'], staff: ['drums', 'bass', 'lead', 'harmony', 'power'],
     dark: ['dark'], heavy: ['drums', 'bass', 'lead', 'harmony', 'power', 'heavy'] };
   const BEATS = [
-    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: { track: 'floorHall', stems: STEMS.hall }, after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: { stems: STEMS.staff }, after: 'dark' },
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: { track: 'floorOpen', stems: STEMS.hall }, after: 'move' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: { track: 'floorStaff', stems: STEMS.staff }, after: ['rush', 'dark'] },
     { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: { track: 'floorCopy', stems: STEMS.staff } }
   ];
   // A beat's music: a new track on the next bar, or the playing one's stems on the next bar.
   function floorMusic(m) { if (m.track) Snd.music(m.track, { boundary: 'bar', stems: m.stems }); else Snd.stems(m.stems); }
+  // The floor opens on the office muzak, looping, and the band crashes in on the next beat when the first bad guy shows:
+  // the first paper wad thrown, or the first carpshit close enough to shoot (or after TUNE.dropBy seconds regardless).
+  // Music only: it reads the run, never changes it.
+  let dropped = true;
+  function musicDrop() {
+    if (dropped || R.phase !== 'hall') return;
+    if (R.projs.some(p => !p.friendly) || R.flies.some(f => f.z < TUNE.reach) || R.t >= TUNE.dropBy) {
+      dropped = true; Snd.music('floorHall', { boundary: 'beat', stems: R.event && R.event.kind === 'move' ? STEMS.move : STEMS.hall });
+    }
+  }
   const beat = () => BEATS[R.beat];
   // ---------- the sets: each section's look and dressing (sets13.js) ----------
   const SETS = UnrugSets({ VX, HY, sc, PX, FY, CY, YH });
@@ -40,7 +50,7 @@ var UnrugFloor13 = function (core) {
   // the section now: a beat, or the event in it; the copy room's set carries on to the Shredder
   function secNow() {
     if (R.phase !== 'hall') return 'copy';
-    if (R.event) return R.event.kind === 'move' ? 'move' : 'dark';
+    if (R.event) return R.event.kind === 'move' ? 'move' : R.event.kind === 'rush' ? 'staff' : 'dark';
     return ['ap', 'staff', 'copy'][R.beat];
   }
   // Each slot gets its section the first time it comes into view, from where the sections should begin (what's left
@@ -53,7 +63,8 @@ var UnrugFloor13 = function (core) {
     let i = SET_ORDER.indexOf(secNow()), end = R.dist;
     const E = R.event, B = beat();
     end += R.phase !== 'hall' ? Infinity : E ? Math.max(0, E.dur - E.t) * TUNE.scroll : B.after ? Math.max(0, B.time - R.beatT) * TUNE.scroll : Infinity;
-    const LEN = { ap: BEATS[0].time, move: TUNE.moveT, staff: BEATS[1].time, dark: TUNE.darkT, copy: Infinity };
+    if (!E && R.phase === 'hall' && secNow() === 'staff') end += TUNE.rushT * TUNE.scroll;   // rush hour keeps All Staff's set
+    const LEN = { ap: BEATS[0].time, move: TUNE.moveT, staff: BEATS[1].time + TUNE.rushT, dark: TUNE.darkT, copy: Infinity };
     while (w >= end && i < SET_ORDER.length - 1) { i++; end += LEN[SET_ORDER[i]] * TUNE.scroll; }
     sec = SET_ORDER[i]; setMemo.set(key, sec);
     return sec;
@@ -124,7 +135,7 @@ var UnrugFloor13 = function (core) {
   }
   // A sign drops from the ceiling at the start of each beat and event, so you can read where you are.
   // Styles: the beats' blue, moving day's hazard yellow, and lights out's neon, which glows in the dark.
-  const SIGN_STYLE = { beat: ['#2a3c6a', '#fff6e2'], move: ['#e8b030', '#1a1418'], neon: ['#140f24', '#7fd4ff'] };
+  const SIGN_STYLE = { beat: ['#2a3c6a', '#fff6e2'], move: ['#e8b030', '#1a1418'], neon: ['#140f24', '#7fd4ff'], alarm: ['#c81e14', '#fff6e2'] };
   function addSign(w, text, style) {
     const [bg, fg] = SIGN_STYLE[style || 'beat'];
     const img = A.canvas(A.textWidth(text) + 8, 11), b = img.getContext('2d');
@@ -159,13 +170,20 @@ var UnrugFloor13 = function (core) {
     // File boxes sit on the floor: jump them or step around.
     if (B.boxes && !ev) {
       R.nextBox -= dt;
-      if (R.nextBox <= 0) {
+      if (R.nextBox <= 0 && !wakeSoon()) {
         // a low cubicle desk sticking out from one side into the aisle: one lane deep, or two, right up to the runner
         const i = Math.floor(rnd() * 4), sd = i < 2 ? -1 : 1, inner = [-.3, -.02, .02, .3][i];
         R.boxes.push({ w: R.dist + 1.05, s: sd, inner, u: (inner + sd * DESK_OUT) / 2, hit: 0 });
         R.nextBox = rr(3.5, 5.5);
       }
     }
+  }
+  // In the copy room, no new desk once the Shredder could wake before it has passed (about five seconds down the hall),
+  // so none is left standing in front of it.
+  function wakeSoon() {
+    const B = beat();
+    if (!B.pulls) return false;
+    return shredderZ() < 2.2 || R.beatT > B.max - 6 || (R.souls >= TUNE.goal - 10 && R.beatT > B.minT - 6);
   }
   // Carpshits from the all-staff list arrive in formations: a V, a line with one gap, or a snake.
   function spawnFormation(kind) {
@@ -179,8 +197,16 @@ var UnrugFloor13 = function (core) {
   // sign instead of a banner, so nothing big covers the hall.
   function startEvent(kind) {
     const C = COURSES[kind];
-    R.event = { kind: C ? 'move' : kind, t: 0, dur: C ? C.dur : TUNE.darkT };
-    if (C) {
+    R.event = { kind: C ? 'move' : kind, t: 0, dur: C ? C.dur : kind === 'rush' ? TUNE.rushT : TUNE.darkT };
+    if (kind === 'rush') {
+      // rush hour: no temps, no furniture, just carpshits pouring down the hall, and a Spread Shot to meet them with
+      Object.assign(R.event, { nextWave: TUNE.rush.first, nextForm: TUNE.rush.first + 1.4, formN: 0, souls0: R.souls, hearts0: R.hearts });
+      addSign(.75, 'RUSH HOUR', 'alarm');
+      addPickup('spread', .8, rr(-.25, .25));
+      Snd.play('warn'); Snd.music('floorRush', { boundary: 'bar', stems: STEMS.heavy });
+      live('Rush hour: carpshits flood the hall.');
+      bark('rush');
+    } else if (C) {
       // moving day: no one to shoot, and a course of furniture to jump and duck, one move at a time
       Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 1.8, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
@@ -191,7 +217,7 @@ var UnrugFloor13 = function (core) {
       // carpshits come out of the dark, only their eyes showing; everything freed in the dark counts double
       R.event.nextFly = 1.2; R.event.nextForm = TUNE.darkFormEvery; R.event.formN = 0; R.event.nextSwitch = 1.6; R.event.flash = 0; R.switches = [];
       addSign(.75, 'LIGHTS OUT ×2', 'neon');
-      Snd.play('dark'); Snd.stems(STEMS.dark); live('Lights out. Souls freed in the dark count double.');
+      Snd.play('dark'); Snd.music('floorHall', { boundary: 'bar', stems: STEMS.dark }); live('Lights out. Souls freed in the dark count double.');
       bark('dark');
       spawnFormation('snake');
     }
@@ -251,6 +277,25 @@ var UnrugFloor13 = function (core) {
         R.switches = R.switches.filter(sw => sw.w - R.dist > .05 && !sw.hit);
       }
       if (E.kind === 'move') updateMove(E, dt);
+      if (E.kind === 'rush') {
+        // waves of carpshits, two or three at a time (three in the second half), and a formation every few seconds
+        E.nextWave -= dt;
+        if (E.nextWave <= 0 && E.t < E.dur - 1.5) {
+          const n = E.t < E.dur / 2 ? TUNE.rush.n[0] : TUNE.rush.n[1];
+          for (let i = 0; i < n; i++) R.flies.push({ u: rr(-.65, .65), z: 1 + i * .06, h: .42, hp: 1, ph: rnd() * 6, hit: 0, dead: false, cause: 'rush', fast: TUNE.rush.fast });
+          E.nextWave = rr(TUNE.rush.gap[0], TUNE.rush.gap[1]);
+        }
+        E.nextForm -= dt;
+        if (E.nextForm <= 0 && E.t < E.dur - 3) { spawnFormation(['v', 'snake', 'line'][E.formN++ % 3]); E.nextForm = TUNE.rush.formEvery; }
+        if (!E.scored && E.t >= E.dur - TUNE.rush.score) {
+          // how many it took down, and a bonus for getting through without a scratch, before the lights go
+          E.scored = true;
+          const got = R.souls - E.souls0, clean = R.hearts >= E.hearts0;
+          if (clean) for (let i = 0; i < TUNE.rush.clean; i++) free(PX(bull.u, bull.bz) + fxr(-12, 12), YH(bull.bz, .3) + fxr(-6, 6), 'rush', 'clean');
+          R.fx.push({ k: 'big', text: clean ? 'UNTOUCHED +' + TUNE.rush.clean : 'RUSH HOUR +' + got, x: 120, y: 44, t: 0, dur: 1.2 }); Snd.play('wipe');
+          live(clean ? 'Rush hour over, untouched.' : 'Rush hour over.');
+        }
+      }
       if (E.t >= E.dur) {
         if (E.kind === 'dark') Snd.play('lights');
         if (E.kind === 'move' && E.clean) {
@@ -273,6 +318,7 @@ var UnrugFloor13 = function (core) {
     } else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) { R.evQ = [].concat(B.after); startEvent(R.evQ.shift()); }
     else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
     spawnHall(dt);
+    musicDrop();
     // office life now and then: a phone down the hall, a copier in the copy room (sound only, so not from the run's seed)
     R.ambT -= dt;
     if (R.ambT <= 0 && !R.event) { Snd.play(beat().station === 'copier' ? 'printer' : 'phone'); R.ambT = fxr(10, 18); }
@@ -395,7 +441,7 @@ var UnrugFloor13 = function (core) {
               for (let i = 0; i < 16; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-70, 70), vy: fxr(-90, -10), t: 0, dur: fxr(.8, 1.3) });
             }
             emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash'); bark('smash');
-            if (R.armed === false && b.st === 'fight') rollBack(TUNE.roll.dur);   // win the volley: the rug rolls back with your blaster
+            if (R.armed === false && b.st === 'fight') { rollBack(TUNE.roll.dur); handBack(); }   // win the volley: the blaster's back in his hands
             popText('SMASH! -' + dmg, 120, BACK.y0 + 30, '#ffd44a'); live('Smash! The Shredder misses the return.');
             for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
           } else if (b.st === 'fight') {
@@ -539,7 +585,7 @@ var UnrugFloor13 = function (core) {
   }
   // Phase 3's power surge: a flash of static that knocks the blaster out of his hands and up the rug. No dodging it:
   // now it's a volley match until a smash rolls the rug back with the blaster on it.
-  // Once the two souls are in the gun, they hold it: the surge still comes, but it breaks on them in a shower of gold.
+  // Once the soul is in the gun, it holds it: the surge still comes, but it breaks on them in a shower of gold.
   const soulsHold = () => R.hint && R.hint.landed >= TUNE.soulHint.souls;
   function fizzle() {
     shove(6);
@@ -560,6 +606,17 @@ var UnrugFloor13 = function (core) {
     Snd.play('surge'); Snd.play('disarm'); bark('disarm');
     if (!R.events.surgeHint) { R.events.surgeHint = true; R.banner = { text: 'WIN A RALLY FOR IT', t: 0, dur: 2.6, pull: true }; }
     live('Power surge! The blaster flies up the rug. Win a rally to get it back.');
+  }
+  // A won rally while disarmed: the blaster flies back down the rug into his hands (and, the first time, the souls' hint
+  // starts), so the hint can't be missed by finishing the Shredder before walking onto the gun.
+  function handBack() {
+    for (const pk of R.pickups) if (pk.kind === 'blaster') pk.got = true;
+    R.pickups = R.pickups.filter(pk => !pk.got);
+    R.armed = true; R.charge = TUNE.charges; Snd.play('ready'); emit('pickup', { item: 'blaster' });
+    const m = muzzleXY(); popText('GOT IT!', m.x, m.y - 10, '#ffd44a'); live('Blaster back.');
+    for (let j = 0; j < 10; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-5, 5), y: m.y + fxr(-5, 5), s: .8, col: j % 2 ? '#ffd44a' : '#ffffff', t: 0, dur: .4, a: Math.random() * 6 });
+    if (R.banner && R.banner.text === 'BLASTER DOWN!') R.banner = null;
+    blasterBack();
   }
   // The rug rolls back toward you: after a smash (bringing the blaster), or as its rewind attack.
   function rollBack(dur) {
@@ -626,6 +683,8 @@ var UnrugFloor13 = function (core) {
     if (b.st !== 'fight') return;
     // its last stand: the blaster can wear it down only so far; the finish has to be its own paper sent back at it
     if ((by || 'blaster') === 'blaster') n = Math.max(0, Math.min(n, b.hp - TUNE.lastStand));
+    // and nothing skips the last stand: a big hit stops there, so the finish is always its own last rally
+    else if (!b.lastStand && b.hp > TUNE.lastStand) n = Math.min(n, b.hp - TUNE.lastStand);
     if (n <= 0) { b.tick = .05; return; }
     emit('boss_damage', { amount: n, by: by || 'blaster' });
     b.hp = Math.max(0, b.hp - n);
@@ -634,6 +693,8 @@ var UnrugFloor13 = function (core) {
       b.lastStand = true; b.atk = Math.max(b.atk, 2); b.shudder = 1.6; R.freeze = Math.max(R.freeze, .12); R.shake = Math.max(R.shake, .4);
       for (let i = 0; i < 14; i++) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 8, BACK.x1 - 8), y: fxr(BACK.y0 + 10, BACK.y1 - 8), t: -i * .06, dur: fxr(.8, 1.3) });
       Snd.duck && Snd.duck(1.8);
+      // still disarmed: the blaster comes back for the finish (and the soul with it); never disarmed yet: the soul comes now
+      if (R.armed === false) handBack(); else if (!R.events.soulHint) startHint();
     }
     if (n >= 2) { b.flash = .07; shove(-Math.min(12, 2 + n * .6)); } else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
     if (b.hitSnd <= 0) { Snd.play('bosshit'); b.hitSnd = .09; }
@@ -693,7 +754,7 @@ var UnrugFloor13 = function (core) {
       if (b.dark.t >= b.dark.dur) { b.dark = null; Snd.play('lights'); if (b.st === 'fight') Snd.stems(STEMS.heavy); }
     }
     if (b.st !== 'fight') return;
-    if (b.surgeAt > 0 && b.jam <= 0) { const was = b.surgeAt; b.surgeAt -= dt; if (was >= .9 && b.surgeAt < .9 && R.armed !== false) Snd.play('rev'); if (b.surgeAt <= 0 && R.armed !== false) surge(); }
+    if (b.surgeAt > 0 && b.jam <= 0) { const was = b.surgeAt; b.surgeAt -= dt; if (was >= .9 && b.surgeAt < .9 && R.armed !== false) Snd.play('rev'); if (b.surgeAt <= 0 && R.armed !== false && !b.lastStand) surge(); }
     const ph = b.hp > 66 ? 1 : b.hp > 33 ? 2 : 3;
     if (ph !== b.ph) {
       b.ph = ph; b.atk = 1.6; b.atkN = 0; b.volley = null; b.marathonDone = false;
@@ -747,7 +808,7 @@ var UnrugFloor13 = function (core) {
   }
   function blowUp() {
     R.shake = .6; R.white = .15;
-    if (!soulsInGun()) riseAll();   // with the two souls in the gun, the rest rise with them after their goodbye
+    if (!soulsInGun()) riseAll();   // with the soul in the gun, the rest rise with it after its goodbye
     for (let i = 0; i < 24; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-70, 70), vy: fxr(-90, -10), t: 0, dur: fxr(.8, 1.4) });
     Snd.play('explode');
     talk('RUG NOT FOUND.', 'shredder');
@@ -758,12 +819,12 @@ var UnrugFloor13 = function (core) {
   }
   // ---------- the souls' hint ----------
   // A glimpse of the mega stream, saved for the roof. Nothing announces it: the first time he wins the blaster back,
-  // two souls leave the counter and fly into the gun, each landing with one soft bell and adding a stream, and the
-  // streams stay with him for the rest of the fight (they pause while the blaster's knocked away and come back with it).
-  // The counter keeps its souls; the streams do normal damage and cost nothing extra.
-  // It takes its time, so it registers: a beat before the first soul lifts off the counter, the souls slow and far
-  // apart, the music ducked under the bells, the Shredder and the runner holding off until the last one lands, and a
-  // tiny hitch in time as each one hits the gun.
+  // one soul leaves the counter and flies into the gun, landing with one soft bell (D5) and adding a stream beside the
+  // bolt, straight, never bending in; the stream stays with him for the rest of the fight (it pauses while the blaster's
+  // knocked away and comes back with it). The counter keeps its souls; the stream does normal damage and costs nothing
+  // extra. The bells count up the climb: one here, two on the 48th Floor (D, F), three on the roof (D, F, A).
+  // It takes its time, so it registers: a beat before the soul lifts off the counter, slow on a wide arc, the music
+  // ducked under the bell, the Shredder and the runner holding off until it lands, and a tiny hitch in time as it hits the gun.
   function startHint() {
     const T = TUNE.soulHint;
     R.events.soulHint = true;
@@ -774,16 +835,16 @@ var UnrugFloor13 = function (core) {
     Snd.duck && Snd.duck(arrive + .5);
   }
   const soulsInGun = () => !!(R.hint && R.hint.streams > 1);
-  // Goodbye (the owner's idea, Oct 12): when the Shredder's beaten, after its last line, the two souls leave the gun,
-  // come round in front of him at head height, salute, and one says "GOOD LUCK." with a bell; then they float up and
-  // away, and every soul freed on the floor rises with them. Then the clear (TUNE.soulBye.later seconds later than
+  // Goodbye (the owner's idea, Oct 12): when the Shredder's beaten, after its last line, the soul leaves the gun with a
+  // bell, comes round in front of him at head height, salutes and says "GOOD LUCK." with a second bell; then it floats
+  // up and away, and every soul freed on the floor rises with it. Then the clear (TUNE.soulBye.later seconds later than
   // without them). Cosmetic and on the clock: it draws in drawBye.
   function updateBye(dt) {
     const T = TUNE.soulBye, H = R.hint;
     if (!soulsInGun() && !(H && H.bye)) return;
     if (!H.bye) { if (R.phaseT < T.at || R.talk) return; H.bye = { t: 0, from: muzzleXY() }; H.streams = 1; Snd.play('bell', 0); return; }
     const B = H.bye; B.t += dt;
-    if (B.t > T.say && !B.said) { B.said = true; Snd.play('bell', 1); live('The two souls salute: good luck.'); }
+    if (B.t > T.say && !B.said) { B.said = true; Snd.play('bell', 0); live('The soul salutes: good luck.'); }
     if (B.t > T.leave && !B.rose) { B.rose = true; riseAll(); }
   }
   function updateHint(dt) {
@@ -801,12 +862,12 @@ var UnrugFloor13 = function (core) {
       R.freeze = Math.max(R.freeze, .1); R.shake = Math.max(R.shake, .08);
     }
   }
-  // the goodbye: out of the gun to either side of the hall at head height, the salute (one flipped), the words in a
-  // small bubble between them, then up and away
+  // the goodbye: out of the gun round to the middle of the hall in front of him at head height, the salute, the words
+  // in a small bubble over it, then up and away
   function drawBye(B) {
     const T = TUNE.soulBye, t = B.t;
-    for (let i = 0; i < 2; i++) {
-      const sd = i ? 1 : -1, tx = VX + sd * 20, ty = 70;
+    for (let i = 0; i < TUNE.soulHint.souls; i++) {
+      const sd = 1, tx = VX, ty = 70;
       let x, y, a = 1;
       if (t < T.come) { const e = t / T.come, ee = e * e * (3 - 2 * e); x = B.from.x + (tx - B.from.x) * ee + Math.sin(Math.PI * e) * sd * 18; y = B.from.y + (ty - B.from.y) * ee - Math.sin(Math.PI * e) * 16; }
       else if (t < T.leave) { x = tx; y = ty + Math.sin(t * 3 + i) * 1.5; }
@@ -814,8 +875,7 @@ var UnrugFloor13 = function (core) {
       if (a <= 0) continue;
       const sal = t > T.salute && t < T.leave, img = sal ? A.SOUL_SALUTE : A.GHOST, w = A.uw(img) * 2, h = A.uh(img) * 2;
       g.save(); g.globalAlpha = a; disc(g, Math.round(x), Math.round(y), 10, 'rgba(255,212,74,.2)');
-      if (sal && sd < 0) { g.translate(Math.round(x), 0); g.scale(-1, 1); g.drawImage(img, -9, Math.round(y - 11), w, h); }
-      else g.drawImage(img, Math.round(x - 9), Math.round(y - 11), w, h);
+      g.drawImage(img, Math.round(x - 9), Math.round(y - 11), w, h);
       g.restore();
     }
     if (t > T.say && t < T.leave - .1) {
@@ -903,10 +963,17 @@ var UnrugFloor13 = function (core) {
     const edge = R.roll ? (Math.floor(R.t * 12) % 2 ? '#7fd4ff' : '#bfefff') : P.st === 'warn' ? (Math.floor(P.t * 10) % 2 ? '#fff6e2' : '#ffd44a') : P.st === 'on' ? '#ff9628' : null;
     return {
       scroll: R.dist * WZ, rug: -R.roff * WZ, power: dk >= .5 ? 0 : 1 - dk * .75, dark: dk >= .5, house, steady: true,
-      rail: R.phase === 'hall' || R.phase === 'wake' ? (R.event ? (R.event.kind === 'move' ? lin('#e8b030') : null) : lin(BEATS[R.beat].rail)) : null,
-      look: lookNow(),
+      rail: R.phase === 'hall' || R.phase === 'wake' ? (R.event ? (R.event.kind === 'move' ? lin('#e8b030') : R.event.kind === 'rush' ? lin(BEATS[1].rail) : null) : lin(BEATS[R.beat].rail)) : null,
+      look: alarm(lookNow()),
       edge: edge ? lin(edge) : null, edgeGlow: edge ? 1.3 : 0
     };
+  }
+  // Rush hour's alarm: the ceiling panels pulse red. Cosmetic, from the clock.
+  function alarm(lk) {
+    if (!(R.phase === 'hall' && R.event && R.event.kind === 'rush')) return lk;
+    const k = .5 + .5 * Math.sin(R.t * 6), in_ = Math.min(1, R.event.t / .6, (R.event.dur - R.event.t) / .6);
+    const red = [1.9, .45 + .35 * k, .35 + .25 * k];
+    return Object.assign({}, lk, { lamp: lk.lamp.map((v, i) => v + (red[i] - v) * in_) });
   }
   // The light the floor's things give off this frame: paper knocked back or in a rally, light switches, the monitors
   // when the lights are out, the Shredder's eyes and its mouth as it winds up.
@@ -914,6 +981,8 @@ var UnrugFloor13 = function (core) {
     const at = (u, z, h, cr, cg, cb) => { const [x, y, wz] = world(u, z, h); r.light(x, y, wz, cr, cg, cb); };
     for (const p of R.projs) if (p.friendly || p.rally) at(p.u, p.z, p.h, .25, .4, .6);
     for (const sw of R.switches || []) { const s = switchAt(sw); if (s.z < 1.02 && s.z > .05) at(s.u, s.z, s.h, .5, .42, .15); }
+    // rush hour: red alarm beacons on the ceiling, turning
+    if (R.event && R.event.kind === 'rush') for (const [u, z, ph] of [[-.6, .35, 0], [.6, .65, 2], [-.6, .95, 4]]) { const k = Math.max(0, Math.sin(R.t * 7 + ph)); at(u, z, .95, 1.4 * k, .12 * k, .06 * k); }
     if (darkness() >= .5) for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02 && z > ZN && cb.kind === 'cub') at(cb.s * .93, z, cb.top + .05, .04, .22, .1); }
     // what the set gives off (screens, signs, lamps, a vending machine), the nearest few
     const want = [];
@@ -1612,8 +1681,8 @@ var UnrugFloor13 = function (core) {
     R.banner = { text: 'THE 13TH FLOOR', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
     live('The 13th Floor, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
     // the cold open plays once at every start of the floor, so a restart starts the track over
-    Snd.play('start'); if (Snd.track === 'floorHall') Snd.music(null);
-    Snd.music('floorHall', { stems: STEMS.hall });
+    Snd.play('start'); if (Snd.track === 'floorOpen') Snd.music(null);
+    Snd.music('floorOpen', { stems: STEMS.hall }); dropped = false;
   }
   function clearCard(extra, best, clock) {
     const rows = [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Deflects', String(R.events.deflects || 0)],
@@ -1626,7 +1695,7 @@ var UnrugFloor13 = function (core) {
   return {
     id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'The Shredder will wait. It has nowhere else to be.',
     // hooks
-    use: x => { g = x; }, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, aimIdle, shotHits, shotFar, slash, hurt, blasterBack, posOf,
+    use: x => { g = x; }, rechargeNow: () => R.phase === 'hall' && R.event && R.event.kind === 'rush' ? TUNE.rush.recharge : TUNE.recharge, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, aimIdle, shotHits, shotFar, slash, hurt, blasterBack, posOf,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
     // the rest of the floor by name, for the test harness and the balance bots
     BEATS, beat, spawnFormation, startEvent, MOVES, setItems, spawnMove, addWorker, workerAt, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
@@ -1643,6 +1712,9 @@ UnrugFloor13.TUNE = {
     wadTime: 1.25, wadLead: .2, throwChance: .6,
     moveT: 16, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
+    rushT: 12,              // rush hour, after All Staff: carpshits pour down the hall (first wave after first s, then every gap s, a formation every formEvery s); untouched pays clean souls
+    rush: { first: 1.4, n: [3, 5], gap: [.6, .85], fast: 1.35, formEvery: 2.4, clean: 8, score: 1.6, recharge: .3 },   // score: the tally this long before it ends; recharge: the blaster's, during it
+    dropBy: 12,             // the opening muzak gives way to the band by this time even if no one has shown up
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
     bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,
@@ -1669,10 +1741,10 @@ UnrugFloor13.TUNE = {
     planeT: 1.6, planeDmg: 2,  // the Shredder's paper airplanes at head height: duck them, or slash them back
     wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
     // the souls' hint (the mega stream's first glimpse, saved for the roof): the first time the blaster comes back in the
-    // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
-    // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
-    // run out unseen), then drop off one by one, fade apart.
+    // Shredder's fight (or at its last stand, if it never went), this many souls leave the counter (gap apart, each
+    // flying for fly seconds) and go into the gun, each adding a stream. One here: the bells count up the climb, one on
+    // the 13th Floor, two on the 48th, three on the roof (the owner, Oct 12).
     soulBye: { at: .9, come: 1.2, salute: 1.5, say: 1.7, leave: 3.6, later: 4.6 },   // the goodbye's beats, in seconds
     lastStand: 6,           // the blaster can't take it below this: a rally or a deflected bundle finishes it
-    soulHint: { souls: 2, wait: .7, gap: 1.1, fly: 2 }
+    soulHint: { souls: 1, wait: .7, gap: 1.1, fly: 2 }
   };

@@ -20,7 +20,7 @@
   check(R.events.wipes === 1, 'a formation with one past halfway is not a wipe');
 
   // lights out sends formations every couple of seconds
-  quiet(); R.beat = 1; R.beatT = BEATS[1].time; update(1 / 60);
+  quiet(); R.beat = 1; R.beatT = BEATS[1].time; update(1 / 60); if (R.event && R.event.kind === 'rush') { R.flies = []; R.event.t = R.event.dur; update(1 / 60); } 
   check(R.event && R.event.kind === 'dark', 'lights out');
   const forms = new Set(); for (let i = 0; i < 60 * 6; i++) { update(1 / 60); for (const f of R.flies) if (f.fid) forms.add(f.fid); }
   check(forms.size >= 3, 'formations keep coming in the dark (' + forms.size + ' in 6 seconds)');
@@ -46,7 +46,7 @@
   R.pull.st = 'on'; R.pull.t = 0; R.pull.dur = 1; bull.u = .45; step(.5);
   check(gun.w - R.dist > z0, 'a pull carries it toward the mouth');
   endPull();
-  // stand on the rug and win a rally: the smash rolls the rug back, pins you at the back and brings the blaster
+  // stand on the rug and win a rally: the smash rolls the rug back, pins you at the back and gives the blaster back
   bull.u = 0; bull.bz = 0; R.projs = []; b.rally = null; b.jam = 0; R.talk = null; R.banner = null;
   b.atkN = 0; b.atk = 0; update(1 / 60);
   check(b.rally, 'a rally');
@@ -56,12 +56,11 @@
   bull.cd = 0; press('slash'); update(1 / 60);
   for (let i = 0; i < 120 && !R.roll; i++) update(1 / 60);
   check(R.roll && R.events.smashes >= 1, 'a smash rolls the rug back');
+  check(R.armed === true && R.charge === TUNE.charges && !R.pickups.some(pk => pk.kind === 'blaster') && R.hint, 'and the blaster flies back into his hands, bringing the souls (they can\'t be missed)');
   update(1 / 60);
   check(bull.pin > 0, 'pinned at the back while it rolls');
   const u0 = bull.u; keys.kbLeft = true; step(.2); keys.kbLeft = false;
   check(bull.u === u0, 'no sidestepping while pinned');
-  for (let i = 0; i < 60 * 3 && R.armed === false; i++) { bull.u = gun.u; update(1 / 60); }
-  check(R.armed === true && R.charge === TUNE.charges, 'the rug brings the blaster back to you and you grab it');
   draw();
 
   // the rewind attack rolls the rug back and spits a bundle at you

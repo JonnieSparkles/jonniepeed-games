@@ -1,7 +1,7 @@
-// The souls' hint (the mega stream's first glimpse): the first time the blaster comes back in the Shredder's fight, two
-// souls leave the counter and fly into the gun, and it fires two then three soul streams for the rest of the fight.
-// Nothing announces it, the counter keeps its souls, and the streams cost no extra charges. When the Shredder's beaten,
-// the two souls say goodbye before the clear.
+// The souls' hint (the mega stream's first glimpse): the first time the blaster comes back in the Shredder's fight, one
+// soul leaves the counter and flies into the gun with one bell (D5), and it fires one soul stream beside the bolt for the
+// rest of the fight. Nothing announces it, the counter keeps its soul, and the stream costs no extra charge. When the
+// Shredder's beaten, the soul says goodbye before the clear. (Two on the 48th Floor, three on the roof.)
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -22,58 +22,60 @@
     const gun = R.pickups.find(pk => pk.kind === 'blaster');
     gun.t = 1; gun.w = R.dist + bull.bz; gun.u = bull.u; quiet(); R.banner = null; R.talk = null;
     const souls = R.souls; update(1 / 60);
-    check(R.armed === true && R.hint, 'he gets it back, and the souls come');
+    check(R.armed === true && R.hint, 'he gets it back, and the soul comes');
     check(!R.banner && !R.fx.some(f => f.k === 'big'), 'nothing announces it');
     check(liveEl.textContent === 'Blaster back.', 'the live line stays neutral (' + liveEl.textContent + ')');
-    // the souls fly into the gun; the first two each add a stream with one bell
+    // the soul flies into the gun, adding a stream with one bell
     const T = TUNE.soulHint;
     let most = 1, drew = false;
     for (let i = 0; i < 60 * (T.wait + T.gap * T.souls + T.fly + .2); i++) { quiet(); update(1 / 60); most = Math.max(most, R.hint ? R.hint.streams : 1); if (!drew && R.hint && R.hint.t > T.fly * .5) { draw(); drew = true; } }
-    check(R.hint && R.hint.landed === T.souls && R.hint.streams === 3, 'three streams once the souls are in');
-    check(bells.length === 2 && bells[0] === 0 && bells[1] === 1, 'one bell for each new stream (' + bells.join(',') + ')');
+    check(T.souls === 1 && R.hint && R.hint.landed === 1 && R.hint.streams === 2, 'one soul, one stream once it is in');
+    check(bells.length === 1 && bells[0] === 0, 'one bell, D5 (' + bells.join(',') + ')');
     check(R.souls === souls, 'the counter keeps its souls');
-    // firing: the bolt plus two soul streams, one each side flying straight beside it, for one charge
+    // firing: the bolt plus one soul stream flying straight beside it, for one charge
     R.shots = []; R.fireT = 0; const charge = R.charge;
     keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
     const soul = R.shots.filter(s => s.soul), bolt = R.shots.filter(s => !s.soul);
-    check(bolt.length === 1 && soul.length === 2, 'a bolt and two soul streams');
+    check(bolt.length === 1 && soul.length === 1, 'a bolt and one soul stream');
     check(R.charge === charge - 1, 'for one charge');
     check(soul.every(s => s.du === 0 && !s.tgt && !s.spread), 'parallel, never homing in, and not Spread Shot');
-    check(soul[0].side * soul[1].side < 0, 'one each side');
+    check(soul[0].side === 1, 'beside it, on one side');
     draw();
     // a soul stream does normal blaster damage
     R.shots = soul.slice(0, 1); const hp = b.hp; b.jam = 0;
     for (let i = 0; i < 60 && R.shots.length; i++) { quiet(); update(1 / 60); }
     check(Math.abs((hp - b.hp) - TUNE.shotDmg * .5) < 1e-6, 'a soul stream does normal damage (' + (hp - b.hp) + ')');
-    // it stays: still three streams after a long while firing
+    // it stays: still there after a long while firing
     const n = bells.length;
     keys.kbShoot = true; step(12); keys.kbShoot = false;
-    check(R.hint && R.hint.streams === 3, 'the streams stay with him');
+    check(R.hint && R.hint.streams === 2, 'the stream stays with him');
     attack('surge'); quiet();
-    check(R.armed === true && R.hint && R.hint.streams === 3, 'with the souls in the gun, a surge breaks on them');
+    check(R.armed === true && R.hint && R.hint.streams === 2, 'with the soul in the gun, a surge breaks on it');
     // knocked out of his hands, they wait; won back, they're there again, with no new souls or bells
     R.armed = false; quiet(); update(1 / 60);
-    check(R.hint && R.hint.streams === 3, 'they wait while the blaster is gone');
+    check(R.hint && R.hint.streams === 2, 'it waits while the blaster is gone');
     R.pickups.push({ kind: 'blaster', w: R.dist + bull.bz, u: bull.u, h: 0, t: 1, still: true, rug: true });
     quiet(); update(1 / 60);
-    check(R.armed === true && R.hint && R.hint.streams === 3 && bells.length === n, 'and come back with it, without a sound');
+    check(R.armed === true && R.hint && R.hint.streams === 2 && bells.length === n, 'and comes back with it, without a sound');
     R.shots = []; R.fireT = 0; keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
-    check(R.shots.filter(s => s.soul).length === 2, 'still a bolt and two streams');
+    check(R.shots.filter(s => s.soul).length === 1, 'still a bolt and one stream');
     draw();
     // goodbye: once it's beaten (after its last line) the souls leave the gun, salute, say good luck and rise with the
     // rest; the clear waits for them
     const Y = TUNE.soulBye; bells.length = 0; R.shots = []; R.projs = [];
     bossDamage(b.hp, 'deflect');
-    check(R.phase === 'win' && R.hint && R.hint.streams === 3, 'beaten, with the souls still in the gun');
+    check(R.phase === 'boss' && b.lastStand && b.hp === TUNE.lastStand, 'a big hit stops at its last stand');
+    bossDamage(b.hp, 'deflect');
+    check(R.phase === 'win' && R.hint && R.hint.streams === 2, 'beaten, with the soul still in the gun');
     let saw = false, rose = 0;
     for (let i = 0; i < 60 * 30 && R.phase === 'win' && state !== 'over'; i++) {
       update(1 / 60);
-      if (R.hint && R.hint.bye && !saw) { saw = true; check(R.hint.streams === 1, 'they leave the gun'); }
-      if (R.hint && R.hint.bye && R.hint.bye.t > Y.say + .2 && R.hint.bye.t < Y.say + .3) { draw(); check(!R.events.clearBanner, 'the clear waits while they say goodbye'); }
+      if (R.hint && R.hint.bye && !saw) { saw = true; check(R.hint.streams === 1, 'it leaves the gun'); }
+      if (R.hint && R.hint.bye && R.hint.bye.t > Y.say + .2 && R.hint.bye.t < Y.say + .3) { draw(); check(!R.events.clearBanner, 'the clear waits while it says goodbye'); }
       rose = Math.max(rose, R.fx.filter(f => f.k === 'rise').length);
     }
-    check(saw && bells.length === 2, 'goodbye, with a bell as they come out and one as they speak (' + bells + ')');
-    check(rose === Math.min(40, R.souls), 'and the floor\'s souls rise with them');
+    check(saw && bells.length === 2 && bells.every(n => n === 0), 'goodbye, with a bell as it comes out and one as it speaks (' + bells + ')');
+    check(rose === Math.min(40, R.souls), 'and the floor\'s souls rise with it');
     check(state === 'over' && cardTitle.textContent === 'The 13th Floor clear', 'then the clear card');
   } finally { Snd.play = play; }
 })();

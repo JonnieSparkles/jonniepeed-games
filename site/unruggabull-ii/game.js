@@ -180,7 +180,7 @@
         f.z -= (.3 + R.speed * .4) * dt;
         if (f.snake != null) f.u = .55 * Math.sin(f.snake + R.t * 2.2);
       } else {
-        f.z -= (.34 + R.speed * .4) * dt;
+        f.z -= (.34 + R.speed * .4) * (f.fast || 1) * dt;
         f.u = clamp(f.u + clamp(bull.u - f.u, -.3, .3) * dt * .9 + Math.sin(R.t * 3 + f.ph) * .12 * dt, -.75, .75);
       }
       if (f.z < .45) f.h += ((f.high ? .22 : .12) - f.h) * Math.min(1, dt * 2.5);
@@ -278,7 +278,8 @@
     shot(0);
     if (R.gold) R.shots[R.shots.length - 1].soul = true;
     if (R.spread > 0) { shot(-.6); shot(.6); }
-    // the souls' streams: a shot either side of the bolt, flying straight beside it (never bending in), no extra charge;
+    // the souls' streams: a shot beside the bolt for each soul in the gun (one on the 13th Floor, on the right; two, one
+    // either side), flying straight beside it (never bending in), no extra charge;
     // drawn as ribbons of light from the muzzle (drawStreams)
     const hs = R.hint ? R.hint.streams : 1;
     if (hs > 1) for (const o of hs === 2 ? [1] : [-1, 1]) R.shots.push({ u: mu + o * .07, z: bull.bz + .03, h: mh, du: 0, tgt: null, dead: false, soul: true, side: o });
@@ -454,7 +455,7 @@
     start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
     dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
-    low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
+    rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
@@ -519,7 +520,7 @@
     }
     R.t += dt; R.phaseT += dt;
     R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.chargeFlash = Math.max(0, (R.chargeFlash || 0) - dt); R.spread = Math.max(0, R.spread - dt);
-    if (R.charge < TUNE.charges) { R.rechargeT += dt; while (R.rechargeT >= TUNE.recharge && R.charge < TUNE.charges) { R.rechargeT -= TUNE.recharge; R.charge++; } }
+    if (R.charge < TUNE.charges) { R.rechargeT += dt; const every = floor.rechargeNow ? floor.rechargeNow() : TUNE.recharge; while (R.rechargeT >= every && R.charge < TUNE.charges) { R.rechargeT -= every; R.charge++; } }
     else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt); R.rallyPop = Math.max(0, (R.rallyPop || 0) - dt);
     // a rally speeds the music up as it goes
@@ -1010,7 +1011,7 @@
   function stageNo() {
     if (floor.stageNo) return floor.stageNo();
     if (R.phase === 'win') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
+    if (R.phase === 'hall') return R.event ? ({ move: 2, rush: 3 }[R.event.kind] || 4) : [1, 3, 5][R.beat];   // rush hour reports as All Staff
     if (R.phase === 'wake') return 6;
     if (R.phase === 'boss') return 5 + R.boss.ph;
     return R.statsStage || 1;
