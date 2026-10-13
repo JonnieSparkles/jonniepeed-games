@@ -622,7 +622,7 @@ var UnrugFloor13 = function (core) {
     R.events.disarms = (R.events.disarms || 0) + 1; emit('disarm');
     Snd.play('surge'); Snd.play('disarm'); bark('disarm');
     R.fx.push({ k: 'big', text: 'BLASTER GONE!', x: 120, y: 44, t: 0, dur: 1.2 }); R.freeze = Math.max(R.freeze, .12);   // every time, so it can't be missed
-    if (!R.events.surgeHint) { R.events.surgeHint = true; R.banner = { text: 'KNOCK ITS PAPER BACK', t: TUNE.surgeFly - 2.6, dur: 2.6 + TUNE.surgeFly, pull: true }; talk('CONFISCATED.', 'shredder'); }
+    if (!R.events.surgeHint) { R.events.surgeHint = true; talk('CONFISCATED.', 'shredder'); }
     live('Power surge! SHRED-O pulls the blaster into its mouth. Knock its paper back to wear it down.');
   }
   // The soul puts the blaster back in his hands at the finish, charged.
