@@ -80,14 +80,14 @@ var UnrugStairs = function (core) {
       script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, whip: null, from: 0, step: 0, done: {} };
     startSection(at && at.section || 0);
   }
-  function startSection(i) {
+  function startSection(i, keepHearts) {
     const sec = SECTIONS[i];
     cur = sec; Object.assign(Q, { si: i, secT: 0, script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, glass: Infinity, taken: Infinity });
     if (i === 1 && Q.katana) Q.glass = Q.taken = -99;   // back after the Rugmergency: the cabinet's empty
     Q.garageShut = i === 0 ? Infinity : -99;   // section 1 opens with the garage door open behind him (the story's last still)
     R.arena.enemies = []; R.arena.thrown = []; R.shots = []; R.arena.bare = !Q.katana; R.arena.pose = null;
     bull.u = UX(entryX(sec)); bull.facing = sec.dir; bull.jh = 0; bull.jv = 0; bull.kick = 0;
-    R.hearts = TUNE.hearts;   // full hearts at each new section
+    if (!keepHearts) R.hearts = TUNE.hearts;   // full hearts on a start or a continue; the whips up carry them, the katana refills
     checkpoint();
     emit('stairs_section', { section: i + 1 });
   }
@@ -187,6 +187,7 @@ var UnrugStairs = function (core) {
       // the cue slams back in a layer up, and the first one with the katana comes
       Q.st = 'play'; Q.katana = true; R.arena.bare = false; R.arena.pose = null; R.arena.locked = false;
       bull.u = UX(to); bull.facing = -1; Q.script = 0; Q.scriptT = 0;
+      R.hearts = TUNE.hearts;   // the Rugmergency refills him
       music(true); say('SLASH', .3); checkpoint();
     }
   }
@@ -227,7 +228,7 @@ var UnrugStairs = function (core) {
     const from = Q.si, to = from + 1;
     Q.whip = { t: 0, from, a: +SECTIONS[from].high || 1, b: +SECTIONS[to].low, souls: R.souls };
     Snd.play('stairWhoosh');
-    startSection(to);
+    startSection(to, true);
     Q.st = 'whip'; R.arena.locked = true;
     if (to === 2) music(false);   // the last flights: power chords and the build, on the next bar
   }

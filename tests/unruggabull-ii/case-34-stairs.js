@@ -21,7 +21,7 @@
   R.arena.enemies = []; S.Q.script = sec.script.length; update(1 / 60);
   check(S.Q.exitOpen, 'cleared: the way up opens');
   R.hearts = 2; bull.u = S.arena.ARENA.limit; update(1 / 60);
-  check(S.Q.st === 'whip' && S.Q.si === 1 && R.hearts === TUNE.hearts, 'the whip up: section 2, full hearts');
+  check(S.Q.st === 'whip' && S.Q.si === 1 && R.hearts === 2, 'the whip up: section 2, the hearts he had');
   step(S.STAIRS.whip + .05);
   check(S.Q.st === 'play' && !R.arena.locked && bull.facing === -1, 'section 2: right to left');
   // the cabinet: dark until the carpshits on the way up are dealt with; a bolt can't break it before that
@@ -36,7 +36,8 @@
   step(S.STAIRS.rug.raise + .1);
   check(Snd.track === 'stairsFanfare' && R.arena.pose && R.banner && R.banner.text === 'RUGMERGENCY KATANA', 'the item get, to the fanfare');
   check(floor.view().ambient < S.STAIRS.ambient, 'the stairwell darkens around him');
-  step(5);
+  R.hearts = 2; step(5);
+  check(R.hearts === TUNE.hearts, 'the katana refills his hearts');
   check(S.Q.st === 'play' && S.Q.katana && !R.arena.bare && !R.arena.locked && Snd.track === 'stairs', 'the katana: the cue slams back in');
   check(checkpoint && checkpoint.stage === 'stairs' && checkpoint.section === 1 && checkpoint.katana, 'a continue from here keeps the katana');
   bull.cd = 0; press('slash'); update(1 / 60);
