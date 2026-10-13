@@ -758,7 +758,7 @@ var UnrugFloor13 = function (core) {
   }
   // ---------- the souls' hint ----------
   // A glimpse of the mega stream, saved for the roof. Nothing announces it: the first time he wins the blaster back,
-  // a soul leaves the counter and flies into the gun, landing with one soft bell and adding a stream, and the
+  // two souls leave the counter and fly into the gun, each landing with one soft bell and adding a stream, and the
   // streams stay with him for the rest of the fight (they pause while the blaster's knocked away and come back with it).
   // The counter keeps its souls; the streams do normal damage and cost nothing extra.
   // It takes its time, so it registers: a beat before the first soul lifts off the counter, the souls slow and far
@@ -774,8 +774,8 @@ var UnrugFloor13 = function (core) {
     Snd.duck && Snd.duck(arrive + .5);
   }
   const soulsInGun = () => !!(R.hint && R.hint.streams > 1);
-  // Goodbye (the owner's idea, Oct 12): when the Shredder's beaten, after its last line, the soul leaves the gun,
-  // comes round in front of him at head height, salutes and says "GOOD LUCK." with a bell; then it floats up and
+  // Goodbye (the owner's idea, Oct 12): when the Shredder's beaten, after its last line, the two souls leave the gun,
+  // come round in front of him at head height, salute, and one says "GOOD LUCK." with a bell; then they float up and
   // away, and every soul freed on the floor rises with them. Then the clear (TUNE.soulBye.later seconds later than
   // without them). Cosmetic and on the clock: it draws in drawBye.
   function updateBye(dt) {
@@ -783,7 +783,7 @@ var UnrugFloor13 = function (core) {
     if (!soulsInGun() && !(H && H.bye)) return;
     if (!H.bye) { if (R.phaseT < T.at || R.talk) return; H.bye = { t: 0, from: muzzleXY() }; H.streams = 1; Snd.play('bell', 0); return; }
     const B = H.bye; B.t += dt;
-    if (B.t > T.say && !B.said) { B.said = true; Snd.play('bell', Math.min(1, TUNE.soulHint.souls - 1)); live(TUNE.soulHint.souls > 1 ? 'The souls salute: good luck.' : 'The soul salutes: good luck.'); }
+    if (B.t > T.say && !B.said) { B.said = true; Snd.play('bell', 1); live('The two souls salute: good luck.'); }
     if (B.t > T.leave && !B.rose) { B.rose = true; riseAll(); }
   }
   function updateHint(dt) {
@@ -805,9 +805,8 @@ var UnrugFloor13 = function (core) {
   // small bubble between them, then up and away
   function drawBye(B) {
     const T = TUNE.soulBye, t = B.t;
-    const n = TUNE.soulHint.souls;
-    for (let i = 0; i < n; i++) {
-      const sd = i ? 1 : -1, tx = n > 1 ? VX + sd * 20 : VX, ty = 70;
+    for (let i = 0; i < 2; i++) {
+      const sd = i ? 1 : -1, tx = VX + sd * 20, ty = 70;
       let x, y, a = 1;
       if (t < T.come) { const e = t / T.come, ee = e * e * (3 - 2 * e); x = B.from.x + (tx - B.from.x) * ee + Math.sin(Math.PI * e) * sd * 18; y = B.from.y + (ty - B.from.y) * ee - Math.sin(Math.PI * e) * 16; }
       else if (t < T.leave) { x = tx; y = ty + Math.sin(t * 3 + i) * 1.5; }
@@ -1671,10 +1670,9 @@ UnrugFloor13.TUNE = {
     wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
     // the souls' hint (the mega stream's first glimpse, saved for the roof): the first time the blaster comes back in the
     // Shredder's fight, this many souls leave the counter one after another (gap apart, each flying for fly seconds) and
-    // go into the gun; each adds a stream. One here, two on the 48th Floor, three on the roof: one bell each, D, F and A,
-    // so the chord is only complete when the stream fuses (owner, Oct 12). The streams hold for this many seconds of firing (so they can't
+    // go into the gun; the first two each add a stream. The streams hold for this many seconds of firing (so they can't
     // run out unseen), then drop off one by one, fade apart.
     soulBye: { at: .9, come: 1.2, salute: 1.5, say: 1.7, leave: 3.6, later: 4.6 },   // the goodbye's beats, in seconds
     lastStand: 6,           // the blaster can't take it below this: a rally or a deflected bundle finishes it
-    soulHint: { souls: 1, wait: .7, gap: 1.1, fly: 2 }
+    soulHint: { souls: 2, wait: .7, gap: 1.1, fly: 2 }
   };
