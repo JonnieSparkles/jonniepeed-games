@@ -2,7 +2,7 @@
 
 A sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
-Status: the 13th Floor, the long ride (13→R for now) and the roof framework are built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed. The plain ride, Floor 48 and ending follow later. Once a stage ships, [README.md](README.md) and the code are the source of truth.
+Status: the whole climb is built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed: the 13th Floor, the plain ride, the 48th Floor and its lobby ([floor48-plan.md](floor48-plan.md)), the long ride from 48 and the roof framework. The ending after dawn follows later. Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
 The original game stays in its own repo (painted art, ES modules, desktop). Its `level-2` branch is the start of a later helicopter release, not part of this game.
 
@@ -20,17 +20,17 @@ No crypto jargon (no HODL, diamond hands, liquidity or airdrops). "Unrugged" and
 
 ## The climb
 
-About eleven minutes for a full run. Two engines carry the whole game: the **corridor** (into the screen, seen from behind the bull) and the **arena** (one side-view screen).
+About thirteen minutes for a full run. Three engines carry the game: the **corridor** (into the screen, seen from behind the bull), the **arena** (one side-view screen) and the **top-down** twin-stick room (the 48th Floor's factory, added at the owner's brief: Smash TV meets Factorio).
 
 | Floor | Name | Ends with | Engine |
 | --- | --- | --- | --- |
 | 13 | the 13th Floor: Accounting | Mid-boss: the Shredder | Corridor |
-| ↑ | Plain ride (planned) | Operator, “Floor?”, Please Hold, supply crate, open doors; no fight | Arena set, no combat |
-| 48 | Floor 48 (contents TBD) | TBD | TBD |
+| ↑ | Plain ride (built) | Operator, “Floor?”, Please Hold, supply crate, doors open on the factory; no fight | Arena set, no combat |
+| 48 | the 48th Floor: Reclamation (built) | Set piece: Production Panic, the factory's collapse and the near miss; then the lobby, side on | Top-down, then arena |
 | ↑ | The long ride (built) | p(Loom) takes the cable, drops the car and reels it up; 30 seconds of Horns Up; supply crate | Arena |
 | R | The roof | Final boss: p(Loom) | Corridor |
 
-The decided climb is **13th Floor → plain ride → Floor 48 → long ride → roof**. Floor 48 and the plain ride are not stages yet, so the playable build temporarily takes the long ride straight from the 13th Floor and counts 13→R. Its start floor and destination are ride data; later the long ride starts at 48. Combat is switchable per ride (`ELEVATOR.fight` / per-run `fight`); the no-fight configuration is tested with the operator, muzak, crate and handoff but is not registered as another stage. [long-ride-plan.md](long-ride-plan.md) is the long ride's design; [elevator-plan.md](elevator-plan.md) records the supply drops and the plain ride's provisional choices.
+The climb is **13th Floor → plain ride → 48th Floor → lobby → long ride → roof**, all built. Each ride's start floor, destination and whether it fights are ride data (`ELEVATOR.fight` / per-run `fight`, `from`, `destination`): the plain ride runs 13→48 without a fight, the long ride 48→R with one. [long-ride-plan.md](long-ride-plan.md) is the long ride's design; [elevator-plan.md](elevator-plan.md) records the supply drops and the plain ride's provisional choices; [floor48-plan.md](floor48-plan.md) is the 48th Floor's.
 
 Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
 
@@ -160,12 +160,12 @@ Roof fixes: the dawn display and clear card never reset the counter; the full li
 
 The music system and unlinked phone music lab are ready for composition. Pattern/order, envelopes, vibrato, arpeggios, slides, echoes, stems, beat/bar switches, hard cuts, downbeat slams and stingers are implemented. The six original tracks for the 13th Floor render byte-identically. The fight track is chosen (Saga II); art and phone playtesting remain.
 
-Playable side/top-down views and drag-to-move with auto-fire stay dropped.
+On the roof, playable side/top-down views and drag-to-move with auto-fire stay dropped. The 48th Floor is top down by design, with two sticks rather than drag-to-move.
 
 ## Later stages
 
-1. The plain ride as its own stage and Floor 48 (contents TBD).
-2. The long ride's phone playtest and polish (more side poses, the fight's difficulty); it runs from 13 until Floor 48 exists.
+1. The 48th Floor's phone playtest: the twin sticks (the agreed fallback is the left stick to move with Shoot and Slash buttons), its difficulty, and the Rugfather's painted portrait.
+2. The long ride's phone playtest and polish (more side poses, the fight's difficulty).
 3. Roof Part B (art, final music/voice and feel) and the ending after dawn (the core escaping into the Sky Wrecker).
 4. Floor G cold open/back alley using the arena; its place in the decided climb is not part of this change.
 5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../../guides/00-leaderboards.md)).
@@ -176,4 +176,4 @@ Playable side/top-down views and drag-to-move with auto-fire stay dropped.
 - The leaderboard metric: souls freed, floors, or time.
 - The Unruggabull recording script (15 to 20 lines). A first draft is in the game as `LINES`; it needs Jonnie's approval before recording.
 - p(Loom)'s voice (see Sound). Does it start breaking down as its odds fall?
-- Floor 48 contents, including whether the mega stream near miss belongs there.
+- The 48th Floor: whether it should end on a clear card or flow straight into the lobby, as now.

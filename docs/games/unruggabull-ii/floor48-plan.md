@@ -1,6 +1,6 @@
 # The 48th Floor: Reclamation
 
-Status: plan for the first build (Oct 12). Once it ships, [README.md](README.md) and the code are the source of truth.
+Status: built (Oct 12, first build). [README.md](README.md) and the code are the source of truth; this is the plan as it was decided, with the bells changed to two the same day.
 
 The owner's brief: Smash TV meets Factorio. A frantic top-down twin-stick level inside p(Loom)'s soul-reclamation factory, where captured souls are woven into carpshits. Unruggabull finds out how it's done and takes the whole operation apart. About two minutes, three working production lines, destruction that drives the escalation, and a blaster and katana that are equally good and work together.
 

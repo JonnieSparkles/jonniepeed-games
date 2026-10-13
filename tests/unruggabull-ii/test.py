@@ -251,7 +251,7 @@ with sync_playwright() as p:
             assert page.locator('#stickzone').is_visible() and page.locator('#aimzone').is_visible() and page.locator('.pad.slash').is_visible(), f'{name}: sticks and Slash'
             assert not page.locator('.pad.shoot').is_visible(), f'{name}: no Shoot button on the twin sticks'
             box = page.locator('#aimzone').bounding_box()
-            assert box['x'] + box['width'] <= size[0] + 1 and box['y'] + box['height'] <= size[1] + 1, f'{name}: aim stick on screen'
+            assert box['x'] >= 0 and box['x'] + box['width'] <= size[0] + 1, f'{name}: aim stick across the screen (full screen fits it vertically, below)'
             cx, cy = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
             page.dispatch_event('#aimzone', 'pointerdown', {'pointerId': 81, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
             page.dispatch_event('#aimzone', 'pointermove', {'pointerId': 81, 'pointerType': 'touch', 'clientX': cx - 40, 'clientY': cy})

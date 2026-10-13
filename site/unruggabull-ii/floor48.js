@@ -143,7 +143,7 @@ var UnrugFloor48 = function (core) {
   }
   function breakMachine(m, by) {
     if (m.dead) return;
-    m.dead = true; m.hp = 0;
+    m.dead = true; m.hp = 0; m.deadAt = R.t;
     const cx = (m.x0 + m.x1) / 2, cy = (m.y0 + m.y1) / 2, [rad, dmg] = F48.blast[m.kind];
     boom(cx, cy, m.kind === 'loom' ? 1.6 : m.kind === 'tank' ? 1.2 : 1);
     Snd.play(m.kind === 'tank' ? 'tankBurst' : 'machineBreak');
@@ -300,7 +300,7 @@ var UnrugFloor48 = function (core) {
     Q.shake = Math.max(Q.shake, t < 3 ? .35 : t < F.spoilAt ? .15 : .1);
     // debris falling from the ceiling (drawn only)
     Q.debrisT -= dt;
-    if (Q.debrisT <= 0 && t < F.whiteAt) { Q.debrisT = .08; R.td.fx.push({ k: 'debris', x: R.td.cam.x + Math.random() * W, y: R.td.cam.y + 60 + Math.random() * (H - 70), h: 160 + Math.random() * 60, vx: 0, vy: 0, vh: -40, s: 2 + Math.round(Math.random() * 4), r: 0, vr: (Math.random() - .5) * 12, col: Math.random() < .5 ? '#3a3640' : '#5a5266', t: 0, dur: 2.2 }); }
+    if (Q.debrisT <= 0 && t < F.whiteAt) { Q.debrisT = .08; R.td.fx.push({ k: 'debris', x: R.td.cam.x + Math.random() * W, y: R.td.cam.y + 60 + Math.random() * (H - 70), h: 160 + Math.random() * 60, vx: 0, vy: 0, vh: -40, s: 3 + Math.round(Math.random() * 5), r: 0, vr: (Math.random() - .5) * 12, col: ['#7a7288', '#5a5266', '#8a6a3a', '#9a93a6'][Math.floor(Math.random() * 4)], t: 0, dur: 2.2 }); }
     // the two souls come to the gun, one at a time
     if (C.n < F.souls && t >= F.firstSoul + C.n * F.soulEvery) {
       const s = td.screenOf(30, 200);
@@ -457,6 +457,18 @@ var UnrugFloor48 = function (core) {
       else if (m.kind === 'animator') S.animator(nullCtx(), m, t, g, m.zap);
     }
     for (let i = 0; i < 3; i++) S.beacon(nullCtx(), F48.beltEnd + 26, LINES[i].y + 20, t, Q.panic, g);
+    // wrecks burn: flames that die down over a few seconds (and flare up again as the floor comes apart)
+    for (const m of Q.machines) {
+      const k = burn(m); if (k <= 0) continue;
+      const n = m.kind === 'loom' ? 5 : 3, w = m.x1 - m.x0;
+      for (let i = 0; i < n; i++) {
+        const fx = m.x0 + 4 + (i + .5) / n * (w - 8), fl = Math.sin(t * 13 + i * 2.1 + m.id) * .5 + .5, h = (6 + fl * 6) * k * (m.kind === 'loom' ? 1.4 : 1), base = m.y1 - 8;
+        g.fillStyle = '#c8302a'; g.fillRect(Math.round(fx - 2), Math.round(base - h), 4, Math.round(h));
+        g.fillStyle = '#ff7a2a'; g.fillRect(Math.round(fx - 1), Math.round(base - h * .75), 3, Math.round(h * .75));
+        g.fillStyle = '#ffd060'; g.fillRect(Math.round(fx - 1), Math.round(base - h * .35), 2, Math.round(h * .35));
+      }
+      td.glow((m.x0 + m.x1) / 2, m.y1 - 12, 26 * k + 8, '#ff7a2a', .35 * k);
+    }
     for (const f of Q.fx) {
       const k = f.t / f.dur;
       if (f.k === 'boom') {
@@ -487,6 +499,8 @@ var UnrugFloor48 = function (core) {
     }
     g.restore();
   }
+  // how hard a wreck is burning: fierce when it breaks, dying down over six seconds; everything burns in the collapse
+  function burn(m) { if (!m.dead || m.deadAt == null) return 0; const k = Math.max(0, 1 - (R.t - m.deadAt) / 6); return Q.st === 'collapse' ? Math.max(k, .6) : k > .05 ? .35 + .65 * k : 0; }
   function nullCtx() { return { fillStyle: '', strokeStyle: '', lineWidth: 1, fillRect() {}, beginPath() {}, ellipse() {}, fill() {}, moveTo() {}, lineTo() {}, stroke() {}, save() {}, restore() {} }; }
   // the screens on the wall (lit by themselves: the glow layer)
   function glowScreens() { g.save(); g.translate(-CAM.x, -CAM.y); S.monitors(g, LAYOUT, R.t, { panic: Q.panic, down: Q.down, eye: Q.eye }); g.restore(); }
@@ -656,8 +670,13 @@ var UnrugFloor48 = function (core) {
     if (Q.st === 'lobby') return { ambient: 1 };
     return { ambient: Q.st === 'collapse' ? .4 : Q.panic > 1 ? .44 : Q.panic ? .48 : .52 };
   }
-  function lights(r) {
-    if (Q.st === 'lobby') { arena.lights(r); return; }
+  // at most this many lights a frame: the flat renderer lights every pixel by each of them, and phones have to keep up
+  const MOST_LIGHTS = 18;
+  function lights(r0) {
+    if (Q.st === 'lobby') { arena.lights(r0); return; }
+    let left = MOST_LIGHTS; const r = { light: (...a) => { if (left-- > 0) r0.light(...a); } };
+    for (const f of Q.fx) if (f.k === 'boom' && f.t < .3) r.light(f.x - CAM.x, f.y - 14 - CAM.y, 0, 1.4 * f.s, .9 * f.s, .3 * f.s);
+    td.lights(r, CAM);
     const c = CAM, on = (x, y) => x - c.x > -60 && x - c.x < W + 60 && y - c.y > -60 && y - c.y < H + 60;
     let n = 0;
     for (const m of Q.machines) {
@@ -668,11 +687,12 @@ var UnrugFloor48 = function (core) {
       else if (m.kind === 'animator' && m.zap > 0) { r.light(x - c.x, y - c.y, 0, .3, .4, .5); n++; }
     }
     if (Q.panic && Q.st === 'fight') for (let i = 0; i < 3; i++) { const x = F48.beltEnd + 26, y = LINES[i].y - 15; if (on(x, y)) r.light(x - c.x, y - c.y, 0, .5, Q.panic > 1 ? .08 : .3, .02); }
-    for (const f of Q.fx) if (f.k === 'boom' && f.t < .3) r.light(f.x - c.x, f.y - 14 - c.y, 0, 1.4 * f.s, .9 * f.s, .3 * f.s);
+    let fires = 0;
+    for (const m of Q.machines) { const k = burn(m); if (k > 0 && fires < 4 && on((m.x0 + m.x1) / 2, m.y1)) { fires++; r.light((m.x0 + m.x1) / 2 - c.x, m.y1 - 14 - c.y, 0, .5 * k, .22 * k, .05 * k); } }
+    if (Q.st === 'collapse') { const p = Math.floor(R.t * 2) % 2; r.light(W * .25, 30, 0, p ? .5 : .25, .04, .02); r.light(W * .75, 30, 0, p ? .25 : .5, .04, .02); }
     r.light(F48.main.x + 6 - c.x, 200 - c.y, 0, .08, .16, .22);
     // the work lights hanging over the floor: warm pools (out in the collapse, flickering in the panic)
     if (Q.st === 'fight') for (const [x, y] of F48.worklights) if (on(x, y)) { const f = Q.panic > 1 && Math.floor(R.t * 13 + x) % 7 === 0 ? .3 : 1; r.light(x - c.x, y - c.y, 0, .3 * f, .26 * f, .2 * f); }
-    td.lights(r, c);
   }
   function shakeOffset() {
     const s = Math.max(0, R.shake) * 20 + (Q.st === 'lobby' ? 0 : 0);
