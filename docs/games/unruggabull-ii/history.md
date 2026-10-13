@@ -179,3 +179,5 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Two quickies, 2026-10-13, 5:21 pm:** losing the blaster wasn't obvious, so every surge now lands a big "BLASTER GONE!" with a hit-stop (the banner and "CONFISCATED." stay); and the finish window is 9 seconds (was 7, from 4) for more stream. He found the fight playing OK after the earlier four notes, so the "long nothing" is left as is until he can point at it.
 
 - **"KNOCK ITS PAPER BACK" dropped, 2026-10-13, 5:27 pm:** with BLASTER GONE! and "SLASH IT BACK" on the rallies, the surge prompt was redundant, and its bubble covered it anyway.
+
+- **The breather at the door, 2026-10-13, 7:50 pm:** hearts now carry across the whips and the katana refills them (they were full at every section). At the door he now catches his breath for real before the line: bent over with his hands on his hips, heaving, sweat flying, then he stands back up ready, then "OK... HERE WE GO." The bend is done on the finished grid (`bend()` in `bull.py`), so the existing poses are untouched. The door takes 1.45 s longer (the hall now at 4.36 s).

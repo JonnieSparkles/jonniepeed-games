@@ -38,8 +38,9 @@ var UnrugStairs = function (core) {
     whip: .85, deadWait: 2.8, prompt: 2.4,
     // the Rugmergency, from the glass breaking: he walks to the cabinet, grabs the katana, holds it up to the fanfare
     rug: { walk: .3, grab: .62, raise: .78 },
-    // the door, from the top landing: the walk up, the line, the brace, the kick, the door at the camera, the 13th Floor
-    door: { at: 360, stand: 392, walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hall: 2.91 },
+    // the door, from the top landing: the walk up, a breather bent over with his hands on his hips (until up), standing back up (rise),
+    // the line, the brace, the kick, the door at the camera, the 13th Floor
+    door: { at: 360, stand: 392, walk: .45, up: 1.8, rise: .2, line: 2.5, brace: 3.6, kick: 3.95, impact: 4.28, hall: 4.36 },
     ambient: .62, dim: .2,
     // the garage door at the foot of section 1: where it is (picture pixels), when it shuts (past walk, or after wait s), how fast
     garage: { x0: 6, x1: 60, top: 142, walk: 72, wait: 1.8, swing: .28 },
@@ -80,14 +81,14 @@ var UnrugStairs = function (core) {
       script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, whip: null, from: 0, step: 0, done: {} };
     startSection(at && at.section || 0);
   }
-  function startSection(i) {
+  function startSection(i, keepHearts) {
     const sec = SECTIONS[i];
     cur = sec; Object.assign(Q, { si: i, secT: 0, script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, glass: Infinity, taken: Infinity });
     if (i === 1 && Q.katana) Q.glass = Q.taken = -99;   // back after the Rugmergency: the cabinet's empty
     Q.garageShut = i === 0 ? Infinity : -99;   // section 1 opens with the garage door open behind him (the story's last still)
     R.arena.enemies = []; R.arena.thrown = []; R.shots = []; R.arena.bare = !Q.katana; R.arena.pose = null;
     bull.u = UX(entryX(sec)); bull.facing = sec.dir; bull.jh = 0; bull.jv = 0; bull.kick = 0;
-    R.hearts = TUNE.hearts;   // full hearts at each new section
+    if (!keepHearts) R.hearts = TUNE.hearts;   // full hearts on a start or a continue; the whips up carry them, the katana refills
     checkpoint();
     emit('stairs_section', { section: i + 1 });
   }
@@ -187,6 +188,7 @@ var UnrugStairs = function (core) {
       // the cue slams back in a layer up, and the first one with the katana comes
       Q.st = 'play'; Q.katana = true; R.arena.bare = false; R.arena.pose = null; R.arena.locked = false;
       bull.u = UX(to); bull.facing = -1; Q.script = 0; Q.scriptT = 0;
+      R.hearts = TUNE.hearts;   // the Rugmergency refills him
       music(true); say('SLASH', .3); checkpoint();
     }
   }
@@ -200,11 +202,13 @@ var UnrugStairs = function (core) {
   function stepDoor(dt) {
     const D = STAIRS.door, k = Q.stT, walking = k < D.walk && Math.abs(Q.from - D.stand) > 4;
     if (k < D.walk) { bull.u = UX(lerp(Q.from, D.stand, ease(k / D.walk))); if (walking) Q.step += dt * 11; }
-    // catching his breath: the blaster lowered and raised with each heave
-    const breath = !walking && k < D.brace ? Math.floor((k - D.walk) / .42) % 2 : 0;
-    const img = k >= D.kick ? MOVE.kick : k >= D.brace ? MOVE.brace : walking ? SIDE['run' + (Math.floor(Q.step) % 4)] : breath ? SIDE.idle : SIDE.aim;
-    const feet = img === MOVE.kick || img === MOVE.brace ? MF : SF;
-    R.arena.pose = { img, feet: { x: feet.x, y: feet.y - (breath ? 1 : 0) }, face: 1 };
+    // catching his breath: bent over, hands on his hips, heaving; then straight up and ready before the line
+    const huff = !walking && k >= D.walk && k < D.up, rise = k >= D.up && k < D.up + D.rise;
+    Q.breath = k >= D.brace ? null : huff ? 'huff' : rise ? 'rise' : walking ? 'walk' : 'ready';
+    const img = k >= D.kick ? MOVE.kick : k >= D.brace ? MOVE.brace : walking ? SIDE['run' + (Math.floor(Q.step) % 4)]
+      : huff ? MOVE['huff' + (Math.floor((k - D.walk) / .42) % 2)] : rise ? MOVE.rise : SIDE.aim;
+    const feet = Object.values(MOVE).includes(img) ? MF : SF;
+    R.arena.pose = { img, feet: { x: feet.x, y: feet.y }, face: 1 };
     if (k >= D.line && !Q.done.line) { Q.done.line = true; core.bark('door'); }
     if (k >= D.brace && !Q.done.brace) { Q.done.brace = true; Snd.play('stairCreak'); }
     if (k >= D.kick && !Q.done.kick) {
@@ -227,7 +231,7 @@ var UnrugStairs = function (core) {
     const from = Q.si, to = from + 1;
     Q.whip = { t: 0, from, a: +SECTIONS[from].high || 1, b: +SECTIONS[to].low, souls: R.souls };
     Snd.play('stairWhoosh');
-    startSection(to);
+    startSection(to, true);
     Q.st = 'whip'; R.arena.locked = true;
     if (to === 2) music(false);   // the last flights: power chords and the build, on the next bar
   }
@@ -493,8 +497,23 @@ var UnrugStairs = function (core) {
       return;
     }
     drawSection(cur, 0);
-    g.restore(); arena.draw(); g.save(); g.scale(.5, .5);
+    g.restore(); arena.draw(); g.save(); g.scale(.5, .5); sweat();
   });
+  // sweat while he heaves: drops from his brow and his snout, falling a few pixels and fading (picture pixels, from his feet)
+  function sweat() {
+    const D = STAIRS.door;
+    if (Q.st !== 'door' || Q.stT < D.walk + .1 || Q.stT > D.up + D.rise) return;
+    const bx = Math.round(PXu(bull.u)), by = Math.round(PYh(ground(bull.u) + bull.jh)), k = Q.stT - D.walk;
+    const drops = [[14, -58, 0], [19, -56, .33], [27, -39, .17], [24, -42, .66], [10, -55, .5]];
+    g.save();
+    for (const [dx, dy, ph] of drops) {
+      const t = (k / .66 + ph) % 1, a = Math.min(1, (1 - t) * 2);
+      g.globalAlpha = a; g.fillStyle = '#bfe6ff'; const dyy = by + dy + Math.round(t * t * 16);
+      g.fillRect(bx + dx, dyy, 2, 3);
+      g.fillStyle = '#ffffff'; g.fillRect(bx + dx, dyy + 1, 1, 1);
+    }
+    g.restore();
+  }
   function glows() {
     g.save(); g.scale(.5, .5);
     if (Q.st === 'whip') { const [o0, o1] = whipOff(); lampGlow(SECTIONS[Q.whip.from], o0); lampGlow(cur, o1); g.restore(); return; }
