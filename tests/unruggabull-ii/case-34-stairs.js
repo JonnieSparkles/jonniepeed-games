@@ -6,6 +6,9 @@
   RUN.force = 3434; startRun('stairs'); bull.inv = 1e9;
   check(R.stage === 'stairs' && R.phase === 'boss' && S.Q.si === 0 && !S.Q.katana && R.arena.bare, 'Start of the stairs: section 1, blaster only, no katana on his back');
   check(Snd.track === 'stairs', 'Flight Risk plays');
+  check(S.Q.garageShut === Infinity, 'he comes in through the garage door, open behind him');
+  keys.kbRight = true; step(.6); keys.kbRight = false;
+  check(S.Q.garageShut < Infinity, 'it swings shut once he is on his way');
   // the ground: the landings and the slopes, in h; he stands on it and his bolts leave from it
   const sec = S.SECTIONS[0], lowH = S.HY(246), topH = S.HY(106);
   check(Math.abs(S.ground(S.UX(40)) - lowH) < 1e-9 && Math.abs(S.ground(S.UX(470)) - topH) < 1e-9 && S.ground(S.UX(180)) > lowH && S.ground(S.UX(180)) < topH, 'the ground follows the stairs');
@@ -60,7 +63,7 @@
   // the door: the line, the band on the kick, then the 13th Floor without the band starting over
   RUN.force = 3435; startRun('stairs'); S.Q.katana = true; S.startSection(2); bull.inv = 1e9;
   R.arena.enemies = []; S.Q.script = S.SECTIONS[2].script.length; update(1 / 60);
-  bull.u = S.UX(370); update(1 / 60);
+  R.souls = 25; bull.u = S.UX(370); update(1 / 60);
   check(S.Q.st === 'door' && Snd.track === null, 'at the door: the music stops');
   step(S.STAIRS.door.line + .05);
   check(R.bark && R.bark.text === 'OK... HERE WE GO.', 'he catches his breath: OK... HERE WE GO.');
@@ -68,7 +71,10 @@
   check(Snd.track === 'floorHall', 'the band slams in on the kick');
   step(S.STAIRS.door.hall - S.STAIRS.door.kick + .05);
   check(R.stage === 'floor13' && R.fromStairs && R.souls === 0 && R.white > 0 && Snd.track === 'floorHall', 'through the door: the 13th Floor, the band still playing, its meter at 0');
+  check(R.banked === 25, 'the stairwell souls stay in the run');
   check(R.banner && R.banner.text === 'THE 13TH FLOOR', 'with its own banner');
+  R.souls = 90; travel('elevator', { fight: false, from: 13, destination: { floor: 48, label: '48', stage: 'floor48' } });
+  check(R.souls === 115, 'and are added back to the total when he leaves the 13th Floor');
   // the 13th Floor on its own still opens on its band
   startRun('floor13');
   check(!R.fromStairs && Snd.track === 'floorHall', 'the 13th Floor on its own');

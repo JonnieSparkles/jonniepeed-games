@@ -82,11 +82,13 @@ The existing grids are unchanged (`bull.py --check` passes).
 ## In the game
 
 - Built on the arena with a ground line (`ARENA.ground`); the carpshits are the arena's, the tumblers the stairwell's own (`e.step`, `e.draw`).
-- The hand-off: the kick calls the 13th Floor's `musicDrop`, and its opening skips it when `R.fromStairs`; the door's white flash and shake carry over. The 13th Floor's meter starts at 0.
+- The hand-off: the kick calls the 13th Floor's `musicDrop`, and its opening skips it when `R.fromStairs`; the door's white flash and shake carry over. The 13th Floor's meter starts at 0; the stairwell's souls are banked and added back to the run's total when he leaves it (the owner: they count toward the game, not the 13th's 90).
 - "OK... HERE WE GO." is in `LINES` (`door`).
 
 - Start always plays the intro (skippable), and the intro ends at the foot of the stairs (the owner, Oct 13).
 
+- Section 1 opens on the garage door he came through in the intro's last still, open on the cool garage, then swinging shut (the owner: "yes to that door idea").
+
 ## Open
 
-- The intro's last still is the garage's STAIRS door: section 1 could open on that door behind him, the cool garage glimpsed for a beat.
+- Tuning on the phone.

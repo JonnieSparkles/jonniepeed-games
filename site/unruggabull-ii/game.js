@@ -118,6 +118,7 @@
     bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0, pin: 0 };
     drops.newRun(R, bull, at);
     floor.newRun(R, bull, at && at.transfer && floor.id === 'floor13' ? null : at);
+    R.banked = at && at.banked || 0;   // the stairwell's souls: in the run's total, not in the 13th Floor's meter
     if (at && at.transfer) {
       R.souls = R.shown = at.souls;
       R.hearts = RUN.refillBetweenStages ? TUNE.hearts : at.hearts;
@@ -1066,7 +1067,7 @@
   function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', { progress: runReport }) : null; }
   function travel(stage, extra = {}) {
     if (travelHook && travelHook(stage)) return;
-    const carried = Object.assign({ stage, transfer: true, souls: R.souls, hearts: R.hearts,
+    const carried = Object.assign({ stage, transfer: true, souls: R.souls + (R.banked || 0), hearts: R.hearts,
       heldDrop: R.heldDrop, dropNext: R.dropNext, continues: R.continues,
       seedState: seed, runSeed: RUN.seed }, extra);
     checkpoint = null; clearHeld(); input.jump = input.slash = input.shoot = 0;
@@ -1507,7 +1508,7 @@
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext, banked: R.banked }, v); }
   };
   const drops = UnrugDrops(core); core.drops = drops;
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };

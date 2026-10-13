@@ -41,6 +41,8 @@ var UnrugStairs = function (core) {
     // the door, from the top landing: the walk up, the line, the brace, the kick, the door at the camera, the 13th Floor
     door: { at: 360, stand: 392, walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hall: 2.91 },
     ambient: .62, dim: .2,
+    // the garage door at the foot of section 1: where it is (picture pixels), when it shuts (past walk, or after wait s), how fast
+    garage: { x0: 6, x1: 60, top: 142, walk: 72, wait: 1.8, swing: .28 },
     arena: { limit: .98, entry: 1.15, lowest: -.2, keep: [.5, .86], drift: .36, enterSpeed: .68, wadSpeed: .68,
       swoopFirst: [3.4, 5], swoopEvery: [3.4, 5], throwFirst: [1.4, 2.4], ground: u => ground(u) }
   };
@@ -82,6 +84,7 @@ var UnrugStairs = function (core) {
     const sec = SECTIONS[i];
     cur = sec; Object.assign(Q, { si: i, secT: 0, script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, glass: Infinity, taken: Infinity });
     if (i === 1 && Q.katana) Q.glass = Q.taken = -99;   // back after the Rugmergency: the cabinet's empty
+    Q.garageShut = i === 0 ? Infinity : -99;   // section 1 opens with the garage door open behind him (the story's last still)
     R.arena.enemies = []; R.arena.thrown = []; R.shots = []; R.arena.bare = !Q.katana; R.arena.pose = null;
     bull.u = UX(entryX(sec)); bull.facing = sec.dir; bull.jh = 0; bull.jv = 0; bull.kick = 0;
     R.hearts = TUNE.hearts;   // full hearts at each new section
@@ -212,8 +215,9 @@ var UnrugStairs = function (core) {
     if (k >= D.hall) {
       R.phase = 'win'; R.endT = R.t;
       emit('stairs_clear', { amount: R.t });
-      // the 13th Floor's meter starts at 0 (its 90 are its own): the stairwell's souls don't carry into it
-      core.travel('floor13', { fromStairs: true, souls: 0 });
+      // the 13th Floor's meter starts at 0 (its 90 are its own): the stairwell's souls are banked, still in the run's
+      // total, and go on with it when he leaves the floor
+      core.travel('floor13', { fromStairs: true, souls: 0, banked: R.souls });
     }
   }
   const doorOpen = () => Q.st === 'door' ? ease(span(Q.stT, STAIRS.door.kick, STAIRS.door.kick + .14)) : 0;
@@ -242,6 +246,8 @@ var UnrugStairs = function (core) {
     } else if (Q.st === 'rug') stepRug(dt);
     else if (Q.st === 'door') { stepDoor(dt); if (R.phase === 'win') return; }
     else stepScript(dt);
+    // the garage door swings shut behind him once he's on his way (or after a moment)
+    if (Q.si === 0 && Q.garageShut === Infinity && (PXu(bull.u) > STAIRS.garage.walk || Q.secT > STAIRS.garage.wait)) { Q.garageShut = Q.secT; Snd.play('stairShut'); }
     arena.update(dt, Q.st === 'play');
     if (R.phase === 'dead') return;
     if (Q.st !== 'play') return;
@@ -307,7 +313,8 @@ var UnrugStairs = function (core) {
     }
     // the floor plates on the landings' walls: the low floor and the high one (the 13th's is the door's own sign)
     const plate = (t, x, y) => words(c, () => { const w = textWidth(t) + 6; rect(c, x / 2 - w / 2 - 1, y / 2, w + 2, 9, '#1a1418'); rect(c, x / 2 - w / 2, y / 2 + 1, w, 7, '#d8d0b8'); txt(c, t, x / 2, y / 2 + 2, '#1a1418', 1, 'center'); });
-    const lowX = sec.dir > 0 ? 64 : W - 64, highX = sec.dir > 0 ? W - 64 : 150;
+    const lowX = sec.n === 1 ? 122 : sec.dir > 0 ? 64 : W - 64,   // section 1's clear of the garage door
+      highX = sec.dir > 0 ? W - 64 : 150;
     plate(floorName(sec.low), lowX, groundAt(sec, lowX) - 110);
     if (!sec.door) plate(floorName(sec.high), highX, sec.dir < 0 ? 30 : Math.max(36, groundAt(sec, highX) - 100));
     BGS[sec.n] = cv; return cv;
@@ -432,6 +439,36 @@ var UnrugStairs = function (core) {
   }
 
   // ---------- the frame ----------
+  // the door he came through, from the garage (the intro's last still, from the other side): open on the cool, navy
+  // garage with its hanging lamp and a shelf of rolled rugs, then swinging shut; then a plain wooden door, GARAGE
+  const garageK = () => Q.garageShut === Infinity ? 0 : ease(span(Q.secT - Q.garageShut, 0, STAIRS.garage.swing));
+  function garageDoor(c, k) {
+    const G = STAIRS.garage, x0 = G.x0, x1 = G.x1, w = x1 - x0, top = G.top, fl = groundAt(SECTIONS[0], x0);
+    c.fillStyle = '#a8a296'; c.fillRect(x0 - 4, top - 5, w + 8, fl - top + 5); c.fillStyle = '#14121a'; c.fillRect(x0 - 1, top - 2, w + 2, fl - top + 2);
+    if (k < 1) {
+      // the garage through the doorway
+      c.fillStyle = '#121a30'; c.fillRect(x0, top, w, fl - top);
+      c.fillStyle = '#1c2540'; c.fillRect(x0, fl - 18, w, 18); c.fillStyle = '#26304e'; c.fillRect(x0, fl - 18, w, 1);
+      c.fillStyle = '#2a3452'; c.fillRect(x0 + 2, top + 44, w - 4, 3);   // a shelf of rolled rugs
+      for (const [rx, col] of [[x0 + 6, '#6a2a2a'], [x0 + 15, '#2a4a6a'], [x0 + 24, '#6a5a2a'], [x0 + 33, '#4a2a5a'], [x0 + 42, '#2a5a4a']]) { c.fillStyle = col; c.fillRect(rx, top + 36, 7, 8); c.fillStyle = '#121a30'; c.fillRect(rx + 3, top + 39, 1, 2); }
+      c.fillStyle = '#3a4a6a'; c.fillRect(x0 + 13, top, 1, 12); c.fillStyle = '#9fb8e0'; c.fillRect(x0 + 10, top + 12, 7, 4);   // the hanging lamp
+    }
+    // the leaf: swung back into the garage, a sliver at the hinge; shutting, it swings across the doorway
+    const lw = Math.round(lerp(4, w, k));
+    c.fillStyle = '#5a3a20'; c.fillRect(x0, top, lw, fl - top); c.fillStyle = '#7a5230'; c.fillRect(x0 + 1, top + 1, Math.max(1, lw - 2), fl - top - 1);
+    if (k >= 1) {
+      c.fillStyle = '#6a4628'; c.fillRect(x0 + 5, top + 8, w - 10, 34); c.fillRect(x0 + 5, top + 50, w - 10, 40);   // panels
+      c.fillStyle = '#c4ccda'; c.fillRect(x1 - 8, top + 52, 3, 3);   // the knob
+      words(c, () => { const X = (x0 + x1) / 4, Y = (top + 18) / 2, pw = textWidth('GARAGE') + 4; rect(c, X - pw / 2 - 1, Y, pw + 2, 9, '#1a1418'); rect(c, X - pw / 2, Y + 1, pw, 7, '#d8d0b8'); txt(c, 'GARAGE', X, Y + 2, '#1a1418', 1, 'center'); });
+    }
+  }
+  function garageGlow(c, k) {
+    if (k >= 1) return;
+    const G = STAIRS.garage, cx = (G.x0 + G.x1) / 2;
+    c.fillStyle = '#d8e8ff'; c.fillRect(G.x0 + 11, G.top + 13, 5, 2); glow(c, G.x0 + 13, G.top + 14, 18, '#9fc0ff', .5 * (1 - k));
+    glow(c, cx, G.top + 60, 40, '#3a5a9a', .25 * (1 - k));
+  }
+
   // one section's lit things (offset in y for the whip): the backdrop, the cabinet, the tape, the door
   function drawSection(sec, oy) {
     g.save(); g.translate(0, oy);
@@ -441,6 +478,7 @@ var UnrugStairs = function (core) {
       if (sec.tape) drawTape(g, sec.tape);
     }
     if (sec.door) doorEnd(g, landing(sec), sec === cur ? doorOpen() : 0);
+    if (sec === SECTIONS[0]) garageDoor(g, sec === cur ? garageK() : 1);
     g.restore();
   }
   function lampGlow(sec, oy) { g.fillStyle = '#fff0b8'; g.fillRect(sec.lamp - 4, 14 + oy, 8, 8); glow(g, sec.lamp, 18 + oy, 22, '#fff4c8', .7); }
@@ -461,6 +499,7 @@ var UnrugStairs = function (core) {
     g.save(); g.scale(.5, .5);
     if (Q.st === 'whip') { const [o0, o1] = whipOff(); lampGlow(SECTIONS[Q.whip.from], o0); lampGlow(cur, o1); g.restore(); return; }
     lampGlow(cur, 0);
+    if (cur === SECTIONS[0]) garageGlow(g, garageK());
     if (cur.door) doorGlow(g, landing(cur), doorOpen());
     if (cur.cab) {
       if (cabReady()) {
@@ -490,6 +529,7 @@ var UnrugStairs = function (core) {
     const L = (x, y, cr, cg, cb) => r.light(x, y, 0, cr, cg, cb);
     if (Q.st === 'whip') { const [o0, o1] = whipOff(); L(SECTIONS[Q.whip.from].lamp, 26 + o0, 2.6, 2.1, 1.4); L(cur.lamp, 26 + o1, 2.6, 2.1, 1.4); return; }
     L(cur.lamp, 26, 2.6, 2.1, 1.4);
+    if (cur === SECTIONS[0] && garageK() < 1) { const o = 1 - garageK(); L(30, 200, .25 * o, .4 * o, .8 * o); }   // the garage's cool light through the door
     if (cur.door) { const fl = landing(cur); L(410, fl - 118, 1.6, 1.3, .9); const o = doorOpen(); if (o) L(452, fl - 40, 3.2 * o, 2.9 * o, 2.2 * o); }
     if (cur.cab) {
       const c = cur.cab;
