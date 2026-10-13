@@ -66,9 +66,9 @@ At most 14 carpshits at once. "PRODUCTION PANIC" drops in as a sign the first ti
 
 When the last loom goes, the factory comes apart: the soul main bursts, red light, rumble, falling debris (drawn only), every carpshit left is freed, and the freed souls pour up through the roof.
 
-Four of them come to the blaster instead, one at a time with a bell each (D5, F5, A5, C6), and it fires its streams: the bolt and four ribbons of light. He keeps control and can fire. Then the streams start to bend in toward each other, further than on the 13th Floor.
+Two of them come to the blaster instead, one at a time with a bell each (D5, then F5), and it fires its streams: the bolt and two ribbons of light. He keeps control and can fire. Then the streams start to bend in toward the bolt, which they never do on the 13th Floor. The bells count up across the climb (owner, Oct 12): one on the 13th Floor (D), two here (D, F), three on the roof (D, F, A), so the chord is only complete when the stream finally fuses.
 
-p(Loom) interferes before they fuse. Its eye comes up on every monitor in the factory, threads whip down through the broken roof and snag the four souls, the streams scatter, and the music cuts on a sour chord. Its readout says "NOT ON MY FLOOR." The souls tear free, salute him (as on the 13th Floor, reluctantly this time) and go up with the rest. Nothing explains what nearly happened.
+p(Loom) interferes before they fuse. Its eye comes up on every monitor in the factory, threads whip down through the broken roof and snag the two souls, the streams scatter, and the music cuts on a sour chord. Its readout says "NOT ON MY FLOOR." The souls tear free, salute him (as on the 13th Floor, reluctantly this time) and go up with the rest. Nothing explains what nearly happened.
 
 The screen goes white, and we're in the lobby.
 

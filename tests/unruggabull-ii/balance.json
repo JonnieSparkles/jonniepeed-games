@@ -61,8 +61,22 @@
     { "label": "arena throws", "key": "arena_throw" },
     { "label": "arena deflects", "key": "deflect:kind=arena_wad" },
     { "label": "cable taken", "key": "elevator_snap" },
-    { "label": "ride crates", "key": "elevator_supply" }
+    { "label": "ride crates", "key": "elevator_supply" },
+    { "label": "48: lines down", "key": "f48_line" },
+    { "label": "48: machines broken", "key": "f48_break" },
+    { "label": "48: broken by chain", "key": "f48_break:by=chain" },
+    { "label": "48: carpshits made", "key": "td_spawn" },
+    { "label": "48: bobbins thrown", "key": "td_throw" },
+    { "label": "48: bobbins deflected", "key": "deflect:kind=bobbin" },
+    { "label": "48: kills by katana", "key": "td_kill:by=slash" },
+    { "label": "48: kills by blaster", "key": "td_kill:by=shot" },
+    { "label": "48: kills by blast", "key": "td_kill:by=blast" },
+    { "label": "lost: chasers", "key": "hit.amount:cause=chaser" },
+    { "label": "lost: armored", "key": "hit.amount:cause=armored" },
+    { "label": "lost: rolls", "key": "hit.amount:cause=roll" },
+    { "label": "lost: bobbins", "key": "hit.amount:cause=bobbin" },
+    { "label": "lost: presses", "key": "hit.amount:cause=press" }
   ],
-  "stages": {"1": "Accounts Payable", "2": "Moving day", "3": "All Staff", "4": "Lights out", "5": "Copy Room", "6": "Shredder 1", "7": "Shredder 2", "8": "Shredder 3", "9": "Floor 13 cleared", "10": "Roof lead-in", "11": "Roof round 1", "12": "Roof round 2", "13": "Roof round 3", "14": "Roof crescendo", "15": "Roof cleared", "16": "Elevator ride", "17": "Elevator cleared"},
-  "causes": ["orb", "snare", "carp", "dive", "flyer", "arena_wad"]
+  "stages": {"1": "Accounts Payable", "2": "Moving day", "3": "All Staff", "4": "Lights out", "5": "Copy Room", "6": "Shredder 1", "7": "Shredder 2", "8": "Shredder 3", "9": "Floor 13 cleared", "10": "Roof lead-in", "11": "Roof round 1", "12": "Roof round 2", "13": "Roof round 3", "14": "Roof crescendo", "15": "Roof cleared", "16": "Elevator ride", "17": "Elevator cleared", "18": "48th Floor", "19": "48th: one line down", "20": "48th: last line", "21": "48th: collapse and lobby", "22": "48th cleared"},
+  "causes": ["orb", "snare", "carp", "dive", "flyer", "arena_wad", "chaser", "armored", "roll", "bobbin", "press"]
 }

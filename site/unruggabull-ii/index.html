@@ -141,6 +141,20 @@ body.locked{overflow:hidden}
   .full .pad{--size:min(20vh,12vw,84px);opacity:.88}
   .full .pad.slash{margin-bottom:calc(var(--size) * .45)}
 }
+/* Twin-stick floors (the 48th Floor's factory): the right stick aims and fires, Slash stays beside it, Shoot goes. */
+.aimzone{display:none}
+.twin .aimzone{display:block;flex:1 1 auto;min-width:130px;min-height:140px}
+.twin .pad.shoot{display:none}
+.twin .pad-group{align-items:center}
+.stick.aim{border-color:rgba(127,212,255,.35)}
+.stick.aim.on{border-color:#7fd4ff}
+.stick.aim.on .knob{background:#7fd4ff}
+.twin .hint .keys-only,.twin .hint .touch-only{display:none}
+.hint .twin-only{display:none}
+body:not(.touch).twin .hint .twin-only.keys{display:inline}
+.touch.twin .hint .twin-only.touch{display:inline}
+@media (orientation:portrait){.full.playing .twin .aimzone,.twin .full .aimzone{min-height:120px;width:100%}}
+@media (orientation:landscape){.twin .full .aimzone{flex:0 0 auto;width:min(30vw,220px);height:min(44vh,170px);min-height:0}.twin .full .stick-tip{display:none}}
 @media (prefers-reduced-motion:reduce){button:active{transform:none}}
 </style>
 </head>
@@ -175,6 +189,10 @@ body.locked{overflow:hidden}
             <span class="stick-tip" aria-hidden="true">Slide to move · flick up to jump · hold down to crouch</span>
           </div>
           <div class="pad-group">
+            <div class="stickzone aimzone" id="aimzone" role="application" aria-label="Aim stick: hold to aim and fire, flick to slash">
+              <div class="stick aim" id="aimstick" aria-hidden="true"><i class="knob" id="aimknob"></i></div>
+              <span class="stick-tip" aria-hidden="true">Hold to aim and fire · flick to slash</span>
+            </div>
             <button class="pad shoot" type="button" data-k="shoot" tabindex="-1"><svg viewBox="0 0 12 10" aria-hidden="true"><path d="M9 1h1v1h-1zM2 2h7v1h-7zM10 2h1v1h-1zM1 3h10v1h-10zM1 4h9v1h-9zM1 5h2v1h-2zM4 5h1v1h-1zM1 6h2v1h-2zM4 6h2v1h-2zM1 7h2v1h-2zM1 8h3v1h-3z"/></svg>Shoot</button>
             <button class="pad slash" type="button" data-k="slash" tabindex="-1"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M11 0h1v1h-1zM10 1h2v1h-2zM9 2h2v1h-2zM8 3h2v1h-2zM7 4h2v1h-2zM6 5h2v1h-2zM2 6h1v1h-1zM4 6h2v1h-2zM3 7h2v1h-2zM2 8h3v1h-3zM1 9h1v1h-1zM4 9h1v1h-1zM0 10h1v1h-1z"/></svg>Slash</button>
           </div>
@@ -183,7 +201,7 @@ body.locked{overflow:hidden}
     </div>
     <p class="sr" id="live" aria-live="polite"></p>
   </section>
-  <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space; crouch with S, C or Down. Hold Shift or ' to shoot (watch the charge bar), press Enter to slash (J and K work too). Slash cuts carpshits up close and knocks paper back at whoever threw it; temps behind their desks need the blaster or their own paper. Jump for coffee and power-ups. M sound, F full screen, P pause.</span><span class="touch-only">Slide the thumb stick to move, flick it up to jump, hold it down to crouch. Hold Shoot to fire, but watch the charge bar. Slash cuts carpshits up close and knocks paper back at whoever threw it. Jump for coffee and power-ups.</span></p>
+  <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space; crouch with S, C or Down. Hold Shift or ' to shoot (watch the charge bar), press Enter to slash (J and K work too). Slash cuts carpshits up close and knocks paper back at whoever threw it; temps behind their desks need the blaster or their own paper. Jump for coffee and power-ups. M sound, F full screen, P pause.</span><span class="touch-only">Slide the thumb stick to move, flick it up to jump, hold it down to crouch. Hold Shoot to fire, but watch the charge bar. Slash cuts carpshits up close and knocks paper back at whoever threw it. Jump for coffee and power-ups.</span><span class="twin-only keys">Move with WASD and aim with the mouse: hold the left button to fire, right-click or Space to slash. The arrow keys aim and fire too. E uses a supply. M sound, F full screen, P pause.</span><span class="twin-only touch">The left stick moves. Hold the right stick to aim and fire; flick it to slash, or tap Slash.</span></p>
 </main>
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
 <script src="bull.js?v=ac23ab772c"></script>
@@ -191,6 +209,7 @@ body.locked{overflow:hidden}
 <script src="art.js?v=800e23f298"></script>
 <script src="music-roof.js?v=6c135131e6"></script>
 <script src="music-elevator.js?v=d4ee1d25dc"></script>
+<script src="music-factory.js"></script>
 <script src="audio.js?v=55d37b3623"></script>
 <script src="render.js?v=69470e59ce"></script>
 <script src="sets13.js?v=8c7c7b7e6d"></script>
@@ -199,6 +218,9 @@ body.locked{overflow:hidden}
 <script src="roof.js?v=dd4dc8b4c3"></script>
 <script src="drops.js?v=b14386f818"></script>
 <script src="arena.js?v=dea7ce347f"></script>
+<script src="topdown.js"></script>
+<script src="sets48.js"></script>
+<script src="floor48.js"></script>
 <script src="elevator.js?v=9eb7ae4555"></script>
 <script src="game.js?v=0dc6764c7f"></script>
 </body>
