@@ -370,8 +370,9 @@
   function doorScene(opt) {
     const T = { stop: 1.45, brace: 1.98, kick: 2.28, swing: 2.32, turn: .42, push: .3 };
     const beat = opt.entry === 'beat';
-    const wall = opt.door === 'wall';
-    if (wall) Object.assign(T, { face: 1.62, stepEnd: 1.95, brace: 2.05, kick: 2.32, flyEnd: 2.62, push0: 2.52, hall: 3.15 });
+    const combo = opt.door === 'combo', wall = opt.door === 'wall' || combo;
+    if (combo) Object.assign(T, { face: 1.62, stepEnd: 1.95, brace: 2.05, kick: 2.32, flyEnd: 2.62, fly: 2.34, impact: 2.84, hall: 2.92 });
+    else if (wall) Object.assign(T, { face: 1.62, stepEnd: 1.95, brace: 2.05, kick: 2.32, flyEnd: 2.62, push0: 2.52, hall: 3.15 });
     else if (opt.door === 'swing') T.hall = T.swing + T.turn + T.push; else { T.fly = T.kick + .05; T.impact = T.kick + .33; T.hall = T.impact + .08; }
     T.oh = T.hall + .3; T.raise = T.hall + (beat ? 1.5 : .15); T.banner = T.raise + .05; T.end = T.banner + 3.6;
     const st = 170;
@@ -384,7 +385,7 @@
       [T.stop, () => { Snd.music(null, { hard: true }); FX.hum(T.kick - T.stop); }],
       [T.brace, () => FX.creak()],
       [T.kick, () => { FX.kick(); if (beat) Snd.music('floorOpen', { slam: true, stems: ['drums', 'bass', 'lead'] }); else Snd.music('floorHall', { slam: true, stems: ['drums', 'bass', 'lead'] }); }],
-      ...(wall ? [[T.push0, () => FX.whoosh()]] : opt.door === 'swing' ? [[T.swing, () => FX.whoosh()]] : [[T.impact, () => FX.impact()]]),
+      ...(combo ? [[T.impact, () => FX.impact()]] : wall ? [[T.push0, () => FX.whoosh()]] : opt.door === 'swing' ? [[T.swing, () => FX.whoosh()]] : [[T.impact, () => FX.impact()]]),
       ...(beat ? [[T.raise, () => { Snd.music('floorHall', { slam: true, stems: ['drums', 'bass', 'lead'] }); Snd.play('start'); }]] : [[T.raise, () => Snd.play('start')]])
     ];
     // the side view at time t (him included unless noBull), into g
@@ -421,8 +422,21 @@
     }
     function draw(g, t) {
       const pose = t >= T.raise ? BACK.aim : t >= T.hall ? BACK.stand : null;
-      if (t < (wall ? T.push0 : opt.door === 'swing' ? T.swing : T.kick)) {
+      if (t < (combo ? T.kick + .02 : wall ? T.push0 : opt.door === 'swing' ? T.swing : T.kick)) {
         sideView(g, t);
+      } else if (combo && t < T.hall) {
+        // the reverse shot: from inside the hall, looking back at the doorway, him in it, the door flying at us;
+        // held a little longer than the side-on version so the two cuts don't feel choppy
+        g.fillStyle = '#0b0910'; g.fillRect(0, 0, W, H);
+        const d = { x: 180, y: 46, w: 120, h: 204 };
+        g.fillStyle = '#3d3b47'; g.fillRect(d.x, d.y, d.w, d.h); g.fillStyle = '#5a2128'; g.fillRect(d.x, d.y + 120, d.w, d.h - 120);
+        g.fillStyle = '#b88a2a'; g.fillRect(d.x, d.y + 118, d.w, 3); glow(g, 240, d.y + 20, 120, '#ffd890', .35);
+        g.fillStyle = '#5c5966'; g.fillRect(d.x, d.y + d.h - 6, d.w, 6);
+        drawSide(g, FRONT, 240, d.y + d.h - 4, VF);
+        g.fillStyle = '#14121a'; g.fillRect(d.x - 10, d.y - 10, d.w + 20, 10); g.fillRect(d.x - 10, d.y, 10, d.h); g.fillRect(d.x + d.w, d.y, 10, d.h);
+        const k = span(t, T.fly, T.impact), kk = easeIn(k);
+        doorFront(g, 240, lerp(d.y + d.h / 2, 135, kk), lerp(d.w - 6, 640, kk), lerp(d.h - 4, 1100, kk), Math.sin(k * 7) * .12 * (1 - k) + k * .06);
+        if (t >= T.impact) { g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H); }
       } else if (wall && t < T.hall) {
         // the camera follows him up through the doorway: the stairwell grows past the screen faster than the hall does
         const k = ease(span(t, T.push0, T.hall)), S = Math.exp(Math.log(9) * k), hs = Math.exp(Math.log(LWH) * (1 - k));
@@ -457,7 +471,7 @@
         if (t >= T.impact) { g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H); }
       } else {
         const img = hall(t, pose);
-        const [sx, sy] = opt.door === 'fly' ? shakeAt(t, T.hall, .3, 6) : [0, 0];
+        const [sx, sy] = opt.door === 'fly' || combo ? shakeAt(t, T.hall, .3, 6) : [0, 0];
         g.fillStyle = '#07050a'; g.fillRect(0, 0, W, H); g.drawImage(img, sx, sy);
         if (beat && t >= T.oh && t < T.raise + .4) bark(g, '...OH.', span(t, T.oh, T.oh + .6));
         if (t >= T.banner && t < T.banner + 1.6) topBanner(g, 'THE 13TH FLOOR', span(t, T.banner, T.banner + 1.6));
@@ -467,7 +481,7 @@
       const [sx, sy] = shakeAt(t, T.kick, .25, 4);
       if (sx || sy) { BUF.getContext('2d').drawImage(g.canvas, 0, 0); g.fillStyle = '#07050a'; g.fillRect(0, 0, W, H); g.drawImage(BUF, sx, sy); }
     }
-    return { name: 'door', T, end: T.end, cues, draw, label: t => t < T.stop ? 'the last flight, the cue at full tilt' : t < T.kick ? (wall ? 'the music stops; he turns to the door and braces' : 'half a second: the music stops') : t < T.hall ? (wall ? 'he walks up into it; the camera follows him through' : opt.door === 'swing' ? 'the swing, then through the door' : 'the door at the camera, cut on the impact') : t < T.raise ? (beat ? 'the muzak: "...oh."' : 'the band from the kick') : 'blaster up: the band, THE 13TH FLOOR' };
+    return { name: 'door', T, end: T.end, cues, draw, label: t => t < T.stop ? 'the last flight, the cue at full tilt' : t < T.kick ? (wall ? 'the music stops; he turns to the door and braces' : 'half a second: the music stops') : t < T.hall ? (combo ? 'the reverse shot: the door flies at us; cut on the impact' : wall ? 'he walks up into it; the camera follows him through' : opt.door === 'swing' ? 'the swing, then through the door' : 'the door at the camera, cut on the impact') : t < T.raise ? (beat ? 'the muzak: "...oh."' : 'the band from the kick') : 'blaster up: the band, THE 13TH FLOOR' };
   }
 
   // ---------- new sounds, synthesized here (the game's own play through Snd) ----------
