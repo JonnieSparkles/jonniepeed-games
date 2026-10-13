@@ -359,7 +359,8 @@ var UnrugFloor48 = function (core) {
     const bonus = C.n - 2;
     Q.bestChain = Math.max(Q.bestChain, C.n); R.events.bestChain = Q.bestChain;
     soulsFrom(C.x, C.y, bonus, 'chain', 'chain');
-    const sc = td.screenOf(C.x, C.y - 30); core.popText('+' + bonus + ' CHAIN BONUS', sc.x / 2, sc.y / 2, '#ffd44a');
+    // the bonus joins the callout (a popup of its own landed on top of it)
+    Q.callout = { n: C.n, at: R.t, beat: false, bonus };
     emit('f48_chain_end', { n: C.n, bonus });
   }
   function stepCombo() { if (Q.combo && R.t - Q.combo.last > F48.combo.window) endCombo(); }
@@ -1178,6 +1179,7 @@ var UnrugFloor48 = function (core) {
       if (co && R.t - co.at < 1.1) {
         const k = R.t - co.at, big = co.beat && k < .18;
         otxt(g, 'CHAIN x' + co.n, 120, big ? 42 : 44, Math.floor(R.t * 12) % 2 ? '#ffd44a' : '#ff9a3c', big ? 3 : 2, 'center');
+        if (co.bonus) otxt(g, '+' + co.bonus + ' SOUL' + (co.bonus > 1 ? 'S' : ''), 120, 56, '#fff6e2', 1, 'center');
       }
     }
     // the power-ups running, under the charge bar, each with its time left
@@ -1204,10 +1206,11 @@ var UnrugFloor48 = function (core) {
     }
     g.restore();
   }
-  // flat light: dim work lights and the machines' own light; darker and red in the panic and the collapse
+  // flat light: dim work lights and the machines' own light; darker and red in the panic and the collapse.
+  // About 15% up on the first build (owner, Oct 13: "could be SLIGHTLY brighter")
   function view() {
     if (Q.st === 'lobby') return { ambient: 1 };
-    return { ambient: Q.st === 'collapse' ? .4 : Q.panic > 1 ? .44 : Q.panic ? .48 : .52 };
+    return { ambient: Q.st === 'collapse' ? .46 : Q.panic > 1 ? .5 : Q.panic ? .55 : .6 };
   }
   // at most this many lights a frame: the flat renderer lights every pixel by each of them, and phones have to keep up
   const MOST_LIGHTS = 18;
