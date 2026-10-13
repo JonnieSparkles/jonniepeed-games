@@ -85,7 +85,8 @@ The existing grids are unchanged (`bull.py --check` passes).
 - The hand-off: the kick calls the 13th Floor's `musicDrop`, and its opening skips it when `R.fromStairs`; the door's white flash and shake carry over. The 13th Floor's meter starts at 0.
 - "OK... HERE WE GO." is in `LINES` (`door`).
 
+- Start always plays the intro (skippable), and the intro ends at the foot of the stairs (the owner, Oct 13).
+
 ## Open
 
-- Whether Start always plays the stairs, or only the first time (for now it always does).
 - The intro's last still is the garage's STAIRS door: section 1 could open on that door behind him, the cool garage glimpsed for a beat.

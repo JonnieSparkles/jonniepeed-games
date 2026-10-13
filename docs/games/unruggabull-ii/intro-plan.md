@@ -4,7 +4,7 @@ Status: built (Oct 13, 2026). This is the plan as it was decided with the owner;
 
 ## What it is
 
-Six illustrated stills, a line each narrated in the game's blips, on the first Start (and from **Watch the story**). It replaces the old text crawl. Humour is in the pictures; the narration keeps a straight face. No crypto jargon. Each still waits for a tap once its line is said; a tap on a still's gag plays the gag instead of moving on; Skip or Escape ends it. About 30 seconds if you tap as soon as each arrow shows.
+Six illustrated stills, a line each narrated in the game's blips, on every Start (skippable; the owner, Oct 13: "start at the story then u skip from there like every game"). It replaces the old text crawl. Humour is in the pictures; the narration keeps a straight face. No crypto jargon. Each still waits for a tap once its line is said; a tap on a still's gag plays the gag instead of moving on; Skip or Escape ends it. About 30 seconds if you tap as soon as each arrow shows.
 
 The pictures are the owner's, made in ChatGPT from prompts written with Claude, then shrunk to the game's picture and its 64 colours by `tools/unruggabull-ii/intro/stills.py`. The source pictures and the Rugfather's strips stay out of the repo; the generated data is the art. Everything that moves and every letter is drawn in code on top (AI pictures garble text).
 

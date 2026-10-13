@@ -1005,7 +1005,6 @@
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
-      if (storySeen()) { altBtn.textContent = 'Watch the story'; altBtn.hidden = false; }
       cardNote.textContent = 'Demo: the first floor of the climb.'; cardNote.hidden = false;
       const land = document.createElement('span'); land.className = 'land-note'; land.textContent = ' Best played in landscape.'; cardNote.append(land);
     } else if (kind === 'pause') {
@@ -1101,10 +1100,10 @@
   function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
 
   // ---------- the story so far ----------
-  // The intro (intro.js): six illustrated stills, a narrated line each, on the first Start. A tap finishes a line; once
+  // The intro (intro.js): six illustrated stills, a narrated line each, on every Start. A tap finishes a line; once
   // it's said a blinking arrow shows and the still waits, still moving, for another tap. A tap on a still's gag (Loomy,
   // a soul) plays the gag instead. Skip or Escape ends it. The pictures (intro-stills.js, about 290 KB) are fetched
-  // only for a device that hasn't seen the story, or when Watch the story is pressed; the intro waits up to 4 s for them.
+  // as the page loads, since every Start plays the story; the intro waits up to 4 s for them.
   const Intro = UnrugIntro, STORY = Intro.LINES;
   const STORY_KEY = 'unruggabull-ii-story';
   const crawl = $('crawl'), crawlText = $('crawlText'), more = $('more'), moreTap = $('moreTap'), skipBtn = $('skip');
@@ -1120,7 +1119,7 @@
     s.id = 'introStills'; s.src = meta ? meta.content : 'intro-stills.js';
     document.head.append(s);
   }
-  if (!storySeen()) loadStills();
+  loadStills();
   function startIntro() {
     loadStills(); Intro.reset();
     setState('intro'); card.hidden = true; crawl.hidden = false;
@@ -1206,11 +1205,10 @@
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
     if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
     if (cardKind === 'clear' && floor.afterClear) { setState('play'); card.hidden = true; floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
-    if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'stairs' : floor.id);
+    if (cardKind === 'title') startIntro(); else startRun(floor.id);   // Start always plays the story; skip it from there (the owner, Oct 13)
   });
   altBtn.addEventListener('click', () => {
     if (cardKind === 'pause') { Snd.resume(); startRun(); }
-    else if (cardKind === 'title') { goFull(); startIntro(); }
     else if (cardKind === 'rugged') { goFull(); startRun(); }
     else if (cardKind === 'clear' && floor.id === 'floor13') { goFull(); startRun('floor13'); }
     else if (cardKind === 'clear' && floor.afterClear) { goFull(); startRun(floor.id); }

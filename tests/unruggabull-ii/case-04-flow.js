@@ -5,7 +5,7 @@
   const key = (type, k) => dispatchEvent(new KeyboardEvent(type, { key: k, bubbles: true }));
   try { localStorage.removeItem('unruggabull-ii-story'); } catch (e) {}
   newRun(); setState('title'); showCard('title');
-  check(altBtn.hidden, 'no story link before the story has been seen');
+  check(altBtn.hidden, 'one button on the title: Start');
   goBtn.click();
   check(state === 'intro' && !crawl.hidden && card.hidden, 'the first Start tells the story');
   for (let k = 0; k < 50 && intro.i < 0; k++) step(.1);
@@ -31,18 +31,17 @@
   step(OUT * .5);
   check(state === 'intro' && intro.out > 0, 'the doorway light is still filling the picture');
   step(OUT * .5 + .1);
-  check(state === 'play' && crawl.hidden && fadeIn && R.banner && R.banner.text === 'THE 13TH FLOOR', 'then the floor opens out of the light');
+  check(state === 'play' && crawl.hidden && fadeIn && R.stage === 'stairs', 'then the stairwell opens out of the light');
   step(FADE + .1);
   check(!fadeIn, 'and the light clears');
-  setState('title'); showCard('title'); altBtn.click();
+  setState('title'); showCard('title');
+  check(altBtn.hidden, 'still one button once the story has been seen');
+  goBtn.click();
+  check(state === 'intro' && !crawl.hidden, 'every Start plays the story');
   for (let k = 0; k < 50 && intro.i < 0; k++) step(.1);
   key('keydown', 'Escape');
   check(state === 'play' && crawl.hidden && storySeen() && !fadeIn, 'Escape skips to the stairwell, with no fade');
   check(R.stage === 'stairs' && floor.Q.si === 0 && !floor.Q.katana, 'the story ends at the foot of the stairs, no katana yet');
-  setState('title'); showCard('title');
-  check(!altBtn.hidden && altBtn.textContent === 'Watch the story', 'the story can be watched again');
-  goBtn.click();
-  check(state === 'play' && R.stage === 'stairs', 'later Starts go straight to the stairs');
   startRun('floor13');
   check(R.banner && R.banner.text === 'THE 13TH FLOOR' && R.banner.then.text === 'FREE ' + TUNE.goal + ' SOULS', 'the floor opens with its goal');
 
