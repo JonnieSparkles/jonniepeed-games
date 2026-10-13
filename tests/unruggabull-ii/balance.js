@@ -105,10 +105,15 @@
           me: { x: b.x, y: b.y, vx: b.vx, vy: b.vy, ax: b.ax, ay: b.ay, cd: b.cd, inv: b.inv, slash: b.slash },
           speed: T8.speed, bounds: T8.bounds, bed: floor.F48.bedH / 2, beltEnd: floor.F48.beltEnd, lineX0: floor.F48.lineX0,
           lines: floor.LINES.map(function (l) { return l.y; }),
-          enemies: td.enemies.filter(function (e) { return !e.dead; }).map(function (e) { return { id: idOf(e), kind: e.kind, x: e.x, y: e.y, vx: e.vx, vy: e.vy, st: e.st || null, tx: e.tx || 0, ty: e.ty || 0, spawning: e.spawning > 0, armored: !!e.armored }; }),
-          thrown: td.thrown.filter(function (p) { return !p.dead; }).map(function (p) { return { id: idOf(p), x: p.x, y: p.y, vx: p.vx, vy: p.vy, friendly: p.friendly }; }),
+          enemies: td.enemies.filter(function (e) { return !e.dead; }).map(function (e) { return { id: idOf(e), kind: e.kind, x: e.x, y: e.y, vx: e.vx, vy: e.vy, st: e.st || null, tx: e.tx || 0, ty: e.ty || 0, spawning: e.spawning > 0, armored: !!e.armored, stag: e.stag || 0 }; }),
+          thrown: td.thrown.filter(function (p) { return !p.dead; }).map(function (p) { return { id: idOf(p), kind: p.kind || 'bobbin', x: p.x, y: p.y, vx: p.vx, vy: p.vy, friendly: p.friendly }; }),
           machines: F.machines.filter(function (m) { return !m.dead; }).map(function (m) { return { id: idOf(m), line: m.line, kind: m.kind, x0: m.x0, x1: m.x1, y0: m.y0, y1: m.y1, hp: m.hp, warn: m.warn || 0 }; }),
           solids: floor.F48.props.map(function (p) { return { x0: p[1], x1: p[1] + p[3], y0: p[2], y1: p[2] + p[4] }; }),
+          cables: F.st === 'fight' ? floor.cables().map(function (c) { return { id: idOf(F.machines[c.line * 5]) + ':' + c.kind, line: c.line, kind: c.kind, x: (c.x0 + c.x1) / 2, y: (c.y0 + c.y1) / 2 }; }) : [],
+          pickups: td.pickups.map(function (p) { return { id: idOf(p), kind: p.kind, x: p.x, y: p.y }; }),
+          cranes: F.crane.map(function (c, i) { return { st: c.st, x: c.x, dir: c.dir, y: floor.LINES[i].y + floor.F48.crane.dy }; }),
+          tangle: b.tangle || 0,
+          whip: F.collapse && F.collapse.phase === 'whip' ? F.collapse.reserve.filter(function (k) { return !k.broken; }).map(function (k) { return { x: k.x }; }) : null,
           lobby: F.lobby ? { t: F.lobby.t, open: F.lobby.ding && F.lobby.t > floor.F48.lobby.dingAt + .4 + floor.F48.lobby.doorsT, doorU: floor.F48.lobby.doorU, u: b.u } : null };
       }
       return o;

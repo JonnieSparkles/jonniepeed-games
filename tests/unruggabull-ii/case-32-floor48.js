@@ -1,4 +1,5 @@
-// The 48th Floor: the twin-stick factory, Production Panic, the near miss, the lobby and the long ride from 48.
+// The 48th Floor: the twin-stick factory, its cables, power-ups, shags and hazards, Production Panic, the whip and
+// p(Loom)'s beat, the lobby and the long ride from 48.
 (function () {
   const check = (ok, msg) => { if (!ok) throw new Error(msg); };
   const tick = seconds => { for (let i = 0; i < Math.ceil(seconds * 60); i++) update(1 / 60); };
@@ -31,8 +32,65 @@
     bull.cd = 0; twin.flick = { x: 1, y: 0 }; press('slash'); tick(.05);
     check(R.td.thrown[0] && R.td.thrown[0].friendly && R.charge === charge + TUNE.deflectCharge, 'the katana knocks a bobbin back for charges');
     tick(1.2); check(a2.dead, 'the bobbin goes back to whoever threw it');
+    // bolts pass through bobbins: only the katana answers them; a thrower winds up first
+    const a3 = enemy('armored', 0, -140); a3.nextThrow = 0; R.td.thrown = []; tick(.1);
+    check(a3.wind > 0 && !R.td.thrown.length, 'an armored carpshit winds up before it throws');
+    tick(.5); check(R.td.thrown.length === 1, 'then throws');
+    const bob = R.td.thrown[0]; R.shots.push({ x: bob.x, y: bob.y + 20, h: bob.h, vx: 0, vy: -360, t: 0, a: -1.57, dead: false }); tick(.1);
+    check(!bob.dead && R.td.thrown.includes(bob), 'a bolt goes straight through a bobbin');
+    R.td.thrown = []; td.clearThreats('test');
+    // a spinner's thread tangles him (no heart lost); the katana cuts it
+    const h0 = R.hearts; bull.inv = 0; td.flingThread(bull.x + 60, bull.y, 20, Math.PI); tick(.6);
+    check(bull.tangle > 0 && R.hearts === h0, 'a thread tangles him: slower, but no heart');
+    bull.tangle = 0; td.flingThread(bull.x + 50, bull.y, 20, Math.PI); tick(.1); bull.cd = 0; twin.flick = { x: 1, y: 0 }; press('slash'); tick(.05);
+    check(!R.td.thrown.length && !(bull.tangle > 0), 'the katana cuts a thread out of the air'); bull.inv = 1e9;
+    // the shag: tough, staggered by the katana, splits into two flyers
+    const sh = td.spawn('shag', { x: bull.x + 30, y: bull.y }); sh.spawning = 0; sh.next = 99;
+    for (let i = 0; i < 6; i++) { R.shots.push({ x: sh.x - 20, y: sh.y, h: 14, vx: 360, vy: 0, t: 0, a: 0, dead: false }); tick(.05); }
+    check(!sh.dead, 'the shag shrugs off a few bolts');
+    R.shots = []; sh.hp = td.TD.shag.hp; const hpBefore = sh.hp; bull.cd = 0; input.slash = 0; twin.flick = { x: 1, y: 0 }; press('slash'); update(1 / 60);
+    check(sh.hp === hpBefore - td.TD.shag.slash, 'one cut does ' + td.TD.shag.slash + ' (' + hpBefore + ' -> ' + sh.hp + ')');
+    check(sh.stag > 0 && !sh.dead, 'a cut staggers it');
+    for (let i = 0; i < 4 && !sh.dead; i++) { tick(.4); sh.x = bull.x + 30; sh.y = bull.y; bull.cd = 0; twin.flick = { x: 1, y: 0 }; press('slash'); tick(.05); }
+    check(sh.dead && R.td.enemies.filter(e => e.kind === 'flyer').length >= 2, 'it splits into two flyers when it dies');
+    td.clearThreats('test');
+    // power-ups: walk over one to take it
+    for (const [k, key] of [['rapid', 'rapid'], ['pierce', 'pierce'], ['spread', 'spread']]) { td.addPickup(k, bull.x, bull.y); tick(.05); check(R[key] > 0, k + ' is taken and runs'); }
+    const pf = enemy('flyer', 0, -60), pf2 = enemy('flyer', 0, -100); pf.hp = pf2.hp = 1; R.spread = 0; twin.aiming = true; twin.aimX = 0; twin.aimY = -1; tick(.3); twin.aiming = false;
+    check(pf.dead && pf2.dead, 'a piercing bolt goes through one carpshit into the next'); R.rapid = R.pierce = R.spread = 0;
     const r1 = enemy('roll', 0, -80), xl = bull.x; tick(.02); bull.cd = 0; twin.flick = { x: 0, y: -1 }; press('slash'); tick(.12);
     check(bull.y < 420 - 3 && bull.y > 420 - 12, 'the slash lunges a little');
+    // which line makes what is the run's: the same seed, the same lines; another seed can differ
+    fresh(); const k42 = Q().kinds.join(); fresh(); check(Q().kinds.join() === k42 && Q().kinds.slice().sort().join() === 'armored,flyer,roll', 'the lines are shuffled by the seed');
+    let other = false; for (let sd = 1; sd < 12 && !other; sd++) { RUN.force = sd; newRun(null, 'floor48'); RUN.force = null; other = Q().kinds.join() !== k42; }
+    check(other, 'other seeds shuffle them differently');
+    // the cables: the katana cuts them; bolts don't
+    fresh(); bull.inv = 1e9; tick(.1);
+    const L0 = F.LINES[0].y, fseg = { x: (F48.feed.x0 + F48.feed.x1) / 2, y: L0 + F48.feed.dy };
+    bull.x = fseg.x; bull.y = fseg.y - 26; R.shots.push({ x: fseg.x, y: fseg.y + 10, h: 10, vx: 0, vy: -360, t: 0, a: -1.57, dead: false }); tick(.1);
+    check(!Q().feedCut[0], 'a bolt doesn\'t cut a cable');
+    const sF = R.souls; bull.cd = 0; twin.flick = { x: 0, y: 1 }; press('slash'); tick(.05);
+    check(Q().feedCut[0] && R.souls >= sF + F48.feed.souls, 'the katana cuts a soul feed: its souls spill free');
+    const pseg = F.cables().find(c => c.line === 0 && c.kind === 'power'); bull.x = pseg.x0; bull.y = pseg.y1 + 20; bull.cd = 0; twin.flick = { x: 0, y: -1 }; press('slash'); tick(.05);
+    check(Q().powerCut[0] > 0 && !F.cables().some(c => c.line === 0), 'and a power cable');
+    // the cue: SLASH THE CABLES once, near one
+    fresh(); bull.inv = 1e9; tick(5.2); R.banner = null; const fs1 = F.cables().find(c => c.kind === 'feed'); bull.x = fs1.x0 + 20; bull.y = fs1.y0 - 30; tick(.1);
+    check(R.banner && R.banner.text === 'SLASH THE CABLES', 'near a cable: SLASH THE CABLES');
+    // a cut power cable: the line's rugs come out limp, souls free, until p(Loom) splices it back
+    fresh(); bull.inv = 1e9; let limp = 0, made = 0; emitHook = (t) => { if (t === 'f48_limp') limp++; if (t === 'td_spawn') made++; };
+    F.cutCable(F.cables().find(c => c.line === 1 && c.kind === 'power')); tick(F48.power.down - .2);
+    check(limp > 0 && Q().powerCut[1] > 0, 'an unpowered line sends out limp rugs');
+    tick(.4); check(Q().powerCut[1] === 0 && Q().patched[1] === 1, 'then p(Loom) splices the cable back'); emitHook = null;
+    // the hazards: the Heavy line's crane, the Bulk line's reverse in the panic
+    fresh(); bull.inv = 0; const hv = Q().kinds.indexOf('armored'), hy = F.LINES[hv].y + F48.crane.dy;
+    Q().crane[hv].next = 0; bull.x = 400; bull.y = hy; let hit = false; for (let i = 0; i < 60 * 3 && !hit; i++) { update(1 / 60); bull.x = 400; bull.y = hy; hit = R.lastCause === 'crane'; }
+    check(hit, 'the crane hook sweeps the walkway below the Heavy line');
+    fresh(); bull.inv = 1e9; const bk = Q().kinds.indexOf('roll'), other1 = [0, 1, 2].find(i => i !== bk); F.breakMachine(machine(other1, 'loom'), 'shot'); tick(.1);
+    Q().reverseT[bk] = .1; tick(.2); check(Q().reverse[bk] > 0, 'in the panic the Bulk line\'s belt runs backwards');
+    // in the panic the big ones come out now and then
+    let shags = 0; emitHook = (t, d) => { if (t === 'td_spawn' && d.kind === 'shag') shags++; };
+    for (let i = 0; i < 60 * 40 && !shags; i++) { update(1 / 60); if (R.td.enemies.length > 8) td.clearThreats('test'); }
+    emitHook = null; check(shags > 0, 'in the panic a shag comes off a line');
     // machines: damage, the chain to the loom, a loom down
     fresh(); bull.inv = 1e9;
     const tank = machine(1, 'tank'), loom = machine(1, 'loom'), hp0 = loom.hp;
@@ -50,23 +108,40 @@
     check(warned && R.hearts === 4 && R.lastCause === 'press', 'a press warns with its shadow, then flattens him');
     // production: carpshits leave the end of each line, faster in the panic
     fresh(); bull.inv = 1e9; tick(12);
-    check(R.events.made > 2 && R.td.enemies.some(e => e.line === 2 && (e.kind === 'roll' || e.kind === 'flyer')), 'the lines make carpshits, the bulk line rolls');
+    const bulk = Q().kinds.indexOf('roll');
+    check(R.events.made > 2 && R.td.enemies.some(e => e.line === bulk && (e.kind === 'roll' || e.kind === 'flyer')), 'the lines make carpshits, the bulk line rolls');
     // rugged and continue: the lines stay down
     fresh(); F.breakMachine(machine(0, 'loom'), 'shot'); tick(.1); bull.inv = 0; hurtBull(5, 'test'); tick(3);
     check(state === 'over' && checkpoint.down[0], 'rugged in the factory: the continue card');
     goBtn.click(); check(R.stage === 'floor48' && Q().down[0] && !Q().down[1] && R.hearts === 5 && R.continues === 1, 'continue: full hearts, the line still down');
-    // the end: the collapse, two souls and two bells, the streams bend in, p(Loom) breaks them, the lobby
+    // the end: the collapse, two souls and two bells, the streams whip across the reserve and bend in, p(Loom)'s beat
     fresh(); bull.inv = 1e9;
     for (const i of [0, 1, 2]) F.breakMachine(machine(i, 'loom'), 'shot');
-    check(Q().st === 'collapse' && R.td.enemies.length === 0, 'the last loom brings the factory down');
-    const C = F48.collapse;
-    tick(C.firstSoul + C.soulEvery + .9); check(R.td.streams === 2 && R.gold, 'two souls come to the blaster: two streams');
-    tick(C.bendAt - (C.firstSoul + C.soulEvery + .9) + .8); check(R.td.bend > 0, 'the streams bend in');
-    twin.aiming = true; twin.aimX = 0; twin.aimY = -1; tick(.3);
-    check(R.shots.some(s => s.soul && s.bend > 0), 'he fires the bending streams'); twin.aiming = false;
-    tick(C.spoilAt - C.bendAt - .9); check(R.talk && R.talk.text === 'NOT ON MY FLOOR.' && R.td.scatter && Snd.track === null, 'p(Loom) spoils it: its line, the music cut');
-    tick(.6); check(R.td.streams === 0 && !R.gold, 'back to normal');
-    tick(C.lobbyAt - C.spoilAt); check(Q().st === 'lobby' && !floor.twin(), 'the lobby, side on');
+    check(Q().st === 'collapse' && R.td.enemies.length === 0 && Q().collapse.reserve.length === F48.collapse.reserve, 'the last loom brings the factory down, with the reserve behind the wall');
+    const C = F48.collapse, bells = [], play = Snd.play; Snd.play = function (n, a) { if (n === 'bell') bells.push(a); return play.apply(this, arguments); };
+    try {
+      tick(C.firstSoul + C.soulEvery + .9);
+      check(R.td.streams === 2 && R.gold && bells.join() === '0,1', 'two souls come to the blaster, a bell each (D, F)');
+      check(Q().collapse.phase === 'whip' && R.banner && R.banner.text === 'CRACK THE RESERVE', 'the whip: CRACK THE RESERVE');
+      // sweep the streams across the reserve from below it
+      bull.x = 400; bull.y = 140; twin.aiming = true; let a = 0, s0 = R.souls;
+      for (let i = 0; i < 60 * 2.5; i++) { a += .05; twin.aimX = Math.sin(a) * .95; twin.aimY = -Math.sqrt(1 - twin.aimX * twin.aimX); update(1 / 60); }
+      twin.aiming = false;
+      check(Q().collapse.cracked > 2 && R.souls >= s0 + Q().collapse.cracked * C.reserveSouls && R.td.bend > 0, 'sweeping streams crack reserve tanks, free their souls and bend in (' + Q().collapse.cracked + ')');
+      // the bolt alone doesn't crack the reserve
+      const before = Q().collapse.cracked; R.td.streams = 0; bull.x = Q().collapse.reserve.find(k => !k.broken).x; twin.aiming = true; twin.aimX = 0; twin.aimY = -1; tick(.5); twin.aiming = false; R.td.streams = 2;
+      check(Q().collapse.cracked === before, 'only the streams crack it');
+      F.startPloom();
+      check(R.td.locked && Snd.track === null, 'p(Loom): no control, the music stops');
+      const P8 = F48.ploom, to = pt => { while (Q().st === 'collapse' && Q().collapse.pt < pt) update(1 / 60); };
+      to(P8.say + .1);
+      check(R.td.cam.y < 20 && Q().eye > 0 && R.talk && R.talk.text === 'NOT ON MY FLOOR.', 'the camera goes up to the wall, the eye opens, its line');
+      to(P8.snap - .05); check(Q().threads > .4, 'its threads come down to the gun');
+      to(P8.snap + .1); check(R.td.scatter, 'the streams snap apart');
+      to(P8.snap + .5); check(R.td.streams === 0 && !R.gold, 'back to normal');
+      to(P8.salute + .1); check(Q().collapse.yank && Q().collapse.yank.every(s => s.salute) && bells.length === 3, 'the souls tear free and salute');
+      to(P8.lobby + .1); check(Q().st === 'lobby' && !floor.twin(), 'white, and the lobby, side on');
+    } finally { Snd.play = play; }
     // the lobby: the portrait, the ding, the doors, and in
     tick(F48.lobby.walkIn + .1);
     keys.kbRight = true; tick(1.6); keys.kbRight = false;

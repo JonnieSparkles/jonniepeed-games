@@ -142,7 +142,12 @@ window.__balanceBot = function (profile, seed) {
       if (!noticed(o, e) || e.spawning) return;
       var ex = e.x + e.vx * lead, ey = e.y + e.vy * lead, dx = ex - me.x, dy = ey - me.y, d = Math.hypot(dx, dy) || 1;
       var pl = plan(e, function () { return { cut: r() < P.fly_slash, dodge: r() < P.dodge }; });
-      if (e.kind === 'roll') {
+      if (e.kind === 'shag') {
+        // the big one: out of its line when it plants to charge, and cut it when it's close (it shrugs bolts off)
+        if ((e.st === 'aim' || e.st === 'dash') && pl.dodge) { var tx0 = e.st === 'aim' ? e.tx : e.vx, ty0 = e.st === 'aim' ? e.ty : e.vy, tl = Math.hypot(tx0, ty0) || 1, off0 = (me.x - e.x) * -ty0 / tl + (me.y - e.y) * tx0 / tl, sg0 = off0 >= 0 ? 1 : -1; mx += -ty0 / tl * sg0 * 2.4; my += tx0 / tl * sg0 * 2.4; }
+        else if (d < 58 && pl.cut) slashAt = { x: dx / d, y: dy / d };
+        else if (d < 50) { mx -= dx / d; my -= dy / d; }
+      } else if (e.kind === 'roll') {
         // a roll pointed at it: step out of its line
         var vx = e.st === 'aim' ? e.tx : e.vx, vy = e.st === 'aim' ? e.ty : e.vy, vl = Math.hypot(vx, vy) || 1, ux = vx / vl, uy = vy / vl;
         var along = (me.x - e.x) * ux + (me.y - e.y) * uy, off = (me.x - e.x) * -uy + (me.y - e.y) * ux;
@@ -156,7 +161,7 @@ window.__balanceBot = function (profile, seed) {
       var w = e.kind === 'roll' ? (d < 70 ? d : d * 3) : d;
       if (d < 230 && w < sd) { sd = w; shoot = { x: dx / d, y: dy / d }; }
     });
-    // bobbins coming at it: knock them back, or step aside
+    // bobbins and threads coming at it: knock back or cut, or step aside (bolts pass through them)
     q.thrown.forEach(function (p) {
       if (p.friendly || !noticed(o, p)) return;
       var px = p.x + p.vx * lead, py = p.y + p.vy * lead, dx = px - me.x, dy = py - me.y, d = Math.hypot(dx, dy) || 1, toward = (p.vx * -dx + p.vy * -dy) > 0;
@@ -165,6 +170,29 @@ window.__balanceBot = function (profile, seed) {
       if (pl.deflect && d < 34) slashAt = { x: dx / d, y: dy / d };
       else if (pl.dodge) { var vl = Math.hypot(p.vx, p.vy) || 1, side = (dx * p.vy - dy * p.vx) > 0 ? 1 : -1; mx += -p.vy / vl * side * 1.6; my += p.vx / vl * side * 1.6; }
     });
+    // a crane hook coming along its walkway: off it
+    q.cranes.forEach(function (c, i) {
+      if (c.st === 'idle' || Math.abs(me.y - c.y) > 22) return;
+      if (plan({ id: 'crane' + i + ':' + Math.floor(o.t / 3) }, function () { return { dodge: r() < P.dodge }; }).dodge) my += me.y < c.y ? -2.5 : 2.5;
+    });
+    var job = null;
+    // the reserve at the end: under the nearest tank, sweeping the streams across them
+    if (q.whip && q.whip.length) {
+      var tk = q.whip.reduce(function (b2, k) { return Math.abs(k.x - me.x) < Math.abs(b2.x - me.x) ? k : b2; });
+      job = { x: tk.x, y: 140 }; var wdx = tk.x - me.x, wdy = 44 - me.y, wd = Math.hypot(wdx, wdy) || 1; shoot = { x: wdx / wd, y: wdy / wd }; sd = 0;
+    }
+    // a power-up on the floor: go and get it
+    if (!job) q.pickups.forEach(function (pk) {
+      var d = Math.hypot(pk.x - me.x, pk.y - me.y);
+      if (d < 220 && plan(pk, function () { return { take: r() < P.pickup }; }).take && (!job || d < job.d)) job = { x: pk.x, y: pk.y, d: d };
+    });
+    // a cable to cut: stand where the katana reaches it, then slash it
+    if (!job) q.cables.forEach(function (cb) {
+      var spot = cb.kind === 'feed' ? { x: cb.x, y: cb.y - 26 } : { x: cb.x, y: cb.y + 30 }, d = Math.hypot(spot.x - me.x, spot.y - me.y);
+      // on its way: a cable close by, once in a while (it doesn't camp a cable waiting for the splice)
+      if (d < 110 && plan({ id: cb.id + ':' + Math.floor(o.t / 15) }, function () { return { cut: r() < P.cut_try }; }).cut && (!job || d < job.d)) job = { x: spot.x, y: spot.y, d: d, cable: cb };
+    });
+    if (job && job.cable && Math.hypot(job.cable.x - me.x, job.cable.y - me.y) < 40 && !slashAt) { var cdx = job.cable.x - me.x, cdy = job.cable.y - me.y, cd = Math.hypot(cdx, cdy) || 1; slashAt = { x: cdx / cd, y: cdy / cd }; }
     // the work: a machine, chosen every few seconds, worked on from the walkway in front of it
     if (!f48Goal || o.t > f48GoalT || !q.machines.some(function (m) { return m.id === f48Goal.id; })) {
       var best = null, bs = Infinity;
@@ -182,6 +210,7 @@ window.__balanceBot = function (profile, seed) {
       goal = { x: cx, y: Math.min(q.bounds.y1 - 12, gy) };
       if (!shoot || sd > 200) { var dx = cx - me.x, dy = (m.y1 - 4) - me.y, d = Math.hypot(dx, dy) || 1; if (d < 260) { shoot = { x: dx / d, y: dy / d }; sd = d; } }
     }
+    if (job) goal = job;
     if (goal) { var gx = goal.x - me.x, gy2 = goal.y - me.y, gd = Math.hypot(gx, gy2); if (gd > 10) { mx += gx / gd * Math.min(1, gd / 40); my += gy2 / gd * Math.min(1, gd / 40); } }
     // a press about to come down: get off the belt under it
     q.machines.forEach(function (m) {

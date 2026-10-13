@@ -9,11 +9,9 @@ var UnrugFloor48 = function (core) {
   'use strict';
   const { A, Snd, TUNE, rect, txt, otxt, textWidth, clamp, rr, fxr, emit, free, updateFx, endRun, drawSoulsCounter } = core;
   const S = UnrugSets48, W = 480, H = 270;
-  const LINES = [
-    { y: 124, kind: 'armored', name: 'HEAVY' },
-    { y: 228, kind: 'flyer', name: 'STANDARD' },
-    { y: 332, kind: 'roll', name: 'BULK' }
-  ];
+  // The three lines' places on the floor. What each one makes (and so its hazard) is shuffled per run (`Q.kinds`).
+  const LINES = [{ y: 124 }, { y: 228 }, { y: 332 }];
+  const KINDS = { armored: 'HEAVY', flyer: 'STANDARD', roll: 'BULK' };
   const F48 = {
     world: { w: 800, h: 480 }, wallH: 58, bedH: 22, lineX0: 66, lineX1: 612, beltEnd: 606, door: { x: 400 },
     main: { x: 14, y1: 360 },
@@ -22,7 +20,7 @@ var UnrugFloor48 = function (core) {
     worklights: [[200, 90], [450, 90], [700, 90], [200, 280], [450, 280], [700, 280], [330, 410], [640, 410]],
     // each machine on a line: its kind, left edge, width, depth and height (picture pixels)
     parts: [['tank', 70, 28, 22, 44], ['spinner', 140, 40, 26, 30], ['loom', 238, 82, 34, 54], ['press', 382, 46, 30, 30], ['animator', 488, 40, 26, 34]],
-    hp: { tank: 14, spinner: 20, loom: 140, press: 22, animator: 22 },
+    hp: { tank: 14, spinner: 20, loom: 150, press: 22, animator: 22 },
     souls: { tank: 5, spinner: 3, loom: 10, press: 3, animator: 3, line: 8 },
     toLoom: 10, coffee: .3,                       // a part breaking hurts its loom this much (the line's chain)
     blast: { tank: [86, 14], spinner: [72, 14], press: [72, 14], animator: [72, 14], loom: [128, 22] },   // radius, damage to machines
@@ -30,7 +28,24 @@ var UnrugFloor48 = function (core) {
     // production: seconds between rugs off each line (by its index), the belt's speed, the press's beat, by panic level
     make: [5.4, 4.6, 6], rate: [1, 1.4, 1.9], pace: [1, 1.15, 1.3], belt: [58, 72, 90], press: [2.4, 1.9, 1.5],
     pressWarn: .55, pressSlam: .14, beltPush: .55, most: 12, firstAt: 4, prefill: [.55],
-    collapse: { souls: 2, firstSoul: 1.8, soulEvery: 1.1, bendAt: 4.3, bendT: 2, spoilAt: 6.3, freeAt: 7.6, whiteAt: 10.6, lobbyAt: 11.2 },
+    // katana-only cables: each line's soul feed (the glass hose from the main to its tank) and the power cable from its
+    // animator to a junction box on the walkway below. Cut a feed: its souls spill free and the line runs starved; cut
+    // the power: rugs leave limp, and their souls go free instead of coming alive, until p(Loom) splices the cable back
+    // with its thread (down seconds).
+    feed: { x0: 28, x1: 68, dy: -24, souls: 6, starve: .6 }, power: { dx: 20, y0: 13, y1: 42, souls: 1, down: 9 }, cue: 96,
+    // power-ups from broken machines: which part drops what, how likely, how long it waits on the floor
+    drops: { spinner: 'spread', press: 'rapid', animator: 'pierce' }, dropChance: .45, dropLife: 12,
+    // the shag: from the first line down, every this-many launches from a live line, at most this many out
+    shagEvery: 5, shagMost: 2,
+    // the lines' hazards: the Heavy line's crane hook sweeping the walkway below it, the Standard line's spinner flinging
+    // thread at him, the Bulk line's belt running backwards in the panic
+    crane: { every: [6, 8.5], warn: 1, speed: 420, dy: 52, hit: 11 },
+    fling: { every: [4.2, 6], tell: .5, range: 280 },
+    reverse: { every: 6.5, dur: 2.2, warn: .8 },
+    // the end: the factory collapses; two souls join the gun (1.8 and 2.6 s); the back wall's reserve of soul tanks is
+    // exposed and the streams whip through it (whip seconds, or until every tank is cracked); then p(Loom)'s beat (locked)
+    collapse: { souls: 2, firstSoul: 1.6, soulEvery: .8, whip: 10, reserve: 16, reserveHp: 2, reserveSouls: 4, bendMax: .85 },
+    ploom: { pan: .6, eye: .3, say: .8, threads: 1.3, snap: 1.75, yank: 2.6, free: 3.05, salute: 3.5, rise: 4.3, close: 4.1, white: 4.7, lobby: 5.3 },
     lobby: { walkIn: 1.1, dialFrom: 61, dingAt: 5.4, doorsT: 1.2, doorU: .6, doorway: .1, walkOut: 1, portraitU: -.12 },
     deadWait: 2.8
   };
@@ -59,7 +74,12 @@ var UnrugFloor48 = function (core) {
     if (at) { R.souls = R.shown = at.souls || 0; R.continues = (at.continues || 0) + (at.transfer ? 0 : 1); }
     td.newRun(R, bull, { x: F48.door.x, y: 432 });
     const down = at && !at.transfer && at.down ? at.down.slice() : [false, false, false];
-    Q = R.f48 = { st: 'fight', t: 0, down, panic: down.filter(Boolean).length, machines: buildMachines(), items: [[], [], []], next: [0, 0, 0], beltOff: [0, 0, 0],
+    // which line makes what: seeded, so a seed replays it; a continue keeps the run's
+    const kinds = at && !at.transfer && at.kinds ? at.kinds.slice() : (() => { const k = ['armored', 'flyer', 'roll']; for (let i = 2; i > 0; i--) { const j = Math.floor(rr(0, i + 1)); [k[i], k[j]] = [k[j], k[i]]; } return k; })();
+    Q = R.f48 = { st: 'fight', t: 0, down, kinds, feedCut: [false, false, false], powerCut: [0, 0, 0], patched: [0, 0, 0], launches: 0,
+      crane: [0, 1, 2].map(() => ({ next: rr(...F48.crane.every), st: 'idle', t: 0, x: 0, dir: 1 })),
+      fling: [0, 1, 2].map(() => ({ next: rr(...F48.fling.every), tell: 0 })),
+      reverse: [0, 0, 0], reverseT: [F48.reverse.every, F48.reverse.every, F48.reverse.every], cues: {}, panic: down.filter(Boolean).length, machines: buildMachines(), items: [[], [], []], next: [0, 0, 0], beltOff: [0, 0, 0],
       pressT: [0, 0, 0], chain: [], fx: [], smokeT: 0, shake: 0, flashT: 0, eye: 0, threads: 0, bend: 0, souls: [], collapse: null, lobby: null,
       started: false, events: {}, music: 'b', lineT: [0, 0, 0], hitSnd: 0, white: 0, debrisT: 0 };
     const m48 = /(^|&)music48=([abc])/.exec(location.hash.replace(/^#/, '')); if (m48) Q.music = m48[2];
@@ -76,11 +96,29 @@ var UnrugFloor48 = function (core) {
     td.room({ solids, push, machineHit, slashMachines, targets });
     R.td.locked = false;
     const lobbyStart = at && at.lobby || /(^|&)at=lobby(&|$)/.test(location.hash.replace(/^#/, '')) && !at;
-    core.setCheckpoint({ stage: 'floor48', souls: R.souls, continues: R.continues, down: down.slice(), seedState: core.seedState(), runSeed: core.runSeed() });
+    saveCheckpoint();
     if (lobbyStart) startLobby(true);
     emit('f48_state', { state: lobbyStart ? 'lobby' : 'fight', down: down.filter(Boolean).length });
   }
+  function saveCheckpoint(extra) { core.setCheckpoint(Object.assign({ stage: 'floor48', souls: R.souls, continues: R.continues, down: Q.down.slice(), kinds: Q.kinds.slice(), seedState: core.seedState(), runSeed: core.runSeed() }, extra)); }
+  const kindOf = i => Q.kinds[i];
   const loomOf = i => Q.machines.find(m => m.line === i && m.kind === 'loom');
+  const partOf = (i, kind) => Q.machines.find(m => m.line === i && m.kind === kind);
+  // the katana-only things: where each line's feed hose and power cable run, as segments on the floor
+  const feedSeg = i => ({ x0: F48.feed.x0, y0: LINES[i].y + F48.feed.dy, x1: F48.feed.x1, y1: LINES[i].y + F48.feed.dy });
+  const powerSeg = i => { const an = partOf(i, 'animator'), x = (an.x0 + an.x1) / 2 + F48.power.dx; return { x0: x, y0: LINES[i].y + F48.power.y0, x1: x, y1: LINES[i].y + F48.power.y1 }; };
+  const segDist = (q, x, y) => { const vx = q.x1 - q.x0, vy = q.y1 - q.y0, L = vx * vx + vy * vy || 1, k = clamp(((x - q.x0) * vx + (y - q.y0) * vy) / L, 0, 1); return Math.hypot(x - q.x0 - vx * k, y - q.y0 - vy * k); };
+  const powered = i => !(Q.powerCut[i] > 0);   // a wrecked animator doesn't stop the line: the loom's threads still bring its rugs alive
+  // the cuttable things still standing, for the cues and the bot
+  function cables() {
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      if (!live(i)) continue;
+      if (!Q.feedCut[i]) out.push(Object.assign({ line: i, kind: 'feed' }, feedSeg(i)));
+      if (powered(i)) out.push(Object.assign({ line: i, kind: 'power' }, powerSeg(i)));
+    }
+    return out;
+  }
   const live = i => !Q.down[i];
   // the floor's opening: its name, the goal, and p(Loom) on the PA; the factory's intro music until production starts
   function opening() {
@@ -105,7 +143,7 @@ var UnrugFloor48 = function (core) {
   function push(x, y) {
     for (let i = 0; i < 3; i++) {
       if (!live(i) || x < F48.lineX0 || x > F48.beltEnd) continue;
-      if (Math.abs(y - LINES[i].y) < F48.bedH / 2 + 2) return { x: F48.belt[Q.panic] * F48.beltPush, y: 0 };
+      if (Math.abs(y - LINES[i].y) < F48.bedH / 2 + 2) return { x: F48.belt[Q.panic] * F48.beltPush * (Q.reverse[i] > 0 ? -1.2 : 1), y: 0 };
     }
     return null;
   }
@@ -119,6 +157,7 @@ var UnrugFloor48 = function (core) {
   }
   function slashMachines(cx, cy, r, dmg, swing) {
     let n = 0;
+    if (Q.st === 'fight') for (const c of cables()) if (segDist(c, cx, cy) < r + 4) { cutCable(c); n++; }
     for (const m of Q.machines) {
       if (m.dead || m.swing === swing) continue;
       const nx = clamp(cx, m.x0, m.x1), ny = clamp(cy, m.y0 - 10, m.y1 + 6);
@@ -128,6 +167,38 @@ var UnrugFloor48 = function (core) {
   }
   // what the blaster leans toward: looms and parts still standing
   function targets() { return Q.st === 'fight' ? Q.machines.filter(m => !m.dead).map(m => ({ x: (m.x0 + m.x1) / 2, y: m.y1 - 2 })) : []; }
+
+  // ---------- the cables ----------
+  function cutCable(c) {
+    const i = c.line, mx = (c.x0 + c.x1) / 2, my = (c.y0 + c.y1) / 2;
+    if (c.kind === 'feed') {
+      Q.feedCut[i] = true; soulsFrom(mx, my, F48.feed.souls, 'feed', 'slash'); Snd.play('tankBurst');
+      for (let k = 0; k < 14; k++) R.td.fx.push({ k: 'spark', x: mx + fxr(-12, 12), y: my, h: 8, vx: fxr(-90, 90), vy: fxr(-40, 40), vh: fxr(40, 120), col: k % 2 ? '#bfefff' : '#ffd44a', t: 0, dur: .6 });
+      core.popText('FEED CUT', td.screenOf(mx, my - 20).x / 2, td.screenOf(mx, my - 20).y / 2, '#bfefff');
+      core.live('Soul feed cut: its souls spill free and the line runs slower.');
+    } else {
+      Q.powerCut[i] = F48.power.down; Snd.play('surge');
+      for (let k = 0; k < 12; k++) R.td.fx.push({ k: 'spark', x: mx, y: my, h: 6, vx: fxr(-120, 120), vy: fxr(-60, 60), vh: fxr(30, 90), col: k % 2 ? '#bfefff' : '#ffffff', t: 0, dur: .4 });
+      core.popText('POWER CUT', td.screenOf(mx, my - 20).x / 2, td.screenOf(mx, my - 20).y / 2, '#bfefff');
+      core.live('Power cut: the line\'s rugs come out dead until it\'s spliced back.');
+    }
+    R.events.cuts = (R.events.cuts || 0) + 1; R.freeze = Math.max(R.freeze, .05); Q.shake = Math.max(Q.shake, .25);
+    emit('f48_cut', { kind: c.kind, line: i });
+  }
+  // A cue for what only the katana handles: a red katana mark on the cable, and SLASH! when he's close enough to reach
+  // it; the first time each comes up, a prompt.
+  function prompt(key, text) {
+    if (Q.cues[key] || R.banner || Q.st !== 'fight') return;
+    Q.cues[key] = true; R.banner = { text, t: 0, dur: 2, pull: true, col: '#ff6a5a' }; core.live(text.charAt(0) + text.slice(1).toLowerCase() + '.');
+  }
+  function stepCues() {
+    if (Q.t < 5) return;
+    const near = c => segDist(c, bull.x, bull.y) < F48.cue;
+    if (cables().some(near)) prompt('cable', 'SLASH THE CABLES');
+    if (R.td.enemies.some(e => e.wind > 0)) prompt('bobbin', 'SLASH BOBBINS BACK');
+    if (R.td.thrown.some(p => p.kind === 'thread')) prompt('thread', 'SLASH THE THREAD');
+    if (R.td.enemies.some(e => e.kind === 'shag' && !(e.spawning > 0))) prompt('shag', 'BIG ONE: SLASH IT');
+  }
 
   // ---------- machines: damage, breaking, chains ----------
   function hurt(m, dmg, by) {
@@ -157,6 +228,7 @@ var UnrugFloor48 = function (core) {
     Q.chain.push({ t: F48.chainDelay, x: cx, y: cy, r: rad, dmg, from: m });
     // hurt, a broken machine sometimes leaves a coffee in the wreckage (a loom always does)
     if (R.hearts < TUNE.hearts && Q.st === 'fight' && (m.kind === 'loom' || rr(0, 1) < F48.coffee)) td.addPickup('coffee', clamp(cx, 40, 780), clamp(m.y1 + 16, 70, 432));
+    else if (F48.drops[m.kind] && Q.st === 'fight' && rr(0, 1) < F48.dropChance) td.addPickup(F48.drops[m.kind], clamp(cx, 40, 780), clamp(m.y1 + 16, 70, 432), F48.dropLife);
     if (m.kind === 'loom') lineDown(m.line);
     else { const lm = loomOf(m.line); if (lm && !lm.dead) Q.chain.push({ t: F48.chainDelay * 2, loom: lm, dmg: F48.toLoom }); }
   }
@@ -194,7 +266,7 @@ var UnrugFloor48 = function (core) {
       Snd.play('lineDown'); Snd.play('klaxon', Q.panic);
       R.banner = { text: Q.panic === 1 ? 'PRODUCTION PANIC' : 'LAST LINE', sub: Q.panic === 1 ? 'THE OTHER LINES SPEED UP' : 'FLAT OUT', t: 0, dur: 2, top: true, col: Q.panic > 1 ? '#ff5a4a' : '#ffd44a' };
       core.bark(Q.panic === 1 ? 'f48line' : 'f48panic');
-      core.setCheckpoint({ stage: 'floor48', souls: R.souls, continues: R.continues, down: Q.down.slice(), seedState: core.seedState(), runSeed: core.runSeed() });
+      saveCheckpoint();
     } else startCollapse();
   }
 
@@ -203,10 +275,11 @@ var UnrugFloor48 = function (core) {
     const p = Q.panic, speed = F48.belt[p];
     for (let i = 0; i < 3; i++) {
       if (!live(i)) continue;
-      Q.beltOff[i] += speed * dt;
+      const rev = Q.reverse[i] > 0, bs = rev ? -speed * 1.2 : speed;
+      Q.beltOff[i] += bs * dt;
       // a new spool of thread leaves the spinner
       if (Q.t >= F48.firstAt || Q.items[i].length < 2) {
-        Q.next[i] -= dt * F48.rate[p];
+        Q.next[i] -= dt * F48.rate[p] * (Q.feedCut[i] ? F48.feed.starve : 1) * (rev ? 0 : 1);
         if (Q.next[i] <= 0) { Q.items[i].push({ x: F48.parts[1][1] + F48.parts[1][2], kind: 'thread' }); Q.next[i] = F48.make[i] * rr(.85, 1.15); }
       }
       const lm = loomOf(i), pr = Q.machines.find(m => m.line === i && m.kind === 'press'), an = Q.machines.find(m => m.line === i && m.kind === 'animator');
@@ -216,12 +289,12 @@ var UnrugFloor48 = function (core) {
       for (const it of Q.items[i]) {
         // rugs queue at the end of the belt while the floor is full
         const stop = Math.min(F48.beltEnd, ahead - 20);
-        it.x = Math.min(stop, it.x + speed * dt);
+        it.x = rev ? Math.max(F48.parts[1][1] + F48.parts[1][2], it.x + bs * dt) : Math.min(stop, it.x + speed * dt);
         ahead = it.x;
         if (it.kind === 'thread' && it.x > (lm.x0 + lm.x1) / 2) it.kind = 'rug';
         if (it.kind === 'rug' && it.x > (pr.x0 + pr.x1) / 2) it.kind = 'rug2';
-        if (!it.zapped && it.x > (an.x0 + an.x1) / 2) { it.zapped = true; an.zap = .25; if (!an.dead) Snd.play('animate'); }
-        if (it.x >= F48.beltEnd && !full && Q.t >= F48.firstAt) { it.gone = true; launch(i); }
+        if (!it.zapped && it.x > (an.x0 + an.x1) / 2) { it.zapped = true; it.limp = !powered(i); if (!it.limp) { an.zap = .25; Snd.play('animate'); } }
+        if (it.x >= F48.beltEnd && (!full || it.limp) && Q.t >= F48.firstAt) { it.gone = true; if (it.limp) limpRug(i); else launch(i); }
       }
       Q.items[i] = Q.items[i].filter(it => !it.gone);
       // the press: its shadow grows, it slams, it rises
@@ -236,6 +309,13 @@ var UnrugFloor48 = function (core) {
     }
     for (const m of Q.machines) { m.flash = Math.max(0, m.flash - dt); m.zap = Math.max(0, m.zap - dt); }
   }
+  // a dead rug off an unpowered line: it slumps off the end, and the soul in it goes free
+  function limpRug(i) {
+    const x = F48.beltEnd + 10, y = LINES[i].y;
+    R.td.fx.push({ k: 'debris', x, y, h: 8, vx: 50, vy: rr(-10, 10), vh: 30, s: 8, r: 0, vr: 2, col: '#7a1d1a', t: 0, dur: 1.4 });
+    soulsFrom(x, y, F48.power.souls, 'limp', 'power');
+    emit('f48_limp', { line: i });
+  }
   // the press comes down: anything under it on the belt is flattened, him included
   function pressHit(pr, i) {
     Snd.play('press'); Q.shake = Math.max(Q.shake, .15);
@@ -248,12 +328,57 @@ var UnrugFloor48 = function (core) {
   // a carpshit leaves the end of the line: flyers and armored up and out into the room, rolls pointed at him
   function launch(i) {
     // the heavy line's output is two parts armored to one plain
-    const kind = LINES[i].kind === 'armored' && (Q.made = (Q.made || 0) + 1) % 3 === 0 ? 'flyer' : LINES[i].kind, y = LINES[i].y, x = F48.beltEnd + 8;
+    Q.launches++;
+    const shags = R.td.enemies.filter(e => e.kind === 'shag').length;
+    let kind = kindOf(i) === 'armored' && (Q.made = (Q.made || 0) + 1) % 3 === 0 ? 'flyer' : kindOf(i);
+    if (Q.panic >= 1 && Q.launches % F48.shagEvery === 0 && shags < F48.shagMost) kind = 'shag';
+    const y = LINES[i].y, x = F48.beltEnd + 8;
     const e = td.spawn(kind, { x, y, vx: 70, vy: rr(-30, 30), pace: F48.pace[Q.panic], line: i });
     if (kind === 'roll') { e.vx = 30; e.spawning = .2; }
+    if (kind === 'shag') { e.vx = 40; Snd.play('machineBreak'); emit('f48_shag'); }
     Snd.play('animate');
     R.events.made = (R.events.made || 0) + 1;
   }
+
+  // ---------- the lines' hazards ----------
+  // Each live line has its own, by what it makes: the Heavy line's crane hook sweeps the walkway below it (its lamp and a
+  // dashed line warn first), the Standard line's spinner flings thread at him, and in the panic the Bulk line's belt runs
+  // backwards for a while (its beacon and arrows warn first).
+  function stepHazards(dt) {
+    for (let i = 0; i < 3; i++) {
+      // a cut power cable: p(Loom) splices it back with its thread after a while
+      if (Q.powerCut[i] > 0) { Q.powerCut[i] -= dt; if (Q.powerCut[i] <= 0) { Q.powerCut[i] = 0; Q.patched[i]++; if (live(i)) { Snd.play('rideHook'); const pw = powerSeg(i); for (let k = 0; k < 8; k++) R.td.fx.push({ k: 'spark', x: pw.x0, y: (pw.y0 + pw.y1) / 2, h: 4, vx: fxr(-60, 60), vy: fxr(-30, 30), vh: fxr(20, 60), col: '#ff7a2a', t: 0, dur: .4 }); emit('f48_splice', { line: i }); } } }
+      if (!live(i)) { Q.crane[i].st = 'idle'; Q.reverse[i] = 0; continue; }
+      const k = kindOf(i);
+      if (k === 'armored') {
+        const c = Q.crane[i], C8 = F48.crane, hy = LINES[i].y + C8.dy;
+        if (c.st === 'idle') { c.next -= dt; if (c.next <= 0) { c.st = 'warn'; c.t = 0; c.dir = bull.x < 400 ? -1 : 1; c.x = c.dir > 0 ? 40 : 760; Snd.play('warn'); emit('f48_crane'); } }
+        else if (c.st === 'warn') { c.t += dt; if (c.t >= C8.warn) { c.st = 'sweep'; c.t = 0; Snd.play('roll'); } }
+        else if (c.st === 'sweep') {
+          c.x += c.dir * C8.speed * dt;
+          if (Math.abs(bull.x - c.x) < C8.hit && Math.abs(bull.y - hy) < C8.hit + 2 && core.hurtBull(1, 'crane')) { bull.kx = c.dir * 160; bull.ky = (bull.y < hy ? -1 : 1) * 80; }
+          for (const e of R.td.enemies) if (!e.dead && Math.abs(e.x - c.x) < 14 && Math.abs(e.y - hy) < 14) td.kill(e, 'crane');
+          if (c.x < 20 || c.x > 780) { c.st = 'idle'; c.next = rr(...C8.every) / F48.rate[Q.panic]; }
+        }
+      } else if (k === 'flyer') {
+        const f = Q.fling[i], sp = partOf(i, 'spinner');
+        if (sp.dead) continue;
+        const sx = (sp.x0 + sp.x1) / 2, sy = (sp.y0 + sp.y1) / 2, d = Math.hypot(bull.x - sx, bull.y - sy);
+        if (f.tell > 0) {
+          f.tell -= dt;
+          if (f.tell <= 0) {
+            const a = Math.atan2(bull.y - sy, bull.x - sx), n = Q.panic ? 2 : 1;
+            for (let j = 0; j < n; j++) td.flingThread(sx, sy, 20, a + (n > 1 ? (j - .5) * .35 : 0));
+            Snd.play('bobbin'); f.next = rr(...F48.fling.every) / F48.rate[Q.panic];
+          }
+        } else { f.next -= dt; if (f.next <= 0 && d < F48.fling.range) { f.tell = F48.fling.tell; Snd.play('rev'); } }
+      } else if (k === 'roll' && Q.panic >= 1) {
+        if (Q.reverse[i] > 0) { Q.reverse[i] -= dt; if (Q.reverse[i] <= 0) Q.reverseT[i] = F48.reverse.every; }
+        else { Q.reverseT[i] -= dt; if (Q.reverseT[i] <= 0) { Q.reverse[i] = F48.reverse.dur; Snd.play('pull'); emit('f48_reverse'); } }
+      }
+    }
+  }
+  const reverseWarn = i => Q.reverse[i] <= 0 && kindOf(i) === 'roll' && Q.panic >= 1 && live(i) && Q.reverseT[i] < F48.reverse.warn;
 
   // ---------- effects (cosmetic) ----------
   function boom(x, y, k) {
@@ -276,58 +401,121 @@ var UnrugFloor48 = function (core) {
     Q.shake = Math.max(0, Q.shake - dt * 2.5); Q.hitSnd -= dt;
   }
 
-  // ---------- the collapse and the near miss ----------
-  // The factory comes apart; two of the freed souls come to the blaster (a bell each: D5, F5, the roof completes the chord
-  // with A5); their two streams start to bend in toward the bolt;
-  // p(Loom) comes up on every monitor, its threads whip down and snag them, the streams scatter, the music cuts on a
-  // sour chord; the souls tear free, salute and go up with the rest. White, and the lobby.
+  // ---------- the collapse, the whip and p(Loom) ----------
+  // The factory comes apart: the soul main bursts, and two of its souls come to the blaster (a bell each, D5 then F5; the
+  // roof completes the chord with A5). The back wall cracks open on the reserve, a row of glass tanks of captured souls,
+  // and for a few seconds the two soul streams are a whip: everything a stream sweeps across in the reserve cracks open
+  // and its souls go free, and the more he cracks, the further the streams bend in toward each other. Then p(Loom)'s beat,
+  // with no control: the camera goes up to the wall, its eye opens there, it says its line, its threads come down to the
+  // gun, the streams snap apart on a sour chord, it pulls the two souls up its threads, they tear free, come down to him,
+  // salute and rise; the eye shuts, white, the lobby.
   function startCollapse() {
-    Q.st = 'collapse'; Q.collapse = { t: 0, n: 0, said: false };
-    R.phase = 'boss';
+    Q.st = 'collapse'; R.phase = 'boss';
+    const F = F48.collapse;
+    Q.collapse = { t: 0, n: 0, phase: 'quake', open: 0, whipT: 0, cracked: 0, pt: 0, fired: 0,
+      reserve: Array.from({ length: F.reserve }, (_, i) => ({ i, x: 76 + i * (648 / (F.reserve - 1)), hp: F.reserveHp, broken: false, flash: 0, hitT: 0 })) };
     td.clearThreats('collapse');
+    R.td.pickups = [];
     Q.chain = Q.chain.filter(c => c.cascade);
-    Snd.play('lineDown'); Snd.play('rumble', 5);
-    R.banner = { text: 'LINES DOWN', sub: 'RECLAMATION OFFLINE', t: 0, dur: 2.2, top: true, col: '#ff5a4a' };
+    Snd.play('lineDown'); Snd.play('rumble', 4);
+    R.banner = { text: 'LINES DOWN', sub: 'RECLAMATION OFFLINE', t: 0, dur: 1.8, top: true, col: '#ff5a4a' };
     core.live('The factory is coming apart.');
     // the soul main bursts: the souls inside go up through the roof (counted once, here)
     soulsFrom(30, 220, 12, 'main', 'collapse');
     for (let i = 0; i < 40; i++) R.fx.push({ k: 'rise', x: fxr(8, 40), y: fxr(40, 130), vy: -fxr(30, 60), ph: Math.random() * 6, t: -i * .05, dur: 4 });
     emit('f48_collapse', { t: R.t });
   }
+  // where the eye opens: on the wall straight above him
+  const eyeAt = () => ({ x: clamp(bull.x, 140, 660), y: 30 });
+  // a stream (the ribbon from one of its shots to the next) sweeping through a reserve tank cracks it
+  function whipSweep() {
+    const C = Q.collapse, ribbons = [];
+    for (const side of new Set(R.shots.filter(x => x.soul).map(x => x.side))) {
+      const list = R.shots.filter(x => x.soul && x.side === side && !x.dead).sort((a, b2) => a.t - b2.t);
+      for (let k = 1; k < list.length; k++) ribbons.push({ x0: list[k - 1].x, y0: list[k - 1].y - list[k - 1].h, x1: list[k].x, y1: list[k].y - list[k].h });
+    }
+    for (const tk of C.reserve) {
+      if (tk.broken || tk.hitT > 0) continue;
+      if (ribbons.some(r => segDist(r, tk.x, 44) < 12)) {
+        tk.hp--; tk.flash = .1; tk.hitT = .12; Snd.play('machineHit');
+        if (tk.hp <= 0) crackReserve(tk);
+      }
+    }
+  }
+  function crackReserve(tk) {
+    const C = Q.collapse, F = F48.collapse;
+    tk.broken = true; C.cracked++;
+    Snd.play('tankBurst'); Q.shake = Math.max(Q.shake, .3);
+    for (let k = 0; k < 10; k++) R.td.fx.push({ k: 'spark', x: tk.x + fxr(-8, 8), y: 58, h: 14 + fxr(0, 10), vx: fxr(-80, 80), vy: fxr(0, 60), vh: fxr(20, 90), col: k % 2 ? '#bfefff' : '#ffffff', t: 0, dur: .5 });
+    soulsFrom(tk.x, 66, F.reserveSouls, 'reserve', 'stream');
+    R.td.bend = F.bendMax * C.cracked / F.reserve;
+    emit('f48_crack', { n: C.cracked });
+  }
   function stepCollapse(dt) {
-    const C = Q.collapse, F = F48.collapse; C.t += dt;
+    const C = Q.collapse, F = F48.collapse, P = F48.ploom; C.t += dt;
     const t = C.t;
-    Q.shake = Math.max(Q.shake, t < 3 ? .35 : t < F.spoilAt ? .15 : .1);
+    if (C.phase !== 'ploom') Q.shake = Math.max(Q.shake, t < 1.6 ? .35 : .1);
     // debris falling from the ceiling (drawn only)
     Q.debrisT -= dt;
-    if (Q.debrisT <= 0 && t < F.whiteAt) { Q.debrisT = .08; R.td.fx.push({ k: 'debris', x: R.td.cam.x + Math.random() * W, y: R.td.cam.y + 60 + Math.random() * (H - 70), h: 160 + Math.random() * 60, vx: 0, vy: 0, vh: -40, s: 3 + Math.round(Math.random() * 5), r: 0, vr: (Math.random() - .5) * 12, col: ['#7a7288', '#5a5266', '#8a6a3a', '#9a93a6'][Math.floor(Math.random() * 4)], t: 0, dur: 2.2 }); }
+    if (Q.debrisT <= 0 && (C.phase !== 'ploom' || C.pt < P.white)) { Q.debrisT = C.phase === 'whip' ? .16 : .08; R.td.fx.push({ k: 'debris', x: R.td.cam.x + Math.random() * W, y: R.td.cam.y + 60 + Math.random() * (H - 70), h: 160 + Math.random() * 60, vx: 0, vy: 0, vh: -40, s: 3 + Math.round(Math.random() * 5), r: 0, vr: (Math.random() - .5) * 12, col: ['#7a7288', '#5a5266', '#8a6a3a', '#9a93a6'][Math.floor(Math.random() * 4)], t: 0, dur: 2.2 }); }
+    // the back wall cracks open on the reserve
+    if (t > .5) C.open = Math.min(1, C.open + dt * 2.5);
+    for (const tk of C.reserve) { tk.flash = Math.max(0, tk.flash - dt); tk.hitT = Math.max(0, tk.hitT - dt); }
     // the two souls come to the gun, one at a time
     if (C.n < F.souls && t >= F.firstSoul + C.n * F.soulEvery) {
-      const s = td.screenOf(30, 200);
-      Q.souls.push({ i: C.n, x0: s.x, y0: s.y, t: 0, dur: .6 });
+      const sc = td.screenOf(30, 200);
+      Q.souls.push({ i: C.n, x0: sc.x, y0: sc.y, t: 0, dur: .6 });
       C.n++;
     }
-    for (const s of Q.souls) if (!s.landed) { s.t += dt; if (s.t >= s.dur) { s.landed = true; R.td.streams = s.i + 1; R.gold = true; Snd.play('bell', s.i); Snd.duck(1.2); R.shake = Math.max(R.shake, .05); emit('f48_soul', { n: s.i + 1 }); } }
-    // the streams bend in toward each other
-    if (t >= F.bendAt && t < F.spoilAt) { R.td.bend = Math.min(.85, (t - F.bendAt) / F.bendT * .85); if (!C.fuse) { C.fuse = true; Snd.factoryCue('fuse', { seconds: F.spoilAt - F.bendAt }); emit('f48_bend'); } }
-    // p(Loom)
-    if (t >= F.spoilAt - .6) Q.eye = Math.min(1, Q.eye + dt * 3);
-    if (t >= F.spoilAt && !C.spoiled) {
-      C.spoiled = true; Snd.factoryCue('spoil'); R.td.scatter = 1; R.td.bend = 0; Q.threads = .01; Q.shake = Math.max(Q.shake, .6); R.white = .06;
-      say('NOT ON MY FLOOR.', 2.4);
-      emit('f48_spoil', { t: R.t });
+    for (const sl of Q.souls) if (!sl.landed) { sl.t += dt; if (sl.t >= sl.dur) { sl.landed = true; R.td.streams = sl.i + 1; R.gold = true; Snd.play('bell', sl.i); Snd.duck(1); R.shake = Math.max(R.shake, .05); emit('f48_soul', { n: sl.i + 1 }); } }
+    if (C.phase === 'quake' && Q.souls.length === F.souls && Q.souls.every(x => x.landed)) {
+      C.phase = 'whip'; C.whipT = 0;
+      R.banner = { text: 'CRACK THE RESERVE', t: 0, dur: 2.4, pull: true, col: '#ffd44a' };
+      core.live('Sweep the soul streams across the reserve tanks on the back wall to crack them open.');
+      Snd.factoryCue('fuse', { seconds: F.whip });
+      emit('f48_whip');
     }
-    if (Q.threads > 0) Q.threads = Math.min(1, Q.threads + dt * 4);
-    if (t >= F.spoilAt + .5 && R.td.streams) { R.td.streams = 0; R.td.scatter = 0; R.gold = false; }
-    // the souls tear free, salute, and go
-    if (t >= F.freeAt && !C.freed) {
-      C.freed = true; Q.threads = 0;
-      const mz = td.muzzle(); C.salute = [0, 1].map(i => ({ x: mz.x + (i - .5) * 22, y: mz.y - 30, flip: i % 2 }));
-      Snd.play('bell', 0);
+    if (C.phase === 'whip') {
+      C.whipT += dt;
+      whipSweep();
+      if (C.cracked >= F.reserve || C.whipT >= F.whip) startPloom();
     }
-    if (C.freed) for (const s of C.salute) s.y -= (t > F.freeAt + 1.6 ? 40 : 4) * dt;
-    if (t >= F.whiteAt) Q.white = Math.min(1, (t - F.whiteAt) / (F.lobbyAt - F.whiteAt));
-    if (t >= F.lobbyAt) startLobby(false);
+    if (C.phase === 'ploom') stepPloom(dt);
+  }
+  function startPloom() {
+    const C = Q.collapse;
+    C.phase = 'ploom'; C.pt = 0; R.td.locked = true; R.banner = null;
+    const E = eyeAt(); C.eye = E;
+    R.td.camHold = { x: clamp(bull.x - W / 2, 0, F48.world.w - W), y: 0 };
+    Snd.music(null, { hard: true }); Snd.play('dark');
+    emit('f48_ploom', { t: R.t, cracked: C.cracked });
+  }
+  function stepPloom(dt) {
+    const C = Q.collapse, P = F48.ploom, was = C.pt; C.pt += dt;
+    const pt = C.pt, at = k => was < k && pt >= k, E = C.eye, mz = td.muzzle();
+    // he keeps firing the streams up at the eye until they snap, bending in all the way
+    if (pt < P.snap) {
+      const dx = E.x - bull.x, dy = E.y - bull.y, d = Math.hypot(dx, dy) || 1; bull.ax = dx / d; bull.ay = dy / d; bull.dir = 'up';
+      R.td.bend = Math.min(F48.collapse.bendMax, R.td.bend + dt * .3);
+      C.fired -= dt; if (C.fired <= 0) { C.fired = .09; td.fire(); }
+    } else if (pt < P.snap + .35) { C.fired -= dt; if (C.fired <= 0) { C.fired = .09; td.fire(); } }
+    else if (R.td.streams) { R.td.streams = 0; R.td.scatter = 0; R.td.bend = 0; R.gold = false; }
+    Q.eye = pt < P.eye ? 0 : pt < P.close ? Math.min(1, (pt - P.eye) / .45) : Math.max(0, 1 - (pt - P.close) / .3);
+    if (at(P.say)) say('NOT ON MY FLOOR.', P.yank - P.say + .6);
+    if (pt >= P.threads && pt < P.free) Q.threads = Math.min(1, (pt - P.threads) / (P.snap - P.threads));
+    if (at(P.snap)) { Snd.factoryCue('spoil'); R.td.scatter = 1; R.td.bend = 0; Q.shake = Math.max(Q.shake, .6); R.white = .06; emit('f48_spoil', { t: R.t }); }
+    // the souls: pulled out of the gun and up the threads, then tearing free
+    if (at(P.snap + .3)) C.yank = [0, 1].map(i => ({ i, x: mz.x, y: mz.y - mz.h }));
+    if (C.yank && pt < P.free) { const k = Math.min(1, (pt - P.snap - .3) / (P.yank - P.snap - .3)) * .55; for (const sl of C.yank) { sl.x = mz.x + (E.x + (sl.i - .5) * 30 - mz.x) * k; sl.y = mz.y - mz.h + (E.y + 30 - (mz.y - mz.h)) * k; } }
+    if (at(P.free)) { Q.threads = 0; Snd.play('snap'); Snd.play('bell', 1); Q.shake = Math.max(Q.shake, .3);
+      for (const sl of C.yank) for (let k = 0; k < 8; k++) R.td.fx.push({ k: 'spark', x: sl.x, y: sl.y + 20, h: 20, vx: fxr(-70, 70), vy: fxr(-30, 30), vh: fxr(10, 60), col: k % 2 ? '#ffd060' : '#ff7a2a', t: 0, dur: .4 }); }
+    if (C.yank && pt >= P.free) for (const sl of C.yank) {
+      const tx = bull.x + (sl.i - .5) * 26, ty = bull.y - 40;
+      if (pt < P.rise) { sl.x += (tx - sl.x) * Math.min(1, dt * 7); sl.y += (ty - sl.y) * Math.min(1, dt * 7); sl.salute = pt >= P.salute; }
+      else { sl.salute = false; sl.y -= (40 + (pt - P.rise) * 90) * dt; sl.x += (sl.i - .5) * 12 * dt; }
+    }
+    if (pt >= P.white) Q.white = Math.min(1, (pt - P.white) / (P.lobby - P.white));
+    if (pt >= P.lobby) startLobby(false);
   }
   // p(Loom)'s readout along the bottom, in its machine blips
   function say(text, dur) { core.talk(text, 'loom'); Object.assign(R.talk, { readout: true, speaker: 'ploom', total: dur }); }
@@ -336,7 +524,7 @@ var UnrugFloor48 = function (core) {
   // Side on: the arena's bull in an immaculate elevator lobby, the Rugfather's portrait on the wall. He walks in singed,
   // passes the portrait, the car arrives (DING), the doors open on the operator, Please Hold, and he walks in.
   function startLobby(direct) {
-    Q.st = 'lobby'; R.phase = 'lobby'; R.td.locked = true; Q.white = direct ? 0 : 1;
+    Q.st = 'lobby'; R.phase = 'lobby'; R.td.locked = true; R.td.camHold = null; Q.white = direct ? 0 : 1;
     arena.newRun(R, bull); bull.u = -1.05; bull.facing = 1; bull.jh = 0; bull.slash = -1; R.shots = [];
     Q.lobby = { t: 0, said: false, ding: false, out: 0, smoke: 0 };
     R.banner = null; R.talk = null; R.gold = false; R.td.streams = 0;
@@ -382,7 +570,7 @@ var UnrugFloor48 = function (core) {
     if (!Q.started && Q.t >= F48.firstAt) { Q.started = true; Snd.factoryCue('fight', { candidate: Q.music }); if (Q.panic === 1) Snd.factoryCue('panic', { candidate: Q.music }); else if (Q.panic === 2) Snd.factoryCue('heavy', { candidate: Q.music }); emit('f48_fight'); }
     if (Q.t > 4.4 && !Q.events.said) { Q.events.said = true; core.bark('f48start'); }
     if (Q.t > 1 && !Q.events.pa && Q.panic === 0) { Q.events.pa = true; say('RECLAMATION IS AHEAD OF SCHEDULE.', 2.6); }
-    if (Q.st === 'fight') { stepLines(dt); stepChain(dt); }
+    if (Q.st === 'fight') { stepLines(dt); stepHazards(dt); stepChain(dt); stepCues(); }
     else if (Q.st === 'collapse') { stepChain(dt); stepCollapse(dt); if (Q.st === 'lobby') return; }
     td.update(dt);
     stepFx(dt);
@@ -400,9 +588,16 @@ var UnrugFloor48 = function (core) {
     g.save(); g.translate(-CAM.x, -CAM.y);
     const t = R.t;
     S.soulMain(g, LAYOUT, t, Q.panic, null, Q.st !== 'fight', Q.down);
+    if (Q.collapse && Q.collapse.open > 0) drawReserve(t);
     for (let i = 0; i < 3; i++) {
       S.belt(g, F48.lineX0, F48.beltEnd + 6, LINES[i].y, F48.bedH, Q.beltOff[i], !live(i));
       for (const it of Q.items[i]) S.item(g, it, LINES[i].y, null);
+      // the Bulk line running backwards (or about to): chevrons along the belt, pointing the way it's going
+      if (Q.reverse[i] > 0 || reverseWarn(i)) {
+        const on = Q.reverse[i] > 0 || Math.floor(t * 8) % 2, col = Q.reverse[i] > 0 ? '#ff5a4a' : '#ffd44a';
+        if (on) for (let x = F48.lineX0 + 20; x < F48.beltEnd - 10; x += 44) for (let k = 0; k < 4; k++) { rect(g, x + k, LINES[i].y - 4 + k, 1, 1, col); rect(g, x + k, LINES[i].y + 4 - k, 1, 1, col); }
+      }
+      drawCables(i, t);
       const pr = Q.machines.find(m => m.line === i && m.kind === 'press'); S.pressShadow(g, pr, LINES[i].y, F48.bedH);
       // the dispatch chute at the end of each line
       rect(g, F48.beltEnd + 4, LINES[i].y - 13, 14, 26, '#0c0a10'); rect(g, F48.beltEnd + 5, LINES[i].y - 12, 12, 24, '#1a1820');
@@ -414,6 +609,7 @@ var UnrugFloor48 = function (core) {
     for (const pr of PROPS) list.push({ y: pr.y1, draw: () => drawProp(pr) });
     for (let i = 0; i < 3; i++) list.push({ y: LINES[i].y + 20, draw: () => S.beacon(g, F48.beltEnd + 26, LINES[i].y + 20, t, Q.panic, null) });
     for (const d of td.drawables()) list.push(d);
+    for (let i = 0; i < 3; i++) if (Q.crane[i].st !== 'idle') list.push({ y: LINES[i].y + F48.crane.dy + 1, draw: () => drawCrane(i, t) });
     list.sort((a, b) => a.y - b.y);
     for (const d of list) { if (d.draw) d.draw(); else { const save = R.td.fx; R.td.fx = [d.fx]; td.drawFx('lit'); R.td.fx = save; } }
     // smoke and puffs over everything on the floor
@@ -423,6 +619,92 @@ var UnrugFloor48 = function (core) {
     if (Q.panic && Q.st === 'fight') { g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = Q.panic > 1 ? .14 + (Math.floor(t * 3) % 2 ? .08 : 0) : .08; rect(g, 0, 0, W, H, Q.panic > 1 ? '#ff3a2a' : '#ffb040'); g.restore(); }
     if (Q.st === 'collapse') { g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = .2 + (Math.floor(t * 4) % 2 ? .06 : 0); rect(g, 0, 0, W, H, '#ff3a2a'); g.restore(); }
   };
+  // The cables: the soul feed (a glass hose with souls in it, from the main to the tank) and the power cable (a thick
+  // black cable with a yellow stripe, from the animator down to its junction box); cut, their ends lie frayed and
+  // sparking. Each live one wears the katana mark (drawn in the glow, cueMarks).
+  function drawCables(i, t) {
+    const f = feedSeg(i), pw = powerSeg(i);
+    if (!Q.feedCut[i]) { rect(g, f.x0, f.y0 - 3, f.x1 - f.x0, 6, '#0c0a10'); rect(g, f.x0, f.y0 - 2, f.x1 - f.x0, 4, '#1d3a48'); rect(g, f.x0, f.y0 - 2, f.x1 - f.x0, 1, '#4a8aa8'); }
+    else { rect(g, f.x0, f.y0 - 2, 10, 4, '#1d3a48'); rect(g, f.x1 - 10, f.y0 - 2, 10, 4, '#1d3a48'); }
+    // the junction box on the walkway, and the cable
+    rect(g, pw.x0 - 7, pw.y1 - 2, 14, 10, '#0c0a10'); rect(g, pw.x0 - 6, pw.y1 - 1, 12, 8, Q.powerCut[i] ? '#3a3640' : '#e8b030'); rect(g, pw.x0 - 4, pw.y1 + 1, 8, 1, '#1a1418');
+    if (powered(i)) { rect(g, pw.x0 - 2, pw.y0, 4, pw.y1 - pw.y0, '#0c0a10'); rect(g, pw.x0 - 1, pw.y0, 2, pw.y1 - pw.y0, '#2a2630'); for (let y = pw.y0 + 2; y < pw.y1; y += 6) rect(g, pw.x0 - 1, y, 2, 2, '#e8b030');
+      // p(Loom)'s splice: orange thread wound round the cut
+      if (Q.patched[i]) { const my = Math.round((pw.y0 + pw.y1) / 2); for (let k = 0; k < 4; k++) rect(g, pw.x0 - 3, my - 3 + k * 2, 6, 1, k % 2 ? '#ffd060' : '#ff7a2a'); } }
+    else if (Q.powerCut[i] > 0) { rect(g, pw.x0 - 2, pw.y0, 4, 8, '#0c0a10'); rect(g, pw.x0 - 2, pw.y1 - 10, 4, 8, '#0c0a10'); }
+  }
+  // the katana mark: a red diamond with a white blade across it over everything only the katana handles, pulsing; when
+  // he's close enough to reach one, it says SLASH!
+  function katanaMark(x, y, near, t) {
+    const p = Math.floor(t * 4) % 2, r = near ? 6 : 5;
+    g.fillStyle = '#1a0606'; g.beginPath(); g.moveTo(x, y - r - 1); g.lineTo(x + r + 1, y); g.lineTo(x, y + r + 1); g.lineTo(x - r - 1, y); g.closePath(); g.fill();
+    g.fillStyle = near || p ? '#ff3a2a' : '#a8261e'; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y); g.closePath(); g.fill();
+    core.line(g, x - 3, y + 3, x + 3, y - 3, '#ffffff'); rect(g, x - 4, y + 3, 2, 2, '#ffd44a');
+    if (near) { const label = 'SLASH!'; rect(g, Math.round(x - 14), Math.round(y - r - 13), 28, 9, '#1a0606'); txt(g, label, Math.round(x - textWidth(label) / 2), Math.round(y - r - 11), p ? '#ffffff' : '#ff6a5a', 1); }
+  }
+  function cueMarks(t) {
+    if (Q.st !== 'fight') return;
+    const reach = (x, y) => Math.hypot(x - bull.x, y - bull.y) < F48.cue;
+    for (const c of cables()) { const x = (c.x0 + c.x1) / 2, y = (c.y0 + c.y1) / 2 - 4; katanaMark(x, y, segDist(c, bull.x, bull.y) < F48.cue, t); }
+    for (const p of R.td.thrown) if (!p.dead && !p.friendly) { const x = p.x, y = p.y - p.h; g.strokeStyle = Math.floor(t * 10) % 2 ? '#ff3a2a' : '#ffd0c0'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 9, 0, 6.29); g.stroke(); }
+    for (const e of R.td.enemies) if (e.kind === 'shag' && !(e.spawning > 0)) katanaMark(e.x, e.y - e.h - 30, reach(e.x, e.y), t);
+  }
+  // the crane: its rail over the walkway and the trolley with its hook; warning, a lamp and a dashed line along its path
+  function drawCrane(i, t) {
+    const c = Q.crane[i], hy = LINES[i].y + F48.crane.dy;
+    if (!live(i) || kindOf(i) !== 'armored') return;
+    if (c.st === 'warn' && Math.floor(t * 10) % 2) for (let x = 40; x < 770; x += 12) rect(g, x, hy, 6, 1, '#ff5a4a');
+    if (c.st !== 'sweep') return;
+    const x = Math.round(c.x);
+    g.save(); g.globalAlpha = .4; g.fillStyle = '#07050a'; g.beginPath(); g.ellipse(x, hy + 2, 10, 4, 0, 0, 6.29); g.fill(); g.restore();
+    rect(g, x - 1, hy - 46, 2, 34, '#5a5866'); rect(g, x - 9, hy - 50, 18, 6, '#0c0a10'); rect(g, x - 8, hy - 49, 16, 4, '#e8b030');
+    rect(g, x - 6, hy - 14, 12, 4, '#0c0a10'); rect(g, x - 5, hy - 13, 10, 2, '#8a8494');
+    rect(g, x - 2, hy - 10, 4, 8, '#8a8494'); rect(g, x + 2, hy - 4, 4, 3, '#8a8494'); rect(g, x + 5, hy - 7, 2, 4, '#8a8494');
+  }
+  // The reserve: the back wall's panels fall away (open 0..1) on a row of glass tanks full of captured souls, each on a
+  // brass base; cracked, a jagged stub with its glass on the floor. Its souls shine in the glow (reserveGlow).
+  function drawReserve(t) {
+    const C = Q.collapse, k = C.open, top = 26, bot = F48.wallH - 2;
+    rect(g, 40, top - 4, 720, (bot - top + 6) * k, '#07060a');
+    for (let x = 40; x < 760; x += 9) { const j = S.hash(x, 3) * 6; rect(g, x, top - 6 + j * (1 - k), 9, 3, '#2b2834'); }
+    for (const tk of C.reserve) {
+      const x = Math.round(tk.x), h = Math.round((bot - top) * k);
+      if (h < 4) continue;
+      rect(g, x - 11, bot - 6, 22, 7, '#0c0a10'); rect(g, x - 10, bot - 5, 20, 5, '#6a4a18'); rect(g, x - 10, bot - 5, 20, 1, '#c9962e');
+      if (tk.broken) { rect(g, x - 9, bot - 12, 18, 6, '#1d3a48'); for (let j = 0; j < 5; j++) rect(g, x - 9 + j * 4, bot - 15 + (j % 2) * 3, 2, 4, '#4a8aa8'); continue; }
+      rect(g, x - 10, bot - h, 20, h - 5, tk.flash > 0 ? '#bfefff' : '#1d3a48'); rect(g, x - 8, bot - h + 2, 2, h - 9, '#4a8aa8');
+      rect(g, x - 11, bot - h - 3, 22, 4, '#0c0a10'); rect(g, x - 10, bot - h - 2, 20, 2, '#c9962e');
+    }
+  }
+  function reserveGlow(t) {
+    const C = Q.collapse; if (!C || C.open < .5) return;
+    for (const tk of C.reserve) {
+      if (tk.broken) continue;
+      for (let j = 0; j < 3; j++) { const x = Math.round(tk.x - 5 + ((j * 7 + t * 9 + tk.i * 3) % 10)), y = Math.round(32 + ((j * 6 + t * 7 + tk.i) % 16)); g.fillStyle = j % 2 ? '#ffd44a' : '#bfefff'; g.fillRect(x, y, 2, 3); }
+      if (C.phase === 'whip') td.glow(tk.x, 42, 14, '#bfefff', .25);
+    }
+  }
+  // p(Loom)'s eye on the wall: a dark socket that splits open on a burning orange eye, looking at him; and its threads
+  function drawEye(t) {
+    const C = Q.collapse; if (!C || !C.eye || Q.eye <= 0) return;
+    const E = C.eye, k = Q.eye, rx = 30, ry = 15 * k, p = .5 + .5 * Math.sin(t * 8);
+    td.glow(E.x, E.y, 70, '#ff7a2a', .5 * k);
+    g.fillStyle = '#140806'; g.beginPath(); g.ellipse(E.x, E.y, rx + 4, ry + 4, 0, 0, 6.29); g.fill();
+    g.fillStyle = '#ff7a2a'; g.beginPath(); g.ellipse(E.x, E.y, rx, ry, 0, 0, 6.29); g.fill();
+    const lx = clamp((bull.x - E.x) * .03, -8, 8), ly = clamp((bull.y - E.y) * .02, -3, 3) * k;
+    g.fillStyle = '#ffd060'; g.beginPath(); g.ellipse(E.x + lx, E.y + ly, 11 * k + 1, 11 * k, 0, 0, 6.29); g.fill();
+    g.fillStyle = '#140806'; g.beginPath(); g.ellipse(E.x + lx, E.y + ly, (3 + p * 2) * k, (5 + p) * k, 0, 0, 6.29); g.fill();
+    if (Q.threads > 0) {
+      const mz = td.muzzle(), tx = mz.x, ty = mz.y - mz.h;
+      for (let i = 0; i < 4; i++) {
+        const sx = E.x + (i - 1.5) * 10, sy = E.y + ry * .6;
+        g.strokeStyle = i % 2 ? '#ff7a2a' : '#ffd060'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx, sy);
+        for (let q = 1; q <= 14; q++) { const u = q / 14 * Q.threads; g.lineTo(sx + (tx + (i - 1.5) * 4 - sx) * u + Math.sin(u * 12 + t * 26 + i) * 7 * (1 - u) * (1 - Q.threads * .6), sy + (ty - sy) * u); }
+        g.stroke();
+      }
+      td.glow(tx, ty, 26, '#ff7a2a', .6);
+    }
+  }
   // a pallet stacked with rolled rugs, or a parts crate
   function drawProp(p) {
     if (p.kind === 'crate') { S.box(g, p, '#5a4632', '#463626', '#7a6244', '#2a2016'); rect(g, p.x0 + 2, p.y1 - p.H + 3, p.x1 - p.x0 - 4, 1, '#2a2016'); core.line(g, p.x0 + 2, p.y1 - p.H + 4, p.x1 - 3, p.y1 - 2, '#2a2016'); txt(g, 'RUGCO', p.x0 + 3, p.y0 - p.H + 4, '#2a2016', 1); return; }
@@ -456,7 +738,15 @@ var UnrugFloor48 = function (core) {
       else if (m.kind === 'spinner') { const nul = nullCtx(); S.spinner(nul, m, t, g, 1); }
       else if (m.kind === 'animator') S.animator(nullCtx(), m, t, g, m.zap);
     }
-    for (let i = 0; i < 3; i++) S.beacon(nullCtx(), F48.beltEnd + 26, LINES[i].y + 20, t, Q.panic, g);
+    for (let i = 0; i < 3; i++) S.beacon(nullCtx(), F48.beltEnd + 26, LINES[i].y + 20, (reverseWarn(i) || Q.reverse[i] > 0) ? t * 2 : t, Math.max(Q.panic, Q.reverse[i] > 0 ? 2 : 0), g);
+    for (let i = 0; i < 3; i++) {
+      const f = Q.fling[i], sp = partOf(i, 'spinner');
+      if (f.tell > 0 && !sp.dead) td.glow((sp.x0 + sp.x1) / 2, (sp.y0 + sp.y1) / 2 - sp.H, 26, '#ff7a2a', .8);
+      if (Q.crane[i].st === 'warn') td.glow(20, LINES[i].y + F48.crane.dy, 20, '#ff3a2a', Math.floor(t * 10) % 2 ? .8 : .2);
+      if (!Q.feedCut[i] && live(i)) { const fs = feedSeg(i); for (let k = 0; k < 3; k++) { g.fillStyle = '#bfefff'; g.fillRect(Math.round(fs.x0 + ((k * 13 + t * 30) % (fs.x1 - fs.x0))), fs.y0 - 1, 2, 2); } }
+      if (Q.powerCut[i] > 0 && Math.random() < .3) { const pw = powerSeg(i); g.fillStyle = '#ffffff'; g.fillRect(pw.x0 - 1 + Math.round(Math.random() * 3), pw.y0 + 7, 1, 1); }
+    }
+    cueMarks(t);
     // wrecks burn: flames that die down over a few seconds (and flare up again as the floor comes apart)
     for (const m of Q.machines) {
       const k = burn(m); if (k <= 0) continue;
@@ -477,25 +767,22 @@ var UnrugFloor48 = function (core) {
         if (k < .35) { const fr = (10 + k * 40) * f.s; td.glow(f.x, f.y - 14, fr * 1.6, '#ffb040', .9 * (1 - k * 2)); g.fillStyle = k < .15 ? '#ffffff' : '#ffd060'; g.beginPath(); g.ellipse(f.x, f.y - 14, fr * .5, fr * .4, 0, 0, 6.29); g.fill(); }
       } else if (f.k === 'burn') { for (let n = 0; n < 3; n++) { const x = f.x + (n - 1) * 5, h = 4 + Math.random() * 6 * (1 - k); g.fillStyle = n === 1 ? '#ffd060' : '#ff7a2a'; g.fillRect(Math.round(x), Math.round(f.y - h), 2, Math.round(h)); } }
     }
-    // p(Loom)'s threads, whipping down through the broken roof to the gun
-    if (Q.threads > 0 && Q.st === 'collapse') {
-      const mz = td.muzzle(), tx = mz.x, ty = mz.y - mz.h;
-      for (let i = 0; i < 4; i++) {
-        const sx = tx + (i - 1.5) * 70, sy = CAM.y - 10, k = Q.threads;
-        g.strokeStyle = i % 2 ? '#ff7a2a' : '#ffd060'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx, sy);
-        for (let s = 1; s <= 12; s++) { const u = s / 12 * k; g.lineTo(sx + (tx + (i - 1.5) * 6 - sx) * u + Math.sin(u * 14 + t * 30 + i) * 6 * (1 - u), sy + (ty - sy) * u); }
-        g.stroke();
-      }
-      td.glow(tx, ty, 30, '#ff7a2a', .5);
-    }
+    reserveGlow(t);
+    drawEye(t);
     td.glows();
-    // the souls on their way to the gun, and saluting at the end
-    for (const s of Q.souls) if (!s.landed) {
-      const k = s.t / s.dur, mz = td.muzzle(), x0 = s.x0 + CAM.x, y0 = s.y0 + CAM.y, x = x0 + (mz.x - x0) * k, y = y0 + (mz.y - mz.h - y0) * k - Math.sin(k * Math.PI) * 30;
+    // the souls on their way to the gun; then pulled up p(Loom)'s threads, tearing free, saluting and rising
+    for (const sl of Q.souls) if (!sl.landed) {
+      const k = sl.t / sl.dur, mz = td.muzzle(), x0 = sl.x0 + CAM.x, y0 = sl.y0 + CAM.y, x = x0 + (mz.x - x0) * k, y = y0 + (mz.y - mz.h - y0) * k - Math.sin(k * Math.PI) * 30;
       g.drawImage(A.GHOST, Math.round(x - 9), Math.round(y - 11), 18, 22); td.glow(x, y, 14, '#ffd44a', .5);
     }
-    if (Q.collapse && Q.collapse.freed) for (const s of Q.collapse.salute) {
-      const img = A.SOUL_SALUTE || A.GHOST; g.save(); g.translate(Math.round(s.x), Math.round(s.y)); if (s.flip) g.scale(-1, 1); g.drawImage(img, -9, -11, 18, 22); g.restore(); td.glow(s.x, s.y, 14, '#ffd44a', .4);
+    const C = Q.collapse;
+    if (C && C.yank) for (const sl of C.yank) {
+      if (C.pt > F48.ploom.lobby) break;
+      const img = sl.salute ? A.SOUL_SALUTE || A.GHOST : A.GHOST, a = C.pt > F48.ploom.rise ? Math.max(0, 1 - (C.pt - F48.ploom.rise) / .6) : 1;
+      g.save(); g.globalAlpha = a; g.translate(Math.round(sl.x), Math.round(sl.y));
+      if (C.pt < F48.ploom.free) g.translate(Math.round((Math.random() - .5) * 2), 0);
+      if (sl.i === 0 && sl.salute) g.scale(-1, 1);
+      g.drawImage(img, -9, -11, 18, 22); g.restore(); td.glow(sl.x, sl.y, 14, '#ffd44a', .4 * a);
     }
     g.restore();
   }
@@ -631,14 +918,17 @@ var UnrugFloor48 = function (core) {
   }
   function overlay() {
     if (Q.st === 'lobby') return;
-    g.save(); g.scale(.5, .5); td.arrows(); td.reticle();
+    g.save(); g.scale(.5, .5);
+    const C = Q.collapse;
+    if (!C || C.phase !== 'ploom') { td.arrows(); td.reticle(); }
+    if (C && C.phase === 'whip' && R.td.cam.y > 24 && Math.floor(R.t * 4) % 2) for (let i = 0; i < 3; i++) { const x = 240, y = 34 + i * 6; for (let r = 0; r < 6; r++) rect(g, x - r, y + r, r * 2 + 1, 1, '#ffd44a'); }
     if (Q.white > 0) { g.globalAlpha = Q.white; rect(g, 0, 0, W, H, '#ffffff'); }
     g.restore();
   }
   // the HUD: souls top right, the three lines' state top middle, p(Loom)'s readout along the bottom
   function hud() {
     drawSoulsCounter();
-    if (Q.st !== 'lobby') {
+    if (Q.st === 'fight') {
       const x0 = 120 - 21;
       for (let i = 0; i < 3; i++) {
         const x = x0 + i * 15, y = 4, dn = Q.down[i], lm = loomOf(i);
@@ -647,6 +937,13 @@ var UnrugFloor48 = function (core) {
         else { core.line(g, x + 1, y + 1, x + 8, y + 6, '#d63428'); core.line(g, x + 8, y + 1, x + 1, y + 6, '#d63428'); }
       }
       if (Q.panic && Q.st === 'fight' && Math.floor(R.t * 3) % 2) otxt(g, Q.panic > 1 ? 'PANIC!!' : 'PANIC', 120, 15, Q.panic > 1 ? '#ff5a4a' : '#ffd44a', 1, 'center');
+    }
+    // the power-ups running, under the charge bar, each with its time left
+    let py = R.spread > 0 ? 27 : 20;
+    for (const [k, label, col] of [['rapid', 'RAPID', '#bfefff'], ['pierce', 'PIERCE', '#c9a0ff']]) {
+      if (!(R[k] > 0)) continue;
+      if (R[k] > 2 || Math.floor(R.t * 10) % 2) otxt(g, label, 4, py, col);
+      rect(g, 4 + textWidth(label) + 3, py + 2, Math.round(20 * R[k] / td.TD.power.secs), 1, col); py += 7;
     }
     drawTalk();
   }
@@ -687,6 +984,7 @@ var UnrugFloor48 = function (core) {
       else if (m.kind === 'animator' && m.zap > 0) { r.light(x - c.x, y - c.y, 0, .3, .4, .5); n++; }
     }
     if (Q.panic && Q.st === 'fight') for (let i = 0; i < 3; i++) { const x = F48.beltEnd + 26, y = LINES[i].y - 15; if (on(x, y)) r.light(x - c.x, y - c.y, 0, .5, Q.panic > 1 ? .08 : .3, .02); }
+    if (Q.collapse && Q.collapse.eye && Q.eye > 0) r.light(Q.collapse.eye.x - c.x, Q.collapse.eye.y - c.y, 0, 1.2 * Q.eye, .45 * Q.eye, .1 * Q.eye);
     let fires = 0;
     for (const m of Q.machines) { const k = burn(m); if (k > 0 && fires < 4 && on((m.x0 + m.x1) / 2, m.y1)) { fires++; r.light((m.x0 + m.x1) / 2 - c.x, m.y1 - 14 - c.y, 0, .5 * k, .22 * k, .05 * k); } }
     if (Q.st === 'collapse') { const p = Math.floor(R.t * 2) % 2; r.light(W * .25, 30, 0, p ? .5 : .25, .04, .02); r.light(W * .75, 30, 0, p ? .25 : .5, .04, .02); }
@@ -717,6 +1015,6 @@ var UnrugFloor48 = function (core) {
     pauseText: 'The factory waits.',
     continueText: () => Q && Q.panic ? 'Back in the factory with full hearts? Lines you shut down stay down.' : 'Back in the factory with full hearts?',
     clearCard: (extra, best, clock) => ({ title: 'The 48th Floor clear', text: '', rows: [['Souls', String(R.souls)], ['Time', clock(R.endT)]], note: '' }),
-    F48, LINES, td, arena, lineDown, breakMachine, startCollapse, startLobby, loomOf, get Q() { return Q; }
+    F48, LINES, KINDS, td, arena, lineDown, breakMachine, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
   };
 };

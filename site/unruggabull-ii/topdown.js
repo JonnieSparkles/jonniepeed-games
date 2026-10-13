@@ -20,7 +20,13 @@ var UnrugTopdown = function (core, tuning) {
     flyer: { r: 11, h: 15, speed: 60, turn: 2.6, spread: 26, hp: 1 },
     armored: { r: 12, h: 17, speed: 46, keep: [115, 160], throwFirst: [2.4, 3.4], throwEvery: [4.6, 6.6], bobbin: 104, inFlight: 2, hp: 2 },
     roll: { r: 10, h: 5, aimT: .75, speed: 160, life: 1.9, bounces: 1, hp: 2 },
-    bobbin: { r: 5, life: 3, deflectSpeed: 260, damage: 3 },
+    bobbin: { r: 5, life: 3, deflectSpeed: 260, damage: 3, wind: .45 },   // wind: the thrower glows this long before it lets go
+    // the big one: a shag rug twice the size; slow, tough, charges; the katana staggers it; it splits into two flyers
+    shag: { r: 18, h: 16, speed: 30, hp: 14, slash: 5, stagger: .7, aimT: .6, dash: 210, dashT: .45, every: [2.6, 3.8], split: 2 },
+    // a spinner's thread: it tangles him (half speed) rather than hurting; the katana cuts it, bolts pass through
+    thread: { r: 6, speed: 120, life: 2.6, tangle: 1.6, slow: .5 },
+    // power-ups from broken machines: seconds each, Rapid's fire interval, Pierce's damage to a machine
+    power: { secs: 10, rapidEvery: .085, pierceMachine: 1 },
     most: 14, lead: 34
   }, tuning);
   let R, bull, g = core.g, swing = 0;
@@ -111,7 +117,8 @@ var UnrugTopdown = function (core, tuning) {
     b.inv = Math.max(0, b.inv - dt); b.cd = Math.max(0, b.cd - dt); b.stag = Math.max(0, (b.stag || 0) - dt); b.aimT = Math.max(0, (b.aimT || 0) - dt);
     if (b.slash >= 0) { b.slash += dt; if (b.slash >= TD.slashT) b.slash = -1; }
     if (R.phase === 'dead' || R.td.locked) { b.vx = b.vy = 0; return; }
-    const m = moveVec(), spd = TD.speed * (R.bullRun > 0 ? 1.7 : 1);
+    b.tangle = Math.max(0, (b.tangle || 0) - dt);
+    const m = moveVec(), spd = TD.speed * (R.bullRun > 0 ? 1.7 : 1) * (b.tangle > 0 ? TD.thread.slow : 1);
     const k = 1 - Math.exp(-TD.accel * dt);
     b.vx += (m.x * spd - b.vx) * k; b.vy += (m.y * spd - b.vy) * k;
     const belt = R.td.push(b.x, b.y);
@@ -130,7 +137,7 @@ var UnrugTopdown = function (core, tuning) {
     if (input.slash > 0 && b.cd <= 0) { input.slash = 0; slash(); }
     if (b.slash >= 0 && b.slash < TD.slashT) slashHits();
     R.fireT -= dt;
-    if ((a.fire || input.shoot > 0) && R.fireT <= 0 && (R.phase === 'boss')) { input.shoot = 0; R.fireT = fire() ? TD.fireEvery : .25; }
+    if ((a.fire || input.shoot > 0) && R.fireT <= 0 && (R.phase === 'boss')) { input.shoot = 0; R.fireT = fire() ? (R.rapid > 0 ? TD.power.rapidEvery : TD.fireEvery) : .25; }
   }
 
   // ---------- the blaster ----------
@@ -156,14 +163,14 @@ var UnrugTopdown = function (core, tuning) {
     bull.aimT = .14;
     const d = assist(bull.ax, bull.ay), mz = muzzle(), base = Math.atan2(d.y, d.x);
     const bolt = (a, extra) => R.shots.push(Object.assign({ x: mz.x, y: mz.y, h: mz.h, vx: Math.cos(a) * TD.shotSpeed, vy: Math.sin(a) * TD.shotSpeed, t: 0, a, dead: false }, extra));
-    bolt(base);
-    if (R.spread > 0) { bolt(base - TD.spreadAngle, { spread: true }); bolt(base + TD.spreadAngle, { spread: true }); }
+    bolt(base, R.pierce > 0 ? { pierce: true, hits: [] } : null);
+    if (R.spread > 0) for (const o of [-1, 1]) bolt(base + o * TD.spreadAngle, Object.assign({ spread: true }, R.pierce > 0 ? { pierce: true, hits: [] } : {}));
     // the souls' streams: shots either side of the bolt, from the muzzle; while they bend in (td.bend 0..1) they lean
     // toward the bolt's line further out (the near miss), and when p(Loom) scatters them they fly wide
     const n = R.td.streams;
     if (n > 0) {
       const offs = n === 1 ? [1] : n === 2 ? [-1, 1] : n === 3 ? [-1, 1, 2] : [-2, -1, 1, 2];
-      for (const o of offs) bolt(base + o * (.07 + R.td.bend * .05) + (R.td.scatter ? o * .35 * R.td.scatter : 0), { soul: true, side: o, bend: R.td.bend, ba: base, ox: mz.x, oy: mz.y });
+      for (const o of offs) bolt(base + o * (.07 + R.td.bend * .05) + (R.td.scatter ? o * .35 * R.td.scatter : 0), { soul: true, side: o, bend: R.td.bend, ba: base, ox: mz.x, oy: mz.y, pierce: true, hits: [] });
     }
     R.events.shots = (R.events.shots || 0) + 1;
     R.td.fx.push({ k: 'muzzle', x: mz.x, y: mz.y, h: mz.h, t: 0, dur: .07 });
@@ -185,15 +192,17 @@ var UnrugTopdown = function (core, tuning) {
       if (s.x < b.x0 - 6 || s.x > b.x1 + 6 || s.y < b.y0 - 30 || s.y > b.y1 + 10) { s.dead = true; puff(s.x, s.y, s.h, 3); continue; }
       let hit = false;
       for (const e of R.td.enemies) {
-        if (e.dead || e.spawning) continue;
+        if (e.dead || e.spawning || (s.pierce && s.hits.includes(e))) continue;
         const r = (TD[e.kind] || TD.flyer).r + TD.shotRadius;
-        if ((s.x - e.x) ** 2 + (s.y - e.y) ** 2 < r * r) { s.dead = hit = true; damage(e, 1, 'shot'); break; }
+        if ((s.x - e.x) ** 2 + (s.y - e.y) ** 2 < r * r) {
+          damage(e, 1, 'shot');
+          if (s.pierce) s.hits.push(e); else { s.dead = hit = true; break; }
+        }
       }
       if (hit) continue;
-      // a bobbin can be shot down (two bolts), but knocking it back with the katana is the better answer
-      for (const p of R.td.thrown) if (!p.dead && !p.friendly && (s.x - p.x) ** 2 + (s.y - p.y) ** 2 < 64) { s.dead = hit = true; p.shot = (p.shot || 0) + 1; sparks(p.x, p.y, 10, '#ffe0c8', 4); Snd.play('hit'); if (p.shot >= 2) p.dead = true; break; }
-      if (hit) continue;
-      if (R.td.machineHit(s.x, s.y, 1, 'shot')) { s.dead = true; sparks(s.x, s.y, s.h, '#ffd44a', 4); }
+      // bobbins and threads: bolts pass through; only the katana answers them
+      if (s.soul) continue;   // the souls' streams pass through; on the 48th Floor's reserve the floor sweeps their ribbons
+      if (R.td.machineHit(s.x, s.y, s.pierce ? TD.power.pierceMachine : 1, 'shot')) { s.dead = true; sparks(s.x, s.y, s.h, s.pierce ? '#c9a0ff' : '#ffd44a', 4); }
     }
     R.shots = R.shots.filter(s => !s.dead);
   }
@@ -223,12 +232,27 @@ var UnrugTopdown = function (core, tuning) {
     return (dx * bull.sx + dy * bull.sy) / d > Math.cos(TD.slashArc / 2 + (extra ? .25 : 0));
   };
   function slashHits() {
-    for (const e of R.td.enemies) if (!e.dead && !e.spawning && e.swing !== swing && inArc(e.x, e.y, (TD[e.kind] || TD.flyer).r)) { e.swing = swing; damage(e, 99, 'slash'); }
-    for (const p of R.td.thrown) if (!p.dead && !p.friendly && inArc(p.x, p.y, 6)) deflect(p);
+    for (const e of R.td.enemies) if (!e.dead && !e.spawning && e.swing !== swing && inArc(e.x, e.y, (TD[e.kind] || TD.flyer).r)) {
+      e.swing = swing;
+      if (e.kind === 'shag') { staggerShag(e); damage(e, TD.shag.slash, 'slash'); }
+      else damage(e, 99, 'slash');
+    }
+    for (const p of R.td.thrown) if (!p.dead && !p.friendly && inArc(p.x, p.y, 6)) { if (p.kind === 'thread') cutThread(p); else deflect(p); }
     if (bull.slashMach !== swing) {
       const n = R.td.slashMachines(bull.x + bull.sx * TD.slashReach * .6, bull.y - 4 + bull.sy * TD.slashReach * .6, TD.slashReach * .6, TD.slashDamage, swing);
       if (n) { bull.slashMach = swing; R.freeze = Math.max(R.freeze, .04); }
     }
+  }
+  // a thread cut in the air: it falls apart in sparks
+  function cutThread(p) {
+    p.dead = true; Snd.play('snareCut'); emit('td_thread_cut');
+    for (let i = 0; i < 6; i++) R.td.fx.push({ k: 'spark', x: p.x, y: p.y, h: p.h, vx: (Math.random() - .5) * 120, vy: (Math.random() - .5) * 60, vh: 40, col: i % 2 ? '#ffd060' : '#ff7a2a', t: 0, dur: .35 });
+  }
+  // the shag reels from a cut: its charge is stopped and it's knocked back
+  function staggerShag(e) {
+    e.stag = TD.shag.stagger; e.st = 'walk'; e.t = 0; e.next = Math.max(e.next || 0, 1.4);
+    const dx = e.x - bull.x, dy = e.y - bull.y, d = Math.hypot(dx, dy) || 1; e.vx = dx / d * 140; e.vy = dy / d * 140;
+    emit('td_shag_stagger');
   }
   // a bobbin knocked back: at whoever threw it, else where he aims; it hits hard
   function deflect(p) {
@@ -249,6 +273,7 @@ var UnrugTopdown = function (core, tuning) {
       ph: rr(0, 6), hit: 0, pace: opts.pace || 1, line: opts.line, spawning: .35, armored: kind === 'armored' };
     if (kind === 'armored') { e.keep = rr(...T8.keep); e.nextThrow = rr(...T8.throwFirst); e.orbit = rr(0, 1) < .5 ? 1 : -1; }
     if (kind === 'roll') { e.st = 'aim'; e.t = 0; e.bounces = 0; }
+    if (kind === 'shag') { e.st = 'walk'; e.t = 0; e.next = rr(...T8.every); e.spawning = .5; }
     R.td.enemies.push(e); emit('td_spawn', { kind, line: opts.line }); return e;
   }
   function damage(e, n, by) {
@@ -269,6 +294,11 @@ var UnrugTopdown = function (core, tuning) {
       for (const sd of [-1, 1]) R.td.fx.push({ k: 'half', x: e.x, y: e.y, h: e.h, vx: -bull.sy * sd * 70 + bull.sx * 30, vy: bull.sx * sd * 50 + bull.sy * 30, vh: 60, r: 0, vr: sd * 7, top: sd < 0, roll: e.kind === 'roll', t: 0, dur: .55 });
       R.charge = Math.min(TUNE.charges, R.charge + (TD.slashRefill || 2)); R.chargeFlash = .2;
     } else puff(e.x, e.y, e.h, 7);
+    if (e.kind === 'shag') {
+      // it comes apart into two flyers, flung either side
+      for (const sd of [-1, 1]) { const f = spawn('flyer', { x: e.x + sd * 10, y: e.y, vx: sd * 90, vy: rr(-30, 30), pace: e.pace, line: e.line }); f.spawning = .3; }
+      R.shake = Math.max(R.shake, .12); Snd.play('machineBreak');
+    }
     emit('td_kill', { kind: e.kind, by, line: e.line });
   }
   // everything in a blast dies (the machines' explosions; they never hurt him)
@@ -294,6 +324,7 @@ var UnrugTopdown = function (core, tuning) {
       if (e.spawning > 0) { e.spawning = Math.max(0, e.spawning - dt); e.x += e.vx * dt; e.y += e.vy * dt; e.h += (T8[e.kind].h - e.h) * Math.min(1, dt * 6); continue; }
       const dx = bull.x - e.x, dy = bull.y - e.y, d = Math.hypot(dx, dy) || 1;
       if (e.kind === 'roll') { stepRoll(e, dt, dx, dy, d); continue; }
+      if (e.kind === 'shag') { stepShag(e, dt, dx, dy, d); if (R.phase === 'dead') break; continue; }
       const P = T8[e.kind], sp = P.speed * e.pace;
       let wx, wy;
       if (e.kind === 'flyer') { wx = dx / d * sp; wy = dy / d * sp; }
@@ -304,7 +335,8 @@ var UnrugTopdown = function (core, tuning) {
         e.nextThrow -= dt;
         // it only throws from where he can see it (on screen), and not too close
         const c = R.td.cam, seen = e.x > c.x + 8 && e.x < c.x + TD.view.w - 8 && e.y - e.h > c.y + 24 && e.y < c.y + TD.view.h - 4;
-        if (e.nextThrow <= 0 && seen && d > 50 && R.td.thrown.filter(p => !p.friendly).length < P.inFlight) { throwBobbin(e); e.nextThrow = rr(...P.throwEvery); }
+        if (e.wind > 0) { e.wind -= dt; if (e.wind <= 0) { e.wind = 0; throwBobbin(e); e.nextThrow = rr(...P.throwEvery); } }
+        else if (e.nextThrow <= 0 && seen && d > 50 && R.td.thrown.filter(p => !p.friendly && p.kind !== 'thread').length < P.inFlight) { e.wind = TD.bobbin.wind; emit('td_wind'); }
       }
       // keep apart
       for (const o of L) {
@@ -321,6 +353,28 @@ var UnrugTopdown = function (core, tuning) {
     }
     R.td.enemies = L.filter(e => !e.dead);
   }
+  // The shag lumbers after him; every few seconds it plants, shudders (aimT) and charges in a straight line. A cut
+  // staggers it and knocks it back.
+  function stepShag(e, dt, dx, dy, d) {
+    const P = TD.shag;
+    e.stag = Math.max(0, (e.stag || 0) - dt); e.t += dt;
+    if (e.stag > 0) { e.vx *= Math.pow(.02, dt); e.vy *= Math.pow(.02, dt); }
+    else if (e.st === 'walk') {
+      const sp = P.speed * e.pace, k = 1 - Math.exp(-2 * dt);
+      e.vx += (dx / d * sp - e.vx) * k; e.vy += (dy / d * sp - e.vy) * k;
+      e.next -= dt;
+      if (e.next <= 0 && d < 240) { e.st = 'aim'; e.t = 0; e.tx = dx / d; e.ty = dy / d; e.vx = e.vy = 0; Snd.play('rev'); emit('td_shag_aim'); }
+    } else if (e.st === 'aim') {
+      e.tx = dx / d; e.ty = dy / d;
+      if (e.t >= P.aimT) { e.st = 'dash'; e.t = 0; e.vx = e.tx * P.dash * Math.min(1.25, e.pace); e.vy = e.ty * P.dash * Math.min(1.25, e.pace); Snd.play('roll'); }
+    } else if (e.st === 'dash' && e.t >= P.dashT) { e.st = 'walk'; e.t = 0; e.next = rr(...P.every); }
+    const b = TD.bounds, nx = clamp(e.x + e.vx * dt, b.x0 + P.r, b.x1 - P.r), ny = clamp(e.y + e.vy * dt, b.y0 + 4, b.y1 - P.r * .5);
+    if (!R.td.solids().some(s => nx + P.r * .7 > s.x0 && nx - P.r * .7 < s.x1 && ny + 6 > s.y0 && ny - 6 < s.y1)) { e.x = nx; e.y = ny; }
+    else if (e.st === 'dash') { e.st = 'walk'; e.t = 0; e.next = rr(...P.every); e.vx = -e.vx * .3; e.vy = -e.vy * .3; Q8shake(); }
+    e.h = P.h + (e.st === 'aim' ? Math.sin(e.t * 50) : Math.sin(e.age * 3 + e.ph)) * 1.5;
+    if (d < P.r + TD.radius && !(e.stun > 0)) { contact(e, 'shag'); e.stun = .6; if (e.st === 'dash') { e.st = 'walk'; e.next = rr(...P.every); } }
+  }
+  const Q8shake = () => { R.shake = Math.max(R.shake, .08); Snd.play('press'); };
   // A roll shudders and points at him, then barrels straight, bounces off a wall or machine once, and unrolls.
   function stepRoll(e, dt, dx, dy, d) {
     const P = TD.roll;
@@ -352,14 +406,25 @@ var UnrugTopdown = function (core, tuning) {
     R.td.thrown.push({ x: e.x, y: e.y, h: e.h, vx: dx / d * P.bobbin * e.pace, vy: dy / d * P.bobbin * e.pace, src: e, friendly: false, dead: false, r: 0, t: 0 });
     Snd.play('bobbin'); emit('td_throw');
   }
+  // a spinner flings a thread at him (the Standard line's hazard)
+  function flingThread(x, y, h, ang) {
+    const P = TD.thread;
+    R.td.thrown.push({ kind: 'thread', x, y, h, vx: Math.cos(ang) * P.speed, vy: Math.sin(ang) * P.speed, friendly: false, dead: false, r: 0, t: 0, ph: Math.random() * 6 });
+    emit('td_thread');
+  }
   function stepThrown(dt) {
     for (const p of R.td.thrown) {
       p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += dt * 14;
       const b = TD.bounds;
-      if (p.t > TD.bobbin.life || p.x < b.x0 || p.x > b.x1 || p.y < b.y0 - 10 || p.y > b.y1) { p.dead = true; continue; }
+      if (p.t > (p.kind === 'thread' ? TD.thread.life : TD.bobbin.life) || p.x < b.x0 || p.x > b.x1 || p.y < b.y0 - 10 || p.y > b.y1) { p.dead = true; continue; }
       if (p.friendly) {
-        for (const e of R.td.enemies) if (!e.dead && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < (TD[e.kind].r + 5) ** 2) { p.dead = true; damage(e, 99, 'deflect'); break; }
+        for (const e of R.td.enemies) if (!e.dead && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < (TD[e.kind].r + 5) ** 2) { p.dead = true; damage(e, e.kind === 'shag' ? 6 : 99, 'deflect'); break; }
         if (!p.dead && R.td.machineHit(p.x, p.y, TD.bobbin.damage, 'deflect')) { p.dead = true; sparks(p.x, p.y, 10, '#7fd4ff', 6); }
+      } else if (p.kind === 'thread') {
+        if (Math.hypot(bull.x - p.x, bull.y - p.y) < TD.thread.r + TD.radius) {
+          p.dead = true;
+          if (!(R.bullRun > 0) && !(bull.inv > 0)) { bull.tangle = TD.thread.tangle; emit('td_tangle'); Snd.play('snare'); const s = screenOf(bull.x, bull.y - 34); core.popText('TANGLED', s.x / 2, s.y / 2, '#ff9a3c'); }
+        }
       } else if (Math.hypot(bull.x - p.x, bull.y - p.y) < TD.bobbin.r + TD.radius) {
         if (R.bullRun > 0) p.dead = true;
         else if (hurtBull(1, 'bobbin')) { p.dead = true; const d = Math.hypot(p.vx, p.vy) || 1; bull.kx = p.vx / d * TD.knock * .6; bull.ky = p.vy / d * TD.knock * .6; }
@@ -368,7 +433,7 @@ var UnrugTopdown = function (core, tuning) {
     R.td.thrown = R.td.thrown.filter(p => !p.dead);
   }
   // pickups on the floor: a RugCo coffee (a heart back) or a Spread Shot; walk over one to take it
-  function addPickup(kind, x, y) { const p = { kind, x, y, t: 0 }; R.td.pickups.push(p); Snd.play('appear'); emit('td_pickup_drop', { item: kind }); return p; }
+  function addPickup(kind, x, y, life) { const p = { kind, x, y, t: 0, life }; R.td.pickups.push(p); Snd.play('appear'); emit('td_pickup_drop', { item: kind }); return p; }
   function stepPickups(dt) {
     for (const p of R.td.pickups) {
       p.t += dt;
@@ -376,15 +441,35 @@ var UnrugTopdown = function (core, tuning) {
       p.got = true; emit('pickup', { item: p.kind });
       const s = screenOf(p.x, p.y - 20);
       if (p.kind === 'coffee') { const full = R.hearts >= TUNE.hearts; R.hearts = Math.min(TUNE.hearts, R.hearts + 1); core.popText(full ? 'FULL' : '+1 HEART', s.x / 2, s.y / 2, '#ff7050'); Snd.play('coffee'); core.live(full ? 'Coffee. Hearts already full.' : 'Coffee: one heart back.'); if (!full) core.bark('coffee'); }
-      else { R.spread = TUNE.spreadT; R.charge = TUNE.charges; core.popText('SPREAD SHOT', s.x / 2, s.y / 2, '#ffd44a'); Snd.play('power'); core.bark('spread'); }
+      else {
+        R.charge = TUNE.charges; Snd.play('power');
+        if (p.kind === 'rapid') { R.rapid = TD.power.secs; core.popText('RAPID FIRE', s.x / 2, s.y / 2, '#bfefff'); core.live('Rapid fire for ten seconds.'); }
+        else if (p.kind === 'pierce') { R.pierce = TD.power.secs; core.popText('PIERCE', s.x / 2, s.y / 2, '#c9a0ff'); core.live('Piercing bolts for ten seconds.'); }
+        else { R.spread = TUNE.spreadT; core.popText('SPREAD SHOT', s.x / 2, s.y / 2, '#ffd44a'); core.bark('spread'); core.live('Spread Shot for ten seconds.'); }
+      }
     }
-    R.td.pickups = R.td.pickups.filter(p => !p.got);
+    R.td.pickups = R.td.pickups.filter(p => !p.got && !(p.life != null && p.t > p.life));
+  }
+  // the power-ups' badges, drawn in code: Rapid three white-blue chevrons, Pierce a violet bolt through a ring
+  const BADGE = {};
+  function badge(kind) {
+    if (BADGE[kind]) return BADGE[kind];
+    const c = A.canvas(18, 18), x = c.getContext('2d'), P = (a, b, w, h, col) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
+    const ring = kind === 'rapid' ? ['#0c2a40', '#3aa8e0', '#bfefff'] : ['#22103a', '#8a5ad8', '#e6d4ff'];
+    x.fillStyle = '#09070b'; x.beginPath(); x.arc(9, 9, 9, 0, 6.29); x.fill();
+    x.fillStyle = ring[0]; x.beginPath(); x.arc(9, 9, 8, 0, 6.29); x.fill();
+    x.strokeStyle = ring[1]; x.lineWidth = 2; x.beginPath(); x.arc(9, 9, 7, 0, 6.29); x.stroke();
+    if (kind === 'rapid') for (let i = 0; i < 3; i++) for (let k = 0; k < 3; k++) { P(4 + i * 4 + k, 6 + k, 1, 1, ring[2]); P(4 + i * 4 + k, 12 - k, 1, 1, ring[2]); }
+    else { P(3, 8, 12, 2, ring[2]); P(13, 6, 1, 6, ring[2]); P(14, 7, 1, 4, ring[2]); P(15, 8, 1, 2, ring[2]); P(5, 5, 2, 8, ring[1]); }
+    return (BADGE[kind] = c);
   }
   function drawPickup(p) {
-    const img = p.kind === 'coffee' ? A.COFFEE : A.SPREAD, bob = Math.round(Math.sin(R.t * 4 + p.x) * 2), x = Math.round(p.x), y = Math.round(p.y - 12 + bob);
+    const img = p.kind === 'coffee' ? A.COFFEE : p.kind === 'spread' ? A.SPREAD : badge(p.kind), bob = Math.round(Math.sin(R.t * 4 + p.x) * 2), x = Math.round(p.x), y = Math.round(p.y - 12 + bob);
     shadow(p.x, p.y, 7, .35);
     g.drawImage(img, x - 9, y - 9, 18, 18);
     if (Math.floor(R.t * 6) % 2) { g.save(); g.globalAlpha = .35; g.globalCompositeOperation = 'lighter'; g.drawImage(img, x - 9, y - 9, 18, 18); g.restore(); }
+    // it doesn't wait forever: it blinks for its last three seconds
+    if (p.life != null && p.life - p.t < 3 && Math.floor(p.t * 8) % 2) { g.save(); g.globalAlpha = .5; rect(g, x - 9, y - 9, 18, 18, '#09070b'); g.restore(); }
   }
   function bullRun() {
     if (!(R.bullRun > 0)) return;
@@ -399,8 +484,8 @@ var UnrugTopdown = function (core, tuning) {
   // ---------- the camera ----------
   // It follows him with a lead toward where he aims, clamped to the room; shake is added when drawn.
   function camTo(snap) {
-    const v = TD.view, w = TD.world, c = R.td.cam;
-    const tx = clamp(bull.x + bull.ax * TD.lead - v.w / 2, 0, w.w - v.w), ty = clamp(bull.y - 20 + bull.ay * TD.lead * .8 - v.h / 2, 0, w.h - v.h);
+    const v = TD.view, w = TD.world, c = R.td.cam, hold = R.td.camHold;
+    const tx = hold ? hold.x : clamp(bull.x + bull.ax * TD.lead - v.w / 2, 0, w.w - v.w), ty = hold ? hold.y : clamp(bull.y - 20 + bull.ay * TD.lead * .8 - v.h / 2, 0, w.h - v.h);
     if (snap) { c.x = tx; c.y = ty; return; }
     c.x += (tx - c.x) * .12; c.y += (ty - c.y) * .12;
   }
@@ -422,6 +507,7 @@ var UnrugTopdown = function (core, tuning) {
 
   function update(dt) {
     moveBull(dt);
+    R.rapid = Math.max(0, (R.rapid || 0) - dt); R.pierce = Math.max(0, (R.pierce || 0) - dt);
     if (R.phase !== 'dead') { stepEnemies(dt); stepThrown(dt); bullRun(); stepPickups(dt); }
     stepShots(dt);
     stepFx(dt);
@@ -453,6 +539,7 @@ var UnrugTopdown = function (core, tuning) {
     g.save(); g.translate(Math.round(b.x - b.ax * recoil), Math.round(b.y - (p.bob || 0) - b.ay * recoil * .5)); if (p.flip) g.scale(-1, 1);
     g.drawImage(p.img, -p.feet.x, -p.feet.y);
     g.restore();
+    if (b.tangle > 0) for (let i = 0; i < 3; i++) { const yy = Math.round(b.y - 4 - i * 4), w = 8 + Math.sin(R.t * 9 + i) * 2; core.line(g, Math.round(b.x - w), yy, Math.round(b.x + w), yy + 2, i % 2 ? '#ffd060' : '#ff7a2a'); }
     // facing us there's no gun in hand in the pose: a small blaster held out front
     if (b.dir === 'down') { const mz = muzzle(); rect(g, Math.round(mz.x - 2), Math.round(mz.y - mz.h - 2), 5, 5, '#1a1418'); rect(g, Math.round(mz.x - 1), Math.round(mz.y - mz.h - 1), 3, 3, '#3a6ab0'); }
   }
@@ -474,8 +561,12 @@ var UnrugTopdown = function (core, tuning) {
     g.rotate(clamp(e.vx * .004, -.35, .35) + Math.sin(t * 5 + e.ph) * .06);
     g.scale(e.vx < -4 ? -1 : 1, 1); g.scale(1 + flap * .05, 1 - flap * .09);
     if (e.hit > 0) g.filter = 'brightness(2.2)';
+    else if (e.wind > 0) g.filter = 'brightness(1.5) saturate(1.6)';
     g.drawImage(img, -w / 2, -h / 2, w, h); g.restore();
     if (e.kind === 'armored' && e.armored) helmet(e.x, e.y - e.h - h / 2 + 6);
+    // winding up a throw: the bobbin held up over its head, rising
+    if (e.wind > 0) { const k = 1 - e.wind / TD.bobbin.wind, bx = Math.round(e.x), by = Math.round(e.y - e.h - h / 2 - 6 - k * 6);
+      rect(g, bx - 4, by - 3, 8, 6, '#1a1418'); rect(g, bx - 3, by - 2, 6, 4, '#ff9a3c'); rect(g, bx - 4, by - 3, 2, 6, '#8a6a4a'); rect(g, bx + 2, by - 3, 2, 6, '#8a6a4a'); }
   }
   function helmet(x, y) {
     x = Math.round(x); y = Math.round(y);
@@ -495,10 +586,27 @@ var UnrugTopdown = function (core, tuning) {
     for (const s of [-1, 1]) for (let i = 0; i < 4; i++) rect(g, s * 13 - (s < 0 ? 1 : 0), -5 + i * 3, 1, 2, '#fff6e2');
     g.restore();
   }
-  function drawEnemy(e) { if (e.kind === 'roll') drawRoll(e); else drawCarp(e); }
+  // the shag: a carpshit twice the size, browner and shaggier, a long fringe all round; it plants and shudders before a
+  // charge, and reels when cut
+  function drawShag(e) {
+    const t = R.t, sp = e.spawning > 0 ? 1 - e.spawning / .5 : 1, w = CARP_W * 1.9 * (.6 + .4 * sp), h = CARP_H * 1.9 * (.6 + .4 * sp);
+    shadow(e.x, e.y, 15 * sp, .45);
+    const shake = e.st === 'aim' ? Math.sin(t * 60) * 2 : 0, x = Math.round(e.x + shake), y = Math.round(e.y - e.h);
+    // fringe: strands all round, swaying
+    for (let i = 0; i < 22; i++) {
+      const a = i / 22 * 6.28, r = w * .52, sx = x + Math.cos(a) * r, sy = y + Math.sin(a) * r * .62, sw = Math.sin(t * 7 + i) * 2;
+      core.line(g, sx, sy, sx + Math.cos(a) * 5 + sw, sy + Math.sin(a) * 4 + 2, i % 2 ? '#d8c08a' : '#a8885a');
+    }
+    g.save(); g.translate(x, y); g.scale(e.vx < -4 ? -1 : 1, 1);
+    if (e.st === 'dash') g.rotate(Math.atan2(e.vy, Math.abs(e.vx)) * .3);
+    g.filter = e.hit > 0 ? 'brightness(2.2)' : e.st === 'aim' ? 'sepia(.5) saturate(1.8) hue-rotate(-20deg) brightness(1.3)' : 'sepia(.55) saturate(1.3) hue-rotate(-20deg) brightness(.85)';
+    g.drawImage(CARP[Math.floor(t * 4) % 2], -w / 2, -h / 2, w, h); g.restore();
+    if (e.stag > 0) for (let i = 0; i < 3; i++) { const a = t * 8 + i * 2.1; rect(g, Math.round(x + Math.cos(a) * 12), Math.round(y - h / 2 - 6 + Math.sin(a) * 3), 2, 2, '#ffd44a'); }
+  }
+  function drawEnemy(e) { if (e.kind === 'roll') drawRoll(e); else if (e.kind === 'shag') drawShag(e); else drawCarp(e); }
   function drawShot(s) {
     const x = s.x, y = s.y - s.h, d = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / d, uy = s.vy / d;
-    const col = s.soul ? ['#b0701a', '#ffd44a', '#fff6dc'] : s.spread || R.spread > 0 ? ['#8c6010', '#e8b030', '#fff0aa'] : ['#1f6fa8', '#3aa8e0', '#bfefff'];
+    const col = s.soul ? ['#b0701a', '#ffd44a', '#fff6dc'] : s.pierce ? ['#4a2a8a', '#9a6ae8', '#ecdcff'] : s.spread || R.spread > 0 ? ['#8c6010', '#e8b030', '#fff0aa'] : R.rapid > 0 ? ['#3a8ab0', '#bfefff', '#ffffff'] : ['#1f6fa8', '#3aa8e0', '#bfefff'];
     if (s.soul) return;   // the souls' shots are drawn as ribbons (drawStreams)
     for (let i = 0; i < 3; i++) { g.strokeStyle = col[i]; g.lineWidth = [5, 3, 1.5][i]; g.lineCap = 'round'; g.beginPath(); g.moveTo(x - ux * (14 - i * 3), y - uy * (14 - i * 3)); g.lineTo(x, y); g.stroke(); }
     disc(g, Math.round(x), Math.round(y), 2, '#ffffff');
@@ -520,6 +628,14 @@ var UnrugTopdown = function (core, tuning) {
     if (R.shots.some(s => s.soul && s.t < .3)) { disc(g, mz.x, mz.y - mz.h, 5, 'rgba(255,212,74,.35)'); disc(g, mz.x, mz.y - mz.h, 2, '#fff6dc'); }
   }
   function drawThrown(p) {
+    if (p.kind === 'thread') {
+      // a loose loop of glowing thread, writhing as it flies
+      const x = p.x, y = p.y - p.h, d = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / d, uy = p.vy / d;
+      g.strokeStyle = '#ff7a2a'; g.lineWidth = 2; g.beginPath();
+      for (let i = 0; i <= 10; i++) { const k = i / 10 - .5, w = Math.sin(k * 9 + p.t * 20 + p.ph) * 4; const px = x + ux * k * 16 - uy * w, py = y + uy * k * 16 + ux * w; if (i) g.lineTo(px, py); else g.moveTo(px, py); }
+      g.stroke(); g.strokeStyle = '#ffd060'; g.lineWidth = 1; g.stroke();
+      glow(x, y, 12, '#ff7a2a', .5); return;
+    }
     const x = Math.round(p.x), y = Math.round(p.y - p.h), col = p.friendly ? '#7fd4ff' : '#ff7050';
     glow(x, y, 14, col, .6);
     g.save(); g.translate(x, y); g.rotate(p.r);
@@ -603,7 +719,7 @@ var UnrugTopdown = function (core, tuning) {
     for (const f of R.td.fx) if (f.k === 'muzzle') { r.light(f.x - cam.x, f.y - f.h - cam.y, 0, .5, .45, .3); break; }
     for (const p of R.td.pickups.slice(0, 3)) r.light(p.x - cam.x, p.y - 12 - cam.y, 0, .45, .25, .12);
   }
-  return { TD, SPR, half, newRun, room, update, addPickup, moveBull, stepShots, stepEnemies, stepThrown, stepFx, spawn, kill, damage, blast, clearThreats,
+  return { TD, SPR, half, newRun, room, update, addPickup, flingThread, badge, fire, moveBull, stepShots, stepEnemies, stepThrown, stepFx, spawn, kill, damage, blast, clearThreats,
     muzzle, screenOf, camTo, sparks, puff, glow, shadow, drawables, drawBull, drawEnemy, glows, arrows, reticle, lights, drawFx, moveVec, aimVec,
     use: x => { g = x; }, get g() { return g; } };
 };

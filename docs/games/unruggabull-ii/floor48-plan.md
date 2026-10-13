@@ -95,3 +95,15 @@ Three candidates on an audition page, each an intro (the factory alone while he 
 - The music pick.
 - The Rugfather portrait.
 - Whether the floor should end on a clear card, or flow straight into the lobby as now.
+
+## Round 2 (Oct 13, from the owner's first phone play)
+
+"thats sick"; it needed more variety, weapon upgrades, a reason to use the stream at the end, and a reason to use the katana; and "the ploom sequence isnt clean". Decided with him and built:
+
+- **The katana's jobs:** bobbins are katana only (bolts pass through; the thrower winds up first); each line's soul feed and power cable can only be cut with it; the spinner's threads are cut with it; the shag is staggered by it. Everything only the katana answers wears a red katana mark that says SLASH! in reach, and the first time each shows up there's a prompt. The slash's lunge is a quarter of what it was, and the Slash button is off the twin sticks for a test.
+- **Power-ups** from broken machines: Spread Shot (spinner), Rapid (press) and Pierce (animator), ten seconds each.
+- **Bigger guys:** the shag, from the panic on. No Foreman.
+- **A hazard per line** (crane, flung thread, reversing belt), and **line shuffle** from the seed.
+- **The stream as a whip,** not an intake: the reserve of soul tanks behind the back wall, cracked by sweeping the two streams across it, the streams bending in the more he cracks.
+- **p(Loom)'s beat, staged:** it was off screen (its eye only on the small monitors, the camera down by him) with three seconds of nothing after. Now the camera goes up to the wall where its eye opens over him, its threads visibly come from the eye to the gun, the streams snap, the souls tear free and salute, and the lobby follows at once. The HUD's line boxes, which looked like the monitors, are hidden from the collapse on.
+
