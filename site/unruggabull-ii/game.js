@@ -39,6 +39,7 @@
     jumpH: .2, jumpT: .65,
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38, aimWork: .8,
     charges: 20, recharge: .5, spreadT: 10,
+    overheat: 1,   // run it dry and the blaster overheats: this long with no recharge, sputtering if you keep pulling the trigger
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
     hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1
   };
@@ -107,7 +108,7 @@
       beat: 0, beatT: 0, event: null,
       cubs: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
       nextCubW: 1.1, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
-      charge: TUNE.charges, rechargeT: 0, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
+      charge: TUNE.charges, rechargeT: 0, heat: 0, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
       banner: null, talk: null, bark: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
@@ -266,12 +267,24 @@
     floor.slash(near);
     for (const f of R.flies) if (!f.dead && near(f.u, f.z)) killFly(f, 'slash');
   }
-  // One shot (three with Spread Shot) for one charge. Out of charges: a click, a red flash, and a wait.
+  // One shot (three with Spread Shot) for one charge. Run it dry and it overheats: OVERHEAT, a power-down, and no
+  // recharge for TUNE.overheat seconds; pull the trigger meanwhile and it only sputters (sparks, smoke, a choked
+  // zap). Then it recharges as usual. Every floor's blaster works this way (topdown.js uses the same two calls).
+  function overheat(x, y) {
+    R.dry = true; R.heat = TUNE.overheat; R.rechargeT = 0; emit('empty'); Snd.play('drained');
+    if (!R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT')) popText('OVERHEAT', x, y, '#ff7050');
+  }
+  function sputter() {
+    R.empty = .2;
+    if (R.heat > 0) { Snd.play('sputter'); const m = muzzleXY(); R.fx.push({ k: 'sputter', x: m.x, y: m.y, t: 0, dur: .14 }, { k: 'smoke', x: m.x + fxr(-1, 1), y: m.y - 1, t: 0, dur: fxr(.4, .6) }); }
+    else Snd.play('empty');
+    return false;
+  }
   function fire() {
     if (R.armed === false) { R.empty = .2; Snd.play('empty'); return false; }   // knocked out of his hands: go and get it
-    if (!R.gold && R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
+    if (!R.gold && R.charge < 1) return sputter();
     if (!R.gold) R.charge--;
-    if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); if (!R.fx.some(f => f.k === 'pop' && f.text === 'EMPTY')) popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
+    if (!R.gold && R.charge < 1) overheat(PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3));
     bull.aimT = .22;
     if (floor.fire) {
       floor.fire(); R.events.shots = (R.events.shots || 0) + 1;
@@ -531,7 +544,8 @@
     }
     R.t += dt; R.phaseT += dt;
     R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.chargeFlash = Math.max(0, (R.chargeFlash || 0) - dt); R.spread = Math.max(0, R.spread - dt);
-    if (R.charge < TUNE.charges) { R.rechargeT += dt; const every = floor.rechargeNow ? floor.rechargeNow() : TUNE.recharge; while (R.rechargeT >= every && R.charge < TUNE.charges) { R.rechargeT -= every; R.charge++; } }
+    if (R.heat > 0) { R.heat = Math.max(0, R.heat - dt); R.rechargeT = 0; }
+    else if (R.charge < TUNE.charges) { R.rechargeT += dt; const every = floor.rechargeNow ? floor.rechargeNow() : TUNE.recharge; while (R.rechargeT >= every && R.charge < TUNE.charges) { R.rechargeT -= every; R.charge++; } }
     else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt); R.rallyPop = Math.max(0, (R.rallyPop || 0) - dt);
     // a rally speeds the music up as it goes
@@ -694,7 +708,7 @@
     g.save(); g.globalAlpha = Math.min(1, u * 2.5); g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h); g.restore();
   }
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
-  const FX_PASS = { wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
+  const FX_PASS = { sputter: 'glow', wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
   function drawFx(pass) {
     if (pass === 'glow') drawStreams();
     if (pass === 'glow' && R.phase === 'dead' && R.soulAt && R.phaseT > 1) bullSoul(R.phaseT - 1, ...R.soulAt);
@@ -730,6 +744,11 @@
         const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.uw(A.BLASTER) * s2), h = Math.round(A.uh(A.BLASTER) * s2);
         g.save(); g.translate(Math.round(bx), Math.round(by)); g.rotate(Math.floor(f.t * 16) % 4 * Math.PI / 2); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
       }
+      else if (f.k === 'sputter') {
+        // a choked muzzle flash: a few ragged orange and red pixels and a dim blue fizz, flickering
+        if (Math.floor(f.t * 40) % 2) continue;
+        for (let i = 0; i < 4; i++) rect(g, Math.round(f.x + fxr(-3, 3)), Math.round(f.y + fxr(-2, 2)), 1, 1, i ? (k < .5 ? '#ff9628' : '#d63428') : '#7fd4ff');
+      }
       else if (f.k === 'muzzle') { const m = k < .5 ? 9 : 7; g.drawImage(A.FLASH, Math.round(f.x - m / 2), Math.round(f.y - m / 2), m, m); }
       else if (f.k === 'dust') for (const d of [-1, 1]) rect(g, f.x + d * (4 + k * 8) * f.s, f.y - 1 - k * 2, 2, 1, '#8a8094');
       else if (f.k === 'spark') for (let i = 0; i < 5; i++) { const a = f.a + i * 1.26, r = (2 + k * 10) * f.s; rect(g, f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * .8, 1, 1, k < .6 ? f.col : '#ff9628'); }
@@ -737,7 +756,7 @@
   }
   function drawHUD() {
     for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
-    // blaster charge under the hearts: blue when ready, red and blinking when empty, gold with Spread Shot
+    // blaster charge under the hearts: blue when ready, red and blinking when empty (and overheated), gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
     rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.gold || R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
@@ -1439,7 +1458,7 @@
     A, Snd, rect, line, disc, poly, txt, otxt, textWidth, W, H, VX,
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
-    updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
+    updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }

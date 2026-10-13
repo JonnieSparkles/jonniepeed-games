@@ -601,9 +601,11 @@ window.UnrugSound = (function () {
     },
     // the 13th Floor's soul stream beside the bolt: a quiet glassy shimmer, D6 sliding up to A6, under the zap
     hintStream: t => { osc(sfxBus, 'sine', hz(86), t, .18, .045, { to: hz(93), sustain: .5 }); osc(sfxBus, 'triangle', hz(98), t + .03, .14, .018, { vib: true, sustain: .4 }); },
-    // out of charge: a dry double click; the last shot powers down; full again chirps
+    // out of charge: a dry double click; the last shot powers down and vents (it's overheated); full again chirps
     empty: t => { for (const d of [0, .06]) { osc(sfxBus, 'square', 110, t + d, .03, .14); noiseHit(sfxBus, t + d, .025, .3, 'bandpass', 2600, 5); } },
-    drained: t => { osc(sfxBus, 'p25', 900, t, .4, .1, { to: 90, sustain: .8 }); osc(sfxBus, 'square', 220, t + .05, .3, .06, { to: 55 }); },
+    drained: t => { osc(sfxBus, 'p25', 900, t, .4, .1, { to: 90, sustain: .8 }); osc(sfxBus, 'square', 220, t + .05, .3, .06, { to: 55 }); noiseHit(sfxBus, t + .12, .6, .07, 'highpass', 5200); },
+    // the trigger pulled while it's overheated: a choked zap that dies at once, a low buzz and a few electric crackles
+    sputter: t => { const f = 560 + Math.random() * 90; osc(sfxBus, 'p12', f, t, .045, .07, { to: f * .35 }); osc(sfxBus, 'sawtooth', 96, t, .08, .045, { to: 68 }); for (let i = 0; i < 3; i++) noiseHit(sfxBus, t + .015 + i * .03 + Math.random() * .012, .014, .14, 'bandpass', 3800 - i * 650, 6); },
     ready: t => { [76, 83].forEach((m, i) => osc(sfxBus, 'p25', hz(m + 12), t + i * .07, .08, .07)); },
     coffee: t => { [60, 64, 67].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12), t + i * .06, .08, .12)); osc(sfxBus, 'p50', hz(84), t + .2, .25, .07, { vib: true }); },
     // the Shredder's tell before it spits: a quick rising growl

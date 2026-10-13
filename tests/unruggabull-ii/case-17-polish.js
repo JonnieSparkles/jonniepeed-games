@@ -1,4 +1,4 @@
-// Polish: his idle poses, the temps' three looks, the stagger, one EMPTY at a time, his caption wrapping to the left,
+// Polish: his idle poses, the temps' three looks, the stagger, one OVERHEAT at a time, his caption wrapping to the left,
 // the souls drifting up at the clear.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -29,9 +29,13 @@
   check(bull.stag > 0, 'a hit staggers him');
   draw(); bull.inv = 1e9;
 
-  // one EMPTY at a time, however long you hold Shoot dry
-  R.fx = []; R.charge = 1; R.fireT = 0; keys.kbShoot = true; step(1.5); keys.kbShoot = false;
-  check(R.fx.filter(f => f.k === 'pop' && f.text === 'EMPTY').length <= 1, 'one EMPTY at a time');
+  // one OVERHEAT at a time, however long you hold Shoot dry
+  const overheats = () => R.fx.filter(f => f.k === 'pop' && f.text === 'OVERHEAT').length;
+  R.fx = []; R.charge = 1; R.fireT = 0; keys.kbShoot = true; step(.3);
+  check(overheats() === 1, 'OVERHEAT once it runs dry');
+  let most = 0; for (let i = 0; i < 60 * 2.5; i++) { update(1 / 60); most = Math.max(most, overheats()); }
+  keys.kbShoot = false;
+  check(most === 1, 'and only one at a time');
 
   // his caption wraps into short lines on the left
   R.events.said = {}; R.talk = null; bark('move', true); for (let i = 0; i < 120; i++) update(1 / 60);

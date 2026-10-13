@@ -18,14 +18,19 @@
   check(Snd.track === 'floorHall' && drop.o.boundary === 'beat' && stems() === 'drums,bass,lead', 'the drop: the shuffle on the next beat, drums, bass and lead');
   R.flies = [];
 
-  // charges: 20 shots, then a click and a wait; one back every half second
+  // charges: 20 shots; run it dry and it overheats, sputtering for TUNE.overheat with no recharge, then one back every
+  // half second (and each one fired dry overheats it again)
   check(R.charge === TUNE.charges, 'the blaster starts full');
-  R.events.shots = 0; keys.kbShoot = true; step(7.5);
-  const fired = R.events.shots;
-  check(R.charge < 1 && R.empty > 0, 'holding fire drains it and it clicks empty');
-  step(2);
-  check(R.events.shots - fired >= 3 && R.events.shots - fired <= 5, 'empty, it only fires as charges come back (' + (R.events.shots - fired) + ')');
-  keys.kbShoot = false; step(TUNE.recharge * TUNE.charges + .5);
+  R.events.shots = 0; R.fx = []; keys.kbShoot = true;
+  for (let i = 0; i < 60 * 7.5 && !(R.heat > 0); i++) update(1 / 60);
+  check(R.charge < 1 && R.heat > 0 && R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT'), 'holding fire drains it and it overheats');
+  let fired = R.events.shots; step(TUNE.overheat * .8);
+  check(R.events.shots === fired && R.charge === 0 && R.fx.some(f => f.k === 'sputter') && R.empty > 0, 'overheated, the trigger only sputters, and nothing recharges');
+  step(TUNE.overheat * .2 + TUNE.recharge + .05);
+  check(R.events.shots === fired + 1 && R.heat > 0, 'then a charge comes back, fires, and overheats it again');
+  fired = R.events.shots; step(3);
+  check(R.events.shots - fired <= 2, 'so holding it dry gets about one shot every ' + (TUNE.overheat + TUNE.recharge) + ' s (' + (R.events.shots - fired) + ' in 3 s)');
+  keys.kbShoot = false; step(TUNE.overheat + TUNE.recharge * TUNE.charges + .5);
   check(R.charge === TUNE.charges, 'it refills when you let go');
 
   // Spread Shot: three bolts a shot for a while, from a pickup at jump height
