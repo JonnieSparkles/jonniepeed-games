@@ -739,8 +739,8 @@
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
-        // the blaster spinning up the rug after the surge
-        const pk = f.pk, z = pk.w - R.dist, tx = PX(pk.u, z), ty = FY(z) - 4, q = k, s2 = Math.max(.5, sc(z) * 1.3);
+        // the blaster spinning up the rug (or into the Shredder's mouth: tx, ty) after the surge
+        const pk = f.pk, z = pk ? pk.w - R.dist : .95, tx = pk ? PX(pk.u, z) : f.tx, ty = pk ? FY(z) - 4 : f.ty, q = k, s2 = Math.max(.5, sc(z) * 1.3);
         const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.uw(A.BLASTER) * s2), h = Math.round(A.uh(A.BLASTER) * s2);
         g.save(); g.translate(Math.round(bx), Math.round(by)); g.rotate(Math.floor(f.t * 16) % 4 * Math.PI / 2); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
       }

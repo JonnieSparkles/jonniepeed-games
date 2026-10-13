@@ -80,7 +80,7 @@
   // the clear card shows the run's stats; a clear with continues doesn't set the fastest time
   const bestTime = (JSON.parse(localStorage.getItem('unruggabull-ii-best') || '{}').time) || 0;
   R.events.deflects = 7; R.events.smashes = 2; R.bestStreak = 9;
-  R.boss.hp = .1; bossDamage(1, 'deflect'); update(1 / 60);
+  R.boss.hp = .1; R.boss.final = { st: 'fire', t: 0 }; bossDamage(1, 'blaster'); update(1 / 60);
   check(R.phase === 'win' && R.white > 0 && R.slow > 0, 'the final hit flashes white and slows time');
   step(.4); const p0 = R.phaseT; step(.5);
   check(R.phaseT - p0 < .25, 'time runs slow for a moment');

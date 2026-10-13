@@ -50,8 +50,12 @@
   check(b.st === 'fight' && Math.abs(b.hp - TUNE.lastStand) < 1e-6, 'the blaster can only bring it to its last stand');
   b.atkN = 0; check(R.boss.hp <= TUNE.lastStand, 'at its last stand it only serves');
   bossDamage(TUNE.lastStand, 'deflect');
-  check(R.phase === 'win' && b.st === 'dead', 'out of health, the Shredder is beaten: paper sent back finishes it');
-  const souls = R.souls; step(6.5);
+  check(b.st === 'fight' && b.hp === TUNE.lastStand && b.final && b.jam > 0 && b.jamTag === 'STUNNED', 'paper sent back at its last stand stuns it instead');
+  for (let i = 0; i < 60 * 6 && b.final.st !== 'fire'; i++) { R.projs = []; update(1 / 60); }
+  check(b.final.st === 'fire' && R.armed !== false && R.charge === TUNE.charges && R.banner && R.banner.text === 'FINISH IT!', 'the soul charges the blaster: FINISH IT!');
+  for (let i = 0; i < 60 * TUNE.finale.window && b.st === 'fight'; i++) { R.shots.push({ u: 0, z: .95, h: .2, tgt: null, dead: false }); update(1 / 60); }
+  check(R.phase === 'win' && b.st === 'dead', 'and the blaster finishes it');
+  const souls = R.souls; step(6.5 + TUNE.soulBye.later);   // the soul's goodbye comes first
   check(R.souls === souls + TUNE.bossSouls, 'its souls come out one at a time');
   check(state === 'over' && !card.hidden && cardTitle.textContent === 'The 13th Floor clear' && goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again', 'the clear card shows');
   check(JSON.parse(localStorage.getItem('unruggabull-ii-best')).souls === R.souls, 'the best is saved');

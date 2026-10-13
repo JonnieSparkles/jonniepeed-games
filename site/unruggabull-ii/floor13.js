@@ -462,7 +462,6 @@ var UnrugFloor13 = function (core) {
               for (let i = 0; i < 16; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-70, 70), vy: fxr(-90, -10), t: 0, dur: fxr(.8, 1.3) });
             }
             emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash'); bark('smash');
-            if (R.armed === false && b.st === 'fight') { rollBack(TUNE.roll.dur); handBack(); }   // win the volley: the blaster's back in his hands
             popText('SMASH! -' + dmg, 120, BACK.y0 + 30, '#ffd44a'); live('Smash! The Shredder misses the return.');
             for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
           } else if (b.st === 'fight') {
@@ -604,8 +603,9 @@ var UnrugFloor13 = function (core) {
     }
     if (!R.events.rallyHint) { R.events.rallyHint = true; R.banner = { text: 'SLASH IT BACK', t: 0, dur: 1.6, pull: true }; live('Rally! Keep knocking the glowing bundle back until the Shredder misses.'); }
   }
-  // Phase 3's power surge: a flash of static that knocks the blaster out of his hands and up the rug. No dodging it:
-  // now it's a volley match until a smash rolls the rug back with the blaster on it.
+  // Phase 3's power surge: a bolt from its eyes yanks the blaster out of his hands and into its mouth, where it sticks
+  // in its teeth, sparking ("CONFISCATED."). No dodging it: from then on the katana is all he has, and the Shredder's
+  // own paper knocked back is what wears it down, until the finish (startFinale) brings the blaster back.
   // Once the soul is in the gun, it holds it: the surge still comes, but it breaks on them in a shower of gold.
   const soulsHold = () => R.hint && R.hint.landed >= TUNE.soulHint.souls;
   function fizzle() {
@@ -614,30 +614,24 @@ var UnrugFloor13 = function (core) {
     for (let j = 0; j < 12; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-5, 5), y: m.y + fxr(-5, 5), s: .8, col: j % 2 ? '#ffd44a' : '#ffffff', t: 0, dur: .4, a: Math.random() * 6 });
     R.shake = Math.max(R.shake, .15); Snd.play('surge');
   }
+  const MOUTH = { x: 120, y: BACK.y1 - 9 };
   function surge() {
     shove(10);
-    // the cause, plainly: a bolt of blue lightning from its eyes to the blaster in his hand
+    // the cause, plainly: a bolt of blue lightning from its eyes to the blaster in his hand, which flies into its mouth
     const m = muzzleXY(); R.fx.push({ k: 'bolt', x0: 120, y0: BACK.y0 + 19, x1: m.x, y1: m.y, t: 0, dur: .4 });
-    const pk = { kind: 'blaster', w: R.dist + rr(.55, .7), u: rr(-.12, .12), h: 0, t: 0, still: true, rug: true };
-    R.armed = false; R.shake = .3; R.zap = .3; R.boss.spit = .3;
-    R.pickups.push(pk);
-    const k = sc(bull.bz);
-    R.fx.push({ k: 'toss', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k, t: 0, dur: TUNE.surgeFly, pk });
+    R.armed = false; R.shake = .3; R.zap = .3; R.boss.spit = .3; R.boss.gun = { at: R.t + TUNE.surgeFly };
+    R.fx.push({ k: 'toss', x: m.x, y: m.y, tx: MOUTH.x, ty: MOUTH.y, t: 0, dur: TUNE.surgeFly });
     R.events.disarms = (R.events.disarms || 0) + 1; emit('disarm');
     Snd.play('surge'); Snd.play('disarm'); bark('disarm');
-    if (!R.events.surgeHint) { R.events.surgeHint = true; R.banner = { text: 'WIN A RALLY FOR IT', t: 0, dur: 2.6, pull: true }; }
-    live('Power surge! The blaster flies up the rug. Win a rally to get it back.');
+    if (!R.events.surgeHint) { R.events.surgeHint = true; R.banner = { text: 'KNOCK ITS PAPER BACK', t: TUNE.surgeFly - 2.6, dur: 2.6 + TUNE.surgeFly, pull: true }; talk('CONFISCATED.', 'shredder'); }
+    live('Power surge! The Shredder pulls the blaster into its mouth. Knock its paper back to wear it down.');
   }
-  // A won rally while disarmed: the blaster flies back down the rug into his hands (and, the first time, the souls' hint
-  // starts), so the hint can't be missed by finishing the Shredder before walking onto the gun.
+  // The soul puts the blaster back in his hands at the finish, charged.
   function handBack() {
-    for (const pk of R.pickups) if (pk.kind === 'blaster') pk.got = true;
-    R.pickups = R.pickups.filter(pk => !pk.got);
-    R.armed = true; R.charge = TUNE.charges; Snd.play('ready'); emit('pickup', { item: 'blaster' });
-    const m = muzzleXY(); popText('GOT IT!', m.x, m.y - 10, '#ffd44a'); live('Blaster back.');
+    R.boss.gun = null;
+    R.armed = true; R.charge = TUNE.charges; R.heat = 0; R.chargeFlash = .4; Snd.play('power'); emit('pickup', { item: 'blaster' });
+    const m = muzzleXY(); popText('GOT IT!', m.x, m.y - 10, '#ffd44a'); live('The soul brings the blaster back, charged.');
     for (let j = 0; j < 10; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-5, 5), y: m.y + fxr(-5, 5), s: .8, col: j % 2 ? '#ffd44a' : '#ffffff', t: 0, dur: .4, a: Math.random() * 6 });
-    if (R.banner && R.banner.text === 'BLASTER DOWN!') R.banner = null;
-    blasterBack();
   }
   // The rug rolls back toward you: after a smash (bringing the blaster), or as its rewind attack.
   function rollBack(dur) {
@@ -702,24 +696,48 @@ var UnrugFloor13 = function (core) {
   function bossDamage(n, by) {
     const b = R.boss;
     if (b.st !== 'fight') return;
-    // its last stand: the blaster can wear it down only so far; the finish has to be its own paper sent back at it
-    if ((by || 'blaster') === 'blaster') n = Math.max(0, Math.min(n, b.hp - TUNE.lastStand));
-    // and nothing skips the last stand: a big hit stops there, so the finish is always its own last rally
-    else if (!b.lastStand && b.hp > TUNE.lastStand) n = Math.min(n, b.hp - TUNE.lastStand);
-    if (n <= 0) { b.tick = .05; return; }
-    emit('boss_damage', { amount: n, by: by || 'blaster' });
-    b.hp = Math.max(0, b.hp - n);
-    // reaching its last stand is an event: it staggers, smoke pours out of it, the music drops, then it serves the final rally
+    by = by || 'blaster';
+    // nothing takes it below its last stand except the blaster in the finish's window
+    const open = b.final && b.final.st === 'fire';
+    if (!open) n = Math.max(0, Math.min(n, b.hp - TUNE.lastStand));
+    if (n > 0) {
+      emit('boss_damage', { amount: n, by });
+      b.hp = Math.max(0, b.hp - n);
+      if (n >= 2) { b.flash = .07; shove(-Math.min(12, 2 + n * .6)); } else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
+      if (b.hitSnd <= 0) { Snd.play('bosshit'); b.hitSnd = .09; }
+    } else b.tick = .05;
+    // reaching its last stand is an event: it staggers, smoke pours out of it, time hitches
     if (!b.lastStand && b.hp > 0 && b.hp <= TUNE.lastStand) {
       b.lastStand = true; b.atk = Math.max(b.atk, 2); b.shudder = 1.6; R.freeze = Math.max(R.freeze, .12); R.shake = Math.max(R.shake, .4);
       for (let i = 0; i < 14; i++) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 8, BACK.x1 - 8), y: fxr(BACK.y0 + 10, BACK.y1 - 8), t: -i * .06, dur: fxr(.8, 1.3) });
-      Snd.duck && Snd.duck(1.8);
-      // still disarmed: the blaster comes back for the finish (and the soul with it); never disarmed yet: the soul comes now
-      if (R.armed === false) handBack(); else if (!R.events.soulHint) startHint();
     }
-    if (n >= 2) { b.flash = .07; shove(-Math.min(12, 2 + n * .6)); } else b.tick = .05;   // blaster hits only flicker the trim, so steady fire doesn't strobe
-    if (b.hitSnd <= 0) { Snd.play('bosshit'); b.hitSnd = .09; }
+    // and the paper that takes it there (or any knocked back after) stuns it for the finish
+    if (b.lastStand && by !== 'blaster' && !b.final && b.hp > 0) startFinale();
     if (b.hp <= 0) defeat();
+  }
+  // The finish (the owner's call, Oct 13): the paper that takes it to its last stand stuns it (STUNNED, nothing
+  // attacks, no pulls). The soul leaves the counter, flies into its mouth, pulls the blaster out of its teeth and brings
+  // it back to him, charged, with a bell, and fires beside the bolt from then on. Then FINISH IT!: for
+  // TUNE.finale.window seconds the blaster takes it the rest of the way (at the stunned rate). Miss the window and it
+  // wakes up: one more rally won stuns it again, and the window opens at once.
+  function startFinale() {
+    const b = R.boss, F = TUNE.finale;
+    b.rally = null; b.volley = null; endPull(); R.roll = null; b.surgeAt = 0;
+    for (const p of R.projs) if (!p.dead && !p.friendly) { p.dead = true; poof(p.u, p.z, p.h); }
+    b.jamTag = 'STUNNED'; b.shudder = 1.2; R.shake = Math.max(R.shake, .3);
+    R.fx.push({ k: 'big', text: 'STUNNED!', x: 120, y: 44, t: 0, dur: 1.1 });
+    live('The Shredder is stunned.');
+    if (soulsInGun()) { openFinale(); return; }
+    b.jam = b.jamMax = 99;   // held until the soul lands
+    b.final = { st: 'fetch', t: 0 };
+    startHint(R.armed === false);
+  }
+  function openFinale() {
+    const b = R.boss, F = TUNE.finale;
+    b.final = { st: 'fire', t: 0 }; b.jam = b.jamMax = F.window; b.jamTag = 'STUNNED';
+    R.charge = TUNE.charges; R.heat = 0; R.chargeFlash = .4;
+    R.banner = { text: 'FINISH IT!', t: 0, dur: 1.6, pull: true };
+    live('Finish it with the blaster!');
   }
   // The Shredder's lines in the fight, beyond its set lines: one at a time, never more often than every 7 seconds,
   // and never over another line or a banner. Each list goes round in order.
@@ -795,6 +813,12 @@ var UnrugFloor13 = function (core) {
     if (wear > .6 && Math.random() < dt * (wear - .5) * 5) { const c = CRACKS[Math.floor(Math.random() * CRACKS.length)][0]; R.fx.push({ k: 'spark', x: BACK.x0 + c[0], y: BACK.y0 + c[1], s: .6, col: '#ffd44a', t: 0, dur: .22, a: Math.random() * 6 }); }
     if (b.jam > 0) {
       b.jam -= dt;
+      if (b.jam <= 0 && b.final) {
+        // the finish's window ran out: it shakes off the stun; the next paper knocked back stuns it again
+        b.final = null; b.atk = 1.4; R.pull.next = Math.max(R.pull.next, R.t + 3);
+        popText('REBOOTED.', 120, BACK.y0 - 2, '#ff9628'); Snd.play('rev'); shove(8);
+        return;
+      }
       if (b.jam <= 0 && b.jamTag !== 'STUNNED x3') {   // it spits the rug back out
         popText('PTOO!', 120, BACK.y1 - 6, '#ff9628'); Snd.play('spit'); R.shake = Math.max(R.shake, .15);
         for (let i = 0; i < 10; i++) R.fx.push({ k: 'spark', x: 120 + fxr(-8, 8), y: BACK.y1 - 4, s: .9, col: i % 2 ? '#9a2a1e' : '#e0a030', t: 0, dur: .4, a: Math.random() * 6 });
@@ -820,7 +844,7 @@ var UnrugFloor13 = function (core) {
   // The final hit: a white flash and a beat of stillness, slow motion while it shudders, then it blows.
   function defeat() {
     const b = R.boss;
-    b.st = 'dead'; R.phase = 'win'; R.phaseT = 0; R.endT = R.t; b.dark = null; b.rev = 0; R.roll = null;
+    b.st = 'dead'; R.phase = 'win'; R.phaseT = 0; R.endT = R.t; b.dark = null; b.rev = 0; R.roll = null; b.final = null; b.gun = null;
     endPull();
     for (const p of R.projs) { p.dead = true; poof(p.u, p.z, p.h); }
     for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
@@ -839,18 +863,19 @@ var UnrugFloor13 = function (core) {
     for (let i = 0; i < Math.min(40, R.souls); i++) R.fx.push({ k: 'rise', x: fxr(10, W - 10), y: H + 6 + fxr(0, 60), vy: -fxr(18, 34), ph: fxr(0, 6), t: -i * .05, dur: 6 });
   }
   // ---------- the souls' hint ----------
-  // A glimpse of the mega stream, saved for the roof. Nothing announces it: the first time he wins the blaster back,
-  // one soul leaves the counter and flies into the gun, landing with one soft bell (D5) and adding a stream beside the
-  // bolt, straight, never bending in; the stream stays with him for the rest of the fight (it pauses while the blaster's
-  // knocked away and comes back with it). The counter keeps its souls; the stream does normal damage and costs nothing
-  // extra. The bells count up the climb: one here, two on the 48th Floor (D, F), three on the roof (D, F, A).
+  // A glimpse of the mega stream, saved for the roof. At the finish (startFinale) one soul leaves the counter, pulls the
+  // blaster out of the Shredder's mouth and brings it back to him (or, if it never took it, flies straight into the
+  // gun), landing with one soft bell (D5) and adding a stream beside the bolt, straight, never bending in; it stays for
+  // the rest of the fight. The counter keeps its souls; the stream does normal damage and costs nothing extra. The bells
+  // count up the climb: one here, two on the 48th Floor (D, F), three on the roof (D, F, A).
   // It takes its time, so it registers: a beat before the soul lifts off the counter, slow on a wide arc, the music
-  // ducked under the bell, the Shredder and the runner holding off until it lands, and a tiny hitch in time as it hits the gun.
-  function startHint() {
+  // ducked under the bell, and a tiny hitch in time as it hits the gun.
+  // At the finish the soul goes for the blaster first (fetch): into the Shredder's mouth, then back to him with it.
+  function startHint(fetch) {
     const T = TUNE.soulHint;
     R.events.soulHint = true;
-    R.hint = { t: -T.wait, landed: 0, streams: 1 };
-    const arrive = T.wait + (T.souls - 1) * T.gap + T.fly;
+    R.hint = { t: -T.wait, landed: 0, streams: 1, fetch: !!fetch };
+    const arrive = T.wait + (T.souls - 1) * T.gap + T.fly + (fetch ? T.fetch : 0);
     R.boss.atk = Math.max(R.boss.atk, arrive + .6);
     if (R.pull.st === 'idle') R.pull.next = Math.max(R.pull.next, R.t + arrive + 1);
     Snd.duck && Snd.duck(arrive + .5);
@@ -873,14 +898,18 @@ var UnrugFloor13 = function (core) {
     if (!H) return;
     if (R.phase === 'win') return;   // the souls stay in the gun for their goodbye (updatePhase)
     if (R.phase !== 'boss') { R.hint = null; return; }
-    if (R.armed === false) return;   // knocked out of his hands: the streams wait for him
+    if (R.armed === false && !H.fetch) return;   // knocked out of his hands: the streams wait for him
     H.t += dt;
-    while (H.landed < T.souls && H.t >= H.landed * T.gap + T.fly) {
+    const fly = T.fly + (H.fetch ? T.fetch : 0);
+    if (H.fetch && !H.got && H.t >= hintMouthAt()) { H.got = true; R.boss.gun = null; R.boss.shudder = .5; R.shake = Math.max(R.shake, .12); Snd.play('yank'); }
+    while (H.landed < T.souls && H.t >= H.landed * T.gap + fly) {
       const i = H.landed++;
+      if (H.fetch) handBack();
       const m = muzzleXY();
       for (let j = 0; j < 6; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-3, 3), y: m.y + fxr(-3, 3), s: .7, col: j % 2 ? '#ffd44a' : '#f4f0ff', t: 0, dur: .3, a: Math.random() * 6 });
       H.streams = i + 2; Snd.play('bell', i);
       R.freeze = Math.max(R.freeze, .1); R.shake = Math.max(R.shake, .08);
+      if (R.boss.final && R.boss.final.st === 'fetch') openFinale();
     }
   }
   // the goodbye: out of the gun round to the middle of the hall in front of him at head height, the salute, the words
@@ -907,13 +936,27 @@ var UnrugFloor13 = function (core) {
     }
   }
   // the souls on their way from the counter to the gun, drawn over the scene
+  // when the soul reaches the Shredder's mouth on a fetch (seconds into the hint)
+  const hintMouthAt = () => TUNE.soulHint.fetch;
+  // the blaster stuck in the Shredder's teeth, sparking, after the surge (drawn over the scene, so it shows in the dark)
+  function drawGunInMouth() {
+    const G = R.boss.gun;
+    if (!G || R.phase !== 'boss' || R.boss.st !== 'fight') return;
+    if (R.t < G.at) return;   // still flying in
+    const w = A.uw(A.BLASTER), h = A.uh(A.BLASTER), jig = Math.floor(R.t * 8) % 2;
+    g.save(); g.translate(MOUTH.x, MOUTH.y + jig); g.rotate(-.35); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
+    if (Math.random() < .25) R.fx.push({ k: 'spark', x: MOUTH.x + fxr(-6, 6), y: MOUTH.y + fxr(-3, 3), s: .5, col: Math.random() < .5 ? '#7fd4ff' : '#ffffff', t: 0, dur: .16, a: Math.random() * 6 });
+  }
   function drawHintSouls() {
+    drawGunInMouth();
     const H = R.hint, T = TUNE.soulHint;
     if (!H) return;
     if (H.bye) { drawBye(H.bye); return; }
-    const from = { x: W - 10 - textWidth(String(R.souls)), y: 7 }, to = muzzleXY();
+    // on a fetch: the soul flies into its mouth first, then from the mouth to him, carrying the blaster
+    const fetching = H.fetch && H.t < hintMouthAt(), back = H.fetch && !fetching;
+    const from = back ? MOUTH : { x: W - 10 - textWidth(String(R.souls)), y: 7 }, to = fetching ? MOUTH : muzzleXY();
     for (let i = H.landed; i < T.souls; i++) {
-      const p = (H.t - i * T.gap) / T.fly;
+      const p = back ? (H.t - hintMouthAt() - i * T.gap) / T.fly : (H.t - i * T.gap) / (fetching ? T.fetch : T.fly);
       if (p <= 0) continue;
       const e = p * p * (3 - 2 * p), bend = Math.sin(Math.PI * p) * (i - 1 || -1.4) * 46;
       const at = q => ({ x: from.x + (to.x - from.x) * q + Math.sin(Math.PI * q) * (i - 1 || -1.4) * 46, y: from.y + (to.y - from.y) * q - Math.sin(Math.PI * q) * 14 });
@@ -922,6 +965,7 @@ var UnrugFloor13 = function (core) {
       for (let j = 1; j <= 5; j++) { const q = Math.max(0, e - j * .045), t = at(q); if (Math.floor(R.t * 20 + j) % 2) rect(g, Math.round(t.x), Math.round(t.y), 1, 1, j < 3 ? '#fff0aa' : '#ffd44a'); }
       disc(g, Math.round(x), Math.round(y), 9, 'rgba(255,212,74,.22)');
       g.drawImage(A.GHOST, Math.round(x - 9), Math.round(y - 11), 18, 22);
+      if (back) { const w = A.uw(A.BLASTER), h = A.uh(A.BLASTER); g.drawImage(A.BLASTER, Math.round(x - w / 2), Math.round(y + 6), w, h); }
     }
   }
   function killTemp(tp, how) {
@@ -1656,7 +1700,7 @@ var UnrugFloor13 = function (core) {
       const fill = b.st === 'awake' ? b.bar : b.hp / TUNE.bossHP;   // it ticks up to full while the Shredder wakes
       otxt(g, 'SHRED-O', 86, 5, '#ffd44a', 1, 'right');
       rect(g, 89, 4, 74, 7, '#1a1418'); rect(g, 90, 5, 72, 5, '#3a2f5e');
-      const last = b.st === 'fight' && b.hp <= TUNE.lastStand && Math.floor(R.t * 6) % 2;   // its last sliver blinks: finish it with a rally
+      const last = b.st === 'fight' && b.hp <= TUNE.lastStand && Math.floor(R.t * 6) % 2;   // its last sliver blinks: stun it, then the blaster finishes it
       rect(g, 90, 5, Math.round(72 * fill), 5, b.jam > 0 ? '#ffd44a' : b.flash > 0 || last ? '#ffffff' : '#e2483a');
       rect(g, 90 + Math.round(72 * .66), 5, 1, 5, '#1a1418'); rect(g, 90 + Math.round(72 * .33), 5, 1, 5, '#1a1418');
     }
@@ -1718,9 +1762,7 @@ var UnrugFloor13 = function (core) {
     if (R.hearts > 0 && R.phase === 'boss' && R.boss.st === 'fight' && cause !== 'rally') { laugh(); taunt('hit'); }
   }
   // The blaster's back in his hands: the first time in the fight, the souls' hint.
-  function blasterBack() {
-    if (R.phase === 'boss' && !R.events.soulHint) startHint();
-  }
+  function blasterBack() {}
 
   function opening() {
     R.banner = { text: 'THE 13TH FLOOR', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
@@ -1795,6 +1837,7 @@ UnrugFloor13.TUNE = {
     // flying for fly seconds) and go into the gun, each adding a stream. One here: the bells count up the climb, one on
     // the 13th Floor, two on the 48th, three on the roof (the owner, Oct 12).
     soulBye: { at: .9, come: 1.2, salute: 1.5, say: 1.7, leave: 3.6, later: 4.6 },   // the goodbye's beats, in seconds
-    lastStand: 6,           // the blaster can't take it below this: a rally or a deflected bundle finishes it
-    soulHint: { souls: 1, wait: .7, gap: 1.1, fly: 2 }
+    lastStand: 12,          // nothing takes it below this but the finish: the paper that gets it here stuns it, then the blaster
+    soulHint: { souls: 1, wait: .7, gap: 1.1, fly: 2, fetch: 1.5 },   // fetch: on the way to the Shredder's mouth for the blaster first
+    finale: { window: 4 }   // the finish: this long to blast it the rest of the way once the blaster's back
   };

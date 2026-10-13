@@ -125,12 +125,12 @@ Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain c
 
 ### The hint on the 13th Floor (built)
 
-The first time the blaster comes back in the Shredder's phase 3, one soul flies slowly into it instead of into the counter, the fight holding its breath while it comes, and it fires a stream beside the bolt for the rest of the fight: a ribbon of light from the blaster's muzzle, straight down the hall. One soul here, two on the 48th Floor, three on the roof: the bells count up the climb (D; D, F; D, F, A), and the roof's three "hit" (the owner, Oct 12; more than three would be odd). With the soul in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the stream wears it down, and paper sent back finishes it.
+In the Shredder's phase 3 its surge takes the blaster into its mouth, and its own paper knocked back wears it down. The paper that takes it to its last stand stuns it: one soul leaves the counter, pulls the blaster out of its teeth and brings it back to him charged, then stays in the gun, firing a stream beside the bolt: a ribbon of light from the blaster's muzzle, straight down the hall. He finishes it with the blaster while it's stunned (the owner, Oct 13: the volley stuns it, the souls bring the blaster back, the blaster finishes it). One soul here, two on the 48th Floor, three on the roof: the bells count up the climb (D; D, F; D, F, A), and the roof's three "hit" (the owner, Oct 12; more than three would be odd). With the soul in the gun, the Shredder's surges break on them instead of knocking the blaster away.
 
 - Nothing announces it: no banner, no pickup text, and no live-region line beyond "Blaster back."
 - It mustn't look like Spread Shot, which already fires three ways: the souls visibly fly into the gun, the streams are the souls' colours (pale white with the halo's gold), and the stream comes in with a single soft bell note.
 - The streams stay parallel or fan slightly. They never bend together; bending in is saved for later.
-- The extra streams do normal damage and cost no extra charges; with the Shredder's brace and its last stand, they help without making the blaster the finisher.
+- The extra streams do normal damage and cost no extra charges. On the 13th Floor the blaster is the finisher, but only once the souls bring it back.
 - Done when a first-time player notices something odd and good happened, and can't say what.
 - **Goodbye** (Oct 12): when the Shredder's beaten, the soul leaves the gun, salutes and says "GOOD LUCK.", then rises with every soul freed on the floor, before the clear. Their only line before the roof. On Floor 48 the souls could come back and leave the same way, reluctantly.
 
