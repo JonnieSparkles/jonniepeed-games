@@ -621,6 +621,7 @@ var UnrugFloor13 = function (core) {
     R.fx.push({ k: 'toss', x: m.x, y: m.y, tx: MOUTH.x, ty: MOUTH.y, t: 0, dur: TUNE.surgeFly });
     R.events.disarms = (R.events.disarms || 0) + 1; emit('disarm');
     Snd.play('surge'); Snd.play('disarm'); bark('disarm');
+    R.fx.push({ k: 'big', text: 'BLASTER GONE!', x: 120, y: 44, t: 0, dur: 1.2 }); R.freeze = Math.max(R.freeze, .12);   // every time, so it can't be missed
     if (!R.events.surgeHint) { R.events.surgeHint = true; R.banner = { text: 'KNOCK ITS PAPER BACK', t: TUNE.surgeFly - 2.6, dur: 2.6 + TUNE.surgeFly, pull: true }; talk('CONFISCATED.', 'shredder'); }
     live('Power surge! SHRED-O pulls the blaster into its mouth. Knock its paper back to wear it down.');
   }
@@ -1838,5 +1839,5 @@ UnrugFloor13.TUNE = {
     soulBye: { at: .9, come: 1.2, salute: 1.5, say: 1.7, leave: 3.6, later: 4.6 },   // the goodbye's beats, in seconds
     lastStand: 12,          // nothing takes it below this but the finish: the paper that gets it here stuns it, then the blaster
     soulHint: { souls: 1, wait: .5, gap: 1.1, fly: 1.6, fetch: 1.2 },   // fetch: up to the blaster the Shredder holds first
-    finale: { window: 7 }   // the finish: this long to blast it the rest of the way once the blaster's back
+    finale: { window: 9 }   // the finish: this long to blast it the rest of the way once the blaster's back
   };
