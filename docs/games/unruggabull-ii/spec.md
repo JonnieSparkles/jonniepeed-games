@@ -75,7 +75,7 @@ A corridor floor of about two minutes, then the Shredder.
   - Phase 2: staple fans you have to dodge or deflect, staple carpets across the floor to jump, and longer pulls.
   - Phase 2 starts the rallies: it serves a white-hot bundle and bats your deflects back, quicker each time, until it misses for a smash.
   - Phase 3 (the volley match) opens with the lights out ("power saving mode") and a power surge you can't dodge, which knocks the blaster up the rug. Win a rally and the rug rolls back with it; a rolling rug pins you at the back of the hall. It also rewinds the rug while spitting at you, and sends staple carpets to jump and volleys.
-  - **The souls' hint** (the first glimpse of the mega stream, below): the first time the blaster comes back in phase 3, a few souls leave the counter and fly into it, and for a few seconds it fires two, then three streams. Then it quietly goes back to normal. Nothing explains it.
+  - **The souls' hint** (the first glimpse of the mega stream, below): the first time the blaster comes back in phase 3, a soul leaves the counter and flies into it, and it fires a second stream beside the bolt for the rest of the fight. Nothing explains it.
   - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
 - **Clear.** The final hit runs in slow motion before the Shredder blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. “Take the elevator” continues this run through the ride to the roof; Play again stays. The long ride currently skips the planned plain ride and Floor 48.
@@ -116,22 +116,23 @@ Inspired by Raiden, where stacked weapon power-ups fuse into one huge beam. Here
 
 | Where | What the player sees |
 | --- | --- |
-| the 13th Floor, the Shredder (built) | A hint: a few souls come back, two or three streams for a few seconds. No fusion, no explanation. |
-| Floor 48 (contents TBD; near miss not decided) | Planned possible near miss: four or five streams, they start to bend in, then it falls apart. |
+| the 13th Floor, the Shredder (built) | A hint: one soul comes back, a stream beside the bolt for the rest of the fight. One bell (D). No fusion, no explanation. |
+| The 48th Floor, the collapse (built) | The near miss: two souls, two bells (D, F), the streams start to bend in, then p(Loom) breaks them. |
 | The roof, p(Loom) | The reveal: the full sequence below, then the rest of the fight with the beam. |
 
 Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain code to port: the [Mega Stream Lab](https://claude.ai/artifact/AAjXJuSUmn1cJB4ttbPnDS) (the stream levels and the fusion, with three snap styles; the pick is **Pinch**) and the [Mega Stream Finale](https://claude.ai/artifact/MqfeHREtfJp24VcdGqACx4) (the roof against p(Loom); its **Behind** view is the approved one, and the side, top-down and director's cut views were dropped).
 
 ### The hint on the 13th Floor (built)
 
-The first time the blaster comes back in the Shredder's phase 3, two souls fly slowly into it instead of into the counter, the fight holding its breath while they come, and it fires three streams for the rest of the fight: ribbons of light from the blaster's muzzle, straight down the hall beside the bolt. With the souls in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the streams wear it down, and paper sent back finishes it.
+The first time the blaster comes back in the Shredder's phase 3, one soul flies slowly into it instead of into the counter, the fight holding its breath while it comes, and it fires a stream beside the bolt for the rest of the fight: ribbons of light from the blaster's muzzle, straight down the hall beside the bolt. With the souls in the gun, the Shredder's surges break on them instead of knocking the blaster away. The finish is still a rally (its last stand): the streams wear it down, and paper sent back finishes it.
 
 - Nothing announces it: no banner, no pickup text, and no live-region line beyond "Blaster back."
 - It mustn't look like Spread Shot, which already fires three ways: the souls visibly fly into the gun, the streams are the souls' colours (pale white with the halo's gold), and each stream comes in with a single soft bell note.
 - The streams stay parallel or fan slightly. They never bend together; bending in is saved for later.
 - The extra streams do normal damage and cost no extra charges; with the Shredder's brace and its last stand, they help without making the blaster the finisher.
 - Done when a first-time player notices something odd and good happened, and can't say what.
-- **Goodbye** (Oct 12): when the Shredder's beaten, the two souls leave the gun, salute and say "GOOD LUCK.", then rise with every soul freed on the floor, before the clear. Their only line before the roof. On Floor 48 the souls could come back and leave the same way, reluctantly.
+- **Goodbye** (Oct 12): when the Shredder's beaten, the soul leaves the gun, salutes and says "GOOD LUCK.", then rises with every soul freed on the floor, before the clear. Its only line before the roof. On the 48th Floor two souls come back and leave the same way, reluctantly.
+- **One bell a floor** (Oct 12): one soul and one bell (D) on the 13th Floor, two (D, F) on the 48th, three (D, F, A) on the roof, so the chord is only complete when the stream fuses. It was two souls here until the 48th Floor needed the second.
 
 ### The near miss on the middle floor (build with that floor)
 
