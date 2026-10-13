@@ -116,8 +116,122 @@ window.__balanceBot = function (profile, seed) {
     arenaSent.push({ t: o.t, dir: a.crouch ? 0 : (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: delta });
     return a;
   }
+  // The 48th Floor, top down (its own bookkeeping and dice). Like a person on two sticks: it keeps moving, backs away
+  // from carpshits that get close and sidesteps rolls and bobbins (dodge), cuts what's in reach (fly_slash) and knocks
+  // bobbins back (deflect_try), shoots the nearest carpshit in range, and otherwise picks a machine and works on it from
+  // the walkway in front of it, keeping off a press that's about to come down. Its aim is off by a little (depth_err).
+  // In the lobby it walks to the doors once they're open.
+  var f48Sent = [], f48T = null, f48Goal = null, f48GoalT = -1, f48AimErr = 0, f48AimT = 0;
+  function f48Decide(o) {
+    var q = o.f48, a = { mx: 0, my: 0, aim: false, ax: 0, ay: 0, slash: false, left: false, right: false };
+    var delta = f48T === null ? 1 / 30 : Math.max(0, o.t - f48T); f48T = o.t;
+    var lagS = P.reaction_ms / 1000;
+    if (q.st === 'lobby') {
+      var L = q.lobby; if (L && L.open) { a.right = L.u < L.doorU - .03; a.left = L.u > L.doorU + .03; }
+      else if (L && L.u < -.4) a.right = true;
+      return a;
+    }
+    // where it is now: where it was seen, plus what it has pushed the stick since
+    var me = { x: q.me.x, y: q.me.y };
+    f48Sent = f48Sent.filter(function (x) { return x.t >= o.t - lagS - 1e-6; });
+    f48Sent.forEach(function (x) { me.x += x.mx * q.speed * x.dt; me.y += x.my * q.speed * x.dt; });
+    if (q.locked) return a;
+    var mx = 0, my = 0, shoot = null, sd = Infinity, slashAt = null;
+    // carpshits: shoot the nearest; back away from the close ones; cut what's in reach
+    q.enemies.forEach(function (e) {
+      if (!noticed(o, e) || e.spawning) return;
+      var ex = e.x + e.vx * lead, ey = e.y + e.vy * lead, dx = ex - me.x, dy = ey - me.y, d = Math.hypot(dx, dy) || 1;
+      var pl = plan(e, function () { return { cut: r() < P.fly_slash, dodge: r() < P.dodge }; });
+      if (e.kind === 'shag') {
+        // the big one: out of its line when it plants to charge, and cut it when it's close (it shrugs bolts off)
+        if ((e.st === 'aim' || e.st === 'dash') && pl.dodge) { var tx0 = e.st === 'aim' ? e.tx : e.vx, ty0 = e.st === 'aim' ? e.ty : e.vy, tl = Math.hypot(tx0, ty0) || 1, off0 = (me.x - e.x) * -ty0 / tl + (me.y - e.y) * tx0 / tl, sg0 = off0 >= 0 ? 1 : -1; mx += -ty0 / tl * sg0 * 2.4; my += tx0 / tl * sg0 * 2.4; }
+        else if (d < 58 && pl.cut) slashAt = { x: dx / d, y: dy / d };
+        else if (d < 50) { mx -= dx / d; my -= dy / d; }
+      } else if (e.kind === 'roll') {
+        // a roll pointed at it: step out of its line
+        var vx = e.st === 'aim' ? e.tx : e.vx, vy = e.st === 'aim' ? e.ty : e.vy, vl = Math.hypot(vx, vy) || 1, ux = vx / vl, uy = vy / vl;
+        var along = (me.x - e.x) * ux + (me.y - e.y) * uy, off = (me.x - e.x) * -uy + (me.y - e.y) * ux;
+        if (along > 0 && Math.abs(off) < 26 && along < 220 && pl.dodge) { var sgn = off >= 0 ? 1 : -1; mx += -uy * sgn * 2.2; my += ux * sgn * 2.2; }
+        if (d < 40 && pl.cut) slashAt = { x: dx / d, y: dy / d };
+      } else {
+        if (d < 70) { mx -= dx / d * (70 - d) / 30; my -= dy / d * (70 - d) / 30; }
+        if (d < 46 && pl.cut) slashAt = { x: dx / d, y: dy / d };
+      }
+      // rolls on their way are for dodging (or cutting), not shooting, unless they're close
+      var w = e.kind === 'roll' ? (d < 70 ? d : d * 3) : d;
+      if (d < 230 && w < sd) { sd = w; shoot = { x: dx / d, y: dy / d }; }
+    });
+    // bobbins and threads coming at it: knock back or cut, or step aside (bolts pass through them)
+    q.thrown.forEach(function (p) {
+      if (p.friendly || !noticed(o, p)) return;
+      var px = p.x + p.vx * lead, py = p.y + p.vy * lead, dx = px - me.x, dy = py - me.y, d = Math.hypot(dx, dy) || 1, toward = (p.vx * -dx + p.vy * -dy) > 0;
+      if (!toward || d > 170) return;
+      var pl = plan(p, function () { return { deflect: r() < P.deflect_try, dodge: r() < P.dodge }; });
+      if (pl.deflect && d < 34) slashAt = { x: dx / d, y: dy / d };
+      else if (pl.dodge) { var vl = Math.hypot(p.vx, p.vy) || 1, side = (dx * p.vy - dy * p.vx) > 0 ? 1 : -1; mx += -p.vy / vl * side * 1.6; my += p.vx / vl * side * 1.6; }
+    });
+    // a crane hook coming along its walkway: off it
+    q.cranes.forEach(function (c, i) {
+      if (c.st === 'idle' || Math.abs(me.y - c.y) > 22) return;
+      if (plan({ id: 'crane' + i + ':' + Math.floor(o.t / 3) }, function () { return { dodge: r() < P.dodge }; }).dodge) my += me.y < c.y ? -2.5 : 2.5;
+    });
+    var job = null;
+    // the reserve at the end: under the nearest tank, sweeping the streams across them
+    if (q.whip && q.whip.length) {
+      var tk = q.whip.reduce(function (b2, k) { return Math.abs(k.x - me.x) < Math.abs(b2.x - me.x) ? k : b2; });
+      job = { x: tk.x, y: 140 }; var wdx = tk.x - me.x, wdy = 44 - me.y, wd = Math.hypot(wdx, wdy) || 1; shoot = { x: wdx / wd, y: wdy / wd }; sd = 0;
+    }
+    // a power-up on the floor: go and get it
+    if (!job) q.pickups.forEach(function (pk) {
+      var d = Math.hypot(pk.x - me.x, pk.y - me.y);
+      if (d < 220 && plan(pk, function () { return { take: r() < P.pickup }; }).take && (!job || d < job.d)) job = { x: pk.x, y: pk.y, d: d };
+    });
+    // a cable to cut: stand where the katana reaches it, then slash it
+    if (!job) q.cables.forEach(function (cb) {
+      var spot = cb.kind === 'feed' ? { x: cb.x, y: cb.y - 26 } : { x: cb.x, y: cb.y + 30 }, d = Math.hypot(spot.x - me.x, spot.y - me.y);
+      // on its way: a cable close by, once in a while (it doesn't camp a cable waiting for the splice)
+      if (d < 110 && plan({ id: cb.id + ':' + Math.floor(o.t / 15) }, function () { return { cut: r() < P.cut_try }; }).cut && (!job || d < job.d)) job = { x: spot.x, y: spot.y, d: d, cable: cb };
+    });
+    if (job && job.cable && Math.hypot(job.cable.x - me.x, job.cable.y - me.y) < 40 && !slashAt) { var cdx = job.cable.x - me.x, cdy = job.cable.y - me.y, cd = Math.hypot(cdx, cdy) || 1; slashAt = { x: cdx / cd, y: cdy / cd }; }
+    // the work: a machine, chosen every few seconds, worked on from the walkway in front of it
+    if (!f48Goal || o.t > f48GoalT || !q.machines.some(function (m) { return m.id === f48Goal.id; })) {
+      var best = null, bs = Infinity;
+      q.machines.forEach(function (m) {
+        var cx = (m.x0 + m.x1) / 2, cy = m.y1, d = Math.hypot(cx - me.x, cy - me.y), score = d * (m.kind === 'loom' ? .8 : 1) + m.hp * 2;
+        if (score < bs) { bs = score; best = m; }
+      });
+      f48Goal = best; f48GoalT = o.t + 4 + r() * 3;
+    }
+    var goal = null;
+    if (f48Goal) {
+      var m = q.machines.filter(function (x) { return x.id === f48Goal.id; })[0] || f48Goal, cx = (m.x0 + m.x1) / 2;
+      var below = m.y1 + 58, above = m.y0 - 58;
+      var gy = Math.abs(me.y - below) < Math.abs(me.y - above) || above < q.bounds.y0 + 20 ? below : above;
+      goal = { x: cx, y: Math.min(q.bounds.y1 - 12, gy) };
+      if (!shoot || sd > 200) { var dx = cx - me.x, dy = (m.y1 - 4) - me.y, d = Math.hypot(dx, dy) || 1; if (d < 260) { shoot = { x: dx / d, y: dy / d }; sd = d; } }
+    }
+    if (job) goal = job;
+    if (goal) { var gx = goal.x - me.x, gy2 = goal.y - me.y, gd = Math.hypot(gx, gy2); if (gd > 10) { mx += gx / gd * Math.min(1, gd / 40); my += gy2 / gd * Math.min(1, gd / 40); } }
+    // a press about to come down: get off the belt under it
+    q.machines.forEach(function (m) {
+      if (m.kind !== 'press' || m.warn <= 0) return;
+      if (me.x > m.x0 - 4 && me.x < m.x1 + 4 && me.y > m.y0 - 10 && me.y < m.y1 + 10 && plan({ id: m.id + ':p' + Math.floor(o.t / 1.4) }, function () { return { dodge: r() < P.dodge }; }).dodge) my += me.y < (m.y0 + m.y1) / 2 ? -2 : 2;
+    });
+    var ml = Math.hypot(mx, my); if (ml > 1) { mx /= ml; my /= ml; }
+    a.mx = mx; a.my = my;
+    if (o.t >= f48AimT) { f48AimErr = err(P.depth_err * 3); f48AimT = o.t + .4; }
+    if (slashAt && q.me.cd <= 0) { a.slash = true; a.aim = true; a.ax = slashAt.x; a.ay = slashAt.y; }
+    else if (shoot && (o.charge > P.charge_floor || q.st === 'collapse')) {
+      var c = Math.cos(f48AimErr), s2 = Math.sin(f48AimErr);
+      a.aim = true; a.ax = shoot.x * c - shoot.y * s2; a.ay = shoot.x * s2 + shoot.y * c;
+    }
+    if (q.st === 'collapse' && !a.aim) { a.aim = true; a.ax = 0; a.ay = -1; }
+    f48Sent.push({ t: o.t, mx: a.mx, my: a.my, dt: delta });
+    return a;
+  }
   return {
     decide: function (o) {
+      if (o.f48) return f48Decide(o);
       if (o.arena) return arenaDecide(o);
       if (o.roof) return roofDecide(o);
       var b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false }, goal = null, urgent = false;

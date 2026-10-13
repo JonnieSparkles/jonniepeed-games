@@ -312,6 +312,18 @@ var UnrugElevator = function (core) {
   // the view through the open doors: the storm on the roof and p(Loom) far off (or, on the plain ride, a quiet hall)
   function drawRoof(t) {
     rect(g, 168, 76, 144, 164, '#0c0a18');
+    if (Q.destination.stage === 'floor48') {
+      // the 48th Floor through the doors: the factory's glow, a belt running past, machinery and a loom's threads
+      rect(g, 168, 76, 144, 164, '#16131b');
+      for (let i = 0; i < 5; i++) rect(g, 168, 76 + i * 20, 144, 20, ['#1a1620', '#1e1924', '#241c26', '#2e2026', '#3a2424'][i]);
+      for (const [x, w, h] of [[172, 26, 70], [204, 34, 92], [246, 20, 60], [272, 36, 84]]) { rect(g, x, 176 - h, w, h, '#0e0c12'); rect(g, x + 2, 178 - h, w - 4, 2, '#2a2430'); }
+      for (let i = 0; i < 6; i++) rect(g, 210 + i * 4, 98, 1, 50, i % 2 ? '#ff7a2a' : '#ffd060');
+      rect(g, 168, 176, 144, 64, '#211f28'); rect(g, 168, 186, 144, 14, '#2c2a35');
+      for (let x = 168 + ((Math.floor(t * 40) % 8) + 8) % 8; x < 312; x += 8) rect(g, x, 187, 2, 12, '#3a3844');
+      rect(g, 168, 185, 144, 1, '#5a5868'); rect(g, 168, 200, 144, 1, '#5a5868');
+      if (Math.floor(t * 2) % 2) rect(g, 300, 120, 4, 4, '#ffb040');
+      return;
+    }
     if (Q.destination.stage !== 'roof') {
       rect(g, 168, 76, 144, 164, '#2a2630'); rect(g, 168, 176, 144, 64, '#3a2e2a');
       for (let x = 172; x < 312; x += 24) rect(g, x, 96, 16, 50, '#3e3a46');

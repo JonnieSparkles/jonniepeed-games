@@ -231,7 +231,7 @@ window.UnrugSound = (function () {
       drums: { pat: 'KKh.S.hKKKh.S.hK', fills: { 3: 'KKh.S.hKKKSSSSSS', 7: 'KKKKSSSSSSSSSSSS' }, crash: [0, 4] }
     }] }
   };
-  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {}, window.UnrugFloorMusic || {});
+  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {}, window.UnrugFloorMusic || {}, window.UnrugFactoryMusic || {});
   if (TRACKS.roofA) { TRACKS.roof = TRACKS.roofA; TRACKS.roofHeavy = TRACKS.roofAHeavy; }
   // Pattern format is opt-in: the original six section tracks retain their exact compiler and synth.
   function noteEvents(notes) {
@@ -405,6 +405,21 @@ window.UnrugSound = (function () {
     osc(out, 'sawtooth', hz(38), t, seconds, .08, { to: hz(74), attack: .01, sustain: 1 });
     noiseHit(out, t, seconds, .12, 'bandpass', 140, .7, 4200);
     for (let i = 0; i < seconds * 8; i++) osc(out, 'p12', hz([62,65,69,74][i % 4]), t + i / 8, .1, .025);
+  }
+  // Floor 48's cues. Candidates A/B/C (music-factory.js); each has an intro (the factory alone), a fight and a heavy.
+  // intro: the intro, held; fight: the fight on the next bar with drums, bass, lead and the machine; panic: the first
+  // line is down (harmony and power join, a little faster); heavy: the second line is down (the heavy version slams
+  // in); fuse: the streams start to bend in (a riser over the music); spoil: p(Loom) breaks them (hard cut, sour chord).
+  let factoryChoice = 'b';   // Assembly Line, the owner's pick (Oct 12)
+  function factoryCue(name, options = {}) {
+    if (options.candidate) factoryChoice = /^[abc]$/.test(options.candidate) ? options.candidate : 'b';
+    const id = 'factory' + factoryChoice.toUpperCase(), base = ['drums', 'bass', 'lead', 'machine'];
+    if (name === 'intro') api.music(id + 'Intro', { slam: true });
+    else if (name === 'fight') { if (P.id === id + 'Intro') api.music(id, { boundary: 'bar', stems: base }); else api.music(id, { slam: true, stems: base }); api.tempo(1); }
+    else if (name === 'panic') { if (want !== id) api.music(id, { slam: true, stems: base.concat(['harmony', 'power']) }); else api.stems(base.concat(['harmony', 'power'])); api.tempo(1.05); }
+    else if (name === 'heavy') api.music(id + 'Heavy', { slam: true });   // play('lineDown') after it, so its chord isn't cut
+    else if (name === 'fuse') riser(options.seconds || 2.5);
+    else if (name === 'spoil') { api.music(null, { hard: true }); api.play('sour'); }
   }
   function roofCue(name, options = {}) {
     if (options.candidate) roofChoice = /^[abc]$/.test(options.candidate) ? options.candidate : 'a';
@@ -654,7 +669,22 @@ window.UnrugSound = (function () {
     rideSlam: t => { osc(sfxBus, 'sine', 110, t, .5, .64, { to: 30 }); noiseHit(sfxBus, t, .5, .36, 'lowpass', 600); },
     rideDing: t => { osc(sfxBus, 'sine', 1318, t, 1.4, .13, { sustain: .2 }); osc(sfxBus, 'triangle', 1046, t + .25, 1.6, .1, { sustain: .2 }); },
     rideDoors: t => { noiseHit(sfxBus, t, 1.2, .057, 'lowpass', 300); noiseHit(sfxBus, t + .4, 3, .043, 'bandpass', 5000, .3); },
-    rideCrate: t => noiseHit(sfxBus, t, .8, .057, 'lowpass', 500)
+    rideCrate: t => noiseHit(sfxBus, t, .8, .057, 'lowpass', 500),
+    // Floor 48, the factory: the alarm (two tones, faster as the panic rises), a press, a machine taking a hit and
+    // breaking, a soul tank bursting (glass, a whoosh, the souls' chime), a line going down (a crash and a power chord),
+    // the animator zapping a rug alive, a bobbin thrown, a rug roll launched, the collapse's rumble, and p(Loom)
+    // spoiling the streams (a sour, falling chord with a tear of noise)
+    klaxon: (t, level) => { const n = level > 1 ? 6 : 4, d = level > 1 ? .13 : .2; for (let i = 0; i < n; i++) osc(sfxBus, 'p50', i % 2 ? 587 : 622, t + i * d, d * .92, .05, { sustain: .9 }); },
+    press: t => { osc(sfxBus, 'sine', 95, t, .22, .3, { to: 45 }); noiseHit(sfxBus, t, .12, .18, 'lowpass', 900); noiseHit(sfxBus, t + .02, .05, .1, 'highpass', 4000); },
+    machineHit: t => { noiseHit(sfxBus, t, .06, .22, 'bandpass', 2400, 3); osc(sfxBus, 'square', 1760, t, .05, .035, { to: 1200 }); osc(sfxBus, 'square', 1244, t, .05, .03, { to: 900 }); },
+    machineBreak: t => { noiseHit(sfxBus, t, .9, .55, 'lowpass', 2200, 1, 90); osc(sfxBus, 'sine', 110, t, .6, .36, { to: 32, sustain: .4 }); for (let i = 0; i < 4; i++) { noiseHit(sfxBus, t + .08 + i * .07, .05, .2, 'bandpass', 3000 - i * 400, 4); osc(sfxBus, 'square', 900 - i * 120, t + .08 + i * .07, .05, .03, { to: 400 }); } },
+    tankBurst: t => { for (let i = 0; i < 7; i++) noiseHit(sfxBus, t + i * .025, .12, .22, 'highpass', 5000 + i * 300, 2); noiseHit(sfxBus, t, .7, .3, 'bandpass', 1400, .8, 300); [86, 89, 93, 98].forEach((m, i) => osc(sfxBus, 'triangle', hz(m), t + .1 + i * .05, .3, .07, { sustain: .3 })); },
+    lineDown: t => { noiseHit(sfxBus, t, 2, .7, 'lowpass', 2600, 1, 60); osc(sfxBus, 'sine', 80, t, 1.6, .5, { to: 26, sustain: .4 }); for (let i = 1; i < 7; i++) noiseHit(sfxBus, t + i * .18, .35, .32, 'lowpass', 1700, 1, 200); spoolHit(); },
+    animate: t => { for (let i = 0; i < 5; i++) noiseHit(sfxBus, t + i * .03, .03, .14, 'bandpass', 3200 + (i % 2) * 1400, 6); osc(sfxBus, 'sawtooth', 160, t, .18, .05, { to: 640 }); },
+    bobbin: t => { osc(sfxBus, 'p25', 520, t, .3, .04, { to: 900 }); noiseHit(sfxBus, t, .25, .05, 'bandpass', 1800, 2); },
+    roll: t => { osc(sfxBus, 'sawtooth', 55, t, .5, .08, { to: 90, sustain: .8 }); noiseHit(sfxBus, t, .5, .12, 'lowpass', 700); },
+    rumble: (t, seconds) => { const d = seconds || 3; noiseHit(sfxBus, t, d, .4, 'lowpass', 260, .7, 60); osc(sfxBus, 'sine', 42, t, d, .3, { to: 30, sustain: .8 }); for (let i = 0; i < d * 3; i++) noiseHit(sfxBus, t + i / 3 + Math.random() * .2, .3, .2, 'lowpass', 1500, 1, 200); },
+    sour: t => { [62, 63, 68, 69].forEach((m, i) => osc(sfxBus, 'sawtooth', hz(m + 12), t, 1.2, .045, { to: hz(m + 12) * .5, sustain: .5 })); noiseHit(sfxBus, t, .5, .35, 'bandpass', 1800, .7, 200); osc(sfxBus, 'p12', hz(98), t, .6, .05, { to: hz(62) }); }
   };
 
   const api = {
@@ -681,7 +711,7 @@ window.UnrugSound = (function () {
     // Tempo: 1 is the track's own; above 1 plays it faster at the same pitch.
     tempo(r) { const value = Math.max(.5, Math.min(2, r || 1)); if (P.modern) P.pendingTempo = value; else P.rate = value; },
     stems(names) { if (!ctx) wantOptions = Object.assign({}, wantOptions, { stems: names }); P.pendingStems = new Set(names); },
-    stinger, riser, roofCue,
+    stinger, riser, roofCue, factoryCue,
     // the long ride's brownout: the music muffles and sags over a couple of seconds, until it's stopped
     brownout(seconds = 2.3) {
       if (!ctx || !P.out || P.out.brownout) return;

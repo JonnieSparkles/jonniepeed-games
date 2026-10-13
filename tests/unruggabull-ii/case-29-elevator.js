@@ -62,6 +62,9 @@
     newRun(); setState('play'); R.souls = R.shown = 123; R.hearts = 1; R.phase = 'win'; R.endT = 130;
     const oldSeed = seed; endRun('clear'); check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again' && !altBtn.hidden, 'elevator is primary, replay secondary'); goBtn.click();
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters the ride, full hearts');
+    check(!R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.stage === 'floor48', 'the 13th Floor takes the plain ride to the 48th Floor');
+    travel('elevator', { fight: true, from: 48 });   // the 48th Floor's lobby takes the long ride
+    check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && seed === oldSeed, 'the long ride from 48 carries the run');
     bull.inv = 1e9; at(T.reel + 6); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'flyer'); tick(3);
     check(state === 'over' && checkpoint.souls === 123 && checkpoint.startAt === T.thread, 'the continue card keeps the entry souls and the threads');
     goBtn.click();

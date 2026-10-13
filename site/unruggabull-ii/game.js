@@ -201,6 +201,12 @@
   // ---------- Unruggabull ----------
   const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, kbDown: false, padDown: false, kbUp: false, padUp: false };
   const input = { jump: 0, slash: 0, shoot: 0 };   // buffered presses, in seconds left
+  // Twin-stick floors (floor.twin() true; the 48th Floor's factory): analog move and aim. Keys: WASD move, the arrows aim
+  // and fire; the mouse aims (picture pixels on the canvas) and its left button fires; the thumb sticks move and aim,
+  // the aim stick firing while held, and a quick flick of it slashing that way. Read by the floor's engine (topdown.js).
+  const twin = { kb: { up: 0, down: 0, left: 0, right: 0, aimUp: 0, aimDown: 0, aimLeft: 0, aimRight: 0 }, padX: 0, padY: 0,
+    aimX: 0, aimY: 0, aiming: false, flick: null, mouse: { x: 0, y: 0, on: false, down: false, t: -99 } };
+  const twinOn = () => !!(floor && floor.twin && floor.twin());
   const moveDir = () => ((keys.kbRight || keys.padRight) ? 1 : 0) - ((keys.kbLeft || keys.padLeft) ? 1 : 0);
   const shooting = () => keys.kbShoot || keys.padShoot;
   const depthDir = () => ((keys.kbUp || keys.padUp) ? 1 : 0) - ((keys.kbDown || keys.padDown) ? 1 : 0);
@@ -977,9 +983,11 @@
       const details = floor.clearCard(extra, best, clock);
       cardTitle.textContent = details.title; cardText.textContent = details.text;
       rows.push(...details.rows);
-      goBtn.textContent = 'Play again';
+      goBtn.textContent = details.go || 'Play again';
+      if (details.alt) { altBtn.textContent = details.alt; altBtn.hidden = false; }
       if (floor.id === 'floor13') { goBtn.textContent = 'Take the elevator'; altBtn.textContent = 'Play again'; altBtn.hidden = false; }
-      cardNote.textContent = floor.id === 'floor13' ? 'The elevator climbs to the roof.' : details.note; cardNote.hidden = !details.note;
+      // the routing slip (lore chat, Oct 12)
+      cardNote.textContent = floor.id === 'floor13' ? 'UNRUGGED, ' + R.souls + ' UNITS. RECLAMATION, 48TH FLOOR.' : details.note; cardNote.hidden = !cardNote.textContent;
     } else if (kind === 'rugged') {
       cardTitle.textContent = 'Rugged.';
       if (checkpoint) {
@@ -1053,6 +1061,8 @@
     live(floor.continueText ? floor.continueText() : 'Back at the Shredder with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
+  // The 13th Floor's elevator: the plain ride (no fight, Please Hold, a supply crate) up to the 48th Floor.
+  const RIDE_TO_48 = { fight: false, from: 13, destination: { floor: 48, label: '48', stage: 'floor48' } };
   // Phones go full screen when you start; it has to happen inside the tap.
   function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
 
@@ -1127,7 +1137,8 @@
     if (cardKind === 'pause') { resumeGame(); return; }
     goFull();
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
-    if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator'); return; }
+    if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
+    if (cardKind === 'clear' && floor.afterClear) { setState('play'); card.hidden = true; floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
     if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'floor13' : floor.id);
   });
   altBtn.addEventListener('click', () => {
@@ -1135,6 +1146,7 @@
     else if (cardKind === 'title') { goFull(); startIntro(); }
     else if (cardKind === 'rugged') { goFull(); startRun(); }
     else if (cardKind === 'clear' && floor.id === 'floor13') { goFull(); startRun('floor13'); }
+    else if (cardKind === 'clear' && floor.afterClear) { goFull(); startRun(floor.id); }
   });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
 
@@ -1201,11 +1213,16 @@
     Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
     e: 'drop', E: 'drop', k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };
-  const KEYS = { get: e => floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
-  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; padPointers.clear(); padSync(); stickOff(null); }
+  const TWIN_CODES = { KeyW: 'mUp', KeyA: 'mLeft', KeyS: 'mDown', KeyD: 'mRight', ArrowUp: 'aUp', ArrowDown: 'aDown', ArrowLeft: 'aLeft', ArrowRight: 'aRight',
+    Space: 'slash', ShiftLeft: 'slash', ShiftRight: 'slash', Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash',
+    KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot', KeyE: 'drop' };
+  const TWIN_HOLD = { mUp: 'up', mDown: 'down', mLeft: 'left', mRight: 'right', aUp: 'aimUp', aDown: 'aimDown', aLeft: 'aimLeft', aRight: 'aimRight' };
+  const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
+  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = KEYS.get(e);
+    if (state === 'play' && k && TWIN_HOLD[k]) { e.preventDefault(); twin.kb[TWIN_HOLD[k]] = 1; return; }
     if (state === 'play' && k) {
       e.preventDefault();
       if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true; else if (k === 'up') keys.kbUp = true;
@@ -1226,8 +1243,20 @@
       else if (e.key === 'Escape' && isFull() && !nativeFull()) setFull(false);
     }
   });
-  addEventListener('keyup', e => { const k = KEYS.get(e); if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; else if (k === 'up') keys.kbUp = false; });
-  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; });
+  addEventListener('keyup', e => { const k = KEYS.get(e); if (TWIN_HOLD[k]) { twin.kb[TWIN_HOLD[k]] = 0; return; } if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; else if (k === 'up') keys.kbUp = false; });
+  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; });
+  // The mouse, on twin-stick floors: it aims where it points; the left button fires, the right one slashes.
+  const toPic = e => { const box = c.getBoundingClientRect(); return { x: (e.clientX - box.left) * PW / box.width, y: (e.clientY - box.top) * PH / box.height }; };
+  c.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || !twinOn()) return; const p = toPic(e); twin.mouse.x = p.x; twin.mouse.y = p.y; twin.mouse.on = true; twin.mouse.t = R ? R.t : 0; });
+  c.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || !twinOn() || state !== 'play') return;
+    const p = toPic(e); twin.mouse.x = p.x; twin.mouse.y = p.y; twin.mouse.on = true; twin.mouse.t = R.t;
+    if (R.heldDrop) { const icon = drops.DROPS.icon; if (p.x / PIC >= icon.x && p.x / PIC <= icon.x + icon.w && p.y / PIC >= icon.y && p.y / PIC <= icon.y + icon.h) return; }
+    e.preventDefault();
+    if (e.button === 2) press('slash'); else if (e.button === 0) { twin.mouse.down = true; press('shoot'); }
+  });
+  addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) twin.mouse.down = false; });
+  c.addEventListener('contextmenu', e => { if (twinOn()) e.preventDefault(); });
 
   // Touch: a thumb stick on the left, Shoot and Slash on the right. Each finger is tracked, so a thumb can slide between
   // Shoot and Slash; they act as a finger lands on them, and Shoot keeps firing while held.
@@ -1302,6 +1331,11 @@
     const zr = zone.getBoundingClientRect(), kr = Math.min(1, STICK.r / Math.max(1, Math.hypot(dx, dy)));
     stickEl.style.left = (centre.x - zr.left) + 'px'; stickEl.style.top = (centre.y - zr.top) + 'px';
     knob.style.transform = 'translate(' + Math.round(dx * kr) + 'px,' + Math.round(dy * kr) + 'px)';
+    if (twinOn()) {
+      // analog: how far the thumb is from the centre, up to the ring, with a small dead zone
+      const d = Math.hypot(dx, dy), k = d < 6 ? 0 : Math.min(1, (d - 6) / (STICK.r - 6)) / d;
+      twin.padX = dx * k; twin.padY = dy * k; return;
+    }
     const down = dy > STICK.down && dy > Math.abs(dx) * .8, up = dy < -STICK.up && -dy > Math.abs(dx) * .6;
     keys.padDown = down; keys.padUp = !!floor.depthMove && up;
     keys.padLeft = (!down || !!floor.depthMove) && dx < -STICK.side; keys.padRight = (!down || !!floor.depthMove) && dx > STICK.side;
@@ -1310,7 +1344,7 @@
   }
   function stickOff(e) {
     if (e && e.pointerId !== stickId) return;
-    stickId = null; keys.padLeft = keys.padRight = keys.padDown = keys.padUp = false;
+    stickId = null; keys.padLeft = keys.padRight = keys.padDown = keys.padUp = false; twin.padX = twin.padY = 0;
     stickEl.classList.remove('on'); stickEl.style.left = stickEl.style.top = ''; knob.style.transform = '';
   }
   zone.addEventListener('pointerdown', e => {
@@ -1324,6 +1358,44 @@
   });
   zone.addEventListener('pointermove', e => { if (e.pointerId !== stickId) return; e.preventDefault(); stickAt(e.clientX, e.clientY); });
   zone.addEventListener('pointerup', stickOff); zone.addEventListener('pointercancel', stickOff);
+  // The aim stick (twin-stick floors only): it floats like the move stick. Held past a small dead zone it aims and fires;
+  // out and back within a fifth of a second it's a flick, and he slashes that way.
+  const aimZone = $('aimzone'), aimEl = $('aimstick'), aimKnob = $('aimknob');
+  const AIM = { r: 44, dead: 10, flickT: .22, flickD: 22 };
+  let aimId = null, aimC = null, aimT0 = 0, aimFar = 0, aimLast = null;
+  function aimAt(x, y) {
+    let dx = x - aimC.x, dy = y - aimC.y;
+    const far = Math.hypot(dx, dy), max = AIM.r * 1.4;
+    if (far > max) { const k = (far - max) / far; aimC.x += dx * k; aimC.y += dy * k; dx = x - aimC.x; dy = y - aimC.y; }
+    const zr = aimZone.getBoundingClientRect(), d = Math.hypot(dx, dy), kr = Math.min(1, AIM.r / Math.max(1, d));
+    aimEl.style.left = (aimC.x - zr.left) + 'px'; aimEl.style.top = (aimC.y - zr.top) + 'px';
+    aimKnob.style.transform = 'translate(' + Math.round(dx * kr) + 'px,' + Math.round(dy * kr) + 'px)';
+    aimFar = Math.max(aimFar, d); aimLast = { dx, dy };
+    if (d > AIM.dead) { twin.aimX = dx / d; twin.aimY = dy / d; twin.aiming = true; } else twin.aiming = false;
+  }
+  function aimOff(e) {
+    if (e && e.pointerId !== aimId) return;
+    if (e && aimLast && performance.now() / 1000 - aimT0 < AIM.flickT && aimFar > AIM.flickD) {
+      const d = Math.hypot(aimLast.dx, aimLast.dy) || 1; twin.flick = { x: aimLast.dx / d, y: aimLast.dy / d }; press('slash');
+    }
+    aimId = null; twin.aiming = false; aimLast = null;
+    if (aimEl) { aimEl.classList.remove('on'); aimEl.style.left = aimEl.style.top = ''; aimKnob.style.transform = ''; }
+  }
+  if (aimZone) {
+    aimZone.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      if (aimId !== null) return;
+      e.preventDefault();
+      aimId = e.pointerId; aimC = { x: e.clientX, y: e.clientY }; aimT0 = performance.now() / 1000; aimFar = 0; aimZone.classList.add('used');
+      try { aimZone.setPointerCapture(e.pointerId); } catch (_) {}
+      aimEl.classList.add('on'); aimAt(e.clientX, e.clientY);
+    });
+    aimZone.addEventListener('pointermove', e => { if (e.pointerId !== aimId) return; e.preventDefault(); aimAt(e.clientX, e.clientY); });
+    aimZone.addEventListener('pointerup', aimOff); aimZone.addEventListener('pointercancel', aimOff);
+  }
+  // the page knows which controls to show: the twin sticks, or the stick with Shoot and Slash
+  let twinShown = null;
+  function twinClass() { const on = state === 'play' && twinOn(); if (on !== twinShown) { twinShown = on; document.body.classList.toggle('twin', on); clearHeld(); } }
   const markTouch = () => document.body.classList.add('touch');
   if (window.matchMedia && matchMedia('(pointer: coarse)').matches) markTouch();
   addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); }, { capture: true, passive: true });
@@ -1341,7 +1413,7 @@
     let dt = last ? Math.min(.1, Math.max(0, (now - last) / 1000)) : 0;
     last = now;
     while (dt > 1e-6) { const s = Math.min(STEP, dt); update(s); dt -= s; }
-    draw(); padRings();
+    draw(); padRings(); twinClass();
   }
   function start() {
     setTimeout(renderer, 60);   // the renderer works out the hall once (a moment's work), while the title's up
@@ -1350,7 +1422,7 @@
     showCard('title');
     sndLabel();
     Snd.music('theme');
-    for (const stage of ['roof', 'elevator']) if (hashTokens().includes('stage=' + stage)) startRun(stage);
+    for (const stage of ['roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) startRun(stage);
     draw();
     requestAnimationFrame(frame);
   }
@@ -1364,10 +1436,10 @@
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }
   };
   const drops = UnrugDrops(core); core.drops = drops;
-  const floors = { floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core) };
+  const floors = { floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
   floor = floors.floor13;
 
   start();
