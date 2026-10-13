@@ -82,10 +82,9 @@ var UnrugIntro = (function () {
   // when the narration reaches a phrase of the line
   const at = (plan, line, phrase) => { const i = line.indexOf(phrase); return i < 0 ? 0 : plan.times[i]; };
 
-  // ---------- per-run state: the gags, and the options the review page can flip ----------
+  // ---------- per-run state: the gags ----------
   let gag = {};
   function reset() { gag = {}; }
-  const options = { heapFar: false };   // still 1: the heap far down the alley instead of on the garage floor
 
   // ---------- the Rugfather: one look everywhere ----------
   // His frames are the owner's strip at its own pixel size, and he gets the same touches in every still: he breathes
@@ -138,19 +137,9 @@ var UnrugIntro = (function () {
   function still1(g, t) {
     const f = flicker(t);
     glow(g, 196, 150, 130, 'rgba(255,140,50,A)', .05 + .05 * f);     // the lamp's pool breathes
-    const far = options.heapFar, heap = far ? SP.heapFar : SP.heap;
-    const hx = far ? 252 : 240, hy = far ? 152 : 216, sc = far ? .36 : 1;
+    const heap = SP.heap, hx = 240, hy = 216, sc = 1;
     if (ok(heap.img)) g.drawImage(heap.img, hx - (heap.w >> 1), hy - heap.h);
-    glow(g, hx - 4 * sc, hy - 40 * sc, 60 * sc + 10, 'rgba(255,110,30,A)', .1 + .12 * flicker(t * 1.7, 3));  // his own fire
-    if (far) {
-      glow(g, hx, hy + 6, 22, 'rgba(255,110,30,A)', .12 + .06 * f);   // on the wet street
-      // at this size the strip's flames are lost, so small ones are drawn on, flickering
-      for (let k = 0; k < 6; k++) {
-        const fh = 2 + Math.floor(hash(Math.floor(t * 10) * 7 + k) * 5), fx = hx - 13 + k * 5 + (k % 2), fy = hy - 12 - (k > 1 && k < 4 ? 4 : 0);
-        rect(g, fx, fy - fh, 1, fh, '#e44a34'); rect(g, fx, fy - fh + 1, 1, Math.max(1, fh - 2), '#f8cc50');
-        if (fh > 4) rect(g, fx + 1, fy - fh + 2, 1, 2, '#e44a34');
-      }
-    }
+    glow(g, hx - 4, hy - 40, 70, 'rgba(255,110,30,A)', .1 + .12 * flicker(t * 1.7, 3));  // his own fire
     // embers and smoke off the heap
     for (let i = 0; i < 14; i++) {
       const p = (t * .32 + i / 14) % 1, x = hx + (hash(i) - .5) * 70 * sc + Math.sin(t * 2 + i) * 5 * p * sc, y = hy - 30 * sc - p * 110 * sc;
@@ -417,5 +406,5 @@ var UnrugIntro = (function () {
     }
     return null;
   }
-  return { LINES, LABELS, HOLD, draw, tap, reset, options, W, H };
+  return { LINES, LABELS, HOLD, draw, tap, reset, W, H };
 })();
