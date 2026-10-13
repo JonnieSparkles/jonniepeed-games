@@ -10,17 +10,27 @@
   try {
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; if (R.event && R.event.souls) { R.event.souls = []; R.event.obs = []; } };
-  RUN.force = 606; startRun(); quiet(); bull.inv = 1e9;
-  check(Snd.track === 'floorHall' && stems() === 'drums,bass,lead', 'Accounts Payable plays the shuffle (its cold open first): drums, bass and lead');
+  RUN.force = 606; startRun(); bull.inv = 1e9;
+  const open = lastMusic();
+  check(Snd.track === 'floorHall' && open.o.slam && stems() === 'drums,bass,lead' && !calls.some(c => c.music === 'floorOpen'), 'the floor starts hot: the band hits as it opens, drums, bass and lead, no muzak');
+  update(1 / 60);
+  check(R.flies.length === 1 && R.flies[0].z >= .99, 'and the first carpshit comes out of the dark on that first hit');
+  quiet();
+  R.flies = [];
 
-  // charges: 20 shots, then a click and a wait; one back every half second
+  // charges: 20 shots; run it dry and it overheats: no recharge for TUNE.overheat, and no firing until it has cooled
+  // back to TUNE.cool charges, sputtering meanwhile; then a short burst, and it overheats again
   check(R.charge === TUNE.charges, 'the blaster starts full');
-  R.events.shots = 0; keys.kbShoot = true; step(7.5);
-  const fired = R.events.shots;
-  check(R.charge < 1 && R.empty > 0, 'holding fire drains it and it clicks empty');
-  step(2);
-  check(R.events.shots - fired >= 3 && R.events.shots - fired <= 5, 'empty, it only fires as charges come back (' + (R.events.shots - fired) + ')');
-  keys.kbShoot = false; step(TUNE.recharge * TUNE.charges + .5);
+  R.events.shots = 0; R.fx = []; keys.kbShoot = true;
+  for (let i = 0; i < 60 * 7.5 && !(R.heat > 0); i++) update(1 / 60);
+  check(R.charge < 1 && R.heat > 0 && R.hot && R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT'), 'holding fire drains it and it overheats');
+  let fired = R.events.shots; step(TUNE.overheat * .8);
+  check(R.events.shots === fired && R.charge === 0 && R.fx.some(f => f.k === 'sputter') && R.empty > 0, 'overheated, the trigger only sputters, and nothing recharges');
+  step(TUNE.overheat * .2 + TUNE.recharge * (TUNE.cool - .5));
+  check(R.events.shots === fired && R.charge >= 1 && R.hot, 'it recharges, but won\'t fire until it has cooled');
+  for (let i = 0; i < 60 * 3 && R.events.shots === fired; i++) update(1 / 60);
+  check(R.events.shots === fired + 1 && !R.hot, 'cooled back to ' + TUNE.cool + ' charges, it fires');
+  keys.kbShoot = false; step(TUNE.overheat + TUNE.recharge * TUNE.charges + .5);
   check(R.charge === TUNE.charges, 'it refills when you let go');
 
   // Spread Shot: three bolts a shot for a while, from a pickup at jump height
@@ -32,7 +42,7 @@
   for (let i = 0; i < 60 && R.pickups[0].w - R.dist - bull.bz > .06; i++) update(1 / 60);
   press('jump'); step(.6);
   check(R.spread > 0 && !R.pickups.length, 'jumping grabs it');
-  R.shots = []; press('shoot'); update(1 / 60);
+  R.shots = []; R.flies = []; R.workers = []; press('shoot'); update(1 / 60);
   check(R.shots.length === 3 && R.shots.some(s => s.du < 0) && R.shots.some(s => s.du > 0), 'Spread Shot fires three ways');
   step(TUNE.spreadT + .5);
   check(R.spread === 0, 'and wears off');
@@ -69,11 +79,17 @@
   bull.inv = 1e9; R.event = null; R.beat = 0; R.beatT = BEATS[0].time; update(1 / 60);
   check(R.event && R.event.kind === 'move' && Snd.track === 'floorHall' && stems() === 'drums,bass,lead,harmony', 'moving day adds the harmony');
   step(TUNE.moveT + .2);
-  check(R.beat === 1 && Snd.track === 'floorHall' && stems() === 'drums,bass,lead,harmony,power', 'All Staff adds the power, on the same track');
+  const staff = lastMusic();
+  check(R.beat === 1 && Snd.track === 'floorStaff' && staff.o.boundary === 'bar' && stems() === 'drums,bass,lead,harmony,power', 'All Staff steps up to its own section on the next bar, the full band');
   check(!calls.some(c => ['tower', 'staff', 'dark', 'copy', 'shred'].includes(c.music)), 'the old section tracks never play');
   check(R.pickups.some(pk => pk.kind === 'coffee') && R.pickups.some(pk => pk.kind === 'spread'), 'a coffee and a Spread Shot follow moving day');
   R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
-  check(R.event && R.event.kind === 'dark' && Snd.track === 'floorHall' && stems() === 'dark', 'lights out drops to the muzak over the PA');
+  check(R.event && R.event.kind === 'rush' && Snd.track === 'floorRush' && lastMusic().o.boundary === 'bar' && stems() === 'drums,bass,lead,harmony,power,heavy', 'rush hour goes heavy on the next bar');
+  R.flies = []; R.event.t = R.event.dur; update(1 / 60); step(.2);
+  check(!R.event && Snd.track === 'floorRush' && stems() === 'bass', 'the lull after drops to the bass and guitar');
+  step(TUNE.lull);
+  const dark = lastMusic();
+  check(R.event && R.event.kind === 'dark' && Snd.track === 'floorHall' && dark.o.boundary === 'bar' && stems() === 'dark', 'lights out drops to the muzak over the PA');
   step(TUNE.darkT);
   const copy = lastMusic();
   check(R.beat === 2 && Snd.track === 'floorCopy' && copy.o.boundary === 'bar' && !copy.o.slam && stems() === 'drums,bass,lead,harmony,power', 'the copy room switches to its step up on the next bar, the full band back');

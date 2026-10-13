@@ -1,4 +1,4 @@
-// Polish: his idle poses, the temps' three looks, the stagger, one EMPTY at a time, his caption wrapping to the left,
+// Polish: his idle poses, the temps' three looks, the stagger, one OVERHEAT at a time, his caption wrapping to the left,
 // the souls drifting up at the clear.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -29,9 +29,17 @@
   check(bull.stag > 0, 'a hit staggers him');
   draw(); bull.inv = 1e9;
 
-  // one EMPTY at a time, however long you hold Shoot dry
-  R.fx = []; R.charge = 1; R.fireT = 0; keys.kbShoot = true; step(1.5); keys.kbShoot = false;
-  check(R.fx.filter(f => f.k === 'pop' && f.text === 'EMPTY').length <= 1, 'one EMPTY at a time');
+  // one OVERHEAT at a time, however long you hold Shoot dry
+  const overheats = () => R.fx.filter(f => f.k === 'pop' && f.text === 'OVERHEAT').length;
+  R.fx = []; R.charge = 1; R.fireT = 0; keys.kbShoot = true; step(.3);
+  check(overheats() === 1, 'OVERHEAT once it runs dry');
+  let most = 0; for (let i = 0; i < 60 * 2.5; i++) { update(1 / 60); most = Math.max(most, overheats()); }
+  check(most === 1, 'and only one at a time');
+  // holding Shoot on a dry gun: short bursts once it cools, well under a steady trickle
+  let shots = R.events.shots; for (let i = 0; i < 60 * 10; i++) { quiet(); R.freeze = 0; update(1 / 60); }
+  keys.kbShoot = false;
+  const rate = (R.events.shots - shots) / 10;
+  check(rate > .3 && rate < .75 / TUNE.recharge, 'held dry, it fires in short bursts (' + rate + ' a second, against ' + 1 / TUNE.recharge + ' for a trickle)');
 
   // his caption wraps into short lines on the left
   R.events.said = {}; R.talk = null; bark('move', true); for (let i = 0; i < 120; i++) update(1 / 60);
@@ -41,7 +49,7 @@
   check(K && withIt === without, 'his caption stays on the left');
 
   // the clear: the souls drift up past him, and NO BLASTER doesn't linger
-  quiet(); R.armed = false; R.souls = 120; b.hp = .1; bossDamage(1, 'smash');
+  quiet(); R.armed = false; R.souls = 120; b.hp = .1; b.final = { st: 'fire', t: 0 }; bossDamage(1, 'blaster');
   step(4);
   check(R.fx.filter(f => f.k === 'rise').length === 40, 'forty souls drift up at the clear');
   draw();

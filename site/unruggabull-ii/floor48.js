@@ -1278,7 +1278,7 @@ var UnrugFloor48 = function (core) {
   const noop = () => {};
   return {
     id: 'floor48', twin: () => Q && Q.st !== 'lobby' && R.phase !== 'dead' && R.phase !== 'win',
-    tune: { scroll: 0, aisle: .92, move: .55, bossHP: 0, charges: 24, recharge: .18, deflectCharge: 3, hurtInv: 1.5, spreadT: 10 },
+    tune: { scroll: 0, aisle: .92, move: .55, bossHP: 0, charges: 24, recharge: .18, overheat: .2, cool: 12, deflectCharge: 3, hurtInv: 1.5, spreadT: 10 },
     set: { flat: true },
     get label() { return Q && Q.st === 'lobby' ? 'Unruggabull, side on, in an immaculate elevator lobby, under a grand portrait of the flaming Rugfather.' : "Unruggabull, seen from above, inside p(Loom)'s soul-reclamation factory: three production lines of conveyor belts and machines weaving captured souls into carpshits."; },
     lines: { f48start: 'SO THIS IS WHERE THEY GO.', f48line: 'ONE DOWN.', f48panic: 'OVERTIME, HUH?', portrait: "HIS VISION ENDURES. HE DIDN'T.", start: false },

@@ -157,9 +157,15 @@ var UnrugTopdown = function (core, tuning) {
     return best || { x: ax, y: ay };
   }
   function fire() {
-    if (!R.gold && R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
+    // run dry, it overheats and sputters, as on every floor (core.overheat, core.sputter); the sputter's sparks and smoke
+    // are drawn here, at the muzzle
+    if (!R.gold && (R.charge < 1 || core.hot())) {
+      if (R.hot) { const m = muzzle(); for (let i = 0; i < 3; i++) R.td.fx.push({ k: 'spark', x: m.x + core.fxr(-3, 3), y: m.y + core.fxr(-2, 2), h: m.h, vx: 0, vy: 0, vh: 0, col: '#ff9628', t: 0, dur: .12 }); R.td.fx.push({ k: 'smoke', x: m.x, y: m.y, h: m.h + 2, vx: core.fxr(-4, 4), vy: 0, s: 4, t: 0, dur: .6 }); }
+      return core.sputter();
+    }
+    R.hot = false;
     if (!R.gold) R.charge--;
-    if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); const s = screenOf(bull.x, bull.y - 30); if (!R.fx.some(f => f.k === 'pop' && f.text === 'EMPTY')) core.popText('EMPTY', s.x / 2, s.y / 2, '#ff7050'); }
+    if (!R.gold && R.charge < 1) { const s = screenOf(bull.x, bull.y - 30); core.overheat(s.x / 2, s.y / 2); }
     bull.aimT = .14;
     const d = assist(bull.ax, bull.ay), mz = muzzle(), base = Math.atan2(d.y, d.x);
     const bolt = (a, extra) => R.shots.push(Object.assign({ x: mz.x, y: mz.y, h: mz.h, vx: Math.cos(a) * TD.shotSpeed, vy: Math.sin(a) * TD.shotSpeed, t: 0, a, dead: false }, extra));

@@ -14,7 +14,7 @@
 
   // lights out: ten seconds, eyes keep coming, and every kill in the dark frees two souls
   RUN.force = 909; startRun(); bull.inv = 1e9;
-  R.beat = 1; R.beatT = BEATS[1].time; R.flies = []; update(1 / 60);
+  R.beat = 1; R.beatT = BEATS[1].time; R.flies = []; update(1 / 60); if (R.event && R.event.kind === 'rush') { R.flies = []; R.event.t = R.event.dur; update(1 / 60); R.lull = 1e-9; update(1 / 60); } 
   check(R.event && R.event.kind === 'dark' && R.event.dur === TUNE.darkT, 'lights out lasts ' + TUNE.darkT + ' seconds');
   check(R.signs.some(sg => sg.neon && sg.text.startsWith('LIGHTS OUT')), 'with a neon sign');
   R.flies = []; step(3);
@@ -37,7 +37,7 @@
   check(R.phase === 'wake' && checkpoint && checkpoint.souls === R.souls, 'waking it saves a checkpoint');
   check(Snd.track === null, 'the wake is silent');
   step(1.6);
-  check(R.banner && R.banner.text === 'THE SHREDDER', 'it gets a name card');
+  check(R.banner && R.banner.text === 'SHRED-O', 'it gets a name card: SHRED-O');
   step(1.5);
   check(R.boss.bar === 1, 'and its health bar fills');
   for (let i = 0; i < 60 * 10 && R.phase !== 'boss'; i++) update(1 / 60);
@@ -80,7 +80,7 @@
   // the clear card shows the run's stats; a clear with continues doesn't set the fastest time
   const bestTime = (JSON.parse(localStorage.getItem('unruggabull-ii-best') || '{}').time) || 0;
   R.events.deflects = 7; R.events.smashes = 2; R.bestStreak = 9;
-  R.boss.hp = .1; bossDamage(1, 'deflect'); update(1 / 60);
+  R.boss.hp = .1; R.boss.final = { st: 'fire', t: 0 }; bossDamage(1, 'blaster'); update(1 / 60);
   check(R.phase === 'win' && R.white > 0 && R.slow > 0, 'the final hit flashes white and slows time');
   step(.4); const p0 = R.phaseT; step(.5);
   check(R.phaseT - p0 < .25, 'time runs slow for a moment');

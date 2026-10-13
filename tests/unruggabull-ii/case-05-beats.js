@@ -24,6 +24,24 @@
   R.flies = []; spawnFormation('line'); step(.6);
   check(!R.event && R.beatT > BEATS[1].time, 'the lights stay on while a formation is still coming');
   R.flies = []; update(1 / 60);
+  check(R.event && R.event.kind === 'rush' && R.event.dur === TUNE.rushT && R.signs.some(sg => sg.text === 'RUSH HOUR'), 'then rush hour, with its sign');
+  check(R.pickups.some(pk => pk.kind === 'spread'), 'and a Spread Shot to meet it with');
+  const fl0 = R.flies.length; step(TUNE.rush.first + .1);
+  check(R.flies.length > fl0 && R.flies.some(f => f.cause === 'rush' && f.hp === 1), 'carpshits pour down the hall, one hit each');
+  const cubsUp = () => R.cubs.some(cb => cb.temp && cb.temp.st !== 'hidden');
+  let waves = 0, seen = new Set(); for (let i = 0; i < 60 * 6; i++) { update(1 / 60); for (const f of R.flies) if (f.cause === 'rush' && !seen.has(f)) { seen.add(f); waves++; } }
+  check(waves >= 10 && !cubsUp(), 'wave after wave (' + waves + ' in 6 s), and the temps stay down');
+  // halfway through, a cross corridor: doors either side down the hall, carpshits streaming across between them
+  const X = TUNE.rush.cross, cw = R.event.crossW; let crossed = null, dirs = new Set();
+  for (let i = 0; i < 60 * 6 && dirs.size < 2; i++) { update(1 / 60); for (const f of R.flies) if (f.cross) { dirs.add(Math.sign(f.cross)); if (!crossed) crossed = { u: f.u, z: f.z, w: f.w }; } }
+  check(crossed && crossed.w === cw && dirs.size === 2 && R.event.kind === 'rush', 'carpshits cross the hall at the doors, both ways');
+  check(!R.cubs.some(cb => Math.abs(cb.w - cw) < X.clear), 'the doors are kept clear');
+  check(!setItems().some(it => it.layer !== 'over' && Math.abs(it.w - cw) < X.clear), 'of the meeting\'s chairs too');
+  R.flies = []; R.event.t = R.event.dur - .01; const s0 = R.souls; update(1 / 60);
+  check(!R.event && R.lull > 0 && R.pickups.some(pk => pk.kind === 'coffee'), 'then a lull, with a coffee');
+  step(TUNE.lull - .3);
+  check(!R.event && !R.flies.length && !R.rows.some(rw => rw.w > R.dist + .9), 'nothing comes at you in it');
+  step(.4);
   check(R.event && R.event.kind === 'dark', 'then the lights go out');
   step(1.5);
   check(darkness() > .5, 'and the hall is dark');
@@ -34,6 +52,11 @@
   check(R.pull.st !== 'idle' || R.pull.count > 0 || R.pull.next <= R.t + 1, 'the runner starts pulling');
   R.souls = 30; draw();
   check(R.phase === 'hall', 'the meter fills toward the Shredder');
+  // no desk is left standing in front of the Shredder: none spawn once it could wake before one passes
+  const sv = R.souls, bt = R.beatT; R.souls = TUNE.goal - 5; R.beatT = BEATS[2].minT - 2; R.boxes = []; R.nextBox = 0;
+  for (let i = 0; i < 30; i++) update(1 / 60);
+  check(!R.boxes.length, 'no new desks with the Shredder about to wake');
+  R.souls = sv; R.beatT = bt;
   step(BEATS[2].max);
   check(R.phase !== 'hall', 'the copy room ends at its time limit even short of the goal');
 })();

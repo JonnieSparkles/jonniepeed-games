@@ -96,15 +96,44 @@ function shuffle(k, heavy) {
   Object.assign(ch, paMuzak(k));
   return { bars: 8, channels: ch };
 }
-// The cold open: two bars of the office muzak (swung, slower), then the band crashes in. On the drums stem, so it
-// plays whatever the floor's stems are.
-function coldOpen() {
-  return { bars: 2, bpm: 120, swing: .14, channels: {
-    lead: { stem: 'drums', wave: 'triangle', vol: .15, gate: .95, notes: firstBars(MZ_LEAD, 2), vibrato: { rate: 5, depth: .01, delay: .15 } },
-    pad: { stem: 'drums', wave: 'sine', vol: .05, gate: .98, notes: pads(MZ.slice(0, 2), 0, 60), envelope: { attack: .03, decay: .2, sustain: .5, release: .15 } },
-    bass: { stem: 'drums', wave: 'triangle', vol: .26, gate: .85, notes: bassLine(MZ.slice(0, 2), 'R - - - F - - - O - - - F - T -', 0) },
-    beat: { stem: 'drums', wave: 'noise', vol: .4, notes: 'k . r h . h r . k k r h . h r . | k . r h . h r . T . T . T T T T' }
-  } };
+// Straight rock (All Staff, Rush Hour): the same tune and chords as the shuffle, driving eighths, no swing.
+function rock(k, heavy) {
+  const lead = shift(RK_LEAD, k);
+  const bar = heavy ? 'K K h K S . h K K K h K S . h K' : 'K . h K S . h K K . h K S . h h';
+  const fill = heavy ? 'K K K K S S S S S S S S S S S S' : 'K . h K S . h K S . S S S S S S';
+  const ch = {
+    drums: { stem: 'drums', wave: 'noise', vol: heavy ? .62 : .55, notes: [bar, bar, bar, fill, bar, bar, bar, fill].join(' | ') },
+    crash: { stem: 'drums', wave: 'noise', vol: .45, notes: [0, 1, 2, 3, 4, 5, 6, 7].map(i => i % 4 ? rest(1) : 'c . . . . . . . . . . . . . . .').join(' | ') },
+    bass: { stem: 'bass', wave: 'triangle', vol: .3, gate: .75, notes: bassLine(RK, 'R R O R R R O R R R O R R O F O', k) },
+    gtr: { stem: 'bass', wave: 'pulse', duty: .25, drive: true, notes: chug(RK.map(c => c.replace(/m7b5|7/, m => m === 'm7b5' ? 'm' : '')), heavy ? 'O - M M M - M M O - M M M - M M' : 'O - M M M . M M O - M M M . O -', k, heavy ? .046 : .04) },
+    lead: { stem: 'lead', wave: heavy ? 'sawtooth' : 'pulse', duty: .5, vol: heavy ? .06 : .085, gate: .92, notes: lead, vibrato: { rate: 6, depth: .012, delay: .1 }, echo: { delay: .15, feedback: .2, repeats: 1 } },
+    harmony: { stem: 'harmony', wave: 'pulse', duty: .25, vol: .04, gate: .92, notes: harm(lead, -2, E + k, E_MIN), vibrato: { rate: 6, depth: .012, delay: .1 } },
+    arp: { stem: 'power', wave: 'pulse', duty: .125, vol: .026, gate: .5, notes: arp(RK, k, 72, 'updown') },
+    kicks: { stem: 'power', wave: 'noise', vol: .3, notes: rep('K . K K K . K K K . K K K . K K', 8) }
+  };
+  Object.assign(ch, paMuzak(k));
+  return { bars: 8, channels: ch };
+}
+// The twin-guitar break: the office muzak's own tune (it sits on the same chords) as the lead, a third under it on the
+// harmony, with a crash on every bar. The copy room and All Staff go A, B, A, B, so the tune doesn't just loop.
+function twinBreak(p, k) {
+  const lead = shift(MZ_LEAD, k), c = p.channels;
+  c.lead = Object.assign({}, c.lead, { notes: lead, vol: c.lead.vol * 1.05 });
+  c.harmony = Object.assign({}, c.harmony, { notes: harm(lead, -2, E + k, E_MIN), vol: .05 });
+  c.crash = Object.assign({}, c.crash, { notes: rep('c . . . . . . . . . . . . . . .', 8) });
+  return p;
+}
+// Rush Hour: heavy straight rock up a fourth, the tune an octave down on the saw, a crash every bar and an alarm
+// (a two-note siren on the pulse, an octave and a fifth over the chord's root) on the power stem.
+function rush(k) {
+  const p = rock(k, true), c = p.channels, lead = shift(RK_LEAD, k - 12);
+  c.lead = Object.assign({}, c.lead, { notes: lead });
+  c.harmony = Object.assign({}, c.harmony, { notes: harm(lead, -2, E + k, E_MIN), vol: .045 });
+  c.crash = Object.assign({}, c.crash, { notes: rep('c . . . . . . . . . . . . . . .', 8) });
+  c.alarm = { stem: 'power', wave: 'pulse', duty: .125, vol: .03, gate: .9, notes: RK.map(ch => { const r = 64 + chord(ch).pc + k - (chord(ch).pc + k >= 7 ? 12 : 0);
+    return [r + 12, '-', '-', '-', r + 19, '-', '-', '-', r + 12, '-', '-', '-', r + 19, '-', '-', '-'].map(t => typeof t === 'number' ? nm(t) : t).join(' '); }).join(' | ') };
+  c.kicks = Object.assign({}, c.kicks, { notes: rep('K K K K K K K K K K K K K K K K', 8), vol: .26 });
+  return p;
 }
 // Scale a whole track's levels (the copy room and the Shredder sit louder than the hall).
 function louder(t, f) {
@@ -118,8 +147,10 @@ const track = (name, bpm, swing, patterns, order, stems) => ({ name, key: 'Em', 
 const HALL = ['drums', 'bass', 'lead'], ALL = HALL.concat('harmony', 'power'), HEAVY = ALL.concat('heavy');
 
 const tracks = {
-  floorHall: Object.assign(track('The 13th Floor · Shuffle', 150, .22, { I: coldOpen(), A: shuffle(0, false) }, ['I', 'A'], HALL), { loop: 1 }),
-  floorCopy: louder(track('The 13th Floor · Shuffle · Copy Room', 158, .22, { A: shuffle(2, false) }, ['A'], ALL), 1.15),
+  floorHall: track('The 13th Floor · Shuffle', 150, .22, { A: shuffle(0, false) }, ['A'], HALL),
+  floorStaff: louder(track('The 13th Floor · All Staff', 160, 0, { A: rock(2, false), B: twinBreak(rock(2, false), 2) }, ['A', 'B'], ALL), 1.1),
+  floorRush: louder(track('The 13th Floor · Rush Hour', 172, 0, { A: rush(5) }, ['A'], HEAVY), 1.3),
+  floorCopy: louder(track('The 13th Floor · Shuffle · Copy Room', 158, .22, { A: shuffle(2, false), B: twinBreak(shuffle(2, false), 2) }, ['A', 'B'], ALL), 1.15),
   floorShred: louder(track('The 13th Floor · Shuffle · Shredder', 168, .18, { A: shuffle(3, true) }, ['A'], HEAVY), 1.4)
 };
 

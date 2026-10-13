@@ -39,6 +39,7 @@
     jumpH: .2, jumpT: .65,
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38, aimWork: .8,
     charges: 20, recharge: .5, spreadT: 10,
+    overheat: 1, cool: 3,   // run it dry and the blaster overheats: overheat seconds with no recharge, then it won't fire until it's back to cool charges; it sputters if you pull the trigger meanwhile
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
     hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1
   };
@@ -107,7 +108,7 @@
       beat: 0, beatT: 0, event: null,
       cubs: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
       nextCubW: 1.1, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
-      charge: TUNE.charges, rechargeT: 0, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
+      charge: TUNE.charges, rechargeT: 0, heat: 0, hot: false, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
       banner: null, talk: null, bark: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
@@ -175,12 +176,16 @@
     const frozen = R.event && R.event.kind === 'dark' && R.event.flash > 0;
     for (const f of R.flies) {
       if (frozen && !f.dead) { f.hit = Math.max(0, f.hit - dt); continue; }   // caught in the light: frozen
-      if (f.form) {
+      if (f.cross) {
+        // crossing the hall at a fixed spot down it (rush hour's cross corridor): carried toward him with the hall
+        f.z = f.w - R.dist; f.u += f.cross * dt;
+        if (Math.abs(f.u) > .97) { f.dead = true; continue; }
+      } else if (f.form) {
         // formations keep their shape instead of chasing you
         f.z -= (.3 + R.speed * .4) * dt;
         if (f.snake != null) f.u = .55 * Math.sin(f.snake + R.t * 2.2);
       } else {
-        f.z -= (.34 + R.speed * .4) * dt;
+        f.z -= (.34 + R.speed * .4) * (f.fast || 1) * dt;
         f.u = clamp(f.u + clamp(bull.u - f.u, -.3, .3) * dt * .9 + Math.sin(R.t * 3 + f.ph) * .12 * dt, -.75, .75);
       }
       if (f.z < .45) f.h += ((f.high ? .22 : .12) - f.h) * Math.min(1, dt * 2.5);
@@ -262,12 +267,27 @@
     floor.slash(near);
     for (const f of R.flies) if (!f.dead && near(f.u, f.z)) killFly(f, 'slash');
   }
-  // One shot (three with Spread Shot) for one charge. Out of charges: a click, a red flash, and a wait.
+  // One shot (three with Spread Shot) for one charge. Run it dry and it overheats: OVERHEAT, a power-down, no recharge
+  // for TUNE.overheat seconds, and then it won't fire until it has cooled back to TUNE.cool charges; pull the trigger
+  // meanwhile and it only sputters (sparks, smoke, a choked zap). So holding Shoot on an empty gun gets short bursts
+  // with pauses, not a steady trickle. Every floor's blaster works this way (topdown.js uses the same calls).
+  const hot = () => R.hot && R.charge < Math.min(TUNE.cool, TUNE.charges);
+  function overheat(x, y) {
+    R.dry = true; R.hot = true; R.heat = TUNE.overheat; R.rechargeT = 0; emit('empty'); Snd.play('drained');
+    if (!R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT')) popText('OVERHEAT', x, y, '#ff7050');
+  }
+  function sputter() {
+    R.empty = .2;
+    if (R.hot) { Snd.play('sputter'); const m = muzzleXY(); R.fx.push({ k: 'sputter', x: m.x, y: m.y, t: 0, dur: .14 }, { k: 'smoke', x: m.x + fxr(-1, 1), y: m.y - 1, t: 0, dur: fxr(.4, .6) }); }
+    else Snd.play('empty');
+    return false;
+  }
   function fire() {
     if (R.armed === false) { R.empty = .2; Snd.play('empty'); return false; }   // knocked out of his hands: go and get it
-    if (!R.gold && R.charge < 1) { R.empty = .2; Snd.play('empty'); return false; }
+    if (!R.gold && (R.charge < 1 || hot())) return sputter();
+    R.hot = false;
     if (!R.gold) R.charge--;
-    if (R.charge < 1) { R.dry = true; emit('empty'); Snd.play('drained'); if (!R.fx.some(f => f.k === 'pop' && f.text === 'EMPTY')) popText('EMPTY', PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3), '#ff7050'); }
+    if (!R.gold && R.charge < 1) overheat(PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3));
     bull.aimT = .22;
     if (floor.fire) {
       floor.fire(); R.events.shots = (R.events.shots || 0) + 1;
@@ -284,7 +304,8 @@
     shot(0);
     if (R.gold) R.shots[R.shots.length - 1].soul = true;
     if (R.spread > 0) { shot(-.6); shot(.6); }
-    // the souls' streams: a shot either side of the bolt, flying straight beside it (never bending in), no extra charge;
+    // the souls' streams: a shot beside the bolt for each soul in the gun (one on the 13th Floor, on the right; two, one
+    // either side), flying straight beside it (never bending in), no extra charge;
     // drawn as ribbons of light from the muzzle (drawStreams)
     const hs = R.hint ? R.hint.streams : 1;
     if (hs > 1) for (const o of hs === 2 ? [1] : [-1, 1]) R.shots.push({ u: mu + o * .07, z: bull.bz + .03, h: mh, du: 0, tgt: null, dead: false, soul: true, side: o });
@@ -292,6 +313,7 @@
     const k = sc(bull.bz);
     R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k, t: 0, dur: .08 });
     Snd.play('shot', R.spread > 0);
+    if (hs > 1) Snd.play('hintStream');
     return true;
   }
   function sparks(u, z, h, col) { R.fx.push({ k: 'spark', x: PX(u, z), y: YH(z, h), s: Math.max(.5, sc(z)), col: col || '#ffd44a', t: 0, dur: .22, a: Math.random() * 6 }); }
@@ -460,7 +482,7 @@
     start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
     dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
-    low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
+    rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
@@ -525,12 +547,13 @@
     }
     R.t += dt; R.phaseT += dt;
     R.streakT -= dt; R.empty = Math.max(0, R.empty - dt); R.chargeFlash = Math.max(0, (R.chargeFlash || 0) - dt); R.spread = Math.max(0, R.spread - dt);
-    if (R.charge < TUNE.charges) { R.rechargeT += dt; while (R.rechargeT >= TUNE.recharge && R.charge < TUNE.charges) { R.rechargeT -= TUNE.recharge; R.charge++; } }
+    if (R.heat > 0) { R.heat = Math.max(0, R.heat - dt); R.rechargeT = 0; }
+    else if (R.charge < TUNE.charges) { R.rechargeT += dt; const every = floor.rechargeNow ? floor.rechargeNow() : TUNE.recharge; while (R.rechargeT >= every && R.charge < TUNE.charges) { R.rechargeT -= every; R.charge++; } }
     else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt); R.rallyPop = Math.max(0, (R.rallyPop || 0) - dt);
     // a rally speeds the music up as it goes
     const tempo = R.phase === 'boss' && R.boss.rally ? 1 + Math.min(.4, .05 * R.boss.rally.count) : 1;
-    if (tempo !== R.tempo) { R.tempo = tempo; Snd.tempo(tempo); }
+    if (tempo !== R.tempo) { R.tempo = tempo; Snd.tempo(tempo, { boundary: 'beat' }); }   // on the beat, so it keeps up with the returns
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
     if (R.bark) { R.bark.t += dt; if (R.bark.t > R.bark.total) R.bark = null; }
@@ -688,7 +711,7 @@
     g.save(); g.globalAlpha = Math.min(1, u * 2.5); g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h); g.restore();
   }
   // Effects come in three passes: things in the hall that take its light, things that glow, and words (over it all).
-  const FX_PASS = { wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
+  const FX_PASS = { sputter: 'glow', wisp: 'glow', bolt: 'glow', rise: 'glow', muzzle: 'glow', spark: 'glow', pop: 'words', big: 'words' };
   function drawFx(pass) {
     if (pass === 'glow') drawStreams();
     if (pass === 'glow' && R.phase === 'dead' && R.soulAt && R.phaseT > 1) bullSoul(R.phaseT - 1, ...R.soulAt);
@@ -719,10 +742,15 @@
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
-        // the blaster spinning up the rug after the surge
-        const pk = f.pk, z = pk.w - R.dist, tx = PX(pk.u, z), ty = FY(z) - 4, q = k, s2 = Math.max(.5, sc(z) * 1.3);
+        // the blaster spinning up the rug (or into the Shredder's mouth: tx, ty) after the surge
+        const pk = f.pk, z = pk ? pk.w - R.dist : .95, tx = pk ? PX(pk.u, z) : f.tx, ty = pk ? FY(z) - 4 : f.ty, q = k, s2 = Math.max(.5, sc(z) * 1.3);
         const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.uw(A.BLASTER) * s2), h = Math.round(A.uh(A.BLASTER) * s2);
         g.save(); g.translate(Math.round(bx), Math.round(by)); g.rotate(Math.floor(f.t * 16) % 4 * Math.PI / 2); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
+      }
+      else if (f.k === 'sputter') {
+        // a choked muzzle flash: a few ragged orange and red pixels and a dim blue fizz, flickering
+        if (Math.floor(f.t * 40) % 2) continue;
+        for (let i = 0; i < 4; i++) rect(g, Math.round(f.x + fxr(-3, 3)), Math.round(f.y + fxr(-2, 2)), 1, 1, i ? (k < .5 ? '#ff9628' : '#d63428') : '#7fd4ff');
       }
       else if (f.k === 'muzzle') { const m = k < .5 ? 9 : 7; g.drawImage(A.FLASH, Math.round(f.x - m / 2), Math.round(f.y - m / 2), m, m); }
       else if (f.k === 'dust') for (const d of [-1, 1]) rect(g, f.x + d * (4 + k * 8) * f.s, f.y - 1 - k * 2, 2, 1, '#8a8094');
@@ -731,7 +759,7 @@
   }
   function drawHUD() {
     for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
-    // blaster charge under the hearts: blue when ready, red and blinking when empty, gold with Spread Shot
+    // blaster charge under the hearts: blue when ready, red and blinking when empty (and overheated), gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
     rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.gold || R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
@@ -968,7 +996,7 @@
     altBtn.hidden = true; cardNote.hidden = true;
     if (kind === 'title') {
       cardTitle.textContent = 'The 13th Floor: Accounting';
-      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on the 13th Floor to wake the Shredder, then beat it.';
+      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on the 13th Floor to wake SHRED-O, then beat it.';
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
@@ -992,7 +1020,7 @@
       cardTitle.textContent = 'Rugged.';
       if (checkpoint) {
         // beaten by the Shredder: pick up at the fight with full hearts, or start the floor over
-        cardText.textContent = floor.continueText ? floor.continueText() : 'Continue from the Shredder with full hearts?';
+        cardText.textContent = floor.continueText ? floor.continueText() : 'Continue from SHRED-O with full hearts?';
         altBtn.textContent = 'Restart floor'; altBtn.hidden = false;
       } else cardText.textContent = 'Continue? The floor starts over.';
       rows.push(['Souls freed', String(R.souls)], ['Best', best.souls + ' souls']);
@@ -1018,7 +1046,7 @@
   function stageNo() {
     if (floor.stageNo) return floor.stageNo();
     if (R.phase === 'win') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
+    if (R.phase === 'hall') return R.event ? ({ move: 2, rush: 3 }[R.event.kind] || 4) : [1, 3, 5][R.beat];   // rush hour reports as All Staff
     if (R.phase === 'wake') return 6;
     if (R.phase === 'boss') return 5 + R.boss.ph;
     return R.statsStage || 1;
@@ -1058,7 +1086,7 @@
     statsStart();   // a continue is a run of its own, from the Shredder
     setState('play'); card.hidden = true;
     if (floor.resume) floor.resume(); else floor.startWake();
-    live(floor.continueText ? floor.continueText() : 'Back at the Shredder with full hearts.');
+    live(floor.continueText ? floor.continueText() : 'Back at SHRED-O with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
   // The 13th Floor's elevator: the plain ride (no fight, Please Hold, a supply crate) up to the 48th Floor.
@@ -1439,7 +1467,7 @@
     A, Snd, rect, line, disc, poly, txt, otxt, textWidth, W, H, VX,
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
-    updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
+    updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }

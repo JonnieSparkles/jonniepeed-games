@@ -12,7 +12,7 @@
     if (R.stage === 'roof' || R.stage === 'elevator' || R.stage === 'floor48') return floor.stageNo();
     if (R.phase === 'dead') return lastStage;
     if (R.phase === 'win' || state === 'over') return 9;
-    if (R.phase === 'hall') return R.event ? (R.event.kind === 'move' ? 2 : 4) : [1, 3, 5][R.beat];
+    if (R.phase === 'hall') return R.event ? ({ move: 2, rush: 3 }[R.event.kind] || 4) : [1, 3, 5][R.beat];   // rush hour counts as All Staff (its hits have cause rush)
     if (R.phase === 'wake') return 6;
     return 5 + R.boss.ph;
   }
