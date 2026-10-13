@@ -88,8 +88,9 @@ def check_music(browser, root):
       S.music('floorCopy',{boundary:'bar',stems:ALL});until(window.musicNow+1.65);check(S.musicState.playing==='floorCopy'&&S.musicState.pattern==='A','the copy room on the bar');
       until(window.musicNow+12.3);check(S.musicState.pattern==='B','and its break after eight bars');
       S.music('floorShred',{slam:true,stems:HEAVY});check(S.musicState.playing==='floorShred'&&S.musicState.stems.join()===HEAVY.join(),'the Shredder slams in heavy');
-      S.tempo(1.2);check(S.musicState.rate===1,'a rally speeds it up on the next bar');
-      until(window.musicNow+60/168*4+.05);check(S.musicState.rate===1.2,'by then');
+      S.tempo(1.2,{boundary:'beat'});check(S.musicState.rate===1,'a rally speeds it up on the next beat');
+      until(window.musicNow+60/168+.05);check(S.musicState.rate===1.2,'by then, not a bar later');
+
       S.music(null,{hard:true});
     }''')
     page.close()

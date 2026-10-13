@@ -37,7 +37,7 @@
   check(R.phase === 'wake' && checkpoint && checkpoint.souls === R.souls, 'waking it saves a checkpoint');
   check(Snd.track === null, 'the wake is silent');
   step(1.6);
-  check(R.banner && R.banner.text === 'THE SHREDDER', 'it gets a name card');
+  check(R.banner && R.banner.text === 'SHRED-O', 'it gets a name card: SHRED-O');
   step(1.5);
   check(R.boss.bar === 1, 'and its health bar fills');
   for (let i = 0; i < 60 * 10 && R.phase !== 'boss'; i++) update(1 / 60);

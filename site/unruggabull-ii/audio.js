@@ -313,10 +313,8 @@ window.UnrugSound = (function () {
       if (P.pendingTrack && P.step % (P.pendingTrack.boundary === 'beat' ? 4 : 16) === 0) {
         const next = P.pendingTrack, at = P.next; P.pendingTrack = null; playTrack(next.id, Object.assign({}, next.options, { at, slam: true })); return;
       }
-      if (P.step % 16 === 0) {
-        if (P.pendingStems) { P.stems = P.pendingStems; P.pendingStems = null; }
-        if (P.pendingTempo) { P.rate = P.pendingTempo; P.pendingTempo = 0; }
-      }
+      if (P.step % 16 === 0 && P.pendingStems) { P.stems = P.pendingStems; P.pendingStems = null; }
+      if (P.pendingTempo && P.step % P.tempoEvery === 0) { P.rate = P.pendingTempo; P.pendingTempo = 0; }
       const S = P.comp[P.si], t = P.next, duration = S.stepDur / P.rate;
       for (const ch of S.chans) if (P.stems.has(ch.stem)) for (const e of ch.byStep[P.step] || []) patternNote(ch.drive ? P.drive : P.out, ch, e, t, duration);
       P.next += duration * (P.step % 2 ? 1 - S.swing : 1 + S.swing); P.step++;
@@ -324,7 +322,7 @@ window.UnrugSound = (function () {
     }
     restoreDuck();
   }
-  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1, modern: false, patternLoop: null, stems: new Set(), pendingStems: null, pendingTempo: 0, pendingTrack: null };   // rate: tempo multiplier (a rally speeds the music up)
+  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1, modern: false, patternLoop: null, stems: new Set(), pendingStems: null, pendingTempo: 0, tempoEvery: 16, pendingTrack: null };   // rate: tempo multiplier (a rally speeds the music up)
   function stopTrack(hard = false, at) {
     P.pendingTrack = null; P.pendingStems = null; P.pendingTempo = 0;
     if (!P.id) return;
@@ -713,7 +711,8 @@ window.UnrugSound = (function () {
     },
     get track() { return want; },
     // Tempo: 1 is the track's own; above 1 plays it faster at the same pitch.
-    tempo(r) { const value = Math.max(.5, Math.min(2, r || 1)); if (P.modern) P.pendingTempo = value; else P.rate = value; },
+    // a new tempo on the next bar, or with { boundary: 'beat' } on the next beat (the 13th Floor's rallies)
+    tempo(r, o) { const value = Math.max(.5, Math.min(2, r || 1)); if (P.modern) { P.pendingTempo = value; P.tempoEvery = o && o.boundary === 'beat' ? 4 : 16; } else P.rate = value; },
     stems(names) { if (!ctx) wantOptions = Object.assign({}, wantOptions, { stems: names }); P.pendingStems = new Set(names); },
     stinger, riser, roofCue, factoryCue,
     // the long ride's brownout: the music muffles and sags over a couple of seconds, until it's stopped

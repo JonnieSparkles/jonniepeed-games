@@ -96,23 +96,6 @@ function shuffle(k, heavy) {
   Object.assign(ch, paMuzak(k));
   return { bars: 8, channels: ch };
 }
-// The cold open: two bars of the office muzak (swung, slower), then the band crashes in. On the drums stem, so it
-// plays whatever the floor's stems are.
-function coldOpen() {
-  return { bars: 2, bpm: 120, swing: .14, channels: {
-    lead: { stem: 'drums', wave: 'triangle', vol: .15, gate: .95, notes: firstBars(MZ_LEAD, 2), vibrato: { rate: 5, depth: .01, delay: .15 } },
-    pad: { stem: 'drums', wave: 'sine', vol: .05, gate: .98, notes: pads(MZ.slice(0, 2), 0, 60), envelope: { attack: .03, decay: .2, sustain: .5, release: .15 } },
-    bass: { stem: 'drums', wave: 'triangle', vol: .26, gate: .85, notes: bassLine(MZ.slice(0, 2), 'R - - - F - - - O - - - F - T -', 0) },
-    beat: { stem: 'drums', wave: 'noise', vol: .4, notes: 'k . r h . h r . k k r h . h r . | k . r h . h r . T . T . T T T T' }
-  } };
-}
-// The cold open on a loop: the muzak holds, without the fill, until the first carpshit or the first paper wad; then
-// the floor switches to the band on the next beat (floor13.js), so the drop lands on the first bad guy.
-function muzakLoop() {
-  const p = coldOpen();
-  p.channels.beat.notes = 'k . r h . h r . k k r h . h r . | k . r h . h r . k k r h . h r .';
-  return p;
-}
 // Straight rock (All Staff, Rush Hour): the same tune and chords as the shuffle, driving eighths, no swing.
 function rock(k, heavy) {
   const lead = shift(RK_LEAD, k);
@@ -164,7 +147,6 @@ const track = (name, bpm, swing, patterns, order, stems) => ({ name, key: 'Em', 
 const HALL = ['drums', 'bass', 'lead'], ALL = HALL.concat('harmony', 'power'), HEAVY = ALL.concat('heavy');
 
 const tracks = {
-  floorOpen: track('The 13th Floor · Muzak', 120, .14, { I: muzakLoop() }, ['I'], HALL),
   floorHall: track('The 13th Floor · Shuffle', 150, .22, { A: shuffle(0, false) }, ['A'], HALL),
   floorStaff: louder(track('The 13th Floor · All Staff', 160, 0, { A: rock(2, false), B: twinBreak(rock(2, false), 2) }, ['A', 'B'], ALL), 1.1),
   floorRush: louder(track('The 13th Floor · Rush Hour', 172, 0, { A: rush(5) }, ['A'], HEAVY), 1.3),

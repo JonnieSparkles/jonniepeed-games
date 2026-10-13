@@ -553,7 +553,7 @@
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt); R.rallyPop = Math.max(0, (R.rallyPop || 0) - dt);
     // a rally speeds the music up as it goes
     const tempo = R.phase === 'boss' && R.boss.rally ? 1 + Math.min(.4, .05 * R.boss.rally.count) : 1;
-    if (tempo !== R.tempo) { R.tempo = tempo; Snd.tempo(tempo); }
+    if (tempo !== R.tempo) { R.tempo = tempo; Snd.tempo(tempo, { boundary: 'beat' }); }   // on the beat, so it keeps up with the returns
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
     if (R.bark) { R.bark.t += dt; if (R.bark.t > R.bark.total) R.bark = null; }
@@ -996,7 +996,7 @@
     altBtn.hidden = true; cardNote.hidden = true;
     if (kind === 'title') {
       cardTitle.textContent = 'The 13th Floor: Accounting';
-      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on the 13th Floor to wake the Shredder, then beat it.';
+      cardText.textContent = 'Something on the roof of RugCo Tower is catching the souls of every carpshit you ever unrugged. Free ' + TUNE.goal + ' of them on the 13th Floor to wake SHRED-O, then beat it.';
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
@@ -1020,7 +1020,7 @@
       cardTitle.textContent = 'Rugged.';
       if (checkpoint) {
         // beaten by the Shredder: pick up at the fight with full hearts, or start the floor over
-        cardText.textContent = floor.continueText ? floor.continueText() : 'Continue from the Shredder with full hearts?';
+        cardText.textContent = floor.continueText ? floor.continueText() : 'Continue from SHRED-O with full hearts?';
         altBtn.textContent = 'Restart floor'; altBtn.hidden = false;
       } else cardText.textContent = 'Continue? The floor starts over.';
       rows.push(['Souls freed', String(R.souls)], ['Best', best.souls + ' souls']);
@@ -1086,7 +1086,7 @@
     statsStart();   // a continue is a run of its own, from the Shredder
     setState('play'); card.hidden = true;
     if (floor.resume) floor.resume(); else floor.startWake();
-    live(floor.continueText ? floor.continueText() : 'Back at the Shredder with full hearts.');
+    live(floor.continueText ? floor.continueText() : 'Back at SHRED-O with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
   // The 13th Floor's elevator: the plain ride (no fight, Please Hold, a supply crate) up to the 48th Floor.

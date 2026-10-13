@@ -458,7 +458,7 @@ var UnrugFloor13 = function (core) {
               for (let i = 0; i < 16; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 6, BACK.x1 - 6), y: fxr(BACK.y0 + 6, BACK.y1 - 6), vx: fxr(-70, 70), vy: fxr(-90, -10), t: 0, dur: fxr(.8, 1.3) });
             }
             emit('smash', { amount: rl.count }); bossDamage(dmg, 'smash'); Snd.play('smash'); bark('smash');
-            popText('SMASH! -' + dmg, 120, BACK.y0 + 30, '#ffd44a'); live('Smash! The Shredder misses the return.');
+            popText('SMASH! -' + dmg, 120, BACK.y0 + 30, '#ffd44a'); live('Smash! SHRED-O misses the return.');
             for (let i = 0; i < 12; i++) R.fx.push({ k: 'bit', x: fxr(BACK.x0 + 12, BACK.x1 - 12), y: BACK.y1 - 10, vx: fxr(-40, 40), vy: fxr(-70, -20), t: 0, dur: fxr(.6, 1.1) });
           } else if (b.st === 'fight') {
             const base = p.kind === 'bundle' ? TUNE.bundleDmg : p.kind === 'scrap' ? TUNE.scrapDmg : p.kind === 'plane' ? TUNE.planeDmg : TUNE.stapleDmg, dmg = Math.round(base * (p.power || 1) * 10) / 10;
@@ -567,7 +567,7 @@ var UnrugFloor13 = function (core) {
     for (const row of R.rows) row.hit = row.hit || .001;
     endPull();
     Snd.music(null);
-    live('The far wall wakes up. It is the Shredder.');
+    live('The far wall wakes up. It is SHRED-O.');
   }
   function startBoss() {
     R.phase = 'boss'; R.phaseT = 0;
@@ -597,7 +597,7 @@ var UnrugFloor13 = function (core) {
       if (!R.events.marathonLine) { R.events.marathonLine = true; talk("LET'S GO THE DISTANCE.", 'shredder'); }
       live('A marathon rally: keep knocking it back.');
     }
-    if (!R.events.rallyHint) { R.events.rallyHint = true; R.banner = { text: 'SLASH IT BACK', t: 0, dur: 1.6, pull: true }; live('Rally! Keep knocking the glowing bundle back until the Shredder misses.'); }
+    if (!R.events.rallyHint) { R.events.rallyHint = true; R.banner = { text: 'SLASH IT BACK', t: 0, dur: 1.6, pull: true }; live('Rally! Keep knocking the glowing bundle back until SHRED-O misses.'); }
   }
   // Phase 3's power surge: a bolt from its eyes yanks the blaster out of his hands and into its mouth, where it sticks
   // in its teeth, sparking ("CONFISCATED."). No dodging it: from then on the katana is all he has, and the Shredder's
@@ -620,7 +620,7 @@ var UnrugFloor13 = function (core) {
     R.events.disarms = (R.events.disarms || 0) + 1; emit('disarm');
     Snd.play('surge'); Snd.play('disarm'); bark('disarm');
     if (!R.events.surgeHint) { R.events.surgeHint = true; R.banner = { text: 'KNOCK ITS PAPER BACK', t: TUNE.surgeFly - 2.6, dur: 2.6 + TUNE.surgeFly, pull: true }; talk('CONFISCATED.', 'shredder'); }
-    live('Power surge! The Shredder pulls the blaster into its mouth. Knock its paper back to wear it down.');
+    live('Power surge! SHRED-O pulls the blaster into its mouth. Knock its paper back to wear it down.');
   }
   // The soul puts the blaster back in his hands at the finish, charged.
   function handBack() {
@@ -722,7 +722,7 @@ var UnrugFloor13 = function (core) {
     for (const p of R.projs) if (!p.dead && !p.friendly) { p.dead = true; poof(p.u, p.z, p.h); }
     b.jamTag = 'STUNNED'; b.shudder = 1.2; R.shake = Math.max(R.shake, .3);
     R.fx.push({ k: 'big', text: 'STUNNED!', x: 120, y: 44, t: 0, dur: 1.1 });
-    live('The Shredder is stunned.');
+    live('SHRED-O is stunned.');
     if (soulsInGun()) { openFinale(); return; }
     b.jam = b.jamMax = 99;   // held until the soul lands
     b.final = { st: 'fetch', t: 0 };
@@ -980,7 +980,7 @@ var UnrugFloor13 = function (core) {
       if (R.phaseT > 1.4 && b.st === 'sleep') {
         b.st = 'awake'; R.shake = .3; Snd.play('wake');
         // an old-school boss card, and its health bar ticks up to full
-        R.banner = { text: 'THE SHREDDER', sub: 'HEAD OF DOCUMENT DESTRUCTION', t: 0, dur: 2.8, y: 96 };
+        R.banner = { text: 'SHRED-O', sub: 'HEAD OF DOCUMENT DESTRUCTION', t: 0, dur: 2.8, y: 96 };
       }
       if (b.st === 'awake' && b.bar < 1 && R.phaseT > 1.7) {
         const was = b.bar; b.bar = Math.min(1, (R.phaseT - 1.7) / 1.2);
@@ -1763,7 +1763,7 @@ var UnrugFloor13 = function (core) {
 
   function opening() {
     R.banner = { text: 'THE 13TH FLOOR', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
-    live('The 13th Floor, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
+    live('The 13th Floor, Accounting. Free ' + TUNE.goal + ' souls to wake SHRED-O.');
     Snd.play('start'); musicDrop();
   }
   function clearCard(extra, best, clock) {
@@ -1775,7 +1775,7 @@ var UnrugFloor13 = function (core) {
       rows, note: 'The elevator to floor 42 comes in a later build.' };
   }
   return {
-    id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'The Shredder will wait. It has nowhere else to be.',
+    id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'SHRED-O will wait. It has nowhere else to be.',
     // hooks
     use: x => { g = x; }, rechargeNow: () => R.phase === 'hall' && R.event && R.event.kind === 'rush' ? TUNE.rush.recharge : TUNE.recharge, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, aimIdle, shotHits, shotFar, slash, hurt, blasterBack, posOf, musicDrop,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
