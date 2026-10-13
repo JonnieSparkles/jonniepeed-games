@@ -287,9 +287,9 @@
       g.save(); g.globalAlpha = .4 * open; g.fillStyle = '#ffe8a8'; g.beginPath(); g.moveTo(d.x0, d.bot0); g.lineTo(d.x1, d.bot1); g.lineTo(330, 246); g.lineTo(380, 240); g.closePath(); g.fill(); g.restore();
     }
     // the door leaf: closed it fills the frame; open it swings in, narrowing to its edge against the far side
-    const k = 1 - clamp(open, 0, 1), lx = lerp(d.x1 - 2, d.x0, k);
+    const k = 1 - clamp(open, 0, 1), lx = lerp(d.x0 + 2, d.x1, k);   // closed it reaches the far jamb; kicked in, a sliver at the near one
     if (k > .02) {
-      quad([[d.x0, d.top0], [lx, lerp(d.top1, d.top0, k) - (1 - k) * 6], [lx, lerp(d.bot1, d.bot0, k) + (1 - k) * 2], [d.x0, d.bot0]], '#64719a');
+      quad([[d.x0, d.top0], [lx, lerp(d.top0 - 6, d.top1, k)], [lx, lerp(d.bot0 + 2, d.bot1, k)], [d.x0, d.bot0]], '#64719a');
       quad([[d.x0 + 2, d.top0 + 6], [lerp(d.x0 + 2, lx - 2, 1), lerp(d.top1, d.top0, k) + 4], [lx - 2, lerp(d.top1, d.top0, k) + 22], [d.x0 + 2, d.top0 + 24]], '#a8c8e8');
       g.fillStyle = '#c4ccda'; g.fillRect(Math.round(lerp(d.x0 + 4, lx - 6, .7)), 190, 3, 4);   // the handle
     }
