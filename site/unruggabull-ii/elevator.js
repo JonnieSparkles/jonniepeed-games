@@ -18,6 +18,8 @@ var UnrugElevator = function (core) {
     // backed against a wall with no thread that side
     waves: { first: 2.6, every: 1.8, everyLast: 1.5, size: 2, sizeLast: 3, most: 7, lanes: [-.682, -.391, .136, .273, .545], clear: .12 },
     crateSouls: 20, crateFrom: .473, crateSpeed: .68, deadWait: 2.8, walkOut: 1.1, doorway: .12, exitAfter: 1.4,
+    // the long ride's arrival: the operator asks as the doors finish opening, he answers, and only then can he walk out
+    ask: { floor: .9, roof: 2.2, out: 2.6 },
     arena: {} };
   const arena = UnrugArena(core, ELEVATOR.arena);
   const W = 480, H = 270, FLOOR = 240, HX = 150, CAR_L = 40, CAR_R = 440;
@@ -96,9 +98,9 @@ var UnrugElevator = function (core) {
     [T.arrive, () => { arrive(); Snd.play('rideSlam'); }],
     [T.arrive + .5, () => Snd.play('rideDing')],
     [T.doors, () => { Snd.play('rideDoors'); emit('elevator_doors'); }],
-    [T.doors + 1.3, () => say('operator', 'FLOOR?', 1.6)],
+    [T.doors + ELEVATOR.ask.floor, () => say('operator', 'FLOOR?', 1.6)],
     [T.doors + 1.6, () => Snd.play('thunder')],
-    [T.doors + 3.1, () => { if (!Q.out) say('bull', 'ROOF.', 1.4); }]
+    [T.doors + ELEVATOR.ask.roof, () => { if (!Q.out) say('bull', 'ROOF.', 1.4); }]
   ];
   function plainCues() {
     const p = top();
@@ -188,8 +190,11 @@ var UnrugElevator = function (core) {
   // In the doorway once the doors are open and the operator has asked: he answers, turns his back to us and walks out.
   function stepWalkOut(dt) {
     const p = top();
-    if (Q.out <= 0 && !(Q.t > p.doors + ELEVATOR.exitAfter && Math.abs(bull.u) < ELEVATOR.doorway && bull.jh <= 0)) return;
-    if (Q.out === 0) { emit('elevator_exit'); if (Q.fight && Q.t < T.doors + 3.1) say('bull', 'ROOF.', 1.4); }   // he answers on his way out
+    // on the long ride he can't leave before the exchange at the doors has played (owner, Oct 13: standing in the doorway
+    // he walked out before "FLOOR?" and "ROOF.")
+    const gate = Q.fight ? T.doors + ELEVATOR.ask.out : p.doors + ELEVATOR.exitAfter;
+    if (Q.out <= 0 && !(Q.t > gate && Math.abs(bull.u) < ELEVATOR.doorway && bull.jh <= 0)) return;
+    if (Q.out === 0) { emit('elevator_exit'); if (Q.fight && Q.t < T.doors + ELEVATOR.ask.roof) say('bull', 'ROOF.', 1.4); }   // he answers on his way out
     Q.out = Math.min(1, Q.out + dt / ELEVATOR.walkOut); R.arena.out = Q.out;
     bull.u += (0 - bull.u) * (1 - Math.pow(.0016, dt)); bull.step += dt * 8;
     if (Q.out < 1) return;
@@ -346,9 +351,11 @@ var UnrugElevator = function (core) {
     if (lw <= 0) return;
     for (const [x, right] of [[168, 0], [312 - lw, 1]]) {
       rect(g, x, 76, lw, 164, '#2a170f'); rect(g, x + 1, 77, lw - 2, 162, '#7a5a2e');
-      // an art-deco sunburst
-      const cx = right ? x : x + lw;
-      for (let i = 0; i < 7; i++) { const a = (right ? -1 : 1) * (.25 + i * .2); line(g, cx, 236, cx + Math.sin(a) * 60 * (right ? -1 : 1), 236 - Math.cos(a) * 140, '#8a6634'); }
+      // an art-deco sunburst: half on each leaf, fanning out from the seam, kept inside its own leaf as it slides away
+      const cx = right ? x : x + lw, sx = right ? 1 : -1;
+      g.save(); g.beginPath(); g.rect(x + 1, 77, lw - 2, 162); g.clip();
+      for (let i = 0; i < 7; i++) { const a = .25 + i * .2; line(g, cx, 236, cx + sx * Math.sin(a) * 60, 236 - Math.cos(a) * 140, '#8a6634'); }
+      g.restore();
       rect(g, x + 1, 77, lw - 2, 2, '#a07a3e');
       const wx = x + Math.round(lw / 2) - 5;
       if (lw > 16) {
@@ -361,7 +368,7 @@ var UnrugElevator = function (core) {
         if (Math.abs(speedAt(t)) > 4) for (let k = 0; k < 6; k++) { const y = 100 + ((k * 13 + Math.floor(t * 90)) % 82); rect(g, wx + 2 + (k % 3) * 3, y, 1, 8, '#4a3a3a'); }
       }
     }
-    rect(g, 239, 76, 2, 164, '#2a170f');
+    if (lw >= 72) rect(g, 239, 76, 2, 164, '#2a170f');   // the seam, only while they're shut
   }
   function drawHatch(t) {
     const x0 = HX - 28, open = Q.fight && t >= T.thread ? clamp((t - T.thread) / .25, 0, 1) : 0;
@@ -432,7 +439,7 @@ var UnrugElevator = function (core) {
     for (const s of Q.sparks) { const k = s.t / s.dur; rect(g, s.x, s.y, 1, 1, k < .5 ? '#ffd060' : '#ff7a2a'); rect(g, s.x + 1, s.y, 1, 1, '#ffd060'); }
   }
   function drawExit(t) {
-    if (Q.t < top().doors + ELEVATOR.exitAfter || Q.out > 0 || R.phase === 'dead') return;
+    if (Q.t < (Q.fight ? T.doors + ELEVATOR.ask.out : top().doors + ELEVATOR.exitAfter) || Q.out > 0 || R.phase === 'dead') return;
     const bob = Math.round(Math.sin(t * 5) * 2), label = Q.destination.label === 'R' ? 'ROOF' : 'FLOOR ' + Q.destination.label;
     otxt(g, label, 240, 92 + bob, '#ffd44a', 2, 'center');
     rect(g, 236, 106 + bob, 9, 3, '#ffd44a'); rect(g, 238, 109 + bob, 5, 2, '#ffd44a'); rect(g, 240, 111 + bob, 1, 1, '#ffd44a');

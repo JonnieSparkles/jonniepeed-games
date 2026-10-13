@@ -14,7 +14,7 @@ var UnrugTopdown = function (core, tuning) {
     speed: 108, radius: 7, accel: 14,
     fireEvery: .12, shotSpeed: 360, shotLife: .85, shotRadius: 3, spreadAngle: .2,
     assist: { stick: .2, keys: .16, mouse: .07 },   // how far (radians) the blaster leans to a target in its line
-    slashT: .17, slashCd: .32, slashReach: 46, slashArc: 1.35, lunge: 7.5, lungeT: .09,   // the lunge: a quarter of the first build's 30 (owner, Oct 13)
+    slashT: .17, slashCd: .32, slashReach: 46, slashArc: 1.35, parry: 60, lunge: 7.5, lungeT: .09,   // the lunge: a quarter of the first build's 30 (owner, Oct 13)
     slashDamage: 4,
     knock: 150, contactKick: 60,
     flyer: { r: 11, h: 15, speed: 60, turn: 2.6, spread: 26, hp: 1 },
@@ -175,6 +175,7 @@ var UnrugTopdown = function (core, tuning) {
     R.events.shots = (R.events.shots || 0) + 1;
     R.td.fx.push({ k: 'muzzle', x: mz.x, y: mz.y, h: mz.h, t: 0, dur: .07 });
     Snd.play('shot', R.spread > 0);
+    if (n > 0 && R.events.shots % 2) Snd.play('stream', R.td.bend);
     return true;
   }
   function stepShots(dt) {
@@ -209,15 +210,21 @@ var UnrugTopdown = function (core, tuning) {
 
   // ---------- the katana ----------
   // A wide arc where he aims (or at the nearest threat in reach if he isn't aiming), with a short lunge that way.
+  // the nearest threat in reach: a bobbin or thread on its way first, then a carpshit
+  function nearestThreat() {
+    let best = null, bd = TD.parry + 30;
+    for (const p of R.td.thrown) if (!p.dead && !p.friendly) { const d = Math.hypot(p.x - bull.x, p.y - bull.y); if (d < bd) { bd = d; best = p; } }
+    if (best) return best;
+    bd = TD.slashReach + 30;
+    for (const e of R.td.enemies) if (!e.dead) { const d = Math.hypot(e.x - bull.x, e.y - bull.y); if (d < bd) { bd = d; best = e; } }
+    return best;
+  }
   function slash() {
-    let ax = bull.ax, ay = bull.ay;
-    if (twin.flick) { ax = twin.flick.x; ay = twin.flick.y; twin.flick = null; }
-    else if (R.td.aimSource === 'move' && !R.td.fireHeld) {
-      let best = null, bd = TD.slashReach + 30;
-      for (const e of R.td.enemies) if (!e.dead) { const d = Math.hypot(e.x - bull.x, e.y - bull.y); if (d < bd) { bd = d; best = e; } }
-      for (const p of R.td.thrown) if (!p.dead && !p.friendly) { const d = Math.hypot(p.x - bull.x, p.y - bull.y); if (d < bd) { bd = d; best = p; } }
-      if (best) { const d = Math.hypot(best.x - bull.x, best.y - bull.y) || 1; ax = (best.x - bull.x) / d; ay = (best.y - bull.y) / d; }
-    }
+    let ax = bull.ax, ay = bull.ay, auto = false;
+    if (twin.flick && !twin.flick.auto) { ax = twin.flick.x; ay = twin.flick.y; }
+    else auto = !!twin.flick || (R.td.aimSource === 'move' && !R.td.fireHeld);
+    twin.flick = null;
+    if (auto) { const best = nearestThreat(); if (best) { const d = Math.hypot(best.x - bull.x, best.y - bull.y) || 1; ax = (best.x - bull.x) / d; ay = (best.y - bull.y) / d; } }
     bull.ax = ax; bull.ay = ay; bull.dir = ay < -.62 ? 'up' : ay > .62 ? 'down' : 'side'; if (Math.abs(ax) > .1) bull.face = ax > 0 ? 1 : -1;
     bull.sx = ax; bull.sy = ay;
     bull.slash = 0; bull.cd = TD.slashCd; swing++;
@@ -237,7 +244,8 @@ var UnrugTopdown = function (core, tuning) {
       if (e.kind === 'shag') { staggerShag(e); damage(e, TD.shag.slash, 'slash'); }
       else damage(e, 99, 'slash');
     }
-    for (const p of R.td.thrown) if (!p.dead && !p.friendly && inArc(p.x, p.y, 6)) { if (p.kind === 'thread') cutThread(p); else deflect(p); }
+    // a bobbin or a thread close to him is caught from any side, not only in the arc (owner, Oct 13: deflects should be easier)
+    for (const p of R.td.thrown) if (!p.dead && !p.friendly && (inArc(p.x, p.y, 6) || Math.hypot(p.x - bull.x, p.y - bull.y + 4) < TD.parry)) { if (p.kind === 'thread') cutThread(p); else deflect(p); }
     if (bull.slashMach !== swing) {
       const n = R.td.slashMachines(bull.x + bull.sx * TD.slashReach * .6, bull.y - 4 + bull.sy * TD.slashReach * .6, TD.slashReach * .6, TD.slashDamage, swing);
       if (n) { bull.slashMach = swing; R.freeze = Math.max(R.freeze, .04); }
@@ -560,9 +568,7 @@ var UnrugTopdown = function (core, tuning) {
     g.save(); g.translate(Math.round(e.x), Math.round(e.y - e.h));
     g.rotate(clamp(e.vx * .004, -.35, .35) + Math.sin(t * 5 + e.ph) * .06);
     g.scale(e.vx < -4 ? -1 : 1, 1); g.scale(1 + flap * .05, 1 - flap * .09);
-    if (e.hit > 0) g.filter = 'brightness(2.2)';
-    else if (e.wind > 0) g.filter = 'brightness(1.5) saturate(1.6)';
-    g.drawImage(img, -w / 2, -h / 2, w, h); g.restore();
+    g.drawImage(A.tinted(img, e.hit > 0 ? 'brightness(2.2)' : e.wind > 0 ? 'brightness(1.5) saturate(1.6)' : null), -w / 2, -h / 2, w, h); g.restore();
     if (e.kind === 'armored' && e.armored) helmet(e.x, e.y - e.h - h / 2 + 6);
     // winding up a throw: the bobbin held up over its head, rising
     if (e.wind > 0) { const k = 1 - e.wind / TD.bobbin.wind, bx = Math.round(e.x), by = Math.round(e.y - e.h - h / 2 - 6 - k * 6);
@@ -599,8 +605,7 @@ var UnrugTopdown = function (core, tuning) {
     }
     g.save(); g.translate(x, y); g.scale(e.vx < -4 ? -1 : 1, 1);
     if (e.st === 'dash') g.rotate(Math.atan2(e.vy, Math.abs(e.vx)) * .3);
-    g.filter = e.hit > 0 ? 'brightness(2.2)' : e.st === 'aim' ? 'sepia(.5) saturate(1.8) hue-rotate(-20deg) brightness(1.3)' : 'sepia(.55) saturate(1.3) hue-rotate(-20deg) brightness(.85)';
-    g.drawImage(CARP[Math.floor(t * 4) % 2], -w / 2, -h / 2, w, h); g.restore();
+    g.drawImage(A.tinted(CARP[Math.floor(t * 4) % 2], e.hit > 0 ? 'brightness(2.2)' : e.st === 'aim' ? 'sepia(.5) saturate(1.8) hue-rotate(-20deg) brightness(1.3)' : 'sepia(.55) saturate(1.3) hue-rotate(-20deg) brightness(.85)'), -w / 2, -h / 2, w, h); g.restore();
     if (e.stag > 0) for (let i = 0; i < 3; i++) { const a = t * 8 + i * 2.1; rect(g, Math.round(x + Math.cos(a) * 12), Math.round(y - h / 2 - 6 + Math.sin(a) * 3), 2, 2, '#ffd44a'); }
   }
   function drawEnemy(e) { if (e.kind === 'roll') drawRoll(e); else if (e.kind === 'shag') drawShag(e); else drawCarp(e); }

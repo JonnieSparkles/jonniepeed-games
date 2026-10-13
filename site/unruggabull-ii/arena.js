@@ -303,8 +303,7 @@ var UnrugArena = function (core, tuning) {
     if (e.dropping) rot = Math.sin(e.age * 9 + e.ph) * .35;
     if (e.swoop) rot = Math.atan2(Math.cos(Math.min(1, e.swoop.t / ARENA.swoopT) * Math.PI), 1.6) * face * .9;
     g.rotate(rot); g.scale(face, 1); g.scale(1 + flap * .06, 1 - flap * .1 + (e.dropping ? .12 : 0));
-    if (e.hit > 0 || rearing) g.filter = rearing ? 'brightness(1.5) saturate(1.6)' : 'brightness(2.4)';
-    g.drawImage(img, -CW / 2, -CH / 2, CW, CH);
+    g.drawImage(A.tinted(img, rearing ? 'brightness(1.5) saturate(1.6)' : e.hit > 0 ? 'brightness(2.4)' : null), -CW / 2, -CH / 2, CW, CH);
     g.restore();
     if (e.armored) drawHelmet(Math.round(x), Math.round(y - CH / 2 + 12));
     if (Math.abs(vu) * 60 * 220 > 80 && Math.random() < .25) R.arena.fx.push({ k: 'fringe', x: x - Math.sign(vu) * CW / 2, y: y + (Math.random() - .5) * 8, vx: -vu * 60 * 22, vy: 10, t: 0, dur: .4 });

@@ -175,6 +175,12 @@ window.__balanceBot = function (profile, seed) {
       if (c.st === 'idle' || Math.abs(me.y - c.y) > 22) return;
       if (plan({ id: 'crane' + i + ':' + Math.floor(o.t / 3) }, function () { return { dodge: r() < P.dodge }; }).dodge) my += me.y < c.y ? -2.5 : 2.5;
     });
+    // p(Loom)'s laser: into its gap (a person mostly makes it; the dodge roll decides), and hold there till it's past
+    var qcHold = false;
+    if (q.qc && plan({ id: 'qc' + q.qc.n }, function () { return { go: r() < Math.min(1, P.dodge + .3) }; }).go) {
+      var mid = (q.qc.g0 + q.qc.g1) / 2, past = q.qc.dir === 'x' ? (q.qc.sgn > 0 ? q.qc.pos > me.x + 12 : q.qc.pos < me.x - 12) : q.qc.pos > me.y + 12;
+      if (!past) { qcHold = true; var off = (q.qc.dir === 'x' ? me.y : me.x) - mid; if (Math.abs(off) > 6) { if (q.qc.dir === 'x') my += off > 0 ? -3 : 3; else mx += off > 0 ? -3 : 3; } }
+    }
     var job = null;
     // the reserve at the end: under the nearest tank, sweeping the streams across them
     if (q.whip && q.whip.length) {
