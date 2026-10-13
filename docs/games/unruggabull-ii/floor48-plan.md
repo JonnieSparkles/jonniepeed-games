@@ -1,0 +1,97 @@
+# The 48th Floor: Reclamation
+
+Status: plan for the first build (Oct 12). Once it ships, [README.md](README.md) and the code are the source of truth.
+
+The owner's brief: Smash TV meets Factorio. A frantic top-down twin-stick level inside p(Loom)'s soul-reclamation factory, where captured souls are woven into carpshits. Unruggabull finds out how it's done and takes the whole operation apart. About two minutes, three working production lines, destruction that drives the escalation, and a blaster and katana that are equally good and work together.
+
+## Where it sits
+
+The climb becomes **13th Floor → plain ride → 48th Floor → lobby → long ride → roof**.
+
+- The 13th Floor's **Take the elevator** starts the plain ride (no fight, Please Hold, the supply crate) from 13 to 48. Its doors open on the factory's glow, and he walks out onto the 48th Floor.
+- The 48th Floor ends in the **lobby**, side on: he walks to the elevator, DING, Please Hold, and he steps into the long ride, which now starts at 48.
+- `#stage=floor48` plays it directly (with `&seed=42` to replay); `#stage=floor48&at=lobby` starts in the lobby.
+
+## The view and the engine
+
+A third engine, `topdown.js`: seen from above at a slight tilt, like Smash TV. The factory is 800 × 450 picture pixels, about one and two-thirds screens each way, and the camera follows him with a lead toward where he aims, so the sprawl reads as a factory while threats are rarely more than a short step off screen. Anything off screen that's coming for him gets an arrow at the edge.
+
+He's drawn from the existing poses at half size (about 35 px tall): from behind when aiming up, the side poses when aiming left or right, and the front view when aiming down, so he always faces his aim and his legs run underneath.
+
+## Controls
+
+- **Phone:** two floating sticks. The left one moves (analog). The right one aims and fires while it's held past a small dead zone. The katana is the round red Slash button beside the right stick, and a quick flick of the right stick (out and released) also slashes in that direction. The supply icon is tapped as before. If the twin stick doesn't play well on a real phone, the fallback agreed with the owner is the left stick to move with Shoot and Slash buttons, the blaster aiming itself.
+- **Desktop:** WASD to move, the mouse to aim, hold the left button to fire, right button, Space or Shift to slash. Arrow keys also aim and fire, for keyboard-only play. E uses a supply; M, F and P as everywhere else.
+- **Aim help:** the blaster leans a few degrees toward the nearest target in its line (more on a stick than on a mouse). The slash goes where he aims, or at the nearest threat in reach if he isn't aiming.
+
+## The weapons
+
+- **Blaster:** fast (eight shots a second), on charges like everywhere else but more of them (24, one back every 0.18 seconds), so it runs dry only under steady fire. One damage a bolt.
+- **Katana:** a wide arc in front of him with a short lunge toward the aim, so it's how you get in, through and out. Four damage to machines, kills any carpshit outright (armor included), cuts rolling rugs, and knocks thrown bobbins back at whoever threw them. A kill with the blade gives the blaster 2 charges back, a deflect 3.
+- They work together: the blaster for range and the big machines, the katana for crowds, armor, rolls and bobbins, and to refill the blaster.
+
+## The factory
+
+Three lines run left to right, fed by the **soul main**, a glass pipe down the left wall full of captured souls. Each line is a chain of machines on a conveyor belt:
+
+1. **Soul tank:** glass, full of souls. Burst it and they're free; it explodes and hurts the machines around it.
+2. **Spinner:** spins a soul into glowing thread.
+3. **Loom:** the line's heart. Weaves the thread into rug. Its health is the line's.
+4. **Press:** stamps the rug's shape. It slams on a beat, and its shadow grows on the belt first: under it costs a heart, and it flattens any carpshit there too.
+5. **Animator:** zaps the rug alive. A carpshit leaves the end of the belt.
+
+Belts carry whatever stands on them (him included), faster when the panic rises. There are gaps between machines to cross a line, and the belts can be walked over.
+
+**Destruction.** Every machine can be shot and slashed. Tanks, spinners, presses and animators break (free souls, explode) and every break damages the loom on its line, so blowing up its parts is the fast way to a loom. Explosions chain: a blast breaks or damages anything near it, kills carpshits in it, and never hurts Unruggabull (Smash TV rules: the destruction is the reward). When a loom goes, the line goes down end to end in a cascade, its souls burst free, and it stops.
+
+**What each line makes:**
+
+- **Line 1 (Standard):** flying carpshits that chase him.
+- **Line 2 (Heavy):** armored carpshits that keep their distance and throw bobbins; the helmet takes one hit.
+- **Line 3 (Bulk):** rug rolls. A roll shudders and points at him, then barrels across the floor, bounces once and unrolls into a flyer. The blaster takes three hits to stop one; the katana cuts it in one.
+
+## Production Panic
+
+When a line goes down, the soul main sends its souls to the lines still running, and they speed up. The player's destruction drives the escalation.
+
+| Lines down | The survivors | The room | The music |
+| --- | --- | --- | --- |
+| 0 | Normal pace | Work lights, steady | FIGHT: drums, bass, lead and the machine |
+| 1 | Make 1.4× as fast, carpshits 1.15× faster, belts and presses faster | Amber rotating beacons, the klaxon | Harmony and synth join, 5% faster |
+| 2 | Make 1.9× as fast, carpshits 1.3× faster | Red strobes, sparks, steam | The heavy version slams in |
+
+At most 14 carpshits at once. "PRODUCTION PANIC" drops in as a sign the first time.
+
+## The near miss and the collapse
+
+When the last loom goes, the factory comes apart: the soul main bursts, red light, rumble, falling debris (drawn only), every carpshit left is freed, and the freed souls pour up through the roof.
+
+Four of them come to the blaster instead, one at a time with a bell each (D5, F5, A5, C6), and it fires its streams: the bolt and four ribbons of light. He keeps control and can fire. Then the streams start to bend in toward each other, further than on the 13th Floor.
+
+p(Loom) interferes before they fuse. Its eye comes up on every monitor in the factory, threads whip down through the broken roof and snag the four souls, the streams scatter, and the music cuts on a sour chord. Its readout says "NOT ON MY FLOOR." The souls tear free, salute him (as on the 13th Floor, reluctantly this time) and go up with the rest. Nothing explains what nearly happened.
+
+The screen goes white, and we're in the lobby.
+
+## The lobby
+
+Side view, the arena's bull. An immaculate elevator lobby: marble floor, brass, a runner rug, potted plants, and on the wall a grand portrait of the flaming Rugfather with a plaque: FOUNDER & CEO — HIS VISION ENDURES. He walks in from the left, singed and smoking. Passing the portrait he says "HIS VISION ENDURES. HE DIDN'T." The dial over the doors counts down to 48, DING, the doors open on the operator, Please Hold starts, and he walks in. The long ride starts.
+
+The portrait is a placeholder drawn in code (`drawPortrait` in `floor48.js`); the real one will be an image, 96 × 120 pixels, dropped in at that size.
+
+## Sound and music
+
+Three candidates on an audition page, each an intro (the factory alone while he walks in), a fight, and a heavy version, all in D minor so the bells sit in them: **A Neon Works** (Neon reworked), **B Assembly Line** (new, industrial) and **C Gallop Line** (Gallop reworked). The owner picked **Assembly Line** (Oct 12), so it is the default; `#music48=a|b|c` still selects any of the three for comparison. Sounds: the klaxon, presses, machine hits and breaks, tanks bursting, a line going down, the animator's zap, bobbins, rolls, the collapse's rumble and p(Loom)'s sour chord.
+
+## Rules kept from the rest of the game
+
+- Five hearts, the core's rugged and continue. A continue keeps lines already down and restarts with full hearts and no carpshits.
+- Score is souls freed. Outcomes come from the seeded stream; drawing never changes a run (`--verify`).
+- Supplies work here: Spread Shot fires three ways, Bull Run charges where he faces and smashes carpshits and rolls, and the Spare Vest saves a rugging.
+- Balance bots play it like a person, through the same inputs, seeing late.
+
+## Open after the first build
+
+- The owner's phone test of the twin stick (or the fallback).
+- The music pick.
+- The Rugfather portrait.
+- Whether the floor should end on a clear card, or flow straight into the lobby as now.
