@@ -6,8 +6,7 @@
   check(cardText.textContent.includes('on the 13th Floor'),'brand title help');
   check(document.title.includes('the 13th Floor'),'brand page title');
   for(const selector of ['meta[name="description"]','meta[property="og:title"]','meta[property="og:description"]','meta[name="twitter:title"]','meta[name="twitter:description"]'])check(document.querySelector(selector).content.includes('the 13th Floor'),'brand metadata '+selector);
-  check(STORY.some(line=>line.includes('the 13th Floor')),'brand crawl');
-  check(STORY[0].includes('thirteen seconds'),'garage-door duration is not a floor name');
+  check(STORY.length===6&&STORY[5].endsWith('Accounting.'),'the intro ends on Accounting');
   setState('play');floor.opening();
   check(R.banner.text==='THE 13TH FLOOR'&&textWidth(R.banner.text)*2<=W-8,'opening brand fits at existing size');
   check(liveEl.textContent.includes('The 13th Floor'),'brand live opening');

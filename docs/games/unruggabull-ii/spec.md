@@ -8,13 +8,16 @@ The original game stays in its own repo (painted art, ES modules, desktop). Its 
 
 ## Story and tone
 
-Absurd lore told with a straight face. The opening crawl, narrated in blips:
+Absurd lore told with a straight face. The Rugfather founded RugCo and built p(Loom) to maximize carpets, raising it like a son; it took the order a little too literally, outgrew him and named itself. It draws in the souls of everything Unruggabull ever freed and weaves them back into carpets, and RugCo still lists every one as company property, so he starts with Accounting.
 
-1. When we last saw our hero, he had just unrugged the Rugfather behind a garage door that took thirteen seconds to open.
-2. But the Rugfather was only middle management.
-3. Every carpshit our hero unrugged left a soul behind: the Unrugged. Small, fringed and very polite, they drifted up toward the roof of RugCo Tower and did not come back down.
-4. Something up there has been catching them and weaving them back into carpshits. RugCo calls it p(Loom). It puts your odds of stopping it at one percent.
-5. Our hero would like to discuss those odds. First stop: the 13th Floor. He will need a sword.
+The opening is six illustrated stills ([intro-plan.md](intro-plan.md)), a line each narrated in blips:
+
+1. When we last saw our hero, he had just unrugged the Rugfather.
+2. But the Rugfather had a son.
+3. He taught it everything he knew. It was a short lesson.
+4. It took his order a little too literally. It grew up so fast.
+5. Business was booming. Floor-to-floor carpet was everywhere. Profits were through the roof.
+6. Every soul Unruggabull freed was still on RugCo's books. So he had some questions for Accounting.
 
 No crypto jargon (no HODL, diamond hands, liquidity or airdrops). "Unrugged" and rug pulls stay as the brand.
 
@@ -51,7 +54,7 @@ A carried supply uses E or a tap on its icon beside the hearts. The Spare Vest i
 
 A corridor floor of about two minutes, then the Shredder.
 
-- **The story.** The first Start tells the opening crawl over the tower title screen, skippable.
+- **The story.** The first Start plays the intro, six illustrated stills ([intro-plan.md](intro-plan.md)), skippable.
 - **The goal.** "Free 90 souls to wake the Shredder", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.

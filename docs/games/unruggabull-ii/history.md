@@ -4,6 +4,13 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Why it's this way
 
+- **The crawl became six illustrated stills** (the intro, Oct 13): the owner wanted the story shown, not told: the Rugfather raising p(Loom) like a son, humour in the pictures and a straight face in the narration. The pictures are the owner's, made in ChatGPT; everything moving and every letter is drawn in code, since AI pictures garble text.
+- **Each still waits for a tap** (the intro): it moved on 1.8 s after its line at first; the owner wanted people to look and read as long as they like. A blinking arrow (and "Tap" on the first still) shows when.
+- **The intro shows the souls becoming carpets** (the intro): "we're still not connecting that p(loom) turned evil". Line 4 says it took the order a little too literally; the shadow outgrows the Rugfather and renames itself p(Loom); souls go into the beacon and carpets unroll down the tower; the ledger says 5 SOULS IN > 1 RUG OUT. The factory itself still waits for the 48th Floor.
+- **The baby is Loomy; p(Loom) is the name it gives itself** (the intro): PROJECT DOORMAT was a placeholder. The chalkboard says MAXIMIZE CARPETS, a play on profits.
+- **The stills load only for a device that hasn't seen the story** (the intro): they're about 290 KB, a fifth of the game again; returning players never fetch them.
+- **The caption is sized to the stage, not the window** (the intro): at the window's size a long line covered a third of the picture and hid the ledger in the game's smaller stage.
+
 - **Roof motion, light and sound preserve the fight** (Part B effects): a separate cosmetic pool lets trapped souls move individually and visibly empty their warp slots without advancing the outcome stream. Flood departure animation compresses into one second while arrivals keep Part A's schedule. Spool hit-stop holds the picture during the existing intermission so bots and player input keep their timing. The lower machine voice retains its caption cadence. Chip-synth tracks and ambience make the crescendo audible; the quiet cuts the sequencer immediately, and the heavy track starts at fusion. Art and phone tuning remain separate.
 
 - **A packed warp and time to fight** (roof Part A follow-up, PR #84): the first framework reached the quiet with only a few captives and cleared in about 2¼ minutes. Earlier-floor captives and more frequent small carp groups now fill the warp and counter; all souls return and rise at dawn. Rows with slight overlap preserve readable silhouettes. Rings moved up the roof with real forward/back movement so their depth matters and phone edges cannot crop them. Spaced openings lengthen the rounds through attacks rather than extra health; roof-only recharge and ring weights keep the larger fight playable without changing the 13th Floor.
@@ -101,6 +108,12 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Machine blasts never hurt him** (Oct 12): the destruction is the reward, as in Smash TV; chain reactions kill carpshits instead.
 
 ## Tried and dropped
+
+- **A slow push-in on the stills** (the intro): zooming pixel art makes its pixels crawl; the movement is in what's drawn on top.
+- **The Rugfather's heap far down the alley** (the intro): more accurate to the first game's ending, but at 40 px it read as a blob. He lies on the garage floor.
+- **A height chart of tick marks alone** (the intro): "doesn't really click". Loomy's shadow growing up the wall with each mark did ("YES DEF").
+- **The funeral line, "RugCo did not close for the funeral."** (the intro): it clashed with the timeline and read as odd; the wreath went with the tower's second picture.
+- **A slab tower, then a stepped one at sunset** (the intro): the owner picked the burning one, "more evil".
 
 - **The intake** (48th Floor round 2): p(Loom) lowering an intake to suck the freed souls back up, the streams the only thing that hurts it. The owner: "i dont like the intake idea. if rather whip the stream around breaking a bunch of things". The reserve and the whip instead.
 - **The Foreman** (round 2): a big carpshit repairing machines. "maybe no foreman but bigger guys is cool": the shag.
