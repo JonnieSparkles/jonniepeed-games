@@ -22,11 +22,17 @@ var UnrugFloor13 = function (core) {
 
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
   // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
+  // The music is one track that grows through the hall (music-floor.js): each beat and event sets its stems, or
+  // switches track, on the next bar.
+  const STEMS = { hall: ['drums', 'bass', 'lead'], move: ['drums', 'bass', 'lead', 'harmony'], staff: ['drums', 'bass', 'lead', 'harmony', 'power'],
+    dark: ['dark'], heavy: ['drums', 'bass', 'lead', 'harmony', 'power', 'heavy'] };
   const BEATS = [
-    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: 'tower', after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: 'staff', after: 'dark' },
-    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: 'copy' }
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: { track: 'floorHall', stems: STEMS.hall }, after: 'move' },
+    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: { stems: STEMS.staff }, after: 'dark' },
+    { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: { track: 'floorCopy', stems: STEMS.staff } }
   ];
+  // A beat's music: a new track on the next bar, or the playing one's stems on the next bar.
+  function floorMusic(m) { if (m.track) Snd.music(m.track, { boundary: 'bar', stems: m.stems }); else Snd.stems(m.stems); }
   const beat = () => BEATS[R.beat];
   // ---------- the sets: each section's look and dressing (sets13.js) ----------
   const SETS = UnrugSets({ VX, HY, sc, PX, FY, CY, YH });
@@ -179,13 +185,13 @@ var UnrugFloor13 = function (core) {
       Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 1.8, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
       addSign(.75, C.sign, 'move');
-      Snd.play('start'); live(C.say);
+      Snd.play('start'); Snd.stems(STEMS.move); live(C.say);
       if (kind === 'move') bark('move');
     } else {
       // carpshits come out of the dark, only their eyes showing; everything freed in the dark counts double
       R.event.nextFly = 1.2; R.event.nextForm = TUNE.darkFormEvery; R.event.formN = 0; R.event.nextSwitch = 1.6; R.event.flash = 0; R.switches = [];
       addSign(.75, 'LIGHTS OUT ×2', 'neon');
-      Snd.play('dark'); Snd.music('dark'); live('Lights out. Souls freed in the dark count double.');
+      Snd.play('dark'); Snd.stems(STEMS.dark); live('Lights out. Souls freed in the dark count double.');
       bark('dark');
       spawnFormation('snake');
     }
@@ -258,7 +264,7 @@ var UnrugFloor13 = function (core) {
         R.nextFly = Math.max(R.nextFly, BREATHER); R.nextForm = Math.max(R.nextForm, BREATHER + .8); R.nextRow = Math.max(R.nextRow, BREATHER + 1.5); R.nextBox = Math.max(R.nextBox, BREATHER);
         addSign(1, beat().sign);
         if (beat().pulls) { bark('copy'); R.copyAt = R.souls; }
-        Snd.music(beat().music);
+        floorMusic(beat().music);
         if (beat().pulls) R.pull.next = R.t + 3;
         // a coffee after each event, and a Spread Shot to try out after moving day
         addPickup('coffee', .9, rr(-.4, .4));
@@ -506,7 +512,7 @@ var UnrugFloor13 = function (core) {
     const b = R.boss;
     b.st = 'fight'; b.atk = 1.5; R.pull.next = R.t + 4;
     if (R.hearts < TUNE.hearts) addPickup('coffee', .45, rr(-.4, .4));
-    Snd.music('shred');
+    Snd.music('floorShred', { slam: true, stems: STEMS.heavy });
   }
   function spitBundle() {
     const b = R.boss, dur = TUNE.bundleT[b.ph === 1 ? 0 : 1];
@@ -684,7 +690,7 @@ var UnrugFloor13 = function (core) {
     b.flash = Math.max(0, b.flash - dt); b.tick = Math.max(0, (b.tick || 0) - dt); b.spit = Math.max(0, b.spit - dt); b.chomp = Math.max(0, b.chomp - dt); b.hitSnd -= dt; b.rev = Math.max(0, (b.rev || 0) - dt);
     if (b.dark) {
       b.dark.t += dt;
-      if (b.dark.t >= b.dark.dur) { b.dark = null; Snd.play('lights'); if (b.st === 'fight') Snd.music('shred'); }
+      if (b.dark.t >= b.dark.dur) { b.dark = null; Snd.play('lights'); if (b.st === 'fight') Snd.stems(STEMS.heavy); }
     }
     if (b.st !== 'fight') return;
     if (b.surgeAt > 0 && b.jam <= 0) { const was = b.surgeAt; b.surgeAt -= dt; if (was >= .9 && b.surgeAt < .9 && R.armed !== false) Snd.play('rev'); if (b.surgeAt <= 0 && R.armed !== false) surge(); }
@@ -698,7 +704,7 @@ var UnrugFloor13 = function (core) {
         // phase 3 starts in the dark: only its eyes, its teeth and the paper show
         b.dark = { t: 0, dur: TUNE.powerSaveT }; b.surgeAt = 1; b.atk = 2.4;   // then a surge it can't miss
         talk('ENTERING POWER SAVING MODE.', 'shredder');
-        Snd.play('dark'); Snd.music('dark'); live('Power saving mode: the lights go out.');
+        Snd.play('dark'); Snd.stems(STEMS.dark); live('Power saving mode: the lights go out.');
       }
     }
     // smoke, then sparks, as it wears down (cosmetic)
@@ -1606,7 +1612,9 @@ var UnrugFloor13 = function (core) {
   function opening() {
     R.banner = { text: 'THE 13TH FLOOR', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
     live('The 13th Floor, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
-    Snd.play('start'); Snd.music('tower');
+    // the cold open plays once at every start of the floor, so a restart starts the track over
+    Snd.play('start'); if (Snd.track === 'floorHall') Snd.music(null);
+    Snd.music('floorHall', { stems: STEMS.hall });
   }
   function clearCard(extra, best, clock) {
     const rows = [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Deflects', String(R.events.deflects || 0)],

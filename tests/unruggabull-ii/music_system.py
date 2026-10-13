@@ -62,6 +62,37 @@ def check_music(browser, root):
       S.music(null,{hard:true});
     }''')
     page.close()
+    # The 13th Floor's shuffle: the cold open once, stems that grow on the bar, the copy room on the next bar.
+    page=browser.new_page()
+    page.evaluate('''() => { window.musicNow=0; window.AudioContext=class extends OfflineAudioContext {
+      constructor(){super(1,48000*8,48000);Object.defineProperty(this,'state',{value:'running'});
+      Object.defineProperty(this,'currentTime',{get:()=>window.musicNow});}
+    }; }''')
+    page.add_script_tag(content=(root/'site/unruggabull-ii/music-roof.js').read_text())
+    page.add_script_tag(content=(root/'site/unruggabull-ii/music-floor.js').read_text());page.add_script_tag(content=audio)
+    page.evaluate('''() => {
+      const S=UnrugSound, check=(ok,msg)=>{if(!ok)throw new Error(msg);}, until=t=>{while(window.musicNow<t){window.musicNow+=.025;audioTest('pump()');}};
+      const HALL=['drums','bass','lead'], ALL=HALL.concat('harmony','power'), HEAVY=ALL.concat('heavy');
+      S.init();
+      for(const id of ['floorHall','floorCopy','floorShred']){const tr=S.tracks().find(t=>t.id===id);check(tr&&tr.key==='Em','the floor has '+id);
+        check(audioTest("TRACKS['"+id+"'].patterns.A.channels.paLead.stem==='dark'"),id+' carries the muzak for the dark');}
+      S.music('floorHall',{stems:HALL});audioTest('clearInterval(P.timer)');
+      check(S.musicState.pattern==='I'&&S.musicState.stems.join()===HALL.join(),'the floor opens on the cold open with drums, bass and lead');
+      until(3.6);check(S.musicState.pattern==='I','two bars of muzak at 120');
+      until(4.1);check(S.musicState.pattern==='A','then the band at 150');
+      S.stems(HALL.concat('harmony'));until(5.4);check(!S.musicState.stems.includes('harmony'),'moving day waits for the bar');
+      until(5.7);check(S.musicState.stems.includes('harmony'),'and adds the harmony on it');
+      S.stems(['dark']);until(7.0);check(S.musicState.stems.includes('lead'),'lights out waits for the bar');
+      until(7.35);check(S.musicState.stems.join()==='dark','then only the muzak over the PA');
+      until(17);check(S.musicState.pattern==='A'&&audioTest('P.si===1'),'the cold open plays once; the shuffle loops');
+      S.music('floorCopy',{boundary:'bar',stems:ALL});check(S.musicState.playing==='floorHall'&&S.musicState.pending==='floorCopy','the copy room waits for the bar');
+      until(18.45);check(S.musicState.playing==='floorCopy'&&S.musicState.stems.join()===ALL.join(),'and comes in on it with the full band');
+      S.music('floorShred',{slam:true,stems:HEAVY});check(S.musicState.playing==='floorShred'&&S.musicState.stems.join()===HEAVY.join(),'the Shredder slams in heavy');
+      S.tempo(1.2);check(S.musicState.rate===1,'a rally speeds it up on the next bar');
+      until(window.musicNow+60/168*4+.05);check(S.musicState.rate===1.2,'by then');
+      S.music(null,{hard:true});
+    }''')
+    page.close()
     # The lab uses actual button taps to unlock, has phone-sized targets, and switches every candidate.
     context=browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
     page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
@@ -78,4 +109,4 @@ def check_music(browser, root):
     assert page.evaluate('UnrugSound.ready'), 'first tap unlocks audio'
     page.locator('[data-cue="quiet"]').click();assert page.evaluate('UnrugSound.track') is None
     page.locator('#stop').click();assert not errors,errors
-    context.close();server.shutdown();server.server_close();print('PASS music system: patterns, effects, stems, tempo, boundaries, cues and phone lab')
+    context.close();server.shutdown();server.server_close();print('PASS music system: patterns, effects, stems, tempo, boundaries, cues, the 13th Floor shuffle and phone lab')

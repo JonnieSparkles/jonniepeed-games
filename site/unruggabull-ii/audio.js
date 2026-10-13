@@ -231,7 +231,7 @@ window.UnrugSound = (function () {
       drums: { pat: 'KKh.S.hKKKh.S.hK', fills: { 3: 'KKh.S.hKKKSSSSSS', 7: 'KKKKSSSSSSSSSSSS' }, crash: [0, 4] }
     }] }
   };
-  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {}, window.UnrugFactoryMusic || {});
+  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {}, window.UnrugFloorMusic || {}, window.UnrugFactoryMusic || {});
   if (TRACKS.roofA) { TRACKS.roof = TRACKS.roofA; TRACKS.roofHeavy = TRACKS.roofAHeavy; }
   // Pattern format is opt-in: the original six section tracks retain their exact compiler and synth.
   function noteEvents(notes) {
@@ -695,7 +695,8 @@ window.UnrugSound = (function () {
     get ready() { return !!ctx && ctx.state === 'running'; },
     get muted() { return muted; },
     play(name, arg) { if (!ctx || ctx.state !== 'running' || !SFX[name]) return; SFX[name](ctx.currentTime + .005, arg); },
-    // Switch the music: 'theme', 'tower', 'staff', 'dark', 'copy', 'shred' or null. Remembered until sound can start.
+    // Switch the music: 'theme', the 13th Floor's 'floorHall', 'floorCopy' and 'floorShred', the ride's and the roof's, or null.
+    // Remembered until sound can start. ('tower', 'staff', 'dark', 'copy' and 'shred' are the floor's old tracks, kept for the lab.)
     music(id, options = {}) {
       id = id || null;
       if (id && !/^roof/.test(id)) { roofSound(null); stopMusicFx(); }
