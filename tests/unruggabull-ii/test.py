@@ -214,9 +214,10 @@ with sync_playwright() as p:
             page.evaluate("unrugTest('newRun(null, \"elevator\"); setState(\"play\"); setFull(true); for(let i=0;i<60;i++)update(1/60);draw();')")
             page.wait_for_timeout(100)
             canvas = page.locator('#c').bounding_box()
-            # Operator/cap, panel, full caption and crate at its starting position.
-            for label, (x, y, w, h) in {'operator': (163, 97, 16, 23), 'panel': (187, 65, 8, 27),
-                                      'caption': (159, 85, 24, 6), 'crate': (161.6, 107, 18, 15)}.items():
+            # The operator and his cap, his button panel, his longest line's bubble, the crate where it appears and the
+            # dial (p(Loom)'s eye), in the game's units.
+            for label, (x, y, w, h) in {'operator': (169, 74, 18, 48), 'panel': (200, 54, 11, 33),
+                                      'caption': (145, 62, 66, 12), 'crate': (165, 109, 14, 11), 'dial': (108, 20, 24, 17)}.items():
                 a = {'x': canvas['x'] + x * canvas['width'] / 240,
                      'y': canvas['y'] + y * canvas['height'] / 135,
                      'width': w * canvas['width'] / 240, 'height': h * canvas['height'] / 135}

@@ -15,10 +15,15 @@
     if (R.phase === 'wake') return 6;
     return 5 + R.boss.ph;
   }
+  // where in the long ride a heart goes: the first stretch of the fight, the armored stretch, the last floors
+  function ridePart() {
+    var T = floors.elevator.T, t = R.elevator.t;
+    return !R.elevator.fight ? 'plain' : t < T.reel ? 'before' : t < T.armor ? 'reel' : t < T.last ? 'armor' : t < T.arrive ? 'last' : 'top';
+  }
   function record(type, data) {
     var e = { ev: type, wave: stage(), t: Math.round(R.t * 100) / 100 };
     for (var k in data) e[k] = data[k];
-    if (R.stage === 'elevator' && ['hit', 'game_over'].includes(type)) e.kind = R.elevator.snapped ? 'after_snap' : 'before_snap';
+    if (R.stage === 'elevator' && ['hit', 'game_over'].includes(type)) e.kind = ridePart();
     log.push(e);
   }
   // The harness drives the game: the page's frame loop stops, and sound never starts without a tap anyway.
@@ -85,10 +90,13 @@
           gust: q.gust ? { dir: q.gust.dir, t: q.gust.t } : null };
       }
       if (R.stage === 'elevator') {
-        o.arena = { state: R.elevator.state, facing: b.facing, dropSpeed: floor.arena.ARENA.dropSpeed,
-          enemies: R.arena.enemies.map(e => ({ id: idOf(e), kind: e.kind, u: e.u, h: e.h, age: e.age, armored: e.armored, dropping: e.dropping, dir: e.dir })),
+        var Q = R.elevator, AR = floor.arena.ARENA;
+        o.arena = { t: Q.t, locked: !!R.arena.locked, facing: b.facing || 1, jumpH: TUNE.jumpH, limit: AR.limit,
+          enemies: R.arena.enemies.map(e => ({ id: idOf(e), u: e.u, h: e.h, armored: e.armored, dropping: e.dropping, entering: !!e.entering,
+            swoop: e.swoop ? { k: e.swoop.t / AR.swoopT, tu: e.swoop.tu, su: e.swoop.su } : null, rearing: !e.swoop && !e.dropping && e.swoopT < AR.rear,
+            dives: e.dives || 0, cross: e.cross || 0 })),
           thrown: R.arena.thrown.map(p => ({ id: idOf(p), u: p.u, h: p.h, vu: p.vu, vh: p.vh, friendly: p.friendly })),
-          crate: R.elevator.crate && !R.elevator.crate.got ? { u: R.elevator.crate.u } : null };
+          crate: Q.crate && !Q.crate.got ? { u: Q.crate.u } : null, exit: Q.t > floor.top().doors + floor.ELEVATOR.exitAfter };
       }
       return o;
     },

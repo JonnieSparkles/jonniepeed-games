@@ -9,7 +9,8 @@
 // Channel defaults accept those effects too. Noise notes k/s/h select pitch-drop kick, snare and hat.
 // Add an object to UnrugRoofMusic or registerTrack(id,data). stems() applies on the next bar;
 // music(id,{boundary:'bar'|'beat',slam:true}), music(null,{hard:true}), stinger(name), roofCue(name).
-// A pattern channel with drive:true goes through the overdrive (Saga II's distorted power chords).
+// A pattern channel with drive:true goes through the overdrive (Saga II's distorted power chords); one with
+// synth:'classic' plays on the section tracks' own voice (Horns Up, written from its storyboard's sections).
 // Roof cues: storm-only lead; fight downbeat; harmony/power added in rounds 2/3; a crashing power chord at each spool;
 // hard cut at the last accounted word; the flood is the souls' own climbing notes (play('rush')) and the pinch sweep;
 // heavy downbeat after the fusion freeze, with the beam's choir roar; 1% held D5; snap/dawn D-major chord, then quiet.
@@ -279,6 +280,13 @@ window.UnrugSound = (function () {
     tone.connect(gain); gain.connect(dest); tone.start(t); tone.stop(end + .01); tone.onended = () => { tone.disconnect(); gain.disconnect(); };
   }
   function patternNote(dest, channel, event, t, stepDur) {
+    // synth 'classic': the section tracks' own voice (osc tones, the DRUM letters) for a track written from them
+    if (channel.synth === 'classic') {
+      if (channel.wave === 'noise') { if (DRUM[event.note]) DRUM[event.note](t, dest); return; }
+      const d = event.len * stepDur * (event.gate || channel.gate || .9);
+      for (const n of [event.note].concat(event.chord || [])) osc(dest, channel.wave, hz(typeof n === 'number' ? n : midi(n)), t, d, channel.vol, { vib: channel.vib });
+      return;
+    }
     if (channel.wave === 'noise') {
       const preset = { k: 'K', K: 'K', s: 's', S: 'S', h: 'h', H: 'o', c: 'c', T: 'T' }[event.note];
       if (!preset) return;
@@ -321,7 +329,7 @@ window.UnrugSound = (function () {
     P.pendingTrack = null; P.pendingStems = null; P.pendingTempo = 0;
     if (!P.id) return;
     clearInterval(P.timer); P.timer = 0;
-    if (P.out && ctx) { const o = P.out; if (hard || /^roof/.test(P.id)) { const cut = at == null ? ctx.currentTime : at; o.gain.cancelScheduledValues(cut); o.gain.setValueAtTime(0, cut); } else o.gain.setTargetAtTime(0, ctx.currentTime, .03); setTimeout(() => { try { o.disconnect(); } catch (e) {} }, 400); }
+    if (P.out && ctx) { const o = P.out; if (hard || /^roof/.test(P.id)) { const cut = at == null ? ctx.currentTime : at; o.gain.cancelScheduledValues(cut); o.gain.setValueAtTime(0, cut); } else o.gain.setTargetAtTime(0, ctx.currentTime, .03); setTimeout(() => { try { o.disconnect(); if (o.brownout) o.brownout.disconnect(); } catch (e) {} }, 400); }
     P.id = null; P.out = null;
   }
   function playTrack(id, options = {}) {
@@ -629,7 +637,24 @@ window.UnrugSound = (function () {
     clear: t => { [60, 64, 67, 72, 67, 72, 76, 79, 84].forEach((m, i) => osc(sfxBus, 'p50', hz(m + 12), t + i * .085, i === 8 ? .6 : .12, .09, { vib: i === 8 })); [48, 55, 60].forEach((m, i) => osc(sfxBus, 'triangle', hz(m), t + i * .25, .3, .25)); },
     over: t => { [71, 67, 64, 59, 52].forEach((m, i) => osc(sfxBus, 'p25', hz(m), t + i * .16, i === 4 ? .7 : .15, .1, { vib: i === 4 })); },
     start: t => { [64, 67, 71, 76].forEach((m, i) => osc(sfxBus, 'p50', hz(m + 12), t + i * .06, .1, .08)); },
-    tick: t => osc(sfxBus, 'triangle', hz(88), t, .05, .12)
+    tick: t => osc(sfxBus, 'triangle', hz(88), t, .05, .12),
+    // the long ride (from its prototype): the carpshits' dive and paper; the cable taken, the drop, the brakes, the
+    // threads bursting in and reeling the car up, the slam at the top, the ding, the doors, the crate
+    swoop: t => { noiseHit(sfxBus, t, .45, .07, 'bandpass', 900, 1.5); osc(sfxBus, 'p25', 700, t, .4, .03, { to: 260 }); },
+    wadThrow: t => noiseHit(sfxBus, t, .08, .045, 'bandpass', 2400, 2),
+    rideCreak: t => { osc(sfxBus, 'sawtooth', 70, t, 1, .036, { to: 55 }); noiseHit(sfxBus, t, .9, .036, 'bandpass', 400, 6); },
+    rideWind: t => { for (let i = 0; i < 6; i++) osc(sfxBus, 'p25', 220 + i * 40, t + i * .1, .09, .036, { to: 330 + i * 40 }); },
+    rideSlack: t => { osc(sfxBus, 'sawtooth', 420, t, .6, .086, { to: 60 }); noiseHit(sfxBus, t, .5, .14, 'bandpass', 700, 3); },
+    rideFall: t => { osc(sfxBus, 'p50', 900, t, 1.8, .043, { to: 120, sustain: 1 }); for (let i = 0; i < 18; i++) noiseHit(sfxBus, t + i * .1, .08, .086, 'bandpass', 600 + (i % 3) * 300, 2);
+      for (let i = 0; i < 4; i++) osc(sfxBus, 'square', 1100, t + i * .4, .2, .036); },
+    rideBrake: t => { noiseHit(sfxBus, t, .8, .29, 'bandpass', 3400, 4); osc(sfxBus, 'sawtooth', 1800, t, .7, .036, { to: 1300 }); osc(sfxBus, 'sine', 90, t + .55, .4, .57, { to: 30 }); noiseHit(sfxBus, t + .55, .4, .36, 'lowpass', 500); },
+    rideBurst: t => { noiseHit(sfxBus, t, .3, .29, 'lowpass', 1200); noiseHit(sfxBus, t + .1, .5, .29, 'bandpass', 3200, 3, 260); },
+    rideHook: t => { for (let i = 0; i < 3; i++) { osc(sfxBus, 'p25', 300 + i * 80, t + i * .09, .1, .07, { to: 90 }); noiseHit(sfxBus, t + i * .09, .06, .14, 'highpass', 3000); } },
+    rideReel: t => { osc(sfxBus, 'sawtooth', 60, t, .9, .086, { to: 420 }); for (let i = 0; i < 8; i++) noiseHit(sfxBus, t + i * .1, .06, .07, 'bandpass', 900 + i * 150, 3); },
+    rideSlam: t => { osc(sfxBus, 'sine', 110, t, .5, .64, { to: 30 }); noiseHit(sfxBus, t, .5, .36, 'lowpass', 600); },
+    rideDing: t => { osc(sfxBus, 'sine', 1318, t, 1.4, .13, { sustain: .2 }); osc(sfxBus, 'triangle', 1046, t + .25, 1.6, .1, { sustain: .2 }); },
+    rideDoors: t => { noiseHit(sfxBus, t, 1.2, .057, 'lowpass', 300); noiseHit(sfxBus, t + .4, 3, .043, 'bandpass', 5000, .3); },
+    rideCrate: t => noiseHit(sfxBus, t, .8, .057, 'lowpass', 500)
   };
 
   const api = {
@@ -656,6 +681,14 @@ window.UnrugSound = (function () {
     tempo(r) { const value = Math.max(.5, Math.min(2, r || 1)); if (P.modern) P.pendingTempo = value; else P.rate = value; },
     stems(names) { if (!ctx) wantOptions = Object.assign({}, wantOptions, { stems: names }); P.pendingStems = new Set(names); },
     stinger, riser, roofCue,
+    // the long ride's brownout: the music muffles and sags over a couple of seconds, until it's stopped
+    brownout(seconds = 2.3) {
+      if (!ctx || !P.out || P.out.brownout) return;
+      const n = ctx.currentTime, lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(9000, n); lp.frequency.exponentialRampToValueAtTime(380, n + seconds);
+      P.out.disconnect(); P.out.connect(lp); lp.connect(musicBus); P.out.brownout = lp;
+      P.out.gain.setValueAtTime(1, n); P.out.gain.linearRampToValueAtTime(.55, n + seconds);
+    },
     registerTrack(id, data) {
       const heldPattern = P.id === id && P.patternLoop != null ? TRACKS[id].order[P.si] : null;
       delete data.comp; TRACKS[id] = data;
