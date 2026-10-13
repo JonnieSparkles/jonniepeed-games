@@ -2,6 +2,13 @@
 // pull, power saving mode, continuing at the Shredder, and the clear card's stats.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
+  // what the floor asks of the music: tracks and stems, each landing on the next bar
+  const calls = [], oldMusic = Snd.music, oldStems = Snd.stems;
+  Snd.music = (id, o = {}) => { calls.push({ music: id, o }); return oldMusic(id, o); };
+  Snd.stems = names => { calls.push({ stems: names.join() }); return oldStems(names); };
+  const stems = () => { const c = calls.filter(c => c.stems || (c.music && c.o.stems)).pop(); return c ? c.stems || c.o.stems.join() : ''; };
+  const lastMusic = () => calls.filter(c => 'music' in c).pop();
+  try {
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; };
 
@@ -28,13 +35,15 @@
   // the Shredder's intro: a name card, and its bar ticks up to full
   quiet(); R.souls = TUNE.goal; R.beatT = BEATS[2].minT; update(1 / 60);
   check(R.phase === 'wake' && checkpoint && checkpoint.souls === R.souls, 'waking it saves a checkpoint');
+  check(Snd.track === null, 'the wake is silent');
   step(1.6);
   check(R.banner && R.banner.text === 'THE SHREDDER', 'it gets a name card');
   step(1.5);
   check(R.boss.bar === 1, 'and its health bar fills');
   for (let i = 0; i < 60 * 10 && R.phase !== 'boss'; i++) update(1 / 60);
   const b = R.boss;
-  check(b.st === 'fight', 'then it fights');
+  const shred = lastMusic();
+  check(b.st === 'fight' && Snd.track === 'floorShred' && shred.o.slam && stems() === 'drums,bass,lead,harmony,power,heavy', 'then it fights, the Shredder\'s shuffle slammed in, heavy');
 
   // steady pulls from phase 1, and cutting the rug jams it in any phase
   R.projs = []; bull.u = 0; bull.inv = 1e9; R.talk = null;
@@ -47,7 +56,7 @@
 
   // phase 3: the lights go out, and a rally waits for a pull to end
   R.projs = []; b.hp = 30; update(1 / 60);
-  check(b.ph === 3 && b.dark && Snd.track === 'dark', 'phase 3 starts in power saving mode');
+  check(b.ph === 3 && b.dark && Snd.track === 'floorShred' && stems() === 'dark', 'phase 3 starts in power saving mode, the band dropping out');
   step(.8);
   check(darkness() > .5, 'and it is dark');
   R.projs = []; b.atk = 0; b.atkN = 0; R.pull.st = 'on'; R.pull.t = 0; R.pull.dur = 2; bull.u = .5; update(1 / 60);
@@ -56,7 +65,7 @@
   check(b.rally || R.projs.some(p => p.rally), 'and comes once the pull ends');
   b.rally = null; R.projs = [];
   step(TUNE.powerSaveT);
-  check(!b.dark && darkness() === 0 && Snd.track === 'shred', 'then the lights come back');
+  check(!b.dark && darkness() === 0 && Snd.track === 'floorShred' && stems() === 'drums,bass,lead,harmony,power,heavy', 'then the lights come back, and the whole band');
 
   // beaten at the Shredder: continue from the fight with full hearts, or start the floor over
   const atSouls = checkpoint.souls;
@@ -66,7 +75,7 @@
   goBtn.click();
   check(state === 'play' && R.phase === 'wake' && R.hearts === TUNE.hearts && R.souls === atSouls && R.continues === 1, 'continue picks up at the Shredder with full hearts');
   for (let i = 0; i < 60 * 10 && R.phase !== 'boss'; i++) update(1 / 60);
-  check(R.boss.st === 'fight' && R.boss.hp === TUNE.bossHP, 'and the fight starts over');
+  check(R.boss.st === 'fight' && R.boss.hp === TUNE.bossHP && Snd.track === 'floorShred' && stems() === 'drums,bass,lead,harmony,power,heavy', 'and the fight starts over, its music with it');
 
   // the clear card shows the run's stats; a clear with continues doesn't set the fastest time
   const bestTime = (JSON.parse(localStorage.getItem('unruggabull-ii-best') || '{}').time) || 0;
@@ -94,4 +103,5 @@
   check(altBtn.hidden && goBtn.textContent === 'Continue', 'rugged in the hall: continue starts over');
   goBtn.click();
   check(R.phase === 'hall' && R.souls === 0 && R.continues === 0, 'from the top');
+  } finally { Snd.music = oldMusic; Snd.stems = oldStems; }
 })();
