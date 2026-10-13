@@ -49,7 +49,7 @@
   R.projs = []; bull.u = 0; bull.inv = 1e9; R.talk = null;
   for (let i = 0; i < 60 * 8 && R.pull.st !== 'on'; i++) update(1 / 60);
   check(b.ph === 1 && R.pull.st === 'on', 'the runner pulls in phase 1');
-  bull.u = 0; bull.cd = 0; press('slash'); update(1 / 60);
+  bull.u = 0; bull.cd = 0; R.pull.t = TUNE.cutAfter; press('slash'); update(1 / 60);
   check(b.jam > 0, 'and cutting it jams the Shredder in phase 1 too');
   b.jam = 0; step(.8);
   check(R.pull.st === 'idle' && R.pull.next - R.t <= TUNE.bossPull.gap[0] + .01, 'the next pull is on the beat');

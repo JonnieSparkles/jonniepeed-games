@@ -35,7 +35,7 @@
   R.projs = []; b.hp = 30; update(1 / 60);
   check(b.ph === 3, 'phase three below a third');
 
-  R.projs = []; R.talk = null; R.pull.st = 'on'; R.pull.t = 0; R.pull.dur = 5;
+  R.projs = []; R.talk = null; R.pull.st = 'on'; R.pull.t = TUNE.cutAfter; R.pull.dur = 5;
   bull.u = 0; bull.bz = 0; bull.jh = 0; bull.cd = 0;
   press('slash'); update(1 / 60);
   check(b.jam > 0 && R.events.jams === 1 && R.pull.st === 'idle', 'cutting the rug in phase three jams it');

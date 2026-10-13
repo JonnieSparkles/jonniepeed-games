@@ -610,7 +610,9 @@ var UnrugFloor13 = function (core) {
     for (let j = 0; j < 12; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-5, 5), y: m.y + fxr(-5, 5), s: .8, col: j % 2 ? '#ffd44a' : '#ffffff', t: 0, dur: .4, a: Math.random() * 6 });
     R.shake = Math.max(R.shake, .15); Snd.play('surge');
   }
-  const MOUTH = { x: 120, y: BACK.y1 - 9 };
+  // where the Shredder holds the confiscated blaster: up in the air above its head in a crackle of blue, well out of reach
+  // (at the foot of the rug, in its mouth, it looked like something to ride up the carpet for)
+  const MOUTH = { x: 120, y: BACK.y0 + 3 };
   function surge() {
     shove(10);
     // the cause, plainly: a bolt of blue lightning from its eyes to the blaster in his hand, which flies into its mouth
@@ -727,6 +729,7 @@ var UnrugFloor13 = function (core) {
     b.jam = b.jamMax = 99;   // held until the soul lands
     b.final = { st: 'fetch', t: 0 };
     startHint(R.armed === false);
+    if (R.armed === false) R.banner = { text: "THE SOUL'S GETTING IT", t: 0, dur: TUNE.soulHint.wait + TUNE.soulHint.fetch + TUNE.soulHint.fly, pull: true };   // so the pause says what's happening
   }
   function openFinale() {
     const b = R.boss, F = TUNE.finale;
@@ -934,12 +937,13 @@ var UnrugFloor13 = function (core) {
   // the souls on their way from the counter to the gun, drawn over the scene
   // when the soul reaches the Shredder's mouth on a fetch (seconds into the hint)
   const hintMouthAt = () => TUNE.soulHint.fetch;
-  // the blaster stuck in the Shredder's teeth, sparking, after the surge (drawn over the scene, so it shows in the dark)
+  // the blaster held up in the air above the Shredder, sparking, after the surge (drawn over the scene, so it shows in the dark)
   function drawGunInMouth() {
     const G = R.boss.gun;
     if (!G || R.phase !== 'boss' || R.boss.st !== 'fight') return;
     if (R.t < G.at) return;   // still flying in
-    const w = A.uw(A.BLASTER), h = A.uh(A.BLASTER), jig = Math.floor(R.t * 8) % 2;
+    const w = A.uw(A.BLASTER), h = A.uh(A.BLASTER), jig = Math.round(Math.sin(R.t * 4) * 1.5);
+    disc(g, MOUTH.x, MOUTH.y + jig, 9, 'rgba(127,212,255,.22)');
     g.save(); g.translate(MOUTH.x, MOUTH.y + jig); g.rotate(-.35); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
     if (Math.random() < .25) R.fx.push({ k: 'spark', x: MOUTH.x + fxr(-6, 6), y: MOUTH.y + fxr(-3, 3), s: .5, col: Math.random() < .5 ? '#7fd4ff' : '#ffffff', t: 0, dur: .16, a: Math.random() * 6 });
   }
@@ -1814,6 +1818,7 @@ UnrugFloor13.TUNE = {
     rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
+    cutAfter: .7,   // a slash can't cut the runner until it has pulled this long (a beat or two), in the hall and the fight
     // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
     // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
     // misses, for smash + smashPer × its bat-backs. Once a phase, a marathon rally of this many.
@@ -1832,6 +1837,6 @@ UnrugFloor13.TUNE = {
     // the 13th Floor, two on the 48th, three on the roof (the owner, Oct 12).
     soulBye: { at: .9, come: 1.2, salute: 1.5, say: 1.7, leave: 3.6, later: 4.6 },   // the goodbye's beats, in seconds
     lastStand: 12,          // nothing takes it below this but the finish: the paper that gets it here stuns it, then the blaster
-    soulHint: { souls: 1, wait: .7, gap: 1.1, fly: 2, fetch: 1.5 },   // fetch: on the way to the Shredder's mouth for the blaster first
-    finale: { window: 4 }   // the finish: this long to blast it the rest of the way once the blaster's back
+    soulHint: { souls: 1, wait: .5, gap: 1.1, fly: 1.6, fetch: 1.2 },   // fetch: up to the blaster the Shredder holds first
+    finale: { window: 7 }   // the finish: this long to blast it the rest of the way once the blaster's back
   };

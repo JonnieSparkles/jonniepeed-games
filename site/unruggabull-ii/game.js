@@ -257,7 +257,7 @@
     bull.slash = 0; bull.cd = TUNE.slashCd;
     Snd.play('slash');
     slashHits();
-    if (R.pull.st === 'on' && onRunner()) floor.cutRug();
+    if (R.pull.st === 'on' && onRunner() && R.pull.t >= (TUNE.cutAfter || 0)) floor.cutRug();   // the rug has to get its grip on you first: a beat or two
   }
   // While the blade is out: knock projectiles back and cut carpshits in two. Temps stay safe behind their partitions:
   // the blaster or their own paper knocked back gets them.

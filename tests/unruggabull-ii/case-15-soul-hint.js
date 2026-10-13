@@ -23,6 +23,7 @@
     quiet(); R.banner = null; R.talk = null; b.hp = TUNE.lastStand + 3;
     const souls = R.souls; bossDamage(5, 'deflect');
     check(b.hp === TUNE.lastStand && b.final && b.final.st === 'fetch' && b.jam > 0 && R.hint && R.hint.fetch, 'its last stand: stunned, and the soul sets off');
+    check(R.banner && R.banner.text === "THE SOUL'S GETTING IT", 'a prompt says what the pause is');
     const T = TUNE.soulHint;
     let drew = 0;
     for (let i = 0; i < 60 * (T.wait + T.fetch + .4) && !R.hint.got; i++) { quiet(); update(1 / 60); if (!drew && R.hint.t > T.fetch * .5) { draw(); drew++; } }

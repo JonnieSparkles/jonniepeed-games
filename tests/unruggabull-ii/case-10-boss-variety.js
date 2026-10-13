@@ -38,10 +38,10 @@
   check(hp2 - b.hp > TUNE.bundleDmg * 1.5, 'a bundle knocked back from close to the mouth hits harder (' + (hp2 - b.hp).toFixed(1) + ')');
   // and cutting the rug close to the mouth jams it for longer
   reset(); bull.u = 0; bull.bz = 0; bull.jh = 0;
-  R.pull.st = 'on'; R.pull.t = 0; R.pull.dur = 5; bull.cd = 0; press('slash'); update(1 / 60);
+  R.pull.st = 'on'; R.pull.t = TUNE.cutAfter; R.pull.dur = 5; bull.cd = 0; press('slash'); update(1 / 60);
   check(near(b.jam, TUNE.jamT, .05), 'cut at the start and the jam lasts ' + TUNE.jamT + ' seconds');
   reset(); bull.u = 0; bull.bz = TUNE.mouth * .9; bull.jh = 0;
-  R.pull.st = 'on'; R.pull.t = 0; R.pull.dur = 5; bull.cd = 0; press('slash'); update(1 / 60);
+  R.pull.st = 'on'; R.pull.t = TUNE.cutAfter; R.pull.dur = 5; bull.cd = 0; press('slash'); update(1 / 60);
   check(b.jam > TUNE.jamT * 1.8, 'ride it in close and the jam lasts nearly twice as long (' + b.jam.toFixed(2) + ')');
   b.jam = 0; bull.bz = 0;
 
