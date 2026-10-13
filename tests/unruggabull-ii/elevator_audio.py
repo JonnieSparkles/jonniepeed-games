@@ -39,6 +39,41 @@ def check_elevator_audio(browser, root):
         if hook == 'arrival':
             assert page.evaluate("audioTest('P.id === null && P.timer === 0')"), 'arrival leaves the transport stopped'
         page.close()
+    # Schedule both complete phrases and the return to A in real audio, then the ride's ding at 29 seconds.
+    # A must be the shared storyboard muzak, and B must remain on the same quiet classic voices.
+    page = page_with(35)
+    # Cleanup timers use wall time; freeze them while OfflineAudioContext renders simulated seconds.
+    page.clock.install(time=0)
+    page.clock.pause_at(1)
+    page.evaluate("""() => {
+      window.audioTime = 0;
+      Object.defineProperty(AudioContext.prototype, 'currentTime', {get: () => window.audioTime});
+    }""")
+    result = page.evaluate("""async () => {
+      const hold = UnrugElevatorMusic.pleaseHold, horns = UnrugElevatorMusic.hornsUp;
+      UnrugSound.init(); UnrugSound.music('pleaseHold', {slam:true}); audioTest('clearInterval(P.timer)');
+      const order = [UnrugSound.musicState.pattern];
+      while (audioTime < 29) {
+        audioTime = Math.min(29, audioTime + .025); audioTest('pump()');
+        const name = UnrugSound.musicState.pattern;
+        if (name !== order[order.length - 1]) order.push(name);
+      }
+      UnrugSound.music(null, {hard:true}); UnrugSound.play('rideDing');
+      const b = await audioTest('ctx.startRendering()'), d = b.getChannelData(0);
+      const energy = (a, z) => d.slice(a * 48000, z * 48000).reduce((n, v) => n + v*v, 0);
+      return { order, finite: d.every(Number.isFinite),
+        phrases: [energy(.1, 9.5), energy(9.7, 19.1), energy(19.3, 28.7)], ding: energy(29, 29.7), silence: energy(33, 35),
+        stopped: audioTest('P.id === null && P.timer === 0'),
+        sourceMatch: JSON.stringify(hold.patterns.A) === JSON.stringify(horns.patterns.muzak),
+        different: hold.patterns.A.channels.lead.notes !== hold.patterns.B.channels.lead.notes,
+        quiet: hold.order.length === 2 && Object.values(hold.patterns).every(p => p.bpm === 100 && p.bars === 4 &&
+          Object.values(p.channels).every(c => c.synth === 'classic')) };
+    }""")
+    assert result['sourceMatch'] and result['different'] and result['quiet'], result
+    assert result['order'] == ['A', 'B', 'A', 'B'], result
+    assert result['finite'] and all(e > .001 for e in result['phrases']) and result['ding'] > .001, result
+    assert result['silence'] == 0 and result['stopped'], result
+    page.close()
     # Horns Up: the muzak loops until the game's cue; the reel plays once, then the riff, the breakdown and the solo
     # loop from the riff. A live replacement keeps a held pattern.
     page = page_with(2)
@@ -58,4 +93,4 @@ def check_elevator_audio(browser, root):
     page.evaluate("UnrugSound.music(null,{hard:true})")
     assert page.evaluate("audioTest('P.id === null && P.timer === 0')")
     page.close()
-    print('PASS elevator audio: Please Hold, Horns Up muzak/reel/riff/loop, brownout, the ride\'s effects, the blips and silence')
+    print('PASS elevator audio: Please Hold A/B/A loop and ding silence, Horns Up muzak/reel/riff/loop, brownout, the ride\'s effects, the blips and silence')

@@ -727,7 +727,7 @@ var UnrugFloor48 = function (core) {
   // passes the portrait, the car arrives (DING), the doors open on the operator, Please Hold, and he walks in.
   function startLobby(direct) {
     Q.st = 'lobby'; R.phase = 'lobby'; R.td.locked = true; R.td.camHold = null; Q.white = direct ? 0 : 1;
-    arena.newRun(R, bull); bull.u = -1.05; bull.facing = 1; bull.jh = 0; bull.slash = -1; R.shots = [];
+    arena.newRun(R, bull); R.arena.outShrink = false; bull.u = -1.05; bull.facing = 1; bull.jh = 0; bull.slash = -1; R.shots = [];
     Q.lobby = { t: 0, said: false, ding: false, out: 0, smoke: 0 };
     R.banner = null; R.talk = null; R.gold = false; R.td.streams = 0;
     Snd.music(null, { hard: true });
