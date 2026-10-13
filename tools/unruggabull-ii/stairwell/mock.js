@@ -525,7 +525,7 @@
   }  // The playable climb (climb.js) loads this file for its art, sounds and music, and has no scrubber: hand it the pieces.
   window.StairArt = { W, H, clamp, lerp, ease, easeIn, span, rng, shakeAt, SIDE, BARE, MOVE, RAISED, FRONT, SF, MF, RF, VF, SM, BACK, BF,
     drawSide, runFrame, CW, CH, carp, carpHalves, bolt, glow, soul, muzzle, words, topBanner, prompt, bark, blocks, stencil, vignette,
-    CAB, cabinet, shards, hall, FY, PIC, endWall, doorSign, doorFront, FX, playCue };
+    CAB, cabinet, shards, hall, FY, PIC, SET, endWall, doorSign, doorFront, FX, playCue };
   if (!$('scrub')) return;
 
   const opt = { scene: 'rug', cue: 'flight', fanfare: 3, door: 'combo', entry: 'beat', slow: false };

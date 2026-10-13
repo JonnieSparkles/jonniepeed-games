@@ -24,7 +24,7 @@
   // The ground is a line through these points (x ascending); the stairs are its slopes. dir is the way up.
   const SECTIONS = [
     { n: 1, dir: 1, low: 'G', high: '1', path: [[0, 246], [110, 246], [250, 176], [330, 176], [450, 106], [480, 106]], lamp: 300, big: '1', bigX: 40,
-      script: [['wait', .9], ['fly', 1, 34], ['clear'], ['fly', 1, 34], ['fly', -1, 84, { prompt: 'JUMP' }], ['clear'], ['fly', 1, 36, { thrower: true }], ['wait', 1.2], ['fly', 1, 40], ['clear'], ['fly', -1, 36], ['fly', 1, 84], ['wait', 1], ['fly', 1, 36, { thrower: true }], ['clear']] },
+      script: [['wait', .9], ['fly', 1, 34], ['clear'], ['fly', 1, 34], ['fly', -1, 84, { prompt: 'JUMP' }], ['clear'], ['fly', 1, 36, { thrower: true }], ['wait', 1.2], ['fly', 1, 40], ['clear'], ['fly', -1, 36], ['clear'], ['fly', 1, 84], ['wait', 1.4], ['fly', 1, 36, { thrower: true }], ['clear']] },
     { n: 2, dir: -1, low: '6', high: '7', path: [[0, 126], [40, 126], [150, 186], [300, 186], [400, 246], [480, 246]], lamp: 230, big: '7', bigX: 330,
       cab: { x: 150, floor: 186 },
       // on the way up to the cabinet, still blaster only; the glass can't break until they're done
@@ -53,8 +53,7 @@
     g.fillStyle = '#b88a2a'; g.fillRect(0, 147, W, 4); g.fillStyle = '#7a5a1c'; g.fillRect(0, 151, W, 1);
     S.stencil(g, sec.big, sec.bigX, 14, 11, '#e8dcc0', .2);
     const lx = sec.lamp;
-    g.fillStyle = '#22202a'; g.fillRect(lx - 7, 10, 14, 4); g.fillStyle = '#fff0b8'; g.fillRect(lx - 4, 14, 8, 8); g.fillStyle = '#4a4a5a'; for (const dx of [-5, -1, 3]) g.fillRect(lx + dx, 14, 1, 9);
-    S.glow(g, lx, 20, 200, '#ffd890', .22); S.glow(g, lx, 18, 30, '#fff4c8', .6);
+    g.fillStyle = '#22202a'; g.fillRect(lx - 7, 10, 14, 4); g.fillStyle = '#4a4a5a'; for (const dx of [-5, -1, 3]) g.fillRect(lx + dx, 14, 1, 9);
     // the ground: concrete below the line; landings as slabs, flights as steps
     const p = sec.path;
     g.fillStyle = '#25232c'; g.beginPath(); g.moveTo(0, H); for (const [x, y] of p) g.lineTo(x, y + 4); g.lineTo(W, H); g.closePath(); g.fill();
@@ -80,7 +79,7 @@
   }
 
   // ---------- the top landing: the end wall turning toward us, the door in it, its sign and lamp ----------
-  function doorEnd(g, floor, open) {
+  function doorEnd(g, gl, floor, open) {
     const quad = (pts, c) => { g.fillStyle = c; g.beginPath(); g.moveTo(...pts[0]); for (const q of pts.slice(1)) g.lineTo(...q); g.closePath(); g.fill(); };
     // the wall, its blocks running in perspective, the red dado and the gold stripe carried round the corner
     quad([[428, 0], [W, 0], [W, floor + 8], [428, floor]], '#34323d');
@@ -95,9 +94,7 @@
     quad([[d.x0 - 4, d.t0 - 5], [d.x1 + 4, d.t1 - 6], [d.x1 + 4, d.b1], [d.x0 - 4, d.b0]], '#a8a296');
     quad([[d.x0 - 1, d.t0 - 2], [d.x1 + 1, d.t1 - 3], [d.x1 + 1, d.b1], [d.x0 - 1, d.b0]], '#14121a');
     if (open > 0) {
-      quad([[d.x0, d.t0], [d.x1, d.t1], [d.x1, d.b1], [d.x0, d.b0]], '#fff1c0');
-      S.glow(g, 452, floor - 50, 130, '#ffe8a8', .55 * open);
-      g.save(); g.globalAlpha = .4 * open; quad([[d.x0, d.b0], [d.x1, d.b1], [300, floor + 6], [360, floor]], '#ffe8a8'); g.restore();
+      gl.fillStyle = '#fff1c0'; gl.beginPath(); gl.moveTo(d.x0, d.t0); gl.lineTo(d.x1, d.t1); gl.lineTo(d.x1, d.b1); gl.lineTo(d.x0, d.b0); gl.closePath(); gl.fill();
     }
     const k = 1 - clamp(open, 0, 1), lx = lerp(d.x0 + 2, d.x1, k);
     if (k > .02) {
@@ -113,8 +110,8 @@
     // the sign on the back wall beside it, and a caged lamp over the door lighting it
     S.doorSign(g, 150, Math.round((floor - 132) / 2));
     const lx2 = 410, ly = floor - 128;
-    g.fillStyle = '#22202a'; g.fillRect(lx2 - 6, ly, 12, 3); g.fillStyle = '#fff0b8'; g.fillRect(lx2 - 3, ly + 3, 6, 6); g.fillStyle = '#4a4a5a'; g.fillRect(lx2 - 4, ly + 3, 1, 7); g.fillRect(lx2 + 3, ly + 3, 1, 7);
-    S.glow(g, lx2, ly + 6, 120, '#ffd890', .28); S.glow(g, lx2, ly + 5, 18, '#fff4c8', .6);
+    g.fillStyle = '#22202a'; g.fillRect(lx2 - 6, ly, 12, 3); g.fillStyle = '#4a4a5a'; g.fillRect(lx2 - 4, ly + 3, 1, 7); g.fillRect(lx2 + 3, ly + 3, 1, 7);
+    gl.fillStyle = '#fff0b8'; gl.fillRect(lx2 - 3, ly + 3, 6, 6); S.glow(gl, lx2, ly + 5, 16, '#fff4c8', .7);
     // a mat on the landing: it can say WELCOME
     g.fillStyle = '#3a2418'; g.fillRect(392, floor - 1, 34, 3); g.fillStyle = '#6e4a2c'; g.fillRect(394, floor - 1, 30, 1);
   }
@@ -134,7 +131,7 @@
     const sec = SECTIONS[i];
     R.si = i; R.sec = sec; R.preDone = false; R.enemies = []; R.papers = []; R.bolts = []; R.script = 0; R.scriptT = 0; R.exitOpen = false; R.secT = 0;
     if (i === 1 && R.glass !== Infinity) { R.katana = true; }
-    P.x = entryX(sec); P.jh = 0; P.vj = 0; P.face = sec.dir;
+    P.x = entryX(sec); P.jh = 0; P.vj = 0; P.face = sec.dir; P.hearts = TUNE.hearts;
     if (music) {
       if (i === 0) S.playCue(TUNE.cue, 1, true);
       if (i === 1) S.playCue(TUNE.cue, R.katana ? 2 : 1, true);
@@ -409,7 +406,14 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
     startSection(i, true);
   }
 
-  // ---------- drawing ----------
+  // ---------- drawing, through the game's renderer ----------
+  // As on the rides: everything is drawn into two layers, one lit by the light where each pixel stands (the stairwell,
+  // him, the carpshits) and one that glows as it is (bulbs, bolts, paper, souls, the open door); the game's renderer,
+  // in its flat mode, lights the first from a few point lights over an ambient fill, lays the second over it, and
+  // finishes the picture with bloom, tone, vignette, dither and the 64-colour palette. Words and the HUD go on top, crisp.
+  const R3 = UnrugRender.create(W, H, Object.assign({}, S.SET, { flat: true }));   // the hall's shape, flat, as the rides pass it
+  const LITC = canvas(W, H), GLOC = canvas(W, H), OFF = canvas(W, H), OG = OFF.getContext('2d');
+  const LG = LITC.getContext('2d', { willReadFrequently: true }), GG = GLOC.getContext('2d', { willReadFrequently: true });
   function pose() {
     const set = R.katana ? SIDE : BARE;
     if (P.hurtT > 0) return set.hurt;
@@ -419,19 +423,21 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
     if (P.moving) return set['run' + (Math.floor(P.step) % 4)];
     return set.aim;
   }
-  function drawBull(g) {
+  const raising = () => R.st === 'rug' && R.stT >= RUG.raise && R.stT < RUG.raise + FANL;
+  const muzzleAt = () => [P.x + P.face * (SM.x + (P.crouch ? 2 : 0)) - (P.face < 0 ? 4 : 0), feetY() + SM.y + (P.crouch ? 7 : 0)];
+  function drawBull(g, gl) {
     if (R.st === 'dead') {
       const k = R.stT; if (k > 1.1 || (k > .8 && Math.floor(k * 30) % 2)) return;
       g.save(); g.globalAlpha = k > .8 ? .5 : 1; drawSide(g, (R.katana ? SIDE : BARE).hurt, P.x, feetY(), SF, P.face); g.restore(); return;
     }
     if (R.st === 'rug') {
       const k = R.stT, cab = sec().cab;
-      if (k >= RUG.raise && k < RUG.raise + FANL) {
+      if (raising()) {
         const hop = k - RUG.raise < .12 ? Math.round(Math.sin((k - RUG.raise) / .12 * Math.PI) * 6) : 0;
         drawSide(g, RAISED, cab.x + 30, cab.floor - hop, RF);
         const tipX = cab.x + 30 - 21, tipY = cab.floor - hop - RF.y + 2, tw = Math.sin(k * 14) * .5 + .5;
-        S.glow(g, tipX, tipY + 28 * (1 - (k * 1.4) % 1), 10, '#ffffff', .8);
-        g.fillStyle = '#ffffff'; g.fillRect(tipX - 1, tipY - 6 - tw * 3, 2, 12 + tw * 6); g.fillRect(tipX - 6 - tw * 3, tipY - 1, 12 + tw * 6, 2);
+        S.glow(gl, tipX, tipY + 28 * (1 - (k * 1.4) % 1), 10, '#ffffff', .8);
+        gl.fillStyle = '#ffffff'; gl.fillRect(tipX - 1, tipY - 6 - tw * 3, 2, 12 + tw * 6); gl.fillRect(tipX - 6 - tw * 3, tipY - 1, 12 + tw * 6, 2);
         return;
       }
       const img = k >= RUG.grab ? BARE.wind : k >= RUG.walk ? BARE['run' + (Math.floor(P.step) % 4)] : BARE.aim;
@@ -443,24 +449,23 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
       const breath = !walking && k < DOORT.brace ? Math.floor((k - DOORT.walk) / .42) % 2 : 0;
       const img = k >= DOORT.kick ? MOVE.kick : k >= DOORT.brace ? MOVE.brace : walking ? SIDE['run' + (Math.floor(P.step) % 4)] : breath ? SIDE.idle : SIDE.aim;
       drawSide(g, img, P.x, feetY() + (breath ? 1 : 0), img === MOVE.kick || img === MOVE.brace ? MF : SF, 1);
-      if (k >= DOORT.line && k < DOORT.kick + .2) S.bark(g, 'OK... HERE WE GO.', span(k, DOORT.line, DOORT.line + 1.6));
       return;
     }
     g.save(); if (P.inv > 0 && Math.floor(R.t * 18) % 2) g.globalAlpha = .4;
     drawSide(g, pose(), P.x, feetY(), SF, P.face);
     g.restore();
-    if (P.aimT > .1 && P.slash < 0) S.muzzle(g, P.x + P.face * (SM.x + (P.crouch ? 2 : 0)) - (P.face < 0 ? 4 : 0), feetY() + SM.y + (P.crouch ? 7 : 0));
+    if (P.aimT > .1 && P.slash < 0) S.muzzle(gl, ...muzzleAt());
     if (P.slash >= 0) {
       const k = P.slash / TUNE.slashT, cx = P.x + P.face * 6, cy = feetY() - (P.crouch ? 16 : 30);
-      g.save(); g.translate(cx, cy); g.scale(P.face, 1);
-      g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 36, -1.4 + k * .5, .9 + k * .5); g.stroke();
-      g.strokeStyle = '#7fd4ff'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 31, -1.2 + k * .5, .7 + k * .5); g.stroke(); g.restore();
+      gl.save(); gl.translate(cx, cy); gl.scale(P.face, 1);
+      gl.strokeStyle = '#ffffff'; gl.lineWidth = 3; gl.beginPath(); gl.arc(0, 0, 36, -1.4 + k * .5, .9 + k * .5); gl.stroke();
+      gl.strokeStyle = '#7fd4ff'; gl.lineWidth = 2; gl.beginPath(); gl.arc(0, 0, 31, -1.2 + k * .5, .7 + k * .5); gl.stroke(); gl.restore();
     }
   }
-  function drawPaper(g, p) {
+  function drawPaper(gl, p) {
     const col = p.back ? '#7fd4ff' : '#ff7050';
-    S.glow(g, p.x, p.y, 14, col, .7);
-    g.save(); g.translate(Math.round(p.x), Math.round(p.y)); g.rotate(p.r); A.rect(g, -4, -4, 8, 8, '#1a1418'); A.rect(g, -3, -3, 6, 6, p.back ? '#bfefff' : '#ffe0c8'); g.restore();
+    S.glow(gl, p.x, p.y, 14, col, .7);
+    gl.save(); gl.translate(Math.round(p.x), Math.round(p.y)); gl.rotate(p.r); A.rect(gl, -4, -4, 8, 8, '#1a1418'); A.rect(gl, -3, -3, 6, 6, p.back ? '#bfefff' : '#ffe0c8'); gl.restore();
   }
   function drawEnemies(g) {
     for (const e of R.enemies) {
@@ -471,13 +476,55 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
       g.restore();
     }
   }
-  function drawFx(g) {
+  function drawFx(g, gl) {
     for (const f of R.fx) {
       const k = f.t / f.dur;
-      if (f.k === 'soul') S.soul(g, f.x, f.y, k);
+      if (f.k === 'soul') S.soul(gl, f.x, f.y, k);
       else if (f.k === 'halves') S.carpHalves(g, f.x, f.y, k);
-      else if (f.k === 'pop') { S.glow(g, f.x, f.y, 20 * (1 - k), f.blue ? '#7fd4ff' : '#fff6e2', 1 - k); }
+      else if (f.k === 'pop') { S.glow(gl, f.x, f.y, 20 * (1 - k), f.blue ? '#7fd4ff' : '#fff6e2', 1 - k); }
     }
+  }
+  // the section's things into the lit layer (g) and the glow layer (gl)
+  function drawLayers(g, gl) {
+    const s = sec();
+    g.drawImage(backdrop(s), 0, 0);
+    gl.fillStyle = '#fff0b8'; gl.fillRect(s.lamp - 4, 14, 8, 8); S.glow(gl, s.lamp, 18, 22, '#fff4c8', .7);
+    if (s.cab) { g.save(); g.translate(s.cab.x - 300, s.cab.floor - 240); S.cabinet(g, R.secT, R.glass, R.taken); S.shards(g, R.secT, R.glass); g.restore(); }
+    if (s.door) doorEnd(g, gl, s.path[s.path.length - 1][1], doorOpen());
+    drawEnemies(g);
+    for (const b of R.bolts) S.bolt(gl, b.x, b.y, Math.sign(b.vx));
+    for (const p of R.papers) drawPaper(gl, p);
+    drawBull(g, gl);
+    drawFx(g, gl);
+    if (raising()) {
+      // the item get: gold rays turning behind him, in the glow (the renderer dims the rest and lights him)
+      const k = R.stT - RUG.raise, cx = s.cab.x + 30, cy = s.cab.floor - 90;
+      gl.save(); gl.globalCompositeOperation = 'lighter'; gl.globalAlpha = .22 * Math.min(1, k / .2);
+      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6 + k * .6; gl.fillStyle = i % 2 ? '#ffd44a' : '#ff9a3a'; gl.beginPath(); gl.moveTo(cx, cy); gl.lineTo(cx + Math.cos(a - .1) * 400, cy + Math.sin(a - .1) * 400); gl.lineTo(cx + Math.cos(a + .1) * 400, cy + Math.sin(a + .1) * 400); gl.closePath(); gl.fill(); }
+      gl.restore();
+    }
+  }
+  const doorOpen = () => R.st === 'door' ? ease(span(R.stT, DOORT.kick, DOORT.kick + .14)) : 0;
+  // the light in the stairwell this frame: the lamps, the open door, bolts and paper, the muzzle, freed souls
+  function lights(r) {
+    const s = sec(), L = (x, y, cr, cg, cb) => r.light(x, y, 0, cr, cg, cb);
+    L(s.lamp, 26, 2.6, 2.1, 1.4);
+    if (s.door) { const fl = s.path[s.path.length - 1][1]; L(410, fl - 118, 1.6, 1.3, .9); const o = doorOpen(); if (o) L(452, fl - 40, 3.2 * o, 2.9 * o, 2.2 * o); }
+    if (s.cab && R.secT - R.glass < .25) L(s.cab.x + 30, s.cab.floor - 36, 2.5, 2.8, 3.2);
+    for (const b of R.bolts.slice(0, 6)) L(b.x, b.y, .3, .55, .9);
+    for (const p of R.papers) L(p.x, p.y, p.back ? .15 : .5, p.back ? .3 : .16, p.back ? .5 : .08);
+    if (P.aimT > .1 && P.slash < 0 && R.st === 'play') { const [x, y] = muzzleAt(); L(x, y, .7, .55, .3); }
+    for (const f of R.fx) if (f.k === 'soul') L(f.x, f.y - 50 * (f.t / f.dur), .12, .2, .3);
+    if (raising()) L(s.cab.x + 30, s.cab.floor - 70, 2.4, 1.9, 1.0);
+  }
+  // one finished frame of the stairwell into ctx (putImageData: not transformed or blended)
+  function render(ctx) {
+    for (const x of [LG, GG]) { x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, W, H); x.imageSmoothingEnabled = false; }
+    drawLayers(LG, GG);
+    lights(R3);
+    R3.frame(R.t, { ambient: raising() ? lerp(.62, .2, Math.min(1, (R.stT - RUG.raise) / .15)) : .62 });
+    R3.layer(LG.getImageData(0, 0, W, H).data, GG.getImageData(0, 0, W, H).data);
+    R3.present(ctx, 0, 0);
   }
   function drawHud(g) {
     S.words(g, () => {
@@ -494,38 +541,18 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
       S.words(g, () => A.otxt(g, s.dir > 0 ? 'UP >' : '< UP', x / 2, y / 2, '#ffd44a', 1, 'center'));
     }
   }
-  // the play picture: the section, its things and him (noHud for the whip's snapshot)
-  function drawPlay(g, noHud) {
-    const s = sec();
-    g.drawImage(backdrop(s), 0, 0);
-    if (s.cab) { g.save(); g.translate(s.cab.x - 300, s.cab.floor - 240); S.cabinet(g, R.secT, R.glass, R.taken); S.shards(g, R.secT, R.glass); g.restore(); }
-    if (s.door) {
-      doorEnd(g, s.path[s.path.length - 1][1], R.st === 'door' ? ease(span(R.stT, DOORT.kick, DOORT.kick + .14)) : 0);
-    }
-    drawEnemies(g);
-    for (const b of R.bolts) S.bolt(g, b.x, b.y, Math.sign(b.vx));
-    for (const p of R.papers) drawPaper(g, p);
-    drawBull(g);
-    drawFx(g);
-    if (R.st === 'rug' && R.stT >= RUG.raise && R.stT < RUG.raise + FANL) {
-      // the item get: everything else dims, gold rays turn behind him
-      const k = R.stT - RUG.raise, cx = s.cab.x + 30, cy = s.cab.floor - 90;
-      g.fillStyle = '#07050a'; g.globalAlpha = .62 * Math.min(1, k / .15); g.fillRect(0, 0, W, H); g.globalAlpha = 1;
-      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = .2 * Math.min(1, k / .2);
-      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6 + k * .6; g.fillStyle = i % 2 ? '#ffd44a' : '#ff9a3a'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a - .1) * 400, cy + Math.sin(a - .1) * 400); g.lineTo(cx + Math.cos(a + .1) * 400, cy + Math.sin(a + .1) * 400); g.closePath(); g.fill(); }
-      g.restore(); S.glow(g, cx, cy, 110, '#ffd890', .35);
-      drawBull(g);
-      S.topBanner(g, 'RUGMERGENCY KATANA', span(k, .25, FANL - .05));
-    }
-    S.vignette(g);
+  // the words over the play picture: the HUD, his lines, the item get's banner
+  function overlay(g, noHud) {
     if (!noHud) drawHud(g);
     if (R.st === 'rug' && R.stT < RUG.raise) S.bark(g, '!', 1);
+    if (raising()) S.topBanner(g, 'RUGMERGENCY KATANA', span(R.stT - RUG.raise, .25, FANL - .05));
+    if (R.st === 'door' && R.stT >= DOORT.line && R.stT < DOORT.kick + .2) S.bark(g, 'OK... HERE WE GO.', span(R.stT, DOORT.line, DOORT.line + 1.6));
   }
   function drawDoorCut(g) {
     const k = R.stT;
-    if (k < DOORT.kick + .02) { drawPlay(g); return; }
+    if (k < DOORT.kick + .02) { render(g); overlay(g); return; }
     if (k < DOORT.hall) {
-      drawPlay(g, true);
+      render(g); overlay(g, true);
       const f = span(k, DOORT.kick + .02, DOORT.impact), ff = f * f, floor = sec().path[sec().path.length - 1][1];
       S.doorFront(g, lerp(452, 240, ff), lerp(floor - 48, 135, ff), lerp(28, 560, ff), lerp(100, 1100, ff), lerp(-.5, .08, f) + Math.sin(f * 9) * .05);
       if (k >= DOORT.impact) { g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H); }
@@ -542,22 +569,24 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
     // the camera whips up a few floors: the last section drops away, the next comes down from above
     g.fillStyle = '#0b0910'; g.fillRect(0, 0, W, H);
     g.drawImage(w.img, 0, Math.round(k * H * 1.1));
-    const nb = canvas(W, H), ng = nb.getContext('2d'); drawPlay(ng, true);
-    g.drawImage(nb, 0, Math.round((k - 1) * H * 1.1));
+    render(OG);
+    g.drawImage(OFF, 0, Math.round((k - 1) * H * 1.1));
     // the floors going by
     const n = Math.round(lerp(w.a, w.b, Math.min(1, w.t / (WHIP * .8))));
     S.words(g, () => { g.globalAlpha = Math.min(1, Math.sin(Math.PI * w.t / WHIP) * 2); A.rect(g, 92, 46, 56, 40, '#0a0810'); A.otxt(g, 'FL', 120, 50, '#fff6e2', 1, 'center'); A.otxt(g, String(n), 120, 60, '#ffd44a', 4, 'center'); });
   }
+  // the whip's snapshot of the section it leaves: the finished picture, no words
+  function drawPlay(g) { render(OG); g.drawImage(OFF, 0, 0); }
   function draw() {
     out.setTransform(1, 0, 0, 1, 0, 0);
     if (!R.started) {
-      drawPlay(out, true);
+      render(out);
       S.words(out, () => { out.globalAlpha = .8; A.rect(out, 50, 52, 140, 30, '#0a0810'); out.globalAlpha = 1; A.otxt(out, 'TAP TO START', 120, 58, '#ffd44a', 2, 'center'); A.otxt(out, 'SOUND ON', 120, 72, '#fff6e2', 1, 'center'); });
       return;
     }
     if (R.st === 'whip') drawWhip(out);
     else if (R.st === 'door' || R.st === 'clear') drawDoorCut(out);
-    else drawPlay(out);
+    else { render(out); overlay(out); }
     if (R.st === 'dead' && R.stT > .9) S.words(out, () => { A.otxt(out, 'RUGGED', 120, 56, '#ff7050', 3, 'center'); A.otxt(out, 'BACK TO THE LANDING', 120, 74, '#fff6e2', 1, 'center'); });
     $('debug').textContent = `section ${R.si + 1} · ${R.time.toFixed(1)} s · ${R.st}`;
   }
@@ -582,5 +611,5 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
   $('mute').onclick = () => { Snd.toggle(); showMute(); }; showMute();
   newRun(0);
   requestAnimationFrame(loop);
-  window.CLIMB = { get R() { return R; }, get P() { return P; }, IN, newRun, step, SECTIONS, TUNE, startWhip, breakGlass };
+  window.CLIMB = { get R() { return R; }, get P() { return P; }, IN, newRun, step, SECTIONS, TUNE, startWhip, breakGlass, render };
 })();
