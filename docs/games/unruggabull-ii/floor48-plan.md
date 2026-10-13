@@ -128,3 +128,7 @@ He picked chain callouts and p(Loom)'s laser, and wanted deflects to actually ha
 - **Chains:** CHAIN x5 called out under the banners, with a hit-stop on its beats and a soul per break past the second; the biggest on the clear card.
 - **QUALITY CONTROL:** after the first and second line go down, a laser sweeps the room with one gap (across, then down). It burns carpshits and sets off clutter on its way.
 
+### Round 5, second pass (his desktop play)
+
+"SLOW AF" (canvas filters; fixed, a frame is about 25 ms again), the laser not always escapable (the gap is now near him), a small sound for the souls' streams, mouse buttons on every floor, the elevator doors' sunburst, and the roof's "Floor?" / "Roof." before he can leave.
+

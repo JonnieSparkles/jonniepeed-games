@@ -53,9 +53,10 @@ var UnrugFloor48 = function (core) {
     combo: { window: .6, min: 3, beats: [3, 5, 8, 12, 16], stop: .07 },
     // p(Loom)'s QUALITY CONTROL (owner, Oct 13: "i like the mid floor ploom laser"): `delay` after the first and second line
     // goes down, a laser sweeps the room with one gap in it. It warns for `warn` seconds where it will start, then
-    // sweeps: first a wall of light across (gap on a walkway), then one down the room. A heart if it touches him; it
+    // sweeps: first a wall of light across (its gap on the walkway nearest him), then one down the room (its gap within
+    // `reach` of him). A heart if it touches him; it
     // burns any carpshit it crosses and sets off the clutter.
-    qc: { delay: 2.4, warn: 1.7, w: 4, gapsY: [176, 280, 390], sweeps: [{ dir: 'x', speed: 150, gap: 60 }, { dir: 'y', speed: 100, gap: 80 }] },
+    qc: { delay: 2.4, warn: 1.7, w: 4, gapsY: [176, 280, 390], reach: 150, sweeps: [{ dir: 'x', speed: 150, gap: 60 }, { dir: 'y', speed: 100, gap: 80 }] },
     drops: { spinner: 'spread', press: 'rapid', animator: 'pierce' }, dropChance: .45, dropLife: 12,
     // the shag: from the first line down, every this-many launches from a live line, at most this many out
     shagEvery: 5, shagMost: 2,
@@ -370,10 +371,12 @@ var UnrugFloor48 = function (core) {
     if (sw.dir === 'x') {
       // it starts at the wall further from him, so he sees it coming
       L.sgn = bull.x < (b.x0 + b.x1) / 2 ? -1 : 1; L.pos = L.sgn > 0 ? b.x0 - 6 : b.x1 + 6;
-      const gy = P.gapsY[Math.min(P.gapsY.length - 1, Math.floor(rr(0, P.gapsY.length)))]; L.g0 = gy - sw.gap / 2; L.g1 = gy + sw.gap / 2;
+      // the gap is on the walkway nearest him, so there's always a way out (owner, Oct 13: "theres not always a way to escape it")
+      const gy = P.gapsY.reduce((b2, y) => Math.abs(y - bull.y) < Math.abs(b2 - bull.y) ? y : b2); L.g0 = gy - sw.gap / 2; L.g1 = gy + sw.gap / 2;
     } else {
       L.pos = b.y0 - 6;
-      const gx = rr(b.x0 + 60, b.x1 - 60); L.g0 = gx - sw.gap / 2; L.g1 = gx + sw.gap / 2;
+      // within reach along his walkway: up to `reach` either side of him
+      const gx = clamp(bull.x + rr(-P.reach, P.reach), b.x0 + 50, b.x1 - 50); L.g0 = gx - sw.gap / 2; L.g1 = gx + sw.gap / 2;
     }
     Q.qc = L;
     say('QUALITY CONTROL.', 2.2); Snd.play('surge');
@@ -889,8 +892,7 @@ var UnrugFloor48 = function (core) {
       for (let i = 0; i < 5; i++) rect(g, p.x0 + S.hash(p.id, i) * (p.x1 - p.x0), p.y1 - 6 + S.hash(i, p.id) * 5, 3, 1, col);
       return;
     }
-    g.save(); if (p.flash > 0) g.filter = 'brightness(2.2)';
-    drawPropLive(p); g.restore();
+    g.save(); drawPropLive(p); if (p.flash > 0) { g.globalCompositeOperation = 'lighter'; drawPropLive(p); } g.restore();
   }
   function drawPropLive(p) {
     if (p.kind === 'canister') {
@@ -920,14 +922,15 @@ var UnrugFloor48 = function (core) {
   }
   function drawMachine(m, t) {
     const speed = live(m.line) ? F48.rate[Q.panic] : 0;
-    g.save();
-    if (m.flash > 0) g.filter = 'brightness(2.2)';
-    if (m.kind === 'tank') S.tank(g, m, t, null);
-    else if (m.kind === 'spinner') S.spinner(g, m, t, null, speed);
-    else if (m.kind === 'loom') S.loom(g, m, t, null, speed);
-    else if (m.kind === 'press') S.press(g, m, t, null, LINES[m.line].y, F48.bedH);
-    else S.animator(g, m, t, null, 0);
-    g.restore();
+    const one = () => {
+      if (m.kind === 'tank') S.tank(g, m, t, null);
+      else if (m.kind === 'spinner') S.spinner(g, m, t, null, speed);
+      else if (m.kind === 'loom') S.loom(g, m, t, null, speed);
+      else if (m.kind === 'press') S.press(g, m, t, null, LINES[m.line].y, F48.bedH);
+      else S.animator(g, m, t, null, 0);
+    };
+    // a hit flashes it bright: the same drawing again, added on top (a canvas filter here cost a sixth of the frame rate)
+    g.save(); one(); if (m.flash > 0) { g.globalCompositeOperation = 'lighter'; one(); } g.restore();
   }
   // p(Loom)'s laser: while it warns, a flickering line where it will start; then the beam, white in red, with a green
   // emitter either side of its gap
@@ -1086,8 +1089,11 @@ var UnrugFloor48 = function (core) {
     for (const [x, right] of [[dx - 72, 0], [dx + 72 - lw, 1]]) {
       if (lw <= 0) break;
       rect(g, x, 76, lw, 164, '#2a170f'); rect(g, x + 1, 77, lw - 2, 162, '#7a5a2e');
-      const cx = right ? x : x + lw;
-      for (let i = 0; i < 7; i++) { const b = (right ? -1 : 1) * (.25 + i * .2); core.line(g, cx, 236, cx + Math.sin(b) * 60 * (right ? -1 : 1), 236 - Math.cos(b) * 140, '#8a6634'); }
+      // the sunburst, as the car's: half on each leaf from the seam, kept inside its leaf as it slides away
+      const cx = right ? x : x + lw, sx = right ? 1 : -1;
+      g.save(); g.beginPath(); g.rect(x + 1, 77, lw - 2, 162); g.clip();
+      for (let i = 0; i < 7; i++) { const b = .25 + i * .2; core.line(g, cx, 236, cx + sx * Math.sin(b) * 60, 236 - Math.cos(b) * 140, '#8a6634'); }
+      g.restore();
       rect(g, x + 1, 77, lw - 2, 2, '#a07a3e');
       if (lw > 16) {
         // the window: the shaft, dark, until the car's light comes up behind it
@@ -1096,7 +1102,7 @@ var UnrugFloor48 = function (core) {
         if (here) rect(g, wx, 100, 10, 2, '#ffcf7a');
       }
     }
-    rect(g, dx - 1, 76, 2, 164, '#2a170f');
+    if (lw >= 72) rect(g, dx - 1, 76, 2, 164, '#2a170f');   // the seam, only while they're shut
     if (L.t > F48.lobby.dingAt + .4 + F48.lobby.doorsT && L.out <= 0) {
       const bob = Math.round(Math.sin(R.t * 5) * 2);
       otxt(g, 'GOING UP', dx, 34 + bob, '#ffd44a', 1, 'center');

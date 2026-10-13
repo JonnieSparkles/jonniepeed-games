@@ -684,6 +684,9 @@ window.UnrugSound = (function () {
     bobbin: t => { osc(sfxBus, 'p25', 520, t, .3, .04, { to: 900 }); noiseHit(sfxBus, t, .25, .05, 'bandpass', 1800, 2); },
     roll: t => { osc(sfxBus, 'sawtooth', 55, t, .5, .08, { to: 90, sustain: .8 }); noiseHit(sfxBus, t, .5, .12, 'lowpass', 700); },
     rumble: (t, seconds) => { const d = seconds || 3; noiseHit(sfxBus, t, d, .4, 'lowpass', 260, .7, 60); osc(sfxBus, 'sine', 42, t, d, .3, { to: 30, sustain: .8 }); for (let i = 0; i < d * 3; i++) noiseHit(sfxBus, t + i / 3 + Math.random() * .2, .3, .2, 'lowpass', 1500, 1, 200); },
+    // the souls' streams firing on the 48th Floor: a small, soft two-note shimmer (D, A), a touch higher as they bend in.
+    // Deliberately modest: the roof's stream is the big one
+    stream: (t, bend) => { const b = (bend || 0) * 3; osc(sfxBus, 'sine', hz(86 + b), t, .11, .02, { to: hz(87 + b) }); osc(sfxBus, 'triangle', hz(93 + b), t + .012, .09, .012, {}); },
     // a chain reaction called out (48th Floor): a bright stab that climbs with the chain's length
     chain: (t, n) => { const m = 74 + Math.min(12, (n || 3) - 3) * 1; [0, 4, 7].forEach((k, i) => osc(sfxBus, 'square', hz(m + k), t + i * .03, .16, .05, { sustain: .3 })); noiseHit(sfxBus, t, .12, .12, 'highpass', 3000, 2); },
     sour: t => { [62, 63, 68, 69].forEach((m, i) => osc(sfxBus, 'sawtooth', hz(m + 12), t, 1.2, .045, { to: hz(m + 12) * .5, sustain: .5 })); noiseHit(sfxBus, t, .5, .35, 'bandpass', 1800, .7, 200); osc(sfxBus, 'p12', hz(98), t, .6, .05, { to: hz(62) }); }

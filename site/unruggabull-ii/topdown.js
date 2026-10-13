@@ -175,6 +175,7 @@ var UnrugTopdown = function (core, tuning) {
     R.events.shots = (R.events.shots || 0) + 1;
     R.td.fx.push({ k: 'muzzle', x: mz.x, y: mz.y, h: mz.h, t: 0, dur: .07 });
     Snd.play('shot', R.spread > 0);
+    if (n > 0 && R.events.shots % 2) Snd.play('stream', R.td.bend);
     return true;
   }
   function stepShots(dt) {
@@ -567,9 +568,7 @@ var UnrugTopdown = function (core, tuning) {
     g.save(); g.translate(Math.round(e.x), Math.round(e.y - e.h));
     g.rotate(clamp(e.vx * .004, -.35, .35) + Math.sin(t * 5 + e.ph) * .06);
     g.scale(e.vx < -4 ? -1 : 1, 1); g.scale(1 + flap * .05, 1 - flap * .09);
-    if (e.hit > 0) g.filter = 'brightness(2.2)';
-    else if (e.wind > 0) g.filter = 'brightness(1.5) saturate(1.6)';
-    g.drawImage(img, -w / 2, -h / 2, w, h); g.restore();
+    g.drawImage(A.tinted(img, e.hit > 0 ? 'brightness(2.2)' : e.wind > 0 ? 'brightness(1.5) saturate(1.6)' : null), -w / 2, -h / 2, w, h); g.restore();
     if (e.kind === 'armored' && e.armored) helmet(e.x, e.y - e.h - h / 2 + 6);
     // winding up a throw: the bobbin held up over its head, rising
     if (e.wind > 0) { const k = 1 - e.wind / TD.bobbin.wind, bx = Math.round(e.x), by = Math.round(e.y - e.h - h / 2 - 6 - k * 6);
@@ -606,8 +605,7 @@ var UnrugTopdown = function (core, tuning) {
     }
     g.save(); g.translate(x, y); g.scale(e.vx < -4 ? -1 : 1, 1);
     if (e.st === 'dash') g.rotate(Math.atan2(e.vy, Math.abs(e.vx)) * .3);
-    g.filter = e.hit > 0 ? 'brightness(2.2)' : e.st === 'aim' ? 'sepia(.5) saturate(1.8) hue-rotate(-20deg) brightness(1.3)' : 'sepia(.55) saturate(1.3) hue-rotate(-20deg) brightness(.85)';
-    g.drawImage(CARP[Math.floor(t * 4) % 2], -w / 2, -h / 2, w, h); g.restore();
+    g.drawImage(A.tinted(CARP[Math.floor(t * 4) % 2], e.hit > 0 ? 'brightness(2.2)' : e.st === 'aim' ? 'sepia(.5) saturate(1.8) hue-rotate(-20deg) brightness(1.3)' : 'sepia(.55) saturate(1.3) hue-rotate(-20deg) brightness(.85)'), -w / 2, -h / 2, w, h); g.restore();
     if (e.stag > 0) for (let i = 0; i < 3; i++) { const a = t * 8 + i * 2.1; rect(g, Math.round(x + Math.cos(a) * 12), Math.round(y - h / 2 - 6 + Math.sin(a) * 3), 2, 2, '#ffd44a'); }
   }
   function drawEnemy(e) { if (e.kind === 'roll') drawRoll(e); else if (e.kind === 'shag') drawShag(e); else drawCarp(e); }
