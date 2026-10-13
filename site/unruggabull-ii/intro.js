@@ -13,7 +13,7 @@ var UnrugIntro = (function () {
     'When we last saw our hero, he had just unrugged the Rugfather.',
     'But the Rugfather had a son.',
     'He taught it everything he knew. It was a short lesson.',
-    'It followed his order to the letter. It grew up so fast.',
+    'It took his order a little too literally. It grew up so fast.',
     'Business was booming. Floor-to-floor carpet was everywhere. Profits were through the roof.',
     "Every soul Unruggabull freed was still on RugCo's books. So he had some questions for Accounting."
   ];
@@ -24,7 +24,7 @@ var UnrugIntro = (function () {
     'The Rugfather points at a chalkboard: MAXIMIZE CARPETS. The little loom watches from a school desk. Its eye flickers orange.',
     'A height chart on a doorframe, marked LOOMY at knee height. The loom\'s shadow climbs the wall with each new mark until it towers over the Rugfather. At the ceiling its eye lights orange, and the top mark\'s name, LOOMY, is crossed out and rewritten: p(Loom).',
     'RugCo Tower at night, open for business, a funeral wreath by the doors. Souls drift up past its windows into an orange glow on the roof.',
-    'An open ledger by the garage door, which now says STAIRS. In red ink: 5 SOULS IN, 1 RUG OUT. Light shows under the door.'
+    'An open ledger by the garage door, which now says STAIRS. In red ink: 5 SOULS IN, 1 RUG OUT. Unruggabull stands at the door; light spills from under it and he walks in.'
   ];
   const A = UnrugArt, S = UnrugIntroStills.stills, SP = UnrugIntroStills.sprites;
   const ok = img => img && img.complete && img.naturalWidth > 0;
@@ -360,6 +360,15 @@ var UnrugIntro = (function () {
     if (open > 0) {
       g.save(); g.globalAlpha = .35 * open; g.fillStyle = '#e8a028';
       g.beginPath(); g.moveTo(233, 184); g.lineTo(291, 184); g.lineTo(291 + 30 * open, 184 + 50 * open); g.lineTo(233 - 30 * open, 184 + 50 * open); g.closePath(); g.fill(); g.restore();
+    }
+    // Unruggabull at the door, seen from behind as in play (the game's own sprite, one pixel to a picture pixel). He
+    // breathes while the line is read; when it ends and the light opens, he walks in, rising toward the door and fading.
+    const walk = clamp((t - plan.total - .3) / 1.3), P = A.POSES;
+    const pose = walk > 0 ? (Math.floor(t * 7) % 2 ? P.runA : P.runB) : Math.floor(t * 1.4) % 2 ? P.breathe : P.stand;
+    if (pose && walk < 1) {
+      g.save(); g.globalAlpha = 1 - ease(clamp((walk - .5) / .5));
+      g.drawImage(A.tinted(pose, 'brightness(.78) saturate(.85)'), Math.round(262 - A.POSE_FEET.x), Math.round(206 - 14 * walk - A.POSE_FEET.y));   // dimmed to the cool room
+      g.restore();
     }
     // the ledger, held open: the tallies of the unrugged on the left, the production figures on the right
     const L = 26, T = 146;   // kept above the caption bar, which covers the bottom fifth
