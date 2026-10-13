@@ -27,6 +27,7 @@
       script: [['wait', .9], ['fly', 1, 34], ['clear'], ['fly', 1, 34], ['fly', -1, 84, { prompt: 'JUMP' }], ['clear'], ['fly', 1, 36, { thrower: true }], ['wait', 1.2], ['fly', 1, 40], ['clear'], ['fly', -1, 36], ['clear'], ['fly', 1, 84], ['wait', 1.4], ['fly', 1, 36, { thrower: true }], ['clear']] },
     { n: 2, dir: -1, low: '6', high: '7', path: [[0, 126], [40, 126], [150, 186], [300, 186], [400, 246], [480, 246]], lamp: 230, big: '7', bigX: 330,
       cab: { x: 150, floor: 186 },
+      tape: { x: 38, floor: 126 },   // caution tape across the way up: slash it to leave (the katana's first job)
       // on the way up to the cabinet, still blaster only; the glass can't break until they're done
       pre: [['wait', .8], ['fly', -1, 36], ['wait', 1.4], ['fly', -1, 84], ['wait', 1.2], ['fly', 1, 36, { thrower: true }], ['clear'], ['prompt', 'SHOOT THE GLASS']],
       script: [['wait', .7], ['fly', -1, 36, { swoopy: true }], ['prompt', 'SLASH'], ['clear'], ['fly', -1, 36, { thrower: true, throwFirst: .9 }], ['clear'], ['fly', -1, 34], ['fly', 1, 40], ['clear']] },
@@ -72,9 +73,9 @@
     }
     // the floor plates on the landings' walls: the low floor and the high one
     const plate = (txt, x, y) => S.words(g, () => { A.rect(g, x / 2 - 12, y / 2, 24, 9, '#1a1418'); A.rect(g, x / 2 - 11, y / 2 + 1, 22, 7, '#d8d0b8'); A.txt(g, txt, x / 2, y / 2 + 2, '#1a1418', 1, 'center'); });
-    const lowX = sec.dir > 0 ? 50 : W - 50, highX = sec.dir > 0 ? W - 40 : 40;
+    const lowX = sec.dir > 0 ? 50 : W - 50, highX = sec.dir > 0 ? W - 40 : 136;   // clear of the way-up arrow, the tape and the HUD
     plate('FL ' + sec.low, lowX, groundAt(sec, lowX) - 110);
-    if (!sec.door) plate('FL ' + sec.high, highX, Math.max(36, groundAt(sec, highX) - 100));   // the 13th's is the door's own sign
+    if (!sec.door) plate('FL ' + sec.high, highX, sec.dir < 0 ? 30 : Math.max(36, groundAt(sec, highX) - 100));   // up by the lamp's bracket, clear of the cabinet's plate   // the 13th's is the door's own sign
     BGS[sec.n] = c; return c;
   }
 
@@ -129,7 +130,7 @@
   }
   function startSection(i, music) {
     const sec = SECTIONS[i];
-    R.si = i; R.sec = sec; R.preDone = false; R.enemies = []; R.papers = []; R.bolts = []; R.script = 0; R.scriptT = 0; R.exitOpen = false; R.secT = 0;
+    R.si = i; R.sec = sec; R.preDone = false; R.tapeCut = null; R.enemies = []; R.papers = []; R.bolts = []; R.script = 0; R.scriptT = 0; R.exitOpen = false; R.secT = 0;
     if (i === 1 && R.glass !== Infinity) { R.katana = true; }
     P.x = entryX(sec); P.jh = 0; P.vj = 0; P.face = sec.dir; P.hearts = TUNE.hearts;
     if (music) {
@@ -202,7 +203,8 @@
     P.x += (mv * TUNE.run + P.kick) * dt; P.kick *= Math.pow(.002, dt); if (Math.abs(P.kick) < 4) P.kick = 0;
     if (mv) P.step += dt * 11;
     // the edges: the way on opens when the section's cleared
-    const lo = R.exitOpen && sec().dir < 0 && !sec().door ? -20 : 10, hi = R.exitOpen && sec().dir > 0 && !sec().door ? W + 20 : W - 10;
+    const tape = sec().tape && R.tapeCut == null ? sec().tape : null;
+    const lo = tape ? tape.x + 10 : R.exitOpen && sec().dir < 0 && !sec().door ? -20 : 10, hi = R.exitOpen && sec().dir > 0 && !sec().door ? W + 20 : W - 10;
     P.x = clamp(P.x, lo, hi);
     if (IN.jump && P.jh === 0) { P.vj = 4 * TUNE.jumpH / TUNE.jumpT; Snd.play('jump'); }
     IN.jump = false;
@@ -331,7 +333,7 @@
       R.script++;
     }
     if (pre) { if (!R.enemies.length) R.preDone = true; return; }
-    if (!R.exitOpen && !R.enemies.length && (!sec().cab || R.katana)) { R.exitOpen = true; if (!sec().door) say('UP!', .2); else say('THE DOOR', .2); }
+    if (!R.exitOpen && !R.enemies.length && (!sec().cab || R.katana)) { R.exitOpen = true; if (sec().tape && R.tapeCut == null) say('SLASH THE TAPE', .2); else if (!sec().door) say('UP!', .2); else say('THE DOOR', .2); }
   }
 
   // ---------- the Rugmergency ----------
@@ -393,6 +395,11 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
     if (R.st === 'rug') { stepRug(dt); stepShots(dt); return; }
     if (R.st === 'door') { stepDoor(); return; }
     stepBull(dt); stepEnemies(dt); stepShots(dt); stepScript(dt);
+    const tp = sec().tape;
+    if (tp && R.tapeCut == null && inSlash(tp.x, tp.floor - 40)) {
+      R.tapeCut = R.secT; Snd.play('cut'); R.fx.push({ k: 'pop', x: tp.x - 8, y: tp.floor - 40, t: 0, dur: .3 });
+      if (R.exitOpen) { R.prompt = null; R.said['UP!'] = false; say('UP!', .2); }
+    }
     if (R.exitOpen) {
       const s = sec();
       if (s.door && P.x > 360 && P.jh === 0) startDoor();
@@ -491,6 +498,13 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
     gl.fillStyle = '#fff0b8'; gl.fillRect(s.lamp - 4, 14, 8, 8); S.glow(gl, s.lamp, 18, 22, '#fff4c8', .7);
     if (s.cab) { g.save(); g.translate(s.cab.x - 300, s.cab.floor - 240); S.cabinet(g, R.secT, R.glass, R.taken); S.shards(g, R.secT, R.glass); g.restore(); }
     if (s.door) doorEnd(g, gl, s.path[s.path.length - 1][1], doorOpen());
+    if (s.cab && R.preDone && R.glass === Infinity && R.st === 'play') {
+      // ready: the cabinet's frame glows red, pulsing, so you know to shoot it
+      const pu = .5 + .5 * Math.sin(R.t * 6), x = s.cab.x, y = s.cab.floor - 70;
+      gl.save(); gl.globalAlpha = .55 + .45 * pu; gl.strokeStyle = '#ff3a2a'; gl.lineWidth = 2; gl.strokeRect(x - 3, y - 1, 66, 67); gl.globalAlpha = .3 + .3 * pu; gl.strokeStyle = '#ff9a80'; gl.lineWidth = 1; gl.strokeRect(x - 5, y - 3, 70, 71); gl.restore();
+      S.glow(gl, x + 30, y + 34, 60, '#ff4030', .18 * pu);
+    }
+    if (s.tape) drawTape(g, s.tape);
     drawEnemies(g);
     for (const b of R.bolts) S.bolt(gl, b.x, b.y, Math.sign(b.vx));
     for (const p of R.papers) drawPaper(gl, p);
@@ -504,6 +518,25 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
       gl.restore();
     }
   }
+  // caution tape from a post at the top of the flight to the wall: whole, then cut and falling away
+  // caution tape criss-crossed over the way up, from a post at the top of the flight to a bracket on the wall: whole,
+  // then cut, each strip parting in the middle and dropping
+  function drawTape(g, tp) {
+    const x0 = 4, x1 = tp.x, yb = tp.floor - 6, yt = tp.floor - 58;
+    g.fillStyle = '#5a6070'; g.fillRect(x1 - 1, yt - 2, 4, tp.floor - yt + 2); g.fillStyle = '#8a93a6'; g.fillRect(x1 - 2, yt - 4, 6, 3); g.fillRect(x1 - 3, tp.floor - 2, 8, 2);
+    g.fillStyle = '#4a4a5a'; g.fillRect(x0 - 2, yt, 3, 6); g.fillRect(x0 - 2, yb - 6, 3, 6);
+    const strip = (ax, ay, bx, by, alpha = 1) => {
+      const len = Math.hypot(bx - ax, by - ay), rot = Math.atan2(by - ay, bx - ax);
+      g.save(); g.globalAlpha = alpha; g.translate(ax, ay); g.rotate(rot);
+      g.fillStyle = '#e8c020'; g.fillRect(0, -3, len, 6); g.fillStyle = '#1a1418'; for (let x = 3; x < len - 2; x += 8) g.fillRect(x, -3, 4, 6);
+      g.restore();
+    };
+    if (R.tapeCut == null) { strip(x0, yb, x1, yt); strip(x0, yt, x1, yb); return; }
+    const k = Math.min(1, (R.secT - R.tapeCut) / .5), mx = (x0 + x1) / 2, my = (yb + yt) / 2, sag = ease(k);
+    // each half hangs from its end and swings down
+    strip(x1, yt, lerp(mx, x1 - 4, sag), lerp(my, yt + 24, sag)); strip(x1, yb, lerp(mx, x1 - 8, sag), lerp(my, yb, sag));
+    strip(x0, yb, lerp(mx, x0 + 6, sag), lerp(my, yb, sag)); strip(x0, yt, lerp(mx, x0 + 2, sag), lerp(my, yt + 26, sag));
+  }
   const doorOpen = () => R.st === 'door' ? ease(span(R.stT, DOORT.kick, DOORT.kick + .14)) : 0;
   // the light in the stairwell this frame: the lamps, the open door, bolts and paper, the muzzle, freed souls
   function lights(r) {
@@ -511,6 +544,7 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
     L(s.lamp, 26, 2.6, 2.1, 1.4);
     if (s.door) { const fl = s.path[s.path.length - 1][1]; L(410, fl - 118, 1.6, 1.3, .9); const o = doorOpen(); if (o) L(452, fl - 40, 3.2 * o, 2.9 * o, 2.2 * o); }
     if (s.cab && R.secT - R.glass < .25) L(s.cab.x + 30, s.cab.floor - 36, 2.5, 2.8, 3.2);
+    if (s.cab && R.preDone && R.glass === Infinity) { const pu = .5 + .5 * Math.sin(R.t * 6); L(s.cab.x + 30, s.cab.floor - 36, .4 + 1.1 * pu, .08 + .1 * pu, .06); }
     for (const b of R.bolts.slice(0, 6)) L(b.x, b.y, .3, .55, .9);
     for (const p of R.papers) L(p.x, p.y, p.back ? .15 : .5, p.back ? .3 : .16, p.back ? .5 : .08);
     if (P.aimT > .1 && P.slash < 0 && R.st === 'play') { const [x, y] = muzzleAt(); L(x, y, .7, .55, .3); }
@@ -535,7 +569,7 @@ const DOORT = { walk: .45, line: 1.05, brace: 2.15, kick: 2.5, impact: 2.83, hal
       A.otxt(g, 'FL ' + sec().low + '-' + sec().high, 236, 12, '#ffd44a', 1, 'right');
     });
     if (R.prompt && R.promptT >= 0 && R.promptT < 2.4) S.prompt(g, R.prompt);
-    if (R.exitOpen && R.st === 'play' && !sec().door) {
+    if (R.exitOpen && R.st === 'play' && !sec().door && !(sec().tape && R.tapeCut == null)) {
       // the way up: an arrow at the top of the flight
       const s = sec(), x = s.dir > 0 ? W - 22 : 22, y = topY(s) - 86 + Math.sin(R.t * 6) * 3;
       S.words(g, () => A.otxt(g, s.dir > 0 ? 'UP >' : '< UP', x / 2, y / 2, '#ffd44a', 1, 'center'));
