@@ -143,7 +143,12 @@ body.locked{overflow:hidden}
 }
 /* Twin-stick floors (the 48th Floor's factory): the right stick aims and fires, Slash stays beside it, Shoot goes. */
 .aimzone{display:none}
-.twin .aimzone{display:block;flex:1 1 auto;min-width:130px;min-height:140px}
+.twin .aimzone{display:block;flex:1 1 0;min-width:0;min-height:140px}
+.twin .stickzone{min-width:0;flex:1 1 0}
+.twin .pad-group{flex:1 1 0;min-width:0}
+.tip-twin{display:none}
+.twin .tip-twin{display:inline}
+.twin .tip-run{display:none}
 .twin .pad.shoot{display:none}
 .twin .pad-group{align-items:center}
 .stick.aim{border-color:rgba(127,212,255,.35)}
@@ -186,7 +191,7 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
         <div class="pads" id="pads">
           <div class="stickzone" id="stickzone" role="application" aria-label="Thumb stick: slide left or right to move, flick up to jump, hold down to crouch">
             <div class="stick" id="stick" aria-hidden="true"><i class="knob" id="knob"></i></div>
-            <span class="stick-tip" aria-hidden="true">Slide to move · flick up to jump · hold down to crouch</span>
+            <span class="stick-tip" aria-hidden="true"><span class="tip-run">Slide to move · flick up to jump · hold down to crouch</span><span class="tip-twin">Slide to move</span></span>
           </div>
           <div class="pad-group">
             <div class="stickzone aimzone" id="aimzone" role="application" aria-label="Aim stick: hold to aim and fire, flick to slash">

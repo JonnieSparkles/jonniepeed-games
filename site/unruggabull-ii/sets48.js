@@ -49,8 +49,14 @@ var UnrugSets48 = (function () {
       const y = k === 0 ? L.lines[0].y - 52 : k === L.lines.length ? L.lines[k - 1].y + 52 : (L.lines[k - 1].y + L.lines[k].y) / 2;
       for (let x = 60; x < W - 40; x += 18) R2(g, x, y, 10, 2, C.walk);
     }
-    // the arrival door in the front wall, and the exit to the lobby (right wall)
-    R2(g, L.door.x - 26, H - 8, 52, 8, '#120f16'); R2(g, L.door.x - 28, H - 10, 56, 2, C.brass);
+    // the front wall, seen from above: its top edge and a hazard band, with the elevator door he came in by
+    const fy = H - 32;
+    R2(g, 0, fy, W, H - fy, '#16131b'); R2(g, 0, fy, W, 3, '#3a3442'); R2(g, 0, fy, W, 1, '#5a5266');
+    for (let x = 0; x < W; x += 8) R2(g, x, fy + 6, 4, 4, Math.floor(x / 8) % 2 ? C.hazard : C.hazardDk);
+    for (let x = 0; x < W; x += 6) R2(g, x, fy + 14, 2, H - fy - 14, '#1e1a24');
+    R2(g, L.door.x - 30, fy, 60, H - fy, '#0c0a10'); R2(g, L.door.x - 32, fy, 2, H - fy, C.brass); R2(g, L.door.x + 30, fy, 2, H - fy, C.brass);
+    R2(g, L.door.x - 30, fy + 4, 29, H - fy - 4, '#6a4a18'); R2(g, L.door.x + 1, fy + 4, 29, H - fy - 4, '#6a4a18'); R2(g, L.door.x - 1, fy + 4, 2, H - fy - 4, '#2a170f');
+    stencil(g, '48', L.door.x - 12, fy + 12, '#c9962e');
     // the back wall
     R2(g, 0, 0, W, L.wallH, C.wall);
     for (let x = 0; x < W; x += 6) { R2(g, x, 8, 2, L.wallH - 8, C.wallRib); R2(g, x, 8, 1, L.wallH - 8, '#34313e'); }

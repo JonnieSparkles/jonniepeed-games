@@ -15,7 +15,7 @@ var UnrugFloor48 = function (core) {
     { y: 332, kind: 'roll', name: 'BULK' }
   ];
   const F48 = {
-    world: { w: 800, h: 450 }, wallH: 58, bedH: 22, lineX0: 66, lineX1: 612, beltEnd: 606, door: { x: 400 },
+    world: { w: 800, h: 480 }, wallH: 58, bedH: 22, lineX0: 66, lineX1: 612, beltEnd: 606, door: { x: 400 },
     main: { x: 14, y1: 360 },
     // cover: pallets of finished rugs waiting for dispatch, and a parts crate (solid; rolls bounce off them)
     props: [['pallet', 690, 150, 44, 26, 26], ['pallet', 716, 286, 40, 24, 30], ['crate', 520, 396, 30, 22, 22], ['crate', 150, 392, 34, 22, 20]],
@@ -147,7 +147,7 @@ var UnrugFloor48 = function (core) {
     const cx = (m.x0 + m.x1) / 2, cy = (m.y0 + m.y1) / 2, [rad, dmg] = F48.blast[m.kind];
     boom(cx, cy, m.kind === 'loom' ? 1.6 : m.kind === 'tank' ? 1.2 : 1);
     Snd.play(m.kind === 'tank' ? 'tankBurst' : 'machineBreak');
-    R.freeze = Math.max(R.freeze, m.kind === 'loom' ? .12 : .05);
+    if (Q.st === 'fight') R.freeze = Math.max(R.freeze, m.kind === 'loom' ? .12 : .05);
     Q.shake = Math.max(Q.shake, m.kind === 'loom' ? 1 : .5);
     soulsFrom(cx, m.y0, F48.souls[m.kind], m.kind, by === 'chain' ? 'chain' : by);
     R.events.broken = (R.events.broken || 0) + 1;
