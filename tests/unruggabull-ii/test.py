@@ -266,6 +266,20 @@ with sync_playwright() as p:
             page.dispatch_event('#aimzone', 'pointerup', {'pointerId': 82, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy - 34})
             page.evaluate("unrugTest('update(1/60)')")
             assert page.evaluate("unrugTest('bull.slash >= 0 && bull.sy < -.8')"), f'{name}: a flick slashes that way'
+            # a real flick goes out and comes back before the thumb lifts: it still slashes the way it went out
+            page.evaluate("unrugTest('for(let i=0;i<30;i++) update(1/60); bull.cd = 0')")
+            page.dispatch_event('#aimzone', 'pointerdown', {'pointerId': 84, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
+            page.dispatch_event('#aimzone', 'pointermove', {'pointerId': 84, 'pointerType': 'touch', 'clientX': cx + 36, 'clientY': cy})
+            page.dispatch_event('#aimzone', 'pointermove', {'pointerId': 84, 'pointerType': 'touch', 'clientX': cx - 3, 'clientY': cy + 2})
+            page.dispatch_event('#aimzone', 'pointerup', {'pointerId': 84, 'pointerType': 'touch', 'clientX': cx - 3, 'clientY': cy + 2})
+            page.evaluate("unrugTest('update(1/60)')")
+            assert page.evaluate("unrugTest('bull.slash >= 0 && bull.sx > .8')"), f'{name}: an out-and-back flick slashes the way it went out'
+            # a tap: a slash at the nearest threat
+            page.evaluate("unrugTest('for(let i=0;i<30;i++) update(1/60); bull.cd = 0; bull.slash = -1')")
+            page.dispatch_event('#aimzone', 'pointerdown', {'pointerId': 85, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
+            page.dispatch_event('#aimzone', 'pointerup', {'pointerId': 85, 'pointerType': 'touch', 'clientX': cx + 2, 'clientY': cy})
+            page.evaluate("unrugTest('update(1/60)')")
+            assert page.evaluate("unrugTest('bull.slash >= 0')"), f'{name}: a tap on the aim side slashes'
             mz = page.locator('#stickzone').bounding_box(); mx, my = mz['x'] + mz['width'] / 2, mz['y'] + mz['height'] / 2
             y0 = page.evaluate("unrugTest('bull.y')")
             page.dispatch_event('#stickzone', 'pointerdown', {'pointerId': 83, 'pointerType': 'touch', 'clientX': mx, 'clientY': my})

@@ -1359,10 +1359,11 @@
   zone.addEventListener('pointermove', e => { if (e.pointerId !== stickId) return; e.preventDefault(); stickAt(e.clientX, e.clientY); });
   zone.addEventListener('pointerup', stickOff); zone.addEventListener('pointercancel', stickOff);
   // The aim stick (twin-stick floors only): it floats like the move stick. Held past a small dead zone it aims and fires;
-  // out and back within a fifth of a second it's a flick, and he slashes that way.
+  // out and back within a fifth of a second it's a flick, and he slashes the way it went out (its furthest point, not
+  // where the thumb let go, which on a real flick is back near the middle); a quick tap slashes at the nearest threat.
   const aimZone = $('aimzone'), aimEl = $('aimstick'), aimKnob = $('aimknob');
   const AIM = { r: 44, dead: 10, flickT: .22, flickD: 22 };
-  let aimId = null, aimC = null, aimT0 = 0, aimFar = 0, aimLast = null;
+  let aimId = null, aimC = null, aimT0 = 0, aimFar = 0, aimLast = null, aimPeak = null;
   function aimAt(x, y) {
     let dx = x - aimC.x, dy = y - aimC.y;
     const far = Math.hypot(dx, dy), max = AIM.r * 1.4;
@@ -1370,15 +1371,17 @@
     const zr = aimZone.getBoundingClientRect(), d = Math.hypot(dx, dy), kr = Math.min(1, AIM.r / Math.max(1, d));
     aimEl.style.left = (aimC.x - zr.left) + 'px'; aimEl.style.top = (aimC.y - zr.top) + 'px';
     aimKnob.style.transform = 'translate(' + Math.round(dx * kr) + 'px,' + Math.round(dy * kr) + 'px)';
+    if (d >= aimFar) aimPeak = { dx, dy };
     aimFar = Math.max(aimFar, d); aimLast = { dx, dy };
     if (d > AIM.dead) { twin.aimX = dx / d; twin.aimY = dy / d; twin.aiming = true; } else twin.aiming = false;
   }
   function aimOff(e) {
     if (e && e.pointerId !== aimId) return;
-    if (e && aimLast && performance.now() / 1000 - aimT0 < AIM.flickT && aimFar > AIM.flickD) {
-      const d = Math.hypot(aimLast.dx, aimLast.dy) || 1; twin.flick = { x: aimLast.dx / d, y: aimLast.dy / d }; press('slash');
-    }
-    aimId = null; twin.aiming = false; aimLast = null;
+    const quick = e && aimId !== null && performance.now() / 1000 - aimT0 < AIM.flickT;
+    if (quick && aimPeak && aimFar > AIM.flickD) {
+      const d = Math.hypot(aimPeak.dx, aimPeak.dy) || 1; twin.flick = { x: aimPeak.dx / d, y: aimPeak.dy / d }; press('slash');
+    } else if (quick && aimFar <= AIM.flickD) { twin.flick = { auto: true }; press('slash'); }
+    aimId = null; twin.aiming = false; aimLast = null; aimPeak = null;
     if (aimEl) { aimEl.classList.remove('on'); aimEl.style.left = aimEl.style.top = ''; aimKnob.style.transform = ''; }
   }
   if (aimZone) {
@@ -1386,7 +1389,7 @@
       e.stopPropagation();
       if (aimId !== null) return;
       e.preventDefault();
-      aimId = e.pointerId; aimC = { x: e.clientX, y: e.clientY }; aimT0 = performance.now() / 1000; aimFar = 0; aimZone.classList.add('used');
+      aimId = e.pointerId; aimC = { x: e.clientX, y: e.clientY }; aimT0 = performance.now() / 1000; aimFar = 0; aimPeak = null; aimZone.classList.add('used');
       try { aimZone.setPointerCapture(e.pointerId); } catch (_) {}
       aimEl.classList.add('on'); aimAt(e.clientX, e.clientY);
     });

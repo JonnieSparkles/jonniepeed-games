@@ -121,3 +121,10 @@ His third play: "pretty fun!"
 - **A clear card before the lobby** ("we need an end level card for sure"): it comes up over the wreck as the souls rise, with the floor's numbers and the slip RECLAMATION, 48TH FLOOR: OUT OF SERVICE; Take the elevator whites out into the lobby.
 - **The Rugfather's portrait** is his sprite (the second frame of his strip), at half size and drawn over the finished picture so the palette and dither don't touch it ("it should look almost pixel perfect - i like that it wont match the base game resolution").
 
+## Round 5 (Oct 13, after #93 merged): pizzazz
+
+He picked chain callouts and p(Loom)'s laser, and wanted deflects to actually happen on his phone; no cargo belts, and the different last line wasn't clear, so not for now.
+- **Deflects:** the flick's direction bug fixed (it took the release point, not the furthest), a tap slashes at the nearest threat, and a slash catches a bobbin near him from any side.
+- **Chains:** CHAIN x5 called out under the banners, with a hit-stop on its beats and a soul per break past the second; the biggest on the clear card.
+- **QUALITY CONTROL:** after the first and second line go down, a laser sweeps the room with one gap (across, then down). It burns carpshits and sets off clutter on its way.
+
