@@ -115,3 +115,9 @@ From the owner's second phone play: "stream felt good. controls r fine i think?"
 - **Clutter:** soul canisters in pairs along the walkways that burst and set each other off, the crates and pallets breakable, and a console by each line that hurts its loom when smashed.
 - **Length kept:** looms 150 → 210 health, since the extra power-ups made the floor a minute shorter.
 
+## Round 4 (Oct 13): the card and the portrait
+
+His third play: "pretty fun!"
+- **A clear card before the lobby** ("we need an end level card for sure"): it comes up over the wreck as the souls rise, with the floor's numbers and the slip RECLAMATION, 48TH FLOOR: OUT OF SERVICE; Take the elevator whites out into the lobby.
+- **The Rugfather's portrait** is his sprite (the second frame of his strip), at half size and drawn over the finished picture so the palette and dither don't touch it ("it should look almost pixel perfect - i like that it wont match the base game resolution").
+

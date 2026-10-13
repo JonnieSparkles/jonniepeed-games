@@ -983,9 +983,11 @@
       const details = floor.clearCard(extra, best, clock);
       cardTitle.textContent = details.title; cardText.textContent = details.text;
       rows.push(...details.rows);
-      goBtn.textContent = 'Play again';
+      goBtn.textContent = details.go || 'Play again';
+      if (details.alt) { altBtn.textContent = details.alt; altBtn.hidden = false; }
       if (floor.id === 'floor13') { goBtn.textContent = 'Take the elevator'; altBtn.textContent = 'Play again'; altBtn.hidden = false; }
-      cardNote.textContent = floor.id === 'floor13' ? 'UNRUGGED, ' + R.souls + ' UNITS. RECLAMATION, 48TH FLOOR.' : details.note;   // the routing slip (lore chat, Oct 12) cardNote.hidden = !details.note;
+      // the routing slip (lore chat, Oct 12)
+      cardNote.textContent = floor.id === 'floor13' ? 'UNRUGGED, ' + R.souls + ' UNITS. RECLAMATION, 48TH FLOOR.' : details.note; cardNote.hidden = !cardNote.textContent;
     } else if (kind === 'rugged') {
       cardTitle.textContent = 'Rugged.';
       if (checkpoint) {
@@ -1136,6 +1138,7 @@
     goFull();
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
     if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
+    if (cardKind === 'clear' && floor.afterClear) { setState('play'); card.hidden = true; floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
     if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'floor13' : floor.id);
   });
   altBtn.addEventListener('click', () => {
@@ -1143,6 +1146,7 @@
     else if (cardKind === 'title') { goFull(); startIntro(); }
     else if (cardKind === 'rugged') { goFull(); startRun(); }
     else if (cardKind === 'clear' && floor.id === 'floor13') { goFull(); startRun('floor13'); }
+    else if (cardKind === 'clear' && floor.afterClear) { goFull(); startRun(floor.id); }
   });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
 

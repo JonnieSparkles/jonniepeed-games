@@ -154,7 +154,10 @@
       to(P8.snap + .1); check(R.td.scatter, 'the streams snap apart');
       to(P8.snap + .5); check(R.td.streams === 0 && !R.gold, 'back to normal');
       to(P8.salute + .1); check(Q().collapse.yank && Q().collapse.yank.every(s => s.salute) && bells.length === 3, 'the souls tear free and salute');
-      to(P8.lobby + .1); check(Q().st === 'lobby' && !floor.twin(), 'white, and the lobby, side on');
+      for (let i = 0; i < 600 && state !== 'over'; i++) update(1 / 60);
+      check(state === 'over' && cardKind === 'clear' && !card.hidden && cardTitle.textContent === 'The 48th Floor clear' && goBtn.textContent === 'Take the elevator' && !altBtn.hidden && !cardNote.hidden, 'white, then the clear card');
+      check(cardStats.textContent.includes('Reserve cracked') && R.phase === 'win' && R.endT > 0, 'the card has the run\'s numbers');
+      goBtn.click(); check(state === 'play' && card.hidden && Q().st === 'lobby' && !floor.twin(), 'Take the elevator: the lobby, side on');
     } finally { Snd.play = play; }
     // the lobby: the portrait, the ding, the doors, and in
     tick(F48.lobby.walkIn + .1);

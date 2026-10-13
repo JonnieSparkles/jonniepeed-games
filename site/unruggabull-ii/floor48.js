@@ -589,8 +589,20 @@ var UnrugFloor48 = function (core) {
       if (pt < P.rise) { sl.x += (tx - sl.x) * Math.min(1, dt * 7); sl.y += (ty - sl.y) * Math.min(1, dt * 7); sl.salute = pt >= P.salute; }
       else { sl.salute = false; sl.y -= (40 + (pt - P.rise) * 90) * dt; sl.x += (sl.i - .5) * 12 * dt; }
     }
-    if (pt >= P.white) Q.white = Math.min(1, (pt - P.white) / (P.lobby - P.white));
-    if (pt >= P.lobby) startLobby(false);
+    if (pt >= P.white && R.phase !== 'win') {
+      // the floor's clear card, over the wreck with the souls going up; its button whites out into the lobby (afterClear)
+      R.phase = 'win'; R.endT = R.t; emit('f48_clear', { amount: R.t }); endRun('clear');
+    }
+  }
+  // the clear card (owner, Oct 13: "we need an end level card for sure before the lobby")
+  function clearCard(extra, best, clock) {
+    const ev = R.events, C = Q.collapse;
+    const rows = [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Machines wrecked', String(ev.broken || 0)], ['Clutter smashed', String(ev.props || 0)],
+      ['Cables cut', String(ev.cuts || 0)], ['Bobbins sent back', String(ev.deflects || 0)], ['Reserve cracked', (C ? C.cracked : 0) + ' / ' + F48.collapse.reserve]];
+    if (R.continues) rows.push(['Continues', String(R.continues)]);
+    rows.push(['Best', best.souls + ' souls']);
+    return { title: 'The 48th Floor clear', text: (extra.newBest ? 'New best! ' : '') + 'The factory is down and its souls are free.', rows,
+      note: 'RECLAMATION, 48TH FLOOR: OUT OF SERVICE.', go: 'Take the elevator', alt: 'Play again' };
   }
   // p(Loom)'s readout along the bottom, in its machine blips
   function say(text, dur) { core.talk(text, 'loom'); Object.assign(R.talk, { readout: true, speaker: 'ploom', total: dur }); }
@@ -625,7 +637,7 @@ var UnrugFloor48 = function (core) {
     if (L.out > 0) {
       L.out = Math.min(1, L.out + dt / F.walkOut); R.arena.out = L.out; bull.u += (F.doorU - bull.u) * (1 - Math.pow(.002, dt)); bull.step += dt * 8;
       if (L.out >= 1) {
-        R.phase = 'win'; R.endT = R.t; emit('f48_clear', { amount: R.t });
+        R.phase = 'win';
         core.travel('elevator', { fight: true, from: 48, destination: { floor: 99, label: 'R', stage: 'roof' } });
         return;
       }
@@ -926,48 +938,30 @@ var UnrugFloor48 = function (core) {
     for (const yy of [145, 154]) { P(dx + 55, yy, 4, 4, '#3a2a1a'); P(dx + 56, yy + 1, 2, 2, '#f2e6c8'); }
     return cv;
   }
-  // The Rugfather's portrait: a placeholder until the painted one arrives (an image 96 x 120 drawn at x, y). A gilt
-  // frame, a dark ground, the founder as a rug in a suit, ablaze, and the plaque.
-  function drawPortrait(x, y, t) {
-    const P = (a, b, w, h, col) => rect(g, a, b, w, h, col);
-    P(x - 8, y - 8, 112, 136, '#5a3a12'); P(x - 6, y - 6, 108, 132, '#c9962e'); P(x - 4, y - 4, 104, 128, '#8a6420'); P(x - 2, y - 2, 100, 124, '#ffd44a');
-    for (let i = 0; i < 12; i++) { P(x - 6 + i * 9, y - 6, 3, 2, '#ffe68a'); P(x - 6 + i * 9, y + 124, 3, 2, '#ffe68a'); }
-    P(x, y, 96, 120, '#1e1418');
-    for (let i = 0; i < 120; i += 4) P(x, y + i, 96, 2, i % 8 ? '#22161a' : '#1a1216');
-    // the founder: a carpshit's shape in a black suit with a red tie, his rug body in RugCo red with a gold border
-    const cx = x + 48;
-    P(cx - 22, y + 70, 44, 50, '#141018'); P(cx - 4, y + 72, 8, 4, '#f2e6c8'); P(cx - 2, y + 76, 4, 22, '#c8302a');
-    P(cx - 20, y + 30, 40, 42, '#a8261e'); P(cx - 20, y + 30, 40, 2, '#ffd44a'); P(cx - 20, y + 70, 40, 2, '#ffd44a'); P(cx - 20, y + 30, 2, 42, '#ffd44a'); P(cx + 18, y + 30, 2, 42, '#ffd44a');
-    for (let i = 0; i < 6; i++) { P(cx - 23, y + 33 + i * 6, 3, 3, '#f2e6c8'); P(cx + 20, y + 33 + i * 6, 3, 3, '#f2e6c8'); }
-    P(cx - 12, y + 44, 7, 6, '#fff6e2'); P(cx + 5, y + 44, 7, 6, '#fff6e2'); P(cx - 9, y + 46, 3, 3, '#141018'); P(cx + 8, y + 46, 3, 3, '#141018');
-    P(cx - 14, y + 41, 9, 2, '#141018'); P(cx + 5, y + 41, 9, 2, '#141018');
-    P(cx - 8, y + 58, 16, 3, '#141018'); P(cx - 6, y + 61, 12, 2, '#7a1a14');
-    P(x + 4, y + 104, 30, 12, '#2a1d14');
-    P(x + 82, y + 4, 10, 10, '#3a2a1e');
-    txt(g, 'PORTRAIT', Math.round(cx - textWidth('PORTRAIT') / 2), y + 111, '#4a3a2e', 1);
-  }
-  // the flames round him: painted, so they flicker only a little (drawn with the glow)
-  function portraitFlames(x, y, t) {
-    const cx = x + 48;
-    for (let i = 0; i < 14; i++) {
-      const a = i / 13, fx = cx - 30 + a * 60, h = 14 + Math.sin(i * 1.7) * 8 + Math.sin(t * 3 + i) * 2, fy = y + 34 - Math.abs(a - .5) * 20;
-      rect(g, Math.round(fx), Math.round(fy - h), 4, Math.round(h), '#c8302a'); rect(g, Math.round(fx + 1), Math.round(fy - h * .7), 2, Math.round(h * .7), '#ff7a2a'); rect(g, Math.round(fx + 1), Math.round(fy - h * .35), 2, Math.round(h * .35), '#ffd060');
-    }
-    for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) { const fy = y + 40 + i * 10, h = 8 + Math.sin(i * 2.1 + t * 2.5) * 3; rect(g, Math.round(cx + sx * 26 + (sx < 0 ? -4 : 0)), Math.round(fy - h), 4, Math.round(h), i % 2 ? '#ff7a2a' : '#c8302a'); }
+  // The Rugfather's portrait: the owner's sprite (portrait.js, frame 2 of his strip at half size, finer than the game's
+  // own pixels) on a dark ground in a gilt frame. x, y is the picture's top left.
+  const PW8 = UnrugPortrait.w, PH8 = UnrugPortrait.h;
+  function drawPortrait(x, y) {
+    const P = (a, b, w, h, col) => rect(g, a, b, w, h, col), gx = x - 4, gy = y - 3, gw = PW8 + 8, gh = PH8 + 5;
+    P(gx - 7, gy - 7, gw + 14, gh + 14, '#5a3a12'); P(gx - 6, gy - 6, gw + 12, gh + 12, '#c9962e'); P(gx - 4, gy - 4, gw + 8, gh + 8, '#8a6420'); P(gx - 2, gy - 2, gw + 4, gh + 4, '#ffd44a');
+    for (let i = 0; gx - 5 + i * 9 < gx + gw + 3; i++) { P(gx - 5 + i * 9, gy - 6, 3, 2, '#ffe68a'); P(gx - 5 + i * 9, gy + gh + 4, 3, 2, '#ffe68a'); }
+    P(gx, gy, gw, gh, '#1e1418');
+    for (let i = 0; i < gh; i += 4) P(gx, gy + i, gw, 2, i % 8 ? '#22161a' : '#1a1216');
+    if (UnrugPortrait.img.complete && UnrugPortrait.img.naturalWidth) g.drawImage(UnrugPortrait.img, x, y, PW8, PH8);
   }
   function drawPlaque(x, y) {
     rect(g, x - 2, y - 2, 128, 22, '#5a3a12'); rect(g, x, y, 124, 18, '#c9962e'); rect(g, x, y, 124, 1, '#ffe68a');
     const mid = (t, yy) => txt(g, t, Math.round(x + 62 - textWidth(t) / 2), yy, '#2a1d14', 1);
     mid('FOUNDER & CEO', y + 3); mid('HIS VISION ENDURES', y + 10);
   }
-  const PORTRAIT = { x: 0, y: 30 };
+  const PORTRAIT = { x: 0, y: 30 };   // the picture's top left, picture pixels
   function drawLobby() {
     if (!LOBBY) LOBBY = paintLobby();
     g.drawImage(LOBBY, 0, 0);
-    const L = Q.lobby, px = Math.round(2 * arena.X(F48.lobby.portraitU)) - 48;
+    const L = Q.lobby, px = Math.round(2 * arena.X(F48.lobby.portraitU) - PW8 / 2);
     PORTRAIT.x = px;
-    drawPortrait(px, PORTRAIT.y, R.t);
-    drawPlaque(px - 14, PORTRAIT.y + 132);
+    drawPortrait(px, PORTRAIT.y);
+    drawPlaque(px + Math.round(PW8 / 2) - 62, PORTRAIT.y + PH8 + 4);
     // the dial over the doors: the car counting down to 48
     const dx = 2 * arena.X(F48.lobby.doorU), floorNo = dialAt(L.t);
     g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(dx, 62, 20, Math.PI, 0); g.fill();
@@ -995,13 +989,24 @@ var UnrugFloor48 = function (core) {
       otxt(g, 'GOING UP', dx, 34 + bob, '#ffd44a', 1, 'center');
     }
     g.restore(); arena.draw(); g.save(); g.scale(.5, .5);
-    if (Q.white > 0) { g.save(); g.globalAlpha = Q.white; rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
+  }
+  // The portrait again over the finished picture, so the renderer's 64 colours and dither don't touch it: the owner's
+  // sprite as he drew it. Not where he stands (a jump in front of it), where the lit copy underneath shows instead.
+  function lobbyOverlay() {
+    g.save(); g.scale(.5, .5);
+    const img = UnrugPortrait.img;
+    if (img.complete && img.naturalWidth) {
+      const fx = Math.round(2 * arena.X(bull.u)), fy = Math.round(2 * arena.Y(bull.jh));
+      g.save(); g.beginPath(); g.rect(0, 0, W, H); g.rect(fx + 36, fy - 84, -72, 90); g.clip('evenodd');
+      g.drawImage(img, PORTRAIT.x, PORTRAIT.y, PW8, PH8); g.restore();
+    }
+    if (Q.white > 0) { g.globalAlpha = Q.white; rect(g, 0, 0, W, H, '#ffffff'); }
+    g.restore();
   }
   function lobbyGlows() {
     g.save(); g.scale(.5, .5);
-    portraitFlames(PORTRAIT.x, PORTRAIT.y, R.t);
     for (const x of [100, 300]) { arena.glow(x, 76, 40, '#ffcf7a', .35); core.disc(g, x, 76, 3, '#fff0c0'); }
-    arena.glow(PORTRAIT.x + 48, PORTRAIT.y + 30, 70, '#ff7a2a', .25);
+    arena.glow(PORTRAIT.x + PW8 / 2, PORTRAIT.y + 40, 80, '#ff7a2a', .2 + .03 * Math.sin(R.t * 2.3));
     g.restore();
     arena.glows();
   }
@@ -1019,7 +1024,7 @@ var UnrugFloor48 = function (core) {
     core.drawFx('glow');
   }
   function overlay() {
-    if (Q.st === 'lobby') return;
+    if (Q.st === 'lobby') { lobbyOverlay(); return; }
     g.save(); g.scale(.5, .5);
     const C = Q.collapse;
     if (!C || C.phase !== 'ploom') { td.arrows(); td.reticle(); }
@@ -1116,7 +1121,7 @@ var UnrugFloor48 = function (core) {
     stageNames: { 18: 'The 48th Floor', 19: 'The 48th Floor: one line down', 20: 'The 48th Floor: last line', 21: 'The 48th Floor: collapse and lobby', 22: 'The 48th Floor cleared' },
     pauseText: 'The factory waits.',
     continueText: () => Q && Q.panic ? 'Back in the factory with full hearts? Lines you shut down stay down.' : 'Back in the factory with full hearts?',
-    clearCard: (extra, best, clock) => ({ title: 'The 48th Floor clear', text: '', rows: [['Souls', String(R.souls)], ['Time', clock(R.endT)]], note: '' }),
+    clearCard, afterClear: () => startLobby(false),
     F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
   };
 };
