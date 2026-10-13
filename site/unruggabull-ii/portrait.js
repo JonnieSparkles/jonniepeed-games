@@ -1,4 +1,5 @@
-// The Rugfather's portrait (the owner's sprite, frame 2), made by tools/unruggabull-ii/portrait.py. Don't edit by hand.
+// The Rugfather's portrait: the owner's sprite (frame 2 of his strip), halved to its own pixel grid, a stray pixel buffed out.
+// The original strip isn't kept in the repo; this PNG is the art. To replace it, swap the data URI and update w and h.
 // Classic script: UnrugPortrait.img is the picture, w x h picture pixels; it loads long before the lobby.
 var UnrugPortrait = (function () {
   'use strict';
