@@ -3,12 +3,13 @@
 // the Rugfather (portrait.js and two frames of his strip), the chalkboard, the height chart, the souls, the ledger.
 // Classic script (UnrugIntro); load after art.js, portrait.js and intro-stills.js.
 //
-// The game owns the pacing, as it did for the old crawl: it types each line with Snd.talkTimes, holds it, and moves on
-// at a tap. It asks this for the picture (draw) and offers it each tap first (tap): a tap on a still's gag object plays
+// The game owns the pacing: it types each line with Snd.talkTimes, then waits for a tap (owner, 13 Oct: let people
+// look and read as long as they like), showing a blinking arrow once the line is said. Everything keeps moving while it
+// waits. It asks this for the picture (draw) and offers it each tap first (tap): a tap on a still's gag object plays
 // the gag and doesn't advance; anywhere else advances. Everything is in picture pixels, 480 x 270.
 var UnrugIntro = (function () {
   'use strict';
-  const W = 480, H = 270, HOLD = 1.8;
+  const W = 480, H = 270;
   const LINES = [
     'When we last saw our hero, he had just unrugged the Rugfather.',
     'But the Rugfather had a son.',
@@ -302,11 +303,15 @@ var UnrugIntro = (function () {
   const SOULS = Array.from({ length: 13 }, (_, i) => ({ s: i * .36 - 1.4, x: 130 + hash(i + 5) * 220, v: 100 + hash(i + 9) * 30 }));
   // a soul: a little pale rug, fringed, with two dark eyes
   const SOUL = ['..#####..', '.#######.', '##.###.##', '##.###.##', '#########', '#########', '#########', '#.#.#.#.#'];
-  const arrive = i => SOULS[i].s + (515 - BEACON.y) / SOULS[i].v;     // when soul i reaches the beacon
+  const SOUL_LAP = 13 * .36 + .1;   // seconds before a soul sets off again
+  const arrive = i => SOULS[i].s + (515 - BEACON.y) / SOULS[i].v;     // when soul i first reaches the beacon
   const CARPETS = [[0, 1], [2, 3], [4, 0], [6, 2]];             // [soul, window column]
   function soulAt(i, t) {
-    const o = SOULS[i], p = (t - o.s) * o.v, y = 515 - p;
-    if (p < 0 || y < BEACON.y) return null;
+    // a steady stream: each soul goes round again, so a still that's left waiting keeps moving
+    const o = SOULS[i], q = t - o.s;
+    if (q < 0) return null;
+    const p = (q % SOUL_LAP) * o.v, y = 515 - p;
+    if (y < BEACON.y) return null;
     const k = clamp((515 - y) / (515 - BEACON.y)), near48 = clamp(1 - Math.abs(y - Y48 - 7) / 16);
     // they drift together toward the beacon; passing the 48th Floor, they shiver
     return { x: Math.round(o.x + (BEACON.x - o.x) * k * k + Math.sin(t * 2.2 + i) * 4 * (1 - k) + Math.sin(t * 40 + i) * 2 * near48), y: Math.round(y), fade: clamp((y - BEACON.y) / 40) };
@@ -430,5 +435,5 @@ var UnrugIntro = (function () {
     }
     return null;
   }
-  return { LINES, LABELS, HOLD, draw, tap, reset, W, H };
+  return { LINES, LABELS, draw, tap, reset, W, H };
 })();
