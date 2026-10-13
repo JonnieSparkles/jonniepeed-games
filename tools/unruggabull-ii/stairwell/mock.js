@@ -173,13 +173,13 @@
     const e1 = t => [lerp(520, 330, ease(span(t, .15, .9))), 200 + Math.sin(t * 4) * 5];
     const e2 = t => { const k = span(t, T.e2, T.slash + .02); return [lerp(520, 300, k), lerp(150, 196, ease(k))]; };
     const cues = [
-      [0, () => { Snd.music(opt.cueId, { slam: true, stems: M.STEMS[1] }); }],
+      [0, () => playCue(opt.cue, 1, true)],
       [T.shot1, () => Snd.play('shot')], [T.shot2, () => Snd.play('shot')], [T.die1, () => Snd.play('poof')],
       [T.shoot, () => Snd.play('shot')],
       [T.glass, () => { Snd.music(null, { hard: true }); FX.glass(); }],
       [T.grab, () => FX.shing()],
       [T.raise, () => { Snd.registerTrack('stairFanfare', fan); Snd.music('stairFanfare', { slam: true }); }],
-      [T.back, () => { Snd.music(opt.cueId, { slam: true, stems: M.STEMS[2] }); }],
+      [T.back, () => playCue(opt.cue, 2, true)],
       [T.slash, () => Snd.play('slash')], [T.cut, () => Snd.play('poof')]
     ];
     function draw(g, t) {
@@ -273,9 +273,10 @@
   // The stairwell's end wall turns toward us at the right; the door is in it, seen at an angle. Kicked, it swings in
   // and the office's light spills out across the landing.
   const DOOR = { x0: 436, x1: 468, top0: 140, top1: 128, bot0: 240, bot1: 246 };
-  function endWall(g, open) {
+  function endWall(g, open, plain) {
     g.fillStyle = '#2e2c36'; g.beginPath(); g.moveTo(430, 0); g.lineTo(W, 0); g.lineTo(W, H); g.lineTo(430, 246); g.closePath(); g.fill();
     g.fillStyle = '#25232c'; for (let y = 8; y < 240; y += 12) g.fillRect(430, y + (y - 8) * .02, 50, 1);
+    if (plain) return;
     const d = DOOR;
     const quad = (pts, c) => { g.fillStyle = c; g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.closePath(); g.fill(); };
     quad([[d.x0 - 3, d.top0 - 4], [d.x1 + 3, d.top1 - 5], [d.x1 + 3, d.bot1], [d.x0 - 3, d.bot0]], '#8a8478');
@@ -293,9 +294,8 @@
       g.fillStyle = '#c4ccda'; g.fillRect(Math.round(lerp(d.x0 + 4, lx - 6, .7)), 190, 3, 4);   // the handle
     }
   }
-  function doorSign(g) {
+  function doorSign(g, x = 160, y = 50) {
     words(g, () => {
-      const x = 160, y = 50;
       A.rect(g, x - 1, y - 1, 46, 26, '#1a1418'); A.rect(g, x, y, 44, 24, '#d8d0b8');
       A.txt(g, '13', x + 22, y + 3, '#1a1418', 2, 'center');
       A.rect(g, x + 14, y + 15, 16, 1, '#1a1418');   // the dash
@@ -349,29 +349,50 @@
     }
     g.save(); g.globalAlpha = .35 * Math.sin(Math.PI * e); g.fillStyle = '#000'; g.fillRect(0, 0, seam, H); g.restore();
   }
+  // ---------- the door in the long wall: he turns his back to us and walks up into it ----------
+  const LW = { cx: 364, x: 336, y: 136, w: 56, h: 104 };
+  const LWH = .42;   // the hall's size seen through the doorway, before the camera goes through
+  // the hall in the doorway: drawn at scale hs with its middle at (hx, hb - height/2), clipped to the doorway (dx, dy, dw, dh)
+  function hallIn(g, img, hs, hx, hb, clip) {
+    g.save(); g.beginPath(); g.rect(...clip); g.clip(); g.fillStyle = '#07050a'; g.fillRect(...clip);
+    g.imageSmoothingEnabled = false; g.drawImage(img, hx - W * hs / 2, hb - H * hs, W * hs, H * hs); g.restore();
+  }
+  function wallDoor(g, t, T, hallImg) {
+    const { cx, x, y, w, h } = LW;
+    g.fillStyle = '#8a8478'; g.fillRect(x - 5, y - 5, w + 10, h + 5); g.fillStyle = '#14121a'; g.fillRect(x - 3, y - 3, w + 6, h + 3);
+    if (t < T.kick) { doorFront(g, cx, y + h / 2, w, h, 0); return; }
+    hallIn(g, hallImg, LWH, cx, y + h, [x, y, w, h]);
+    glow(g, cx, y + h - 20, 90, '#ffe8a8', .35);
+    // the leaf flies in, away from us, down the hall, tumbling
+    const k = span(t, T.kick, T.flyEnd);
+    if (k < 1) { g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); const s = lerp(1, .18, ease(k)); doorFront(g, cx + k * 4, lerp(y + h / 2, y + h * .62, k), w * s, h * s, k * 2.2); g.restore(); }
+  }
   function doorScene(opt) {
     const T = { stop: 1.45, brace: 1.98, kick: 2.28, swing: 2.32, turn: .42, push: .3 };
     const beat = opt.entry === 'beat';
-    if (opt.door === 'swing') T.hall = T.swing + T.turn + T.push; else { T.fly = T.kick + .05; T.impact = T.kick + .33; T.hall = T.impact + .08; }
+    const wall = opt.door === 'wall';
+    if (wall) Object.assign(T, { face: 1.62, stepEnd: 1.95, brace: 2.05, kick: 2.32, flyEnd: 2.62, push0: 2.52, hall: 3.15 });
+    else if (opt.door === 'swing') T.hall = T.swing + T.turn + T.push; else { T.fly = T.kick + .05; T.impact = T.kick + .33; T.hall = T.impact + .08; }
     T.oh = T.hall + .3; T.raise = T.hall + (beat ? 1.5 : .15); T.banner = T.raise + .05; T.end = T.banner + 3.6;
     const st = 170;
-    const bx = t => t < T.stop ? lerp(80, 392, ease(span(t, 0, T.stop)) * .2 + span(t, 0, T.stop) * .8) : 392;
+    const stopX = wall ? LW.cx : 392;
+    const bx = t => t < T.stop ? lerp(80, stopX, ease(span(t, 0, T.stop)) * .2 + span(t, 0, T.stop) * .8) : stopX;
     const e = t => { const k = span(t, .1, .78); return [lerp(300, bx(.78) + 46, k), lerp(150, groundAt(bx(.78), st) - 44, ease(k))]; };
     const cues = [
-      [0, () => Snd.music(opt.cueId, { slam: true, stems: M.STEMS[3] })],
+      [0, () => playCue(opt.cue, 3, true)],
       [.74, () => Snd.play('slash')], [.8, () => Snd.play('poof')],
       [T.stop, () => { Snd.music(null, { hard: true }); FX.hum(T.kick - T.stop); }],
       [T.brace, () => FX.creak()],
       [T.kick, () => { FX.kick(); if (beat) Snd.music('floorOpen', { slam: true, stems: ['drums', 'bass', 'lead'] }); else Snd.music('floorHall', { slam: true, stems: ['drums', 'bass', 'lead'] }); }],
-      ...(opt.door === 'swing' ? [[T.swing, () => FX.whoosh()]] : [[T.impact, () => FX.impact()]]),
+      ...(wall ? [[T.push0, () => FX.whoosh()]] : opt.door === 'swing' ? [[T.swing, () => FX.whoosh()]] : [[T.impact, () => FX.impact()]]),
       ...(beat ? [[T.raise, () => { Snd.music('floorHall', { slam: true, stems: ['drums', 'bass', 'lead'] }); Snd.play('start'); }]] : [[T.raise, () => Snd.play('start')]])
     ];
     // the side view at time t (him included unless noBull), into g
     function sideView(g, t, noBull) {
-      well(g, { num: '13', numX: 210, lamp: 300, overFrom: 260, stairs: st });
-      doorSign(g);
+      well(g, { num: '13', numX: wall ? 196 : 210, lamp: 300, overFrom: 260, stairs: st });
       const open = t < T.kick ? 0 : ease(span(t, T.kick, T.kick + .14));
-      endWall(g, opt.door === 'fly' && t >= T.kick ? 1 : open);
+      if (wall) { doorSign(g, LW.cx / 2 - 22, 40); wallDoor(g, t, T, hall(0, null)); endWall(g, 0, true); }
+      else { doorSign(g); endWall(g, opt.door === 'fly' && t >= T.kick ? 1 : open); }
       if (opt.door === 'fly' && t >= T.kick) { /* the leaf's gone: it's flying at us */ }
       // the carpshit coming down the stairs, cut on his way up
       if (t < .78) carp(g, ...e(t), t, -1, .4);
@@ -380,12 +401,19 @@
         const x = bx(t), y = groundAt(x, st);
         let img = SIDE.aim, feet = SF;
         if (t < T.stop) img = t >= .7 && t < .77 ? SIDE.wind : t >= .77 && t < .95 ? SIDE.cut : runFrame(SIDE, t);
+        else if (wall && t >= T.face) {
+          // his back to us now, a step up to the door, a crouch, and the kick (a lunge on one leg)
+          const up = Math.round(4 * ease(span(t, T.face, T.stepEnd)));
+          const pose = t >= T.kick ? (t < T.kick + .28 ? BACK.runA : BACK.stand) : t >= T.brace ? BACK.crouch : (t < T.stepEnd ? BACK[Math.floor(t * 9) % 2 ? 'runA' : 'runB'] : BACK.stand);
+          const lunge = t >= T.kick && t < T.kick + .28 ? -3 : 0;
+          drawSide(g, pose, x, y - up + lunge, BF); img = null;
+        }
         else if (t >= T.kick) { img = MOVE.kick; feet = MF; }
         else if (t >= T.brace) { img = MOVE.brace; feet = MF; }
         else img = Math.floor(t * 1.3) % 2 ? SIDE.idle : SIDE.aim;
-        drawSide(g, img, x, y, feet);
+        if (img) drawSide(g, img, x, y, feet);
       }
-      if (t >= T.kick && t < T.kick + .5) {   // dust off the door frame
+      if (!wall && t >= T.kick && t < T.kick + .5) {   // dust off the door frame
         const k = (t - T.kick) / .5, r = rng(11);
         for (let i = 0; i < 14; i++) { const a = r() * Math.PI - Math.PI / 2, v = 30 + r() * 70; g.save(); g.globalAlpha = (1 - k) * .7; g.fillStyle = '#b8b0a0'; g.fillRect(Math.round(440 - Math.cos(a) * v * k), Math.round(200 + Math.sin(a) * v * k), 3, 3); g.restore(); }
       }
@@ -393,8 +421,19 @@
     }
     function draw(g, t) {
       const pose = t >= T.raise ? BACK.aim : t >= T.hall ? BACK.stand : null;
-      if (t < (opt.door === 'swing' ? T.swing : T.kick)) {
+      if (t < (wall ? T.push0 : opt.door === 'swing' ? T.swing : T.kick)) {
         sideView(g, t);
+      } else if (wall && t < T.hall) {
+        // the camera follows him up through the doorway: the stairwell grows past the screen faster than the hall does
+        const k = ease(span(t, T.push0, T.hall)), S = Math.exp(Math.log(9) * k), hs = Math.exp(Math.log(LWH) * (1 - k));
+        const cx = lerp(LW.cx, 240, k), cy = lerp(LW.y + LW.h / 2, 135, k);
+        if (SIDEV.made !== scene) { SG.setTransform(1, 0, 0, 1, 0, 0); SG.clearRect(0, 0, W, H); sideView(SG, T.push0, true); SIDEV.made = scene; }
+        g.fillStyle = '#07050a'; g.fillRect(0, 0, W, H);
+        g.save(); g.imageSmoothingEnabled = false; g.translate(cx, cy); g.scale(S, S); g.translate(-LW.cx, -(LW.y + LW.h / 2)); g.drawImage(SIDEV, 0, 0); g.restore();
+        const dx = cx + (LW.x - LW.cx) * S, dy = cy + (LW.y - LW.y - LW.h / 2) * S;
+        hallIn(g, hall(t, null), hs, cx, lerp(LW.y + LW.h, H, k), [dx, dy, LW.w * S, LW.h * S]);
+        const bxp = lerp(LW.cx, 240, k), byp = lerp(FLOOR - 4, FY(0) * PIC, k);
+        drawSide(g, BACK[Math.floor(t * 9) % 2 ? 'runA' : 'runB'], bxp, byp, BF);
       } else if (opt.door === 'swing' && t < T.hall) {
         const turnK = span(t, T.swing, T.swing + T.turn), pushK = span(t, T.swing + T.turn, T.hall);
         const hallImg = hall(t, null);
@@ -428,7 +467,7 @@
       const [sx, sy] = shakeAt(t, T.kick, .25, 4);
       if (sx || sy) { BUF.getContext('2d').drawImage(g.canvas, 0, 0); g.fillStyle = '#07050a'; g.fillRect(0, 0, W, H); g.drawImage(BUF, sx, sy); }
     }
-    return { name: 'door', T, end: T.end, cues, draw, label: t => t < T.stop ? 'the last flight, the cue at full tilt' : t < T.kick ? 'half a second: the music stops' : t < T.hall ? (opt.door === 'swing' ? 'the swing, then through the door' : 'the door at the camera, cut on the impact') : t < T.raise ? (beat ? 'the muzak: "...oh."' : 'the band from the kick') : 'blaster up: the band, THE 13TH FLOOR' };
+    return { name: 'door', T, end: T.end, cues, draw, label: t => t < T.stop ? 'the last flight, the cue at full tilt' : t < T.kick ? (wall ? 'the music stops; he turns to the door and braces' : 'half a second: the music stops') : t < T.hall ? (wall ? 'he walks up into it; the camera follows him through' : opt.door === 'swing' ? 'the swing, then through the door' : 'the door at the camera, cut on the impact') : t < T.raise ? (beat ? 'the muzak: "...oh."' : 'the band from the kick') : 'blaster up: the band, THE 13TH FLOOR' };
   }
 
   // ---------- new sounds, synthesized here (the game's own play through Snd) ----------
@@ -461,11 +500,18 @@
   // ---------- playing, scrubbing and the controls ----------
   const $ = id => document.getElementById(id);
   const muted = () => $('mute').getAttribute('aria-pressed') === 'true';
-  const CUE_IDS = { alley: 'stairAlley', runner: 'stairRunner', build: 'stairBuild' };
-  for (const k in M.CUES) Snd.registerTrack(CUE_IDS[k], M.CUES[k]);
-  const opt = { scene: 'rug', cue: 'alley', fanfare: 0, door: 'swing', entry: 'beat', slow: false };
+  for (const k in M.CUES) for (const id in M.CUES[k].tracks) Snd.registerTrack(id, M.CUES[k].tracks[id]);
+  // a cue's section: slammed in from the top (slam), or moved to on the next bar (more stems on the same track, or the
+  // next track, as Neon's heavy version is)
+  function playCue(key, n, slam) {
+    const [id, stems] = M.CUES[key].sections[n];
+    if (slam || Snd.musicState.playing !== id && !Snd.musicState.pending) Snd.music(id, slam ? { slam: true, stems } : { boundary: 'bar', stems });
+    else if (Snd.musicState.playing === id) Snd.stems(stems);
+    else Snd.music(id, { boundary: 'bar', stems });
+  }
+  const opt = { scene: 'rug', cue: 'neon', fanfare: 0, door: 'swing', entry: 'beat', slow: false };
   let scene = null, t = 0, playing = false, last = 0, nextCue = 0, drawn = 0;
-  function build() { scene = (opt.scene === 'rug' ? rugScene : doorScene)(Object.assign({ cueId: CUE_IDS[opt.cue] }, opt)); $('scrub').max = scene.end.toFixed(2); }
+  function build() { scene = (opt.scene === 'rug' ? rugScene : doorScene)(Object.assign({}, opt)); $('scrub').max = scene.end.toFixed(2); }
   function frame() {
     out.setTransform(1, 0, 0, 1, 0, 0); out.clearRect(0, 0, W, H);
     scene.draw(out, Math.min(t, scene.end));
@@ -508,22 +554,21 @@
   $('cues').onclick = ev => {
     const b = ev.target.closest('button'); if (!b) return; unlock(); stop();
     const a = b.dataset.a, cue = b.dataset.cue;
-    if (a === 'play') { musicPlaying = cue; Snd.music(CUE_IDS[cue], { slam: true, stems: M.STEMS[b.dataset.s] }); }
-    else if (a === 'section') { if (musicPlaying !== cue) { musicPlaying = cue; Snd.music(CUE_IDS[cue], { slam: true, stems: M.STEMS[b.dataset.s] }); } else Snd.stems(M.STEMS[b.dataset.s]); }
+    if (a === 'section') { const fresh = musicPlaying !== cue; musicPlaying = cue; playCue(cue, b.dataset.s, fresh); }
     else if (a === 'stop') { musicPlaying = null; Snd.music(null, { hard: true }); }
-    $('nowPlaying').textContent = musicPlaying ? 'Playing ' + M.CUES[musicPlaying].name.replace('Stairwell · ', '') + (b.dataset.s ? ', section ' + b.dataset.s : '') : 'Stopped';
+    $('nowPlaying').textContent = musicPlaying ? 'Playing ' + M.CUES[musicPlaying].name + (b.dataset.s ? ', section ' + b.dataset.s : '') : 'Stopped';
   };
   let fanTimer = 0;
   $('fans').onclick = ev => {
     const b = ev.target.closest('button'); if (!b) return; unlock(); stop(); clearTimeout(fanTimer);
     const cue = $('fanCue').value, f = M.FANFARES[+b.dataset.f](M.KEYSHIFT[cue]);
     // in place: the cue a moment, a hard stop, a breath, the fanfare, then the cue slams back in a step up
-    Snd.music(CUE_IDS[cue], { slam: true, stems: M.STEMS[1] }); $('nowPlaying').textContent = 'The cue, then ' + f.name;
+    playCue(cue, 1, true); $('nowPlaying').textContent = 'The cue, then ' + f.name;
     fanTimer = setTimeout(() => {
       Snd.music(null, { hard: true }); FX.glass();
       fanTimer = setTimeout(() => {
         Snd.registerTrack('stairFanfare', f); Snd.music('stairFanfare', { slam: true });
-        fanTimer = setTimeout(() => { Snd.music(CUE_IDS[cue], { slam: true, stems: M.STEMS[2] }); $('nowPlaying').textContent = 'The cue, back in at section 2'; fanTimer = setTimeout(() => { Snd.music(null, { hard: true }); $('nowPlaying').textContent = 'Stopped'; }, 4000); }, M.seconds(f) * 1000);
+        fanTimer = setTimeout(() => { playCue(cue, 2, true); $('nowPlaying').textContent = 'The cue, back in at section 2'; fanTimer = setTimeout(() => { Snd.music(null, { hard: true }); $('nowPlaying').textContent = 'Stopped'; }, 4000); }, M.seconds(f) * 1000);
       }, 750);
     }, 3000);
   };

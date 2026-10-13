@@ -50,11 +50,11 @@ select { font: inherit; color: var(--ink); background: var(--panel); border: 1px
   <div class="row"><h2>Moment</h2>
     <div class="seg" data-opt="scene"><button data-v="rug" aria-pressed="true">The Rugmergency</button><button data-v="door" aria-pressed="false">The door</button></div></div>
   <div class="row"><h2>Stairwell cue</h2>
-    <div class="seg" data-opt="cue"><button data-v="alley" aria-pressed="true">A · Alley Climb</button><button data-v="runner" aria-pressed="false">B · Stair Runner</button><button data-v="build" aria-pressed="false">C · Thirteen Flights</button></div></div>
+    <div class="seg" data-opt="cue"><button data-v="neon" aria-pressed="true">Neon</button><button data-v="flight" aria-pressed="false">Flight Risk (new)</button></div></div>
   <div class="row" data-only="rug"><h2>Fanfare</h2>
     <div class="seg" data-opt="fanfare"><button data-v="0" aria-pressed="true">1 · Ta-ta-ta-TAAA</button><button data-v="1" aria-pressed="false">2 · Cascade</button><button data-v="2" aria-pressed="false">3 · Over the Top</button></div></div>
   <div class="row" data-only="door"><h2>Through the door</h2>
-    <div class="seg" data-opt="door"><button data-v="swing" aria-pressed="true">Swing round</button><button data-v="fly" aria-pressed="false">Door at the camera</button></div></div>
+    <div class="seg" data-opt="door"><button data-v="swing" aria-pressed="true">Swing round</button><button data-v="wall" aria-pressed="false">Door in the long wall</button><button data-v="fly" aria-pressed="false">Door at the camera</button></div></div>
   <div class="row" data-only="door"><h2>Entry</h2>
     <div class="seg" data-opt="entry"><button data-v="beat" aria-pressed="true">Muzak, "...oh.", then slam</button><button data-v="slam" aria-pressed="false">Slam on the kick</button></div></div>
   <div class="row"><h2>Speed</h2>
@@ -64,17 +64,15 @@ select { font: inherit; color: var(--ink); background: var(--panel); border: 1px
     <h2 id="mh">Music takes</h2>
     <p class="note">Each cue grows a layer per section of the climb: 1 is the first flights, 2 after the katana, 3 the last flights to the door. Sections change on the next bar.</p>
     <div id="cues">
-      <div class="cue"><b>A · Alley Climb</b><span class="note">The first game's alley tune, 156 BPM, A minor.</span>
-        <div class="seg"><button data-a="section" data-cue="alley" data-s="1">Section 1</button><button data-a="section" data-cue="alley" data-s="2">2</button><button data-a="section" data-cue="alley" data-s="3">3</button><button data-a="stop">Stop</button></div></div>
-      <div class="cue"><b>B · Stair Runner</b><span class="note">New, driving, a galloping bass, 164 BPM, E minor (the 13th Floor's key).</span>
-        <div class="seg"><button data-a="section" data-cue="runner" data-s="1">Section 1</button><button data-a="section" data-cue="runner" data-s="2">2</button><button data-a="section" data-cue="runner" data-s="3">3</button><button data-a="stop">Stop</button></div></div>
-      <div class="cue"><b>C · Thirteen Flights</b><span class="note">Tense: a ticking ostinato that piles up, 138 BPM, E minor.</span>
-        <div class="seg"><button data-a="section" data-cue="build" data-s="1">Section 1</button><button data-a="section" data-cue="build" data-s="2">2</button><button data-a="section" data-cue="build" data-s="3">3</button><button data-a="stop">Stop</button></div></div>
+      <div class="cue"><b>Neon</b><span class="note">From the shelf: synthwave gone metal, 150 BPM, D minor. Section 3 is its heavy version at 168.</span>
+        <div class="seg"><button data-a="section" data-cue="neon" data-s="1">Section 1</button><button data-a="section" data-cue="neon" data-s="2">2</button><button data-a="section" data-cue="neon" data-s="3">3 · heavy</button><button data-a="stop">Stop</button></div></div>
+      <div class="cue"><b>Flight Risk</b><span class="note">New: the riff climbs like the stairs, a pedal run off E and a bass walking up a step a bar. Chip rock, 162 BPM, E minor (the 13th Floor's key).</span>
+        <div class="seg"><button data-a="section" data-cue="flight" data-s="1">Section 1</button><button data-a="section" data-cue="flight" data-s="2">2</button><button data-a="section" data-cue="flight" data-s="3">3</button><button data-a="stop">Stop</button></div></div>
     </div>
     <div class="row"><h2>Fanfares, in place</h2>
       <p class="note">Three seconds of the cue, the glass, a breath of silence, the fanfare, then the cue slams back in a step up. In the cue's key.</p>
       <label class="note" for="fanCue">Around cue</label>
-      <select id="fanCue"><option value="alley">A · Alley Climb (A major)</option><option value="runner">B · Stair Runner (E major)</option><option value="build">C · Thirteen Flights (E major)</option></select>
+      <select id="fanCue"><option value="neon">Neon (D major)</option><option value="flight">Flight Risk (E major)</option></select>
       <div class="seg" id="fans"><button data-f="0">1 · Ta-ta-ta-TAAA</button><button data-f="1">2 · Cascade</button><button data-f="2">3 · Over the Top</button></div></div>
     <div id="nowPlaying" aria-live="polite">Stopped</div>
   </section>
@@ -86,5 +84,6 @@ select { font: inherit; color: var(--ink); background: var(--panel); border: 1px
 <script>/*SETS*/</script>
 <script>/*FLOORMUSIC*/</script>
 <script>/*AUDIO*/</script>
+<script>/*NEON*/</script>
 <script>/*STAIRSMUSIC*/</script>
 <script>/*MOCK*/</script>

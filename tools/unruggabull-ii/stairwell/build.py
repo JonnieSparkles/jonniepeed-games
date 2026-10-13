@@ -25,7 +25,7 @@ def site(name, from_ref=None):
 t = (HERE / 'page.html').read_text()
 parts = [('BULL', site('bull.js')), ('SPRITES', site('sprites.js')), ('ART', site('art.js')), ('RENDER', site('render.js')),
          ('SETS', site('sets13.js')), ('FLOORMUSIC', site('music-floor.js', ref)), ('AUDIO', site('audio.js', ref)),
-         ('STAIRSMUSIC', (HERE / 'music-stairs.js').read_text()), ('MOCK', (HERE / 'mock.js').read_text())]
+         ('NEON', (HERE / 'neon.js').read_text()), ('STAIRSMUSIC', (HERE / 'music-stairs.js').read_text()), ('MOCK', (HERE / 'mock.js').read_text())]
 for key, src in parts:
     t = t.replace('/*' + key + '*/', src.replace('</script', '<\\/script'))
 out = Path(args[0] if args else 'stairwell.html')
