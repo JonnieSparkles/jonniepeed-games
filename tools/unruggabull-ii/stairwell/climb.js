@@ -30,7 +30,9 @@
       tape: { x: 38, floor: 126 },   // caution tape across the way up: slash it to leave (the katana's first job)
       // on the way up to the cabinet, still blaster only; the glass can't break until they're done
       pre: [['wait', .8], ['fly', -1, 36], ['wait', 1.4], ['fly', -1, 84], ['wait', 1.2], ['fly', 1, 36, { thrower: true }], ['clear'], ['prompt', 'SHOOT THE GLASS']],
-      script: [['wait', .7], ['fly', -1, 36, { swoopy: true }], ['prompt', 'SLASH'], ['clear'], ['fly', -1, 36, { thrower: true, throwFirst: .9 }], ['clear'], ['fly', -1, 34], ['fly', 1, 40], ['clear']] },
+      script: [['wait', .7], ['fly', -1, 36, { swoopy: true }], ['prompt', 'SLASH'], ['clear'], ['fly', -1, 36, { thrower: true, throwFirst: .9 }], ['clear'], ['fly', -1, 34], ['fly', 1, 40], ['clear'],
+        // up by the tape: two that hang back and keep throwing, so there's paper to knock back (or dodge)
+        ['fly', -1, 38, { pitcher: true, throwFirst: .7 }], ['wait', .6], ['fly', -1, 70, { pitcher: true, throwFirst: 1.3 }], ['clear']] },
     { n: 3, dir: 1, low: '12', high: '13', path: [[0, 246], [90, 246], [210, 186], [480, 186]], lamp: 260, big: '13', bigX: 120, door: true,
       script: [['wait', .6], ['roll'], ['wait', .7], ['roll'], ['wait', 1.1], ['fly', 1, 36], ['roll'], ['clear'], ['roll'], ['wait', .5], ['roll'], ['wait', .5], ['roll'], ['fly', 1, 84], ['clear']] }
   ];
@@ -237,7 +239,8 @@
   function spawnFly(side, hover, o = {}) {
     const x = side > 0 ? W + 30 : -30;
     R.enemies.push({ k: 'fly', x, y: groundAt(sec(), clamp(x, 0, W)) - hover, hover, side, st: 'enter', keep: rnd(...TUNE.fly.keep), ph: rnd(0, 6),
-      thrower: !!o.thrower, throwT: o.throwFirst || rnd(...TUNE.fly.throwFirst), swoopT: o.swoopy ? 1.6 : rnd(...TUNE.fly.swoopEvery), t: 0 });
+      thrower: !!(o.thrower || o.pitcher), pitcher: !!o.pitcher, throwT: o.throwFirst || rnd(...TUNE.fly.throwFirst), swoopT: o.pitcher ? Infinity : o.swoopy ? 1.6 : rnd(...TUNE.fly.swoopEvery), t: 0 });
+    if (o.pitcher) R.enemies[R.enemies.length - 1].keep = rnd(150, 200);
     if (o.prompt) say(o.prompt, .8);
   }
   function spawnRoll() {
@@ -281,7 +284,7 @@
             e.st = 'swoop'; e.sw = { t: 0, x0: e.x, y0: e.y, x1, y1: groundAt(sec(), x1) - e.hover, cx: 2 * P.x - .5 * (e.x + x1), cy: 2 * cy - .5 * (e.y + groundAt(sec(), x1) - e.hover) };
             Snd.play('swoop');
           } else if (e.throwT <= 0 && (e.thrower || Math.random() < .5)) {
-            e.throwT = rnd(...F.throwEvery);
+            e.throwT = e.pitcher ? rnd(1.5, 2.2) : rnd(...F.throwEvery);
             const ty2 = feetY() - (P.crouch ? 20 : 36), dx2 = P.x - e.x, dy2 = ty2 - e.y, d2 = Math.hypot(dx2, dy2) || 1;
             R.papers.push({ x: e.x, y: e.y, vx: dx2 / d2 * TUNE.paper, vy: dy2 / d2 * TUNE.paper, src: e, r: 0 }); Snd.play('wadThrow');
             if (R.si === 1 && R.katana) say('SLASH IT BACK');
