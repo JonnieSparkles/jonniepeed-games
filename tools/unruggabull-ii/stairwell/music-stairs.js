@@ -55,7 +55,11 @@ window.UnrugStairsMusic = (function () {
       arp: { stem: 'harmony', wave: 'pulse', duty: .125, vol: .022, gate: .5, notes: bars(...FR_TRIADS.map(q => { const t = q.split(' '); return t.concat([shift(t[0], 12)]).concat(t).concat([shift(t[0], 12)]).concat(t).concat([shift(t[0], 12)]).concat(t).concat([shift(t[0], 12)]).join(' '); })) },
       power: { stem: 'power', wave: 'sawtooth', vol: .045, drive: true, notes: FR_ROOTS.flatMap(r => chug(shift(r, 12))) },
       kick2: { stem: 'power', wave: 'noise', vol: .38, notes: rep('K K . K K K . K K K . K K K . K', 7) + ' | K K K K K K K K S S S S S S S S' },
-      crash: { stem: 'power', wave: 'noise', vol: .35, notes: rep('c . . . . . . . . . . . . . . .', 8) }
+      crash: { stem: 'power', wave: 'noise', vol: .35, notes: rep('c . . . . . . . . . . . . . . .', 8) },
+      // the last flights' build, same tempo: sixteenth hats, a busier kick, and a low saw doubling the bass in eighths
+      hats16: { stem: 'build', wave: 'noise', vol: .22, notes: rep('h h h h h h h h h h h h h h h h', 8) },
+      kick16: { stem: 'build', wave: 'noise', vol: .3, notes: rep('. . K . . . . K . . K . . . . K', 7) + ' | . . . . . . . . . . . . . . . .' },
+      bass2: { stem: 'build', wave: 'sawtooth', vol: .035, gate: .7, notes: bars(...FR_ROOTS.map(r => { const lo = shift(r, -12); return `${lo} . ${lo} . ${lo} . ${lo} . ${lo} . ${lo} . ${lo} . ${lo} .`; })) }
     } } }
   };
 
@@ -174,7 +178,7 @@ window.UnrugStairsMusic = (function () {
     neon: { name: 'Neon', tracks: { stairNeon: NEON.neon, stairNeonHeavy: NEON.neonHeavy },
       sections: { 1: ['stairNeon', STEMS[1]], 2: ['stairNeon', STEMS[2]], 3: ['stairNeonHeavy', STEMS[3].concat(['heavy'])] } },
     flight: { name: 'Flight Risk', tracks: { stairFlight: flight },
-      sections: { 1: ['stairFlight', STEMS[1]], 2: ['stairFlight', STEMS[2]], 3: ['stairFlight', STEMS[3]] } }
+      sections: { 1: ['stairFlight', STEMS[1]], 2: ['stairFlight', STEMS[2]], 3: ['stairFlight', STEMS[3].concat(['build'])] } }
   };
   const KEYSHIFT = { neon: -2, flight: 0 };   // the fanfares sit in the cue's key: D major for Neon, E for Flight Risk
   // a fanfare's length in seconds: every bar before the silent one

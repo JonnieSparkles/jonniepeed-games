@@ -61,7 +61,7 @@
   }
   function muzzle(g, x, y) { A.disc(g, x + 2, y, 4, '#fff6e2'); A.disc(g, x + 2, y, 2, '#7fd4ff'); }
   // words, drawn the game's way in its own units (half the picture)
-  function words(g, fn) { g.save(); g.setTransform(2, 0, 0, 2, 0, 0); fn(); g.restore(); }
+  function words(g, fn) { g.save(); g.scale(2, 2); fn(); g.restore(); }   // on top of any translation (the climb moves the cabinet)
   function topBanner(g, text, k, sub) {   // the floor's opening words over the ceiling (game.js drawWords, B.top)
     words(g, () => { g.globalAlpha = clamp(Math.min(k / .1, (1 - k) / .22), 0, 1); A.otxt(g, text, 120, 16, '#ffd44a', 2, 'center'); if (sub) A.otxt(g, sub, 120, 30, '#fff6e2', 1, 'center'); });
   }
@@ -522,7 +522,12 @@
     if (slam || Snd.musicState.playing !== id && !Snd.musicState.pending) Snd.music(id, slam ? { slam: true, stems } : { boundary: 'bar', stems });
     else if (Snd.musicState.playing === id) Snd.stems(stems);
     else Snd.music(id, { boundary: 'bar', stems });
-  }
+  }  // The playable climb (climb.js) loads this file for its art, sounds and music, and has no scrubber: hand it the pieces.
+  window.StairArt = { W, H, clamp, lerp, ease, easeIn, span, rng, shakeAt, SIDE, BARE, MOVE, RAISED, FRONT, SF, MF, RF, VF, SM, BACK, BF,
+    drawSide, runFrame, CW, CH, carp, carpHalves, bolt, glow, soul, muzzle, words, topBanner, prompt, bark, blocks, stencil, vignette,
+    CAB, cabinet, shards, hall, FY, PIC, endWall, doorSign, doorFront, FX, playCue };
+  if (!$('scrub')) return;
+
   const opt = { scene: 'rug', cue: 'flight', fanfare: 3, door: 'combo', entry: 'beat', slow: false };
   let scene = null, t = 0, playing = false, last = 0, nextCue = 0, drawn = 0;
   function build() { scene = (opt.scene === 'rug' ? rugScene : doorScene)(Object.assign({}, opt)); $('scrub').max = scene.end.toFixed(2); }
