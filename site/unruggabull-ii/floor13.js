@@ -25,7 +25,7 @@ var UnrugFloor13 = function (core) {
   // The music is one track that grows through the hall (music-floor.js): each beat and event sets its stems, or
   // switches track, on the next bar.
   const STEMS = { hall: ['drums', 'bass', 'lead'], move: ['drums', 'bass', 'lead', 'harmony'], staff: ['drums', 'bass', 'lead', 'harmony', 'power'],
-    dark: ['dark'], heavy: ['drums', 'bass', 'lead', 'harmony', 'power', 'heavy'] };
+    dark: ['dark'], lull: ['bass'], heavy: ['drums', 'bass', 'lead', 'harmony', 'power', 'heavy'] };
   const BEATS = [
     { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: { track: 'floorOpen', stems: STEMS.hall }, after: 'move' },
     { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: { track: 'floorStaff', stems: STEMS.staff }, after: ['rush', 'dark'] },
@@ -62,18 +62,19 @@ var UnrugFloor13 = function (core) {
     if (sec) return sec;
     let i = SET_ORDER.indexOf(secNow()), end = R.dist;
     const E = R.event, B = beat();
-    end += R.phase !== 'hall' ? Infinity : E ? Math.max(0, E.dur - E.t) * TUNE.scroll : B.after ? Math.max(0, B.time - R.beatT) * TUNE.scroll : Infinity;
-    if (!E && R.phase === 'hall' && secNow() === 'staff') end += TUNE.rushT * TUNE.scroll;   // rush hour keeps All Staff's set
-    const LEN = { ap: BEATS[0].time, move: TUNE.moveT, staff: BEATS[1].time + TUNE.rushT, dark: TUNE.darkT, copy: Infinity };
+    end += R.phase !== 'hall' ? Infinity : E ? (Math.max(0, E.dur - E.t) + (E.kind === 'rush' ? TUNE.lull : 0)) * TUNE.scroll
+      : R.lull > 0 ? R.lull * TUNE.scroll : B.after ? Math.max(0, B.time - R.beatT) * TUNE.scroll : Infinity;
+    if (!E && !(R.lull > 0) && R.phase === 'hall' && secNow() === 'staff') end += (TUNE.rushT + TUNE.lull) * TUNE.scroll;   // rush hour and the lull after keep All Staff's set
+    const LEN = { ap: BEATS[0].time, move: TUNE.moveT, staff: BEATS[1].time + TUNE.rushT + TUNE.lull, dark: TUNE.darkT, copy: Infinity };
     while (w >= end && i < SET_ORDER.length - 1) { i++; end += LEN[SET_ORDER[i]] * TUNE.scroll; }
     sec = SET_ORDER[i]; setMemo.set(key, sec);
     return sec;
   }
   // a station, a worker or an office already stands there
   const nearCross = w => R.event && R.event.kind === 'rush' && Math.abs(w - R.event.crossW) < TUNE.rush.cross.clear;
-  const setTaken = (layer, s, w) => nearCross(w) || layer === 'piece'
+  const setTaken = (layer, s, w) => nearCross(w) || (layer === 'piece'
     ? R.cubs.some(cb => cb.s === s && Math.abs(cb.w - w) < .2) || R.workers.some(wk => wk.s === s && Math.abs(wk.w - w) < (wk.kind === 'office' ? .42 : .26))
-    : R.workers.some(wk => wk.s === s && wk.kind === 'office' && Math.abs(wk.w - w) < .36);
+    : R.workers.some(wk => wk.s === s && wk.kind === 'office' && Math.abs(wk.w - w) < .36));
   // what's in view this frame (worked out once a frame)
   function setItems() {
     if (setCache && setCache.t === R.t && setCache.d === R.dist) return setCache.list;
@@ -147,7 +148,7 @@ var UnrugFloor13 = function (core) {
   // Each section starts like a new scene: a breather while its sign drops before anything comes at you.
   const BREATHER = 2.5;
   function spawnHall(dt) {
-    const B = beat(), ev = R.event && R.event.kind;
+    const B = beat(), ev = (R.event && R.event.kind) || (R.lull > 0 && 'lull');
     while (R.dist + 1.05 >= R.nextCubW) {
       addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38);
     }
@@ -321,8 +322,9 @@ var UnrugFloor13 = function (core) {
           for (let i = 0; i < E.bonus; i++) free(PX(bull.u, bull.bz) + fxr(-12, 12), YH(bull.bz, .3) + fxr(-6, 6), 'move', 'clean');
           R.fx.push({ k: 'big', text: 'NOT A SCRATCH +' + E.bonus, x: 120, y: 44, t: 0, dur: 1.3 }); Snd.play('wipe');
         }
-        // another event straight after this one, if the section lists more than one: a coffee between, same section
-        if (R.evQ && R.evQ.length) { R.event = null; addPickup('coffee', .9, rr(-.4, .4)); startEvent(R.evQ.shift()); spawnHall(dt); return; }
+        // another event after this one, if the section lists more than one: a lull between (nothing comes at you, the
+        // band drops to the bass and guitar) and a coffee, same section
+        if (R.evQ && R.evQ.length) { R.event = null; R.lull = TUNE.lull; addPickup('coffee', .9, rr(-.4, .4)); Snd.stems(STEMS.lull); spawnHall(dt); return; }
         R.event = null; R.beat++; R.beatT = 0; R.switches = [];
         R.nextFly = Math.max(R.nextFly, BREATHER); R.nextForm = Math.max(R.nextForm, BREATHER + .8); R.nextRow = Math.max(R.nextRow, BREATHER + 1.5); R.nextBox = Math.max(R.nextBox, BREATHER);
         addSign(1, beat().sign);
@@ -333,7 +335,8 @@ var UnrugFloor13 = function (core) {
         addPickup('coffee', .9, rr(-.4, .4));
         if (E.course === 'move') addPickup('spread', 1.3, rr(-.4, .4));   // lights out nearly always pays a streak drop instead
       }
-    } else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) { R.evQ = [].concat(B.after); startEvent(R.evQ.shift()); }
+    } else if (R.lull > 0) { R.lull -= dt; if (R.lull <= 0) startEvent(R.evQ.shift()); }
+    else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) { R.evQ = [].concat(B.after); startEvent(R.evQ.shift()); }
     else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
     spawnHall(dt);
     musicDrop();
@@ -377,7 +380,7 @@ var UnrugFloor13 = function (core) {
       tp.t += dt;
       if (tp.st === 'hidden') {
         // the temps stay down in the dark (lights out belongs to the carpshits) and on moving day (they're carrying boxes)
-        if (!R.noPops && !R.event && z < tp.trig && z > .3) { tp.st = 'up'; tp.t = 0; tp.threw = false; tp.will = rnd() < TUNE.throwChance; }
+        if (!R.noPops && !R.event && !(R.lull > 0) && z < tp.trig && z > .3) { tp.st = 'up'; tp.t = 0; tp.threw = false; tp.will = rnd() < TUNE.throwChance; }
       } else if (tp.st === 'up') {
         tp.pop = Math.min(1, tp.pop + dt * 7);
         if (!tp.threw && tp.t > .55 && z > .22 && !R.noPops) { tp.threw = true; if (tp.will) throwWad(tp); }
@@ -1535,6 +1538,7 @@ var UnrugFloor13 = function (core) {
       Object.assign(R.events, at.events, { bossAt: 0 });
       R.pull.count = 1;   // the runner has been explained already
     }
+    R.lull = 0;
     R.workers = []; R.nextWorkW = R.dist + .5;
     if (!at) while (R.dist + AHEAD >= R.nextWorkW) { addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
     for (let w = .2; w < 1.05; w += .36) addCubs(w, false);
@@ -1753,6 +1757,7 @@ UnrugFloor13.TUNE = {
     wadTime: 1.25, wadLead: .2, throwChance: .6,
     moveT: 16, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
+    lull: 3.2,              // after rush hour, before lights out: nothing comes at you, the band drops to bass and guitar, a coffee
     rushT: 12,              // rush hour, after All Staff: carpshits pour down the hall (first wave after first s, then every gap s, a formation every formEvery s); untouched pays clean souls
     rush: { first: 1.4, n: [3, 5], gap: [.6, .85], fast: 1.35, formEvery: 2.4, clean: 8, score: 1.6, recharge: .3,
       // the cross corridor: its doors start this far down the hall; traffic runs while they're nearer than from, in groups

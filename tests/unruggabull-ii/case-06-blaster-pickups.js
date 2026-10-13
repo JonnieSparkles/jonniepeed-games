@@ -81,6 +81,8 @@
   R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
   check(R.event && R.event.kind === 'rush' && Snd.track === 'floorRush' && lastMusic().o.boundary === 'bar' && stems() === 'drums,bass,lead,harmony,power,heavy', 'rush hour goes heavy on the next bar');
   R.flies = []; R.event.t = R.event.dur; update(1 / 60); step(.2);
+  check(!R.event && Snd.track === 'floorRush' && stems() === 'bass', 'the lull after drops to the bass and guitar');
+  step(TUNE.lull);
   const dark = lastMusic();
   check(R.event && R.event.kind === 'dark' && Snd.track === 'floorHall' && dark.o.boundary === 'bar' && stems() === 'dark', 'lights out drops to the muzak over the PA');
   step(TUNE.darkT);

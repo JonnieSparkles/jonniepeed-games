@@ -36,7 +36,12 @@
   for (let i = 0; i < 60 * 6 && dirs.size < 2; i++) { update(1 / 60); for (const f of R.flies) if (f.cross) { dirs.add(Math.sign(f.cross)); if (!crossed) crossed = { u: f.u, z: f.z, w: f.w }; } }
   check(crossed && crossed.w === cw && dirs.size === 2 && R.event.kind === 'rush', 'carpshits cross the hall at the doors, both ways');
   check(!R.cubs.some(cb => Math.abs(cb.w - cw) < X.clear), 'the doors are kept clear');
+  check(!setItems().some(it => it.layer !== 'over' && Math.abs(it.w - cw) < X.clear), 'of the meeting\'s chairs too');
   R.flies = []; R.event.t = R.event.dur - .01; const s0 = R.souls; update(1 / 60);
+  check(!R.event && R.lull > 0 && R.pickups.some(pk => pk.kind === 'coffee'), 'then a lull, with a coffee');
+  step(TUNE.lull - .3);
+  check(!R.event && !R.flies.length && !R.rows.some(rw => rw.w > R.dist + .9), 'nothing comes at you in it');
+  step(.4);
   check(R.event && R.event.kind === 'dark', 'then the lights go out');
   step(1.5);
   check(darkness() > .5, 'and the hall is dark');

@@ -5,8 +5,8 @@
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
-  const bells = [], play = Snd.play;
-  Snd.play = function (name, arg) { if (name === 'bell') bells.push(arg); return play.apply(this, arguments); };
+  const bells = [], play = Snd.play; let streamed = 0;
+  Snd.play = function (name, arg) { if (name === 'bell') bells.push(arg); if (name === 'stream') streamed++; return play.apply(this, arguments); };
   try {
     RUN.force = 1515; startRun(); bull.inv = 1e9; R.beat = 2; R.beatT = BEATS[2].minT; R.souls = TUNE.goal;
     for (let i = 0; i < 60 * 14 && R.phase !== 'boss'; i++) update(1 / 60);
@@ -33,6 +33,7 @@
     check(bells.length === 1 && bells[0] === 0, 'one bell, D5 (' + bells.join(',') + ')');
     check(R.souls === souls, 'the counter keeps its souls');
     // firing: the bolt plus one soul stream flying straight beside it, for one charge
+    check(!streamed, 'no shimmer before the soul is in');
     R.shots = []; R.fireT = 0; const charge = R.charge;
     keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
     const soul = R.shots.filter(s => s.soul), bolt = R.shots.filter(s => !s.soul);
@@ -40,6 +41,7 @@
     check(R.charge === charge - 1, 'for one charge');
     check(soul.every(s => s.du === 0 && !s.tgt && !s.spread), 'parallel, never homing in, and not Spread Shot');
     check(soul[0].side === 1, 'beside it, on one side');
+    check(streamed === 1, 'with a quiet shimmer of its own under the zap');
     draw();
     // a soul stream does normal blaster damage
     R.shots = soul.slice(0, 1); const hp = b.hp; b.jam = 0;

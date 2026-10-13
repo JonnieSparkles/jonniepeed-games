@@ -42,7 +42,7 @@
   check(!(R.event && R.event.kind === 'move') && R.souls >= before + E.bonus, 'not a scratch: a bonus');
 
   // lights out: shoot a switch and the lights flash on, freezing the carpshits
-  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); if (R.event && R.event.kind === 'rush') { R.flies = []; R.event.t = R.event.dur; update(1 / 60); } 
+  R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); if (R.event && R.event.kind === 'rush') { R.flies = []; R.event.t = R.event.dur; update(1 / 60); R.lull = 1e-9; update(1 / 60); } 
   check(R.event && R.event.kind === 'dark', 'lights out');
   for (let i = 0; i < 60 * 4 && !R.switches.length; i++) update(1 / 60);
   check(R.switches.length, 'a light switch glows on the wall');

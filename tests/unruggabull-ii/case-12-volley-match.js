@@ -20,7 +20,7 @@
   check(R.events.wipes === 1, 'a formation with one past halfway is not a wipe');
 
   // lights out sends formations every couple of seconds
-  quiet(); R.beat = 1; R.beatT = BEATS[1].time; update(1 / 60); if (R.event && R.event.kind === 'rush') { R.flies = []; R.event.t = R.event.dur; update(1 / 60); } 
+  quiet(); R.beat = 1; R.beatT = BEATS[1].time; update(1 / 60); if (R.event && R.event.kind === 'rush') { R.flies = []; R.event.t = R.event.dur; update(1 / 60); R.lull = 1e-9; update(1 / 60); } 
   check(R.event && R.event.kind === 'dark', 'lights out');
   const forms = new Set(); for (let i = 0; i < 60 * 6; i++) { update(1 / 60); for (const f of R.flies) if (f.fid) forms.add(f.fid); }
   check(forms.size >= 3, 'formations keep coming in the dark (' + forms.size + ' in 6 seconds)');
