@@ -1,0 +1,90 @@
+<title>Stairwell Moments</title>
+<style>
+/* One column under the picture: the scene, its clock, its options, then the music takes. Single dark look, like the game. */
+:root {
+  --ground: #0d0b12; --panel: #17141f; --line: #2b2636; --ink: #ece6d8; --dim: #9a92a6;
+  --gold: #ffd44a; --red: #c8302a; --blue: #3aa8e0;
+  --ui: "Chakra Petch", ui-sans-serif, system-ui, sans-serif; --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { background: var(--ground); color: var(--ink); }
+body { font: 15px/1.45 var(--ui); padding-block: 0 32px; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; display: grid; gap: 14px; }
+.stage { margin-inline: -16px; background: #000; }
+canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; image-rendering: pixelated; }
+@media (min-width: 792px) { .stage { margin-inline: 0; } }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 12px; }
+h1 { font-size: 20px; margin: 0; letter-spacing: .02em; }
+h1 span { color: var(--gold); }
+h2 { font-size: 13px; margin: 0; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); }
+.clock { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.clock output { font: 13px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
+#beat { font-size: 14px; color: var(--gold); min-height: 1.4em; }
+input[type=range] { width: 100%; accent-color: var(--gold); }
+button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; min-height: 42px; cursor: pointer; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button[aria-pressed="true"] { background: #2a2214; border-color: var(--gold); color: var(--gold); }
+#play { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; min-width: 84px; }
+.row { display: grid; gap: 6px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { flex: 1 1 auto; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 12px; }
+.note { color: var(--dim); font-size: 13px; margin: 0; }
+[data-only] { display: none; }
+#app[data-scene="rug"] [data-only="rug"], #app[data-scene="door"] [data-only="door"] { display: grid; }
+.cue { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.cue:first-of-type { border-top: 0; padding-top: 0; }
+.cue b { font-size: 15px; }
+select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px; min-height: 42px; }
+#nowPlaying { font: 13px var(--mono); color: var(--gold); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600&display=swap">
+
+<div id="app" class="wrap" data-scene="rug">
+  <header><h1>Unruggabull II · <span>the stairwell</span></h1><button id="mute" aria-pressed="false">Sound on</button></header>
+  <div class="stage"><canvas id="c" width="480" height="270" aria-label="The scene"></canvas></div>
+  <div class="clock"><button id="play">Play</button><input id="scrub" type="range" min="0" max="10" step="0.01" value="0" aria-label="Scrub through the scene"><output id="time">0.00 s</output></div>
+  <div id="beat" aria-live="polite"></div>
+
+  <div class="row"><h2>Moment</h2>
+    <div class="seg" data-opt="scene"><button data-v="rug" aria-pressed="true">The Rugmergency</button><button data-v="door" aria-pressed="false">The door</button></div></div>
+  <div class="row"><h2>Stairwell cue</h2>
+    <div class="seg" data-opt="cue"><button data-v="alley" aria-pressed="true">A · Alley Climb</button><button data-v="runner" aria-pressed="false">B · Stair Runner</button><button data-v="build" aria-pressed="false">C · Thirteen Flights</button></div></div>
+  <div class="row" data-only="rug"><h2>Fanfare</h2>
+    <div class="seg" data-opt="fanfare"><button data-v="0" aria-pressed="true">1 · Ta-ta-ta-TAAA</button><button data-v="1" aria-pressed="false">2 · Cascade</button><button data-v="2" aria-pressed="false">3 · Over the Top</button></div></div>
+  <div class="row" data-only="door"><h2>Through the door</h2>
+    <div class="seg" data-opt="door"><button data-v="swing" aria-pressed="true">Swing round</button><button data-v="fly" aria-pressed="false">Door at the camera</button></div></div>
+  <div class="row" data-only="door"><h2>Entry</h2>
+    <div class="seg" data-opt="entry"><button data-v="beat" aria-pressed="true">Muzak, "...oh.", then slam</button><button data-v="slam" aria-pressed="false">Slam on the kick</button></div></div>
+  <div class="row"><h2>Speed</h2>
+    <div class="seg" data-opt="slow"><button data-v="0" aria-pressed="true">Full speed, with sound</button><button data-v="1" aria-pressed="false">Quarter speed, silent</button></div></div>
+
+  <section class="panel" aria-labelledby="mh">
+    <h2 id="mh">Music takes</h2>
+    <p class="note">Each cue grows a layer per section of the climb: 1 is the first flights, 2 after the katana, 3 the last flights to the door. Sections change on the next bar.</p>
+    <div id="cues">
+      <div class="cue"><b>A · Alley Climb</b><span class="note">The first game's alley tune, 156 BPM, A minor.</span>
+        <div class="seg"><button data-a="section" data-cue="alley" data-s="1">Section 1</button><button data-a="section" data-cue="alley" data-s="2">2</button><button data-a="section" data-cue="alley" data-s="3">3</button><button data-a="stop">Stop</button></div></div>
+      <div class="cue"><b>B · Stair Runner</b><span class="note">New, driving, a galloping bass, 164 BPM, E minor (the 13th Floor's key).</span>
+        <div class="seg"><button data-a="section" data-cue="runner" data-s="1">Section 1</button><button data-a="section" data-cue="runner" data-s="2">2</button><button data-a="section" data-cue="runner" data-s="3">3</button><button data-a="stop">Stop</button></div></div>
+      <div class="cue"><b>C · Thirteen Flights</b><span class="note">Tense: a ticking ostinato that piles up, 138 BPM, E minor.</span>
+        <div class="seg"><button data-a="section" data-cue="build" data-s="1">Section 1</button><button data-a="section" data-cue="build" data-s="2">2</button><button data-a="section" data-cue="build" data-s="3">3</button><button data-a="stop">Stop</button></div></div>
+    </div>
+    <div class="row"><h2>Fanfares, in place</h2>
+      <p class="note">Three seconds of the cue, the glass, a breath of silence, the fanfare, then the cue slams back in a step up. In the cue's key.</p>
+      <label class="note" for="fanCue">Around cue</label>
+      <select id="fanCue"><option value="alley">A · Alley Climb (A major)</option><option value="runner">B · Stair Runner (E major)</option><option value="build">C · Thirteen Flights (E major)</option></select>
+      <div class="seg" id="fans"><button data-f="0">1 · Ta-ta-ta-TAAA</button><button data-f="1">2 · Cascade</button><button data-f="2">3 · Over the Top</button></div></div>
+    <div id="nowPlaying" aria-live="polite">Stopped</div>
+  </section>
+</div>
+<script>/*BULL*/</script>
+<script>/*SPRITES*/</script>
+<script>/*ART*/</script>
+<script>/*RENDER*/</script>
+<script>/*SETS*/</script>
+<script>/*FLOORMUSIC*/</script>
+<script>/*AUDIO*/</script>
+<script>/*STAIRSMUSIC*/</script>
+<script>/*MOCK*/</script>
