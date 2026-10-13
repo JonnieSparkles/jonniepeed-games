@@ -107,3 +107,11 @@ Three candidates on an audition page, each an intro (the factory alone while he 
 - **The stream as a whip,** not an intake: the reserve of soul tanks behind the back wall, cracked by sweeping the two streams across it, the streams bending in the more he cracks.
 - **p(Loom)'s beat, staged:** it was off screen (its eye only on the small monitors, the camera down by him) with three seconds of nothing after. Now the camera goes up to the wall where its eye opens over him, its threads visibly come from the eye to the gun, the streams snap, the souls tear free and salute, and the lobby follows at once. The HUD's line boxes, which looked like the monitors, are hidden from the collapse on.
 
+## Round 3 (Oct 13): more to destroy
+
+From the owner's second phone play: "stream felt good. controls r fine i think?" He saw only Rapid ("didnt see any others") and wanted more things to destroy. Built:
+
+- **Power-ups you see:** the first spinner, press and animator broken always drop theirs; crates hold power-ups too, ones not seen yet first; each one stands in a column of light in its colour, its name popping up when it drops.
+- **Clutter:** soul canisters in pairs along the walkways that burst and set each other off, the crates and pallets breakable, and a console by each line that hurts its loom when smashed.
+- **Length kept:** looms 150 → 210 health, since the extra power-ups made the floor a minute shorter.
+

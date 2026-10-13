@@ -16,11 +16,23 @@ var UnrugFloor48 = function (core) {
     world: { w: 800, h: 480 }, wallH: 58, bedH: 22, lineX0: 66, lineX1: 612, beltEnd: 606, door: { x: 400 },
     main: { x: 14, y1: 360 },
     // cover: pallets of finished rugs waiting for dispatch, and a parts crate (solid; rolls bounce off them)
-    props: [['pallet', 690, 150, 44, 26, 26], ['pallet', 716, 286, 40, 24, 30], ['crate', 520, 396, 30, 22, 22], ['crate', 150, 392, 34, 22, 20]],
+    // Clutter, all of it breakable (and solid until it breaks): pallets of finished rugs (they scatter), RugCo crates
+    // (each holds a power-up), soul canisters along the walkways (they explode and set each other off) and each line's
+    // control console (smashing it hurts its loom). [kind, x, y, width, depth, height]; consoles name their line.
+    props: [['pallet', 690, 150, 44, 26, 26], ['pallet', 716, 286, 40, 24, 30], ['pallet', 724, 384, 40, 24, 26],
+      ['crate', 520, 396, 30, 22, 22], ['crate', 150, 392, 34, 22, 20], ['crate', 700, 216, 26, 20, 18], ['crate', 40, 296, 24, 18, 18],
+      ['canister', 100, 78, 12, 10, 18], ['canister', 114, 84, 12, 10, 18], ['canister', 420, 76, 12, 10, 18], ['canister', 434, 80, 12, 10, 18],
+      ['canister', 690, 70, 12, 10, 18], ['canister', 704, 76, 12, 10, 18], ['canister', 196, 158, 12, 10, 18], ['canister', 210, 162, 12, 10, 18],
+      ['canister', 452, 184, 12, 10, 18], ['canister', 466, 180, 12, 10, 18], ['canister', 196, 262, 12, 10, 18], ['canister', 210, 266, 12, 10, 18],
+      ['canister', 452, 290, 12, 10, 18], ['canister', 466, 286, 12, 10, 18], ['canister', 250, 400, 12, 10, 18], ['canister', 264, 404, 12, 10, 18],
+      ['canister', 600, 360, 12, 10, 18], ['canister', 614, 364, 12, 10, 18],
+      ['console', 560, 84, 22, 10, 16, 0], ['console', 560, 188, 22, 10, 16, 1], ['console', 560, 292, 22, 10, 16, 2]],
+    propHp: { pallet: 10, crate: 6, canister: 3, console: 8 }, propSouls: { pallet: 3, crate: 1, canister: 2, console: 1 },
+    canister: { r: 58, machine: 4 }, console: { loom: 15 },
     worklights: [[200, 90], [450, 90], [700, 90], [200, 280], [450, 280], [700, 280], [330, 410], [640, 410]],
     // each machine on a line: its kind, left edge, width, depth and height (picture pixels)
     parts: [['tank', 70, 28, 22, 44], ['spinner', 140, 40, 26, 30], ['loom', 238, 82, 34, 54], ['press', 382, 46, 30, 30], ['animator', 488, 40, 26, 34]],
-    hp: { tank: 14, spinner: 20, loom: 150, press: 22, animator: 22 },
+    hp: { tank: 14, spinner: 20, loom: 210, press: 22, animator: 22 },
     souls: { tank: 5, spinner: 3, loom: 10, press: 3, animator: 3, line: 8 },
     toLoom: 10, coffee: .3,                       // a part breaking hurts its loom this much (the line's chain)
     blast: { tank: [86, 14], spinner: [72, 14], press: [72, 14], animator: [72, 14], loom: [128, 22] },   // radius, damage to machines
@@ -34,6 +46,7 @@ var UnrugFloor48 = function (core) {
     // with its thread (down seconds).
     feed: { x0: 28, x1: 68, dy: -24, souls: 6, starve: .6 }, power: { dx: 20, y0: 13, y1: 42, souls: 1, down: 9 }, cue: 96,
     // power-ups from broken machines: which part drops what, how likely, how long it waits on the floor
+    // (the first of each kind of part always drops its power-up; crates always hold one, the ones not seen yet first)
     drops: { spinner: 'spread', press: 'rapid', animator: 'pierce' }, dropChance: .45, dropLife: 12,
     // the shag: from the first line down, every this-many launches from a live line, at most this many out
     shagEvery: 5, shagMost: 2,
@@ -79,7 +92,7 @@ var UnrugFloor48 = function (core) {
     Q = R.f48 = { st: 'fight', t: 0, down, kinds, feedCut: [false, false, false], powerCut: [0, 0, 0], patched: [0, 0, 0], launches: 0,
       crane: [0, 1, 2].map(() => ({ next: rr(...F48.crane.every), st: 'idle', t: 0, x: 0, dir: 1 })),
       fling: [0, 1, 2].map(() => ({ next: rr(...F48.fling.every), tell: 0 })),
-      reverse: [0, 0, 0], reverseT: [F48.reverse.every, F48.reverse.every, F48.reverse.every], cues: {}, panic: down.filter(Boolean).length, machines: buildMachines(), items: [[], [], []], next: [0, 0, 0], beltOff: [0, 0, 0],
+      reverse: [0, 0, 0], reverseT: [F48.reverse.every, F48.reverse.every, F48.reverse.every], cues: {}, props: makeProps(), dropped: {}, panic: down.filter(Boolean).length, machines: buildMachines(), items: [[], [], []], next: [0, 0, 0], beltOff: [0, 0, 0],
       pressT: [0, 0, 0], chain: [], fx: [], smokeT: 0, shake: 0, flashT: 0, eye: 0, threads: 0, bend: 0, souls: [], collapse: null, lobby: null,
       started: false, events: {}, music: 'b', lineT: [0, 0, 0], hitSnd: 0, white: 0, debrisT: 0 };
     const m48 = /(^|&)music48=([abc])/.exec(location.hash.replace(/^#/, '')); if (m48) Q.music = m48[2];
@@ -133,9 +146,9 @@ var UnrugFloor48 = function (core) {
   }
 
   // ---------- the room's hooks for the engine ----------
-  const PROPS = F48.props.map(([kind, x, y, w, d, h], i) => ({ kind, id: 90 + i, x0: x, x1: x + w, y0: y, y1: y + d, H: h }));
+  const makeProps = () => F48.props.map(([kind, x, y, w, d, h, line], i) => ({ kind, id: 90 + i, x0: x, x1: x + w, y0: y, y1: y + d, H: h, line, hp: F48.propHp[kind], max: F48.propHp[kind], dead: false, flash: 0 }));
   function solids() {
-    const out = PROPS.slice();
+    const out = Q.props.filter(p => !p.dead);
     for (const m of Q.machines) for (const s of m.solid) out.push(s);
     return out;
   }
@@ -149,6 +162,10 @@ var UnrugFloor48 = function (core) {
   }
   // A bolt (or a returned bobbin) at (x, y) on the floor: does it hit a machine where it's drawn?
   function machineHit(x, y, dmg, by) {
+    for (const p of Q.props) {
+      if (p.dead) continue;
+      if (x >= p.x0 - 1 && x <= p.x1 + 1 && y >= p.y0 - 6 && y <= p.y1 + 10) { hurtProp(p, dmg, by); return true; }
+    }
     for (const m of Q.machines) {
       if (m.dead) continue;
       if (x >= m.x0 - 1 && x <= m.x1 + 1 && y >= m.y0 - 8 && y <= m.y1 + 16) { hurt(m, dmg, by); return true; }
@@ -158,6 +175,11 @@ var UnrugFloor48 = function (core) {
   function slashMachines(cx, cy, r, dmg, swing) {
     let n = 0;
     if (Q.st === 'fight') for (const c of cables()) if (segDist(c, cx, cy) < r + 4) { cutCable(c); n++; }
+    for (const p of Q.props) {
+      if (p.dead || p.swing === swing) continue;
+      const nx = clamp(cx, p.x0, p.x1), ny = clamp(cy, p.y0 - 8, p.y1 + 4);
+      if ((nx - cx) ** 2 + (ny - cy) ** 2 < r * r) { p.swing = swing; hurtProp(p, dmg, 'slash'); n++; td.sparks(nx, ny, 10, '#fff6e2', 6); }
+    }
     for (const m of Q.machines) {
       if (m.dead || m.swing === swing) continue;
       const nx = clamp(cx, m.x0, m.x1), ny = clamp(cy, m.y0 - 10, m.y1 + 6);
@@ -200,6 +222,53 @@ var UnrugFloor48 = function (core) {
     if (R.td.enemies.some(e => e.kind === 'shag' && !(e.spawning > 0))) prompt('shag', 'BIG ONE: SLASH IT');
   }
 
+  // ---------- the clutter ----------
+  function hurtProp(p, dmg, by) {
+    if (p.dead || Q.st !== 'fight') return;
+    p.hp -= dmg; p.flash = .07;
+    if (Q.hitSnd <= 0) { Snd.play(p.kind === 'canister' ? 'machineHit' : 'hit'); Q.hitSnd = .05; }
+    if (p.hp <= 0) breakProp(p, by);
+  }
+  // the next power-up: one he hasn't been given yet, else in turn
+  function nextPower() {
+    const kinds = ['spread', 'rapid', 'pierce'], fresh = kinds.filter(k => !Q.dropped[k]);
+    const k = fresh.length ? fresh[0] : kinds[(Q.crates = (Q.crates || 0) + 1) % 3];
+    Q.dropped[k] = true; return k;
+  }
+  function dropPower(kind, x, y) {
+    Q.dropped[kind] = true;
+    td.addPickup(kind, clamp(x, 40, 780), clamp(y, 70, 432), F48.dropLife);
+    const sc = td.screenOf(x, y - 26); core.popText({ spread: 'SPREAD SHOT', rapid: 'RAPID FIRE', pierce: 'PIERCE' }[kind], sc.x / 2, sc.y / 2, kind === 'pierce' ? '#c9a0ff' : kind === 'rapid' ? '#bfefff' : '#ffd44a');
+  }
+  function breakProp(p, by) {
+    if (p.dead) return;
+    p.dead = true; p.hp = 0; p.deadAt = R.t;
+    const cx = (p.x0 + p.x1) / 2, cy = (p.y0 + p.y1) / 2;
+    soulsFrom(cx, p.y0, F48.propSouls[p.kind], p.kind, by === 'chain' ? 'chain' : by);
+    R.events.props = (R.events.props || 0) + 1;
+    emit('f48_prop', { kind: p.kind, by });
+    const bits = (n, cols, up) => { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 110; R.td.fx.push({ k: 'debris', x: cx, y: cy, h: 6 + Math.random() * p.H, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .6, vh: 50 + Math.random() * up, s: 2 + Math.round(Math.random() * 3), r: 0, vr: (Math.random() - .5) * 20, col: cols[i % cols.length], t: 0, dur: .9 + Math.random() * .6 }); } };
+    if (p.kind === 'canister') {
+      // a soul canister bursts: glass, a blast that kills carpshits, sets off canisters near it and hurts machines
+      boom(cx, cy, .8); Snd.play('tankBurst'); Q.shake = Math.max(Q.shake, .3);
+      bits(10, ['#4a8aa8', '#bfefff', '#c9962e'], 120);
+      td.blast(cx, cy, F48.canister.r, 'blast');
+      Q.chain.push({ t: F48.chainDelay, x: cx, y: cy, r: F48.canister.r, dmg: F48.canister.machine, from: p, props: true });
+    } else if (p.kind === 'pallet') {
+      // the rugs on it scatter
+      Snd.play('machineBreak'); Q.shake = Math.max(Q.shake, .2);
+      bits(16, ['#a8261e', '#d63428', '#6a5a3a', '#c9962e'], 90);
+    } else if (p.kind === 'crate') {
+      Snd.play('machineBreak'); bits(10, ['#5a4632', '#7a6244', '#2a2016'], 80);
+      dropPower(nextPower(), cx, p.y1 + 10);
+    } else if (p.kind === 'console') {
+      // the line's controls: sparks, its screen out, and its loom takes the hit
+      Snd.play('surge'); Q.shake = Math.max(Q.shake, .25); bits(8, ['#3a3640', '#3aa86a', '#bfefff'], 70);
+      for (let k = 0; k < 10; k++) R.td.fx.push({ k: 'spark', x: cx, y: cy, h: 12, vx: fxr(-90, 90), vy: fxr(-40, 40), vh: fxr(30, 100), col: k % 2 ? '#bfefff' : '#ffffff', t: 0, dur: .45 });
+      const lm = loomOf(p.line); if (lm && !lm.dead && live(p.line)) Q.chain.push({ t: F48.chainDelay, loom: lm, dmg: F48.console.loom });
+    }
+  }
+
   // ---------- machines: damage, breaking, chains ----------
   function hurt(m, dmg, by) {
     if (m.dead || Q.st !== 'fight') return;
@@ -228,7 +297,7 @@ var UnrugFloor48 = function (core) {
     Q.chain.push({ t: F48.chainDelay, x: cx, y: cy, r: rad, dmg, from: m });
     // hurt, a broken machine sometimes leaves a coffee in the wreckage (a loom always does)
     if (R.hearts < TUNE.hearts && Q.st === 'fight' && (m.kind === 'loom' || rr(0, 1) < F48.coffee)) td.addPickup('coffee', clamp(cx, 40, 780), clamp(m.y1 + 16, 70, 432));
-    else if (F48.drops[m.kind] && Q.st === 'fight' && rr(0, 1) < F48.dropChance) td.addPickup(F48.drops[m.kind], clamp(cx, 40, 780), clamp(m.y1 + 16, 70, 432), F48.dropLife);
+    else if (F48.drops[m.kind] && Q.st === 'fight' && (!Q.dropped[F48.drops[m.kind]] || rr(0, 1) < F48.dropChance)) dropPower(F48.drops[m.kind], cx, m.y1 + 16);
     if (m.kind === 'loom') lineDown(m.line);
     else { const lm = loomOf(m.line); if (lm && !lm.dead) Q.chain.push({ t: F48.chainDelay * 2, loom: lm, dmg: F48.toLoom }); }
   }
@@ -242,6 +311,12 @@ var UnrugFloor48 = function (core) {
         if (m.dead || m === c.from) continue;
         const nx = clamp(c.x, m.x0, m.x1), ny = clamp(c.y, m.y0, m.y1);
         if ((nx - c.x) ** 2 + (ny - c.y) ** 2 < c.r * c.r) hurtChain(m, c.dmg);
+      }
+      // every blast breaks the clutter in reach (canisters set each other off down a walkway)
+      for (const p of Q.props) {
+        if (p.dead || p === c.from || Q.st !== 'fight') continue;
+        const nx = clamp(c.x, p.x0, p.x1), ny = clamp(c.y, p.y0, p.y1);
+        if ((nx - c.x) ** 2 + (ny - c.y) ** 2 < c.r * c.r) { p.hp -= p.kind === 'canister' ? 99 : c.dmg; p.flash = .1; if (p.hp <= 0) breakProp(p, 'chain'); }
       }
     }
     Q.chain = Q.chain.filter(c => !c.done);
@@ -606,7 +681,7 @@ var UnrugFloor48 = function (core) {
     // the machines, him, the carpshits and the beacons, by where they touch the floor
     const list = [];
     for (const m of Q.machines) list.push({ y: m.y1, draw: () => drawMachine(m, t) });
-    for (const pr of PROPS) list.push({ y: pr.y1, draw: () => drawProp(pr) });
+    for (const pr of Q.props) list.push({ y: pr.y1, draw: () => drawProp(pr) });
     for (let i = 0; i < 3; i++) list.push({ y: LINES[i].y + 20, draw: () => S.beacon(g, F48.beltEnd + 26, LINES[i].y + 20, t, Q.panic, null) });
     for (const d of td.drawables()) list.push(d);
     for (let i = 0; i < 3; i++) if (Q.crane[i].st !== 'idle') list.push({ y: LINES[i].y + F48.crane.dy + 1, draw: () => drawCrane(i, t) });
@@ -707,6 +782,33 @@ var UnrugFloor48 = function (core) {
   }
   // a pallet stacked with rolled rugs, or a parts crate
   function drawProp(p) {
+    if (p.dead) {
+      // what's left: a scorch, glass, planks or scattered rugs
+      g.save(); g.globalAlpha = .55; g.fillStyle = '#0c0a10'; g.beginPath(); g.ellipse((p.x0 + p.x1) / 2, p.y1 - 3, (p.x1 - p.x0) / 2 + 3, 4, 0, 0, 6.29); g.fill(); g.restore();
+      const col = p.kind === 'canister' ? '#4a8aa8' : p.kind === 'pallet' ? '#a8261e' : p.kind === 'console' ? '#3a3640' : '#5a4632';
+      for (let i = 0; i < 5; i++) rect(g, p.x0 + S.hash(p.id, i) * (p.x1 - p.x0), p.y1 - 6 + S.hash(i, p.id) * 5, 3, 1, col);
+      return;
+    }
+    g.save(); if (p.flash > 0) g.filter = 'brightness(2.2)';
+    drawPropLive(p); g.restore();
+  }
+  function drawPropLive(p) {
+    if (p.kind === 'canister') {
+      // a soul canister: a glass cylinder in a brass collar, souls glowing inside (in the glow), a hazard band
+      const x = p.x0, y = p.y1, w = p.x1 - p.x0, top = y - p.H;
+      g.save(); g.globalAlpha = .45; g.fillStyle = '#07050a'; g.beginPath(); g.ellipse(x + w / 2, y - 1, w / 2 + 2, 3, 0, 0, 6.29); g.fill(); g.restore();
+      rect(g, x - 1, top - 1, w + 2, p.H + 1, '#0c0a10'); rect(g, x, top + 3, w, p.H - 6, '#1d3a48'); rect(g, x + 2, top + 4, 2, p.H - 9, '#4a8aa8');
+      rect(g, x, top, w, 4, '#6a4a18'); rect(g, x, top, w, 1, '#c9962e'); rect(g, x, y - 4, w, 4, '#6a4a18');
+      for (let k = 0; k < w; k += 4) rect(g, x + k, y - 7, 2, 2, (k / 4) % 2 ? '#e8b030' : '#1a1418');
+      return;
+    }
+    if (p.kind === 'console') {
+      // a line's control desk: a slanted panel of lamps and a small screen showing its line
+      S.box(g, p, '#34323f', '#22202a', '#4c4a5a', '#0c0a10');
+      const top = p.y0 - p.H; rect(g, p.x0 + 3, top + 2, 8, 5, '#0a1612'); rect(g, p.x0 + 4, top + 3 + (Math.floor(R.t * 3 + p.line) % 3), 6, 1, '#3aa86a');
+      for (let k = 0; k < 3; k++) rect(g, p.x0 + 13 + k * 3, top + 3, 2, 2, Math.floor(R.t * 4 + k + p.line) % 3 ? '#d63428' : '#e8b030');
+      return;
+    }
     if (p.kind === 'crate') { S.box(g, p, '#5a4632', '#463626', '#7a6244', '#2a2016'); rect(g, p.x0 + 2, p.y1 - p.H + 3, p.x1 - p.x0 - 4, 1, '#2a2016'); core.line(g, p.x0 + 2, p.y1 - p.H + 4, p.x1 - 3, p.y1 - 2, '#2a2016'); txt(g, 'RUGCO', p.x0 + 3, p.y0 - p.H + 4, '#2a2016', 1); return; }
     rect(g, p.x0 - 1, p.y1 - 6, p.x1 - p.x0 + 2, 7, '#0c0a10'); rect(g, p.x0, p.y1 - 5, p.x1 - p.x0, 5, '#6a5a3a'); for (let x = p.x0 + 2; x < p.x1; x += 8) rect(g, x, p.y1 - 4, 4, 3, '#2a2016');
     const rows = 3, rh = (p.H - 6) / rows;
@@ -1015,6 +1117,6 @@ var UnrugFloor48 = function (core) {
     pauseText: 'The factory waits.',
     continueText: () => Q && Q.panic ? 'Back in the factory with full hearts? Lines you shut down stay down.' : 'Back in the factory with full hearts?',
     clearCard: (extra, best, clock) => ({ title: 'The 48th Floor clear', text: '', rows: [['Souls', String(R.souls)], ['Time', clock(R.endT)]], note: '' }),
-    F48, LINES, KINDS, td, arena, lineDown, breakMachine, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
+    F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
   };
 };

@@ -690,7 +690,21 @@ var UnrugTopdown = function (core, tuning) {
     return list;
   }
   // in the glow: bolts, bobbins, streams, the slash, sparks, the muzzle; and arrows at the edge for what's coming off screen
+  // a power-up shows itself: a column of light over it, in its colour, so it reads across the room
+  const BEAM = { rapid: '#7fd4ff', pierce: '#b48aff', spread: '#ffd44a', coffee: '#ffb070' };
+  function drawBeam(p) {
+    const col = BEAM[p.kind] || '#fff6e2', x = Math.round(p.x), top = p.y - 70, a = (p.life != null && p.life - p.t < 3 ? .5 : 1) * (.32 + .1 * Math.sin(R.t * 5 + p.x));
+    g.save(); g.globalCompositeOperation = 'lighter';
+    const gr = g.createLinearGradient(0, top, 0, p.y);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, col);
+    g.fillStyle = gr;
+    g.globalAlpha = a * .55; g.fillRect(x - 7, top, 14, p.y - top);
+    g.globalAlpha = a; g.fillRect(x - 2, top, 4, p.y - top);
+    g.restore();
+    glow(x, p.y, 14, col, a * .7);
+  }
   function glows() {
+    for (const p of R.td.pickups) if (p.kind !== 'coffee') drawBeam(p);
     for (const s of R.shots) drawShot(s);
     drawStreams();
     for (const p of R.td.thrown) drawThrown(p);

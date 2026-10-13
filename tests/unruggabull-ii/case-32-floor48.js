@@ -102,6 +102,20 @@
     check(Q().down[1] && Q().panic === 1 && R.banner && R.banner.text === 'PRODUCTION PANIC', 'the loom takes its line down: Production Panic');
     tick(1.5); check(Q().machines.filter(m => m.line === 1).every(m => m.dead), 'the rest of the line goes down end to end');
     check(checkpoint && checkpoint.stage === 'floor48' && checkpoint.down[1], 'a continue keeps the line down');
+    // the clutter: canisters set each other off, crates hold power-ups, a console hurts its line's loom
+    fresh(); bull.inv = 1e9;
+    const cans = Q().props.filter(p => p.kind === 'canister'), c0 = cans[0], c1 = cans[1], s1 = R.souls;
+    F.hurtProp(c0, 99, 'shot'); tick(.5);
+    check(c0.dead && c1.dead && R.souls >= s1 + 2 * F48.propSouls.canister, 'a canister bursts, frees its souls and sets off the one beside it');
+    R.td.pickups.length = 0;
+    const crate = Q().props.find(p => p.kind === 'crate'); F.hurtProp(crate, 99, 'slash'); tick(.05);
+    check(crate.dead && R.td.pickups.length === 1 && R.td.pickups[0].kind === 'spread', 'a crate holds a power-up, one not seen yet first');
+    const con = Q().props.find(p => p.kind === 'console'), cl = F.loomOf(con.line), clh = cl.hp;
+    F.hurtProp(con, 99, 'shot'); tick(.5);
+    check(con.dead && cl.hp <= clh - F48.console.loom, 'smashing a console hurts its line\'s loom');
+    fresh(); bull.inv = 1e9; R.td.pickups.length = 0;
+    F.breakMachine(machine(0, 'press'), 'shot'); tick(.05);
+    check(R.td.pickups.some(p => p.kind === 'rapid'), 'the first press broken always drops Rapid');
     // the presses: the shadow, then the slam
     fresh(); const pr = machine(0, 'press'); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; bull.inv = 0; R.hearts = 5;
     let warned = false; for (let i = 0; i < 60 * 3 && R.hearts === 5; i++) { update(1 / 60); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; if (pr.warn > 0) warned = true; }
