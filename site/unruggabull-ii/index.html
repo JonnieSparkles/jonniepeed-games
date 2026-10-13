@@ -114,6 +114,21 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 @media (prefers-reduced-motion:reduce){.more{animation:none}}
 .skip{font-size:11px;padding:6px 10px;background:transparent;color:var(--cream);border:2px solid var(--edge);box-shadow:none}
 .skip:active{transform:none;box-shadow:none}
+.crawl{transition:opacity .3s}
+/* Full screen, the intro takes all of it: no header row (Skip is in the caption bar), no frame, the picture as big as the
+   screen allows. In portrait the caption moves under the picture, into the room a tall phone leaves, and reads larger. */
+.game.full.intro{grid-template-rows:minmax(0,1fr);gap:0;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:#08070c}
+.full.intro header,.full.intro .deck{display:none}
+.full.intro .arena{grid-template-rows:minmax(0,1fr)}
+.full.intro .stage{border-radius:0;box-shadow:none}
+@media (orientation:portrait){
+  .full.intro .arena{grid-template-rows:auto;align-content:center}
+  .full.intro .stage{max-width:none;aspect-ratio:auto;overflow:visible}
+  .full.intro canvas{height:auto;aspect-ratio:16/9}
+  .full.intro .crawl{position:static;background:none;padding:16px 18px 0}
+  .full.intro .crawl p{font-size:clamp(16px,5.2cqw,26px);min-height:5.4em}
+  .full.intro .skip{font-size:12px;padding:10px 14px}
+}
 .hint{margin:0;color:var(--muted);font-size:14px}
 .hint .touch-only{display:none}
 .touch .hint .touch-only{display:inline}
@@ -237,10 +252,10 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 <script src="arena.js?v=5242e9d234"></script>
 <script src="topdown.js?v=dc6d5f87f7"></script>
 <script src="portrait.js?v=cd047f8eeb"></script>
-<script src="intro.js?v=99e2ff712a"></script>
+<script src="intro.js?v=fa36358554"></script>
 <script src="sets48.js?v=63c2fa2754"></script>
 <script src="floor48.js?v=c7d5fafd41"></script>
 <script src="elevator.js?v=4509134da4"></script>
-<script src="game.js?v=5412d080a5"></script>
+<script src="game.js?v=f246dfff99"></script>
 </body>
 </html>
