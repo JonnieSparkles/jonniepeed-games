@@ -65,9 +65,9 @@ def lum(a):
 
 
 def tower(a):
-    # The roof pavilion glows p(Loom)'s idle-eye orange, not the cool blue the picture has: the souls drift into its
-    # colour (the eye colour arc). Only the blue-white glass and its halo change; the night sky's blues stay.
-    y0, y1, x0, x1 = 8, 52, 186, 294
+    # The beacon box on the roof glows p(Loom)'s idle-eye orange, not the cool blue the picture has: the souls drift
+    # into its colour (the eye colour arc). Only the blue-white glass and its halo change; the night sky's blues stay.
+    y0, y1, x0, x1 = 22, 62, 200, 282
     box = a[y0:y1, x0:x1]
     blue = (box[..., 2] > box[..., 0] + 10) & (lum(box) >= .22)
     box[blue] = ramp(lum(box[blue]) ** .8, [(0, (40, 14, 6)), (.35, (150, 52, 12)), (.65, (232, 90, 22)), (.85, (255, 170, 70)), (1, (255, 236, 190))])
@@ -75,9 +75,9 @@ def tower(a):
     halo = (box[..., 2] > box[..., 0] + 10) & ~blue & (lum(box) < .22)
     k = np.clip((lum(box[halo]) - .09) / .12, 0, 1)[:, None]
     box[halo] = box[halo] * (1 - k) + np.array([110, 40, 18]) * k
-    # The 48th Floor: the middle of the 13 rows of windows (row 7, at about 99 floors), a dim red-orange, darker and
-    # redder than the warm windows around it (the eye's attack red). The game flickers it on top.
-    y0, y1, x0, x1 = 243, 263, 184, 295
+    # The 48th Floor: of the 14 rows of windows, the 7th from the bottom (row 8 from the top, y 269 to 283), a dim
+    # red-orange, darker and redder than the warm windows around it (the eye's attack red). The game flickers it on top.
+    y0, y1, x0, x1 = 266, 287, 198, 282
     box = a[y0:y1, x0:x1]
     lit = (box[..., 0] > 120) & (box[..., 0] > box[..., 2] + 40)
     box[lit] = ramp(lum(box[lit]), [(0, (30, 6, 8)), (.4, (96, 20, 16)), (.7, (170, 40, 20)), (1, (220, 80, 34))])

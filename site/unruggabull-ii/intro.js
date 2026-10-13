@@ -23,8 +23,8 @@ var UnrugIntro = (function () {
     'The same garage, years earlier, at night. The Rugfather leans over a basket on the workbench: a tiny wooden loom with one big blue eye. Its nameplate says LOOMY.',
     'The Rugfather points at a chalkboard: MAXIMIZE CARPETS. The little loom watches from a school desk. Its eye flickers orange.',
     'A height chart on a doorframe, marked LOOMY at knee height. The loom\'s shadow climbs the wall with each new mark until it towers over the Rugfather. At the ceiling its eye lights orange, and the top mark\'s name, LOOMY, is crossed out and rewritten: p(Loom).',
-    'RugCo Tower at night, open for business, a funeral wreath by the doors. Souls drift up past its windows into an orange glow on the roof.',
-    'An open ledger by the garage door, which now says STAIRS. In red ink: 5 SOULS IN, 1 RUG OUT. Unruggabull stands at the door; light spills from under it and he walks in.'
+    'RugCo Tower at dusk, every window lit, a striped sun setting behind it. Souls drift up past its windows into the orange beacon on its roof, and carpets unroll down its face.',
+    'An open ledger in the garage. In red ink: 5 SOULS IN, 1 RUG OUT. Beyond it, Unruggabull opens the door marked STAIRS onto a lit stairwell.'
   ];
   const A = UnrugArt, S = UnrugIntroStills.stills, SP = UnrugIntroStills.sprites;
   const ok = img => img && img.complete && img.naturalWidth > 0;
@@ -195,8 +195,11 @@ var UnrugIntro = (function () {
   // the board's inner corners are (67, 77), (132, 87) and (77, 157): a point (u, v) on a 64 x 78 board lands here
   // (a pure shear, one pixel to one pixel, so letters keep their shapes; the board is within a pixel or two of that)
   const onBoard = (g, u, v) => g.fillRect(67 + u + Math.round(v * 10 / 78), 77 + v + Math.round(u * 10 / 64), 1, 1);
-  // the chalk letters, 7 x 11 with strokes two pixels thick, for the two words on the board
+  // big letters, 7 x 11 with strokes two pixels thick: the chalkboard's two words, and RUGCO on the tower
   const CHALK = {
+    U: '##...####...####...####...####...####...####...####...####...#########.#####.',
+    G: '.###############.....##.....##.....##.######.######...####...#########.#####.',
+    O: '.#####.#########...####...####...####...####...####...####...#########.#####.',
     M: '##...#####.############.#.####...####...####...####...####...####...####...##',
     A: '..###...##.##.##...####...####...##################...####...####...####...##',
     X: '##...####...##.##.##..##.##...###....###....###...##.##..##.##.##...####...##',
@@ -290,52 +293,56 @@ var UnrugIntro = (function () {
   }
 
   // ---------- 5: RugCo Tower, panned from the doors to the roof ----------
-  // Souls drift up past the windows into the roof's orange glow, and as each one goes in, a carpet unrolls down the
-  // tower's face from under the roof: souls in, carpets out, floor to floor.
-  const ROW48 = [[187, 201], [217, 231], [248, 262], [278, 291]];
+  // Souls drift up past the windows into the beacon on the roof, and as each one goes in, a carpet unrolls down the
+  // tower's face from under its sign: souls in, carpets out, floor to floor.
+  // The picture's four window columns, and its 14 rows; the 48th Floor is the 7th from the bottom, y 269 to 283.
+  const ROW48 = [[201, 212], [223, 234], [245, 256], [267, 278]], Y48 = 269, BEACON = { x: 240, y: 42 };
   const SOULS = Array.from({ length: 13 }, (_, i) => ({ s: i * .36 - 1.4, x: 130 + hash(i + 5) * 220, v: 100 + hash(i + 9) * 30 }));
   // a soul: a little pale rug, fringed, with two dark eyes
   const SOUL = ['..#####..', '.#######.', '##.###.##', '##.###.##', '#########', '#########', '#########', '#.#.#.#.#'];
-  const arrive = i => SOULS[i].s + (515 - 26) / SOULS[i].v;     // when soul i reaches the roof
+  const arrive = i => SOULS[i].s + (515 - BEACON.y) / SOULS[i].v;     // when soul i reaches the beacon
   const CARPETS = [[0, 1], [2, 3], [4, 0], [6, 2]];             // [soul, window column]
   function soulAt(i, t) {
     const o = SOULS[i], p = (t - o.s) * o.v, y = 515 - p;
-    if (p < 0 || y < 26) return null;
-    const k = clamp((515 - y) / (515 - 32)), near48 = clamp(1 - Math.abs(y - 254) / 16);
-    // they drift together toward the roof; passing the 48th Floor, they shiver
-    return { x: Math.round(o.x + (240 - o.x) * k * k + Math.sin(t * 2.2 + i) * 4 + Math.sin(t * 40 + i) * 2 * near48), y: Math.round(y), fade: clamp((y - 26) / 40) };
+    if (p < 0 || y < BEACON.y) return null;
+    const k = clamp((515 - y) / (515 - BEACON.y)), near48 = clamp(1 - Math.abs(y - Y48 - 7) / 16);
+    // they drift together toward the beacon; passing the 48th Floor, they shiver
+    return { x: Math.round(o.x + (BEACON.x - o.x) * k * k + Math.sin(t * 2.2 + i) * 4 * (1 - k) + Math.sin(t * 40 + i) * 2 * near48), y: Math.round(y), fade: clamp((y - BEACON.y) / 40) };
   }
   // from the doors (the plaza's last 20 pixels stay under the caption bar) to the roof
   const pan = (t, plan) => Math.round(250 * (1 - ease(clamp(t / (plan.total + .6)))));
+  const CARPET_TOP = 100, CARPET_MAX = 330;   // from under the sign to the lowest row of windows
   function carpet(g, x0, x1, len, t, i) {
-    const top = 80, w = x1 - x0 + 3, x = x0 - 1;
+    const top = CARPET_TOP, w = x1 - x0 + 3, x = x0 - 1;
     rect(g, x, top, w, len, '#9c2622');
     rect(g, x, top, 1, len, '#e8a028'); rect(g, x + w - 1, top, 1, len, '#e8a028');
     for (let y = top + 3; y < top + len - 2; y += 6) rect(g, x + 3, y, w - 6, 2, y % 12 < 6 ? '#c43428' : '#e8a028');
     // the roll, still unrolling, or the fringe once it's down
-    if (len < 175) { rect(g, x - 1, top + len - 2, w + 2, 6, '#761c1e'); rect(g, x - 1, top + len - 2, w + 2, 2, '#c43428'); rect(g, x + (w >> 1), top + len, 1, 1, '#e8a028'); }
+    if (len < CARPET_MAX - 2) { rect(g, x - 1, top + len - 2, w + 2, 6, '#761c1e'); rect(g, x - 1, top + len - 2, w + 2, 2, '#c43428'); rect(g, x + (w >> 1), top + len, 1, 1, '#e8a028'); }
     else for (let k = 0; k < w; k += 2) rect(g, x + k, top + len, 1, 2 + (Math.floor(t * 4 + k + i) % 2), '#f4e6c4');
   }
   function still5(g, t, plan) {
     const oy = pan(t, plan);
     g.save(); g.translate(0, -oy);
     if (ok(S[4].img)) g.drawImage(S[4].img, 0, 0);
-    A.txt(g, 'OPEN', 165, 479, '#761c1e');
+    // RUGCO on the lit sign under the roof
+    g.fillStyle = '#521418';
+    [...'RUGCO'].forEach((ch, c) => { const glyph = CHALK[ch]; for (let i = 0; i < 77; i++) if (glyph[i] === '#') g.fillRect(221 + c * 8 + i % 7, 77 + (i / 7 | 0), 1, 1); });
     // the 48th Floor's windows flicker red
     const f = flicker(t * 1.3, 7);
     g.globalAlpha = .25 + .3 * (1 - f);
-    for (const [x0, x1] of ROW48) rect(g, x0, 245, x1 - x0 + 1, 16, '#340e12');
+    for (const [x0, x1] of ROW48) rect(g, x0, Y48, x1 - x0 + 1, 15, '#340e12');
     g.globalAlpha = 1;
-    glow(g, 240, 253, 70, 'rgba(228,74,52,A)', .07 + .05 * f);
+    glow(g, 240, Y48 + 7, 70, 'rgba(228,74,52,A)', .07 + .05 * f);
     // carpets out
     for (const [si, col] of CARPETS) {
       const q = t - arrive(si);
       if (q <= 0) continue;
       const [x0, x1] = ROW48[col];
-      carpet(g, x0, x1, Math.round(Math.min(178, q * 120)), t, col);
-      if (q < .35) glow(g, 240, 34, 50, 'rgba(255,200,90,A)', .5 * (1 - q / .35));   // a soul goes in: the roof flares
+      carpet(g, x0, x1, Math.round(Math.min(CARPET_MAX, q * 170)), t, col);
+      if (q < .35) glow(g, BEACON.x, BEACON.y, 50, 'rgba(255,200,90,A)', .5 * (1 - q / .35));   // a soul goes in: the beacon flares
     }
-    glow(g, 240, 32, 70, 'rgba(255,120,30,A)', .2 + .08 * Math.sin(t * 3));
+    glow(g, BEACON.x, BEACON.y, 70, 'rgba(255,120,30,A)', .2 + .08 * Math.sin(t * 3));
     for (let i = 0; i < SOULS.length; i++) {
       const s = soulAt(i, t); if (!s) continue;
       g.globalAlpha = .85 * s.fade;
@@ -353,23 +360,11 @@ var UnrugIntro = (function () {
     A.txt(g, 'STAIRS', 250, 31, '#d2d4dc');
     rect(g, 243, 30, 1, 5, '#76788a'); rect(g, 280, 30, 1, 5, '#76788a');
     for (const y of [170, 148, 124, 100, 76, 56]) { g.globalAlpha = .45; rect(g, 213, y, 8, 1, '#9496a8'); g.globalAlpha = 1; }
-    // the light under the door: it pulses, and when the line ends it opens up onto the floor
-    const open = ease(clamp((t - plan.total) / 1));
-    glow(g, 262, 183, 40 + 40 * open, 'rgba(255,200,90,A)', .18 + .08 * Math.sin(t * 4) + .25 * open);
-    rect(g, 233, 182, 58, 2, open > .3 ? '#fff09a' : '#f8cc50');
-    if (open > 0) {
-      g.save(); g.globalAlpha = .35 * open; g.fillStyle = '#e8a028';
-      g.beginPath(); g.moveTo(233, 184); g.lineTo(291, 184); g.lineTo(291 + 30 * open, 184 + 50 * open); g.lineTo(233 - 30 * open, 184 + 50 * open); g.closePath(); g.fill(); g.restore();
-    }
-    // Unruggabull at the door, seen from behind as in play (the game's own sprite, one pixel to a picture pixel). He
-    // breathes while the line is read; when it ends and the light opens, he walks in, rising toward the door and fading.
-    const walk = clamp((t - plan.total - .3) / 1.3), P = A.POSES;
-    const pose = walk > 0 ? (Math.floor(t * 7) % 2 ? P.runA : P.runB) : Math.floor(t * 1.4) % 2 ? P.breathe : P.stand;
-    if (pose && walk < 1) {
-      g.save(); g.globalAlpha = 1 - ease(clamp((walk - .5) / .5));
-      g.drawImage(A.tinted(pose, 'brightness(.78) saturate(.85)'), Math.round(262 - A.POSE_FEET.x), Math.round(206 - 14 * walk - A.POSE_FEET.y));   // dimmed to the cool room
-      g.restore();
-    }
+    // Unruggabull is in the picture, opening the door onto the lit stairwell. The light through the doorway breathes,
+    // and when the line ends it swells: he's on his way up.
+    const go = ease(clamp((t - plan.total) / 1));
+    glow(g, 258, 120, 50 + 30 * go, 'rgba(255,190,90,A)', .1 + .05 * Math.sin(t * 3) + .22 * go);
+    glow(g, 262, 192, 40 + 40 * go, 'rgba(255,170,70,A)', .08 + .04 * Math.sin(t * 3) + .2 * go);
     // the ledger, held open: the tallies of the unrugged on the left, the production figures on the right
     const L = 26, T = 146;   // kept above the caption bar, which covers the bottom fifth
     rect(g, L - 4, T - 4, 186, 130, '#2c2420'); rect(g, L - 3, T - 3, 184, 128, '#5a3420');
