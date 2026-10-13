@@ -118,10 +118,12 @@
     bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0, pin: 0 };
     drops.newRun(R, bull, at);
     floor.newRun(R, bull, at && at.transfer && floor.id === 'floor13' ? null : at);
+    R.banked = at && at.banked || 0;   // the stairwell's souls: in the run's total, not in the 13th Floor's meter
     if (at && at.transfer) {
       R.souls = R.shown = at.souls;
       R.hearts = RUN.refillBetweenStages ? TUNE.hearts : at.hearts;
       R.continues = at.continues || 0;
+      R.fromStairs = !!at.fromStairs;   // through the stairwell's door: the band's already playing
     }
   }
   // Where a target is, for aiming and hits: the floor knows where its own things are.
@@ -239,7 +241,7 @@
       b.jv -= GRAV * dt; b.jh += b.jv * dt;
       if (b.jh <= 0) { b.jh = 0; b.jv = 0; b.sq = .12; R.fx.push({ k: 'dust', x: PX(b.u, b.bz), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .3 }); }
     }
-    if (input.slash > 0 && b.cd <= 0) { input.slash = 0; slash(); }
+    if (input.slash > 0 && b.cd <= 0 && (!floor.canSlash || floor.canSlash())) { input.slash = 0; slash(); }   // the stairs: not before the Rugmergency
     if (b.slash >= 0 && b.slash < TUNE.deflectWindow) slashHits();
     if (R.pull.st === 'on' && onRunner()) {
       b.bz += TUNE.pullSpeed * (b.crouch ? TUNE.grip : 1) * dt;
@@ -482,7 +484,8 @@
     start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
     dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
-    rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
+    rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.',
+    door: 'OK... HERE WE GO.'   // the stairwell, at the 13th Floor's door, catching his breath
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
@@ -1003,7 +1006,6 @@
       if (best.souls) rows.push(['Best', best.souls + ' souls']);
       if (best.time) rows.push(['Fastest clear', clock(best.time)]);
       goBtn.textContent = 'Start';
-      if (storySeen()) { altBtn.textContent = 'Watch the story'; altBtn.hidden = false; }
       cardNote.textContent = 'Demo: the first floor of the climb.'; cardNote.hidden = false;
       const land = document.createElement('span'); land.className = 'land-note'; land.textContent = ' Best played in landscape.'; cardNote.append(land);
     } else if (kind === 'pause') {
@@ -1065,7 +1067,7 @@
   function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', { progress: runReport }) : null; }
   function travel(stage, extra = {}) {
     if (travelHook && travelHook(stage)) return;
-    const carried = Object.assign({ stage, transfer: true, souls: R.souls, hearts: R.hearts,
+    const carried = Object.assign({ stage, transfer: true, souls: R.souls + (R.banked || 0), hearts: R.hearts,
       heldDrop: R.heldDrop, dropNext: R.dropNext, continues: R.continues,
       seedState: seed, runSeed: RUN.seed }, extra);
     checkpoint = null; clearHeld(); input.jump = input.slash = input.shoot = 0;
@@ -1099,10 +1101,10 @@
   function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
 
   // ---------- the story so far ----------
-  // The intro (intro.js): six illustrated stills, a narrated line each, on the first Start. A tap finishes a line; once
+  // The intro (intro.js): six illustrated stills, a narrated line each, on every Start. A tap finishes a line; once
   // it's said a blinking arrow shows and the still waits, still moving, for another tap. A tap on a still's gag (Loomy,
   // a soul) plays the gag instead. Skip or Escape ends it. The pictures (intro-stills.js, about 290 KB) are fetched
-  // only for a device that hasn't seen the story, or when Watch the story is pressed; the intro waits up to 4 s for them.
+  // as the page loads, since every Start plays the story; the intro waits up to 4 s for them.
   const Intro = UnrugIntro, STORY = Intro.LINES;
   const STORY_KEY = 'unruggabull-ii-story';
   const crawl = $('crawl'), crawlText = $('crawlText'), more = $('more'), moreTap = $('moreTap'), skipBtn = $('skip');
@@ -1118,7 +1120,7 @@
     s.id = 'introStills'; s.src = meta ? meta.content : 'intro-stills.js';
     document.head.append(s);
   }
-  if (!storySeen()) loadStills();
+  loadStills();
   function startIntro() {
     loadStills(); Intro.reset();
     setState('intro'); card.hidden = true; crawl.hidden = false;
@@ -1156,7 +1158,7 @@
   function endIntro(lit) {
     Snd.hush(); intro = null; crawl.hidden = true;
     try { localStorage.setItem(STORY_KEY, '1'); } catch (e) {}
-    startRun();
+    startRun('stairs');
     fadeIn = lit === true ? { t: 0 } : null;
   }
   function drawIntro() {
@@ -1204,11 +1206,10 @@
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
     if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
     if (cardKind === 'clear' && floor.afterClear) { setState('play'); card.hidden = true; floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
-    if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'floor13' : floor.id);
+    if (cardKind === 'title') startIntro(); else startRun(floor.id);   // Start always plays the story; skip it from there (the owner, Oct 13)
   });
   altBtn.addEventListener('click', () => {
     if (cardKind === 'pause') { Snd.resume(); startRun(); }
-    else if (cardKind === 'title') { goFull(); startIntro(); }
     else if (cardKind === 'rugged') { goFull(); startRun(); }
     else if (cardKind === 'clear' && floor.id === 'floor13') { goFull(); startRun('floor13'); }
     else if (cardKind === 'clear' && floor.afterClear) { goFull(); startRun(floor.id); }
@@ -1493,7 +1494,7 @@
     showCard('title');
     sndLabel();
     Snd.music('theme');
-    for (const stage of ['roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) startRun(stage);
+    for (const stage of ['stairs', 'floor13', 'roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) startRun(stage);
     draw();
     requestAnimationFrame(frame);
   }
@@ -1507,10 +1508,11 @@
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext, banked: R.banked }, v); }
   };
   const drops = UnrugDrops(core); core.drops = drops;
-  const floors = { floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
+  const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
+  core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick
   floor = floors.floor13;
 
   start();

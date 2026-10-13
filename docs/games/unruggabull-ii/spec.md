@@ -54,7 +54,7 @@ A carried supply uses E or a tap on its icon beside the hearts. The Spare Vest i
 
 A corridor floor of about two minutes, then the Shredder.
 
-- **The story.** The first Start plays the intro, six illustrated stills ([intro-plan.md](intro-plan.md)), skippable.
+- **The story.** Every Start plays the intro, six illustrated stills ([intro-plan.md](intro-plan.md)), skippable.
 - **The goal.** "Free 90 souls to wake the Shredder", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.

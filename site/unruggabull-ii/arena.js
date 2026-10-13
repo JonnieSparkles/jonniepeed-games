@@ -3,24 +3,30 @@
 // Coordinates: u is across the screen (-1..1), h is height above the floor. Drawing is done at the picture's full
 // size (twice the game's units, like the sprites), so `PXu`/`PYh` give picture pixels.
 // Outcomes use the seeded stream (core.rr); everything drawn only (flapping, fringe, sparks) uses Math.random.
+// The floor can be a ground line (tuning.ground(u): its height, landings and the stairs' slopes; the stairwell): his
+// jump, his bolts, his reach and what touches him, and how high the carpshits hover, all stand on it. Flat by default.
+// A floor can add its own kinds of enemy: one with e.step(e, dt) moves itself, e.draw(e) draws it, and e.radius and
+// e.tall size it for the slash and the bolts.
 var UnrugArena = function (core, tuning) {
   'use strict';
   const { A, Snd, TUNE, clamp, rr, emit, free, hurtBull, updateBull, updateFx, moveDir, rect, line, disc } = core;
   const ARENA = Object.assign({
     floorY: 120, width: 110, height: 140, limit: .85,
     shotSpeed: 2.6, shotRadius: .07, shotTall: .06, enemyRadius: .075, slashReach: .29, slashHeight: .23,
-    bodyH: .23, muzzleH: .129, contactKick: .155, touchU: .082, wadU: .055,
+    bodyH: .23, muzzleH: .129, lowest: 0, contactKick: .155, touchU: .082, wadU: .055,
     // the carpshits: all fly. hover bands (h), drop speed down the threads, how far each likes to keep from him
     low: [.107, .157], high: [.229, .3], highShare: .35, dropSpeed: .5, keep: [.27, .86], drift: .18, bob: .018,
     swoopFirst: [2.2, 4], swoopEvery: [3.2, 5], swoopT: 1.05, rear: .4, diveH: .17, diveOver: .32,
     throwFirst: [1.6, 2.6], throwEvery: [2.6, 4], wadSpeed: .55, spread: .23,
     entry: .97, enterSpeed: .5, crossRoom: .25, crossSpeed: .55, crossH: .36
   }, tuning);
+  const ground = ARENA.ground || (() => 0), gh = () => ground(bull.u) + bull.jh;   // where his feet are, in h
   let R, bull, swing = 0, g = core.g;
   const X = u => 120 + u * ARENA.width, Y = h => ARENA.floorY - h * ARENA.height;
   const PXu = u => 2 * X(u), PYh = h => 2 * Y(h);
   const B = UnrugBull, SIDE = B.paint(B.VIEWS.side);
   const POSE = {}; for (const k in B.SIDES) POSE[k] = B.paint(B.SIDES[k]);
+  const BARE = {}; for (const k in B.SIDES_BARE) BARE[k] = B.paint(B.SIDES_BARE[k]);   // no katana on his back (R.arena.bare)
   const BACKS = [B.paint(B.POSES.runA), B.paint(B.POSES.runB)], FRONT = B.paint(B.VIEWS.front);
   const SF = B.SIDE_FEET, SM = B.SIDE_MUZZLE;
   const CW = Math.round(A.CARPF[0].width * .72), CH = Math.round(A.CARPF[0].height * .72);   // a carpshit, in picture pixels
@@ -47,7 +53,7 @@ var UnrugArena = function (core, tuning) {
   }
   function fire() {
     for (const slope of R.spread > 0 ? [0, -.65, .65] : [0]) {
-      R.shots.push({ u: bull.u + facing() * SM.x / 220, h: bull.jh + ARENA.muzzleH,
+      R.shots.push({ u: bull.u + facing() * SM.x / 220, h: gh() + ARENA.muzzleH,
         vu: facing() * ARENA.shotSpeed, vh: slope, side: true, dead: false });
     }
     return true;
@@ -68,11 +74,11 @@ var UnrugArena = function (core, tuning) {
   function near(u, h, radius = 0) {
     const ahead = (u - bull.u) * facing();
     return ahead > -.04 - radius && ahead < ARENA.slashReach + radius &&
-      Math.abs(h - (bull.jh + .1)) < ARENA.slashHeight + radius;
+      Math.abs(h - (gh() + .1)) < ARENA.slashHeight + radius;
   }
   function slashHits() {
     if (bull.slash === 0) swing++;
-    for (const e of R.arena.enemies) if (!e.dead && !e.dropping && e.slashSwing !== swing && near(e.u, e.h, ARENA.enemyRadius)) {
+    for (const e of R.arena.enemies) if (!e.dead && !e.dropping && e.slashSwing !== swing && near(e.u, e.h, e.radius || ARENA.enemyRadius)) {
       e.slashSwing = swing; hit(e, 'slash');
     }
     for (const p of R.arena.thrown) if (!p.dead && !p.friendly && near(p.u, p.h)) {
@@ -90,25 +96,25 @@ var UnrugArena = function (core, tuning) {
   function spawn(kind, options = {}) {
     const side = options.side || 0, lane = side ? side * ARENA.entry : options.u != null ? options.u : rr(-.12, .12);
     const high = rr(0, 1) < ARENA.highShare, hover = high ? rr(...ARENA.high) : rr(...ARENA.low);
-    const e = { kind: 'flyer', u: lane, h: side ? hover : options.h != null ? options.h : .69, age: 0, dropping: !side, entering: side, dead: false,
+    const e = { kind: 'flyer', u: lane, h: side ? hover + ground(lane) : options.h != null ? options.h : .69, age: 0, dropping: !side, entering: side, dead: false,
       hover, keep: rr(...ARENA.keep), ph: rr(0, 6),
       armored: !!options.armored, nextThrow: rr(...ARENA.throwFirst), swoopT: rr(...ARENA.swoopFirst), swoop: null, hit: 0, pu: lane };
     R.arena.enemies.push(e); emit('arena_spawn', { kind: 'flyer', side }); return e;
   }
   function throwWad(e) {
     // aimed at his chest, in picture pixels so the paper flies straight on screen
-    const dx = PXu(bull.u) - PXu(e.u), dy = PYh(bull.jh + (bull.crouch ? .08 : .12)) - PYh(e.h), len = Math.max(1, Math.hypot(dx, dy));
+    const dx = PXu(bull.u) - PXu(e.u), dy = PYh(gh() + (bull.crouch ? .08 : .12)) - PYh(e.h), len = Math.max(1, Math.hypot(dx, dy));
     const speed = ARENA.wadSpeed * 220;
     const p = { u: e.u, h: e.h, vu: dx / len * speed / 220, vh: -dy / len * speed / 280, src: e, friendly: false, dead: false, r: 0 };
     R.arena.thrown.push(p); emit('arena_throw'); Snd.play('wadThrow'); return p;
   }
   // Something touches him when its middle is within reach across and inside his height (crouched, he's shorter).
   const touches = (u, h, reach = ARENA.touchU) => Math.abs(u - bull.u) < reach &&
-    h > bull.jh - .015 && h < bull.jh + (bull.crouch ? TUNE.crouchH : ARENA.bodyH);
+    h > gh() - .015 && h < gh() + (bull.crouch ? TUNE.crouchH : ARENA.bodyH);
   // A dive is a curve from where it hovers, through where he was standing when it started, and up past him.
   function startSwoop(e) {
-    const side = Math.sign(bull.u - e.u) || 1, bu = bull.u, bh = ARENA.diveH;
-    const tu = clamp(bu + side * ARENA.diveOver, -ARENA.limit + .05, ARENA.limit - .05), th = rr(0, 1) < ARENA.highShare ? rr(...ARENA.high) : rr(...ARENA.low);
+    const side = Math.sign(bull.u - e.u) || 1, bu = bull.u, bh = ARENA.diveH + ground(bu);
+    const tu = clamp(bu + side * ARENA.diveOver, -ARENA.limit + .05, ARENA.limit - .05), th = (rr(0, 1) < ARENA.highShare ? rr(...ARENA.high) : rr(...ARENA.low)) + ground(tu);
     e.swoop = { t: 0, su: e.u, sh: e.h, tu, th, cu: 2 * bu - .5 * (e.u + tu), ch: 2 * bh - .5 * (e.h + th) }; e.dives = (e.dives || 0) + 1;
     emit('arena_swoop'); Snd.play('swoop');
   }
@@ -116,6 +122,7 @@ var UnrugArena = function (core, tuning) {
     const L = R.arena.enemies;
     for (const e of L) {
       if (e.dead) continue;
+      if (e.step) { e.step(e, dt); continue; }   // a floor's own kind (the stairwell's tumblers)
       e.age += dt; e.hit = Math.max(0, e.hit - dt); e.pu = e.u;
       if (e.dropping) {
         e.h = Math.max(e.hover, e.h - ARENA.dropSpeed * dt);
@@ -131,7 +138,7 @@ var UnrugArena = function (core, tuning) {
         const w = e.swoop; w.t += dt; const k = Math.min(1, w.t / ARENA.swoopT), a = (1 - k) * (1 - k), b2 = 2 * k * (1 - k), c = k * k;
         e.u = a * w.su + b2 * w.cu + c * w.tu; e.h = a * w.sh + b2 * w.ch + c * w.th;
         if (touches(e.u, e.h)) contact(e, 'dive');
-        if (k >= 1) { e.swoop = null; e.swoopT = rr(...ARENA.swoopEvery); e.hover = w.th; }
+        if (k >= 1) { e.swoop = null; e.swoopT = rr(...ARENA.swoopEvery); e.hover = w.th - ground(e.u); }
         continue;
       }
       // keep apart: no two stacked on each other
@@ -152,8 +159,9 @@ var UnrugArena = function (core, tuning) {
       const room = side > 0 ? bull.u + ARENA.limit : ARENA.limit - bull.u;
       if (!e.cross && room < ARENA.crossRoom) e.cross = side;
       if (e.cross) {
-        e.h = Math.min(ARENA.crossH, e.h + ARENA.dropSpeed * dt);
-        if (e.h >= ARENA.crossH - .005) e.u += e.cross * ARENA.crossSpeed * dt;
+        const ch = ARENA.crossH + ground(e.u);
+        e.h = Math.min(ch, e.h + ARENA.dropSpeed * dt);
+        if (e.h >= ch - .005) e.u += e.cross * ARENA.crossSpeed * dt;
         const past = (e.u - bull.u) * e.cross;
         if (past > Math.min(e.keep, .3) || e.u * e.cross >= ARENA.limit - .03) e.cross = 0;
         e.u = clamp(e.u, -ARENA.limit + .02, ARENA.limit - .02);
@@ -164,11 +172,12 @@ var UnrugArena = function (core, tuning) {
       const want = Math.abs(du) > e.keep + .11 ? 1 : Math.abs(du) < e.keep - .11 ? -1 : 0;
       e.u += side * want * ARENA.drift * dt;
       e.swoopT -= dt;
-      e.h = e.hover + Math.sin(e.age * 3.4 + e.ph) * ARENA.bob + (e.swoopT < ARENA.rear ? (ARENA.rear - Math.max(0, e.swoopT)) * .07 : 0);
+      e.h = e.hover + ground(e.u) + Math.sin(e.age * 3.4 + e.ph) * ARENA.bob + (e.swoopT < ARENA.rear ? (ARENA.rear - Math.max(0, e.swoopT)) * .07 : 0);
       if (e.swoopT <= 0) startSwoop(e);
       else {
         e.nextThrow -= dt;
-        if (e.nextThrow <= 0) { throwWad(e); e.nextThrow = rr(...ARENA.throwEvery); }
+        // a floor can make one throw half as often (e.shy) or at its own pace (e.throwEvery)
+        if (e.nextThrow <= 0) { if (!e.shy || rr(0, 1) < .5) throwWad(e); e.nextThrow = rr(...(e.throwEvery || ARENA.throwEvery)); }
       }
       e.u = clamp(e.u, -ARENA.limit + .02, ARENA.limit - .02);
       if (touches(e.u, e.h)) contact(e, 'flyer');
@@ -188,18 +197,18 @@ var UnrugArena = function (core, tuning) {
   function shots(dt) {
     for (const s of R.shots) {
       const oldU = s.u; s.u += s.vu * dt; s.h += s.vh * dt;
-      for (const e of R.arena.enemies) if (!e.dead && !e.dropping && !e.entering && crossed(s, oldU, e, ARENA.shotRadius, ARENA.shotTall)) { s.dead = true; hit(e, 'shot'); break; }
+      for (const e of R.arena.enemies) if (!e.dead && !e.dropping && !e.entering && crossed(s, oldU, e, ARENA.shotRadius, e.tall || ARENA.shotTall)) { s.dead = true; hit(e, 'shot'); break; }
     }
-    R.shots = R.shots.filter(s => !s.dead && Math.abs(s.u) < 1.15 && s.h > 0 && s.h < .85);
+    R.shots = R.shots.filter(s => !s.dead && Math.abs(s.u) < 1.15 && s.h > ARENA.lowest && s.h < .85);
     for (const p of R.arena.thrown) {
       const oldU = p.u; p.u += p.vu * dt; p.h += p.vh * dt; p.r += dt * 12;
       if (p.friendly) {
-        for (const e of R.arena.enemies) if (!e.dead && crossed(p, oldU, e, ARENA.shotRadius, ARENA.shotTall)) { p.dead = true; hit(e, 'deflect'); break; }
+        for (const e of R.arena.enemies) if (!e.dead && crossed(p, oldU, e, ARENA.shotRadius, e.tall || ARENA.shotTall)) { p.dead = true; hit(e, 'deflect'); break; }
       } else if (touches(p.u, p.h, ARENA.wadU)) {
         if (R.bullRun > 0) p.dead = true;
         else if (hurtBull(1, 'arena_wad')) p.dead = true;
       }
-      if (Math.abs(p.u) > 1.15 || p.h < 0 || p.h > .85) p.dead = true;
+      if (Math.abs(p.u) > 1.15 || p.h < ARENA.lowest || p.h > .85) p.dead = true;
     }
     R.arena.thrown = R.arena.thrown.filter(p => !p.dead);
   }
@@ -207,7 +216,7 @@ var UnrugArena = function (core, tuning) {
     for (const e of R.arena.enemies) kill(e, by);
     R.arena.enemies = []; R.arena.thrown = []; R.shots = [];
   }
-  function addPickup(kind, u = 0) { const p = { kind, u, h: .08, got: false }; R.arena.pickups.push(p); return p; }
+  function addPickup(kind, u = 0) { const p = { kind, u, h: .08 + ground(u), got: false }; R.arena.pickups.push(p); return p; }
   function pickups() {
     for (const p of R.arena.pickups) if (!p.got && touches(p.u, p.h, .1)) {
       p.got = true; emit('pickup', { item: p.kind });
@@ -249,21 +258,22 @@ var UnrugArena = function (core, tuning) {
   }
   function drawBull() {
     if (R.phase === 'dead') { drawDeath(); return; }
-    const out = R.arena.out, x = PXu(bull.u), y = PYh(bull.jh) - Math.round(R.arena.lift || 0);   // lift: floating on the drop (drawn only)
+    const out = R.arena.out, x = PXu(bull.u), y = PYh(gh()) - Math.round(R.arena.lift || 0);   // lift: floating on the drop (drawn only)
     if (out > 0) {
       // walking out he turns to face the roof, as the roof shows him, and gets smaller as he goes
       const img = BACKS[Math.floor(bull.step / 1.6) % 2], k = 1 - out * .35;
       g.save(); g.globalAlpha = Math.max(0, Math.min(1, 1.6 - out * 1.6)); g.translate(Math.round(x), Math.round(y - out * 10)); g.scale(k, k);
       g.drawImage(img, -B.FEET.x, -B.FEET.y); g.restore(); return;
     }
-    const p = pose();
+    if (R.arena.pose) { const o = R.arena.pose; g.save(); g.translate(Math.round(x), Math.round(y)); g.scale(o.face || 1, 1); g.drawImage(o.img, -o.feet.x, -o.feet.y); g.restore(); return; }
+    const p = pose(), set = R.arena.bare ? BARE : POSE;
     g.save();
     if (bull.inv > 0 && Math.floor(R.t * 18) % 2) g.globalAlpha = .4;
     if (p === 'front') { g.translate(Math.round(x), Math.round(y)); g.drawImage(FRONT, -B.VIEW_FEET.x, -B.VIEW_FEET.y); g.restore(); return; }
     const recoil = (bull.aimT || 0) > .15 ? 3 : 0, land = (bull.sq || 0) > 0;
     g.translate(Math.round(x - recoil * facing()), Math.round(y)); g.scale(facing(), 1);
     if (land && p !== 'jump') g.scale(1.04, .94);
-    g.drawImage(POSE[p], -SF.x, -SF.y);
+    g.drawImage(set[p], -SF.x, -SF.y);
     if ((bull.aimT || 0) > .17) { disc(g, SM.x + 2, SM.y, 4, '#fff6e2'); disc(g, SM.x + 2, SM.y, 2, '#7fd4ff'); }
     g.restore();
     if (bull.slash >= 0) {
@@ -277,7 +287,7 @@ var UnrugArena = function (core, tuning) {
   // rugged, side on: he sinks, flickers out in blue sparkles, and his bull's soul rises (as in the hall). Game units.
   function drawDeath() {
     g.save(); g.scale(2, 2);
-    const t = R.phaseT, x = X(bull.u), y = Y(0);
+    const t = R.phaseT, x = X(bull.u), y = Y(ground(bull.u));
     if (t < 1.1 && !(t > .8 && Math.floor(t * 30) % 2)) {
       g.save(); g.translate(x, y); g.scale(facing(), t < .35 ? 1 : .55); g.globalAlpha = t > .8 ? .5 : 1;
       g.drawImage(SIDE, -SIDE.width * .25, -B.VIEW_FEET.y * .5, SIDE.width * .5, SIDE.height * .5); g.restore();
@@ -337,7 +347,7 @@ var UnrugArena = function (core, tuning) {
     g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); g.restore();
   }
   const half = fn => () => { g.save(); g.scale(.5, .5); fn(); g.restore(); };
-  const draw = half(() => { for (const e of R.arena.enemies) drawEnemy(e); drawBull(); drawFx(); });
+  const draw = half(() => { for (const e of R.arena.enemies) (e.draw || drawEnemy)(e); drawBull(); drawFx(); });
   const glows = () => {
     g.save(); g.scale(.5, .5);
     for (const s of R.shots) drawShot(s); for (const p of R.arena.thrown) drawThrown(p); for (const p of R.arena.pickups) drawPickup(p);
@@ -346,6 +356,6 @@ var UnrugArena = function (core, tuning) {
   function lights(r) {
     for (const s of R.shots.slice(0, 6)) r.light(PXu(s.u), PYh(s.h), 0, .12, .24, .4);
   }
-  return { ARENA, X, Y, PXu, PYh, CW, CH, newRun, update, fire, slashHits, spawn, throwWad, startSwoop, kill, hit, near, touches, addPickup, clearThreats,
+  return { ARENA, X, Y, PXu, PYh, CW, CH, ground, newRun, update, fire, slashHits, spawn, throwWad, startSwoop, kill, hit, near, touches, addPickup, clearThreats,
     pose, draw, glows, lights, glow, drawBull, drawEnemy, drawHelmet, drawShot, drawThrown, drawPickup, use: x => { g = x; } };
 };

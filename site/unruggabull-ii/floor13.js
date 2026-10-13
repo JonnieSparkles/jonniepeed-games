@@ -1769,7 +1769,9 @@ var UnrugFloor13 = function (core) {
   function opening() {
     R.banner = { text: 'THE 13TH FLOOR', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
     live('The 13th Floor, Accounting. Free ' + TUNE.goal + ' souls to wake SHRED-O.');
-    Snd.play('start'); musicDrop();
+    Snd.play('start');
+    // through the stairwell's door the band came in on the kick: don't start it over; the door's white flash and a shake
+    if (R.fromStairs) { R.white = .3; R.shake = .3; } else musicDrop();
   }
   function clearCard(extra, best, clock) {
     const rows = [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Deflects', String(R.events.deflects || 0)],
