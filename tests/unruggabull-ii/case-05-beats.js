@@ -31,6 +31,11 @@
   const cubsUp = () => R.cubs.some(cb => cb.temp && cb.temp.st !== 'hidden');
   let waves = 0, seen = new Set(); for (let i = 0; i < 60 * 6; i++) { update(1 / 60); for (const f of R.flies) if (f.cause === 'rush' && !seen.has(f)) { seen.add(f); waves++; } }
   check(waves >= 10 && !cubsUp(), 'wave after wave (' + waves + ' in 6 s), and the temps stay down');
+  // halfway through, a cross corridor: doors either side down the hall, carpshits streaming across between them
+  const X = TUNE.rush.cross, cw = R.event.crossW; let crossed = null, dirs = new Set();
+  for (let i = 0; i < 60 * 6 && dirs.size < 2; i++) { update(1 / 60); for (const f of R.flies) if (f.cross) { dirs.add(Math.sign(f.cross)); if (!crossed) crossed = { u: f.u, z: f.z, w: f.w }; } }
+  check(crossed && crossed.w === cw && dirs.size === 2 && R.event.kind === 'rush', 'carpshits cross the hall at the doors, both ways');
+  check(!R.cubs.some(cb => Math.abs(cb.w - cw) < X.clear), 'the doors are kept clear');
   R.flies = []; R.event.t = R.event.dur - .01; const s0 = R.souls; update(1 / 60);
   check(R.event && R.event.kind === 'dark', 'then the lights go out');
   step(1.5);

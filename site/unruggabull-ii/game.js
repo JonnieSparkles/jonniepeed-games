@@ -175,7 +175,11 @@
     const frozen = R.event && R.event.kind === 'dark' && R.event.flash > 0;
     for (const f of R.flies) {
       if (frozen && !f.dead) { f.hit = Math.max(0, f.hit - dt); continue; }   // caught in the light: frozen
-      if (f.form) {
+      if (f.cross) {
+        // crossing the hall at a fixed spot down it (rush hour's cross corridor): carried toward him with the hall
+        f.z = f.w - R.dist; f.u += f.cross * dt;
+        if (Math.abs(f.u) > .97) { f.dead = true; continue; }
+      } else if (f.form) {
         // formations keep their shape instead of chasing you
         f.z -= (.3 + R.speed * .4) * dt;
         if (f.snake != null) f.u = .55 * Math.sin(f.snake + R.t * 2.2);

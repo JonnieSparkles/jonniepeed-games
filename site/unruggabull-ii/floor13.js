@@ -70,7 +70,8 @@ var UnrugFloor13 = function (core) {
     return sec;
   }
   // a station, a worker or an office already stands there
-  const setTaken = (layer, s, w) => layer === 'piece'
+  const nearCross = w => R.event && R.event.kind === 'rush' && Math.abs(w - R.event.crossW) < TUNE.rush.cross.clear;
+  const setTaken = (layer, s, w) => nearCross(w) || layer === 'piece'
     ? R.cubs.some(cb => cb.s === s && Math.abs(cb.w - w) < .2) || R.workers.some(wk => wk.s === s && Math.abs(wk.w - w) < (wk.kind === 'office' ? .42 : .26))
     : R.workers.some(wk => wk.s === s && wk.kind === 'office' && Math.abs(wk.w - w) < .36);
   // what's in view this frame (worked out once a frame)
@@ -99,6 +100,7 @@ var UnrugFloor13 = function (core) {
   const STATION_TOP = { cub: .38, copier: .32 };
   function addCubs(w, temps, both, chance) {
     const kind = beat().station;
+    if (nearCross(w)) return;   // rush hour's cross corridor keeps its doors clear
     const sides = both || rnd() < .35 ? [-1, 1] : [rnd() < .5 ? -1 : 1];
     for (const s of sides) {
       if (R.workers.some(wk => wk.s === s && Math.abs(wk.w - w) < (wk.kind === 'office' ? .3 : .2))) continue;   // a worker's spot
@@ -200,7 +202,10 @@ var UnrugFloor13 = function (core) {
     R.event = { kind: C ? 'move' : kind, t: 0, dur: C ? C.dur : kind === 'rush' ? TUNE.rushT : TUNE.darkT };
     if (kind === 'rush') {
       // rush hour: no temps, no furniture, just carpshits pouring down the hall, and a Spread Shot to meet them with
-      Object.assign(R.event, { nextWave: TUNE.rush.first, nextForm: TUNE.rush.first + 1.4, formN: 0, souls0: R.souls, hearts0: R.hearts });
+      Object.assign(R.event, { nextWave: TUNE.rush.first, nextForm: TUNE.rush.first + 1.4, formN: 0, souls0: R.souls, hearts0: R.hearts,
+        // a cross corridor: a pair of propped-open doors down the hall, carpshits streaming across between them
+        crossW: R.dist + TUNE.rush.cross.at, crossT: 0, crossN: 0 });
+      R.workers = R.workers.filter(wk => !nearCross(wk.w));
       addSign(.75, 'RUSH HOUR', 'alarm');
       addPickup('spread', .8, rr(-.25, .25));
       Snd.play('warn'); Snd.music('floorRush', { boundary: 'bar', stems: STEMS.heavy });
@@ -278,15 +283,28 @@ var UnrugFloor13 = function (core) {
       }
       if (E.kind === 'move') updateMove(E, dt);
       if (E.kind === 'rush') {
-        // waves of carpshits, two or three at a time (three in the second half), and a formation every few seconds
-        E.nextWave -= dt;
+        // waves of carpshits, a few at a time (more in the second half), and a formation every few seconds; while the
+        // cross traffic runs, the waves thin out so there are two directions to read rather than twice as many
+        const X = TUNE.rush.cross, zx = E.crossW - R.dist, crossing = zx < X.from && zx > bull.bz - .02;
+        E.nextWave -= dt * (crossing ? X.thin : 1);
         if (E.nextWave <= 0 && E.t < E.dur - 1.5) {
-          const n = E.t < E.dur / 2 ? TUNE.rush.n[0] : TUNE.rush.n[1];
+          const n = (E.t < E.dur / 2 ? TUNE.rush.n[0] : TUNE.rush.n[1]) - (crossing ? 1 : 0);
           for (let i = 0; i < n; i++) R.flies.push({ u: rr(-.65, .65), z: 1 + i * .06, h: .42, hp: 1, ph: rnd() * 6, hit: 0, dead: false, cause: 'rush', fast: TUNE.rush.fast });
           E.nextWave = rr(TUNE.rush.gap[0], TUNE.rush.gap[1]);
         }
         E.nextForm -= dt;
-        if (E.nextForm <= 0 && E.t < E.dur - 3) { spawnFormation(['v', 'snake', 'line'][E.formN++ % 3]); E.nextForm = TUNE.rush.formEvery; }
+        if (E.nextForm <= 0 && E.t < E.dur - 3 && !crossing) { spawnFormation(['v', 'snake', 'line'][E.formN++ % 3]); E.nextForm = TUNE.rush.formEvery; }
+        // the cross traffic: groups out of one door and into the other, alternating direction, with a gap between
+        // groups to slip through (or shoot one open); the hall carries the crossing toward you
+        if (crossing && zx > bull.bz + .05) {
+          E.crossT -= dt;
+          if (E.crossT <= 0) {
+            const grp = Math.floor(E.crossN / X.group), dir = grp % 2 ? -1 : 1;
+            R.flies.push({ u: -dir * .95, z: zx, w: E.crossW, h: .14, hp: 1, ph: rnd() * 6, hit: 0, dead: false, cause: 'rush', cross: dir * X.speed });
+            E.crossN++;
+            E.crossT = E.crossN % X.group ? X.space : X.gap;
+          }
+        }
         if (!E.scored && E.t >= E.dur - TUNE.rush.score) {
           // how many it took down, and a bonus for getting through without a scratch, before the lights go
           E.scored = true;
@@ -982,7 +1000,11 @@ var UnrugFloor13 = function (core) {
     for (const p of R.projs) if (p.friendly || p.rally) at(p.u, p.z, p.h, .25, .4, .6);
     for (const sw of R.switches || []) { const s = switchAt(sw); if (s.z < 1.02 && s.z > .05) at(s.u, s.z, s.h, .5, .42, .15); }
     // rush hour: red alarm beacons on the ceiling, turning
-    if (R.event && R.event.kind === 'rush') for (const [u, z, ph] of [[-.6, .35, 0], [.6, .65, 2], [-.6, .95, 4]]) { const k = Math.max(0, Math.sin(R.t * 7 + ph)); at(u, z, .95, 1.4 * k, .12 * k, .06 * k); }
+    if (R.event && R.event.kind === 'rush') {
+      for (const [u, z, ph] of [[-.6, .35, 0], [.6, .65, 2], [-.6, .95, 4]]) { const k = Math.max(0, Math.sin(R.t * 7 + ph)); at(u, z, .95, 1.4 * k, .12 * k, .06 * k); }
+      const zx = R.event.crossW - R.dist, k = Math.sin(R.t * 7) > 0 ? 1 : .2;
+      if (zx < 1.3 && zx > ZN) for (const s of [-1, 1]) at(s * .95, zx, .5, 1.1 * k, .1 * k, .05 * k);   // the red lights over the doors
+    }
     if (darkness() >= .5) for (const cb of R.cubs) { const z = cubZ(cb); if (z < 1.02 && z > ZN && cb.kind === 'cub') at(cb.s * .93, z, cb.top + .05, .04, .22, .1); }
     // what the set gives off (screens, signs, lamps, a vending machine), the nearest few
     const want = [];
@@ -1407,6 +1429,24 @@ var UnrugFloor13 = function (core) {
   // What glows, laid over the lit hall as it is (the core's draw()): light switches, monitors, the neon sign, the
   // warning beside the rug, a temp's tell, the Shredder's eyes and teeth once it's up, pickups, paper in flight, bolts,
   // souls and sparks. With the lights out, eyes too: the temps', the carpshits', and something's far down the hall.
+  // Rush hour's cross corridor: a propped-open double door in each wall, facing each other, dark inside, with a red
+  // light over each; carpshits stream across between them.
+  function drawCrossDoors(z) {
+    const d = TUNE.rush.cross.half, z0 = Math.max(ZN, z - d), z1 = z + d, top = .46, on = Math.sin(R.t * 7) > 0;
+    for (const s of [-1, 1]) {
+      const u = s * 1.0, q = (h0, h1, za, zb) => [[PX(u, za), YH(za, h0)], [PX(u, zb), YH(zb, h0)], [PX(u, zb), YH(zb, h1)], [PX(u, za), YH(za, h1)]];
+      poly(g, '#d8cfb8', q(-.01, top + .03, z0 - .015, z1 + .015));   // the frame
+      poly(g, '#0c0a12', q(0, top, z0, z1));                            // the opening, dark
+      poly(g, '#1c1626', q(0, .05, z0, z1));                            // a sill of floor going through
+      // the doors themselves, swung back flat against the hall wall either side
+      poly(g, '#8a6a48', q(0, top, z1 + .015, z1 + .015 + d * .9));
+      poly(g, '#8a6a48', q(0, top, Math.max(ZN, z0 - .015 - d * .9), z0 - .015));
+      const lx = PX(u, z), ly = YH(z, top + .07), k = Math.max(1, Math.round(3 * sc(z)));
+      rect(g, lx - k, ly - k, 2 * k, 2 * k, on ? '#ff3a20' : '#5a1810');
+    }
+    // a crossing painted across the floor between them: hazard stripes, so the line of traffic reads from far off
+    for (let i = -6; i < 6; i++) quadF(g, i % 2 ? '#1a1418' : '#e8b030', i / 6, (i + 1) / 6, z0, z1, .002);
+  }
   function drawSwitch(sw) {
     const at = switchAt(sw); if (at.z > 1.02 || at.z < .05) return;
     const k = sc(at.z), x = PX(sw.s * .99, at.z), y = YH(at.z, at.h), w = Math.max(3, Math.round(9 * k)), h = Math.max(4, Math.round(13 * k)), blink = Math.floor(R.t * 6) % 2;
@@ -1583,6 +1623,7 @@ var UnrugFloor13 = function (core) {
     for (const wk of R.workers) { const z = wk.w - R.dist; if (z < far && z > ZN - .2) back.push([z, () => faded(fadeFar(z), () => drawWorker(wk, z))]); }
     for (const cb of R.cubs) { const z = cubZ(cb); if (z < Math.min(1.02, far)) back.push([z, () => faded(fadeIn(z), () => drawCub(cb, z))]); }
     for (const sg of R.signs) { const z = sg.w - R.dist; if (z < Math.min(1.02, far) && z > .05) back.push([z, () => drawSign(sg, z)]); }
+    if (R.event && R.event.kind === 'rush') { const z = R.event.crossW - R.dist; if (z < far && z > ZN - .1) back.push([z + .07, () => faded(fadeFar(z), () => drawCrossDoors(z))]); }
     back.sort((a, b) => b[0] - a[0]);
     for (const e of back) e[1]();
     const list = [];
@@ -1713,7 +1754,11 @@ UnrugFloor13.TUNE = {
     moveT: 16, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
     rushT: 12,              // rush hour, after All Staff: carpshits pour down the hall (first wave after first s, then every gap s, a formation every formEvery s); untouched pays clean souls
-    rush: { first: 1.4, n: [3, 5], gap: [.6, .85], fast: 1.35, formEvery: 2.4, clean: 8, score: 1.6, recharge: .3 },   // score: the tally this long before it ends; recharge: the blaster's, during it
+    rush: { first: 1.4, n: [3, 5], gap: [.6, .85], fast: 1.35, formEvery: 2.4, clean: 8, score: 1.6, recharge: .3,
+      // the cross corridor: its doors start this far down the hall; traffic runs while they're nearer than from, in groups
+      // of group (space s apart, gap s between groups, alternating direction) at speed across; the head-on waves come
+      // thin times as often meanwhile, one smaller, and no formations
+      cross: { at: 1.9, from: 1.0, group: 3, space: .3, gap: 1.05, speed: .85, thin: .6, half: .06, clear: .16 } },   // score: the tally this long before it ends; recharge: the blaster's, during it
     dropBy: 12,             // the opening muzak gives way to the band by this time even if no one has shown up
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
