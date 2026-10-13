@@ -167,10 +167,11 @@
     IN.jump = false;
     if (P.vj || P.jh > 0) { P.jh += P.vj * dt; P.vj -= 8 * TUNE.jumpH / (TUNE.jumpT * TUNE.jumpT) * dt; if (P.jh <= 0) { P.jh = 0; P.vj = 0; } }
     // the blaster: hold to keep firing, five a second, on charges
-    if ((IN.shoot || IN.shootBtn) && !P.crouch && P.cd <= 0 && P.slash < 0) {
+    // crouched he fires too, from lower down (the crouch pose holds the blaster 7 px lower), as on the rides
+    if ((IN.shoot || IN.shootBtn) && P.cd <= 0 && P.slash < 0) {
       if (P.charge >= 1) {
         P.charge--; P.cd = TUNE.fireEvery; P.aimT = .2;
-        R.bolts.push({ x: P.x + P.face * SM.x, y: feetY() + SM.y, vx: P.face * TUNE.shot, px: P.x }); Snd.play('shot');
+        R.bolts.push({ x: P.x + P.face * (SM.x + (P.crouch ? 2 : 0)), y: feetY() + SM.y + (P.crouch ? 7 : 0), vx: P.face * TUNE.shot, px: P.x }); Snd.play('shot');
         if (P.charge === 0) { P.empty = 1; Snd.play('empty'); }
       } else { P.cd = .25; Snd.play('drained'); }
     }
@@ -396,7 +397,7 @@
     g.save(); if (P.inv > 0 && Math.floor(R.t * 18) % 2) g.globalAlpha = .4;
     drawSide(g, pose(), P.x, feetY(), SF, P.face);
     g.restore();
-    if (P.aimT > .1 && P.slash < 0) S.muzzle(g, P.x + P.face * SM.x - (P.face < 0 ? 4 : 0), feetY() + SM.y);
+    if (P.aimT > .1 && P.slash < 0) S.muzzle(g, P.x + P.face * (SM.x + (P.crouch ? 2 : 0)) - (P.face < 0 ? 4 : 0), feetY() + SM.y + (P.crouch ? 7 : 0));
     if (P.slash >= 0) {
       const k = P.slash / TUNE.slashT, cx = P.x + P.face * 6, cy = feetY() - (P.crouch ? 16 : 30);
       g.save(); g.translate(cx, cy); g.scale(P.face, 1);
