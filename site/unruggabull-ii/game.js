@@ -297,7 +297,7 @@
     const k = sc(bull.bz);
     R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + A.MUZZLE.y * k, t: 0, dur: .08 });
     Snd.play('shot', R.spread > 0);
-    if (hs > 1) Snd.play('stream');
+    if (hs > 1) Snd.play('hintStream');
     return true;
   }
   function sparks(u, z, h, col) { R.fx.push({ k: 'spark', x: PX(u, z), y: YH(z, h), s: Math.max(.5, sc(z)), col: col || '#ffd44a', t: 0, dur: .22, a: Math.random() * 6 }); }

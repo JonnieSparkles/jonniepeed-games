@@ -599,8 +599,8 @@ window.UnrugSound = (function () {
       noiseHit(sfxBus, t, .05, .2, 'highpass', 3500);
       if (spread) { osc(sfxBus, 'sawtooth', f * .5, t, .1, .08, { to: f * .2 }); osc(sfxBus, 'sawtooth', f * .505, t, .1, .06, { to: f * .2 }); }
     },
-    // a soul's stream beside the bolt: a quiet glassy shimmer, D6 sliding up to A6, under the zap
-    stream: t => { osc(sfxBus, 'sine', hz(86), t, .18, .045, { to: hz(93), sustain: .5 }); osc(sfxBus, 'triangle', hz(98), t + .03, .14, .018, { vib: true, sustain: .4 }); },
+    // the 13th Floor's soul stream beside the bolt: a quiet glassy shimmer, D6 sliding up to A6, under the zap
+    hintStream: t => { osc(sfxBus, 'sine', hz(86), t, .18, .045, { to: hz(93), sustain: .5 }); osc(sfxBus, 'triangle', hz(98), t + .03, .14, .018, { vib: true, sustain: .4 }); },
     // out of charge: a dry double click; the last shot powers down; full again chirps
     empty: t => { for (const d of [0, .06]) { osc(sfxBus, 'square', 110, t + d, .03, .14); noiseHit(sfxBus, t + d, .025, .3, 'bandpass', 2600, 5); } },
     drained: t => { osc(sfxBus, 'p25', 900, t, .4, .1, { to: 90, sustain: .8 }); osc(sfxBus, 'square', 220, t + .05, .3, .06, { to: 55 }); },

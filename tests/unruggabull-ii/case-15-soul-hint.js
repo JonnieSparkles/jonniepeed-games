@@ -6,7 +6,7 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const bells = [], play = Snd.play; let streamed = 0;
-  Snd.play = function (name, arg) { if (name === 'bell') bells.push(arg); if (name === 'stream') streamed++; return play.apply(this, arguments); };
+  Snd.play = function (name, arg) { if (name === 'bell') bells.push(arg); if (name === 'hintStream') streamed++; return play.apply(this, arguments); };
   try {
     RUN.force = 1515; startRun(); bull.inv = 1e9; R.beat = 2; R.beatT = BEATS[2].minT; R.souls = TUNE.goal;
     for (let i = 0; i < 60 * 14 && R.phase !== 'boss'; i++) update(1 / 60);
