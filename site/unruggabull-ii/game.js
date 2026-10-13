@@ -39,7 +39,7 @@
     jumpH: .2, jumpT: .65,
     fireEvery: .2, shotSpeed: 2.2, aimCone: .38, aimWork: .8,
     charges: 20, recharge: .5, spreadT: 10,
-    overheat: 1,   // run it dry and the blaster overheats: this long with no recharge, sputtering if you keep pulling the trigger
+    overheat: 1, cool: 3,   // run it dry and the blaster overheats: overheat seconds with no recharge, then it won't fire until it's back to cool charges; it sputters if you pull the trigger meanwhile
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
     hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1
   };
@@ -108,7 +108,7 @@
       beat: 0, beatT: 0, event: null,
       cubs: [], signs: [], flies: [], boxes: [], rows: [], pickups: [], shots: [], projs: [], fx: [],
       nextCubW: 1.1, nextFly: 5, nextForm: 2, formN: 0, nextBox: 16, nextRow: 5, fireT: 0, noPops: false,
-      charge: TUNE.charges, rechargeT: 0, heat: 0, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
+      charge: TUNE.charges, rechargeT: 0, heat: 0, hot: false, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
       banner: null, talk: null, bark: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
@@ -267,22 +267,25 @@
     floor.slash(near);
     for (const f of R.flies) if (!f.dead && near(f.u, f.z)) killFly(f, 'slash');
   }
-  // One shot (three with Spread Shot) for one charge. Run it dry and it overheats: OVERHEAT, a power-down, and no
-  // recharge for TUNE.overheat seconds; pull the trigger meanwhile and it only sputters (sparks, smoke, a choked
-  // zap). Then it recharges as usual. Every floor's blaster works this way (topdown.js uses the same two calls).
+  // One shot (three with Spread Shot) for one charge. Run it dry and it overheats: OVERHEAT, a power-down, no recharge
+  // for TUNE.overheat seconds, and then it won't fire until it has cooled back to TUNE.cool charges; pull the trigger
+  // meanwhile and it only sputters (sparks, smoke, a choked zap). So holding Shoot on an empty gun gets short bursts
+  // with pauses, not a steady trickle. Every floor's blaster works this way (topdown.js uses the same calls).
+  const hot = () => R.hot && R.charge < Math.min(TUNE.cool, TUNE.charges);
   function overheat(x, y) {
-    R.dry = true; R.heat = TUNE.overheat; R.rechargeT = 0; emit('empty'); Snd.play('drained');
+    R.dry = true; R.hot = true; R.heat = TUNE.overheat; R.rechargeT = 0; emit('empty'); Snd.play('drained');
     if (!R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT')) popText('OVERHEAT', x, y, '#ff7050');
   }
   function sputter() {
     R.empty = .2;
-    if (R.heat > 0) { Snd.play('sputter'); const m = muzzleXY(); R.fx.push({ k: 'sputter', x: m.x, y: m.y, t: 0, dur: .14 }, { k: 'smoke', x: m.x + fxr(-1, 1), y: m.y - 1, t: 0, dur: fxr(.4, .6) }); }
+    if (R.hot) { Snd.play('sputter'); const m = muzzleXY(); R.fx.push({ k: 'sputter', x: m.x, y: m.y, t: 0, dur: .14 }, { k: 'smoke', x: m.x + fxr(-1, 1), y: m.y - 1, t: 0, dur: fxr(.4, .6) }); }
     else Snd.play('empty');
     return false;
   }
   function fire() {
     if (R.armed === false) { R.empty = .2; Snd.play('empty'); return false; }   // knocked out of his hands: go and get it
-    if (!R.gold && R.charge < 1) return sputter();
+    if (!R.gold && (R.charge < 1 || hot())) return sputter();
+    R.hot = false;
     if (!R.gold) R.charge--;
     if (!R.gold && R.charge < 1) overheat(PX(bull.u, bull.bz), YH(bull.bz, bull.jh + .3));
     bull.aimT = .22;
@@ -1458,7 +1461,7 @@
     A, Snd, rect, line, disc, poly, txt, otxt, textWidth, W, H, VX,
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
-    updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
+    updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }

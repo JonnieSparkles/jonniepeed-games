@@ -159,10 +159,11 @@ var UnrugTopdown = function (core, tuning) {
   function fire() {
     // run dry, it overheats and sputters, as on every floor (core.overheat, core.sputter); the sputter's sparks and smoke
     // are drawn here, at the muzzle
-    if (!R.gold && R.charge < 1) {
-      if (R.heat > 0) { const m = muzzle(); for (let i = 0; i < 3; i++) R.td.fx.push({ k: 'spark', x: m.x + core.fxr(-3, 3), y: m.y + core.fxr(-2, 2), h: m.h, vx: 0, vy: 0, vh: 0, col: '#ff9628', t: 0, dur: .12 }); R.td.fx.push({ k: 'smoke', x: m.x, y: m.y, h: m.h + 2, vx: core.fxr(-4, 4), vy: 0, s: 4, t: 0, dur: .6 }); }
+    if (!R.gold && (R.charge < 1 || core.hot())) {
+      if (R.hot) { const m = muzzle(); for (let i = 0; i < 3; i++) R.td.fx.push({ k: 'spark', x: m.x + core.fxr(-3, 3), y: m.y + core.fxr(-2, 2), h: m.h, vx: 0, vy: 0, vh: 0, col: '#ff9628', t: 0, dur: .12 }); R.td.fx.push({ k: 'smoke', x: m.x, y: m.y, h: m.h + 2, vx: core.fxr(-4, 4), vy: 0, s: 4, t: 0, dur: .6 }); }
       return core.sputter();
     }
+    R.hot = false;
     if (!R.gold) R.charge--;
     if (!R.gold && R.charge < 1) { const s = screenOf(bull.x, bull.y - 30); core.overheat(s.x / 2, s.y / 2); }
     bull.aimT = .14;

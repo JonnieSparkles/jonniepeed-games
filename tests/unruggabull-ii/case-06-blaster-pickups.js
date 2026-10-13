@@ -18,18 +18,18 @@
   check(Snd.track === 'floorHall' && drop.o.boundary === 'beat' && stems() === 'drums,bass,lead', 'the drop: the shuffle on the next beat, drums, bass and lead');
   R.flies = [];
 
-  // charges: 20 shots; run it dry and it overheats, sputtering for TUNE.overheat with no recharge, then one back every
-  // half second (and each one fired dry overheats it again)
+  // charges: 20 shots; run it dry and it overheats: no recharge for TUNE.overheat, and no firing until it has cooled
+  // back to TUNE.cool charges, sputtering meanwhile; then a short burst, and it overheats again
   check(R.charge === TUNE.charges, 'the blaster starts full');
   R.events.shots = 0; R.fx = []; keys.kbShoot = true;
   for (let i = 0; i < 60 * 7.5 && !(R.heat > 0); i++) update(1 / 60);
-  check(R.charge < 1 && R.heat > 0 && R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT'), 'holding fire drains it and it overheats');
+  check(R.charge < 1 && R.heat > 0 && R.hot && R.fx.some(f => f.k === 'pop' && f.text === 'OVERHEAT'), 'holding fire drains it and it overheats');
   let fired = R.events.shots; step(TUNE.overheat * .8);
   check(R.events.shots === fired && R.charge === 0 && R.fx.some(f => f.k === 'sputter') && R.empty > 0, 'overheated, the trigger only sputters, and nothing recharges');
-  step(TUNE.overheat * .2 + TUNE.recharge + .05);
-  check(R.events.shots === fired + 1 && R.heat > 0, 'then a charge comes back, fires, and overheats it again');
-  fired = R.events.shots; step(3);
-  check(R.events.shots - fired <= 2, 'so holding it dry gets about one shot every ' + (TUNE.overheat + TUNE.recharge) + ' s (' + (R.events.shots - fired) + ' in 3 s)');
+  step(TUNE.overheat * .2 + TUNE.recharge * (TUNE.cool - .5));
+  check(R.events.shots === fired && R.charge >= 1 && R.hot, 'it recharges, but won\'t fire until it has cooled');
+  for (let i = 0; i < 60 * 3 && R.events.shots === fired; i++) update(1 / 60);
+  check(R.events.shots === fired + 1 && !R.hot, 'cooled back to ' + TUNE.cool + ' charges, it fires');
   keys.kbShoot = false; step(TUNE.overheat + TUNE.recharge * TUNE.charges + .5);
   check(R.charge === TUNE.charges, 'it refills when you let go');
 
@@ -42,7 +42,7 @@
   for (let i = 0; i < 60 && R.pickups[0].w - R.dist - bull.bz > .06; i++) update(1 / 60);
   press('jump'); step(.6);
   check(R.spread > 0 && !R.pickups.length, 'jumping grabs it');
-  R.shots = []; press('shoot'); update(1 / 60);
+  R.shots = []; R.flies = []; R.workers = []; press('shoot'); update(1 / 60);
   check(R.shots.length === 3 && R.shots.some(s => s.du < 0) && R.shots.some(s => s.du > 0), 'Spread Shot fires three ways');
   step(TUNE.spreadT + .5);
   check(R.spread === 0, 'and wears off');

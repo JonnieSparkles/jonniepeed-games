@@ -34,8 +34,12 @@
   R.fx = []; R.charge = 1; R.fireT = 0; keys.kbShoot = true; step(.3);
   check(overheats() === 1, 'OVERHEAT once it runs dry');
   let most = 0; for (let i = 0; i < 60 * 2.5; i++) { update(1 / 60); most = Math.max(most, overheats()); }
-  keys.kbShoot = false;
   check(most === 1, 'and only one at a time');
+  // holding Shoot on a dry gun: short bursts once it cools, well under a steady trickle
+  let shots = R.events.shots; for (let i = 0; i < 60 * 10; i++) { quiet(); R.freeze = 0; update(1 / 60); }
+  keys.kbShoot = false;
+  const rate = (R.events.shots - shots) / 10;
+  check(rate > .3 && rate < .75 / TUNE.recharge, 'held dry, it fires in short bursts (' + rate + ' a second, against ' + 1 / TUNE.recharge + ' for a trickle)');
 
   // his caption wraps into short lines on the left
   R.events.said = {}; R.talk = null; bark('move', true); for (let i = 0; i < 120; i++) update(1 / 60);
