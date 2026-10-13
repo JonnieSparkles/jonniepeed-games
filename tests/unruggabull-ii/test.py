@@ -227,6 +227,62 @@ with sync_playwright() as p:
         assert not errors, (name, errors)
         context.close()
         print('PASS elevator hash/input/layout', name)
+    # The 48th Floor's twin sticks: WASD and the mouse on desktop; the move stick, the aim stick (hold to fire, flick to
+    # slash) and Slash on touch, in portrait and landscape and full screen; the lobby goes back to the usual controls.
+    for name, size, touch in [('desktop', (1280, 800), False), ('phone portrait', (390, 844), True), ('phone landscape', (844, 390), True)]:
+        context, page, errors = open_page(browser, url=URL + '#stage=floor48&seed=42', viewport={'width': size[0], 'height': size[1]}, has_touch=touch, is_mobile=touch)
+        page.clock.install()
+        page.evaluate("unrugTest('looping=false; clearHeld(); update(1/60); twinClass(); draw()')")
+        assert page.evaluate("unrugTest('R.stage === \"floor48\" && RUN.seed === 42 && state === \"play\" && floor.twin()')"), name
+        assert page.evaluate("document.body.classList.contains('twin')"), f'{name}: twin-stick page class'
+        assert page.evaluate('document.documentElement.scrollWidth') <= size[0], name
+        if not touch:
+            x0 = page.evaluate("unrugTest('bull.x')")
+            page.keyboard.down('KeyD'); page.evaluate("unrugTest('for(let i=0;i<20;i++) update(1/60)')"); page.keyboard.up('KeyD')
+            assert page.evaluate(f"unrugTest('bull.x > {x0} + 10')"), f'{name}: D moves right'
+            canvas = page.locator('#c').bounding_box()
+            page.mouse.move(canvas['x'] + canvas['width'] * .9, canvas['y'] + canvas['height'] * .5)
+            page.mouse.down(); page.evaluate("unrugTest('for(let i=0;i<6;i++) update(1/60)')"); page.mouse.up()
+            assert page.evaluate("unrugTest('R.td.aimSource === \"mouse\" && bull.ax > .8 && R.shots.some(s => s.vx > 0)')"), f'{name}: the mouse aims and fires'
+            page.mouse.click(canvas['x'] + canvas['width'] * .5, canvas['y'] + canvas['height'] * .2, button='right')
+            page.evaluate("unrugTest('update(1/60)')")
+            assert page.evaluate("unrugTest('bull.slash >= 0 || bull.cd > 0')"), f'{name}: right-click slashes'
+        else:
+            assert page.locator('#stickzone').is_visible() and page.locator('#aimzone').is_visible() and not page.locator('.pad.slash').is_visible(), f'{name}: two sticks, no Slash button (the flick slashes)'
+            assert not page.locator('.pad.shoot').is_visible(), f'{name}: no Shoot button on the twin sticks'
+            box = page.locator('#aimzone').bounding_box()
+            assert box['x'] >= 0 and box['x'] + box['width'] <= size[0] + 1, f'{name}: aim stick across the screen (full screen fits it vertically, below)'
+            cx, cy = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
+            page.dispatch_event('#aimzone', 'pointerdown', {'pointerId': 81, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
+            page.dispatch_event('#aimzone', 'pointermove', {'pointerId': 81, 'pointerType': 'touch', 'clientX': cx - 40, 'clientY': cy})
+            page.evaluate("unrugTest('for(let i=0;i<8;i++) update(1/60)')")
+            assert page.evaluate("unrugTest('twin.aiming && bull.ax < -.8 && R.shots.some(s => s.vx < 0)')"), f'{name}: holding the aim stick fires that way'
+            page.dispatch_event('#aimzone', 'pointerup', {'pointerId': 81, 'pointerType': 'touch', 'clientX': cx - 40, 'clientY': cy})
+            page.evaluate("unrugTest('for(let i=0;i<40;i++) update(1/60)')")
+            # a flick: out and released at once
+            page.evaluate("performance.now = (n => () => n)(performance.now())")
+            page.dispatch_event('#aimzone', 'pointerdown', {'pointerId': 82, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
+            page.dispatch_event('#aimzone', 'pointermove', {'pointerId': 82, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy - 34})
+            page.dispatch_event('#aimzone', 'pointerup', {'pointerId': 82, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy - 34})
+            page.evaluate("unrugTest('update(1/60)')")
+            assert page.evaluate("unrugTest('bull.slash >= 0 && bull.sy < -.8')"), f'{name}: a flick slashes that way'
+            mz = page.locator('#stickzone').bounding_box(); mx, my = mz['x'] + mz['width'] / 2, mz['y'] + mz['height'] / 2
+            y0 = page.evaluate("unrugTest('bull.y')")
+            page.dispatch_event('#stickzone', 'pointerdown', {'pointerId': 83, 'pointerType': 'touch', 'clientX': mx, 'clientY': my})
+            page.dispatch_event('#stickzone', 'pointermove', {'pointerId': 83, 'pointerType': 'touch', 'clientX': mx, 'clientY': my - 44})
+            page.evaluate("unrugTest('for(let i=0;i<20;i++) update(1/60)')")
+            page.dispatch_event('#stickzone', 'pointerup', {'pointerId': 83, 'pointerType': 'touch', 'clientX': mx, 'clientY': my - 44})
+            assert page.evaluate(f"unrugTest('bull.y < {y0} - 10 && twin.padX === 0 && twin.padY === 0')"), f'{name}: the move stick moves him up, release stops'
+            page.evaluate("unrugTest('setFull(true); draw()')")
+            page.wait_for_timeout(50)
+            for sel in ['#stickzone', '#aimzone']:
+                b = page.locator(sel).bounding_box()
+                assert b and b['y'] + b['height'] <= size[1] + 1 and b['x'] + b['width'] <= size[0] + 1, f'{name}: {sel} fits full screen'
+            page.evaluate("unrugTest('floor.startLobby(true); update(1/60); twinClass()')")
+            assert page.locator('.pad.shoot').is_visible() and not page.locator('#aimzone').is_visible(), f'{name}: the lobby has the usual controls'
+        assert not errors, (name, errors)
+        context.close()
+        print('PASS 48th Floor hash/input/layout', name)
     from elevator_audio import check_elevator_audio
     check_elevator_audio(browser, ROOT)
     browser.close()
