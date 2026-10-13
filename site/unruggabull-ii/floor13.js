@@ -27,21 +27,18 @@ var UnrugFloor13 = function (core) {
   const STEMS = { hall: ['drums', 'bass', 'lead'], move: ['drums', 'bass', 'lead', 'harmony'], staff: ['drums', 'bass', 'lead', 'harmony', 'power'],
     dark: ['dark'], lull: ['bass'], heavy: ['drums', 'bass', 'lead', 'harmony', 'power', 'heavy'] };
   const BEATS = [
-    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: { track: 'floorOpen', stems: STEMS.hall }, after: 'move' },
+    { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: { track: 'floorHall', stems: STEMS.hall }, after: 'move' },
     { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: { track: 'floorStaff', stems: STEMS.staff }, after: ['rush', 'dark'] },
     { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: { track: 'floorCopy', stems: STEMS.staff } }
   ];
   // A beat's music: a new track on the next bar, or the playing one's stems on the next bar.
   function floorMusic(m) { if (m.track) Snd.music(m.track, { boundary: 'bar', stems: m.stems }); else Snd.stems(m.stems); }
-  // The floor opens on the office muzak, looping, and the band crashes in on the next beat when the first bad guy shows:
-  // the first paper wad thrown, or the first carpshit close enough to shoot (or after TUNE.dropBy seconds regardless).
-  // Music only: it reads the run, never changes it.
-  let dropped = true;
+  // The floor starts hot (the owner, Oct 13): the band hits as it opens, on the downbeat, and the first carpshit comes
+  // out of the dark on that first hit (newRun), so the drop lands with the first bad guy. However you get here: Start, a
+  // replay, #stage, or (later) the stairwell's door, which calls this hook on the kick. Lights out keeps the muzak.
   function musicDrop() {
-    if (dropped || R.phase !== 'hall') return;
-    if (R.projs.some(p => !p.friendly) || R.flies.some(f => f.z < TUNE.reach) || R.t >= TUNE.dropBy) {
-      dropped = true; Snd.music('floorHall', { boundary: 'beat', stems: R.event && R.event.kind === 'move' ? STEMS.move : STEMS.hall });
-    }
+    if (Snd.track === 'floorHall') Snd.music(null);   // a restart starts the band over from its first hit
+    Snd.music('floorHall', { slam: true, stems: STEMS.hall });
   }
   const beat = () => BEATS[R.beat];
   // ---------- the sets: each section's look and dressing (sets13.js) ----------
@@ -339,7 +336,6 @@ var UnrugFloor13 = function (core) {
     else if (B.after && R.beatT >= B.time && !(B.formations && R.flies.some(f => f.form) && R.beatT < B.time + 8)) { R.evQ = [].concat(B.after); startEvent(R.evQ.shift()); }
     else if (!B.after && ((R.souls >= TUNE.goal && R.beatT >= B.minT) || R.beatT >= B.max)) { startWake(); return; }
     spawnHall(dt);
-    musicDrop();
     // office life now and then: a phone down the hall, a copier in the copy room (sound only, so not from the run's seed)
     R.ambT -= dt;
     if (R.ambT <= 0 && !R.event) { Snd.play(beat().station === 'copier' ? 'printer' : 'phone'); R.ambT = fxr(10, 18); }
@@ -1583,6 +1579,7 @@ var UnrugFloor13 = function (core) {
       R.pull.count = 1;   // the runner has been explained already
     }
     R.lull = 0;
+    if (!at) R.nextFly = 0;   // the first carpshit comes out of the dark on the band's first hit
     R.workers = []; R.nextWorkW = R.dist + .5;
     if (!at) while (R.dist + AHEAD >= R.nextWorkW) { addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
     for (let w = .2; w < 1.05; w += .36) addCubs(w, false);
@@ -1767,9 +1764,7 @@ var UnrugFloor13 = function (core) {
   function opening() {
     R.banner = { text: 'THE 13TH FLOOR', t: 0, dur: 1.6, top: true, then: { text: 'FREE ' + TUNE.goal + ' SOULS', t: 0, dur: 1.6, top: true } };
     live('The 13th Floor, Accounting. Free ' + TUNE.goal + ' souls to wake the Shredder.');
-    // the cold open plays once at every start of the floor, so a restart starts the track over
-    Snd.play('start'); if (Snd.track === 'floorOpen') Snd.music(null);
-    Snd.music('floorOpen', { stems: STEMS.hall }); dropped = false;
+    Snd.play('start'); musicDrop();
   }
   function clearCard(extra, best, clock) {
     const rows = [['Souls freed', String(R.souls)], ['Time', clock(R.endT)], ['Deflects', String(R.events.deflects || 0)],
@@ -1782,7 +1777,7 @@ var UnrugFloor13 = function (core) {
   return {
     id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'The Shredder will wait. It has nowhere else to be.',
     // hooks
-    use: x => { g = x; }, rechargeNow: () => R.phase === 'hall' && R.event && R.event.kind === 'rush' ? TUNE.rush.recharge : TUNE.recharge, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, aimIdle, shotHits, shotFar, slash, hurt, blasterBack, posOf,
+    use: x => { g = x; }, rechargeNow: () => R.phase === 'hall' && R.event && R.event.kind === 'rush' ? TUNE.rush.recharge : TUNE.recharge, view, lights, newRun, update, draw, glows, overlay: drawHintSouls, hud, aim, aimIdle, shotHits, shotFar, slash, hurt, blasterBack, posOf, musicDrop,
     bonusBy, cutRug, draggedIn, endPull, startWake, blowUp,
     // the rest of the floor by name, for the test harness and the balance bots
     BEATS, beat, spawnFormation, startEvent, MOVES, setItems, spawnMove, addWorker, workerAt, knock, launch, deflect, surge, ATTACKS, attack, jam, bossDamage,
@@ -1806,7 +1801,6 @@ UnrugFloor13.TUNE = {
       // of group (space s apart, gap s between groups, alternating direction) at speed across; the head-on waves come
       // thin times as often meanwhile, one smaller, and no formations
       cross: { at: 1.9, from: 1.0, group: 3, space: .3, gap: 1.05, speed: .85, thin: .6, half: .06, clear: .16 } },   // score: the tally this long before it ends; recharge: the blaster's, during it
-    dropBy: 12,             // the opening muzak gives way to the band by this time even if no one has shown up
     powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
     bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,

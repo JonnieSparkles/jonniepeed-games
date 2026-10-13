@@ -10,12 +10,12 @@
   try {
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; if (R.event && R.event.souls) { R.event.souls = []; R.event.obs = []; } };
-  RUN.force = 606; startRun(); quiet(); bull.inv = 1e9;
-  check(Snd.track === 'floorOpen' && stems() === 'drums,bass,lead', 'Accounts Payable opens on the office muzak');
-  // the band crashes in on the next beat when the first bad guy shows: here the first carpshit coming into range
-  R.flies.push({ u: 0, z: TUNE.reach - .01, h: .42, hp: 2, ph: 0, hit: 0, dead: false }); update(1 / 60);
-  const drop = lastMusic();
-  check(Snd.track === 'floorHall' && drop.o.boundary === 'beat' && stems() === 'drums,bass,lead', 'the drop: the shuffle on the next beat, drums, bass and lead');
+  RUN.force = 606; startRun(); bull.inv = 1e9;
+  const open = lastMusic();
+  check(Snd.track === 'floorHall' && open.o.slam && stems() === 'drums,bass,lead' && !calls.some(c => c.music === 'floorOpen'), 'the floor starts hot: the band hits as it opens, drums, bass and lead, no muzak');
+  update(1 / 60);
+  check(R.flies.length === 1 && R.flies[0].z >= .99, 'and the first carpshit comes out of the dark on that first hit');
+  quiet();
   R.flies = [];
 
   // charges: 20 shots; run it dry and it overheats: no recharge for TUNE.overheat, and no firing until it has cooled

@@ -62,7 +62,7 @@ def check_music(browser, root):
       S.music(null,{hard:true});
     }''')
     page.close()
-    # The 13th Floor's shuffle: the cold open once, stems that grow on the bar, the copy room on the next bar.
+    # The 13th Floor's shuffle: the band from the first hit, stems that grow on the bar, the copy room on the next bar.
     page=browser.new_page()
     page.evaluate('''() => { window.musicNow=0; window.AudioContext=class extends OfflineAudioContext {
       constructor(){super(1,48000*8,48000);Object.defineProperty(this,'state',{value:'running'});
@@ -76,11 +76,9 @@ def check_music(browser, root):
       S.init();
       for(const id of ['floorHall','floorCopy','floorShred']){const tr=S.tracks().find(t=>t.id===id);check(tr&&tr.key==='Em','the floor has '+id);
         check(audioTest("TRACKS['"+id+"'].patterns.A.channels.paLead.stem==='dark'"),id+' carries the muzak for the dark');}
-      S.music('floorOpen',{stems:HALL});audioTest('clearInterval(P.timer)');
-      check(S.musicState.pattern==='I'&&S.musicState.stems.join()===HALL.join(),'the floor opens on the office muzak');
-      until(9);check(S.musicState.playing==='floorOpen','the muzak holds until the first bad guy');
-      S.music('floorHall',{boundary:'beat',stems:HALL});check(S.musicState.pending==='floorHall','the drop waits for the beat');
-      until(9.55);check(S.musicState.playing==='floorHall'&&S.musicState.pattern==='A','and lands on it (half a second at most)');
+      S.music('floorHall',{slam:true,stems:HALL});audioTest('clearInterval(P.timer)');
+      check(S.musicState.playing==='floorHall'&&S.musicState.pattern==='A'&&S.musicState.stems.join()===HALL.join(),'the floor starts hot: the band on its first hit');
+      until(1);
       let t0=window.musicNow;S.stems(HALL.concat('harmony'));until(t0+1.65);check(S.musicState.stems.includes('harmony'),'moving day adds the harmony within a bar');
       S.music('floorStaff',{boundary:'bar',stems:ALL});check(S.musicState.playing==='floorHall','All Staff waits for the bar');
       until(window.musicNow+1.65);check(S.musicState.playing==='floorStaff'&&S.musicState.stems.join()===ALL.join(),'then its own section, the full band');
