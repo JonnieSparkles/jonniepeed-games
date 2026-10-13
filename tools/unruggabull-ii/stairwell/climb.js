@@ -119,18 +119,22 @@
     let dx = e.clientX - sx0, dy = e.clientY - sy0; const d = Math.hypot(dx, dy), max = 46;
     if (d > max * 1.6) { sx0 += dx * (1 - max * 1.6 / d); sy0 += dy * (1 - max * 1.6 / d); dx = e.clientX - sx0; dy = e.clientY - sy0; }
     IN.stickX = Math.abs(dx) > 10 ? Math.sign(dx) : 0;
-    IN.stickY = dy > 24 ? 1 : 0;
+    IN.stickY = dy > 34 && Math.abs(dx) < dy * .8 ? 1 : 0;
+    if (IN.stickY) IN.stickX = 0;
     if (dy < -26 && !flicked) { IN.jump = true; flicked = true; }
     if (dy > -10) flicked = false;
     showKnob(clamp(dx, -max, max), clamp(dy, -max, max));
   });
   const endStick = e => { if (e.pointerId !== sid) return; sid = null; IN.stickX = 0; IN.stickY = 0; showKnob(0, 0, true); };
-  stick.addEventListener('pointerup', endStick); stick.addEventListener('pointercancel', endStick);
+  stick.addEventListener('pointerup', endStick); stick.addEventListener('pointercancel', endStick); stick.addEventListener('lostpointercapture', endStick);
+  function letGo() { IN.left = IN.right = IN.down = IN.shoot = IN.shootBtn = false; IN.stickX = IN.stickY = 0; sid = null; showKnob(0, 0, true); for (const b of document.querySelectorAll('.big')) b.classList.remove('down'); }
+  addEventListener('blur', letGo); document.addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
   function showKnob(x, y, rest) { knob.style.transform = `translate(${x}px, ${y}px)`; knob.classList.toggle('rest', !!rest); }
   const hold = (el, on, off) => {
     el.addEventListener('pointerdown', e => { begin(); el.setPointerCapture(e.pointerId); el.classList.add('down'); on(); e.preventDefault(); });
     const up = () => { el.classList.remove('down'); off && off(); };
-    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+    el.addEventListener('contextmenu', e => e.preventDefault());
   };
   hold($('shoot'), () => { IN.shootBtn = true; }, () => { IN.shootBtn = false; });
   hold($('slash'), () => { IN.slash = true; });
