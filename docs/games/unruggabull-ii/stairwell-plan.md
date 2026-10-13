@@ -1,6 +1,6 @@
 # The stairwell, the prologue
 
-Status: designed with Jonnie on two playable design pages, 13 October 2026; **not in the game yet**. The port comes next, in its own pull request. The pages are in `tools/unruggabull-ii/stairwell/`:
+Status: designed with Jonnie on two playable design pages, 13 October 2026, and **in the game** (`stairs.js`; the rules are in [README.md](README.md#the-stairwell-rules)). The pages are in `tools/unruggabull-ii/stairwell/`:
 
 - `python3 tools/unruggabull-ii/stairwell/build.py --page climb climb.html` builds **the playable climb**: the whole prologue, played on a phone (stick and buttons) or with keys, with "Start from" buttons for each section. This is the reference for the port.
 - `python3 tools/unruggabull-ii/stairwell/build.py stairwell.html` builds **the moments page**: the Rugmergency and the door as moving mockups with a scrubber, the music takes and the fanfares, and the door options that were tried.
@@ -79,7 +79,13 @@ The existing grids are unchanged (`bull.py --check` passes).
 - Hearts refill between sections; a death restarts the section (after the Rugmergency, with the katana).
 - Bots for the stairs, and the usual checks: the finished stages identical, tests pass.
 
+## In the game
+
+- Built on the arena with a ground line (`ARENA.ground`); the carpshits are the arena's, the tumblers the stairwell's own (`e.step`, `e.draw`).
+- The hand-off: the kick calls the 13th Floor's `musicDrop`, and its opening skips it when `R.fromStairs`; the door's white flash and shake carry over. The 13th Floor's meter starts at 0.
+- "OK... HERE WE GO." is in `LINES` (`door`).
+
 ## Open
 
-- Whether Start always plays the stairs, or only the first time.
-- His lines: "OK... HERE WE GO." joins the recording script (`LINES` in `game.js`).
+- Whether Start always plays the stairs, or only the first time (for now it always does).
+- The intro's last still is the garage's STAIRS door: section 1 could open on that door behind him, the cool garage glimpsed for a beat.

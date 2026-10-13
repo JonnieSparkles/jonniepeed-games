@@ -122,6 +122,7 @@
       R.souls = R.shown = at.souls;
       R.hearts = RUN.refillBetweenStages ? TUNE.hearts : at.hearts;
       R.continues = at.continues || 0;
+      R.fromStairs = !!at.fromStairs;   // through the stairwell's door: the band's already playing
     }
   }
   // Where a target is, for aiming and hits: the floor knows where its own things are.
@@ -239,7 +240,7 @@
       b.jv -= GRAV * dt; b.jh += b.jv * dt;
       if (b.jh <= 0) { b.jh = 0; b.jv = 0; b.sq = .12; R.fx.push({ k: 'dust', x: PX(b.u, b.bz), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .3 }); }
     }
-    if (input.slash > 0 && b.cd <= 0) { input.slash = 0; slash(); }
+    if (input.slash > 0 && b.cd <= 0 && (!floor.canSlash || floor.canSlash())) { input.slash = 0; slash(); }   // the stairs: not before the Rugmergency
     if (b.slash >= 0 && b.slash < TUNE.deflectWindow) slashHits();
     if (R.pull.st === 'on' && onRunner()) {
       b.bz += TUNE.pullSpeed * (b.crouch ? TUNE.grip : 1) * dt;
@@ -482,7 +483,8 @@
     start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
     dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
-    rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.'
+    rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.',
+    door: 'OK... HERE WE GO.'   // the stairwell, at the 13th Floor's door, catching his breath
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
@@ -1156,7 +1158,7 @@
   function endIntro(lit) {
     Snd.hush(); intro = null; crawl.hidden = true;
     try { localStorage.setItem(STORY_KEY, '1'); } catch (e) {}
-    startRun();
+    startRun('stairs');
     fadeIn = lit === true ? { t: 0 } : null;
   }
   function drawIntro() {
@@ -1204,7 +1206,7 @@
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
     if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
     if (cardKind === 'clear' && floor.afterClear) { setState('play'); card.hidden = true; floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
-    if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'floor13' : floor.id);
+    if (cardKind === 'title' && !storySeen()) startIntro(); else startRun(cardKind === 'title' ? 'stairs' : floor.id);
   });
   altBtn.addEventListener('click', () => {
     if (cardKind === 'pause') { Snd.resume(); startRun(); }
@@ -1493,7 +1495,7 @@
     showCard('title');
     sndLabel();
     Snd.music('theme');
-    for (const stage of ['roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) startRun(stage);
+    for (const stage of ['stairs', 'floor13', 'roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) startRun(stage);
     draw();
     requestAnimationFrame(frame);
   }
@@ -1510,7 +1512,8 @@
     g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext }, v); }
   };
   const drops = UnrugDrops(core); core.drops = drops;
-  const floors = { floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
+  const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
+  core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick
   floor = floors.floor13;
 
   start();

@@ -231,7 +231,7 @@ window.UnrugSound = (function () {
       drums: { pat: 'KKh.S.hKKKh.S.hK', fills: { 3: 'KKh.S.hKKKSSSSSS', 7: 'KKKKSSSSSSSSSSSS' }, crash: [0, 4] }
     }] }
   };
-  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {}, window.UnrugFloorMusic || {}, window.UnrugFactoryMusic || {});
+  Object.assign(TRACKS, window.UnrugRoofMusic || {}, window.UnrugElevatorMusic || {}, window.UnrugFloorMusic || {}, window.UnrugFactoryMusic || {}, window.UnrugStairsMusic || {});
   if (TRACKS.roofA) { TRACKS.roof = TRACKS.roofA; TRACKS.roofHeavy = TRACKS.roofAHeavy; }
   // Pattern format is opt-in: the original six section tracks retain their exact compiler and synth.
   function noteEvents(notes) {
@@ -668,6 +668,15 @@ window.UnrugSound = (function () {
     rideBurst: t => { noiseHit(sfxBus, t, .3, .29, 'lowpass', 1200); noiseHit(sfxBus, t + .1, .5, .29, 'bandpass', 3200, 3, 260); },
     rideHook: t => { for (let i = 0; i < 3; i++) { osc(sfxBus, 'p25', 300 + i * 80, t + i * .09, .1, .07, { to: 90 }); noiseHit(sfxBus, t + i * .09, .06, .14, 'highpass', 3000); } },
     rideReel: t => { osc(sfxBus, 'sawtooth', 60, t, .9, .086, { to: 420 }); for (let i = 0; i < 8; i++) noiseHit(sfxBus, t + i * .1, .06, .07, 'bandpass', 900 + i * 150, 3); },
+    // the stairwell: the cabinet's glass, the katana coming out, the hum at the 13th Floor's door, the brace, the kick,
+    // the door coming at the camera
+    stairGlass: t => { noiseHit(sfxBus, t, .5, .5, 'highpass', 3500); noiseHit(sfxBus, t, .12, .42, 'bandpass', 1800, 2); for (let i = 0; i < 9; i++) osc(sfxBus, 'sine', 2600 + Math.random() * 3200, t + .02 + Math.random() * .45, .12, .1, { sustain: .2 }); },
+    stairShing: t => { osc(sfxBus, 'triangle', 1900, t, .5, .12, { to: 2600, sustain: .3 }); osc(sfxBus, 'sine', 3800, t, .4, .05, { to: 5200, sustain: .3 }); },
+    stairHum: (t, dur) => { osc(sfxBus, 'sawtooth', 120, t, dur || 2, .03, { attack: .2, sustain: 1 }); },
+    stairCreak: t => osc(sfxBus, 'sawtooth', 90, t, .18, .07, { to: 60 }),
+    stairKick: t => { osc(sfxBus, 'sine', 140, t, .35, .75, { to: 38 }); noiseHit(sfxBus, t, .45, .66, 'lowpass', 2400, 1, 200); noiseHit(sfxBus, t + .02, .25, .42, 'bandpass', 900, 3); noiseHit(sfxBus, t + .18, .35, .3, 'highpass', 2500); },
+    stairWhoosh: t => noiseHit(sfxBus, t, .7, .34, 'bandpass', 300, 1.5, 3200),
+    stairImpact: t => { osc(sfxBus, 'sine', 110, t, .5, .75, { to: 30 }); noiseHit(sfxBus, t, .6, .75, 'lowpass', 3000, 1, 120); noiseHit(sfxBus, t, .2, .5, 'highpass', 4000); },
     rideSlam: t => { osc(sfxBus, 'sine', 110, t, .5, .64, { to: 30 }); noiseHit(sfxBus, t, .5, .36, 'lowpass', 600); },
     rideDing: t => { osc(sfxBus, 'sine', 1318, t, 1.4, .13, { sustain: .2 }); osc(sfxBus, 'triangle', 1046, t + .25, 1.6, .1, { sustain: .2 }); },
     rideDoors: t => { noiseHit(sfxBus, t, 1.2, .057, 'lowpass', 300); noiseHit(sfxBus, t + .4, 3, .043, 'bandpass', 5000, .3); },

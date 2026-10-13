@@ -37,12 +37,14 @@
   setState('title'); showCard('title'); altBtn.click();
   for (let k = 0; k < 50 && intro.i < 0; k++) step(.1);
   key('keydown', 'Escape');
-  check(state === 'play' && crawl.hidden && storySeen() && !fadeIn, 'Escape skips to the floor, with no fade');
-  check(R.banner && R.banner.text === 'THE 13TH FLOOR' && R.banner.then.text === 'FREE ' + TUNE.goal + ' SOULS', 'the floor opens with its goal');
+  check(state === 'play' && crawl.hidden && storySeen() && !fadeIn, 'Escape skips to the stairwell, with no fade');
+  check(R.stage === 'stairs' && floor.Q.si === 0 && !floor.Q.katana, 'the story ends at the foot of the stairs, no katana yet');
   setState('title'); showCard('title');
   check(!altBtn.hidden && altBtn.textContent === 'Watch the story', 'the story can be watched again');
   goBtn.click();
-  check(state === 'play', 'later Starts go straight to the floor');
+  check(state === 'play' && R.stage === 'stairs', 'later Starts go straight to the stairs');
+  startRun('floor13');
+  check(R.banner && R.banner.text === 'THE 13TH FLOOR' && R.banner.then.text === 'FREE ' + TUNE.goal + ' SOULS', 'the floor opens with its goal');
 
   RUN.force = 404; startRun();
   for (let i = 0; i < 5; i++) { bull.inv = 0; hurtBull(1); }
