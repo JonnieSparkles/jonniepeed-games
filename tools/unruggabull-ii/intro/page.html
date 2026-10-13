@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Unruggabull II Intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Silkscreen&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+*{touch-action:manipulation}
+[hidden]{display:none!important}
+:root{--bg:#120d1f;--panel:#221a36;--edge:#3a2f58;--cream:#fff6e2;--muted:#a89cc4;--gold:#ffd44a;--gold-deep:#b8861a;--display:'Silkscreen',ui-monospace,monospace;--body:'Pixelify Sans',system-ui,sans-serif;color-scheme:dark}
+html,body{background:var(--bg);color:var(--cream)}
+body{margin:0;font-family:var(--body);font-size:16px;font-variant-ligatures:none}
+main{max-width:900px;margin:0 auto;padding:16px 16px 28px;display:grid;gap:14px}
+h1{font-family:var(--display);font-weight:400;font-size:18px;margin:0;color:var(--gold)}
+.sub{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+.stage{position:relative;width:min(100%,calc((100svh - 40px) * 16 / 9));margin-inline:auto;aspect-ratio:16/9;border-radius:8px;overflow:hidden;box-shadow:0 0 0 2px var(--edge);background:#09070b}
+canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;outline:none}
+.crawl{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;padding:10px 12px;background:rgba(9,7,11,.84);cursor:pointer}
+.crawl p{margin:0;font-size:clamp(13px,2.4vw,18px);line-height:1.35;min-height:2.7em;text-wrap:pretty}
+button{font-family:var(--display);font-size:14px;background:var(--gold);color:var(--bg);border:0;border-radius:4px;padding:10px 18px;box-shadow:0 3px 0 var(--gold-deep);cursor:pointer}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-deep)}
+button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
+.skip{font-size:11px;padding:6px 10px;background:transparent;color:var(--cream);border:2px solid var(--edge);box-shadow:none}
+.skip:active{transform:none;box-shadow:none}
+.veil{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;background:rgba(9,7,11,.7);text-align:center;padding:16px}
+.veil p{margin:0;color:var(--muted);font-size:14px;max-width:40ch}
+.jump{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.jump button{font-size:11px;padding:8px 12px;background:transparent;color:var(--cream);border:2px solid var(--edge);box-shadow:none}
+.jump button[aria-current="true"]{border-color:var(--gold);color:var(--gold)}
+.notes{display:grid;gap:6px;color:var(--muted);font-size:14px;line-height:1.45;margin:0;padding-left:18px}
+.notes b{color:var(--cream);font-weight:600}
+/* landscape phones: the picture fills the screen, the page's words step aside */
+@media (orientation:landscape) and (max-height:500px){
+  main{padding-block:0;max-width:none}
+  main>h1,main>.sub,main>.notes{display:none}
+  .stage{border-radius:0;box-shadow:none;width:min(100%,100svh * 16 / 9)}
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Unruggabull II: the intro</h1>
+  <p class="sub">The six stills as the game will play them: narration in blips, tap to finish a line or move on, Skip to end. Tap a gag to play it instead (the loom in 2 and 3, a soul in 5). Turn your phone sideways for full screen.</p>
+  <div class="stage" id="stage">
+    <canvas id="c" width="480" height="270" role="img" aria-label="The intro"></canvas>
+    <div class="crawl" id="crawl" hidden><p id="crawlText" aria-hidden="true"></p><button class="skip" id="skip" type="button">Skip</button></div>
+    <div class="veil" id="veil"><button id="play" type="button">Play with sound</button><p id="veilNote">About 30 seconds.</p></div>
+  </div>
+  <div class="jump" id="jump" aria-label="Jump to a still"></div>
+  <p class="sr" id="live" aria-live="polite" style="position:absolute;left:-9999px"></p>
+  <ul class="notes">
+    <li><b>Still 6:</b> no bull yet. The ledger is shown as if you're the one holding it, until we decide how he appears.</li>
+    <li><b>The Rugfather</b> is your strip at its own pixel size: the burning heap (1), his front (2 and 4), the reaching frame (3).</li>
+    <li><b>Not in yet:</b> the title card and the hand-off into the stairwell. In the game the last tap goes straight to play.</li>
+  </ul>
+</main>
+<script>/*bull*/</script>
+<script>/*sprites*/</script>
+<script>/*art*/</script>
+<script>/*audio*/</script>
+<script>/*portrait*/</script>
+<script>/*intro-stills*/</script>
+<script>/*intro*/</script>
+<script>
+(function () {
+  'use strict';
+  const I = UnrugIntro, Snd = UnrugSound;
+  const c = document.getElementById('c'), g = c.getContext('2d');
+  const crawl = document.getElementById('crawl'), crawlText = document.getElementById('crawlText'), skip = document.getElementById('skip');
+  const veil = document.getElementById('veil'), play = document.getElementById('play'), note = document.getElementById('veilNote'), live = document.getElementById('live');
+  const jump = document.getElementById('jump');
+  let run = null;   // { i, t, plan } while the intro plays
+  const buttons = I.LINES.map((_, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Still ' + (i + 1); b.onclick = () => { Snd.init(); begin(i); }; jump.append(b); return b; });
+  function still(i) {
+    const plan = Snd.talkTimes(I.LINES[i], 'narrator');
+    run = { i, t: 0, plan };
+    crawlText.textContent = '';
+    Snd.say(I.LINES[i], 'narrator');
+    live.textContent = I.LABELS[i] + ' ' + I.LINES[i];
+    buttons.forEach((b, k) => b.setAttribute('aria-current', k === i));
+  }
+  function begin(i = 0) { I.reset(); veil.hidden = true; crawl.hidden = false; still(i); }
+  function end() {
+    Snd.hush(); run = null; crawl.hidden = true;
+    play.textContent = 'Play again'; note.textContent = 'In the game, play starts here: the stairwell.'; veil.hidden = false;
+  }
+  function next() { if (run.i + 1 < I.LINES.length) still(run.i + 1); else end(); }
+  function advance() { if (!run) return; if (run.t < run.plan.total) { run.t = run.plan.total; Snd.hush(); } else next(); }
+  play.onclick = e => { e.stopPropagation(); Snd.init(); begin(0); };
+  skip.addEventListener('click', e => { e.stopPropagation(); if (run) end(); });
+  document.getElementById('stage').addEventListener('click', e => {
+    if (!run || skip.contains(e.target)) return;
+    const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * I.W, y = (e.clientY - r.top) / r.height * I.H;
+    const gag = e.target === c ? I.tap(run.i, x, y, run.t, run.plan) : null;
+    if (gag != null) { if (gag) Snd.play(gag); } else advance();
+  });
+  addEventListener('keydown', e => { if (!run) return; if (e.key === 'Escape') end(); else if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); advance(); } });
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    if (run) {
+      run.t += dt;
+      let n = 0; while (n < run.plan.times.length && run.plan.times[n] <= run.t) n++;
+      const s = I.LINES[run.i].slice(0, n); if (crawlText.textContent !== s) crawlText.textContent = s;
+      if (run.t > run.plan.total + I.HOLD) next();
+    }
+    if (run) I.draw(g, run.i, run.t, run.plan); else if (!window.__still) I.draw(g, 0, 1.2, Snd.talkTimes(I.LINES[0], 'narrator'));
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  // for checking frames: __shot(i, t) draws still i at t seconds and holds it
+  window.__shot = (i, t, gag) => { window.__still = true; run = null; I.reset(); const plan = Snd.talkTimes(I.LINES[i], 'narrator'); if (gag) I.tap(i, gag[0], gag[1], gag[2], plan); I.draw(g, i, t, plan); return plan.total + I.HOLD; };
+})();
+</script>
+</body>
+</html>
