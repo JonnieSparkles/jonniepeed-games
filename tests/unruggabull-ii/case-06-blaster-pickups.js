@@ -1,10 +1,17 @@
 // Blaster charges, Spread Shot, coffee, rows to jump, streaks, hit-stop and music per section.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
+  // what the floor asks of the music: tracks and stems, each landing on the next bar
+  const calls = [], oldMusic = Snd.music, oldStems = Snd.stems;
+  Snd.music = (id, o = {}) => { calls.push({ music: id, o }); return oldMusic(id, o); };
+  Snd.stems = names => { calls.push({ stems: names.join() }); return oldStems(names); };
+  const stems = () => { const c = calls.filter(c => c.stems || (c.music && c.o.stems)).pop(); return c ? c.stems || c.o.stems.join() : ''; };
+  const lastMusic = () => calls.filter(c => 'music' in c).pop();
+  try {
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const quiet = () => { R.cubs = []; R.flies = []; R.projs = []; R.boxes = []; R.rows = []; R.pickups = []; R.shots = []; R.nextFly = 1e9; R.nextBox = 1e9; R.nextRow = 1e9; R.nextCubW = R.dist + 1e9; if (R.event && R.event.souls) { R.event.souls = []; R.event.obs = []; } };
   RUN.force = 606; startRun(); quiet(); bull.inv = 1e9;
-  check(Snd.track === 'tower', 'Accounts Payable plays RugCo Tower');
+  check(Snd.track === 'floorHall' && stems() === 'drums,bass,lead', 'Accounts Payable plays the shuffle (its cold open first): drums, bass and lead');
 
   // charges: 20 shots, then a click and a wait; one back every half second
   check(R.charge === TUNE.charges, 'the blaster starts full');
@@ -60,11 +67,15 @@
 
   // each section has its own music
   bull.inv = 1e9; R.event = null; R.beat = 0; R.beatT = BEATS[0].time; update(1 / 60);
+  check(R.event && R.event.kind === 'move' && Snd.track === 'floorHall' && stems() === 'drums,bass,lead,harmony', 'moving day adds the harmony');
   step(TUNE.moveT + .2);
-  check(R.beat === 1 && Snd.track === 'staff', 'All Staff plays Alley Redux');
+  check(R.beat === 1 && Snd.track === 'floorHall' && stems() === 'drums,bass,lead,harmony,power', 'All Staff adds the power, on the same track');
+  check(!calls.some(c => ['tower', 'staff', 'dark', 'copy', 'shred'].includes(c.music)), 'the old section tracks never play');
   check(R.pickups.some(pk => pk.kind === 'coffee') && R.pickups.some(pk => pk.kind === 'spread'), 'a coffee and a Spread Shot follow moving day');
   R.flies = []; R.beatT = BEATS[1].time; update(1 / 60); step(.2);
-  check(R.event && R.event.kind === 'dark' && Snd.track === 'dark', 'lights out drops to a heartbeat');
+  check(R.event && R.event.kind === 'dark' && Snd.track === 'floorHall' && stems() === 'dark', 'lights out drops to the muzak over the PA');
   step(TUNE.darkT);
-  check(R.beat === 2 && Snd.track === 'copy', 'the copy room has its own tune');
+  const copy = lastMusic();
+  check(R.beat === 2 && Snd.track === 'floorCopy' && copy.o.boundary === 'bar' && !copy.o.slam && stems() === 'drums,bass,lead,harmony,power', 'the copy room switches to its step up on the next bar, the full band back');
+  } finally { Snd.music = oldMusic; Snd.stems = oldStems; }
 })();
