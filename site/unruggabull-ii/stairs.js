@@ -625,13 +625,13 @@ var UnrugStairs = function (core) {
     const y = 21, w = textWidth(text) + 8;
     g.save(); g.globalAlpha = .75; rect(g, 2, y, w, 9, '#0a0810'); g.restore(); rect(g, 2, y, 1, 9, '#ffd44a'); txt(g, text, 6, y + 2, '#fff6e2');
   }
-  // the arrow: the 48th Floor's objective chevron (a dark outline, a notched head, p(Loom)'s orange), pulsing in size;
+  // the arrow: the 48th Floor's objective chevron (a dark outline, a notched head, yellow), pulsing in size;
   // (x, y) is its middle and dir the way it points
   function arrowIcon(x, y, dir) {
     const pulse = 1 + .18 * Math.sin(R.t * 9);
-    g.save(); g.translate(Math.round(x), Math.round(y)); g.rotate(dir === 'left' ? Math.PI : dir === 'down' ? Math.PI / 2 : 0); g.scale(pulse, pulse);
+    g.save(); g.translate(Math.round(x), Math.round(y)); g.rotate(dir === 'left' ? Math.PI : dir === 'down' ? Math.PI / 2 : 0); g.scale(pulse * .8, pulse * .8);
     g.fillStyle = '#1a0f08'; g.beginPath(); g.moveTo(12, 0); g.lineTo(-6, -10); g.lineTo(-1, 0); g.lineTo(-6, 10); g.closePath(); g.fill();
-    g.fillStyle = '#ff7a2a'; g.beginPath(); g.moveTo(9, 0); g.lineTo(-4, -7); g.lineTo(0, 0); g.lineTo(-4, 7); g.closePath(); g.fill();
+    g.fillStyle = '#ffd44a'; g.beginPath(); g.moveTo(9, 0); g.lineTo(-4, -7); g.lineTo(0, 0); g.lineTo(-4, 7); g.closePath(); g.fill();
     g.restore();
   }
   function hud() {
