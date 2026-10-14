@@ -487,8 +487,14 @@ var UnrugFloor48 = function (core) {
     Rc.t += dt; Rc.hitT = Math.max(0, (Rc.hitT || 0) - dt);
     // it waits for the last line's laser sweep to pass (owner, Oct 14: "lets not have the shield active until that laser passes")
     for (const v of Rc.vessels) { v.flash = Math.max(0, v.flash - dt); v.ping = Math.max(0, v.ping - dt); }
-    if (Rc.st === 'wait') { if (!Q.qc && !Q.qcPending && Rc.t > F48.reactor.grace && lastLoom()) startReactor(); return; }
+    if (Rc.st === 'wait') { if (!Q.qc && !Q.qcPending && Rc.t > F48.reactor.grace && lastLoom()) startReactor(false); return; }
     if (Rc.st !== 'on') return;
+    // holding fire while the last line's laser is on its way or sweeping; then they turn on him
+    if (Rc.calm) {
+      if (Q.qc || Q.qcPending) { Rc.calmT = 0; return; }
+      Rc.calmT = (Rc.calmT || 0) + dt; if (Rc.calmT < F48.reactor.grace) return;
+      Rc.calm = false; wake(); return;
+    }
     // awake, they fight back: a marked spot under him, then an arc to it; and now and then a carpshit
     const P = F48.reactor, Z = P.zap;
     for (const v of Rc.vessels) {
@@ -517,15 +523,24 @@ var UnrugFloor48 = function (core) {
       }
     }
   }
-  function startReactor() {
-    const Rc = Q.reactor, P = F48.reactor;
-    Rc.st = 'on'; Rc.t = 0;
-    for (const v of Rc.vessels) { v.zapT = rr(...P.zap.first); v.spawnT = rr(...P.spawn) * .5; v.flash = .3; }
-    R.banner = { text: 'BURST THE VESSELS', sub: 'THE LAST LOOM IS SHIELDED', t: 0, dur: 2.2, top: true, col: '#8fe3ff' };
+  // the shield goes up and the vessels wake; `calm`: they hold fire until the last line's laser has passed (the
+  // second line going down), otherwise (a continue at the last line) they turn on him at once
+  function startReactor(calm) {
+    const Rc = Q.reactor;
+    Rc.st = 'on'; Rc.t = 0; Rc.calm = !!calm; Rc.calmT = 0;
+    for (const v of Rc.vessels) v.flash = .3;
     say('REDUNDANCY ENGAGED.', 2);
     Snd.play('surge'); Snd.play('shieldUp');
     core.live('The last loom is shielded. Two reaction vessels in the dispatch bay power it: burst them both.');
     emit('f48_reactor', { t: R.t });
+    if (!calm) wake();
+  }
+  function wake() {
+    const P = F48.reactor;
+    for (const v of Q.reactor.vessels) { v.zapT = rr(...P.zap.first); v.spawnT = rr(...P.spawn) * .5; v.flash = .3; }
+    R.banner = { text: 'BURST THE VESSELS', sub: 'THEY POWER THE SHIELD', t: 0, dur: 2.2, top: true, col: '#8fe3ff' };
+    Snd.play('zapWarn');
+    emit('f48_wake', { t: R.t });
   }
   function hurtVessel(v, dmg, by) {
     if (v.dead || Q.st !== 'fight') return;
@@ -608,10 +623,12 @@ var UnrugFloor48 = function (core) {
     if (Q.panic < 3) {
       Snd.factoryCue(Q.panic === 1 ? 'panic' : 'heavy', { candidate: Q.music });
       Snd.play('lineDown'); Snd.play('klaxon', Q.panic);
-      R.banner = { text: Q.panic === 1 ? 'PRODUCTION PANIC' : 'LAST LINE', sub: Q.panic === 1 ? 'THE OTHER LINES SPEED UP' : 'ONE LOOM LEFT', t: 0, dur: 2, top: true, col: Q.panic > 1 ? '#ff5a4a' : '#ffd44a' };
+      R.banner = { text: Q.panic === 1 ? 'PRODUCTION PANIC' : 'LAST LINE', sub: Q.panic === 1 ? 'THE OTHER LINES SPEED UP' : 'ITS LOOM IS SHIELDED', t: 0, dur: 2, top: true, col: Q.panic > 1 ? '#ff5a4a' : '#ffd44a' };
       core.bark(Q.panic === 1 ? 'f48line' : 'f48panic');
       if (!Q.qc) Q.qcPending = { t: F48.qc.delay, n: Q.panic - 1 };
-      if (Q.panic === 2) { Q.reactor.st = 'wait'; Q.reactor.t = 0; }
+      // the last line: its loom shielded at once (so it can't be finished off under the laser), the vessels awake but
+      // holding fire until the laser has passed (owner, Oct 14: "split it")
+      if (Q.panic === 2) startReactor(true);
       saveCheckpoint();
     } else startCollapse();
   }
@@ -1231,43 +1248,6 @@ var UnrugFloor48 = function (core) {
     g.fillStyle = vs.length ? '#8fe3ff' : '#ff7a2a'; g.beginPath(); g.moveTo(9, 0); g.lineTo(-4, -7); g.lineTo(0, 0); g.lineTo(-4, 7); g.closePath(); g.fill();
     g.restore();
   }
-  // A loom cracks as it takes damage (owner, Oct 14: "seeing it crack as the line breaks would be great"): breaking the
-  // rest of its line, its console and the blasts around it chip it, so a loom whose line has been taken apart shows it.
-  // Cracks open one by one as its health falls (at 8%, then every 9%), each a jagged fissure from the frame's edge,
-  // dark with a hot seam; past 40% the deepest ones glow and spit the odd spark. Each loom's cracks are its own (drawn
-  // from its id, not the run's dice).
-  function loomCracks(m) {
-    if (m.cracks) return m.cracks;
-    let k = (m.id * 9301 + 49297) % 233280; const rnd = () => (k = (k * 9301 + 49297) % 233280) / 233280;
-    const top = m.y0 - m.H, w = m.x1 - m.x0, h = m.y1 - top, out = [];
-    for (let i = 0; i < 8; i++) {
-      // start on an edge (alternating sides and the top), wander inward
-      const side = i % 3, pts = [];
-      let x = side === 0 ? m.x0 + 2 : side === 1 ? m.x1 - 2 : m.x0 + 6 + rnd() * (w - 12), y = side === 2 ? top + 2 : top + 6 + rnd() * (h - 14);
-      const dx = side === 0 ? 1 : side === 1 ? -1 : (rnd() - .5) * 1.4, dy = side === 2 ? 1 : (rnd() - .5) * 1.2;
-      pts.push([x, y]);
-      const n = 4 + Math.floor(rnd() * 3);
-      for (let j = 0; j < n; j++) { x += dx * (4 + rnd() * 5) + (rnd() - .5) * 5; y += dy * (4 + rnd() * 5) + (rnd() - .5) * 5; pts.push([clamp(x, m.x0 + 2, m.x1 - 2), clamp(y, top + 2, m.y1 - 3)]); }
-      // a branch off the middle
-      const mid = pts[Math.floor(pts.length / 2)], br = [mid, [mid[0] + (rnd() - .5) * 12, mid[1] + (rnd() - .5) * 10], [mid[0] + (rnd() - .5) * 18, mid[1] + (rnd() - .5) * 14]];
-      out.push({ pts, br });
-    }
-    return (m.cracks = out);
-  }
-  function drawLoomCracks(m, t) {
-    const dmg = 1 - m.hp / m.max; if (dmg < .08) return;
-    const n = Math.min(8, 1 + Math.floor((dmg - .08) / .09)), cr = loomCracks(m);
-    const path = (pts, lw, col) => { g.save(); g.strokeStyle = col; g.lineWidth = lw; g.lineJoin = 'miter'; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(Math.round(x) + .5, Math.round(y) + .5) : g.moveTo(Math.round(x) + .5, Math.round(y) + .5)); g.stroke(); g.restore(); };
-    // chunks out of the frame's top rail
-    const top = m.y0 - m.H, w = m.x1 - m.x0;
-    for (let i = 0; i < Math.min(4, Math.floor(n / 2)); i++) { const x = Math.round(m.x0 + w * [.18, .63, .4, .84][i]); rect(g, x, top, 5 + i % 2 * 3, 3 + i % 2, '#0c0606'); rect(g, x + 1, top + 3 + i % 2, 2, 1, '#d8ccc0'); }
-    for (let i = 0; i < n; i++) {
-      const c = cr[i], deep = dmg > .4 && i < n - 2;
-      path(c.pts, 5, '#0c0606'); path(c.br, 3, '#0c0606');
-      path(c.pts, 2, deep ? (Math.sin(t * 7 + i) > 0 ? '#fff3b0' : '#ffb070') : '#d8ccc0'); path(c.br, 1, deep ? '#ffb070' : '#a89888');
-      if (deep && i % 2 === 0 && Math.random() < .02 && Q.st === 'fight') { const p = c.pts[c.pts.length - 1]; R.td.fx.push({ k: 'spark', x: p[0], y: m.y1, h: m.y1 - p[1], vx: fxr(-40, 40), vy: fxr(-10, 10), vh: fxr(20, 70), col: '#ffb070', t: 0, dur: .35 }); }
-    }
-  }
   function drawMachine(m, t) {
     const speed = live(m.line) ? F48.rate[Q.panic] : 0;
     const one = () => {
@@ -1279,7 +1259,6 @@ var UnrugFloor48 = function (core) {
     };
     // a hit flashes it bright: the same drawing again, added on top (a canvas filter here cost a sixth of the frame rate)
     g.save(); one(); if (m.flash > 0) { g.globalCompositeOperation = 'lighter'; one(); } g.restore();
-    if (m.kind === 'loom') drawLoomCracks(m, t);
     if (overloaded(m)) {
       // overloading: the frame glows red-hot in pulses, and the holes the chunks left
       const top = m.y0 - m.H, w = m.x1 - m.x0, h = m.y1 - top;
@@ -1326,6 +1305,26 @@ var UnrugFloor48 = function (core) {
       if (Q.powerCut[i] > 0 && Math.random() < .3) { const pw = powerSeg(i); g.fillStyle = '#ffffff'; g.fillRect(pw.x0 - 1 + Math.round(Math.random() * 3), pw.y0 + 7, 1, 1); }
     }
     cueMarks(t);
+    // a hurt loom catches fire (owner, Oct 14: "seeing it crack as the line breaks would be great", then "lets have the loom
+    // start looking on fire instead"): breaking the rest of its line, its console and the blasts around it chip it, so a
+    // loom whose line has been taken apart shows it. A flame on its top rail from 10% damage and another every 18% (five
+    // at most), growing as it goes; past 50% the odd spark and a wisp of smoke. Drawn flames, few particles.
+    for (const m of Q.machines) {
+      if (m.kind !== 'loom' || m.dead || Q.st !== 'fight') continue;
+      const dmg = 1 - m.hp / m.max; if (dmg < .1) continue;
+      const n = Math.min(5, 1 + Math.floor((dmg - .1) / .18)), w = m.x1 - m.x0, top = m.y0 - m.H;
+      for (let i = 0; i < n; i++) {
+        const fx = m.x0 + w * [.22, .68, .45, .88, .1][i], fl = Math.sin(t * 13 + i * 2.1 + m.id) * .5 + .5;
+        const h = (6 + fl * 8) * (.8 + dmg * 1.6) * (i < n - 1 ? 1 : .7), base = top + 4, fl2 = Math.sin(t * 17 + i * 3.3 + m.id) * .5 + .5;
+        g.fillStyle = '#c8302a'; g.fillRect(Math.round(fx - 4), Math.round(base - h * .7), 8, Math.round(h * .7)); g.fillRect(Math.round(fx - 2), Math.round(base - h), 4, Math.round(h));
+        g.fillRect(Math.round(fx + 3), Math.round(base - h * (.4 + fl2 * .4)), 2, Math.round(h * (.4 + fl2 * .4)));
+        g.fillStyle = '#ff7a2a'; g.fillRect(Math.round(fx - 3), Math.round(base - h * .5), 6, Math.round(h * .5)); g.fillRect(Math.round(fx - 1), Math.round(base - h * .8), 3, Math.round(h * .8));
+        g.fillStyle = '#ffd060'; g.fillRect(Math.round(fx - 2), Math.round(base - h * .3), 4, Math.round(h * .3));
+        td.glow(fx, base - h * .4, 14 + dmg * 16, '#ff7a2a', .35 + dmg * .3);
+        if (dmg > .5 && Math.random() < .015) R.td.fx.push({ k: 'spark', x: fx, y: m.y1, h: m.y1 - base + 6, vx: fxr(-30, 30), vy: fxr(-8, 8), vh: fxr(30, 80), col: '#ffd060', t: 0, dur: .4 });
+        if (dmg > .5 && Math.random() < .006) R.td.fx.push({ k: 'smoke', x: fx, y: m.y1, h: m.y1 - base + 10, vx: fxr(-4, 4), vy: 0, s: 4, t: 0, dur: 1.2 });
+      }
+    }
     // wrecks burn: flames that die down over a few seconds (and flare up again as the floor comes apart)
     for (const m of Q.machines) {
       const k = burn(m); if (k <= 0) continue;

@@ -142,6 +142,8 @@ window.__balanceBot = function (profile, seed) {
     var me = { x: q.me.x, y: q.me.y };
     f48Sent = f48Sent.filter(function (x) { return x.t >= o.t - lagS - 1e-6; });
     f48Sent.forEach(function (x) { me.x += x.mx * q.speed * x.dt; me.y += x.my * q.speed * x.dt; });
+    // a wall stops what it pushed since: if that puts it inside something solid, it's where it was seen
+    if ((q.walls || []).some(function (w) { return me.x > w.x0 && me.x < w.x1 && me.y > w.y0 && me.y < w.y1; })) { me.x = q.me.x; me.y = q.me.y; }
     if (q.locked) return a;
     var mx = 0, my = 0, shoot = null, sd = Infinity, slashAt = null;
     // carpshits: shoot the nearest; back away from the close ones; cut what's in reach

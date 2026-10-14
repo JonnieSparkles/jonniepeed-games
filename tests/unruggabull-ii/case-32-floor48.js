@@ -160,10 +160,11 @@
       check(v0.hp === v0.max && v0.ping >= 0 && !v0.dead, 'dormant, its own shield takes the bolts'); }
     F.breakMachine(machine(0, 'loom'), 'shot'); F.breakMachine(machine(1, 'loom'), 'shot'); tick(.5);
     let last = machine(2, 'loom');
-    check(Q().reactor && Q().reactor.st === 'wait' && !F.shielded(last), 'the last line left: the reactor waits for the laser');
-    let sawQC = false;
-    for (let i = 0; i < 60 * 20 && Q().reactor.st === 'wait'; i++) { clearAll(); if (Q().qc) { sawQC = true; bull.y = Q().qc.dir === 'y' ? 440 : (Q().qc.g0 + Q().qc.g1) / 2; } update(1 / 60); }
-    check(sawQC && !Q().qc && Q().reactor.st === 'on' && F.shielded(last) && R.banner && R.banner.text === 'BURST THE VESSELS', 'once the sweep has passed, the shield goes up: BURST THE VESSELS');
+    check(Q().reactor.st === 'on' && Q().reactor.calm && F.shielded(last) && R.banner && R.banner.sub === 'ITS LOOM IS SHIELDED', 'the last line left: its loom is shielded at once (owner: split it)');
+    let sawQC = false, firedEarly = false;
+    for (let i = 0; i < 60 * 20 && Q().reactor.calm; i++) { clearAll(); if (Q().qc) { sawQC = true; bull.y = Q().qc.dir === 'y' ? 440 : (Q().qc.g0 + Q().qc.g1) / 2; } if (Q().reactor.vessels.some(v => v.zap)) firedEarly = true; bull.x = 720; update(1 / 60); }
+    check(sawQC && !firedEarly, 'the vessels hold fire while the laser comes and sweeps');
+    check(!Q().qc && !Q().reactor.calm && F.shielded(last) && R.banner && R.banner.text === 'BURST THE VESSELS', 'once it has passed they turn on him: BURST THE VESSELS');
     const vs = F.vessels();
     check(vs.length === 2 && vs[0].x > 680 && vs[1].x > 680 && vs[1].y - vs[0].y > 200, 'two vessels, both far right, one high and one low');
     { const h = last.hp; F.hurtMachine(last, 50, 'shot'); check(last.hp === h, 'the shield takes the damage'); }
