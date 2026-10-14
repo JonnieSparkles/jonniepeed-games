@@ -191,3 +191,5 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Hearts given at the katana, 2026-10-14:** the refill at the Rugmergency is shown now. The hearts he's missing circle him in the gold light during the item get, then each flies up into the HUD and fills one, with a ping. A full-hearts bull gets none.
 
 - **Arrows instead of words on the stairs, 2026-10-14:** "UP!", "UP >" and "THE DOOR" are gone. A bobbing gold arrow (`arrowIcon` in `stairs.js`) shows at the edge he's heading for once the way is open, and over the door on the last landing. The slash prompts (the tape, the first paper, the katana) stay as words.
+
+- **Three stairwell tweaks, 2026-10-14:** the arrows moved up to the walkway (chest height above the landing, not below it); a death before the katana now starts the whole stairwell over (the checkpoint stays at the start until the Rugmergency), a death after it keeps the landing; and the last landing is crowded, with a thrower from each side between the tumblers and two pitchers guarding the top.

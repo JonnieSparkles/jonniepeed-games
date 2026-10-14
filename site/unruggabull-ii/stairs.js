@@ -27,7 +27,10 @@ var UnrugStairs = function (core) {
         // up by the tape: two that hang back and keep throwing, so there's paper to knock back (or dodge)
         ['fly', -1, 38, { pitcher: true, throwFirst: .7 }], ['wait', .6], ['fly', -1, 70, { pitcher: true, throwFirst: 1.3 }], ['clear']] },
     { n: 3, dir: 1, low: '12', high: '13', path: [[0, 246], [90, 246], [210, 186], [480, 186]], lamp: 260, big: '13', bigX: 120, door: true,
-      script: [['wait', .6], ['roll'], ['wait', .7], ['roll'], ['wait', 1.1], ['fly', 1, 36], ['roll'], ['clear'], ['roll'], ['wait', .5], ['roll'], ['wait', .5], ['roll'], ['fly', 1, 84], ['clear']] }
+      script: [['wait', .6], ['roll'], ['wait', .7], ['roll'], ['wait', 1.1], ['fly', 1, 36], ['roll'], ['clear'], ['roll'], ['wait', .5], ['roll'], ['wait', .5], ['roll'], ['fly', 1, 84], ['clear'],
+        // the last push: throwers from both sides between the tumblers, then two pitchers guarding the top
+        ['fly', 1, 36, { thrower: true }], ['wait', .8], ['roll'], ['fly', -1, 36, { swoopy: true }], ['wait', .9], ['roll'], ['fly', 1, 84], ['clear'],
+        ['fly', 1, 38, { pitcher: true, throwFirst: .7 }], ['wait', .5], ['fly', 1, 70, { pitcher: true, throwFirst: 1.3 }], ['roll'], ['wait', 1], ['fly', -1, 40], ['clear']] }
   ];
   const STAIRS = {
     SECTIONS,
@@ -94,6 +97,9 @@ var UnrugStairs = function (core) {
   }
   // a continue starts the section over (after the Rugmergency, with the katana)
   function checkpoint() {
+    // before the katana the checkpoint stays at the start (so a continue starts the stairwell over, with the souls and the
+    // seeded stream he came in with); from the katana on, it's the landing he's on
+    if (!Q.katana && Q.si > 0) return;
     core.setCheckpoint({ stage: 'stairs', section: Q.si, katana: Q.katana, souls: R.souls, continues: R.continues, seedState: core.seedState(), runSeed: core.runSeed() });
   }
   // the cue for where he is: slammed in from the top, or a layer more on the next bar
@@ -632,7 +638,7 @@ var UnrugStairs = function (core) {
     if (Q.exitOpen && Q.st === 'play' && !(cur.tape && Q.tapeCut == null)) {
       const bob = Math.round(Math.sin(R.t * 6) * 1.5);
       if (cur.door) arrowIcon(226 - 6, (landing(cur) - 98) / 2 - 15 + bob, 'down');
-      else arrowIcon(cur.dir > 0 ? W / 2 - 17 + bob : 5 - bob, topY(cur) / 2 + 6, cur.dir > 0 ? 'right' : 'left');   // at the edge it points to, level with the top landing
+      else arrowIcon(cur.dir > 0 ? W / 2 - 17 + bob : 5 - bob, topY(cur) / 2 - 26, cur.dir > 0 ? 'right' : 'left');   // at the edge it points to, at chest height above the top landing
     }
   }
   function shakeOffset() {
@@ -660,7 +666,7 @@ var UnrugStairs = function (core) {
     bonusBy: () => null, endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop,
     stageNo: () => Q.st === 'door' ? 4 : Q.si + 1, stageNames: { 1: 'Stairs: G to 1', 2: 'Stairs: 6 to 7', 3: 'Stairs: 12 to 13', 4: 'Stairs: the door' },
     pauseText: 'The stairs wait.',
-    continueText: () => 'Back to the landing with full hearts?',
+    continueText: () => Q.katana ? 'Back to the landing with full hearts?' : 'Back to the start with full hearts?',
     clearCard: () => ({ title: 'The stairwell', text: '', rows: [['Souls', String(R.souls)]], note: '' }),
     STAIRS, SECTIONS, arena, ground, groundAt, UX, HY, startSection, startWhip, startDoor, breakGlass, fly, roll, cabReady, raising,
     get Q() { return Q; }, get cur() { return cur; }

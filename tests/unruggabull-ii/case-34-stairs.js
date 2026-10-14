@@ -24,6 +24,7 @@
   check(S.Q.st === 'whip' && S.Q.si === 1 && R.hearts === 2, 'the whip up: section 2, the hearts he had');
   step(S.STAIRS.whip + .05);
   check(S.Q.st === 'play' && !R.arena.locked && bull.facing === -1, 'section 2: right to left');
+  check(checkpoint.section === 0 && !checkpoint.katana, 'before the katana a continue starts the stairwell over');
   // the cabinet: dark until the carpshits on the way up are dealt with; a bolt can't break it before that
   const cab = S.SECTIONS[1].cab;
   check(!S.cabReady(), 'the cabinet is dark at first');
@@ -65,6 +66,7 @@
   newRun({ stage: 'stairs', section: 1, katana: true, souls }); floor.resume();
   check(R.stage === 'stairs' && S.Q.si === 1 && S.Q.katana && S.Q.glass < 0 && R.continues === 1, 'continue: back on the landing, katana in hand');
   // the door: the line, the band on the kick, then the 13th Floor without the band starting over
+  check(S.SECTIONS[2].script.filter(c => c[0] === 'fly' || c[0] === 'roll').length >= 16, 'the last landing is crowded');
   RUN.force = 3435; startRun('stairs'); S.Q.katana = true; S.startSection(2); bull.inv = 1e9;
   R.arena.enemies = []; S.Q.script = S.SECTIONS[2].script.length; update(1 / 60);
   R.souls = 25; bull.u = S.UX(370); update(1 / 60);
