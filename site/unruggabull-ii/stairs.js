@@ -69,8 +69,8 @@ var UnrugStairs = function (core) {
 
   // ---------- the bull's own poses here ----------
   const B = UnrugBull, paintAll = o => { const r = {}; for (const k in o) r[k] = B.paint(o[k]); return r; };
-  const SIDE = paintAll(B.SIDES), BARE = paintAll(B.SIDES_BARE), MOVE = paintAll(B.MOVES), RAISED = B.paint(B.RAISED);
-  const SF = B.SIDE_FEET, MF = B.MOVES_FEET, RF = B.RAISED_FEET;
+  const SIDE = paintAll(B.SIDES), BARE = paintAll(B.SIDES_BARE), MOVE = paintAll(B.MOVES), RAISED = B.paint(B.RAISED), FRONT = paintAll(B.FRONTS), FACING = B.paint(B.VIEWS.front);
+  const SF = B.SIDE_FEET, MF = B.MOVES_FEET, RF = B.RAISED_FEET, FF = B.FRONT_FEET, VF = B.VIEW_FEET;
   // the fanfare's length: every bar before its silent one
   const FAN = window.UnrugStairsMusic && window.UnrugStairsMusic.stairsFanfare;
   const FANL = FAN ? FAN.order.slice(0, -1).reduce((n, p) => n + FAN.patterns[p].bars * 16, 0) * 60 / FAN.bpm / 4 : 4.44;
@@ -226,8 +226,8 @@ var UnrugStairs = function (core) {
     const huff = !walking && k >= D.walk && k < D.up, rise = k >= D.up && k < D.up + D.rise;
     Q.breath = k >= D.brace ? null : huff ? 'huff' : rise ? 'rise' : walking ? 'walk' : 'ready';
     const img = k >= D.kick ? MOVE.kick : k >= D.brace ? MOVE.brace : walking ? SIDE['run' + (Math.floor(Q.step) % 4)]
-      : huff ? MOVE['huff' + (Math.floor((k - D.walk) / .42) % 2)] : rise ? MOVE.rise : SIDE.aim;
-    const feet = Object.values(MOVE).includes(img) ? MF : SF;
+      : huff ? FRONT['huff' + (Math.floor((k - D.walk) / .42) % 2)] : rise ? FRONT.rise : k < D.line ? FACING : SIDE.aim;   // he faces us for the breather, and turns to the door for the line
+    const feet = Object.values(FRONT).includes(img) ? FF : img === FACING ? VF : Object.values(MOVE).includes(img) ? MF : SF;
     R.arena.pose = { img, feet: { x: feet.x, y: feet.y }, face: 1 };
     if (k >= D.line && !Q.done.line) { Q.done.line = true; core.bark('door'); }
     if (k >= D.brace && !Q.done.brace) { Q.done.brace = true; Snd.play('stairCreak'); }
@@ -524,7 +524,7 @@ var UnrugStairs = function (core) {
     const D = STAIRS.door;
     if (Q.st !== 'door' || Q.stT < D.walk + .1 || Q.stT > D.up + D.rise) return;
     const bx = Math.round(PXu(bull.u)), by = Math.round(PYh(ground(bull.u) + bull.jh)), k = Q.stT - D.walk;
-    const drops = [[14, -58, 0], [19, -56, .33], [27, -39, .17], [24, -42, .66], [10, -55, .5]];
+    const drops = [[-9, -46, 0], [8, -48, .33], [-3, -30, .17], [3, -31, .66], [0, -50, .5]];
     g.save();
     for (const [dx, dy, ph] of drops) {
       const t = (k / .66 + ph) % 1, a = Math.min(1, (1 - t) * 2);
@@ -663,6 +663,7 @@ var UnrugStairs = function (core) {
     newRun, update, opening, resume: opening, use(x) { g = x; arena.use(x); },
     view, lights, shakeOffset, draw, glows, overlay, hud,
     fire, slashHits: arena.slashHits, canSlash: () => Q.katana && Q.st === 'play',
+    crouchWalk: () => Q.st === 'play',   // side on: he can walk crouched here (TUNE.crouchWalk); the cut-ins move him themselves
     muzzleXY: () => ({ x: arena.X(bull.u + (bull.facing || 1) * .12), y: arena.Y(ground(bull.u) + bull.jh + .14) }),
     soulFreed(f) { f.to = { x: 220, y: 7 }; },
     aim: noop, shotHits: () => false, shotFar: () => false, posOf: o => o, slash: noop, hurt: noop, blasterBack: noop,

@@ -43,7 +43,7 @@
         newRun({ stage: 'elevator', transfer: true, souls: 0,
           from: options.from == null ? ride.from : Number(options.from),
           fight: options.fight == null ? ride.fight : options.fight !== false && options.fight !== 'false',
-          walkIn: options.walkIn === true || options.walkIn === 'true',
+          lobby: options.lobby === true || options.lobby === 'true',
           destination: options.destination == null ? ride.destination : { floor: Number(options.destination), label: String(options.destination),
             stage: Number(options.destination) === 48 ? 'floor48' : 'roof' } });
       } else newRun(null, options && options.stage);
@@ -68,7 +68,7 @@
       var b = bull, o = {
         t: R.t, phase: R.phase, stage: stage(), event: R.event ? R.event.kind : null, speed: R.speed,
         souls: R.souls, goal: TUNE.goal, hearts: R.hearts, maxHearts: TUNE.hearts, charge: R.charge, spread: R.spread,
-        runner: TUNE.runner, aimCone: TUNE.aimCone, move: TUNE.move, aisle: TUNE.aisle, pull: R.pull.st, spray: !!R.pull.spray, mouth: TUNE.mouth,
+        runner: TUNE.runner, aimCone: TUNE.aimCone, move: TUNE.move, crouchWalk: TUNE.crouchWalk || 0, aisle: TUNE.aisle, pull: R.pull.st, spray: !!R.pull.spray, mouth: TUNE.mouth,
         bull: { u: b.u, bz: b.bz, jh: b.jh, cd: b.cd, inv: b.inv, busy: !!(b.mouth || b.spat), crouch: !!b.crouch },
         boss: { st: R.boss.st, ph: R.boss.ph, hp: R.boss.hp, jam: R.boss.jam, rally: R.boss.rally ? R.boss.rally.count : -1 },
         temps: [], flies: [], projs: [], boxes: [], rows: [], pickups: [], bubbles: []
@@ -100,7 +100,8 @@
             swoop: e.swoop ? { k: e.swoop.t / AR.swoopT, tu: e.swoop.tu, su: e.swoop.su } : null, rearing: !e.swoop && !e.dropping && e.swoopT < AR.rear,
             dives: e.dives || 0, cross: e.cross || 0 })),
           thrown: R.arena.thrown.map(p => ({ id: idOf(p), u: p.u, h: p.h, vu: p.vu, vh: p.vh, friendly: p.friendly })),
-          crate: Q.crate && !Q.crate.got ? { u: Q.crate.u } : null, exit: Q.t > floor.top().doors + floor.ELEVATOR.exitAfter };
+          crate: Q.crate && !Q.crate.got ? { u: Q.crate.u } : null, exit: Q.t > floor.top().doors + floor.ELEVATOR.exitAfter,
+          lobby: Q.lobby ? { doorU: floor.ELEVATOR.lobby.doorU } : null };
       }
       if (R.stage === 'floor48') {
         var F = R.f48, td = R.td, T8 = floor.td.TD;

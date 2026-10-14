@@ -17,6 +17,17 @@
   // no katana yet: Slash does nothing
   bull.cd = 0; press('slash'); update(1 / 60);
   check(bull.slash < 0, 'no slashing before the Rugmergency');
+  // crouch-walking on the slope: half speed, down plus right, he stays on the ground line and his bolts leave lower
+  R.arena.enemies = []; R.shots = []; bull.u = S.UX(150); bull.facing = 1; R.fireT = 0; R.charge = TUNE.charges; keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
+  const standH = R.shots[0].h - S.ground(bull.u); R.shots = []; step(TUNE.fireEvery + .1);
+  keys.kbDown = true; keys.kbRight = true; update(1 / 60);
+  check(bull.crouch && bull.crouchWalking, 'down plus right crouch-walks on the stairs');
+  const cu = bull.u; step(.5); keys.kbRight = false;
+  check(Math.abs((bull.u - cu) - TUNE.move * TUNE.crouchWalk * .5) < .02, 'at the crouch-walk speed, half of walking');
+  check(bull.facing === 1 && S.ground(bull.u) > S.ground(S.UX(150)), 'facing the way he was, and up the slope');
+  R.shots = []; R.fireT = 0; R.charge = TUNE.charges; keys.kbShoot = true; update(1 / 60); keys.kbShoot = false;
+  check(R.charge === TUNE.charges - TUNE.crouchCost && R.shots[0].h - S.ground(bull.u) < standH, 'crouched, a shot costs two and leaves lower, from the ground line');
+  keys.kbDown = false; update(1 / 60); R.shots = []; R.fireT = 0; R.charge = TUNE.charges;
   // the section's script, cleared: the way up opens, and the edge whips up to section 2
   R.arena.enemies = []; S.Q.script = sec.script.length; update(1 / 60);
   check(S.Q.exitOpen, 'cleared: the way up opens');
