@@ -318,7 +318,7 @@
     R.events.shots = (R.events.shots || 0) + 1;
     const k = sc(bull.bz);
     R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + my * k, t: 0, dur: .08 });
-    Snd.play('shot', R.spread > 0);
+    Snd.play('shot', hs > 1 ? 'soft' : R.spread > 0);   // soft under the soul's stream, as on the 48th Floor
     if (hs > 1) Snd.play('hintStream');
     return true;
   }

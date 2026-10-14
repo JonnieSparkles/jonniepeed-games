@@ -831,7 +831,7 @@ var UnrugFloor13 = function (core) {
         return;
       }
       if (b.jam <= 0 && b.jamTag !== 'STUNNED x3') {   // it spits the rug back out
-        popText('PTOO!', 120, BACK.y1 - 6, '#ff9628'); Snd.play('spit'); R.shake = Math.max(R.shake, .15);
+        popText('JAM CLEARED', 120, BACK.y1 - 6, '#ff9628'); Snd.play('spit'); R.shake = Math.max(R.shake, .15);
         for (let i = 0; i < 10; i++) R.fx.push({ k: 'spark', x: 120 + fxr(-8, 8), y: BACK.y1 - 4, s: .9, col: i % 2 ? '#9a2a1e' : '#e0a030', t: 0, dur: .4, a: Math.random() * 6 });
       }
       if (Math.random() < dt * 8) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 10, BACK.x1 - 10), y: BACK.y0 + 4, t: 0, dur: 1 });
@@ -1463,7 +1463,7 @@ var UnrugFloor13 = function (core) {
     scissors(x0 - 8, y, 1, open, col); scissors(x1 + 8, y, -1, open, col);
   }
   // What happened: while it's jammed, a JAMMED x3 tag over it with a gold bar draining for as long as your shots do
-  // triple damage; when it runs out it spits the rug back out (PTOO!, in updateBoss).
+  // triple damage; when it runs out it spits the rug back out (JAM CLEARED, in updateBoss).
   function jamBar() {
     const b = R.boss;
     if (!(b.jam > 0) || b.st !== 'fight' || !b.jamMax) return;
