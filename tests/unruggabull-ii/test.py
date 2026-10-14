@@ -224,6 +224,21 @@ with sync_playwright() as p:
                 for selector in ['#stickzone', '.shoot', '.slash']:
                     b = page.locator(selector).bounding_box()
                     assert a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x'] or a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y'], f'{name}: {label} clear of {selector}'
+            # Down plus right on the stick crouch-walks, in the ride and in the 13th Floor's lobby; down alone stays put.
+            box = page.locator('#stickzone').bounding_box()
+            cx, cy = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
+            for where, setup in [('ride', 'newRun(null, "elevator"); setState("play"); bull.inv = 1e9; bull.u = -.3;'),
+                                 ('lobby', 'newRun({stage:"elevator",transfer:true,fight:false,from:13,lobby:true,souls:0,destination:{floor:48,label:"48",stage:"floor48"}}); setState("play"); for(let i=0;i<80;i++)update(1/60); bull.u = -.5;')]:
+                page.evaluate("s => unrugTest(s)", setup)
+                page.dispatch_event('#stickzone', 'pointerdown', {'pointerId': 78, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
+                page.dispatch_event('#stickzone', 'pointermove', {'pointerId': 78, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy + 36})
+                held = page.evaluate("unrugTest('const u0 = bull.u; for(let i=0;i<20;i++) update(1/60); [bull.crouch, bull.u - u0]')")
+                assert held[0] and held[1] == 0, f'{name} {where}: stick down crouches in place {held}'
+                page.dispatch_event('#stickzone', 'pointermove', {'pointerId': 78, 'pointerType': 'touch', 'clientX': cx + 28, 'clientY': cy + 36})
+                moved = page.evaluate("unrugTest('const u0 = bull.u; for(let i=0;i<30;i++) update(1/60); [bull.crouch, bull.crouchWalking, bull.u - u0, TUNE.move * TUNE.crouchWalk * .5]')")
+                page.dispatch_event('#stickzone', 'pointerup', {'pointerId': 78, 'pointerType': 'touch', 'clientX': cx + 28, 'clientY': cy + 36})
+                assert moved[0] and moved[1] and abs(moved[2] - moved[3]) < .02, f'{name} {where}: stick down and right crouch-walks {moved}'
+                assert page.evaluate("unrugTest('update(1/60); !keys.padDown && !keys.padRight && !bull.crouch')"), f'{name} {where}: release clears the stick'
         assert not errors, (name, errors)
         context.close()
         print('PASS elevator hash/input/layout', name)

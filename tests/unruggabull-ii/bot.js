@@ -61,13 +61,15 @@ window.__balanceBot = function (profile, seed) {
   // The long ride's fight, side on (arena decisions keep their own bookkeeping and dice, used only on this stage).
   // It faces and shoots the nearest carpshit, jumping to shoot the high ones; ducks a dive coming through where it
   // stands (or cuts it); knocks paper back or jumps it; keeps a little room; then takes the crate and walks out.
+  // A crouch-walker (P.crouch_walk, the *_crouch profiles) plays low: while there's anything to fight it stays crouched,
+  // moving and shooting from there at the crouched cost, standing only to jump or for a tap to turn.
   var arenaSent = [], arenaT = null;
   function arenaDecide(o) {
     var q = o.arena, b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false };
     var delta = arenaT === null ? 1 / 30 : Math.max(0, o.t - arenaT); arenaT = o.t;
     var lagS = P.reaction_ms / 1000, me = b.u;
     arenaSent = arenaSent.filter(x => x.t >= o.t - lagS - 1e-6);
-    arenaSent.forEach(x => { me += x.dir * o.move * x.dt; });
+    arenaSent.forEach(x => { me += x.dir * o.move * (x.low ? o.crouchWalk || 0 : 1) * x.dt; });
     me = Math.max(-o.aisle, Math.min(o.aisle, me));
     // which way it faces now: the last way it pressed, if that hasn't shown up yet
     var facing = q.facing; arenaSent.forEach(x => { if (x.dir) facing = x.dir; });
@@ -109,11 +111,16 @@ window.__balanceBot = function (profile, seed) {
     // the top: the crate, then the doorway
     if (q.crate) goal = q.crate.u - .05;
     else if (q.exit) goal = 0;
-    if (duck && !b.jh) { a.crouch = true; a.jump = false; a.shoot = false; goal = null; }
+    if (q.lobby) goal = q.lobby.doorU;   // the 13th Floor's lobby: straight to the doors, and in once they open
+    if (P.crouch_walk && o.crouchWalk) {
+      // low all the time there's a fight on, still moving and shooting; up only to jump, or to tap round to face
+      if (!b.jh && !a.jump && !turn && (duck || q.enemies.length || q.thrown.length)) a.crouch = true;
+    } else if (duck && !b.jh) { a.crouch = true; a.jump = false; a.shoot = false; goal = null; }
     var d = goal === null ? 0 : goal - me;
     a.left = d < -.025; a.right = d > .025;
     if (turn && goal === null && !a.crouch) { a.left = turn < 0; a.right = turn > 0; }   // a tap to face the other way
-    arenaSent.push({ t: o.t, dir: a.crouch ? 0 : (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: delta });
+    var walks = !a.crouch || (P.crouch_walk && o.crouchWalk);
+    arenaSent.push({ t: o.t, dir: walks ? (a.right ? 1 : 0) - (a.left ? 1 : 0) : 0, low: a.crouch, dt: delta });
     return a;
   }
   // The 48th Floor, top down (its own bookkeeping and dice). Like a person on two sticks: it keeps moving, backs away

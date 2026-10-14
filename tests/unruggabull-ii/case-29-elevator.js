@@ -16,16 +16,17 @@
   const at = t => { while (R.elevator.t < t && R.phase !== 'dead' && R.phase !== 'win') update(1 / 60); };
   try {
     const entranceRun = render => {
-      newRun({stage:'elevator',transfer:true,fight:false,from:13,walkIn:true,souls:31,continues:2,
+      newRun({stage:'elevator',transfer:true,fight:false,from:13,lobby:true,souls:31,continues:2,
         heldDrop:'bullRun',seedState:12345,runSeed:77,destination:{floor:48,label:'48',stage:'floor48'}});
-      setState('play'); clearHeld();
-      for(let i=0;i<180;i++){ update(1/60); if(render && i%12===0) draw(); }
-      return JSON.stringify({t:R.elevator.t,u:bull.u,board:R.elevator.board,cue:R.elevator.cue,seed,
+      setState('play'); clearHeld(); keys.kbRight = true;
+      for(let i=0;i<480;i++){ keys.kbRight = bull.u < floor.ELEVATOR.lobby.doorU; update(1/60); if(render && i%12===0) draw(); }
+      keys.kbRight = false;
+      return JSON.stringify({t:R.elevator.t,u:bull.u,lobby:R.elevator.lobby,cue:R.elevator.cue,seed,
         souls:R.souls,hearts:R.hearts,continues:R.continues,held:R.heldDrop,locked:R.arena.locked,track:Snd.track});
     };
-    check(entranceRun(false) === entranceRun(true), 'drawing the entrance never changes the carried run or cue timing');
+    check(entranceRun(false) === entranceRun(true), 'drawing the lobby never changes the carried run or cue timing');
     fresh();
-    check(!R.elevator.board && floor.doorOpening() === 0, 'direct elevator entry skips boarding and starts with closed doors');
+    check(!R.elevator.lobby && floor.doorOpening() === 0, 'direct elevator entry skips the lobby and starts with closed doors');
     check(R.stage === 'elevator' && R.heldDrop === null && R.elevator.indicator === 13 && R.elevator.fight, 'the long ride starts at 13 with no held supply');
     tick(.5); check(R.talk && R.talk.text === 'FLOOR?' && R.talk.speaker === 'operator' && Snd.track === 'hornsUp', 'operator asks Floor? over the muzak');
     bull.inv = 1e9; at(T.reel); check(!R.arena.enemies.length && R.elevator.indicator > 13, 'the climb is a breather: no carpshits before the reel');
@@ -44,7 +45,8 @@
     tick(.4); check(thrower.dead && R.souls === 4, 'returned paper frees its thrower');
     // crouch, jump; what touches him
     fresh(); keys.kbDown = true; update(1 / 60); const old = bull.u; keys.kbRight = true; tick(.1);
-    check(bull.crouch && bull.u === old, 'crouch stops movement');
+    check(bull.crouch && bull.crouchWalking && Math.abs(bull.u - old - TUNE.move * TUNE.crouchWalk * .1) < .005, 'crouched in the ride, he walks at the crouch-walk speed');
+    keys.kbRight = false;
     R.charge = TUNE.charges; R.fireT = 0; R.hot = false; const c0 = R.charge;
     check(fireCrouched() && R.charge === c0 - TUNE.crouchCost, 'but he can shoot crouched, for double the charge');
     function fireCrouched() { const n = R.shots.length; press('shoot'); tick(.05); return R.shots.length !== n; }
@@ -83,36 +85,37 @@
     drops.give('spread'); const oldSeed = seed; endRun('clear'); check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again' && !altBtn.hidden, 'elevator is primary, replay secondary'); goBtn.click();
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters the ride, full hearts');
     check(!R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.stage === 'floor48', 'the 13th Floor takes the quiet ride to the 48th Floor');
-    check(R.elevator.board && floor.doorOpening() === 1 && bull.u === -1.05 && R.arena.outShrink === false,
-      'the clear button starts the open-door walk-in from the left, full size');
-    check(R.continues === 0 && checkpoint.seedState === oldSeed && !checkpoint.walkIn && !checkpoint.board,
-      'the walk-in carries continues and seed; the checkpoint stays a closed-door ride');
-    tick(1.45);
-    check(R.elevator.board && R.elevator.t === 0 && bull.u === 0 && R.arena.out > 0 && !R.talk,
-      'he reaches the doorway and turns his back before any ride cues');
-    const boarding = drawnBull();
-    check(boarding.scales.length === 1 && boarding.scales[0][0] === 1 && boarding.scales[0][1] === 1 && boarding.draws[0] === 1,
-      'boarding draws him full size and fully visible next to the operator');
-    tick(.3); draw();
-    const visible = view.getImageData(210, 155, 60, 85).data;
-    bull.u = -.7; draw(); const emptyDoor = view.getImageData(210, 155, 60, 85).data; bull.u = 0;
-    const rows = [];
-    for(let y=0;y<85;y++) for(let x=0;x<60;x++) {
-      const i=(y*60+x)*4;
-      if(visible[i]!==emptyDoor[i] || visible[i+1]!==emptyDoor[i+1] || visible[i+2]!==emptyDoor[i+2]) { rows.push(y); break; }
+    check(R.elevator.lobby && R.phase === 'lobby' && floor.doorOpening() === 0 && bull.u === -1.05 && R.arena.outShrink === false && R.elevator.t === 0,
+      "the clear button starts the 13th Floor's lobby: doors shut, him walking in from the left");
+    check(R.continues === 0 && checkpoint.seedState === oldSeed && !checkpoint.lobby,
+      'the lobby carries continues and seed; the checkpoint stays the closed-door ride');
+    // he walks straight to the doors: the dial counts up to 13, DING, the doors, Please Hold, GOING UP?, and he boards
+    const lobbyEvents = []; emitHook = type => lobbyEvents.push(type);
+    let boardedAt = null, sawDial = new Set(), sawGoing = false, boardingDrawn = null, lt = 0;
+    for (let i = 0; i < 12 * 60 && R.elevator.lobby; i++) {
+      keys.kbRight = bull.u < floor.ELEVATOR.lobby.doorU;
+      update(1 / 60); lt += 1 / 60;
+      if (R.elevator.lobby) {
+        sawDial.add(floor.lobby.dialAt(floor.lobby.L.t));
+        if (R.talk && R.talk.text === 'GOING UP?') sawGoing = true;
+        if (floor.lobby.L.out > .3 && !boardingDrawn) boardingDrawn = drawnBull();
+        check(R.elevator.t === 0 && !floor.locked(0), 'the ride clock waits in the lobby');
+      } else boardedAt = lt;
     }
-    check(rows.length && Math.max(...rows)-Math.min(...rows) >= 60, 'the open doorway actually shows his full-height boarding sprite');
-    tick(.2); check(R.elevator.board && floor.doorOpening() < 1 && Snd.track === 'pleaseHold' && !R.talk,
-      'Please Hold starts as the doors close, with no early FLOOR?');
-    tick(.68);
-    check(!R.elevator.board && floor.doorOpening() === 0 && R.elevator.t < .05 && !R.talk && !R.arena.out && R.arena.outShrink,
-      'the entrance finishes before the ride clock and its cues start; exit shrinking returns');
-    check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 5, 'boarding preserves the carried run');
-    tick(.35); check(R.talk && R.talk.text === 'FLOOR?' && R.t >= 2.95, 'the opening cue shifts by the entrance length');
-    // A quiet-ride continue skips boarding and preserves entry souls/seed/held supply.
+    keys.kbRight = false; emitHook = null;
+    check(boardedAt !== null && boardedAt < 8, 'walking straight in, the lobby takes under 8 seconds: ' + boardedAt);
+    check(sawDial.has(0) && sawDial.has(13) && [...sawDial].every(n => n >= 0 && n <= 13), 'the dial counts up from G to 13');
+    check(lobbyEvents.includes('elevator_lobby_ding') && lobbyEvents.includes('elevator_board') && sawGoing, 'DING, the doors, GOING UP? and boarding');
+    check(boardingDrawn && boardingDrawn.scales.length === 1 && boardingDrawn.scales[0][0] === 1 && boardingDrawn.scales[0][1] === 1 && boardingDrawn.draws[0] === 1,
+      'boarding from the lobby draws him full size and fully visible');
+    check(!R.elevator.lobby && R.phase === 'boss' && floor.doorOpening() === 0 && R.elevator.t < .05 && !R.talk && !R.arena.out && R.arena.outShrink && Snd.track === 'pleaseHold',
+      'boarded: the ride starts with the doors shut, Please Hold carrying on from the lobby');
+    check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 5 && R.heldDrop === 'spread', 'the lobby preserves the carried run');
+    tick(.4); check(R.talk && R.talk.text === 'FLOOR?' && R.elevator.t >= .35, 'the ride cues count from the doors closing');
+    // A quiet-ride continue skips the lobby and preserves entry souls/seed/held supply.
     R.hearts = 1; bull.inv = 0; hurtBull(1, 'test'); tick(3); goBtn.click();
-    check(!R.elevator.board && floor.doorOpening() === 0 && R.elevator.t === 0 && R.continues === 1 && R.souls === 123 &&
-      R.hearts === 5 && R.heldDrop === 'spread' && seed === oldSeed, 'quiet-ride continue skips boarding and keeps carried state: ' + JSON.stringify({board:R.elevator.board,doors:floor.doorOpening(),t:R.elevator.t,continues:R.continues,souls:R.souls,hearts:R.hearts,held:R.heldDrop,seed,oldSeed}));
+    check(!R.elevator.lobby && floor.doorOpening() === 0 && R.elevator.t === 0 && R.continues === 1 && R.souls === 123 &&
+      R.hearts === 5 && R.heldDrop === 'spread' && seed === oldSeed, 'quiet-ride continue skips the lobby and keeps carried state: ' + JSON.stringify({lobby:R.elevator.lobby,doors:floor.doorOpening(),t:R.elevator.t,continues:R.continues,souls:R.souls,hearts:R.hearts,held:R.heldDrop,seed,oldSeed}));
     check(Snd.track === 'pleaseHold', 'the real 13 to 48 quiet ride plays Please Hold');
     const quietLines = [], expectedQuiet = [
       [.35, 'operator', 'FLOOR?'], [2.6, 'bull', 'FORTY-EIGHT.'],
@@ -153,6 +156,17 @@
     check(R.arena.outShrink === false && lobbyBoarding.scales[0][0] === 1 && lobbyBoarding.draws[0] === 1,
       'the 48th Floor lobby also boards at full size without fading');
     R.arena.out = 0;
+    // crouch-walking in the 48th Floor's lobby too (half speed, facing kept)
+    const crouchWalk = () => {
+      bull.facing = 1; keys.kbDown = true; keys.kbRight = true; update(1 / 60); const u0 = bull.u; tick(.5); const moved = bull.u - u0;
+      keys.kbRight = false; keys.kbLeft = true; tick(.2); const back = bull.u - u0 - moved, facing = bull.facing;
+      keys.kbDown = keys.kbLeft = false; update(1 / 60);
+      return { moved, back, facing };
+    };
+    floor.Q.lobby.t = floor.F48.lobby.walkIn + .1; bull.u = -.3;
+    let cw = crouchWalk();
+    check(bull.crouch === false && Math.abs(cw.moved - TUNE.move * TUNE.crouchWalk * .5) < .02 && cw.back < 0 && cw.facing === 1,
+      "crouch-walking in the 48th Floor's lobby: half speed, and backing up keeps his facing: " + JSON.stringify(cw));
     const longSeed = seed;
     travel('elevator', { fight: true, from: 48 });   // the 48th Floor's lobby takes the long ride
     check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && seed === longSeed, 'the long ride from 48 carries the run');
@@ -188,6 +202,28 @@
     check(middles.size === 3, 'all three middle exchanges are reachable');
     // the tower dial: G to R in every ride, so 48 sits just under halfway
     check(floor.floorAt(0) === 13 && Math.abs(floor.floorAt(2 + floor.ELEVATOR.quiet.climb) - 48) < 1e-9, 'the quiet ride reads 13 to 48 on the tower dial');
+    // Crouch-walking, side on: the 13th Floor's lobby, both rides (and the 48th's lobby, above; the stairs, case 34).
+    newRun({ stage: 'elevator', transfer: true, fight: false, from: 13, lobby: true, souls: 0, destination: { floor: 48, label: '48', stage: 'floor48' } });
+    setState('play'); tick(floor.ELEVATOR.lobby.walkIn + .1); bull.u = -.4;
+    cw = crouchWalk();
+    check(Math.abs(cw.moved - TUNE.move * TUNE.crouchWalk * .5) < .02 && cw.back < 0 && cw.facing === 1 && TUNE.crouchWalk === .5,
+      "crouch-walking in the 13th Floor's lobby: half speed, facing kept: " + JSON.stringify(cw));
+    keys.kbDown = true; keys.kbRight = true; update(1 / 60);
+    check(bull.crouch && bull.crouchWalking, 'down plus right is crouch-walking');
+    keys.kbDown = keys.kbRight = false;
+    fresh(); bull.inv = 1e9; bull.u = -.4; cw = crouchWalk();
+    check(Math.abs(cw.moved - TUNE.move * TUNE.crouchWalk * .5) < .02 && cw.back < 0 && cw.facing === 1, 'crouch-walking in the long ride: ' + JSON.stringify(cw));
+    newRun({ stage: 'elevator', transfer: true, fight: false, from: 13, souls: 0, destination: { floor: 48, label: '48', stage: 'floor48' } });
+    setState('play'); bull.u = -.4; cw = crouchWalk();
+    check(Math.abs(cw.moved - TUNE.move * TUNE.crouchWalk * .5) < .02 && cw.back < 0 && cw.facing === 1, 'crouch-walking in the quiet ride: ' + JSON.stringify(cw));
+    // ...and nowhere else: the 13th Floor, the 48th Floor's fight and the roof keep crouched = still (case 13 moves it)
+    newRun(null, 'floor13'); check(!floor.crouchWalk, 'no crouch-walking on the 13th Floor');
+    newRun(null, 'floor48'); check(floor.crouchWalk && !floor.crouchWalk() && floor.Q.st !== 'lobby', "no crouch-walking in the 48th Floor's fight");
+    newRun(null, 'roof'); check(!floor.crouchWalk, 'no crouch-walking on the roof');
+    // #stage=elevator&at=lobby starts in the 13th Floor's lobby
+    const hash = location.hash; history.replaceState(null, '', '#stage=elevator&at=lobby');
+    try { newRun(null, 'elevator'); check(R.elevator.lobby && !R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.floor === 48, 'at=lobby starts in the lobby'); }
+    finally { history.replaceState(null, '', hash || location.pathname); }
     // Destinations are parameters; floor label R is only the default.
     newRun({ stage: 'elevator', transfer: true, souls: 0, destination: { floor: 42, label: '42', stage: 'floor13' } }); setState('play'); bull.inv = 1e9;
     at(T.arrive + .1); check(R.elevator.indicator === 42, 'destination parameter');
