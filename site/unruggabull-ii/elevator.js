@@ -13,7 +13,9 @@ var UnrugElevator = function (core) {
     armor: 34.8, last: 46.8, arrive: 55.8, doors: 57.2, crate: 58 };
   const ELEVATOR = { from: 13, fight: true, destination: { floor: 99, label: 'R', stage: 'roof' }, T,
     // the quiet ride: doors close, banter on the climb, then the doors and a supply crate
-    quiet: { climb: 27, board: { walk: 1.4, turn: .5, close: .7 } },
+    quiet: { climb: 27 },
+    // the 13th Floor's lobby before the quiet ride (lobby.js, as the 48th's): the car comes up from G, DING at 2.6 s
+    lobby: { floor: 13, dialFrom: 0, walkIn: 1.1, dingAt: 2.6, doorsT: 1.2, doorU: .6, doorway: .25, walkOut: 1 },
     // the fight: waves down the threads (u of each thread's end), both sides of him; in through the open shaft when he's
     // backed against a wall with no thread that side
     waves: { first: 2.6, every: 1.8, everyLast: 1.5, size: 2, sizeLast: 3, most: 7, lanes: [-.682, -.391, .136, .273, .545], clear: .12 },
@@ -22,6 +24,9 @@ var UnrugElevator = function (core) {
     ask: { floor: .9, roof: 2.2, out: 2.6 },
     arena: {} };
   const arena = UnrugArena(core, ELEVATOR.arena);
+  const lobby = UnrugLobby(core, arena, Object.assign({}, ELEVATOR.lobby, { look: '13', events: { ding: 'elevator_lobby_ding', board: 'elevator_board' } }));
+  // the 13th Floor's elevator: the quiet ride to the 48th, from its lobby (#stage=elevator&at=lobby starts there)
+  const RIDE_13 = { fight: false, from: 13, lobby: true, destination: { floor: 48, label: '48', stage: 'floor48' } };
   const TOWER = 99;   // the dial's top: the roof
   const W = 480, H = 270, FLOOR = 240, HX = 150, CAR_L = 40, CAR_R = 440;
   const PX = u => arena.PXu(u), UX = x => (x / 2 - 120) / arena.ARENA.width;
@@ -140,13 +145,14 @@ var UnrugElevator = function (core) {
 
   // ---------- the run ----------
   function newRun(r, b, at) {
+    if (!at && /(^|&)at=lobby(&|$)/.test(location.hash.replace(/^#/, ''))) at = Object.assign({ transfer: true, souls: 0 }, RIDE_13);
     R = r; bull = b; R.speed = 0; R.phase = 'boss';
     if (at) { R.souls = R.shown = at.souls || 0; R.continues = (at.continues || 0) + (at.transfer ? 0 : 1); }
     arena.newRun(R, bull);
     const fight = at && at.fight != null ? at.fight : ELEVATOR.fight;
     Q = R.elevator = { t: 0, from: at && at.from != null ? at.from : ELEVATOR.from, fight, destination: Object.assign({}, ELEVATOR.destination, at && at.destination),
       cues: null, cue: 0, shaft: 0, indicator: 0, nextSpawn: ELEVATOR.waves.first, wave: 0, crate: null, crateSouls: 0, out: 0,
-      dust: [], sparks: [], lift: 0, cap: 0, board: !fight && at && at.transfer && at.walkIn && at.from === 13 ? { t: 0 } : null };
+      dust: [], sparks: [], lift: 0, cap: 0, lobby: !fight && at && at.transfer && at.lobby ? true : null };
     Q.exitAt = fight ? T.doors + ELEVATOR.ask.out : top().doors + ELEVATOR.exitAfter;
     Q.cues = (fight ? LONG : quietCues()).slice().sort((a, b2) => a[0] - b2[0]);
     // a continue from the long ride's fight starts again at the threads, with the souls it came in with
@@ -159,29 +165,18 @@ var UnrugElevator = function (core) {
       Q.t = startAt; while (Q.cue < Q.cues.length && Q.cues[Q.cue][0] < startAt) Q.cue++;
     }
     Q.indicator = Math.round(floorAt(Q.t));
-    if (Q.board) {
-      bull.u = -1.05; bull.facing = 1; R.arena.locked = true; R.arena.outShrink = false; R.white = .35;
-      Snd.music(null, { hard: true });
-    } else if (!startAt) Snd.music(fight ? 'hornsUp' : 'pleaseHold', fight ? { slam: true, pattern: 'muzak', loopPattern: true } : { slam: true });
+    if (Q.lobby) { lobby.start(R, bull); R.phase = 'lobby'; R.white = .35; }
+    else if (!startAt) Snd.music(fight ? 'hornsUp' : 'pleaseHold', fight ? { slam: true, pattern: 'muzak', loopPattern: true } : { slam: true });
     else Snd.music(null, { hard: true });
-    emit('elevator_state', { state: Q.board ? 'board' : startAt ? 'threads' : 'ask' });
+    emit('elevator_state', { state: Q.lobby ? 'lobby' : startAt ? 'threads' : 'ask' });
   }
-  // The lobby's boarding pattern: side-on from the left, stop in the doorway, turn his back, close the doors.
-  // Q.t is the ride clock; it starts after the 2.6 s entrance, so every cue (including FLOOR?) waits for closed doors.
-  function stepBoard(dt) {
-    const b = Q.board, B0 = ELEVATOR.quiet.board, end = B0.walk + B0.turn + B0.close;
-    b.t = Math.min(end, b.t + dt); R.arena.locked = true;
-    if (b.t < B0.walk) { bull.u = lerp(-1.05, 0, b.t / B0.walk); bull.step += dt * 8; }
-    else {
-      bull.u = 0; R.arena.out = clamp((b.t - B0.walk) / B0.turn, .0001, 1);
-      if (b.t < B0.walk + B0.turn) bull.step += dt * 8;
-      if (!b.closing && b.t >= B0.walk + B0.turn) { b.closing = true; Snd.play('rideDoors'); Snd.music('pleaseHold', { slam: true }); }
-    }
-    updateFx(dt);
-    if (b.t < end) return;
-    Q.board = null; R.arena.out = 0; R.arena.outShrink = true; R.arena.locked = false;
-    // The existing phone pads stay connected; discard transient attack taps made while the doors were closing.
+  // Boarded from the lobby: the ride starts with the doors shut (Q.t 0, so every cue counts from them closing), him back
+  // in the car's own place, and Please Hold carrying on from the lobby.
+  function board() {
+    Q.lobby = null; R.phase = 'boss'; R.talk = null;
+    arena.newRun(R, bull);
     core.input.jump = core.input.slash = core.input.shoot = 0;
+    if (Snd.track !== 'pleaseHold') Snd.music('pleaseHold', { slam: true });
     emit('elevator_state', { state: 'ask' });
   }
   function spawnWave(t) {
@@ -198,7 +193,7 @@ var UnrugElevator = function (core) {
   function update(dt) {
     if (R.phase === 'win') return;   // a bot's run stops at the doors
     if (R.phase === 'dead') { updateFx(dt); stepCosmetic(dt); if (R.phaseT > ELEVATOR.deadWait) endRun('rugged'); return; }
-    if (Q.board) { stepBoard(dt); return; }
+    if (Q.lobby) { if (lobby.step(dt)) board(); return; }
     const t = Q.t;
     while (Q.cue < Q.cues.length && Q.cues[Q.cue][0] <= t) Q.cues[Q.cue++][1]();
     Q.shaft += speedAt(t) * dt; Q.indicator = Math.round(floorAt(t));
@@ -365,10 +360,6 @@ var UnrugElevator = function (core) {
   }
   // the view through the open doors: the storm on the roof and p(Loom) far off (or, on the quiet ride, a quiet hall)
   function drawRoof(t) {
-    if (Q.board) {
-      rect(g, 168, 76, 144, 164, '#4a2a1c'); rect(g, 168, 172, 144, 3, '#c9962e');
-      rect(g, 168, 176, 144, 64, '#2e1912'); return;
-    }
     rect(g, 168, 76, 144, 164, '#0c0a18');
     if (Q.destination.stage === 'floor48') {
       // the 48th Floor through the doors: the factory's glow, a belt running past, machinery and a loom's threads
@@ -396,10 +387,10 @@ var UnrugElevator = function (core) {
     rect(g, 168, 176, 144, 2, '#3a3444');
     for (let i = 0; i < 40; i++) { const x = 168 + ((i * 37 + Math.floor(t * 300) * 3) % 144), y = 76 + ((i * 53 + Math.floor(t * 600)) % 164); line(g, x, y, x - 2, y + 6, '#5a6a9a'); }
   }
-  const doorOpening = () => Q.board ? 1 - clamp((Q.board.t - ELEVATOR.quiet.board.walk - ELEVATOR.quiet.board.turn) / ELEVATOR.quiet.board.close, 0, 1) : clamp((Q.t - top().doors) / 1.2, 0, 1);
-  function drawDoors(t, foreground = false) {
+  const doorOpening = () => Q.lobby ? lobby.doorsOpen() : clamp((Q.t - top().doors) / 1.2, 0, 1);
+  function drawDoors(t) {
     const open = doorOpening();
-    if (open > 0 && !foreground) drawRoof(t);
+    if (open > 0) drawRoof(t);
     const lw = Math.round(72 * (1 - open));
     if (lw <= 0) return;
     for (const [x, right] of [[168, 0], [312 - lw, 1]]) {
@@ -492,7 +483,7 @@ var UnrugElevator = function (core) {
     for (const s of Q.sparks) { const k = s.t / s.dur; rect(g, s.x, s.y, 1, 1, k < .5 ? '#ffd060' : '#ff7a2a'); rect(g, s.x + 1, s.y, 1, 1, '#ffd060'); }
   }
   function drawExit(t) {
-    if (Q.board || Q.t < Q.exitAt || (!Q.fight && R.talk) || Q.out > 0 || R.phase === 'dead') return;
+    if (Q.lobby || Q.t < Q.exitAt || (!Q.fight && R.talk) || Q.out > 0 || R.phase === 'dead') return;
     const bob = Math.round(Math.sin(t * 5) * 2), label = Q.destination.label === 'R' ? 'ROOF' : 'FLOOR ' + Q.destination.label;
     otxt(g, label, 240, 92 + bob, '#ffd44a', 2, 'center');
     rect(g, 236, 106 + bob, 9, 3, '#ffd44a'); rect(g, 238, 109 + bob, 5, 2, '#ffd44a'); rect(g, 240, 111 + bob, 1, 1, '#ffd44a');
@@ -588,7 +579,8 @@ var UnrugElevator = function (core) {
       rect(g, 0, H - 30, W, 30, '#140806'); rect(g, 0, H - 30, W, 2, '#ff7a2a');
       disc(g, 18, H - 15, 7, '#ff7a2a'); disc(g, 18, H - 15, 4, '#ffd060'); disc(g, 18, H - 15, 2, '#140806');
       otxt(g, 'P(LOOM)', 34, H - 22, '#ff7a2a', 1); otxt(g, s, 34, H - 14, '#ffd060', 2);
-    } else if (T2.speaker === 'operator') bubble(s, 356, 128 - Math.round(Q.lift) - Math.round(Q.cap), 356);
+    } else if (T2.speaker === 'operator' && Q.lobby) { const p = lobby.talkAt(); bubble(s, p.x, p.y, p.x - 20, true); }
+    else if (T2.speaker === 'operator') bubble(s, 356, 128 - Math.round(Q.lift) - Math.round(Q.cap), 356);
     // Quiet-ride movement stays live: keep his bubble between the phone pads even at either wall.
     else { const bx = Math.round(PX(bull.u)), lift = Math.round(arena.PYh(0) - arena.PYh(bull.jh)) + Math.round(R.arena.lift || 0); bubble(s, Q.fight ? bx : W / 2, 132 - lift, bx, !Q.fight); }
   }
@@ -596,15 +588,16 @@ var UnrugElevator = function (core) {
   // ---------- the frame ----------
   const half = fn => () => { g.save(); g.scale(.5, .5); fn(); g.restore(); };
   const draw = half(() => {
+    if (Q.lobby) { lobby.draw(); return; }
     const t = Q.t;
     if (!BG) BG = paintCar();
     drawShaftSides(t); g.drawImage(BG, 0, 0);
     drawDial(t); drawDoors(t); drawHatch(t); drawOperator(t); drawCrate();
     g.restore(); arena.draw(); g.save(); g.scale(.5, .5);
-    if (Q.board) drawDoors(t, true); // closing leaves cover him; boarding itself never fades or shrinks
     drawBits(); shade(t);
   });
   function glows() {
+    if (Q.lobby) { lobby.glows(); return; }
     const t = Q.t;
     g.save(); g.scale(.5, .5);
     shaftLamps(t); lightGlows(t); drawEye(t); drawThreads(t); drawSparks(); drawExit(t);
@@ -624,9 +617,10 @@ var UnrugElevator = function (core) {
   const noop = () => {};
   return {
     id: 'elevator', tune: { scroll: 0, aisle: arena.ARENA.limit, move: .55, bossHP: 0 }, set: { flat: true },
-    label: 'Unruggabull, side on, in the walnut-and-brass elevator climbing RugCo Tower, with its Unrugged operator on his stool.',
+    get label() { return Q && Q.lobby ? "Unruggabull, side on, in the 13th Floor's elevator lobby, waiting for the car." : 'Unruggabull, side on, in the walnut-and-brass elevator climbing RugCo Tower, with its Unrugged operator on his stool.'; },
     lines: { low: false, rugged: false, spread: false, deflect: false },
-    newRun, update, opening: noop, resume: noop, use(x) { g = x; arena.use(x); },
+    newRun, update, opening: noop, resume: noop, use(x) { g = x; arena.use(x); lobby.use(x); },
+    crouchWalk: () => true, lobby,   // side on: he can walk crouched in the lobby and both rides (TUNE.crouchWalk)
     view: () => ({ ambient: 1 }), lights: arena.lights, shakeOffset,
     draw, glows, overlay, hud,
     fire: arena.fire, slashHits: arena.slashHits, muzzleXY: () => ({ x: arena.X(bull.u + (bull.facing || 1) * .12), y: arena.Y(bull.jh + .14) }),
