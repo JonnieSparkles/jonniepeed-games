@@ -210,6 +210,9 @@
       "crouch-walking in the 13th Floor's lobby: half speed, facing kept: " + JSON.stringify(cw));
     keys.kbDown = true; keys.kbRight = true; update(1 / 60);
     check(bull.crouch && bull.crouchWalking, 'down plus right is crouch-walking');
+    const steps = new Set(); for (let i = 0; i < 40; i++) { update(1 / 60); steps.add(floor.arena.pose()); }
+    check(steps.has('crouchWalk0') && steps.has('crouchWalk1') && steps.size === 2, 'crouch-walking steps through its two side poses: ' + [...steps]);
+    keys.kbRight = false; update(1 / 60); check(floor.arena.pose() === 'crouch', 'and crouched still is the crouch');
     keys.kbDown = keys.kbRight = false;
     fresh(); bull.inv = 1e9; bull.u = -.4; cw = crouchWalk();
     check(Math.abs(cw.moved - TUNE.move * TUNE.crouchWalk * .5) < .02 && cw.back < 0 && cw.facing === 1, 'crouch-walking in the long ride: ' + JSON.stringify(cw));

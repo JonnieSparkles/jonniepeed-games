@@ -248,7 +248,7 @@ var UnrugArena = function (core, tuning) {
     if (b.inv > TUNE.hurtInv - .55 && b.stag > 0) return 'hurt';
     if (b.slash >= 0) return b.slash < .07 ? 'wind' : 'cut';
     if (b.jh > 0 || (R.arena.lift || 0) > 1) return 'jump';
-    if (b.crouch) return 'crouch';
+    if (b.crouch) return b.crouchWalking ? 'crouchWalk' + (Math.floor(b.step / 1.3) % 2) : 'crouch';   // crouch-walking: two low steps
     if (moveDir() && !R.arena.locked) return 'run' + (Math.floor(b.step / 1.3) % 4);
     const idle = b.idle || 0;
     if (idle > 6 && (idle % 8) < 1.4 && R.arena.glance) return 'front';
@@ -271,9 +271,7 @@ var UnrugArena = function (core, tuning) {
     if (bull.inv > 0 && Math.floor(R.t * 18) % 2) g.globalAlpha = .4;
     if (p === 'front') { g.translate(Math.round(x), Math.round(y)); g.drawImage(FRONT, -B.VIEW_FEET.x, -B.VIEW_FEET.y); g.restore(); return; }
     const recoil = (bull.aimT || 0) > .15 ? 3 : 0, land = (bull.sq || 0) > 0;
-    // crouch-walking (side on): the crouch pose with a step bob, a placeholder until there are side crouch-walk poses
-    const bob = p === 'crouch' && bull.crouchWalking ? Math.floor(bull.step / 1.3) % 2 : 0;
-    g.translate(Math.round(x - recoil * facing()), Math.round(y) - bob); g.scale(facing(), 1);
+    g.translate(Math.round(x - recoil * facing()), Math.round(y)); g.scale(facing(), 1);
     if (land && p !== 'jump') g.scale(1.04, .94);
     g.drawImage(set[p], -SF.x, -SF.y);
     if ((bull.aimT || 0) > .17) { disc(g, SM.x + 2, SM.y, 4, '#fff6e2'); disc(g, SM.x + 2, SM.y, 2, '#7fd4ff'); }

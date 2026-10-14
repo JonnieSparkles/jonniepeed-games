@@ -805,6 +805,10 @@ SIDE_POSE = {
     'run3':   (((1.6, _Lk, .6, _Lf), (2.4, _Lk - 2.6, -1.8, _Lf - 5.6)), 'aim', 'down', {'lean': 1.0, 'bob': -1, 'tail': 0}),
     'jump':   (((1.4, _Lk - 3.4, -3.4, _Lf - 6.4), (5.4, _Lk - 4.6, 2.8, _Lf - 7.2)), 'aim', 'up', {'lean': .6, 'tail': 2}),
     'crouch': (((-1.0, _Lk - _C + 1.2, -3.4, _Lf - _C), (6.4, _Lk - _C - .4, 2.4, _Lf - _C)), 'aim', 'up', {'bob': _C, 'lean': 1.6, 'tail': -1}),
+    # crouch-walking (the lobbies and the rides): two low steps from the crouch, the near boot then the far one lifted
+    # and reaching, his body as the crouch's, rocking a pixel onto the planted foot
+    'crouchWalk0': (((-2.2, _Lk - _C + 1.4, -5.0, _Lf - _C), (7.6, _Lk - _C - 1.6, 5.2, _Lf - _C - 1.8)), 'aim', 'up', {'bob': _C, 'lean': 1.8, 'tail': 0}),
+    'crouchWalk1': (((5.4, _Lk - _C - 1.4, 4.2, _Lf - _C - 1.8), (3.0, _Lk - _C + .6, -3.0, _Lf - _C)), 'aim', 'up', {'bob': _C - .6, 'lean': 1.4, 'tail': -2}),
     'wind':   (STAND_LEGS, 'wind', 'swingB', {'lean': -.6}),
     'cut':    (((-3.0, _Lk - .4, -5.2, _Lf), (4.0, _Lk - .8, 5.0, _Lf)), 'cut', 'swingB', {'lean': 1.8, 'tail': 1}),
     'hurt':   (((-1.6, _Lk, -3.2, _Lf), (1.0, _Lk, 2.4, _Lf)), 'flinch', 'flinch', {'lean': -2.2, 'tail': -2}),
