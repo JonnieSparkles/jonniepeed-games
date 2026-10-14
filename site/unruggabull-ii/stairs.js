@@ -625,23 +625,21 @@ var UnrugStairs = function (core) {
     const y = 21, w = textWidth(text) + 8;
     g.save(); g.globalAlpha = .75; rect(g, 2, y, w, 9, '#0a0810'); g.restore(); rect(g, 2, y, 1, 9, '#ffd44a'); txt(g, text, 6, y + 2, '#fff6e2');
   }
-  // the arrow: a chunky gold arrow with a dark outline and a lit top edge (12 x 11, pointing right; the others turn it)
-  const ARROW = ['.....oo.....', '.....oYo....', '.....oYYo...', 'ooooooYYYo..', 'ohhhhhhYYYo.', 'oYYYYYYYYYYo', 'oYYYYYYYYYo.', 'ooooooYYYo..', '.....oYYo...', '.....oYo....', '.....oo.....'];
+  // the arrow: the 48th Floor's objective chevron (a dark outline, a notched head, yellow), pulsing in size;
+  // (x, y) is its middle and dir the way it points
   function arrowIcon(x, y, dir) {
-    const R_ = ARROW.length, C_ = ARROW[0].length, col = { o: '#1a1018', Y: '#ffd44a', h: '#fff0a0' };
-    for (let j = 0; j < R_; j++) for (let i = 0; i < C_; i++) {
-      const c = ARROW[j][i]; if (c === '.') continue;
-      const px = dir === 'left' ? C_ - 1 - i : dir === 'down' ? j : i, py = dir === 'down' ? i : j;
-      rect(g, Math.round(x) + px, Math.round(y) + py, 1, 1, col[c]);
-    }
+    const pulse = 1 + .18 * Math.sin(R.t * 9);
+    g.save(); g.translate(Math.round(x), Math.round(y)); g.rotate(dir === 'left' ? Math.PI : dir === 'down' ? Math.PI / 2 : 0); g.scale(pulse * .8, pulse * .8);
+    g.fillStyle = '#1a0f08'; g.beginPath(); g.moveTo(12, 0); g.lineTo(-6, -10); g.lineTo(-1, 0); g.lineTo(-6, 10); g.closePath(); g.fill();
+    g.fillStyle = '#ffd44a'; g.beginPath(); g.moveTo(9, 0); g.lineTo(-4, -7); g.lineTo(0, 0); g.lineTo(-4, 7); g.closePath(); g.fill();
+    g.restore();
   }
   function hud() {
     drawSoulsCounter();
-    // the way on: a bobbing arrow once it's open (at the top of the flight, or over the door), no words
+    // the way on: the chevron once it's open (at the edge he's heading for, or over the door), no words
     if (Q.exitOpen && Q.st === 'play' && !(cur.tape && Q.tapeCut == null)) {
-      const bob = Math.round(Math.sin(R.t * 6) * 1.5);
-      if (cur.door) arrowIcon(226 - 6, (landing(cur) - 98) / 2 - 15 + bob, 'down');
-      else arrowIcon(cur.dir > 0 ? W / 2 - 17 + bob : 5 - bob, topY(cur) / 2 - 26, cur.dir > 0 ? 'right' : 'left');   // at the edge it points to, at chest height above the top landing
+      if (cur.door) arrowIcon(226, (landing(cur) - 98) / 2 - 15, 'down');
+      else arrowIcon(cur.dir > 0 ? W / 2 - 16 : 16, topY(cur) / 2 - 21, cur.dir > 0 ? 'right' : 'left');
     }
   }
   function shakeOffset() {
