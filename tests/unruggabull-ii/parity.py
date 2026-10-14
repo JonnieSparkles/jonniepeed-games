@@ -107,8 +107,13 @@ def main():
                 after = captures(browser, ROOT, 'http://127.0.0.1:' + str(new.server_port), out / 'current')
                 browser.close()
             mismatches = [key for key in before if before[key] != after[key]]
-            assert mismatches == ['floor48-boarding'], mismatches
-            print('PASS pixel parity:', len(before) - 1, 'captures identical to', args.ref, '(including the 13th Floor clear card); lobby boarding differs intentionally')
+            # Intended: full-size lobby boarding, and the tower dial (G to R) over the lobby doors and in the long ride's car.
+            # Remove these once the branch that changed them is on the ref.
+            expected = ['floor48-boarding', 'floor48-lobby-0.5', 'floor48-lobby-3', 'floor48-lobby-6',
+                        'elevator-long-0.5', 'elevator-long-10', 'elevator-long-56', 'elevator-long-58.8']
+            assert all(key in expected for key in mismatches), mismatches
+            print('PASS pixel parity:', len(before) - len(mismatches), 'captures identical to', args.ref,
+                  '(including the 13th Floor clear card);', len(mismatches), 'differ as intended (lobby boarding, the tower dial)')
         finally:
             subprocess.run(['git', 'worktree', 'remove', '--force', str(tree)], cwd=ROOT, check=True, capture_output=True)
 
