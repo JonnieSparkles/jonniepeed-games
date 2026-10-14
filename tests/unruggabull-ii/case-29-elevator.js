@@ -118,8 +118,8 @@
       [.35, 'operator', 'FLOOR?'], [2.6, 'bull', 'FORTY-EIGHT.'],
       [5, 'operator', 'GOT A SLIP?'], [7.4, 'bull', 'ACCOUNTING.'],
       [10, 'operator', 'THEY STILL THERE?'], [12.4, 'bull', 'LESS OF THEM.'],
-      [17, 'bull', "WHICH FLOOR'S THIS?"], [19.4, 'operator', 'I ASK. YOU TELL.'],
-      [24, 'bull', 'NICE SYSTEM.'], [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.']
+      [17, 'operator', "WHAT'S THE DIAL SAY?"], [19.4, 'bull', 'YOU WORK HERE.'],
+      [24, 'operator', "SINCE '87."], [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.']
     ];
     const quietEvents = []; emitHook = (type) => quietEvents.push(type);
     let quietTalk = null;

@@ -111,9 +111,9 @@ var UnrugElevator = function (core) {
     ['start', 7.4, 'bull', 'ACCOUNTING.', 1.8],
     ['start', 10, 'operator', 'THEY STILL THERE?', 1.8],
     ['start', 12.4, 'bull', 'LESS OF THEM.', 1.8],
-    ['start', 17, 'bull', "WHICH FLOOR'S THIS?", 2],
-    ['start', 19.4, 'operator', 'I ASK. YOU TELL.', 2],
-    ['start', 24, 'bull', 'NICE SYSTEM.', 1.8],
+    ['start', 17, 'operator', "WHAT'S THE DIAL SAY?", 2],
+    ['start', 19.4, 'bull', 'YOU WORK HERE.', 1.8],
+    ['start', 24, 'operator', "SINCE '87.", 1.8],
     ['doors', ELEVATOR.ask.floor, 'operator', 'RECLAMATION, SIR.', 1.8],
     ['doors', ELEVATOR.ask.floor + 2, 'bull', 'KEEP THE SLIP.', 1.8]
   ];
