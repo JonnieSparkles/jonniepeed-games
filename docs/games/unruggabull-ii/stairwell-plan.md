@@ -17,18 +17,18 @@ Every section is one screen (480×270, the rides' picture) of zigzag flights: th
 
 | Section | Floors | Way | What happens |
 | --- | --- | --- | --- |
-| 1 | Ground to 1st | left to right | Blaster only. Eight carpshits in five waves up two flights: singles, a high one (JUMP), paper throwers, one from behind. Clear them and UP > shows at the top. |
+| 1 | Ground to 1st | left to right | Blaster only. Eight carpshits in five waves up two flights: singles, a high one (JUMP), paper throwers, one from behind. Clear them and a bobbing gold arrow shows at the edge he's heading for (no words). |
 | Whip | 1 to 6 | | The camera whips up: the section drops away, the next comes down from above, FLOOR and a big number rolling 1 to 6 in the middle. About 0.85 s. Hearts carry over; the katana refills them. |
 | 2 | 6th to 7th | right to left | Still blaster only: three carpshits on the way up to the cabinet. Then the cabinet wakes (below) and SHOOT THE GLASS; shooting it plays **the Rugmergency**. With the katana: a diver (SLASH), a paper thrower (SLASH IT BACK), a pair, then two that hang back by the tape throwing paper every 1.5 to 2.2 s (deflect or dodge; nothing forces it). Then **caution tape** criss-crossed over the top of the stairs: he can't pass until he slashes it (SLASH THE TAPE); it parts and hangs. |
 | Whip | 7 to 12 | | As above. |
-| 3 | 12th to 13th | left to right | Carpshits tumble down the stairs at him (jump them, cut them, or shoot them, crouched or standing) with flyers mixed in. Then THE DOOR: **the door** (below). |
+| 3 | 12th to 13th | left to right | Carpshits tumble down the stairs at him (jump them, cut them, or shoot them, crouched or standing) with flyers mixed in. Then **the door** (below), with the same arrow bobbing over it. |
 
 A person takes about 70 to 75 seconds. The scripted bot on the page is a rough check that it plays through, not a tuning signal.
 
 ### The Rugmergency
 
 - **The cabinet** is dark until it's ready: its glass dim and its sign, BREAK GLASS IN CASE OF RUGMERGENCY, unpowered. Once the carpshits on the way up are dealt with, the sign lights from inside like an exit sign and the frame pulses red, lighting the wall. The section's lamp hangs over the lower stairs, so the cabinet sits in shadow until then. The glass can't break before it's ready.
-- **The glass:** a bolt through it shatters it (white flash, shards to the floor, a tinkle and pings) and the music stops dead. He steps up, grabs the katana (a shing), turns to face us and holds it up (the new `RAISED` pose; a little hop), the stairwell darkens around him and a gold light picks him out, gold rays turn behind him, a glint runs up the blade, and RUGMERGENCY KATANA. The fanfare plays; on its last beat the cue slams back in a layer up, SLASH, and the first carpshit comes.
+- **The glass:** a bolt through it shatters it (white flash, shards to the floor, a tinkle and pings) and the music stops dead. He steps up, grabs the katana (a shing), turns to face us and holds it up (the new `RAISED` pose; a little hop), the stairwell darkens around him and a gold light picks him out, gold rays turn behind him, a glint runs up the blade, and RUGMERGENCY KATANA. If he's missing hearts they circle him in the gold light, then each flies up into the HUD and fills one (a ping each; none if he's full). The fanfare plays; on its last beat the cue slams back in a layer up, SLASH, and the first carpshit comes.
 - **Before the katana** he carries none: the side poses without it on his back (`SIDES_BARE`).
 
 ### The door
