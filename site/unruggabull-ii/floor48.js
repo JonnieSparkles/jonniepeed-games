@@ -60,6 +60,19 @@ var UnrugFloor48 = function (core) {
     // `reach` of him). A heart if it touches him; it
     // burns any carpshit it crosses and sets off the clutter.
     qc: { delay: 2.4, warn: 1.7, w: 4, gapsY: [176, 280, 390], reach: 150, sweeps: [{ dir: 'x', speed: 150, gap: 60 }, { dir: 'y', speed: 100, gap: 80 }] },
+    // the last line's reactor (owner, Oct 14, option D on the design page): two reaction vessels stand in the dispatch
+    // bay from the start, one high and one low, dormant under shields of their own. When the second line goes down and its
+    // laser sweep has passed, they wake and beam their energy to a shield over the last loom. Burst both (`hp` bolts
+    // each, `slash` a cut) and the shield drops into the overload. Each burst: a blast, souls, a freeze. Awake, they
+    // fight back (owner, Oct 14, "standing there costs something"): when he's within `zap.near` a vessel marks the floor
+    // under him for `zap.warn` seconds, then arcs a bolt to that spot (a heart if he's still within `zap.hit`), every
+    // `zap.every` seconds; and every `spawn` seconds each sends out a carpshit. The last line makes `rush` times as
+    // fast while it's shielded.
+    reactor: { at: [[760, 124], [690, 410]], hp: 12, slash: 6, blast: 80, souls: 6, grace: .4, hitW: 15, rush: 1.3,
+      zap: { near: 120, warn: .6, hit: 15, every: [1.6, 2.4], first: [.6, 1.2] }, spawn: [6, 8] },
+    // the canister cart (optional, the bottom walkway): from `first`, every `every` seconds while the lines are up, a cart
+    // of `load` soul canisters rolls along the rail; one hit sets the whole load off down the cart, a chain
+    cart: { first: 25, every: 40, speed: 70, y: 436, load: 4, souls: 2, blast: 58, gap: .1 },
     drops: { spinner: 'spread', press: 'rapid', animator: 'pierce' }, dropChance: .45, dropLife: 12,
     // the shag: from the first line down, every this-many launches from a live line, at most this many out
     shagEvery: 5, shagMost: 2,
@@ -115,7 +128,8 @@ var UnrugFloor48 = function (core) {
       reverse: [0, 0, 0], reverseT: [F48.reverse.every, F48.reverse.every, F48.reverse.every], cues: {}, props: makeProps(), dropped: {}, panic: down.filter(Boolean).length, machines: buildMachines(), items: [[], [], []], next: [0, 0, 0], beltOff: [0, 0, 0],
       pressT: [0, 0, 0], chain: [], fx: [], smokeT: 0, shake: 0, flashT: 0, eye: 0, threads: 0, bend: 0, souls: [], collapse: null, lobby: null,
       started: false, events: {}, music: 'b', lineT: [0, 0, 0], hitSnd: 0, white: 0, debrisT: 0,
-      combo: null, callout: null, bestChain: 0, qc: null, qcPending: null };
+      combo: null, callout: null, bestChain: 0, qc: null, qcPending: null,
+      reactor: newReactor(down.filter(Boolean).length === 2 ? 'wait' : 'dormant'), cart: null, cartNext: F48.cart.first, cartN: 0 };
     const m48 = /(^|&)music48=([abc])/.exec(location.hash.replace(/^#/, '')); if (m48) Q.music = m48[2];
     // lines already down (a continue) stay wrecked
     Q.machines.forEach(m => { if (down[m.line]) { m.dead = true; m.hp = 0; } });
@@ -171,6 +185,7 @@ var UnrugFloor48 = function (core) {
   function solids() {
     const out = Q.props.filter(p => !p.dead);
     for (const m of Q.machines) for (const s of m.solid) out.push(s);
+    for (const v of standing()) out.push({ x0: v.x - 12, x1: v.x + 12, y0: v.y - 8, y1: v.y + 4 });
     return out;
   }
   // a belt carries what stands on it, along the line, while the line runs
@@ -183,13 +198,19 @@ var UnrugFloor48 = function (core) {
   }
   // A bolt (or a returned bobbin) at (x, y) on the floor: does it hit a machine where it's drawn?
   function machineHit(x, y, dmg, by) {
+    for (const v of standing()) if (Math.abs(x - v.x) < F48.reactor.hitW && y > v.y - 24 && y < v.y + 12) { hurtVessel(v, dmg, by); return true; }
+    if (Q.st === 'fight' && cartHit(x, y)) { hitCart(by); return true; }
     for (const p of Q.props) {
       if (p.dead) continue;
       if (x >= p.x0 - 1 && x <= p.x1 + 1 && y >= p.y0 - 6 && y <= p.y1 + 10) { hurtProp(p, dmg, by); return true; }
     }
     for (const m of Q.machines) {
       if (m.dead) continue;
-      if (x >= m.x0 - 1 && x <= m.x1 + 1 && y >= m.y0 - 8 && y <= m.y1 + 16) { hurt(m, dmg, by); return true; }
+      if (x >= m.x0 - 1 && x <= m.x1 + 1 && y >= m.y0 - 8 && y <= m.y1 + 16) {
+        // the shield takes the bolt: a ripple where it hit, a ping
+        if (shielded(m)) { Q.reactor.hitT = .25; Q.reactor.hitX = x; td.sparks(x, y, 18, '#8fe3ff', 4); if (Q.hitSnd <= 0) { Snd.play('shieldHit'); Q.hitSnd = .08; } return true; }
+        hurt(m, dmg, by); return true;
+      }
     }
     return false;
   }
@@ -201,6 +222,12 @@ var UnrugFloor48 = function (core) {
       const nx = clamp(cx, p.x0, p.x1), ny = clamp(cy, p.y0 - 8, p.y1 + 4);
       if ((nx - cx) ** 2 + (ny - cy) ** 2 < r * r) { p.swing = swing; hurtProp(p, dmg, 'slash'); n++; td.sparks(nx, ny, 10, '#fff6e2', 6); }
     }
+    for (const v of standing()) {
+      if (v.swing === swing) continue;
+      const ny = clamp(cy, v.y - 30, v.y + 6);
+      if ((v.x - cx) ** 2 + (ny - cy) ** 2 < (r + 10) ** 2) { v.swing = swing; hurtVessel(v, F48.reactor.slash, 'slash'); n++; td.sparks(v.x, ny, 14, '#bfefff', 8); }
+    }
+    if (Q.cart && Q.cart.full && Math.abs(Q.cart.x - cx) < r + 18 && Math.abs(F48.cart.y - cy) < r + 10) { hitCart('slash'); n++; }
     for (const m of Q.machines) {
       if (m.dead || m.swing === swing) continue;
       const nx = clamp(cx, m.x0, m.x1), ny = clamp(cy, m.y0 - 10, m.y1 + 6);
@@ -209,7 +236,7 @@ var UnrugFloor48 = function (core) {
     return n;
   }
   // what the blaster leans toward: looms and parts still standing
-  function targets() { return Q.st === 'fight' ? Q.machines.filter(m => !m.dead).map(m => ({ x: (m.x0 + m.x1) / 2, y: m.y1 - 2 })) : []; }
+  function targets() { return Q.st === 'fight' ? Q.machines.filter(m => !m.dead && !shielded(m)).map(m => ({ x: (m.x0 + m.x1) / 2, y: m.y1 - 2 })).concat(vessels().map(v => ({ x: v.x, y: v.y - 4 }))) : []; }
 
   // ---------- the cables ----------
   function cutCable(c) {
@@ -293,7 +320,9 @@ var UnrugFloor48 = function (core) {
 
   // ---------- machines: damage, breaking, chains ----------
   // the last loom standing, overloading
-  const overloaded = m => m.kind === 'loom' && !m.dead && Q.panic === 2 && Q.st === 'fight';
+  const overloaded = m => m.kind === 'loom' && !m.dead && Q.panic === 2 && Q.st === 'fight' && Q.reactor && Q.reactor.st === 'down';
+  // the last loom behind its shield while the vessels stand
+  const shielded = m => m.kind === 'loom' && !m.dead && Q.panic === 2 && Q.st === 'fight' && Q.reactor && Q.reactor.st === 'on';
   // a chunk blowing off the overloading loom at each stage of its health
   function stages(m) {
     if (!overloaded(m)) return;
@@ -312,6 +341,7 @@ var UnrugFloor48 = function (core) {
   }
   function hurt(m, dmg, by) {
     if (m.dead || Q.st !== 'fight') return;
+    if (shielded(m)) { Q.reactor.hitT = .25; return; }
     if (overloaded(m)) dmg *= F48.overload.mult;
     m.hp -= dmg; m.flash = .07; m.lastBy = by;
     if (m.hp > 0) stages(m);
@@ -350,6 +380,7 @@ var UnrugFloor48 = function (core) {
       c.done = true;
       if (c.loom) { if (!c.loom.dead && Q.st === 'fight') { hurtChain(c.loom, c.dmg); td.sparks((c.loom.x0 + c.loom.x1) / 2, c.loom.y1, 20, '#ff7a2a', 8); } continue; }
       if (c.cascade) { if (!c.m.dead) breakMachine(c.m, 'chain'); continue; }
+      if (c.cart) cartPop(c.x, c.y, 'chain');
       for (const m of Q.machines) {
         if (m.dead || m === c.from) continue;
         const nx = clamp(c.x, m.x0, m.x1), ny = clamp(c.y, m.y0, m.y1);
@@ -364,7 +395,7 @@ var UnrugFloor48 = function (core) {
     }
     Q.chain = Q.chain.filter(c => !c.done);
   }
-  function hurtChain(m, dmg) { if (Q.st !== 'fight') return; if (overloaded(m)) dmg *= F48.overload.mult; m.hp -= dmg; m.flash = .1; R.events.chainDamage = (R.events.chainDamage || 0) + dmg; if (m.hp <= 0) breakMachine(m, 'chain'); else stages(m); }
+  function hurtChain(m, dmg) { if (Q.st !== 'fight' || shielded(m)) return; if (overloaded(m)) dmg *= F48.overload.mult; m.hp -= dmg; m.flash = .1; R.events.chainDamage = (R.events.chainDamage || 0) + dmg; if (m.hp <= 0) breakMachine(m, 'chain'); else stages(m); }
   // ---------- chain reactions ----------
   // A break set off by a blast (by 'chain') within the window of the last link adds to the chain; anything else starts
   // a new one. Called out from the third link, with a hit-stop on the beats; the bonus is paid when it ends.
@@ -442,6 +473,139 @@ var UnrugFloor48 = function (core) {
     }
   }
 
+  // ---------- the last line's reactor ----------
+  function newReactor(st) {
+    const P = F48.reactor;
+    return { st, t: 0, hitT: 0, vessels: P.at.map(([x, y], i) => ({ i, x, y, hp: P.hp, max: P.hp, dead: false, flash: 0, ping: 0, zap: null, zapT: 0, spawnT: 0 })) };
+  }
+  // the vessels standing (dormant or awake: solid, drawn), and the ones that can be hurt (awake)
+  const standing = () => Q.reactor ? Q.reactor.vessels.filter(v => !v.dead) : [];
+  const vessels = () => Q.reactor && Q.reactor.st === 'on' ? Q.reactor.vessels.filter(v => !v.dead) : [];
+  const lastLoom = () => Q.machines.find(m => m.kind === 'loom' && !m.dead && live(m.line));
+  function stepReactor(dt) {
+    const Rc = Q.reactor; if (!Rc) return;
+    Rc.t += dt; Rc.hitT = Math.max(0, (Rc.hitT || 0) - dt);
+    // it waits for the last line's laser sweep to pass (owner, Oct 14: "lets not have the shield active until that laser passes")
+    for (const v of Rc.vessels) { v.flash = Math.max(0, v.flash - dt); v.ping = Math.max(0, v.ping - dt); }
+    if (Rc.st === 'wait') { if (!Q.qc && !Q.qcPending && Rc.t > F48.reactor.grace && lastLoom()) startReactor(false); return; }
+    if (Rc.st !== 'on') return;
+    // holding fire while the last line's laser is on its way or sweeping; then they turn on him
+    if (Rc.calm) {
+      if (Q.qc || Q.qcPending) { Rc.calmT = 0; return; }
+      Rc.calmT = (Rc.calmT || 0) + dt; if (Rc.calmT < F48.reactor.grace) return;
+      Rc.calm = false; wake(); return;
+    }
+    // awake, they fight back: a marked spot under him, then an arc to it; and now and then a carpshit
+    const P = F48.reactor, Z = P.zap;
+    for (const v of Rc.vessels) {
+      if (v.dead) continue;
+      if (v.zap) {
+        const z = v.zap; z.t += dt;
+        if (!z.fired && z.t >= Z.warn) {
+          z.fired = true; Snd.play('zap');
+          td.sparks(z.x, z.y, 4, '#bfefff', 10); Q.shake = Math.max(Q.shake, .25);
+          if (Math.hypot(bull.x - z.x, bull.y - z.y) < Z.hit) core.hurtBull(1, 'vessel');
+          for (const e of R.td.enemies) if (!e.dead && Math.hypot(e.x - z.x, e.y - z.y) < Z.hit + 4) td.kill(e, 'blast');
+          emit('f48_zap', { i: v.i });
+        }
+        if (z.t >= Z.warn + .22) { v.zap = null; v.zapT = rr(...Z.every); }
+      } else {
+        v.zapT -= dt;
+        if (v.zapT <= 0 && Math.hypot(bull.x - v.x, bull.y - (v.y - 20)) < Z.near) { v.zap = { x: bull.x, y: bull.y, t: 0, fired: false }; Snd.play('zapWarn'); }
+      }
+      v.spawnT -= dt;
+      if (v.spawnT <= 0) {
+        v.spawnT = rr(...P.spawn);
+        if (R.td.enemies.length < F48.most) {
+          const e = td.spawn('flyer', { x: v.x - 18, y: v.y + 8, vx: -60, vy: rr(-30, 30), pace: F48.pace[Q.panic], line: -1 });
+          Snd.play('animate'); td.sparks(v.x - 14, v.y, 12, '#8fe3ff', 8);
+        }
+      }
+    }
+  }
+  // the shield goes up and the vessels wake; `calm`: they hold fire until the last line's laser has passed (the
+  // second line going down), otherwise (a continue at the last line) they turn on him at once
+  function startReactor(calm) {
+    const Rc = Q.reactor;
+    Rc.st = 'on'; Rc.t = 0; Rc.calm = !!calm; Rc.calmT = 0;
+    for (const v of Rc.vessels) v.flash = .3;
+    say('REDUNDANCY ENGAGED.', 2);
+    Snd.play('surge'); Snd.play('shieldUp');
+    core.live('The last loom is shielded. Two reaction vessels in the dispatch bay power it: burst them both.');
+    emit('f48_reactor', { t: R.t });
+    if (!calm) wake();
+  }
+  function wake() {
+    const P = F48.reactor;
+    for (const v of Q.reactor.vessels) { v.zapT = rr(...P.zap.first); v.spawnT = rr(...P.spawn) * .5; v.flash = .3; }
+    R.banner = { text: 'BURST THE VESSELS', sub: 'THEY POWER THE SHIELD', t: 0, dur: 2.2, top: true, col: '#8fe3ff' };
+    Snd.play('zapWarn');
+    emit('f48_wake', { t: R.t });
+  }
+  function hurtVessel(v, dmg, by) {
+    if (v.dead || Q.st !== 'fight') return;
+    // dormant, its own shield takes it
+    if (Q.reactor.st !== 'on') { v.ping = .25; td.sparks(v.x, v.y - 30, 18, '#8fe3ff', 4); if (Q.hitSnd <= 0) { Snd.play('shieldHit'); Q.hitSnd = .08; } return; }
+    v.hp -= dmg; v.flash = .08;
+    if (Q.hitSnd <= 0) { Snd.play('machineHit'); Q.hitSnd = .05; }
+    if (v.hp <= 0) burstVessel(v, by);
+  }
+  function burstVessel(v, by) {
+    const P = F48.reactor; v.dead = true; v.hp = 0;
+    boom(v.x, v.y, 1.5); Snd.play('tankBurst'); Snd.play('machineBreak');
+    R.freeze = Math.max(R.freeze, .1); Q.shake = Math.max(Q.shake, .8); R.white = Math.max(R.white || 0, .06);
+    td.blast(v.x, v.y, P.blast, 'blast');
+    Q.chain.push({ t: F48.chainDelay, x: v.x, y: v.y, r: P.blast, dmg: 6, from: null, props: true });
+    soulsFrom(v.x, v.y - 30, P.souls, 'vessel', by === 'chain' ? 'chain' : by);
+    link(by, v.x, v.y);
+    for (let i = 0; i < 18; i++) { const a = Math.random() * 6.28, sp = 60 + Math.random() * 160; R.td.fx.push({ k: 'debris', x: v.x, y: v.y, h: 10 + Math.random() * 40, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .6, vh: 60 + Math.random() * 140, s: 2 + Math.round(Math.random() * 3), r: 0, vr: (Math.random() - .5) * 20, col: ['#8fe3ff', '#bfefff', '#c9962e', '#1a3a4a'][i % 4], t: 0, dur: .9 + Math.random() * .6 }); }
+    emit('f48_vessel', { i: v.i, by });
+    if (Q.reactor.vessels.every(x => x.dead)) shieldDown();
+    else core.popText('ONE MORE', td.screenOf(v.x, v.y - 60).x / 2, td.screenOf(v.x, v.y - 60).y / 2, '#8fe3ff');
+  }
+  function shieldDown() {
+    Q.reactor.st = 'down'; Q.reactor.t = 0;
+    const lm = lastLoom();
+    if (lm) { boom((lm.x0 + lm.x1) / 2, lm.y1, 1.2); for (let i = 0; i < 16; i++) R.td.fx.push({ k: 'spark', x: (lm.x0 + lm.x1) / 2 + fxr(-40, 40), y: lm.y1, h: 10 + Math.random() * 50, vx: fxr(-120, 120), vy: fxr(-40, 40), vh: fxr(20, 120), col: i % 2 ? '#8fe3ff' : '#ffffff', t: 0, dur: .5 }); }
+    R.banner = { text: 'SHIELD DOWN', sub: 'THE LOOM IS OVERLOADING', t: 0, dur: 2, top: true, col: '#ff7a2a' };
+    Snd.play('shieldDown'); Q.shake = Math.max(Q.shake, .6);
+    core.live('Shield down. The last loom is overloading.');
+    emit('f48_shield_down', { t: R.t });
+  }
+
+  // ---------- the canister cart ----------
+  function stepCart(dt) {
+    const P = F48.cart;
+    if (!Q.cart) {
+      Q.cartNext -= dt;
+      if (Q.cartNext <= 0) { Q.cartN++; const dir = Q.cartN % 2 ? 1 : -1; Q.cart = { x: dir > 0 ? -30 : F48.world.w + 30, dir, full: true, t: 0, rattle: 0 }; Q.cartNext = P.every; emit('f48_cart', { n: Q.cartN }); }
+      return;
+    }
+    const c = Q.cart; c.t += dt; c.x += c.dir * P.speed * dt;
+    c.rattle -= dt; if (c.rattle <= 0) { c.rattle = .32; if (Math.abs(c.x - bull.x) < 300 && Math.abs(P.y - bull.y) < 240) Snd.play('cart'); }
+    if (c.x < -40 || c.x > F48.world.w + 40) Q.cart = null;
+  }
+  const cartHit = (x, y) => Q.cart && Q.cart.full && Math.abs(x - Q.cart.x) < 22 && y > F48.cart.y - 20 && y < F48.cart.y + 8;
+  // a hit on the cart: the first canister goes, and the rest go one after another down the cart (a chain)
+  function hitCart(by) {
+    const c = Q.cart, P = F48.cart; if (!c || !c.full) return;
+    c.full = false;
+    for (let k = 0; k < P.load; k++) {
+      const x = c.x + (k - (P.load - 1) / 2) * 9 * -c.dir;
+      if (k === 0) cartPop(x, P.y, by); else Q.chain.push({ t: P.gap * k, cart: true, x, y: P.y, r: P.blast, dmg: 6, from: null, props: true });
+    }
+    dropPower(nextPower(), c.x, P.y - 24);
+    emit('f48_cart_hit', { by });
+  }
+  function cartPop(x, y, by) {
+    const P = F48.cart;
+    boom(x, y, .8); Snd.play('tankBurst'); Q.shake = Math.max(Q.shake, .35);
+    td.blast(x, y, P.blast, 'blast');
+    soulsFrom(x, y - 10, P.souls, 'cart', by === 'chain' ? 'chain' : by);
+    link(by, x, y);
+    for (let i = 0; i < 8; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 110; R.td.fx.push({ k: 'debris', x, y, h: 8 + Math.random() * 12, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .6, vh: 50 + Math.random() * 100, s: 2 + Math.round(Math.random() * 2), r: 0, vr: (Math.random() - .5) * 20, col: ['#4a8aa8', '#bfefff', '#c9962e'][i % 3], t: 0, dur: .8 + Math.random() * .5 }); }
+  }
+
   // A line goes down: what's left of it blows end to end from the loom outward, its belt stops, its rugs burn, its souls
   // burst free, and the lines still running take its souls and speed up.
   function lineDown(i) {
@@ -459,9 +623,12 @@ var UnrugFloor48 = function (core) {
     if (Q.panic < 3) {
       Snd.factoryCue(Q.panic === 1 ? 'panic' : 'heavy', { candidate: Q.music });
       Snd.play('lineDown'); Snd.play('klaxon', Q.panic);
-      R.banner = { text: Q.panic === 1 ? 'PRODUCTION PANIC' : 'LAST LINE', sub: Q.panic === 1 ? 'THE OTHER LINES SPEED UP' : 'ITS LOOM IS OVERLOADING', t: 0, dur: 2, top: true, col: Q.panic > 1 ? '#ff5a4a' : '#ffd44a' };
+      R.banner = { text: Q.panic === 1 ? 'PRODUCTION PANIC' : 'LAST LINE', sub: Q.panic === 1 ? 'THE OTHER LINES SPEED UP' : 'ITS LOOM IS SHIELDED', t: 0, dur: 2, top: true, col: Q.panic > 1 ? '#ff5a4a' : '#ffd44a' };
       core.bark(Q.panic === 1 ? 'f48line' : 'f48panic');
       if (!Q.qc) Q.qcPending = { t: F48.qc.delay, n: Q.panic - 1 };
+      // the last line: its loom shielded at once (so it can't be finished off under the laser), the vessels awake but
+      // holding fire until the laser has passed (owner, Oct 14: "split it")
+      if (Q.panic === 2) startReactor(true);
       saveCheckpoint();
     } else startCollapse();
   }
@@ -475,7 +642,7 @@ var UnrugFloor48 = function (core) {
       Q.beltOff[i] += bs * dt;
       // a new spool of thread leaves the spinner
       if (Q.t >= F48.firstAt || Q.items[i].length < 2) {
-        Q.next[i] -= dt * F48.rate[p] * (Q.feedCut[i] ? F48.feed.starve : 1) * (rev ? 0 : 1);
+        Q.next[i] -= dt * F48.rate[p] * (Q.feedCut[i] ? F48.feed.starve : 1) * (rev ? 0 : 1) * (Q.reactor && Q.reactor.st === 'on' ? F48.reactor.rush : 1);
         if (Q.next[i] <= 0) { Q.items[i].push({ x: F48.parts[1][1] + F48.parts[1][2], kind: 'thread' }); Q.next[i] = F48.make[i] * rr(.85, 1.15); }
       }
       const lm = loomOf(i), pr = Q.machines.find(m => m.line === i && m.kind === 'press'), an = Q.machines.find(m => m.line === i && m.kind === 'animator');
@@ -623,7 +790,11 @@ var UnrugFloor48 = function (core) {
     emit('f48_collapse', { t: R.t });
   }
   // where the eye opens: on the wall straight above him
-  const eyeAt = () => ({ x: clamp(bull.x, 140, 660), y: 30 });
+  // p(Loom)'s beat is framed on him: the camera goes up toward the back wall only as far as keeps him on screen (he
+  // stands clear of the readout along the bottom), and the eye opens at the top of that frame: on the wall when he's
+  // near it, in the smoke over him when he's further down the room (owner, Oct 14: he could end up off screen)
+  const ploomCamY = () => clamp(bull.y - (H - 48), 0, F48.world.h - H);
+  const eyeAt = () => ({ x: clamp(bull.x, 140, 660), y: ploomCamY() + 30 });
   // a stream (the ribbon from one of its shots to the next) sweeping through a reserve tank cracks it
   function whipSweep() {
     const C = Q.collapse, ribbons = [];
@@ -683,7 +854,7 @@ var UnrugFloor48 = function (core) {
     const C = Q.collapse;
     C.phase = 'ploom'; C.pt = 0; R.td.locked = true; R.banner = null;
     const E = eyeAt(); C.eye = E;
-    R.td.camHold = { x: clamp(bull.x - W / 2, 0, F48.world.w - W), y: 0 };
+    R.td.camHold = { x: clamp(bull.x - W / 2, 0, F48.world.w - W), y: ploomCamY() };
     Snd.music(null, { hard: true }); Snd.play('dark');
     emit('f48_ploom', { t: R.t, cracked: C.cracked });
   }
@@ -754,10 +925,12 @@ var UnrugFloor48 = function (core) {
     if (!Q.started && Q.t >= F48.firstAt) { Q.started = true; Snd.factoryCue('fight', { candidate: Q.music }); if (Q.panic === 1) Snd.factoryCue('panic', { candidate: Q.music }); else if (Q.panic === 2) Snd.factoryCue('heavy', { candidate: Q.music }); emit('f48_fight'); }
     if (Q.t > 4.4 && !Q.events.said) { Q.events.said = true; core.bark('f48start'); }
     if (Q.t > 1 && !Q.events.pa && Q.panic === 0) { Q.events.pa = true; say('RECLAMATION IS AHEAD OF SCHEDULE.', 2.6); }
-    if (Q.st === 'fight') { stepLines(dt); stepHazards(dt); stepChain(dt); stepCues(); stepQC(dt); stepCombo(); }
-    // the overloading loom throws sparks (drawn only)
-    if (Q.st === 'fight' && Q.panic === 2) { const lm = Q.machines.find(overloaded); if (lm && Math.random() < dt * 14) { const x = lm.x0 + Math.random() * (lm.x1 - lm.x0); R.td.fx.push({ k: 'spark', x, y: lm.y1, h: 10 + Math.random() * lm.H, vx: fxr(-70, 70), vy: fxr(-20, 30), vh: fxr(20, 90), col: Math.random() < .5 ? '#ffd060' : '#ff7a2a', t: 0, dur: .4 }); } }
-    else if (Q.st === 'collapse') { stepChain(dt); stepCollapse(dt); if (Q.st === 'lobby') return; }
+    if (Q.st === 'fight') {
+      stepLines(dt); stepHazards(dt); stepChain(dt); stepCues(); stepQC(dt); stepCombo(); stepReactor(dt); stepCart(dt);
+      // the overloading loom throws sparks (drawn only)
+      const lm = Q.panic === 2 && Q.machines.find(overloaded);
+      if (lm && Math.random() < dt * 14) { const x = lm.x0 + Math.random() * (lm.x1 - lm.x0); R.td.fx.push({ k: 'spark', x, y: lm.y1, h: 10 + Math.random() * lm.H, vx: fxr(-70, 70), vy: fxr(-20, 30), vh: fxr(20, 90), col: Math.random() < .5 ? '#ffd060' : '#ff7a2a', t: 0, dur: .4 }); }
+    } else if (Q.st === 'collapse') { stepChain(dt); stepCollapse(dt); if (Q.st === 'lobby') return; }
     td.update(dt);
     stepFx(dt);
     updateFx(dt);
@@ -789,8 +962,11 @@ var UnrugFloor48 = function (core) {
       rect(g, F48.beltEnd + 4, LINES[i].y - 13, 14, 26, '#0c0a10'); rect(g, F48.beltEnd + 5, LINES[i].y - 12, 12, 24, '#1a1820');
       for (let k = 0; k < 4; k++) rect(g, F48.beltEnd + 6, LINES[i].y - 10 + k * 6, 10, 2, '#2a2830');
     }
+    drawRail();
     // the machines, him, the carpshits and the beacons, by where they touch the floor
     const list = [];
+    for (const v of standing()) list.push({ y: v.y, draw: () => drawVessel(v, t) });
+    if (Q.cart) list.push({ y: F48.cart.y, draw: () => drawCart(Q.cart) });
     for (const m of Q.machines) list.push({ y: m.y1, draw: () => drawMachine(m, t) });
     for (const pr of Q.props) list.push({ y: pr.y1, draw: () => drawProp(pr) });
     for (let i = 0; i < 3; i++) list.push({ y: LINES[i].y + 20, draw: () => S.beacon(g, F48.beltEnd + 26, LINES[i].y + 20, t, Q.panic, null) });
@@ -928,6 +1104,175 @@ var UnrugFloor48 = function (core) {
       rect(g, x, y, 9, rh, '#1a0a0a'); rect(g, x + 1, y + 1, 7, rh - 2, '#a8261e'); rect(g, x + 1, y + 1, 7, 1, '#d63428'); rect(g, x + 3, y + 2, 3, 2, '#5e1614');
     }
   }
+  // ---------- the reactor and the cart, drawn ----------
+  // A reaction vessel: a tall glass column of churning soul-energy on a riveted brass plinth, two prongs on its cap
+  // arcing to each other; cracks spread as it's hit. Its glow, the arcs and its beam to the shield are in the glow.
+  // seen as the rest of the floor is, from above at a tilt (owner, Oct 14: it read as a side view): a round brass
+  // plinth with its top showing, a glass cylinder (rounded at the bottom, its bands curving round it) and its open top an
+  // oval of churning energy in a brass rim, the two prongs standing on the rim
+  function drawVessel(v, t) {
+    const x = Math.round(v.x), y = Math.round(v.y), dmg = 1 - v.hp / v.max, awake = Q.reactor.st === 'on';
+    // dormant it idles dark and slow; waking it stirs
+    const sp = awake ? 3 : Q.reactor.st === 'wait' ? 2 : .8, pal = awake ? ['#2a7a96', '#1f5a70', '#173f50', '#8fe3ff'] : ['#1c4a5c', '#163a4a', '#10283a', '#3a7890'];
+    const ell = (cx, cy, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 6.29); g.fill(); };
+    const arc = (cy, rx, ry, col, lw) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.ellipse(x, cy, rx, ry, 0, 0, Math.PI); g.stroke(); };
+    const gT = y - 54, gB = y - 10, R = 13, ry = 5;
+    const one = () => {
+      ell(x, y + 2, 21, 6, 'rgba(0,0,0,.5)');
+      // the plinth: a squat drum, its front then its top
+      ell(x, y - 1, 18, 6, '#141018'); rect(g, x - 18, y - 10, 36, 9, '#141018');
+      ell(x, y - 2, 17, 5, '#2c2834'); rect(g, x - 17, y - 10, 34, 8, '#2c2834');
+      for (const rx of [-12, -4, 4, 12]) rect(g, x + rx - 1, y - 6, 2, 2, '#8a6420');
+      ell(x, gB, 17, 6, '#8a6420'); ell(x, gB - 1, 16, 5, '#c9962e'); ell(x, gB - 1, 14, 4, '#3a2a1e');
+      // the glass: a cylinder, round at its foot, darker toward the edges
+      ell(x, gB, R, ry, '#0a1418'); rect(g, x - R, gT, R * 2, gB - gT, '#0a1418');
+      ell(x, gB - 1, R - 1, ry - 1, '#0c1e26'); rect(g, x - R + 1, gT, R * 2 - 2, gB - gT - 1, '#0c1e26');
+      // the energy in slow bands that curve round it
+      g.save(); g.beginPath(); g.rect(x - R + 2, gT, R * 2 - 4, gB - gT + ry - 2); g.clip();
+      for (let k = 0; k < 11; k++) { const ph = Math.sin(t * sp + k * .9), cy = gT + 3 + k * 4; g.fillStyle = ph > .3 ? pal[0] : ph > -.3 ? pal[1] : pal[2]; g.beginPath(); g.ellipse(x, cy, R - 3, 2.5, 0, 0, Math.PI); g.lineTo(x - R + 3, cy - 2); g.ellipse(x, cy - 2, R - 3, 2.5, 0, Math.PI, 0, true); g.closePath(); g.fill(); }
+      g.restore();
+      rect(g, x - R + 2, gT + 2, 3, gB - gT - 2, 'rgba(10,20,24,.55)'); rect(g, x + R - 4, gT + 2, 2, gB - gT - 2, 'rgba(10,20,24,.65)');
+      rect(g, x - 8, gT + 3, 2, gB - gT - 6, '#5aa8c4'); rect(g, x + 6, gT + 5, 1, gB - gT - 12, '#3a7890');
+      // brass bands, curving round the front
+      for (const by of [y - 40, y - 25]) { arc(by, R + .5, 3.5, '#8a6420', 3); arc(by - 1, R + .5, 3.5, '#c9962e', 1); }
+      // the open top: a brass rim round an oval of churning energy, motes turning in it
+      ell(x, gT, R + 2, ry + 1, '#3a2a1e'); ell(x, gT, R + 1, ry, '#c9962e'); ell(x, gT + .5, R - 1, ry - 1.5, '#ffd44a');
+      ell(x, gT + 1, R - 2, ry - 2, pal[1]); ell(x + Math.sin(t * sp) * 2, gT + 1, R - 5, ry - 3, pal[0]);
+      for (let k = 0; k < 3; k++) { const a = t * sp * 1.4 + k * 2.1; rect(g, Math.round(x + Math.cos(a) * (R - 5)), Math.round(gT + 1 + Math.sin(a) * (ry - 3)), 2, 1, pal[3]); }
+      // the prongs, standing on the rim (the back one first, then the front)
+      for (const [px, py] of [[-9, gT - 1], [7, gT + 2]]) { rect(g, x + px - 1, py - 1, 4, 3, '#2c2834'); rect(g, x + px, y - 74, 2, py - (y - 74), '#7c8494'); rect(g, x + px, y - 74, 1, py - (y - 74), '#bfc6d4'); rect(g, x + px - 1, y - 77, 4, 3, '#bfefff'); }
+      // cracks, spreading as it's hit
+      if (dmg > .2) { rect(g, x - 6, y - 46, 1, 6, '#dff6ff'); rect(g, x - 5, y - 41, 3, 1, '#dff6ff'); }
+      if (dmg > .45) { rect(g, x + 3, y - 34, 1, 8, '#dff6ff'); rect(g, x + 1, y - 30, 4, 1, '#dff6ff'); rect(g, x - 8, y - 20, 5, 1, '#dff6ff'); }
+      if (dmg > .7) { rect(g, x - 2, y - 50, 1, 12, '#ffffff'); rect(g, x + 5, y - 46, 1, 5, '#ffffff'); rect(g, x - 10, y - 30, 1, 7, '#ffffff'); }
+    };
+    g.save(); one(); if (v.flash > 0) { g.globalCompositeOperation = 'lighter'; one(); } g.restore();
+  }
+  // the cart's rail along the bottom walkway: steel on dark sleepers
+  function drawRail() {
+    const y = F48.cart.y + 3;
+    for (let x = 24; x < F48.world.w - 20; x += 14) rect(g, x, y - 1, 6, 4, '#1f1a16');
+    rect(g, 20, y, F48.world.w - 40, 2, '#4a4652'); rect(g, 20, y, F48.world.w - 40, 1, '#7c8494');
+  }
+  // the canister cart, from above at a tilt like the rest: a hazard-striped flatbed (its deck showing) on four wheels,
+  // its load of soul canisters standing on it, their round tops showing
+  function drawCart(c) {
+    const x = Math.round(c.x), y = F48.cart.y;
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(x, y + 3, 25, 5, 0, 0, 6.29); g.fill();
+    // the far wheels peeking out behind, then the deck's top, its front, and the near wheels
+    for (const wx of [-14, 14]) { g.fillStyle = '#0c0a10'; g.beginPath(); g.ellipse(x + wx, y - 6, 3, 2, 0, 0, 6.29); g.fill(); }
+    rect(g, x - 22, y - 12, 44, 6, '#141018'); rect(g, x - 21, y - 11, 42, 5, '#4a4652'); rect(g, x - 21, y - 11, 42, 1, '#7c8494');
+    for (let k = 0; k < 6; k++) rect(g, x - 19 + k * 7, y - 9, 4, 1, '#3a3640');
+    rect(g, x - 22, y - 6, 44, 6, '#141018'); rect(g, x - 21, y - 6, 42, 5, '#3a3640');
+    for (let k = 0; k < 7; k++) rect(g, x - 20 + k * 6, y - 5, 3, 3, k % 2 ? '#ffd44a' : '#141018');
+    for (const wx of [-14, 14]) { g.fillStyle = '#141018'; g.beginPath(); g.ellipse(x + wx, y + 1, 4, 3.5, 0, 0, 6.29); g.fill(); rect(g, x + wx - 1, y, 2, 2, '#7c8494'); }
+    if (c.full) for (let k = 0; k < F48.cart.load; k++) {
+      const cx = x - 11 + k * 7.5 | 0, cy = y - 9, top = cy - 14;
+      g.fillStyle = '#141018'; g.beginPath(); g.ellipse(cx, cy, 4.5, 2, 0, 0, 6.29); g.fill(); rect(g, cx - 4, top, 9, 14, '#141018');
+      rect(g, cx - 3, top + 1, 7, 13, '#1a3a4a'); rect(g, cx - 2, top + 3, 5, 8, '#4a8aa8'); rect(g, cx - 2, top + 3, 1, 8, '#bfefff');
+      rect(g, cx - 4, cy - 2, 9, 2, '#8a6420');
+      g.fillStyle = '#8a6420'; g.beginPath(); g.ellipse(cx + .5, top, 4.5, 2, 0, 0, 6.29); g.fill();
+      g.fillStyle = '#c9962e'; g.beginPath(); g.ellipse(cx + .5, top - .5, 3.5, 1.5, 0, 0, 6.29); g.fill();
+      rect(g, cx, top - 1, 1, 1, '#ffd44a');
+    }
+    else for (let k = 0; k < 5; k++) rect(g, x - 18 + k * 8, y - 10, 4, 2, '#1f1a16');
+  }
+  // The reactor in the glow: each vessel's light and churning souls, the arc between its prongs, and its energy beam
+  // to the shield over the last loom (pulses running along it); the shield a shimmering dome with a honeycomb, a band
+  // sweeping up it, and a ripple where a bolt hits. The cart's canisters glow faintly.
+  function glowReactor(t) {
+    if (Q.cart && Q.cart.full) for (let k = 0; k < F48.cart.load; k++) td.glow(Q.cart.x - 11 + k * 7.5, F48.cart.y - 17, 9, '#8fe3ff', .35);
+    const Rc = Q.reactor; if (!Rc || Q.st !== 'fight') return;
+    // dormant (and waiting): each vessel under a faint shield of its own, a ripple where it's hit; waiting, it brightens
+    if (Rc.st === 'dormant' || Rc.st === 'wait') {
+      for (const v of Rc.vessels) {
+        const w = Rc.st === 'wait' ? .5 + .3 * Math.sin(t * 10) : 0;
+        td.glow(v.x, v.y - 32, 26, '#8fe3ff', .14 + w * .3);
+        g.save(); g.beginPath(); g.ellipse(v.x, v.y - 34, 22, 46, 0, 0, 6.29);
+        g.globalAlpha = .07 + .03 * Math.sin(t * 3 + v.i) + w * .06; g.fillStyle = '#8fe3ff'; g.fill(); g.clip();
+        g.globalAlpha = .13 + w * .1; g.strokeStyle = '#8fe3ff'; g.lineWidth = 1;
+        for (let hy = v.y - 80, row = 0; hy < v.y + 14; hy += 9, row++) for (let hx = v.x - 22 + (row % 2) * 7; hx < v.x + 30; hx += 14) { g.beginPath(); g.moveTo(hx - 7, hy); g.lineTo(hx - 3, hy - 4); g.lineTo(hx + 3, hy - 4); g.lineTo(hx + 7, hy); g.stroke(); }
+        g.restore();
+        g.save(); g.globalAlpha = .35 + w * .3 + v.ping * 2; g.strokeStyle = v.ping > 0 ? '#ffffff' : '#8fe3ff'; g.lineWidth = 1; g.beginPath(); g.ellipse(v.x, v.y - 34, 22, 46, 0, 0, 6.29); g.stroke(); g.restore();
+      }
+      return;
+    }
+    if (Rc.st !== 'on') return;
+    // the vessels' zaps: the spot marked on the floor, a thread of current feeling for it, then the arc
+    for (const v of Rc.vessels) {
+      if (v.dead || !v.zap) continue;
+      const z = v.zap, Z = F48.reactor.zap, k = Math.min(1, z.t / Z.warn), px = v.x + (z.x > v.x ? 8 : -8), py = v.y - 76;
+      const jag = (n, amp) => { const pts = [[px, py]]; for (let i = 1; i < n; i++) { const u = i / n; pts.push([px + (z.x - px) * u + (Math.random() - .5) * amp, py + (z.y - 4 - py) * u + (Math.random() - .5) * amp - Math.sin(u * Math.PI) * 18]); } pts.push([z.x, z.y - 4]); return pts; };
+      const stroke = (pts, lw, col, al) => { g.save(); g.globalAlpha = al; g.strokeStyle = col; g.lineWidth = lw; g.lineJoin = 'round'; g.beginPath(); pts.forEach(([a, b], i) => i ? g.lineTo(a, b) : g.moveTo(a, b)); g.stroke(); g.restore(); };
+      if (!z.fired) {
+        // the mark: a ring closing in on the spot, faster and redder as it comes
+        const r = Z.hit + (1 - k) * 22;
+        g.save(); g.globalAlpha = .55 + .35 * Math.sin(z.t * 40); g.strokeStyle = k > .7 ? '#ff5a4a' : '#8fe3ff'; g.lineWidth = 2;
+        g.beginPath(); g.ellipse(z.x, z.y, r, r * .55, 0, 0, 6.29); g.stroke();
+        g.globalAlpha = .3; g.beginPath(); g.ellipse(z.x, z.y, Z.hit, Z.hit * .55, 0, 0, 6.29); g.fillStyle = k > .7 ? '#ff5a4a' : '#8fe3ff'; g.fill(); g.restore();
+        if (Math.random() < .5 + k * .5) stroke(jag(8, 10), 1, '#bfefff', .25 + k * .4);
+        td.glow(px, py, 10 + k * 14, '#bfefff', .5 + k * .5);
+      } else {
+        const a = 1 - (z.t - Z.warn) / .22;
+        const pts = jag(10, 14);
+        stroke(pts, 6, '#2a8ab0', .5 * a); stroke(pts, 3, '#8fe3ff', .9 * a); stroke(pts, 1.5, '#ffffff', a);
+        td.glow(z.x, z.y, 34, '#bfefff', a); td.glow(px, py, 20, '#ffffff', a);
+      }
+    }
+    const lm = lastLoom(); if (!lm) return;
+    const top = lm.y0 - lm.H - 12, cx = (lm.x0 + lm.x1) / 2, cy = (top + lm.y1) / 2, rx = (lm.x1 - lm.x0) / 2 + 20, ry = (lm.y1 - top) / 2 + 18;
+    // the beams
+    for (const v of Rc.vessels) {
+      if (v.dead) continue;
+      const x0 = v.x, y0 = v.y - 70, a = Math.atan2(y0 - cy, x0 - cx), x1 = cx + Math.cos(a) * rx, y1 = cy + Math.sin(a) * ry;
+      const n = 28, nx = -(y1 - y0), ny = x1 - x0, nl = Math.hypot(nx, ny) || 1, pts = [];
+      for (let i = 0; i <= n; i++) { const k = i / n, sag = Math.sin(k * Math.PI) * 26, w = (i === 0 || i === n) ? 0 : Math.sin(t * 9 + i * .8 + v.i * 2) * 2.5 + (Math.random() - .5) * 1.5; pts.push([x0 + (x1 - x0) * k + nx / nl * w, y0 + (y1 - y0) * k + ny / nl * w - sag]); }
+      for (const [lw, col, al] of [[9, '#2a8ab0', .28], [4, '#8fe3ff', .8], [1.5, '#ffffff', 1]]) {
+        g.save(); g.globalAlpha = al * (.85 + .15 * Math.sin(t * 20 + v.i)); g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'round'; g.lineJoin = 'round';
+        g.beginPath(); pts.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.stroke(); g.restore();
+      }
+      for (let k = 0; k < 3; k++) { const u = ((t * .9 + k / 3 + v.i * .17) % 1), p = pts[Math.round(u * n)]; td.glow(p[0], p[1], 9, '#ffffff', .7); }
+      // the vessel's own light, its souls, and the arc between its prongs
+      td.glow(v.x, v.y - 32, 40, '#8fe3ff', .45 + .12 * Math.sin(t * 5 + v.i));
+      for (let k = 0; k < 6; k++) { const a2 = t * 2.2 + k * 1.05, sx = v.x + Math.sin(a2) * 7, sy = v.y - 12 - ((k * 7 + t * 16) % 40); g.fillStyle = '#fff6e2'; g.fillRect(Math.round(sx), Math.round(sy), 2, 2); }
+      const ax0 = v.x - 8, ax1 = v.x + 8, ay = v.y - 76;
+      g.save(); g.strokeStyle = '#dff6ff'; g.lineWidth = 1; g.beginPath(); g.moveTo(ax0, ay);
+      for (let i = 1; i < 6; i++) g.lineTo(ax0 + (ax1 - ax0) * i / 6, ay - 2 - Math.random() * 5);
+      g.lineTo(ax1, ay); g.stroke(); g.restore();
+      td.glow(v.x, ay - 2, 12, '#bfefff', .6);
+    }
+    // the shield
+    g.save();
+    g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 6.29);
+    g.globalAlpha = .1 + .04 * Math.sin(t * 4); g.fillStyle = '#8fe3ff'; g.fill();
+    g.clip();
+    g.globalAlpha = .22; g.strokeStyle = '#8fe3ff'; g.lineWidth = 1;
+    for (let hy = cy - ry, row = 0; hy < cy + ry + 8; hy += 9, row++) for (let hx = cx - rx + (row % 2) * 7; hx < cx + rx + 8; hx += 14) { g.beginPath(); g.moveTo(hx - 7, hy); g.lineTo(hx - 3, hy - 4); g.lineTo(hx + 3, hy - 4); g.lineTo(hx + 7, hy); g.stroke(); }
+    const band = cy + ry - ((t * 50) % (ry * 2 + 20));
+    g.globalAlpha = .3; g.fillStyle = '#dff6ff'; g.fillRect(cx - rx, band, rx * 2, 3);
+    if (Rc.hitT > 0) { const k = 1 - Rc.hitT / .25; g.globalAlpha = .7 * (1 - k); g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.beginPath(); g.ellipse(clamp(Rc.hitX || cx, cx - rx, cx + rx), lm.y1 - 6, 6 + k * 30, 4 + k * 16, 0, 0, 6.29); g.stroke(); }
+    g.restore();
+    g.save(); g.globalAlpha = .75 + .2 * Math.sin(t * 6); g.strokeStyle = '#8fe3ff'; g.lineWidth = 2; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 6.29); g.stroke();
+    g.globalAlpha = .9; g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, Math.PI * 1.1, Math.PI * 1.6); g.stroke(); g.restore();
+  }
+  // The arrow to what he has to do next, when it's off screen: the vessels while they stand (the nearer one), then the
+  // overloading loom. p(Loom)'s orange chevron on the screen's edge, pulsing. The cart is optional: no arrow.
+  function objectiveArrow() {
+    if (Q.st !== 'fight' || !Q.reactor) return;
+    let tx = null, ty = null;
+    const vs = vessels();
+    if (vs.length) { const v = vs.reduce((a, b) => Math.hypot(a.x - bull.x, a.y - bull.y) < Math.hypot(b.x - bull.x, b.y - bull.y) ? a : b); tx = v.x; ty = v.y - 30; }
+    else if (Q.reactor.st === 'down') { const lm = lastLoom(); if (lm) { tx = (lm.x0 + lm.x1) / 2; ty = lm.y1 - 20; } }
+    if (tx == null) return;
+    const sx = tx - CAM.x, sy = ty - CAM.y, m = 18;
+    if (sx > 0 && sx < W && sy > 0 && sy < H) return;
+    const cx = W / 2, cy = H / 2, dx = sx - cx, dy = sy - cy, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-6), (H / 2 - m - 10) / Math.abs(dy || 1e-6));
+    const ax = cx + dx * k, ay = cy + dy * k, a = Math.atan2(dy, dx), pulse = 1 + .18 * Math.sin(R.t * 9);
+    g.save(); g.translate(Math.round(ax), Math.round(ay)); g.rotate(a); g.scale(pulse, pulse);
+    g.fillStyle = '#1a0f08'; g.beginPath(); g.moveTo(12, 0); g.lineTo(-6, -10); g.lineTo(-1, 0); g.lineTo(-6, 10); g.closePath(); g.fill();
+    g.fillStyle = vs.length ? '#8fe3ff' : '#ff7a2a'; g.beginPath(); g.moveTo(9, 0); g.lineTo(-4, -7); g.lineTo(0, 0); g.lineTo(-4, 7); g.closePath(); g.fill();
+    g.restore();
+  }
   function drawMachine(m, t) {
     const speed = live(m.line) ? F48.rate[Q.panic] : 0;
     const one = () => {
@@ -966,6 +1311,7 @@ var UnrugFloor48 = function (core) {
   function glowFactory() {
     const t = R.t; g.save(); g.translate(-CAM.x, -CAM.y);
     drawQC();
+    glowReactor(t);
     S.soulMain(g, LAYOUT, t, Q.panic, g, Q.st !== 'fight', Q.down);
     for (let i = 0; i < 3; i++) for (const it of Q.items[i]) if (it.kind === 'thread') S.item({ fillStyle: '', fillRect() {} , save() {}, restore() {}, beginPath() {}, ellipse() {}, fill() {} }, it, LINES[i].y, g);
     for (const m of Q.machines) {
@@ -984,6 +1330,26 @@ var UnrugFloor48 = function (core) {
       if (Q.powerCut[i] > 0 && Math.random() < .3) { const pw = powerSeg(i); g.fillStyle = '#ffffff'; g.fillRect(pw.x0 - 1 + Math.round(Math.random() * 3), pw.y0 + 7, 1, 1); }
     }
     cueMarks(t);
+    // a hurt loom catches fire (owner, Oct 14: "seeing it crack as the line breaks would be great", then "lets have the loom
+    // start looking on fire instead"): breaking the rest of its line, its console and the blasts around it chip it, so a
+    // loom whose line has been taken apart shows it. A flame on its top rail from 10% damage and another every 18% (five
+    // at most), growing as it goes; past 50% the odd spark and a wisp of smoke. Drawn flames, few particles.
+    for (const m of Q.machines) {
+      if (m.kind !== 'loom' || m.dead || Q.st !== 'fight') continue;
+      const dmg = 1 - m.hp / m.max; if (dmg < .1) continue;
+      const n = Math.min(5, 1 + Math.floor((dmg - .1) / .18)), w = m.x1 - m.x0, top = m.y0 - m.H;
+      for (let i = 0; i < n; i++) {
+        const fx = m.x0 + w * [.22, .68, .45, .88, .1][i], fl = Math.sin(t * 13 + i * 2.1 + m.id) * .5 + .5;
+        const h = (6 + fl * 8) * (.8 + dmg * 1.6) * (i < n - 1 ? 1 : .7), base = top - 3 - (i % 2) * 6, fl2 = Math.sin(t * 17 + i * 3.3 + m.id) * .5 + .5;
+        g.fillStyle = '#c8302a'; g.fillRect(Math.round(fx - 4), Math.round(base - h * .7), 8, Math.round(h * .7)); g.fillRect(Math.round(fx - 2), Math.round(base - h), 4, Math.round(h));
+        g.fillRect(Math.round(fx + 3), Math.round(base - h * (.4 + fl2 * .4)), 2, Math.round(h * (.4 + fl2 * .4)));
+        g.fillStyle = '#ff7a2a'; g.fillRect(Math.round(fx - 3), Math.round(base - h * .5), 6, Math.round(h * .5)); g.fillRect(Math.round(fx - 1), Math.round(base - h * .8), 3, Math.round(h * .8));
+        g.fillStyle = '#ffd060'; g.fillRect(Math.round(fx - 2), Math.round(base - h * .3), 4, Math.round(h * .3));
+        td.glow(fx, base - h * .4, 14 + dmg * 16, '#ff7a2a', .35 + dmg * .3);
+        if (dmg > .5 && Math.random() < .015) R.td.fx.push({ k: 'spark', x: fx, y: m.y1, h: m.y1 - base + 6, vx: fxr(-30, 30), vy: fxr(-8, 8), vh: fxr(30, 80), col: '#ffd060', t: 0, dur: .4 });
+        if (dmg > .5 && Math.random() < .006) R.td.fx.push({ k: 'smoke', x: fx, y: m.y1, h: m.y1 - base + 10, vx: fxr(-4, 4), vy: 0, s: 4, t: 0, dur: 1.2 });
+      }
+    }
     // wrecks burn: flames that die down over a few seconds (and flare up again as the floor comes apart)
     for (const m of Q.machines) {
       const k = burn(m); if (k <= 0) continue;
@@ -1076,7 +1442,7 @@ var UnrugFloor48 = function (core) {
     if (Q.st === 'lobby') { lobbyOverlay(); return; }
     g.save(); g.scale(.5, .5);
     const C = Q.collapse;
-    if (!C || C.phase !== 'ploom') { td.arrows(); td.reticle(); }
+    if (!C || C.phase !== 'ploom') { td.arrows(); td.reticle(); objectiveArrow(); }
     // the laser off screen: a red edge where it is, its gap in green, so he can get to the gap before it arrives
     const L = Q.qc;
     if (L && Q.st === 'fight' && Math.floor(R.t * 8) % 2) {
@@ -1189,6 +1555,6 @@ var UnrugFloor48 = function (core) {
     pauseText: 'The factory waits.',
     continueText: () => Q && Q.panic ? 'Back in the factory with full hearts? Lines you shut down stay down.' : 'Back in the factory with full hearts?',
     clearCard, afterClear: () => startLobby(false),
-    F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, hurtMachine: hurt, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
+    F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, hurtMachine: hurt, solids, startReactor, hitCart, vessels, shielded, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
   };
 };
