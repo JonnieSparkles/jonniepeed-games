@@ -159,6 +159,14 @@
     last.hp = Math.round(last.max * .3); F.hurtMachine(last, 30, 'shot');
     check(last.stage === 3, 'two stages passed in one hit both go');
     check(machine(0, 'loom').dead && !Q().machines.filter(m => m.kind === 'loom' && m.line !== 2).some(m => m.stage), 'only the last loom breaks up in stages');
+    // p(Loom)'s beat framed on him wherever he stands (owner, Oct 14: low in the room he ended up off screen)
+    fresh(); bull.inv = 1e9;
+    for (const i of [0, 1, 2]) F.breakMachine(machine(i, 'loom'), 'shot');
+    tick(F48.collapse.firstSoul + F48.collapse.soulEvery + .9);
+    bull.x = 640; bull.y = 430; F.startPloom();
+    for (let i = 0; i < 60 * 2; i++) update(1 / 60);
+    { const sy = bull.y - R.td.cam.y, ey = Q().collapse.eye.y - R.td.cam.y;
+      check(sy > 40 && sy < 270 - 30 && ey > 0 && ey < sy - 60, 'low in the room, he and the eye are both on screen (him ' + Math.round(sy) + ', the eye ' + Math.round(ey) + ')'); }
     // the presses: the shadow, then the slam
     fresh(); const pr = machine(0, 'press'); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; bull.inv = 0; R.hearts = 5;
     let warned = false; for (let i = 0; i < 60 * 3 && R.hearts === 5; i++) { update(1 / 60); bull.x = (pr.x0 + pr.x1) / 2; bull.y = F.LINES[0].y; if (pr.warn > 0) warned = true; }

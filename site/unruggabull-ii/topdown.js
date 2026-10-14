@@ -180,8 +180,8 @@ var UnrugTopdown = function (core, tuning) {
     }
     R.events.shots = (R.events.shots || 0) + 1;
     R.td.fx.push({ k: 'muzzle', x: mz.x, y: mz.y, h: mz.h, t: 0, dur: .07 });
-    Snd.play('shot', R.spread > 0);
-    if (n > 0 && R.events.shots % 2) Snd.play('stream', R.td.bend);
+    Snd.play('shot', n > 0 ? 'soft' : R.spread > 0);
+    if (n > 0) Snd.play('stream', R.td.bend);
     return true;
   }
   function stepShots(dt) {

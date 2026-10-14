@@ -589,12 +589,14 @@ window.UnrugSound = (function () {
     chord: t => { [62, 66, 69, 74, 78].forEach((m, i) => osc(sfxBus, i < 3 ? 'triangle' : 'p50', hz(m), t + i * .018, 3.2, i < 3 ? .12 : .055, { attack: .018, sustain: .2 })); },
     // the blaster: a bright laser zap sweeping down, a sparkle on top, a punchy low kick under it and a crack of noise.
     // It steps through three pitches so steady fire sings instead of droning; Spread Shot adds a fat detuned buzz.
-    shot: (t, spread) => {
+    // arg: true for Spread Shot's extra layer; 'soft' while the 48th Floor's soul streams sing over it (about half as loud)
+    shot: (t, arg) => {
+      const spread = arg === true, v = arg === 'soft' ? .45 : 1;
       const f = [1320, 1180, 1480][shotN++ % 3] * (1 + Math.random() * .04);
-      osc(sfxBus, 'p25', f, t, .1, .14, { to: f * .32, sustain: .5 });
-      osc(sfxBus, 'p12', f * 2, t, .04, .05, { to: f * .9 });
-      osc(sfxBus, 'square', 210, t, .07, .13, { to: 70, sustain: .4 });
-      noiseHit(sfxBus, t, .05, .2, 'highpass', 3500);
+      osc(sfxBus, 'p25', f, t, .1, .14 * v, { to: f * .32, sustain: .5 });
+      osc(sfxBus, 'p12', f * 2, t, .04, .05 * v, { to: f * .9 });
+      osc(sfxBus, 'square', 210, t, .07, .13 * v, { to: 70, sustain: .4 });
+      noiseHit(sfxBus, t, .05, .2 * v, 'highpass', 3500);
       if (spread) { osc(sfxBus, 'sawtooth', f * .5, t, .1, .08, { to: f * .2 }); osc(sfxBus, 'sawtooth', f * .505, t, .1, .06, { to: f * .2 }); }
     },
     // the 13th Floor's soul stream beside the bolt: a quiet glassy shimmer, D6 sliding up to A6, under the zap
@@ -698,7 +700,15 @@ window.UnrugSound = (function () {
     rumble: (t, seconds) => { const d = seconds || 3; noiseHit(sfxBus, t, d, .4, 'lowpass', 260, .7, 60); osc(sfxBus, 'sine', 42, t, d, .3, { to: 30, sustain: .8 }); for (let i = 0; i < d * 3; i++) noiseHit(sfxBus, t + i / 3 + Math.random() * .2, .3, .2, 'lowpass', 1500, 1, 200); },
     // the souls' streams firing on the 48th Floor: a small, soft two-note shimmer (D, A), a touch higher as they bend in.
     // Deliberately modest: the roof's stream is the big one
-    stream: (t, bend) => { const b = (bend || 0) * 3; osc(sfxBus, 'sine', hz(86 + b), t, .11, .02, { to: hz(87 + b) }); osc(sfxBus, 'triangle', hz(93 + b), t + .012, .09, .012, {}); },
+    // its own voice, the opposite of the blaster's falling buzz (owner, Oct 14): a rising airy whoosh and two soft singing
+    // tones (D, A) that overlap shot to shot into one sound, a touch higher and brighter as the streams bend in
+    stream: (t, bend) => {
+      const b = (bend || 0) * 3;
+      noiseHit(sfxBus, t, .2, .05, 'bandpass', 700 + b * 120, 3, 2600 + b * 300);
+      osc(sfxBus, 'sine', hz(74 + b), t, .22, .055, { to: hz(75 + b), attack: .03, sustain: .8, vib: true });
+      osc(sfxBus, 'sine', hz(81 + b), t + .02, .2, .04, { to: hz(82 + b), attack: .03, sustain: .8, vib: true });
+      osc(sfxBus, 'triangle', hz(93 + b), t + .04, .1, .012, { attack: .02 });
+    },
     // a chain reaction called out (48th Floor): a bright stab that climbs with the chain's length
     chain: (t, n) => { const m = 74 + Math.min(12, (n || 3) - 3) * 1; [0, 4, 7].forEach((k, i) => osc(sfxBus, 'square', hz(m + k), t + i * .03, .16, .05, { sustain: .3 })); noiseHit(sfxBus, t, .12, .12, 'highpass', 3000, 2); },
     sour: t => { [62, 63, 68, 69].forEach((m, i) => osc(sfxBus, 'sawtooth', hz(m + 12), t, 1.2, .045, { to: hz(m + 12) * .5, sustain: .5 })); noiseHit(sfxBus, t, .5, .35, 'bandpass', 1800, .7, 200); osc(sfxBus, 'p12', hz(98), t, .6, .05, { to: hz(62) }); }

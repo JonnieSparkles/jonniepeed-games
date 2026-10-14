@@ -616,7 +616,11 @@ var UnrugFloor48 = function (core) {
     emit('f48_collapse', { t: R.t });
   }
   // where the eye opens: on the wall straight above him
-  const eyeAt = () => ({ x: clamp(bull.x, 140, 660), y: 30 });
+  // p(Loom)'s beat is framed on him: the camera goes up toward the back wall only as far as keeps him on screen (he
+  // stands clear of the readout along the bottom), and the eye opens at the top of that frame: on the wall when he's
+  // near it, in the smoke over him when he's further down the room (owner, Oct 14: he could end up off screen)
+  const ploomCamY = () => clamp(bull.y - (H - 48), 0, F48.world.h - H);
+  const eyeAt = () => ({ x: clamp(bull.x, 140, 660), y: ploomCamY() + 30 });
   // a stream (the ribbon from one of its shots to the next) sweeping through a reserve tank cracks it
   function whipSweep() {
     const C = Q.collapse, ribbons = [];
@@ -676,7 +680,7 @@ var UnrugFloor48 = function (core) {
     const C = Q.collapse;
     C.phase = 'ploom'; C.pt = 0; R.td.locked = true; R.banner = null;
     const E = eyeAt(); C.eye = E;
-    R.td.camHold = { x: clamp(bull.x - W / 2, 0, F48.world.w - W), y: 0 };
+    R.td.camHold = { x: clamp(bull.x - W / 2, 0, F48.world.w - W), y: ploomCamY() };
     Snd.music(null, { hard: true }); Snd.play('dark');
     emit('f48_ploom', { t: R.t, cracked: C.cracked });
   }
