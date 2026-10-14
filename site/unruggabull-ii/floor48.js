@@ -1231,6 +1231,43 @@ var UnrugFloor48 = function (core) {
     g.fillStyle = vs.length ? '#8fe3ff' : '#ff7a2a'; g.beginPath(); g.moveTo(9, 0); g.lineTo(-4, -7); g.lineTo(0, 0); g.lineTo(-4, 7); g.closePath(); g.fill();
     g.restore();
   }
+  // A loom cracks as it takes damage (owner, Oct 14: "seeing it crack as the line breaks would be great"): breaking the
+  // rest of its line, its console and the blasts around it chip it, so a loom whose line has been taken apart shows it.
+  // Cracks open one by one as its health falls (at 8%, then every 9%), each a jagged fissure from the frame's edge,
+  // dark with a hot seam; past 40% the deepest ones glow and spit the odd spark. Each loom's cracks are its own (drawn
+  // from its id, not the run's dice).
+  function loomCracks(m) {
+    if (m.cracks) return m.cracks;
+    let k = (m.id * 9301 + 49297) % 233280; const rnd = () => (k = (k * 9301 + 49297) % 233280) / 233280;
+    const top = m.y0 - m.H, w = m.x1 - m.x0, h = m.y1 - top, out = [];
+    for (let i = 0; i < 8; i++) {
+      // start on an edge (alternating sides and the top), wander inward
+      const side = i % 3, pts = [];
+      let x = side === 0 ? m.x0 + 2 : side === 1 ? m.x1 - 2 : m.x0 + 6 + rnd() * (w - 12), y = side === 2 ? top + 2 : top + 6 + rnd() * (h - 14);
+      const dx = side === 0 ? 1 : side === 1 ? -1 : (rnd() - .5) * 1.4, dy = side === 2 ? 1 : (rnd() - .5) * 1.2;
+      pts.push([x, y]);
+      const n = 4 + Math.floor(rnd() * 3);
+      for (let j = 0; j < n; j++) { x += dx * (4 + rnd() * 5) + (rnd() - .5) * 5; y += dy * (4 + rnd() * 5) + (rnd() - .5) * 5; pts.push([clamp(x, m.x0 + 2, m.x1 - 2), clamp(y, top + 2, m.y1 - 3)]); }
+      // a branch off the middle
+      const mid = pts[Math.floor(pts.length / 2)], br = [mid, [mid[0] + (rnd() - .5) * 12, mid[1] + (rnd() - .5) * 10], [mid[0] + (rnd() - .5) * 18, mid[1] + (rnd() - .5) * 14]];
+      out.push({ pts, br });
+    }
+    return (m.cracks = out);
+  }
+  function drawLoomCracks(m, t) {
+    const dmg = 1 - m.hp / m.max; if (dmg < .08) return;
+    const n = Math.min(8, 1 + Math.floor((dmg - .08) / .09)), cr = loomCracks(m);
+    const path = (pts, lw, col) => { g.save(); g.strokeStyle = col; g.lineWidth = lw; g.lineJoin = 'miter'; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(Math.round(x) + .5, Math.round(y) + .5) : g.moveTo(Math.round(x) + .5, Math.round(y) + .5)); g.stroke(); g.restore(); };
+    // chunks out of the frame's top rail
+    const top = m.y0 - m.H, w = m.x1 - m.x0;
+    for (let i = 0; i < Math.min(4, Math.floor(n / 2)); i++) { const x = Math.round(m.x0 + w * [.18, .63, .4, .84][i]); rect(g, x, top, 5 + i % 2 * 3, 3 + i % 2, '#0c0606'); rect(g, x + 1, top + 3 + i % 2, 2, 1, '#d8ccc0'); }
+    for (let i = 0; i < n; i++) {
+      const c = cr[i], deep = dmg > .4 && i < n - 2;
+      path(c.pts, 5, '#0c0606'); path(c.br, 3, '#0c0606');
+      path(c.pts, 2, deep ? (Math.sin(t * 7 + i) > 0 ? '#fff3b0' : '#ffb070') : '#d8ccc0'); path(c.br, 1, deep ? '#ffb070' : '#a89888');
+      if (deep && i % 2 === 0 && Math.random() < .02 && Q.st === 'fight') { const p = c.pts[c.pts.length - 1]; R.td.fx.push({ k: 'spark', x: p[0], y: m.y1, h: m.y1 - p[1], vx: fxr(-40, 40), vy: fxr(-10, 10), vh: fxr(20, 70), col: '#ffb070', t: 0, dur: .35 }); }
+    }
+  }
   function drawMachine(m, t) {
     const speed = live(m.line) ? F48.rate[Q.panic] : 0;
     const one = () => {
@@ -1242,6 +1279,7 @@ var UnrugFloor48 = function (core) {
     };
     // a hit flashes it bright: the same drawing again, added on top (a canvas filter here cost a sixth of the frame rate)
     g.save(); one(); if (m.flash > 0) { g.globalCompositeOperation = 'lighter'; one(); } g.restore();
+    if (m.kind === 'loom') drawLoomCracks(m, t);
     if (overloaded(m)) {
       // overloading: the frame glows red-hot in pulses, and the holes the chunks left
       const top = m.y0 - m.H, w = m.x1 - m.x0, h = m.y1 - top;
