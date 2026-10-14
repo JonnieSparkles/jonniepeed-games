@@ -1442,7 +1442,7 @@ var UnrugFloor48 = function (core) {
     if (Q.st === 'lobby') { lobbyOverlay(); return; }
     g.save(); g.scale(.5, .5);
     const C = Q.collapse;
-    if (!C || C.phase !== 'ploom') { td.arrows(); td.reticle(); objectiveArrow(); }
+    if (!C || C.phase !== 'ploom') { td.reticle(); objectiveArrow(); }
     // the laser off screen: a red edge where it is, its gap in green, so he can get to the gap before it arrives
     const L = Q.qc;
     if (L && Q.st === 'fight' && Math.floor(R.t * 8) % 2) {
