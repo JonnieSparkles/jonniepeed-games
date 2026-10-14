@@ -213,11 +213,45 @@ window.__balanceBot = function (profile, seed) {
       var m = q.machines.filter(function (x) { return x.id === f48Goal.id; })[0] || f48Goal, cx = (m.x0 + m.x1) / 2;
       var below = m.y1 + 58, above = m.y0 - 58;
       var gy = Math.abs(me.y - below) < Math.abs(me.y - above) || above < q.bounds.y0 + 20 ? below : above;
+      // a vessel: stand where there's room, below the high one and above the low one
+      if (m.kind === 'vessel') gy = below > q.bounds.y1 - 12 ? above : below;
       goal = { x: cx, y: Math.min(q.bounds.y1 - 12, gy) };
       if (!shoot || sd > 200) { var dx = cx - me.x, dy = (m.y1 - 4) - me.y, d = Math.hypot(dx, dy) || 1; if (d < 260) { shoot = { x: dx / d, y: dy / d }; sd = d; } }
     }
+    // the canister cart rolling past close by: a few shots at it, sometimes (it's optional)
+    if (q.cart && (!shoot || sd > 120)) {
+      var kx = q.cart.x - me.x, ky = (q.cart.y - 6) - me.y, kd = Math.hypot(kx, ky) || 1;
+      if (kd < 190 && plan({ id: 'cart:' + Math.floor(o.t / 40) }, function () { return { take: r() < P.pickup }; }).take) { shoot = { x: kx / kd, y: ky / kd }; sd = kd; }
+    }
     if (job) goal = job;
-    if (goal) { var gx = goal.x - me.x, gy2 = goal.y - me.y, gd = Math.hypot(gx, gy2); if (gd > 10) { mx += gx / gd * Math.min(1, gd / 40); my += gy2 / gd * Math.min(1, gd / 40); } }
+    // something solid in the way (a machine, a wreck, a pallet, a vessel): round it by the corner that makes the shorter way
+    // (it's 7 pixels round, and 4 deep against a box's top or bottom)
+    var crosses = function (ax, ay, bx, by, w, px, py) {
+      var x0 = w.x0 - px, x1 = w.x1 + px, y0 = w.y0 - py, y1 = w.y1 + py, dx = bx - ax, dy = by - ay, t0 = 0, t1 = 1, ok = true;
+      [[-dx, ax - x0], [dx, x1 - ax], [-dy, ay - y0], [dy, y1 - ay]].forEach(function (c) {
+        if (c[0] === 0) { if (c[1] < 0) ok = false; } else { var t = c[1] / c[0]; if (c[0] < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t); }
+      });
+      return ok && t0 <= t1 ? t0 : -1;
+    };
+    var near = 10;
+    if (goal && q.walls) {
+      var hit = null, ht = 2;
+      q.walls.forEach(function (w) {
+        if (me.x > w.x0 && me.x < w.x1 && me.y > w.y0 && me.y < w.y1) return;
+        var t = crosses(me.x, me.y, goal.x, goal.y, w, 9, 6); if (t >= 0 && t < ht) { ht = t; hit = w; }
+      });
+      if (hit) {
+        var bestC = null, bl = Infinity;
+        [[hit.x0 - 14, hit.y0 - 11], [hit.x1 + 14, hit.y0 - 11], [hit.x0 - 14, hit.y1 + 11], [hit.x1 + 14, hit.y1 + 11]].forEach(function (c) {
+          var cx = Math.max(q.bounds.x0 + 4, Math.min(q.bounds.x1 - 4, c[0])), cy = Math.max(q.bounds.y0 + 4, Math.min(q.bounds.y1 - 4, c[1]));
+          if (crosses(me.x, me.y, cx, cy, hit, 0, 0) >= 0) return;
+          var l = Math.hypot(cx - me.x, cy - me.y) + Math.hypot(goal.x - cx, goal.y - cy);
+          if (l < bl) { bl = l; bestC = { x: cx, y: cy }; }
+        });
+        if (bestC) { goal = bestC; near = 2; }
+      }
+    }
+    if (goal) { var gx = goal.x - me.x, gy2 = goal.y - me.y, gd = Math.hypot(gx, gy2); if (gd > near) { var sp = near < 10 ? 1 : Math.min(1, gd / 40); mx += gx / gd * sp; my += gy2 / gd * sp; } }
     // a press about to come down: get off the belt under it
     q.machines.forEach(function (m) {
       if (m.kind !== 'press' || m.warn <= 0) return;

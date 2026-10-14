@@ -709,6 +709,12 @@ window.UnrugSound = (function () {
       osc(sfxBus, 'sine', hz(81 + b), t + .02, .2, .04, { to: hz(82 + b), attack: .03, sustain: .8, vib: true });
       osc(sfxBus, 'triangle', hz(93 + b), t + .04, .1, .012, { attack: .02 });
     },
+    // the last loom's shield: up (a rising hum and a glassy chord), a bolt pinging off it, and down (a falling crackle)
+    shieldUp: t => { osc(sfxBus, 'sawtooth', 110, t, .7, .05, { to: 440, sustain: .6 }); [74, 81, 86].forEach((m, i) => osc(sfxBus, 'sine', hz(m), t + .2 + i * .06, .6, .04, { sustain: .5, vib: true })); },
+    shieldHit: t => { osc(sfxBus, 'sine', 1760, t, .12, .05, { to: 2400 }); noiseHit(sfxBus, t, .06, .08, 'highpass', 5000, 2); },
+    shieldDown: t => { osc(sfxBus, 'sawtooth', 440, t, .8, .07, { to: 55 }); for (let i = 0; i < 6; i++) noiseHit(sfxBus, t + i * .06, .08, .14, 'bandpass', 2600 - i * 300, 4); },
+    // the canister cart rattling along its rail
+    cart: t => { noiseHit(sfxBus, t, .07, .06, 'lowpass', 500); osc(sfxBus, 'square', 70, t, .05, .03, { to: 50 }); },
     // a chain reaction called out (48th Floor): a bright stab that climbs with the chain's length
     chain: (t, n) => { const m = 74 + Math.min(12, (n || 3) - 3) * 1; [0, 4, 7].forEach((k, i) => osc(sfxBus, 'square', hz(m + k), t + i * .03, .16, .05, { sustain: .3 })); noiseHit(sfxBus, t, .12, .12, 'highpass', 3000, 2); },
     sour: t => { [62, 63, 68, 69].forEach((m, i) => osc(sfxBus, 'sawtooth', hz(m + 12), t, 1.2, .045, { to: hz(m + 12) * .5, sustain: .5 })); noiseHit(sfxBus, t, .5, .35, 'bandpass', 1800, .7, 200); osc(sfxBus, 'p12', hz(98), t, .6, .05, { to: hz(62) }); }

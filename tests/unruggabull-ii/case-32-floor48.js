@@ -149,10 +149,41 @@
     for (let i = 0; i < 60 * 12 && Q().qc && R.hearts === 5; i++) { const L = Q().qc; bull.x = L.g1 + 60 < 780 ? L.g1 + 60 : L.g0 - 60; bull.y = 420; clearAll(); update(1 / 60); }
     check(R.hearts === 4 && R.lastCause === 'laser', 'out of the gap, the laser costs a heart');
     check(state === 'play', 'still playing');
+    // the reactor (owner, Oct 14, option D): when the last line is left its loom is shielded, after that line's laser
+    // has passed; two vessels at the far right, one high and one low, feed the shield; burst both and it's down
+    fresh(); bull.inv = 1e9;
+    F.breakMachine(machine(0, 'loom'), 'shot'); F.breakMachine(machine(1, 'loom'), 'shot'); tick(.5);
+    let last = machine(2, 'loom');
+    check(Q().reactor && Q().reactor.st === 'wait' && !F.shielded(last), 'the last line left: the reactor waits for the laser');
+    let sawQC = false;
+    for (let i = 0; i < 60 * 20 && Q().reactor.st === 'wait'; i++) { clearAll(); if (Q().qc) { sawQC = true; bull.y = Q().qc.dir === 'y' ? 440 : (Q().qc.g0 + Q().qc.g1) / 2; } update(1 / 60); }
+    check(sawQC && !Q().qc && Q().reactor.st === 'on' && F.shielded(last) && R.banner && R.banner.text === 'BURST THE VESSELS', 'once the sweep has passed, the shield goes up: BURST THE VESSELS');
+    const vs = F.vessels();
+    check(vs.length === 2 && vs[0].x > 680 && vs[1].x > 680 && vs[1].y - vs[0].y > 200, 'two vessels, both far right, one high and one low');
+    { const h = last.hp; F.hurtMachine(last, 50, 'shot'); check(last.hp === h, 'the shield takes the damage'); }
+    // shoot the high one from below it
+    { const v = vs[0], s0 = R.souls; bull.x = v.x; bull.y = v.y + 70; twin.aiming = true; twin.aimX = 0; twin.aimY = -1;
+      for (let i = 0; i < 60 * 6 && !v.dead; i++) { R.td.enemies.length = 0; R.td.thrown.length = 0; bull.x = v.x; bull.y = v.y + 70; update(1 / 60); }
+      twin.aiming = false; tick(.3);
+      check(v.dead && R.souls >= s0 + F48.reactor.souls && F.shielded(last), 'bolts burst a vessel and free its souls; the shield holds on the other'); }
+    // one slash bursts the low one
+    { const v = vs[1]; bull.x = v.x; bull.y = v.y - 24; bull.cd = 0; tick(.05); input.slash = 0; twin.flick = { x: 0, y: 1 }; press('slash'); tick(.05);
+      check(v.dead, 'one slash bursts a vessel'); }
+    tick(.3);
+    check(Q().reactor.st === 'down' && !F.shielded(last) && R.banner && R.banner.text === 'SHIELD DOWN', 'both burst: SHIELD DOWN');
+    // the canister cart along the bottom: optional, now and then; a hit pops its canisters down the cart and drops a power-up
+    fresh(); bull.inv = 1e9;
+    check(!Q().cart && Q().cartNext === F48.cart.first, 'the cart comes ' + F48.cart.first + ' s in');
+    Q().cartNext = 0; tick(.05);
+    check(Q().cart && Q().cart.full && Q().cartNext === F48.cart.every, 'it rolls along the bottom, then again every ' + F48.cart.every + ' s');
+    for (let i = 0; i < 600 && Q().cart.x < 300; i++) update(1 / 60);
+    { R.td.pickups.length = 0; const s0 = R.souls; F.hitCart('shot'); tick(F48.cart.gap * F48.cart.load + .2);
+      check(!Q().cart.full && R.souls >= s0 + F48.cart.load * F48.cart.souls && R.td.pickups.length === 1 && Q().combo && Q().combo.n >= F48.cart.load, 'a hit pops the cart down its length (a chain) and drops a power-up'); }
     // the last loom overloads: double damage, and chunks blow off it at 75/50/25%
     fresh(); bull.inv = 1e9;
     F.breakMachine(machine(0, 'loom'), 'shot'); F.breakMachine(machine(1, 'loom'), 'shot'); tick(.5);
-    const last = machine(2, 'loom'), sl0 = R.souls; last.hp = last.max;
+    Q().qc = null; Q().qcPending = null; Q().reactor = { st: 'down', t: 0 };
+    last = machine(2, 'loom'); const sl0 = R.souls; last.hp = last.max;
     { const hp1 = last.hp; F.hurtMachine(last, 1, 'shot'); check(last.hp === hp1 - F48.overload.mult, 'the last loom takes double damage'); }
     last.hp = Math.round(last.max * .76); F.hurtMachine(last, 4, 'shot');
     check(last.stage === 1 && R.souls >= sl0 + F48.overload.souls, 'a chunk blows off it at 75%, freeing souls');
