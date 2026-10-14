@@ -669,7 +669,7 @@ var UnrugStairs = function (core) {
     bonusBy: () => null, endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop,
     stageNo: () => Q.st === 'door' ? 4 : Q.si + 1, stageNames: { 1: 'Stairs: G to 1', 2: 'Stairs: 6 to 7', 3: 'Stairs: 12 to 13', 4: 'Stairs: the door' },
     pauseText: 'The stairs wait.',
-    continueText: () => Q.katana ? 'Back to the katana with full hearts?' : 'Back to the start with full hearts?',
+    continueText: () => 'Try again',
     clearCard: () => ({ title: 'The stairwell', text: '', rows: [['Souls', String(R.souls)]], note: '' }),
     STAIRS, SECTIONS, arena, ground, groundAt, UX, HY, startSection, startWhip, startDoor, breakGlass, fly, roll, cabReady, raising,
     get Q() { return Q; }, get cur() { return cur; }
