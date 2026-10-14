@@ -228,23 +228,25 @@ with sync_playwright() as p:
         context.close()
         print('PASS elevator hash/input/layout', name)
         if touch:
-            # Every quiet-ride bubble at full text width, at either end of the car and in the doorway.
+            # Every quiet-ride bubble (all three middle exchanges) at full text width, at either end of the car and in the doorway.
             for u in [-.7, 0, .7]:
                 context, page, errors = open_page(browser, viewport={'width': size[0], 'height': size[1]}, has_touch=True, is_mobile=True)
                 page.clock.install()
+                # each of the three middle exchanges (picked from the run seed)
                 bubbles = page.evaluate("""u => unrugTest(`looping=false;
-                  newRun({stage:'elevator',transfer:true,fight:false,from:13,destination:{floor:48,label:'48',stage:'floor48'}});
-                  setState('play');setFull(true);bull.u=${u};
                   (()=>{ const boxes=[];let last=null;
+                    for(const k of [0,1,2]){ RUN.force=k;
+                    newRun({stage:'elevator',transfer:true,fight:false,from:13,destination:{floor:48,label:'48',stage:'floor48'}});
+                    RUN.force=null;setState('play');setFull(true);bull.u=${u};
                     for(let i=0;i<35.1*60;i++){ update(1/60);
                       if(R.talk && R.talk!==last){ last=R.talk;draw();
                         const w=textWidth(R.talk.text)*2+12, x=R.talk.speaker==='operator'?356:240;
                         boxes.push({text:R.talk.text,x:(clamp(Math.round(x-w/2),4,480-w-4)-2)/2,
                           y:R.talk.speaker==='operator'?63:65,width:(w+4)/2,height:12}); }
-                    }return boxes;
+                    }}return boxes;
                   })()`)
                 """, u)
-                assert len(bubbles) == 11, (name, bubbles)
+                assert len(bubbles) == 33 and len({b['text'] for b in bubbles}) == 17, (name, bubbles)
                 canvas = page.locator('#c').bounding_box()
                 for box in bubbles:
                     assert box['x'] >= 0 and box['x'] + box['width'] <= 240, (name, box)

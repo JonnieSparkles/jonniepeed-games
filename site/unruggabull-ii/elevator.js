@@ -22,6 +22,7 @@ var UnrugElevator = function (core) {
     ask: { floor: .9, roof: 2.2, out: 2.6 },
     arena: {} };
   const arena = UnrugArena(core, ELEVATOR.arena);
+  const TOWER = 99;   // the dial's top: the roof
   const W = 480, H = 270, FLOOR = 240, HX = 150, CAR_L = 40, CAR_R = 440;
   const PX = u => arena.PXu(u), UX = x => (x / 2 - 120) / arena.ARENA.width;
   let R, bull, Q, g = core.g;
@@ -111,14 +112,19 @@ var UnrugElevator = function (core) {
     ['start', 7.4, 'bull', 'ACCOUNTING.', 1.8],
     ['start', 10, 'operator', 'THEY STILL THERE?', 1.8],
     ['start', 12.4, 'bull', 'LESS OF THEM.', 1.8],
-    ['start', 17, 'operator', "WHAT'S THE DIAL SAY?", 2],
-    ['start', 19.4, 'bull', 'YOU WORK HERE.', 1.8],
-    ['start', 24, 'operator', "SINCE '87.", 1.8],
     ['doors', ELEVATOR.ask.floor, 'operator', 'RECLAMATION, SIR.', 1.8],
     ['doors', ELEVATOR.ask.floor + 2, 'bull', 'KEEP THE SLIP.', 1.8]
   ];
+  // The middle exchange is one of these, picked from the run's seed (never drawn from the seeded stream, so no run changes
+  // and a replay hears the same one). Owner, Oct 14: keep all three.
+  const QUIET_MIDDLE = ELEVATOR.quiet.middle = [
+    [['start', 17, 'bull', 'THIS SONG...', 2], ['start', 19.4, 'operator', 'IT GETS BETTER.', 1.8], ['start', 24, 'bull', 'DOES IT?', 1.8]],
+    [['start', 17, 'operator', 'RECLAMATION. YOU SURE?', 2], ['start', 19.4, 'bull', "IT'S ON THE SLIP.", 1.8], ['start', 24, 'operator', "...I'LL WAIT HERE.", 1.8]],
+    [['start', 17, 'bull', 'THIS THING GO FASTER?', 2], ['start', 19.4, 'operator', 'NO.', 1.8], ['start', 24, 'bull', 'GREAT.', 1.8]]
+  ];
   function quietCues() {
-    const p = top(), lines = QUIET.map(([anchor, offset, who, text, dur]) => {
+    Q.middle = (core.runSeed() >>> 0) % QUIET_MIDDLE.length;
+    const p = top(), lines = QUIET.concat(QUIET_MIDDLE[Q.middle]).map(([anchor, offset, who, text, dur]) => {
       const t = (anchor === 'doors' ? p.doors : 0) + offset;
       Q.exitAt = Math.max(Q.exitAt, t + dur);
       return [t, () => say(who, text, dur)];
@@ -336,12 +342,13 @@ var UnrugElevator = function (core) {
   const PXL0 = 96;
   const eyeOn = t => Q.fight && t >= T.eye + .5 && t < T.arrive;
   function drawDial(t) {
-    const f = Q.fight ? 13 + (floorAt(t) - Q.from) / Math.max(1, Q.destination.floor - Q.from) * 86 : 13 + clamp((floorAt(t) - Q.from) / Math.max(1, Q.destination.floor - Q.from), 0, 1) * 86;
+    // one dial for the whole tower, the same in every ride: G at the left, R (floor 99) at the right
+    const f = floorAt(t);
     g.fillStyle = eyeOn(t) ? '#140806' : '#f2e6c8'; g.beginPath(); g.arc(240, 70, 24, Math.PI, 0); g.fill();
     if (!eyeOn(t)) {
       for (let i = 0; i <= 10; i++) { const a = Math.PI + i / 10 * Math.PI; line(g, 240 + Math.cos(a) * 20, 70 + Math.sin(a) * 20, 240 + Math.cos(a) * 23, 70 + Math.sin(a) * 23, '#3a2a1a'); }
-      txt(g, String(Q.from), 222, 62, '#3a2a1a', 1); txt(g, Q.destination.label, 255, 62, '#c8302a', 1);
-      const a = Math.PI + clamp((f - 13) / 86, 0, 1) * Math.PI;
+      txt(g, 'G', 222, 62, '#3a2a1a', 1); txt(g, 'R', 255, 62, '#c8302a', 1);
+      const a = Math.PI + clamp(f / TOWER, 0, 1) * Math.PI;
       line(g, 240, 69, 240 + Math.cos(a) * 19, 69 + Math.sin(a) * 19, '#c8302a');
       line(g, 241, 69, 241 + Math.cos(a) * 18, 69 + Math.sin(a) * 18, '#c8302a');
       disc(g, 240, 69, 2, '#3a2a1a');

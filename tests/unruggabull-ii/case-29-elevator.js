@@ -118,9 +118,10 @@
       [.35, 'operator', 'FLOOR?'], [2.6, 'bull', 'FORTY-EIGHT.'],
       [5, 'operator', 'GOT A SLIP?'], [7.4, 'bull', 'ACCOUNTING.'],
       [10, 'operator', 'THEY STILL THERE?'], [12.4, 'bull', 'LESS OF THEM.'],
-      [17, 'operator', "WHAT'S THE DIAL SAY?"], [19.4, 'bull', 'YOU WORK HERE.'],
-      [24, 'operator', "SINCE '87."], [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.']
+      ...floor.ELEVATOR.quiet.middle[R.elevator.middle].map(([, at, who, text]) => [at, who, text]),
+      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.']
     ];
+    check(R.elevator.middle === (RUN.seed >>> 0) % 3 && floor.ELEVATOR.quiet.middle.length === 3, 'the middle exchange is picked from the run seed');
     const quietEvents = []; emitHook = (type) => quietEvents.push(type);
     let quietTalk = null;
     bull.u = -.4; keys.kbRight = true;
@@ -181,6 +182,12 @@
     check(Math.abs(exiting.scales[0][0] - (1 - R.arena.out * .35)) < 1e-12, 'the roof walk-out still draws him shrinking');
     full = R.souls; tick(1.2);
     check(R.stage === 'roof' && R.roof.state === 'elevator' && R.roof.fromRide && R.souls === full && R.roof.caught === full && R.hearts === 5, 'the roof starts its lead-in with the carried souls');
+    // every middle exchange comes up: the pick follows the run seed alone
+    const middles = new Set();
+    for (const k of [0, 1, 2]) { RUN.force = k; newRun({ stage: 'elevator', transfer: true, fight: false, from: 13, souls: 0, destination: { floor: 48, label: '48', stage: 'floor48' } }); RUN.force = null; middles.add(R.elevator.middle); }
+    check(middles.size === 3, 'all three middle exchanges are reachable');
+    // the tower dial: G to R in every ride, so 48 sits just under halfway
+    check(floor.floorAt(0) === 13 && Math.abs(floor.floorAt(2 + floor.ELEVATOR.quiet.climb) - 48) < 1e-9, 'the quiet ride reads 13 to 48 on the tower dial');
     // Destinations are parameters; floor label R is only the default.
     newRun({ stage: 'elevator', transfer: true, souls: 0, destination: { floor: 42, label: '42', stage: 'floor13' } }); setState('play'); bull.inv = 1e9;
     at(T.arrive + .1); check(R.elevator.indicator === 42, 'destination parameter');
