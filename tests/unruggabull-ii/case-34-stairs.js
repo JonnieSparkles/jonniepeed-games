@@ -33,10 +33,13 @@
   check(S.cabReady(), 'the carpshits dealt with: the cabinet wakes');
   R.fireT = 0; keys.kbShoot = true; step(.3); keys.kbShoot = false;
   check(S.Q.st === 'rug' && R.arena.locked && Snd.track === null, 'a bolt through the glass: the Rugmergency, the music stops dead');
-  step(S.STAIRS.rug.raise + .1);
+  R.hearts = 2; step(S.STAIRS.rug.raise + .1);
   check(Snd.track === 'stairsFanfare' && R.arena.pose && R.banner && R.banner.text === 'RUGMERGENCY KATANA', 'the item get, to the fanfare');
   check(floor.view().ambient < S.STAIRS.ambient, 'the stairwell darkens around him');
-  R.hearts = 2; step(5);
+  check(S.Q.gift.n === TUNE.hearts - 2 && S.Q.gift.landed === 0 && R.hearts === 2, 'the hearts he is missing circle him first');
+  step(2);
+  check(R.hearts > 2 && R.hearts < TUNE.hearts, 'then they are given to him one at a time');
+  step(3);
   check(R.hearts === TUNE.hearts, 'the katana refills his hearts');
   check(S.Q.st === 'play' && S.Q.katana && !R.arena.bare && !R.arena.locked && Snd.track === 'stairs', 'the katana: the cue slams back in');
   check(checkpoint && checkpoint.stage === 'stairs' && checkpoint.section === 1 && checkpoint.katana, 'a continue from here keeps the katana');

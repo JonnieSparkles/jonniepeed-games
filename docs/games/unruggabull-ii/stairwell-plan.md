@@ -28,7 +28,7 @@ A person takes about 70 to 75 seconds. The scripted bot on the page is a rough c
 ### The Rugmergency
 
 - **The cabinet** is dark until it's ready: its glass dim and its sign, BREAK GLASS IN CASE OF RUGMERGENCY, unpowered. Once the carpshits on the way up are dealt with, the sign lights from inside like an exit sign and the frame pulses red, lighting the wall. The section's lamp hangs over the lower stairs, so the cabinet sits in shadow until then. The glass can't break before it's ready.
-- **The glass:** a bolt through it shatters it (white flash, shards to the floor, a tinkle and pings) and the music stops dead. He steps up, grabs the katana (a shing), turns to face us and holds it up (the new `RAISED` pose; a little hop), the stairwell darkens around him and a gold light picks him out, gold rays turn behind him, a glint runs up the blade, and RUGMERGENCY KATANA. The fanfare plays; on its last beat the cue slams back in a layer up, SLASH, and the first carpshit comes.
+- **The glass:** a bolt through it shatters it (white flash, shards to the floor, a tinkle and pings) and the music stops dead. He steps up, grabs the katana (a shing), turns to face us and holds it up (the new `RAISED` pose; a little hop), the stairwell darkens around him and a gold light picks him out, gold rays turn behind him, a glint runs up the blade, and RUGMERGENCY KATANA. If he's missing hearts they circle him in the gold light, then each flies up into the HUD and fills one (a ping each; none if he's full). The fanfare plays; on its last beat the cue slams back in a layer up, SLASH, and the first carpshit comes.
 - **Before the katana** he carries none: the side poses without it on his back (`SIDES_BARE`).
 
 ### The door

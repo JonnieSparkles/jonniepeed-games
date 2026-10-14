@@ -149,6 +149,9 @@ var UnrugStairs = function (core) {
   }
 
   // ---------- the Rugmergency ----------
+  // the hearts he's missing circle him in the gold light, then each flies to its place in the HUD: the first lands at
+  // `land` s into the item get, one more every `gap`, each flight `fly` s long
+  const GIFT = { land: 1.9, gap: .45, fly: .6, orbit: 3.4, radius: 17 };
   const cabReady = () => Q.preDone && Q.glass === Infinity && Q.st === 'play';
   const raising = () => Q.st === 'rug' && Q.stT >= STAIRS.rug.raise && Q.stT < STAIRS.rug.raise + FANL;
   // a bolt through the glass, once the cabinet's ready: it shatters, the music stops dead, the carpshits left go
@@ -177,12 +180,20 @@ var UnrugStairs = function (core) {
     if (k >= T.grab && !Q.done.grab) { Q.done.grab = true; Q.taken = Q.secT; Snd.play('stairShing'); }
     if (k >= T.raise && !Q.done.raise) {
       Q.done.raise = true; Snd.music('stairsFanfare', { slam: true }); emit('stairs_katana');
+      Q.gift = { n: Math.max(0, TUNE.hearts - R.hearts), landed: 0 };   // the hearts he's missing, given to him during the item get
       R.banner = { text: 'RUGMERGENCY KATANA', t: -.25, dur: FANL - .3, top: true };
     }
     if (raising()) {
       // the item get: he turns to us with the katana up (a little hop), at the cabinet
       const r = k - T.raise, hop = r < .12 ? Math.round(Math.sin(r / .12 * Math.PI) * 6) : 0;
       bull.u = UX(cx); R.arena.pose = { img: RAISED, feet: { x: RF.x, y: RF.y + hop }, face: 1 };
+    }
+    if (Q.gift) {
+      // each heart lands (one more in the HUD, a ping) as its flight ends
+      for (let i = Q.gift.landed; i < Q.gift.n; i++) {
+        if (k - T.raise < GIFT.land + i * GIFT.gap) break;
+        Q.gift.landed = i + 1; R.hearts = Math.min(TUNE.hearts, R.hearts + 1); Snd.play('coffee');
+      }
     }
     if (k >= T.raise + FANL) {
       // the cue slams back in a layer up, and the first one with the katana comes
@@ -572,6 +583,7 @@ var UnrugStairs = function (core) {
       g.restore(); return;
     }
     if (Q.st === 'rug' && Q.stT < STAIRS.rug.raise) caption('!');
+    if (Q.st === 'rug' && Q.gift && Q.gift.n) giftHearts();
     if (Q.st === 'door' && Q.stT >= STAIRS.door.kick + .02) {
       const D = STAIRS.door, f = span(Q.stT, D.kick + .02, D.impact), ff = f * f, fl = landing(cur);
       g.save(); g.scale(.5, .5);
@@ -579,6 +591,25 @@ var UnrugStairs = function (core) {
       g.restore();
       if (Q.stT >= D.impact) rect(g, 0, 0, W / 2, H / 2, '#ffffff');
     }
+  }
+  // the hearts being given to him: circling at his chest, then flying up into the HUD (game units, over the lit picture)
+  function giftHearts() {
+    const r = Q.stT - STAIRS.rug.raise, G = Q.gift, hw = A.uw(A.HEART), hh = A.uh(A.HEART);
+    const cx = arena.X(bull.u), cy = PYh(ground(bull.u)) / 2 - 24;
+    g.save();
+    for (let i = G.landed; i < G.n; i++) {
+      const born = .35 + i * .12, lands = GIFT.land + i * GIFT.gap, t0 = lands - GIFT.fly;
+      if (r < born) continue;
+      const a = r * GIFT.orbit + i * Math.PI * 2 / G.n, ox = cx + Math.cos(a) * GIFT.radius, oy = cy + Math.sin(a) * 5 - Math.sin(a * .5 + i) * 2;
+      const f = r < t0 ? 0 : ease(span(r, t0, lands)), slot = R.hearts + (i - G.landed);
+      const tx = 4 + slot * 10 + hw / 2, ty = 3.5 + hh / 2;
+      const x = lerp(ox, tx, f), y = lerp(oy, ty, f), grow = f ? 1 : Math.min(1, (r - born) / .25), depth = f ? 1 : .8 + .2 * Math.sin(a);
+      g.globalAlpha = .5 * grow; g.globalCompositeOperation = 'lighter'; g.fillStyle = '#ff4a3a';
+      g.beginPath(); g.arc(x, y, 6 * grow, 0, Math.PI * 2); g.fill();
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = grow;
+      g.drawImage(A.HEART, Math.round(x - hw * depth / 2), Math.round(y - hh * depth / 2), Math.round(hw * depth), Math.round(hh * depth));
+    }
+    g.restore();
   }
   // his "!" when the glass goes: the core's caption, top left
   function caption(text) {
