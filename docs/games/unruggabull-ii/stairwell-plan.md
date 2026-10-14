@@ -17,7 +17,7 @@ Every section is one screen (480×270, the rides' picture) of zigzag flights: th
 
 | Section | Floors | Way | What happens |
 | --- | --- | --- | --- |
-| 1 | Ground to 1st | left to right | Blaster only. Eight carpshits in five waves up two flights: singles, a high one (JUMP), paper throwers, one from behind. Clear them and a bobbing gold arrow shows at the edge he's heading for (no words). |
+| 1 | Ground to 1st | left to right | Blaster only. Eight carpshits in five waves up two flights: singles, a high one (JUMP), paper throwers, one from behind. Clear them and a bobbing gold arrow shows at the edge he's heading for, at chest height above the landing (no words). |
 | Whip | 1 to 6 | | The camera whips up: the section drops away, the next comes down from above, FLOOR and a big number rolling 1 to 6 in the middle. About 0.85 s. Hearts carry over; the katana refills them. |
 | 2 | 6th to 7th | right to left | Still blaster only: three carpshits on the way up to the cabinet. Then the cabinet wakes (below) and SHOOT THE GLASS; shooting it plays **the Rugmergency**. With the katana: a diver (SLASH), a paper thrower (SLASH IT BACK), a pair, then two that hang back by the tape throwing paper every 1.5 to 2.2 s (deflect or dodge; nothing forces it). Then **caution tape** criss-crossed over the top of the stairs: he can't pass until he slashes it (SLASH THE TAPE); it parts and hangs. |
 | Whip | 7 to 12 | | As above. |
@@ -76,7 +76,7 @@ The existing grids are unchanged (`bull.py --check` passes).
 - The whip, the Rugmergency (cabinet, sign, glass, item get) and the door as the floor's own cut-ins, the way the long ride holds the camera.
 - The hand-off: start `floorHall` on the kick, then start the 13th Floor without restarting the band; its banner is the floor's own.
 - Start plays the stairs; the 13th Floor on its own (`#stage=floor13`, replay) starts with the katana.
-- Hearts carry across the whips up and refill only when he grabs the katana; a death restarts the section with full hearts (after the Rugmergency, with the katana).
+- Hearts carry across the whips up and refill only when he grabs the katana; a death before the katana starts the whole stairwell over (full hearts, the souls he came in with); after the katana a continue puts him back just after the fanfare (at the cabinet, katana in hand, full hearts), whether he died on the 2nd landing or the 3rd.
 - Bots for the stairs, and the usual checks: the finished stages identical, tests pass.
 
 ## In the game
