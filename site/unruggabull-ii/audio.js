@@ -544,6 +544,37 @@ window.UnrugSound = (function () {
     for (let k = 0; k < 80; k++) { const at = t + .9 + k * 1.45; ping.frequency.setValueAtTime(hz([86, 89, 93, 98][k % 4]), at); pg.gain.setValueAtTime(.05, at); pg.gain.exponentialRampToValueAtTime(.0005, at + 1); }
     return { out, filter, nodes, gains, noise, ng, lfo, depth };
   }
+  // The 13th Floor's tease of what the streams become: a whisper of the roof beam under the shots while the soul is in
+  // the gun. The beam's hum (D, an octave above the roof's so phone speakers carry it, through a filter wobbling seven
+  // times a second) and two of its 'aah' voices, D and A,
+  // far quieter than the roof's; each shot keeps it up and it fades a moment after the last. Built on the first shot
+  // and taken down a second and a half after the last, so nothing runs in between.
+  const TEASE_VOL = .45;
+  let tease = null, teaseStop = 0;
+  function teaseHum(t) {
+    if (!tease) {
+      const out = ctx.createGain(); out.gain.value = 0; out.connect(sfxBus);
+      const nodes = [], gains = [out];
+      const o = (type, f, d = 0) => { const n = ctx.createOscillator(); n.type = type; n.frequency.value = f; n.detune.value = d; n.start(); nodes.push(n); return n; };
+      const gn = v => { const x = ctx.createGain(); x.gain.value = v; gains.push(x); return x; };
+      const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 1100; hf.Q.value = 3; gains.push(hf); hf.connect(out);
+      const hl = o('sine', 7), hd = gn(600); hl.connect(hd); hd.connect(hf.frequency);
+      for (const [f, v] of [[146.8, .08], [293.7, .04]]) { const n = o('sawtooth', f), g = gn(v); n.connect(g); g.connect(hf); }
+      const sum = gn(1);
+      for (const [f, q, v] of [[730, 5, 1], [1090, 7, .7]]) { const b = ctx.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = f; b.Q.value = q; gains.push(b); const bg = gn(v); sum.connect(b); b.connect(bg); bg.connect(out); }
+      for (const [m, d] of [[62, -9], [69, 8]]) { const n = o('sawtooth', hz(m), d), v = o('sine', 5), vd = gn(hz(m) * .008), g = gn(.09); v.connect(vd); vd.connect(n.frequency); n.connect(g); g.connect(sum); }
+      tease = { out, nodes, gains };
+    }
+    const g = tease.out.gain;
+    g.cancelScheduledValues(t); g.setTargetAtTime(TEASE_VOL, t, .05); g.setTargetAtTime(0, t + .3, .12);
+    clearTimeout(teaseStop); teaseStop = setTimeout(stopTease, 1500);
+  }
+  function stopTease() {
+    if (!tease) return;
+    tease.nodes.forEach(n => { try { n.stop(); } catch (e) {} n.disconnect(); });
+    tease.gains.forEach(n => n.disconnect());
+    tease = null;
+  }
   function stopLoop(loop) {
     if (!loop) return;
     loop.out.gain.cancelScheduledValues(ctx.currentTime); loop.out.gain.setValueAtTime(0, ctx.currentTime);
@@ -589,16 +620,26 @@ window.UnrugSound = (function () {
     chord: t => { [62, 66, 69, 74, 78].forEach((m, i) => osc(sfxBus, i < 3 ? 'triangle' : 'p50', hz(m), t + i * .018, 3.2, i < 3 ? .12 : .055, { attack: .018, sustain: .2 })); },
     // the blaster: a bright laser zap sweeping down, a sparkle on top, a punchy low kick under it and a crack of noise.
     // It steps through three pitches so steady fire sings instead of droning; Spread Shot adds a fat detuned buzz.
-    shot: (t, spread) => {
+    // arg: true for Spread Shot's extra layer; 'soft' while the 48th Floor's soul streams sing over it (about half as loud)
+    shot: (t, arg) => {
+      const spread = arg === true, v = arg === 'soft' ? .45 : 1;
       const f = [1320, 1180, 1480][shotN++ % 3] * (1 + Math.random() * .04);
-      osc(sfxBus, 'p25', f, t, .1, .14, { to: f * .32, sustain: .5 });
-      osc(sfxBus, 'p12', f * 2, t, .04, .05, { to: f * .9 });
-      osc(sfxBus, 'square', 210, t, .07, .13, { to: 70, sustain: .4 });
-      noiseHit(sfxBus, t, .05, .2, 'highpass', 3500);
+      osc(sfxBus, 'p25', f, t, .1, .14 * v, { to: f * .32, sustain: .5 });
+      osc(sfxBus, 'p12', f * 2, t, .04, .05 * v, { to: f * .9 });
+      osc(sfxBus, 'square', 210, t, .07, .13 * v, { to: 70, sustain: .4 });
+      noiseHit(sfxBus, t, .05, .2 * v, 'highpass', 3500);
       if (spread) { osc(sfxBus, 'sawtooth', f * .5, t, .1, .08, { to: f * .2 }); osc(sfxBus, 'sawtooth', f * .505, t, .1, .06, { to: f * .2 }); }
     },
-    // the 13th Floor's soul stream beside the bolt: a quiet glassy shimmer, D6 sliding up to A6, under the zap
-    hintStream: t => { osc(sfxBus, 'sine', hz(86), t, .18, .045, { to: hz(93), sustain: .5 }); osc(sfxBus, 'triangle', hz(98), t + .03, .14, .018, { vib: true, sustain: .4 }); },
+    // the 13th Floor's soul stream beside the bolt, a tease of the 48th Floor's and the roof's: the 48th Floor's stream
+    // voice (an airy rising whoosh and two soft singing tones, D and A) at two thirds of its level, over a whisper of the
+    // roof beam (teaseHum); the zap plays soft under it, as on the 48th
+    hintStream: t => {
+      noiseHit(sfxBus, t, .2, .033, 'bandpass', 700, 3, 2600);
+      osc(sfxBus, 'sine', hz(74), t, .22, .036, { to: hz(75), attack: .03, sustain: .8, vib: true });
+      osc(sfxBus, 'sine', hz(81), t + .02, .2, .026, { to: hz(82), attack: .03, sustain: .8, vib: true });
+      osc(sfxBus, 'triangle', hz(93), t + .04, .1, .008, { attack: .02 });
+      teaseHum(t);
+    },
     // out of charge: a dry double click; the last shot powers down and vents (it's overheated); full again chirps
     empty: t => { for (const d of [0, .06]) { osc(sfxBus, 'square', 110, t + d, .03, .14); noiseHit(sfxBus, t + d, .025, .3, 'bandpass', 2600, 5); } },
     drained: t => { osc(sfxBus, 'p25', 900, t, .4, .1, { to: 90, sustain: .8 }); osc(sfxBus, 'square', 220, t + .05, .3, .06, { to: 55 }); noiseHit(sfxBus, t + .12, .6, .07, 'highpass', 5200); },

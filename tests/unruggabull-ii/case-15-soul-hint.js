@@ -47,7 +47,8 @@
     // a soul stream does normal blaster damage (at the stunned rate)
     R.shots = soul.slice(0, 1); const hp = b.hp;
     for (let i = 0; i < 60 && R.shots.length; i++) { quiet(); update(1 / 60); }
-    check(Math.abs((hp - b.hp) - TUNE.shotDmg * TUNE.jamMult) < 1e-6, 'a soul stream does normal damage (' + (hp - b.hp) + ')');
+    check(Math.abs((hp - b.hp) - TUNE.finale.dmg) < 1e-6, 'a soul stream does the finish\'s damage (' + (hp - b.hp) + ')');
+    check(TUNE.lastStand / (2 * TUNE.finale.dmg) * TUNE.fireEvery >= 3.5 && TUNE.finale.window > TUNE.lastStand / (2 * TUNE.finale.dmg) * TUNE.fireEvery * 1.8, 'holding fire, bolt and stream take about four seconds to finish it, in a window with room to spare');
     // miss the window and it wakes up; the soul stays
     for (let i = 0; i < 60 * (TUNE.finale.window + .2) && b.final; i++) { quiet(); update(1 / 60); }
     check(!b.final && b.st === 'fight' && b.lastStand && b.hp > 0 && R.hint.streams === 2, 'miss the window and it shakes the stun off, with the soul still in the gun');
