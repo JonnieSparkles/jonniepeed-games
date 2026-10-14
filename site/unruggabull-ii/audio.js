@@ -545,10 +545,11 @@ window.UnrugSound = (function () {
     return { out, filter, nodes, gains, noise, ng, lfo, depth };
   }
   // The 13th Floor's tease of what the streams become: a whisper of the roof beam under the shots while the soul is in
-  // the gun. The beam's hum (low D through a filter wobbling seven times a second) and two of its 'aah' voices, D and A,
+  // the gun. The beam's hum (D, an octave above the roof's so phone speakers carry it, through a filter wobbling seven
+  // times a second) and two of its 'aah' voices, D and A,
   // far quieter than the roof's; each shot keeps it up and it fades a moment after the last. Built on the first shot
   // and taken down a second and a half after the last, so nothing runs in between.
-  const TEASE_VOL = .3;
+  const TEASE_VOL = .7;
   let tease = null, teaseStop = 0;
   function teaseHum(t) {
     if (!tease) {
@@ -556,12 +557,12 @@ window.UnrugSound = (function () {
       const nodes = [], gains = [out];
       const o = (type, f, d = 0) => { const n = ctx.createOscillator(); n.type = type; n.frequency.value = f; n.detune.value = d; n.start(); nodes.push(n); return n; };
       const gn = v => { const x = ctx.createGain(); x.gain.value = v; gains.push(x); return x; };
-      const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 600; hf.Q.value = 3; gains.push(hf); hf.connect(out);
-      const hl = o('sine', 7), hd = gn(350); hl.connect(hd); hd.connect(hf.frequency);
-      for (const [f, v] of [[73.4, .08], [146.8, .03]]) { const n = o('sawtooth', f), g = gn(v); n.connect(g); g.connect(hf); }
+      const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 1100; hf.Q.value = 3; gains.push(hf); hf.connect(out);
+      const hl = o('sine', 7), hd = gn(600); hl.connect(hd); hd.connect(hf.frequency);
+      for (const [f, v] of [[146.8, .08], [293.7, .04]]) { const n = o('sawtooth', f), g = gn(v); n.connect(g); g.connect(hf); }
       const sum = gn(1);
       for (const [f, q, v] of [[730, 5, 1], [1090, 7, .7]]) { const b = ctx.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = f; b.Q.value = q; gains.push(b); const bg = gn(v); sum.connect(b); b.connect(bg); bg.connect(out); }
-      for (const [m, d] of [[62, -9], [69, 8]]) { const n = o('sawtooth', hz(m), d), v = o('sine', 5), vd = gn(hz(m) * .008), g = gn(.05); v.connect(vd); vd.connect(n.frequency); n.connect(g); g.connect(sum); }
+      for (const [m, d] of [[62, -9], [69, 8]]) { const n = o('sawtooth', hz(m), d), v = o('sine', 5), vd = gn(hz(m) * .008), g = gn(.09); v.connect(vd); vd.connect(n.frequency); n.connect(g); g.connect(sum); }
       tease = { out, nodes, gains };
     }
     const g = tease.out.gain;
@@ -629,7 +630,7 @@ window.UnrugSound = (function () {
     },
     // the 13th Floor's soul stream beside the bolt, a tease of the 48th Floor's and the roof's: the 48th's stream figure
     // (D6 gliding up a hair, A6 over it) at three quarters of its level, over a whisper of the roof beam (teaseHum)
-    hintStream: t => { osc(sfxBus, 'sine', hz(86), t, .11, .015, { to: hz(87) }); osc(sfxBus, 'triangle', hz(93), t + .012, .09, .009, {}); teaseHum(t); },
+    hintStream: t => { osc(sfxBus, 'sine', hz(86), t, .13, .04, { to: hz(87) }); osc(sfxBus, 'triangle', hz(93), t + .012, .11, .022, {}); teaseHum(t); },
     // out of charge: a dry double click; the last shot powers down and vents (it's overheated); full again chirps
     empty: t => { for (const d of [0, .06]) { osc(sfxBus, 'square', 110, t + d, .03, .14); noiseHit(sfxBus, t + d, .025, .3, 'bandpass', 2600, 5); } },
     drained: t => { osc(sfxBus, 'p25', 900, t, .4, .1, { to: 90, sustain: .8 }); osc(sfxBus, 'square', 220, t + .05, .3, .06, { to: 55 }); noiseHit(sfxBus, t + .12, .6, .07, 'highpass', 5200); },
