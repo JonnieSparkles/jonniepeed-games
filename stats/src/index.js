@@ -367,12 +367,13 @@ async function latestRuns(env, { since, game, board, mode, missed }) {
   let boardOnly = [], unseen = null, capped = false;
   if (env.SCORES) {
     try {
-      // Initials for listed runs that were saved, matched by the run ID from the leaderboard token.
+      // Initials for listed runs that were saved, matched by the run ID from the leaderboard token, and the score
+      // saved (a winner saves at the victory card, so an endless run's saved score is the one it won with).
       const ids = [...new Set(recent.map(r => r.score_run).filter(Boolean))];
       if (ids.length) {
-        const saved = await all(env.SCORES.prepare(`SELECT run_id, name FROM scores WHERE run_id IN (${ids.map(() => '?').join(',')})`).bind(...ids));
-        const byRun = new Map(saved.map(r => [r.run_id, r.name]));
-        for (const r of recent) if (byRun.has(r.score_run)) r.name = byRun.get(r.score_run);
+        const saved = await all(env.SCORES.prepare(`SELECT run_id, name, score FROM scores WHERE run_id IN (${ids.map(() => '?').join(',')})`).bind(...ids));
+        const byRun = new Map(saved.map(r => [r.run_id, r]));
+        for (const r of recent) if (byRun.has(r.score_run)) { r.name = byRun.get(r.score_run).name; r.saved_score = byRun.get(r.score_run).score; }
       }
     } catch (_) { /* the stats runs still show */ }
     const found = missed || await missedSaves(env, { since, game, board });

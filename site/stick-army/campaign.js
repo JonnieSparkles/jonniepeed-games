@@ -1254,7 +1254,7 @@ var StickArmyCampaign = function (w) {
   }
   function showWin() {
     var S = w.S;
-    S.mode = 'won'; S.won = true; S.wonAt = S.wave;
+    S.mode = 'won'; S.won = true; S.wonAt = S.wave; S.wonScore = S.score;
     w.showRedCross('win');
     // A co-op win (S.coop) isn't counted in this device's wins (coop.md).
     var keys = w.lv().KEYS, wins = w.load(keys.wins, 0) + 1;

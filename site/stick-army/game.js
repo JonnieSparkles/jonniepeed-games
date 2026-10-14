@@ -377,7 +377,7 @@
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0, hqSafe: 0, hqHit: 0 },
-      hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, endless: false, redCrossPaid: false,
+      hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, wonScore: 0, endless: false, redCrossPaid: false,
       matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level,
       // One player in solo, two in co-op (coop.md).
       coop: RUN.players > 1, players: RUN.players > 1 ? [makePlayer(), makePlayer()] : [makePlayer()]
@@ -2683,7 +2683,8 @@
       crew: S.recruits.filter(function (r) { return !r.dead; }).length + (S.bed ? 1 : 0), fallen: S.fallen.length, tags: S.players.reduce(function (n, p) { return n + p.tags; }, 0)
     };
     if ((S.mode === 'over' || S.mode === 'dying') && S.lastHit) st.cause = S.lastHit;
-    if (S.won) st.won_at = S.wonAt;
+    // won_score: the score at the victory card, so an endless run still shows what it won with.
+    if (S.won) { st.won_at = S.wonAt; st.won_score = S.wonScore; }
     if (S.captain) st.captain = S.captain;
     if (S.endless) st.endless = true;
     if (S.level !== 'soldier') st.level = S.level;

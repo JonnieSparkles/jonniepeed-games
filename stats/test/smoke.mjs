@@ -178,6 +178,7 @@ await test('a saved run shows its initials', async () => {
   const row = (await detail('thimbleful')).recent.find(r => r.score === 9 && r.name === 'ZQX');
   assert.ok(row, 'run with initials not found');
   assert.equal(row.saved, true);
+  assert.equal(row.saved_score, 9, 'the score saved to the board comes with it');
   assert.deepEqual(row.stats, { golds: 1, spills: 5, earned: 0, storm: 0 });
   // Saves count only runs the dashboard saw, never more than the runs themselves.
   assert.ok(before.saves >= 1 && before.saves <= before.runs, JSON.stringify(before));

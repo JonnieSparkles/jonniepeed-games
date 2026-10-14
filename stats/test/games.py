@@ -147,15 +147,16 @@ def stick_army(browser):
     # A win reports as soon as the victory card shows, as the wave-end code calls it.
     page.click('#againBtn')
     second = check_start(beacons(page)[2], 'stick-army', 1)
-    page.evaluate("armyTest('S.wave = 15; showWin(); reportWin();')")
-    won = check_end(beacons(page)[3], second, 'won', ['wave', 'won_at'])
-    assert won['stats']['won_at'] == 15 and 'cause' not in won['stats'] and 'endless' not in won['stats'], won
+    page.evaluate("armyTest('S.wave = 15; S.score = 5000; showWin(); reportWin();')")
+    won = check_end(beacons(page)[3], second, 'won', ['wave', 'won_at', 'won_score'])
+    assert won['stats']['won_at'] == 15 and won['stats']['won_score'] == 5000 and 'cause' not in won['stats'] and 'endless' not in won['stats'], won
     # Keep going: the same run carries on, so hiding the page reports it again with the endless progress.
     page.click('#keepBtn')
-    page.evaluate("armyTest('S.wave = 17;')")
+    page.evaluate("armyTest('S.wave = 17; S.score = 9000;')")
     page.evaluate('__hide()')
     deeper = check_end(beacons(page)[4], second, 'won', ['wave', 'won_at', 'endless'])
     assert deeper['stats']['wave'] == 17 and deeper['stats']['endless'] is True, deeper
+    assert deeper['score'] == 9000 and deeper['stats']['won_score'] == 5000, deeper  # the win's score stays
     # Restart from pause in the next wave: the run reports once more (still won), then a new run starts.
     page.click('#continueBtn')
     page.click('#pauseBtn')
