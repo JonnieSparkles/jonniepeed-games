@@ -77,7 +77,7 @@ Done in one pull request: the beats, set, cut-ins, lighting, words and fight abo
 - **Lines:** the drafts above are approved as written; "Long way up." / "Since 1987, sir." stay cut.
 - **Crouch** stays in the arena, for ducking the dives. Same controls on every stage.
 - **p(Loom)'s voice:** no SAM (its license isn't clear and our own voice isn't built yet). It talks in the machine blips it uses on the roof, keeping its lines and caption timing.
-- **The plain ride's drops** are as they were; only the long ride's crate changed (full hearts, or 20 souls if full).
+- **The quiet ride's drops** are as they were; only the long ride's crate changed (full hearts, or 20 souls if full).
 - **Horns Up** is the storyboard's track in the sequencer's pattern format (`tools/unruggabull-ii/horns-up.js` writes it), on the section tracks' own synth.
 - **Standing at a wall** no longer makes the fight safe (Jonnie's note on the prototype): dives curve through where he's standing, waves come down the threads on both sides of him, in through the open shaft behind him when he's against a wall, and one with no room to keep its distance climbs over him.
 - **Timing:** the crate comes over at 58.0 s (59.2 on the prototype), and he can walk out once the operator has asked (58.6 s); he answers "Roof." on his way out.

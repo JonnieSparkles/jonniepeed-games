@@ -2,12 +2,30 @@
   const check = (ok, msg) => { if (!ok) throw new Error(msg); };
   const tick = seconds => { for (let i = 0; i < Math.ceil(seconds * 60); i++) update(1 / 60); };
   const T = floors.elevator.T;
+  // Observe the draw transform without shipping hooks or changing simulation state.
+  const drawnBull = () => {
+    const scales = [], draws = [], probe = { globalAlpha: 1, save() {}, restore() {}, translate() {},
+      scale(x, y) { scales.push([x, y]); }, drawImage() { draws.push(this.globalAlpha); } };
+    floor.arena.use(probe);
+    try { floor.arena.drawBull(); } finally { floor.arena.use(g); }
+    return { scales, draws };
+  };
   const fresh = () => { travelHook = null; RUN.force = 42; newRun(null, 'elevator'); RUN.force = null; setState('play'); bull.u = 0; clearHeld(); input.jump = input.slash = input.shoot = 0; };
   // a carpshit already hovering where we want it
   const enemy = (u, h) => { const e = floor.arena.spawn('flyer'); Object.assign(e, { u, h, hover: h, dropping: false, age: 0, nextThrow: 99, swoopT: 99 }); return e; };
   const at = t => { while (R.elevator.t < t && R.phase !== 'dead' && R.phase !== 'win') update(1 / 60); };
   try {
+    const entranceRun = render => {
+      newRun({stage:'elevator',transfer:true,fight:false,from:13,walkIn:true,souls:31,continues:2,
+        heldDrop:'bullRun',seedState:12345,runSeed:77,destination:{floor:48,label:'48',stage:'floor48'}});
+      setState('play'); clearHeld();
+      for(let i=0;i<180;i++){ update(1/60); if(render && i%12===0) draw(); }
+      return JSON.stringify({t:R.elevator.t,u:bull.u,board:R.elevator.board,cue:R.elevator.cue,seed,
+        souls:R.souls,hearts:R.hearts,continues:R.continues,held:R.heldDrop,locked:R.arena.locked,track:Snd.track});
+    };
+    check(entranceRun(false) === entranceRun(true), 'drawing the entrance never changes the carried run or cue timing');
     fresh();
+    check(!R.elevator.board && floor.doorOpening() === 0, 'direct elevator entry skips boarding and starts with closed doors');
     check(R.stage === 'elevator' && R.heldDrop === null && R.elevator.indicator === 13 && R.elevator.fight, 'the long ride starts at 13 with no held supply');
     tick(.5); check(R.talk && R.talk.text === 'FLOOR?' && R.talk.speaker === 'operator' && Snd.track === 'hornsUp', 'operator asks Floor? over the muzak');
     bull.inv = 1e9; at(T.reel); check(!R.arena.enemies.length && R.elevator.indicator > 13, 'the climb is a breather: no carpshits before the reel');
@@ -62,15 +80,86 @@
     }
     // The real clear button carries the seeded stream and souls; rugged in the fight, continue from the threads.
     newRun(); setState('play'); R.souls = R.shown = 123; R.hearts = 1; R.phase = 'win'; R.endT = 130;
-    const oldSeed = seed; endRun('clear'); check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again' && !altBtn.hidden, 'elevator is primary, replay secondary'); goBtn.click();
+    drops.give('spread'); const oldSeed = seed; endRun('clear'); check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again' && !altBtn.hidden, 'elevator is primary, replay secondary'); goBtn.click();
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters the ride, full hearts');
-    check(!R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.stage === 'floor48', 'the 13th Floor takes the plain ride to the 48th Floor');
+    check(!R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.stage === 'floor48', 'the 13th Floor takes the quiet ride to the 48th Floor');
+    check(R.elevator.board && floor.doorOpening() === 1 && bull.u === -1.05 && R.arena.outShrink === false,
+      'the clear button starts the open-door walk-in from the left, full size');
+    check(R.continues === 0 && checkpoint.seedState === oldSeed && !checkpoint.walkIn && !checkpoint.board,
+      'the walk-in carries continues and seed; the checkpoint stays a closed-door ride');
+    tick(1.45);
+    check(R.elevator.board && R.elevator.t === 0 && bull.u === 0 && R.arena.out > 0 && !R.talk,
+      'he reaches the doorway and turns his back before any ride cues');
+    const boarding = drawnBull();
+    check(boarding.scales.length === 1 && boarding.scales[0][0] === 1 && boarding.scales[0][1] === 1 && boarding.draws[0] === 1,
+      'boarding draws him full size and fully visible next to the operator');
+    tick(.3); draw();
+    const visible = view.getImageData(210, 155, 60, 85).data;
+    bull.u = -.7; draw(); const emptyDoor = view.getImageData(210, 155, 60, 85).data; bull.u = 0;
+    const rows = [];
+    for(let y=0;y<85;y++) for(let x=0;x<60;x++) {
+      const i=(y*60+x)*4;
+      if(visible[i]!==emptyDoor[i] || visible[i+1]!==emptyDoor[i+1] || visible[i+2]!==emptyDoor[i+2]) { rows.push(y); break; }
+    }
+    check(rows.length && Math.max(...rows)-Math.min(...rows) >= 60, 'the open doorway actually shows his full-height boarding sprite');
+    tick(.2); check(R.elevator.board && floor.doorOpening() < 1 && Snd.track === 'pleaseHold' && !R.talk,
+      'Please Hold starts as the doors close, with no early FLOOR?');
+    tick(.68);
+    check(!R.elevator.board && floor.doorOpening() === 0 && R.elevator.t < .05 && !R.talk && !R.arena.out && R.arena.outShrink,
+      'the entrance finishes before the ride clock and its cues start; exit shrinking returns');
+    check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 5, 'boarding preserves the carried run');
+    tick(.35); check(R.talk && R.talk.text === 'FLOOR?' && R.t >= 2.95, 'the opening cue shifts by the entrance length');
+    // A quiet-ride continue skips boarding and preserves entry souls/seed/held supply.
+    R.hearts = 1; bull.inv = 0; hurtBull(1, 'test'); tick(3); goBtn.click();
+    check(!R.elevator.board && floor.doorOpening() === 0 && R.elevator.t === 0 && R.continues === 1 && R.souls === 123 &&
+      R.hearts === 5 && R.heldDrop === 'spread' && seed === oldSeed, 'quiet-ride continue skips boarding and keeps carried state: ' + JSON.stringify({board:R.elevator.board,doors:floor.doorOpening(),t:R.elevator.t,continues:R.continues,souls:R.souls,hearts:R.hearts,held:R.heldDrop,seed,oldSeed}));
+    check(Snd.track === 'pleaseHold', 'the real 13 to 48 quiet ride plays Please Hold');
+    const quietLines = [], expectedQuiet = [
+      [.35, 'operator', 'FLOOR?'], [2.6, 'bull', 'FORTY-EIGHT.'],
+      [5, 'operator', 'GOT A SLIP?'], [7.4, 'bull', 'ACCOUNTING.'],
+      [10, 'operator', 'THEY STILL THERE?'], [12.4, 'bull', 'LESS OF THEM.'],
+      ...floor.ELEVATOR.quiet.middle[R.elevator.middle].map(([, at, who, text]) => [at, who, text]),
+      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.']
+    ];
+    check(R.elevator.middle === (RUN.seed >>> 0) % 3 && floor.ELEVATOR.quiet.middle.length === 3, 'the middle exchange is picked from the run seed');
+    const quietEvents = []; emitHook = (type) => quietEvents.push(type);
+    let quietTalk = null;
+    bull.u = -.4; keys.kbRight = true;
+    while (R.elevator.t < 35.1) {
+      const t = R.elevator.t, before = bull.u;
+      if (t >= .2) keys.kbRight = false;
+      if (t >= 30.4) bull.u = 0; // already in the doorway: no early exit can swallow the arrival exchange
+      update(1 / 60);
+      if (t < .2) check(bull.u > before && !R.arena.locked, 'quiet-ride banter never locks movement');
+      check(!R.arena.out && R.stage === 'elevator', 'no walking out before the last arrival bubble finishes');
+      check(!floor.locked(t) && !floor.cutActive(t) && !R.arena.enemies.length, 'the quiet ride has no fight or cut-ins');
+      if (R.talk && R.talk !== quietTalk) {
+        quietTalk = R.talk; quietLines.push([t, R.talk.speaker, R.talk.text]);
+      }
+      if (t < 29) check(Snd.track === 'pleaseHold', 'Please Hold lasts through the climb');
+      else check(Snd.track === null, 'the ding hard-cuts Please Hold');
+    }
+    check(quietLines.length === expectedQuiet.length && quietLines.every((line, i) =>
+      Math.abs(line[0] - expectedQuiet[i][0]) < .02 && line[1] === expectedQuiet[i][1] && line[2] === expectedQuiet[i][2]),
+      'all quiet-ride lines play once, in order, at their times: ' + JSON.stringify(quietLines));
+    check(!quietEvents.some(type => ['arena_spawn', 'arena_throw', 'elevator_eye', 'elevator_cut', 'elevator_snap', 'elevator_heavy'].includes(type)), 'quiet ride stays quiet');
+    check(R.elevator.indicator === 48 && R.elevator.crate && floor.doorOpening() === 1, 'arrival at 48 keeps the doors and supply crate');
+    check(seed === oldSeed, 'quiet-ride dialogue and drawing consume no outcome randomness');
+    tick(.05); check(R.arena.out > 0 && !R.talk, 'walking out starts only once the last arrival bubble is gone');
+    tick(1.2); check(R.stage === 'floor48' && R.souls === 123, 'the quiet ride carries the run onto the 48th Floor');
+    emitHook = null;
+    floor.startLobby(true); R.arena.out = .65;
+    const lobbyBoarding = drawnBull();
+    check(R.arena.outShrink === false && lobbyBoarding.scales[0][0] === 1 && lobbyBoarding.draws[0] === 1,
+      'the 48th Floor lobby also boards at full size without fading');
+    R.arena.out = 0;
+    const longSeed = seed;
     travel('elevator', { fight: true, from: 48 });   // the 48th Floor's lobby takes the long ride
-    check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && seed === oldSeed, 'the long ride from 48 carries the run');
+    check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && seed === longSeed, 'the long ride from 48 carries the run');
     bull.inv = 1e9; at(T.reel + 6); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'flyer'); tick(3);
     check(state === 'over' && checkpoint.souls === 123 && checkpoint.startAt === T.thread, 'the continue card keeps the entry souls and the threads');
     goBtn.click();
-    check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && R.elevator.t === T.thread && R.continues === 1 && !R.arena.enemies.length, 'continue starts at the threads');
+    check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && R.elevator.t === T.thread && R.continues === 2 && !R.arena.enemies.length, 'continue starts at the threads');
     tick(.5); check(R.talk && R.talk.speaker === 'ploom', 'the threads come in again');
     // the top: the threads let go and take the last carpshits with them, the music stops
     bull.inv = 1e9; at(T.arrive - .05); const souls = R.souls, left2 = R.arena.enemies.length;
@@ -88,9 +177,17 @@
     bull.u = 0; at(T.doors + floor.ELEVATOR.exitAfter + .1); check(!R.arena.out, 'on the long ride he waits in the doorway for the exchange');
     at(T.doors + floor.ELEVATOR.ask.roof + .05); check(R.talk && R.talk.text === 'ROOF.' && !R.arena.out, 'FLOOR? and ROOF. play before he leaves');
     bull.u = .5; at(T.doors + floor.ELEVATOR.ask.out + .1); check(!R.arena.out, 'he walks out only from the doorway');
-    bull.u = 0; tick(.1); check(R.arena.out > 0 && R.arena.locked, 'in the doorway he walks out');
+    bull.u = 0; tick(.1); check(R.arena.out > 0 && R.arena.locked && R.arena.outShrink, 'in the doorway he walks out, with exit shrinking unchanged');
+    const exiting = drawnBull();
+    check(Math.abs(exiting.scales[0][0] - (1 - R.arena.out * .35)) < 1e-12, 'the roof walk-out still draws him shrinking');
     full = R.souls; tick(1.2);
     check(R.stage === 'roof' && R.roof.state === 'elevator' && R.roof.fromRide && R.souls === full && R.roof.caught === full && R.hearts === 5, 'the roof starts its lead-in with the carried souls');
+    // every middle exchange comes up: the pick follows the run seed alone
+    const middles = new Set();
+    for (const k of [0, 1, 2]) { RUN.force = k; newRun({ stage: 'elevator', transfer: true, fight: false, from: 13, souls: 0, destination: { floor: 48, label: '48', stage: 'floor48' } }); RUN.force = null; middles.add(R.elevator.middle); }
+    check(middles.size === 3, 'all three middle exchanges are reachable');
+    // the tower dial: G to R in every ride, so 48 sits just under halfway
+    check(floor.floorAt(0) === 13 && Math.abs(floor.floorAt(2 + floor.ELEVATOR.quiet.climb) - 48) < 1e-9, 'the quiet ride reads 13 to 48 on the tower dial');
     // Destinations are parameters; floor label R is only the default.
     newRun({ stage: 'elevator', transfer: true, souls: 0, destination: { floor: 42, label: '42', stage: 'floor13' } }); setState('play'); bull.inv = 1e9;
     at(T.arrive + .1); check(R.elevator.indicator === 42, 'destination parameter');

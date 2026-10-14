@@ -1095,8 +1095,8 @@
     live(floor.continueText ? floor.continueText() : 'Back at SHRED-O with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
-  // The 13th Floor's elevator: the plain ride (no fight, Please Hold, a supply crate) up to the 48th Floor.
-  const RIDE_TO_48 = { fight: false, from: 13, destination: { floor: 48, label: '48', stage: 'floor48' } };
+  // The 13th Floor's elevator: the quiet ride (no fight, Please Hold, a supply crate) up to the 48th Floor.
+  const RIDE_TO_48 = { fight: false, from: 13, walkIn: true, destination: { floor: 48, label: '48', stage: 'floor48' } };
   // Phones go full screen when you start; it has to happen inside the tap.
   function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
 

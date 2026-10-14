@@ -6,9 +6,9 @@ The owner's brief: Smash TV meets Factorio. A frantic top-down twin-stick level 
 
 ## Where it sits
 
-The climb becomes **13th Floor → plain ride → 48th Floor → lobby → long ride → roof**.
+The climb becomes **13th Floor → quiet ride → 48th Floor → lobby → long ride → roof**.
 
-- The 13th Floor's **Take the elevator** starts the plain ride (no fight, Please Hold, the supply crate) from 13 to 48. Its doors open on the factory's glow, and he walks out onto the 48th Floor.
+- The 13th Floor's **Take the elevator** starts the quiet ride (no fight, Please Hold, the supply crate) from 13 to 48. Its doors open on the factory's glow, and he walks out onto the 48th Floor.
 - The 48th Floor ends in the **lobby**, side on: he walks to the elevator, DING, Please Hold, and he steps into the long ride, which now starts at 48.
 - `#stage=floor48` plays it directly (with `&seed=42` to replay); `#stage=floor48&at=lobby` starts in the lobby.
 

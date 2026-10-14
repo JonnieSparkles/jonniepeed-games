@@ -727,7 +727,7 @@ var UnrugFloor48 = function (core) {
   // passes the portrait, the car arrives (DING), the doors open on the operator, Please Hold, and he walks in.
   function startLobby(direct) {
     Q.st = 'lobby'; R.phase = 'lobby'; R.td.locked = true; R.td.camHold = null; Q.white = direct ? 0 : 1;
-    arena.newRun(R, bull); bull.u = -1.05; bull.facing = 1; bull.jh = 0; bull.slash = -1; R.shots = [];
+    arena.newRun(R, bull); R.arena.outShrink = false; bull.u = -1.05; bull.facing = 1; bull.jh = 0; bull.slash = -1; R.shots = [];
     Q.lobby = { t: 0, said: false, ding: false, out: 0, smoke: 0 };
     R.banner = null; R.talk = null; R.gold = false; R.td.streams = 0;
     Snd.music(null, { hard: true });
@@ -1106,7 +1106,7 @@ var UnrugFloor48 = function (core) {
     // the dial over the doors, as in the car: the car counting down to 48
     const dx = 2 * arena.X(F48.lobby.doorU), floorNo = dialAt(L.t);
     g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(dx, 70, 24, Math.PI, 0); g.fill();
-    const a = Math.PI + clamp((floorNo - 13) / 86, 0, 1) * Math.PI;
+    const a = Math.PI + clamp(floorNo / 99, 0, 1) * Math.PI;   // the tower dial, as in the car: G to R
     for (let i = 0; i <= 10; i++) { const b = Math.PI + i / 10 * Math.PI; core.line(g, dx + Math.cos(b) * 20, 70 + Math.sin(b) * 20, dx + Math.cos(b) * 23, 70 + Math.sin(b) * 23, '#3a2a1a'); }
     core.line(g, dx, 69, dx + Math.cos(a) * 19, 69 + Math.sin(a) * 19, '#c8302a'); core.line(g, dx + 1, 69, dx + 1 + Math.cos(a) * 18, 69 + Math.sin(a) * 18, '#c8302a');
     core.disc(g, dx, 69, 2, '#3a2a1a');

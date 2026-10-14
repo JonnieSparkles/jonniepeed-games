@@ -32,7 +32,7 @@ var UnrugArena = function (core, tuning) {
   const CW = Math.round(A.CARPF[0].width * .72), CH = Math.round(A.CARPF[0].height * .72);   // a carpshit, in picture pixels
   function newRun(r, b) {
     R = r; bull = b; bull.u = -.5; bull.facing = 1; swing = 0;
-    R.arena = { enemies: [], thrown: [], pickups: [], fx: [], locked: false, out: 0 };
+    R.arena = { enemies: [], thrown: [], pickups: [], fx: [], locked: false, out: 0, outShrink: true };
   }
   const facing = () => bull.facing || 1;
   // While the ride holds the camera (the cut-ins, the drop) he can't act: his timers still run.
@@ -260,9 +260,9 @@ var UnrugArena = function (core, tuning) {
     if (R.phase === 'dead') { drawDeath(); return; }
     const out = R.arena.out, x = PXu(bull.u), y = PYh(gh()) - Math.round(R.arena.lift || 0);   // lift: floating on the drop (drawn only)
     if (out > 0) {
-      // walking out he turns to face the roof, as the roof shows him, and gets smaller as he goes
-      const img = BACKS[Math.floor(bull.step / 1.6) % 2], k = 1 - out * .35;
-      g.save(); g.globalAlpha = Math.max(0, Math.min(1, 1.6 - out * 1.6)); g.translate(Math.round(x), Math.round(y - out * 10)); g.scale(k, k);
+      // Turn his back for either direction. Boarding keeps full size/visibility; exits recede as before.
+      const img = BACKS[Math.floor(bull.step / 1.6) % 2], shrink = R.arena.outShrink !== false, k = shrink ? 1 - out * .35 : 1;
+      g.save(); g.globalAlpha = shrink ? Math.max(0, Math.min(1, 1.6 - out * 1.6)) : 1; g.translate(Math.round(x), Math.round(y - out * 10)); g.scale(k, k);
       g.drawImage(img, -B.FEET.x, -B.FEET.y); g.restore(); return;
     }
     if (R.arena.pose) { const o = R.arena.pose; g.save(); g.translate(Math.round(x), Math.round(y)); g.scale(o.face || 1, 1); g.drawImage(o.img, -o.feet.x, -o.feet.y); g.restore(); return; }

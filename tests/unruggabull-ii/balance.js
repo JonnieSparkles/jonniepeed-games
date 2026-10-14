@@ -19,7 +19,7 @@
   // where in the long ride a heart goes: the first stretch of the fight, the armored stretch, the last floors
   function ridePart() {
     var T = floors.elevator.T, t = R.elevator.t;
-    return !R.elevator.fight ? 'plain' : t < T.reel ? 'before' : t < T.armor ? 'reel' : t < T.last ? 'armor' : t < T.arrive ? 'last' : 'top';
+    return !R.elevator.fight ? 'quiet' : t < T.reel ? 'before' : t < T.armor ? 'reel' : t < T.last ? 'armor' : t < T.arrive ? 'last' : 'top';
   }
   function record(type, data) {
     var e = { ev: type, wave: stage(), t: Math.round(R.t * 100) / 100 };
@@ -38,11 +38,14 @@
       renderEffects = options && options.fast === false && ['roof', 'elevator', 'floor48'].includes(options.stage); renderSteps = 0; renderedState = null;
       travelHook = options && ['elevator', 'floor48'].includes(options.stage) ? function () { endRun('clear'); return true; } : null;
       RUN.force = seedv;
-      if (options && options.stage === 'elevator' && (options.from != null || options.fight != null)) {
+      if (options && options.stage === 'elevator' && (options.from != null || options.fight != null || options.destination != null)) {
         const ride = floors.elevator.ELEVATOR;
         newRun({ stage: 'elevator', transfer: true, souls: 0,
           from: options.from == null ? ride.from : Number(options.from),
-          fight: options.fight == null ? ride.fight : options.fight !== false && options.fight !== 'false' });
+          fight: options.fight == null ? ride.fight : options.fight !== false && options.fight !== 'false',
+          walkIn: options.walkIn === true || options.walkIn === 'true',
+          destination: options.destination == null ? ride.destination : { floor: Number(options.destination), label: String(options.destination),
+            stage: Number(options.destination) === 48 ? 'floor48' : 'roof' } });
       } else newRun(null, options && options.stage);
       RUN.force = null;
       setState('play'); card.hidden = true; crawl.hidden = true; intro = null;

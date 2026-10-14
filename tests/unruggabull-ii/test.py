@@ -227,6 +227,38 @@ with sync_playwright() as p:
         assert not errors, (name, errors)
         context.close()
         print('PASS elevator hash/input/layout', name)
+        if touch:
+            # Every quiet-ride bubble (all three middle exchanges) at full text width, at either end of the car and in the doorway.
+            for u in [-.7, 0, .7]:
+                context, page, errors = open_page(browser, viewport={'width': size[0], 'height': size[1]}, has_touch=True, is_mobile=True)
+                page.clock.install()
+                # each of the three middle exchanges (picked from the run seed)
+                bubbles = page.evaluate("""u => unrugTest(`looping=false;
+                  (()=>{ const boxes=[];let last=null;
+                    for(const k of [0,1,2]){ RUN.force=k;
+                    newRun({stage:'elevator',transfer:true,fight:false,from:13,destination:{floor:48,label:'48',stage:'floor48'}});
+                    RUN.force=null;setState('play');setFull(true);bull.u=${u};
+                    for(let i=0;i<35.1*60;i++){ update(1/60);
+                      if(R.talk && R.talk!==last){ last=R.talk;draw();
+                        const w=textWidth(R.talk.text)*2+12, x=R.talk.speaker==='operator'?356:240;
+                        boxes.push({text:R.talk.text,x:(clamp(Math.round(x-w/2),4,480-w-4)-2)/2,
+                          y:R.talk.speaker==='operator'?63:65,width:(w+4)/2,height:12}); }
+                    }}return boxes;
+                  })()`)
+                """, u)
+                assert len(bubbles) == 33 and len({b['text'] for b in bubbles}) == 17, (name, bubbles)
+                canvas = page.locator('#c').bounding_box()
+                for box in bubbles:
+                    assert box['x'] >= 0 and box['x'] + box['width'] <= 240, (name, box)
+                    a = {key: canvas[key] + box[key] * canvas['width' if key == 'x' else 'height'] / (240 if key == 'x' else 135) for key in ['x', 'y']}
+                    a.update(width=box['width'] * canvas['width'] / 240, height=box['height'] * canvas['height'] / 135)
+                    for selector in ['#stickzone', '.shoot', '.slash']:
+                        b = page.locator(selector).bounding_box()
+                        assert a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x'] or a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y'], (name, box, selector)
+                assert not errors, (name, errors)
+                context.close()
+            print('PASS quiet-ride bubbles clear phone pads', name)
+
     # The 48th Floor's twin sticks: WASD and the mouse on desktop; the move stick, the aim stick (hold to fire, flick to
     # slash) and Slash on touch, in portrait and landscape and full screen; the lobby goes back to the usual controls.
     for name, size, touch in [('desktop', (1280, 800), False), ('phone portrait', (390, 844), True), ('phone landscape', (844, 390), True)]:
