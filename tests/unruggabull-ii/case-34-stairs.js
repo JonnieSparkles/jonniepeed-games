@@ -9,6 +9,10 @@
   check(S.Q.garageShut === Infinity, 'he comes in through the garage door, open behind him');
   keys.kbRight = true; step(.6); keys.kbRight = false;
   check(S.Q.garageShut < Infinity, 'it swings shut once he is on his way');
+  check(!R.bark || R.bark.key !== 'go', 'not a word on the first beat');
+  step(S.STAIRS.go - .6 + .05);
+  check(R.bark && R.bark.key === 'go' && R.bark.text === "LET'S GO!", "two beats in: LET'S GO!");
+  check(Snd.voiceLength('go') > 1.4 && Snd.voiceLength('go') < 1.7 && Math.abs(R.bark.total - 1.1 - Snd.voiceLength('go')) < 1e-9, 'in his recorded voice, captioned while it plays (and a beat after, like his other lines)');
   // the ground: the landings and the slopes, in h; he stands on it and his bolts leave from it
   const sec = S.SECTIONS[0], lowH = S.HY(246), topH = S.HY(106);
   check(Math.abs(S.ground(S.UX(40)) - lowH) < 1e-9 && Math.abs(S.ground(S.UX(470)) - topH) < 1e-9 && S.ground(S.UX(180)) > lowH && S.ground(S.UX(180)) < topH, 'the ground follows the stairs');

@@ -482,6 +482,28 @@ window.UnrugSound = (function () {
     musicBus.gain.setTargetAtTime(DUCKED, ctx.currentTime, .05);
     duckUntil = t0 + plan.total;
   }
+  // Unruggabull's recorded lines (voice.js, from tools/unruggabull-ii/voice/voice.py): 6-bit samples packed four to three
+  // bytes, each held until the next as a chip would play it, on the voice bus with the music ducked under them like say().
+  const VOICE = window.UnrugVoice, lineBufs = {};
+  function voiceLength(key) { const l = VOICE && VOICE.lines[key]; return l ? l.n / VOICE.rate : 0; }
+  function lineBuffer(key) {
+    if (lineBufs[key]) return lineBufs[key];
+    const l = VOICE.lines[key], bin = atob(l.data), q = new Uint8Array(l.n);
+    for (let i = 0, j = 0; j < l.n; i += 3, j += 4) {
+      const w = bin.charCodeAt(i) << 16 | bin.charCodeAt(i + 1) << 8 | bin.charCodeAt(i + 2);
+      q[j] = w >> 18 & 63; q[j + 1] = w >> 12 & 63; q[j + 2] = w >> 6 & 63; q[j + 3] = w & 63;
+    }
+    const sr = ctx.sampleRate, n = Math.ceil(l.n * sr / VOICE.rate), b = ctx.createBuffer(1, n, sr), ch = b.getChannelData(0);
+    for (let i = 0; i < n; i++) ch[i] = (q[Math.min(l.n - 1, Math.floor(i * VOICE.rate / sr))] - 31.5) / 31.5;
+    return lineBufs[key] = b;
+  }
+  function voice(key) {
+    if (!ctx || !voiceLength(key)) return;
+    const s = ctx.createBufferSource(), t0 = ctx.currentTime + .02; s.buffer = lineBuffer(key); s.connect(voiceBus); s.start(t0);
+    talking.push(s);
+    musicBus.gain.setTargetAtTime(DUCKED, ctx.currentTime, .05);
+    duckUntil = t0 + s.buffer.duration;
+  }
   // Stop whatever line is being said, for skipping ahead.
   function hush() {
     if (!ctx) return;
@@ -818,7 +840,7 @@ window.UnrugSound = (function () {
     },
     get musicState() { return { pattern: P.modern && P.id ? TRACKS[P.id].order[P.si] : null, patternLoop: P.patternLoop, playing: P.id, pending: P.pendingTrack && P.pendingTrack.id, stems: [...P.stems], nextStems: P.pendingStems && [...P.pendingStems], rate: P.rate }; },
     tracks() { return Object.entries(TRACKS).filter(([id]) => !['roof', 'roofHeavy'].includes(id)).map(([id, tr]) => ({ id, name: tr.name || id, key: tr.key, bpm: tr.bpm || tr.sections[0].bpm, stems: tr.patterns ? [...new Set(Object.values(tr.patterns).flatMap(p => Object.values(p.channels).map(c => c.stem)))] : [], seconds: tr.patterns ? compilePatterns(tr).reduce((n,p) => n + p.steps*p.stepDur, 0) : tr.sections.map(compile).reduce((n,p)=>n+p.steps*p.stepDur,0) })); },
-    say, talkTimes, hush,
+    say, talkTimes, hush, voice, voiceLength,
     toggle() {
       muted = !muted;
       try { localStorage.setItem(KEY, muted ? '1' : '0'); } catch (e) {}

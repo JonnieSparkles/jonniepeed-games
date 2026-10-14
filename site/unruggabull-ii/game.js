@@ -483,13 +483,14 @@
     if (!R.fx.some(f => f.k === 'wisp')) R.shown = R.souls;
     R.meterPulse = Math.max(0, R.meterPulse - dt);
   }
-  // Unruggabull's lines: each once per run, over his head, in his own blips until Jonnie's recordings exist.
+  // Unruggabull's lines: each once per run, in a caption, in his recorded voice where voice.js has it, his blips until then.
   const LINES = {
     start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
     dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
     rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.',
-    door: 'OK... HERE WE GO.'   // the stairwell, at the 13th Floor's door, catching his breath
+    door: 'OK... HERE WE GO.',   // the stairwell, at the 13th Floor's door, catching his breath
+    go: "LET'S GO!"   // the stairwell, two beats into Flight Risk (recorded: the first game's)
   };
   // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
@@ -497,9 +498,12 @@
     const said = R.events.said || (R.events.said = {});
     if (said[key] || (R.talk && !over)) return 0;
     said[key] = true;
-    const text = floor.lines && floor.lines[key] || LINES[key], plan = Snd.talkTimes(text, 'bull');
+    const text = floor.lines && floor.lines[key] || LINES[key], rec = Snd.voiceLength(key);
+    // recorded: the caption types out over the first two thirds of the clip
+    const plan = rec ? { times: [...text].map((c, i) => i / text.length * rec * .66), total: rec } : Snd.talkTimes(text, 'bull');
     R.bark = { key, text, t: 0, times: plan.times, total: plan.total + 1.1 };
-    Snd.say(text, 'bull'); live('Unruggabull: ' + text);
+    if (rec) Snd.voice(key); else Snd.say(text, 'bull');
+    live('Unruggabull: ' + text);
     return plan.total;
   }
   const lowHealth = () => R.hearts === 1 && (R.phase === 'hall' || R.phase === 'wake' || R.phase === 'boss');

@@ -39,6 +39,7 @@ var UnrugStairs = function (core) {
     fly: { throwFirst: [1.4, 2.4], swoopy: 1.6 }, pitcher: { keep: [.68, .91], every: [1.5, 2.2] },
     tumbler: { speed: .68, h: .043, hop: .021, radius: .05, tall: .107, reach: .082 },
     whip: .85, deadWait: 2.8, prompt: 2.4,
+    go: 2 * 60 / 162,   // "LET'S GO!", two beats into Flight Risk (162 bpm), in his recorded voice
     // the Rugmergency, from the glass breaking: he walks to the cabinet, grabs the katana, holds it up to the fanfare
     rug: { walk: .3, grab: .62, raise: .78 },
     // the door, from the top landing: the walk up, a breather bent over with his hands on his hips (until up), standing back up (rise),
@@ -270,6 +271,7 @@ var UnrugStairs = function (core) {
     } else if (Q.st === 'rug') stepRug(dt);
     else if (Q.st === 'door') { stepDoor(dt); if (R.phase === 'win') return; }
     else stepScript(dt);
+    if (Q.si === 0 && Q.secT >= STAIRS.go) core.bark('go');   // once each time the stairwell starts (bark says each line once a run)
     // the garage door swings shut behind him once he's on his way (or after a moment)
     if (Q.si === 0 && Q.garageShut === Infinity && (PXu(bull.u) > STAIRS.garage.walk || Q.secT > STAIRS.garage.wait)) { Q.garageShut = Q.secT; Snd.play('stairShut'); }
     arena.update(dt, Q.st === 'play');
