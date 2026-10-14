@@ -318,7 +318,7 @@
     R.events.shots = (R.events.shots || 0) + 1;
     const k = sc(bull.bz);
     R.fx.push({ k: 'muzzle', x: PX(bull.u, bull.bz) + A.MUZZLE.x * k, y: YH(bull.bz, bull.jh) + my * k, t: 0, dur: .08 });
-    Snd.play('shot', R.spread > 0);
+    Snd.play('shot', hs > 1 ? 'soft' : R.spread > 0);   // soft under the soul's stream, as on the 48th Floor
     if (hs > 1) Snd.play('hintStream');
     return true;
   }
@@ -560,7 +560,8 @@
     else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt); R.rallyPop = Math.max(0, (R.rallyPop || 0) - dt);
     // a rally speeds the music up as it goes
-    const tempo = R.phase === 'boss' && R.boss.rally ? 1 + Math.min(.4, .05 * R.boss.rally.count) : 1;
+    const over = R.phase === 'boss' && R.boss.overtime && R.boss.ph === 2 && TUNE.overtime ? TUNE.overtime.tempo : 1;   // the Shredder's OVERTIME
+    const tempo = over * (R.phase === 'boss' && R.boss.rally ? 1 + Math.min(.4, .05 * R.boss.rally.count) : 1);
     if (tempo !== R.tempo) { R.tempo = tempo; Snd.tempo(tempo, { boundary: 'beat' }); }   // on the beat, so it keeps up with the returns
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }

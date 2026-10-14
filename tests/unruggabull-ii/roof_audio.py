@@ -1,7 +1,7 @@
 """Render every roof hook through the actual Web Audio graph; no shipped test API."""
 def check_audio(browser, root):
     audio = (root / 'site/unruggabull-ii/audio.js').read_text().replace('  return api;', '  window.audioTest = code => eval(code);\n  return api;')
-    for hook in ['storm', 'thunder', 'snare', 'snareCut', 'gust', 'spoolSnap', 'beam', 'rush', 'pinch', 'snap', 'chord', 'bell', 'loom', 'roof', 'roofHeavy', 'quiet']:
+    for hook in ['storm', 'thunder', 'snare', 'snareCut', 'gust', 'spoolSnap', 'beam', 'rush', 'pinch', 'snap', 'chord', 'bell', 'hintStream', 'loom', 'roof', 'roofHeavy', 'quiet']:
         page = browser.new_page()
         page.evaluate('''() => { window.AudioContext = class extends OfflineAudioContext {
           constructor() { super(1, 48000 * 4, 48000); Object.defineProperty(this, 'state', {value: 'running'}); }
@@ -51,4 +51,4 @@ def check_audio(browser, root):
     }''')
     assert muted_rms < 1e-8, ('mute leaks roof sound', muted_rms)
     page.evaluate('UnrugSound.roofSound(null)'); page.close()
-    print('PASS roof audio: 15 hooks render nonzero finite sound, tracks, cadence, mute and loop cleanup')
+    print('PASS roof audio: 16 hooks render nonzero finite sound, tracks, cadence, mute and loop cleanup')
