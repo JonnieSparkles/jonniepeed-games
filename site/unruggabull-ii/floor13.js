@@ -711,7 +711,10 @@ var UnrugFloor13 = function (core) {
       for (let i = 0; i < 14; i++) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 8, BACK.x1 - 8), y: fxr(BACK.y0 + 10, BACK.y1 - 8), t: -i * .06, dur: fxr(.8, 1.3) });
     }
     // and the paper that takes it there (or any knocked back after) stuns it for the finish
-    if (b.lastStand && by !== 'blaster' && !b.final && b.hp > 0) startFinale();
+    if (b.lastStand && by !== 'blaster' && !b.final && b.hp > 0) {
+      if (b.volley || R.projs.some(p => !p.dead && !p.friendly && p.kind === 'scrap')) b.finaleNext = true;   // let the volley play out first
+      else startFinale();
+    }
     if (b.hp <= 0) defeat();
   }
   // The finish (the owner's call, Oct 13): the paper that takes it to its last stand stuns it (STUNNED, nothing
@@ -807,6 +810,14 @@ var UnrugFloor13 = function (core) {
         Snd.play('dark'); Snd.stems(STEMS.dark); live('Power saving mode: the lights go out.');
       }
     }
+    // halfway through phase 2: OVERTIME. It roars, its attacks come closer together and the music steps up a notch.
+    if (ph === 2 && !b.overtime && b.hp <= TUNE.overtime.at) {
+      b.overtime = true; shove(12); b.chomp = .6; R.shake = Math.max(R.shake, .35); R.freeze = Math.max(R.freeze, .1);
+      R.fx.push({ k: 'big', text: 'OVERTIME!', x: 120, y: 44, t: 0, dur: 1.3 });
+      Snd.play('rev'); talk('OVERTIME. UNPAID.', 'shredder'); live('SHRED-O goes into overtime: faster attacks.');
+    }
+    // the last volley plays out: reaching its last stand mid-volley, the stun waits for the volley's paper to be done
+    if (b.finaleNext && !b.volley && !R.projs.some(p => !p.dead && p.kind === 'scrap')) { b.finaleNext = false; if (!b.final && b.hp > 0) startFinale(); }
     // smoke, then sparks, as it wears down (cosmetic)
     const wear = 1 - b.hp / TUNE.bossHP;
     if (wear > .3 && Math.random() < dt * wear * 4) R.fx.push({ k: 'smoke', x: fxr(BACK.x0 + 8, BACK.x1 - 8), y: BACK.y0 + 4, t: 0, dur: 1 });
@@ -834,12 +845,13 @@ var UnrugFloor13 = function (core) {
     }
     // no attacks while the runner warns or the floor is live, and a rally waits for a pull to end
     // at its last stand it only serves: win a rally to finish it
+    if (b.finaleNext) return;   // the last volley's paper is still in the air: nothing new until it's done
     const list = b.hp <= TUNE.lastStand ? ['rally'] : ATTACKS[ph - 1], next = list[b.atkN % list.length];
     if (R.pull.st === 'warn' || (R.pull.st !== 'idle' && (R.pull.spray || next === 'rally' || next === 'marathon' || next === 'rewind')) || b.rally || R.roll) return;
     const was = b.atk;
     b.atk -= dt;
     if (was > TUNE.tell && b.atk <= TUNE.tell) { b.rev = TUNE.tell; Snd.play('rev'); shove(-3); }   // its mouth glows and it rears back: something's coming
-    if (b.atk <= 0) { attack(next); b.atkN++; b.atk = TUNE.attackEvery[ph - 1]; }
+    if (b.atk <= 0) { attack(next); b.atkN++; b.atk = b.overtime && ph === 2 ? TUNE.overtime.every : TUNE.attackEvery[ph - 1]; }
   }
   // The final hit: a white flash and a beat of stillness, slow motion while it shudders, then it blows.
   function defeat() {
@@ -1815,12 +1827,14 @@ UnrugFloor13.TUNE = {
     tell: .45,              // the Shredder's mouth glows this long before each attack
     finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
     attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
-    volley: { n: [3, 4, 5], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
+    // halfway through phase 2 it goes into OVERTIME (owner, Oct 14): a roar, attacks closer together, the music a notch faster
+    overtime: { at: 49.5, every: 1.15, tempo: 1.06 },
+    volley: { n: [3, 4, 8], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
     bossRows: { carpet: .5 },   // how fast a staple carpet crosses the floor
     liveEdge: .04,   // a live floor: how far past the rug's edge your feet can be before it shocks you
     rideJam: 1,             // cut the rug at the mouth and the jam lasts this much longer (in jamT), less further out
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
-    bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 5.5, 5] },
+    bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 8, 5] },   // phase 2's pulls further apart (owner, Oct 14): its attacks come round
     cutAfter: .7,   // a slash can't cut the runner until it has pulled this long (a beat or two), in the hall and the fight
     // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
     // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
