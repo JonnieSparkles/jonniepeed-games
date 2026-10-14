@@ -439,33 +439,43 @@ window.UnrugSound = (function () {
     loom: { f: 96, wave: 'p12', ms: 38 }, // Keep the original fallback's caption cadence.
     operator: { f: 210, wave: 'triangle', ms: 55 },
     narrator: { f: 392, wave: 'triangle', ms: 40 },
+    // p(Loom) telling the intro (owner, Oct 14): its buzzy pulse at a pitch a phone carries, dead monotone, dead even
+    machine: { f: 200, wave: 'p12', ms: 42, vol: .08, mono: true, even: true },
     // a machine talking (owner, Oct 14: his old low buzz was half as loud as Unruggabull's on a phone): a brighter pulse,
     // a square an octave under it and a gritty burst of paper-feed noise on every letter
     shredder: { f: 160, wave: 'p25', ms: 40, vol: .125, sub: .5, grit: .26 },
     announcer: { f: 620, wave: 'p25', ms: 38 },
     bull: { f: 165, wave: 'p50', ms: 46 }
   };
+  // who is a voice's name, or a function (k, ch) giving each character its own: { who, pitch, stutter } (the intro's
+  // scramble: a pitch multiplier, and a second blip that many octaves off half a letter later).
+  const voiceAt = (who, k, ch) => typeof who === 'function' ? who(k, ch) : { who };
+  const voiceOf = spec => VOICES[spec.who] || VOICES.announcer;
   // When each character of a line appears, in seconds from the start, and how long the whole line takes.
-  // The game types captions with these times, so it works the same with sound off.
+  // The game types captions with these times, so it works the same with sound off. An even voice gives every
+  // character the same step and every stop the same pause.
   function talkTimes(text, who) {
-    const V = VOICES[who] || VOICES.announcer, times = [];
-    let t = 0;
+    const times = [];
+    let t = 0, k = 0;
     for (const ch of text) {
       times.push(t);
-      if (/[a-z0-9]/i.test(ch)) t += V.ms / 1000; else if (/[.,!?:]/.test(ch)) t += .2; else t += .035;
+      const V = voiceOf(voiceAt(who, k++, ch)), stop = /[.,!?:]/.test(ch);
+      if (V.even) t += stop ? .26 : V.ms / 1000;
+      else if (/[a-z0-9]/i.test(ch)) t += V.ms / 1000; else if (stop) t += .2; else t += .035;
     }
     return { times, total: t + .18 };
   }
   let talking = [];
   function say(text, who) {
     if (!ctx) return;
-    const V = VOICES[who] || VOICES.announcer, plan = talkTimes(text, who), t0 = ctx.currentTime + .02;
+    const plan = talkTimes(text, who), t0 = ctx.currentTime + .02;
     [...text].forEach((ch, i) => {
       if (!/[a-z0-9]/i.test(ch)) return;
-      const k = (ch.toLowerCase().charCodeAt(0) * 7) % 5;
+      const spec = voiceAt(who, i, ch), V = voiceOf(spec), k = V.mono ? 0 : (ch.toLowerCase().charCodeAt(0) * 7) % 5;
       if (talking.length > 200) talking = talking.slice(-100);
-      const f = V.f * (1 + k * .08), t = t0 + plan.times[i], d = V.ms / 1000 * .75, vol = V.vol || .085;
+      const f = V.f * (1 + k * .08) * (spec.pitch || 1), t = t0 + plan.times[i], d = V.ms / 1000 * .75, vol = V.vol || .085;
       talking.push(osc(voiceBus, V.wave, f, t, d, vol, { sustain: .6 }));
+      if (spec.stutter) talking.push(osc(voiceBus, V.wave, f * spec.stutter, t + d * .6, d * .45, vol * .8, { sustain: .6 }));
       if (V.sub) talking.push(osc(voiceBus, 'square', f * .5, t, d, vol * V.sub, { sustain: .5 }));
       if (V.grit) noiseHit(voiceBus, t, .035, V.grit, 'bandpass', 1500 + k * 350, 2.5);
     });

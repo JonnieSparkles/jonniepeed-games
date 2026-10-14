@@ -82,10 +82,10 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
   let run = null;   // { i, t, plan } while the intro plays
   const buttons = I.LINES.map((_, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Still ' + (i + 1); b.onclick = () => { Snd.init(); begin(i); }; jump.append(b); return b; });
   function still(i) {
-    const plan = Snd.talkTimes(I.LINES[i], 'narrator');
+    const plan = Snd.talkTimes(I.LINES[i], I.voice(i));
     run = { i, t: 0, plan };
     crawlText.textContent = ''; more.hidden = true;
-    Snd.say(I.LINES[i], 'narrator');
+    Snd.say(I.LINES[i], I.voice(i));
     live.textContent = I.LABELS[i] + ' ' + I.LINES[i];
     buttons.forEach((b, k) => b.setAttribute('aria-current', k === i));
   }
@@ -115,12 +115,12 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
       // each still waits for a tap; once its line is said, a blinking arrow says so ("Tap" on the first one)
       const done = run.t > run.plan.total + .25; if (more.hidden === done) { more.hidden = !done; moreTap.hidden = run.i !== 0; }
     }
-    if (run) I.draw(g, run.i, run.t, run.plan); else if (!window.__still) I.draw(g, 0, 1.2, Snd.talkTimes(I.LINES[0], 'narrator'));
+    if (run) I.draw(g, run.i, run.t, run.plan); else if (!window.__still) I.draw(g, 0, 1.2, Snd.talkTimes(I.LINES[0], I.voice(0)));
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
   // for checking frames: __shot(i, t) draws still i at t seconds and holds it
-  window.__shot = (i, t, gag) => { window.__still = true; run = null; I.reset(); const plan = Snd.talkTimes(I.LINES[i], 'narrator'); if (gag) I.tap(i, gag[0], gag[1], gag[2], plan); I.draw(g, i, t, plan); return plan.total; };
+  window.__shot = (i, t, gag) => { window.__still = true; run = null; I.reset(); const plan = Snd.talkTimes(I.LINES[i], I.voice(i)); if (gag) I.tap(i, gag[0], gag[1], gag[2], plan); I.draw(g, i, t, plan); return plan.total; };
 })();
 </script>
 </body>

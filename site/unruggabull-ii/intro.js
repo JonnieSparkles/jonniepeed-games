@@ -16,7 +16,7 @@ var UnrugIntro = (function () {
     'He taught it everything he knew. It was a short lesson.',
     'It took his order a little too literally. It grew up so fast.',
     'Business was booming. Floor-to-floor carpet was everywhere. Profits were through the roof.',
-    "Every soul Unruggabull freed was still on RugCo's books. So he had some questions for Accounting."
+    "Every soul Unruggabull freed was still on RugCo's books. So Unruggabull had some questions for Accounting. Sharp ones."
   ];
   // what a screen reader hears for each still, with its line
   const LABELS = [
@@ -406,7 +406,7 @@ var UnrugIntro = (function () {
     small(g, 'PRODUCTION', L + 94, T + 4, '#3a2014');
     // the equation, in red ink, as he reads it: drawn in during the second sentence and held
     const E1 = '5 SOULS IN', E2 = '> 1 RUG OUT', all = letters(E1) + letters(E2);
-    const t0 = at(plan, line, 'So he'), n = Math.floor(clamp((t - t0) / Math.max(.8, plan.total - t0 - .3)) * all);
+    const t0 = at(plan, line, 'So Unruggabull'), n = Math.floor(clamp((t - t0) / Math.max(.8, plan.total - t0 - .3)) * all);
     const mid = L + 90 + 44;
     big(g, E1, Math.round(mid - bigWidth(E1) / 2), T + 24, '#c43428', n);
     big(g, E2, Math.round(mid - bigWidth(E2) / 2), T + 40, '#c43428', n - letters(E1));
@@ -440,11 +440,37 @@ var UnrugIntro = (function () {
     }
     return null;
   }
+  // ---------- who tells it ----------
+  // The narrator tells the first three lines. On line 4 "It grew up so fast." scrambles into p(Loom)'s machine voice,
+  // on the beat its shadow outgrows the Rugfather; p(Loom) tells line 5 (good news for RugCo) and the books on line 6;
+  // at "So Unruggabull" the scramble runs back and the narrator takes the hero's move. voice(i) is for Snd.talkTimes
+  // and Snd.say: a voice's name, or a function giving each character its voice, plus machine (orange in the caption)
+  // and glitch (it flickers through junk as it's typed).
+  const N = { who: 'narrator' }, M = { who: 'machine', machine: true };
+  const GREW = LINES[3].indexOf('It grew'), BACK = LINES[5].indexOf('So Unruggabull');
+  function grew(k) {
+    if (k < GREW) return N;
+    const q = (k - GREW) / (LINES[3].length - 2 - GREW);   // 0 to 1 over the sentence: ever more likely the machine
+    if (hash(k) < q * 1.2) return { who: 'machine', machine: true, glitch: true, stutter: hash(k + 5) < .3 * (1 - q) ? (hash(k + 11) < .5 ? 2 : .5) : 0 };
+    // the narrator sagging, slipping octaves and stuttering on the way down
+    const slip = hash(k + 3) < .25 ? (hash(k + 4) < .5 ? 2 : .5) : 1;
+    return { who: 'narrator', pitch: (1 - .35 * q) * slip, glitch: true, stutter: hash(k + 9) < .4 ? (hash(k + 11) < .5 ? 2 : .5) : 0 };
+  }
+  function back(k) {
+    if (k < BACK) return M;
+    const q = Math.min(1, (k - BACK) / 24);   // back to the narrator within the first few words
+    if (hash(k + 21) < (1 - q) * 1.2 - .2) return { who: 'machine', machine: true, glitch: true, stutter: hash(k + 25) < .3 ? (hash(k + 11) < .5 ? 2 : .5) : 0 };
+    return { who: 'narrator', pitch: (.65 + .35 * q) * (hash(k + 23) < .2 * (1 - q) ? 2 : 1), glitch: q < .7, stutter: hash(k + 29) < .3 * (1 - q) ? (hash(k + 11) < .5 ? 2 : .5) : 0 };
+  }
+  const voice = i => i === 3 ? grew : i === 4 ? 'machine' : i === 5 ? back : 'narrator';
+  // character k of line i as the caption shows it
+  function look(i, k) { const v = voice(i); return typeof v === 'function' ? v(k) : v === 'machine' ? M : N; }
+
   // The way out of the last still, q 0..1: the doorway's light swells over the picture until it is all warm white.
   function exit(g, q) {
     const e = ease(clamp(q));
     glow(g, 262, 150, 60 + 330 * e, 'rgba(255,214,140,A)', Math.min(1, .3 + e));
     g.save(); g.globalAlpha = ease(clamp((q - .45) / .55)); rect(g, 0, 0, W, H, '#fff1cf'); g.restore();
   }
-  return { LINES, LABELS, draw, exit, tap, reset, ready, W, H };
+  return { LINES, LABELS, draw, exit, tap, reset, ready, voice, look, W, H };
 })();
