@@ -48,7 +48,7 @@
   const replies = spoken.filter(t => t === "LET'S DISCUSS THOSE ODDS.").length; tick(25);
   check(spoken.filter(t => t === "LET'S DISCUSS THOSE ODDS.").length === replies + 1, 'crescendo continue replays his caption as well as the return');
   // Finish through the actual odds threshold, then cut, dawn and clear card.
-  fresh(); floor.enter('beam'); R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = 0; tick(.05);
+  fresh(); floor.enter('beam'); R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = R.roof.beamBase = bull.u = 0; tick(.05);
   check(R.roof.state === 'one' && R.roof.odds === 1 && R.talk.text === 'UNLIKELY.', '1% says UNLIKELY.');
   tick(12);
   check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && Cards.kind === 'clear' && Cards.info.dept === 'ROOF', 'snap, dawn and roof clear');

@@ -13,7 +13,7 @@ p(Loom) is a paperclip maximizer for carpet. The roof in front of Unruggabull is
 - **Dodge.** Every attack is telegraphed on the tiles it will hit, then fires. Real targets darken the tile and scroll hazard stripes, with an edge that flashes on the beat; they read on bare roof and on carpet alike. A high weft is a bar at chest height with down-arrows: duck under it.
 - **Punish.** After every attack with a real laser, the eye overheats white-hot with a countdown ring ("OPEN") for 2.2 seconds. Shots home in on it; each hit sparks, kicks the eye, cracks the spool and takes the odds down. Shots at the closed eye just clang off its armour (no bounce back: the owner found it annoying).
 - **Reclaim.** Carpet under him flickers white and its tassels stand up for a second, then the rug is pulled (a heart). A slash reclaims his tile and the tiles either side, with a chime that climbs per tile and a hit-stop. A slash on bare roof with nothing to cut whiffs and roots him for half a second, so spamming Slash doesn't pay.
-- Carpshits hatch from far carpet (or the cloth) in a fixed number per phase; souls from them are caught in the warp as before. Stalling earns nothing.
+- Carpshits hatch out of carpet tiles (the tile heaves, then the carpshit peels up and takes the carpet) in a fixed number per phase; souls from them are caught in the warp as before. Stalling earns nothing.
 
 ## The phases
 
@@ -56,6 +56,12 @@ The lead-in's walk becomes the tutorial: the loom is dark, and the runner unroll
 ## Numbers to start from
 
 Opening 2.2 s (set pieces 1.8x, the last 2x); warning 1.2 s (phase 3 0.92x); laser 0.55 s; stitch 0.28 s; 40 hits a spool, set piece at 45%; carpet pulls after 1 s; spread every 5.2/4.0/3.0 s up to 6/8/10 tiles; 4/6/8 carpshits a phase. Bots and his phone decide the rest.
+
+## After his first play of the port (Oct 14, PR #111)
+
+- The roof: no runner down the middle, a lit roof, solid tiles (pale slabs or carpet), nothing see-through on the floor.
+- Carpshits come out of the red tiles, with a visible hatch; none without carpet.
+- The beam fight follows the [finale mockup](https://claude.ai/artifact/MqfeHREtfJp24VcdGqACx4)'s behind view: he walks, the beam trails him in a curve and leans to the eye (veers off if he's too far), and 40 carpshits, a quarter of them heavy, pour in for it to melt.
 
 ## Left for later
 
