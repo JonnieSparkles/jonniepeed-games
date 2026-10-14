@@ -87,19 +87,22 @@ var UnrugStairs = function (core) {
   function startSection(i, keepHearts) {
     const sec = SECTIONS[i];
     cur = sec; Object.assign(Q, { si: i, secT: 0, script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, glass: Infinity, taken: Infinity });
-    if (i === 1 && Q.katana) Q.glass = Q.taken = -99;   // back after the Rugmergency: the cabinet's empty
     Q.garageShut = i === 0 ? Infinity : -99;   // section 1 opens with the garage door open behind him (the story's last still)
     R.arena.enemies = []; R.arena.thrown = []; R.shots = []; R.arena.bare = !Q.katana; R.arena.pose = null;
     bull.u = UX(entryX(sec)); bull.facing = sec.dir; bull.jh = 0; bull.jv = 0; bull.kick = 0;
+    if (i === 1 && Q.katana) {
+      // a continue: back just after the fanfare, katana in hand at the cabinet (empty now), the first one coming
+      Q.glass = Q.taken = -99; bull.u = UX(sec.cab.x + 56); bull.facing = -1; say('SLASH', .3);
+    }
     if (!keepHearts) R.hearts = TUNE.hearts;   // full hearts on a start or a continue; the whips up carry them, the katana refills
     checkpoint();
     emit('stairs_section', { section: i + 1 });
   }
-  // a continue starts the section over (after the Rugmergency, with the katana)
+  // a continue: the start before the katana; the katana's landing after it (see below)
   function checkpoint() {
-    // before the katana the checkpoint stays at the start (so a continue starts the stairwell over, with the souls and the
-    // seeded stream he came in with); from the katana on, it's the landing he's on
-    if (!Q.katana && Q.si > 0) return;
+    // before the katana the checkpoint stays at the start, and once he has it, at the katana (just after the fanfare), so
+    // a continue never starts later than that, on the 2nd landing or the 3rd (with the souls and the seeded stream he had then)
+    if ((!Q.katana && Q.si > 0) || Q.si === 2) return;
     core.setCheckpoint({ stage: 'stairs', section: Q.si, katana: Q.katana, souls: R.souls, continues: R.continues, seedState: core.seedState(), runSeed: core.runSeed() });
   }
   // the cue for where he is: slammed in from the top, or a layer more on the next bar
@@ -666,7 +669,7 @@ var UnrugStairs = function (core) {
     bonusBy: () => null, endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop,
     stageNo: () => Q.st === 'door' ? 4 : Q.si + 1, stageNames: { 1: 'Stairs: G to 1', 2: 'Stairs: 6 to 7', 3: 'Stairs: 12 to 13', 4: 'Stairs: the door' },
     pauseText: 'The stairs wait.',
-    continueText: () => Q.katana ? 'Back to the landing with full hearts?' : 'Back to the start with full hearts?',
+    continueText: () => Q.katana ? 'Back to the katana with full hearts?' : 'Back to the start with full hearts?',
     clearCard: () => ({ title: 'The stairwell', text: '', rows: [['Souls', String(R.souls)]], note: '' }),
     STAIRS, SECTIONS, arena, ground, groundAt, UX, HY, startSection, startWhip, startDoor, breakGlass, fly, roll, cabReady, raising,
     get Q() { return Q; }, get cur() { return cur; }

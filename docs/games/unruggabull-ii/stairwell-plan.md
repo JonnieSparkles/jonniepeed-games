@@ -76,7 +76,7 @@ The existing grids are unchanged (`bull.py --check` passes).
 - The whip, the Rugmergency (cabinet, sign, glass, item get) and the door as the floor's own cut-ins, the way the long ride holds the camera.
 - The hand-off: start `floorHall` on the kick, then start the 13th Floor without restarting the band; its banner is the floor's own.
 - Start plays the stairs; the 13th Floor on its own (`#stage=floor13`, replay) starts with the katana.
-- Hearts carry across the whips up and refill only when he grabs the katana; a death before the katana starts the whole stairwell over (full hearts, the souls he came in with); after the katana it restarts the section he's on, with the katana.
+- Hearts carry across the whips up and refill only when he grabs the katana; a death before the katana starts the whole stairwell over (full hearts, the souls he came in with); after the katana a continue puts him back just after the fanfare (at the cabinet, katana in hand, full hearts), whether he died on the 2nd landing or the 3rd.
 - Bots for the stairs, and the usual checks: the finished stages identical, tests pass.
 
 ## In the game

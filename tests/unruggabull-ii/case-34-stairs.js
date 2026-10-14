@@ -56,6 +56,7 @@
   keys.kbLeft = true; step(1.2); keys.kbLeft = false;
   check(S.Q.si === 2, 'and he goes on up');
   step(S.STAIRS.whip + .05);
+  check(checkpoint.section === 1 && checkpoint.katana, 'on the last landing a continue still goes back to the katana');
   // tumblers: down the stairs at him, cut or shot like the rest
   R.arena.enemies = []; const e = S.roll();
   check(e.dir === -1 && e.u > 1, 'a tumbler from the top of the flight');
@@ -64,7 +65,8 @@
   // a continue from section 2 starts it over with the katana and the cabinet empty
   const souls = R.souls;
   newRun({ stage: 'stairs', section: 1, katana: true, souls }); floor.resume();
-  check(R.stage === 'stairs' && S.Q.si === 1 && S.Q.katana && S.Q.glass < 0 && R.continues === 1, 'continue: back on the landing, katana in hand');
+  check(R.stage === 'stairs' && S.Q.si === 1 && S.Q.katana && S.Q.glass < 0 && R.continues === 1, 'continue: back at the katana, katana in hand');
+  check(Math.abs(bull.u - S.UX(S.SECTIONS[1].cab.x + 56)) < .01 && bull.facing === -1, 'standing where the fanfare left him');
   // the door: the line, the band on the kick, then the 13th Floor without the band starting over
   check(S.SECTIONS[2].script.filter(c => c[0] === 'fly' || c[0] === 'roll').length >= 16, 'the last landing is crowded');
   RUN.force = 3435; startRun('stairs'); S.Q.katana = true; S.startSection(2); bull.inv = 1e9;
