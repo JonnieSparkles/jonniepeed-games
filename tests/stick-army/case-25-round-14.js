@@ -122,7 +122,7 @@
   S.recruits = [vet, makeRecruit(1, 'engineer')];
   openShop();
   var row = document.getElementById('shopSquadRow'), line = document.getElementById('shopSquad');
-  check(row.width === (24 * S.mods.slots + 12) * 2 && /^Cpl\. Doodle \(7 waves, 12 kills\), 1 rookie\.$/.test(line.textContent), 'the shop shows the squad: ' + line.textContent);
+  check(row.querySelectorAll('.squad-slot').length === S.mods.slots && row.querySelectorAll('button.squad-slot').length === 2 && /^Cpl\. Doodle \(7 waves, 12 kills\), 1 rookie\.$/.test(line.textContent), 'the shop shows the squad: ' + line.textContent);
   takeItem('hire-rifle');
   check(/2 rookies/.test(line.textContent), 'and follows a hire: ' + line.textContent);
   SHOP.undo();

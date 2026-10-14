@@ -91,6 +91,14 @@ var StickArmySquad = function (w) {
     w.S.recruits.filter(function (r) { return !r.dead && !r.down; }).slice(0, 2).forEach(function (r, i) { w.say(line, r.id, false, 0.25 + i * 0.55); });
   }
   function fallen(r) { if (r.name) w.S.fallen.push({ name: rankName(r), waves: r.waves || 0, kills: r.kills || 0 }); }
+  // The end cards' line for the squad who didn't finish: the fallen, then those sent home from the shop (shop.js
+  // sendHome; named soldiers only, as for the fallen).
+  function goneLine() {
+    var S = w.S, parts = [];
+    if (S.fallen.length) parts.push('Fallen: ' + S.fallen.map(record).join(', ') + '.');
+    if (S.sentHome && S.sentHome.length) parts.push('Sent home: ' + S.sentHome.map(record).join(', ') + '.');
+    return parts.join(' ');
+  }
 
   // ---------- small talk ----------
   // Round 14 (the sixth playtest: "easter eggs: just more small talk"). When a wave goes quiet (nothing on the page for
@@ -191,5 +199,5 @@ var StickArmySquad = function (w) {
   }
 
   return { RANKS: RANKS, RANK: RANK, NAMES: NAMES, rankName: rankName, stripes: stripes, train: train, killsText: killsText, record: record, serveWave: serveWave, knockDown: knockDown, standUp: standUp, cheer: cheer,
-    TALK: TALK, smallTalk: smallTalk, heat: heat, fallen: fallen, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
+    TALK: TALK, smallTalk: smallTalk, heat: heat, fallen: fallen, goneLine: goneLine, TENT: TENT, careAtWaveEnd: careAtWaveEnd, bedSlot: bedSlot, chevrons: chevrons, drawTent: drawTent };
 };
