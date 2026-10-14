@@ -25,11 +25,18 @@
   check(['reset', 'quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam'].every(s => R.roof.history.includes(s)), 'all setup states are reachable');
   check(bells.join() === '0,1,2', 'returning souls land on D5, F5, A5 bells');
   check(R.gold && R.charge === TUNE.charges && R.roof.caught === 0 && R.beam, 'souls leave warp, unlimited gold charge, continuous beam');
-  const q = R.roof; floor.enter('beam'); q.eye.u = q.beamU = 0;
+  const q = R.roof, RF = floor.ROOF; floor.enter('beam'); q.eye.u = q.beamU = bull.u = 0;
   const odds = q.odds; tick(1);
   check(Math.abs(q.odds - (odds - 10)) < .01, 'beam on eye drains about 10% each second');
-  q.beamU = 1; const off = q.odds; tick(.5);
-  check(Math.abs(q.odds - (off + 1.5)) < .01, 'beam off eye creeps back at 3% each second');
+  floor.enter('beam'); q.nextFly = 99; q.eye.u = 0; bull.u = RF.beamBull; const off = q.odds; tick(1.5);
+  check(q.odds > off && Math.abs(q.beamU - (RF.beamBull - RF.beamAssist)) < .02, 'too far off to one side the beam veers off the eye, and the odds creep back');
+  floor.enter('beam'); q.nextFly = 99; q.eye.u = 0; bull.u = .3; tick(1.5); check(Math.abs(q.beamU) < .02 && q.onEye, 'it leans toward the eye: a near miss still lands');
+  q.eye.u = 0; keys.kbLeft = true; tick(.3); keys.kbLeft = false;
+  check(bull.u < .3 - .3 && q.beamU > bull.u + .05 && floor.beamAt(q.eye.z || floor.ROOF.eyeZ) > floor.beamAt(bull.bz + .1), 'he walks with the stick, and the beam trails behind him in a curve');
+  const drain = RF.drain; RF.drain = 0; floor.enter('beam'); bull.inv = 1e9; let made = 0;
+  for (let i = 0; i < 120; i++) { const n = R.flies.length; tick(.25); made += Math.max(0, R.flies.length - n); }
+  RF.drain = drain;
+  check(q.beamLeft === 0 && made <= RF.beamFlies && made > RF.beamFlies / 2, 'the beam fight sends a fixed number of carpshits, however long it lasts');
   const phase = q.state; bull.inv = 0; hurtBull(1, 'carp');
   check(R.hearts === 4 && R.beam && q.state === phase, 'hit costs a heart without breaking beam');
   floor.enter('run'); q.odds = 90; const x = q.eye.u; tick(.5);

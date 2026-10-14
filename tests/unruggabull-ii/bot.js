@@ -25,10 +25,10 @@ window.__balanceBot = function (profile, seed) {
     var delta = roofT === null ? 1 / 30 : Math.max(0, o.t - roofT); roofT = o.t;
     // what it sees is this old: the driver delays observations by whole thinks (two steps of 1/60 s), and a press
     // shows in the next observation after it, one think later
-    var lag = Math.round(P.reaction_ms / 1000 * 30) / 30 + 1 / 30, aim = q.beamU;
+    var lag = Math.round(P.reaction_ms / 1000 * 30) / 30 + 1 / 30, aim = q.bullU;
     roofSent = roofSent.filter(function (x) { return x.t > o.t - lag + 1e-6; });
     var me = { c: q.at.c, r: q.at.r };
-    roofSent.forEach(function (x) { aim += x.dir * q.beamSteer * x.dt; me.c = Math.max(0, Math.min(q.cols - 1, me.c + (x.dc || 0))); me.r = Math.max(0, Math.min(q.rows - 1, me.r + (x.dr || 0))); });
+    roofSent.forEach(function (x) { aim += x.dir * q.beamMove * x.dt; me.c = Math.max(0, Math.min(q.cols - 1, me.c + (x.dc || 0))); me.r = Math.max(0, Math.min(q.rows - 1, me.r + (x.dr || 0))); });
     var step = null, aimGoal = null, pending = roofSent.some(function (x) { return x.dc || x.dr; });
     function send() {
       var key = step ? step[0] + ',' + step[1] : '';
@@ -59,6 +59,8 @@ window.__balanceBot = function (profile, seed) {
     if (q.beam && (q.state === 'beam' || q.state === 'run')) {
       if (o.t >= roofAimT) { roofAimError = err(P.depth_err * 2); roofAimT = o.t + .5; }
       aimGoal = q.eye.u + (q.state === 'run' ? q.eye.dir * q.eye.speed * lead : 0) + roofAimError;
+      // with the beam he walks under the eye; the beam follows and leans the rest of the way
+      aimGoal = Math.max(-q.beamBull, Math.min(q.beamBull, aimGoal));
       var d = aimGoal - aim; a.left = d < -.04; a.right = d > .04;
       roofSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: delta });
       return a;

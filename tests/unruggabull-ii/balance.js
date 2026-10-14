@@ -85,7 +85,7 @@
       if (R.stage === 'roof') {
         var q = R.roof, rt = floor.ROOF, gr = rt.grid;
         o.roof = { state: q.state, round: q.round, broken: q.broken, hp: q.hp, odds: q.odds,
-          stall: q.stall, beam: !!R.beam, beamU: q.beamU || 0, beamSteer: rt.beamSteer,
+          stall: q.stall, beam: !!R.beam, beamU: q.beamU || 0, bullU: bull.u, beamMove: rt.beamMove, beamBull: rt.beamBull,
           beamHit: rt.beamHit, cut: !!q.cut, cols: gr.cols, rows: gr.rows, reach: rt.fight.reach, grip: rt.fight.grip,
           tileU: [0, 1, 2, 3, 4].map(floor.tileU), tileZ: [0, 1, 2].map(floor.tileZ),
           eye: { u: q.eye.u, dir: q.eye.dir || 0, speed: rt.eyeRun + rt.eyeAccel * (1 - q.odds / rt.odds) },

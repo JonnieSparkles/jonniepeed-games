@@ -13,12 +13,16 @@ var UnrugRoof = function (core) {
     aisle: .84, parapetH: .09, hitsPerSpool: [40, 40, 40],
     eyeZ: .86, eyeH: .71, eyeLimit: .95, eyeFollow: 1.3, eyeHit: .15, aimCone: 2,   // open, the eye draws his shots from anywhere on the roof
     flyHP: 1, flyH: .05, recharge: .35,
-    odds: 99, minimum: 1, drain: 10, creep: 3, beamSteer: 1.8, beamLimit: 1.1, beamHit: .2, dragSteer: 4,
-    eyeRun: .4, eyeAccel: .55, beamFlyEvery: 4, returnGap: 1.5, returnFly: 1.2, rushGap: .055,
+    odds: 99, minimum: 1, drain: 10, creep: 3, beamHit: .2, dragSteer: 4,
+    eyeRun: .4, eyeAccel: .55, returnGap: 1.5,
+    // the beam fight, as on the finale mockup: he walks, the beam follows with a lag (so it curves) and leans toward the
+    // eye (assist); carpshits pour off the cloth, some heavy, and the beam melts them (a fixed number, so no farming)
+    beamMove: 1.25, beamBull: .78, beamAssist: .3, beamFollow: 3.2, beamBend: 1.6, beamWidth: .075, beamMelt: 30,
+    beamFlyGap: [.35, .65], beamFlies: 40, beamHeavy: .25, heavyHP: 4, returnFly: 1.2, rushGap: .055,
     initialCaught: 100, recalculatingGap: 5,
     freeze: .14, lightningFrame: 1 / 30,
     eyeHitZ: .04, eyeHitH: .15, spoolFlash: .6, beamFlash: .1, aimHold: .15,
-    fightBanner: 1, warmAmbient: .25, darkAmbient: .1, flashAmbient: .7,
+    fightBanner: 1, warmAmbient: .25, darkAmbient: .1, flashAmbient: .7, fightAmbient: .5,   // the fight's roof is lit to read; the storm stays in the sky
     deadWait: 2.8, spools: 3, hitCost: 1,
     // The roof in front of him: 5 tiles across the aisle, 3 deep from the near edge. Rows step .15 of the hall.
     grid: { cols: 5, rows: 3, z0: -.05, depth: .15, highH: .14 },
@@ -30,7 +34,7 @@ var UnrugRoof = function (core) {
       setAt: .45, bpm: 152, floorOdds: 55,                        // set piece at 45% of a spool left; odds 99 to 55
       grip: 1, gripDecay: 3, pullPin: .35, settle: .3,            // carpet under him pulls after a second
       spread: [5.2, 4, 3], spreadAge: 1.2, cap: [6, 8, 10],
-      hatch: [4, 6, 8], hatchEvery: [6.5, 5.2, 4.2], hatchFirst: 2.5, fakeCarp: [0, .39, .45], fakeSpeed: .34,
+      hatch: [4, 6, 8], hatchEvery: [6.5, 5.2, 4.2], hatchFirst: 2.5, hatchWarn: .7, hatchAge: .6, hatchRetry: .5, fakeCarp: [0, .39, .45], fakeSpeed: .34,
       reach: 1, whiff: .5, reclaimFreeze: .045,
       snapT: 2.8, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
       twin: 1.4, tipT: 2.6
@@ -88,7 +92,7 @@ var UnrugRoof = function (core) {
       heldDrop: R.heldDrop, dropNext: R.dropNext, bestStreak: R.bestStreak, events: Object.assign({}, R.events) });
   }
   function clearThreats() {
-    R.flies = []; R.shots = []; Q.fakes = []; Q.stall = 0; Q.slam = 0;
+    R.flies = []; R.shots = []; Q.fakes = []; Q.hatching = []; Q.stall = 0; Q.slam = 0;
     Q.atk = { stage: 'idle', t: 0, wait: F.nextWait, list: [], end: 0, set: false, real: false, open: F.open };
   }
   function enter(name) {
@@ -119,7 +123,7 @@ var UnrugRoof = function (core) {
     say(LINES[n - 1]);
     checkpoint();
   }
-  function roundExit() { emit('roof_round_time', { amount: Math.round((R.t - Q.roundStart) * 100) / 100 }); R.flies = []; R.shots = []; Q.fakes = []; Q.stall = 0; }
+  function roundExit() { emit('roof_round_time', { amount: Math.round((R.t - Q.roundStart) * 100) / 100 }); R.flies = []; R.shots = []; Q.fakes = []; Q.hatching = []; Q.stall = 0; }
   const STATES = {
     elevator: { entry() { Snd.roofCue('lead', { candidate: musicChoice }); Snd.play('storm'); } },
     walk: { entry: walkEntry, tick: walkTick, ready: walkReady, exit() { Q.walkCarp = null; Q.tiles = newTiles(); } },
@@ -203,10 +207,10 @@ var UnrugRoof = function (core) {
     pinch: { entry() { Snd.play('pinch', ROOF.time.pinch); } },
     // the fusion burns the carpet off the roof
     fusion: { entry() { R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); for (const t of Q.tiles) { t.carpet = false; t.grip = 0; } }, tick() { Snd.roofCue('fusion'); }, exit() { cutIn('beam', ROOF.cuts.beam); } },
-    lines: { entry() { R.beam = true; Q.beamU = 0; Q.line = 0; say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick() {
+    lines: { entry() { R.beam = true; Q.beamU = Q.beamBase = bull.u; Q.line = 0; say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick() {
       if (!Q.line && (!R.talk || R.talk.t >= R.talk.total)) { Q.line = 1; core.bark('odds', true); }
     }, ready: () => Q.line === 1 && !R.bark },
-    beam: { entry() { R.gold = true; R.beam = true; Q.eye.u = 0; Q.nextFly = ROOF.beamFlyEvery; }, tick: beamTick },
+    beam: { entry() { R.gold = true; R.beam = true; Q.eye.u = 0; Q.nextFly = ROOF.beamFlyGap[1]; Q.beamLeft = ROOF.beamFlies; }, tick: beamTick },
     run: { entry() { Q.eye.dir = 1; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
     one: { entry() { clearThreats(); Q.odds = ROOF.minimum; Snd.roofCue('one', { seconds: ROOF.time.one }); say('UNLIKELY.'); }, ready: () => Q.t >= ROOF.time.one && !R.talk },
     snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); Snd.roofCue('snap'); cutIn('snap', ROOF.cuts.snap); } },
@@ -230,7 +234,7 @@ var UnrugRoof = function (core) {
     Q = R.roof = { state: null, t: 0, round: 1, broken: 0, hp: HPS, hits: 0, odds: 0, realOdds: ROOF.odds,
       eye: { u: 0, z: ROOF.eyeZ, h: ROOF.eyeH, eye: true }, caught: ROOF.initialCaught, twinU: 0,
       capturedTotal: ROOF.initialCaught, history: [], stall: 0, slam: 0, hot: 0, cut: null, recalc: 0, closedAt: -9,
-      tiles: newTiles(), at: null, step: { cd: 0, last: '' }, fakes: [], tips: [], light: 0, lurch: 0, whip: -1,
+      tiles: newTiles(), at: null, step: { cd: 0, last: '' }, fakes: [], hatching: [], tips: [], light: 0, lurch: 0, whip: -1,
       atk: { stage: 'idle', t: 0, wait: F.firstWait, list: [], end: 0, set: false, real: false, open: F.open }, atkN: 0,
       spDone: [false, false, false], spPending: false, stitch: 0, respool: 0, beat0: 0, drag: null };
     placeBull(2, 0);
@@ -280,7 +284,7 @@ var UnrugRoof = function (core) {
 
   // ---------- moving on the grid ----------
   // The core calls this every controlled tick with up/down; left/right come from moveDir(). One tile a step,
-  // repeating while held; he slides to the tile's middle. Crouched, rooted or steering the beam, he stays put.
+  // repeating while held; he slides to the tile's middle. Crouched or rooted he stays put; with the beam he walks freely.
   function depthMove(dt, depthDir) {
     const s = Q.step; s.cd -= dt;
     let dx = moveDir(), dy = depthDir;
@@ -293,6 +297,7 @@ var UnrugRoof = function (core) {
       s.cd = key !== s.last ? ROOF.step.first : ROOF.step.repeat;
     }
     s.last = dx || dy ? key : '';
+    if (beamActive()) return;   // with the beam he walks freely (beamTick)
     bull.u += clamp(tileU(Q.at.c) - bull.u, -ROOF.step.slideU * dt, ROOF.step.slideU * dt);
     bull.bz += clamp(tileZ(Q.at.r) - bull.bz, -ROOF.step.slideZ * dt, ROOF.step.slideZ * dt);
   }
@@ -498,22 +503,43 @@ var UnrugRoof = function (core) {
       }
     }
   }
-  // Carpshits hatch from carpet further up the roof (or off the cloth when there's none): a fixed number a phase,
-  // so stalling earns nothing. From the second phase some are hallucinations: harmless, six-legged, shot through.
+  // Carpshits hatch out of the carpet: a carpet tile bulges for a moment (hatchWarn), then the carpshit peels up out of
+  // it and the tile is bare roof again. A fixed number a phase, so stalling earns nothing; with no carpet down, none come
+  // until some is. Tiles further up the roof first, never his own. From the second phase some are hallucinations:
+  // harmless, six-legged, and they leave the carpet where it was.
   function updateHatch(dt) {
     const ph = Q.round - 1;
+    for (const h of Q.hatching) {
+      h.t -= dt;
+      if (h.t > 0) continue;
+      h.done = true;
+      const tl = T(h.c, h.r);
+      if (!tl.carpet) continue;   // reclaimed before it hatched: nothing comes out
+      if (h.fake) { Q.fakes.push({ u: tileU(h.c), z: tileZ(h.r), h: .01, ph: rnd() * 6, t: 0 }); continue; }
+      tl.carpet = false; tl.grip = 0; tl.flip = -.6;
+      R.flies.push({ u: tileU(h.c), z: tileZ(h.r), h: .01, hp: ROOF.flyHP, form: false, ph: rnd() * 6, hit: 0, dead: false, cause: 'carp' });
+      poof(tileU(h.c), tileZ(h.r), .03, 5); Snd.play('carpetSpread');
+      emit('roof_hatch');
+      tip('carp', 'CARPSHIT: SHOOT OR SLASH IT');
+    }
+    Q.hatching = Q.hatching.filter(h => !h.done);
     Q.hatchT -= dt;
     if (Q.hatchT > 0 || Q.hatchLeft <= 0) return;
+    const busy = (c, r) => Q.hatching.some(h => h.c === c && h.r === r);
+    const ok = [], near = [];
+    for (let r = 0; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) {
+      const tl = T(c, r);
+      if (!tl.carpet || tl.age < F.hatchAge || busy(c, r) || (c === Q.at.c && r === Q.at.r)) continue;
+      (r > Q.at.r ? ok : near).push([c, r]);
+    }
+    const top = Math.max(...ok.map(t => t[1])), from = ok.length ? ok.filter(t => t[1] === top) : near;   // the furthest row with carpet first
+    if (!from.length) { Q.hatchT = F.hatchRetry; return; }
     Q.hatchLeft--; Q.hatchT = F.hatchEvery[ph];
-    const far = [];
-    for (let r = Q.at.r + 1; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) if (T(c, r).carpet && T(c, r).age > .6) far.push([c, r]);
-    const at = far.length ? pick(far) : null, u = at ? tileU(at[0]) : rr(-.6, .6), z = at ? tileZ(at[1]) + GR.depth * .3 : .8;
-    R.flies.push({ u, z, h: ROOF.flyH, hp: ROOF.flyHP, form: false, ph: rnd() * 6, hit: 0, dead: false, cause: 'carp' });
-    emit('roof_hatch');
-    tip('carp', 'CARPSHIT: SHOOT OR SLASH IT');
+    const [c, r] = pick(from);
+    Q.hatching.push({ c, r, t: F.hatchWarn });
     if (rnd() < F.fakeCarp[ph]) {
-      const other = far.length ? pick(far) : null;
-      Q.fakes.push({ u: other ? tileU(other[0]) : rr(-.6, .6), z: other ? tileZ(other[1]) + GR.depth * .3 : .8, h: ROOF.flyH, ph: rnd() * 6, t: 0 });
+      const other = from.filter(([x, y]) => x !== c || y !== r);
+      if (other.length) { const [fc, fr] = pick(other); Q.hatching.push({ c: fc, r: fr, t: F.hatchWarn, fake: true }); }
     }
   }
   function updateFakes(dt) {
@@ -641,12 +667,20 @@ var UnrugRoof = function (core) {
     popText('CAUGHT', f.to.x, f.to.y, '#ffd44a');
   }
   function soulLanded(f) { if (f.caught) { effects.landed(f); Q.caught++; Q.capturedTotal++; emit('roof_caught', { amount: 1 }); } }
+  // where the beam is across the roof at depth z: from his gun, bending toward its tip with distance
+  function beamAt(z) {
+    const k = clamp((z - bull.bz) / (ROOF.eyeZ - bull.bz), 0, 1);
+    return bull.u + (Q.beamU - bull.u) * Math.pow(k, ROOF.beamBend);
+  }
   function beamTick(dt) {
-    // left and right steer it; on a touch screen, a finger on the picture drags it
-    const dir = moveDir();
-    if (dir) Q.beamU = clamp(Q.beamU + dir * ROOF.beamSteer * dt, -ROOF.beamLimit, ROOF.beamLimit);
-    else if (Q.drag !== null && Q.drag !== undefined) Q.beamU += clamp(clamp(Q.drag, -ROOF.beamLimit, ROOF.beamLimit) - Q.beamU, -ROOF.dragSteer * dt, ROOF.dragSteer * dt);
+    // he walks (the stick, keys, or a finger dragging on the picture); the beam's tip follows him with a lag and leans
+    // toward the eye, so it curves as he moves and veers off if he goes too far
+    const dir = moveDir(), lim = ROOF.beamBull;
+    if (dir) bull.u = clamp(bull.u + dir * ROOF.beamMove * dt, -lim, lim);
+    else if (Q.drag !== null && Q.drag !== undefined) bull.u += clamp(clamp(Q.drag, -lim, lim) - bull.u, -ROOF.dragSteer * dt, ROOF.dragSteer * dt);
     bull.aimT = ROOF.aimHold;
+    Q.beamBase += (bull.u - Q.beamBase) * Math.min(1, dt * ROOF.beamFollow);   // the far end trails him: the curve
+    Q.beamU = Q.beamBase + clamp(Q.eye.u - Q.beamBase, -ROOF.beamAssist, ROOF.beamAssist);   // and leans to the eye
     if (Q.state === 'run') {
       const speed = ROOF.eyeRun + ROOF.eyeAccel * (1 - Q.odds / ROOF.odds);
       Q.eye.u += Q.eye.dir * speed * dt;
@@ -659,12 +693,18 @@ var UnrugRoof = function (core) {
     } else Q.odds = Math.min(ROOF.odds, Q.odds + ROOF.creep * dt);
     Q.onEye = on;
     Q.nextFly -= dt;
-    if (Q.nextFly <= 0) { spawnCarp(); Q.nextFly = ROOF.beamFlyEvery; }
-    for (const f of R.flies) if (!f.dead && Math.abs(f.u - Q.beamU) < ROOF.beamHit) core.killFly(f, 'beam');
+    if (Q.nextFly <= 0 && Q.beamLeft > 0) { spawnCarp(); Q.beamLeft--; Q.nextFly = rr(ROOF.beamFlyGap[0], ROOF.beamFlyGap[1]); }
+    // the beam melts what's in it; heavies take a moment
+    for (const f of R.flies) {
+      if (f.dead || Math.abs(f.u - beamAt(f.z)) > ROOF.beamWidth + (f.heavy ? .13 : .1)) continue;
+      f.hp -= ROOF.beamMelt * dt; f.hit = .05;
+      if (f.hp <= 0) { core.killFly(f, 'beam'); R.freeze = 0; }   // the beam melts through them without a hitch
+    }
     if (Q.odds <= ROOF.minimum) enter('one');
   }
   function spawnCarp() {
-    R.flies.push({ u: rr(-ROOF.aisle + .12, ROOF.aisle - .12), z: 1, h: .35, hp: ROOF.flyHP, form: false, ph: rnd() * 6, hit: 0, dead: false, cause: 'carp' });
+    const heavy = rnd() < ROOF.beamHeavy;
+    R.flies.push({ u: rr(-ROOF.aisle + .12, ROOF.aisle - .12), z: 1, h: .35, hp: heavy ? ROOF.heavyHP : ROOF.flyHP, heavy, form: false, ph: rnd() * 6, hit: 0, dead: false, cause: 'carp' });
   }
   // Bull Run: no damage for five seconds (the core), carpshits it touches die (drops.js), fakes pop; the rug can't
   // pull while it runs. Nothing touches p(Loom) or its odds.
@@ -676,10 +716,11 @@ var UnrugRoof = function (core) {
   }
   function view() {
     return { scroll: R.dist * core.WZ, rug: R.dist * core.WZ, power: 0, house: 0, dark: false,
-      ambient: ROOF.darkAmbient + (effects.flash(Q) + Q.light) * ROOF.flashAmbient + (beamActive() ? ROOF.warmAmbient : 0),
+      ambient: (lightRoof() ? ROOF.fightAmbient : ROOF.darkAmbient) + (effects.flash(Q) + Q.light) * ROOF.flashAmbient + (beamActive() ? ROOF.warmAmbient : 0),
       dawn: Q.state === 'clear' ? 1 : Q.state === 'dawn' ? Math.min(1, Q.t / ROOF.effects.dawnWarm) : 0,
-      look: { ti: [.08, .08, .12], sh: .7 }, edge: null };
+      look: { ti: [.14, .13, .17], sh: .45 }, edge: null };
   }
+  const lightRoof = () => isRound() || ['walk', 'reset', 'quiet', 'return', 'flood', 'pinch', 'lines', 'beam', 'run', 'one'].includes(Q.state);
   function eyeColor() { return Q.stall > 0 || Q.onEye ? [1.5, 1.5, 1.4] : Q.atk.stage === 'run' ? [1.1, .05, .025] : [.9, .32, .06]; }
   function lights(r) {
     if (!['elevator', 'walk', 'flash', 'snap', 'dawn', 'clear'].includes(Q.state)) r.light(...world(Q.eye.u, ROOF.eyeZ, ROOF.eyeH), ...eyeColor());
@@ -696,7 +737,7 @@ var UnrugRoof = function (core) {
       const flicker = .9 + .1 * Math.sin(R.t * 71);
       for (let i = 0; i < ROOF.effects.beamLights; i++) {
         const k = i / (ROOF.effects.beamLights - 1);
-        r.light(...world(bull.u + (Q.beamU - bull.u) * k, bull.bz + (ROOF.eyeZ - bull.bz) * k, .3 + (ROOF.eyeH - .3) * k),
+        r.light(...world(beamAt(bull.bz + (ROOF.eyeZ - bull.bz) * k), bull.bz + (ROOF.eyeZ - bull.bz) * k, .3 + (ROOF.eyeH - .3) * k),
           .6 * flicker, .45 * flicker, .12 * flicker);
       }
     }
@@ -787,24 +828,34 @@ var UnrugRoof = function (core) {
     return [[PX(u0, z0), FY(z0)], [PX(u1, z0), FY(z0)], [PX(u1, z1), FY(z1)], [PX(u0, z1), FY(z1)]];
   };
   function path(pts) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); }
+  // Every tile is drawn solid: a pale roof slab with dark seams, or carpet over it. Nothing see-through on the floor.
+  const SLAB = ['#7a7586', '#726d7e'], SEAM = '#2c2836';
+  const gridShown = () => !!Q.tiles && (isRound() || ['walk', 'reset', 'quiet', 'return', 'flood'].includes(Q.state));
   function drawTiles() {
-    if (!Q.tiles || ['pinch', 'fusion', 'lines', 'beam', 'run', 'one', 'snap', 'dawn', 'clear'].includes(Q.state) && !Q.tiles.some(t => t.carpet)) return;
+    if (!gridShown()) return;
     for (let r = GR.rows - 1; r >= 0; r--) for (let c = 0; c < GR.cols; c++) {
-      const tl = T(c, r); if (!tl.carpet) continue;
+      const tl = T(c, r), q = tileQuad(c, r);
+      poly(g, SEAM, q); poly(g, SLAB[(c + r) & 1], tileQuad(c, r, .04));
+      if (!tl.carpet) continue;
       const k = tl.flip > 0 ? 1 - tl.flip : 1;
-      poly(g, '#8a2226', tileQuad(c, r, .5 - .5 * k));
+      poly(g, '#b8262c', tileQuad(c, r, .04 + (.46 - .46 * k)));
       if (k > .8) {
-        for (const f of [.3, .7]) { const z = GR.z0 + (r + f) * GR.depth; line(g, PX(tileU(c) - TW * .46, z), FY(z), PX(tileU(c) + TW * .46, z), FY(z), '#c99a2e'); }
-        const z = GR.z0 + r * GR.depth, x0 = PX(tileU(c) - TW / 2, z), x1 = PX(tileU(c) + TW / 2, z);
-        for (let x = x0 + 1; x < x1 - 1; x += 2) rect(g, x, FY(z), 1, 1, '#d9b98a');
+        for (const f of [.3, .7]) { const z = GR.z0 + (r + f) * GR.depth; line(g, PX(tileU(c) - TW * .44, z), FY(z), PX(tileU(c) + TW * .44, z), FY(z), '#e0b040'); }
+        const z = GR.z0 + r * GR.depth + GR.depth * .04, x0 = PX(tileU(c) - TW * .46, z), x1 = PX(tileU(c) + TW * .46, z);
+        for (let x = x0 + 1; x < x1 - 1; x += 2) rect(g, x, FY(z), 1, 1, '#f0d8a8');
       }
+    }
+    // a carpshit about to hatch: the carpet heaves up in a lump that grows and wriggles
+    for (const h of Q.hatching || []) {
+      if (!T(h.c, h.r).carpet) continue;
+      const k = 1 - clamp(h.t / F.hatchWarn, 0, 1), z = tileZ(h.r), x = PX(tileU(h.c), z) + Math.sin(R.t * 30) * k, y = FY(z), s = sc(z);
+      const w = (8 + 6 * k) * s, hh = (2 + 6 * k) * s;
+      g.save(); g.fillStyle = '#7c161c'; g.beginPath(); g.ellipse(x, y, w, hh, 0, Math.PI, 0); g.fill();
+      g.fillStyle = '#d23a3a'; g.beginPath(); g.ellipse(x, y - hh * .2, w * .7, hh * .7, 0, Math.PI, 0); g.fill(); g.restore();
     }
   }
   function drawGrid() {
     if (!Q.tiles || !(isRound() || Q.state === 'walk' || Q.state === 'reset')) return;
-    g.save(); g.globalAlpha = .28; g.strokeStyle = '#8a80b0'; g.lineWidth = .5;
-    for (let r = 0; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) { path(tileQuad(c, r)); g.stroke(); }
-    g.restore();
     g.save(); g.strokeStyle = 'rgba(255,212,74,.6)'; g.lineWidth = .5; path(tileQuad(Q.at.c, Q.at.r, .06)); g.stroke(); g.restore();
     for (let r = 0; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) {
       const tl = T(c, r); if (!tl.carpet && tl.flip < 0) { g.save(); g.globalAlpha = -tl.flip * .8; poly(g, '#ffffff', tileQuad(c, r)); g.restore(); }
@@ -819,7 +870,7 @@ var UnrugRoof = function (core) {
   // one warning look for every real target, readable on bare roof and on carpet: darken, hazard stripes, a bright edge
   function warnTile(q, soon, pulse, layer) {
     if (layer === 'lit') {
-      g.save(); path(q); g.fillStyle = 'rgba(8,4,10,' + (.55 + .2 * soon) + ')'; g.fill(); g.clip();
+      g.save(); path(q); g.fillStyle = 'rgba(8,4,10,' + (.72 + .2 * soon) + ')'; g.fill(); g.clip();
       const xs = q.map(p => p[0]), ys = q.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
       const off = (R.t * 12) % 4;
       g.strokeStyle = soon > .6 && pulse > .5 ? '#ffffff' : '#ff8a6a'; g.lineWidth = 1.2;
@@ -903,6 +954,14 @@ var UnrugRoof = function (core) {
     g.strokeStyle = '#efe3c4'; g.lineWidth = 1; g.stroke();
     g.lineWidth = .5; g.beginPath(); g.moveTo(sp, LM.top + 9); g.quadraticCurveTo(sp + 20, 30, VX, y); g.stroke(); g.restore();
   }
+  // a heavy carpshit (the beam fight): a bigger, darker, gold-edged rug behind the usual one
+  function drawHeavy(f) {
+    const src = A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], s = sc(f.z), x = PX(f.u, f.z), y = YH(f.z, f.h);
+    for (const [k, col] of [[1.75, '#c99a2e'], [1.6, '#4a0c12']]) {
+      const img = tinted(src, col), w = img.width * img.k * s * k, h = img.height * img.k * s * k;
+      g.drawImage(img, x - w / 2, y - h / 2 + Math.sin(R.t * 6 + f.ph) * s, w, h);
+    }
+  }
   function drawFake(f) {
     // a hallucinated carpshit: pale violet, flickering, scanlined, six legs
     const img = tinted(A.CARPF[Math.floor(R.t * 8 + f.ph) % 2], '#c8b8ff'), s = sc(f.z), w = img.width * img.k * s, h = img.height * img.k * s;
@@ -920,12 +979,29 @@ var UnrugRoof = function (core) {
       line(g, x, y, x + .8, y + 4, '#76788a');
     }
   }
+  // the mega stream: one thick ribbon from the gun to the eye that bends as he moves, in layers (a soft orange halo, then
+  // orange, gold and a white-hot core), rippling, with sparks running up it and a flare at each end
   function drawBeam() {
-    const m = muzzleXY(), x = PX(Q.beamU, ROOF.eyeZ), y = YH(ROOF.eyeZ, ROOF.eyeH);
-    g.save(); g.globalAlpha = .9 + .1 * Math.sin(R.t * 71);
-    poly(g, '#ffd44a', [[m.x - LM.beamMuzzle, m.y], [x - LM.beamEnd, y], [x + LM.beamEnd, y], [m.x + LM.beamMuzzle, m.y]]);
-    poly(g, '#ffffff', [[m.x - 3, m.y], [x - 2, y], [x + 2, y], [m.x + 3, m.y]]);
-    disc(g, x, y, Q.onEye ? 10 : 5, '#fff09a'); g.restore();
+    const m = muzzleXY(), N = 24, t = R.t, pts = [], z0 = bull.bz, mh = .3;
+    const base = { x: PX(bull.u, z0), y: YH(z0, mh) };
+    for (let i = 0; i <= N; i++) {
+      const k = i / N, z = z0 + (ROOF.eyeZ - z0) * k, h = mh + (ROOF.eyeH - mh) * k, near = (1 - k) * (1 - k);
+      pts.push({ x: PX(beamAt(z), z) + (m.x - base.x) * near, y: YH(z, h) + (m.y - base.y) * near, hw: Math.max(1, ROOF.beamWidth * 112 * sc(z)) });
+    }
+    pts.forEach((p, i) => {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(N, i + 1)], tx = b.x - a.x, ty = b.y - a.y, l = Math.hypot(tx, ty) || 1;
+      p.nx = -ty / l; p.ny = tx / l;
+    });
+    for (const [mul, col, alpha] of [[2.2, '#ff9628', .25], [1.35, '#ff7a1c', 1], [.9, '#ffd44a', 1], [.4, '#fff0aa', 1]]) {
+      g.save(); g.globalAlpha = alpha; g.fillStyle = col; g.beginPath();
+      pts.forEach((p, k) => { const w = p.hw * mul * (1 + .14 * Math.sin(t * 52 + k * 1.7)); k ? g.lineTo(p.x + p.nx * w, p.y + p.ny * w) : g.moveTo(p.x + p.nx * w, p.y + p.ny * w); });
+      for (let k = N; k >= 0; k--) { const p = pts[k], w = p.hw * mul * (1 + .14 * Math.sin(t * 47 + k * 2.3)); g.lineTo(p.x - p.nx * w, p.y - p.ny * w); }
+      g.closePath(); g.fill(); g.restore();
+    }
+    for (let k = 0; k < 6; k++) { const p = pts[Math.floor(((k / 6 + t * 1.9) % 1) * N)], sz = Math.max(1, Math.round(p.hw * .5)); rect(g, Math.round(p.x - sz / 2), Math.round(p.y - sz / 2), sz, sz, '#ffffff'); }
+    const e = pts[N], fl = Math.floor(t * 30) % 2;
+    disc(g, e.x, e.y, Q.onEye ? 10 : fl ? 5 : 4, Q.onEye ? '#fff09a' : '#ff9628'); disc(g, e.x, e.y, fl ? 3 : 2, '#ffffff');
+    disc(g, pts[0].x, pts[0].y, fl ? 6 : 5, '#ffd44a'); disc(g, pts[0].x, pts[0].y, 3, '#ffffff');
   }
   function drawStreams() {
     if (!['return', 'flood', 'pinch'].includes(Q.state)) return;
@@ -945,7 +1021,7 @@ var UnrugRoof = function (core) {
     }
     drawTiles(); drawWarnings('lit');
     if (Q.walkCarp && !Q.walkCarp.dead) drawFly(Q.walkCarp);
-    for (const f of R.flies) drawFly(f);
+    for (const f of R.flies) { if (f.heavy) drawHeavy(f); drawFly(f); }
     drawBull(); drawFx('lit');
   }
   // the replacement spools glow, so they read past the HUD that sits over the loom's top beam
@@ -1027,10 +1103,10 @@ var UnrugRoof = function (core) {
     }
   }
   // Beam drag (touch): the core hands over the finger's x in the game's picture, or null when it lifts.
-  function steer(x) { if (Q) Q.drag = x === null ? null : (x - VX) / (112 * sc(ROOF.eyeZ)); }
+  function steer(x) { if (Q) Q.drag = x === null ? null : (x - VX) / (112 * sc(bull.bz)); }   // where on the roof under the finger he walks to
   const noop = () => {};
   return {
-    id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools, recharge: ROOF.recharge, move: 0 }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2] },
+    id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools, recharge: ROOF.recharge, move: 0 }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2], rug: 0, rugEdge: 0 },
     lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
@@ -1044,6 +1120,6 @@ var UnrugRoof = function (core) {
       rows: [['Souls freed (including dawn)', String(displayedCount())], ['Time', clock(R.endT)], ['Continues', String(R.continues)], ['Best', best.souls + ' souls']], note: '' }; },
     // Test bridge / Part B seams. No shipped controls can call these.
     displayedCount, ROOF, STATES, enter, eyeAt, beamActive, drawLoom, drawEye, drawSpool, drawWarp, soulSpot, effects,
-    patternNormal, patternSet, tileU, tileZ, pathOf, lenOf, placeBull, oddsAt
+    patternNormal, patternSet, tileU, tileZ, pathOf, lenOf, placeBull, oddsAt, beamAt
   };
 };

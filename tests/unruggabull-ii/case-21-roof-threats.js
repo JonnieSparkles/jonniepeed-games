@@ -44,8 +44,20 @@
   // Hallucinated carpshits pop harmlessly; real ones come in a fixed number a phase.
   fresh(); R.roof.atk.wait = 1e9; R.roof.fakes.push({ u: bull.u, z: bull.bz + .2, h: .12, ph: 0, t: 0 });
   tick(1); check(R.hearts === 5 && !R.roof.fakes.length, 'a fake carpshit pops on contact, harmless');
+  // Carpshits hatch out of carpet: a tile heaves, then one peels up out of it and the tile is bare again.
+  fresh(); R.roof.atk.wait = 1e9; R.roof.hatchLeft = 1; R.roof.hatchT = 0; tick(1);
+  check(!R.flies.length && R.roof.hatchLeft === 1, 'no carpet on the roof, no carpshit');
+  tile(3, 2).carpet = true; tile(3, 2).age = 0; tick(.7 + F.hatchRetry);
+  check(R.roof.hatching.length === 1 && R.roof.hatching[0].c === 3 && R.roof.hatching[0].r === 2 && !R.flies.length, 'a carpet tile heaves first: the warning');
+  tick(F.hatchWarn);
+  check(R.flies.length === 1 && Math.abs(R.flies[0].u - floor.tileU(3)) < .05 && !tile(3, 2).carpet, 'then the carpshit peels up out of it, taking the carpet');
+  fresh(); R.roof.atk.wait = 1e9; tile(1, 0).carpet = true; tile(1, 0).age = 1; R.roof.hatchLeft = 1; R.roof.hatchT = 0; tick(.1);
+  check(R.roof.hatching.length === 1, 'a tile beside him can hatch when there is no carpet further up');
+  press('slash'); tick(F.hatchWarn + .1);
+  check(!R.flies.length && !tile(1, 0).carpet, 'reclaimed before it hatches, nothing comes out');
   const hatched = []; const oldEmit = emitHook; emitHook = type => { if (type === 'roof_hatch') hatched.push(type); };
-  fresh(2); R.roof.hatchLeft = F.hatch[1]; R.roof.atk.wait = 1e9; bull.inv = 1e9; tick(90);
+  fresh(2); R.roof.hatchLeft = F.hatch[1]; R.roof.atk.wait = 1e9; bull.inv = 1e9;
+  for (let i = 0; i < 90; i++) { for (const r of [1, 2]) for (let c = 0; c < 5; c++) if (!tile(c, r).carpet) { tile(c, r).carpet = true; tile(c, r).age = 1; } tick(1); }
   emitHook = oldEmit;
   check(hatched.length === F.hatch[1], 'a phase hatches its fixed number of carpshits, however long it lasts');
   // A spool snapping: the thread whips the roof clean, carpshits included.
