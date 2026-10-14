@@ -17,7 +17,7 @@ The opening is six illustrated stills ([intro-plan.md](intro-plan.md)), a line e
 3. He taught it everything he knew. It was a short lesson.
 4. It took his order a little too literally. It grew up so fast.
 5. Business was booming. Floor-to-floor carpet was everywhere. Profits were through the roof.
-6. Every soul Unruggabull freed was still on RugCo's books. So he had some questions for Accounting.
+6. Every soul Unruggabull freed was still on RugCo's books. So Unruggabull had some questions for Accounting. Sharp ones.
 
 No crypto jargon (no HODL, diamond hands, liquidity or airdrops). "Unrugged" and rug pulls stay as the brand.
 

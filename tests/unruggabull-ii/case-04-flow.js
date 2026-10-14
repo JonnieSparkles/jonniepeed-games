@@ -23,6 +23,20 @@
   check(!more.hidden && moreTap.hidden, 'later stills show the arrow without Tap');
   check(UnrugIntro.tap(1, 410, 128, intro.t, intro.plan) === 'armorClank' && intro.i === 1, 'a tap on Loomy blinks it and stays');
   check(UnrugIntro.tap(1, 40, 40, intro.t, intro.plan) === null, 'a tap elsewhere advances');
+  // who tells it: the narrator, then line 4 scrambles into p(Loom)'s machine voice, and line 6 hands back to the narrator
+  const orange = () => intro.spans.map(e => e.className === 'm');
+  introLine(2); step(intro.total + .5);
+  check(!orange().some(Boolean) && crawlText.textContent === STORY[2], 'line 3 is all narrator');
+  introLine(3); step(intro.total + .5);
+  const grew = STORY[3].indexOf('It grew'), o4 = orange();
+  check(!o4.slice(0, grew).some(Boolean) && o4.slice(grew).some(Boolean) && crawlText.textContent === STORY[3], 'line 4 scrambles into p(Loom) at "It grew up so fast"');
+  introLine(4); step(intro.total + .5);
+  check(orange().every(Boolean), 'p(Loom) tells line 5');
+  const even = Snd.talkTimes('ab cd', 'machine').times;
+  check(Math.abs((even[1] - even[0]) - (even[2] - even[1])) < 1e-9, 'the machine voice is dead even');
+  introLine(5); step(intro.total + .5);
+  const back = STORY[5].indexOf('So Unruggabull'), o6 = orange(), tail = STORY[5].indexOf('Sharp ones');
+  check(o6.slice(0, back).every(Boolean) && !o6.slice(tail).some(Boolean) && crawlText.textContent === STORY[5], 'p(Loom) reads the books, the narrator takes the hero\'s move');
   introLine(STORY.length - 1); step(intro.total + .5);
   advanceIntro();
   check(state === 'intro' && intro.out === 0 && storySeen(), 'the last tap starts the way out, the story seen');

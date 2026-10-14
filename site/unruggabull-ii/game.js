@@ -1134,11 +1134,17 @@
     intro = { i: -1, t: 0, wait: 0 };   // waiting for the pictures
     try { skipBtn.focus({ preventScroll: true }); } catch (e) {}
   }
+  // The caption is a span per character, so p(Loom)'s letters can be orange and a scrambled one can flicker through
+  // junk for a moment as it's typed (not with reduced motion).
+  const JUNK = '#%&@$*<>/\\=+?01', calm = matchMedia('(prefers-reduced-motion: reduce)');
   function introLine(i) {
-    const text = STORY[i], plan = Snd.talkTimes(text, 'narrator');
-    Snd.hush(); Snd.say(text, 'narrator');
-    intro = { i, t: 0, text, plan, times: plan.times, total: plan.total };
-    crawlText.textContent = ''; more.hidden = true;
+    const text = STORY[i], who = Intro.voice(i), plan = Snd.talkTimes(text, who);
+    Snd.hush(); Snd.say(text, who);
+    const chars = [...text], looks = chars.map((ch, k) => Intro.look(i, k));
+    crawlText.textContent = '';
+    const spans = chars.map((ch, k) => { const e = document.createElement('span'); if (looks[k].machine) e.className = 'm'; crawlText.append(e); return e; });
+    intro = { i, t: 0, text, plan, times: plan.times, total: plan.total, chars, looks, spans, shown: 0, junk: [] };
+    more.hidden = true;
     c.setAttribute('aria-label', Intro.LABELS[i]); live(Intro.LABELS[i] + ' ' + text);
   }
   function updateIntro(dt) {
@@ -1147,7 +1153,17 @@
     intro.t += dt;
     if (intro.out != null) { intro.out += dt; if (intro.out >= OUT) endIntro(true); return; }
     let n = 0; while (n < intro.text.length && intro.times[n] <= intro.t) n++;
-    if (crawlText.textContent.length !== n) crawlText.textContent = intro.text.slice(0, n);
+    for (let k = intro.shown; k < n; k++) {
+      if (intro.looks[k].glitch && intro.chars[k] !== ' ' && !calm.matches) intro.junk.push(k);
+      intro.spans[k].textContent = intro.chars[k];
+    }
+    intro.shown = n;
+    // scrambled letters flicker for .16 s after they appear, then settle
+    intro.junk = intro.junk.filter(k => {
+      const live = intro.t - intro.times[k] < .16;
+      intro.spans[k].textContent = live ? JUNK[Math.floor(Math.random() * JUNK.length)] : intro.chars[k];
+      return live;
+    });
     // the still waits for a tap; once its line is said, a blinking arrow says so ("Tap" on the first one)
     const said = intro.t > intro.total + .25;
     if (more.hidden === said) { more.hidden = !said; moreTap.hidden = intro.i !== 0; }
