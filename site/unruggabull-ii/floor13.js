@@ -1752,7 +1752,7 @@ var UnrugFloor13 = function (core) {
   // A shot reaching the far end. True if the floor took it (the Shredder, in a fight); otherwise it just puffs out.
   function shotFar(s) {
     // in phase 3 it braces: half damage from the blaster unless it's jammed or reeling from a smash
-    if (R.boss.st === 'fight' && Math.abs(s.u) < .8) { bossDamage(TUNE.shotDmg * (R.boss.jam > 0 ? TUNE.jamMult : R.boss.ph === 3 ? .5 : 1), 'blaster'); sparks(s.u, .96, s.h, R.boss.jam > 0 ? '#ffd44a' : '#fff6e2'); return true; }
+    if (R.boss.st === 'fight' && Math.abs(s.u) < .8) { bossDamage(R.boss.final && R.boss.final.st === 'fire' ? TUNE.finale.dmg : TUNE.shotDmg * (R.boss.jam > 0 ? TUNE.jamMult : R.boss.ph === 3 ? .5 : 1), 'blaster'); sparks(s.u, .96, s.h, R.boss.jam > 0 ? '#ffd44a' : '#fff6e2'); return true; }
     return false;
   }
   // The katana's swing: paper in reach gets knocked back.
@@ -1841,5 +1841,5 @@ UnrugFloor13.TUNE = {
     soulBye: { at: .9, come: 1.2, salute: 1.5, say: 1.7, leave: 3.6, later: 4.6 },   // the goodbye's beats, in seconds
     lastStand: 12,          // nothing takes it below this but the finish: the paper that gets it here stuns it, then the blaster
     soulHint: { souls: 1, wait: .5, gap: 1.1, fly: 1.6, fetch: 1.2 },   // fetch: up to the blaster the Shredder holds first
-    finale: { window: 9 }   // the finish: this long to blast it the rest of the way once the blaster's back
+    finale: { window: 10, dmg: .27 }   // the finish: this long to blast it the rest of the way once the blaster's back
   };
