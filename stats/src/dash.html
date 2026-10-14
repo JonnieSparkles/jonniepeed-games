@@ -521,16 +521,30 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
         'A run with no device was saved to the leaderboard but never reported to play stats, usually because of an ad blocker.'));
     if (!rows || !rows.length) { card.append(el('p', { class: 'empty' }, 'No runs yet.')); return card; }
     const outcome = r => (r.outcome === 'won' ? 'Won' : r.outcome === 'over' ? 'Finished' : r.outcome === 'quit' ? 'Quit' : 'No end yet');
-    const statLine = st => (st ? Object.entries(st).map(([k, v]) => `${label(k).toLowerCase()} ${typeof v === 'number' ? compact(v) : v}`).join(' · ') : '');
+    // A win that kept going (endless) shows the win and where it ended: "won at wave 20 · 412,300", then
+    // "endless to wave 30 · 996,393". The score at the win is the game's won_score, or for older runs the score
+    // saved to the board, since a winner saves at the victory card.
+    const endless = r => (r.stats && r.stats.endless === true && r.stats.won_at != null ? r.stats : null);
+    const wonScore = r => (r.stats?.won_score ?? (r.saved ? r.saved_score : null));
+    const shown = r => (endless(r) ? ['won_at', 'won_score', 'endless'] : ['won_score']);
+    const statLine = r => (r.stats ? Object.entries(r.stats).filter(([k]) => !shown(r).includes(k))
+      .map(([k, v]) => `${label(k).toLowerCase()} ${typeof v === 'number' ? compact(v) : v}`).join(' · ') : '');
+    const scoreSpans = r => {
+      const e = endless(r);
+      if (!e) return [r.score == null ? null : el('span', null, 'score ' + num(r.score))];
+      const at = wonScore(r);
+      return [el('span', null, 'won at wave ' + num(e.won_at) + (at == null ? '' : ' · ' + num(at))),
+        el('span', null, 'endless to wave ' + num(e.wave) + (r.score == null ? '' : ' · ' + num(r.score)))];
+    };
     const items = rows.map(r => el('li', null,
       el('div', { class: 'head' }, el('span', null, when(r.started_at)),
         names ? el('span', null, names[r.game] || r.game) : null,
         el('b', null, outcome(r)),
-        r.time_ms == null ? null : el('span', null, dur(r.time_ms)), r.score == null ? null : el('span', null, 'score ' + num(r.score)),
+        r.time_ms == null ? null : el('span', null, dur(r.time_ms)), ...scoreSpans(r),
         r.name ? el('b', null, r.name) : null,
         r.mode ? el('span', { class: 'tag' }, r.mode) : null),
       el('div', { class: 'meta' }, [r.device, r.orientation, r.input === 'touch' ? 'touch' : r.input ? 'keys' : null, r.source ? 'from ' + r.source : null].filter(Boolean).join(' · ')),
-      r.stats ? el('div', { class: 'st' }, statLine(r.stats)) : null));
+      r.stats ? el('div', { class: 'st' }, statLine(r)) : null));
     const list = el('ul', { class: 'runs' }, items.slice(0, 15));
     card.append(list);
     if (items.length > 15) {
