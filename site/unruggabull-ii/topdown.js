@@ -700,7 +700,7 @@ var UnrugTopdown = function (core, tuning) {
     list.push({ y: bull.y, draw: drawBull });
     return list;
   }
-  // in the glow: bolts, bobbins, streams, the slash, sparks, the muzzle; and arrows at the edge for what's coming off screen
+  // in the glow: bolts, bobbins, streams, the slash, sparks, the muzzle
   // a power-up shows itself: a column of light over it, in its colour, so it reads across the room
   const BEAM = { rapid: '#7fd4ff', pierce: '#b48aff', spread: '#ffd44a', coffee: '#ffb070' };
   function drawBeam(p) {
@@ -721,16 +721,6 @@ var UnrugTopdown = function (core, tuning) {
     for (const p of R.td.thrown) drawThrown(p);
     drawSlash(); drawFx('glow');
   }
-  function arrows() {
-    const c = R.td.cam, v = TD.view;
-    for (const e of R.td.enemies) {
-      const sx = e.x - c.x, sy = e.y - e.h - c.y;
-      if (sx > -4 && sx < v.w + 4 && sy > 20 && sy < v.h + 4) continue;
-      const cx = v.w / 2, cy = v.h / 2 + 10, dx = sx - cx, dy = sy - cy, k = Math.min((v.w / 2 - 10) / Math.abs(dx || 1e-6), (v.h / 2 - 22) / Math.abs(dy || 1e-6)), ax = cx + dx * k, ay = cy + dy * k, a = Math.atan2(dy, dx);
-      g.save(); g.translate(Math.round(ax), Math.round(ay)); g.rotate(a); g.fillStyle = e.kind === 'roll' ? '#ff7050' : '#ffd44a';
-      g.beginPath(); g.moveTo(6, 0); g.lineTo(-4, -5); g.lineTo(-2, 0); g.lineTo(-4, 5); g.closePath(); g.fill(); g.restore();
-    }
-  }
   // where the mouse aims: a small reticle (screen pixels)
   function reticle() {
     if (R.td.aimSource !== 'mouse' || R.phase !== 'boss') return;
@@ -745,6 +735,6 @@ var UnrugTopdown = function (core, tuning) {
     for (const p of R.td.pickups.slice(0, 3)) r.light(p.x - cam.x, p.y - 12 - cam.y, 0, .45, .25, .12);
   }
   return { TD, SPR, half, newRun, room, update, addPickup, flingThread, badge, fire, moveBull, stepShots, stepEnemies, stepThrown, stepFx, spawn, kill, damage, blast, clearThreats,
-    muzzle, screenOf, camTo, sparks, puff, glow, shadow, drawables, drawBull, drawEnemy, glows, arrows, reticle, lights, drawFx, moveVec, aimVec,
+    muzzle, screenOf, camTo, sparks, puff, glow, shadow, drawables, drawBull, drawEnemy, glows, reticle, lights, drawFx, moveVec, aimVec,
     use: x => { g = x; }, get g() { return g; } };
 };
