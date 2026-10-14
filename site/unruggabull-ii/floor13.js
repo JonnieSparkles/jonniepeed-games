@@ -742,19 +742,20 @@ var UnrugFloor13 = function (core) {
     R.banner = { text: 'FINISH IT!', t: 0, dur: 1.6, pull: true };
     live('Finish it with the blaster!');
   }
-  // The Shredder's lines in the fight, beyond its set lines: one at a time, never more often than every 7 seconds,
+  // The Shredder's lines in the fight, beyond its set lines: one at a time, never more often than every 12 seconds,
   // and never over another line or a banner. Each list goes round in order.
   const TAUNTS = {
     miss: ['SHREDDED.', 'DENIED.', 'FILED UNDER NOPE.'],
     hit: ['PAPER CUT.', 'SIGN HERE. AND HERE.', 'THAT GOES ON YOUR RECORD.'],
     smash: ['MY ROLLERS!', 'PC LOAD LETTER?!', 'THAT VOIDS MY WARRANTY.'],
-    low: ['I AM NOT... OUT OF ORDER.']
+    low: ['I AM NOT... OUT OF ORDER.', 'THIS IS A SCHEDULED OUTAGE.', 'JUST A PAPER JAM.'],
+    reboot: ['SYSTEM RESTORED.', 'STILL RUNNING.', 'TRY AGAIN LATER.']
   };
   function taunt(kind) {
     const b = R.boss;
     if (b.st !== 'fight' || R.talk || R.banner || (b.tauntT || 0) > 0) return;
+    if (kind === 'low' && b.final) return;   // the finish stays clear of lines
     const list = TAUNTS[kind], n = (b.taunts = b.taunts || {})[kind] || 0;
-    if (kind === 'low' && n) return;
     b.taunts[kind] = n + 1; b.tauntT = 12;
     talk(list[n % list.length], 'shredder');
   }
@@ -828,6 +829,7 @@ var UnrugFloor13 = function (core) {
         // the finish's window ran out: it shakes off the stun; the next paper knocked back stuns it again
         b.final = null; b.atk = 1.4; R.pull.next = Math.max(R.pull.next, R.t + 3);
         popText('REBOOTED.', 120, BACK.y0 - 2, '#ff9628'); Snd.play('rev'); shove(8);
+        { const n = b.rebooted = (b.rebooted || 0) + 1; talk(TAUNTS.reboot[(n - 1) % TAUNTS.reboot.length], 'shredder'); }   // and says so
         return;
       }
       if (b.jam <= 0 && b.jamTag !== 'STUNNED x3') {   // it spits the rug back out
@@ -902,7 +904,7 @@ var UnrugFloor13 = function (core) {
     if (!soulsInGun() && !(H && H.bye)) return;
     if (!H.bye) { if (R.phaseT < T.at || R.talk) return; H.bye = { t: 0, from: muzzleXY() }; H.streams = 1; Snd.play('bell', 0); return; }
     const B = H.bye; B.t += dt;
-    if (B.t > T.say && !B.said) { B.said = true; Snd.play('bell', 0); live('The soul salutes: good luck.'); }
+    if (B.t > T.say && !B.said) { B.said = true; live('The soul salutes: good luck.'); }
     if (B.t > T.leave && !B.rose) { B.rose = true; riseAll(); }
   }
   function updateHint(dt) {
