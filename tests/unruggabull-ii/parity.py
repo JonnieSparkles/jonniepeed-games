@@ -1,5 +1,6 @@
 """Pixel parity for the finished stages against a git ref (default origin/main).
 Covers the intro, stairwell, 13th Floor, factory and lobby, long ride and roof; the quiet ride and full-size lobby boarding change intentionally.
+--changed roof lists the roof's captures as intended changes (the fight's rework): they're reported, not failed.
 Artifacts stay under work/. No test hooks ship. Run after the final game edit.
 """
 import argparse
@@ -26,7 +27,7 @@ SCENES = {
 }
 for state in ['elevator', 'walk', 'flash', 'wake', 'odds', 'round1', 'round2', 'round3', 'quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam', 'run', 'one', 'snap', 'dawn', 'clear']:
     SCENES['roof-' + state] = "floor.enter(%r);R.roof.t=.5;" % state
-SCENES['roof-threats'] = "floor.enter('round2');floor.volley();floor.launchSnare();floor.startGust();for(let i=0;i<30;i++)update(1/60);"
+SCENES['roof-threats'] = "floor.enter('round2');for(let i=0;i<240;i++)update(1/60);"
 
 # Earlier coverage stopped at the 13th Floor and roof. Protect every other stage around the quiet ride too.
 for i in range(6):
@@ -92,6 +93,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--ref', default='origin/main')
     ap.add_argument('--out', default='work/parity/elevator')
+    ap.add_argument('--changed', default='', help='comma-separated capture prefixes that change on purpose, e.g. roof')
     args = ap.parse_args()
     out = ROOT / args.out
     for part in ['main', 'current']:
@@ -106,9 +108,13 @@ def main():
                 before = captures(browser, tree, 'http://127.0.0.1:' + str(old.server_port), out / 'main')
                 after = captures(browser, ROOT, 'http://127.0.0.1:' + str(new.server_port), out / 'current')
                 browser.close()
-            mismatches = [key for key in before if before[key] != after[key]]
+            changed = tuple(p + '-' for p in args.changed.split(',') if p)
+            mismatches = [key for key in before if before[key] != after[key] and not key.startswith(changed)]
+            intended = [key for key in before if before[key] != after[key] and changed and key.startswith(changed)]
             assert mismatches == [], mismatches
-            print('PASS pixel parity:', len(before), 'captures identical to', args.ref, '(including the 13th Floor clear card)')
+            kept = len([key for key in before if not (changed and key.startswith(changed))])
+            print('PASS pixel parity:', kept, 'captures identical to', args.ref, '(including the 13th Floor clear card)')
+            if changed: print('Changed on purpose (%s): %d of %d captures: %s' % (args.changed, len(intended), len([k for k in before if k.startswith(changed)]), ', '.join(intended)))
         finally:
             subprocess.run(['git', 'worktree', 'remove', '--force', str(tree)], cwd=ROOT, check=True, capture_output=True)
 

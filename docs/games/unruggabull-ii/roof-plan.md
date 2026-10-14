@@ -1,5 +1,7 @@
 # Unruggabull II: the roof plan
 
+Status: built (Part A, then motion, light and sound). The three rounds were reworked on Oct 14 into MAXIMIZE CARPETS: see [roof-rework-plan.md](roof-rework-plan.md). The lead-in (with the walk now teaching) and the crescendo stand as planned here; Part B is still to come.
+
 The plan for the roof, the last stage: p(Loom)'s fight and the mega stream finale. It's written to hand off in two parts:
 
 - **Part A, the framework:** for Codex or any agent. It needs no new art or sound decisions. Everything gets built and wired up with stand-in drawing, and it should be fully playable, tested and run by the bots.

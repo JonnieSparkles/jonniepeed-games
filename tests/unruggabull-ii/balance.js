@@ -1,7 +1,7 @@
 // Unruggabull II balance adapter (SPEC-005, docs/guides/01-balance-bots.md). tools/balance/run.py evaluates this
 // inside game.js's scope through a test-only bridge injected into the response; nothing here ships.
 // Progress is reported as stages, in the report's "wave" column:
-//   Roof: 10 lead-in, 11-13 rounds, 14 crescendo, 15 cleared. Elevator: 16 ride, 17 cleared.
+//   Roof: 10 lead-in (the walk among it), 11-13 the three phases, 14 the reset and crescendo, 15 cleared. Elevator: 16 ride, 17 cleared.
 //   The 48th Floor: 18 no lines down, 19 one down, 20 the last line, 21 collapse and lobby, 22 cleared.
 //   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 SHRED-O phases 1-3, 9 cleared.
 (function () {
@@ -83,15 +83,17 @@
       if (R.event && R.event.souls) R.event.souls.forEach(function (sl) { if (!sl.got) o.bubbles.push({ id: idOf(sl), u: sl.u, z: sl.w - R.dist }); });
       R.pickups.forEach(function (pk) { if (!pk.got) o.pickups.push({ id: idOf(pk), kind: pk.kind, u: pk.u, z: pk.w - R.dist }); });
       if (R.stage === 'roof') {
-        var q = R.roof, rt = floor.ROOF;
+        var q = R.roof, rt = floor.ROOF, gr = rt.grid;
         o.roof = { state: q.state, round: q.round, broken: q.broken, hp: q.hp, odds: q.odds,
           stall: q.stall, beam: !!R.beam, beamU: q.beamU || 0, beamSteer: rt.beamSteer,
-          beamHit: rt.beamHit, cut: !!q.cut, ringZ: rt.ringZ, depthSpeed: rt.depthSpeed, depthMax: rt.depthMax,
+          beamHit: rt.beamHit, cut: !!q.cut, cols: gr.cols, rows: gr.rows, reach: rt.fight.reach, grip: rt.fight.grip,
+          tileU: [0, 1, 2, 3, 4].map(floor.tileU), tileZ: [0, 1, 2].map(floor.tileZ),
           eye: { u: q.eye.u, dir: q.eye.dir || 0, speed: rt.eyeRun + rt.eyeAccel * (1 - q.odds / rt.odds) },
-          volley: q.volley ? idOf(q.volley) : null,
-          rings: q.rings.map(function (r) { return { u: r.u, z: r.z, odds: r.odds }; }),
-          snare: q.snare ? { id: idOf(q.snare), u: q.snare.u, t: q.snare.t, hooked: q.snare.hooked } : null,
-          gust: q.gust ? { dir: q.gust.dir, t: q.gust.t } : null };
+          at: { c: q.at.c, r: q.at.r }, carpets: q.tiles.filter(function (t) { return t.carpet; }).length,
+          tiles: q.tiles.map(function (t) { return { carpet: t.carpet, grip: t.grip }; }),
+          atk: { id: idOf(q.atk), stage: q.atk.stage, t: q.atk.t, list: q.atk.list.map(function (l) {
+            return { k: l.k, i: l.i, c: l.c, r: l.r, real: l.real, t0: l.t0, t1: l.t1, len: floor.lenOf(l), dir: l.dir }; }) },
+          walkCarp: q.walkCarp && !q.walkCarp.dead ? { u: q.walkCarp.u, z: q.walkCarp.z } : null };
       }
       if (R.stage === 'elevator') {
         var Q = R.elevator, AR = floor.arena.ARENA;
@@ -131,7 +133,7 @@
     act: function (a) {
       if (!a || state !== 'play') return;
       keys.kbLeft = !!a.left; keys.kbRight = !!a.right; keys.kbShoot = !!a.shoot; keys.kbDown = !!a.crouch;
-      if (R.stage === 'roof') { keys.kbUp = !!a.forward; keys.kbDown = !!a.back; }
+      if (R.stage === 'roof') { keys.kbUp = !!a.forward; keys.kbDown = !!a.back; keys.kbDuck = !!a.crouch; }
       if (R.stage === 'floor48' && floor.twin()) {
         // the twin sticks: the move stick, the aim stick held (aiming and firing), and Slash
         twin.padX = a.mx || 0; twin.padY = a.my || 0;

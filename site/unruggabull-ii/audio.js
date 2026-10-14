@@ -642,6 +642,24 @@ window.UnrugSound = (function () {
     snareCut: t => twang(t, 730, .14),
     gust: t => noiseHit(sfxBus, t, 1.1, .16, 'bandpass', 1200, .6, 240),
     spoolSnap: t => { twang(t, 180, .26); noiseHit(sfxBus, t, .12, .4, 'highpass', 2400); },
+    // the roof fight (MAXIMIZE CARPETS): warnings, the eye's lasers and needles, its overheating, carpet and the katana
+    laserWarn: t => osc(sfxBus, 'sawtooth', 196, t, .32, .05, { to: 392 }),
+    laserWarnFake: t => { osc(sfxBus, 'square', 196, t, .32, .03, { to: 330 }); osc(sfxBus, 'square', 203, t, .32, .025, { to: 420 }); },
+    laser: t => { osc(sfxBus, 'sawtooth', 98, t, .42, .09, { to: 82, sustain: .5 }); noiseHit(sfxBus, t, .42, .1, 'bandpass', 900, 1); },
+    stitch: t => { osc(sfxBus, 'square', 1200, t, .05, .03, { to: 300 }); noiseHit(sfxBus, t, .08, .06, 'bandpass', 3000, 2); },
+    eyeOpen: t => { noiseHit(sfxBus, t, .5, .08, 'bandpass', 4500, 1, 1500); osc(sfxBus, 'triangle', hz(88), t, .25, .07); osc(sfxBus, 'triangle', hz(93), t + .07, .25, .05); },
+    eyeHit: (t, n) => { osc(sfxBus, 'square', 260 + (n || 0) * 34, t, .08, .08, { to: 180 + (n || 0) * 30 }); noiseHit(sfxBus, t, .06, .07, 'highpass', 3000); },
+    clang: t => { osc(sfxBus, 'square', 1900, t, .06, .035); osc(sfxBus, 'triangle', 2530, t, .05, .035); },
+    slam: t => { osc(sfxBus, 'square', 90, t, .25, .16, { to: 40 }); noiseHit(sfxBus, t, .2, .22, 'lowpass', 500); },
+    setPiece: t => { [73.4, 110, 146.8].forEach((f, i) => osc(sfxBus, 'sawtooth', f, t + i * .02, 1.1, .07, { sustain: .4 })); noiseHit(sfxBus, t, .9, .22, 'lowpass', 600, 1, 3000); },
+    whip: t => { noiseHit(sfxBus, t, .5, .26, 'bandpass', 600, 1, 7000); osc(sfxBus, 'triangle', 880, t, .4, .05, { to: 1760 }); },
+    reclaim: (t, n) => { const k = Math.pow(1.19, n || 0); osc(sfxBus, 'triangle', 520 * k, t + (n || 0) * .03, .09, .13); osc(sfxBus, 'square', 1040 * k, t + (n || 0) * .03, .05, .035); },
+    whiff: t => noiseHit(sfxBus, t, .12, .1, 'highpass', 1200, 1, 4000),
+    rugPull: t => { noiseHit(sfxBus, t, .3, .28, 'lowpass', 900, 1, 120); osc(sfxBus, 'square', 220, t, .25, .09, { to: 60 }); },
+    grip: t => osc(sfxBus, 'square', 92, t, .06, .05),
+    carpetSpread: t => osc(sfxBus, 'triangle', 110, t, .08, .05, { to: 80 }),
+    fakePop: t => { noiseHit(sfxBus, t, .15, .05, 'highpass', 6000); osc(sfxBus, 'square', 2400, t, .05, .015, { to: 4800 }); },
+    stitchBlip: t => osc(sfxBus, 'square', 150 + Math.random() * 60, t, .035, .025),
     // the fusion: a sub boom, a crash and a falling power chord, then the souls' choir in one blast with bells over it
     beam: t => {
       osc(sfxBus, 'sine', 90, t, 1.4, .385, { to: 28, sustain: .4 });

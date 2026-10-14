@@ -23,11 +23,11 @@
   check(f.caught && Math.abs(f.y - (85 + (to.y - 85) * .5 / f.dur)) > 1, 'capture follows a curve into its reserved slot');
   const lights = []; const r = { light(...a) { lights.push(a); } };
   floor.lights(r); const orange = lights[0].slice(3);
-  q.volley = {}; lights.length = 0; floor.lights(r); const red = lights[0].slice(3);
+  q.atk.stage = 'run'; lights.length = 0; floor.lights(r); const red = lights[0].slice(3);
   q.stall = 1; lights.length = 0; floor.lights(r); const white = lights[0].slice(3);
   check(orange[0] > orange[1] && red[1] < orange[1] && white[1] > orange[1], 'eye light turns orange, angry red and stall white');
-  q.volley = null; floor.enter('quiet'); tick(q.accounted + .05);
-  check(q.silenced && Snd.track === null, 'quiet cuts the fight music after the last word');
+  q.atk.stage = 'idle'; q.stall = 0; floor.enter('quiet'); tick(.05);
+  check(q.silenced && Snd.track === null, 'the quiet is silent');
   floor.enter('return'); q.cut = null; tick(.7); lights.length = 0; floor.lights(r);
   check(lights.length > 1, 'flying souls illuminate the wet roof');
   floor.enter('beam'); q.beamU = 0; lights.length = 0; floor.lights(r);

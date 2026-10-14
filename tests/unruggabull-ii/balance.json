@@ -45,14 +45,17 @@
     { "label": "boss dmg: blaster", "key": "boss_damage.amount:by=blaster" },
     { "label": "boss dmg: deflects", "key": "boss_damage.amount:by=deflect" },
     { "label": "boss dmg: smash", "key": "boss_damage.amount:by=smash" },
-    { "label": "lost: roof orbs", "key": "hit.amount:cause=orb" },
-    { "label": "lost: roof snares", "key": "hit.amount:cause=snare" },
+    { "label": "lost: roof lasers", "key": "hit.amount:cause=laser" },
+    { "label": "lost: roof needles", "key": "hit.amount:cause=stitch" },
+    { "label": "lost: rug pulls", "key": "hit.amount:cause=pull" },
     { "label": "lost: roof carps", "key": "hit.amount:cause=carp" },
     { "label": "spools snapped", "key": "roof_spool.amount" },
     { "label": "spool hits", "key": "roof_spool_damage.amount" },
     { "label": "souls caught", "key": "roof_caught.amount" },
     { "label": "souls returned", "key": "roof_return.amount" },
-    { "label": "snares cut", "key": "roof_snare_cut" },
+    { "label": "roof set pieces", "key": "roof_set" },
+    { "label": "roof tiles reclaimed", "key": "roof_reclaim.amount" },
+    { "label": "roof whiffs", "key": "roof_whiff" },
     { "label": "round seconds", "key": "roof_round_time.amount" },
     { "label": "quiet captives", "key": "roof_quiet.amount" },
     { "label": "quiet counter", "key": "roof_quiet_score.amount" },
@@ -79,6 +82,6 @@
     { "label": "lost: bobbins", "key": "hit.amount:cause=bobbin" },
     { "label": "lost: presses", "key": "hit.amount:cause=press" }
   ],
-  "stages": {"1": "Accounts Payable", "2": "Moving day", "3": "All Staff", "4": "Lights out", "5": "Copy Room", "6": "Shredder 1", "7": "Shredder 2", "8": "Shredder 3", "9": "Floor 13 cleared", "10": "Roof lead-in", "11": "Roof round 1", "12": "Roof round 2", "13": "Roof round 3", "14": "Roof crescendo", "15": "Roof cleared", "16": "Elevator ride", "17": "Elevator cleared", "18": "48th Floor", "19": "48th: one line down", "20": "48th: last line", "21": "48th: collapse and lobby", "22": "48th cleared"},
-  "causes": ["orb", "snare", "carp", "dive", "flyer", "arena_wad", "chaser", "armored", "roll", "bobbin", "press"]
+  "stages": {"1": "Accounts Payable", "2": "Moving day", "3": "All Staff", "4": "Lights out", "5": "Copy Room", "6": "Shredder 1", "7": "Shredder 2", "8": "Shredder 3", "9": "Floor 13 cleared", "10": "Roof lead-in", "11": "Roof phase 1", "12": "Roof phase 2", "13": "Roof phase 3", "14": "Roof reset and crescendo", "15": "Roof cleared", "16": "Elevator ride", "17": "Elevator cleared", "18": "48th Floor", "19": "48th: one line down", "20": "48th: last line", "21": "48th: collapse and lobby", "22": "48th cleared"},
+  "causes": ["laser", "stitch", "pull", "carp", "dive", "flyer", "arena_wad", "chaser", "armored", "roll", "bobbin", "press"]
 }

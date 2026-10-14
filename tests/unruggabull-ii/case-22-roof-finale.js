@@ -3,13 +3,16 @@
   const check = (ok, why) => { if (!ok) throw new Error(why); };
   const tick = s => { for (let i = 0; i < Math.ceil(s * 60); i++) update(1 / 60); };
   const fresh = () => { RUN.force = 42; newRun(null, 'roof'); setState('play'); card.hidden = true; clearHeld(); input.jump = input.slash = input.shoot = 0; };
-  fresh(); floor.enter('round3'); R.roof.broken = 3; floor.enter('quiet');
+  fresh(); floor.enter('round3'); R.roof.broken = 3; floor.enter('reset');
   const bells = [], played = [], music = [], spoken = [], oldPlay = Snd.play, oldMusic = Snd.music, oldSay = Snd.say;
   Snd.say = text => spoken.push(text);
   Snd.play = (name, arg) => { played.push(name); if (name === 'bell') bells.push(arg); };
   Snd.music = name => music.push(name);
   for (let i = 0; i < 300 && !R.roof.silenced; i++) update(1 / 60);
-  check(music.includes(null), 'last word cuts the music');
+  check(music.includes(null), 'the last word of ALL SOULS ACCOUNTED FOR. cuts the music');
+  for (let i = 0; i < 1200 && R.roof.state === 'reset'; i++) update(1 / 60);
+  check(R.roof.state === 'quiet' && R.roof.respool === 1 && spoken.includes('REPLACEMENT SPOOLS ORDERED.') && spoken.includes('PROBABILITY OF YOUR SURVIVAL: 1%.'), 'the reset re-spools from the souls and hands over to the quiet');
+  check(R.roof.odds === 99 && R.roof.realOdds < 99, 'the bar is stitched back to 99 over damage it keeps');
   for (let i = 0; i < 300 && !R.roof.cut; i++) update(1 / 60);
   check(R.roof.cut && R.roof.cut.name === 'soul', 'quiet exits into first-soul cut');
   keys.kbRight = true; press('slash'); press('jump');
@@ -19,7 +22,7 @@
   tick(.6); check(bull.u > before.u && bull.slash >= 0 && bull.jh > 0, 'held movement and buffered actions execute on return');
   clearHeld(); tick(18);
   check(R.roof.state === 'beam' || R.roof.state === 'run', 'quiet, return, flood, pinch, fusion and lines lead to the beam');
-  check(['quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam'].every(s => R.roof.history.includes(s)), 'all setup states are reachable');
+  check(['reset', 'quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam'].every(s => R.roof.history.includes(s)), 'all setup states are reachable');
   check(bells.join() === '0,1,2', 'returning souls land on D5, F5, A5 bells');
   check(R.gold && R.charge === TUNE.charges && R.roof.caught === 0 && R.beam, 'souls leave warp, unlimited gold charge, continuous beam');
   const q = R.roof; floor.enter('beam'); q.eye.u = q.beamU = 0;
