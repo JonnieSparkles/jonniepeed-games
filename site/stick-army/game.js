@@ -370,7 +370,7 @@
       mode: 'title', t: 0, score: 0, wave: 0, wallHP: 100,
       mods: { slots: 4, secondTramp: false, catcher: false, aim: 0, mat: 0, trench: 0, helmet: 0, hired: 0, maxHP: 100, wire: false, mines: false, medic: false, auto: false, hospital: false, flag: false, stacks: {} },
       autoCD: 0, autoAim: -Math.PI / 2, mines: [], shop: null, delivery: null, pizzaOrder: false, waveStart: { kills: 0, captured: 0, wall: 0 },
-      turrets: null, flagUp: 0, saluteT: 0,
+      turrets: null, flagUp: 0, saluteT: 0, leavers: [],
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], wreck: null, calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [], night: 0,
       bed: null, fallen: [], sentHome: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
@@ -874,7 +874,7 @@
   // The item list, the shop, the kit display and the pizza courier live in shop.js.
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
   world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
-  world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches;
+  world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches; world.sendOff = sendOff;
   world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig; world.squadLine = squadLine;
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   // Co-op's shop (shop.js): turret upgrades are each barrel's own; a guest's taps go to the host (coop.js).
@@ -1721,6 +1721,7 @@
     updateFighter(dt);
     updateRadio(dt);
     updateRecruits(dt);
+    updateLeavers(dt);
     updateAutoTurret(dt);
     updateBullets(dt);
     updateEnemyShots(dt);
@@ -1879,7 +1880,8 @@
     var col = r.hurt > 0 && Math.floor(S.t * 18) % 2 ? RED : BLUE;
     var ca = Math.cos(r.aim), sa = Math.sin(r.aim), pose, tool = null, s;
     // Everyone not busy salutes the flag (repairing, healing and fetching carry on).
-    var saluting = !moving && S.saluteT > 0 && r.role !== 'repair' && r.role !== 'heal' && r.role !== 'fetch';
+    // A soldier sent home salutes before walking off (sendOff).
+    var saluting = r.leaving != null ? r.leaving < LEAVE.SALUTE : !moving && S.saluteT > 0 && r.role !== 'repair' && r.role !== 'heal' && r.role !== 'fetch';
     if (moving) { s = Math.sin(r.walk); pose = [-s * 5, 19, s * 5, 19, s * 6, 33, -s * 6, 33]; }
     else if (r.role === 'repair') {
       s = Math.sin(S.t * 12 + r.id);
@@ -1908,6 +1910,7 @@
     if (r.type === 'sniper') drawScope(x, y, Math.cos(r.aim) < 0 ? -1 : 1);
     chevrons(x - 7, y + 9, r.rank || 0);
     // Crew health makes the cost of leaving a sniper alive visible.
+    if (r.leaving != null) return;
     G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(x-6, GROUND+4, 12, 2);
     G.fillStyle = r.hp < 1 ? RED : BLUE; G.fillRect(x-6, GROUND+4, 12 * Math.max(0,r.hp) / crewMax(r), 2);
   }
@@ -2126,6 +2129,28 @@
     if (S.flagT >= top + FLAG.SALUTE) { var next = S.nextWave; S.nextWave = null; startWave(next); }
   }
   function updateFlag(dt) { if (S.saluteT > 0) S.saluteT = Math.max(0, S.saluteT - dt); }
+  // Sent home (shop.js sendHome): as the next wave opens, the soldier stands at their old place, salutes, says
+  // goodbye and walks off the nearer edge of the page (S.leavers, drawn like the squad). Cosmetic: the line is
+  // Math.random and nothing in the fight reads a leaver.
+  var LEAVE = { SALUTE: 1.8, SPEED: 46 };
+  var GOODBYES = ['see ya, Sarge!', "it's been an honor.", 'write me!', 'keep your head down.', 'save me a slice.',
+    "I'll miss the trampoline.", "don't forget me!", 'back to the farm.', 'so long, page!', 'tell my mom I said hi.',
+    'godspeed, all.', 'off to college!'];
+  function sendOff(r) {
+    var x = r.bed ? SQUAD.TENT.x : SLOTS[r.slot] != null ? SLOTS[r.slot] : r.homeX;
+    S.leavers.push(Object.assign({}, r, { x: x, tx: x, homeX: x, leaving: 0, down: false, hurt: 0, role: 'leave', walk: 0 }));
+    speak(GOODBYES[Math.floor(Math.random() * GOODBYES.length)], null, false, 0.4, x, GROUND - 62);
+  }
+  function updateLeavers(dt) {
+    S.leavers.forEach(function (l) {
+      l.leaving += dt;
+      if (l.leaving < LEAVE.SALUTE) return;
+      l.tx = l.homeX < 200 ? -30 : W + 30;
+      var step = Math.min(LEAVE.SPEED * dt, Math.abs(l.tx - l.x));
+      l.x += Math.sign(l.tx - l.x) * step; l.walk += dt * 9;
+    });
+    S.leavers = S.leavers.filter(function (l) { return l.x > -24 && l.x < W + 24; });
+  }
   function drawFlagpole() {
     pen(7070);
     var px = FLAG.X, top = GROUND - FLAG.TALL, low = GROUND - 40 - FLAG.H, up = S.flagUp == null ? 1 : S.flagUp;
@@ -2437,6 +2462,7 @@
       sketched('hospital', [SQUAD.TENT.x - SQUAD.TENT.hw, GROUND - SQUAD.TENT.h - 10, SQUAD.TENT.x + SQUAD.TENT.hw, GROUND], 'up', drawTent);
     }
     S.recruits.forEach(function (r) { if (!r.dead) sketched('r' + r.id, [r.x - 12, GROUND - 46, r.x + 12, GROUND + 6], 'up', function () { drawRecruit(r); }); });
+    S.leavers.forEach(drawRecruit);
     SKY.drawMarks();
     drawBullets();
     drawCourier();
