@@ -15,12 +15,14 @@
   check(/send em home/.test(document.getElementById('squadHint').textContent), 'the hint');
 
   // Tap a soldier: their card and the button.
+  var before = S.players[0].tags;
   slotBtn(vet).click();
   var box = document.getElementById('sendBox');
+  check(S.players[0].tags === before && document.getElementById('shopCoins').textContent === before + ' → ' + (before - cost) + ' dog tags', 'picking spends nothing, and the tags show what it would leave');
   check(!box.hidden && /Cpl\. Doodle/.test(box.textContent) && /Rifleman · 7 waves, 12 kills/.test(box.textContent), 'the picked soldier: ' + box.textContent);
   check(/hand in their kit/.test(document.getElementById('squadHint').textContent), 'what happens');
   slotBtn(vet).click();
-  check(box.hidden, 'tap again to let them be');
+  check(box.hidden && document.getElementById('shopCoins').textContent === before + ' dog tags', 'tap again to let them be');
 
   // Send the rookie engineer home: tags, the slot, the chip, one a visit.
   var tags = S.players[0].tags, hiredBefore = S.mods.hired, priceBefore = price(rifle);
@@ -34,7 +36,10 @@
 
   // Hire into the freed slot, then bring the engineer back: the hire goes back too, with the tags.
   takeItem('hire-bazooka');
-  check(S.recruits.some(function (r) { return r.type === 'bazooka' && r.slot === 4; }), 'hired into the freed slot');
+  var baz = S.recruits.find(function (r) { return r.type === 'bazooka' && r.slot === 4; });
+  check(baz, 'hired into the freed slot');
+  // Someone hired this visit can't be sent home (their chip under Hire puts them back for the full price).
+  check(slotBtn(baz).disabled && baz.fresh && !SHOP.canSend(baz), 'a fresh hire stays');
   box.querySelector('.sent-chip').click();
   check(S.players[0].tags === tags && S.recruits.some(function (r) { return r.id === rook.id; }) && !S.recruits.some(function (r) { return r.type === 'bazooka'; }), 'back, and the hire with them');
   check(!SHOP.sentNow() && /send em home/.test(document.getElementById('squadHint').textContent), 'and you can pick again');
@@ -46,9 +51,23 @@
   check(S.sentHome.length === 0 && S.recruits.some(function (r) { return r.id === vet.id; }), 'undo brings them back');
   takeItem(SHOP.SEND + vet.id); continueWave();
   check(S.sentHome[0].name === 'Cpl. Doodle', 'kept after the visit');
+  // On the field, they salute at their old place, say goodbye, and walk off the nearer edge.
+  var l = S.leavers[0];
+  check(S.leavers.length === 1 && l.id === vet.id && l.x === 154 && S.bubbles.length >= 1, 'a goodbye on the field');
+  for (var i = 0; i < 60; i++) update(1 / 60);
+  check(S.leavers[0].x === 154, 'saluting first');
+  for (i = 0; i < 60 * 8; i++) update(1 / 60);
+  check(!S.leavers.length, 'then gone off the page');
   S.score = 10; showOver();
   check(/Sent home: Cpl\. Doodle \(7 waves, 12 kills\)\./.test(document.getElementById('overFallen').textContent), 'the game-over card: ' + document.getElementById('overFallen').textContent);
   overScreen.hidden = true; LBOARD.clear();
+
+  // A fresh hire, with nobody sent home yet: greyed, refused; the others can still go.
+  newGame(); S.recruits = [makeRecruit(0, 'rifle')]; S.players[0].tags = 500; openShop(); takeItem('hire-sniper');
+  var fresh = S.recruits.find(function (r) { return r.type === 'sniper'; });
+  check(!SHOP.sentNow() && slotBtn(fresh).disabled && !SHOP.canSend(fresh) && !takeItem(SHOP.SEND + fresh.id), 'a fresh hire stays');
+  check(!slotBtn(S.recruits[0]).disabled && SHOP.canSend(S.recruits[0]), 'the others can still go');
+  shopScreen.hidden = true; S.shop = null;
 
   // Not enough tags: the button says how many more.
   newGame(); S.recruits = [makeRecruit(0, 'rifle')]; openShop(); S.players[0].tags = 0; renderShop();

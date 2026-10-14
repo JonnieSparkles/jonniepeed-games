@@ -157,13 +157,14 @@ var StickArmyShopScreen = function (w, shop) {
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function renderSquad() {
     var S = w.S, sent = shop.sentNow(), mine = w.tagsOf(w.me), slots = w.squadSlots(true), row = $('shopSquadRow');
-    if (picked != null && !shop.member(picked)) picked = null;
+    if (picked != null && (!shop.member(picked) || shop.member(picked).fresh)) picked = null;
     row.replaceChildren.apply(row, slots.map(function (s, i) {
       var fig = document.createElement('canvas'); fig.setAttribute('aria-hidden', 'true'); w.drawSquadFig(fig, s, i);
       if (!s.r) { var empty = el('span', 'squad-slot empty'); empty.append(fig); return empty; }
       var id = String(s.r.id), b = el('button', 'squad-slot' + (picked === id ? ' picked' : picked != null ? ' dim' : ''));
-      b.type = 'button'; b.dataset.recruit = id; b.disabled = !!sent;
-      b.setAttribute('aria-label', who(s.r) + ', ' + record(s.r, s.bed)); b.setAttribute('aria-pressed', picked === id ? 'true' : 'false');
+      // Someone hired this visit can't be sent home: their chip under Hire puts them back for the full price.
+      b.type = 'button'; b.dataset.recruit = id; b.disabled = !!sent || !!s.r.fresh;
+      b.setAttribute('aria-label', who(s.r) + ', ' + record(s.r, s.bed) + (s.r.fresh ? ', hired this visit' : '')); b.setAttribute('aria-pressed', picked === id ? 'true' : 'false');
       b.append(fig);
       b.addEventListener('click', function () { picked = picked === id ? null : id; render(); });
       return b;
@@ -189,6 +190,8 @@ var StickArmyShopScreen = function (w, shop) {
     box.hidden = !box.childNodes.length;
     hint.textContent = sent ? 'Tap the name to bring them back.' : p ? 'They hand in their kit and walk off the page.' : 'Tap a soldier to send em home.';
     hint.hidden = !sent && !slots.some(function (s) { return s.r; });
+    // While someone is picked, the tags show what sending them would leave; nothing is spent until Send home.
+    if (p && !sent && mine >= shop.sendCost()) $('shopCoins').textContent = mine + ' → ' + (mine - shop.sendCost()) + ' dog tags' + (S.coop ? ' (yours)' : '');
   }
 
   // This player's kit as pencil icons: icon-only with counts in the shop, icon and name on the pause card.

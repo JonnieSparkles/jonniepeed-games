@@ -169,7 +169,8 @@ var StickArmyShop = function (w) {
     var e = S.shop.log.map(parse).find(function (q) { return isSend(q.id); });
     return e || null;
   }
-  function canSend(r, by) { return !!r && !sentNow() && w.tagsOf(buyer(by)) >= sendCost(); }
+  // Not someone hired this visit (r.fresh): put the hire back instead, for the full price.
+  function canSend(r, by) { return !!r && !r.fresh && !sentNow() && w.tagsOf(buyer(by)) >= sendCost(); }
   function sendHome(rid, replay, by) {
     var S = w.S, r = member(rid), cost = sendCost();
     if (!canSend(r, by)) return false;
@@ -178,7 +179,7 @@ var StickArmyShop = function (w) {
     if (S.bed && S.bed.r === r) S.bed = null;
     else S.recruits = S.recruits.filter(function (q) { return q !== r; });
     if (r.name && r.rank) S.sentHome.push({ name: w.SQUAD.rankName(r), waves: r.waves || 0, kills: r.kills || 0 });
-    S.shop.gone = Object.assign({}, r); // for the screen's chip
+    S.shop.gone = Object.assign({}, r, { bed: !!(S.shop.base.bed && S.shop.base.bed.r.id === r.id) }); // the screen's chip, the goodbye
     S.shop.log.push(entry(SEND + rid, by));
     return true;
   }
@@ -270,6 +271,8 @@ var StickArmyShop = function (w) {
     var S = w.S;
     if (S.mode !== 'shop') return;
     w.queueSketches(S.shop.bought);
+    // Whoever was sent home says goodbye on the field as the next wave opens.
+    if (sentNow() && S.shop.gone) w.sendOff(S.shop.gone);
     S.shop = null; w.clearInput(); S.mode = 'play';
     w.shopScreen.close();
     // A pizza ordered in the shop is its own little scene before the wave: the courier rides in, everyone is fed,
