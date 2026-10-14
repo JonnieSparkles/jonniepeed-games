@@ -904,7 +904,7 @@ var UnrugFloor13 = function (core) {
     if (!soulsInGun() && !(H && H.bye)) return;
     if (!H.bye) { if (R.phaseT < T.at || R.talk) return; H.bye = { t: 0, from: muzzleXY() }; H.streams = 1; Snd.play('bell', 0); return; }
     const B = H.bye; B.t += dt;
-    if (B.t > T.say && !B.said) { B.said = true; Snd.play('bell', 0); live('The soul salutes: good luck.'); }
+    if (B.t > T.say && !B.said) { B.said = true; live('The soul salutes: good luck.'); }
     if (B.t > T.leave && !B.rose) { B.rose = true; riseAll(); }
   }
   function updateHint(dt) {
