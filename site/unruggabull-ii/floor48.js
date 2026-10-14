@@ -85,6 +85,13 @@ var UnrugFloor48 = function (core) {
   };
   const td = UnrugTopdown(core, { world: F48.world, bounds: { x0: 30, y0: F48.wallH + 4, x1: 786, y1: 440 } });
   const arena = UnrugArena(core, { limit: .92 });
+  // the lobby (lobby.js, shared with the 13th Floor's): singed, he passes the Rugfather's portrait on the way to the car
+  const lobby = UnrugLobby(core, arena, Object.assign({}, F48.lobby, { floor: 48, look: '48', smoke: true,
+    events: { ding: 'f48_ding', board: 'f48_board' }, bark: { u: F48.lobby.portraitU, key: 'portrait' },
+    white: dt => { Q.white = Math.max(0, Q.white - dt * 1.6); },
+    wall: () => { const px = Math.round(2 * arena.X(F48.lobby.portraitU) - PW8 / 2); PORTRAIT.x = px;
+      drawPortrait(px, PORTRAIT.y); drawPlaque(px + Math.round(PW8 / 2) - 62, PORTRAIT.y + PH8 + 4); },
+    wallGlows: () => arena.glow(PORTRAIT.x + PW8 / 2, PORTRAIT.y + 40, 80, '#ff7a2a', .2 + .03 * Math.sin(R.t * 2.3)) }));
   let R, bull, Q, g = core.g, ROOM = null;
   const LAYOUT = { wallH: F48.wallH, bedH: F48.bedH, lineX0: F48.lineX0, lineX1: F48.lineX1, door: F48.door, main: F48.main,
     lines: LINES.map(l => ({ y: l.y, tankX0: F48.parts[0][1] })),
@@ -839,41 +846,16 @@ var UnrugFloor48 = function (core) {
   // passes the portrait, the car arrives (DING), the doors open on the operator, Please Hold, and he walks in.
   function startLobby(direct) {
     Q.st = 'lobby'; R.phase = 'lobby'; R.td.locked = true; R.td.camHold = null; Q.white = direct ? 0 : 1;
-    arena.newRun(R, bull); R.arena.outShrink = false; bull.u = -1.05; bull.facing = 1; bull.jh = 0; bull.slash = -1; R.shots = [];
-    Q.lobby = { t: 0, said: false, ding: false, out: 0, smoke: 0 };
-    R.banner = null; R.talk = null; R.gold = false; R.td.streams = 0;
-    Snd.music(null, { hard: true });
+    Q.lobby = lobby.start(R, bull);
+    R.gold = false; R.td.streams = 0;
     core.setCheckpoint({ stage: 'floor48', souls: R.souls, continues: R.continues, down: [true, true, true], lobby: true, seedState: core.seedState(), runSeed: core.runSeed() });
     emit('f48_lobby', { t: R.t });
   }
-  const dialAt = t => Math.round(F48.lobby.dialFrom - (F48.lobby.dialFrom - 48) * clamp(t / F48.lobby.dingAt, 0, 1));
   function stepLobby(dt) {
-    const L = Q.lobby, F = F48.lobby; L.t += dt;
-    Q.white = Math.max(0, Q.white - dt * 1.6);
-    if (L.t < F.walkIn) { R.arena.locked = true; bull.u = -1.05 + (L.t / F.walkIn) * .35; bull.step += dt * 8; bull.facing = 1; }
-    else R.arena.locked = L.out > 0;
-    if (!L.said && bull.u > F.portraitU - .05) { L.said = true; core.bark('portrait'); }
-    if (!L.ding && L.t >= F.dingAt) { L.ding = true; Snd.play('rideDing'); emit('f48_ding'); }
-    if (L.ding && !L.doorSnd && L.t >= F.dingAt + .4) { L.doorSnd = true; Snd.play('rideDoors'); }
-    if (L.ding && !L.muzak && L.t >= F.dingAt + .9) { L.muzak = true; Snd.music('pleaseHold', { slam: true }); }
-    if (L.ding && !L.going && L.t >= F.dingAt + 1.6) { L.going = true; say0('operator', 'GOING UP?', 1.8); }
-    // a little smoke still coming off him
-    L.smoke -= dt; if (L.smoke <= 0) { L.smoke = .35; R.fx.push({ k: 'smoke', x: arena.X(bull.u) + fxr(-3, 3), y: arena.Y(bull.jh + .2), t: 0, dur: 1.2 }); }
-    const open = doorsOpen();
-    if (open >= 1 && L.out <= 0 && Math.abs(bull.u - F.doorU) < F.doorway && bull.jh <= 0) { L.out = .0001; emit('f48_board'); }
-    if (L.out > 0) {
-      L.out = Math.min(1, L.out + dt / F.walkOut); R.arena.out = L.out; bull.u += (F.doorU - bull.u) * (1 - Math.pow(.002, dt)); bull.step += dt * 8;
-      if (L.out >= 1) {
-        R.phase = 'win';
-        core.travel('elevator', { fight: true, from: 48, destination: { floor: 99, label: 'R', stage: 'roof' } });
-        return;
-      }
-    }
-    arena.update(dt, false);
-    updateFx(dt);
+    if (!lobby.step(dt)) return;
+    R.phase = 'win';
+    core.travel('elevator', { fight: true, from: 48, destination: { floor: 99, label: 'R', stage: 'roof' } });
   }
-  function say0(who, text, dur) { core.talk(text, who); Object.assign(R.talk, { readout: true, speaker: who, total: dur }); }
-  const doorsOpen = () => Q.lobby && Q.lobby.ding ? clamp((Q.lobby.t - F48.lobby.dingAt - .4) / F48.lobby.doorsT, 0, 1) : 0;
 
   // ---------- the tick ----------
   function update(dt) {
@@ -1271,38 +1253,7 @@ var UnrugFloor48 = function (core) {
   // the screens on the wall (lit by themselves: the glow layer)
   function glowScreens() { g.save(); g.translate(-CAM.x, -CAM.y); S.monitors(g, LAYOUT, R.t, { panic: Q.panic, down: Q.down, eye: Q.eye }); g.restore(); }
 
-  // ---------- the lobby, drawn ----------
-  let LOBBY = null;
-  function paintLobby() {
-    const cv = A.canvas(W, H), c = cv.getContext('2d'), P = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
-    // cream panelled walls with a gold rail, dark wainscot
-    P(0, 0, W, 240, '#e8dcc0');
-    for (let x = 0; x < W; x += 4) if ((x * 7) % 13 < 2) P(x, 0, 1, 180, '#e2d4b4');
-    P(0, 0, W, 18, '#3a2a1e'); P(0, 18, W, 3, '#c9962e'); P(0, 18, W, 1, '#ffd44a'); P(0, 21, W, 2, '#8a6420');
-    for (const x of [14, 120, 320, 426]) { P(x, 40, 40, 110, '#ddd0b0'); P(x + 2, 42, 36, 106, '#e8dcc0'); P(x + 2, 42, 36, 1, '#f6eedc'); }
-    P(0, 176, W, 64, '#3a2118'); P(0, 176, W, 3, '#c9962e'); P(0, 176, W, 1, '#ffd44a');
-    for (let x = 8; x < W; x += 24) { P(x, 184, 18, 48, '#2e1912'); P(x + 1, 185, 16, 1, '#4a2a1c'); }
-    // the marble floor: white and black squares with grey veins, polished
-    for (let y = 240; y < H; y += 10) for (let x = 0; x < W; x += 10) P(x, y, 10, 10, ((x + y) / 10) % 2 ? '#f2eee6' : '#24202a');
-    for (let i = 0; i < 40; i++) { const x = (i * 97) % W, y = 242 + (i * 13) % 26; P(x, y, 6, 1, i % 2 ? '#c8c2ba' : '#3a3440'); }
-    P(0, 240, W, 2, '#c9962e');
-    // the runner rug to the doors
-    P(60, 246, 360, 14, '#7a1d1a'); P(60, 246, 360, 2, '#c9962e'); P(60, 258, 360, 2, '#c9962e');
-    for (let x = 70; x < 412; x += 14) P(x, 251, 4, 4, '#c9962e');
-    // potted ferns
-    for (const x of [44, 268]) { P(x - 9, 214, 18, 26, '#3a2a1e'); P(x - 8, 215, 16, 24, '#8a6420'); P(x - 8, 215, 16, 2, '#c9962e');
-      for (let i = 0; i < 9; i++) { const a = -2.6 + i * .3; for (let r = 0; r < 22; r += 2) P(Math.round(x + Math.cos(a) * r), Math.round(214 + Math.sin(a) * r * .9), 2, 2, r > 14 ? '#3aa86a' : '#1f6a40'); } }
-    // sconces
-    for (const x of [100]) { P(x - 3, 70, 6, 14, '#8a6420'); P(x - 2, 70, 4, 1, '#ffd44a'); }
-    // the elevator: the same bronze frame, arch and doorway as the car's (elevator.js), the call buttons beside it
-    const dx = 2 * arena.X(F48.lobby.doorU);
-    P(dx - 80, 70, 160, 170, '#2a170f'); P(dx - 78, 72, 156, 168, '#6a4a18'); P(dx - 76, 74, 152, 166, '#c9962e'); P(dx - 74, 76, 148, 164, '#8a6420');
-    c.fillStyle = '#8a6420'; c.beginPath(); c.arc(dx, 70, 30, Math.PI, 0); c.fill();
-    c.fillStyle = '#c9962e'; c.beginPath(); c.arc(dx, 70, 28, Math.PI, 0); c.fill();
-    P(dx + 86, 140, 10, 22, '#2a170f'); P(dx + 87, 141, 8, 20, '#c9962e');
-    for (const yy of [145, 154]) { P(dx + 89, yy, 4, 4, '#3a2a1a'); P(dx + 90, yy + 1, 2, 2, '#f2e6c8'); }
-    return cv;
-  }
+  // ---------- the lobby, drawn (lobby.js draws the room; the portrait is the 48th's own) ----------
   // The Rugfather's portrait: the owner's sprite (portrait.js, frame 2 of his strip at half size, finer than the game's
   // own pixels) on a dark ground in a gilt frame. x, y is the picture's top left.
   const PW8 = UnrugPortrait.w, PH8 = UnrugPortrait.h;
@@ -1320,54 +1271,6 @@ var UnrugFloor48 = function (core) {
     mid('FOUNDER & CEO', y + 3); mid('HIS VISION ENDURES', y + 10);
   }
   const PORTRAIT = { x: 0, y: 30 };   // the picture's top left, picture pixels
-  function drawLobby() {
-    if (!LOBBY) LOBBY = paintLobby();
-    g.drawImage(LOBBY, 0, 0);
-    const L = Q.lobby, px = Math.round(2 * arena.X(F48.lobby.portraitU) - PW8 / 2);
-    PORTRAIT.x = px;
-    drawPortrait(px, PORTRAIT.y);
-    drawPlaque(px + Math.round(PW8 / 2) - 62, PORTRAIT.y + PH8 + 4);
-    // the dial over the doors, as in the car: the car counting down to 48
-    const dx = 2 * arena.X(F48.lobby.doorU), floorNo = dialAt(L.t);
-    g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(dx, 70, 24, Math.PI, 0); g.fill();
-    const a = Math.PI + clamp(floorNo / 99, 0, 1) * Math.PI;   // the tower dial, as in the car: G to R
-    for (let i = 0; i <= 10; i++) { const b = Math.PI + i / 10 * Math.PI; core.line(g, dx + Math.cos(b) * 20, 70 + Math.sin(b) * 20, dx + Math.cos(b) * 23, 70 + Math.sin(b) * 23, '#3a2a1a'); }
-    core.line(g, dx, 69, dx + Math.cos(a) * 19, 69 + Math.sin(a) * 19, '#c8302a'); core.line(g, dx + 1, 69, dx + 1 + Math.cos(a) * 18, 69 + Math.sin(a) * 18, '#c8302a');
-    core.disc(g, dx, 69, 2, '#3a2a1a');
-    txt(g, String(floorNo), Math.round(dx - textWidth(String(floorNo)) / 2), 56, '#3a2a1a', 1);
-    rect(g, dx - 24, 70, 48, 3, '#6a4a18');
-    // the doors, as the car's: two bronze leaves with a sunburst and a window each, opening on the car and its operator
-    const open = doorsOpen(), lw = Math.round(72 * (1 - open)), here = L.t > F48.lobby.dingAt - 1.2;
-    rect(g, dx - 72, 76, 144, 164, '#3a2118');
-    if (open > 0) {
-      rect(g, dx - 72, 76, 144, 100, '#4a2a1c'); rect(g, dx - 72, 76, 144, 3, '#6a4a18'); rect(g, dx - 72, 176, 144, 64, '#5e1614'); rect(g, dx - 72, 176, 144, 2, '#c9962e');
-      const S2 = A.GHOST, ox = dx + 30, oy = 150; g.drawImage(S2, ox, oy, S2.width * 2, S2.height * 2);
-      rect(g, ox + 7, oy - 2, 22, 10, '#1a1418'); rect(g, ox + 8, oy - 1, 20, 8, '#c8302a'); rect(g, ox + 8, oy + 5, 20, 2, '#ffd44a');
-      rect(g, ox + 4, oy + 30, 28, 12, '#1a1418'); rect(g, ox + 5, oy + 30, 26, 11, '#a8261e');
-    }
-    for (const [x, right] of [[dx - 72, 0], [dx + 72 - lw, 1]]) {
-      if (lw <= 0) break;
-      rect(g, x, 76, lw, 164, '#2a170f'); rect(g, x + 1, 77, lw - 2, 162, '#7a5a2e');
-      // the sunburst, as the car's: half on each leaf from the seam, kept inside its leaf as it slides away
-      const cx = right ? x : x + lw, sx = right ? 1 : -1;
-      g.save(); g.beginPath(); g.rect(x + 1, 77, lw - 2, 162); g.clip();
-      for (let i = 0; i < 7; i++) { const b = .25 + i * .2; core.line(g, cx, 236, cx + sx * Math.sin(b) * 60, 236 - Math.cos(b) * 140, '#8a6634'); }
-      g.restore();
-      rect(g, x + 1, 77, lw - 2, 2, '#a07a3e');
-      if (lw > 16) {
-        // the window: the shaft, dark, until the car's light comes up behind it
-        const wx = x + Math.round(lw / 2) - 5;
-        rect(g, wx - 1, 99, 12, 84, '#2a170f'); rect(g, wx, 100, 10, 82, here ? '#5a3a20' : '#0e0a0c');
-        if (here) rect(g, wx, 100, 10, 2, '#ffcf7a');
-      }
-    }
-    if (lw >= 72) rect(g, dx - 1, 76, 2, 164, '#2a170f');   // the seam, only while they're shut
-    if (L.t > F48.lobby.dingAt + .4 + F48.lobby.doorsT && L.out <= 0) {
-      const bob = Math.round(Math.sin(R.t * 5) * 2);
-      otxt(g, 'GOING UP', dx, 34 + bob, '#ffd44a', 1, 'center');
-    }
-    g.restore(); arena.draw(); g.save(); g.scale(.5, .5);
-  }
   // The portrait again over the finished picture, so the renderer's 64 colours and dither don't touch it: the owner's
   // sprite as he drew it. Not where he stands (a jump in front of it), where the lit copy underneath shows instead.
   function lobbyOverlay() {
@@ -1381,22 +1284,14 @@ var UnrugFloor48 = function (core) {
     if (Q.white > 0) { g.globalAlpha = Q.white; rect(g, 0, 0, W, H, '#ffffff'); }
     g.restore();
   }
-  function lobbyGlows() {
-    g.save(); g.scale(.5, .5);
-    for (const x of [100]) { arena.glow(x, 76, 40, '#ffcf7a', .35); core.disc(g, x, 76, 3, '#fff0c0'); }
-    arena.glow(PORTRAIT.x + PW8 / 2, PORTRAIT.y + 40, 80, '#ff7a2a', .2 + .03 * Math.sin(R.t * 2.3));
-    g.restore();
-    arena.glows();
-  }
-
   // ---------- the frame ----------
   const draw = half(() => {
-    if (Q.st === 'lobby') { drawLobby(); return; }
+    if (Q.st === 'lobby') { lobby.draw(); return; }
     drawFactory();
   });
   function glows() {
     g.save(); g.scale(.5, .5);
-    if (Q.st === 'lobby') { g.restore(); lobbyGlows(); return; }
+    if (Q.st === 'lobby') { g.restore(); lobby.glows(); return; }
     glowScreens(); glowFactory();
     g.restore();
     core.drawFx('glow');
@@ -1506,7 +1401,7 @@ var UnrugFloor48 = function (core) {
     set: { flat: true },
     get label() { return Q && Q.st === 'lobby' ? 'Unruggabull, side on, in an immaculate elevator lobby, under a grand portrait of the flaming Rugfather.' : "Unruggabull, seen from above, inside p(Loom)'s soul-reclamation factory: three production lines of conveyor belts and machines weaving captured souls into carpshits."; },
     lines: { f48start: 'SO THIS IS WHERE THEY GO.', f48line: 'ONE DOWN.', f48panic: 'OVERTIME, HUH?', portrait: "HIS VISION ENDURES. HE DIDN'T.", start: false },
-    newRun, update, opening, resume, use(x) { g = x; td.use(x); arena.use(x); },
+    newRun, update, opening, resume, crouchWalk: () => !!Q && Q.st === 'lobby', use(x) { g = x; td.use(x); arena.use(x); lobby.use(x); },
     view, lights, shakeOffset, draw, glows, overlay, hud,
     fire: () => true, slashHits: noop, muzzleXY: () => { const m = td.muzzle(), s = td.screenOf(m.x, m.y - m.h); return { x: s.x / 2, y: s.y / 2 }; },
     soulFreed(f) { f.to = { x: W / 2 - 10 - textWidth(String(R.souls)), y: 7 }; },

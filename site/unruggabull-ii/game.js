@@ -41,7 +41,8 @@
     charges: 20, recharge: .5, spreadT: 10,
     overheat: 1, cool: 3,   // run it dry and the blaster overheats: overheat seconds with no recharge, then it won't fire until it's back to cool charges; it sputters if you pull the trigger meanwhile
     slashT: .2, slashCd: .32, slashReach: .19, slashWide: .34, deflectWindow: .2,
-    hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1, crouchCost: 2
+    hurtInv: 1.7, recover: .5, deflectCharge: 3, reach: .9, crouchH: .1, crouchCost: 2,
+    crouchWalk: .5   // crouched walking speed, as a share of walking, on the side-view stages that allow it (floor.crouchWalk: the lobbies and rides)
   };
   const SHARED_TUNE = Object.assign({}, TUNE);
   Object.assign(TUNE, UnrugFloor13.TUNE);
@@ -218,6 +219,8 @@
   const shooting = () => keys.kbShoot || keys.padShoot || keys.mouseShoot;
   const depthDir = () => ((keys.kbUp || keys.padUp) ? 1 : 0) - ((keys.kbDown || keys.padDown) ? 1 : 0);
   const crouchHeld = () => !floor.depthMove && (keys.kbDown || keys.padDown);
+  // stages where he can walk crouched (side on: the lobbies and the rides); elsewhere crouched means standing still
+  const crouchWalks = () => !!(floor.crouchWalk && floor.crouchWalk());
   function press(k) { if (k === 'drop' && state === 'play') { drops.use(); return; } if (state !== 'play') return; if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12; }
   const onRunner = () => Math.abs(bull.u) < TUNE.runner && bull.jh < .03 && !bull.mouth && !bull.spat;
   function updateBull(dt) {
@@ -233,8 +236,9 @@
     b.crouch = crouchHeld() && b.jh <= 0 && R.phase !== 'win';
     // how long he's been standing about (cosmetic: his idle poses)
     b.idle = moveDir() || (floor.depthMove && depthDir()) || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
-    const dir = R.phase === 'win' || b.pin > 0 || b.crouch || (R.bullRun > 0 && floor.id === 'floor13') ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
-    b.u = clamp(b.u + dir * TUNE.move * dt, -TUNE.aisle, TUNE.aisle);
+    const dir = R.phase === 'win' || b.pin > 0 || (b.crouch && !crouchWalks()) || (R.bullRun > 0 && floor.id === 'floor13') ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
+    b.crouchWalking = b.crouch && !!dir;
+    b.u = clamp(b.u + dir * TUNE.move * (b.crouch ? TUNE.crouchWalk : 1) * dt, -TUNE.aisle, TUNE.aisle);
     if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; b.crouch = false; Snd.play('jump'); }
     b.sq = (b.sq || 0) > 0 ? Math.max(0, b.sq - dt) : Math.min(0, (b.sq || 0) + dt);   // squash on landing, stretch on takeoff
     if (b.jh > 0) {
@@ -1095,8 +1099,9 @@
     live(floor.continueText ? floor.continueText() : 'Back at SHRED-O with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
-  // The 13th Floor's elevator: the quiet ride (no fight, Please Hold, a supply crate) up to the 48th Floor.
-  const RIDE_TO_48 = { fight: false, from: 13, walkIn: true, destination: { floor: 48, label: '48', stage: 'floor48' } };
+  // The 13th Floor's elevator: its lobby (DING, the doors, he boards), then the quiet ride (no fight, Please Hold, a
+  // supply crate) up to the 48th Floor.
+  const RIDE_TO_48 = { fight: false, from: 13, lobby: true, destination: { floor: 48, label: '48', stage: 'floor48' } };
   // Phones go full screen when you start; it has to happen inside the tap.
   function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
 
@@ -1407,7 +1412,8 @@
     }
     const down = dy > STICK.down && dy > Math.abs(dx) * .8, up = dy < -STICK.up && -dy > Math.abs(dx) * .6;
     keys.padDown = down; keys.padUp = !!floor.depthMove && up;
-    keys.padLeft = (!down || !!floor.depthMove) && dx < -STICK.side; keys.padRight = (!down || !!floor.depthMove) && dx > STICK.side;
+    const side = !down || !!floor.depthMove || crouchWalks();   // down plus left or right crouch-walks where a stage allows it
+    keys.padLeft = side && dx < -STICK.side; keys.padRight = side && dx > STICK.side;
     if (!floor.depthMove && up && upArmed) { upArmed = false; press('jump'); }
     if (dy > -STICK.up * .5) upArmed = true;
   }

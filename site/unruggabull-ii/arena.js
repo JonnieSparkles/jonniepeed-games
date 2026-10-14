@@ -248,7 +248,7 @@ var UnrugArena = function (core, tuning) {
     if (b.inv > TUNE.hurtInv - .55 && b.stag > 0) return 'hurt';
     if (b.slash >= 0) return b.slash < .07 ? 'wind' : 'cut';
     if (b.jh > 0 || (R.arena.lift || 0) > 1) return 'jump';
-    if (b.crouch) return 'crouch';
+    if (b.crouch) return b.crouchWalking ? 'crouchWalk' + (Math.floor(b.step / 1.3) % 2) : 'crouch';   // crouch-walking: two low steps
     if (moveDir() && !R.arena.locked) return 'run' + (Math.floor(b.step / 1.3) % 4);
     const idle = b.idle || 0;
     if (idle > 6 && (idle % 8) < 1.4 && R.arena.glance) return 'front';
