@@ -1107,28 +1107,44 @@ var UnrugFloor48 = function (core) {
   // ---------- the reactor and the cart, drawn ----------
   // A reaction vessel: a tall glass column of churning soul-energy on a riveted brass plinth, two prongs on its cap
   // arcing to each other; cracks spread as it's hit. Its glow, the arcs and its beam to the shield are in the glow.
+  // seen as the rest of the floor is, from above at a tilt (owner, Oct 14: it read as a side view): a round brass
+  // plinth with its top showing, a glass cylinder (rounded at the bottom, its bands curving round it) and its open top an
+  // oval of churning energy in a brass rim, the two prongs standing on the rim
   function drawVessel(v, t) {
     const x = Math.round(v.x), y = Math.round(v.y), dmg = 1 - v.hp / v.max, awake = Q.reactor.st === 'on';
-    // dormant it idles dark and slow; waking (the last line's laser on its way) it stirs
+    // dormant it idles dark and slow; waking it stirs
+    const sp = awake ? 3 : Q.reactor.st === 'wait' ? 2 : .8, pal = awake ? ['#2a7a96', '#1f5a70', '#173f50', '#8fe3ff'] : ['#1c4a5c', '#163a4a', '#10283a', '#3a7890'];
+    const ell = (cx, cy, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 6.29); g.fill(); };
+    const arc = (cy, rx, ry, col, lw) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.ellipse(x, cy, rx, ry, 0, 0, Math.PI); g.stroke(); };
+    const gT = y - 54, gB = y - 10, R = 13, ry = 5;
     const one = () => {
-      g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.ellipse(x, y + 2, 21, 5, 0, 0, 6.29); g.fill();
-      // the plinth
-      rect(g, x - 17, y - 9, 34, 11, '#141018'); rect(g, x - 16, y - 8, 32, 9, '#2c2834'); rect(g, x - 16, y - 8, 32, 2, '#c9962e'); rect(g, x - 16, y - 6, 32, 1, '#8a6420');
-      for (const rx of [-13, -5, 3, 11]) rect(g, x + rx, y - 3, 2, 2, '#8a6420');
-      // the glass, and the energy inside it in slow bands
-      rect(g, x - 13, y - 54, 26, 46, '#0a1418'); rect(g, x - 12, y - 53, 24, 44, '#0c1e26');
-      const sp = awake ? 3 : Q.reactor.st === 'wait' ? 2 : .8, pal = awake ? ['#2a7a96', '#1f5a70', '#173f50'] : ['#1c4a5c', '#163a4a', '#10283a'];
-      for (let k = 0; k < 11; k++) { const ph = Math.sin(t * sp + k * .9); rect(g, x - 10, y - 51 + k * 4, 20, 4, ph > .3 ? pal[0] : ph > -.3 ? pal[1] : pal[2]); }
-      rect(g, x - 9, y - 51, 2, 40, '#5aa8c4'); rect(g, x + 7, y - 49, 1, 34, '#3a7890');
-      // brass bands round the glass
-      rect(g, x - 13, y - 40, 26, 2, '#8a6420'); rect(g, x - 13, y - 40, 26, 1, '#c9962e'); rect(g, x - 13, y - 25, 26, 2, '#8a6420'); rect(g, x - 13, y - 25, 26, 1, '#c9962e');
-      // the cap and its two prongs
-      rect(g, x - 15, y - 59, 30, 6, '#3a2a1e'); rect(g, x - 15, y - 59, 30, 2, '#ffd44a'); rect(g, x - 15, y - 57, 30, 1, '#c9962e'); rect(g, x - 9, y - 63, 18, 4, '#2c2834');
-      for (const px of [-9, 7]) { rect(g, x + px, y - 74, 2, 11, '#7c8494'); rect(g, x + px, y - 74, 1, 11, '#bfc6d4'); rect(g, x + px - 1, y - 77, 4, 3, '#bfefff'); }
+      ell(x, y + 2, 21, 6, 'rgba(0,0,0,.5)');
+      // the plinth: a squat drum, its front then its top
+      ell(x, y - 1, 18, 6, '#141018'); rect(g, x - 18, y - 10, 36, 9, '#141018');
+      ell(x, y - 2, 17, 5, '#2c2834'); rect(g, x - 17, y - 10, 34, 8, '#2c2834');
+      for (const rx of [-12, -4, 4, 12]) rect(g, x + rx - 1, y - 6, 2, 2, '#8a6420');
+      ell(x, gB, 17, 6, '#8a6420'); ell(x, gB - 1, 16, 5, '#c9962e'); ell(x, gB - 1, 14, 4, '#3a2a1e');
+      // the glass: a cylinder, round at its foot, darker toward the edges
+      ell(x, gB, R, ry, '#0a1418'); rect(g, x - R, gT, R * 2, gB - gT, '#0a1418');
+      ell(x, gB - 1, R - 1, ry - 1, '#0c1e26'); rect(g, x - R + 1, gT, R * 2 - 2, gB - gT - 1, '#0c1e26');
+      // the energy in slow bands that curve round it
+      g.save(); g.beginPath(); g.rect(x - R + 2, gT, R * 2 - 4, gB - gT + ry - 2); g.clip();
+      for (let k = 0; k < 11; k++) { const ph = Math.sin(t * sp + k * .9), cy = gT + 3 + k * 4; g.fillStyle = ph > .3 ? pal[0] : ph > -.3 ? pal[1] : pal[2]; g.beginPath(); g.ellipse(x, cy, R - 3, 2.5, 0, 0, Math.PI); g.lineTo(x - R + 3, cy - 2); g.ellipse(x, cy - 2, R - 3, 2.5, 0, Math.PI, 0, true); g.closePath(); g.fill(); }
+      g.restore();
+      rect(g, x - R + 2, gT + 2, 3, gB - gT - 2, 'rgba(10,20,24,.55)'); rect(g, x + R - 4, gT + 2, 2, gB - gT - 2, 'rgba(10,20,24,.65)');
+      rect(g, x - 8, gT + 3, 2, gB - gT - 6, '#5aa8c4'); rect(g, x + 6, gT + 5, 1, gB - gT - 12, '#3a7890');
+      // brass bands, curving round the front
+      for (const by of [y - 40, y - 25]) { arc(by, R + .5, 3.5, '#8a6420', 3); arc(by - 1, R + .5, 3.5, '#c9962e', 1); }
+      // the open top: a brass rim round an oval of churning energy, motes turning in it
+      ell(x, gT, R + 2, ry + 1, '#3a2a1e'); ell(x, gT, R + 1, ry, '#c9962e'); ell(x, gT + .5, R - 1, ry - 1.5, '#ffd44a');
+      ell(x, gT + 1, R - 2, ry - 2, pal[1]); ell(x + Math.sin(t * sp) * 2, gT + 1, R - 5, ry - 3, pal[0]);
+      for (let k = 0; k < 3; k++) { const a = t * sp * 1.4 + k * 2.1; rect(g, Math.round(x + Math.cos(a) * (R - 5)), Math.round(gT + 1 + Math.sin(a) * (ry - 3)), 2, 1, pal[3]); }
+      // the prongs, standing on the rim (the back one first, then the front)
+      for (const [px, py] of [[-9, gT - 1], [7, gT + 2]]) { rect(g, x + px - 1, py - 1, 4, 3, '#2c2834'); rect(g, x + px, y - 74, 2, py - (y - 74), '#7c8494'); rect(g, x + px, y - 74, 1, py - (y - 74), '#bfc6d4'); rect(g, x + px - 1, y - 77, 4, 3, '#bfefff'); }
       // cracks, spreading as it's hit
       if (dmg > .2) { rect(g, x - 6, y - 46, 1, 6, '#dff6ff'); rect(g, x - 5, y - 41, 3, 1, '#dff6ff'); }
       if (dmg > .45) { rect(g, x + 3, y - 34, 1, 8, '#dff6ff'); rect(g, x + 1, y - 30, 4, 1, '#dff6ff'); rect(g, x - 8, y - 20, 5, 1, '#dff6ff'); }
-      if (dmg > .7) { rect(g, x - 2, y - 52, 1, 12, '#ffffff'); rect(g, x + 5, y - 46, 1, 5, '#ffffff'); rect(g, x - 10, y - 30, 1, 7, '#ffffff'); }
+      if (dmg > .7) { rect(g, x - 2, y - 50, 1, 12, '#ffffff'); rect(g, x + 5, y - 46, 1, 5, '#ffffff'); rect(g, x - 10, y - 30, 1, 7, '#ffffff'); }
     };
     g.save(); one(); if (v.flash > 0) { g.globalCompositeOperation = 'lighter'; one(); } g.restore();
   }
@@ -1138,25 +1154,34 @@ var UnrugFloor48 = function (core) {
     for (let x = 24; x < F48.world.w - 20; x += 14) rect(g, x, y - 1, 6, 4, '#1f1a16');
     rect(g, 20, y, F48.world.w - 40, 2, '#4a4652'); rect(g, 20, y, F48.world.w - 40, 1, '#7c8494');
   }
-  // the canister cart: a hazard-striped flatbed on four wheels with its load of soul canisters
+  // the canister cart, from above at a tilt like the rest: a hazard-striped flatbed (its deck showing) on four wheels,
+  // its load of soul canisters standing on it, their round tops showing
   function drawCart(c) {
     const x = Math.round(c.x), y = F48.cart.y;
-    g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(x, y + 3, 24, 4, 0, 0, 6.29); g.fill();
-    for (const wx of [-14, 14]) { g.fillStyle = '#141018'; g.beginPath(); g.arc(x + wx, y + 1, 4, 0, 6.29); g.fill(); rect(g, x + wx - 1, y, 2, 2, '#7c8494'); }
-    rect(g, x - 22, y - 7, 44, 7, '#141018'); rect(g, x - 21, y - 6, 42, 5, '#3a3640'); rect(g, x - 21, y - 6, 42, 1, '#7c8494');
-    for (let k = 0; k < 7; k++) rect(g, x - 20 + k * 6, y - 4, 3, 2, k % 2 ? '#ffd44a' : '#141018');
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(x, y + 3, 25, 5, 0, 0, 6.29); g.fill();
+    // the far wheels peeking out behind, then the deck's top, its front, and the near wheels
+    for (const wx of [-14, 14]) { g.fillStyle = '#0c0a10'; g.beginPath(); g.ellipse(x + wx, y - 6, 3, 2, 0, 0, 6.29); g.fill(); }
+    rect(g, x - 22, y - 12, 44, 6, '#141018'); rect(g, x - 21, y - 11, 42, 5, '#4a4652'); rect(g, x - 21, y - 11, 42, 1, '#7c8494');
+    for (let k = 0; k < 6; k++) rect(g, x - 19 + k * 7, y - 9, 4, 1, '#3a3640');
+    rect(g, x - 22, y - 6, 44, 6, '#141018'); rect(g, x - 21, y - 6, 42, 5, '#3a3640');
+    for (let k = 0; k < 7; k++) rect(g, x - 20 + k * 6, y - 5, 3, 3, k % 2 ? '#ffd44a' : '#141018');
+    for (const wx of [-14, 14]) { g.fillStyle = '#141018'; g.beginPath(); g.ellipse(x + wx, y + 1, 4, 3.5, 0, 0, 6.29); g.fill(); rect(g, x + wx - 1, y, 2, 2, '#7c8494'); }
     if (c.full) for (let k = 0; k < F48.cart.load; k++) {
-      const cx = x - 15 + k * 10;
-      rect(g, cx - 1, y - 23, 9, 17, '#141018'); rect(g, cx, y - 22, 7, 15, '#1a3a4a'); rect(g, cx + 1, y - 19, 5, 9, '#4a8aa8'); rect(g, cx + 1, y - 19, 1, 9, '#bfefff');
-      rect(g, cx - 1, y - 24, 9, 3, '#c9962e'); rect(g, cx - 1, y - 9, 9, 2, '#8a6420');
+      const cx = x - 11 + k * 7.5 | 0, cy = y - 9, top = cy - 14;
+      g.fillStyle = '#141018'; g.beginPath(); g.ellipse(cx, cy, 4.5, 2, 0, 0, 6.29); g.fill(); rect(g, cx - 4, top, 9, 14, '#141018');
+      rect(g, cx - 3, top + 1, 7, 13, '#1a3a4a'); rect(g, cx - 2, top + 3, 5, 8, '#4a8aa8'); rect(g, cx - 2, top + 3, 1, 8, '#bfefff');
+      rect(g, cx - 4, cy - 2, 9, 2, '#8a6420');
+      g.fillStyle = '#8a6420'; g.beginPath(); g.ellipse(cx + .5, top, 4.5, 2, 0, 0, 6.29); g.fill();
+      g.fillStyle = '#c9962e'; g.beginPath(); g.ellipse(cx + .5, top - .5, 3.5, 1.5, 0, 0, 6.29); g.fill();
+      rect(g, cx, top - 1, 1, 1, '#ffd44a');
     }
-    else for (let k = 0; k < 5; k++) rect(g, x - 18 + k * 8, y - 9, 4, 2, '#3a2a1e');
+    else for (let k = 0; k < 5; k++) rect(g, x - 18 + k * 8, y - 10, 4, 2, '#1f1a16');
   }
   // The reactor in the glow: each vessel's light and churning souls, the arc between its prongs, and its energy beam
   // to the shield over the last loom (pulses running along it); the shield a shimmering dome with a honeycomb, a band
   // sweeping up it, and a ripple where a bolt hits. The cart's canisters glow faintly.
   function glowReactor(t) {
-    if (Q.cart && Q.cart.full) for (let k = 0; k < F48.cart.load; k++) td.glow(Q.cart.x - 11 + k * 10, F48.cart.y - 14, 10, '#8fe3ff', .35);
+    if (Q.cart && Q.cart.full) for (let k = 0; k < F48.cart.load; k++) td.glow(Q.cart.x - 11 + k * 7.5, F48.cart.y - 17, 9, '#8fe3ff', .35);
     const Rc = Q.reactor; if (!Rc || Q.st !== 'fight') return;
     // dormant (and waiting): each vessel under a faint shield of its own, a ripple where it's hit; waiting, it brightens
     if (Rc.st === 'dormant' || Rc.st === 'wait') {
@@ -1195,7 +1220,7 @@ var UnrugFloor48 = function (core) {
       }
     }
     const lm = lastLoom(); if (!lm) return;
-    const top = lm.y0 - lm.H, cx = (lm.x0 + lm.x1) / 2, cy = (top + lm.y1) / 2, rx = (lm.x1 - lm.x0) / 2 + 20, ry = (lm.y1 - top) / 2 + 18;
+    const top = lm.y0 - lm.H - 12, cx = (lm.x0 + lm.x1) / 2, cy = (top + lm.y1) / 2, rx = (lm.x1 - lm.x0) / 2 + 20, ry = (lm.y1 - top) / 2 + 18;
     // the beams
     for (const v of Rc.vessels) {
       if (v.dead) continue;
@@ -1315,7 +1340,7 @@ var UnrugFloor48 = function (core) {
       const n = Math.min(5, 1 + Math.floor((dmg - .1) / .18)), w = m.x1 - m.x0, top = m.y0 - m.H;
       for (let i = 0; i < n; i++) {
         const fx = m.x0 + w * [.22, .68, .45, .88, .1][i], fl = Math.sin(t * 13 + i * 2.1 + m.id) * .5 + .5;
-        const h = (6 + fl * 8) * (.8 + dmg * 1.6) * (i < n - 1 ? 1 : .7), base = top + 4, fl2 = Math.sin(t * 17 + i * 3.3 + m.id) * .5 + .5;
+        const h = (6 + fl * 8) * (.8 + dmg * 1.6) * (i < n - 1 ? 1 : .7), base = top - 3 - (i % 2) * 6, fl2 = Math.sin(t * 17 + i * 3.3 + m.id) * .5 + .5;
         g.fillStyle = '#c8302a'; g.fillRect(Math.round(fx - 4), Math.round(base - h * .7), 8, Math.round(h * .7)); g.fillRect(Math.round(fx - 2), Math.round(base - h), 4, Math.round(h));
         g.fillRect(Math.round(fx + 3), Math.round(base - h * (.4 + fl2 * .4)), 2, Math.round(h * (.4 + fl2 * .4)));
         g.fillStyle = '#ff7a2a'; g.fillRect(Math.round(fx - 3), Math.round(base - h * .5), 6, Math.round(h * .5)); g.fillRect(Math.round(fx - 1), Math.round(base - h * .8), 3, Math.round(h * .8));
