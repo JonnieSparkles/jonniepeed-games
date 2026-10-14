@@ -439,7 +439,9 @@ window.UnrugSound = (function () {
     loom: { f: 96, wave: 'p12', ms: 38 }, // Keep the original fallback's caption cadence.
     operator: { f: 210, wave: 'triangle', ms: 55 },
     narrator: { f: 392, wave: 'triangle', ms: 40 },
-    shredder: { f: 140, wave: 'sawtooth', ms: 40 },
+    // a machine talking (owner, Oct 14: his old low buzz was half as loud as Unruggabull's on a phone): a brighter pulse,
+    // a square an octave under it and a gritty burst of paper-feed noise on every letter
+    shredder: { f: 160, wave: 'p25', ms: 40, vol: .125, sub: .5, grit: .26 },
     announcer: { f: 620, wave: 'p25', ms: 38 },
     bull: { f: 165, wave: 'p50', ms: 46 }
   };
@@ -462,7 +464,10 @@ window.UnrugSound = (function () {
       if (!/[a-z0-9]/i.test(ch)) return;
       const k = (ch.toLowerCase().charCodeAt(0) * 7) % 5;
       if (talking.length > 200) talking = talking.slice(-100);
-      talking.push(osc(voiceBus, V.wave, V.f * (1 + k * .08), t0 + plan.times[i], V.ms / 1000 * .75, .085, { sustain: .6 }));
+      const f = V.f * (1 + k * .08), t = t0 + plan.times[i], d = V.ms / 1000 * .75, vol = V.vol || .085;
+      talking.push(osc(voiceBus, V.wave, f, t, d, vol, { sustain: .6 }));
+      if (V.sub) talking.push(osc(voiceBus, 'square', f * .5, t, d, vol * V.sub, { sustain: .5 }));
+      if (V.grit) noiseHit(voiceBus, t, .035, V.grit, 'bandpass', 1500 + k * 350, 2.5);
     });
     musicBus.gain.setTargetAtTime(DUCKED, ctx.currentTime, .05);
     duckUntil = t0 + plan.total;

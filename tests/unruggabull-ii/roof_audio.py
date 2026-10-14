@@ -51,4 +51,23 @@ def check_audio(browser, root):
     }''')
     assert muted_rms < 1e-8, ('mute leaks roof sound', muted_rms)
     page.evaluate('UnrugSound.roofSound(null)'); page.close()
+    # The Shredder's voice is a machine and carries on a phone speaker: about as loud as Unruggabull's above 300 Hz.
+    page = browser.new_page()
+    page.evaluate('''() => { window.AudioContext = class extends OfflineAudioContext {
+      constructor() { super(1, 48000 * 2.2, 48000); Object.defineProperty(this, 'state', {value: 'running'}); }
+    }; }''')
+    page.add_script_tag(content=audio)
+    level = {}
+    for who in ['shredder', 'bull']:
+        level[who] = page.evaluate('''async who => {
+          UnrugSound.init(); audioTest('clearInterval(P.timer)'); UnrugSound.say('THAT GOES ON YOUR RECORD.', who);
+          const b = await audioTest('ctx.startRendering()'), d = b.getChannelData(0).slice(0, 48000 * 1.9);
+          let h = 0, y = 0, x0 = 0; const a = Math.exp(-2 * Math.PI * 300 / 48000);
+          for (const v of d) { y = a * (y + v - x0); x0 = v; h += y * y; } return Math.sqrt(h / d.length);
+        }''', who)
+        page.reload(); page.evaluate('''() => { window.AudioContext = class extends OfflineAudioContext {
+          constructor() { super(1, 48000 * 2.2, 48000); Object.defineProperty(this, 'state', {value: 'running'}); }
+        }; }'''); page.add_script_tag(content=audio)
+    assert level['shredder'] >= level['bull'] * .85, ('the Shredder is too quiet on a phone', level)
+    page.close()
     print('PASS roof audio: 16 hooks render nonzero finite sound, tracks, cadence, mute and loop cleanup')
