@@ -148,6 +148,40 @@ var StickArmyShop = function (w) {
     return gifts;
   }
   function costNow(it, by) { return onHouse(it, by) ? 0 : price(it); }
+
+  // ---------- sending a soldier home ----------
+  // One soldier a visit can leave the squad from the shop, to free their slot (round 20: "be able to RELEASE a squad
+  // member from duty"). It costs half a rifleman's hire as it stands (war prices, co-op and all), so it never pays:
+  // the open slot is the point. It goes in the visit's log as 'send:<recruit id>', so putting it back, undo and a
+  // hire into the freed slot all follow the rules everything else does (a hire into that slot goes back with them).
+  // The hire price doesn't drop. Named soldiers sent home are listed on the end cards (S.sentHome).
+  var SEND = 'send:';
+  function isSend(id) { return id.indexOf(SEND) === 0; }
+  function sendCost() { return fives(price(ITEMS.find(function (it) { return it.id === 'hire-rifle'; })) / 2); }
+  function member(rid) {
+    var S = w.S, r = S.recruits.find(function (q) { return !q.dead && String(q.id) === rid; });
+    return r || (S.bed && String(S.bed.r.id) === rid ? S.bed.r : null);
+  }
+  // Who was sent home this visit (their log entry, parsed), or null.
+  function sentNow() {
+    var S = w.S;
+    if (!S.shop) return null;
+    var e = S.shop.log.map(parse).find(function (q) { return isSend(q.id); });
+    return e || null;
+  }
+  function canSend(r, by) { return !!r && !sentNow() && w.tagsOf(buyer(by)) >= sendCost(); }
+  function sendHome(rid, replay, by) {
+    var S = w.S, r = member(rid), cost = sendCost();
+    if (!canSend(r, by)) return false;
+    w.spendTags(cost, buyer(by));
+    if (!replay) w.emit('send_home', { cost: cost, type: r.type, rank: r.rank || 0, waves: r.waves || 0 });
+    if (S.bed && S.bed.r === r) S.bed = null;
+    else S.recruits = S.recruits.filter(function (q) { return q !== r; });
+    if (r.name && r.rank) S.sentHome.push({ name: w.SQUAD.rankName(r), waves: r.waves || 0, kills: r.kills || 0 });
+    S.shop.gone = Object.assign({}, r); // for the screen's chip
+    S.shop.log.push(entry(SEND + rid, by));
+    return true;
+  }
   function canBuy(it, by) { return eligible(it, by) && (it.tier === 'hire' || !bought(it, by)) && w.tagsOf(buyer(by)) >= costNow(it, by); }
 
   // ---------- a visit ----------
@@ -172,6 +206,7 @@ var StickArmyShop = function (w) {
   }
   // replay: buying again after a put-back, so the purchase isn't reported twice.
   function buy(id, replay, by) {
+    if (isSend(id)) return sendHome(id.slice(SEND.length), replay, by);
     var S = w.S, item = S.shop.items.concat(S.shop.hire).find(function (it) { return it.id === id; });
     // Supplies sell once per visit (per barrel, for a turret upgrade); hiring repeats while slots and tags last.
     if (!item || (bought(item, by) && item.tier !== 'hire') || !eligible(item, by)) return false;
@@ -193,7 +228,7 @@ var StickArmyShop = function (w) {
     return { tags: S.players.map(function (p) { return p.tags; }), wallHP: S.wallHP, mods: JSON.parse(JSON.stringify(S.mods)), calls: { bomber: S.calls.bomber, fighter: S.calls.fighter },
       turrets: S.turrets.map(function (t) { return JSON.parse(JSON.stringify(t.mods)); }),
       pizzaOrder: S.pizzaOrder, recruits: S.recruits.map(function (r) { return Object.assign({}, r); }),
-      bed: S.bed ? { r: Object.assign({}, S.bed.r), since: S.bed.since } : null, usedNames: Object.assign({}, S.usedNames) };
+      bed: S.bed ? { r: Object.assign({}, S.bed.r), since: S.bed.since } : null, usedNames: Object.assign({}, S.usedNames), sentHome: S.sentHome.slice() };
   }
   function putBack(id, by) {
     var S = w.S;
@@ -206,7 +241,7 @@ var StickArmyShop = function (w) {
     b.tags.forEach(function (t, i) { S.players[i].tags = t; }); S.wallHP = b.wallHP; S.mods = JSON.parse(JSON.stringify(b.mods)); S.calls = { bomber: b.calls.bomber, fighter: b.calls.fighter };
     b.turrets.forEach(function (m, i) { S.turrets[i].mods = JSON.parse(JSON.stringify(m)); });
     S.pizzaOrder = b.pizzaOrder; S.recruits = b.recruits.map(function (r) { return Object.assign({}, r); }); w.resizeMats();
-    S.bed = b.bed ? { r: Object.assign({}, b.bed.r), since: b.bed.since } : null; S.usedNames = Object.assign({}, b.usedNames);
+    S.bed = b.bed ? { r: Object.assign({}, b.bed.r), since: b.bed.since } : null; S.usedNames = Object.assign({}, b.usedNames); S.sentHome = b.sentHome.slice();
     S.shop.bought = {}; S.shop.who = {}; S.shop.giftTaken = {}; S.shop.log = [];
     keep.forEach(function (k) { var e = parse(k); buy(e.id, true, e.by); });
     w.emit('refund', { item: id });
@@ -252,6 +287,6 @@ var StickArmyShop = function (w) {
   }
 
   return { ITEMS: ITEMS, WAR: WAR, war: war, markup: markup, price: price, eligible: eligible, canBuy: canBuy, own: own, stacksOf: stacksOf,
-    kitCount: kitCount, kitFull: kitFull, bought: bought, othersBuy: othersBuy, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
+    kitCount: kitCount, kitFull: kitFull, SEND: SEND, isSend: isSend, sendCost: sendCost, sentNow: sentNow, canSend: canSend, member: member, bought: bought, othersBuy: othersBuy, OFFERS: OFFERS, offer: offer, onHouse: onHouse, costNow: costNow,
     openShop: openShop, takeItem: takeItem, putBack: putBack, undo: undo, lastOf: lastOf, hiresOf: hiresOf, continueWave: continueWave, kitItems: kitItems };
 };

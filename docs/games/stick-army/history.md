@@ -70,6 +70,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 - **War prices** (round 12): 6,500 tags went unspent by wave 19, with nothing left to buy. Pizza stays 25 ("sometimes u just want pizza").
 - **Training** (round 12): by wave 20 every supply was maxed and two thirds of the squad were rookies. Training adds the same stripes as service, so the "og" soldiers always have the most.
+- **Sending a soldier home costs half a rifleman, one a visit** (round 20): "be able to RELEASE a squad member from duty ... to free up a slot". It never pays tags back and never lowers the hire price, so it can't be farmed; the open slot is what you buy.
 - **The mats on either side, from the seed** (round 16): "the starting trampoline always starts on the left".
 
 ### Levels

@@ -373,7 +373,7 @@
       turrets: null, flagUp: 0, saluteT: 0,
       planes: [], troopers: [], recruits: [], bullets: [], bombs: [], enemyShots: [], parts: [], texts: [],
       tanks: [], wreck: null, calls: { bomber: 0, fighter: 0 }, strike: null, strikeBombs: [], fighter: null, radio: null, crates: [], medevac: [], skyFx: [], hq: [], tagLoss: 0, tagLost: 0, bubbles: [], night: 0,
-      bed: null, fallen: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
+      bed: null, fallen: [], sentHome: [], usedNames: {}, news: [], sketches: [], played: 0, nextWave: null,
       spawn: null, waveState: 'idle', waveTimer: 0, banner: null,
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0, hqSafe: 0, hqHit: 0 },
@@ -875,7 +875,7 @@
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
   world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
   world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches;
-  world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadLine = squadLine;
+  world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig; world.squadLine = squadLine;
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   // Co-op's shop (shop.js): turret upgrades are each barrel's own; a guest's taps go to the host (coop.js).
   world.TURRET_MODS = TURRET_MODS; world.COOP_HARD = COOP_HARD;
@@ -2571,19 +2571,34 @@
     if (S.bed) line += (line ? ' ' : '') + 'In the tent: ' + (S.bed.r.name ? rankName(S.bed.r) : 'a rookie') + '.';
     return line;
   }
-  // The squad as it stood, drawn like the HUD's squad row onto a card's canvas (the game-over card, the shop).
-  // slots: every squad slot, the empty ones dotted, as in the HUD (the shop).
-  function drawSquadRow(canvas, slots) {
+  // The squad as the HUD's row shows it, in order: each soldier ({ r, bed: in the tent }), then, with slots, every
+  // empty slot ({ r: null }).
+  function squadSlots(slots) {
     var live = S.recruits.filter(function (r) { return !r.dead; }).sort(function (a, b) { return a.slot - b.slot; });
     if (S.bed) live.push(S.bed.r);
-    var n = slots ? Math.max(S.mods.slots, live.length) : live.length;
+    var n = slots ? Math.max(S.mods.slots, live.length) : live.length, out = [];
+    for (var i = 0; i < n; i++) out.push({ r: live[i] || null, bed: !!(S.bed && live[i] === S.bed.r) });
+    return out;
+  }
+  // The squad as it stood, drawn like the HUD's squad row onto a card's canvas (the game-over card, the pause card).
+  // slots: every squad slot, the empty ones dotted, as in the HUD.
+  function drawSquadRow(canvas, slots) {
+    var list = squadSlots(slots), n = list.length;
     if (!n) return false;
     var k = 2, cw = 24 * n + 12, g = canvas.getContext('2d'), previous = G;
     canvas.width = cw * k; canvas.height = 52 * k; canvas.style.width = cw + 'px';
     G = g; g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, cw, 52);
     // Low enough that hard hats and helmets clear the top edge.
-    try { for (var i = 0; i < n; i++) miniFig(12 + i * 24, 11, live[i], i, !!(S.bed && live[i] === S.bed.r)); } finally { G = previous; }
+    try { for (var i = 0; i < n; i++) miniFig(12 + i * 24, 11, list[i].r, i, list[i].bed); } finally { G = previous; }
     return true;
+  }
+  // One slot of that row on its own canvas (the shop's squad, where each soldier is a button), drawn at 3× for a
+  // figure shown half again as big.
+  function drawSquadFig(canvas, slot, i) {
+    var k = 3, g = canvas.getContext('2d'), previous = G;
+    canvas.width = 24 * k; canvas.height = 52 * k;
+    G = g; g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, 24, 52);
+    try { miniFig(12, 11, slot.r, i, slot.bed); } finally { G = previous; }
   }
   function togglePause() {
     // Either co-op player pauses for both: a guest asks the host (coop.js), whose pause comes back in the field.
@@ -2663,8 +2678,8 @@
     var row = document.getElementById('overSquadRow'), line = squadLine(), squad = document.getElementById('overSquad');
     row.hidden = !drawSquadRow(row); squad.textContent = line; squad.hidden = !line;
     var lost = document.getElementById('overFallen');
-    lost.textContent = S.fallen.length ? 'Fallen: ' + S.fallen.map(SQUAD.record).join(', ') + '.' : '';
-    lost.hidden = !S.fallen.length;
+    lost.textContent = SQUAD.goneLine();
+    lost.hidden = !lost.textContent;
     document.getElementById('overCause').textContent = cause || '';
     document.getElementById('overCause').hidden = !cause;
     document.getElementById('stBest').textContent = Number(best).toLocaleString('en-US');

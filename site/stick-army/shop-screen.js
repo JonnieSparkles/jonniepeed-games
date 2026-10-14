@@ -11,6 +11,7 @@ var StickArmyShopScreen = function (w, shop) {
 
   // ---------- opening, closing and reacting ----------
   function open() {
+    picked = null;
     screen.hidden = false; pauseBtn.hidden = true; render();
     // Every visit starts at the top of the list.
     screen.scrollTop = 0; screen.querySelector('.shop-stock').scrollTop = 0;
@@ -128,18 +129,66 @@ var StickArmyShopScreen = function (w, shop) {
       return chip;
     }));
     hired.hidden = !hires.length;
-    $('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot to hire.' : 'Price rises with each hire. Catch them on the mat for free.';
-    // The squad as it stands, redrawn as you hire, train or put things back (round 14: "show squad status on store"):
-    // every slot as in the HUD, with roles, stripes and health, and names, waves and kills.
-    w.drawSquadRow($('shopSquadRow'), true);
+    $('hireNote').textContent = w.freeSlot(0) < 0 ? 'Squad full. Unlock a slot, or send someone home, to hire.' : 'Price rises with each hire. Catch them on the mat for free.';
+    renderSquad();
     $('shopSquad').textContent = w.squadLine(true) || 'Nobody yet. Catch them on the mat, or hire.';
     renderKit($('loadout'), false);
     // Undo puts back this player's last pick, hires included.
     var undoBtn = $('undoBtn'), last = shop.lastOf();
     undoBtn.hidden = !last;
-    if (last) undoBtn.textContent = '↩ Undo ' + ITEMS.find(function (it) { return it.id === last.id; }).name.toLowerCase();
+    if (last) undoBtn.textContent = '↩ Undo ' + (shop.isSend(last.id) ? 'send home' : ITEMS.find(function (it) { return it.id === last.id; }).name.toLowerCase());
     $('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
     if (w.afterShop) w.afterShop();
+  }
+
+  // ---------- the squad, and sending a soldier home ----------
+  // The squad as it stands, redrawn as you hire, train or put things back (round 14: "show squad status on store"):
+  // every slot as in the HUD, with roles, stripes and health. Each soldier is a button (round 20): tap one to see
+  // them and a "Send home" button; tap again to let them be. One a visit; whoever went home shows as a chip that
+  // brings them back (shop.js sendHome, putBack).
+  var picked = null;
+  var ROLE = { rifle: 'Rifleman', engineer: 'Engineer', bazooka: 'Bazooka', sniper: 'Sniper', medic: 'Medic' };
+  function who(r) { return r.name && r.rank ? w.SQUAD.rankName(r) : 'Rookie ' + (ROLE[r.type] || 'soldier').toLowerCase(); }
+  function record(r, bed) {
+    var n = r.waves || 0, bits = [ROLE[r.type] || 'Soldier', n + (n === 1 ? ' wave' : ' waves') + ', ' + w.SQUAD.killsText(r.kills || 0)];
+    if (bed) bits.push('in the tent'); else if (r.down) bits.push('wounded');
+    return bits.join(' · ');
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function renderSquad() {
+    var S = w.S, sent = shop.sentNow(), mine = w.tagsOf(w.me), slots = w.squadSlots(true), row = $('shopSquadRow');
+    if (picked != null && !shop.member(picked)) picked = null;
+    row.replaceChildren.apply(row, slots.map(function (s, i) {
+      var fig = document.createElement('canvas'); fig.setAttribute('aria-hidden', 'true'); w.drawSquadFig(fig, s, i);
+      if (!s.r) { var empty = el('span', 'squad-slot empty'); empty.append(fig); return empty; }
+      var id = String(s.r.id), b = el('button', 'squad-slot' + (picked === id ? ' picked' : picked != null ? ' dim' : ''));
+      b.type = 'button'; b.dataset.recruit = id; b.disabled = !!sent;
+      b.setAttribute('aria-label', who(s.r) + ', ' + record(s.r, s.bed)); b.setAttribute('aria-pressed', picked === id ? 'true' : 'false');
+      b.append(fig);
+      b.addEventListener('click', function () { picked = picked === id ? null : id; render(); });
+      return b;
+    }));
+    var box = $('sendBox'), hint = $('squadHint'), p = picked != null ? shop.member(picked) : null;
+    box.replaceChildren();
+    if (p && !sent) {
+      var bed = !!(S.bed && S.bed.r === p), info = el('div'), cost = shop.sendCost(), short = mine < cost;
+      info.append(el('strong', null, who(p)), el('span', null, record(p, bed)));
+      var send = el('button', 'send-home'); send.type = 'button'; send.disabled = short;
+      send.append('Send home', el('small', null, short ? 'need ' + (cost - mine) + ' more' : cost + ' tags'));
+      send.addEventListener('click', function () { var id = picked; picked = null; if (!shop.takeItem(shop.SEND + id)) { picked = id; render(); } });
+      var card = el('div', 'send-card'); card.append(info, send); box.append(card);
+    } else if (sent) {
+      var gone = w.S.shop.gone;
+      var line = el('div', 'sent-home'), chip = el('button', 'sent-chip', (gone ? who(gone) : 'Soldier') + ' ↩');
+      chip.type = 'button'; chip.setAttribute('aria-label', 'Bring ' + (gone ? who(gone) : 'them') + ' back');
+      // Only whoever sent them can bring them back (co-op), as with anything bought.
+      chip.disabled = sent.by !== w.me;
+      chip.addEventListener('click', function () { shop.putBack(sent.id); });
+      line.append(el('span', null, 'Sent home:'), chip); box.append(line);
+    }
+    box.hidden = !box.childNodes.length;
+    hint.textContent = sent ? 'Tap the name to bring them back.' : p ? 'They hand in their kit and walk off the page.' : 'Tap a soldier to send em home.';
+    hint.hidden = !sent && !slots.some(function (s) { return s.r; });
   }
 
   // This player's kit as pencil icons: icon-only with counts in the shop, icon and name on the pause card.

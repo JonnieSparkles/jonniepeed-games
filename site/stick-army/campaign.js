@@ -1280,8 +1280,8 @@ var StickArmyCampaign = function (w) {
     }));
     if (!roll.length) { var none = document.createElement('li'); none.textContent = 'Nobody made it but you.'; list.append(none); }
     var lost = document.getElementById('winFallen');
-    lost.textContent = S.fallen.length ? 'Fallen: ' + S.fallen.map(w.SQUAD.record).join(', ') + '.' : '';
-    lost.hidden = !S.fallen.length;
+    lost.textContent = w.SQUAD.goneLine();
+    lost.hidden = !lost.textContent;
     var cap = document.getElementById('winCaptain'), fate = { captured: 'Prisoner: their captain, caught on the mat.', down: 'Their captain was shot down.', escaped: 'Their captain got away.' }[S.captain];
     cap.textContent = fate || ''; cap.hidden = !fate;
     winScreen.hidden = false; w.hidePause();
