@@ -739,7 +739,23 @@ window.UnrugSound = (function () {
     rumble: (t, seconds) => { const d = seconds || 3; noiseHit(sfxBus, t, d, .4, 'lowpass', 260, .7, 60); osc(sfxBus, 'sine', 42, t, d, .3, { to: 30, sustain: .8 }); for (let i = 0; i < d * 3; i++) noiseHit(sfxBus, t + i / 3 + Math.random() * .2, .3, .2, 'lowpass', 1500, 1, 200); },
     // the souls' streams firing on the 48th Floor: a small, soft two-note shimmer (D, A), a touch higher as they bend in.
     // Deliberately modest: the roof's stream is the big one
-    stream: (t, bend) => { const b = (bend || 0) * 3; osc(sfxBus, 'sine', hz(86 + b), t, .11, .02, { to: hz(87 + b) }); osc(sfxBus, 'triangle', hz(93 + b), t + .012, .09, .012, {}); },
+    // its own voice, the opposite of the blaster's falling buzz (owner, Oct 14): a rising airy whoosh and two soft singing
+    // tones (D, A) that overlap shot to shot into one sound, a touch higher and brighter as the streams bend in
+    stream: (t, bend) => {
+      const b = (bend || 0) * 3;
+      noiseHit(sfxBus, t, .2, .05, 'bandpass', 700 + b * 120, 3, 2600 + b * 300);
+      osc(sfxBus, 'sine', hz(74 + b), t, .22, .055, { to: hz(75 + b), attack: .03, sustain: .8, vib: true });
+      osc(sfxBus, 'sine', hz(81 + b), t + .02, .2, .04, { to: hz(82 + b), attack: .03, sustain: .8, vib: true });
+      osc(sfxBus, 'triangle', hz(93 + b), t + .04, .1, .012, { attack: .02 });
+    },
+    // the last loom's shield: up (a rising hum and a glassy chord), a bolt pinging off it, and down (a falling crackle)
+    shieldUp: t => { osc(sfxBus, 'sawtooth', 110, t, .7, .05, { to: 440, sustain: .6 }); [74, 81, 86].forEach((m, i) => osc(sfxBus, 'sine', hz(m), t + .2 + i * .06, .6, .04, { sustain: .5, vib: true })); },
+    zapWarn: t => { osc(sfxBus, 'square', 880, t, .5, .025, { to: 1760, sustain: .7 }); osc(sfxBus, 'sine', 1320, t + .02, .45, .02, { to: 2640, vib: true }); },
+    zap: t => { noiseHit(sfxBus, t, .18, .16, 'bandpass', 3200, 2, 900); osc(sfxBus, 'sawtooth', 220, t, .16, .07, { to: 55 }); osc(sfxBus, 'square', 1760, t, .06, .03, { to: 440 }); },
+    shieldHit: t => { osc(sfxBus, 'sine', 1760, t, .12, .05, { to: 2400 }); noiseHit(sfxBus, t, .06, .08, 'highpass', 5000, 2); },
+    shieldDown: t => { osc(sfxBus, 'sawtooth', 440, t, .8, .07, { to: 55 }); for (let i = 0; i < 6; i++) noiseHit(sfxBus, t + i * .06, .08, .14, 'bandpass', 2600 - i * 300, 4); },
+    // the canister cart rattling along its rail
+    cart: t => { noiseHit(sfxBus, t, .07, .06, 'lowpass', 500); osc(sfxBus, 'square', 70, t, .05, .03, { to: 50 }); },
     // a chain reaction called out (48th Floor): a bright stab that climbs with the chain's length
     chain: (t, n) => { const m = 74 + Math.min(12, (n || 3) - 3) * 1; [0, 4, 7].forEach((k, i) => osc(sfxBus, 'square', hz(m + k), t + i * .03, .16, .05, { sustain: .3 })); noiseHit(sfxBus, t, .12, .12, 'highpass', 3000, 2); },
     sour: t => { [62, 63, 68, 69].forEach((m, i) => osc(sfxBus, 'sawtooth', hz(m + 12), t, 1.2, .045, { to: hz(m + 12) * .5, sustain: .5 })); noiseHit(sfxBus, t, .5, .35, 'bandpass', 1800, .7, 200); osc(sfxBus, 'p12', hz(98), t, .6, .05, { to: hz(62) }); }

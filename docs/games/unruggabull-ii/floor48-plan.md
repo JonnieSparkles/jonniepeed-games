@@ -136,3 +136,10 @@ He picked chain callouts and p(Loom)'s laser, and wanted deflects to actually ha
 
 "ok this is sick!" A touch brighter (about 15%); the chain bonus under its callout; and the last loom, which "takes forever", now overloads: double damage, red-hot, three chunks blowing off at 75/50/25%.
 
+## Round 6 (Oct 14): an objective in the empty corners
+
+From his playthrough: p(Loom)'s beat framed on him (he could end up off screen), the streams' own sound, and an objective with an arrow, designed first on [a page](https://claude.ai/artifact/FLDevJUJFTWbKDZNQmaA2z) with a heatmap of where the bots stand. He picked D: two reaction vessels at the far right (one high, one low) shield the last loom once its laser has passed, with an arrow to them when off screen; burst both and it overloads. And an optional canister cart along the bottom every 40 seconds, no arrow.
+
+Then, from his play ("waaaaaay better!!! very fun"), a little harder and more moving about: the vessels there from the start, dormant under their own shields; awake, they mark the floor under him and arc to it, and send out flyers; 12 bolts or two slashes each; the last line faster while shielded.
+
+Then: a hurt loom burns on its top rail (it had cracks for an hour), and the order split: the shield up as the second line goes down, the vessels holding fire until its laser has passed.
