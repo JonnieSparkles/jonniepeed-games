@@ -177,6 +177,13 @@ window.__balanceBot = function (profile, seed) {
       if (pl.deflect && d < 34) slashAt = { x: dx / d, y: dy / d };
       else if (pl.dodge) { var vl = Math.hypot(p.vx, p.vy) || 1, side = (dx * p.vy - dy * p.vx) > 0 ? 1 : -1; mx += -p.vy / vl * side * 1.6; my += p.vx / vl * side * 1.6; }
     });
+    // a vessel's marked spot under it: out of it before the arc (the same dodge roll)
+    (q.zaps || []).forEach(function (z) {
+      var dx = me.x - z.x, dy = me.y - z.y, d = Math.hypot(dx, dy);
+      if (d > 30 || !plan(z, function () { return { dodge: r() < P.dodge }; }).dodge) return;
+      if (d < .5) { dx = 1; dy = 0; d = 1; }
+      mx += dx / d * 3; my += dy / d * 3;
+    });
     // a crane hook coming along its walkway: off it
     q.cranes.forEach(function (c, i) {
       if (c.st === 'idle' || Math.abs(me.y - c.y) > 22) return;
@@ -251,8 +258,9 @@ window.__balanceBot = function (profile, seed) {
         var bestC = null, bl = Infinity;
         [[hit.x0 - 14, hit.y0 - 11], [hit.x1 + 14, hit.y0 - 11], [hit.x0 - 14, hit.y1 + 11], [hit.x1 + 14, hit.y1 + 11]].forEach(function (c) {
           var cx = Math.max(q.bounds.x0 + 4, Math.min(q.bounds.x1 - 4, c[0])), cy = Math.max(q.bounds.y0 + 4, Math.min(q.bounds.y1 - 4, c[1]));
-          if (crosses(me.x, me.y, cx, cy, hit, 0, 0) >= 0) return;
-          var l = Math.hypot(cx - me.x, cy - me.y) + Math.hypot(goal.x - cx, goal.y - cy);
+          if (crosses(me.x, me.y, cx, cy, hit, 0, 0) >= 0 || Math.hypot(cx - me.x, cy - me.y) < 3) return;
+          // a corner the goal can't be seen from is the long way round
+          var l = Math.hypot(cx - me.x, cy - me.y) + Math.hypot(goal.x - cx, goal.y - cy) + (crosses(cx, cy, goal.x, goal.y, hit, 0, 0) >= 0 ? 400 : 0);
           if (l < bl) { bl = l; bestC = { x: cx, y: cy }; }
         });
         if (bestC) { goal = bestC; near = 2; }

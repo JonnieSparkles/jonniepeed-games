@@ -113,6 +113,7 @@
           thrown: td.thrown.filter(function (p) { return !p.dead; }).map(function (p) { return { id: idOf(p), kind: p.kind || 'bobbin', x: p.x, y: p.y, vx: p.vx, vy: p.vy, friendly: p.friendly }; }),
           machines: F.machines.filter(function (m) { return !m.dead && !floor.shielded(m); }).map(function (m) { return { id: idOf(m), line: m.line, kind: m.kind, x0: m.x0, x1: m.x1, y0: m.y0, y1: m.y1, hp: m.hp, warn: m.warn || 0 }; })
             .concat(floor.vessels().map(function (v) { return { id: 'vessel' + v.i, line: -1, kind: 'vessel', x0: v.x - 12, x1: v.x + 12, y0: v.y - 8, y1: v.y + 4, hp: v.hp, warn: 0 }; })),
+          zaps: floor.vessels().filter(function (v) { return v.zap && !v.zap.fired; }).map(function (v) { return { id: 'zap' + v.i + ':' + Math.round(v.zap.x) + ',' + Math.round(v.zap.y), x: v.zap.x, y: v.zap.y }; }),
           cart: F.cart && F.cart.full ? { x: F.cart.x, y: floor.F48.cart.y, dir: F.cart.dir } : null,
           solids: floor.F48.props.map(function (p) { return { x0: p[1], x1: p[1] + p[3], y0: p[2], y1: p[2] + p[4] }; }),
           walls: floor.solids().map(function (w) { return { x0: w.x0, x1: w.x1, y0: w.y0, y1: w.y1 }; }),

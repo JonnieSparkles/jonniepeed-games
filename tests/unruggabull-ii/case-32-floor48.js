@@ -22,7 +22,7 @@
     check(bull.x > bx + 8, 'the belt carries him');
     bull.inv = 0;
     // the blaster on a carpshit, the katana on armor, a bobbin knocked back
-    fresh(); bull.x = 650; bull.y = 420; bull.inv = 1e9;
+    fresh(); bull.x = 330; bull.y = 420; bull.inv = 1e9;
     const f1 = enemy('flyer', 0, -90); twin.aiming = true; twin.aimX = 0; twin.aimY = -1; tick(.4); twin.aiming = false;
     check(f1.dead && R.souls >= 1, 'a bolt frees a carpshit\'s soul');
     const a1 = enemy('armored', 30, 0); input.slash = 0; twin.flick = { x: 1, y: 0 }; press('slash'); tick(.05);
@@ -42,7 +42,7 @@
     const tb = { x: bull.x - 30, y: bull.y - 30, h: 18, vx: 70, vy: 70, src: null, friendly: false, dead: false, r: 0, t: 0 }; R.td.thrown.push(tb);
     bull.cd = 0; twin.flick = { auto: true }; press('slash'); tick(.03);
     check(tb.friendly && bull.sx < 0 && bull.sy < 0, 'a tap slashes at the nearest bobbin');
-    R.td.thrown.length = 0; tick(.4); bull.x = 650; bull.y = 420; bull.kx = bull.ky = 0;
+    R.td.thrown.length = 0; tick(.4); bull.x = 330; bull.y = 420; bull.kx = bull.ky = 0;
     // bolts pass through bobbins: only the katana answers them; a thrower winds up first
     const a3 = enemy('armored', 0, -140); a3.nextThrow = 0; R.td.thrown = []; tick(.1);
     check(a3.wind > 0 && !R.td.thrown.length, 'an armored carpshit winds up before it throws');
@@ -151,7 +151,13 @@
     check(state === 'play', 'still playing');
     // the reactor (owner, Oct 14, option D): when the last line is left its loom is shielded, after that line's laser
     // has passed; two vessels at the far right, one high and one low, feed the shield; burst both and it's down
+    // they stand there from the start, dormant under shields of their own (owner, Oct 14)
     fresh(); bull.inv = 1e9;
+    { const v0 = Q().reactor.vessels[0]; check(Q().reactor.st === 'dormant' && Q().reactor.vessels.length === 2 && F.vessels().length === 0, 'the vessels stand from the start, dormant');
+      bull.x = v0.x; bull.y = v0.y + 70; twin.aiming = true; twin.aimX = 0; twin.aimY = -1; R.charge = 24;
+      for (let i = 0; i < 60; i++) { R.td.enemies.length = 0; R.td.thrown.length = 0; bull.x = v0.x; bull.y = v0.y + 70; update(1 / 60); }
+      twin.aiming = false;
+      check(v0.hp === v0.max && v0.ping >= 0 && !v0.dead, 'dormant, its own shield takes the bolts'); }
     F.breakMachine(machine(0, 'loom'), 'shot'); F.breakMachine(machine(1, 'loom'), 'shot'); tick(.5);
     let last = machine(2, 'loom');
     check(Q().reactor && Q().reactor.st === 'wait' && !F.shielded(last), 'the last line left: the reactor waits for the laser');
@@ -166,11 +172,31 @@
       for (let i = 0; i < 60 * 6 && !v.dead; i++) { R.td.enemies.length = 0; R.td.thrown.length = 0; bull.x = v.x; bull.y = v.y + 70; update(1 / 60); }
       twin.aiming = false; tick(.3);
       check(v.dead && R.souls >= s0 + F48.reactor.souls && F.shielded(last), 'bolts burst a vessel and free its souls; the shield holds on the other'); }
-    // one slash bursts the low one
-    { const v = vs[1]; bull.x = v.x; bull.y = v.y - 24; bull.cd = 0; tick(.05); input.slash = 0; twin.flick = { x: 0, y: 1 }; press('slash'); tick(.05);
-      check(v.dead, 'one slash bursts a vessel'); }
+    // two slashes burst the low one
+    { const v = vs[1]; const cut = () => { bull.x = v.x; bull.y = v.y - 24; bull.cd = 0; tick(.05); input.slash = 0; twin.flick = { x: 0, y: 1 }; press('slash'); tick(.05); };
+      cut(); check(!v.dead && v.hp === v.max - F48.reactor.slash, 'a slash cracks a vessel'); R.td.enemies.length = 0; cut();
+      check(v.dead, 'a second slash bursts it'); }
     tick(.3);
     check(Q().reactor.st === 'down' && !F.shielded(last) && R.banner && R.banner.text === 'SHIELD DOWN', 'both burst: SHIELD DOWN');
+    // awake, a vessel fights back: it marks the floor under him, then arcs to the mark; it sends out carpshits
+    fresh(); bull.inv = 1e9;
+    F.breakMachine(machine(0, 'loom'), 'shot'); F.breakMachine(machine(1, 'loom'), 'shot');
+    Q().qc = null; Q().qcPending = null; F.startReactor();
+    { const v = Q().reactor.vessels[0], Z = F48.reactor.zap; bull.inv = 0; R.hearts = 5;
+      bull.x = v.x; bull.y = v.y + 60;
+      for (let i = 0; i < 60 * 3 && !v.zap; i++) { R.td.enemies.length = 0; clearAll(); bull.x = v.x; bull.y = v.y + 60; update(1 / 60); }
+      check(v.zap && !v.zap.fired, 'close to an awake vessel, it marks the floor under him');
+      for (let i = 0; i < 60 * 2 && v.zap; i++) { clearAll(); update(1 / 60); }
+      check(R.hearts === 4 && R.lastCause === 'vessel', 'standing on the mark, the arc costs a heart');
+      bull.inv = 0; R.hearts = 5; v.zapT = 0;
+      for (let i = 0; i < 60 * 3 && !v.zap; i++) { clearAll(); bull.x = v.x; bull.y = v.y + 60; update(1 / 60); }
+      bull.x = v.x - 50; for (let i = 0; i < 60 * 2 && v.zap; i++) { clearAll(); bull.x = v.x - 50; update(1 / 60); }
+      check(R.hearts === 5, 'stepping off the mark, it misses');
+      v.spawnT = 0; R.td.enemies.length = 0; update(1 / 60);
+      check(R.td.enemies.length === 1 && R.td.enemies[0].kind === 'flyer' && R.td.enemies[0].x > 650, 'it sends out a carpshit'); }
+    // and while the shield is up the last line makes faster
+    { Q().t = Math.max(Q().t, F48.firstAt + 1); Q().reverse[2] = 0; Q().reverseT[2] = 99; Q().next[2] = 10; Q().feedCut[2] = false; const n0 = Q().next[2]; update(1 / 60); const fast = n0 - Q().next[2]; Q().reactor.st = 'down'; Q().reverse[2] = 0; const n1 = Q().next[2]; update(1 / 60); const slow = n1 - Q().next[2];
+      check(fast > 0 && slow > 0 && Math.abs(fast / slow - F48.reactor.rush) < .01, 'the shielded last line makes ' + F48.reactor.rush + ' times as fast'); }
     // the canister cart along the bottom: optional, now and then; a hit pops its canisters down the cart and drops a power-up
     fresh(); bull.inv = 1e9;
     check(!Q().cart && Q().cartNext === F48.cart.first, 'the cart comes ' + F48.cart.first + ' s in');

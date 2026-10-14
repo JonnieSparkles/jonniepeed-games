@@ -711,6 +711,8 @@ window.UnrugSound = (function () {
     },
     // the last loom's shield: up (a rising hum and a glassy chord), a bolt pinging off it, and down (a falling crackle)
     shieldUp: t => { osc(sfxBus, 'sawtooth', 110, t, .7, .05, { to: 440, sustain: .6 }); [74, 81, 86].forEach((m, i) => osc(sfxBus, 'sine', hz(m), t + .2 + i * .06, .6, .04, { sustain: .5, vib: true })); },
+    zapWarn: t => { osc(sfxBus, 'square', 880, t, .5, .025, { to: 1760, sustain: .7 }); osc(sfxBus, 'sine', 1320, t + .02, .45, .02, { to: 2640, vib: true }); },
+    zap: t => { noiseHit(sfxBus, t, .18, .16, 'bandpass', 3200, 2, 900); osc(sfxBus, 'sawtooth', 220, t, .16, .07, { to: 55 }); osc(sfxBus, 'square', 1760, t, .06, .03, { to: 440 }); },
     shieldHit: t => { osc(sfxBus, 'sine', 1760, t, .12, .05, { to: 2400 }); noiseHit(sfxBus, t, .06, .08, 'highpass', 5000, 2); },
     shieldDown: t => { osc(sfxBus, 'sawtooth', 440, t, .8, .07, { to: 55 }); for (let i = 0; i < 6; i++) noiseHit(sfxBus, t + i * .06, .08, .14, 'bandpass', 2600 - i * 300, 4); },
     // the canister cart rattling along its rail

@@ -139,3 +139,5 @@ He picked chain callouts and p(Loom)'s laser, and wanted deflects to actually ha
 ## Round 6 (Oct 14): an objective in the empty corners
 
 From his playthrough: p(Loom)'s beat framed on him (he could end up off screen), the streams' own sound, and an objective with an arrow, designed first on [a page](https://claude.ai/artifact/FLDevJUJFTWbKDZNQmaA2z) with a heatmap of where the bots stand. He picked D: two reaction vessels at the far right (one high, one low) shield the last loom once its laser has passed, with an arrow to them when off screen; burst both and it overloads. And an optional canister cart along the bottom every 40 seconds, no arrow.
+
+Then, from his play ("waaaaaay better!!! very fun"), a little harder and more moving about: the vessels there from the start, dormant under their own shields; awake, they mark the floor under him and arc to it, and send out flyers; 12 bolts or two slashes each; the last line faster while shielded.
