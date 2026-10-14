@@ -144,7 +144,7 @@ var UnrugStairs = function (core) {
     if (pre) { if (!L.length) Q.preDone = true; return; }   // the cabinet wakes
     if (!Q.exitOpen && !L.length) {
       Q.exitOpen = true; emit('stairs_cleared', { section: Q.si + 1 });
-      say(cur.tape && Q.tapeCut == null ? 'SLASH THE TAPE' : cur.door ? 'THE DOOR' : 'UP!', .2);
+      if (cur.tape && Q.tapeCut == null) say('SLASH THE TAPE', .2);   // the way on is the arrow's job, once there is one
     }
   }
 
@@ -274,7 +274,7 @@ var UnrugStairs = function (core) {
     if (tp && Q.tapeCut == null) {
       if (bull.slash >= 0 && bull.slash < TUNE.deflectWindow && arena.near(UX(tp.x), HY(tp.floor - 40), .05)) {
         Q.tapeCut = Q.secT; Snd.play('cut'); emit('stairs_tape');
-        if (Q.exitOpen) { R.banner = null; say('UP!', .2); }
+        if (Q.exitOpen) R.banner = null;
       } else bull.u = Math.max(bull.u, UX(tp.x + 10));
     }
     if (Q.exitOpen && bull.jh <= 0) {
@@ -616,12 +616,23 @@ var UnrugStairs = function (core) {
     const y = 21, w = textWidth(text) + 8;
     g.save(); g.globalAlpha = .75; rect(g, 2, y, w, 9, '#0a0810'); g.restore(); rect(g, 2, y, 1, 9, '#ffd44a'); txt(g, text, 6, y + 2, '#fff6e2');
   }
+  // the arrow: a chunky gold arrow with a dark outline and a lit top edge (12 x 11, pointing right; the others turn it)
+  const ARROW = ['.....oo.....', '.....oYo....', '.....oYYo...', 'ooooooYYYo..', 'ohhhhhhYYYo.', 'oYYYYYYYYYYo', 'oYYYYYYYYYo.', 'ooooooYYYo..', '.....oYYo...', '.....oYo....', '.....oo.....'];
+  function arrowIcon(x, y, dir) {
+    const R_ = ARROW.length, C_ = ARROW[0].length, col = { o: '#1a1018', Y: '#ffd44a', h: '#fff0a0' };
+    for (let j = 0; j < R_; j++) for (let i = 0; i < C_; i++) {
+      const c = ARROW[j][i]; if (c === '.') continue;
+      const px = dir === 'left' ? C_ - 1 - i : dir === 'down' ? j : i, py = dir === 'down' ? i : j;
+      rect(g, Math.round(x) + px, Math.round(y) + py, 1, 1, col[c]);
+    }
+  }
   function hud() {
     drawSoulsCounter();
-    // the way up: an arrow at the top of the flight once it's open
-    if (Q.exitOpen && Q.st === 'play' && !cur.door && !(cur.tape && Q.tapeCut == null)) {
-      const x = cur.dir > 0 ? W - 22 : 22, y = topY(cur) - 86 + Math.sin(R.t * 6) * 3;
-      otxt(g, cur.dir > 0 ? 'UP >' : '< UP', x / 2, y / 2, '#ffd44a', 1, 'center');
+    // the way on: a bobbing arrow once it's open (at the top of the flight, or over the door), no words
+    if (Q.exitOpen && Q.st === 'play' && !(cur.tape && Q.tapeCut == null)) {
+      const bob = Math.round(Math.sin(R.t * 6) * 1.5);
+      if (cur.door) arrowIcon(226 - 6, (landing(cur) - 98) / 2 - 15 + bob, 'down');
+      else arrowIcon(cur.dir > 0 ? W / 2 - 17 + bob : 5 - bob, topY(cur) / 2 + 6, cur.dir > 0 ? 'right' : 'left');   // at the edge it points to, level with the top landing
     }
   }
   function shakeOffset() {
