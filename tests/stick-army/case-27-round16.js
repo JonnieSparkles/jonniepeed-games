@@ -67,6 +67,17 @@
   run(0.5);
   check(!S.smoke, 'with no Dreadnought on its bridge stage, it clears straight away');
 
+  // It covers the whole page, the HUD bands too (Oct 15: "go full like night wave"), and the HUD's pens follow it:
+  // chalk where it's thick, ink where it's thin or gone, part by part as it blows off one side.
+  newGame(); S.mode = 'play'; SKY.smokeStart(1); SKY.smokePot(200, GROUND - 4); S.smoke.t = 30; S.night = 1;
+  check(SKY.smokeAt(100, 30) === 1 && SKY.smokeAt(200, 116) === 1 && SKY.smokeAt(180, 700) === 1, 'smoke over the score, the gauges and the squad');
+  check(pensAt(100, 44).INK === CHALK.INK && pensAt(180, 690).INK === CHALK.INK, 'the HUD in chalk under it');
+  S.night = 0.3;
+  check(pensAt(100, 44).INK === PENS.INK, 'thin smoke keeps the ink');
+  S.night = 1; S.smoke.clear = 0.9;
+  check(SKY.smokeAt(20, 44) === 0 && pensAt(20, 44).INK === PENS.INK && SKY.smokeAt(380, 44) === 1, 'blowing off: ink where it has gone, chalk where it hangs');
+  S.smoke = null; S.night = 0;
+
   // The squad talks it in: a line every TAUNT.EVERY seconds from the banner until it opens fire.
   newGame(); S.recruits = [0, 4, 1, 5].map(function (i) { return makeRecruit(i, 'rifle'); });
   startWave(DREAD.WAVE); S.spawn.teaser = false; S.spawn.planes = S.spawn.bombers = 0; S.mods.maxHP = S.wallHP = 1e6;

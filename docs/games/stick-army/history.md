@@ -55,6 +55,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **Pauses between stages** (round 12): they followed each other too fast.
 - **Armored sortie bombs** (round 12): the sentry and flak popped every one. Sorties let go later than dive bombers, so the plane has to go down first.
 - **The decoy's armor takes four knocks, and only on the page** (round 14): the first hit used to knock it off before it was in sight.
+- **The smoke screen covers the whole page** (Oct 15): it used to stop short of the HUD bands, leaving clean paper above and below; "it should go full like night wave". The HUD's pens follow the smoke across, part by part, so nothing flips while the smoke is still rolling in or blowing off.
 - **The last hurrah** (round 14): with only the bridge left, "its pretty much over". The crew jump one at a time in two waves ("stagger person by person not all at once"); at first eight jumped together.
 
 ### The sky

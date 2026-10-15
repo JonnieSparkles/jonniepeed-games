@@ -2347,13 +2347,30 @@
       G.restore();
     });
   }
-  // On the night raid the whole page goes dark, so the HUD is written in chalk (sky.js drawNight).
+  // On the night raid and under the Dreadnought's smoke the page goes dark, so the HUD is written in chalk. Each part
+  // of it takes its pen from the dark right under it (sky.js smokeAt), blended in between, so the pens fade over as the
+  // night falls or the smoke rolls across, and back as it blows off one side, instead of flipping all at once.
   var CHALK = { INK: '#f1ebdd', INK2: '#c8cede', TAGS: '#c8cede', BLUE: '#93b8ff', RED: '#ff9484', GREEN: '#8fd6a5' };
-  var hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN };
+  var PENS = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN };
+  var hud = PENS;
   var HUD_GAP = 8;
+  function rgbOf(h) { var m = /^#([0-9a-f]{6})$/i.exec(h); if (!m) return null; var n = parseInt(m[1], 16); return [n >> 16, n >> 8 & 255, n & 255]; }
+  // The pen turns over late and quickly (PEN_TURN): ink reads on paper that's only greyed, chalk once it's truly dark,
+  // and a half-and-half pen on half-dark paper reads on neither.
+  var PEN_TURN = [0.55, 0.85];
+  function pensAt(x, y) {
+    var d = S.mode === 'title' ? 0 : SKY.smokeAt(x, y), out = { dark: d };
+    var k = clamp((d - PEN_TURN[0]) / (PEN_TURN[1] - PEN_TURN[0]), 0, 1); k = k * k * (3 - 2 * k);
+    Object.keys(PENS).forEach(function (key) {
+      var a = rgbOf(PENS[key]), b = rgbOf(CHALK[key]);
+      out[key] = k <= 0.02 ? PENS[key] : k >= 0.98 ? CHALK[key] :
+        a && b ? 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * k); }).join(',') + ')' : k < 0.5 ? PENS[key] : CHALK[key];
+    });
+    return out;
+  }
   function drawHUD() {
     pen(4242);
-    var chalk = S.night > 0.5 && !S.smoke, c = chalk ? CHALK : { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN };
+    var c = pensAt(100, 44);
     hud = c;
     G.save();
     G.textAlign = 'left';
@@ -2376,12 +2393,14 @@
       if (sw > room) G.font = Math.max(16, Math.floor(34 * room / sw)) + 'px ' + HAND;
       G.fillStyle = c.INK; G.fillText(sc, 58, 58);
       drawCallChips(); pen(4242);
+      c = pensAt(310, 44);
       G.fillStyle = c.TAGS; G.font = '16px ' + HAND; G.fillText('dog tags', 280, 28);
       dogTag(TAG_HUD.x, TAG_HUD.y, -0.25, 1.3);
       var lose = S.tagLoss > 0 && (S.tagLossBy == null || S.tagLossBy === me), jig = lose ? Math.sin(S.t * 60) * 2.5 * Math.min(1, S.tagLoss) : 0;
       G.save(); G.translate(302 + jig, 58); var pulse = 1 + (S.tagPulse || 0) * 0.9; G.scale(pulse, pulse);
       G.fillStyle = lose ? c.RED : c.TAGS; G.font = '34px ' + HAND; G.textAlign = 'left'; G.fillText(String(tagsOf(me)), 0, 0); G.restore();
       if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = c.RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }
+      c = pensAt(200, 52);
       G.fillStyle = c.INK;
       G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
       // Veteran wears its three stripes over the wave.
@@ -2396,22 +2415,29 @@
       else if (S.wave === DREAD.WAVE) { G.fillStyle = c.RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
     }
     // The title uses the bottom of the page for Start and the chips.
-    if (S.mode === 'title') { G.restore(); hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN }; return; }
+    if (S.mode === 'title') { G.restore(); hud = PENS; return; }
+    // Down here each label, the bar, each little soldier and each count takes its own pen, since the smoke blows off
+    // one side and these rows run nearly the width of the page.
     var y1 = 648, bx = 112, bw = 186, hp = Math.max(0, S.wallHP);
+    c = pensAt(80, y1);
     G.textAlign = 'left'; G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
-    G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : chalk ? 'rgba(147,184,255,0.55)' : 'rgba(47,111,220,0.4)';
+    c = pensAt(bx + bw / 2, y1);
+    G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : c.dark > 0.6 ? 'rgba(147,184,255,0.55)' : 'rgba(47,111,220,0.4)';
     G.fillRect(bx + 2, y1 - 8, (bw - 4) * hp / S.mods.maxHP, 16);
     G.beginPath(); L(bx, y1 - 10, bx + bw, y1 - 10, 0.5); L(bx + bw, y1 - 10, bx + bw, y1 + 10, 0.5); L(bx + bw, y1 + 10, bx, y1 + 10, 0.5); L(bx, y1 + 10, bx, y1 - 10, 0.5);
     ink(c.INK, 2.4); G.stroke();
+    c = pensAt(bx + bw + 40, y1);
     G.fillStyle = c.INK2; G.font = '17px ' + HAND; G.fillText(Math.ceil(hp) + '/' + S.mods.maxHP, bx + bw + 10, y1 + 6);
     var y2 = 690;
+    c = pensAt(84, y2);
     G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('squad', 58, y2 + 6);
     var live = S.recruits.filter(function (r) { return !r.dead; }).sort(function (a, b) { return a.slot - b.slot; });
     if (S.bed) live.push(S.bed.r);
-    for (var i = 0; i < S.mods.slots; i++) miniFig(124 + i * 24, y2 - 20, live[i], i, !!(S.bed && live[i] === S.bed.r));
+    for (var i = 0; i < S.mods.slots; i++) { hud = pensAt(124 + i * 24, y2 - 6); miniFig(124 + i * 24, y2 - 20, live[i], i, !!(S.bed && live[i] === S.bed.r)); }
+    c = pensAt(bx + bw + 24, y2);
     G.fillStyle = c.INK2; G.font = '17px ' + HAND; G.textAlign = 'left'; G.fillText(live.length + "/" + S.mods.slots, bx + bw + 10, y2 + 6);
     G.restore();
-    hud = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED };
+    hud = PENS;
   }
   function drawBanner() {
     var b = S.banner, a = Math.min(1, b.t / 0.25, (b.dur - b.t) / 0.4);
@@ -2469,6 +2495,8 @@
     drawBossBar();
     drawParts();
     SKY.drawNight();
+    // The Dreadnought's name and gauges sit behind the ship, so under its smoke they're written again over it.
+    if (S.smoke) drawDreadBar(SKY.smokeAt(200, 116));
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
     drawTexts();
