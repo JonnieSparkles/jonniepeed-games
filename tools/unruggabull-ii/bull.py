@@ -54,8 +54,9 @@ ARM = 1.1              # how thick his arms are
 STANCE = 1.4           # how much further apart his feet are than his hips
 HORN_GOLD = False      # True puts a gold band at the root of each horn (dropped: cream all the way reads cleaner)
 FRONT_HORN = .72       # the horns' roots in the front view, thinner than from behind
-HUNCH = 6              # crouched: how much shorter his back gets
-DUCK_HEAD = 6          # crouched: how far his head sinks into his shoulders, so he gets well under a beam
+CROUCH = 7.0           # crouched: how far he sinks, from behind and side on alike (SIDE_POSE's _C), so the two read as one crouch
+HUNCH = 1.0            # crouched: how much shorter his back gets from behind (the side crouch leans forward a little)
+DUCK_HEAD = .5         # crouched: how far his head dips toward his shoulders; the side crouch keeps it up
 SLEEVE = 1.0           # how full the tee's sleeves and shoulder caps are
 CAP = .8               # the shoulder caps on their own, a little slimmer
 NECK = 6               # neck between the jaw and the collar
@@ -493,14 +494,17 @@ def build_pose(name):
         legs_p = ((-3.8 - sk, LEG * .3, -4.0 - sk, LEG * .4, True), (4.0 + sk, Lk * .9, 3.8 + st, Lf, False)); tsway = 1
     if legs == 'jump':
         bob -= 9; legs_p = ((-6.2, LEG * .28, -5.4, LEG * .42, True), (6.2, LEG * .28, 5.4, LEG * .42, True)); tsway, tl = -2, 6
+    # crouched: the side crouch's depth (CROUCH) with the same bent legs, seen from behind: hips down, feet planted where
+    # they were, knees out a little and forward (so a little lower than half way)
+    cfy = Lf - CROUCH
     if legs == 'crouch':
-        bob += LEG * .48; legs_p = ((-11.5, 3.0, -9.6, LEG * .26, False), (11.5, 3.0, 9.6, LEG * .26, False)); tl = 3
+        bob += CROUCH; legs_p = ((-8.0, cfy * .5, -6.4, cfy, False), (8.0, cfy * .5, 6.4, cfy, False)); tl = 4
     if legs in ('crouchA', 'crouchB'):   # a crouched shuffle: one boot lifted and stepping in, the body rocking onto the other
         sd = -1 if legs == 'crouchA' else 1
-        bob += LEG * .48 - .5
-        lift = lambda k: (k * 10.5, 1.5, k * 8.4, LEG * .26 - 2.6, False)
-        plant = lambda k: (k * 12.2, 3.4, k * 10.2, LEG * .26, False)
-        legs_p = (lift(-1) if sd < 0 else plant(-1), lift(1) if sd > 0 else plant(1)); tl = 3; tsway = -sd
+        bob += CROUCH - .6
+        lift = lambda k: (k * 7.0, cfy * .5 - 1.8, k * 4.6, cfy - 2.2, False)   # the boot a couple of pixels up and in
+        plant = lambda k: (k * 8.8, cfy * .5 + .5, k * 7.0, cfy + .6, False)    # the body is .6 higher, so this boot still ends at FEET
+        legs_p = (lift(-1) if sd < 0 else plant(-1), lift(1) if sd > 0 else plant(1)); tl = 4; tsway = -sd
     if legs == 'scuff':   # the right hoof lifted and scraped back, his weight on the left
         legs_p = ((-3.6 - sk, Lk, -3.8 - st, Lf, False), (3.8 + sk, Lk * .95, 4.4 + st, Lf - 4.0, True)); tsway = 1
     crouch = legs in ('crouch', 'crouchA', 'crouchB')
@@ -533,7 +537,7 @@ def build_pose(name):
         'up':     {'L': ((x - 16.4 - o, vy - 1), (x - 18.5 - o, vy - 7.5)), 'R': ((x + 16.4 + o, vy - 1), (x + 18.5 + o, vy - 7.5))},
         'horns':  {'L': ((x - 16.0 - o, vy - 2), (x - 17.0 - o, vy - 9.5)), 'R': ((x + 16.0 + o, vy - 2), (x + 17.0 + o, vy - 9.5))},
         'flinch': {'L': ((x - s0 - 3.6, vy + 3.5), (x - s0 - 1.8, vy - 3.5)), 'R': ((x + s0 + 3.6, vy + 3.5), (x + s0 + 1.8, vy - 3.5))},
-        'crouch': {'L': ((x - s0 - 1.0, vy + 8), (x - s0 + .8, vy + 13)), 'R': ((x + s0 + 1.0, vy + 8), (x + s0 - .8, vy + 13))},
+        'crouch': {'L': ((x - s0 - .8, vy + 9), (x - s0 + 1.0, vy + 14.5)), 'R': ((x + s0 + .8, vy + 9), (x + s0 - 1.0, vy + 14.5))},   # hanging forward, as the side crouch carries them
         'aim':    {'R': ((x + 15.2 + o, vy + 4.0), (x + 16.6 + o, vy - 2.6))},
         'kick':   {'R': ((x + 15.6 + o, vy + 2.4), (x + 15.4 + o, vy - 5.0))},
         'wind':   {'R': ((x + 16.0 + o, vy - 2.5), (x + 15.0 + o, vy - 9.5))},
@@ -821,7 +825,7 @@ SIDE_FAR = {
     'up': lambda x, vy: ((x + 1.0, vy + 7.5), (x + 3.6, vy + 11.0)),
     'flinch': lambda x, vy: ((x - 4.0, vy + 4.0), (x - 7.4, vy + .5)),
 }
-_C = 7.0   # crouch depth
+_C = CROUCH   # crouch depth, shared with the behind poses
 SIDE_POSE = {
     'stand':  (STAND_LEGS, 'down', 'down', {}),
     'aim':    (STAND_LEGS, 'aim', 'down', {}),
