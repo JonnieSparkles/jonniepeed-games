@@ -84,16 +84,8 @@ window.__balanceBot = function (profile, seed) {
       q.atk.list.forEach(function (l) { if (l.k !== 'gap' && est <= l.t1 + l.len + .03) next = Math.min(next, Math.max(l.t1, est)); });
       if (ap.read) q.atk.list.forEach(function (l) {
         if (l.k === 'gap' || (!l.real && ap.fakes) || est < l.t0 + P.notice_s * .5 || est > l.t1 + l.len + .03 || l.t1 - est > 1.25 || l.t1 > next + .12) return;
-        // the beater: every tile but its gap column, reaching the far row first; the shuttle: its column, like a warp
-        var tiles = [];
-        if (l.k === 'tile') tiles = [[l.c, l.r]];
-        else if (l.k === 'col' || l.k === 'shut') tiles = [[l.i, 0], [l.i, 1], [l.i, 2]];
-        else if (l.k === 'beat') { for (var rr = 0; rr < q.rows; rr++) for (var cc = 0; cc < q.cols; cc++) if (cc !== l.gap) tiles.push([cc, rr]); }
-        else tiles = [0, 1, 2, 3, 4].map(function (c) { return [c, l.i]; });
-        tiles.forEach(function (t) {
-          var k = key(t[0], t[1]), at = l.k === 'beat' ? l.t1 + (q.rows - 1 - t[1]) / q.rows * l.len : l.t1;
-          danger[k] = 1; if (at - est < .3) block[k] = 1;
-        });
+        var tiles = l.k === 'tile' ? [[l.c, l.r]] : l.k === 'col' ? [[l.i, 0], [l.i, 1], [l.i, 2]] : [0, 1, 2, 3, 4].map(function (c) { return [c, l.i]; });
+        tiles.forEach(function (t) { var k = key(t[0], t[1]); danger[k] = 1; if (l.t1 - est < .3) block[k] = 1; });
       });
     }
     var here = key(me.c, me.r);

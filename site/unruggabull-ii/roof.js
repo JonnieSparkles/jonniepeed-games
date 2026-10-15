@@ -16,7 +16,7 @@ var UnrugRoof = function (core) {
     eyeRun: .4, eyeAccel: .55, returnGap: 1.5,
     // the beam fight, as on the finale mockup: he walks, the beam follows with a lag (so it curves) and leans toward the
     // eye (assist); carpshits pour off the cloth, some heavy, and the beam melts them (a fixed number, so no farming)
-    beamMove: 1.25, beamBull: .78, beamAssist: .3, beamFollow: 3.2, beamBend: 1.6, beamWidth: .075, beamMelt: 30,
+    beamMove: 1.25, beamDepth: .5, beamBull: .78, beamAssist: .3, beamFollow: 3.2, beamBend: 1.6, beamWidth: .075, beamMelt: 30,
     beamFlyGap: [.35, .65], beamFlies: 40, beamHeavy: .25, heavyHP: 4, returnFly: 1.2, rushGap: .055,
     initialCaught: 100, recalculatingGap: 5,
     freeze: .14, lightningFrame: 1 / 30,
@@ -24,7 +24,7 @@ var UnrugRoof = function (core) {
     fightBanner: 1, warmAmbient: .25, darkAmbient: .1, flashAmbient: .7, fightAmbient: .5,   // the fight's roof is lit to read; the storm stays in the sky
     deadWait: 2.8, spools: 3, hitCost: 1,
     // The roof in front of him: 5 tiles across the aisle, 3 deep from the near edge. Rows step .15 of the hall.
-    grid: { cols: 5, rows: 3, z0: -.05, depth: .15, headH: .2 },
+    grid: { cols: 5, rows: 3, z0: -.05, depth: .15 },
     step: { first: .2, repeat: .14, slideU: 3.6, slideZ: 1.6 },
     fight: {
       open: 2.2, setOpen: [1.8, 1.8, 2], grace: .45,             // the white-hot window; set pieces give a longer one
@@ -36,7 +36,7 @@ var UnrugRoof = function (core) {
       hatch: [4, 6, 8], hatchEvery: [6.5, 5.2, 4.2], hatchFirst: 2.5, hatchWarn: .7, hatchAge: .6, hatchRetry: .5, fakeCarp: [0, .39, .45], fakeSpeed: .34,
       reach: 1, whiff: .5, reclaimFreeze: .045,
       snapT: 2.8, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
-      twin: 1.4, tipT: 2.6, shuttleT: .6, beaterT: 1.1
+      twin: 1.4, tipT: 2.6
     },
     walk: { rows: [1.6, 3.6, 5.6], carpAt: 8, carpZ: .3, carpH: .22 },
     reset: { stitchAfter: .3, stitch: 1.8, respoolAfter: 2.3, respool: 3, after: .5, relay: 1.2 },   // relay: a reclaimed tile is woven again after this long
@@ -197,7 +197,7 @@ var UnrugRoof = function (core) {
       Q.quietT += dt;
     }, ready: () => Q.quietT >= ROOF.time.quiet },
     return: { entry() {
-      R.gold = true; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0;
+      R.gold = true; R.hot = false; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0;
       Q.flights = Array.from({ length: Math.min(ROOF.spools, Q.caught) }, (_, i) => soulFlight(Q.caught - 1 - i, i * ROOF.returnGap));
       say('ERROR. ERR.');
     }, tick(dt) {
@@ -297,6 +297,7 @@ var UnrugRoof = function (core) {
     for (const sh of v.shots) sh.z += 1.6 * dt;
     v.shots = v.shots.filter(sh => sh.z < 1);
   }
+  const deadBlaster = () => Q.state === 'quiet' || Q.state === 'reset' && Q.silenced;
   function controlled() { return !['flash', 'wake', 'odds', 'fusion', 'snap', 'dawn', 'clear'].includes(Q.state) && (Q.state !== 'elevator' || Q.t >= ROOF.time.elevator); }
   function update(dt) {
     if (R.phase === 'dead') { updateBull(dt); updateFx(dt); if (R.phaseT > ROOF.deadWait) endRun('rugged'); return; }
@@ -311,6 +312,9 @@ var UnrugRoof = function (core) {
     if (R.phase === 'dead') return;
     if (controlled()) updateBull(dt);
     if (R.gold) { R.charge = TUNE.charges; R.empty = 0; R.dry = false; }
+    // from the silence after ALL SOULS ACCOUNTED FOR to the first soul back the blaster is dead: a dry click and smoke,
+    // nothing he does matters, until the souls come back as its ammo (owner, Oct 15)
+    else if (deadBlaster()) { R.charge = 0; R.hot = true; }
     if (isRound() || Q.state === 'beam' || Q.state === 'run') { updateFlies(dt); updateShots(dt); }
     else if (Q.state === 'walk' || Q.state === 'reset' || (R.gold && !R.beam)) updateShots(dt);
     updateFx(dt);
@@ -341,7 +345,8 @@ var UnrugRoof = function (core) {
       s.cd = key !== s.last ? ROOF.step.first : ROOF.step.repeat;
     }
     s.last = dx || dy ? key : '';
-    if (freeMove() || beamActive()) return;   // from the first soul back he walks freely (walkFree)
+    // from the first soul back he walks freely (walkFree), up and down the roof too (owner, Oct 15)
+    if (freeMove() || beamActive()) { if (depthDir) bull.bz = clamp(bull.bz + depthDir * ROOF.beamDepth * dt, tileZ(0), tileZ(GR.rows - 1)); return; }
     bull.u += clamp(tileU(Q.at.c) - bull.u, -ROOF.step.slideU * dt, ROOF.step.slideU * dt);
     bull.bz += clamp(tileZ(Q.at.r) - bull.bz, -ROOF.step.slideZ * dt, ROOF.step.slideZ * dt);
   }
@@ -384,19 +389,15 @@ var UnrugRoof = function (core) {
   // ---------- the fight ----------
   // A pattern is a list of lasers on one timeline: each has its own warning (t0) and firing time (t1), so a set piece
   // can chain waves. k: col (warp, sweeping the column from the far row), row (weft, across a row), tile (a needle
-  // stitching one tile), gap (a set piece's gold safe tile, drawn only), shut (the shuttle, thrown down a column at head
-  // height; it hurts only where it is) and beat (the beater, a comb the width of the roof swinging toward him row by row
-  // with one column of teeth missing, l.gap; it hurts only the row it's passing). Every attack is dodged by stepping.
+  // stitching one tile) and gap (a set piece's gold safe tile, drawn only). Every attack is dodged by stepping.
   const pick = list => list[Math.floor(rnd() * list.length)];
   function beatWait(min) { const now = R.t - Q.beat0; return Math.ceil((now + min) / BEAT - 1e-9) * BEAT - now; }
   const beatGap = s => Math.max(1, Math.round(s / (BEAT / 2))) * BEAT / 2;
   function laser(k, i, real, t0, t1, o) { return Object.assign({ k, i, real, t0, t1, dir: rnd() < .5 ? 1 : -1, done: -1, fired: false, told: false, lay: true }, o || {}); }
-  const lenOf = l => l.k === 'tile' || l.k === 'gap' ? F.stitch : l.k === 'shut' ? F.shuttleT : l.k === 'beat' ? F.beaterT : F.fire;
-  const moving = l => l.k === 'shut' || l.k === 'beat';   // a thing flying at him: only where it is now hurts
+  const lenOf = l => l.k === 'tile' || l.k === 'gap' ? F.stitch : F.fire;
   function pathOf(l) {
     if (l.k === 'tile' || l.k === 'gap') return [{ c: l.c, r: l.r }];
-    if (l.k === 'col' || l.k === 'shut') return [2, 1, 0].map(r => ({ c: l.i, r }));
-    if (l.k === 'beat') return [2, 1, 0];   // rows; every column but l.gap
+    if (l.k === 'col') return [2, 1, 0].map(r => ({ c: l.i, r }));
     return (l.dir > 0 ? [0, 1, 2, 3, 4] : [4, 3, 2, 1, 0]).map(c => ({ c, r: l.i }));
   }
   function patternNormal() {
@@ -404,25 +405,21 @@ var UnrugRoof = function (core) {
     const t1 = beatWait(F.warn * F.warnK[ph]);
     const col = (c, real = true, o) => list.push(laser('col', c, real, 0, t1, o));
     const weft = (r, real = true, o = {}) => list.push(laser('row', r, real, 0, t1, o));
-    const shuttle = c => list.push(laser('shut', c, true, 0, t1, { lay: false }));
-    const beater = gap => list.push(laser('beat', 0, true, 0, t1, { gap, lay: false }));
     const near = c => [c - 1, c + 1].filter(x => x >= 0 && x < GR.cols);
     if (ph === 0) {
       // WARP: a column through him; from the third attack, warp and weft crossing on his tile (step diagonally)
       if (n < 2 || rnd() < .4) col(b.c);
       else { col(b.c); weft(b.r); }
     } else if (ph === 1) {
-      // HALLUCINATING: the shuttle down his column with a fake beside it, crosses with one fake arm, fakes where he'd
-      // dodge to
+      // HALLUCINATING: a weft through him with a fake warp beside, crosses with one fake arm, fakes where he'd dodge to
       const r = rnd();
-      if (r < .3) { shuttle(b.c); if (rnd() < .5) weft(b.r); else col(pick(near(b.c)), false); }   // the shuttle and a weft: step diagonally
+      if (r < .3) { weft(b.r); col(pick(near(b.c)), false); }
       else if (r < .65) { const fakeWarp = rnd() < .5; col(b.c, !fakeWarp); weft(b.r, fakeWarp); }
       else { col(b.c); weft(b.r); col(pick(near(b.c)), false); }
     } else {
-      // MAXIMUM: the twin shuttle fires the weft while the eye fires the warp; sometimes two warps; the beater
+      // MAXIMUM: the twin shuttle fires the weft while the eye fires the warp; sometimes two warps
       const r = rnd();
-      if (r < .25) { let gap = clamp(b.c + pick([-2, -1, 1, 2]), 0, GR.cols - 1); if (gap === b.c) gap = b.c ? b.c - 1 : 1; beater(gap); return { list, open: F.open }; }
-      if (r < .6) { col(b.c); weft(b.r, true, { twin: true }); }
+      if (r < .45) { col(b.c); weft(b.r, true, { twin: true }); }
       else { col(b.c); col(b.c + (b.c <= 1 ? 2 : b.c >= 3 ? -2 : pick([-2, 2]))); weft(b.r, true, { twin: true }); }
       if (rnd() < .6) { const free = [0, 1, 2, 3, 4].filter(c => !list.some(l => l.k === 'col' && l.i === c)); col(pick(free), false); }
     }
@@ -436,9 +433,8 @@ var UnrugRoof = function (core) {
       [0, 1, 2, 3, 4].filter(c => c !== g1).forEach((c, k) => list.push(laser('col', c, true, 0, first + k * sp, { lay: false })));
       const endA = first + 3 * sp + F.fire, g2 = g1 + (g1 >= 2 ? -2 : 2), t0B = endA - .2, t1B = t0B + beatGap(1.15);
       list.push(laser('gap', 0, false, 0, endA - F.stitch, { c: g1, r: -1 }));
-      // then the beater swings in, its gap in another column
-      list.push(laser('beat', 0, true, t0B, t1B, { gap: g2, lay: false }));
-      list.push(laser('gap', 0, false, t0B, t1B + F.beaterT - F.stitch, { c: g2, r: -1 }));
+      [4, 3, 2, 1, 0].filter(c => c !== g2).forEach((c, k) => list.push(laser('col', c, true, t0B, t1B + k * sp, { lay: false })));
+      list.push(laser('gap', 0, false, t0B, t1B + 3 * sp + F.fire - F.stitch, { c: g2, r: -1 }));
       return { name: 'FIRST PASS', line: 'OPTIMIZING.', list, open: F.open * F.setOpen[0] };
     }
     if (ph === 1) {
@@ -486,7 +482,7 @@ var UnrugRoof = function (core) {
       for (const l of a.list) {
         if (!l.told && a.t >= l.t0) { l.told = true; if (l.k !== 'gap') { warned = true; if (!l.real) fake = true; } }
         if (a.t < l.t1 || l.k === 'gap') continue;
-        if (!l.fired) { l.fired = true; if (l.real) { if (l.k === 'tile') stitched = true; else if (l.k === 'shut') Snd.play('shuttle'); else if (l.k === 'beat') Snd.play('beater'); else fired = true; } }
+        if (!l.fired) { l.fired = true; if (l.real) { if (l.k === 'tile') stitched = true; else fired = true; } }
         if (l.k === 'tile') {
           if (l.real && a.t <= l.t1 + F.stitch) {
             if (l.lay && !l.laid) { l.laid = true; layCarpet(l.c, l.r); }
@@ -495,12 +491,10 @@ var UnrugRoof = function (core) {
           continue;
         }
         const path = pathOf(l), p = clamp((a.t - l.t1) / lenOf(l), 0, 1), idx = Math.min(path.length - 1, Math.floor(p * path.length));
-        while (l.done < idx) { l.done++; const tt = path[l.done]; if (l.real && l.lay && !moving(l)) layCarpet(tt.c, tt.r); }
+        while (l.done < idx) { l.done++; const tt = path[l.done]; if (l.real && l.lay) layCarpet(tt.c, tt.r); }
         if (l.real && a.t <= l.t1 + lenOf(l)) {
-          if (l.k === 'beat') { if (me.r === path[idx] && me.c !== l.gap) hurtBull(ROOF.hitCost, 'beater'); }
-          else if (l.k === 'shut') { if (path[idx].c === me.c && path[idx].r === me.r) hurtBull(ROOF.hitCost, 'shuttle'); }
-          // a laser: the whole lit length of the beam hurts, not only its tip
-          else for (let i = 0; i <= idx; i++) if (path[i].c === me.c && path[i].r === me.r) hurtBull(ROOF.hitCost, 'laser');
+          // the whole lit length of the beam hurts, not only its tip
+          for (let i = 0; i <= idx; i++) if (path[i].c === me.c && path[i].r === me.r) hurtBull(ROOF.hitCost, 'laser');
         }
         if (R.phase === 'dead') return;
       }
@@ -508,8 +502,6 @@ var UnrugRoof = function (core) {
         Snd.play('laserWarn'); if (fake) Snd.play('laserWarnFake');
         if (a.set) { if (a.list.some(l => l.k === 'gap')) tip('gap', 'FIND THE GOLD GAP'); }
         else {
-          if (a.list.some(l => l.k === 'shut')) tip('shut', 'THE SHUTTLE: STEP OUT OF ITS COLUMN');
-          if (a.list.some(l => l.k === 'beat')) tip('beat', 'THE BEATER: STEP INTO THE GAP');
           if (fake) tip('fake', 'DOTTED AND SHAKING = NOT REAL');
           if (a.list.some(l => l.k === 'col') && a.list.some(l => l.real && l.k === 'row')) tip('cross', 'WARP AND WEFT: STEP DIAGONALLY');
           tip('warn', 'STEP OFF THE RED');
@@ -581,13 +573,15 @@ var UnrugRoof = function (core) {
     Q.hatchT -= dt;
     if (Q.hatchT > 0 || Q.hatchLeft <= 0) return;
     const busy = (c, r) => Q.hatching.some(h => h.c === c && h.r === r);
-    const ok = [], near = [];
+    const ok = [];
     for (let r = 0; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) {
       const tl = T(c, r);
       if (!tl.carpet || tl.age < F.hatchAge || busy(c, r) || (c === Q.at.c && r === Q.at.r)) continue;
-      (r > Q.at.r ? ok : near).push([c, r]);
+      if (r > Q.at.r) ok.push([c, r]);
     }
-    const top = Math.max(...ok.map(t => t[1])), from = ok.length ? ok.filter(t => t[1] === top) : near;   // the furthest row with carpet first
+    // only from further up the roof than him, the furthest row with carpet first: one hatched beside him only flew
+    // past him and off the screen (owner, Oct 15)
+    const top = Math.max(...ok.map(t => t[1])), from = ok.filter(t => t[1] === top);
     if (!from.length) { Q.hatchT = F.hatchRetry; return; }
     Q.hatchLeft--; Q.hatchT = F.hatchEvery[ph];
     const [c, r] = pick(from);
@@ -678,7 +672,8 @@ var UnrugRoof = function (core) {
     } else {
       // the armour: a clang and sparks, nothing more
       sparks(s.u, ROOF.eyeZ, s.h, '#9aa0b8'); Snd.play('clang');
-      if (isRound()) { tip('armour', 'ARMOURED: WAIT FOR IT TO GO WHITE'); if (Q.recalc <= 0) { say('RECALCULATING.'); Q.recalc = ROOF.recalculatingGap; } }
+      if (Q.state === 'reset') popText('NO CHANGE.', PX(Q.eye.u, ROOF.eyeZ), YH(ROOF.eyeZ, ROOF.eyeH) - 12, '#9aa0b8');
+      if (isRound()) { tip('armour', 'ARMOURED: WAIT FOR IT TO OPEN'); if (Q.recalc <= 0) { say('RECALCULATING.'); Q.recalc = ROOF.recalculatingGap; } }
     }
     return true;
   }
@@ -796,8 +791,7 @@ var UnrugRoof = function (core) {
   function laserTip(l) {
     if (l.k === 'tile') return { u: tileU(l.c), z: tileZ(l.r) };
     const p = clamp((Q.atk.t - l.t1) / lenOf(l), 0, 1);
-    if (l.k === 'col' || l.k === 'shut') return { u: tileU(l.i), z: GR.z0 + GR.rows * GR.depth - p * GR.rows * GR.depth };
-    if (l.k === 'beat') return { u: 0, z: GR.z0 + GR.rows * GR.depth - p * GR.rows * GR.depth };
+    if (l.k === 'col') return { u: tileU(l.i), z: GR.z0 + GR.rows * GR.depth - p * GR.rows * GR.depth };
     return { u: l.dir > 0 ? -ROOF.aisle + p * 2 * ROOF.aisle : ROOF.aisle - p * 2 * ROOF.aisle, z: tileZ(l.i) };
   }
 
@@ -889,6 +883,8 @@ var UnrugRoof = function (core) {
     for (let r = GR.rows - 1; r >= 0; r--) for (let c = 0; c < GR.cols; c++) {
       const tl = T(c, r), q = tileQuad(c, r);
       poly(g, SEAM, q); poly(g, SLAB[(c + r) & 1], tileQuad(c, r, .04));
+      // a tile just cleared flashes white, under him in the lit layer (drawn over him, it cut him off at the tile)
+      if (!tl.carpet && tl.flip < 0) { g.save(); g.globalAlpha = -tl.flip * .8; poly(g, '#ffffff', tileQuad(c, r, .04)); g.restore(); }
       if (!tl.carpet) continue;
       const k = tl.flip > 0 ? 1 - tl.flip : 1;
       poly(g, '#b8262c', tileQuad(c, r, .04 + (.46 - .46 * k)));
@@ -911,7 +907,7 @@ var UnrugRoof = function (core) {
     if (!Q.tiles || !(isRound() || Q.state === 'walk' || Q.state === 'reset')) return;
     g.save(); g.strokeStyle = 'rgba(255,212,74,.6)'; g.lineWidth = .5; path(tileQuad(Q.at.c, Q.at.r, .06)); g.stroke(); g.restore();
     for (let r = 0; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) {
-      const tl = T(c, r); if (!tl.carpet && tl.flip < 0) { g.save(); g.globalAlpha = -tl.flip * .8; poly(g, '#ffffff', tileQuad(c, r)); g.restore(); }
+      const tl = T(c, r);
       if (!tl.carpet || tl.grip <= 0) continue;
       // the warning: the tile's edge flickers white and its tassels stand up, faster as it's about to pull
       const k2 = clamp(tl.grip / F.grip, 0, 1), on = Math.sin(tl.grip * (10 + 26 * k2)) > 0;
@@ -948,18 +944,13 @@ var UnrugRoof = function (core) {
         continue;
       }
       g.save(); g.translate(j, 0);
-      for (const t of tilesOf(l)) { const q = tileQuad(t.c, t.r, .05); if (l.real) warnTile(q, soon, pulse, layer); else fakeTile(q); }
-      if (l.k === 'beat' && layer !== 'lit') {
-        // the beater's gap: a gold column to step into
-        g.strokeStyle = '#ffd44a'; g.lineWidth = 1; for (let r = 0; r < GR.rows; r++) { path(tileQuad(l.gap, r, .06)); g.stroke(); }
-        otxt(g, 'GAP', PX(tileU(l.gap), tileZ(1)), FY(tileZ(1)) - 4, '#ffd44a', 1, 'center');
-      }
-      if (layer === 'lit' || l.k === 'beat') { g.restore(); continue; }
+      for (const t of pathOf(l)) { const q = tileQuad(t.c, t.r, .05); if (l.real) warnTile(q, soon, pulse, layer); else fakeTile(q); }
+      if (layer === 'lit') { g.restore(); continue; }
       // the aim line from the eye (or the twin) to where the attack starts
       const [ex, ey] = eyeSrc(l), first = pathOf(l)[0], fz = l.k === 'col' ? GR.z0 + GR.rows * GR.depth : tileZ(first.r);
       const fu = l.k === 'row' ? (l.dir > 0 ? -ROOF.aisle : ROOF.aisle) : tileU(first.c);
       g.strokeStyle = l.real ? 'rgba(255,74,58,.7)' : 'rgba(216,204,255,.7)'; g.lineWidth = .5; if (!l.real) g.setLineDash([1, 2]);
-      g.beginPath(); g.moveTo(ex, ey); g.lineTo(PX(fu, fz), YH(fz, l.k === 'shut' ? GR.headH : 0)); g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.moveTo(ex, ey); g.lineTo(PX(fu, fz), YH(fz, 0)); g.stroke(); g.setLineDash([]);
       g.restore();
     }
   }
@@ -978,8 +969,6 @@ var UnrugRoof = function (core) {
         } else { g.save(); g.strokeStyle = '#d8ccff'; g.setLineDash([1, 1.5]); g.beginPath(); g.moveTo(x, y - 28 * s); g.lineTo(x, y); g.stroke(); g.restore(); }
         continue;
       }
-      if (l.k === 'shut') { drawShuttle(laserTip(l)); continue; }
-      if (l.k === 'beat') { drawBeater(laserTip(l).z, l.gap); continue; }
       const tp = laserTip(l), h = 0, tx = PX(tp.u, tp.z), ty = YH(tp.z, h);
       g.save();
       if (l.real) {
@@ -998,29 +987,6 @@ var UnrugRoof = function (core) {
       }
       g.restore();
     }
-  }
-  // the tiles an attack covers (the beater: every column but its gap, every row)
-  function tilesOf(l) {
-    if (l.k !== 'beat') return pathOf(l);
-    const out = []; for (let r = 0; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) if (c !== l.gap) out.push({ c, r }); return out;
-  }
-  // the shuttle: a boat-shaped wooden shuttle seen end-on at head height, the red thread in its hollow, its shadow below
-  function drawShuttle(tp) {
-    const x = PX(tp.u, tp.z), y = YH(tp.z, GR.headH), k = sc(tp.z) * 1.5;
-    g.save(); g.globalAlpha = .5; g.fillStyle = '#0a060e'; g.beginPath(); g.ellipse(x, FY(tp.z), 12 * k, 2 * k, 0, 0, 7); g.fill(); g.restore();
-    g.fillStyle = '#c8924a'; g.beginPath(); g.ellipse(x, y, 10 * k, 4 * k, 0, 0, 7); g.fill();
-    g.fillStyle = '#7a4a1c'; g.beginPath(); g.ellipse(x, y, 6.5 * k, 2.4 * k, 0, 0, 7); g.fill();
-    rect(g, x - 3.5 * k, y - k, 7 * k, 2 * k, '#d63428'); disc(g, x, y, Math.max(.6, 1.1 * k), '#f0e0c0');
-  }
-  // the beater: a wooden beam the width of the roof at chest height with a comb of teeth under it, none over the gap;
-  // a shadow band on the roof and posts at the edges show where it is
-  function drawBeater(z, gap) {
-    const top = GR.headH, bot = GR.headH - .06, L = PX(-ROOF.aisle - .04, z), Rx = PX(ROOF.aisle + .04, z), yt = YH(z, top), yb = YH(z, bot), k = sc(z);
-    g.save(); g.globalAlpha = .55; poly(g, '#0a060e', [[PX(-ROOF.aisle, z - .018), FY(z - .018)], [PX(ROOF.aisle, z - .018), FY(z - .018)], [PX(ROOF.aisle, z + .018), FY(z + .018)], [PX(-ROOF.aisle, z + .018), FY(z + .018)]]); g.restore();
-    for (const s of [-1, 1]) rect(g, PX(s * ROOF.aisle, z) - .5, yt, 1, FY(z) - yt, 'rgba(200,150,80,.5)');
-    rect(g, L, yt, Rx - L, yb - yt, '#5a3418'); rect(g, L, yt, Rx - L, Math.max(1, (yb - yt) * .35), '#8a5428');
-    const g0 = PX(tileU(gap) - TW / 2, z), g1 = PX(tileU(gap) + TW / 2, z), step = Math.max(1.5, 4 * k);
-    for (let x = L + 1; x < Rx - 1; x += step) if (x < g0 || x > g1) rect(g, x, yb, Math.max(.5, k), Math.max(1, 6 * k), '#c9a060');
   }
   function drawWhip() {
     if (!(Q.whip >= 0 && Q.whip < 1.2)) return;
@@ -1144,7 +1110,7 @@ var UnrugRoof = function (core) {
   function hud() {
     drawSoulsCounter(displayedCount());
     if (Q.tips.length && (isRound() || Q.state === 'walk' || Q.state === 'reset')) {
-      // a first-time prompt, under the HUD (between the loom and the roof is where the shuttle and the beater fly)
+      // a first-time prompt, under the HUD, clear of the roof and the eye
       const k = Q.tips[0], w = textWidth(k.text) + 10, y = 16;
       g.save(); g.globalAlpha = clamp(Math.min(k.t * 6, (F.tipT - k.t) * 4), 0, 1);
       rect(g, (W - w) / 2, y - 3, w, 11, '#0a0810'); rect(g, (W - w) / 2, y - 3, w, 1, '#ffd44a');

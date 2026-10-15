@@ -2,7 +2,7 @@
 def check_audio(browser, root):
     audio = (root / 'site/unruggabull-ii/audio.js').read_text().replace('  return api;', '  window.audioTest = code => eval(code);\n  return api;')
     for hook in ['storm', 'thunder', 'snare', 'snareCut', 'gust', 'spoolSnap', 'beam', 'rush', 'pinch', 'snap', 'chord', 'bell', 'hintStream', 'loom', 'roof', 'roofHeavy', 'quiet',
-                 'laserWarn', 'laserWarnFake', 'laser', 'stitch', 'eyeOpen', 'eyeHit', 'clang', 'slam', 'setPiece', 'whip', 'reclaim', 'whiff', 'rugPull', 'grip', 'carpetSpread', 'fakePop', 'stitchBlip', 'shuttle', 'beater']:
+                 'laserWarn', 'laserWarnFake', 'laser', 'stitch', 'eyeOpen', 'eyeHit', 'clang', 'slam', 'setPiece', 'whip', 'reclaim', 'whiff', 'rugPull', 'grip', 'carpetSpread', 'fakePop', 'stitchBlip']:
         page = browser.new_page()
         page.evaluate('''() => { window.AudioContext = class extends OfflineAudioContext {
           constructor() { super(1, 48000 * 4, 48000); Object.defineProperty(this, 'state', {value: 'running'}); }
@@ -71,4 +71,4 @@ def check_audio(browser, root):
         }; }'''); page.add_script_tag(content=audio)
     assert level['shredder'] >= level['bull'] * .85, ('the Shredder is too quiet on a phone', level)
     page.close()
-    print('PASS roof audio: 36 hooks render nonzero finite sound, tracks, cadence, mute and loop cleanup')
+    print('PASS roof audio: 34 hooks render nonzero finite sound, tracks, cadence, mute and loop cleanup')

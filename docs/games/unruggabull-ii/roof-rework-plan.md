@@ -65,9 +65,16 @@ Opening 2.2 s (set pieces 1.8x, the last 2x); warning 1.2 s (phase 3 0.92x); las
 
 ## After his second play (Oct 14, PR #111)
 
-- No Duck on the roof: the same pads as everywhere, every attack dodged by stepping. The high weft is gone; the **shuttle** (thrown down a column at head height) and the **beater** (a comb as wide as the roof with a gold gap) take its place; FIRST PASS's second pass is the beater.
+- No Duck on the roof: the same pads as everywhere, every attack dodged by stepping. The high weft is gone. (A shuttle and a gapped beater took its place for one play and went again on Oct 15: "they look weird and you can't really do anything with them.")
 - The reset is playable (slash the carpet back while it's re-woven); no cut-in cards; real streams from the first returned soul; he walks freely from then to the end.
 - The loom no wider than the roof, its spools below the HUD; dim trapped souls; the open eye yellow with a white core; shapes drawn at half a pixel.
+
+## After his third play (Oct 15)
+
+- No shuttle or beater: lasers, needles and carpshits.
+- Carpshits hatch only from carpet further up the roof than him.
+- The moment before the crescendo sells "I can't do anything here": shots clang "NO CHANGE.", then the blaster is dead (a click and smoke) until the first soul is back.
+- With the stream he walks up and down the roof too.
 
 ## Left for later
 

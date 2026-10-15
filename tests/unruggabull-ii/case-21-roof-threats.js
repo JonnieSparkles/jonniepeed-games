@@ -1,4 +1,4 @@
-// The fight's threats on the grid: warp and weft, the shuttle and the beater, hallucinations, the opening, carpet's grip,
+// The fight's threats on the grid: warp and weft, hallucinations, the opening, carpet's grip,
 // the slash that reclaims (and whiffs), fixed carpshits, the snap's thread whip, and drawing that changes nothing.
 (function () {
   const check = (ok, why) => { if (!ok) throw new Error(why); };
@@ -20,19 +20,6 @@
   fresh(); attack([{ k: 'col', i: 2, real: true }, { k: 'row', i: 0, real: true }]);
   keys.kbRight = true; tick(1 / 60); keys.kbRight = false; tick(.15); keys.kbUp = true; tick(1 / 60); keys.kbUp = false; tick(1);
   check(R.roof.at.c === 3 && R.roof.at.r === 1 && R.hearts === 5, 'warp and weft crossing on him: a diagonal step clears it');
-  // The shuttle: down his column at head height; it lays no carpet, and a step aside clears it.
-  fresh(); attack([{ k: 'shut', i: 2, real: true, lay: false }]); tick(1.3);
-  check(R.hearts === 4 && R.lastCause === 'shuttle' && !tile(2, 0).carpet && !tile(2, 2).carpet, 'the shuttle down his column hits, and lays no carpet');
-  fresh(); attack([{ k: 'shut', i: 2, real: true, lay: false }]); keys.kbRight = true; tick(1 / 60); keys.kbRight = false; tick(1.3);
-  check(R.hearts === 5, 'a step out of its column and the shuttle flies past');
-  // The beater: the width of the roof, row by row, all but its gap.
-  fresh(); attack([{ k: 'beat', i: 0, gap: 4, real: true, lay: false }]); tick(.5 + floor.ROOF.fight.beaterT + .1);
-  check(R.hearts === 4 && R.lastCause === 'beater', 'the beater hits anywhere but its gap');
-  fresh(); floor.placeBull(4, 0); attack([{ k: 'beat', i: 0, gap: 4, real: true, lay: false }]); tick(.5 + floor.ROOF.fight.beaterT + .1);
-  check(R.hearts === 5 && R.roof.atk.stage === 'heat', 'standing in the gap it passes him, and the eye opens');
-  fresh(); floor.placeBull(0, 0); attack([{ k: 'beat', i: 0, gap: 4, real: true, lay: false }]); tick(.5 + floor.ROOF.fight.beaterT * .5);
-  check(R.hearts === 5, 'it comes from the far row: the near row still has time');
-  tick(floor.ROOF.fight.beaterT * .5 + .1); check(R.hearts === 4, 'then it reaches him');
   fresh(); attack([{ k: 'col', i: 2, real: false }, { k: 'tile', c: 2, r: 0, real: false }]); tick(1.1);
   check(R.hearts === 5 && !tile(2, 0).carpet && R.roof.stall === 0 && R.roof.atk.stage === 'idle', 'hallucinations do nothing, and open nothing');
   fresh(); attack([{ k: 'tile', c: 2, r: 0, real: true, lay: false }]); tick(.8);
@@ -59,10 +46,12 @@
   check(R.roof.hatching.length === 1 && R.roof.hatching[0].c === 3 && R.roof.hatching[0].r === 2 && !R.flies.length, 'a carpet tile heaves first: the warning');
   tick(F.hatchWarn);
   check(R.flies.length === 1 && Math.abs(R.flies[0].u - floor.tileU(3)) < .05 && !tile(3, 2).carpet, 'then the carpshit peels up out of it, taking the carpet');
-  fresh(); R.roof.atk.wait = 1e9; tile(1, 0).carpet = true; tile(1, 0).age = 1; R.roof.hatchLeft = 1; R.roof.hatchT = 0; tick(.1);
-  check(R.roof.hatching.length === 1, 'a tile beside him can hatch when there is no carpet further up');
-  press('slash'); tick(F.hatchWarn + .1);
-  check(!R.flies.length && !tile(1, 0).carpet, 'reclaimed before it hatches, nothing comes out');
+  fresh(); R.roof.atk.wait = 1e9; tile(1, 0).carpet = true; tile(1, 0).age = 1; R.roof.hatchLeft = 1; R.roof.hatchT = 0; tick(.6);
+  check(!R.roof.hatching.length && R.roof.hatchLeft === 1, 'carpet beside him never hatches (it would only fly past him and off the screen)');
+  tile(1, 1).carpet = true; tile(1, 1).age = 1; tick(.6);
+  check(R.roof.hatching.length === 1 && R.roof.hatching[0].r === 1, 'carpet further up the roof does');
+  floor.placeBull(2, 1); press('slash'); tick(F.hatchWarn + .1);
+  check(!R.flies.length && !tile(1, 1).carpet, 'reclaimed before it hatches, nothing comes out');
   const hatched = []; const oldEmit = emitHook; emitHook = type => { if (type === 'roof_hatch') hatched.push(type); };
   fresh(2); R.roof.hatchLeft = F.hatch[1]; R.roof.atk.wait = 1e9; bull.inv = 1e9;
   for (let i = 0; i < 90; i++) { for (const r of [1, 2]) for (let c = 0; c < 5; c++) if (!tile(c, r).carpet) { tile(c, r).carpet = true; tile(c, r).age = 1; } tick(1); }

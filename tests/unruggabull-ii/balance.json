@@ -47,8 +47,6 @@
     { "label": "boss dmg: smash", "key": "boss_damage.amount:by=smash" },
     { "label": "lost: roof lasers", "key": "hit.amount:cause=laser" },
     { "label": "lost: roof needles", "key": "hit.amount:cause=stitch" },
-    { "label": "lost: roof shuttles", "key": "hit.amount:cause=shuttle" },
-    { "label": "lost: roof beaters", "key": "hit.amount:cause=beater" },
     { "label": "lost: rug pulls", "key": "hit.amount:cause=pull" },
     { "label": "lost: roof carps", "key": "hit.amount:cause=carp" },
     { "label": "spools snapped", "key": "roof_spool.amount" },

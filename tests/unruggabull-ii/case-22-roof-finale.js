@@ -17,10 +17,14 @@
   for (let i = 0; i < 1200 && R.roof.state === 'reset'; i++) update(1 / 60);
   check(R.roof.state === 'quiet' && R.roof.respool === 1 && spoken.includes('REPLACEMENT SPOOLS ORDERED.') && spoken.includes('PROBABILITY OF YOUR SURVIVAL: 1%.'), 'the reset re-spools from the souls and hands over to the quiet');
   check(R.roof.odds === 99 && R.roof.realOdds < 99, 'the bar is stitched back to 99 over damage it keeps');
+  check(R.roof.state === 'quiet' && R.charge === 0, 'in the quiet the blaster is dead');
+  const shots0 = R.events.shots || 0; press('shoot'); update(1 / 60); update(1 / 60);
+  check((R.events.shots || 0) === shots0 && R.empty > 0, 'pulling the trigger only clicks');
   for (let i = 0; i < 300 && R.roof.state === 'quiet'; i++) update(1 / 60);
   check(R.roof.state === 'return' && !R.roof.cut, 'the quiet goes straight into the return: no cut-in cards');
   // from the first soul back he walks freely, and the blaster fires the streams on its own
-  const u0 = bull.u; keys.kbRight = true; tick(.5); keys.kbRight = false;
+  const u0 = bull.u, z0 = bull.bz; keys.kbRight = true; keys.kbUp = true; tick(.5); keys.kbRight = false; keys.kbUp = false;
+  check(bull.bz > z0 + .15, 'and forward up the roof, not a row at a time');
   check(bull.u > u0 + .3 && R.roof.state === 'return' && R.roof.vol && R.roof.vol.shots.length > 0, 'he walks freely and the streams fire on their own');
   tick(3.4); check(R.roof.vol.shots.some(sh => sh.d !== 0 || sh.o !== 0), 'each soul back adds a stream');
   for (let i = 0; i < 600 && R.roof.state !== 'lines'; i++) update(1 / 60);
