@@ -41,7 +41,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     if (Q.state === 'walk') while (flashes < C.distant.length && Q.t >= C.distant[flashes]) { flashes++; core.Snd.play('thunder', .35); }
     if (Q.state === 'pinch') shake(Math.min(1, Q.t / C.pinchBuild) * C.shake.pinch, .12);
     if (beam) shake(Q.onEye ? C.shake.beamEye : C.shake.beam, .1);
-    core.Snd.roofSound({ storm: !['dawn', 'clear'].includes(Q.state) && R.phase !== 'dead', beam: beam && R.phase !== 'dead', onEye: !!Q.onEye,
+    core.Snd.roofSound({ storm: !['dawn', 'ending', 'clear'].includes(Q.state) && R.phase !== 'dead', beam: beam && R.phase !== 'dead', onEye: !!Q.onEye,
       gust: Q.gust ? clamp(Q.gust.t / tuning.gustTell, 0, 1) : 0 });
   }
   function offset(R) {
@@ -83,7 +83,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     g.drawImage(dark ? silhouette : A.GHOST, p.x, p.y, A.uw(A.GHOST) * k, A.uh(A.GHOST) * k); g.restore();
   }
   function drawWarp(g, Q) {
-    if (['pinch', 'fusion', 'lines', 'beam', 'run', 'one', 'snap', 'dawn', 'clear'].includes(Q.state)) return;
+    if (['pinch', 'fusion', 'lines', 'beam', 'run', 'one', 'snap', 'dawn', 'ending', 'clear'].includes(Q.state)) return;
     // During departures iterate the original slots, not the shrinking arrival count.
     const n = Q.state === 'return' ? Q.capturedTotal : Q.state === 'flood' ? Q.floodFrom : Q.caught;
     const time = Q.state === 'return' ? Q.returnT : Q.t;
@@ -153,14 +153,14 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   }
   return { reset, respoolStart, respoolAll, spooled: i => !!spooled(i), tick, entry, slot, flash, capture, landed, wispMotion, riseMotion, dawnSoul, drawWarp, drawFlights, soulLights,
     shake, offset, drawRise, spool() { shake(C.shake.spool, .3); heldUntil = clock + C.hitStop; }, frameHeld: () => clock < heldUntil,
-    displayedCount(Q, R) { return ['dawn', 'clear'].includes(Q.state) ? dawnBase + Math.max(0, R.shown - dawnBase) + released(Q) : Math.min(R.souls, R.shown); }
+    displayedCount(Q, R) { return ['dawn', 'ending', 'clear'].includes(Q.state) ? dawnBase + Math.max(0, R.shown - dawnBase) + released(Q) : Math.min(R.souls, R.shown); }
   };
   function released(Q) {
       let n = 0;
       for (let i = 0; i < Q.dawnCount; i++) {
         const s = dawnStarts[i]; if (!s) continue;
         const delay = s.delay;
-        const time = Q.state === 'clear' ? tuning.time.dawn : Q.t;
+        const time = Q.state === 'dawn' ? Q.t : tuning.time.dawn;
         const k = Math.max(0, (time - delay) / (tuning.time.dawn - delay));
         if (s.y - k * (s.y + 16) <= 4) n++;
       }
