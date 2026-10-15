@@ -1057,7 +1057,7 @@
   }
   // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
   let statsRun = null;
-  const STAGES = ['Accounts Payable', 'Moving day', 'All Staff', 'Lights out', 'Copy Room', 'Shredder phase 1', 'Shredder phase 2', 'Shredder phase 3', 'Clear'].map(name => 'the 13th Floor: ' + name);
+  const STAGES = ['Accounts Payable', 'Moving day', 'All Staff', 'Lights out', 'Copy Room', 'SHRED-O phase 1', 'SHRED-O phase 2', 'SHRED-O phase 3', 'Clear'].map(name => 'the 13th Floor: ' + name);
   function stageNo() {
     if (floor.stageNo) return floor.stageNo();
     if (R.phase === 'win') return 9;
