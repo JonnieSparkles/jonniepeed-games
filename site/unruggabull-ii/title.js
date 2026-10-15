@@ -66,11 +66,11 @@ var UnrugTitle = (function () {
       btnBox.append(el); BUTTONS[id] = el; return el;
     };
     MODES.forEach((m, i) => button('mode' + i, m.name, () => pick(i)));
-    button('start', 'Start', () => { press('start'); act.start(MODES[mode].id); });
-    button('board', 'Top runs', () => { press('board'); board = true; });
-    button('back', 'Back', () => { press('back'); board = false; });
-    button('sound', 'Sound', () => { press('sound'); act.sound(); }).classList.add('tsnd');
-    button('exit', 'Exit to JonniePeed Games', () => { press('exit'); act.exit(); });
+    button('start', 'Start', () => { press('start'); beep('start'); act.start(MODES[mode].id); });
+    button('board', 'Top runs', () => { press('board'); beep('tick'); board = true; });
+    button('back', 'Back', () => { press('back'); beep('tick'); board = false; });
+    button('sound', 'Sound', () => { press('sound'); act.sound(); beep('tick'); }).classList.add('tsnd');
+    button('exit', 'Exit to JonniePeed Games', () => { press('exit'); beep('tick'); act.exit(); });
 
     // ---- state ----
     let mode = 1;
@@ -78,10 +78,14 @@ var UnrugTitle = (function () {
     let board = false, t0 = now(), pan0 = t0, changedAt = -9, pressed = null, pressedAt = -9, shapeKey = '', zones = [];
     const t = () => now() - t0;
     function press(id) { pressed = id; pressedAt = t(); }
+    // button sounds (owner, Oct 15): a tick for every press, the elevator's chirp when the mode changes, the start
+    // jingle on Start; quiet until the browser lets sound start, like the rest of the game
+    const beep = name => { if (act.play) act.play(name); };
     function pick(i) {
-      press('mode' + i);
+      press('mode' + i); beep('tick');
       faceSt[MODES[i].id].react = t();
       if (i === mode) return;
+      beep('ready');
       mode = i; changedAt = t(); board = false;
       MODES.forEach((m, j) => BUTTONS['mode' + j].setAttribute('aria-pressed', String(j === mode)));
       try { localStorage.setItem(MODE_KEY, MODES[i].id); } catch (e) {}
@@ -437,10 +441,10 @@ var UnrugTitle = (function () {
     function key(e) {
       if (root.hidden || e.repeat) return false;
       const k = e.key;
-      if (board) { if (k === 'Escape' || k === 'b' || k === 'B' || k === 'Enter' || k === ' ') { press('back'); board = false; return true; } return false; }
+      if (board) { if (k === 'Escape' || k === 'b' || k === 'B' || k === 'Enter' || k === ' ') { press('back'); beep('tick'); board = false; return true; } return false; }
       if (['ArrowLeft', 'ArrowUp', 'a', 'A', 'w', 'W'].includes(k)) { pick(Math.max(0, mode - 1)); return true; }
       if (['ArrowRight', 'ArrowDown', 'd', 'D', 's', 'S'].includes(k)) { pick(Math.min(MODES.length - 1, mode + 1)); return true; }
-      if ((k === 'b' || k === 'B') && act.board && act.board(MODES[mode].id)) { press('board'); board = true; return true; }
+      if ((k === 'b' || k === 'B') && act.board && act.board(MODES[mode].id)) { press('board'); beep('tick'); board = true; return true; }
       if (k === 'Enter' || k === ' ') { BUTTONS.start.click(); return true; }
       return false;
     }

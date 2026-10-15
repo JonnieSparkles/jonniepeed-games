@@ -56,7 +56,7 @@ The title doesn't follow play's halfway line; it follows its own rules on every 
 
 ## Sound
 
-The title theme as before (`Snd.music('theme')`), on the first tap or key as the browser allows.
+The title theme as before (`Snd.music('theme')`), on the first tap or key as the browser allows. Button sounds (owner, Oct 15), from the game's own set through `actions.play(name)`: a `tick` on every press, `ready` (the two-note chirp) when the mode changes, `start` on Start.
 
 ## Out of scope
 
