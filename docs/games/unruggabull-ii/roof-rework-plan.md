@@ -82,7 +82,16 @@ Opening 2.2 s (set pieces 1.8x, the last 2x); warning 1.2 s (phase 3 0.92x); las
 - The carpet grabs him before it pulls; tile edges under him.
 - The beam fight runs through the heavy track's solo (1% on a bar line, about 24 s), with no aim assist and a gliding eye, as on the mockup.
 
+## After his fifth play (Oct 15)
+
+- The beam opens the eye as it lands: the countdown starts during p(Loom)'s line, no 4–5 s wait.
+- No hold at 3%: the odds follow the music, on a line from 99 to 1% at the solo's end; on the eye 1% comes as the solo ends, behind it on a later bar line.
+- Before the beam, the souls' streams lean to the eye and clang off its armour, cracking it (the look only).
+- A slash started before a cut finishes instead of freezing.
+- The controls audit's roof items: Space does nothing on the roof, the Controls list has the roof's moves, the dead blaster uses `blasterOff()`.
+- Not here: the click that starts the game also fires a shot, on every stage; a separate PR for the core.
+
 ## Left for later
 
-- Roof art Part B (p(Loom), the set, the beam, the cut-ins), now drawn for this fight.
+- Roof art Part B (p(Loom), the set, the beam, the elevator exit), now drawn for this fight.
 - p(Loom)'s voice; the line "YOU UNRUGGED MY FATHER. THANK YOU." waits for the ending (does p(Loom) escape, or a sequel hook).

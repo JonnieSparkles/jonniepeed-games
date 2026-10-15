@@ -56,7 +56,7 @@ window.__balanceBot = function (profile, seed) {
       }
       return null;
     }
-    if (q.beam && (q.state === 'beam' || q.state === 'run')) {
+    if (q.beam && (q.state === 'lines' || q.state === 'beam' || q.state === 'run')) {   // the countdown starts as the beam lands
       if (o.t >= roofAimT) { roofAimError = err(P.depth_err * 2); roofAimT = o.t + .5; }
       aimGoal = q.eye.u + (q.state === 'run' ? q.eye.v * (lead + .3) : 0) + roofAimError;   // the beam's far end trails it: lead the gliding eye
       // with the beam he walks under the eye; the beam follows and leans the rest of the way

@@ -16,9 +16,14 @@ var UnrugRoof = function (core) {
     returnGap: 1.5,
     // the eye glides on its rail in the beam fight, as on the finale mockup (a smooth wave, not a bounce)
     eyeSwing: .47, eyeSwingRate: .75,
-    // the beam fight lasts through Saga II heavy's solo (its first 16 bars at 170 BPM): the odds hold at holdOdds until
-    // then, and the 1% lands on a bar line (owner, Oct 15: the solo "doesn't play long enough")
-    soloEnd: 16 * 240 / 170, holdOdds: 3, bar: 240 / 170,
+    // the beam fight lasts through Saga II heavy's solo (its first 16 bars at 170 BPM; owner, Oct 15: the solo "doesn't
+    // play long enough"). The countdown runs with the music, no hold: the odds can't fall below a line from 99 when the
+    // beam first lands to 1% at the solo's end, so on the eye they ride it and off it they creep back; the 1% lands on
+    // a bar line (barSlack: reaching it this close after one counts as on it)
+    soloEnd: 16 * 240 / 170, bar: 240 / 170, barSlack: .1,
+    // before the beam the souls' streams lean toward the eye (streamLean at most) and clang off its armour, cracking it
+    // (armourCracks hits crack it all the way); the beam opens it (owner, Oct 15)
+    streamLean: .2, streamHit: .12, armourCracks: 70,
     // the beam fight, as on the finale mockup: he walks, the beam's far end follows with a lag (so it curves) and no aim
     // assist (owner, Oct 15: it stuck to p(Loom) too easily); carpshits pour off the cloth, some heavy, and the beam melts them (a fixed number, so no farming)
     beamMove: 1.25, beamDepth: .5, beamBull: .78, beamFollow: 3.2, beamBend: 1.6, beamWidth: .075, beamMelt: 30,
@@ -203,7 +208,7 @@ var UnrugRoof = function (core) {
       if (R.events.said) { R.events.said = Object.assign({}, R.events.said); delete R.events.said.odds; }
       if (!(Q.respool >= 1)) { Q.respool = 1; Q.stitch = 1; Q.realOdds = oddsAt(ROOF.spools * HPS); effects.respoolAll(Q); }
       if (!Q.tiles.some(t => t.carpet)) for (const t of Q.tiles) t.carpet = true;
-      Q.silenced = true; Snd.music(null); Q.quietT = 0;
+      Q.silenced = true; Snd.music(null); Q.quietT = 0; Q.armour = 0;
       emit('roof_quiet', { amount: Q.caught + R.fx.filter(f => f.caught).length });
       emit('roof_quiet_score', { amount: R.souls });
       checkpoint();
@@ -238,8 +243,10 @@ var UnrugRoof = function (core) {
     pinch: { entry() { Snd.play('pinch', ROOF.time.pinch); } },
     // the fusion burns the carpet off the roof
     fusion: { entry() { Q.fusedAt = R.t; Q.endAt = 0; Q.swingT = 0; R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); for (const t of Q.tiles) { t.carpet = false; t.grip = 0; } }, tick() { Snd.roofCue('fusion'); } },
-    lines: { entry() { R.beam = true; Q.beamU = Q.beamBase = bull.u; Q.line = 0; say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick() {
+    // the beam opens the eye the moment it lands: the countdown starts while they talk
+    lines: { entry() { R.beam = true; Q.beamU = Q.beamBase = bull.u; Q.line = 0; Q.beamLeft = 0; Q.lineFrom = R.t - (Q.fusedAt || 0); say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick(dt) {
       if (!Q.line && (!R.talk || R.talk.t >= R.talk.total)) { Q.line = 1; core.bark('odds', true); }
+      beamTick(dt);
     }, ready: () => Q.line === 1 && !R.bark },
     beam: { entry() { R.gold = true; R.beam = true; Q.eye.u = 0; Q.nextFly = ROOF.beamFlyGap[1]; Q.beamLeft = ROOF.beamFlies; }, tick: beamTick },
     run: { entry() { Q.eye.dir = 1; Q.swingT = Math.asin(clamp(Q.eye.u / ROOF.eyeSwing, -1, 1)) / ROOF.eyeSwingRate; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
@@ -308,10 +315,23 @@ var UnrugRoof = function (core) {
     const level = Q.state === 'return' ? Math.min(4, 1 + Q.returned) : 5;
     v.squeeze = pinch ? 1 - (k => k * k * (3 - 2 * k))(clamp(Q.t / ROOF.time.pinch, 0, 1)) : 1;
     v.cd -= dt;
-    if (v.cd <= 0) { v.cd = pinch ? .06 : .17; for (const [o, d] of PATTERN[level]) v.shots.push({ base: bull.u, o, d, z: 0 }); Snd.play('shot', 'soft'); }
-    for (const sh of v.shots) sh.z += 1.6 * dt;
+    if (v.cd <= 0) {
+      v.cd = pinch ? .06 : .17; const lean = clamp(Q.eye.u - bull.u, -ROOF.streamLean, ROOF.streamLean);
+      for (const [o, d] of PATTERN[level]) v.shots.push({ base: bull.u, o, d, lean, z: 0 });
+      Snd.play('shot', 'soft');
+    }
+    for (const sh of v.shots) {
+      sh.z += 1.6 * dt;
+      if (sh.z < 1) continue;
+      // the far end: off the eye's armour with a clang and sparks, a crack more each time; nothing else
+      if (Math.abs(streamU(sh, 1, v) - Q.eye.u) > ROOF.streamHit) continue;
+      Q.armour = (Q.armour || 0) + 1;
+      if (R.t - (Q.clangAt || -9) > .12) { Q.clangAt = R.t; sparks(Q.eye.u + (Math.random() - .5) * .08, ROOF.eyeZ, ROOF.eyeH, '#9aa0b8'); Snd.play('clang'); }
+    }
     v.shots = v.shots.filter(sh => sh.z < 1);
   }
+  // where a stream is across the roof, z of the way to the eye: its spread, squeezed in the pinch, and its lean
+  const streamU = (sh, z, v) => sh.base + (sh.o + sh.d * z) * v.squeeze + (sh.lean || 0) * z * z;
   const deadBlaster = () => Q.state === 'quiet' || Q.state === 'reset' && Q.silenced;
   function controlled() { return !['flash', 'wake', 'odds', 'fusion', 'snap', 'dawn', 'clear'].includes(Q.state) && (Q.state !== 'elevator' || Q.t >= ROOF.time.elevator); }
   function update(dt) {
@@ -330,7 +350,8 @@ var UnrugRoof = function (core) {
     else if (bull.slash >= 0) { bull.slash += dt; if (bull.slash >= TUNE.slashT) bull.slash = -1; }
     if (R.gold) { R.charge = TUNE.charges; R.empty = 0; R.dry = false; }
     // from the silence after ALL SOULS ACCOUNTED FOR to the first soul back the blaster is dead: a dry click and smoke,
-    // nothing he does matters, until the souls come back as its ammo (owner, Oct 15)
+    // nothing he does matters, until the souls come back as its ammo (owner, Oct 15). blasterOff() tells the core too:
+    // Shoot gives its dry sputter, the Shoot pad greys and the charge bar hides, as wherever else the blaster is off
     else if (deadBlaster()) { R.charge = 0; R.hot = true; }
     if (isRound() || Q.state === 'beam' || Q.state === 'run') { updateFlies(dt); updateShots(dt); }
     else if (Q.state === 'walk' || Q.state === 'reset' || (R.gold && !R.beam)) updateShots(dt);
@@ -753,9 +774,8 @@ var UnrugRoof = function (core) {
       Q.eye.v = ROOF.eyeSwing * w * Math.cos(w * Q.swingT); Q.eye.u = u;
     }
     const on = Math.abs(Q.beamU - Q.eye.u) < ROOF.beamHit, music = R.t - (Q.fusedAt || 0);
-    const floor = music < ROOF.soloEnd ? ROOF.holdOdds : ROOF.minimum;
     if (on) {
-      Q.odds = Math.max(floor, Q.odds - ROOF.drain * dt); Q.hot = ROOF.beamFlash;
+      Q.odds = Math.max(oddsLine(music), Q.odds - ROOF.drain * dt); Q.hot = ROOF.beamFlash;
       if (!Q.onEye && Q.state === 'run' && Q.recalc <= 0) { say('RECALCULATING.'); Q.recalc = ROOF.recalculatingGap; }
     } else Q.odds = Math.min(ROOF.odds, Q.odds + ROOF.creep * dt);
     Q.onEye = on;
@@ -768,8 +788,13 @@ var UnrugRoof = function (core) {
       if (f.hp <= 0) { core.killFly(f, 'beam'); R.freeze = 0; }   // the beam melts through them without a hitch
     }
     // at 1% it waits for the next bar line of the music
-    if (Q.odds <= ROOF.minimum && !Q.endAt) Q.endAt = (Q.fusedAt || 0) + Math.ceil((music + 1e-6) / ROOF.bar) * ROOF.bar;
-    if (Q.endAt && R.t >= Q.endAt) enter('one');
+    if (Q.odds <= ROOF.minimum && !Q.endAt) Q.endAt = (Q.fusedAt || 0) + Math.ceil((music - ROOF.barSlack) / ROOF.bar) * ROOF.bar;
+    if (Q.endAt && R.t >= Q.endAt && Q.state !== 'lines') enter('one');
+  }
+  // the lowest the odds can be this far into the music: 99 when the beam first lands, 1% at the end of the solo
+  function oddsLine(music) {
+    const from = Q.lineFrom || 0, k = clamp((music - from) / Math.max(.01, ROOF.soloEnd - from), 0, 1);
+    return ROOF.odds - (ROOF.odds - ROOF.minimum) * k;
   }
   function spawnCarp() {
     const heavy = rnd() < ROOF.beamHeavy;
@@ -876,6 +901,15 @@ var UnrugRoof = function (core) {
     // damage stays on the eye: cracks for the hits it has taken, and for the odds the beam takes
     const cracks = Math.min(8, Math.floor(8 * Q.hits / (ROOF.spools * HPS)) + Math.floor((1 - Q.odds / ROOF.odds) * 6 * (beamActive() || ['one', 'snap'].includes(Q.state) ? 1 : 0)));
     for (let i = 0; i < cracks; i++) line(g, x, y, x + Math.cos(i * 2.1 + .3) * 7, y + Math.sin(i * 2.1 + .3) * 7, open ? '#9a8a70' : '#1a1418');
+    // before the beam, the streams crack its armour ring: pale splits from the rim inward, more with every clang
+    if (['return', 'flood', 'pinch'].includes(Q.state)) {
+      const k = Math.min(1, (Q.armour || 0) / ROOF.armourCracks), n = Math.floor(k * 9);
+      for (let i = 0; i < n; i++) {
+        const a = i * 2.4 + 1.1, r0 = 9, r1 = 9 - 2.5 - k * 3 - (i % 3);
+        line(g, x + Math.cos(a) * r0, y + Math.sin(a) * r0, x + Math.cos(a + .25) * r1, y + Math.sin(a + .25) * r1, '#c8ccd8');
+      }
+      if (Q.state === 'pinch' && k >= 1) disc(g, x, y, 2 + Math.sin(R.t * 40), '#ffffff');   // light through the cracks before it opens
+    }
     if (Q.slam > 0) { const k = Math.min(1, Q.slam * 4); rect(g, x - 7, y - 7, 14, Math.round(7 * k), '#3b3a48'); rect(g, x - 7, y + 7 - Math.round(7 * k), 14, Math.round(7 * k), '#3b3a48'); }
     if (Q.round === 3 && isRound()) {
       // the twin shuttle that fires the weft
@@ -1132,7 +1166,7 @@ var UnrugRoof = function (core) {
     const v = Q.vol; if (!v) return;
     const m = muzzleXY(), base = { x: PX(bull.u, bull.bz), y: YH(bull.bz, .13) }, hot = Q.state === 'pinch';
     for (const sh of v.shots) {
-      const z = bull.bz + (ROOF.eyeZ - bull.bz) * sh.z, u = sh.base + (sh.o + sh.d * sh.z) * v.squeeze, near = (1 - sh.z) * (1 - sh.z);
+      const z = bull.bz + (ROOF.eyeZ - bull.bz) * sh.z, u = streamU(sh, sh.z, v), near = (1 - sh.z) * (1 - sh.z);
       const x = PX(u, z) + (m.x - base.x) * near, y = YH(z, .13 + (ROOF.eyeH - .13) * sh.z) + (m.y - base.y) * near, r = Math.max(.8, (hot ? 2.2 : 1.8) * sc(z));
       disc(g, x, y + .5, r + .5, '#ff9628'); disc(g, x, y, r, hot ? '#ffffff' : '#fff0aa');
     }
@@ -1232,7 +1266,7 @@ var UnrugRoof = function (core) {
     lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
-    bullRun, aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
+    bullRun, aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, blasterOff: () => !!Q && deadBlaster(), dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
     hurt: noop, blasterBack: noop, bonusBy: () => null,
     endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop, soulFreed, soulLanded,
     cutActive: () => !!Q.cut, cutIn, drawCut,
