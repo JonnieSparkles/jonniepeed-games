@@ -68,9 +68,10 @@
   // Finish through the actual odds threshold, then cut, dawn and clear card.
   fresh(); floor.enter('beam'); R.roof.nextFly = 99; R.roof.fusedAt = R.t - 30; R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = R.roof.beamBase = bull.u = 0; tick(RF.bar + .05);
   check(R.roof.state === 'one' && R.roof.odds === 1 && R.talk.text === 'UNLIKELY.', '1% says UNLIKELY.');
-  tick(12);
-  check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && Cards.kind === 'clear' && Cards.info.dept === 'ROOF', 'snap, dawn and roof clear');
-  check(R.roof.history.includes('snap') && R.roof.history.includes('dawn') && played.includes('snap') && played.includes('chord'), 'snap and dawn beats call sound hooks');
+  tick(12); check(R.roof.state === 'ending', 'dawn hands over to the ending');
+  tick(40);   // the ending (case-38)
+  check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && Cards.kind === 'clear' && Cards.info.dept === 'ROOF', 'snap, dawn, the ending and roof clear');
+  check(R.roof.history.includes('snap') && R.roof.history.includes('dawn') && R.roof.history.includes('ending') && played.includes('snap') && played.includes('chord'), 'snap and dawn beats call sound hooks');
   check(R.souls === floor.ROOF.initialCaught, 'earlier-floor souls are counted exactly once through dawn');
   check(floor.view().dawn === 1 && bull.aimT === 0, 'dawn stays bright at clear and he lowers the blaster');
   fresh(); floor.enter('fusion'); const frozen = { t: R.t, qt: R.roof.t }; tick(.1);

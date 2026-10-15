@@ -140,8 +140,17 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 - **The stairwell starts the 13th Floor's band on the kick** (stairwell port, Oct 13): the door is the peak, so the band slams in as the door goes, and the 13th Floor's opening doesn't restart it. The climb's music doesn't speed up to the door: a climb faster than the band's 150 would make the kick land on something slower. Design and what was tried are in [stairwell-plan.md](stairwell-plan.md).
 - **The stairwell's souls don't count toward the 13th Floor's 90, but do toward the run** (stairwell port; the owner agreed): carried into the meter they'd be about a quarter of its goal before the first carpshit, and the floor's beats are paced by its meter. They're banked and added back when he leaves the floor.
 - **Machine blasts never hurt him** (Oct 12): the destruction is the reward, as in Smash TV; chain reactions kill carpshits instead.
+- **p(Loom) gets away, and the win stands** (the ending, Oct 14): of the takes he was offered he picked a mix of "The Wink" and "One Last Rug Pull": the souls go free, then a blue blink (Loomy) in the dead eye, it tears loose, "OH, COME ON.", and "... TO BE CONTINUED... MAYBE." Small and dry, since the roof's fight already has its own fake-out. How it gets away is never shown, and the Sky Wrecker isn't in it: the sequel decides. [ending-plan.md](ending-plan.md).
+- **The tower at sunrise is the one generated picture** (the ending, Oct 14): it answers the intro's still 5, which ChatGPT painted, and looked crude in code beside it. The eye close-up and the reaction stay drawn in code; their polish goes with the roof's art (Part B), since the eye is the same design job. His first picture's violet and magenta sky clashed with the game's dusty in-engine dawn on either side of it, so he regenerated it in the game's dawn colours.
+- **p(Loom) falls far off behind him, and he never sees it** (the ending, Oct 14, his idea): a tiny red speck dropping out of sight beyond the skyline while he stares at the camera, and nothing marks where it lands, so it doesn't say how it travels. Slowed from 1.1 s to 1.4 s so it can be found.
+- **The run's time stops where the ending starts** (the ending, Oct 15): the clear card's time and the bots' clear times stay what they were before there was an ending, and nothing about the run changes with it.
+- **The ending hides the touch controls and the HUD** (the ending, Oct 15): in the first build they stayed up over the stills, as if he could still play.
 
 ## Tried and dropped
+
+- **"POSSIBLY TO BE CONTINUED."** (the ending, Oct 14): the hedge came first, so it read as one flat line. "... TO BE CONTINUED... MAYBE." gives the usual promise, a beat, then undercuts it.
+- **A thread drifting down through the reaction shot** (the ending, Oct 14): the only trace it left, until the falling speck said more and two small things moving crowded a still shot.
+- **"YOU UNRUGGED MY FATHER. THANK YOU." and the core escaping in the Sky Wrecker** (the ending, Oct 14): out with the ending's direction; the sequel decides how the eye travels.
 
 - **A slow push-in on the stills** (the intro): zooming pixel art makes its pixels crawl; the movement is in what's drawn on top.
 - **The Rugfather's heap far down the alley** (the intro): more accurate to the first game's ending, but at 40 px it read as a blob. He lies on the garage floor.

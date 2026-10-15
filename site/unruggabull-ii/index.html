@@ -25,6 +25,7 @@
 <link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
 <meta name="intro-stills" content="intro-stills.js?v=033a4ff459">
+<meta name="ending-stills" content="ending-stills.js?v=733c5db076">
 <link rel="stylesheet" href="../assets/fonts/fonts.css?v=1348facafd">
 <style>
 *,*::before,*::after{box-sizing:border-box}
@@ -207,6 +208,7 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 .game.ingame .card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(calc(100% - 24px),520px);max-height:calc(100% - 16px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;pointer-events:auto;background:rgba(34,26,54,.96)}
 .game.ingame .pads{position:absolute;inset:0;display:none;pointer-events:none}
 .touch .game.ingame.playing .pads{display:block}
+.touch .game.ingame.playing.scene .pads,.touch .playing.scene .pads{display:none}
 .game.ingame .stickzone,.game.ingame .aimzone{position:absolute;min-width:0;min-height:0;pointer-events:auto}
 .game.ingame .pad-group{position:absolute;inset:0;display:block;padding:0;pointer-events:none}
 .game.ingame .pad{position:absolute;margin:0;pointer-events:auto}
@@ -313,8 +315,9 @@ dl.keys dd{margin:0;font-size:15px}
 <script src="render.js?v=69470e59ce"></script>
 <script src="sets13.js?v=2c0ab90d19"></script>
 <script src="floor13.js?v=be9bbaf75e"></script>
-<script src="roof-effects.js?v=5e4ec9a6c2"></script>
-<script src="roof.js?v=0c91dda259"></script>
+<script src="ending.js?v=55268b667f"></script>
+<script src="roof-effects.js?v=bbd05cb28b"></script>
+<script src="roof.js?v=707a5a6593"></script>
 <script src="arena.js?v=3efd27c901"></script>
 <script src="topdown.js?v=655cc2dcdd"></script>
 <script src="portrait.js?v=cd047f8eeb"></script>
@@ -325,6 +328,6 @@ dl.keys dd{margin:0;font-size:15px}
 <script src="elevator.js?v=5f51b523e3"></script>
 <script src="stairs.js?v=460ea38c47"></script>
 <script src="cards.js?v=c9c4aaa6cf"></script>
-<script src="game.js?v=0fe658a0f9"></script>
+<script src="game.js?v=6c188e124e"></script>
 </body>
 </html>

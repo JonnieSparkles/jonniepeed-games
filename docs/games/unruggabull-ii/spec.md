@@ -2,7 +2,7 @@
 
 A sequel to [Unruggabull: RugCo Alley](https://unruggabull.ar.io), built here as a phone-first game drawn and synthesized in code. Unruggabull climbs RugCo Tower to stop p(Loom), an AI on the roof that catches the souls of everything he ever unrugged and weaves them back into carpshits.
 
-Status: the whole climb is built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed: the 13th Floor, the quiet ride, the 48th Floor and its lobby ([floor48-plan.md](floor48-plan.md)), the long ride from 48 and the roof framework. The ending after dawn follows later. Once a stage ships, [README.md](README.md) and the code are the source of truth.
+Status: the whole climb is built as a connected run at `site/unruggabull-ii/`, unlisted and noindexed: the 13th Floor, the quiet ride, the 48th Floor and its lobby ([floor48-plan.md](floor48-plan.md)), the long ride from 48, the roof framework and a first pass of the ending after dawn ([ending-plan.md](ending-plan.md)). Once a stage ships, [README.md](README.md) and the code are the source of truth.
 
 The original game stays in its own repo (painted art, ES modules, desktop). Its `level-2` branch is the start of a later helicopter release, not part of this game.
 
@@ -170,7 +170,7 @@ On the roof, playable side/top-down views stay dropped. Moving is the thumb stic
 
 1. The 48th Floor's phone playtest: the twin sticks (the agreed fallback is the left stick to move with Shoot and Slash buttons), its difficulty, and the Rugfather's painted portrait.
 2. The long ride's phone playtest and polish (more side poses, the fight's difficulty).
-3. Roof Part B (art, final music/voice and feel) and the ending after dawn (the core escaping into the Sky Wrecker).
+3. Roof Part B (art, final music/voice and feel), and the ending's polish ([ending-plan.md](ending-plan.md): his timing, music, credits, results, skip and the art for its drawn stills).
 4. Floor G cold open/back alley using the arena; its place in the decided climb is not part of this change.
 5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../../guides/00-leaderboards.md)).
 

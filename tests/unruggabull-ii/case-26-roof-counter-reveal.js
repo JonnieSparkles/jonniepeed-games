@@ -3,7 +3,7 @@
   const step = window.__balance.step; let last = 0, samples = 0;
   window.__balance.step = function (dt) {
     step(dt);
-    if (R.stage !== 'roof' || !['quiet','return','flood','pinch','fusion','lines','beam','run','one','snap','dawn','clear'].includes(R.roof.state)) return;
+    if (R.stage !== 'roof' || !['quiet','return','flood','pinch','fusion','lines','beam','run','one','snap','dawn','ending','clear'].includes(R.roof.state)) return;
     const count = floor.displayedCount();
     check(count >= last, 'displayed souls never decrease from quiet through clear'); last = count; samples++;
   };

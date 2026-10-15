@@ -63,6 +63,8 @@
   let RENDER = null;
   const RENDERS = {};
   const renderer = () => RENDER = RENDERS[floor.id] || (RENDERS[floor.id] = UnrugRender.create(PW, PH, Object.assign({}, SET, floor.set || {})));
+  // a flat renderer for pictures drawn in code (the ending's stills): the game's light, bloom, dither and 64 colours
+  const flatRenderer = () => RENDERS._flat || (RENDERS._flat = UnrugRender.create(PW, PH, Object.assign({}, SET, { flat: true })));
   // The two layers the scene is drawn into: things lit by the hall's light where they stand, and things that glow.
   function layerCtx() {
     const x = A.canvas(PW, PH).getContext('2d', { willReadFrequently: true });
@@ -497,6 +499,7 @@
     copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
     rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.',
     door: 'OK... HERE WE GO.',   // the stairwell, at the 13th Floor's door, catching his breath
+    comeOn: 'OH, COME ON.',   // the ending, as p(Loom) gets away
     go: "LET'S GO!"   // the stairwell, two beats into Flight Risk (recorded: the first game's)
   };
   // Says a line unless it's been said this run or SHRED-O is talking (unless `over` it). Returns how long it takes.
@@ -774,6 +777,12 @@
     }
   }
   function drawHUD() {
+    // a floor can fade its HUD out (the roof's ending)
+    const fade = floor.hudAlpha ? floor.hudAlpha() : 1;
+    if (fade <= 0) return;
+    if (fade < 1) { g.save(); g.globalAlpha = fade; drawHUDNow(); g.restore(); } else drawHUDNow();
+  }
+  function drawHUDNow() {
     for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
     // blaster charge under the hearts: blue when ready, red and blinking when empty (and overheated), gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
@@ -1559,6 +1568,9 @@
   // the page knows which controls to show: the twin sticks, or the stick with Shoot and Slash
   let twinShown = null;
   function twinClass() { const on = state === 'play' && twinOn(); if (on !== twinShown) { twinShown = on; document.body.classList.toggle('twin', on); clearHeld(); } }
+  // A scene plays out of his hands (the roof's ending): the touch controls go away until it's done
+  let sceneShown = false;
+  function sceneClass() { const on = state === 'play' && !!(floor.scene && floor.scene()); if (on !== sceneShown) { sceneShown = on; gameEl.classList.toggle('scene', on); clearHeld(); } }
   // The touch controls follow whatever was used last: a touch shows them, moving the mouse or pressing a key hides them
   // (a touch-screen laptop; owner, Oct 14: one tap on a power-up kept them up for the rest of the run). Phones only send touch.
   const markTouch = () => document.body.classList.add('touch');
@@ -1663,7 +1675,7 @@
     let dt = last ? Math.min(.1, Math.max(0, (now - last) / 1000)) : 0;
     last = now;
     while (dt > 1e-6) { const s = Math.min(STEP, dt); update(s); dt -= s; }
-    draw(); padRings(); twinClass(); layoutPlay(); dialSync(); Cards.frame();
+    draw(); padRings(); twinClass(); sceneClass(); layoutPlay(); dialSync(); Cards.frame();
   }
   // ---------- the cards' words and buttons ----------
   // What each card says comes from the run; cards.js lays it out and draws it.
@@ -1728,7 +1740,7 @@
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart }, v); }
   };
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
   core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick
