@@ -370,6 +370,83 @@ with sync_playwright() as p:
     assert not errors, errors
     context.close()
     print('PASS touch controls follow the last input')
+
+    # The in-play layout (docs/games/unruggabull-ii/screen-space.md): in play the game fills the window on every device,
+    # in or out of full screen. Wide screens: the biggest picture that leaves room for Pause; upright phones: the picture
+    # edge to edge on the halfway line, the controls just below, the same on every stage; the twin sticks mirror.
+    def box(page, sel):
+        b = page.locator(sel).bounding_box()
+        return b and page.locator(sel).is_visible() and b
+    for name, (w, h), touch, full in [('S25 landscape', (780, 360), True, True), ('S25 portrait', (360, 780), True, True),
+                                      ('S25 portrait, out of full screen', (360, 780), True, False), ('wide phone', (915, 412), True, True),
+                                      ('tall phone', (412, 915), True, True), ('4:3 tablet', (1024, 768), True, True), ('desktop window', (1280, 800), False, False)]:
+        context, page, errors = open_page(browser, url=URL + '#stage=floor13&seed=42', viewport={'width': w, 'height': h}, has_touch=touch, is_mobile=touch and w < 1000)
+        page.wait_for_timeout(100)
+        page.evaluate("unrugTest('looping=false; for(let i=0;i<300;i++) update(1/60); draw()')")
+        if touch: retouch(page)
+        if full: page.evaluate("unrugTest('setFull(true)')")
+        page.evaluate("unrugTest('layoutPlay(); dialSync(); draw()')")
+        page.wait_for_timeout(60)
+        assert page.evaluate('document.documentElement.scrollWidth') <= w, f'{name}: no sideways scroll'
+        assert not page.locator('header').is_visible(), f'{name}: no header in play'
+        st, ip = box(page, '.stage'), box(page, '#ipause')
+        assert st and ip, f'{name}: the picture and Pause show'
+        assert abs(st['width'] / st['height'] - 16 / 9) < .02, f'{name}: the picture stays 16:9 ({st})'
+        assert ip['x'] >= 0 and ip['x'] + ip['width'] <= w and ip['y'] >= 0 and ip['x'] + ip['width'] / 2 > w / 2, f'{name}: Pause at the top right ({ip})'
+        overlaps = not (ip['x'] + ip['width'] <= st['x'] or st['x'] + st['width'] <= ip['x'] or ip['y'] + ip['height'] <= st['y'] or st['y'] + st['height'] <= ip['y'])
+        assert not overlaps, f'{name}: Pause stays off the picture, clear of the HUD'
+        if w > h:
+            assert st['height'] >= min(h, (w - 112) * 9 / 16, ) - 1 or st['height'] >= min(h - 48, w * 9 / 16) - 1, f'{name}: the biggest picture that leaves room for Pause ({st})'
+            assert not box(page, '#dial'), f'{name}: no tower dial on a wide screen'
+        else:
+            assert st['x'] == 0 and abs(st['width'] - w) <= 1, f'{name}: the picture runs edge to edge'
+            assert abs(st['y'] + st['height'] - h / 2) <= 1, f'{name}: its bottom on the halfway line'
+            assert box(page, '#dial') and page.locator('#dialName').inner_text() == 'ACCOUNTING' and page.locator('#dialNum').inner_text() == '13', f'{name}: the tower dial shows the 13th Floor'
+            z = box(page, '#stickzone')
+            assert z and z['y'] >= h / 2 and z['y'] + z['height'] <= h, f'{name}: the controls start below the picture'
+        if touch:
+            for k in ('shoot', 'slash'):
+                b = box(page, f'.pad[data-k="{k}"]')
+                assert b and b['x'] >= 0 and b['x'] + b['width'] <= w and b['y'] + b['height'] <= h, f'{name}: {k} on screen'
+        else:
+            assert not page.locator('#pads').is_visible(), f'{name}: no touch controls'
+        # Pause opens the card: Resume, Restart floor, Sound, Full screen, Controls and Quit, all reachable, 44 px tall
+        page.locator('#ipause').tap() if touch else page.locator('#ipause').click()
+        assert page.evaluate("unrugTest('state')") == 'pause', f'{name}: Pause pauses'
+        for sel in ['#go', '#alt', '#cSnd', '#cKeys', '#cQuit'] + (['#cFs'] if page.evaluate("unrugTest('canFull')") else []):
+            b = box(page, sel)
+            assert b and b['height'] >= 43 and b['y'] >= 0 and b['y'] + b['height'] <= h, f'{name}: {sel} on the pause card ({b})'
+        page.locator('#cKeys').tap() if touch else page.locator('#cKeys').click()
+        assert page.locator('#keyList').is_visible() and page.locator('#cardTitle').inner_text() == 'Controls', f'{name}: Controls lists the controls'
+        assert ('slide the stick' if touch else 'Enter, K or X') in page.locator('#keyList').inner_text(), f'{name}: for this device'
+        page.locator('#go').tap() if touch else page.locator('#go').click()
+        assert page.locator('#cardTitle').inner_text() == 'Paused', f'{name}: Back returns to the card'
+        page.locator('#go').tap() if touch else page.locator('#go').click()
+        assert page.evaluate("unrugTest('state')") == 'play', f'{name}: Resume'
+        if touch:
+            # the 48th Floor: the picture stays where it was, and the two sticks mirror each other
+            page.evaluate("unrugTest(\"travel('floor48'); looping=false; for(let i=0;i<240;i++){bull.inv=1e9;update(1/60);} R.td.locked=false; twinClass(); layoutPlay(); dialSync();\")")
+            page.wait_for_timeout(60)
+            st2 = box(page, '.stage')
+            assert st2 == st, f'{name}: the picture stays put on the 48th ({st} {st2})'
+            m, a = box(page, '#stickzone'), box(page, '#aimzone')
+            assert m and a and abs(m['y'] - a['y']) <= 1 and abs(m['height'] - a['height']) <= 1 and abs(m['x'] - (w - a['x'] - a['width'])) <= 1, f'{name}: the twin sticks mirror ({m} {a})'
+            if h > w:
+                assert page.locator('#dialNum').inner_text() == '48', f'{name}: the dial moves to 48'
+        assert not errors, (name, errors)
+        context.close()
+        print('PASS in-play layout', name)
+    # Before Start the page layout stays: the header, the studio link, and a Controls link on the title card
+    context, page, errors = open_page(browser, viewport={'width': 360, 'height': 780}, has_touch=True, is_mobile=True)
+    page.wait_for_timeout(100)
+    assert page.locator('header').is_visible() and page.locator('.back').is_visible() and page.locator('#titleKeys').is_visible(), 'title: the page layout, with Controls'
+    page.locator('#titleKeys').tap()
+    assert page.locator('#keyList').is_visible(), 'title: Controls shows the controls'
+    page.locator('#go').tap()
+    assert page.locator('#cardTitle').inner_text() == 'The 13th Floor: Accounting', 'title: Back returns to the title card'
+    assert not errors, errors
+    context.close()
+    print('PASS title keeps the page layout')
     from elevator_audio import check_elevator_audio
     check_elevator_audio(browser, ROOT)
     browser.close()
