@@ -781,11 +781,12 @@ var StickArmySky = function (w) {
   // last like twice as long"), so it hangs over the start of the bridge stage; then the pots sputter out (OUT seconds)
   // and it blows off one side of the page (WIND px/s) as it fades. It's drawn by
   // drawNight in place of the night's even fill, so the lights cut through it the same way, and each pot's nozzle
-  // glows through it. S.smoke is cosmetic.
+  // glows through it. It covers the whole page, the HUD bands too, like the night raid (Oct 15: "it should go full like
+  // night wave"); the HUD turns to chalk wherever it's thick (smokeAt). S.smoke is cosmetic.
   var SMOKE = { COL: 62, ROW: 66, R: 58, GROW: 0.8, SPREAD: 240, RISE: 0.6, WIND: 260, OUT: 1.5, LINGER: [6, 20], TOP: 'rgba(58,51,46,0.84)', LOW: 'rgba(44,40,37,0.62)' };
   function smokeStart(wind) {
     var billows = [];
-    for (var y = 100, row = 0; y < GROUND + 50; y += SMOKE.ROW, row++) {
+    for (var y = 0, row = 0; y < w.H + 50; y += SMOKE.ROW, row++) {
       for (var x = -40 + (row % 2) * SMOKE.COL / 2; x < W + 60; x += SMOKE.COL) billows.push({ x: x + rr(-14, 14), y: y + rr(-12, 12), r: SMOKE.R * rr(0.9, 1.25), t0: 1e9 });
     }
     w.S.smoke = { t: 0, billows: billows, pots: [], wind: wind, clear: 0, clearing: false };
@@ -800,6 +801,21 @@ var StickArmySky = function (w) {
   // Veteran's lingers SMOKE times as long (game.js LEVELS).
   function smokeClear() { var sm = w.S.smoke; if (sm) { sm.clearing = true; sm.linger = clamp(sm.t, SMOKE.LINGER[0], SMOKE.LINGER[1]) * w.lv().SMOKE; } }
   function grown(sm, b) { var k = clamp((sm.t - b.t0) / SMOKE.GROW, 0, 1); return k * (2 - k); }
+  // How thick the dark is at a point, 0 to 1: the smoke where its billows have reached (soft over EDGE px at their rim,
+  // drifting with the wind as it clears), or the night's even dark. The HUD reads it to change pens as the smoke
+  // rolls over it and blows off it.
+  var EDGE = 18;
+  function smokeAt(x, y) {
+    var S = w.S, sm = S.smoke, a = S.night || 0;
+    if (a <= 0) return 0;
+    if (!sm) return a;
+    var dx = sm.wind * sm.clear * SMOKE.WIND, k = 0;
+    for (var i = 0; i < sm.billows.length && k < 1; i++) {
+      var b = sm.billows[i], r = b.r * grown(sm, b);
+      if (r > 0) k = Math.max(k, clamp((r - Math.hypot(x - b.x - dx, y - b.y)) / EDGE + 0.5, 0, 1));
+    }
+    return k * a;
+  }
   // Over the smoke: the rolling front outlined in pen while it spreads, and pale wisps drifting through it.
   function drawSmoke(sm, a) {
     var G = w.G, S = w.S, dx = sm.wind * sm.clear * SMOKE.WIND, full = 0, i;
@@ -827,7 +843,7 @@ var StickArmySky = function (w) {
       if (out < 1) { G.globalAlpha = (1 - out) * (0.7 + 0.3 * Math.sin(S.t * 30 + j)); G.beginPath(); G.arc(q.x, q.y - 12, 2.6, 0, Math.PI * 2); G.fillStyle = 'rgba(255,170,60,1)'; G.fill(); }
     });
     for (i = 0; i < 12; i++) {
-      var m = W + 160, v = (i * 97 + S.t * (10 + (i * 7) % 13) * (i % 2 ? 1 : -1)) % m, x = (v + m) % m - 80 + dx, y = 130 + (i * 53) % 430, r = 26 + (i * 17) % 30;
+      var m = W + 160, v = (i * 97 + S.t * (10 + (i * 7) % 13) * (i % 2 ? 1 : -1)) % m, x = (v + m) % m - 80 + dx, y = 40 + (i * 53) % 640, r = 26 + (i * 17) % 30;
       pen(950 + i); G.globalAlpha = a * 0.32 * full; G.beginPath(); Ci(x, y, r, 0.8); G.fillStyle = 'rgba(150,140,130,0.25)'; G.fill(); ink('rgba(214,204,192,0.85)', 1.6); G.stroke();
     }
     G.restore();
@@ -859,14 +875,8 @@ var StickArmySky = function (w) {
       g.fillStyle = sky; g.fillRect(-30, -30, W + 60, w.H + 60);
     }
     g.globalCompositeOperation = 'destination-out';
-    // In the smoke screen the HUD bands stay light, so the score, tags, the Dreadnought's gauges, wall and squad read.
-    // The night raid darkens the whole page (round 13: "full notebook dark"); game.js draws the HUD in chalk then.
-    if (sm) {
-      var top = g.createLinearGradient(0, 124, 0, 140); top.addColorStop(0, 'rgba(0,0,0,0.85)'); top.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = top; g.fillRect(-30, -30, W + 60, 170);
-      var low = g.createLinearGradient(0, GROUND + 4, 0, GROUND + 16); low.addColorStop(0, 'rgba(0,0,0,0)'); low.addColorStop(1, 'rgba(0,0,0,0.85)');
-      g.fillStyle = low; g.fillRect(-30, GROUND + 4, W + 60, w.H);
-    }
+    // The night and the smoke both darken the whole page, the HUD bands too (round 13: "full notebook dark"); game.js
+    // writes the HUD in chalk where it's dark (smokeAt) and campaign.js puts the Dreadnought's gauges over the smoke.
     function glow(x, y, r, k) {
       var rg = g.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, 'rgba(0,0,0,' + k + ')'); rg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -927,6 +937,6 @@ var StickArmySky = function (w) {
 
   return { heliHP: heliHP, MEDEVAC: MEDEVAC, BALLOON: BALLOON, CRATE: CRATE, DIVE: DIVE, HELI: HELI, KINDS: KINDS, counts: counts, start: start, tick: tick, pending: pending,
     hurry: hurry, settle: settle, flee: flee, waiting: waiting, spawnMedevac: spawnMedevac, spawnBalloon: spawnBalloon, spawnCrate: spawnCrate, spawnDiver: spawnDiver,
-    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, medevacPts: medevacPts, redCrossRecord: redCrossRecord, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
+    spawnHeli: spawnHeli, spawnHeavy: spawnHeavy, launchDiver: launchDiver, heavyHP: heavyHP, HEAVY: HEAVY, NIGHT: NIGHT, SMOKE: SMOKE, smokeStart: smokeStart, smokePot: smokePot, smokeClear: smokeClear, smokeAt: smokeAt, drawNight: drawNight, drawMarks: drawMarks, errand: errand, collect: collect, medevacTags: medevacTags, medevacPts: medevacPts, redCrossRecord: redCrossRecord, hit: hit, hurt: hurt, updatePlane: updatePlane, shot: shot, update: update, drawPlane: drawPlane, drawBehind: drawBehind, draw: draw,
     onRope: onRope };
 };

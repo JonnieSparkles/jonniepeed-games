@@ -620,7 +620,7 @@ var UnrugFloor13 = function (core) {
     R.armed = false; R.shake = .3; R.zap = .3; R.boss.spit = .3; R.boss.gun = { at: R.t + TUNE.surgeFly };
     R.fx.push({ k: 'toss', x: m.x, y: m.y, tx: MOUTH.x, ty: MOUTH.y, t: 0, dur: TUNE.surgeFly });
     R.events.disarms = (R.events.disarms || 0) + 1; emit('disarm');
-    Snd.play('surge'); Snd.play('disarm'); bark('disarm');
+    Snd.play('snatch'); bark('disarm');
     R.fx.push({ k: 'big', text: 'BLASTER GONE!', x: 120, y: 44, t: 0, dur: 1.2 }); R.freeze = Math.max(R.freeze, .12);   // every time, so it can't be missed
     if (!R.events.surgeHint) { R.events.surgeHint = true; talk('CONFISCATED.', 'shredder'); }
     live('Power surge! SHRED-O pulls the blaster into its mouth. Knock its paper back to wear it down.');

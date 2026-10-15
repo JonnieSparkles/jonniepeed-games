@@ -690,7 +690,15 @@ window.UnrugSound = (function () {
     wipe: t => { [72, 76, 79, 84, 88, 91, 96].forEach((m, i) => osc(sfxBus, 'p25', hz(m), t + i * .045, .09, .1)); [84, 88, 91].forEach(m => osc(sfxBus, 'p50', hz(m), t + .33, .45, .07, { vib: true })); noiseHit(sfxBus, t + .33, .6, .35, 'highpass', 5000); },
     // SHRED-O's power surge: an electric crackle; it knocks the blaster away: a zap and a clatter
     surge: t => { for (let i = 0; i < 8; i++) noiseHit(sfxBus, t + i * .05, .04, .25, 'bandpass', 2500 + (i % 3) * 900, 6); osc(sfxBus, 'sawtooth', 110, t, .4, .06, { to: 160 }); },
-    disarm: t => { osc(sfxBus, 'square', 1400, t, .2, .12, { to: 200 }); noiseHit(sfxBus, t, .25, .4, 'bandpass', 3000, 3); for (let i = 0; i < 3; i++) noiseHit(sfxBus, t + .25 + i * .09, .05, .3, 'bandpass', 1800 - i * 300, 4); },
+    // the confiscation: the blaster is sucked up into the air with a rising whoosh and zip, a clank as it locks, crackle after
+    snatch: t => {
+      noiseHit(sfxBus, t, .38, .38, 'bandpass', 500, 2, 5200);
+      osc(sfxBus, 'p25', 280, t, .32, .1, { to: 1900, sustain: .8 });
+      osc(sfxBus, 'sawtooth', 140, t, .32, .05, { to: 900, sustain: .8 });
+      osc(sfxBus, 'square', 980, t + .33, .12, .12, { to: 240 }); noiseHit(sfxBus, t + .33, .1, .4, 'highpass', 3000);
+      osc(sfxBus, 'triangle', 1560, t + .34, .4, .06, { sustain: .3 });
+      for (let i = 0; i < 6; i++) noiseHit(sfxBus, t + .45 + i * .06, .04, .18, 'bandpass', 2600 + (i % 3) * 900, 6);
+    },
     // the rug rolling back toward you: a reversed whoosh and a clatter
     rewind: t => { noiseHit(sfxBus, t, .45, .35, 'bandpass', 3000, 1.2, 600); osc(sfxBus, 'sawtooth', 240, t, .45, .07, { to: 70 }); },
     // rugged: the rug yanked out from under him
