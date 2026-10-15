@@ -97,6 +97,11 @@ with sync_playwright() as p:
             assert zone.is_visible(), f'{name}: the thumb stick shows'
             zb = zone.bounding_box()
             assert zb['y'] + zb['height'] <= size[1] + 1 and zb['x'] >= 0 and zb['width'] >= 120 and zb['height'] >= 100, f'{name}: thumb stick on screen and roomy ({zb})'
+            # the stairwell opens without the katana: no Slash button yet, and Shoot where it will stay; it pops in with the katana
+            assert not page.locator('.pad[data-k="slash"]').is_visible(), f'{name}: no Slash before the katana'
+            shoot_before = page.locator('.pad[data-k="shoot"]').bounding_box()
+            page.evaluate("unrugTest('floor.Q.katana = true; padRings()')")
+            assert page.locator('.pad[data-k="slash"]').is_visible() and page.locator('.pad[data-k="shoot"]').bounding_box() == shoot_before, f'{name}: Slash appears with the katana, Shoot stays put'
             for k in ('shoot', 'slash'):
                 pad = page.locator(f'.pad[data-k="{k}"]')
                 assert pad.is_visible(), f'{name}: {k} pad shows'
@@ -447,6 +452,41 @@ with sync_playwright() as p:
     assert not errors, errors
     context.close()
     print('PASS title keeps the page layout')
+
+    # The controls audit's fixes (Oct 15): Enter starts from the title; the blaster only where there's a fight (both
+    # lobbies and the quiet ride are katana only, with a dry click, no charge bar and no supplies); Shift fires on the
+    # 48th Floor as it does everywhere else.
+    context, page, errors = open_page(browser, viewport={'width': 1280, 'height': 800})
+    page.wait_for_timeout(100)
+    page.keyboard.press('Enter')
+    assert page.evaluate("unrugTest('state')") == 'intro', 'Enter on the title starts'
+    context.close()
+    for label, hsh, setup, off in [('the 13th Floor lobby', '#stage=elevator&at=lobby&seed=42', 'for(let i=0;i<150;i++)update(1/60);', True),
+                                   ('the quiet ride', '#stage=elevator&seed=42', "travel('elevator', { fight: false, from: 13, destination: { floor: 48, label: '48', stage: 'floor48' } }); looping=false; for(let i=0;i<300;i++)update(1/60);", True),
+                                   ('the 48th Floor lobby', '#stage=floor48&at=lobby&seed=42', 'for(let i=0;i<150;i++)update(1/60);', True),
+                                   ('the long ride', '#stage=elevator&seed=42', 'for(let i=0;i<300;i++)update(1/60);', False)]:
+        context, page, errors = open_page(browser, url=URL + hsh, viewport={'width': 1280, 'height': 800})
+        page.wait_for_timeout(100)
+        page.evaluate("unrugTest(%r)" % ('looping=false;' + setup + " bull.u=0; bull.inv=1e9; R.events.shots=0; R.fireT=0; R.heldDrop='spread'; window.__s=[]; Snd.play=(o=>function(n){__s.push(n);return o.apply(this,arguments)})(Snd.play);"))
+        page.keyboard.down('ShiftLeft'); page.evaluate("unrugTest('for(let i=0;i<20;i++)update(1/60)')"); page.keyboard.up('ShiftLeft')
+        page.keyboard.press('KeyE'); page.evaluate("unrugTest('update(1/60)')")
+        shots, held, clicked, bar = page.evaluate("unrugTest('[R.events.shots||0, R.heldDrop, __s.includes(\"sputter\"), !blasterOff()]')")
+        if off:
+            assert shots == 0 and held == 'spread' and clicked and not bar, f'{label}: katana only (a dry click, no supply, no charge bar)'
+        else:
+            assert shots > 0 and held is None and not clicked and bar, f'{label}: the blaster and supplies work'
+        page.keyboard.press('Enter'); page.evaluate("unrugTest('update(1/60)')")
+        assert page.evaluate("unrugTest('bull.slash >= 0')"), f'{label}: the katana works'
+        assert not errors, (label, errors)
+        context.close()
+    context, page, errors = open_page(browser, url=URL + '#stage=floor48&seed=42', viewport={'width': 1280, 'height': 800})
+    page.wait_for_timeout(100)
+    page.evaluate("unrugTest(\"looping=false; for(let i=0;i<2400 && !(R.phase==='boss' && !R.td.locked && R.t>3);i++){bull.inv=1e9;update(1/60);} R.events.shots=0; R.fireT=0; bull.cd=0; bull.slash=-1;\")")
+    page.keyboard.down('ShiftLeft'); page.evaluate("unrugTest('for(let i=0;i<20;i++){bull.inv=1e9;update(1/60);}')"); page.keyboard.up('ShiftLeft')
+    assert page.evaluate("unrugTest('R.events.shots > 0 && bull.slash < 0')"), 'the 48th Floor: Shift fires, as everywhere else'
+    assert not errors, errors
+    context.close()
+    print('PASS controls: Enter starts, katana-only lobbies and quiet ride, Shift fires on the 48th')
     from elevator_audio import check_elevator_audio
     check_elevator_audio(browser, ROOT)
     browser.close()

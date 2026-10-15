@@ -662,7 +662,7 @@ var UnrugStairs = function (core) {
     lines: { spread: false },
     newRun, update, opening, resume: opening, use(x) { g = x; arena.use(x); },
     view, lights, shakeOffset, draw, glows, overlay, hud,
-    fire, slashHits: arena.slashHits, canSlash: () => Q.katana && Q.st === 'play',
+    fire, slashHits: arena.slashHits, canSlash: () => Q.katana && Q.st === 'play', katana: () => !Q || Q.katana,
     crouchWalk: () => Q.st === 'play',   // side on: he can walk crouched here (TUNE.crouchWalk); the cut-ins move him themselves
     muzzleXY: () => ({ x: arena.X(bull.u + (bull.facing || 1) * .12), y: arena.Y(ground(bull.u) + bull.jh + .14) }),
     soulFreed(f) { f.to = { x: 220, y: 7 }; },

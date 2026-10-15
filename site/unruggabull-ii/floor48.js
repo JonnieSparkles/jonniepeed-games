@@ -1543,7 +1543,7 @@ var UnrugFloor48 = function (core) {
     set: { flat: true },
     get label() { return Q && Q.st === 'lobby' ? 'Unruggabull, side on, in an immaculate elevator lobby, under a grand portrait of the flaming Rugfather.' : "Unruggabull, seen from above, inside p(Loom)'s soul-reclamation factory: three production lines of conveyor belts and machines weaving captured souls into carpshits."; },
     lines: { f48start: 'SO THIS IS WHERE THEY GO.', f48line: 'ONE DOWN.', f48panic: 'OVERTIME, HUH?', portrait: "HIS VISION ENDURES. HE DIDN'T.", start: false },
-    newRun, update, opening, resume, crouchWalk: () => !!Q && Q.st === 'lobby', use(x) { g = x; td.use(x); arena.use(x); lobby.use(x); },
+    newRun, update, opening, resume, crouchWalk: () => !!Q && Q.st === 'lobby', blasterOff: () => !!Q && Q.st === 'lobby', use(x) { g = x; td.use(x); arena.use(x); lobby.use(x); },
     view, lights, shakeOffset, draw, glows, overlay, hud,
     fire: () => true, slashHits: noop, muzzleXY: () => { const m = td.muzzle(), s = td.screenOf(m.x, m.y - m.h); return { x: s.x / 2, y: s.y / 2 }; },
     soulFreed(f) { f.to = { x: W / 2 - 10 - textWidth(String(R.souls)), y: 7 }; },
