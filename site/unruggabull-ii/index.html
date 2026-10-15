@@ -12,15 +12,15 @@
 <meta property="og:title" content="Unruggabull II: the 13th Floor · JonniePeed Games">
 <meta property="og:description" content="Enter the 13th Floor of RugCo Tower. Free the Unrugged. Beat SHRED-O.">
 <meta property="og:url" content="https://jonniepeed.games/unruggabull-ii/">
-<meta property="og:image" content="https://jonniepeed.games/unruggabull-ii/og.png?v=89020e73f5">
+<meta property="og:image" content="https://jonniepeed.games/unruggabull-ii/og.png?v=dc5e7c9115">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Unruggabull II title screen: the bull hero, katana on his back, faces RugCo Tower at sunset while souls drift up to its roof, beside the tagline">
+<meta property="og:image:alt" content="Unruggabull II title screen: RugCo Tower rises behind the first game&#39;s garage in RugCo Alley at night, p(Loom)&#39;s eye glowing on its roof, beside the tagline">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Unruggabull II: the 13th Floor · JonniePeed Games">
 <meta name="twitter:description" content="Enter the 13th Floor of RugCo Tower. Free the Unrugged. Beat SHRED-O.">
-<meta name="twitter:image" content="https://jonniepeed.games/unruggabull-ii/og.png?v=89020e73f5">
-<meta name="twitter:image:alt" content="Unruggabull II title screen: the bull hero, katana on his back, faces RugCo Tower at sunset while souls drift up to its roof, beside the tagline">
+<meta name="twitter:image" content="https://jonniepeed.games/unruggabull-ii/og.png?v=dc5e7c9115">
+<meta name="twitter:image:alt" content="Unruggabull II title screen: RugCo Tower rises behind the first game&#39;s garage in RugCo Alley at night, p(Loom)&#39;s eye glowing on its roof, beside the tagline">
 <link rel="icon" href="../assets/favicon.ico?v=443c0101ac" sizes="any">
 <link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
@@ -108,8 +108,6 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .pad.slash.reveal{animation:padIn .7s ease-out}
 @keyframes padIn{0%{transform:scale(.2);filter:brightness(2)}60%{transform:scale(1.18);filter:brightness(1.6)}100%{transform:scale(1);filter:none}}
 @media (prefers-reduced-motion:reduce){.pad.slash.reveal{animation:none}}
-.land-note{display:none}
-@media (orientation:portrait){.touch .land-note{display:inline}}
 /* The story so far, typed over the tower. Tap to move on. */
 .crawl{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;gap:10px;padding:10px 12px;background:rgba(9,7,11,.84);cursor:pointer}
 .crawl p{margin:0;font-size:clamp(13px,3.2vw,24px);font-size:clamp(13px,3.6cqw,24px);line-height:1.3;min-height:2.6em;text-wrap:pretty}
@@ -197,9 +195,9 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 @media (orientation:portrait){.full.playing .twin .aimzone,.twin .full .aimzone{min-height:120px;width:100%}}
 /* Landscape full screen: the sticks in the corners, clear of the middle of the picture (owner, Oct 14: the aim stick sat mid-screen). */
 @media (orientation:landscape){.twin .full .aimzone{flex:0 0 auto;width:min(30vw,220px);height:min(44vh,170px);min-height:0}.twin .full .stick-tip{display:none}.twin .full .stickzone:not(.aimzone){flex:0 0 auto}.twin .full .pad-group{flex:0 0 auto}}
-/* In play (playing, paused and the rugged and clear cards) the game fills the window on every device, in or out of full
-   screen; full screen only hides the browser's bars (docs/games/unruggabull-ii/screen-space.md). The page layout stays for
-   the title card. layoutPlay() in game.js places the picture, Pause, the tower dial and the touch controls. */
+/* In play (playing, paused and the rugged and clear cards) and on the title screen the game fills the window on every
+   device, in or out of full screen; full screen only hides the browser's bars (docs/games/unruggabull-ii/screen-space.md).
+   layoutPlay() in game.js places the picture, Pause, the tower dial and the touch controls. */
 .game.ingame{position:fixed;inset:0;z-index:10;display:block;padding:0;background:#08070c}
 .game.ingame header{display:none}
 .game.ingame .arena{position:absolute;display:block;top:env(safe-area-inset-top,0px);right:env(safe-area-inset-right,0px);bottom:env(safe-area-inset-bottom,0px);left:env(safe-area-inset-left,0px);min-height:0}
@@ -249,6 +247,16 @@ dl.keys dd{margin:0;font-size:15px}
 .lcard.pz .lb{background:var(--gold);color:#16112a;border-color:#16112a;box-shadow:0 3px 0 var(--gold-deep)}
 .lcard.pz .lb.sec{background:#16112a;color:var(--cream);border-color:var(--edge);box-shadow:none}
 @media (prefers-reduced-motion:reduce){.lb:active{transform:none}}
+/* The title screen (title.js, title-plan.md): its own canvas over the whole arena, with a transparent button over each
+   thing drawn to press. The game's picture, Pause and the tower dial stay out of the way while it's up. */
+.ttl{position:absolute;inset:0;z-index:4;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.ttl canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+.tbtns{position:absolute;inset:0;pointer-events:none}
+.tb{position:absolute;pointer-events:auto;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tb:active{transform:none;box-shadow:none}
+.tb:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
+.game.titling .stage,.game.titling .ipause{visibility:hidden}
+.game.titling .dial{display:none!important}
 </style>
 </head>
 <body>
@@ -265,21 +273,20 @@ dl.keys dd{margin:0;font-size:15px}
     </header>
     <div class="arena">
       <div class="stage" id="stage">
-        <canvas id="c" width="480" height="270" tabindex="-1" aria-label="Title screen: Unruggabull, katana on his back, faces RugCo Tower at sunset while souls drift up to a beacon on its roof."></canvas>
+        <canvas id="c" width="480" height="270" tabindex="-1" aria-label="Title screen: Unruggabull stands in RugCo Alley at night, in front of the garage from the first game, its fire out. RugCo Tower rises behind it, p(Loom)&#39;s eye glowing in the pavilion on its roof."></canvas>
         <div class="crawl" id="crawl" hidden><p aria-hidden="true"><span id="crawlText"></span><span class="more" id="more" hidden>&#9656;<small id="moreTap">Tap</small></span></p><button class="skip snd" id="isnd" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Sound off</span></button><button class="skip" id="skip" type="button">Skip</button></div>
       </div>
       <button class="ipause" id="ipause" type="button" aria-label="Pause"></button>
       <div class="dial" id="dial" aria-hidden="true"><span class="dial-name" id="dialName"></span><div class="dial-track" id="dialTrack"><b id="dialMark"></b><span id="dialNum"></span></div></div>
       <div class="deck">
-        <div class="card" id="card">
-          <h2 id="cardTitle">The 13th Floor: Accounting</h2>
-          <p id="cardText">Every soul you ever freed is still on RugCo's books. Free 90 on the 13th Floor until Accounting notices.</p>
+        <div class="card" id="card" hidden>
+          <h2 id="cardTitle">Controls</h2>
+          <p id="cardText"></p>
           <dl id="cardStats" hidden></dl>
           <dl class="keys" id="keyList" hidden></dl>
           <div class="btns"><button id="go" type="button">Start</button><button id="alt" class="link" type="button" hidden>Restart floor</button></div>
           <div class="more-btns" id="moreBtns" hidden><button class="tool snd" id="cSnd" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Sound off</span></button><button class="tool" id="cFs" type="button">Full screen</button><button class="tool" id="cKeys" type="button">Controls</button><a class="tool" id="cQuit" href="../">Quit to JonniePeed Games</a></div>
-          <p class="note" id="cardNote">Demo: the first floor of the climb.</p>
-          <button class="link" id="titleKeys" type="button">Controls</button>
+          <p class="note" id="cardNote" hidden></p>
         </div>
         <div class="pads" id="pads">
           <div class="stickzone" id="stickzone" role="application" aria-label="Thumb stick: slide left or right to move, flick up to jump, hold down to crouch">
@@ -304,7 +311,7 @@ dl.keys dd{margin:0;font-size:15px}
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
 <script src="bull.js?v=ab13e55c4b"></script>
 <script src="sprites.js?v=24d32dafcb"></script>
-<script src="art.js?v=5af20719dd"></script>
+<script src="art.js?v=bbe0f248eb"></script>
 <script src="music-roof.js?v=6c135131e6"></script>
 <script src="music-floor.js?v=2e5412029f"></script>
 <script src="music-elevator.js?v=a7005e4acb"></script>
@@ -328,6 +335,8 @@ dl.keys dd{margin:0;font-size:15px}
 <script src="elevator.js?v=5f51b523e3"></script>
 <script src="stairs.js?v=460ea38c47"></script>
 <script src="cards.js?v=c9c4aaa6cf"></script>
-<script src="game.js?v=6c188e124e"></script>
+<script src="title-art.js?v=d8fcdc010f"></script>
+<script src="title.js?v=7c458d8c86"></script>
+<script src="game.js?v=3569683d0d"></script>
 </body>
 </html>

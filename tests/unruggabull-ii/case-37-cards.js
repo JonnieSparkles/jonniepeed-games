@@ -23,7 +23,7 @@
   // Quit: back to the title screen
   rugged();
   Cards.press('Quit');
-  check(state === 'title' && cardKind === 'title' && !card.hidden && !Cards.open && cardTitle.textContent === 'The 13th Floor: Accounting', 'Quit goes to the title screen');
+  check(state === 'title' && cardKind === 'title' && card.hidden && Title.open && !Cards.open, 'Quit goes to the title screen');
 
   // the pause card: the game's own buttons, Quit to the title
   RUN.force = 3738; startRun('floor48'); step(.5);
