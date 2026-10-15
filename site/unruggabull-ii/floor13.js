@@ -1370,7 +1370,7 @@ var UnrugFloor13 = function (core) {
   function drawProj(p) {
     const s = sc(p.z), bundle = p.kind === 'bundle' || p.kind === 'scrap', img = p.kind === 'wad' ? A.WAD : bundle ? A.BUNDLE : p.kind === 'plane' ? A.PLANE : A.STAPLE;
     const big = (p.kind === 'scrap' ? .6 : 1) * (p.friendly ? 1 : bundle ? (p.rally ? 1.4 : 1.2) : 1.35), blink = Math.floor(R.t * 10 + p.spin) % 2;
-    const w = Math.max(2, Math.round(A.uw(img) * s * big)), h = Math.max(1, Math.round(A.uh(img) * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h);
+    const w = Math.max(2, Math.round(A.uw(img) * s * big)), h = Math.max(1, Math.round(A.uh(img) * s * big)), x = PX(p.u, p.z), y = YH(p.z, p.h + (p.kind === 'plane' ? PLANE_LIFT : 0));   // a plane is drawn a little above where it hits, so it clears his crouched horns as far as the plank does
     if (p.friendly) shadow(p.u, p.z, A.uw(img) * .8);
     else if (bundle) for (let k = 1; k <= 3; k++) {
       const tz = p.z - p.vz * k * .05, tu = p.u - p.vu * k * .05, j = (k * 7 + Math.floor(p.spin)) % 5 - 2;
@@ -1395,7 +1395,8 @@ var UnrugFloor13 = function (core) {
     if (p.friendly) { const k = Math.floor(p.spin) % 2; rect(g, x - w / 2 - 1 - k, y - 1, 1, 1, '#bfefff'); rect(g, x + w / 2 + k, y, 1, 1, '#bfefff'); }
   }
   const CHAIR_US = [-.5, -.3, -.1, .1, .3, .5];
-  const BEAM_H = [.2, .235];   // moving day's plank: its underside and top, as a share of the hall's height
+  const BEAM_H = [.232, .267];   // moving day's plank: its underside and top, as a share of the hall's height
+  const PLANE_LIFT = .05;        // paper airplanes are drawn this much above their hit height (drawing only): 2.7 px over his crouched horns, like the plank
 
   function drawRow(row, z) {
     if (!row.hit && !DUCKS[row.kind]) jumpCue(z, -.66, .66);
