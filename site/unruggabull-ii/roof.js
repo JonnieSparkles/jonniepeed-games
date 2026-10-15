@@ -326,6 +326,8 @@ var UnrugRoof = function (core) {
     streamTick(dt);
     if (R.phase === 'dead') return;
     if (controlled()) updateBull(dt);
+    // out of his hands (the cut to p(Loom), the fusion): a swing already started still finishes, not frozen mid-cut
+    else if (bull.slash >= 0) { bull.slash += dt; if (bull.slash >= TUNE.slashT) bull.slash = -1; }
     if (R.gold) { R.charge = TUNE.charges; R.empty = 0; R.dry = false; }
     // from the silence after ALL SOULS ACCOUNTED FOR to the first soul back the blaster is dead: a dry click and smoke,
     // nothing he does matters, until the souls come back as its ammo (owner, Oct 15)

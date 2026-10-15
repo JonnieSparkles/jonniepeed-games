@@ -70,5 +70,7 @@
   check(floor.view().dawn === 1 && bull.aimT === 0, 'dawn stays bright at clear and he lowers the blaster');
   fresh(); floor.enter('fusion'); const frozen = { t: R.t, qt: R.roof.t }; tick(.1);
   check(R.t === frozen.t && R.roof.t === frozen.qt && R.freeze > 0, 'fusion freezes fight for 0.14 seconds');
+  fresh(); floor.enter('odds'); bull.slash = .02; tick(TUNE.slashT + .1);
+  check(R.roof.state === 'odds' && bull.slash === -1, 'a swing started before a cut finishes instead of freezing mid-cut');
   Snd.play = oldPlay; Snd.music = oldMusic; Snd.say = oldSay; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
 })();
