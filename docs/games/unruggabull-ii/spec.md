@@ -28,9 +28,9 @@ About thirteen minutes for a full run. Three engines carry the game: the **corri
 | Floor | Name | Ends with | Engine |
 | --- | --- | --- | --- |
 | 13 | the 13th Floor: Accounting | Mid-boss: SHRED-O | Corridor |
-| ↑ | Quiet ride (built) | From the 13th Floor's elevator lobby (DING, the doors, he boards), 13→48: “Floor?” answered, quiet banter, 100 BPM Please Hold (two phrases), supply crate; factory doors, arrival exchange before exit; no fight | Arena set, no combat |
+| ↑ | Quiet ride (built) | From the 13th Floor's elevator lobby (DING, the doors, he boards), 13→48: “Floor?” answered, quiet banter, 100 BPM Please Hold (two phrases); factory doors, arrival exchange before exit; no fight | Arena set, no combat |
 | 48 | the 48th Floor: Reclamation (built) | Set piece: Production Panic, the factory's collapse and the near miss; then the lobby, side on | Top-down, then arena |
-| ↑ | The long ride (built) | p(Loom) takes the cable, drops the car and reels it up; 30 seconds of Horns Up; supply crate | Arena |
+| ↑ | The long ride (built) | p(Loom) takes the cable, drops the car and reels it up; 30 seconds of Horns Up; the operator's crate (hearts, or souls) | Arena |
 | R | The roof | Final boss: p(Loom) | Corridor |
 
 The climb is **13th Floor → quiet ride → 48th Floor → lobby → long ride → roof**, all built. Each ride's start floor, destination and whether it fights are ride data (`ELEVATOR.fight` / per-run `fight`, `from`, `destination`): the quiet ride runs 13→48 without a fight, the long ride 48→R with one. [long-ride-plan.md](long-ride-plan.md) is the long ride's design; [elevator-plan.md](elevator-plan.md) records the supply drops and the quiet ride's built status; [floor48-plan.md](floor48-plan.md) is the 48th Floor's.
@@ -48,7 +48,7 @@ Six inputs, the same on every floor, laid out like an old game pad:
 - **Shoot** (hold to keep firing). Keys: Shift or ', or J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
 - **Slash** (Enter, or K or X). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 
-A carried supply uses E or a tap on its icon beside the hearts. The Spare Vest is automatic. M toggles sound, F full screen, P or Escape pause.
+M toggles sound, F full screen, P or Escape pause.
 
 ## the 13th Floor: Accounting (this stage)
 
@@ -95,9 +95,9 @@ A side-view car in its shaft, no scrolling: walnut and brass, art-deco doors wit
 
 **The crate:** the long ride's gives full hearts, or 20 bonus souls if he's already full. **The quiet ride** (built, 13→48, `fight: false`): short operator/Unruggabull banter over a 27-second climb and two four-bar phrases of classic 100 BPM Please Hold, then the ding, doors and a supply drop in the crate (below). Movement stays live; the final arrival bubble must finish before he walks onto the 48th Floor (about 39 s including the clear-button entrance and exit). The clear button opens on the 13th Floor's elevator lobby first, a short playable beat like the 48th's without the portrait (about 5.5 s walking straight in); direct entry and continues start the ride closed-door. On the side-view stages that allow it (the lobbies and both rides) he can walk crouched at half speed.
 
-Carry one drop; activate by E or tapping the icon. Spread Shot is held until used, then three ways for ten seconds. Bull Run charges for five seconds, invulnerable and destroying contact threats: down the corridor lane, across the arena toward his facing (turning at walls), or under normal player movement on the roof, where it only clears carps, snares and orbs. It does nothing to p(Loom). Spare Vest automatically gets him back up at the fallen position with full hearts once. Used supplies stay consumed on continues. The quiet ride's operator chooses a Vest at two hearts or fewer; otherwise Spread Shot/Bull Run alternate, starting with Spread. A Vest leaves the alternation in place. A new crate replaces an existing held drop.
+No supplies are carried (owner, Oct 15): the quiet ride's Spread Shot, Bull Run and Spare Vest were dropped. With the difficulty modes, the long ride's crate is to become a reward for a ride without a hit: the operator's bellhop cap on Regular, a crown on Raging (where the crate gives no hearts), worn for the run and shown on the run's initials on the board. Not built yet.
 
-Rugged in the long ride, Continue goes back to the threads with full hearts and the souls he came in with; Restart floor starts the ride over. `#stage=elevator` starts the 13→R ride with no held drop.
+Rugged in the long ride, Continue goes back to the threads with full hearts and the souls he came in with; Restart floor starts the ride over. `#stage=elevator` starts the 13→R ride.
 
 ## Look
 
