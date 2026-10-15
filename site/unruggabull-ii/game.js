@@ -1614,6 +1614,7 @@
     picked(mode) { RUN.mode = mode; },
     exit() { location.href = '../'; },
     sound: flipSound, soundOn, play: name => Snd.play(name),
+    full: toggleFull, fullOn: isFull, canFull: () => canFull,
     board: () => null   // no boards yet: they come with the modes (item 29); the line and the board stay hidden until then
   } });
   RUN.mode = Title.mode;
