@@ -1174,10 +1174,12 @@ var StickArmyCampaign = function (w) {
     G.beginPath(); L(x + 1.6, y - 7 - (open ? 4 : 0), x + 1.6, y - 5, 0.1); if (!open) L(x + 8.4, y - 7, x + 8.4, y - 5, 0.1); ink(INK2, 1.8); G.stroke();
     G.fillStyle = INK2; G.fillRect(x, y - 6, 10, 7);
   }
-  function drawDreadBar() {
+  // over: drawn again over the smoke screen, as thick as the smoke there (game.js render).
+  function drawDreadBar(over) {
     var p = dread(), G = w.G, y = BAR.Y;
     if (!p || down(p)) return;
-    var a = p.phase === 'arrive' ? clamp(p.t / 2, 0, 1) : 1;
+    var a = (p.phase === 'arrive' ? clamp(p.t / 2, 0, 1) : 1) * (over == null ? 1 : over);
+    if (a <= 0.01) return;
     G.save(); G.globalAlpha = a; pen(4545);
     G.textAlign = 'center'; G.font = '700 15px ' + w.DISPLAY; G.lineJoin = 'round';
     G.lineWidth = 4; G.strokeStyle = PAPER; G.strokeText('DREADNOUGHT', 200, BAR.NAME); G.fillStyle = RED; G.fillText('DREADNOUGHT', 200, BAR.NAME);
