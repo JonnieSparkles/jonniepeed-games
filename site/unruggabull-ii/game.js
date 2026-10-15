@@ -1055,19 +1055,23 @@
     if (touch) {
       if (tw) return [['Move', 'the left stick'], ['Aim and fire', 'hold the right stick'], ['Slash', 'flick the right stick'], ['', 'a tap slashes the nearest threat'], ['Supply', 'tap its icon by the hearts']];
       const r = [['Move', 'slide the stick']];
-      if (roof) r.push(['Up the roof', 'push the stick up'], ['Back', 'pull it down']);
+      if (roof) r.push(['Up the roof', 'push the stick up'], ['Back', 'pull it down'], ['', 'a tile at a time, then freely once the souls come back'], ['', 'or drag a finger on the picture']);
       else r.push(['Jump', 'flick it up'], ['Crouch', 'hold it down']);
       if (low || title) r.push(['', 'down and sideways walks crouched' + (title ? ' (stairs, lobbies, rides)' : '')]);
-      r.push(['Shoot', 'hold Shoot to keep firing'], ['Slash', 'tap Slash'], ['Supply', 'tap its icon by the hearts']);
+      r.push(['Shoot', 'hold Shoot to keep firing']);
+      if (roof) r.push(['', 'the souls fire on their own once they come back']);
+      r.push(['Slash', 'tap Slash'], ['Supply', 'tap its icon by the hearts']);
       return r;
     }
     const sys = [['Supply', 'E, or click its icon'], ['Pause', 'P or Esc'], ['Sound', 'M'], ['Full screen', 'F']];
     if (tw) return [['Move', 'W A S D'], ['Aim and fire', 'the mouse: hold the left button'], ['', 'or the arrow keys'], ['Fire', "Shift, J, Z or ' (where you move or last aimed)"], ['Slash', 'Space, Enter, K or X'], ['', 'or the right mouse button']].concat(sys);
     const r = [['Move', 'A and D, or \u2190 \u2192']];
-    if (roof) r.push(['Up the roof', 'W or \u2191'], ['Back', 'S or \u2193']);
+    if (roof) r.push(['Up the roof', 'W or \u2191'], ['Back', 'S or \u2193'], ['', 'a tile at a time, then freely once the souls come back'], ['', 'or hold the mouse on the picture']);
     else r.push(['Jump', 'W, \u2191 or Space'], ['Crouch', 'S, C or \u2193']);
     if (low || title) r.push(['', 'down plus left or right walks crouched' + (title ? ' (stairs, lobbies, rides)' : '')]);
-    r.push(['Shoot', "Shift, J, Z or ' (hold to keep firing)"], ['', 'or the left mouse button'], ['Slash', 'Enter, K or X'], ['', 'or the right mouse button']);
+    r.push(['Shoot', "Shift, J, Z or ' (hold to keep firing)"], ['', 'or the left mouse button']);
+    if (roof) r.push(['', 'the souls fire on their own once they come back']);
+    r.push(['Slash', 'Enter, K or X'], ['', 'or the right mouse button']);
     return r.concat(sys);
   }
   // the stage's own exceptions: no blaster in the lobbies and the quiet ride, no katana before the Rugmergency
@@ -1359,8 +1363,9 @@
     Space: 'slash', Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash',
     ShiftLeft: 'shoot', ShiftRight: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot', KeyE: 'drop' };
   const TWIN_HOLD = { mUp: 'up', mDown: 'down', mLeft: 'left', mRight: 'right', aUp: 'aimUp', aDown: 'aimDown', aLeft: 'aimLeft', aRight: 'aimRight' };
-  const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
-  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
+  // on the roof (depthMove) up walks up the roof and nothing jumps: Space does nothing there
+  const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : floor.depthMove && e.code === 'Space' ? null : CODES[e.code] || NAMES[e.key] };
+  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; if (floor && floor.steer) floor.steer(null); for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (state === 'title' && cardKind === 'title' && !e.repeat && (e.key === 'Enter' || e.key === ' ')) {
@@ -1406,6 +1411,13 @@
   });
   addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) { twin.mouse.down = false; keys.mouseShoot = false; } });
   c.addEventListener('contextmenu', e => { if (state === 'play') e.preventDefault(); });
+  // The roof's beam fires on its own; a finger (or a held mouse) on the picture drags it (floor.dragSteer, floor.steer).
+  let dragId = null;
+  const dragX = e => { const box = c.getBoundingClientRect(); return (e.clientX - box.left) * W / box.width; };
+  c.addEventListener('pointerdown', e => { if (state !== 'play' || !floor.dragSteer || !floor.dragSteer() || dragId !== null) return; dragId = e.pointerId; try { c.setPointerCapture(e.pointerId); } catch (_) {} floor.steer(dragX(e)); });
+  c.addEventListener('pointermove', e => { if (e.pointerId === dragId && state === 'play' && floor.dragSteer && floor.dragSteer()) floor.steer(dragX(e)); });
+  const dragEnd = e => { if (e.pointerId !== dragId) return; dragId = null; if (floor.steer) floor.steer(null); };
+  c.addEventListener('pointerup', dragEnd); c.addEventListener('pointercancel', dragEnd);
 
   // Touch: a thumb stick on the left, Shoot and Slash on the right. Each finger is tracked, so a thumb can slide between
   // Shoot and Slash; they act as a finger lands on them, and Shoot keeps firing while held.

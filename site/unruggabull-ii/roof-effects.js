@@ -3,7 +3,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   'use strict';
   const { A, clamp, disc, line, world, PX, FY, YH, sc, muzzleXY } = core;
   const C = tuning.effects, LM = tuning.art;
-  let souls = [], clock = 0, kick = 0, decay = 1, heldUntil = 0, flashes = 0, dawnBase = 0, dawnStarts = [];
+  let souls = [], clock = 0, kick = 0, decay = 1, heldUntil = 0, flashes = 0, dawnBase = 0, dawnStarts = [], spool = null;
   const flights = new WeakMap(), wisps = new WeakMap();
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
   const silhouette = A.canvas(A.GHOST.width, A.GHOST.height), ink = silhouette.getContext('2d');
@@ -17,7 +17,18 @@ var UnrugRoofEffects = function (core, tuning, spot) {
       bright: .62 + row * .055, arrived: -10 };
     souls.push(s); return i;
   }
-  function reset(n) { souls = []; clock = 0; kick = 0; heldUntil = 0; flashes = 0; dawnBase = 0; dawnStarts = []; while (souls.length < n) add(); }
+  function reset(n) { souls = []; clock = 0; kick = 0; heldUntil = 0; flashes = 0; dawnBase = 0; dawnStarts = []; spool = null; while (souls.length < n) add(); }
+  // The reset: it winds three new spools from the souls it caught. Each soul leaves its slot in turn and flies up into
+  // a spool; the last three go to the middle, left and right spools, the ones that tear loose for the bells.
+  function respoolStart(Q) { spool = { start: clock, n: Q.capturedTotal }; }
+  function respoolAll(Q) { spool = { start: clock - 99, n: Q.capturedTotal }; }
+  function spoolOf(i) { const j = spool.n - 1 - i; return j === 0 ? 1 : j === 1 ? 0 : j === 2 ? 2 : i % 3; }
+  function spoolPoint(i) { const k = spoolOf(i); return { x: LM.spools[k] - LM.spoolW / 2 + 2 + (i * 7) % (LM.spoolW - 4), y: LM.top + 1 + (i * 3) % 5 }; }
+  function spoolTime(i) {
+    const span = tuning.reset.respool - C.respoolFly, dep = spool.start + i / Math.max(1, spool.n - 1) * span;
+    return { dep, arr: dep + C.respoolFly };
+  }
+  const spooled = i => spool && i < spool.n && clock >= spoolTime(i).arr;
   function slot(i, t = clock) {
     const s = souls[i];
     if (!s) return spot(i);
@@ -43,12 +54,12 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     if (name === 'snap') shake(C.shake.snap, C.snapDecay);
     if (name === 'return' || name === 'flood') Q.flights.forEach((f, j) => {
       const i = (name === 'return' ? Q.caught : Q.floodFrom) - 1 - j;
-      flights.set(f, { i, from: slot(i), start: name === 'flood' ? ((i % (LM.warpRows * LM.warpColumns) * 37 % (LM.warpRows * LM.warpColumns)) / (LM.warpRows * LM.warpColumns - 1) * .9 + souls[i].phase / (Math.PI * 2) * .1) * C.departSpan : f.delay,
+      flights.set(f, { i, from: spooled(i) ? spoolPoint(i) : slot(i), start: name === 'flood' ? ((i % (LM.warpRows * LM.warpColumns) * 37 % (LM.warpRows * LM.warpColumns)) / (LM.warpRows * LM.warpColumns - 1) * .9 + souls[i].phase / (Math.PI * 2) * .1) * C.departSpan : f.delay,
         end: f.delay + tuning.returnFly });
     });
   }
   function flash(Q) {
-    if (Q.state === 'flash') return Math.exp(-Q.t / C.flashDecay);
+    if (Q.state === 'flash') return Q.t < tuning.rise.bolt ? 0 : Math.exp(-(Q.t - tuning.rise.bolt) / C.flashDecay);   // the lightning as it rises
     if (Q.state !== 'walk') return 0;
     return C.distant.reduce((v, t) => Q.t >= t ? Math.max(v, .3 * Math.exp(-(Q.t - t) / C.flashDecay)) : v, 0);
   }
@@ -77,8 +88,14 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     const n = Q.state === 'return' ? Q.capturedTotal : Q.state === 'flood' ? Q.floodFrom : Q.caught;
     const time = Q.state === 'return' ? Q.returnT : Q.t;
     for (let i = 0; i < n; i++) {
-      const s = souls[i], d = departure(Q, i); if (!s || d && time >= d.start) continue;
+      const s = souls[i], d = departure(Q, i); if (!s || d && time >= d.start || spooled(i)) continue;
       const p = slot(i);
+      if (spool && i < spool.n && clock >= spoolTime(i).dep) {
+        // on its way up into a spool
+        const k = clamp((clock - spoolTime(i).dep) / C.respoolFly, 0, 1), e = k * k * (3 - 2 * k), to = spoolPoint(i);
+        drawSoul(g, i, { x: p.x + (to.x - p.x) * e + Math.sin(k * Math.PI) * s.bend * .4, y: p.y + (to.y - p.y) * e - Math.sin(k * Math.PI) * 6 }, .85, false, s.size * .8);
+        continue;
+      }
       if (d && time > d.start - C.pullLoose) p.x += Math.sin(time * 90 + s.phase) * 1.2;
       if (['elevator', 'walk'].includes(Q.state) && flash(Q) < .06) {
         g.save(); g.globalAlpha = C.walkAlpha * s.bright; disc(g, p.x + 2, p.y + 2, 2, '#ffe4a1'); g.restore(); continue;
@@ -86,7 +103,8 @@ var UnrugRoofEffects = function (core, tuning, spot) {
       const pulse = Q.state === 'quiet' ? .65 + .25 * Math.sin(clock * s.rate * 2 + s.phase) : .82;
       const wake = Q.state === 'wake' ? clamp(Q.t / C.wakeRise, .15, 1) : 1;
       const arrival = Math.max(0, 1 - (clock - s.arrived) / C.arrivalPulse);
-      drawSoul(g, i, p, Q.state === 'flash' ? 1 : (pulse + arrival * .35) * s.bright * wake, Q.state === 'flash' || flash(Q) > .06, s.size * (1 + arrival * .2));
+      // trapped souls stay dim, so the eye in front of them is the brightest thing on the loom
+      drawSoul(g, i, p, Q.state === 'flash' ? 1 : (pulse + arrival * .35) * s.bright * wake * (Q.state === 'quiet' ? 1 : LM.trappedAlpha), Q.state === 'flash' || flash(Q) > .06, s.size * (1 + arrival * .2));
     }
   }
   function flightPoint(f, time, m) {
@@ -133,7 +151,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     const list = (Q.flights || []).map(f => flightPoint(f, time, m)).filter(Boolean), stride = Math.max(1, Math.ceil(list.length / C.soulLights));
     for (let i = 0; i < list.length; i += stride) lightAtScreen(r, list[i], tuning.eyeZ * (1 - list[i].k), C.soulLight);
   }
-  return { reset, tick, entry, slot, flash, capture, landed, wispMotion, riseMotion, dawnSoul, drawWarp, drawFlights, soulLights,
+  return { reset, respoolStart, respoolAll, spooled: i => !!spooled(i), tick, entry, slot, flash, capture, landed, wispMotion, riseMotion, dawnSoul, drawWarp, drawFlights, soulLights,
     shake, offset, drawRise, spool() { shake(C.shake.spool, .3); heldUntil = clock + C.hitStop; }, frameHeld: () => clock < heldUntil,
     displayedCount(Q, R) { return ['dawn', 'clear'].includes(Q.state) ? dawnBase + Math.max(0, R.shown - dawnBase) + released(Q) : Math.min(R.souls, R.shown); }
   };

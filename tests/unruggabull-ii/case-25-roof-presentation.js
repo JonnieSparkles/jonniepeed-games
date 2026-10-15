@@ -14,7 +14,9 @@
   tick(1);
   check(first.x !== fx.slot(0).x && first.y !== fx.slot(0).y && second.x !== fx.slot(1).x, 'each soul bobs and sways independently');
   q.t = rt.effects.distant[0]; check(floor.view().ambient > rt.darkAmbient, 'distant lightning raises ambient');
-  floor.enter('flash'); const bright = floor.view().ambient; q.t = .2;
+  floor.enter('flash'); q.t = rt.rise.bolt - .1; const dim = floor.view().ambient; q.t = rt.rise.bolt; const bright = floor.view().ambient;
+  check(bright > dim * 1.5, 'the lightning strikes as p(Loom) rises');
+  q.t = rt.rise.bolt + .2;
   check(floor.view().ambient < bright / 2, 'lightning falls off within a few frames');
   floor.enter('round1');
   const f = { k: 'wisp', sx: 80, sy: 85, x: 80, y: 85, dx: 0, t: 0, dur: 1.05 };
@@ -23,11 +25,11 @@
   check(f.caught && Math.abs(f.y - (85 + (to.y - 85) * .5 / f.dur)) > 1, 'capture follows a curve into its reserved slot');
   const lights = []; const r = { light(...a) { lights.push(a); } };
   floor.lights(r); const orange = lights[0].slice(3);
-  q.volley = {}; lights.length = 0; floor.lights(r); const red = lights[0].slice(3);
+  q.atk.stage = 'run'; lights.length = 0; floor.lights(r); const red = lights[0].slice(3);
   q.stall = 1; lights.length = 0; floor.lights(r); const white = lights[0].slice(3);
   check(orange[0] > orange[1] && red[1] < orange[1] && white[1] > orange[1], 'eye light turns orange, angry red and stall white');
-  q.volley = null; floor.enter('quiet'); tick(q.accounted + .05);
-  check(q.silenced && Snd.track === null, 'quiet cuts the fight music after the last word');
+  q.atk.stage = 'idle'; q.stall = 0; floor.enter('quiet'); tick(.05);
+  check(q.silenced && Snd.track === null, 'the quiet is silent');
   floor.enter('return'); q.cut = null; tick(.7); lights.length = 0; floor.lights(r);
   check(lights.length > 1, 'flying souls illuminate the wet roof');
   floor.enter('beam'); q.beamU = 0; lights.length = 0; floor.lights(r);

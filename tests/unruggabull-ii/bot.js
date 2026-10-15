@@ -16,47 +16,99 @@ window.__balanceBot = function (profile, seed) {
   function noticed(o, x) { if (!(x.id in seen)) seen[x.id] = o.t; return o.t - seen[x.id] >= P.notice_s; }
   function plan(x, make) { return plans[x.id] || (plans[x.id] = make()); }
   // Roof decisions have their own bookkeeping so Floor 13's decisions and dice stay byte-for-byte equivalent.
-  var roofSent = [], roofT = null, roofAimError = 0, roofAimT = 0;
+  // The roof is a 5x3 grid: it steps a tile at a time (a press, then a release), counting the steps it has sent since
+  // what it last saw. Each attack gets one plan: whether it reads the warning in time (roof_dodge) and whether it
+  // reads the hallucinations as fake (fake_read; if not, it keeps off them too). It leads its timing like elsewhere.
+  var roofSent = [], roofT = null, roofAimError = 0, roofAimT = 0, roofLast = '';
   function roofDecide(o) {
-    var q = o.roof, b = o.bull, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false, forward: false, back: false };
+    var q = o.roof, a = { left: false, right: false, jump: false, shoot: false, slash: false, crouch: false, forward: false, back: false };
     var delta = roofT === null ? 1 / 30 : Math.max(0, o.t - roofT); roofT = o.t;
-    var lag = P.reaction_ms / 1000, me = b.u, depth = b.bz, aim = q.beamU;
-    roofSent = roofSent.filter(function (x) { return x.t >= o.t - lag - 1e-6; });
-    roofSent.forEach(function (x) { me += x.dir * o.move * x.dt; aim += x.dir * q.beamSteer * x.dt; depth += (x.depth || 0) * q.depthSpeed * x.dt; });
-    me = Math.max(-o.aisle, Math.min(o.aisle, me));
-    var goal = null, aimGoal = null;
-    if (q.cut) { roofSent.push({ t: o.t, dir: 0, dt: 0 }); return a; }
-    if (q.beam && (q.state === 'beam' || q.state === 'run')) {
-      if (o.t >= roofAimT) { roofAimError = err(P.depth_err * 2); roofAimT = o.t + .5; }
-      aimGoal = q.eye.u + (q.state === 'run' ? q.eye.dir * q.eye.speed * lead : 0) + roofAimError;
-    } else if (/^round/.test(q.state)) {
-      if (!q.snare || !q.snare.hooked) { a.forward = depth < q.ringZ - .02; a.back = depth > q.ringZ + .02; }
-      if (q.snare) {
-        var sp = plan(q.snare, function () { return { cut: r() < P.fly_slash }; });
-        if (sp.cut && (q.snare.hooked || q.snare.t > .9)) a.slash = true;
-      }
-      if (q.stall > 0) { goal = q.eye.u; a.shoot = o.charge > 0; }
-      else {
-        if (q.rings.length) {
-          var rp = plan({ id: 'ring:' + q.volley }, function () { return { dodge: r() < (P.roof_dodge == null ? P.dodge : P.roof_dodge) }; });
-          if (rp.dodge) goal = q.rings.reduce(function (best, ring) { return ring.odds < best.odds ? ring : best; }).u;
-        }
-        var tgt = null;
-        o.flies.forEach(function (f) {
-          if (!noticed(o, f)) return;
-          if (f.z > b.bz + .06 && (!tgt || f.z < tgt.z)) tgt = f;
-          if (f.z - b.bz < .16 && Math.abs(f.u - me) < .28) {
-            var cp = plan(f, function () { return { cut: r() < P.fly_slash }; });
-            if (cp.cut) a.slash = true;
-          }
-        });
-        if (tgt) { if (goal === null) goal = tgt.u; a.shoot = Math.abs(tgt.u - me) < .3 && o.charge > P.charge_floor; }
-      }
+    // what it sees is this old: the driver delays observations by whole thinks (two steps of 1/60 s), and a press
+    // shows in the next observation after it, one think later
+    var lag = Math.round(P.reaction_ms / 1000 * 30) / 30 + 1 / 30, aim = q.bullU;
+    roofSent = roofSent.filter(function (x) { return x.t > o.t - lag + 1e-6; });
+    var me = { c: q.at.c, r: q.at.r };
+    roofSent.forEach(function (x) { aim += x.dir * q.beamMove * x.dt; me.c = Math.max(0, Math.min(q.cols - 1, me.c + (x.dc || 0))); me.r = Math.max(0, Math.min(q.rows - 1, me.r + (x.dr || 0))); });
+    var step = null, aimGoal = null, pending = roofSent.some(function (x) { return x.dc || x.dr; });
+    function send() {
+      var key = step ? step[0] + ',' + step[1] : '';
+      if (step && key === roofLast) { step = null; key = ''; }   // let go between steps: one press, one tile
+      if (step && pending) { step = null; key = ''; }             // and wait to see that step land before the next
+      if (step) { if (step[0] < 0) a.left = true; if (step[0] > 0) a.right = true; if (step[1] > 0) a.forward = true; if (step[1] < 0) a.back = true; }
+      roofLast = key;
+      roofSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), dc: step ? step[0] : 0, dr: step ? step[1] : 0, dt: delta });
+      return a;
     }
-    var d = aimGoal !== null ? aimGoal - aim : goal !== null ? goal - me : 0;
-    a.left = d < -.04; a.right = d > .04;
-    roofSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), depth: (a.forward ? 1 : 0) - (a.back ? 1 : 0), dt: delta });
-    return a;
+    if (q.cut) return send();
+    var key = function (c, r) { return c + ',' + r; };
+    var tileAt = function (c, r) { return q.tiles[r * q.cols + c]; };
+    // the nearest tile (by steps) that passes ok, never stepping through `block`; returns the first step
+    function toward(ok, block) {
+      var seen = {}, queue = [[me.c, me.r, null]]; seen[key(me.c, me.r)] = 1;
+      while (queue.length) {
+        var n = queue.shift();
+        if (n[2] && ok(n[0], n[1])) return n[2];
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          var c = n[0] + d[0], rr = n[1] + d[1], k = key(c, rr);
+          if (c < 0 || c >= q.cols || rr < 0 || rr >= q.rows || seen[k] || (block && block[k])) return;
+          seen[k] = 1; queue.push([c, rr, n[2] || d]);
+        });
+      }
+      return null;
+    }
+    if (q.beam && (q.state === 'lines' || q.state === 'beam' || q.state === 'run')) {   // the countdown starts as the beam lands
+      if (o.t >= roofAimT) { roofAimError = err(P.depth_err * 2); roofAimT = o.t + .5; }
+      aimGoal = q.eye.u + (q.state === 'run' ? q.eye.v * (lead + .3) : 0) + roofAimError;   // the beam's far end trails it: lead the gliding eye
+      // with the beam he walks under the eye; the beam follows and leans the rest of the way
+      aimGoal = Math.max(-q.beamBull, Math.min(q.beamBull, aimGoal));
+      var d = aimGoal - aim; a.left = d < -.04; a.right = d > .04;
+      roofSent.push({ t: o.t, dir: (a.right ? 1 : 0) - (a.left ? 1 : 0), dt: delta });
+      return a;
+    }
+    var myRowCarpet = function () { for (var c = me.c - q.reach; c <= me.c + q.reach; c++) if (c >= 0 && c < q.cols && tileAt(c, me.r).carpet) return true; return false; };
+    if (q.state === 'walk') {
+      if (q.walkCarp) {
+        var best = 0; for (var c = 0; c < q.cols; c++) if (Math.abs(q.tileU[c] - q.walkCarp.u) < Math.abs(q.tileU[best] - q.walkCarp.u)) best = c;
+        if (best !== me.c) step = [best > me.c ? 1 : -1, 0];
+        a.shoot = Math.abs(q.tileU[me.c] - q.walkCarp.u) < .28 && o.charge > 0;
+      } else if (myRowCarpet()) a.slash = true;
+      else { var s0 = toward(function (c, r) { return tileAt(c, r).carpet; }); if (s0) step = s0; }
+      return send();
+    }
+    if (!/^round/.test(q.state)) return send();
+    var est = q.atk.t + lead, danger = {}, block = {};
+    if (q.atk.stage === 'run') {
+      var ap = plan({ id: 'atk:' + q.atk.id }, function () { return { read: r() < (P.roof_dodge == null ? P.dodge : P.roof_dodge), fakes: r() < (P.fake_read == null ? P.dodge : P.fake_read) }; });
+      // only the next wave to land (or the one burning now): a set piece warns the next wave while one is firing
+      var next = Infinity;
+      q.atk.list.forEach(function (l) { if (l.k !== 'gap' && est <= l.t1 + l.len + .03) next = Math.min(next, Math.max(l.t1, est)); });
+      if (ap.read) q.atk.list.forEach(function (l) {
+        if (l.k === 'gap' || (!l.real && ap.fakes) || est < l.t0 + P.notice_s * .5 || est > l.t1 + l.len + .03 || l.t1 - est > 1.25 || l.t1 > next + .12) return;
+        var tiles = l.k === 'tile' ? [[l.c, l.r]] : l.k === 'col' ? [[l.i, 0], [l.i, 1], [l.i, 2]] : [0, 1, 2, 3, 4].map(function (c) { return [c, l.i]; });
+        tiles.forEach(function (t) { var k = key(t[0], t[1]); danger[k] = 1; if (l.t1 - est < .3) block[k] = 1; });
+      });
+    }
+    var here = key(me.c, me.r);
+    if (danger[here]) {
+      var out = toward(function (c, r) { return !danger[key(c, r)]; }, block);
+      if (out) step = out;
+      return send();
+    }
+    var under = tileAt(me.c, me.r);
+    if (q.stall > 0) { a.shoot = o.charge > 0; if (under.carpet && under.grip > q.grip * .55 ) a.slash = true; return send(); }
+    // carpshits: cut the close ones, shoot the one coming down its column
+    var mu = q.tileU[me.c], mz = q.tileZ[me.r], tgt = null;
+    o.flies.forEach(function (f) {
+      if (!noticed(o, f)) return;
+      if (f.z - mz < .16 && f.z > mz - .05 && Math.abs(f.u - mu) < .3) { var cp = plan(f, function () { return { cut: r() < P.fly_slash }; }); if (cp.cut) a.slash = true; }
+      if (f.z > mz + .06 && (!tgt || f.z < tgt.z)) tgt = f;
+    });
+    if (tgt) a.shoot = Math.abs(tgt.u - mu) < .3 && o.charge > P.charge_floor;
+    if (under.carpet && under.grip > (P.reaction_ms / 1000) * .5 + .2) a.slash = true;
+    else if (!a.slash && myRowCarpet() && q.atk.stage !== 'run' && r() < .2) a.slash = true;
+    // between attacks, go and reclaim carpet when there's a lot of it
+    if (!a.slash && q.atk.stage !== 'run' && q.carpets >= 4 && !under.carpet) { var s1 = toward(function (c, r) { return tileAt(c, r).carpet; }); if (s1) step = s1; }
+    return send();
   }
   // The long ride's fight, side on (arena decisions keep their own bookkeeping and dice, used only on this stage).
   // It faces and shoots the nearest carpshit, jumping to shoot the high ones; ducks a dive coming through where it

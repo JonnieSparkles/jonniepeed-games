@@ -8,9 +8,9 @@
       floor.enter('round1');check(Snd.track==='roof'+choice.toUpperCase(),'hash chooses actual fight music');
       floor.enter('round2');floor.enter('round3');
       check(cues.some(c=>c.name==='round2')&&cues.some(c=>c.name==='round3'),'rounds add layers');
-      floor.enter('quiet');const total=R.talk.total;
+      floor.enter('reset');const total=R.talk.total;
       tick(R.talk.times[R.talk.text.length-1]+.02);
-      check(Snd.track===null&&!R.roof.silenced,'last word cuts music without moving the quiet fight timer');
+      check(Snd.track===null&&!R.roof.silenced,'last word of the reset cuts music without moving its timer');
       tick(total);floor.enter('flood');R.roof.cut=null;
       check(cues.some(c=>c.name==='flood'&&c.options.seconds===4),'riser spans flood and pinch');
       floor.enter('fusion');cues=[];tick(.1);

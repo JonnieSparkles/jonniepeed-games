@@ -172,12 +172,18 @@ with sync_playwright() as p:
         page.wait_for_timeout(100)
         assert page.evaluate("unrugTest('R.stage === \"roof\" && RUN.seed === 42 && state === \"play\" && R.roof.state === \"elevator\"')"), name
         assert page.locator('#card').is_hidden() and page.locator('#crawl').is_hidden(), name
-        page.evaluate("unrugTest('looping=false; floor.enter(\"round1\"); floor.volley(); draw()')")
-        assert page.evaluate("""unrugTest('R.roof.rings.every(r => PX(r.u,r.z)-Math.max(15,textWidth(r.odds+\"%\")/2)>0 && PX(r.u,r.z)+Math.max(15,textWidth(r.odds+\"%\")/2)<W && FY(r.z)+4<H && FY(r.z)-14>0)')"""), f'{name}: rings and percentage labels fit'
+        page.evaluate("unrugTest('looping=false; floor.enter(\"round1\"); draw()')")
+        # every tile of the roof's grid, and the far row's warnings, sit wholly on the canvas
+        assert page.evaluate("""unrugTest('[0,1,2,3,4].every(c => [0,1,2].every(r => { const u = floor.tileU(c), z = floor.tileZ(r), hw = floor.ROOF.aisle / 5; return PX(u - hw, z) >= 0 && PX(u + hw, z) <= W && FY(z + floor.ROOF.grid.depth / 2) < H && FY(z - floor.ROOF.grid.depth / 2) > 0 || r === 0 && FY(z) < H; }))')"""), f'{name}: the roof grid fits'
         page.keyboard.down('ArrowUp')
-        page.evaluate("unrugTest('for(let i=0;i<24;i++) update(1/60)')")
+        page.evaluate("unrugTest('for(let i=0;i<4;i++) update(1/60)')")
         page.keyboard.up('ArrowUp')
-        assert page.evaluate("unrugTest('bull.bz > .1 && bull.jh === 0 && !keys.kbUp')"), f'{name}: arrow up walks forward'
+        page.evaluate("unrugTest('for(let i=0;i<20;i++) update(1/60)')")
+        assert page.evaluate("unrugTest('R.roof.at.r === 1 && bull.bz > .1 && bull.jh === 0 && !keys.kbUp')"), f'{name}: arrow up steps one row up the roof'
+        page.keyboard.down('KeyC')
+        page.evaluate("unrugTest('update(1/60)')")
+        assert page.evaluate("unrugTest('!bull.crouch')"), f'{name}: nothing ducks on the roof'
+        page.keyboard.up('KeyC')
         stage = page.locator('.stage').bounding_box()
         canvas = page.locator('#c').bounding_box()
         assert canvas['y'] >= 0 and canvas['y'] + canvas['height'] <= size[1] + 1, f'{name}: whole roof canvas fits vertically'
@@ -192,11 +198,12 @@ with sync_playwright() as p:
             page.dispatch_event('#stickzone', 'pointerdown', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
             page.dispatch_event('#stickzone', 'pointermove', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy - 40})
             page.evaluate("unrugTest('for(let i=0;i<30;i++) update(1/60)')")
-            assert page.evaluate("unrugTest('bull.bz === floor.ROOF.depthMax && bull.jh === 0')"), f'{name}: stick up walks forward'
+            assert page.evaluate("unrugTest('R.roof.at.r === 2 && bull.jh === 0')"), f'{name}: stick up steps up the roof, repeating while held'
             page.dispatch_event('#stickzone', 'pointermove', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy + 40})
             page.evaluate("unrugTest('for(let i=0;i<60;i++) update(1/60)')")
             page.dispatch_event('#stickzone', 'pointerup', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
-            assert page.evaluate("unrugTest('bull.bz === 0 && !bull.crouch && !keys.padUp && !keys.padDown')"), f'{name}: stick down walks back and release clears input'
+            assert page.evaluate("unrugTest('R.roof.at.r === 0 && !bull.crouch && !keys.padUp && !keys.padDown')"), f'{name}: stick down steps back and release clears input'
+            assert page.locator('.pad[data-k="duck"]').count() == 0, f'{name}: the roof has no Duck pad, the same pads as everywhere'
         assert not errors, (name, errors)
         print('PASS roof hash/layout', name)
         context.close()

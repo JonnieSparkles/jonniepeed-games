@@ -70,9 +70,9 @@
       if (stage === 'elevator') { enemy(bull.u, .12); floor.arena.update(.01); check(R.souls > 0 && !R.arena.enemies.length, 'charge contact destroys arena carp'); }
       else {
         R.flies = [{ u: bull.u, z: bull.bz + .01, h: .12, hp: 1, ph: 0 }];
-        if (stage === 'roof') { floor.launchSnare(); floor.volley(); const hp = R.roof.hp; const odds = R.roof.odds; R.roof.volley.t = 2; bull.u = R.roof.rings[0].u; bull.bz = floor.ROOF.ringZ;
+        if (stage === 'roof') { const hp = R.roof.hp; const odds = R.roof.odds; R.roof.fakes.push({ u: bull.u, z: bull.bz, h: .12, ph: 0, t: 0 });
           R.flies[0].u = bull.u; R.flies[0].z = bull.bz; drops.tick(.01, floor);
-          check(R.roof.volley.orbs[0].landed && R.roof.odds === odds, 'charge destroys touched orb without moving odds'); check(R.roof.snare === null && R.roof.hp === hp, 'Bull Run cuts snare without hurting loom'); }
+          check(R.roof.fakes.every(f => f.gone) && R.roof.odds === odds && R.roof.hp === hp, 'Bull Run pops a touched fake without hurting the loom or moving its odds'); }
         else drops.tick(.01, floor);
         check(R.flies[0].dead && bull.bz >= 0, 'charge contact destroys corridor carp in ' + stage);
       }
