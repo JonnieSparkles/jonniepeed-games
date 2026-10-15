@@ -21,6 +21,12 @@ BRIDGE = """  window.unrugTest = function (code) {
 source = source.replace('  start();', BRIDGE + '  start();')
 
 
+def retouch(page):
+    # keys hide the touch controls (they follow the last input); a touch brings them back
+    page.dispatch_event('#c', 'pointerdown', {'pointerId': 99, 'pointerType': 'touch', 'clientX': 1, 'clientY': 1})
+    page.dispatch_event('#c', 'pointerup', {'pointerId': 99, 'pointerType': 'touch', 'clientX': 1, 'clientY': 1})
+
+
 def open_page(browser, url=URL, **ctx):
     context = browser.new_context(**ctx)
     page = context.new_page()
@@ -77,10 +83,10 @@ with sync_playwright() as p:
         assert page.locator('#go').is_visible(), f'{name}: Start is visible'
         assert page.locator('#cardTitle').inner_text() == 'The 13th Floor: Accounting', f'{name}: branded title'
         assert page.locator('#cardTitle').evaluate('(el) => el.scrollWidth <= el.clientWidth'), f'{name}: branded title fits'
-        page.locator('#go').click()
+        page.locator('#go').tap() if touch else page.locator('#go').click()   # a phone taps (a click is a mouse, which hides the pads)
         page.wait_for_timeout(300)
         assert page.locator('#crawl').is_visible(), f'{name}: the first Start tells the story'
-        page.locator('#skip').click()
+        page.locator('#skip').tap() if touch else page.locator('#skip').click()   # a phone taps (a click is a mouse, which hides the pads)
         page.wait_for_timeout(300)
         stage = page.locator('.stage').bounding_box()
         assert stage['x'] >= 0 and stage['x'] + stage['width'] <= size[0] + 1, f'{name}: stage fits across'
@@ -174,6 +180,7 @@ with sync_playwright() as p:
         assert stage['x'] >= 0 and stage['x'] + stage['width'] <= size[0] + 1, name
         if touch:
             # Browsers require a tap to enter full screen; the hash starts play without that gesture.
+            retouch(page)
             assert page.locator('#stickzone').is_visible() and page.locator('.pad[data-k="shoot"]').is_visible(), name
             box = page.locator('#stickzone').bounding_box()
             cx, cy = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
@@ -339,11 +346,30 @@ with sync_playwright() as p:
             for sel in ['#stickzone', '#aimzone']:
                 b = page.locator(sel).bounding_box()
                 assert b and b['y'] + b['height'] <= size[1] + 1 and b['x'] + b['width'] <= size[0] + 1, f'{name}: {sel} fits full screen'
+            if size[0] > size[1]:
+                a, m = page.locator('#aimzone').bounding_box(), page.locator('#stickzone').bounding_box()
+                assert a['x'] + a['width'] >= size[0] - 40 and m['x'] <= 40, f'{name}: the sticks sit in the corners in full screen'
             page.evaluate("unrugTest('floor.startLobby(true); update(1/60); twinClass()')")
             assert page.locator('.pad.shoot').is_visible() and not page.locator('#aimzone').is_visible(), f'{name}: the lobby has the usual controls'
         assert not errors, (name, errors)
         context.close()
         print('PASS 48th Floor hash/input/layout', name)
+    # A touch-screen laptop: the touch controls follow the last input. A tap shows them, the mouse or a key hides them.
+    context, page, errors = open_page(browser, url=URL + '#stage=floor13&seed=42', viewport={'width': 1280, 'height': 800}, has_touch=True)
+    page.clock.install()
+    page.evaluate("unrugTest('looping=false; update(1/60); draw()')")
+    pads = lambda: page.locator('#pads').is_visible()
+    assert pads(), 'touch screen: pads at start'
+    page.mouse.move(100, 100); page.mouse.move(140, 120)
+    assert not pads(), 'touch laptop: moving the mouse hides the pads'
+    page.dispatch_event('#c', 'pointerdown', {'pointerId': 91, 'pointerType': 'touch', 'clientX': 300, 'clientY': 300})
+    page.dispatch_event('#c', 'pointerup', {'pointerId': 91, 'pointerType': 'touch', 'clientX': 300, 'clientY': 300})
+    assert pads(), 'touch laptop: a touch brings them back'
+    page.keyboard.press('KeyD')
+    assert not pads(), 'touch laptop: a key hides them'
+    assert not errors, errors
+    context.close()
+    print('PASS touch controls follow the last input')
     from elevator_audio import check_elevator_audio
     check_elevator_audio(browser, ROOT)
     browser.close()

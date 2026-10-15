@@ -144,13 +144,13 @@ var UnrugSets48 = (function () {
   // across, and the cloth (the rug) growing on its front roller.
   function loom(g, m, t, glowG, speed) {
     if (m.dead) { wreck(g, m, t); return; }
-    const w = m.x1 - m.x0, d = m.y1 - m.y0, top = m.y0 - m.H;
+    // seen from above at a tilt, its top inside the old height (owner, Oct 14: drawn taller, the three looms touched)
+    const dT = 12, w = m.x1 - m.x0, d = m.y1 - m.y0, top = m.y0 - m.H + dT;
     // base
     R2(g, m.x0 - 1, m.y1 - 14, w + 2, 15, C.edge); R2(g, m.x0, m.y1 - 13, w, 13, C.bodyLo); R2(g, m.x0, m.y1 - 13, w, 1, C.bodyHi);
     R2(g, m.x0, m.y0 - 14, w, d, C.body);
     // seen from above at a tilt (owner, Oct 14: it read a little like a side view): the top of the frame shows, a back beam
     // and the side rails running back to it, the warp strung across between them and its glow running back too
-    const dT = 12;
     R2(g, m.x0 + 1, top - 3 - dT, w - 2, 5, C.edge); R2(g, m.x0 + 2, top - 2 - dT, w - 4, 3, C.redLo); R2(g, m.x0 + 2, top - 2 - dT, w - 4, 1, C.red);
     R2(g, m.x0 + 8, top - dT + 1, w - 16, dT - 1, '#16131a');
     for (const x of [m.x0 + 2, m.x1 - 6]) { R2(g, x - 1, top - 2 - dT, 6, dT + 2, C.edge); R2(g, x, top - 1 - dT, 4, dT, C.brassLo); R2(g, x, top - 1 - dT, 4, 1, C.brass); }

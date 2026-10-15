@@ -187,7 +187,8 @@ body.locked{overflow:hidden}
 body:not(.touch).twin .hint .twin-only.keys{display:inline}
 .touch.twin .hint .twin-only.touch{display:inline}
 @media (orientation:portrait){.full.playing .twin .aimzone,.twin .full .aimzone{min-height:120px;width:100%}}
-@media (orientation:landscape){.twin .full .aimzone{flex:0 0 auto;width:min(30vw,220px);height:min(44vh,170px);min-height:0}.twin .full .stick-tip{display:none}}
+/* Landscape full screen: the sticks in the corners, clear of the middle of the picture (owner, Oct 14: the aim stick sat mid-screen). */
+@media (orientation:landscape){.twin .full .aimzone{flex:0 0 auto;width:min(30vw,220px);height:min(44vh,170px);min-height:0}.twin .full .stick-tip{display:none}.twin .full .stickzone:not(.aimzone){flex:0 0 auto}.twin .full .pad-group{flex:0 0 auto}}
 @media (prefers-reduced-motion:reduce){button:active{transform:none}}
 </style>
 </head>
@@ -258,10 +259,10 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 <script src="portrait.js?v=cd047f8eeb"></script>
 <script src="intro.js?v=177d4794e8"></script>
 <script src="lobby.js?v=da5f80ce2d"></script>
-<script src="sets48.js?v=dd8d2631e2"></script>
+<script src="sets48.js?v=268fa0b68e"></script>
 <script src="floor48.js?v=3834c5ab85"></script>
 <script src="elevator.js?v=460af552f7"></script>
 <script src="stairs.js?v=58b64fdcdc"></script>
-<script src="game.js?v=b5471311a8"></script>
+<script src="game.js?v=46acdbf690"></script>
 </body>
 </html>
