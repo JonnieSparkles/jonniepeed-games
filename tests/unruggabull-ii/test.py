@@ -80,10 +80,9 @@ with sync_playwright() as p:
         page.wait_for_timeout(300)
         width = page.evaluate('document.documentElement.scrollWidth')
         assert width <= size[0], f'{name}: no sideways scroll ({width}px)'
-        assert page.locator('#go').is_visible(), f'{name}: Start is visible'
-        assert page.locator('#cardTitle').inner_text() == 'The 13th Floor: Accounting', f'{name}: branded title'
-        assert page.locator('#cardTitle').evaluate('(el) => el.scrollWidth <= el.clientWidth'), f'{name}: branded title fits'
-        page.locator('#go').tap() if touch else page.locator('#go').click()   # a phone taps (a click is a mouse, which hides the pads)
+        start = page.locator('.tb[data-label="Start"]')
+        assert start.is_visible(), f'{name}: Start is visible'
+        start.tap() if touch else start.click()   # a phone taps (a click is a mouse, which hides the pads)
         page.wait_for_timeout(300)
         assert page.locator('#crawl').is_visible(), f'{name}: the first Start tells the story'
         page.locator('#skip').tap() if touch else page.locator('#skip').click()   # a phone taps (a click is a mouse, which hides the pads)
@@ -452,17 +451,51 @@ with sync_playwright() as p:
         assert not errors, (name, errors)
         context.close()
         print('PASS in-play layout', name)
-    # Before Start the page layout stays: the header, the studio link, and a Controls link on the title card
+    # The title screen (title.js, title-plan.md): it fills the window like play, with no header. Upright the painting
+    # fills the screen above the panel and its safe zone (the logo's sky down to his feet) and the logo stay on screen;
+    # sideways it's play's 16:9 picture with the panel over its bottom. Every button is on screen and 44 px tall; a
+    # pick sticks on the device; Exit goes back to JonniePeed Games.
+    for name, (w, h), touch in [('short phone', (360, 640), True), ('S25 portrait', (360, 780), True), ('iPhone', (390, 844), True),
+                                ('tall phone', (412, 915), True), ('tablet upright', (768, 1024), True), ('S25 landscape', (780, 360), True),
+                                ('4:3 tablet', (1024, 768), True), ('desktop window', (1280, 800), False)]:
+        context, page, errors = open_page(browser, viewport={'width': w, 'height': h}, has_touch=touch, is_mobile=touch and w < 1000)
+        page.wait_for_timeout(250)
+        assert page.evaluate("unrugTest('state')") == 'title' and page.evaluate("unrugTest('Title.open')"), f'{name}: the title is up'
+        assert not page.locator('header').is_visible() and not page.locator('#card').is_visible(), f'{name}: no header or HTML card'
+        assert page.evaluate('document.documentElement.scrollWidth') <= w, f'{name}: no sideways scroll'
+        lay = page.evaluate("unrugTest('Title.layout')")
+        assert lay['upright'] == (w < h), f'{name}: upright or not'
+        assert lay['safe'][0] >= -1 and lay['safe'][1] <= h + 1, f'{name}: the safe zone on screen ({lay["safe"]})'
+        assert lay['logo'][0] >= -1 and lay['logo'][1] <= h + 1, f'{name}: the logo on screen ({lay["logo"]})'
+        ids = [b['id'] for b in lay['buttons']]
+        for want in ('mode0', 'mode1', 'mode2', 'start', 'sound', 'exit'):
+            assert want in ids, f'{name}: {want} shows ({ids})'
+        assert 'board' not in ids, f'{name}: no board line until the boards exist'
+        for b in lay['buttons']:
+            assert b['x'] >= -1 and b['y'] >= -1 and b['x'] + b['w'] <= w + 1 and b['y'] + b['h'] <= h + 1, f'{name}: {b["id"]} on screen ({b})'
+            assert min(b['w'], b['h']) >= 43, f'{name}: {b["id"]} at least 44 px ({b})'
+        assert not errors, (name, errors)
+        context.close()
+        print('PASS title layout', name)
     context, page, errors = open_page(browser, viewport={'width': 360, 'height': 780}, has_touch=True, is_mobile=True)
-    page.wait_for_timeout(100)
-    assert page.locator('header').is_visible() and page.locator('.back').is_visible() and page.locator('#titleKeys').is_visible(), 'title: the page layout, with Controls'
-    page.locator('#titleKeys').tap()
-    assert page.locator('#keyList').is_visible(), 'title: Controls shows the controls'
-    page.locator('#go').tap()
-    assert page.locator('#cardTitle').inner_text() == 'The 13th Floor: Accounting', 'title: Back returns to the title card'
+    page.wait_for_timeout(200)
+    assert page.evaluate("unrugTest('Title.mode')") == 'regular', 'title: Regular by default'
+    page.locator('.tb[data-label="RAGING BULL"]').tap()
+    assert page.evaluate("unrugTest('Title.mode + RUN.mode')") == 'ragingraging', 'title: a pick sets the mode'
+    assert page.locator('.tb[data-label="RAGING BULL"]').get_attribute('aria-pressed') == 'true', 'title: the pick is pressed'
+    page.reload(); page.wait_for_timeout(200)
+    assert page.evaluate("unrugTest('Title.mode')") == 'raging', 'title: the pick is kept on the device'
+    page.keyboard.press('ArrowLeft')
+    assert page.evaluate("unrugTest('Title.mode')") == 'regular', 'title: the arrows change the mode'
+    was = page.evaluate("unrugTest('Snd.muted')")
+    page.locator('.tb.tsnd').tap(); page.locator('.tb.tsnd').tap()
+    assert page.evaluate("unrugTest('Snd.muted')") == was, 'title: sound flips and flips back'
+    with page.expect_navigation():
+        page.locator('.tb[data-label="Exit to JonniePeed Games"]').tap()
+    assert page.url.rstrip('/').endswith(':8000') or page.url.endswith('/site/'), f'title: Exit goes to JonniePeed Games ({page.url})'
     assert not errors, errors
     context.close()
-    print('PASS title keeps the page layout')
+    print('PASS title pick, sound and Exit')
 
     # The controls audit's fixes (Oct 15): Enter starts from the title; the blaster only where there's a fight (both
     # lobbies and the quiet ride are katana only, with a dry click, no charge bar and no supplies); Shift fires on the

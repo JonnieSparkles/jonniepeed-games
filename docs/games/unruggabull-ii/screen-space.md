@@ -8,7 +8,7 @@ In full screen the header (title, Pause, Sound, Exit full screen) took 48 of 360
 
 ## The rule
 
-During play (from the end of the intro: playing, paused, and the rugged and clear cards) the game always uses the in-play layout below, on every device, whether or not the browser is in full screen. Full screen only decides whether the browser's own bars show. The page layout (the JonniePeed Games link, the header, the help line) stays for the title card. Start still goes full screen on a phone; on a computer it doesn't (the usual practice for browser games), and the Full screen button and F stay.
+During play (from the end of the intro: playing, paused, and the rugged and clear cards) the game always uses the in-play layout below, on every device, whether or not the browser is in full screen. Full screen only decides whether the browser's own bars show. The title screen fills the window too, with its own layout ([title-plan.md](title-plan.md), Oct 15), so the page layout (the JonniePeed Games link, the header, the help line) no longer shows; Exit on the title goes back to JonniePeed Games. Start still goes full screen on a phone; on a computer it doesn't (the usual practice for browser games), and the Full screen button and F stay.
 
 ## Landscape (and desktop)
 
@@ -29,7 +29,7 @@ During play (from the end of the intro: playing, paused, and the rugged and clea
 ## The pause card
 
 - Paused over the dimmed game, with the stage's own line as today. Buttons are 44 px tall: **Resume**, **Controls**, **Sound**, **Full screen** (Exit full screen while in it; not shown where the browser has no full screen), **Restart floor**, **Quit to JonniePeed Games**. One column in portrait; three short rows in landscape and on a computer, so it fits 360 px.
-- **Controls** lists what the current stage uses on the current device (the stick and buttons on a phone, keys and mouse on a computer; the 48th and the roof their own), then Back. It replaces the help line under the game during play. The title card gets a Controls link too.
+- **Controls** lists what the current stage uses on the current device (the stick and buttons on a phone, keys and mouse on a computer; the 48th and the roof their own), then Back. It replaces the help line under the game during play. (The title card had a Controls link too; the title screen that replaced it leaves Controls to the pause card.)
 - Its look is provisional: the card's design may change with the title screen and clear card redesigns (items 4 and 5).
 
 ## Out of scope

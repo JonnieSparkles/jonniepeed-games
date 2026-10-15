@@ -83,7 +83,7 @@
   function rnd() { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
   const rr = (a, b) => a + (b - a) * rnd();
   const fxr = (a, b) => a + (b - a) * Math.random();
-  const RUN = { force: null, seed: 0, refillBetweenStages: true };
+  const RUN = { force: null, seed: 0, refillBetweenStages: true, mode: 'regular' };   // mode: the title's pick (baby, regular, raging); nothing reads it yet (item 29)
   let travelHook = null; // test adapter may stop at the end of a single stage
   const hashTokens = () => location.hash.replace(/^#/, '').split('&').filter(Boolean);
   function hashSeed() { for (const tk of hashTokens()) { const m = /^seed=(\d+)$/.exec(tk); if (m) return +m[1]; } return null; }
@@ -853,110 +853,6 @@
       lines.forEach((l, i) => { txt(g, l.slice(0, Math.max(0, left)), 6, y + 2 + i * 7, '#fff6e2'); left -= l.length + 1; });
     }
   }
-  // ---------- title: RugCo Tower at sunset ----------
-  // Souls drift up the threads to p(Loom)'s beacon on the roof while carpshits circle. Static layers are cached once.
-  const GROUND = 122, BEACON = { x: 120, y: 40 };
-  let TOWER = null;
-  // The title's backdrop, drawn once at the picture's full size (in its pixels, so twice the game's units): a dithered
-  // dusk sky with stars, the city in two layers with lit windows and rooftop clutter, the threads of souls running up to
-  // RugCo Tower's beacon, the tower with its window grid and the sunset catching its edges, and the street.
-  const hash2 = (a, b) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  function skyline(b, list, col, edge, win, k) {
-    const R = (x, y, w, h, c) => { b.fillStyle = c; b.fillRect(x, y, w, h); }, G = GROUND * 2;
-    for (const [ux, uy, uw] of list) {
-      const x = ux * 2, y = uy * 2, w = uw * 2;
-      R(x, y, w, G - y, col); R(x + w - 1, y, 1, G - y, edge);
-      // something on the roof: an antenna, a water tower, a vent
-      const r = hash2(x, k);
-      if (r < .3) R(x + w * .3 | 0, y - 9, 1, 9, col);
-      else if (r < .55) { R(x + 4, y - 6, 8, 5, col); R(x + 5, y - 1, 1, 1, col); R(x + 10, y - 1, 1, 1, col); }
-      else if (r < .75) R(x + w - 9, y - 3, 6, 3, col);
-      for (let wy = y + 5; wy < G - 4; wy += 6) for (let wx = x + 3; wx < x + w - 3; wx += 5) {
-        const h = hash2(wx * 3 + k, wy);
-        if (h < .16) R(wx, wy, 2, 3, h < .04 ? '#fff6c8' : win); else if (h < .5) R(wx, wy, 2, 3, edge);
-      }
-    }
-  }
-  function buildTower() {
-    const PW2 = W * 2, PH2 = H * 2, G = GROUND * 2;
-    const sky = A.canvas(PW2, PH2), front = A.canvas(PW2, PH2), s = sky.getContext('2d'), f = front.getContext('2d');
-    const R = (b, x, y, w, h, c) => { b.fillStyle = c; b.fillRect(x, y, w, h); };
-    // the sky: eight bands of dusk, dithered into each other
-    const BANDS = ['#0b0920', '#100c28', '#171033', '#21123d', '#2f1545', '#41184a', '#561a4a', '#6c1d47', '#7a2246'];
-    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-    for (let y = 0; y < PH2; y++) {
-      const v = Math.min(BANDS.length - 1.001, y / 30), i0 = Math.floor(v), fr = v - i0;
-      for (let x = 0; x < PW2; x++) { s.fillStyle = fr * 16 > BAYER[(y & 3) * 4 + (x & 3)] ? BANDS[i0 + 1] : BANDS[i0]; s.fillRect(x, y, 1, 1); }
-    }
-    for (let i = 0; i < 110; i++) { const x = Math.floor(hash2(i, 1) * PW2), y = Math.floor(hash2(i, 2) * 150), c = i % 9 ? '#6f6596' : '#ffffff'; R(s, x, y, 1, 1, c); if (i % 23 === 0) { R(s, x - 1, y, 3, 1, '#a8a0d0'); R(s, x, y - 1, 1, 3, '#a8a0d0'); R(s, x, y, 1, 1, '#ffffff'); } }
-    // the threads run from the beacon down into the city, behind the buildings
-    f.globalAlpha = .7;
-    for (const [x, y] of [[18, 87], [52, 78], [81, 90], [160, 89], [189, 76], [225, 86]]) { f.strokeStyle = '#7a5aa0'; f.lineWidth = 1; f.beginPath(); f.moveTo(BEACON.x * 2 + .5, BEACON.y * 2 + .5); f.lineTo(x * 2 + .5, y * 2 + .5); f.stroke(); }
-    f.globalAlpha = 1;
-    skyline(f, [[0, 87, 20], [18, 93, 17], [33, 80, 20], [52, 90, 15], [69, 96, 22], [150, 94, 20], [168, 83, 18], [186, 91, 15], [201, 78, 21], [220, 88, 20]], '#1a1230', '#2a1c48', '#ffbf5a', 13);
-    // RugCo Tower: a shaft, two setbacks, a spire and the beacon's mast; the sunset catches both edges
-    const T0 = 210, T1 = 270;
-    R(f, T0, 100, T1 - T0, G - 100, '#120d22');
-    R(f, T0 + 8, 88, T1 - T0 - 16, 12, '#120d22'); R(f, T0 + 22, 70, T1 - T0 - 44, 18, '#120d22'); R(f, 238, 56, 4, 14, '#1c1630');
-    for (const [a, b2, y0] of [[T0, T1, 100], [T0 + 8, T1 - 8, 88], [T0 + 22, T1 - 22, 70]]) { R(f, a, y0, 1, G - y0, '#ff9a3c'); R(f, b2 - 1, y0, 1, G - y0, '#e8483a'); R(f, a, y0, b2 - a, 1, '#3a2654'); }
-    for (let wy = 132; wy < G - 6; wy += 9) for (let wx = T0 + 5; wx < T1 - 6; wx += 7) {
-      const h = hash2(wx, wy * 3);
-      R(f, wx, wy, 4, 5, h < .14 ? '#ff9a3c' : h < .2 ? '#ffd060' : '#221a38');
-      if (h < .14) R(f, wx, wy, 4, 1, '#ffd8a0');
-    }
-    // its sign, in orange neon
-    R(f, 214, 108, 52, 18, '#1a1418'); R(f, 215, 109, 50, 16, '#2a0e0a');
-    f.save(); f.globalAlpha = .35; txt(f, 'RUGCO', 240, 111, '#ff9a3c', 2, 'center'); f.restore();
-    txt(f, 'RUGCO', 240, 112, '#ffb060', 2, 'center');
-    skyline(f, [[0, 100, 26], [22, 106, 18], [40, 97, 23], [64, 108, 20], [147, 104, 21], [166, 97, 23], [189, 106, 18], [207, 100, 33]], '#0d0a1a', '#181230', '#ffd060', 11);
-    // the street, with the city's lights on it
-    R(f, 0, G, PW2, PH2 - G, '#0a0816');
-    for (let i = 0; i < 16; i++) R(f, 150 + ((i * 47) % 180), G + 5 + (i % 5) * 4, 6 + (i % 3) * 6, 1, i % 2 ? '#ff9a3c' : '#e8483a');
-    R(f, 0, G, PW2, 1, '#1e1636');
-    TOWER = { sky, front };
-  }
-  // the bull on the title: three quarters of his size in play, scaled once with hard pixels
-  const TITLE_K = .75;
-  let titleBull = null;
-  const TITLE_BULL = () => titleBull || (titleBull = (() => {
-    const src = A.POSES.stand, w = Math.round(src.width * TITLE_K), h = Math.round(src.height * TITLE_K), c = A.canvas(w, h), x = c.getContext('2d');
-    x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, w, h); return c;
-  })());
-  function drawTower(t) {
-    if (!TOWER) buildTower();
-    g.drawImage(TOWER.sky, 0, 0, W, H);
-    // the sun sinks behind the tower in scrolling stripes
-    const sx = 120, sy = 96, Rs = 38;
-    for (let d2 = -Rs * 2; d2 <= Rs * 2; d2++) {   // in half units: the picture's own rows
-      const dy = d2 / 2, y = sy + dy; if (y >= GROUND) break;
-      const w = Math.floor(Math.sqrt(Rs * Rs - dy * dy) * 2) / 2, k = (dy + Rs) / (2 * Rs);
-      if (d2 > 4) { const gap = 2 + Math.floor(d2 / 10), ph = (((d2 + Math.floor(t * 10)) % 16) + 16) % 16; if (ph < gap) continue; }
-      g.fillStyle = k < .2 ? '#fff27a' : k < .32 ? '#ffd44a' : k < .5 ? '#ffad3c' : k < .72 ? '#ff7a3a' : '#e8483a'; g.fillRect(sx - w, y, 2 * w + .5, .5);
-    }
-    g.drawImage(TOWER.front, 0, 0, W, H);
-    // him, a bit smaller than in play, with the sunset outlining him so he stands out against the dark tower
-    const tk = A.BULL_K * TITLE_K, bx = 120 - A.POSE_FEET.x * tk, by = GROUND - A.POSE_FEET.y * tk, bw = A.POSE_W * tk, bh = A.POSE_H * tk;
-    const rim = tinted(TITLE_BULL(), '#ffc870');
-    for (const [dx, dy] of [[-.5, 0], [.5, 0], [0, -.5], [-.5, -.5], [.5, -.5]]) g.drawImage(rim, bx + dx, by + dy, bw, bh);
-    g.drawImage(TITLE_BULL(), bx, by, bw, bh);
-    const on = Math.sin(t * 3) > .4;
-    g.save(); g.globalAlpha = on ? .35 : .18; disc(g, BEACON.x, BEACON.y, 6, '#ff9628'); g.restore();
-    disc(g, BEACON.x, BEACON.y, 2, on ? '#fff0a0' : '#ff9628');
-    g.save(); g.globalAlpha = .75;
-    [[30, 92], [69, 98], [172, 95], [212, 88], [96, 104]].forEach(([x, y], i) => {
-      const k = mod1(t * .12 + i / 5);
-      g.drawImage(A.GHOST, Math.round(x + (BEACON.x - 4 - x) * k + Math.sin(t * 2 + i) * 3), Math.round(y + (BEACON.y - 6 - y) * k), A.uw(A.GHOST), A.uh(A.GHOST));
-    });
-    g.restore();
-    [[66, 60], [160, 50], [84, 46], [150, 74], [40, 72]].forEach(([x, y], i) => wavy(A.CARPF[(Math.floor(t * 8) + i) % 2], x, Math.round(y + Math.sin(t * 2.5 + i) * 2), 13, 6, t * 12 + i, 1));
-  }
-  function drawTitle() {
-    drawTower(R.t);
-    // the logo (art.js), at the picture's full size
-    const L = A.logo(), lw = A.uw(L), lh = A.uh(L);
-    g.drawImage(L, Math.round((120 - lw / 2 - 5) * 2) / 2, 3, lw, lh);
-    otxt(g, 'SALVATION FOR THE UNRUGGED', 120, 3 + lh + 1, '#fff6e2', 1, 'center');
-  }
   // The light things give off this frame, for the renderer: blaster bolts as they fly, the muzzle flash, pickups.
   // Bolts and the flash are kept soft, so steady fire lights the hall without strobing it.
   // (The floor adds its own.)
@@ -981,7 +877,7 @@
   // (shaken as a whole when something hits hard), then the flashes, the HUD and the words on top, crisp.
   function draw() {
     if (state === 'intro') { use(view); drawIntro(); return; }
-    if (state === 'title') { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); drawTitle(); return; }
+    if (state === 'title') return;   // title.js draws the title screen on its own canvas
     if (floor.cutActive && floor.cutActive()) { use(view); view.setTransform(PIC, 0, 0, PIC, 0, 0); floor.drawCut(); return; }
     if (floor.frameHeld && floor.frameHeld()) return;
     const r = renderer();
@@ -1015,7 +911,7 @@
   // ---------- page: card, sound, full screen ----------
   const gameEl = $('game'), card = $('card'), cardTitle = $('cardTitle'), cardText = $('cardText'), cardStats = $('cardStats'), cardNote = $('cardNote');
   const goBtn = $('go'), altBtn = $('alt'), pauseBtn = $('pause'), snd = $('snd'), fsBtn = $('fs');
-  const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), titleKeys = $('titleKeys'), ipause = $('ipause');
+  const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), ipause = $('ipause');
   const BEST_KEY = 'unruggabull-ii-best';
   const bestKey = stage => stage === 'floor13' ? BEST_KEY : BEST_KEY + '-' + stage;
   let best = { souls: 0, time: 0 }, cardKind = 'title';
@@ -1024,34 +920,27 @@
     best = { souls: 0, time: 0 };
     try { const v = JSON.parse(localStorage.getItem(bestKey(stage)) || 'null'); if (v) best = { souls: +v.souls || 0, time: +v.time || 0 }; } catch (e) {}
   }
-  const clock = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   function stats(rows) {
     cardStats.textContent = '';
     for (const [k, v] of rows) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; cardStats.append(dt, dd); }
     cardStats.hidden = !rows.length;
   }
-  let Cards = null;   // the clear, rugged and pause cards (cards.js); made before start()
+  let Cards = null, Title = null;   // the clear, rugged and pause cards (cards.js) and the title screen (title.js); made before start()
   function showCard(kind, extra) {
+    if (kind !== 'title' && Title) Title.hide();
     if (kind === 'clear' || kind === 'rugged' || kind === 'pause') { cardKind = kind; card.hidden = true; Cards.show(kind, cardInfo(kind, extra)); return; }
     if (Cards) Cards.hide();
     cardKind = kind;
     const rows = [];
     altBtn.hidden = true; cardNote.hidden = true;
-    cardText.hidden = false; keyList.hidden = true; moreBtns.hidden = true; titleKeys.hidden = kind !== 'title';
-    if (kind === 'title') {
-      cardTitle.textContent = 'The 13th Floor: Accounting';
-      cardText.textContent = "Every soul you ever freed is still on RugCo's books. Free " + TUNE.goal + ' on the 13th Floor until Accounting notices.';
-      if (best.souls) rows.push(['Best', best.souls + ' souls']);
-      if (best.time) rows.push(['Fastest clear', clock(best.time)]);
-      goBtn.textContent = 'Start';
-      cardNote.textContent = 'Demo: the first floor of the climb.'; cardNote.hidden = false;
-      const land = document.createElement('span'); land.className = 'land-note'; land.textContent = ' Best played in landscape.'; cardNote.append(land);
-    }
+    cardText.hidden = false; keyList.hidden = true; moreBtns.hidden = true;
+    // the title screen is title.js's (title-plan.md); the HTML card is only Controls now
+    if (kind === 'title') { card.hidden = true; Title.show(); return; }
     stats(rows);
     card.hidden = false;
   }
-  // Controls: what this stage uses on this device (keys and mouse, or the touch controls), from the pause card or the
-  // title card; Back returns to the card it came from.
+  // Controls: what this stage uses on this device (keys and mouse, or the touch controls), from the pause card; Back
+  // returns to it.
   let keysFrom = null;
   function controlsRows() {
     const touch = document.body.classList.contains('touch'), title = state === 'title';
@@ -1093,14 +982,13 @@
     cardText.textContent = state !== 'title' && twinOn() ? 'The 48th Floor' : touch ? 'Touch' : 'Keys and mouse';
     keyList.textContent = '';
     for (const [k, v] of stageNotes(controlsRows())) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; keyList.append(dt, dd); }
-    keyList.hidden = false; cardStats.hidden = true; cardNote.hidden = true; moreBtns.hidden = true; titleKeys.hidden = true; altBtn.hidden = true;
+    keyList.hidden = false; cardStats.hidden = true; cardNote.hidden = true; moreBtns.hidden = true; altBtn.hidden = true;
     goBtn.textContent = 'Back';
     goBtn.focus({ preventScroll: true });
   }
   cKeys.addEventListener('click', showKeys);
-  titleKeys.addEventListener('click', showKeys);
   const LABELS = {
-    title: 'Title screen: Unruggabull, katana on his back, faces RugCo Tower at sunset while souls drift up to a beacon on its roof.',
+    title: 'Title screen: Unruggabull stands in RugCo Alley at night, in front of the garage from the first game, its fire out. RugCo Tower rises behind it, p(Loom)\'s eye glowing in the pavilion on its roof.',
     play: 'Unruggabull, seen from behind, in an office hallway on the 13th Floor of RugCo Tower. Cubicles line the hall, a red runner rug leads to SHRED-O, a giant shredder, at the far end.'
   };
   function setState(s) {
@@ -1111,9 +999,11 @@
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
     // in play the game fills the window on every device, in or out of full screen (screen-space.md)
-    const inGame = s === 'play' || s === 'pause' || s === 'over';
+    const inGame = s === 'play' || s === 'pause' || s === 'over' || s === 'title';   // the title too (title-plan.md)
     if (Cards && s !== 'over' && s !== 'pause') Cards.hide();
+    if (Title && s !== 'title') Title.hide();
     gameEl.classList.toggle('ingame', inGame);
+    gameEl.classList.toggle('titling', s === 'title');
     document.body.classList.toggle('locked', inGame || isFull());
     layoutPlay();
   }
@@ -1288,7 +1178,7 @@
   }
   // The HTML card is the title card and Controls now; clear, rugged and pause are cards.js's.
   goBtn.addEventListener('click', () => {
-    if (cardKind === 'keys') { showCard(keysFrom); if (keysFrom === 'title') goBtn.focus({ preventScroll: true }); return; }
+    if (cardKind === 'keys') { showCard(keysFrom); return; }
     goFull();
     startIntro();   // Start always plays the story; skip it from there (the owner, Oct 13)
   });
@@ -1308,7 +1198,7 @@
   cSnd.addEventListener('click', flipSound);
   $('isnd').addEventListener('click', e => { e.stopPropagation(); flipSound(); });
   function unlockSound(e) {
-    if ((e.target instanceof Node && (snd.contains(e.target) || cSnd.contains(e.target) || $('isnd').contains(e.target))) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
+    if ((e.target instanceof Node && (snd.contains(e.target) || cSnd.contains(e.target) || $('isnd').contains(e.target) || (e.target.closest && e.target.closest('.tb.tsnd')))) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
     if (e.type === 'keydown' && (e.key === 'm' || e.key === 'M')) return;
     if (Snd.muted || state === 'pause') return;
     Snd.init(); sndLabel();
@@ -1372,9 +1262,10 @@
   function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; if (floor && floor.steer) floor.steer(null); for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (state === 'title' && cardKind === 'title' && !e.repeat && (e.key === 'Enter' || e.key === ' ')) {
+    if (state === 'title' && cardKind === 'title') {
       const on = document.activeElement;
-      if (!(on && on.closest && on.closest('button, a'))) { e.preventDefault(); goBtn.click(); return; }   // a focused button or link handles its own
+      if ((e.key === 'Enter' || e.key === ' ') && on && on.closest && on.closest('button, a')) return;   // a focused button or link handles its own
+      if (Title.key(e)) { e.preventDefault(); return; }   // the mode, Start (Enter, Space), the board (B)
     }
     const k = KEYS.get(e);
     if (state === 'play' && k && TWIN_HOLD[k]) { e.preventDefault(); twin.kb[TWIN_HOLD[k]] = 1; return; }
@@ -1675,7 +1566,7 @@
     let dt = last ? Math.min(.1, Math.max(0, (now - last) / 1000)) : 0;
     last = now;
     while (dt > 1e-6) { const s = Math.min(STEP, dt); update(s); dt -= s; }
-    draw(); padRings(); twinClass(); sceneClass(); layoutPlay(); dialSync(); Cards.frame();
+    draw(); padRings(); twinClass(); sceneClass(); layoutPlay(); dialSync(); Cards.frame(); if (state === 'title') Title.frame();
   }
   // ---------- the cards' words and buttons ----------
   // What each card says comes from the run; cards.js lays it out and draws it.
@@ -1702,7 +1593,6 @@
     checkpoint = null; clearHeld();
     newRun(); setState('title'); showCard('title');
     Snd.music('theme');
-    try { goBtn.focus({ preventScroll: true }); } catch (e) {}
   }
   Cards = UnrugCards.make({ A, arena: gameEl.querySelector('.arena'), stage: $('stage'), actions: {
     next() {   // a clear's Continue: on up the tower, as the clear's button did
@@ -1719,6 +1609,14 @@
     sound: flipSound, soundLabel: () => soundOn() ? 'Sound on' : 'Sound off',
     full: toggleFull, fullLabel: () => isFull() ? 'Exit full screen' : 'Full screen', canFull: () => canFull
   } });
+  Title = UnrugTitle.make({ A, arena: gameEl.querySelector('.arena'), stage: $('stage'), actions: {
+    start(mode) { RUN.mode = mode; goFull(); startIntro(); },   // Start always plays the story; skip it from there
+    picked(mode) { RUN.mode = mode; },
+    exit() { location.href = '../'; },
+    sound: flipSound, soundOn,
+    board: () => null   // no boards yet: they come with the modes (item 29); the line and the board stay hidden until then
+  } });
+  RUN.mode = Title.mode;
   function start() {
     setTimeout(renderer, 60);   // the renderer works out the hall once (a moment's work), while the title's up
     newRun();

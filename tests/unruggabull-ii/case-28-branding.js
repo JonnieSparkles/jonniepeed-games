@@ -2,8 +2,7 @@
 (function () {
   const check=(ok,msg)=>{if(!ok)throw new Error(msg);};
   RUN.force=42;newRun();setState('title');showCard('title');
-  check(floor.id==='floor13'&&cardTitle.textContent==='The 13th Floor: Accounting','brand title, stable floor id');
-  check(cardText.textContent.includes('on the 13th Floor'),'brand title help');
+  check(floor.id==='floor13'&&Title.open&&card.hidden,'the title screen, stable floor id');
   check(document.title.includes('the 13th Floor'),'brand page title');
   for(const selector of ['meta[name="description"]','meta[property="og:title"]','meta[property="og:description"]','meta[name="twitter:title"]','meta[name="twitter:description"]'])check(document.querySelector(selector).content.includes('the 13th Floor'),'brand metadata '+selector);
   check(STORY.length===6&&STORY[5].endsWith('Accounting. Sharp ones.'),'the intro ends on Accounting');

@@ -124,8 +124,10 @@ var UnrugArt = (function () {
   const TEMP_RUG = NS.TEMP_RUG;
   // ---------- the logo ----------
   // UNRUGGABULL II in a 5x7 block face, 4x6 picture pixels a cell, leaning forward with speed streaks trailing off the
-  // left: gold-white above the horizon line, orange to red below, a black outline and a drop shadow, the II in gold
-  // with a glint. Drawn once at the picture's full size (k: half a game unit a pixel).
+  // left: cream to gold above the middle, orange to red below, the II in gold. The title screen's "sharpened" version
+  // (title-plan.md, Oct 15): a thick dark outline, a short burnt edge under the letters and a fine highlight along
+  // the top of each cell. Drawn once at the picture's full size (k: half a game unit a pixel). glint: where the II's glint goes
+  // (title.js draws it, every few seconds); base: the bottom of the letters, for what goes under them.
   const LOGO_F = { U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'], N: ['10001', '11001', '11101', '10111', '10011', '10001', '10001'],
     R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'], G: ['01110', '10001', '10000', '10111', '10001', '10001', '01111'],
     A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
@@ -133,27 +135,31 @@ var UnrugArt = (function () {
   let LOGO = null;
   function logo() {
     if (LOGO) return LOGO;
-    const cw = 4, ch = 6, H = 7 * ch, lean = 1.8, cells = [];
-    let x = 0;
-    for (const [word, ii] of [['UNRUGGABULL', false], ['II', true]]) {
-      for (const c of word) {
+    const cw = 4, ch = 6, H = 7 * ch, lean = 1.8, gap = 6, ext = 2, cells = [];
+    const word = (letters, x0, ii) => {
+      let x = x0;
+      [...letters].forEach(c => {
         const f = LOGO_F[c];
         f.forEach((row, y) => { for (let i = 0; i < row.length; i++) if (row[i] === '1') cells.push({ x: x + i * cw + Math.round((6 - y) * lean), y: y * ch, ii }); });
-        x += f[0].length * cw + 6;
-      }
-      x += 8;
-    }
-    const w = x - 14 + 40, cv = canvas(w + 8, H + 10), g = cv.getContext('2d'), ox = 40, oy = 3;
+        x += f[0].length * cw + gap;
+      });
+      return x - gap;
+    };
+    const end = word('UNRUGGABULL', 0, false), w = word('II', end + 10, true) + 30;
+    const ox = 18, oy = 4, cv = canvas(w + 10, H + 16), g = cv.getContext('2d');
     const fill = (c, yy) => c.ii ? (yy < .5 ? '#fff27a' : '#ffd21e') : yy < .47 ? (yy < .2 ? '#fff6e2' : '#ffd24a') : yy < .7 ? '#ff7a2a' : '#d8241a';
     // speed streaks off the left of each row
     const rows = {};
     for (const c of cells) rows[c.y] = Math.min(rows[c.y] == null ? 1e9 : rows[c.y], c.x);
-    for (const y in rows) for (let k = 0; k < 3; k++) { g.fillStyle = k ? 'rgba(255,154,60,.5)' : '#ff9a3c'; g.fillRect(ox + rows[y] - 12 - k * 12 - (y % 3) * 3, oy + +y + 3, 9 - k * 2, 1); }
-    g.fillStyle = 'rgba(0,0,0,.55)'; for (const c of cells) g.fillRect(ox + c.x + 3, oy + c.y + 4, cw, ch);
-    g.fillStyle = '#0a080d'; for (const c of cells) g.fillRect(ox + c.x - 2, oy + c.y - 2, cw + 4, ch + 4);
+    for (const y in rows) for (let k = 0; k < 2; k++) { g.fillStyle = k ? 'rgba(255,154,60,.5)' : '#ff9a3c'; g.fillRect(ox + rows[y] - 10 - k * 9 - (y % 3) * 2, oy + +y + 3, 6 - k * 2, 1); }
+    g.fillStyle = '#0a080d'; for (const c of cells) g.fillRect(ox + c.x - 2, oy + c.y - 2, cw + 8, ch + 8);   // the outline, the burnt edge's too
+    g.fillStyle = '#6a1408'; for (let d = ext; d >= 1; d--) for (const c of cells) g.fillRect(ox + c.x + d, oy + c.y + d, cw, ch);
     for (const c of cells) for (let yy = 0; yy < ch; yy++) { g.fillStyle = fill(c, (c.y + yy) / H); g.fillRect(ox + c.x, oy + c.y + yy, cw, 1); }
+    // a highlight along the top of every cell: fine bright lines across the letters, like scanlines
+    for (const c of cells) { g.fillStyle = c.ii ? '#ffffff' : '#fffbe8'; g.fillRect(ox + c.x, oy + c.y, cw, 1); }
     const gl = cells.filter(c => c.ii)[2];
-    if (gl) { g.fillStyle = '#ffffff'; g.fillRect(ox + gl.x + 1, oy + gl.y + 1, 1, 1); g.fillRect(ox + gl.x, oy + gl.y + 2, 3, 1); g.fillRect(ox + gl.x + 1, oy + gl.y + 3, 1, 1); }
+    cv.glint = gl ? { x: ox + gl.x, y: oy + gl.y } : null;
+    cv.base = oy + H + ext;
     cv.k = .5;
     return (LOGO = cv);
   }

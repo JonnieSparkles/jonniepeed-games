@@ -5,8 +5,8 @@
   const key = (type, k) => dispatchEvent(new KeyboardEvent(type, { key: k, bubbles: true }));
   try { localStorage.removeItem('unruggabull-ii-story'); } catch (e) {}
   newRun(); setState('title'); showCard('title');
-  check(altBtn.hidden, 'one button on the title: Start');
-  goBtn.click();
+  check(Title.open && card.hidden, 'the title screen is up');
+  Title.press('Start');
   check(state === 'intro' && !crawl.hidden && card.hidden, 'the first Start tells the story');
   for (let k = 0; k < 50 && intro.i < 0; k++) step(.1);
   check(intro.i === 0, 'the first still starts once its pictures are in (or after 4 s at most)');
@@ -49,8 +49,8 @@
   step(FADE + .1);
   check(!fadeIn, 'and the light clears');
   setState('title'); showCard('title');
-  check(altBtn.hidden, 'still one button once the story has been seen');
-  goBtn.click();
+  check(Title.open, 'the title again once the story has been seen');
+  Title.press('Start');
   check(state === 'intro' && !crawl.hidden, 'every Start plays the story');
   for (let k = 0; k < 50 && intro.i < 0; k++) step(.1);
   key('keydown', 'Escape');
