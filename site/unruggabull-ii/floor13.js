@@ -1395,7 +1395,7 @@ var UnrugFloor13 = function (core) {
     if (p.friendly) { const k = Math.floor(p.spin) % 2; rect(g, x - w / 2 - 1 - k, y - 1, 1, 1, '#bfefff'); rect(g, x + w / 2 + k, y, 1, 1, '#bfefff'); }
   }
   const CHAIR_US = [-.5, -.3, -.1, .1, .3, .5];
-  const BEAM_H = [.23, .265];   // moving day's plank: its underside and top, as a share of the hall's height
+  const BEAM_H = [.24, .275];   // moving day's plank: its underside and top, as a share of the hall's height
 
   function drawRow(row, z) {
     if (!row.hit && !DUCKS[row.kind]) jumpCue(z, -.66, .66);

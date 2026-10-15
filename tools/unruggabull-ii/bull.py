@@ -445,6 +445,7 @@ POSE = {
     'slash':      ('stand', 'fwd', 'slash', {}),
     'jumpWind':   ('jump', 'up', 'wind', {}),
     'jumpCut':    ('jump', 'up', 'slash', {}),
+    'crouchAim':  ('crouch', 'crouch', 'aim', {}),   # crouched and shooting: the blaster up beside his head, as in the aim pose, a crouch lower
     'crouchWind': ('crouch', 'crouch', 'wind', {}),
     'crouchCut':  ('crouch', 'fwd', 'slash', {}),
     'hurt':       ('stand', 'flinch', 'flinch', {'bob': 1}),
