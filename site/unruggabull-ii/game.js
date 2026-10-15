@@ -221,7 +221,15 @@
   const crouchHeld = () => !floor.depthMove && (keys.kbDown || keys.padDown);
   // stages where he can walk crouched (side on: the lobbies and the rides); elsewhere crouched means standing still
   const crouchWalks = () => !!(floor.crouchWalk && floor.crouchWalk());
-  function press(k) { if (k === 'drop' && state === 'play') { drops.use(); return; } if (state !== 'play') return; if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12; }
+  // Katana-only stages (both lobbies and the quiet ride; owner, Oct 15): the blaster comes out only where there's a fight.
+  // Shoot gives a dry click there, the charge bar hides, the Shoot pad greys out and supplies wait.
+  const blasterOff = () => !!(floor && floor.blasterOff && floor.blasterOff());
+  function press(k) {
+    if (state !== 'play') return;
+    if (k === 'drop') { if (!blasterOff()) drops.use(); return; }
+    if (k === 'shoot' && blasterOff()) { Snd.play('sputter'); return; }
+    if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12;
+  }
   const onRunner = () => Math.abs(bull.u) < TUNE.runner && bull.jh < .03 && !bull.mouth && !bull.spat;
   function updateBull(dt) {
     const b = bull;
@@ -257,7 +265,7 @@
     if (R.speed > .02 || dir || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
     // the blaster: hold Shoot to keep firing, or tap for one shot
     R.fireT -= dt;
-    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !R.beam && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
+    if ((shooting() || input.shoot > 0) && R.fireT <= 0 && !R.beam && !blasterOff() && (R.phase === 'hall' || R.phase === 'boss' || R.phase === 'wake')) { input.shoot = 0; R.fireT = fire() ? TUNE.fireEvery : .25; }
   }
   function slash() {
     bull.slash = 0; bull.cd = TUNE.slashCd;
@@ -774,6 +782,7 @@
     for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
     // blaster charge under the hearts: blue when ready, red and blinking when empty (and overheated), gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
+    if (blasterOff()) { floor.hud(); drops.hud(g); return; }   // katana only here: no charge bar
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
     rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.gold || R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
     if (dry && (R.empty > 0 || blink)) rect(g, 4, 14, 49, 3, '#d63428');
@@ -1062,7 +1071,7 @@
       return r;
     }
     const sys = [['Supply', 'E, or click its icon'], ['Pause', 'P or Esc'], ['Sound', 'M'], ['Full screen', 'F']];
-    if (tw) return [['Move', 'W A S D'], ['Aim and fire', 'the mouse: hold the left button'], ['', 'or the arrow keys'], ['Fire', "J, Z or ' (where you move or last aimed)"], ['Slash', 'Space, Shift, Enter, K or X'], ['', 'or the right mouse button']].concat(sys);
+    if (tw) return [['Move', 'W A S D'], ['Aim and fire', 'the mouse: hold the left button'], ['', 'or the arrow keys'], ['Fire', "Shift, J, Z or ' (where you move or last aimed)"], ['Slash', 'Space, Enter, K or X'], ['', 'or the right mouse button']].concat(sys);
     const r = [['Move', 'A and D, or \u2190 \u2192']];
     if (roof) r.push(['Up the roof', 'W or \u2191'], ['Back', 'S or \u2193']);
     else r.push(['Jump', 'W, \u2191 or Space'], ['Crouch', 'S, C or \u2193']);
@@ -1070,13 +1079,20 @@
     r.push(['Shoot', "Shift, J, Z or ' (hold to keep firing)"], ['', 'or the left mouse button'], ['Slash', 'Enter, K or X'], ['', 'or the right mouse button']);
     return r.concat(sys);
   }
+  // the stage's own exceptions: no blaster in the lobbies and the quiet ride, no katana before the Rugmergency
+  function stageNotes(rows) {
+    if (state === 'title') return rows;
+    const off = blasterOff(), sheathed = !!(floor.katana && !floor.katana());
+    return rows.map(([k, v]) => k === 'Shoot' && off ? [k, 'not here: the blaster is put away'] : k === 'Slash' && sheathed ? [k, v + ', once you have the katana'] : [k, v])
+      .filter(([k, v], i, all) => !(off && k === '' && all[i - 1] && all[i - 1][0] === 'Shoot'));
+  }
   function showKeys() {
     keysFrom = cardKind; cardKind = 'keys';
     const touch = document.body.classList.contains('touch');
     cardTitle.textContent = 'Controls';
     cardText.textContent = state !== 'title' && twinOn() ? 'The 48th Floor' : touch ? 'Touch' : 'Keys and mouse';
     keyList.textContent = '';
-    for (const [k, v] of controlsRows()) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; keyList.append(dt, dd); }
+    for (const [k, v] of stageNotes(controlsRows())) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; keyList.append(dt, dd); }
     keyList.hidden = false; cardStats.hidden = true; cardNote.hidden = true; moreBtns.hidden = true; titleKeys.hidden = true; altBtn.hidden = true;
     goBtn.textContent = 'Back';
     goBtn.focus({ preventScroll: true });
@@ -1291,7 +1307,7 @@
 
   // Sound: on unless muted, but browsers only let it start after a tap or key press.
   const soundOn = () => Snd.ready && !Snd.muted;
-  function sndLabel() { for (const b of [snd, cSnd]) { b.setAttribute('aria-pressed', String(soundOn())); b.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; } }
+  function sndLabel() { for (const b of [snd, cSnd, $('isnd')]) { b.setAttribute('aria-pressed', String(soundOn())); b.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; } }
   Snd.onready = sndLabel;
   function flipSound() {
     if (soundOn()) { Snd.toggle(); sndLabel(); return; }
@@ -1300,8 +1316,9 @@
   }
   snd.addEventListener('click', flipSound);
   cSnd.addEventListener('click', flipSound);
+  $('isnd').addEventListener('click', e => { e.stopPropagation(); flipSound(); });
   function unlockSound(e) {
-    if ((e.target instanceof Node && (snd.contains(e.target) || cSnd.contains(e.target))) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
+    if ((e.target instanceof Node && (snd.contains(e.target) || cSnd.contains(e.target) || $('isnd').contains(e.target))) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
     if (e.type === 'keydown' && (e.key === 'm' || e.key === 'M')) return;
     if (Snd.muted || state === 'pause') return;
     Snd.init(); sndLabel();
@@ -1357,13 +1374,17 @@
     e: 'drop', E: 'drop', k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };
   const TWIN_CODES = { KeyW: 'mUp', KeyA: 'mLeft', KeyS: 'mDown', KeyD: 'mRight', ArrowUp: 'aUp', ArrowDown: 'aDown', ArrowLeft: 'aLeft', ArrowRight: 'aRight',
-    Space: 'slash', ShiftLeft: 'slash', ShiftRight: 'slash', Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash',
-    KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot', KeyE: 'drop' };
+    Space: 'slash', Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash',
+    ShiftLeft: 'shoot', ShiftRight: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot', KeyE: 'drop' };
   const TWIN_HOLD = { mUp: 'up', mDown: 'down', mLeft: 'left', mRight: 'right', aUp: 'aimUp', aDown: 'aimDown', aLeft: 'aimLeft', aRight: 'aimRight' };
   const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
   function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (state === 'title' && cardKind === 'title' && !e.repeat && (e.key === 'Enter' || e.key === ' ')) {
+      const on = document.activeElement;
+      if (!(on && on.closest && on.closest('button, a'))) { e.preventDefault(); goBtn.click(); return; }   // a focused button or link handles its own
+    }
     const k = KEYS.get(e);
     if (state === 'play' && k && TWIN_HOLD[k]) { e.preventDefault(); twin.kb[TWIN_HOLD[k]] = 1; return; }
     if (state === 'play' && k) {
@@ -1420,6 +1441,7 @@
     if (p && pads.contains(p)) { const r = p.getBoundingClientRect(); if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return p.dataset.k; }   // on the pad itself, not its touch margin
     let best = null, bd = PAD_REACH;
     for (const q of pads.querySelectorAll('.pad')) {
+      if (q.classList.contains('sheathed')) continue;
       const r = q.getBoundingClientRect(), d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
       if (d < bd) { bd = d; best = q; }
     }
@@ -1434,9 +1456,18 @@
     el.style.setProperty('--fill', f);
     el.classList.toggle('low', c === 'low'); el.classList.toggle('off', c === 'off');
   }
+  let sheathedWas = false;
   function padRings() {
+    // the stairwell before the Rugmergency: no Slash button (it keeps its space, so Shoot never moves); it pops in with the katana
+    const sheathed = !!(floor.katana && !floor.katana());
+    if (sheathed !== sheathedWas) {
+      slashPad.classList.toggle('sheathed', sheathed);
+      if (!sheathed && sheathedWas && R.phase !== 'dead') { slashPad.classList.remove('reveal'); void slashPad.offsetWidth; slashPad.classList.add('reveal'); }
+      sheathedWas = sheathed;
+    }
     if (!document.body.classList.contains('touch')) return;
-    ring(shootPad, 'shoot', R.armed === false ? 0 : R.charge / TUNE.charges, R.armed === false ? 'off' : R.charge < 4 ? 'low' : '');
+    const off = R.armed === false || blasterOff();
+    ring(shootPad, 'shoot', off ? 0 : R.charge / TUNE.charges, off ? 'off' : R.charge < 4 ? 'low' : '');
     ring(slashPad, 'slash', 1 - bull.cd / TUNE.slashCd);
   }
   function padSync() {

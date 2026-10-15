@@ -620,7 +620,7 @@ var UnrugElevator = function (core) {
     get label() { return Q && Q.lobby ? "Unruggabull, side on, in the 13th Floor's elevator lobby, waiting for the car." : 'Unruggabull, side on, in the walnut-and-brass elevator climbing RugCo Tower, with its Unrugged operator on his stool.'; },
     lines: { low: false, rugged: false, spread: false, deflect: false },
     newRun, update, opening: noop, resume: noop, use(x) { g = x; arena.use(x); lobby.use(x); },
-    crouchWalk: () => true, lobby,   // side on: he can walk crouched in the lobby and both rides (TUNE.crouchWalk)
+    crouchWalk: () => true, lobby, blasterOff: () => !!Q && !Q.fight,   // the 13th's lobby and the quiet ride are katana only   // side on: he can walk crouched in the lobby and both rides (TUNE.crouchWalk)
     view: () => ({ ambient: 1 }), lights: arena.lights, shakeOffset,
     draw, glows, overlay, hud,
     fire: arena.fire, slashHits: arena.slashHits, muzzleXY: () => ({ x: arena.X(bull.u + (bull.facing || 1) * .12), y: arena.Y(bull.jh + .14) }),
