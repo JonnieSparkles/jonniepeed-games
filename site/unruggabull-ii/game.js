@@ -117,7 +117,6 @@
       armed: true, roll: null, zap: 0, forms: []   // the blaster in hand; the rug rolling back; the surge's flash; formations for wipes
     };
     bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0, pin: 0 };
-    drops.newRun(R, bull, at);
     floor.newRun(R, bull, at && at.transfer && floor.id === 'floor13' ? null : at);
     R.banked = at && at.banked || 0;   // the stairwell's souls: in the run's total, not in the 13th Floor's meter
     if (at && at.transfer) {
@@ -227,7 +226,6 @@
   const blasterOff = () => !!(floor && floor.blasterOff && floor.blasterOff());
   function press(k) {
     if (state !== 'play') return;
-    if (k === 'drop') { if (!blasterOff()) drops.use(); return; }
     if (k === 'shoot' && blasterOff()) { Snd.play('sputter'); return; }
     if (k === 'jump' || k === 'slash' || k === 'shoot') input[k] = .12;
   }
@@ -245,7 +243,7 @@
     b.crouch = crouchHeld() && b.jh <= 0 && R.phase !== 'win';
     // how long he's been standing about (cosmetic: his idle poses)
     b.idle = moveDir() || (floor.depthMove && depthDir()) || shooting() || b.jh > 0 || b.slash >= 0 || b.crouch || b.aimT > 0 || R.speed > .02 || (R.pull.st === 'on' && onRunner()) ? 0 : (b.idle || 0) + dt;
-    const dir = R.phase === 'win' || b.pin > 0 || (b.crouch && !crouchWalks()) || (R.bullRun > 0 && floor.id === 'floor13') ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
+    const dir = R.phase === 'win' || b.pin > 0 || (b.crouch && !crouchWalks()) ? 0 : moveDir();   // pinned at the back by the rolling rug: no sidestepping
     b.crouchWalking = b.crouch && !!dir;
     b.u = clamp(b.u + dir * TUNE.move * (b.crouch ? TUNE.crouchWalk : 1) * dt, -TUNE.aisle, TUNE.aisle);
     if (input.jump > 0 && b.jh <= 0) { input.jump = 0; b.jv = JUMP_V; b.jh = .0001; b.sq = -.12; b.crouch = false; Snd.play('jump'); }
@@ -259,10 +257,10 @@
     if (R.pull.st === 'on' && onRunner()) {
       b.bz += TUNE.pullSpeed * (b.crouch ? TUNE.grip : 1) * dt;
       if (b.crouch) { if (!R.events.gripped) { R.events.gripped = true; popText('GRIP!', PX(b.u, b.bz), YH(b.bz, .2), '#ffd44a'); } if (Math.random() < dt * 10) R.fx.push({ k: 'dust', x: PX(b.u, b.bz) + fxr(-5, 5), y: FY(b.bz), s: sc(b.bz), t: 0, dur: .25 }); }
-      if (b.bz >= TUNE.mouth && !(R.bullRun > 0)) floor.draggedIn();
+      if (b.bz >= TUNE.mouth) floor.draggedIn();
     }
     else if (floor.depthMove) floor.depthMove(dt, depthDir());
-    else if (!(R.bullRun > 0)) b.bz = Math.max(0, b.bz - TUNE.recover * dt);
+    else b.bz = Math.max(0, b.bz - TUNE.recover * dt);
     if (R.speed > .02 || dir || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())) b.step += dt * 8;
     // the blaster: hold Shoot to keep firing, or tap for one shot
     R.fireT -= dt;
@@ -355,7 +353,7 @@
     R.shots = R.shots.filter(s => !s.dead && Math.abs(s.u) < 1.1);
   }
   function hurtBull(n, cause) {
-    if (R.bullRun > 0 || bull.inv > 0 || bull.mouth > 0 || bull.spat > 0 || R.phase === 'dead' || R.phase === 'win') return false;
+    if (bull.inv > 0 || bull.mouth > 0 || bull.spat > 0 || R.phase === 'dead' || R.phase === 'win') return false;
     R.hearts = Math.max(0, R.hearts - n); bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15; bull.stag = .3;   // he staggers (drawn only)
     if (R.hearts === 1) bark('low');
     R.lastCause = cause || 'unknown'; emit('hit', { amount: n, cause: R.lastCause });
@@ -584,12 +582,9 @@
     R.pulse = Math.max(0, R.pulse - dt);
     if (lowHealth()) { R.pulseT -= dt; if (R.pulseT <= 0) { R.pulseT = .9; R.pulse = .35; Snd.play('thump'); } } else R.pulseT = 0;
     R.dist += R.speed * dt;
-    const activeFloor = floor;
     floor.update(dt);
-    if (floor === activeFloor && R.phase !== 'dead' && R.phase !== 'win') drops.tick(dt, floor);
   }
   function die() {
-    if (drops.save()) return;
     if (floor.checkpoint) floor.checkpoint();
     R.statsStage = stageNo();
     R.phase = 'dead'; R.phaseT = 0; R.hearts = 0; R.bark = null;
@@ -782,13 +777,13 @@
     for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
     // blaster charge under the hearts: blue when ready, red and blinking when empty (and overheated), gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
-    if (blasterOff()) { floor.hud(); drops.hud(g); return; }   // katana only here: no charge bar
+    if (blasterOff()) { floor.hud(); return; }   // katana only here: no charge bar
     rect(g, 3, 13, 51, 5, '#1a1418'); rect(g, 4, 14, 49, 3, '#243a6c');
     rect(g, 4, 14, Math.round(49 * ch), 3, R.chargeFlash > 0 ? '#ffffff' : R.gold || R.spread > 0 ? '#ffd44a' : ch < .25 ? '#ff7050' : '#7fd4ff');
     if (dry && (R.empty > 0 || blink)) rect(g, 4, 14, 49, 3, '#d63428');
     if (R.spread > 0 && (R.spread > 2 || blink)) otxt(g, 'SPREAD', 4, 20, '#ffd44a');
     if (R.armed === false && R.phase !== 'win') { rect(g, 3, 13, 51, 5, '#1a1418'); if (blink || R.empty > 0) txt(g, 'NO BLASTER', 5, 13, '#ff5040'); }
-    floor.hud(); drops.hud(g);
+    floor.hud();
   }
   // The souls freed so far, top right, with a ghost that bobs as each one lands.
   function drawSoulsCounter(displayed) {
@@ -1053,17 +1048,17 @@
     const touch = document.body.classList.contains('touch'), title = state === 'title';
     const tw = !title && twinOn(), roof = !title && !!floor.depthMove, low = !title && crouchWalks();
     if (touch) {
-      if (tw) return [['Move', 'the left stick'], ['Aim and fire', 'hold the right stick'], ['Slash', 'flick the right stick'], ['', 'a tap slashes the nearest threat'], ['Supply', 'tap its icon by the hearts']];
+      if (tw) return [['Move', 'the left stick'], ['Aim and fire', 'hold the right stick'], ['Slash', 'flick the right stick'], ['', 'a tap slashes the nearest threat']];
       const r = [['Move', 'slide the stick']];
       if (roof) r.push(['Up the roof', 'push the stick up'], ['Back', 'pull it down'], ['', 'a tile at a time, then freely once the souls come back'], ['', 'or drag a finger on the picture']);
       else r.push(['Jump', 'flick it up'], ['Crouch', 'hold it down']);
       if (low || title) r.push(['', 'down and sideways walks crouched' + (title ? ' (stairs, lobbies, rides)' : '')]);
       r.push(['Shoot', 'hold Shoot to keep firing']);
       if (roof) r.push(['', 'the souls fire on their own once they come back']);
-      r.push(['Slash', 'tap Slash'], ['Supply', 'tap its icon by the hearts']);
+      r.push(['Slash', 'tap Slash']);
       return r;
     }
-    const sys = [['Supply', 'E, or click its icon'], ['Pause', 'P or Esc'], ['Sound', 'M'], ['Full screen', 'F']];
+    const sys = [['Pause', 'P or Esc'], ['Sound', 'M'], ['Full screen', 'F']];
     if (tw) return [['Move', 'W A S D'], ['Aim and fire', 'the mouse: hold the left button'], ['', 'or the arrow keys'], ['Fire', "Shift, J, Z or ' (where you move or last aimed)"], ['Slash', 'Space, Enter, K or X'], ['', 'or the right mouse button']].concat(sys);
     const r = [['Move', 'A and D, or \u2190 \u2192']];
     if (roof) r.push(['Up the roof', 'W or \u2191'], ['Back', 'S or \u2193'], ['', 'a tile at a time, then freely once the souls come back'], ['', 'or hold the mouse on the picture']);
@@ -1135,7 +1130,7 @@
   function travel(stage, extra = {}) {
     if (travelHook && travelHook(stage)) return;
     const carried = Object.assign({ stage, transfer: true, souls: R.souls + (R.banked || 0), hearts: R.hearts,
-      heldDrop: R.heldDrop, dropNext: R.dropNext, continues: R.continues,
+      continues: R.continues,
       seedState: seed, runSeed: RUN.seed }, extra);
     checkpoint = null; clearHeld(); input.jump = input.slash = input.shoot = 0;
     newRun(carried, stage);
@@ -1162,8 +1157,8 @@
     live(floor.continueText ? floor.continueText() : 'Back at SHRED-O with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
-  // The 13th Floor's elevator: its lobby (DING, the doors, he boards), then the quiet ride (no fight, Please Hold, a
-  // supply crate) up to the 48th Floor.
+  // The 13th Floor's elevator: its lobby (DING, the doors, he boards), then the quiet ride (no fight, Please Hold) up to
+  // the 48th Floor.
   const RIDE_TO_48 = { fight: false, from: 13, lobby: true, destination: { floor: 48, label: '48', stage: 'floor48' } };
   // Phones go full screen when you start; it has to happen inside the tap.
   function goFull() { if (document.body.classList.contains('touch') && !isFull()) toggleFull(); }
@@ -1351,17 +1346,17 @@
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
     ArrowDown: 'down', KeyS: 'down', KeyC: 'down',
     ShiftLeft: 'shoot', ShiftRight: 'shoot', Quote: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot',
-    KeyE: 'drop', Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash'
+    Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash'
   };
   const NAMES = {
     ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
     ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', ArrowDown: 'down', s: 'down', S: 'down', c: 'down', C: 'down',
     Shift: 'shoot', "'": 'shoot', '"': 'shoot', j: 'shoot', J: 'shoot', z: 'shoot', Z: 'shoot',
-    e: 'drop', E: 'drop', k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
+    k: 'slash', K: 'slash', x: 'slash', X: 'slash', Enter: 'slash'
   };
   const TWIN_CODES = { KeyW: 'mUp', KeyA: 'mLeft', KeyS: 'mDown', KeyD: 'mRight', ArrowUp: 'aUp', ArrowDown: 'aDown', ArrowLeft: 'aLeft', ArrowRight: 'aRight',
     Space: 'slash', Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash',
-    ShiftLeft: 'shoot', ShiftRight: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot', KeyE: 'drop' };
+    ShiftLeft: 'shoot', ShiftRight: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot' };
   const TWIN_HOLD = { mUp: 'up', mDown: 'down', mLeft: 'left', mRight: 'right', aUp: 'aimUp', aDown: 'aimDown', aLeft: 'aimLeft', aRight: 'aimRight' };
   // on the roof (depthMove) up walks up the roof and nothing jumps: Space does nothing there
   const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : floor.depthMove && e.code === 'Space' ? null : CODES[e.code] || NAMES[e.key] };
@@ -1404,7 +1399,6 @@
     if (e.pointerType !== 'mouse' || state !== 'play') return;
     const p = toPic(e), tw = twinOn();
     if (tw) { twin.mouse.x = p.x; twin.mouse.y = p.y; twin.mouse.on = true; twin.mouse.t = R.t; }
-    if (R.heldDrop) { const icon = drops.DROPS.icon; if (p.x / PIC >= icon.x && p.x / PIC <= icon.x + icon.w && p.y / PIC >= icon.y && p.y / PIC <= icon.y + icon.h) return; }
     e.preventDefault();
     if (e.button === 2) press('slash');
     else if (e.button === 0) { if (tw) twin.mouse.down = true; else keys.mouseShoot = true; press('shoot'); }
@@ -1421,12 +1415,6 @@
 
   // Touch: a thumb stick on the left, Shoot and Slash on the right. Each finger is tracked, so a thumb can slide between
   // Shoot and Slash; they act as a finger lands on them, and Shoot keeps firing while held.
-  c.addEventListener('pointerdown', e => {
-    if (state !== 'play' || !R.heldDrop) return;
-    const box = c.getBoundingClientRect(), x = (e.clientX - box.left) * W / box.width, y = (e.clientY - box.top) * H / box.height;
-    const icon = drops.DROPS.icon;
-    if (x >= icon.x && x <= icon.x + icon.w && y >= icon.y && y <= icon.y + icon.h) { e.preventDefault(); press('drop'); }
-  });
   const pads = $('pads'), padPointers = new Map();
   // A thumb a little off a pad, in the gap between two, still counts: the nearest pad within reach.
   const PAD_REACH = 18;
@@ -1740,9 +1728,8 @@
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext, banked: R.banked, floorStart: R.floorStart }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart }, v); }
   };
-  const drops = UnrugDrops(core); core.drops = drops;
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
   core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick
   floor = floors.floor13;

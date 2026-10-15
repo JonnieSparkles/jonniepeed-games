@@ -118,7 +118,7 @@ var UnrugTopdown = function (core, tuning) {
     if (b.slash >= 0) { b.slash += dt; if (b.slash >= TD.slashT) b.slash = -1; }
     if (R.phase === 'dead' || R.td.locked) { b.vx = b.vy = 0; return; }
     b.tangle = Math.max(0, (b.tangle || 0) - dt);
-    const m = moveVec(), spd = TD.speed * (R.bullRun > 0 ? 1.7 : 1) * (b.tangle > 0 ? TD.thread.slow : 1);
+    const m = moveVec(), spd = TD.speed * (b.tangle > 0 ? TD.thread.slow : 1);
     const k = 1 - Math.exp(-TD.accel * dt);
     b.vx += (m.x * spd - b.vx) * k; b.vy += (m.y * spd - b.vy) * k;
     const belt = R.td.push(b.x, b.y);
@@ -323,7 +323,6 @@ var UnrugTopdown = function (core, tuning) {
     return n;
   }
   function contact(e, cause) {
-    if (R.bullRun > 0) { kill(e, 'bullRun'); return; }
     const dx = bull.x - e.x, dy = bull.y - e.y, d = Math.hypot(dx, dy) || 1;
     if (hurtBull(1, cause)) {
       bull.kx = dx / d * TD.knock; bull.ky = dy / d * TD.knock;
@@ -437,11 +436,10 @@ var UnrugTopdown = function (core, tuning) {
       } else if (p.kind === 'thread') {
         if (Math.hypot(bull.x - p.x, bull.y - p.y) < TD.thread.r + TD.radius) {
           p.dead = true;
-          if (!(R.bullRun > 0) && !(bull.inv > 0)) { bull.tangle = TD.thread.tangle; emit('td_tangle'); Snd.play('snare'); const s = screenOf(bull.x, bull.y - 34); core.popText('TANGLED', s.x / 2, s.y / 2, '#ff9a3c'); }
+          if (!(bull.inv > 0)) { bull.tangle = TD.thread.tangle; emit('td_tangle'); Snd.play('snare'); const s = screenOf(bull.x, bull.y - 34); core.popText('TANGLED', s.x / 2, s.y / 2, '#ff9a3c'); }
         }
       } else if (Math.hypot(bull.x - p.x, bull.y - p.y) < TD.bobbin.r + TD.radius) {
-        if (R.bullRun > 0) p.dead = true;
-        else if (hurtBull(1, 'bobbin')) { p.dead = true; const d = Math.hypot(p.vx, p.vy) || 1; bull.kx = p.vx / d * TD.knock * .6; bull.ky = p.vy / d * TD.knock * .6; }
+        if (hurtBull(1, 'bobbin')) { p.dead = true; const d = Math.hypot(p.vx, p.vy) || 1; bull.kx = p.vx / d * TD.knock * .6; bull.ky = p.vy / d * TD.knock * .6; }
       }
     }
     R.td.thrown = R.td.thrown.filter(p => !p.dead);
@@ -485,11 +483,6 @@ var UnrugTopdown = function (core, tuning) {
     // it doesn't wait forever: it blinks for its last three seconds
     if (p.life != null && p.life - p.t < 3 && Math.floor(p.t * 8) % 2) { g.save(); g.globalAlpha = .5; rect(g, x - 9, y - 9, 18, 18, '#09070b'); g.restore(); }
   }
-  function bullRun() {
-    if (!(R.bullRun > 0)) return;
-    for (const e of R.td.enemies) if (!e.dead && Math.hypot(e.x - bull.x, e.y - bull.y) < TD[e.kind].r + 12) kill(e, 'bullRun');
-    for (const p of R.td.thrown) if (!p.dead && Math.hypot(p.x - bull.x, p.y - bull.y) < 12) p.dead = true;
-  }
   function clearThreats(by) {
     for (const e of R.td.enemies) kill(e, by);
     R.td.enemies = []; R.td.thrown = []; R.shots = [];
@@ -522,7 +515,7 @@ var UnrugTopdown = function (core, tuning) {
   function update(dt) {
     moveBull(dt);
     R.rapid = Math.max(0, (R.rapid || 0) - dt); R.pierce = Math.max(0, (R.pierce || 0) - dt);
-    if (R.phase !== 'dead') { stepEnemies(dt); stepThrown(dt); bullRun(); stepPickups(dt); }
+    if (R.phase !== 'dead') { stepEnemies(dt); stepThrown(dt); stepPickups(dt); }
     stepShots(dt);
     stepFx(dt);
     camTo(false);
@@ -547,8 +540,7 @@ var UnrugTopdown = function (core, tuning) {
     const b = bull;
     if (R.phase === 'dead') { drawDeath(); return; }
     shadow(b.x, b.y, 9);
-    if (R.bullRun > 0) { g.save(); g.globalAlpha = .4; for (let i = 1; i <= 3; i++) { const p = bullPose(); g.save(); g.translate(Math.round(b.x - b.vx * .02 * i), Math.round(b.y - b.vy * .02 * i)); if (p.flip) g.scale(-1, 1); g.drawImage(p.img, -p.feet.x, -p.feet.y); g.restore(); } g.restore(); }
-    if (b.inv > 0 && Math.floor(R.t * 18) % 2 && !(R.bullRun > 0)) return;
+    if (b.inv > 0 && Math.floor(R.t * 18) % 2) return;
     const p = bullPose(), recoil = b.aimT > .08 ? 1.5 : 0;
     g.save(); g.translate(Math.round(b.x - b.ax * recoil), Math.round(b.y - (p.bob || 0) - b.ay * recoil * .5)); if (p.flip) g.scale(-1, 1);
     g.drawImage(p.img, -p.feet.x, -p.feet.y);

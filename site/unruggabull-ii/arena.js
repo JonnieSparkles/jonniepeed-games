@@ -45,10 +45,6 @@ var UnrugArena = function (core, tuning) {
     if (moveDir() && !bull.crouch) bull.facing = moveDir();
     updateBull(dt);
     if (bull.kick) { bull.u = clamp(bull.u + bull.kick * dt, -ARENA.limit, ARENA.limit); bull.kick *= Math.pow(.0003, dt); if (Math.abs(bull.kick) < .01) bull.kick = 0; }
-    if (R.bullRun > 0) {
-      bull.u = clamp(bull.u + facing() * 2.5 * dt, -ARENA.limit, ARENA.limit);
-      if (Math.abs(bull.u) >= ARENA.limit) bull.facing *= -1;
-    }
     bull.u = clamp(bull.u, -ARENA.limit, ARENA.limit);
   }
   function fire() {
@@ -63,7 +59,7 @@ var UnrugArena = function (core, tuning) {
     e.dead = true; free(X(e.u), Y(e.h), e.kind, by); Snd.play('poof');
     if (by === 'slash') for (const s of [-1, 1]) R.arena.fx.push({ k: 'half', x: PXu(e.u), y: PYh(e.h) + s * 4, vx: (Math.random() - .5) * 80, vy: s * 60 - 40, r: 0, vr: s * 6, top: s < 0, t: 0, dur: .6 });
   }
-  // All three attacks share armor; arrival and Bull Run still destroy outright.
+  // All three attacks share armor; arrival still destroys outright.
   function hit(e, by) {
     if (e.dead) return;
     if (!e.armored) { kill(e, by); return; }
@@ -186,7 +182,6 @@ var UnrugArena = function (core, tuning) {
     R.arena.enemies = L.filter(e => !e.dead);
   }
   function contact(e, cause) {
-    if (R.bullRun > 0) { kill(e, 'bullRun'); return; }
     const away = Math.sign(bull.u - e.u) || facing();
     if (hurtBull(1, cause)) { bull.kick = away * 1.0; e.u -= away * ARENA.contactKick; if (e.swoop) { e.swoop = null; e.swoopT = rr(...ARENA.swoopEvery); } }
   }
@@ -205,8 +200,7 @@ var UnrugArena = function (core, tuning) {
       if (p.friendly) {
         for (const e of R.arena.enemies) if (!e.dead && crossed(p, oldU, e, ARENA.shotRadius, e.tall || ARENA.shotTall)) { p.dead = true; hit(e, 'deflect'); break; }
       } else if (touches(p.u, p.h, ARENA.wadU)) {
-        if (R.bullRun > 0) p.dead = true;
-        else if (hurtBull(1, 'arena_wad')) p.dead = true;
+        if (hurtBull(1, 'arena_wad')) p.dead = true;
       }
       if (Math.abs(p.u) > 1.15 || p.h < ARENA.lowest || p.h > .85) p.dead = true;
     }

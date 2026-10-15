@@ -1,5 +1,5 @@
 // The elevator: the long ride from the 48th Floor to the roof (docs/games/unruggabull-ii/long-ride-plan.md), and the
-// quiet ride (no fight: the muzak, the doors, a supply crate). Both are one timeline of beats in seconds (Q.t).
+// quiet ride (no fight: the muzak and the doors). Both are one timeline of beats in seconds (Q.t).
 // The long ride: "Floor?", the climb and small talk; p(Loom) takes the dial, then the cable (a cut-in above the car);
 // the drop; the brakes; its threads come through the hatch and reel the car up (a second cut-in); 30 seconds of Horns Up
 // and carpshits down the threads (arena.js); the top; the doors open on the roof; the operator's crate; he walks out.
@@ -12,7 +12,7 @@ var UnrugElevator = function (core) {
   const T = { eye: 16, cut: 18.2, snap: 19.45, fall: 20.3, brake: 21.8, hush: 22.6, thread: 24, hook: 24.9, reel: 25.8,
     armor: 34.8, last: 46.8, arrive: 55.8, doors: 57.2, crate: 58 };
   const ELEVATOR = { from: 13, fight: true, destination: { floor: 99, label: 'R', stage: 'roof' }, T,
-    // the quiet ride: doors close, banter on the climb, then the doors and a supply crate
+    // the quiet ride: doors close, banter on the climb, then the doors
     quiet: { climb: 27 },
     // the 13th Floor's lobby before the quiet ride (lobby.js, as the 48th's): the car comes up from G, DING at 2.6 s
     lobby: { floor: 13, dialFrom: 0, walkIn: 1.1, dingAt: 2.6, doorsT: 1.2, doorU: .6, doorway: .25, walkOut: 1 },
@@ -35,7 +35,7 @@ var UnrugElevator = function (core) {
   // ---------- the timeline ----------
   const lerp = (a, b, k) => a + (b - a) * k, ease = k => k * k * (3 - 2 * k);
   // when the quiet ride and the long ride reach the top
-  const top = () => Q.fight ? { arrive: T.arrive, doors: T.doors, crate: T.crate } : { arrive: 2 + ELEVATOR.quiet.climb, doors: 3.4 + ELEVATOR.quiet.climb, crate: 5.4 + ELEVATOR.quiet.climb };
+  const top = () => Q.fight ? { arrive: T.arrive, doors: T.doors, crate: T.crate } : { arrive: 2 + ELEVATOR.quiet.climb, doors: 3.4 + ELEVATOR.quiet.climb };
   const fightOn = t => Q.fight && t >= T.reel + .6 && t < T.arrive - .5;
   const lightsOut = t => Q.fight && t >= T.fall && t < T.arrive;
   const locked = t => (Q.fight && t >= T.cut && t < T.hook) || Q.out > 0;
@@ -158,7 +158,7 @@ var UnrugElevator = function (core) {
     // a continue from the long ride's fight starts again at the threads, with the souls it came in with
     const startAt = at && !at.transfer && at.startAt ? at.startAt : 0;
     core.setCheckpoint({ stage: 'elevator', souls: R.souls, continues: R.continues,
-      heldDrop: at && at.heldDrop || null, dropNext: at && at.dropNext || 'spread', destination: Q.destination, from: Q.from, fight,
+      destination: Q.destination, from: Q.from, fight,
       startAt: fight ? T.thread : 0, seedState: core.seedState(), runSeed: core.runSeed() });
     if (startAt) {
       for (let t = 0; t < startAt; t += 1 / 60) Q.shaft += speedAt(t) / 60;
@@ -211,20 +211,19 @@ var UnrugElevator = function (core) {
     stepCosmetic(dt);
     Q.t += dt;
   }
-  // The crate: the operator slides it over and it waits. The long ride's gives full hearts, or bonus souls if he's
-  // already full; the quiet ride's is the next supply drop (drops.js).
+  // The long ride's crate: the operator slides it over and it waits. It gives full hearts, or bonus souls if he's
+  // already full. The quiet ride has none.
   function stepCrate(dt) {
-    const p = top();
-    if (Q.t >= p.crate && !Q.crate && !Q.out) { Q.crate = { u: ELEVATOR.crateFrom, got: false, kind: Q.fight ? 'hearts' : core.drops.choose() }; Snd.play('rideCrate'); emit('elevator_crate'); }
+    if (!Q.fight) return;
+    if (Q.t >= T.crate && !Q.crate && !Q.out) { Q.crate = { u: ELEVATOR.crateFrom, got: false, kind: 'hearts' }; Snd.play('rideCrate'); emit('elevator_crate'); }
     const c = Q.crate;
     if (c && !c.got) {
       c.u = Math.max(Math.max(UX(200), bull.u + .109), c.u - ELEVATOR.crateSpeed * dt);
       if (Math.abs(c.u - bull.u) < .118 && bull.jh < .07) {
         c.got = true; Snd.play('power');
-        if (!Q.fight) core.drops.give(c.kind);
-        else if (R.hearts < TUNE.hearts) { c.gave = 'hearts'; R.hearts = TUNE.hearts; core.popText('FULL HEARTS', 120, 78, '#ffd44a'); }
+        if (R.hearts < TUNE.hearts) { c.gave = 'hearts'; R.hearts = TUNE.hearts; core.popText('FULL HEARTS', 120, 78, '#ffd44a'); }
         else { c.gave = 'souls'; Q.crateSouls = ELEVATOR.crateSouls; core.popText('+' + ELEVATOR.crateSouls + ' SOULS', 120, 78, '#ffd44a'); }
-        emit('elevator_supply', { item: c.gave || c.kind });
+        emit('elevator_supply', { item: c.gave });
       }
     }
     // the bonus souls come out one a frame
@@ -456,8 +455,7 @@ var UnrugElevator = function (core) {
     const x = Math.round(PX(c.u));
     rect(g, x - 14, FLOOR - 22, 28, 22, '#1a1418'); rect(g, x - 13, FLOOR - 21, 26, 20, '#8c6a44'); rect(g, x - 13, FLOOR - 12, 26, 2, '#6a4a2a');
     rect(g, x - 1, FLOOR - 21, 2, 20, '#6a4a2a');
-    if (c.kind === 'hearts') g.drawImage(A.HEART, x - Math.round(A.HEART.width / 2), FLOOR - 12 - Math.round(A.HEART.height / 2));
-    else { g.save(); g.scale(2, 2); core.drops.drawIcon(g, c.kind, x / 2 - 7, (FLOOR - 19) / 2); g.restore(); }
+    g.drawImage(A.HEART, x - Math.round(A.HEART.width / 2), FLOOR - 12 - Math.round(A.HEART.height / 2));
   }
   // warm sconces; the brownout; dark and red on the drop and the fight
   function shade(t) {
