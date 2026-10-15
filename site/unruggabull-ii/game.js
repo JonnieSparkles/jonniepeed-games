@@ -1495,9 +1495,17 @@
   // the page knows which controls to show: the twin sticks, or the stick with Shoot and Slash
   let twinShown = null;
   function twinClass() { const on = state === 'play' && twinOn(); if (on !== twinShown) { twinShown = on; document.body.classList.toggle('twin', on); clearHeld(); } }
+  // The touch controls follow whatever was used last: a touch shows them, moving the mouse or pressing a key hides them
+  // (a touch-screen laptop; owner, Oct 14: one tap on a power-up kept them up for the rest of the run). Phones only send touch.
   const markTouch = () => document.body.classList.add('touch');
+  function unmarkTouch() {
+    if (!document.body.classList.contains('touch')) return;
+    document.body.classList.remove('touch'); padPointers.clear(); padSync(); stickOff(null); aimOff(null);
+  }
   if (window.matchMedia && matchMedia('(pointer: coarse)').matches) markTouch();
-  addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); }, { capture: true, passive: true });
+  addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); else if (e.pointerType === 'mouse') unmarkTouch(); }, { capture: true, passive: true });
+  addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && (e.movementX || e.movementY)) unmarkTouch(); }, { capture: true, passive: true });
+  addEventListener('keydown', e => { if (!e.repeat) unmarkTouch(); }, { capture: true, passive: true });
 
   // ---------- loop ----------
   // Drawn at a steady 30 frames a second, whatever the screen's rate: the lit picture takes more than a 60th of a second
