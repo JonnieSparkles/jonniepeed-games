@@ -66,16 +66,14 @@
     };
     const a = play2(false), b = play2(true);
     check(a === b && a.length > 1000, 'the same seed and inputs play the same; drawing changes nothing');
-    // the quiet ride: configuration, not another stage. No fight, the muzak, a supply drop at the top.
+    // the quiet ride: configuration, not another stage. No fight, the muzak, and nothing handed out at the top.
     fresh({ fight: false, from: 48 });
     check(R.elevator.indicator === 48 && !R.elevator.fight && Snd.track === 'pleaseHold', 'the quiet ride starts at 48 on Please Hold');
-    at(floor.top().crate + .05);
-    check(floor.doorOpening() === 1 && R.elevator.indicator === 99 && R.elevator.crate && R.elevator.crate.kind === 'spread', 'the quiet ride opens at R with a supply crate');
-    check(!events.some(e => ['arena_spawn', 'arena_throw', 'elevator_snap', 'elevator_heavy', 'elevator_eye'].includes(e.type)), 'the quiet ride never fights');
+    at(floor.top().doors + 2);
+    check(floor.doorOpening() === 1 && R.elevator.indicator === 99 && !R.elevator.crate, 'the quiet ride opens at R, with no crate');
+    check(!events.some(e => ['arena_spawn', 'arena_throw', 'elevator_snap', 'elevator_heavy', 'elevator_eye', 'elevator_crate'].includes(e.type)), 'the quiet ride never fights or hands out a crate');
     check(R.arena.enemies.length === 0 && R.hearts === 5 && R.souls === 7, 'the quiet ride keeps souls and hearts');
-    bull.u = R.elevator.crate.u; tick(1 / 60); check(R.elevator.crate.got && R.heldDrop === 'spread', 'the crate is the next supply drop');
-    bull.u = 0; at(R.elevator.exitAt + .05); tick(1.3); check(R.stage === 'roof' && R.roof.state === 'elevator' && R.souls === 7 && R.heldDrop === 'spread', 'the quiet ride hands off');
-    fresh({ fight: false }); R.hearts = 2; at(floor.top().crate + .05); check(R.elevator.crate.kind === 'vest', 'hurt, the operator hands out the vest');
+    bull.u = 0; at(R.elevator.exitAt + .05); tick(1.3); check(R.stage === 'roof' && R.roof.state === 'elevator' && R.souls === 7, 'the quiet ride hands off');
     fresh({ from: 48, fight: false }); R.souls += 4; bull.inv = 0; hurtBull(5, 'test'); tick(3); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(R.elevator.from === 48 && !R.elevator.fight && R.elevator.indicator === 48 && R.elevator.t === 0 && R.souls === 7, 'a quiet-ride continue starts it over with its entry souls');
     // A clear has one button: Continue (the owner, Oct 15: no Replay).

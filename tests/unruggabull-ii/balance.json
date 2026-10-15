@@ -62,7 +62,6 @@
     { "label": "lost: dives", "key": "hit.amount:cause=dive" },
     { "label": "lost: flyer", "key": "hit.amount:cause=flyer" },
     { "label": "lost: arena_wad", "key": "hit.amount:cause=arena_wad" },
-    { "label": "supply crates", "key": "supply" },
     { "label": "arena throws", "key": "arena_throw" },
     { "label": "arena deflects", "key": "deflect:kind=arena_wad" },
     { "label": "cable taken", "key": "elevator_snap" },

@@ -1,6 +1,6 @@
 # The long ride, redone
 
-Status: designed and approved as a playable prototype, 12 October 2026, and **in the game** since the port that followed (the long ride in `elevator.js` and `arena.js`; how it plays now is in the [README](README.md#arena-elevator-and-supplies)). It replaced the ride from [elevator-plan.md](elevator-plan.md): story, look, music and fight. The prototype stays in `tools/unruggabull-ii/long-ride/` as the reference.
+Status: designed and approved as a playable prototype, 12 October 2026, and **in the game** since the port that followed (the long ride in `elevator.js` and `arena.js`; how it plays now is in the [README](README.md#arena-and-elevator)). It replaced the ride from [elevator-plan.md](elevator-plan.md): story, look, music and fight. The prototype stays in `tools/unruggabull-ii/long-ride/` as the reference.
 
 The prototype is `tools/unruggabull-ii/long-ride/`. Build it with `python3 tools/unruggabull-ii/long-ride/build.py work/long-ride.html` and open the file: it plays the whole ride, on a phone or with keys, and a beat list jumps to any moment. It uses the game's own `bull.js`, `sprites.js` and `art.js`, so new art drawn there shows up in it.
 

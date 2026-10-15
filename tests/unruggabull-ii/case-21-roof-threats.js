@@ -64,9 +64,6 @@
   check(R.roof.broken === 1 && R.roof.intermission > 0, 'the last hit snaps the spool');
   tick(F.whipAt + F.whipT + .2);
   check(!R.roof.tiles.some(t => t.carpet) && R.flies.every(f => f.dead), 'the thread whip cuts away every carpet tile and carpshit');
-  // Bull Run: no damage, nothing to p(Loom).
-  fresh(); R.bullRun = 5; attack([{ k: 'col', i: 2, real: true }]); const before = R.roof.odds; tick(1.1);
-  check(R.hearts === 5 && R.roof.odds === before && R.roof.hp === floor.ROOF.hitsPerSpool[0], 'Bull Run takes no damage and leaves p(Loom) alone');
   // Draw only: neither the rain nor the renderer consumes the game's outcomes stream.
   fresh(); attack([{ k: 'col', i: 2, real: true }, { k: 'row', i: 1, real: false }]); tick(.3);
   const seeded = seed, q = JSON.stringify(R.roof); draw(); draw();

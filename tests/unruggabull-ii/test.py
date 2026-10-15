@@ -207,12 +207,12 @@ with sync_playwright() as p:
         assert not errors, (name, errors)
         print('PASS roof hash/layout', name)
         context.close()
-    # Side-view hash and existing controls, including a real pointer tap on the carried icon.
+    # Side-view hash and existing controls.
     for name, size, touch in [('desktop', (1280, 800), False), ('phone portrait', (390, 844), True), ('phone landscape', (844, 390), True)]:
         context, page, errors = open_page(browser, url=URL + '#stage=elevator&seed=42', viewport={'width': size[0], 'height': size[1]}, has_touch=touch, is_mobile=touch)
         page.clock.install()
         page.evaluate("unrugTest('looping=false; clearHeld();')")
-        assert page.evaluate("unrugTest('R.stage === \"elevator\" && RUN.seed === 42 && R.heldDrop === null && state === \"play\"')"), name
+        assert page.evaluate("unrugTest('R.stage === \"elevator\" && RUN.seed === 42 && state === \"play\"')"), name
         assert page.locator('#card').is_hidden() and page.locator('#crawl').is_hidden(), name
         page.keyboard.down('ArrowRight')
         page.evaluate("unrugTest('for(let i=0;i<12;i++) update(1/60)')")
@@ -221,13 +221,9 @@ with sync_playwright() as p:
         page.keyboard.press('ArrowUp')
         page.evaluate("unrugTest('update(1/60)')")
         assert page.evaluate("unrugTest('bull.jh > 0')"), name
-        page.evaluate("unrugTest('drops.give(\"spread\"); draw()')")
-        if touch:
+        if touch:   # a touch on the picture brings the touch controls up (they follow the last input)
             canvas = page.locator('#c').bounding_box()
             page.touchscreen.tap(canvas['x'] + canvas['width'] * 64 / 240, canvas['y'] + canvas['height'] * 24 / 135)
-        else:
-            page.keyboard.press('e')
-        assert page.evaluate("unrugTest('!R.heldDrop && R.spread === 10')"), name
         assert page.evaluate('document.documentElement.scrollWidth') <= size[0], name
         if touch:
             page.evaluate("unrugTest('newRun(null, \"elevator\"); setState(\"play\"); setFull(true); for(let i=0;i<60;i++)update(1/60);draw();')")
@@ -482,14 +478,13 @@ with sync_playwright() as p:
                                    ('the long ride', '#stage=elevator&seed=42', 'for(let i=0;i<300;i++)update(1/60);', False)]:
         context, page, errors = open_page(browser, url=URL + hsh, viewport={'width': 1280, 'height': 800})
         page.wait_for_timeout(100)
-        page.evaluate("unrugTest(%r)" % ('looping=false;' + setup + " bull.u=0; bull.inv=1e9; R.events.shots=0; R.fireT=0; R.heldDrop='spread'; window.__s=[]; Snd.play=(o=>function(n){__s.push(n);return o.apply(this,arguments)})(Snd.play);"))
+        page.evaluate("unrugTest(%r)" % ('looping=false;' + setup + " bull.u=0; bull.inv=1e9; R.events.shots=0; R.fireT=0; window.__s=[]; Snd.play=(o=>function(n){__s.push(n);return o.apply(this,arguments)})(Snd.play);"))
         page.keyboard.down('ShiftLeft'); page.evaluate("unrugTest('for(let i=0;i<20;i++)update(1/60)')"); page.keyboard.up('ShiftLeft')
-        page.keyboard.press('KeyE'); page.evaluate("unrugTest('update(1/60)')")
-        shots, held, clicked, bar = page.evaluate("unrugTest('[R.events.shots||0, R.heldDrop, __s.includes(\"sputter\"), !blasterOff()]')")
+        shots, clicked, bar = page.evaluate("unrugTest('[R.events.shots||0, __s.includes(\"sputter\"), !blasterOff()]')")
         if off:
-            assert shots == 0 and held == 'spread' and clicked and not bar, f'{label}: katana only (a dry click, no supply, no charge bar)'
+            assert shots == 0 and clicked and not bar, f'{label}: katana only (a dry click, no charge bar)'
         else:
-            assert shots > 0 and held is None and not clicked and bar, f'{label}: the blaster and supplies work'
+            assert shots > 0 and not clicked and bar, f'{label}: the blaster works'
         page.keyboard.press('Enter'); page.evaluate("unrugTest('update(1/60)')")
         assert page.evaluate("unrugTest('bull.slash >= 0')"), f'{label}: the katana works'
         assert not errors, (label, errors)

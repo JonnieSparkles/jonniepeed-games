@@ -17,17 +17,17 @@
   try {
     const entranceRun = render => {
       newRun({stage:'elevator',transfer:true,fight:false,from:13,lobby:true,souls:31,continues:2,
-        heldDrop:'bullRun',seedState:12345,runSeed:77,destination:{floor:48,label:'48',stage:'floor48'}});
+        seedState:12345,runSeed:77,destination:{floor:48,label:'48',stage:'floor48'}});
       setState('play'); clearHeld(); keys.kbRight = true;
       for(let i=0;i<480;i++){ keys.kbRight = bull.u < floor.ELEVATOR.lobby.doorU; update(1/60); if(render && i%12===0) draw(); }
       keys.kbRight = false;
       return JSON.stringify({t:R.elevator.t,u:bull.u,lobby:R.elevator.lobby,cue:R.elevator.cue,seed,
-        souls:R.souls,hearts:R.hearts,continues:R.continues,held:R.heldDrop,locked:R.arena.locked,track:Snd.track});
+        souls:R.souls,hearts:R.hearts,continues:R.continues,locked:R.arena.locked,track:Snd.track});
     };
     check(entranceRun(false) === entranceRun(true), 'drawing the lobby never changes the carried run or cue timing');
     fresh();
     check(!R.elevator.lobby && floor.doorOpening() === 0, 'direct elevator entry skips the lobby and starts with closed doors');
-    check(R.stage === 'elevator' && R.heldDrop === null && R.elevator.indicator === 13 && R.elevator.fight, 'the long ride starts at 13 with no held supply');
+    check(R.stage === 'elevator' && R.elevator.indicator === 13 && R.elevator.fight, 'the long ride starts at 13');
     tick(.5); check(R.talk && R.talk.text === 'FLOOR?' && R.talk.speaker === 'operator' && Snd.track === 'hornsUp', 'operator asks Floor? over the muzak');
     bull.inv = 1e9; at(T.reel); check(!R.arena.enemies.length && R.elevator.indicator > 13, 'the climb is a breather: no carpshits before the reel');
     // the blaster, the katana and paper, side on
@@ -57,32 +57,13 @@
     check(R.hearts === 4 && R.lastCause === 'dive', 'a dive through where he stands hits him');
     fresh(); keys.kbDown = true; const duck = enemy(-.5, .14); duck.swoopT = 0; tick(1.2); keys.kbDown = false;
     check(R.hearts === 5 && !duck.swoop, 'crouching ducks the dive');
-    // Holding is distinct from using. All engines share the carried effect contract.
-    for (const stage of ['floor13', 'roof', 'elevator']) {
-      newRun(null, stage); setState('play'); clearHeld();
-      if (stage === 'roof') floor.enter('round1');
-      drops.give('spread'); check(R.spread === 0, 'spread held until use in ' + stage);
-      press('drop'); const charge = R.charge; fire();
-      if (stage === 'elevator') check(R.shots.every(s => s.vu > 0) && R.shots.some(s => s.vh < 0) && R.shots.some(s => s.vh > 0), 'side spread fans above and below facing');
-      check(R.shots.length === 3 && R.charge === charge - 1 && R.spread === 10 && !R.heldDrop, 'three ways for one charge in ' + stage);
-      R.shots = []; drops.give('bullRun'); press('drop');
-      const h = R.hearts; check(!hurtBull(99, 'test') && R.hearts === h && R.bullRun === 5, 'Bull Run cannot be hurt in ' + stage);
-      if (stage === 'elevator') { enemy(bull.u, .12); floor.arena.update(.01); check(R.souls > 0 && !R.arena.enemies.length, 'charge contact destroys arena carp'); }
-      else {
-        R.flies = [{ u: bull.u, z: bull.bz + .01, h: .12, hp: 1, ph: 0 }];
-        if (stage === 'roof') { const hp = R.roof.hp; const odds = R.roof.odds; R.roof.fakes.push({ u: bull.u, z: bull.bz, h: .12, ph: 0, t: 0 });
-          R.flies[0].u = bull.u; R.flies[0].z = bull.bz; drops.tick(.01, floor);
-          check(R.roof.fakes.every(f => f.gone) && R.roof.odds === odds && R.roof.hp === hp, 'Bull Run pops a touched fake without hurting the loom or moving its odds'); }
-        else drops.tick(.01, floor);
-        check(R.flies[0].dead && bull.bz >= 0, 'charge contact destroys corridor carp in ' + stage);
-      }
-      R.bullRun = 0; drops.give('vest'); R.hearts = 1; bull.inv = 0; const spot = { u: bull.u, bz: bull.bz };
-      hurtBull(1, 'test'); check(R.hearts === 5 && R.phase !== 'dead' && R.heldDrop === null && bull.u === spot.u && bull.bz === spot.bz, 'Spare Vest revives at same spot in ' + stage);
-      bull.inv = 0; hurtBull(5, 'test'); check(R.phase === 'dead', 'vest only saves once in ' + stage);
-    }
+    // No supplies (owner, Oct 15): E does nothing, and a Spread Shot pickup still fans three ways side on.
+    check(!('KeyE' in CODES) && !('e' in NAMES) && !('KeyE' in TWIN_CODES), 'E is not a key: no supplies to use');
+    fresh(); R.spread = TUNE.spreadT; fire();
+    check(R.shots.length === 3 && R.shots.every(s => s.vu > 0) && R.shots.some(s => s.vh < 0) && R.shots.some(s => s.vh > 0), 'side spread fans above and below facing');
     // The real clear button carries the seeded stream and souls; rugged in the fight, continue from the threads.
     newRun(); setState('play'); R.souls = R.shown = 123; R.hearts = 1; R.phase = 'win'; R.endT = 130;
-    drops.give('spread'); const oldSeed = seed; endRun('clear'); check(Cards.labels().join() === 'Continue', 'one button: Continue'); Cards.press('Continue');
+    const oldSeed = seed; endRun('clear'); check(Cards.labels().join() === 'Continue', 'one button: Continue'); Cards.press('Continue');
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters the ride, full hearts');
     check(!R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.stage === 'floor48', 'the 13th Floor takes the quiet ride to the 48th Floor');
     check(R.elevator.lobby && R.phase === 'lobby' && floor.doorOpening() === 0 && bull.u === -1.05 && R.arena.outShrink === false && R.elevator.t === 0,
@@ -110,12 +91,12 @@
       'boarding from the lobby draws him full size and fully visible');
     check(!R.elevator.lobby && R.phase === 'boss' && floor.doorOpening() === 0 && R.elevator.t < .05 && !R.talk && !R.arena.out && R.arena.outShrink && Snd.track === 'pleaseHold',
       'boarded: the ride starts with the doors shut, Please Hold carrying on from the lobby');
-    check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 5 && R.heldDrop === 'spread', 'the lobby preserves the carried run');
+    check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 5, 'the lobby preserves the carried run');
     tick(.4); check(R.talk && R.talk.text === 'FLOOR?' && R.elevator.t >= .35, 'the ride cues count from the doors closing');
-    // A quiet-ride continue skips the lobby and preserves entry souls/seed/held supply.
+    // A quiet-ride continue skips the lobby and preserves entry souls and seed.
     R.hearts = 1; bull.inv = 0; hurtBull(1, 'test'); tick(3); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(!R.elevator.lobby && floor.doorOpening() === 0 && R.elevator.t === 0 && R.continues === 1 && R.souls === 123 &&
-      R.hearts === 5 && R.heldDrop === 'spread' && seed === oldSeed, 'quiet-ride continue skips the lobby and keeps carried state: ' + JSON.stringify({lobby:R.elevator.lobby,doors:floor.doorOpening(),t:R.elevator.t,continues:R.continues,souls:R.souls,hearts:R.hearts,held:R.heldDrop,seed,oldSeed}));
+      R.hearts === 5 && seed === oldSeed, 'quiet-ride continue skips the lobby and keeps carried state: ' + JSON.stringify({lobby:R.elevator.lobby,doors:floor.doorOpening(),t:R.elevator.t,continues:R.continues,souls:R.souls,hearts:R.hearts,seed,oldSeed}));
     check(Snd.track === 'pleaseHold', 'the real 13 to 48 quiet ride plays Please Hold');
     const quietLines = [], expectedQuiet = [
       [.35, 'operator', 'FLOOR?'], [2.6, 'bull', 'FORTY-EIGHT.'],
@@ -146,7 +127,7 @@
       Math.abs(line[0] - expectedQuiet[i][0]) < .02 && line[1] === expectedQuiet[i][1] && line[2] === expectedQuiet[i][2]),
       'all quiet-ride lines play once, in order, at their times: ' + JSON.stringify(quietLines));
     check(!quietEvents.some(type => ['arena_spawn', 'arena_throw', 'elevator_eye', 'elevator_cut', 'elevator_snap', 'elevator_heavy'].includes(type)), 'quiet ride stays quiet');
-    check(R.elevator.indicator === 48 && R.elevator.crate && floor.doorOpening() === 1, 'arrival at 48 keeps the doors and supply crate');
+    check(R.elevator.indicator === 48 && !R.elevator.crate && floor.doorOpening() === 1, 'arrival at 48 opens the doors, with no crate');
     check(seed === oldSeed, 'quiet-ride dialogue and drawing consume no outcome randomness');
     tick(.05); check(R.arena.out > 0 && !R.talk, 'walking out starts only once the last arrival bubble is gone');
     tick(1.2); check(R.stage === 'floor48' && R.souls === 123, 'the quiet ride carries the run onto the 48th Floor');
@@ -230,9 +211,5 @@
     // Destinations are parameters; floor label R is only the default.
     newRun({ stage: 'elevator', transfer: true, souls: 0, destination: { floor: 42, label: '42', stage: 'floor13' } }); setState('play'); bull.inv = 1e9;
     at(T.arrive + .1); check(R.elevator.indicator === 42, 'destination parameter');
-    // Exactly 5 seconds of charge, then normal damage again.
-    fresh(); drops.give('vest'); R.hearts = 1; hurtBull(1, 'test'); bull.inv = 0; hurtBull(5, 'test');
-    check(checkpoint.heldDrop === null, 'used spare life stays used on a continue');
-    fresh(); drops.give('bullRun'); drops.use(); tick(5.02); bull.inv = 0; check(!R.bullRun && hurtBull(1, 'test'), 'charge expires');
   } finally { keys.kbDown = keys.kbLeft = keys.kbRight = false; travelHook = null; checkpoint = null; RUN.force = null; emitHook = null; newRun(); setState('title'); showCard('title'); }
 })();

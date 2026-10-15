@@ -118,7 +118,7 @@ var UnrugRoof = function (core) {
     // Save outcomes, not cosmetic positions. Re-entering a round restores its intact spool at full health.
     setCheckpoint({ stage: 'roof', roofState: isRound() ? Q.state : stageNo() === 10 ? 'round1' : 'quiet',
       broken: Q.broken, caught: (isRound() ? Q.caught : Q.capturedTotal) + R.fx.filter(f => f.caught).length, capturedTotal: Q.capturedTotal + R.fx.filter(f => f.caught).length, souls: R.souls, t: R.t, continues: R.continues,
-      heldDrop: R.heldDrop, dropNext: R.dropNext, bestStreak: R.bestStreak, events: Object.assign({}, R.events) });
+      bestStreak: R.bestStreak, events: Object.assign({}, R.events) });
   }
   function clearThreats() {
     R.flies = []; R.shots = []; Q.fakes = []; Q.hatching = []; Q.stall = 0; Q.slam = 0;
@@ -581,7 +581,7 @@ var UnrugRoof = function (core) {
       }
     }
     // carpet under him pulls the rug after a second: it flickers and its tassels stand up first
-    if (under.carpet && bull.inv <= 0 && !(R.bullRun > 0) && settled()) {
+    if (under.carpet && bull.inv <= 0 && settled()) {
       under.grip += dt; under.tick += dt;
       tip('grip', 'CARPET UNDER YOU: SLASH IT OR STEP OFF');
       if (under.tick > .22) { under.tick = 0; Snd.play('grip'); }
@@ -800,9 +800,6 @@ var UnrugRoof = function (core) {
     const heavy = rnd() < ROOF.beamHeavy;
     R.flies.push({ u: rr(-ROOF.aisle + .12, ROOF.aisle - .12), z: 1, h: .35, hp: heavy ? ROOF.heavyHP : ROOF.flyHP, heavy, form: false, ph: rnd() * 6, hit: 0, dead: false, cause: 'carp' });
   }
-  // Bull Run: no damage for five seconds (the core), carpshits it touches die (drops.js), fakes pop; the rug can't
-  // pull while it runs. Nothing touches p(Loom) or its odds.
-  function bullRun() { for (const f of Q.fakes) if (Math.abs(f.u - bull.u) < .18 && Math.abs(f.z - bull.bz) < .07) popFake(f); }
   function eyeAt() { return Q.eye; }
   function aim(consider) {
     if (isRound() && Q.stall > 0 && !Q.intermission) consider(Q.eye, Q.eye, ROOF.aimCone);
@@ -1266,7 +1263,7 @@ var UnrugRoof = function (core) {
     lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
-    bullRun, aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, blasterOff: () => !!Q && deadBlaster(), dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
+    aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, blasterOff: () => !!Q && deadBlaster(), dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
     hurt: noop, blasterBack: noop, bonusBy: () => null,
     endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop, soulFreed, soulLanded,
     cutActive: () => !!Q.cut, cutIn, drawCut,
