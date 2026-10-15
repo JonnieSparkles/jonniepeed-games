@@ -28,8 +28,6 @@
   check(R.roof.at.c === 0 && bull.jh === 0, 'held left steps to the edge and stops there');
   keys.kbUp = true; tick(1); keys.kbUp = false; tick(.5);
   check(R.roof.at.r === 2 && Math.abs(bull.bz - floor.tileZ(2)) < 1e-9 && Math.abs(bull.u - floor.tileU(0)) < 1e-9, 'up steps up the rows and he slides to the tile middle');
-  keys.kbDuck = true; keys.kbRight = true; tick(.5); keys.kbDuck = keys.kbRight = false;
-  check(R.roof.at.c === 0, 'ducking, he stays put');
   // Exact flight schedules: all three bells and every remaining soul arrive once, never added to score twice.
   fresh('return');
   const oldEmit = emitHook; let returned = 0;

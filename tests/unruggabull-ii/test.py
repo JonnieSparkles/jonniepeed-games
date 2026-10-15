@@ -182,7 +182,7 @@ with sync_playwright() as p:
         assert page.evaluate("unrugTest('R.roof.at.r === 1 && bull.bz > .1 && bull.jh === 0 && !keys.kbUp')"), f'{name}: arrow up steps one row up the roof'
         page.keyboard.down('KeyC')
         page.evaluate("unrugTest('update(1/60)')")
-        assert page.evaluate("unrugTest('bull.crouch && keys.kbDuck')"), f'{name}: C ducks on the roof'
+        assert page.evaluate("unrugTest('!bull.crouch')"), f'{name}: nothing ducks on the roof'
         page.keyboard.up('KeyC')
         stage = page.locator('.stage').bounding_box()
         canvas = page.locator('#c').bounding_box()
@@ -203,13 +203,7 @@ with sync_playwright() as p:
             page.evaluate("unrugTest('for(let i=0;i<60;i++) update(1/60)')")
             page.dispatch_event('#stickzone', 'pointerup', {'pointerId': 77, 'pointerType': 'touch', 'clientX': cx, 'clientY': cy})
             assert page.evaluate("unrugTest('R.roof.at.r === 0 && !bull.crouch && !keys.padUp && !keys.padDown')"), f'{name}: stick down steps back and release clears input'
-            assert page.locator('.pad[data-k="duck"]').is_visible(), f'{name}: the Duck pad shows on the roof'
-            duck = page.locator('.pad[data-k="duck"]').bounding_box()
-            dx, dy = duck['x'] + duck['width'] / 2, duck['y'] + duck['height'] / 2
-            page.dispatch_event('#pads', 'pointerdown', {'pointerId': 78, 'pointerType': 'touch', 'clientX': dx, 'clientY': dy})
-            page.evaluate("unrugTest('update(1/60)')")
-            assert page.evaluate("unrugTest('bull.crouch && keys.padDuck')"), f'{name}: the Duck pad ducks'
-            page.dispatch_event('#pads', 'pointerup', {'pointerId': 78, 'pointerType': 'touch', 'clientX': dx, 'clientY': dy})
+            assert page.locator('.pad[data-k="duck"]').count() == 0, f'{name}: the roof has no Duck pad, the same pads as everywhere'
         assert not errors, (name, errors)
         print('PASS roof hash/layout', name)
         context.close()

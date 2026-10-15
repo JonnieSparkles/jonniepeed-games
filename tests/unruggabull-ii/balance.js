@@ -92,7 +92,7 @@
           at: { c: q.at.c, r: q.at.r }, carpets: q.tiles.filter(function (t) { return t.carpet; }).length,
           tiles: q.tiles.map(function (t) { return { carpet: t.carpet, grip: t.grip }; }),
           atk: { id: idOf(q.atk), stage: q.atk.stage, t: q.atk.t, list: q.atk.list.map(function (l) {
-            return { k: l.k, i: l.i, c: l.c, r: l.r, real: l.real, t0: l.t0, t1: l.t1, len: floor.lenOf(l), dir: l.dir }; }) },
+            return { k: l.k, i: l.i, c: l.c, r: l.r, gap: l.gap, real: l.real, t0: l.t0, t1: l.t1, len: floor.lenOf(l), dir: l.dir }; }) },
           walkCarp: q.walkCarp && !q.walkCarp.dead ? { u: q.walkCarp.u, z: q.walkCarp.z } : null };
       }
       if (R.stage === 'elevator') {
@@ -133,7 +133,7 @@
     act: function (a) {
       if (!a || state !== 'play') return;
       keys.kbLeft = !!a.left; keys.kbRight = !!a.right; keys.kbShoot = !!a.shoot; keys.kbDown = !!a.crouch;
-      if (R.stage === 'roof') { keys.kbUp = !!a.forward; keys.kbDown = !!a.back; keys.kbDuck = !!a.crouch; }
+      if (R.stage === 'roof') { keys.kbUp = !!a.forward; keys.kbDown = !!a.back; }
       if (R.stage === 'floor48' && floor.twin()) {
         // the twin sticks: the move stick, the aim stick held (aiming and firing), and Slash
         twin.padX = a.mx || 0; twin.padY = a.my || 0;

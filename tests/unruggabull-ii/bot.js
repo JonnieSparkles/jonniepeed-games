@@ -76,7 +76,7 @@ window.__balanceBot = function (profile, seed) {
       return send();
     }
     if (!/^round/.test(q.state)) return send();
-    var est = q.atk.t + lead, danger = {}, high = {}, block = {}, ducking = false;
+    var est = q.atk.t + lead, danger = {}, block = {};
     if (q.atk.stage === 'run') {
       var ap = plan({ id: 'atk:' + q.atk.id }, function () { return { read: r() < (P.roof_dodge == null ? P.dodge : P.roof_dodge), fakes: r() < (P.fake_read == null ? P.dodge : P.fake_read) }; });
       // only the next wave to land (or the one burning now): a set piece warns the next wave while one is firing
@@ -84,23 +84,26 @@ window.__balanceBot = function (profile, seed) {
       q.atk.list.forEach(function (l) { if (l.k !== 'gap' && est <= l.t1 + l.len + .03) next = Math.min(next, Math.max(l.t1, est)); });
       if (ap.read) q.atk.list.forEach(function (l) {
         if (l.k === 'gap' || (!l.real && ap.fakes) || est < l.t0 + P.notice_s * .5 || est > l.t1 + l.len + .03 || l.t1 - est > 1.25 || l.t1 > next + .12) return;
-        var tiles = l.k === 'tile' ? [[l.c, l.r]] : l.k === 'col' ? [[l.i, 0], [l.i, 1], [l.i, 2]] : [0, 1, 2, 3, 4].map(function (c) { return [c, l.i]; });
+        // the beater: every tile but its gap column, reaching the far row first; the shuttle: its column, like a warp
+        var tiles = [];
+        if (l.k === 'tile') tiles = [[l.c, l.r]];
+        else if (l.k === 'col' || l.k === 'shut') tiles = [[l.i, 0], [l.i, 1], [l.i, 2]];
+        else if (l.k === 'beat') { for (var rr = 0; rr < q.rows; rr++) for (var cc = 0; cc < q.cols; cc++) if (cc !== l.gap) tiles.push([cc, rr]); }
+        else tiles = [0, 1, 2, 3, 4].map(function (c) { return [c, l.i]; });
         tiles.forEach(function (t) {
-          var k = key(t[0], t[1]);
-          if (l.k === 'high') { high[k] = l.real ? Math.min(high[k] || 9, l.t1 - est) : high[k]; return; }
-          danger[k] = 1; if (l.t1 - est < .3) block[k] = 1;
+          var k = key(t[0], t[1]), at = l.k === 'beat' ? l.t1 + (q.rows - 1 - t[1]) / q.rows * l.len : l.t1;
+          danger[k] = 1; if (at - est < .3) block[k] = 1;
         });
       });
     }
     var here = key(me.c, me.r);
     if (danger[here]) {
-      var out = toward(function (c, r) { return !danger[key(c, r)] && !high[key(c, r)]; }, block) || toward(function (c, r) { return !danger[key(c, r)]; }, block);
+      var out = toward(function (c, r) { return !danger[key(c, r)]; }, block);
       if (out) step = out;
       return send();
     }
-    if (high[here] !== undefined && high[here] < .35) { a.crouch = true; ducking = true; }
     var under = tileAt(me.c, me.r);
-    if (q.stall > 0) { a.shoot = o.charge > 0; if (under.carpet && under.grip > q.grip * .55 && !ducking) a.slash = true; return send(); }
+    if (q.stall > 0) { a.shoot = o.charge > 0; if (under.carpet && under.grip > q.grip * .55 ) a.slash = true; return send(); }
     // carpshits: cut the close ones, shoot the one coming down its column
     var mu = q.tileU[me.c], mz = q.tileZ[me.r], tgt = null;
     o.flies.forEach(function (f) {
@@ -109,11 +112,10 @@ window.__balanceBot = function (profile, seed) {
       if (f.z > mz + .06 && (!tgt || f.z < tgt.z)) tgt = f;
     });
     if (tgt) a.shoot = Math.abs(tgt.u - mu) < .3 && o.charge > P.charge_floor;
-    if (under.carpet && under.grip > (P.reaction_ms / 1000) * .5 + .2 && !ducking) a.slash = true;
+    if (under.carpet && under.grip > (P.reaction_ms / 1000) * .5 + .2) a.slash = true;
     else if (!a.slash && myRowCarpet() && q.atk.stage !== 'run' && r() < .2) a.slash = true;
     // between attacks, go and reclaim carpet when there's a lot of it
-    if (!a.slash && !ducking && q.atk.stage !== 'run' && q.carpets >= 4 && !under.carpet) { var s1 = toward(function (c, r) { return tileAt(c, r).carpet; }); if (s1) step = s1; }
-    if (a.crouch) step = null;
+    if (!a.slash && q.atk.stage !== 'run' && q.carpets >= 4 && !under.carpet) { var s1 = toward(function (c, r) { return tileAt(c, r).carpet; }); if (s1) step = s1; }
     return send();
   }
   // The long ride's fight, side on (arena decisions keep their own bookkeeping and dice, used only on this stage).

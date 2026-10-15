@@ -9,9 +9,8 @@ var UnrugRoof = function (core) {
   const ROOF = {
     time: { elevator: 4, walk: 24, flash: .55, wake: 3.5, odds: 8, quiet: 2, return: 4.5,
       flood: 3, pinch: 1, fusion: 0, lines: 4.5, beam: 2.5, one: 2, snap: 0, dawn: 5, clear: 0 },
-    cuts: { soul: 1, beam: .65, snap: 1.5 },
     aisle: .84, parapetH: .09, hitsPerSpool: [40, 40, 40],
-    eyeZ: .86, eyeH: .71, eyeLimit: .95, eyeFollow: 1.3, eyeHit: .15, aimCone: 2,   // open, the eye draws his shots from anywhere on the roof
+    eyeZ: .86, eyeH: .71, eyeLimit: .55, eyeFollow: 1.3, eyeHit: .15, aimCone: 2,   // open, the eye draws his shots from anywhere on the roof
     flyHP: 1, flyH: .05, recharge: .35,
     odds: 99, minimum: 1, drain: 10, creep: 3, beamHit: .2, dragSteer: 4,
     eyeRun: .4, eyeAccel: .55, returnGap: 1.5,
@@ -25,11 +24,11 @@ var UnrugRoof = function (core) {
     fightBanner: 1, warmAmbient: .25, darkAmbient: .1, flashAmbient: .7, fightAmbient: .5,   // the fight's roof is lit to read; the storm stays in the sky
     deadWait: 2.8, spools: 3, hitCost: 1,
     // The roof in front of him: 5 tiles across the aisle, 3 deep from the near edge. Rows step .15 of the hall.
-    grid: { cols: 5, rows: 3, z0: -.05, depth: .15, highH: .14 },
+    grid: { cols: 5, rows: 3, z0: -.05, depth: .15, headH: .2 },
     step: { first: .2, repeat: .14, slideU: 3.6, slideZ: 1.6 },
     fight: {
       open: 2.2, setOpen: [1.8, 1.8, 2], grace: .45,             // the white-hot window; set pieces give a longer one
-      warn: 1.2, warnK: [1, 1, .92], fire: .55, stitch: .28,     // warning, then a beam sweeps (or a needle stitches)
+      warn: 1.2, warnK: [1, .96, .88], fire: .55, stitch: .28,     // warning, then a beam sweeps (or a needle stitches)
       gap: [1.5, 1.2, .9], firstWait: 2.6, nextWait: 1.4, setWait: 1.3, fakeWait: .6,
       setAt: .45, bpm: 152, floorOdds: 55,                        // set piece at 45% of a spool left; odds 99 to 55
       grip: 1, gripDecay: 3, pullPin: .35, settle: .3,            // carpet under him pulls after a second
@@ -37,24 +36,39 @@ var UnrugRoof = function (core) {
       hatch: [4, 6, 8], hatchEvery: [6.5, 5.2, 4.2], hatchFirst: 2.5, hatchWarn: .7, hatchAge: .6, hatchRetry: .5, fakeCarp: [0, .39, .45], fakeSpeed: .34,
       reach: 1, whiff: .5, reclaimFreeze: .045,
       snapT: 2.8, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
-      twin: 1.4, tipT: 2.6
+      twin: 1.4, tipT: 2.6, shuttleT: .6, beaterT: 1.1
     },
     walk: { rows: [1.6, 3.6, 5.6], carpAt: 8, carpZ: .3, carpH: .22 },
-    reset: { stitchAfter: .3, stitch: 1.8, respoolAfter: 2.3, respool: 3, after: .5 },
+    reset: { stitchAfter: .3, stitch: 1.8, respoolAfter: 2.3, respool: 3, after: .5, relay: 1.2 },   // relay: a reclaimed tile is woven again after this long
     effects: { jitterX: 5, jitterY: 3, sway: 1.2, bob: .8, curve: 32, captureLift: 14,
       walkAlpha: .055, wakeRise: 1.3, arrivalPulse: .35, pullLoose: .22, departSpan: 1, flightLift: 16, trailGap: .025,
       dawnStagger: 1.2, dawnSway: 4, dawnWarm: 2, distant: [2.2, 5.4], flashDecay: .06,
       pinchBuild: .5, snapDecay: 1.9, hitStop: .05, soulLights: 8, soulLight: .12, beamLights: 6, respoolFly: .5,
       shake: { spool: 3, pinch: 2.5, fusion: 6, beam: .55, beamEye: 1.1, snap: 7, slam: 2, set: 1.5 } },
-    art: { left: 52, right: 188, top: 4, beam: 12, rail: 47, cloth: 60, base: 79,
-      spools: [80, 120, 160], rain: 55, beamMuzzle: 16, beamEnd: 5,
-      warpColumns: 10, warpRows: 6, soulScale: .45, soulOverlap: .65, flightCap: 96 }
+    // the loom stands on the roof's far end and is no wider than the roof there (owner, Oct 14: "the loom seems wider
+    // than the roof"); its spools sit below the HUD
+    art: { left: 84, right: 156, top: 22, beam: 31, rail: 53, cloth: 64, base: 81, frame: 6,
+      spools: [101, 120, 139], spoolW: 16, rain: 55, beamMuzzle: 16, beamEnd: 5,
+      warpColumns: 10, warpRows: 5, soulScale: .3, soulOverlap: .5, trappedAlpha: .5, flightCap: 96 }
   };
   const {
-    A, Snd, rect, line, disc, poly, txt, otxt, textWidth, W, H, PX, FY, YH, sc, clamp, TUNE, quadF, tinted, VX,
+    A, Snd, poly, txt, otxt, textWidth, W, H, PX, FY, YH, sc, clamp, TUNE, quadF, tinted, VX,
     rnd, rr, emit, updateBull, updateFlies, updateShots, updateFx, muzzleXY, hurtBull, free, keys, sparks, poof,
     popText, talk, live, endRun, drawBull, drawFly, drawShot, drawFx, drawSoulsCounter, world, moveDir, setCheckpoint
   } = core;
+  // The roof draws its shapes at the picture's full size (480 x 270, half a game pixel), not whole game pixels like
+  // the core's helpers, so the loom, the eye and the spools aren't chunky (owner, Oct 14: "it feels really chunky").
+  const half = v => Math.round(v * 2) / 2;
+  const rect = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(half(x), half(y), half(w), half(h)); };
+  function line(g, x0, y0, x1, y1, c) {
+    g.fillStyle = c; x0 = Math.round(x0 * 2); y0 = Math.round(y0 * 2); x1 = Math.round(x1 * 2); y1 = Math.round(y1 * 2);
+    const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1; let err = dx + dy;
+    for (;;) { g.fillRect(x0 / 2, y0 / 2, .5, .5); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
+  }
+  function disc(g, x, y, r, c) {
+    g.fillStyle = c; x = half(x); y = half(y); const r2 = Math.round(r * 2);
+    for (let dy = -r2; dy <= r2; dy++) { const w = Math.floor(Math.sqrt(r2 * r2 - dy * dy)); g.fillRect(x - w / 2, y + dy / 2, w + .5, .5); }
+  }
   const LM = ROOF.art, GR = ROOF.grid, F = ROOF.fight, HPS = ROOF.hitsPerSpool[0], BEAT = 60 / F.bpm;
   const TW = 2 * ROOF.aisle / GR.cols;
   const tileU = c => (c - (GR.cols - 1) / 2) * TW, tileZ = r => GR.z0 + (r + .5) * GR.depth;
@@ -152,11 +166,13 @@ var UnrugRoof = function (core) {
       Q.wave += dt;
       for (let r = GR.rows - 1; r >= 0; r--) for (let c = 0; c < GR.cols; c++) {
         const tl = T(c, r);
-        if (!tl.carpet && Q.wave > .3 + (GR.rows - 1 - r) * .22 + Math.abs(c - 2) * .06) { tl.carpet = true; tl.flip = 1; tl.age = 0; Snd.play('carpetSpread'); }
+        if (!tl.carpet && tl.age > ROOF.reset.relay && Q.wave > .3 + (GR.rows - 1 - r) * .22 + Math.abs(c - 2) * .06) { tl.carpet = true; tl.flip = 1; tl.age = 0; Snd.play('carpetSpread'); }
+        tl.age += dt;
       }
       if (!musicCut && R.talk && R.talk.t >= R.talk.times[R.talk.text.length - 1]) { musicCut = true; Snd.roofCue('cut'); }
       if (!Q.silenced && (!R.talk || R.talk.t >= Q.accounted)) { Q.silenced = true; Snd.music(null); }
       if (!Q.silenced) return;
+      if (!Q.resetT) tip('reset', 'SLASH IT BACK!');
       Q.resetT += dt;
       Q.stitch = clamp((Q.resetT - C.stitchAfter) / C.stitch, 0, 1);
       Q.odds = Q.realOdds + (ROOF.odds - Q.realOdds) * Q.stitch;
@@ -179,7 +195,7 @@ var UnrugRoof = function (core) {
     }, tick(dt) {
       Q.eye.u += clamp(-Q.eye.u, -ROOF.eyeFollow * dt, ROOF.eyeFollow * dt);
       Q.quietT += dt;
-    }, ready: () => Q.quietT >= ROOF.time.quiet, exit() { cutIn('soul', ROOF.cuts.soul); } },
+    }, ready: () => Q.quietT >= ROOF.time.quiet },
     return: { entry() {
       R.gold = true; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0;
       Q.flights = Array.from({ length: Math.min(ROOF.spools, Q.caught) }, (_, i) => soulFlight(Q.caught - 1 - i, i * ROOF.returnGap));
@@ -206,14 +222,14 @@ var UnrugRoof = function (core) {
     }, exit() { Q.caught = 0; } },
     pinch: { entry() { Snd.play('pinch', ROOF.time.pinch); } },
     // the fusion burns the carpet off the roof
-    fusion: { entry() { R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); for (const t of Q.tiles) { t.carpet = false; t.grip = 0; } }, tick() { Snd.roofCue('fusion'); }, exit() { cutIn('beam', ROOF.cuts.beam); } },
+    fusion: { entry() { R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); for (const t of Q.tiles) { t.carpet = false; t.grip = 0; } }, tick() { Snd.roofCue('fusion'); } },
     lines: { entry() { R.beam = true; Q.beamU = Q.beamBase = bull.u; Q.line = 0; say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick() {
       if (!Q.line && (!R.talk || R.talk.t >= R.talk.total)) { Q.line = 1; core.bark('odds', true); }
     }, ready: () => Q.line === 1 && !R.bark },
     beam: { entry() { R.gold = true; R.beam = true; Q.eye.u = 0; Q.nextFly = ROOF.beamFlyGap[1]; Q.beamLeft = ROOF.beamFlies; }, tick: beamTick },
     run: { entry() { Q.eye.dir = 1; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
     one: { entry() { clearThreats(); Q.odds = ROOF.minimum; Snd.roofCue('one', { seconds: ROOF.time.one }); say('UNLIKELY.'); }, ready: () => Q.t >= ROOF.time.one && !R.talk },
-    snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); Snd.roofCue('snap'); cutIn('snap', ROOF.cuts.snap); } },
+    snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); Snd.roofCue('snap'); } },
     dawn: { entry() {
       R.gold = false; R.beam = false; Snd.roofSound(null); Snd.roofCue('dawn', { continueChord: true });
       Object.assign(bull, { aimT: 0, slash: -1, jh: 0, jv: 0, crouch: false, sq: 0, stag: 0 });
@@ -255,6 +271,32 @@ var UnrugRoof = function (core) {
     if (Q.cut.left <= 0) Q.cut = null;
     return true;   // even this final tick belongs to the cut; inputs and all game timers are untouched
   }
+  // from the first soul's return to the end he walks freely, as on the finale mockup: no grid, no lock while it talks
+  const freeMove = () => ['return', 'flood', 'pinch', 'lines', 'beam', 'run'].includes(Q.state);
+  function walkFree(dt) {
+    const dir = moveDir(), lim = ROOF.beamBull;
+    if (dir) bull.u = clamp(bull.u + dir * ROOF.beamMove * dt, -lim, lim);
+    else if (Q.drag !== null && Q.drag !== undefined) bull.u += clamp(clamp(Q.drag, -lim, lim) - bull.u, -ROOF.dragSteer * dt, ROOF.dragSteer * dt);
+    bull.aimT = ROOF.aimHold;
+    if (!R.beam) return;
+    // the beam's far end trails him (the curve) and leans toward the eye (a near miss lands, too far off it veers away)
+    Q.beamBase += (bull.u - Q.beamBase) * Math.min(1, dt * ROOF.beamFollow);
+    Q.beamU = Q.beamBase + clamp(Q.eye.u - Q.beamBase, -ROOF.beamAssist, ROOF.beamAssist);
+  }
+  // the souls' streams: once the first soul is back, the blaster fires on its own, a stream more for each soul (1, 2, 3,
+  // 4, then 5 with the flood), bending together in the pinch. Cosmetic: they hit nothing.
+  const PATTERN = [null, [[0, 0]], [[-.04, 0], [.04, 0]], [[0, 0], [-.045, -.16], [.045, .16]],
+    [[-.03, -.08], [.03, .08], [-.06, -.3], [.06, .3]], [[0, 0], [-.035, -.14], [.035, .14], [-.06, -.38], [.06, .38]]];
+  function streamTick(dt) {
+    if (!['return', 'flood', 'pinch'].includes(Q.state)) { Q.vol = null; return; }
+    const v = Q.vol || (Q.vol = { cd: 0, shots: [] }), pinch = Q.state === 'pinch';
+    const level = Q.state === 'return' ? Math.min(4, 1 + Q.returned) : 5;
+    v.squeeze = pinch ? 1 - (k => k * k * (3 - 2 * k))(clamp(Q.t / ROOF.time.pinch, 0, 1)) : 1;
+    v.cd -= dt;
+    if (v.cd <= 0) { v.cd = pinch ? .06 : .17; for (const [o, d] of PATTERN[level]) v.shots.push({ base: bull.u, o, d, z: 0 }); Snd.play('shot', 'soft'); }
+    for (const sh of v.shots) sh.z += 1.6 * dt;
+    v.shots = v.shots.filter(sh => sh.z < 1);
+  }
   function controlled() { return !['flash', 'wake', 'odds', 'fusion', 'snap', 'dawn', 'clear'].includes(Q.state) && (Q.state !== 'elevator' || Q.t >= ROOF.time.elevator); }
   function update(dt) {
     if (R.phase === 'dead') { updateBull(dt); updateFx(dt); if (R.phaseT > ROOF.deadWait) endRun('rugged'); return; }
@@ -263,7 +305,9 @@ var UnrugRoof = function (core) {
     updateTips(dt);
     if (!isRound() && Q.state !== 'walk') for (const tl of Q.tiles) tl.flip = tl.flip > 0 ? Math.max(0, tl.flip - dt * 4) : Math.min(0, tl.flip + dt * 4);
     const st = STATES[Q.state];
+    if (freeMove() && controlled()) walkFree(dt);
     if (st.tick) st.tick(dt);
+    streamTick(dt);
     if (R.phase === 'dead') return;
     if (controlled()) updateBull(dt);
     if (R.gold) { R.charge = TUNE.charges; R.empty = 0; R.dry = false; }
@@ -289,7 +333,7 @@ var UnrugRoof = function (core) {
     const s = Q.step; s.cd -= dt;
     let dx = moveDir(), dy = depthDir;
     if (dx && dy) dy = 0;
-    if (bull.crouch || bull.pin > 0 || beamActive() || Q.state === 'elevator') dx = dy = 0;
+    if (bull.crouch || bull.pin > 0 || freeMove() || beamActive() || Q.state === 'elevator') dx = dy = 0;
     const key = dx + ',' + dy;
     if ((dx || dy) && (key !== s.last || s.cd <= 0)) {
       const c = clamp(Q.at.c + dx, 0, GR.cols - 1), r = clamp(Q.at.r + dy, 0, GR.rows - 1);
@@ -297,13 +341,11 @@ var UnrugRoof = function (core) {
       s.cd = key !== s.last ? ROOF.step.first : ROOF.step.repeat;
     }
     s.last = dx || dy ? key : '';
-    if (beamActive()) return;   // with the beam he walks freely (beamTick)
+    if (freeMove() || beamActive()) return;   // from the first soul back he walks freely (walkFree)
     bull.u += clamp(tileU(Q.at.c) - bull.u, -ROOF.step.slideU * dt, ROOF.step.slideU * dt);
     bull.bz += clamp(tileZ(Q.at.r) - bull.bz, -ROOF.step.slideZ * dt, ROOF.step.slideZ * dt);
   }
   const settled = () => Math.abs(bull.u - tileU(Q.at.c)) < TW * .3 && Math.abs(bull.bz - tileZ(Q.at.r)) < GR.depth * .3;
-  // Duck (the Duck pad or C): only where there's something to duck, the walk and the fight.
-  const duck = () => !!(keys.kbDuck || keys.padDuck) && (isRound() || Q.state === 'walk');
 
   // ---------- the walk: the runner unrolls toward him, a row at a time; nothing can hurt him ----------
   function walkEntry() { Q.tiles = newTiles(); Q.walkRows = [false, false, false]; Q.walkCarp = null; Q.walkDone = false; }
@@ -341,38 +383,47 @@ var UnrugRoof = function (core) {
 
   // ---------- the fight ----------
   // A pattern is a list of lasers on one timeline: each has its own warning (t0) and firing time (t1), so a set piece
-  // can chain waves. k: col (warp, sweeping the column from the far row), row or high (weft, across a row; a high weft
-  // is at chest height, ducked), tile (a needle stitching one tile), gap (a set piece's gold safe tile, drawn only).
+  // can chain waves. k: col (warp, sweeping the column from the far row), row (weft, across a row), tile (a needle
+  // stitching one tile), gap (a set piece's gold safe tile, drawn only), shut (the shuttle, thrown down a column at head
+  // height; it hurts only where it is) and beat (the beater, a comb the width of the roof swinging toward him row by row
+  // with one column of teeth missing, l.gap; it hurts only the row it's passing). Every attack is dodged by stepping.
   const pick = list => list[Math.floor(rnd() * list.length)];
   function beatWait(min) { const now = R.t - Q.beat0; return Math.ceil((now + min) / BEAT - 1e-9) * BEAT - now; }
   const beatGap = s => Math.max(1, Math.round(s / (BEAT / 2))) * BEAT / 2;
   function laser(k, i, real, t0, t1, o) { return Object.assign({ k, i, real, t0, t1, dir: rnd() < .5 ? 1 : -1, done: -1, fired: false, told: false, lay: true }, o || {}); }
-  const lenOf = l => l.k === 'tile' || l.k === 'gap' ? F.stitch : F.fire;
+  const lenOf = l => l.k === 'tile' || l.k === 'gap' ? F.stitch : l.k === 'shut' ? F.shuttleT : l.k === 'beat' ? F.beaterT : F.fire;
+  const moving = l => l.k === 'shut' || l.k === 'beat';   // a thing flying at him: only where it is now hurts
   function pathOf(l) {
     if (l.k === 'tile' || l.k === 'gap') return [{ c: l.c, r: l.r }];
-    if (l.k === 'col') return [2, 1, 0].map(r => ({ c: l.i, r }));
+    if (l.k === 'col' || l.k === 'shut') return [2, 1, 0].map(r => ({ c: l.i, r }));
+    if (l.k === 'beat') return [2, 1, 0];   // rows; every column but l.gap
     return (l.dir > 0 ? [0, 1, 2, 3, 4] : [4, 3, 2, 1, 0]).map(c => ({ c, r: l.i }));
   }
   function patternNormal() {
     const b = Q.at, ph = Q.round - 1, n = Q.atkN++, list = [];
     const t1 = beatWait(F.warn * F.warnK[ph]);
     const col = (c, real = true, o) => list.push(laser('col', c, real, 0, t1, o));
-    const weft = (r, real = true, o = {}) => list.push(laser(o.high ? 'high' : 'row', r, real, 0, t1, o));
+    const weft = (r, real = true, o = {}) => list.push(laser('row', r, real, 0, t1, o));
+    const shuttle = c => list.push(laser('shut', c, true, 0, t1, { lay: false }));
+    const beater = gap => list.push(laser('beat', 0, true, 0, t1, { gap, lay: false }));
     const near = c => [c - 1, c + 1].filter(x => x >= 0 && x < GR.cols);
     if (ph === 0) {
       // WARP: a column through him; from the third attack, warp and weft crossing on his tile (step diagonally)
       if (n < 2 || rnd() < .4) col(b.c);
       else { col(b.c); weft(b.r); }
     } else if (ph === 1) {
-      // HALLUCINATING: crosses with one fake arm, high weft to duck, fakes where he'd dodge to
+      // HALLUCINATING: the shuttle down his column with a fake beside it, crosses with one fake arm, fakes where he'd
+      // dodge to
       const r = rnd();
-      if (r < .3) { weft(b.r, true, { high: rnd() < .55 }); col(pick(near(b.c)), false); }
-      else if (r < .65) { const fakeWarp = rnd() < .5; col(b.c, !fakeWarp); weft(b.r, fakeWarp, { high: rnd() < .4 }); }
-      else { col(b.c); weft(b.r, true, { high: rnd() < .5 }); col(pick(near(b.c)), false); }
+      if (r < .3) { shuttle(b.c); if (rnd() < .5) weft(b.r); else col(pick(near(b.c)), false); }   // the shuttle and a weft: step diagonally
+      else if (r < .65) { const fakeWarp = rnd() < .5; col(b.c, !fakeWarp); weft(b.r, fakeWarp); }
+      else { col(b.c); weft(b.r); col(pick(near(b.c)), false); }
     } else {
-      // MAXIMUM: the twin shuttle fires the weft while the eye fires the warp; sometimes two warps
-      if (rnd() < .45) { col(b.c); weft(b.r, true, { high: rnd() < .35, twin: true }); }
-      else { col(b.c); col(b.c + (b.c <= 1 ? 2 : b.c >= 3 ? -2 : pick([-2, 2]))); weft(b.r, true, { high: rnd() < .35, twin: true }); }
+      // MAXIMUM: the twin shuttle fires the weft while the eye fires the warp; sometimes two warps; the beater
+      const r = rnd();
+      if (r < .25) { let gap = clamp(b.c + pick([-2, -1, 1, 2]), 0, GR.cols - 1); if (gap === b.c) gap = b.c ? b.c - 1 : 1; beater(gap); return { list, open: F.open }; }
+      if (r < .6) { col(b.c); weft(b.r, true, { twin: true }); }
+      else { col(b.c); col(b.c + (b.c <= 1 ? 2 : b.c >= 3 ? -2 : pick([-2, 2]))); weft(b.r, true, { twin: true }); }
       if (rnd() < .6) { const free = [0, 1, 2, 3, 4].filter(c => !list.some(l => l.k === 'col' && l.i === c)); col(pick(free), false); }
     }
     return { list, open: F.open };
@@ -385,8 +436,9 @@ var UnrugRoof = function (core) {
       [0, 1, 2, 3, 4].filter(c => c !== g1).forEach((c, k) => list.push(laser('col', c, true, 0, first + k * sp, { lay: false })));
       const endA = first + 3 * sp + F.fire, g2 = g1 + (g1 >= 2 ? -2 : 2), t0B = endA - .2, t1B = t0B + beatGap(1.15);
       list.push(laser('gap', 0, false, 0, endA - F.stitch, { c: g1, r: -1 }));
-      [4, 3, 2, 1, 0].filter(c => c !== g2).forEach((c, k) => list.push(laser('col', c, true, t0B, t1B + k * sp, { lay: false })));
-      list.push(laser('gap', 0, false, t0B, t1B + 3 * sp + F.fire - F.stitch, { c: g2, r: -1 }));
+      // then the beater swings in, its gap in another column
+      list.push(laser('beat', 0, true, t0B, t1B, { gap: g2, lay: false }));
+      list.push(laser('gap', 0, false, t0B, t1B + F.beaterT - F.stitch, { c: g2, r: -1 }));
       return { name: 'FIRST PASS', line: 'OPTIMIZING.', list, open: F.open * F.setOpen[0] };
     }
     if (ph === 1) {
@@ -434,7 +486,7 @@ var UnrugRoof = function (core) {
       for (const l of a.list) {
         if (!l.told && a.t >= l.t0) { l.told = true; if (l.k !== 'gap') { warned = true; if (!l.real) fake = true; } }
         if (a.t < l.t1 || l.k === 'gap') continue;
-        if (!l.fired) { l.fired = true; if (l.real) { if (l.k === 'tile') stitched = true; else fired = true; } }
+        if (!l.fired) { l.fired = true; if (l.real) { if (l.k === 'tile') stitched = true; else if (l.k === 'shut') Snd.play('shuttle'); else if (l.k === 'beat') Snd.play('beater'); else fired = true; } }
         if (l.k === 'tile') {
           if (l.real && a.t <= l.t1 + F.stitch) {
             if (l.lay && !l.laid) { l.laid = true; layCarpet(l.c, l.r); }
@@ -442,11 +494,13 @@ var UnrugRoof = function (core) {
           }
           continue;
         }
-        const path = pathOf(l), p = clamp((a.t - l.t1) / F.fire, 0, 1), idx = Math.min(path.length - 1, Math.floor(p * path.length));
-        while (l.done < idx) { l.done++; const tt = path[l.done]; if (l.real && l.lay && l.k !== 'high') layCarpet(tt.c, tt.r); }
-        // the whole lit length of the beam hurts, not only its tip
-        if (l.real && a.t <= l.t1 + F.fire) for (let i = 0; i <= idx; i++) {
-          if (path[i].c === me.c && path[i].r === me.r && (l.k !== 'high' || !bull.crouch)) hurtBull(ROOF.hitCost, 'laser');
+        const path = pathOf(l), p = clamp((a.t - l.t1) / lenOf(l), 0, 1), idx = Math.min(path.length - 1, Math.floor(p * path.length));
+        while (l.done < idx) { l.done++; const tt = path[l.done]; if (l.real && l.lay && !moving(l)) layCarpet(tt.c, tt.r); }
+        if (l.real && a.t <= l.t1 + lenOf(l)) {
+          if (l.k === 'beat') { if (me.r === path[idx] && me.c !== l.gap) hurtBull(ROOF.hitCost, 'beater'); }
+          else if (l.k === 'shut') { if (path[idx].c === me.c && path[idx].r === me.r) hurtBull(ROOF.hitCost, 'shuttle'); }
+          // a laser: the whole lit length of the beam hurts, not only its tip
+          else for (let i = 0; i <= idx; i++) if (path[i].c === me.c && path[i].r === me.r) hurtBull(ROOF.hitCost, 'laser');
         }
         if (R.phase === 'dead') return;
       }
@@ -454,7 +508,8 @@ var UnrugRoof = function (core) {
         Snd.play('laserWarn'); if (fake) Snd.play('laserWarnFake');
         if (a.set) { if (a.list.some(l => l.k === 'gap')) tip('gap', 'FIND THE GOLD GAP'); }
         else {
-          if (a.list.some(l => l.real && l.k === 'high')) tip('high', 'A BAR AT CHEST HEIGHT: DUCK');
+          if (a.list.some(l => l.k === 'shut')) tip('shut', 'THE SHUTTLE: STEP OUT OF ITS COLUMN');
+          if (a.list.some(l => l.k === 'beat')) tip('beat', 'THE BEATER: STEP INTO THE GAP');
           if (fake) tip('fake', 'DOTTED AND SHAKING = NOT REAL');
           if (a.list.some(l => l.k === 'col') && a.list.some(l => l.real && l.k === 'row')) tip('cross', 'WARP AND WEFT: STEP DIAGONALLY');
           tip('warn', 'STEP OFF THE RED');
@@ -467,7 +522,7 @@ var UnrugRoof = function (core) {
           a.stage = 'heat'; Q.stall = Q.stallMax = a.open; Q.heatHits = 0; Snd.play('eyeOpen'); emit('roof_stall');
           popText(a.set ? 'OVERHEATED!' : 'OPEN', PX(Q.eye.u, ROOF.eyeZ), YH(ROOF.eyeZ, ROOF.eyeH) - 14, '#ffffff');
           if (a.set) say('ERR.');
-          tip('open', "IT'S WHITE: SHOOT IT!");
+          tip('open', "IT'S OPEN: SHOOT IT!");
         } else { a.stage = 'idle'; a.wait = F.fakeWait; }
       }
       return;
@@ -578,7 +633,7 @@ var UnrugRoof = function (core) {
     for (const f of Q.fakes) if (near(f.u, f.z)) popFake(f);
     if (bull.slash !== 0 || Q.slashAt === R.t) return;
     Q.slashAt = R.t;
-    if (!isRound() && Q.state !== 'walk') return;
+    if (!isRound() && !['walk', 'reset', 'quiet'].includes(Q.state)) return;
     let n = 0;
     for (let c = Q.at.c - F.reach; c <= Q.at.c + F.reach; c++) {
       if (c < 0 || c >= GR.cols) continue;
@@ -675,12 +730,6 @@ var UnrugRoof = function (core) {
   function beamTick(dt) {
     // he walks (the stick, keys, or a finger dragging on the picture); the beam's tip follows him with a lag and leans
     // toward the eye, so it curves as he moves and veers off if he goes too far
-    const dir = moveDir(), lim = ROOF.beamBull;
-    if (dir) bull.u = clamp(bull.u + dir * ROOF.beamMove * dt, -lim, lim);
-    else if (Q.drag !== null && Q.drag !== undefined) bull.u += clamp(clamp(Q.drag, -lim, lim) - bull.u, -ROOF.dragSteer * dt, ROOF.dragSteer * dt);
-    bull.aimT = ROOF.aimHold;
-    Q.beamBase += (bull.u - Q.beamBase) * Math.min(1, dt * ROOF.beamFollow);   // the far end trails him: the curve
-    Q.beamU = Q.beamBase + clamp(Q.eye.u - Q.beamBase, -ROOF.beamAssist, ROOF.beamAssist);   // and leans to the eye
     if (Q.state === 'run') {
       const speed = ROOF.eyeRun + ROOF.eyeAccel * (1 - Q.odds / ROOF.odds);
       Q.eye.u += Q.eye.dir * speed * dt;
@@ -746,8 +795,9 @@ var UnrugRoof = function (core) {
   // where a sweeping beam's point is now, in roof units
   function laserTip(l) {
     if (l.k === 'tile') return { u: tileU(l.c), z: tileZ(l.r) };
-    const p = clamp((Q.atk.t - l.t1) / F.fire, 0, 1);
-    if (l.k === 'col') return { u: tileU(l.i), z: GR.z0 + GR.rows * GR.depth - p * GR.rows * GR.depth };
+    const p = clamp((Q.atk.t - l.t1) / lenOf(l), 0, 1);
+    if (l.k === 'col' || l.k === 'shut') return { u: tileU(l.i), z: GR.z0 + GR.rows * GR.depth - p * GR.rows * GR.depth };
+    if (l.k === 'beat') return { u: 0, z: GR.z0 + GR.rows * GR.depth - p * GR.rows * GR.depth };
     return { u: l.dir > 0 ? -ROOF.aisle + p * 2 * ROOF.aisle : ROOF.aisle - p * 2 * ROOF.aisle, z: tileZ(l.i) };
   }
 
@@ -757,32 +807,32 @@ var UnrugRoof = function (core) {
     if (broken && Q.respool > 0 && !['pinch', 'fusion', 'lines', 'beam', 'run', 'one', 'snap', 'dawn', 'clear'].includes(Q.state)) {
       // a replacement spool wound from souls: pale and glowing, each wrap a soul; it unwinds as they leave
       const left = ['return', 'flood'].includes(Q.state) ? Q.caught / Math.max(1, Q.capturedTotal) : 1;
-      const w = Math.max(2, 22 * Q.respool * left), shake = i === 1 && Q.state === 'quiet' ? Math.sin(R.t * 40) * Math.min(2, Q.quietT) : 0;
-      rect(g, x - 13, LM.top - 1, 2, 11, '#4b4a58'); rect(g, x + 11, LM.top - 1, 2, 11, '#4b4a58');
-      rect(g, x - w / 2, LM.top, w, 9, '#dfeeff');
-      for (let y = LM.top + 1; y < LM.top + 9; y += 2) rect(g, x - w / 2, y, w, 1, '#a8c4e8');
+      const w = Math.max(2, (LM.spoolW - 2) * Q.respool * left), shake = i === 1 && Q.state === 'quiet' ? Math.sin(R.t * 40) * Math.min(2, Q.quietT) : 0;
+      const hw = LM.spoolW / 2; rect(g, x - hw - 1, LM.top - 1, 1, 9, '#4b4a58'); rect(g, x + hw, LM.top - 1, 1, 9, '#4b4a58');
+      rect(g, x - w / 2, LM.top + 1, w, 7, '#dfeeff');
+      for (let y = LM.top + 2; y < LM.top + 8; y += 2) rect(g, x - w / 2, y, w, 1, '#a8c4e8');
       if (i === 1 && Q.state === 'quiet') rect(g, x - 2 + shake, LM.top - 1 - Math.min(4, Q.quietT * 2), 4, 5, '#ffffff');
       return;
     }
-    rect(g, x - 12, LM.top, 24, 9, broken ? '#24222f' : '#b0a088');
-    if (broken) line(g, x - 10, LM.top + 9, x + 8, LM.top + 17, '#9496a8');
+    rect(g, x - LM.spoolW / 2, LM.top + 1, LM.spoolW, 7, broken ? '#24222f' : '#b0a088');
+    if (broken) line(g, x - 6, LM.top + 8, x + 5, LM.top + 14, '#9496a8');
     else if (i === Q.round - 1) {
       const cracks = Math.floor((1 - Q.hp / HPS) * 6), j = Q.kick > 0 ? Math.round((Math.random() - .5) * 2) : 0;
-      for (let k = 0; k < cracks; k++) line(g, x - 9 + k * 3.5 + j, LM.top, x - 7 + k * 3.5 + j, LM.beam, '#1a1824');
+      for (let k = 0; k < cracks; k++) line(g, x - 6 + k * 2.4 + j, LM.top + 1, x - 5 + k * 2.4 + j, LM.top + 8, '#1a1824');
     }
   }
   function soulSpot(i) {
     // All captives are drawn: sixty thread gaps, with shallow overlapping stacks as the warp fills.
     const slots = LM.warpColumns * LM.warpRows, slot = i % slots, layer = Math.floor(i / slots);
-    return { x: LM.left + 15 + slot % LM.warpColumns * (LM.right - LM.left - 34) / LM.warpColumns + layer * LM.soulOverlap,
-      y: LM.beam + 5 + Math.floor(slot / LM.warpColumns) * (LM.cloth - LM.beam - 12) / LM.warpRows + layer * LM.soulOverlap };
+    return { x: LM.left + LM.frame + 3 + slot % LM.warpColumns * (LM.right - LM.left - 2 * LM.frame - 8) / LM.warpColumns + layer * LM.soulOverlap,
+      y: LM.beam + 3 + Math.floor(slot / LM.warpColumns) * (LM.cloth - LM.beam - 8) / LM.warpRows + layer * LM.soulOverlap };
   }
   function soulFlight(i, delay) { return Object.assign({ delay }, soulSpot(i)); }
   function drawWarp(layer = 'all') {
-    if (layer !== 'souls') for (let i = 0; i < 42; i++) {
-      const x = LM.left + 14 + i * 2.5, broken = Math.floor(i / 14) < Q.broken;
+    if (layer !== 'souls') for (let i = 0; i < 30; i++) {
+      const x = LM.left + LM.frame + 2 + i * (LM.right - LM.left - 2 * LM.frame - 4) / 30, broken = Math.floor(i / 10) < Q.broken;
       const dead = ['snap', 'dawn', 'clear'].includes(Q.state);
-      line(g, x, LM.beam, x + (broken ? Math.sin(R.t + i) * 2 : 0), dead || broken ? LM.beam + 5 : LM.cloth, '#8c7a68');
+      line(g, x, LM.beam, x + (broken ? Math.sin(R.t + i) * 2 : 0), dead || broken ? LM.beam + 5 : LM.cloth, '#4e4552');
     }
     if (layer !== 'threads') effects.drawWarp(g, Q);
   }
@@ -798,7 +848,9 @@ var UnrugRoof = function (core) {
       g.save(); g.strokeStyle = 'rgba(255,255,255,' + (.45 + .5 * pulse) + ')'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 10.5 + pulse * 1.5, 0, Math.PI * 2); g.stroke();
       g.strokeStyle = '#ffd44a'; g.beginPath(); g.arc(x, y, 13.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); g.stroke(); g.restore();
     }
-    disc(g, x, y, 6, dead ? '#2f2d3b' : open ? '#ffffff' : Q.atk.stage === 'run' ? '#ff3430' : '#ff9628');
+    // never white on white: open, it's a hot yellow with a white core inside its dark ring; shut, orange with a pupil
+    disc(g, x, y, 6, dead ? '#2f2d3b' : open ? '#ffc23a' : Q.atk.stage === 'run' ? '#ff3430' : '#ff9628');
+    if (!dead && open) disc(g, x, y, 2.5 + Math.sin(R.t * 30) * .5, '#ffffff');
     if (!dead && !open) disc(g, x + clamp(bull.u - Q.eye.u, -2, 2), y, 2, '#110f18');
     // damage stays on the eye: cracks for the hits it has taken, and for the odds the beam takes
     const cracks = Math.min(8, Math.floor(8 * Q.hits / (ROOF.spools * HPS)) + Math.floor((1 - Q.odds / ROOF.odds) * 6 * (beamActive() || ['one', 'snap'].includes(Q.state) ? 1 : 0)));
@@ -814,12 +866,13 @@ var UnrugRoof = function (core) {
     const dark = ['elevator', 'walk'].includes(Q.state);
     g.save(); if (dark) g.globalAlpha = .07;
     if (Q.lurch > 0) g.translate(Math.round(Math.sin(R.t * 31) * Q.lurch * 2), Math.round(Q.lurch * 2));
-    for (const x of [LM.left, LM.right - 12]) rect(g, x, LM.top, 12, LM.base - LM.top, '#4b4a58');
+    rect(g, LM.left + LM.frame, LM.beam, LM.right - LM.left - 2 * LM.frame, LM.cloth - LM.beam, '#1c1822');   // dark behind the warp, so the eye stands out
+    for (const x of [LM.left, LM.right - LM.frame]) rect(g, x, LM.top, LM.frame, LM.base - LM.top, '#4b4a58');
     rect(g, LM.left, LM.top, LM.right - LM.left, LM.beam - LM.top, '#3b3a48');
-    for (let i = 0; i < 9; i++) line(g, LM.left + 10 + i * 15, LM.top, LM.left + 10 + i * 15 + (i - 4) * 6, 0, '#5e5e6c');
+    for (let i = 0; i < 5; i++) line(g, LM.left + 8 + i * 14, LM.top, LM.left + 8 + i * 14 + (i - 2) * 10, 0, '#5e5e6c');
     for (let i = 0; i < 3; i++) drawSpool(i);
-    drawWarp('threads'); rect(g, LM.left + 12, LM.rail - 2, LM.right - LM.left - 24, 4, '#4b4a58');
-    rect(g, LM.left + 12, LM.cloth, LM.right - LM.left - 24, LM.base - LM.cloth, '#761c1e');
+    drawWarp('threads'); rect(g, LM.left + LM.frame, LM.rail - 1.5, LM.right - LM.left - 2 * LM.frame, 3, '#4b4a58');
+    rect(g, LM.left + LM.frame, LM.cloth, LM.right - LM.left - 2 * LM.frame, LM.base - LM.cloth, '#761c1e');
     drawEye(); g.restore();
   }
   // the roof's tiles: carpet in the hall's light; the grid, warnings and lasers glow so they read in the dark
@@ -830,7 +883,7 @@ var UnrugRoof = function (core) {
   function path(pts) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); }
   // Every tile is drawn solid: a pale roof slab with dark seams, or carpet over it. Nothing see-through on the floor.
   const SLAB = ['#7a7586', '#726d7e'], SEAM = '#2c2836';
-  const gridShown = () => !!Q.tiles && (isRound() || ['walk', 'reset', 'quiet', 'return', 'flood'].includes(Q.state));
+  const gridShown = () => !!Q.tiles && (isRound() || ['walk', 'reset', 'quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam', 'run', 'one'].includes(Q.state));
   function drawTiles() {
     if (!gridShown()) return;
     for (let r = GR.rows - 1; r >= 0; r--) for (let c = 0; c < GR.cols; c++) {
@@ -887,7 +940,7 @@ var UnrugRoof = function (core) {
     for (const l of a.list) {
       if (a.t < l.t0 || a.t >= l.t1 + (l.k === 'gap' ? F.stitch : 0)) continue;
       const soon = clamp(1 - (l.t1 - a.t) / 1.2, 0, 1), j = l.real ? 0 : Math.round(Math.sin(R.t * 31 + l.i + (l.c || 0)) * 1);
-      if (layer === 'lit' && (l.k === 'gap' || l.k === 'high' || !l.real)) continue;
+      if (layer === 'lit' && (l.k === 'gap' || !l.real)) continue;
       if (l.k === 'gap') {
         const rows = l.r < 0 ? [0, 1, 2] : [l.r];
         g.save(); g.strokeStyle = '#ffd44a'; g.lineWidth = 1; for (const r of rows) { path(tileQuad(l.c, r, .06)); g.stroke(); } g.restore();
@@ -895,21 +948,18 @@ var UnrugRoof = function (core) {
         continue;
       }
       g.save(); g.translate(j, 0);
-      if (l.k === 'high') {
-        const z = tileZ(l.i), y0 = YH(z, GR.highH);
-        g.strokeStyle = l.real ? (pulse > .5 ? '#fff0e6' : '#ff4a3a') : '#d8ccff'; g.lineWidth = l.real ? 1.5 : 1;
-        if (!l.real) g.setLineDash([2, 2]);
-        g.beginPath(); g.moveTo(PX(-ROOF.aisle, z), y0); g.lineTo(PX(ROOF.aisle, z), y0); g.stroke(); g.setLineDash([]);
-        for (let c = 0; c < GR.cols; c++) otxt(g, 'v', PX(tileU(c), z), y0 + 2, l.real ? '#ff6e5a' : '#d8ccff', 1, 'center');
-      } else {
-        for (const t of pathOf(l)) { const q = tileQuad(t.c, t.r, .05); if (l.real) warnTile(q, soon, pulse, layer); else fakeTile(q); }
+      for (const t of tilesOf(l)) { const q = tileQuad(t.c, t.r, .05); if (l.real) warnTile(q, soon, pulse, layer); else fakeTile(q); }
+      if (l.k === 'beat' && layer !== 'lit') {
+        // the beater's gap: a gold column to step into
+        g.strokeStyle = '#ffd44a'; g.lineWidth = 1; for (let r = 0; r < GR.rows; r++) { path(tileQuad(l.gap, r, .06)); g.stroke(); }
+        otxt(g, 'GAP', PX(tileU(l.gap), tileZ(1)), FY(tileZ(1)) - 4, '#ffd44a', 1, 'center');
       }
-      if (layer === 'lit') { g.restore(); continue; }
+      if (layer === 'lit' || l.k === 'beat') { g.restore(); continue; }
       // the aim line from the eye (or the twin) to where the attack starts
       const [ex, ey] = eyeSrc(l), first = pathOf(l)[0], fz = l.k === 'col' ? GR.z0 + GR.rows * GR.depth : tileZ(first.r);
-      const fu = l.k === 'row' || l.k === 'high' ? (l.dir > 0 ? -ROOF.aisle : ROOF.aisle) : tileU(first.c);
+      const fu = l.k === 'row' ? (l.dir > 0 ? -ROOF.aisle : ROOF.aisle) : tileU(first.c);
       g.strokeStyle = l.real ? 'rgba(255,74,58,.7)' : 'rgba(216,204,255,.7)'; g.lineWidth = .5; if (!l.real) g.setLineDash([1, 2]);
-      g.beginPath(); g.moveTo(ex, ey); g.lineTo(PX(fu, fz), YH(fz, l.k === 'high' ? GR.highH : 0)); g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.moveTo(ex, ey); g.lineTo(PX(fu, fz), YH(fz, l.k === 'shut' ? GR.headH : 0)); g.stroke(); g.setLineDash([]);
       g.restore();
     }
   }
@@ -928,7 +978,9 @@ var UnrugRoof = function (core) {
         } else { g.save(); g.strokeStyle = '#d8ccff'; g.setLineDash([1, 1.5]); g.beginPath(); g.moveTo(x, y - 28 * s); g.lineTo(x, y); g.stroke(); g.restore(); }
         continue;
       }
-      const tp = laserTip(l), h = l.k === 'high' ? GR.highH : 0, tx = PX(tp.u, tp.z), ty = YH(tp.z, h);
+      if (l.k === 'shut') { drawShuttle(laserTip(l)); continue; }
+      if (l.k === 'beat') { drawBeater(laserTip(l).z, l.gap); continue; }
+      const tp = laserTip(l), h = 0, tx = PX(tp.u, tp.z), ty = YH(tp.z, h);
       g.save();
       if (l.real) {
         g.strokeStyle = 'rgba(255,52,48,.45)'; g.lineWidth = 3.5; g.beginPath(); g.moveTo(ex, ey); g.lineTo(tx, ty); g.stroke();
@@ -947,12 +999,35 @@ var UnrugRoof = function (core) {
       g.restore();
     }
   }
+  // the tiles an attack covers (the beater: every column but its gap, every row)
+  function tilesOf(l) {
+    if (l.k !== 'beat') return pathOf(l);
+    const out = []; for (let r = 0; r < GR.rows; r++) for (let c = 0; c < GR.cols; c++) if (c !== l.gap) out.push({ c, r }); return out;
+  }
+  // the shuttle: a boat-shaped wooden shuttle seen end-on at head height, the red thread in its hollow, its shadow below
+  function drawShuttle(tp) {
+    const x = PX(tp.u, tp.z), y = YH(tp.z, GR.headH), k = sc(tp.z) * 1.5;
+    g.save(); g.globalAlpha = .5; g.fillStyle = '#0a060e'; g.beginPath(); g.ellipse(x, FY(tp.z), 12 * k, 2 * k, 0, 0, 7); g.fill(); g.restore();
+    g.fillStyle = '#c8924a'; g.beginPath(); g.ellipse(x, y, 10 * k, 4 * k, 0, 0, 7); g.fill();
+    g.fillStyle = '#7a4a1c'; g.beginPath(); g.ellipse(x, y, 6.5 * k, 2.4 * k, 0, 0, 7); g.fill();
+    rect(g, x - 3.5 * k, y - k, 7 * k, 2 * k, '#d63428'); disc(g, x, y, Math.max(.6, 1.1 * k), '#f0e0c0');
+  }
+  // the beater: a wooden beam the width of the roof at chest height with a comb of teeth under it, none over the gap;
+  // a shadow band on the roof and posts at the edges show where it is
+  function drawBeater(z, gap) {
+    const top = GR.headH, bot = GR.headH - .06, L = PX(-ROOF.aisle - .04, z), Rx = PX(ROOF.aisle + .04, z), yt = YH(z, top), yb = YH(z, bot), k = sc(z);
+    g.save(); g.globalAlpha = .55; poly(g, '#0a060e', [[PX(-ROOF.aisle, z - .018), FY(z - .018)], [PX(ROOF.aisle, z - .018), FY(z - .018)], [PX(ROOF.aisle, z + .018), FY(z + .018)], [PX(-ROOF.aisle, z + .018), FY(z + .018)]]); g.restore();
+    for (const s of [-1, 1]) rect(g, PX(s * ROOF.aisle, z) - .5, yt, 1, FY(z) - yt, 'rgba(200,150,80,.5)');
+    rect(g, L, yt, Rx - L, yb - yt, '#5a3418'); rect(g, L, yt, Rx - L, Math.max(1, (yb - yt) * .35), '#8a5428');
+    const g0 = PX(tileU(gap) - TW / 2, z), g1 = PX(tileU(gap) + TW / 2, z), step = Math.max(1.5, 4 * k);
+    for (let x = L + 1; x < Rx - 1; x += step) if (x < g0 || x > g1) rect(g, x, yb, Math.max(.5, k), Math.max(1, 6 * k), '#c9a060');
+  }
   function drawWhip() {
     if (!(Q.whip >= 0 && Q.whip < 1.2)) return;
     const z = GR.z0 + GR.rows * GR.depth + .02 - Q.whip * (GR.rows * GR.depth + .1), l = PX(-ROOF.aisle - .05, z), r = PX(ROOF.aisle + .05, z), y = YH(z, .03), sp = LM.spools[Q.broken - 1] || 120;
     g.save(); g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3; g.beginPath(); g.moveTo(l, y); g.quadraticCurveTo(VX, y + Math.sin(R.t * 40) * 3, r, y); g.stroke();
     g.strokeStyle = '#efe3c4'; g.lineWidth = 1; g.stroke();
-    g.lineWidth = .5; g.beginPath(); g.moveTo(sp, LM.top + 9); g.quadraticCurveTo(sp + 20, 30, VX, y); g.stroke(); g.restore();
+    g.lineWidth = .5; g.beginPath(); g.moveTo(sp, LM.top + 8); g.quadraticCurveTo(sp + 20, LM.beam + 10, VX, y); g.stroke(); g.restore();
   }
   // a heavy carpshit (the beam fight): a bigger, darker, gold-edged rug behind the usual one
   function drawHeavy(f) {
@@ -1005,12 +1080,13 @@ var UnrugRoof = function (core) {
   }
   function drawStreams() {
     if (!['return', 'flood', 'pinch'].includes(Q.state)) return;
-    const m = muzzleXY(), n = Q.state === 'return' ? 3 : 5, pinch = Q.state === 'pinch' ? Math.min(1, Q.t / ROOF.time.pinch) : 0;
     if (Q.state !== 'pinch') effects.drawFlights(g, Q);
-    for (let i = 0; i < n; i++) {
-      const endX = PX(Q.eye.u, ROOF.eyeZ) + (i - (n - 1) / 2) * 5 * (1 - pinch);
-      g.strokeStyle = '#fff09a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(m.x, m.y);
-      g.quadraticCurveTo((m.x + endX) / 2 + (i - 2) * 8 * (1 - pinch), (m.y + LM.rail) / 2, endX, LM.rail); g.stroke();
+    const v = Q.vol; if (!v) return;
+    const m = muzzleXY(), base = { x: PX(bull.u, bull.bz), y: YH(bull.bz, .13) }, hot = Q.state === 'pinch';
+    for (const sh of v.shots) {
+      const z = bull.bz + (ROOF.eyeZ - bull.bz) * sh.z, u = sh.base + (sh.o + sh.d * sh.z) * v.squeeze, near = (1 - sh.z) * (1 - sh.z);
+      const x = PX(u, z) + (m.x - base.x) * near, y = YH(z, .13 + (ROOF.eyeH - .13) * sh.z) + (m.y - base.y) * near, r = Math.max(.8, (hot ? 2.2 : 1.8) * sc(z));
+      disc(g, x, y + .5, r + .5, '#ff9628'); disc(g, x, y, r, hot ? '#ffffff' : '#fff0aa');
     }
   }
   function draw() {
@@ -1030,7 +1106,7 @@ var UnrugRoof = function (core) {
     const left = ['return', 'flood'].includes(Q.state) ? Q.caught / Math.max(1, Q.capturedTotal) : 1;
     for (let i = 0; i < Q.broken; i++) {
       g.save(); g.globalAlpha = (.25 + .1 * Math.sin(R.t * 4 + i)) * Q.respool * left;
-      disc(g, LM.spools[i], LM.top + 5, 10, '#cfe8ff'); g.globalAlpha *= 1.6; disc(g, LM.spools[i], LM.top + 5, 5, '#ffffff'); g.restore();
+      disc(g, LM.spools[i], LM.top + 4.5, 8, '#cfe8ff'); g.globalAlpha *= 1.6; disc(g, LM.spools[i], LM.top + 4.5, 4, '#ffffff'); g.restore();
     }
   }
   function glows() {
@@ -1067,9 +1143,9 @@ var UnrugRoof = function (core) {
   function displayedCount() { return effects.displayedCount(Q, R); }
   function hud() {
     drawSoulsCounter(displayedCount());
-    if (Q.tips.length && (isRound() || Q.state === 'walk')) {
-      // a first-time prompt, between the loom and the roof
-      const k = Q.tips[0], w = textWidth(k.text) + 10, y = 84;
+    if (Q.tips.length && (isRound() || Q.state === 'walk' || Q.state === 'reset')) {
+      // a first-time prompt, under the HUD (between the loom and the roof is where the shuttle and the beater fly)
+      const k = Q.tips[0], w = textWidth(k.text) + 10, y = 16;
       g.save(); g.globalAlpha = clamp(Math.min(k.t * 6, (F.tipT - k.t) * 4), 0, 1);
       rect(g, (W - w) / 2, y - 3, w, 11, '#0a0810'); rect(g, (W - w) / 2, y - 3, w, 1, '#ffd44a');
       txt(g, k.text, W / 2, y, Math.floor(k.t * 4) % 2 ? '#ffffff' : '#ffd44a', 1, 'center'); g.restore();
@@ -1110,7 +1186,7 @@ var UnrugRoof = function (core) {
     lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
-    bullRun, aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, duck, dragSteer: () => !!Q && beamActive(), steer,
+    bullRun, aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
     hurt: noop, blasterBack: noop, bonusBy: () => null,
     endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop, soulFreed, soulLanded,
     cutActive: () => !!Q.cut, cutIn, drawCut,

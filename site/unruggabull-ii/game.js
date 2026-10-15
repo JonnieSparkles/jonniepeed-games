@@ -208,7 +208,7 @@
 
 
   // ---------- Unruggabull ----------
-  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, mouseShoot: false, kbDown: false, padDown: false, kbUp: false, padUp: false, kbDuck: false, padDuck: false };
+  const keys = { kbLeft: false, kbRight: false, padLeft: false, padRight: false, kbShoot: false, padShoot: false, mouseShoot: false, kbDown: false, padDown: false, kbUp: false, padUp: false };
   const input = { jump: 0, slash: 0, shoot: 0 };   // buffered presses, in seconds left
   // Twin-stick floors (floor.twin() true; the 48th Floor's factory): analog move and aim. Keys: WASD move, the arrows aim
   // and fire; the mouse aims (picture pixels on the canvas) and its left button fires; the thumb sticks move and aim,
@@ -219,8 +219,7 @@
   const moveDir = () => ((keys.kbRight || keys.padRight) ? 1 : 0) - ((keys.kbLeft || keys.padLeft) ? 1 : 0);
   const shooting = () => keys.kbShoot || keys.padShoot || keys.mouseShoot;
   const depthDir = () => ((keys.kbUp || keys.padUp) ? 1 : 0) - ((keys.kbDown || keys.padDown) ? 1 : 0);
-  // the roof moves up and down its rows on the same inputs, so it ducks on its own button (floor.duck: the Duck pad or C)
-  const crouchHeld = () => floor.duck ? floor.duck() : !floor.depthMove && (keys.kbDown || keys.padDown);
+  const crouchHeld = () => !floor.depthMove && (keys.kbDown || keys.padDown);
   // stages where he can walk crouched (side on: the lobbies and the rides); elsewhere crouched means standing still
   const crouchWalks = () => !!(floor.crouchWalk && floor.crouchWalk());
   // Katana-only stages (both lobbies and the quiet ride; owner, Oct 15): the blaster comes out only where there's a fight.
@@ -1360,8 +1359,8 @@
     Space: 'slash', Enter: 'slash', NumpadEnter: 'slash', KeyK: 'slash', KeyX: 'slash',
     ShiftLeft: 'shoot', ShiftRight: 'shoot', KeyJ: 'shoot', KeyZ: 'shoot', Quote: 'shoot', KeyE: 'drop' };
   const TWIN_HOLD = { mUp: 'up', mDown: 'down', mLeft: 'left', mRight: 'right', aUp: 'aimUp', aDown: 'aimDown', aLeft: 'aimLeft', aRight: 'aimRight' };
-  const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.duck && e.code === 'KeyC' ? 'duck' : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
-  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = keys.kbDuck = keys.padDuck = false; if (floor && floor.steer) floor.steer(null); for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
+  const KEYS = { get: e => twinOn() ? TWIN_CODES[e.code] : floor.depthMove && ['ArrowUp', 'KeyW'].includes(e.code) ? 'up' : CODES[e.code] || NAMES[e.key] };
+  function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; if (floor && floor.steer) floor.steer(null); for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (state === 'title' && cardKind === 'title' && !e.repeat && (e.key === 'Enter' || e.key === ' ')) {
@@ -1372,7 +1371,7 @@
     if (state === 'play' && k && TWIN_HOLD[k]) { e.preventDefault(); twin.kb[TWIN_HOLD[k]] = 1; return; }
     if (state === 'play' && k) {
       e.preventDefault();
-      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true; else if (k === 'up') keys.kbUp = true; else if (k === 'duck') keys.kbDuck = true;
+      if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true; else if (k === 'up') keys.kbUp = true;
       else { if (k === 'shoot') keys.kbShoot = true; if (!e.repeat) press(k); }
       return;
     }
@@ -1390,8 +1389,8 @@
       else if (e.key === 'Escape' && isFull() && !nativeFull()) setFull(false);
     }
   });
-  addEventListener('keyup', e => { const k = KEYS.get(e); if (TWIN_HOLD[k]) { twin.kb[TWIN_HOLD[k]] = 0; return; } if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; else if (k === 'up') keys.kbUp = false; else if (k === 'duck') keys.kbDuck = false; });
-  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.mouseShoot = keys.kbDuck = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; });
+  addEventListener('keyup', e => { const k = KEYS.get(e); if (TWIN_HOLD[k]) { twin.kb[TWIN_HOLD[k]] = 0; return; } if (k === 'left') keys.kbLeft = false; else if (k === 'right') keys.kbRight = false; else if (k === 'shoot') keys.kbShoot = false; else if (k === 'down') keys.kbDown = false; else if (k === 'up') keys.kbUp = false; });
+  addEventListener('blur', () => { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.mouseShoot = false; for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; });
   // The mouse: on every floor the left button fires (held, it keeps firing) and the right one slashes (owner, Oct 13).
   // On twin-stick floors it also aims where it points.
   const toPic = e => { const box = c.getBoundingClientRect(); return { x: (e.clientX - box.left) * PW / box.width, y: (e.clientY - box.top) * PH / box.height }; };
@@ -1462,7 +1461,7 @@
   }
   function padSync() {
     const held = new Set(padPointers.values());
-    keys.padShoot = held.has('shoot'); keys.padDuck = held.has('duck');
+    keys.padShoot = held.has('shoot');
     for (const p of pads.querySelectorAll('.pad')) p.classList.toggle('on', held.has(p.dataset.k));
   }
   pads.addEventListener('pointerdown', e => {

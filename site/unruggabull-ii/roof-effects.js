@@ -23,7 +23,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   function respoolStart(Q) { spool = { start: clock, n: Q.capturedTotal }; }
   function respoolAll(Q) { spool = { start: clock - 99, n: Q.capturedTotal }; }
   function spoolOf(i) { const j = spool.n - 1 - i; return j === 0 ? 1 : j === 1 ? 0 : j === 2 ? 2 : i % 3; }
-  function spoolPoint(i) { const k = spoolOf(i); return { x: LM.spools[k] - 6 + (i * 7) % 12, y: LM.top + (i * 3) % 6 }; }
+  function spoolPoint(i) { const k = spoolOf(i); return { x: LM.spools[k] - LM.spoolW / 2 + 2 + (i * 7) % (LM.spoolW - 4), y: LM.top + 1 + (i * 3) % 5 }; }
   function spoolTime(i) {
     const span = tuning.reset.respool - C.respoolFly, dep = spool.start + i / Math.max(1, spool.n - 1) * span;
     return { dep, arr: dep + C.respoolFly };
@@ -103,7 +103,8 @@ var UnrugRoofEffects = function (core, tuning, spot) {
       const pulse = Q.state === 'quiet' ? .65 + .25 * Math.sin(clock * s.rate * 2 + s.phase) : .82;
       const wake = Q.state === 'wake' ? clamp(Q.t / C.wakeRise, .15, 1) : 1;
       const arrival = Math.max(0, 1 - (clock - s.arrived) / C.arrivalPulse);
-      drawSoul(g, i, p, Q.state === 'flash' ? 1 : (pulse + arrival * .35) * s.bright * wake, Q.state === 'flash' || flash(Q) > .06, s.size * (1 + arrival * .2));
+      // trapped souls stay dim, so the eye in front of them is the brightest thing on the loom
+      drawSoul(g, i, p, Q.state === 'flash' ? 1 : (pulse + arrival * .35) * s.bright * wake * (Q.state === 'quiet' ? 1 : LM.trappedAlpha), Q.state === 'flash' || flash(Q) > .06, s.size * (1 + arrival * .2));
     }
   }
   function flightPoint(f, time, m) {

@@ -1,4 +1,4 @@
-// The fight's threats on the grid: warp and weft, the high weft ducked, hallucinations, the opening, carpet's grip,
+// The fight's threats on the grid: warp and weft, the shuttle and the beater, hallucinations, the opening, carpet's grip,
 // the slash that reclaims (and whiffs), fixed carpshits, the snap's thread whip, and drawing that changes nothing.
 (function () {
   const check = (ok, why) => { if (!ok) throw new Error(why); };
@@ -20,11 +20,19 @@
   fresh(); attack([{ k: 'col', i: 2, real: true }, { k: 'row', i: 0, real: true }]);
   keys.kbRight = true; tick(1 / 60); keys.kbRight = false; tick(.15); keys.kbUp = true; tick(1 / 60); keys.kbUp = false; tick(1);
   check(R.roof.at.c === 3 && R.roof.at.r === 1 && R.hearts === 5, 'warp and weft crossing on him: a diagonal step clears it');
-  fresh(); attack([{ k: 'high', i: 0, real: true }]);
-  keys.kbDuck = true; tick(1.1); keys.kbDuck = false;
-  check(R.hearts === 5 && !tile(2, 0).carpet, 'ducking passes under a high weft, which lays no carpet');
-  fresh(); attack([{ k: 'high', i: 0, real: true }]); tick(1.1);
-  check(R.hearts === 4, 'standing, the high weft hits');
+  // The shuttle: down his column at head height; it lays no carpet, and a step aside clears it.
+  fresh(); attack([{ k: 'shut', i: 2, real: true, lay: false }]); tick(1.3);
+  check(R.hearts === 4 && R.lastCause === 'shuttle' && !tile(2, 0).carpet && !tile(2, 2).carpet, 'the shuttle down his column hits, and lays no carpet');
+  fresh(); attack([{ k: 'shut', i: 2, real: true, lay: false }]); keys.kbRight = true; tick(1 / 60); keys.kbRight = false; tick(1.3);
+  check(R.hearts === 5, 'a step out of its column and the shuttle flies past');
+  // The beater: the width of the roof, row by row, all but its gap.
+  fresh(); attack([{ k: 'beat', i: 0, gap: 4, real: true, lay: false }]); tick(.5 + floor.ROOF.fight.beaterT + .1);
+  check(R.hearts === 4 && R.lastCause === 'beater', 'the beater hits anywhere but its gap');
+  fresh(); floor.placeBull(4, 0); attack([{ k: 'beat', i: 0, gap: 4, real: true, lay: false }]); tick(.5 + floor.ROOF.fight.beaterT + .1);
+  check(R.hearts === 5 && R.roof.atk.stage === 'heat', 'standing in the gap it passes him, and the eye opens');
+  fresh(); floor.placeBull(0, 0); attack([{ k: 'beat', i: 0, gap: 4, real: true, lay: false }]); tick(.5 + floor.ROOF.fight.beaterT * .5);
+  check(R.hearts === 5, 'it comes from the far row: the near row still has time');
+  tick(floor.ROOF.fight.beaterT * .5 + .1); check(R.hearts === 4, 'then it reaches him');
   fresh(); attack([{ k: 'col', i: 2, real: false }, { k: 'tile', c: 2, r: 0, real: false }]); tick(1.1);
   check(R.hearts === 5 && !tile(2, 0).carpet && R.roof.stall === 0 && R.roof.atk.stage === 'idle', 'hallucinations do nothing, and open nothing');
   fresh(); attack([{ k: 'tile', c: 2, r: 0, real: true, lay: false }]); tick(.8);

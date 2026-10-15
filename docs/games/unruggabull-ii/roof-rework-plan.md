@@ -10,7 +10,7 @@ p(Loom) is a paperclip maximizer for carpet. The roof in front of Unruggabull is
 
 ## The loop: dodge, punish, reclaim
 
-- **Dodge.** Every attack is telegraphed on the tiles it will hit, then fires. Real targets darken the tile and scroll hazard stripes, with an edge that flashes on the beat; they read on bare roof and on carpet alike. A high weft is a bar at chest height with down-arrows: duck under it.
+- **Dodge.** Every attack is telegraphed on the tiles it will hit, then fires. Real targets darken the tile and scroll hazard stripes, with an edge that flashes on the beat; they read on bare roof and on carpet alike. (The high weft, a bar at chest height to duck, was cut after his second play: see below.)
 - **Punish.** After every attack with a real laser, the eye overheats white-hot with a countdown ring ("OPEN") for 2.2 seconds. Shots home in on it; each hit sparks, kicks the eye, cracks the spool and takes the odds down. Shots at the closed eye just clang off its armour (no bounce back: the owner found it annoying).
 - **Reclaim.** Carpet under him flickers white and its tassels stand up for a second, then the rug is pulled (a heart). A slash reclaims his tile and the tiles either side, with a chime that climbs per tile and a hit-stop. A slash on bare roof with nothing to cut whiffs and roots him for half a second, so spamming Slash doesn't pay.
 - Carpshits hatch out of carpet tiles (the tile heaves, then the carpshit peels up and takes the carpet) in a fixed number per phase; souls from them are caught in the warp as before. Stalling earns nothing.
@@ -42,7 +42,7 @@ The lead-in's walk becomes the tutorial: the loom is dark, and the runner unroll
 ## Controls
 
 - **Thumb stick** for the walk and the phases: one tile per step, repeating while held (up and down move between rows). Keys: arrows or WASD.
-- **Duck**: a Duck pad on the roof only, or C. Ducking is standing still; shooting crouched costs two charges as everywhere.
+- ~~**Duck**: a Duck pad on the roof only, or C.~~ Cut after his second play: the roof uses the same pads as everywhere.
 - **The beam**: it fires on its own; drag on the picture to steer it (the stick and keys still work).
 - First-time prompts, once a run: STEP OFF THE RED, IT'S WHITE: SHOOT IT!, CARPET UNDER YOU: SLASH IT OR STEP OFF, and so on.
 
@@ -62,6 +62,12 @@ Opening 2.2 s (set pieces 1.8x, the last 2x); warning 1.2 s (phase 3 0.92x); las
 - The roof: no runner down the middle, a lit roof, solid tiles (pale slabs or carpet), nothing see-through on the floor.
 - Carpshits come out of the red tiles, with a visible hatch; none without carpet.
 - The beam fight follows the [finale mockup](https://claude.ai/artifact/MqfeHREtfJp24VcdGqACx4)'s behind view: he walks, the beam trails him in a curve and leans to the eye (veers off if he's too far), and 40 carpshits, a quarter of them heavy, pour in for it to melt.
+
+## After his second play (Oct 14, PR #111)
+
+- No Duck on the roof: the same pads as everywhere, every attack dodged by stepping. The high weft is gone; the **shuttle** (thrown down a column at head height) and the **beater** (a comb as wide as the roof with a gold gap) take its place; FIRST PASS's second pass is the beater.
+- The reset is playable (slash the carpet back while it's re-woven); no cut-in cards; real streams from the first returned soul; he walks freely from then to the end.
+- The loom no wider than the roof, its spools below the HUD; dim trapped souls; the open eye yellow with a white core; shapes drawn at half a pixel.
 
 ## Left for later
 

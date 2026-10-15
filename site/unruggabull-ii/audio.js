@@ -660,6 +660,9 @@ window.UnrugSound = (function () {
     carpetSpread: t => osc(sfxBus, 'triangle', 110, t, .08, .05, { to: 80 }),
     fakePop: t => { noiseHit(sfxBus, t, .15, .05, 'highpass', 6000); osc(sfxBus, 'square', 2400, t, .05, .015, { to: 4800 }); },
     stitchBlip: t => osc(sfxBus, 'square', 150 + Math.random() * 60, t, .035, .025),
+    // the shuttle thrown down a column (an airy whoosh that rises past him) and the beater swinging in (a wooden creak and a thunk)
+    shuttle: t => { noiseHit(sfxBus, t, .5, .16, 'bandpass', 900, 1, 3600); osc(sfxBus, 'triangle', 330, t, .45, .04, { to: 660 }); },
+    beater: t => { osc(sfxBus, 'sawtooth', 90, t, .5, .06, { to: 60 }); noiseHit(sfxBus, t, .4, .07, 'lowpass', 600); osc(sfxBus, 'triangle', 120, t + .9, .25, .3, { to: 40 }); noiseHit(sfxBus, t + .9, .15, .12, 'lowpass', 900); },
     // the fusion: a sub boom, a crash and a falling power chord, then the souls' choir in one blast with bells over it
     beam: t => {
       osc(sfxBus, 'sine', 90, t, 1.4, .385, { to: 28, sustain: .4 });

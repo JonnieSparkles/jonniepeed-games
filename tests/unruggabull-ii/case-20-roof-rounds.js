@@ -37,7 +37,7 @@
   hit(); hit(); check(q.hp === th, 'nothing gets past the set piece');
   bull.inv = 1e9; tick(F.setWait + .1);
   check(q.atk.set && R.banner.text === 'FIRST PASS' && lines.includes('OPTIMIZING.'), 'phase 1 runs FIRST PASS');
-  check(q.atk.list.filter(l => l.k === 'col').length === 8 && q.atk.list.filter(l => l.k === 'gap').length === 2, 'two passes of four columns, each with a gold gap');
+  check(q.atk.list.filter(l => l.k === 'col').length === 4 && q.atk.list.filter(l => l.k === 'beat').length === 1 && q.atk.list.filter(l => l.k === 'gap').length === 2, 'a pass of four columns, then the beater, each with a gold gap');
   tick(q.atk.end - q.atk.t + .05);
   check(q.atk.stage === 'heat' && q.stall > F.open * 1.5, 'the set piece gives the longest opening');
   for (let i = 0; i < 60 && q.broken === 0; i++) hit();

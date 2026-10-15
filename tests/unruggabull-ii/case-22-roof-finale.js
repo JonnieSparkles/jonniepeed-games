@@ -1,4 +1,4 @@
-// All finale states, bell sequence, cut-in input retention, beam odds, death/continue and dawn.
+// All finale states, the playable reset, the bell sequence, free movement and the streams, beam odds, death/continue and dawn.
 (function () {
   const check = (ok, why) => { if (!ok) throw new Error(why); };
   const tick = s => { for (let i = 0; i < Math.ceil(s * 60); i++) update(1 / 60); };
@@ -10,17 +10,23 @@
   Snd.music = name => music.push(name);
   for (let i = 0; i < 300 && !R.roof.silenced; i++) update(1 / 60);
   check(music.includes(null), 'the last word of ALL SOULS ACCOUNTED FOR. cuts the music');
+  for (let i = 0; i < 120; i++) update(1 / 60);
+  floor.placeBull(2, 0); press('slash'); update(1 / 60); update(1 / 60);
+  check(!R.roof.tiles[2].carpet && !R.roof.tiles[1].carpet, 'in the reset a slash flips the carpet back');
+  tick(floor.ROOF.reset.relay + .6); check(R.roof.tiles[2].carpet, 'and p(Loom) weaves it again a moment later');
   for (let i = 0; i < 1200 && R.roof.state === 'reset'; i++) update(1 / 60);
   check(R.roof.state === 'quiet' && R.roof.respool === 1 && spoken.includes('REPLACEMENT SPOOLS ORDERED.') && spoken.includes('PROBABILITY OF YOUR SURVIVAL: 1%.'), 'the reset re-spools from the souls and hands over to the quiet');
   check(R.roof.odds === 99 && R.roof.realOdds < 99, 'the bar is stitched back to 99 over damage it keeps');
-  for (let i = 0; i < 300 && !R.roof.cut; i++) update(1 / 60);
-  check(R.roof.cut && R.roof.cut.name === 'soul', 'quiet exits into first-soul cut');
-  keys.kbRight = true; press('slash'); press('jump');
-  const before = { t: R.t, qt: R.roof.t, u: bull.u, slash: input.slash, jump: input.jump, charge: R.charge };
-  draw(); tick(.5);
-  check(R.t === before.t && R.roof.t === before.qt && bull.u === before.u && input.slash === before.slash && input.jump === before.jump && R.charge === before.charge, 'cut freezes all timers and holds held and buffered input');
-  tick(.6); check(bull.u > before.u && bull.slash >= 0 && bull.jh > 0, 'held movement and buffered actions execute on return');
-  clearHeld(); tick(18);
+  for (let i = 0; i < 300 && R.roof.state === 'quiet'; i++) update(1 / 60);
+  check(R.roof.state === 'return' && !R.roof.cut, 'the quiet goes straight into the return: no cut-in cards');
+  // from the first soul back he walks freely, and the blaster fires the streams on its own
+  const u0 = bull.u; keys.kbRight = true; tick(.5); keys.kbRight = false;
+  check(bull.u > u0 + .3 && R.roof.state === 'return' && R.roof.vol && R.roof.vol.shots.length > 0, 'he walks freely and the streams fire on their own');
+  tick(3.4); check(R.roof.vol.shots.some(sh => sh.d !== 0 || sh.o !== 0), 'each soul back adds a stream');
+  for (let i = 0; i < 600 && R.roof.state !== 'lines'; i++) update(1 / 60);
+  const u1 = bull.u; keys.kbLeft = true; tick(.4); keys.kbLeft = false;
+  check(R.roof.state === 'lines' && bull.u < u1 - .3, 'he can move while it talks, beam on');
+  clearHeld(); for (let i = 0; i < 900 && !['beam', 'run'].includes(R.roof.state); i++) update(1 / 60);
   check(R.roof.state === 'beam' || R.roof.state === 'run', 'quiet, return, flood, pinch, fusion and lines lead to the beam');
   check(['reset', 'quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam'].every(s => R.roof.history.includes(s)), 'all setup states are reachable');
   check(bells.join() === '0,1,2', 'returning souls land on D5, F5, A5 bells');
