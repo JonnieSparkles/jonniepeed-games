@@ -71,6 +71,6 @@
     }
     check(saw && bells.length === 1 && bells[0] === 0, 'goodbye, with one bell as it comes out: one soul, one bell (' + bells + ')');
     check(rose === Math.min(40, R.souls), 'and the floor\'s souls rise with it');
-    check(state === 'over' && cardTitle.textContent === 'The 13th Floor clear', 'then the clear card');
+    check(state === 'over' && Cards.kind === 'clear', 'then the clear card');
   } finally { Snd.play = play; }
 })();

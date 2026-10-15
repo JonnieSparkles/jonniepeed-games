@@ -415,18 +415,26 @@ with sync_playwright() as p:
                 assert b and b['x'] >= 0 and b['x'] + b['width'] <= w and b['y'] + b['height'] <= h, f'{name}: {k} on screen'
         else:
             assert not page.locator('#pads').is_visible(), f'{name}: no touch controls'
-        # Pause opens the card: Resume, Restart floor, Sound, Full screen, Controls and Quit, all reachable, 44 px tall
+        # Pause opens the pause card (cards.js): Resume, Restart floor, Controls, Sound, Full screen and Quit, all on
+        # screen and 44 px tall
         page.locator('#ipause').tap() if touch else page.locator('#ipause').click()
         assert page.evaluate("unrugTest('state')") == 'pause', f'{name}: Pause pauses'
-        for sel in ['#go', '#alt', '#cSnd', '#cKeys', '#cQuit'] + (['#cFs'] if page.evaluate("unrugTest('canFull')") else []):
-            b = box(page, sel)
-            assert b and b['height'] >= 43 and b['y'] >= 0 and b['y'] + b['height'] <= h, f'{name}: {sel} on the pause card ({b})'
-        page.locator('#cKeys').tap() if touch else page.locator('#cKeys').click()
+        page.wait_for_timeout(450)   # the strip slides in, then its buttons show
+        want = ['Resume', 'Restart floor', 'Controls', 'Sound', 'Full screen', 'Quit'] if page.evaluate("unrugTest('canFull')") else ['Resume', 'Restart floor', 'Controls', 'Sound', 'Quit']
+        labels = page.evaluate("unrugTest('Cards.labels()')")
+        assert len(labels) == len(want) and all(l.startswith(k) or (k == 'Full screen' and 'full screen' in l.lower()) for l, k in zip(labels, want)), f'{name}: the pause card buttons {labels}'
+        for i in range(len(labels)):
+            b = page.locator('.lcard .lb').nth(i).bounding_box()
+            assert b and b['height'] >= 43 and b['y'] >= 0 and b['y'] + b['height'] <= h and b['x'] >= 0 and b['x'] + b['width'] <= w, f'{name}: {labels[i]} on the pause card ({b})'
+        ctl = page.locator('.lcard .lb', has_text='Controls')
+        ctl.tap() if touch else ctl.click()
         assert page.locator('#keyList').is_visible() and page.locator('#cardTitle').inner_text() == 'Controls', f'{name}: Controls lists the controls'
         assert ('slide the stick' if touch else 'Enter, K or X') in page.locator('#keyList').inner_text(), f'{name}: for this device'
         page.locator('#go').tap() if touch else page.locator('#go').click()
-        assert page.locator('#cardTitle').inner_text() == 'Paused', f'{name}: Back returns to the card'
-        page.locator('#go').tap() if touch else page.locator('#go').click()
+        assert page.evaluate("unrugTest('Cards.kind')") == 'pause', f'{name}: Back returns to the pause card'
+        page.wait_for_timeout(450)
+        res = page.locator('.lcard .lb', has_text='Resume')
+        res.tap() if touch else res.click()
         assert page.evaluate("unrugTest('state')") == 'play', f'{name}: Resume'
         if touch:
             # the 48th Floor: the picture stays where it was, and the two sticks mirror each other

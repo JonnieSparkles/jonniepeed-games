@@ -41,7 +41,7 @@
   fresh(); floor.enter('beam'); R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = 0; tick(.05);
   check(R.roof.state === 'one' && R.roof.odds === 1 && R.talk.text === 'UNLIKELY.', '1% says UNLIKELY.');
   tick(12);
-  check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && cardTitle.textContent === 'Roof clear', 'snap, dawn and roof clear');
+  check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && Cards.kind === 'clear' && Cards.info.dept === 'ROOF', 'snap, dawn and roof clear');
   check(R.roof.history.includes('snap') && R.roof.history.includes('dawn') && played.includes('snap') && played.includes('chord'), 'snap and dawn beats call sound hooks');
   check(R.souls === floor.ROOF.initialCaught, 'earlier-floor souls are counted exactly once through dawn');
   check(floor.view().dawn === 1 && bull.aimT === 0, 'dawn stays bright at clear and he lowers the blaster');

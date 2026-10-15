@@ -126,6 +126,7 @@
       R.continues = at.continues || 0;
       R.fromStairs = !!at.fromStairs;   // through the stairwell's door: the band's already playing
     }
+    R.floorStart = at && !at.transfer && at.floorStart != null ? at.floorStart : R.souls;   // the souls he came into this floor with (the cards' souls freed)
   }
   // Where a target is, for aiming and hits: the floor knows where its own things are.
   const posOf = o => floor.posOf(o);
@@ -594,7 +595,6 @@
     R.phase = 'dead'; R.phaseT = 0; R.hearts = 0; R.bark = null;
     emit('game_over', { cause: R.lastCause || 'unknown', score: R.souls });
     floor.endPull();
-    R.banner = { text: 'RUGGED.', t: 0, dur: 99, col: '#ff7050' };
     Snd.music(null); Snd.play('over'); Snd.play('yank');
     live('Rugged.');
   }
@@ -795,6 +795,17 @@
     const n = String(displayed === undefined ? Math.min(R.souls, R.shown) : displayed), tw = textWidth(n), pulse = R.meterPulse > 0;
     g.drawImage(A.GHOST, W - 4 - tw - 12, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
     otxt(g, n, W - 4, 5, pulse ? '#ffd44a' : '#fff6e2', 1, 'right');
+    if (R.continues) noBoard((W - 4 - tw - 12) * 2 - 3);
+  }
+  // A run that has retried won't count on the leaderboard: a crossed-out trophy just left of the soul icon, for the rest
+  // of the run (cards-plan.md). Drawn at the picture's own pixels; right is its right edge.
+  const TROPHY = ['..#######..', '##.#####.##', '#..#####..#', '.#.#####.#.', '..#######..', '...#####...', '....###....', '.....#.....', '....###....', '...#####...'];
+  function noBoard(right) {
+    const x = right - 12, y = 4;
+    g.save(); g.scale(.5, .5);
+    TROPHY.forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '#') { rect(g, x + i + 1, y + j + 2, 1, 1, '#1a1418'); rect(g, x + i, y + j + 1, 1, 1, '#ffd44a'); } });
+    for (let k = -1; k <= 11; k++) { rect(g, x + k, y + 11 - k, 2, 2, '#1a1418'); rect(g, x + k, y + 10 - k, 2, 1, '#ff4030'); }
+    g.restore();
   }
   function drawWords() {
     // Big moments sit across SHRED-O's mouth; prompts during play sit up top, clear of the action.
@@ -1015,12 +1026,14 @@
     for (const [k, v] of rows) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; cardStats.append(dt, dd); }
     cardStats.hidden = !rows.length;
   }
+  let Cards = null;   // the clear, rugged and pause cards (cards.js); made before start()
   function showCard(kind, extra) {
+    if (kind === 'clear' || kind === 'rugged' || kind === 'pause') { cardKind = kind; card.hidden = true; Cards.show(kind, cardInfo(kind, extra)); return; }
+    if (Cards) Cards.hide();
     cardKind = kind;
     const rows = [];
     altBtn.hidden = true; cardNote.hidden = true;
-    cardText.hidden = false; keyList.hidden = true; moreBtns.hidden = kind !== 'pause'; titleKeys.hidden = kind !== 'title';
-    if (kind === 'pause') fsLabels();
+    cardText.hidden = false; keyList.hidden = true; moreBtns.hidden = true; titleKeys.hidden = kind !== 'title';
     if (kind === 'title') {
       cardTitle.textContent = 'The 13th Floor: Accounting';
       cardText.textContent = "Every soul you ever freed is still on RugCo's books. Free " + TUNE.goal + ' on the 13th Floor until Accounting notices.';
@@ -1029,28 +1042,6 @@
       goBtn.textContent = 'Start';
       cardNote.textContent = 'Demo: the first floor of the climb.'; cardNote.hidden = false;
       const land = document.createElement('span'); land.className = 'land-note'; land.textContent = ' Best played in landscape.'; cardNote.append(land);
-    } else if (kind === 'pause') {
-      cardTitle.textContent = 'Paused';
-      cardText.textContent = floor.pauseText;
-      goBtn.textContent = 'Resume'; altBtn.textContent = 'Restart floor'; altBtn.hidden = false;
-    } else if (kind === 'clear') {
-      const details = floor.clearCard(extra, best, clock);
-      cardTitle.textContent = details.title; cardText.textContent = details.text;
-      rows.push(...details.rows);
-      goBtn.textContent = details.go || 'Play again';
-      if (details.alt) { altBtn.textContent = details.alt; altBtn.hidden = false; }
-      if (floor.id === 'floor13') { goBtn.textContent = 'Take the elevator'; altBtn.textContent = 'Play again'; altBtn.hidden = false; }
-      // the routing slip (lore chat, Oct 12)
-      cardNote.textContent = floor.id === 'floor13' ? 'UNRUGGED, ' + R.souls + ' UNITS. RECLAMATION, 48TH FLOOR.' : details.note; cardNote.hidden = !cardNote.textContent;
-    } else if (kind === 'rugged') {
-      cardTitle.textContent = 'Rugged.';
-      if (checkpoint) {
-        // beaten by SHRED-O: pick up at the fight with full hearts, or start the floor over
-        cardText.textContent = floor.continueText ? floor.continueText() : 'Continue from SHRED-O with full hearts?';
-        altBtn.textContent = 'Restart floor'; altBtn.hidden = false;
-      } else cardText.textContent = 'Continue? The floor starts over.';
-      rows.push(['Souls freed', String(R.souls)], ['Best', best.souls + ' souls']);
-      goBtn.textContent = 'Continue';
     }
     stats(rows);
     card.hidden = false;
@@ -1088,6 +1079,7 @@
   }
   function showKeys() {
     keysFrom = cardKind; cardKind = 'keys';
+    Cards.hide(); card.hidden = false;
     const touch = document.body.classList.contains('touch');
     cardTitle.textContent = 'Controls';
     cardText.textContent = state !== 'title' && twinOn() ? 'The 48th Floor' : touch ? 'Touch' : 'Keys and mouse';
@@ -1112,6 +1104,7 @@
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
     // in play the game fills the window on every device, in or out of full screen (screen-space.md)
     const inGame = s === 'play' || s === 'pause' || s === 'over';
+    if (Cards && s !== 'over' && s !== 'pause') Cards.hide();
     gameEl.classList.toggle('ingame', inGame);
     document.body.classList.toggle('locked', inGame || isFull());
     layoutPlay();
@@ -1268,7 +1261,6 @@
     setState('pause'); clearHeld();
     showCard('pause');
     Snd.pause();
-    goBtn.focus({ preventScroll: true });
   }
   function resumeGame() {
     if (state !== 'pause') return;
@@ -1285,22 +1277,12 @@
     if (kind === 'clear' && !R.continues) best.time = best.time ? Math.min(best.time, R.endT) : R.endT;   // fastest clear counts only without continues
     try { localStorage.setItem(bestKey(floor.id), JSON.stringify(best)); } catch (e) {}
     showCard(kind, { newBest });
-    goBtn.focus({ preventScroll: true });
   }
+  // The HTML card is the title card and Controls now; clear, rugged and pause are cards.js's.
   goBtn.addEventListener('click', () => {
-    if (cardKind === 'keys') { showCard(keysFrom); goBtn.focus({ preventScroll: true }); return; }
-    if (cardKind === 'pause') { resumeGame(); return; }
+    if (cardKind === 'keys') { showCard(keysFrom); if (keysFrom === 'title') goBtn.focus({ preventScroll: true }); return; }
     goFull();
-    if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
-    if (cardKind === 'clear' && floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
-    if (cardKind === 'clear' && floor.afterClear) { setState('play'); card.hidden = true; floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
-    if (cardKind === 'title') startIntro(); else startRun(floor.id);   // Start always plays the story; skip it from there (the owner, Oct 13)
-  });
-  altBtn.addEventListener('click', () => {
-    if (cardKind === 'pause') { Snd.resume(); startRun(); }
-    else if (cardKind === 'rugged') { goFull(); startRun(); }
-    else if (cardKind === 'clear' && floor.id === 'floor13') { goFull(); startRun('floor13'); }
-    else if (cardKind === 'clear' && floor.afterClear) { goFull(); startRun(floor.id); }
+    startIntro();   // Start always plays the story; skip it from there (the owner, Oct 13)
   });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
   ipause.addEventListener('click', () => { if (state === 'play') pauseGame(); });
@@ -1681,8 +1663,50 @@
     let dt = last ? Math.min(.1, Math.max(0, (now - last) / 1000)) : 0;
     last = now;
     while (dt > 1e-6) { const s = Math.min(STEP, dt); update(s); dt -= s; }
-    draw(); padRings(); twinClass(); layoutPlay(); dialSync();
+    draw(); padRings(); twinClass(); layoutPlay(); dialSync(); Cards.frame();
   }
+  // ---------- the cards' words and buttons ----------
+  // What each card says comes from the run; cards.js lays it out and draws it.
+  function backTo() {
+    const cp = checkpoint || {};
+    if (floor.id === 'stairs') return cp.katana ? 'THE KATANA' : 'THE GARAGE';
+    if (floor.id === 'floor13') return checkpoint ? 'SHRED-O' : 'THE DOOR';
+    if (floor.id === 'floor48') return 'THE FACTORY';
+    if (floor.id === 'elevator') return cp.fight ? 'THE THREADS' : 'THE DOORS';
+    if (floor.id === 'roof') return cp.roofState && cp.roofState !== 'quiet' ? String(cp.roofState).replace(/^round/i, 'ROUND ').toUpperCase() : 'THE QUIET';
+    return 'THE START';
+  }
+  function cardInfo(kind, extra = {}) {
+    const dept = dialAt()[1], who = floor.id === 'floor13' && kind === 'rugged' && checkpoint ? 'shredo' : floor.id;
+    if (kind === 'pause') return { who, dept, line: floor.pauseText || '' };
+    if (kind === 'clear') return { who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0 };
+    const from = checkpoint && checkpoint.souls != null ? checkpoint.souls : R.floorStart || 0;
+    return { who, dept, back: backTo(), lost: Math.max(0, R.souls - from), ranked: !R.continues };
+  }
+  // Quit (the rugged card and the pause card): the run ends and the title screen comes back.
+  function quitToTitle() {
+    if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }
+    if (state === 'pause') Snd.resume();
+    checkpoint = null; clearHeld();
+    newRun(); setState('title'); showCard('title');
+    Snd.music('theme');
+    try { goBtn.focus({ preventScroll: true }); } catch (e) {}
+  }
+  Cards = UnrugCards.make({ A, arena: gameEl.querySelector('.arena'), stage: $('stage'), actions: {
+    next() {   // a clear's Continue: on up the tower, as the clear's button did
+      goFull();
+      if (floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
+      if (floor.afterClear) { setState('play'); floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
+      quitToTitle();   // the roof's clear until the ending takes over, and practice runs
+    },
+    retry() { goFull(); if (checkpoint) continueAtBoss(); else startRun(floor.id); },
+    quit: quitToTitle,
+    resume: resumeGame,
+    restart() { Snd.resume(); startRun(); },
+    controls: showKeys,
+    sound: flipSound, soundLabel: () => soundOn() ? 'Sound on' : 'Sound off',
+    full: toggleFull, fullLabel: () => isFull() ? 'Exit full screen' : 'Full screen', canFull: () => canFull
+  } });
   function start() {
     setTimeout(renderer, 60);   // the renderer works out the hall once (a moment's work), while the title's up
     newRun();
@@ -1704,7 +1728,7 @@
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext, banked: R.banked }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, saveDropState: () => { if (checkpoint) { checkpoint.heldDrop = R.heldDrop; checkpoint.dropNext = R.dropNext; } }, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, setCheckpoint: v => { checkpoint = Object.assign({ heldDrop: R.heldDrop, dropNext: R.dropNext, banked: R.banked, floorStart: R.floorStart }, v); }
   };
   const drops = UnrugDrops(core); core.drops = drops;
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };

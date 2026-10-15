@@ -81,25 +81,27 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .pad-group{display:flex;align-items:end;gap:10px;touch-action:none}
 /* The stick has no frame: a faint ring shows where it rests, and it jumps to wherever the thumb lands in its area. */
 .stickzone{position:relative;flex:1 1 auto;min-width:150px;min-height:140px;touch-action:none}
-.stick{position:absolute;left:50%;top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:2px solid rgba(168,156,196,.35);background:rgba(58,47,88,.25);pointer-events:none;transition:opacity .2s}
-.stick.on{border-color:var(--gold);background:rgba(58,47,88,.6);transition:none}
-.knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(90,76,134,.7);border:2px solid rgba(255,246,226,.5);box-shadow:0 3px 0 rgba(9,7,11,.5)}
-.stick.on .knob{background:var(--gold);border-color:var(--cream)}
+.stick{position:absolute;left:50%;top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:0;box-shadow:inset 0 0 0 1px rgba(255,246,226,.28);background:none;pointer-events:none;transition:opacity .2s}
+.stick.on{box-shadow:inset 0 0 0 2px var(--gold);transition:none}
+.knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,246,226,.2)}
+.stick.on .knob{background:var(--gold)}
 .stick-tip{position:absolute;left:8px;right:8px;bottom:6px;font-size:10px;line-height:1.2;color:var(--muted);text-align:center;pointer-events:none}
 .stickzone.used .stick-tip{display:none}
 /* Shoot and Slash: round arcade buttons with a pixel icon. They sink and glow while held. The ring round Shoot is the
    blaster's charge; the ring round Slash sweeps back as it's ready again. */
-.pad{--size:76px;--fill:1;--ring:var(--cream);position:relative;display:grid;place-items:center;align-content:center;gap:2px;width:var(--size);height:var(--size);padding:0;border-radius:50%;border:3px solid #09070b;color:var(--cream);font-family:var(--display);font-size:9px;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 1px 0 rgba(9,7,11,.6);touch-action:none;-webkit-tap-highlight-color:transparent;transition:transform .05s,box-shadow .05s,filter .05s}
-.pad::before{content:'';position:absolute;inset:-8px;border-radius:50%;background:conic-gradient(var(--ring) calc(var(--fill) * 1turn),rgba(168,156,196,.18) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3.5px));pointer-events:none}
-.pad svg{width:42%;height:auto;fill:currentColor;shape-rendering:crispEdges;filter:drop-shadow(0 1px 0 rgba(9,7,11,.6))}
+/* Ghost (cards-plan.md): dark glass, a thin ring and the pixel icon; no gloss and no labels */
+.pad{--size:76px;--fill:1;--ring:var(--cream);position:relative;display:grid;place-items:center;align-content:center;gap:2px;width:var(--size);height:var(--size);padding:0;border-radius:50%;border:0;background:rgba(9,7,11,.5);box-shadow:inset 0 0 0 2px rgba(255,246,226,.35);color:rgba(255,246,226,.9);touch-action:none;-webkit-tap-highlight-color:transparent;transition:transform .05s,box-shadow .05s,filter .05s}
+.pad::before{content:'';position:absolute;inset:-8%;border-radius:50%;background:conic-gradient(var(--ring) calc(var(--fill) * 1turn),rgba(255,246,226,.1) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));pointer-events:none}
+.pad svg{width:42%;height:auto;fill:currentColor;shape-rendering:crispEdges}
 .pad:active{transform:none}
-.pad.shoot{background:radial-gradient(circle at 36% 30%,#9fe2ff 0,#3aa8e0 38%,#1b5a94 100%);box-shadow:0 5px 0 #0f2f52,inset 0 -4px 0 rgba(9,7,11,.25),inset 0 3px 0 rgba(255,255,255,.3)}
-.pad.slash{--ring:var(--gold);background:radial-gradient(circle at 36% 30%,#ff9a86 0,#d63428 40%,#7a1610 100%);box-shadow:0 5px 0 #4a0d08,inset 0 -4px 0 rgba(9,7,11,.25),inset 0 3px 0 rgba(255,255,255,.3)}
-.pad.on{transform:translateY(4px);filter:brightness(1.25)}
-.pad.shoot.on{box-shadow:0 1px 0 #0f2f52,0 0 18px 4px rgba(58,168,224,.7),inset 0 -2px 0 rgba(9,7,11,.25)}
-.pad.slash.on{box-shadow:0 1px 0 #4a0d08,0 0 18px 4px rgba(214,52,40,.7),inset 0 -2px 0 rgba(9,7,11,.25)}
+.pad.shoot{--ring:#7fd4ff}
+.pad.slash{--ring:var(--gold)}
+.pad.on{background:rgba(255,246,226,.32);color:#fff;transform:scale(.94)}
+
 .pad.shoot.low{--ring:#ff5a4a}
-.pad.shoot.off{filter:grayscale(.85) brightness(.7)}
+/* the blaster down or put away: no ring, the icon dimmed, a thin line across (a background: ::after is the touch margin) */
+.pad.shoot.off{color:rgba(255,246,226,.45);box-shadow:inset 0 0 0 2px rgba(255,246,226,.2);background:linear-gradient(-35deg,transparent calc(50% - 1.5px),rgba(255,246,226,.6) calc(50% - 1.5px) calc(50% + 1.5px),transparent calc(50% + 1.5px)) center/56% 56% no-repeat,rgba(9,7,11,.5)}
+.pad.shoot.off::before{display:none}
 /* no Slash until the katana (the stairwell's first section): hidden but keeping its place; it pops in with the katana */
 .pad.slash.sheathed{visibility:hidden}
 .pad.slash.reveal{animation:padIn .7s ease-out}
@@ -184,8 +186,8 @@ body.locked{overflow:hidden}
 .twin .pad.slash{display:none}
 .twin .pad-group{flex:1.4 1 0}
 .twin .pad-group{align-items:center}
-.stick.aim{border-color:rgba(127,212,255,.35)}
-.stick.aim.on{border-color:#7fd4ff}
+.stick.aim{box-shadow:inset 0 0 0 1px rgba(127,212,255,.35)}
+.stick.aim.on{box-shadow:inset 0 0 0 2px #7fd4ff}
 .stick.aim.on .knob{background:#7fd4ff}
 .twin .hint .keys-only,.twin .hint .touch-only{display:none}
 .hint .twin-only{display:none}
@@ -211,8 +213,8 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 /* a thumb a little off a pad, or in the gap between two, still lands on the pads (padAt picks the nearer, PAD_REACH) */
 .game.ingame .pad::after{content:'';position:absolute;inset:-18px;border-radius:50%}
 .game.ingame .stick-tip{display:none}
-.ipause{display:none;position:absolute;width:40px;height:40px;padding:0;border-radius:8px;border:2px solid var(--edge);background:rgba(18,13,31,.8);box-shadow:none;place-items:center;z-index:2}
-.ipause::before{content:'';width:12px;height:14px;border-left:4px solid var(--cream);border-right:4px solid var(--cream)}
+.ipause{display:none;position:absolute;width:40px;height:40px;padding:0;border-radius:50%;border:0;background:rgba(9,7,11,.5);box-shadow:inset 0 0 0 2px rgba(255,246,226,.35);place-items:center;z-index:2}
+.ipause::before{content:'';width:12px;height:14px;border-left:4px solid rgba(255,246,226,.9);border-right:4px solid rgba(255,246,226,.9)}
 .ipause:active{transform:none;filter:brightness(1.4)}
 .game.ingame.playing .ipause{display:grid}
 /* the tower dial (portrait): a notch a floor from the ground to the roof, the floor you're on marked */
@@ -233,6 +235,18 @@ dl.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;text-a
 dl.keys dt{font-family:var(--display);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);text-align:right;align-self:center}
 dl.keys dd{margin:0;font-size:15px}
 @media (prefers-reduced-motion:reduce){button:active{transform:none}.dial-track b,.dial-track span{transition:none}}
+/* The clear, rugged and pause cards (cards.js, cards-plan.md): a canvas strip placed over the picture's bottom (sideways)
+   or under the picture (upright), with buttons over it. p(Loom)'s caption colours; the pause card in the game's gold. */
+.lcard{position:absolute;z-index:3;touch-action:manipulation}
+.lcard canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+.lbtns{position:absolute;inset:0;pointer-events:none}
+.lb{position:absolute;pointer-events:auto;display:flex;align-items:center;justify-content:center;padding:0 .6em;min-height:0;border-radius:0;font-family:var(--display);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;background:#ff7a2a;color:#140806;border:2px solid #140806;box-shadow:0 3px 0 #8a3a10}
+.lb.sec{background:#140806;color:#ff7a2a;border-color:#ff7a2a;box-shadow:none}
+.lb:active{transform:translateY(2px);box-shadow:none}
+.lb:focus-visible{outline:2px solid #fff6e2;outline-offset:2px}
+.lcard.pz .lb{background:var(--gold);color:#16112a;border-color:#16112a;box-shadow:0 3px 0 var(--gold-deep)}
+.lcard.pz .lb.sec{background:#16112a;color:var(--cream);border-color:var(--edge);box-shadow:none}
+@media (prefers-reduced-motion:reduce){.lb:active{transform:none}}
 </style>
 </head>
 <body>
@@ -275,8 +289,8 @@ dl.keys dd{margin:0;font-size:15px}
               <div class="stick aim" id="aimstick" aria-hidden="true"><i class="knob" id="aimknob"></i></div>
               <span class="stick-tip" aria-hidden="true">Hold to aim and fire · flick to slash</span>
             </div>
-            <button class="pad shoot" type="button" data-k="shoot" tabindex="-1"><svg viewBox="0 0 12 10" aria-hidden="true"><path d="M9 1h1v1h-1zM2 2h7v1h-7zM10 2h1v1h-1zM1 3h10v1h-10zM1 4h9v1h-9zM1 5h2v1h-2zM4 5h1v1h-1zM1 6h2v1h-2zM4 6h2v1h-2zM1 7h2v1h-2zM1 8h3v1h-3z"/></svg>Shoot</button>
-            <button class="pad slash" type="button" data-k="slash" tabindex="-1"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M11 0h1v1h-1zM10 1h2v1h-2zM9 2h2v1h-2zM8 3h2v1h-2zM7 4h2v1h-2zM6 5h2v1h-2zM2 6h1v1h-1zM4 6h2v1h-2zM3 7h2v1h-2zM2 8h3v1h-3zM1 9h1v1h-1zM4 9h1v1h-1zM0 10h1v1h-1z"/></svg>Slash</button>
+            <button class="pad shoot" type="button" data-k="shoot" tabindex="-1" aria-label="Shoot"><svg viewBox="0 0 12 10" aria-hidden="true"><path d="M9 1h1v1h-1zM2 2h7v1h-7zM10 2h1v1h-1zM1 3h10v1h-10zM1 4h9v1h-9zM1 5h2v1h-2zM4 5h1v1h-1zM1 6h2v1h-2zM4 6h2v1h-2zM1 7h2v1h-2zM1 8h3v1h-3z"/></svg></button>
+            <button class="pad slash" type="button" data-k="slash" tabindex="-1" aria-label="Slash"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M11 0h1v1h-1zM10 1h2v1h-2zM9 2h2v1h-2zM8 3h2v1h-2zM7 4h2v1h-2zM6 5h2v1h-2zM2 6h1v1h-1zM4 6h2v1h-2zM3 7h2v1h-2zM2 8h3v1h-3zM1 9h1v1h-1zM4 9h1v1h-1zM0 10h1v1h-1z"/></svg></button>
           </div>
         </div>
       </div>
@@ -311,6 +325,7 @@ dl.keys dd{margin:0;font-size:15px}
 <script src="floor48.js?v=b8c26beae4"></script>
 <script src="elevator.js?v=09f414437e"></script>
 <script src="stairs.js?v=460ea38c47"></script>
-<script src="game.js?v=27b61bc9f7"></script>
+<script src="cards.js?v=c9c4aaa6cf"></script>
+<script src="game.js?v=a2fe02d222"></script>
 </body>
 </html>

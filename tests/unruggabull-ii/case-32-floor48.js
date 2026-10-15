@@ -236,7 +236,7 @@
     // rugged and continue: the lines stay down
     fresh(); F.breakMachine(machine(0, 'loom'), 'shot'); tick(.1); bull.inv = 0; hurtBull(5, 'test'); tick(3);
     check(state === 'over' && checkpoint.down[0], 'rugged in the factory: the continue card');
-    goBtn.click(); check(R.stage === 'floor48' && Q().down[0] && !Q().down[1] && R.hearts === 5 && R.continues === 1, 'continue: full hearts, the line still down');
+    Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry'); check(R.stage === 'floor48' && Q().down[0] && !Q().down[1] && R.hearts === 5 && R.continues === 1, 'continue: full hearts, the line still down');
     // the end: the collapse, two souls and two bells, the streams whip across the reserve and bend in, p(Loom)'s beat
     fresh(); bull.inv = 1e9;
     for (const i of [0, 1, 2]) F.breakMachine(machine(i, 'loom'), 'shot');
@@ -264,9 +264,9 @@
       to(P8.snap + .5); check(R.td.streams === 0 && !R.gold, 'back to normal');
       to(P8.salute + .1); check(Q().collapse.yank && Q().collapse.yank.every(s => s.salute) && bells.length === 3, 'the souls tear free and salute');
       for (let i = 0; i < 600 && state !== 'over'; i++) update(1 / 60);
-      check(state === 'over' && cardKind === 'clear' && !card.hidden && cardTitle.textContent === 'The 48th Floor clear' && goBtn.textContent === 'Take the elevator' && !altBtn.hidden && !cardNote.hidden, 'white, then the clear card');
-      check(cardStats.textContent.includes('Reserve cracked') && R.phase === 'win' && R.endT > 0, 'the card has the run\'s numbers');
-      goBtn.click(); check(state === 'play' && card.hidden && Q().st === 'lobby' && !floor.twin(), 'Take the elevator: the lobby, side on');
+      check(state === 'over' && cardKind === 'clear' && card.hidden && Cards.kind === 'clear' && Cards.info.dept === 'RECLAMATION' && Cards.labels().join() === 'Continue', 'white, then the clear card');
+      check(Cards.info.run === R.souls && Cards.info.souls === R.souls - R.floorStart && R.phase === 'win' && R.endT > 0, 'the card has the run\'s numbers');
+      Cards.press('Continue'); check(state === 'play' && card.hidden && !Cards.open && Q().st === 'lobby' && !floor.twin(), 'Take the elevator: the lobby, side on');
     } finally { Snd.play = play; }
     // the lobby: the portrait, the ding, the doors, and in
     tick(F48.lobby.walkIn + .1);

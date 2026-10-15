@@ -57,7 +57,7 @@
   check(R.phase === 'win' && b.st === 'dead', 'and the blaster finishes it');
   const souls = R.souls; step(6.5 + TUNE.soulBye.later);   // the soul's goodbye comes first
   check(R.souls === souls + TUNE.bossSouls, 'its souls come out one at a time');
-  check(state === 'over' && !card.hidden && cardTitle.textContent === 'The 13th Floor clear' && goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again', 'the clear card shows');
+  check(state === 'over' && card.hidden && Cards.kind === 'clear' && Cards.labels().join() === 'Continue' && Cards.info.dept === 'ACCOUNTING', 'the clear card shows, with one button');
   check(JSON.parse(localStorage.getItem('unruggabull-ii-best')).souls === R.souls, 'the best is saved');
-  check(cardStats.textContent.includes('Time'), 'the card shows the time');
+  check(Cards.info.souls === R.souls && Cards.info.time > 0 && Cards.info.run === R.souls + (R.banked || 0), 'the card shows souls freed, the time and the run total');
 })();

@@ -71,8 +71,8 @@
   const atSouls = checkpoint.souls;
   bull.inv = 0; for (let i = 0; i < TUNE.hearts; i++) { bull.inv = 0; hurtBull(1, 'bundle'); }
   step(TUNE.deadWait + .3);
-  check(state === 'over' && cardTitle.textContent === 'Rugged.' && goBtn.textContent === 'Continue' && !altBtn.hidden && altBtn.textContent === 'Restart floor', 'beaten by the Shredder, you can continue there or restart');
-  goBtn.click();
+  check(state === 'over' && Cards.kind === 'rugged' && Cards.info.who === 'shredo' && Cards.info.back === 'SHRED-O' && Cards.labels().join() === 'Retry,Quit', 'beaten by SHRED-O, Retry picks up there');
+  Cards.press('Retry'); Cards.press('Retry');   // the first Retry asks first
   check(state === 'play' && R.phase === 'wake' && R.hearts === TUNE.hearts && R.souls === atSouls && R.continues === 1, 'continue picks up at the Shredder with full hearts');
   for (let i = 0; i < 60 * 10 && R.phase !== 'boss'; i++) update(1 / 60);
   check(R.boss.st === 'fight' && R.boss.hp === TUNE.bossHP && Snd.track === 'floorShred' && stems() === 'drums,bass,lead,harmony,power,heavy', 'and the fight starts over, its music with it');
@@ -90,9 +90,8 @@
   draw();   // the cheer draws
   check(R.phase === 'win', 'still clearing');
   step(4);
-  const text = cardStats.textContent;
-  check(state === 'over' && cardTitle.textContent === 'The 13th Floor clear', 'cleared');
-  check(text.includes('Deflects7') && text.includes('Best streak9') && text.includes('Smashes2') && text.includes('Continues1'), 'the clear card shows deflects, best streak, smashes and continues: ' + text);
+  check(state === 'over' && Cards.kind === 'clear', 'cleared');
+  check(Cards.info.retried && !Cards.info.best, 'a clear after a retry says RETRIED, never NEW BEST');
   check(((JSON.parse(localStorage.getItem('unruggabull-ii-best')).time) || 0) === bestTime, 'a clear with continues does not set the fastest time');
 
   // dying in the hall still starts the floor over
@@ -100,8 +99,8 @@
   check(!checkpoint, 'a new floor clears the checkpoint');
   for (let i = 0; i < TUNE.hearts; i++) { bull.inv = 0; hurtBull(1); }
   step(TUNE.deadWait + .3);
-  check(altBtn.hidden && goBtn.textContent === 'Continue', 'rugged in the hall: continue starts over');
-  goBtn.click();
+  check(Cards.kind === 'rugged' && Cards.info.back === 'THE DOOR', 'rugged in the hall: Retry starts the floor over');
+  Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
   check(R.phase === 'hall' && R.souls === 0 && R.continues === 0, 'from the top');
   } finally { Snd.music = oldMusic; Snd.stems = oldStems; }
 })();
