@@ -346,6 +346,9 @@ with sync_playwright() as p:
             for sel in ['#stickzone', '#aimzone']:
                 b = page.locator(sel).bounding_box()
                 assert b and b['y'] + b['height'] <= size[1] + 1 and b['x'] + b['width'] <= size[0] + 1, f'{name}: {sel} fits full screen'
+            if size[0] > size[1]:
+                a, m = page.locator('#aimzone').bounding_box(), page.locator('#stickzone').bounding_box()
+                assert a['x'] + a['width'] >= size[0] - 40 and m['x'] <= 40, f'{name}: the sticks sit in the corners in full screen'
             page.evaluate("unrugTest('floor.startLobby(true); update(1/60); twinClass()')")
             assert page.locator('.pad.shoot').is_visible() and not page.locator('#aimzone').is_visible(), f'{name}: the lobby has the usual controls'
         assert not errors, (name, errors)
