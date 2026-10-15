@@ -58,7 +58,7 @@ window.__balanceBot = function (profile, seed) {
     }
     if (q.beam && (q.state === 'beam' || q.state === 'run')) {
       if (o.t >= roofAimT) { roofAimError = err(P.depth_err * 2); roofAimT = o.t + .5; }
-      aimGoal = q.eye.u + (q.state === 'run' ? q.eye.dir * q.eye.speed * lead : 0) + roofAimError;
+      aimGoal = q.eye.u + (q.state === 'run' ? q.eye.v * (lead + .3) : 0) + roofAimError;   // the beam's far end trails it: lead the gliding eye
       // with the beam he walks under the eye; the beam follows and leans the rest of the way
       aimGoal = Math.max(-q.beamBull, Math.min(q.beamBull, aimGoal));
       var d = aimGoal - aim; a.left = d < -.04; a.right = d > .04;

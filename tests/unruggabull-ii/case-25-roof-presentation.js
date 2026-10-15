@@ -14,7 +14,9 @@
   tick(1);
   check(first.x !== fx.slot(0).x && first.y !== fx.slot(0).y && second.x !== fx.slot(1).x, 'each soul bobs and sways independently');
   q.t = rt.effects.distant[0]; check(floor.view().ambient > rt.darkAmbient, 'distant lightning raises ambient');
-  floor.enter('flash'); const bright = floor.view().ambient; q.t = .2;
+  floor.enter('flash'); q.t = rt.rise.bolt - .1; const dim = floor.view().ambient; q.t = rt.rise.bolt; const bright = floor.view().ambient;
+  check(bright > dim * 1.5, 'the lightning strikes as p(Loom) rises');
+  q.t = rt.rise.bolt + .2;
   check(floor.view().ambient < bright / 2, 'lightning falls off within a few frames');
   floor.enter('round1');
   const f = { k: 'wisp', sx: 80, sy: 85, x: 80, y: 85, dx: 0, t: 0, dur: 1.05 };

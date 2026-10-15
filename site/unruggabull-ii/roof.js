@@ -7,16 +7,21 @@ var UnrugRoof = function (core) {
   'use strict';
   // All roof tuning lives here. Times are starting points; phases end on damage, not a clock.
   const ROOF = {
-    time: { elevator: 4, walk: 24, flash: .55, wake: 3.5, odds: 8, quiet: 2, return: 4.5,
+    time: { elevator: 4, walk: 25.4, flash: 3.2, wake: 3.5, odds: 8, quiet: 2, return: 4.5,
       flood: 3, pinch: 1, fusion: 0, lines: 4.5, beam: 2.5, one: 2, snap: 0, dawn: 5, clear: 0 },
     aisle: .84, parapetH: .09, hitsPerSpool: [40, 40, 40],
     eyeZ: .86, eyeH: .71, eyeLimit: .55, eyeFollow: 1.3, eyeHit: .15, aimCone: 2,   // open, the eye draws his shots from anywhere on the roof
     flyHP: 1, flyH: .05, recharge: .35,
-    odds: 99, minimum: 1, drain: 10, creep: 3, beamHit: .2, dragSteer: 4,
-    eyeRun: .4, eyeAccel: .55, returnGap: 1.5,
-    // the beam fight, as on the finale mockup: he walks, the beam follows with a lag (so it curves) and leans toward the
-    // eye (assist); carpshits pour off the cloth, some heavy, and the beam melts them (a fixed number, so no farming)
-    beamMove: 1.25, beamDepth: .5, beamBull: .78, beamAssist: .3, beamFollow: 3.2, beamBend: 1.6, beamWidth: .075, beamMelt: 30,
+    odds: 99, minimum: 1, drain: 10, creep: 3, beamHit: .25, dragSteer: 4,
+    returnGap: 1.5,
+    // the eye glides on its rail in the beam fight, as on the finale mockup (a smooth wave, not a bounce)
+    eyeSwing: .47, eyeSwingRate: .75,
+    // the beam fight lasts through Saga II heavy's solo (its first 16 bars at 170 BPM): the odds hold at holdOdds until
+    // then, and the 1% lands on a bar line (owner, Oct 15: the solo "doesn't play long enough")
+    soloEnd: 16 * 240 / 170, holdOdds: 3, bar: 240 / 170,
+    // the beam fight, as on the finale mockup: he walks, the beam's far end follows with a lag (so it curves) and no aim
+    // assist (owner, Oct 15: it stuck to p(Loom) too easily); carpshits pour off the cloth, some heavy, and the beam melts them (a fixed number, so no farming)
+    beamMove: 1.25, beamDepth: .5, beamBull: .78, beamFollow: 3.2, beamBend: 1.6, beamWidth: .075, beamMelt: 30,
     beamFlyGap: [.35, .65], beamFlies: 40, beamHeavy: .25, heavyHP: 4, returnFly: 1.2, rushGap: .055,
     initialCaught: 100, recalculatingGap: 5,
     freeze: .14, lightningFrame: 1 / 30,
@@ -38,7 +43,12 @@ var UnrugRoof = function (core) {
       snapT: 2.8, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
       twin: 1.4, tipT: 2.6
     },
-    walk: { rows: [1.6, 3.6, 5.6], carpAt: 8, carpZ: .3, carpH: .22 },
+    // the walk opens with his arrival: he steps out of the elevator (arrive seconds, from startZ) while the floodlights
+    // clunk on row by row (lights, near row first); then the runner unrolls
+    walk: { arrive: 1.2, startZ: -.16, lights: [.5, .9, 1.3], rows: [3, 5, 7], carpAt: 9.4, carpZ: .3, carpH: .22 },
+    // p(Loom) rises from behind the roof's far edge in the flash state: rumbling from riseFrom, up by riseTo, the
+    // lightning at bolt; the eye flickers before it opens (wake, eyeFlicker seconds)
+    rise: { from: .3, to: 2.7, bolt: 1.9, shakeEvery: .35, eyeFlicker: 1 },
     reset: { stitchAfter: .3, stitch: 1.8, respoolAfter: 2.3, respool: 3, after: .5, relay: 1.2 },   // relay: a reclaimed tile is woven again after this long
     effects: { jitterX: 5, jitterY: 3, sway: 1.2, bob: .8, curve: 32, captureLift: 14,
       walkAlpha: .055, wakeRise: 1.3, arrivalPulse: .35, pullLoose: .22, departSpan: 1, flightLift: 16, trailGap: .025,
@@ -141,7 +151,12 @@ var UnrugRoof = function (core) {
   const STATES = {
     elevator: { entry() { Snd.roofCue('lead', { candidate: musicChoice }); Snd.play('storm'); } },
     walk: { entry: walkEntry, tick: walkTick, ready: walkReady, exit() { Q.walkCarp = null; Q.tiles = newTiles(); } },
-    flash: { entry() { Snd.play('thunder', 1); } },
+    flash: { entry() { Snd.play('slam'); Q.bolted = false; Q.shakeT = 0; }, tick(dt) {
+      // it rises from behind the far edge of the roof, rumbling, and the lightning catches it on the way up
+      const C = ROOF.rise;
+      if (Q.t > C.from && Q.t < C.to && (Q.shakeT -= dt) <= 0) { Q.shakeT = C.shakeEvery; effects.shake(1.6, .25); Snd.play('carpetSpread'); }
+      if (!Q.bolted && Q.t >= C.bolt) { Q.bolted = true; Snd.play('thunder', 1); }
+    } },
     wake: { tick(dt) { Q.eye.u += clamp(-Q.eye.u, -ROOF.eyeFollow * dt, ROOF.eyeFollow * dt); }, entry() { Q.eye.u = -ROOF.eyeLimit; R.banner = { text: 'P(LOOM)', sub: "RUGCO'S AI. IT HAS RUN THE NUMBERS.", t: 0, dur: ROOF.time.wake, y: 96 }; } },
     odds: { entry() { Q.odds = 0; Q.line = 0; say('HELLO, UNRUGGABULL.'); }, tick() {
       Q.eye.u = bull.u; bull.aimT = ROOF.aimHold;
@@ -222,12 +237,12 @@ var UnrugRoof = function (core) {
     }, exit() { Q.caught = 0; } },
     pinch: { entry() { Snd.play('pinch', ROOF.time.pinch); } },
     // the fusion burns the carpet off the roof
-    fusion: { entry() { R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); for (const t of Q.tiles) { t.carpet = false; t.grip = 0; } }, tick() { Snd.roofCue('fusion'); } },
+    fusion: { entry() { Q.fusedAt = R.t; Q.endAt = 0; Q.swingT = 0; R.freeze = ROOF.freeze; R.white = ROOF.freeze; Snd.play('beam'); for (const t of Q.tiles) { t.carpet = false; t.grip = 0; } }, tick() { Snd.roofCue('fusion'); } },
     lines: { entry() { R.beam = true; Q.beamU = Q.beamBase = bull.u; Q.line = 0; say('THAT OUTCOME WAS NOT IN THE MODEL.'); }, tick() {
       if (!Q.line && (!R.talk || R.talk.t >= R.talk.total)) { Q.line = 1; core.bark('odds', true); }
     }, ready: () => Q.line === 1 && !R.bark },
     beam: { entry() { R.gold = true; R.beam = true; Q.eye.u = 0; Q.nextFly = ROOF.beamFlyGap[1]; Q.beamLeft = ROOF.beamFlies; }, tick: beamTick },
-    run: { entry() { Q.eye.dir = 1; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
+    run: { entry() { Q.eye.dir = 1; Q.swingT = Math.asin(clamp(Q.eye.u / ROOF.eyeSwing, -1, 1)) / ROOF.eyeSwingRate; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
     one: { entry() { clearThreats(); Q.odds = ROOF.minimum; Snd.roofCue('one', { seconds: ROOF.time.one }); say('UNLIKELY.'); }, ready: () => Q.t >= ROOF.time.one && !R.talk },
     snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); Snd.roofCue('snap'); } },
     dawn: { entry() {
@@ -279,9 +294,9 @@ var UnrugRoof = function (core) {
     else if (Q.drag !== null && Q.drag !== undefined) bull.u += clamp(clamp(Q.drag, -lim, lim) - bull.u, -ROOF.dragSteer * dt, ROOF.dragSteer * dt);
     bull.aimT = ROOF.aimHold;
     if (!R.beam) return;
-    // the beam's far end trails him (the curve) and leans toward the eye (a near miss lands, too far off it veers away)
+    // the beam's far end trails him: the curve, and the aim (no assist, as on the finale mockup)
     Q.beamBase += (bull.u - Q.beamBase) * Math.min(1, dt * ROOF.beamFollow);
-    Q.beamU = Q.beamBase + clamp(Q.eye.u - Q.beamBase, -ROOF.beamAssist, ROOF.beamAssist);
+    Q.beamU = Q.beamBase;
   }
   // the souls' streams: once the first soul is back, the blaster fires on its own, a stream more for each soul (1, 2, 3,
   // 4, then 5 with the flood), bending together in the pinch. Cosmetic: they hit nothing.
@@ -337,7 +352,7 @@ var UnrugRoof = function (core) {
     const s = Q.step; s.cd -= dt;
     let dx = moveDir(), dy = depthDir;
     if (dx && dy) dy = 0;
-    if (bull.crouch || bull.pin > 0 || freeMove() || beamActive() || Q.state === 'elevator') dx = dy = 0;
+    if (bull.crouch || bull.pin > 0 || freeMove() || beamActive() || Q.state === 'elevator' || Q.state === 'walk' && Q.t < ROOF.walk.arrive) dx = dy = 0;
     const key = dx + ',' + dy;
     if ((dx || dy) && (key !== s.last || s.cd <= 0)) {
       const c = clamp(Q.at.c + dx, 0, GR.cols - 1), r = clamp(Q.at.r + dy, 0, GR.rows - 1);
@@ -346,6 +361,7 @@ var UnrugRoof = function (core) {
     }
     s.last = dx || dy ? key : '';
     // from the first soul back he walks freely (walkFree), up and down the roof too (owner, Oct 15)
+    if (Q.state === 'elevator' || Q.state === 'walk' && Q.t < ROOF.walk.arrive) return;   // stepping out of the elevator (walkTick)
     if (freeMove() || beamActive()) { if (depthDir) bull.bz = clamp(bull.bz + depthDir * ROOF.beamDepth * dt, tileZ(0), tileZ(GR.rows - 1)); return; }
     bull.u += clamp(tileU(Q.at.c) - bull.u, -ROOF.step.slideU * dt, ROOF.step.slideU * dt);
     bull.bz += clamp(tileZ(Q.at.r) - bull.bz, -ROOF.step.slideZ * dt, ROOF.step.slideZ * dt);
@@ -353,11 +369,15 @@ var UnrugRoof = function (core) {
   const settled = () => Math.abs(bull.u - tileU(Q.at.c)) < TW * .3 && Math.abs(bull.bz - tileZ(Q.at.r)) < GR.depth * .3;
 
   // ---------- the walk: the runner unrolls toward him, a row at a time; nothing can hurt him ----------
-  function walkEntry() { Q.tiles = newTiles(); Q.walkRows = [false, false, false]; Q.walkCarp = null; Q.walkDone = false; }
+  function walkEntry() { bull.bz = ROOF.walk.startZ; Q.tiles = newTiles(); Q.walkRows = [false, false, false]; Q.litRows = [false, false, false]; Q.arrived = false; Q.walkCarp = null; Q.walkDone = false; }
   function walkTick(dt) {
     const C = ROOF.walk;
+    // he steps out of the elevator onto the dark roof, and the floodlights clunk on, a row at a time
+    if (Q.t < C.arrive) { bull.bz = C.startZ + (tileZ(0) - C.startZ) * clamp(Q.t / C.arrive, 0, 1); bull.step = (bull.step || 0) + dt * 8; }
+    else if (!Q.arrived) { Q.arrived = true; bull.bz = tileZ(0); }
+    C.lights.forEach((at, r) => { if (Q.t >= at && !Q.litRows[r]) { Q.litRows[r] = true; Snd.play('slam'); effects.shake(.8, .1); } });
     for (const tl of Q.tiles) { tl.age += dt; tl.flip = tl.flip > 0 ? Math.max(0, tl.flip - dt * 4) : Math.min(0, tl.flip + dt * 4); }
-    if (Q.t > .6) tip('move', 'MOVE: THE STICK OR ARROWS');
+    if (Q.t > C.arrive + .3) tip('move', 'MOVE: THE STICK OR ARROWS');
     C.rows.forEach((at, i) => {
       const r = GR.rows - 1 - i;
       if (Q.t >= at && !Q.walkRows[r]) {
@@ -724,16 +744,16 @@ var UnrugRoof = function (core) {
     return bull.u + (Q.beamU - bull.u) * Math.pow(k, ROOF.beamBend);
   }
   function beamTick(dt) {
-    // he walks (the stick, keys, or a finger dragging on the picture); the beam's tip follows him with a lag and leans
-    // toward the eye, so it curves as he moves and veers off if he goes too far
+    // the eye glides along its rail in a smooth wave; he walks the beam under it (walkFree)
     if (Q.state === 'run') {
-      const speed = ROOF.eyeRun + ROOF.eyeAccel * (1 - Q.odds / ROOF.odds);
-      Q.eye.u += Q.eye.dir * speed * dt;
-      if (Math.abs(Q.eye.u) >= ROOF.eyeLimit) { Q.eye.u = clamp(Q.eye.u, -ROOF.eyeLimit, ROOF.eyeLimit); Q.eye.dir *= -1; }
+      Q.swingT = (Q.swingT || 0) + dt;
+      const w = ROOF.eyeSwingRate, u = ROOF.eyeSwing * Math.sin(w * Q.swingT);
+      Q.eye.v = ROOF.eyeSwing * w * Math.cos(w * Q.swingT); Q.eye.u = u;
     }
-    const on = Math.abs(Q.beamU - Q.eye.u) < ROOF.beamHit;
+    const on = Math.abs(Q.beamU - Q.eye.u) < ROOF.beamHit, music = R.t - (Q.fusedAt || 0);
+    const floor = music < ROOF.soloEnd ? ROOF.holdOdds : ROOF.minimum;
     if (on) {
-      Q.odds = Math.max(ROOF.minimum, Q.odds - ROOF.drain * dt); Q.hot = ROOF.beamFlash;
+      Q.odds = Math.max(floor, Q.odds - ROOF.drain * dt); Q.hot = ROOF.beamFlash;
       if (!Q.onEye && Q.state === 'run' && Q.recalc <= 0) { say('RECALCULATING.'); Q.recalc = ROOF.recalculatingGap; }
     } else Q.odds = Math.min(ROOF.odds, Q.odds + ROOF.creep * dt);
     Q.onEye = on;
@@ -745,7 +765,9 @@ var UnrugRoof = function (core) {
       f.hp -= ROOF.beamMelt * dt; f.hit = .05;
       if (f.hp <= 0) { core.killFly(f, 'beam'); R.freeze = 0; }   // the beam melts through them without a hitch
     }
-    if (Q.odds <= ROOF.minimum) enter('one');
+    // at 1% it waits for the next bar line of the music
+    if (Q.odds <= ROOF.minimum && !Q.endAt) Q.endAt = (Q.fusedAt || 0) + Math.ceil((music + 1e-6) / ROOF.bar) * ROOF.bar;
+    if (Q.endAt && R.t >= Q.endAt) enter('one');
   }
   function spawnCarp() {
     const heavy = rnd() < ROOF.beamHeavy;
@@ -761,11 +783,11 @@ var UnrugRoof = function (core) {
   }
   function view() {
     return { scroll: R.dist * core.WZ, rug: R.dist * core.WZ, power: 0, house: 0, dark: false,
-      ambient: (lightRoof() ? ROOF.fightAmbient : ROOF.darkAmbient) + (effects.flash(Q) + Q.light) * ROOF.flashAmbient + (beamActive() ? ROOF.warmAmbient : 0),
+      ambient: (lightRoof() ? (Q.state === 'walk' ? ROOF.darkAmbient + (ROOF.fightAmbient - ROOF.darkAmbient) * (Q.litRows || []).filter(Boolean).length / GR.rows : ROOF.fightAmbient) : ROOF.darkAmbient) + (effects.flash(Q) + Q.light) * ROOF.flashAmbient + (beamActive() ? ROOF.warmAmbient : 0),
       dawn: Q.state === 'clear' ? 1 : Q.state === 'dawn' ? Math.min(1, Q.t / ROOF.effects.dawnWarm) : 0,
       look: { ti: [.14, .13, .17], sh: .45 }, edge: null };
   }
-  const lightRoof = () => isRound() || ['walk', 'reset', 'quiet', 'return', 'flood', 'pinch', 'lines', 'beam', 'run', 'one'].includes(Q.state);
+  const lightRoof = () => isRound() || ['walk', 'flash', 'wake', 'odds', 'reset', 'quiet', 'return', 'flood', 'pinch', 'lines', 'beam', 'run', 'one'].includes(Q.state);
   function eyeColor() { return Q.stall > 0 || Q.onEye ? [1.5, 1.5, 1.4] : Q.atk.stage === 'run' ? [1.1, .05, .025] : [.9, .32, .06]; }
   function lights(r) {
     if (!['elevator', 'walk', 'flash', 'snap', 'dawn', 'clear'].includes(Q.state)) r.light(...world(Q.eye.u, ROOF.eyeZ, ROOF.eyeH), ...eyeColor());
@@ -834,7 +856,9 @@ var UnrugRoof = function (core) {
   function drawEye() {
     const x = PX(Q.eye.u, ROOF.eyeZ) + (Q.kick > 0 ? Math.round((Math.random() - .5) * 3) : 0) + (Q.round === 3 && isRound() ? Math.round((Math.random() - .5) * 1.2) : 0), y = YH(ROOF.eyeZ, ROOF.eyeH);
     rect(g, x - 12, y - 3, 24, 6, '#3b3a48'); disc(g, x, y, 9, '#1a1824');
-    const dead = ['snap', 'dawn', 'clear'].includes(Q.state), shut = ['elevator', 'walk', 'flash'].includes(Q.state);
+    // waking, it flickers before it opens: dark, orange, dark
+    const flick = Q.state === 'wake' && Q.t < ROOF.rise.eyeFlicker && [0, 1, 0, 0, 1, 1, 0, 1][Math.floor(Q.t * 8)] === 0;
+    const dead = ['snap', 'dawn', 'clear'].includes(Q.state), shut = ['elevator', 'walk', 'flash'].includes(Q.state) || flick;
     if (shut) { line(g, x - 6, y, x + 6, y, '#c87818'); return; }
     const open = Q.stall > 0 || Q.onEye;
     if (Q.stall > 0) {
@@ -857,9 +881,22 @@ var UnrugRoof = function (core) {
       rect(g, tx - 8, ty - 2, 16, 4, '#3b3a48'); disc(g, tx, ty, 6, '#1a1824'); disc(g, tx, ty, 4, firing ? '#ff3430' : '#c86a28');
     }
   }
-  function drawLoom() {
-    const dark = ['elevator', 'walk'].includes(Q.state);
-    g.save(); if (dark) g.globalAlpha = .07;
+  // how far p(Loom) has risen from behind the roof's far edge: not at all before the flash, all the way after it
+  function loomRise() {
+    if (['elevator', 'walk'].includes(Q.state)) return 0;
+    if (Q.state !== 'flash') return 1;
+    const k = clamp((Q.t - ROOF.rise.from) / (ROOF.rise.to - ROOF.rise.from), 0, 1); return k * k * (3 - 2 * k);
+  }
+  // draw part of the loom as risen: moved down by what's left to rise and cut off at the roof's far edge
+  function withLoom(fn) {
+    const k = loomRise(); if (k <= 0) return;
+    if (k >= 1) { fn(); return; }
+    g.save(); g.beginPath(); g.rect(0, -H, W, H + LM.base + 1); g.clip(); g.translate(0, Math.round((1 - k) * (LM.base - LM.top + 4) * 2) / 2);
+    fn(); g.restore();
+  }
+  function drawLoom() { withLoom(drawLoomRisen); }
+  function drawLoomRisen() {
+    g.save();
     if (Q.lurch > 0) g.translate(Math.round(Math.sin(R.t * 31) * Q.lurch * 2), Math.round(Q.lurch * 2));
     rect(g, LM.left + LM.frame, LM.beam, LM.right - LM.left - 2 * LM.frame, LM.cloth - LM.beam, '#1c1822');   // dark behind the warp, so the eye stands out
     for (const x of [LM.left, LM.right - LM.frame]) rect(g, x, LM.top, LM.frame, LM.base - LM.top, '#4b4a58');
@@ -878,11 +915,13 @@ var UnrugRoof = function (core) {
   function path(pts) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); }
   // Every tile is drawn solid: a pale roof slab with dark seams, or carpet over it. Nothing see-through on the floor.
   const SLAB = ['#7a7586', '#726d7e'], SEAM = '#2c2836';
-  const gridShown = () => !!Q.tiles && (isRound() || ['walk', 'reset', 'quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam', 'run', 'one'].includes(Q.state));
+  const gridShown = () => !!Q.tiles && (isRound() || ['walk', 'flash', 'wake', 'odds', 'reset', 'quiet', 'return', 'flood', 'pinch', 'fusion', 'lines', 'beam', 'run', 'one'].includes(Q.state));
   function drawTiles() {
     if (!gridShown()) return;
     for (let r = GR.rows - 1; r >= 0; r--) for (let c = 0; c < GR.cols; c++) {
       const tl = T(c, r), q = tileQuad(c, r);
+      // before its floodlight clunks on (the walk's arrival), a row is dark roof
+      if (Q.state === 'walk' && Q.litRows && !Q.litRows[r]) { poly(g, SEAM, q); poly(g, '#2e2b38', tileQuad(c, r, .04)); continue; }
       poly(g, SEAM, q); poly(g, SLAB[(c + r) & 1], tileQuad(c, r, .04));
       // a tile just cleared flashes white, under him in the lit layer (drawn over him, it cut him off at the tile)
       if (!tl.carpet && tl.flip < 0) { g.save(); g.globalAlpha = -tl.flip * .8; poly(g, '#ffffff', tileQuad(c, r, .04)); g.restore(); }
@@ -945,7 +984,13 @@ var UnrugRoof = function (core) {
         continue;
       }
       g.save(); g.translate(j, 0);
-      for (const t of pathOf(l)) { const q = tileQuad(t.c, t.r, .05); if (l.real) warnTile(q, soon, pulse, layer); else fakeTile(q); }
+      for (const t of pathOf(l)) {
+        // his own tile's edge is drawn under him (lit layer); the rest glow over everything
+        const q = tileQuad(t.c, t.r, .05), mine = t.c === Q.at.c && t.r === Q.at.r;
+        if (!l.real) { if (layer !== 'lit') fakeTile(q); continue; }
+        if (layer === 'lit') { warnTile(q, soon, pulse, 'lit'); if (mine) warnTile(q, soon, pulse, 'edge'); }
+        else if (!mine) warnTile(q, soon, pulse, layer);
+      }
       if (layer === 'lit') { g.restore(); continue; }
       // the aim line from the eye (or the twin) to where the attack starts
       const [ex, ey] = eyeSrc(l), first = pathOf(l)[0], fz = l.k === 'col' ? GR.z0 + GR.rows * GR.depth : tileZ(first.r);
@@ -1096,7 +1141,7 @@ var UnrugRoof = function (core) {
     if (['elevator', 'walk'].includes(Q.state)) for (const [u, z, h] of [[-.74, .55, .12], [.74, .75, .1], [-.9, .95, .35]]) {
       const x = PX(u, z), y = YH(z, h); rect(g, x - 7, y, 14, FY(z) - y, '#3b3a48');
     }
-    drawTiles(); drawWarnings('lit');
+    drawTiles(); drawGrid(); drawWarnings('lit');
     if (Q.walkCarp && !Q.walkCarp.dead) drawFly(Q.walkCarp);
     for (const f of R.flies) { if (f.heavy) drawHeavy(f); drawFly(f); }
     drawGrab('back'); drawBull(); drawGrab('front'); drawYank(); drawFx('lit');
@@ -1111,10 +1156,8 @@ var UnrugRoof = function (core) {
     }
   }
   function glows() {
-    drawSpoolGlow();
-    drawWarp('souls');
-    if (!['elevator', 'walk'].includes(Q.state)) drawEye();
-    drawGrid(); drawWarnings(); drawLasers(); drawWhip();
+    withLoom(() => { drawSpoolGlow(); drawWarp('souls'); drawEye(); });
+    drawWarnings(); drawLasers(); drawWhip();
     for (const f of Q.fakes) drawFake(f);
     if (beamActive()) drawBeam();
     drawStreams();
@@ -1134,7 +1177,7 @@ var UnrugRoof = function (core) {
   function overlay() {
     const flash = effects.flash(Q) + Q.light;
     if (flash > .01) { g.save(); g.globalAlpha = Math.min(1, flash) * .5; rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
-    if (Q.state === 'flash') drawFlashLoom();
+    if (Q.state === 'flash' && effects.flash(Q) > .3) drawFlashLoom();   // the lightning catches it as a silhouette
     if (Q.state !== 'elevator') return;
     const opening = Q.fromRide ? 1 : clamp(Q.t / ROOF.time.elevator, 0, 1), half = W / 2 * (1 - opening);
     rect(g, 0, 0, half, H, '#24222f'); rect(g, W - half, 0, half, H, '#24222f');

@@ -76,6 +76,12 @@ Opening 2.2 s (set pieces 1.8x, the last 2x); warning 1.2 s (phase 3 0.92x); las
 - The moment before the crescendo sells "I can't do anything here": shots clang "NO CHANGE.", then the blaster is dead (a click and smoke) until the first soul is back.
 - With the stream he walks up and down the roof too.
 
+## After his fourth play (Oct 15)
+
+- An arrival: he steps out onto a dark roof as the floodlights clunk on row by row; no loom until the walk ends, when p(Loom) rises from behind the far edge and its eye flickers open.
+- The carpet grabs him before it pulls; tile edges under him.
+- The beam fight runs through the heavy track's solo (1% on a bar line, about 24 s), with no aim assist and a gliding eye, as on the mockup.
+
 ## Left for later
 
 - Roof art Part B (p(Loom), the set, the beam, the cut-ins), now drawn for this fight.

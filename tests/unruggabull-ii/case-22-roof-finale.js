@@ -39,8 +39,8 @@
   const odds = q.odds; tick(1);
   check(Math.abs(q.odds - (odds - 10)) < .01, 'beam on eye drains about 10% each second');
   floor.enter('beam'); q.nextFly = 99; q.eye.u = 0; bull.u = RF.beamBull; const off = q.odds; tick(1.5);
-  check(q.odds > off && Math.abs(q.beamU - (RF.beamBull - RF.beamAssist)) < .02, 'too far off to one side the beam veers off the eye, and the odds creep back');
-  floor.enter('beam'); q.nextFly = 99; q.eye.u = 0; bull.u = .3; tick(1.5); check(Math.abs(q.beamU) < .02 && q.onEye, 'it leans toward the eye: a near miss still lands');
+  check(q.odds > off && Math.abs(q.beamU - RF.beamBull) < .02, 'no aim assist: off to one side the beam misses the eye, and the odds creep back');
+  floor.enter('beam'); q.nextFly = 99; q.eye.u = 0; bull.u = RF.beamHit * .8; tick(1.5); check(q.onEye, 'within its window the beam lands');
   q.eye.u = 0; keys.kbLeft = true; tick(.3); keys.kbLeft = false;
   check(bull.u < .3 - .3 && q.beamU > bull.u + .05 && floor.beamAt(q.eye.z || floor.ROOF.eyeZ) > floor.beamAt(bull.bz + .1), 'he walks with the stick, and the beam trails behind him in a curve');
   const drain = RF.drain; RF.drain = 0; floor.enter('beam'); bull.inv = 1e9; let made = 0;
@@ -49,16 +49,19 @@
   check(q.beamLeft === 0 && made <= RF.beamFlies && made > RF.beamFlies / 2, 'the beam fight sends a fixed number of carpshits, however long it lasts');
   const phase = q.state; bull.inv = 0; hurtBull(1, 'carp');
   check(R.hearts === 4 && R.beam && q.state === phase, 'hit costs a heart without breaking beam');
-  floor.enter('run'); q.odds = 90; const x = q.eye.u; tick(.5);
-  check(q.eye.u !== x, 'eye runs along its rail');
-  q.odds = 20; const fast = floor.ROOF.eyeRun + floor.ROOF.eyeAccel * (1 - q.odds / 99);
-  check(fast > floor.ROOF.eyeRun + floor.ROOF.eyeAccel * (1 - 90 / 99), 'eye accelerates as odds fall');
+  floor.enter('run'); q.odds = 90; const x = q.eye.u; let most = 0; for (let i = 0; i < 600; i++) { update(1 / 60); most = Math.max(most, Math.abs(q.eye.u)); }
+  check(q.eye.u !== x && Math.abs(most - RF.eyeSwing) < .02, 'the eye glides along its rail in a smooth wave');
+  // the fight lasts through the heavy track's solo: before it ends the odds hold, and the 1% lands on a bar line
+  floor.enter('beam'); q.fusedAt = R.t; q.endAt = 0; q.odds = 5; q.eye.u = q.beamU = q.beamBase = bull.u = 0; tick(1);
+  check(q.odds === RF.holdOdds && q.state === 'beam', 'the odds hold until the solo has played');
+  q.fusedAt = R.t - RF.soloEnd - .1; tick(.5 + RF.bar);
+  check(q.state === 'one' && Math.abs(((q.endAt - q.fusedAt) / RF.bar) - Math.round((q.endAt - q.fusedAt) / RF.bar)) < 1e-6, 'after it, 1% on the next bar line');
   bull.inv = 0; hurtBull(5, 'carp'); continueAtBoss();
   check(R.roof.state === 'quiet' && R.hearts === 5 && R.roof.broken === 3 && R.roof.caught === R.roof.capturedTotal && !R.beam && !R.gold, 'crescendo death resumes at quiet');
   const replies = spoken.filter(t => t === "LET'S DISCUSS THOSE ODDS.").length; tick(25);
   check(spoken.filter(t => t === "LET'S DISCUSS THOSE ODDS.").length === replies + 1, 'crescendo continue replays his caption as well as the return');
   // Finish through the actual odds threshold, then cut, dawn and clear card.
-  fresh(); floor.enter('beam'); R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = R.roof.beamBase = bull.u = 0; tick(.05);
+  fresh(); floor.enter('beam'); R.roof.nextFly = 99; R.roof.fusedAt = R.t - 30; R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = R.roof.beamBase = bull.u = 0; tick(RF.bar + .05);
   check(R.roof.state === 'one' && R.roof.odds === 1 && R.talk.text === 'UNLIKELY.', '1% says UNLIKELY.');
   tick(12);
   check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && Cards.kind === 'clear' && Cards.info.dept === 'ROOF', 'snap, dawn and roof clear');

@@ -88,7 +88,7 @@
           stall: q.stall, beam: !!R.beam, beamU: q.beamU || 0, bullU: bull.u, beamMove: rt.beamMove, beamBull: rt.beamBull,
           beamHit: rt.beamHit, cut: !!q.cut, cols: gr.cols, rows: gr.rows, reach: rt.fight.reach, grip: rt.fight.grip,
           tileU: [0, 1, 2, 3, 4].map(floor.tileU), tileZ: [0, 1, 2].map(floor.tileZ),
-          eye: { u: q.eye.u, dir: q.eye.dir || 0, speed: rt.eyeRun + rt.eyeAccel * (1 - q.odds / rt.odds) },
+          eye: { u: q.eye.u, v: q.eye.v || 0 },
           at: { c: q.at.c, r: q.at.r }, carpets: q.tiles.filter(function (t) { return t.carpet; }).length,
           tiles: q.tiles.map(function (t) { return { carpet: t.carpet, grip: t.grip }; }),
           atk: { id: idOf(q.atk), stage: q.atk.stage, t: q.atk.t, list: q.atk.list.map(function (l) {

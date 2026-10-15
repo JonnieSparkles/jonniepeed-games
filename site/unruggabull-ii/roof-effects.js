@@ -59,7 +59,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     });
   }
   function flash(Q) {
-    if (Q.state === 'flash') return Math.exp(-Q.t / C.flashDecay);
+    if (Q.state === 'flash') return Q.t < tuning.rise.bolt ? 0 : Math.exp(-(Q.t - tuning.rise.bolt) / C.flashDecay);   // the lightning as it rises
     if (Q.state !== 'walk') return 0;
     return C.distant.reduce((v, t) => Q.t >= t ? Math.max(v, .3 * Math.exp(-(Q.t - t) / C.flashDecay)) : v, 0);
   }
