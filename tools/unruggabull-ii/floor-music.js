@@ -5,7 +5,7 @@
 // One track grows through the floor by stems instead of cutting between tracks:
 //   drums, bass (bass and distorted guitar), lead: Accounts Payable; + harmony (twin lead): moving day;
 //   + power (arpeggio, double kicks): All Staff; dark alone: lights out (the muzak thin and slow over the PA);
-//   heavy: the Shredder's low octave lead.
+//   heavy: SHRED-O's low octave lead.
 // floorHall opens with two bars of the actual office muzak at 120 BPM (once), then the band at 150.
 // floorCopy is a step up at 158; floorShred is a step higher again at 168, heavier.
 // Ported from the 13th Floor test page (its r4Hall, r2Copy and r2Shred). Edit here, run it, and the game picks it up.
@@ -77,7 +77,7 @@ function paMuzak(k) {
     paBeat: { stem: 'dark', wave: 'noise', vol: .3, notes: rep('k . . k . . . . . . . . . . . .', 8) }
   };
 }
-// The shuffle, k semitones up from E minor; heavy for the Shredder.
+// The shuffle, k semitones up from E minor; heavy for SHRED-O.
 function shuffle(k, heavy) {
   const lead = shift(RK_LEAD, k);
   const bar = heavy ? 'K . h K S . h K K . h K S . S K' : 'K . h . S . h K K . h . S . h h';
@@ -135,7 +135,7 @@ function rush(k) {
   c.kicks = Object.assign({}, c.kicks, { notes: rep('K K K K K K K K K K K K K K K K', 8), vol: .26 });
   return p;
 }
-// Scale a whole track's levels (the copy room and the Shredder sit louder than the hall).
+// Scale a whole track's levels (the copy room and SHRED-O sit louder than the hall).
 function louder(t, f) {
   for (const pat of Object.values(t.patterns)) for (const c of Object.values(pat.channels)) {
     if (c.vol != null) c.vol *= f;
@@ -151,7 +151,7 @@ const tracks = {
   floorStaff: louder(track('The 13th Floor · All Staff', 160, 0, { A: rock(2, false), B: twinBreak(rock(2, false), 2) }, ['A', 'B'], ALL), 1.1),
   floorRush: louder(track('The 13th Floor · Rush Hour', 172, 0, { A: rush(5) }, ['A'], HEAVY), 1.3),
   floorCopy: louder(track('The 13th Floor · Shuffle · Copy Room', 158, .22, { A: shuffle(2, false), B: twinBreak(shuffle(2, false), 2) }, ['A', 'B'], ALL), 1.15),
-  floorShred: louder(track('The 13th Floor · Shuffle · Shredder', 168, .18, { A: shuffle(3, true) }, ['A'], HEAVY), 1.4)
+  floorShred: louder(track('The 13th Floor · Shuffle · SHRED-O', 168, .18, { A: shuffle(3, true) }, ['A'], HEAVY), 1.4)
 };
 
 // One line per note list, so the file stays readable.

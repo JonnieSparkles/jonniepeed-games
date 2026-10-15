@@ -27,7 +27,7 @@ About thirteen minutes for a full run. Three engines carry the game: the **corri
 
 | Floor | Name | Ends with | Engine |
 | --- | --- | --- | --- |
-| 13 | the 13th Floor: Accounting | Mid-boss: the Shredder | Corridor |
+| 13 | the 13th Floor: Accounting | Mid-boss: SHRED-O | Corridor |
 | ↑ | Quiet ride (built) | From the 13th Floor's elevator lobby (DING, the doors, he boards), 13→48: “Floor?” answered, quiet banter, 100 BPM Please Hold (two phrases), supply crate; factory doors, arrival exchange before exit; no fight | Arena set, no combat |
 | 48 | the 48th Floor: Reclamation (built) | Set piece: Production Panic, the factory's collapse and the near miss; then the lobby, side on | Top-down, then arena |
 | ↑ | The long ride (built) | p(Loom) takes the cable, drops the car and reels it up; 30 seconds of Horns Up; supply crate | Arena |
@@ -35,7 +35,7 @@ About thirteen minutes for a full run. Three engines carry the game: the **corri
 
 The climb is **13th Floor → quiet ride → 48th Floor → lobby → long ride → roof**, all built. Each ride's start floor, destination and whether it fights are ride data (`ELEVATOR.fight` / per-run `fight`, `from`, `destination`): the quiet ride runs 13→48 without a fight, the long ride 48→R with one. [long-ride-plan.md](long-ride-plan.md) is the long ride's design; [elevator-plan.md](elevator-plan.md) records the supply drops and the quiet ride's built status; [floor48-plan.md](floor48-plan.md) is the 48th Floor's.
 
-Two bosses only: the Shredder and p(Loom). The other floors end on a set piece.
+Two bosses only: SHRED-O and p(Loom). The other floors end on a set piece.
 
 **Score** is the Unrugged counter from the first game, now counting souls freed. Every carpshit destroyed releases a little ghost rug with a halo.
 
@@ -52,10 +52,10 @@ A carried supply uses E or a tap on its icon beside the hearts. The Spare Vest i
 
 ## the 13th Floor: Accounting (this stage)
 
-A corridor floor of about two minutes, then the Shredder.
+A corridor floor of about two minutes, then SHRED-O.
 
 - **The story.** Every Start plays the intro, six illustrated stills ([intro-plan.md](intro-plan.md)), skippable.
-- **The goal.** "Free 90 souls to wake the Shredder", with a meter at the top.
+- **The goal.** "Free 90 souls to wake SHRED-O", with a meter at the top.
 - **The office**, in three beats with events between them, each announced by a sign hanging from the ceiling:
   - **Accounts Payable**: cubicle walls with green monitors. Temps (carpshits in ties) pop up behind them and throw paper wads, which can be dodged or deflected. Flying carpshits come down the hall from the back. File boxes sit on the floor to jump or step around.
   - **Moving day**: a short course that introduces jumping and ducking: a couple of rows of chairs to jump and a couple of planks across stepladders to duck, down the middle of the hall, the first of each marked. Souls trapped in bubbles between the pieces, in different lanes, keep you moving side to side. (It replaced box walls to zig-zag round or blast through, which didn't read, and before that an audit deflect round.)
@@ -70,7 +70,7 @@ A corridor floor of about two minutes, then the Shredder.
   - Each beat and event drops its own sign from the ceiling and grows the music, with stings for the events. No banners across the hall during play.
   - Paper blows down the corridor the whole time.
 - **The runner.** A red runner rug runs down the middle of the hall. From the copy room on, it turns into a conveyor belt now and then, dragging you toward the end of the hall. Step off it, slash while standing on it to cut the rug and stop it, or crouch to grip it and slow the drag. The first pull shows a prompt.
-- **The Shredder.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner. An old-school card names it while its health bar fills.
+- **SHRED-O.** Once the goal is reached in the copy room, the far wall wakes up: a filing-cabinet shredder with red eyes and teeth, fed by the runner. An old-school card names it while its health bar fills.
   - In every phase the runner pulls on a steady beat, and cutting the rug jams it: blaster shots do triple damage while it's jammed. Ride the rug in close before cutting and the jam lasts longer, and paper knocked back from close hits harder.
   - From phase 2, some pulls make the floor beside the rug live, so you choose: ride the rug toward the mouth, or jump at the side.
   - Its mouth glows red just before every attack.
@@ -82,8 +82,8 @@ A corridor floor of about two minutes, then the Shredder.
   - **The souls' hint** (the first glimpse of the mega stream, below): the first time the blaster comes back in phase 3, a few souls leave the counter and fly into it, and for a few seconds it fires two, then three streams. Then it quietly goes back to normal. Nothing explains it.
   - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
-- **Clear.** The final hit runs in slow motion before the Shredder blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. “Take the elevator” continues this run through the ride to the roof; Play again stays. The quiet ride goes 13→48; the lobby then takes the long ride to the roof.
-- **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by the Shredder, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
+- **Clear.** The final hit runs in slow motion before SHRED-O blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. “Take the elevator” continues this run through the ride to the roof; Play again stays. The quiet ride goes 13→48; the lobby then takes the long ride to the roof.
+- **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by SHRED-O, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
 
 ## Elevator and drops (built)
 
@@ -103,13 +103,13 @@ Rugged in the long ride, Continue goes back to the threads with full hearts and 
 
 Lit pixel art at 480 × 270, scaled up with hard pixel edges. The hall is worked out pixel by pixel in light: ceiling panels with light hanging under them, a polished floor that reflects them, dust in the air, the far hall fading into the dark, and a 64-colour palette with dithering over it all. Everything in the hall takes the light where it stands, things that glow (bolts, pickups, paper in flight, monitors, eyes) keep their own, and every blaster shot is a moving light down the hall. Lights out is real darkness, and a light switch turns the panels back on. Sprites are text grids in code, being redrawn at the new size by Claude: Unruggabull (done: drawn at the picture's full size, about 70 px tall with the horns), the carpshits and temps (done: bold, flat and bright, so they read against the hall), the carpshits at work, paper, pickups, souls and the HUD's hearts (all done, in the same style); the blaster on the floor (the bull's own, at full size); and the title (the same scene, redrawn at full size, with a proper logo); still to come: the muzzle flash. Until each is redrawn, today's sprite is drawn at twice its size and lit. Drawn at a steady 30 frames a second, so it holds on phones. The page follows the studio standards: full screen, portrait, landscape and desktop, no double-tap zoom.
 
-Each section of the hall has its own set and colours: Accounts Payable's cubicles and screens, moving day's cartons and wrapped furniture, All Staff's chairs, banners and streamers, lights out's dark office with EXIT signs and emergency lamps, the copy room's machines. RugCo's rugs hang on the walls throughout (no lettering). The Shredder is a steel shredding machine built across the end of the copy room, drawn at full size and lit by its own eyes and mouth.
+Each section of the hall has its own set and colours: Accounts Payable's cubicles and screens, moving day's cartons and wrapped furniture, All Staff's chairs, banners and streamers, lights out's dark office with EXIT signs and emergency lamps, the copy room's machines. RugCo's rugs hang on the walls throughout (no lettering). SHRED-O is a steel shredding machine built across the end of the copy room, drawn at full size and lit by its own eyes and mouth.
 
 ## Sound
 
 `audio.js` with the usual small API (`init`, `play`, `muted`, plus `music(name)` and `say(text)` for blip talk).
 
-- **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. The 13th Floor is one track that grows rather than cutting between tunes (Oct 13): "Shuffle, cold open", the office muzak's tune as a swung boogie-rock shuffle. The floor starts hot (Oct 13): the band hits as it opens and the first carpshit arrives on that hit, however you get there (an earlier version looped the muzak until the first carpshit came into range). Moving day adds a twin lead; All Staff steps up to its own straight-rock section with a twin-guitar break on the muzak's tune; rush hour goes heavy with a siren; lights out drops to the muzak thin and slow over the PA; the copy room steps up a key on the next bar, with the same break; the Shredder slams in a step higher and heavy, and power saving mode drops to the muzak for its 7 seconds. (It replaced five section tracks, "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room and a heavier one for the Shredder.)
+- **Music:** a pattern sequencer on NES-style channels (two pulses, triangle, noise drums). The title theme adds VRC6-style extra channels (two more pulses and a saw), as the Japanese Castlevania III did. The 13th Floor is one track that grows rather than cutting between tunes (Oct 13): "Shuffle, cold open", the office muzak's tune as a swung boogie-rock shuffle. The floor starts hot (Oct 13): the band hits as it opens and the first carpshit arrives on that hit, however you get there (an earlier version looped the muzak until the first carpshit came into range). Moving day adds a twin lead; All Staff steps up to its own straight-rock section with a twin-guitar break on the muzak's tune; rush hour goes heavy with a siren; lights out drops to the muzak thin and slow over the PA; the copy room steps up a key on the next bar, with the same break; SHRED-O slams in a step higher and heavy, and power saving mode drops to the muzak for its 7 seconds. (It replaced five section tracks, "RugCo Tower", "Alley Redux", a lights-out heartbeat, the Tower tune up a key for the copy room and a heavier one for SHRED-O.)
 - **Blip talk:** everyone talks in blips while their line types out (Unruggabull and p(Loom) until their own voices exist).
 - **Unruggabull's voice:** Jonnie's recordings, crushed to 8-bit, shipped as small data in the code rather than audio files. Until lines are recorded, he talks in blips too: about fifteen short lines in bubbles over his head (`LINES` in `game.js`), which double as the recording script. The first, "LET'S GO!" (the first game's recording), is in: Chip voice, 8 kHz and 6-bit, picked on an audition page against lighter and heavier crushes and effects (Oct 14).
 - **p(Loom)'s voice:** the only synth voice. SAM was used for the storyboard and the long-ride prototype but its license isn't clear, so the game doesn't ship it or load it. Until our own voice is built, p(Loom) talks in its lower machine-pulse blips on the long ride and the roof, with its captions timed as before.
@@ -120,7 +120,7 @@ Inspired by Raiden, where stacked weapon power-ups fuse into one huge beam. Here
 
 | Where | What the player sees |
 | --- | --- |
-| the 13th Floor, the Shredder (built) | A hint: a few souls come back, two or three streams for a few seconds. No fusion, no explanation. |
+| the 13th Floor, SHRED-O (built) | A hint: a few souls come back, two or three streams for a few seconds. No fusion, no explanation. |
 | Floor 48 (contents TBD; near miss not decided) | Planned possible near miss: four or five streams, they start to bend in, then it falls apart. |
 | The roof, p(Loom) | The reveal: the full sequence below, then the rest of the fight with the beam. |
 
@@ -128,14 +128,14 @@ Two playable mockups hold the sprites, beam drawing, pinch and sounds in plain c
 
 ### The hint on the 13th Floor (built)
 
-In the Shredder's phase 3 its surge takes the blaster up into the air above its head, and its own paper knocked back wears it down. The paper that takes it to its last stand stuns it: one soul leaves the counter, takes the blaster and brings it back to him charged, then stays in the gun, firing a stream beside the bolt: a ribbon of light from the blaster's muzzle, straight down the hall. He finishes it with the blaster while it's stunned (the owner, Oct 13: the volley stuns it, the souls bring the blaster back, the blaster finishes it). One soul here, two on the 48th Floor, three on the roof: the bells count up the climb (D; D, F; D, F, A), and the roof's three "hit" (the owner, Oct 12; more than three would be odd). With the soul in the gun, the Shredder's surges break on them instead of knocking the blaster away.
+In SHRED-O's phase 3 its surge takes the blaster up into the air above its head, and its own paper knocked back wears it down. The paper that takes it to its last stand stuns it: one soul leaves the counter, takes the blaster and brings it back to him charged, then stays in the gun, firing a stream beside the bolt: a ribbon of light from the blaster's muzzle, straight down the hall. He finishes it with the blaster while it's stunned (the owner, Oct 13: the volley stuns it, the souls bring the blaster back, the blaster finishes it). One soul here, two on the 48th Floor, three on the roof: the bells count up the climb (D; D, F; D, F, A), and the roof's three "hit" (the owner, Oct 12; more than three would be odd). With the soul in the gun, SHRED-O's surges break on them instead of knocking the blaster away.
 
 - Nothing announces it: no banner, no pickup text, and no live-region line beyond "Blaster back."
 - It mustn't look like Spread Shot, which already fires three ways: the souls visibly fly into the gun, the streams are the souls' colours (pale white with the halo's gold), and the stream comes in with a single soft bell note.
 - The streams stay parallel or fan slightly. They never bend together; bending in is saved for later.
 - The extra streams do normal damage and cost no extra charges. On the 13th Floor the blaster is the finisher, but only once the souls bring it back.
 - Done when a first-time player notices something odd and good happened, and can't say what.
-- **Goodbye** (Oct 12): when the Shredder's beaten, the soul leaves the gun, salutes and says "GOOD LUCK.", then rises with every soul freed on the floor, before the clear. Their only line before the roof. On Floor 48 the souls could come back and leave the same way, reluctantly.
+- **Goodbye** (Oct 12): when SHRED-O's beaten, the soul leaves the gun, salutes and says "GOOD LUCK.", then rises with every soul freed on the floor, before the clear. Their only line before the roof. On Floor 48 the souls could come back and leave the same way, reluctantly.
 
 ### The near miss on the middle floor (build with that floor)
 

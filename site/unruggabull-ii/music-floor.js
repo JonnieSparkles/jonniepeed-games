@@ -772,7 +772,7 @@ window.UnrugFloorMusic = {
     }
   },
   "floorShred": {
-    "name": "The 13th Floor · Shuffle · Shredder",
+    "name": "The 13th Floor · Shuffle · SHRED-O",
     "key": "Em",
     "bpm": 168,
     "swing": 0.18,

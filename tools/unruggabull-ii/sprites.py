@@ -659,7 +659,7 @@ def soul():
 
 def soul_salute():
     """A soul saluting, its arm out to the elbow and back up to its brow: the two souls from the blaster saying goodbye
-    when the Shredder's beaten. Drawn facing us; the game flips it for the other one."""
+    when SHRED-O's beaten. Drawn facing us; the game flips it for the other one."""
     cv = Canvas(24, 22, lit_above=99)
     ellipse(cv, 9, 2.5, 5, 1.6, 'gold', base=.4, hard=True)                 # its halo
     for x in range(6, 13):
@@ -715,7 +715,7 @@ def paper_wad():
 
 
 def bundle():
-    """The Shredder's paper bundle: a crumpled ball of ruled paper, blue rules and a red margin, creased (the owner's
+    """SHRED-O's paper bundle: a crumpled ball of ruled paper, blue rules and a red margin, creased (the owner's
     pick over a starburst of shreddings, which read as a splat)."""
     cv = Canvas(24, 22, lit_above=99)
     ellipse(cv, 12, 11, 10.4, 9.6, 'paper', base=.15, hard=True)
@@ -737,7 +737,7 @@ def bundle():
 
 
 def staple():
-    """The Shredder's staples: four locked into a throwing star, points out (the owner's pick: "the spinning ones").
+    """SHRED-O's staples: four locked into a throwing star, points out (the owner's pick: "the spinning ones").
     The game spins it as it flies."""
     cv = Canvas(20, 20, lit_above=99)
     c = 10

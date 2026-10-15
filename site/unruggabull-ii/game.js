@@ -5,7 +5,7 @@
 // load first.
 //
 // The corridor is seen from behind Unruggabull. Every thing has a lane u (-1 left wall, 1 right wall), a depth z
-// (0 at the camera, 1 at the far end of the hall as it was: the Shredder's spot) and a height h (0 floor, 1 ceiling);
+// (0 at the camera, 1 at the far end of the hall as it was: SHRED-O's spot) and a height h (0 floor, 1 ceiling);
 // PX, FY and YH project them onto the game's 240x135 coordinates. The picture is 480x270, twice that: the renderer
 // works out the hall in light, the game draws its things over it (lit where they stand, or glowing), and the HUD
 // and words go on top (see "the lit picture" and draw()).
@@ -93,9 +93,9 @@
   // ---------- run state ----------
   // state: title, intro, play, pause or over. R.phase inside a run: hall, wake, boss, win or dead.
   let state = 'title', R = null, bull = null;
-  // Where a continue picks up: saved when the Shredder wakes, cleared when a floor starts over.
+  // Where a continue picks up: saved when SHRED-O wakes, cleared when a floor starts over.
   let checkpoint = null;
-  // A fresh floor, or (with a checkpoint) the copy room's end with the Shredder about to wake.
+  // A fresh floor, or (with a checkpoint) the copy room's end with SHRED-O about to wake.
   function newRun(at, stage) {
     const chosen = at && at.stage || stage || 'floor13';
     floor = floors[chosen] || floors.floor13;
@@ -415,7 +415,7 @@
     R.souls++;
     emit('soul', { amount: 1, source: source || 'temp', by: by || 'shot' });
     R.streak = R.streakT > 0 ? R.streak + 1 : 0; R.streakT = 1.6;
-    if (by !== 'clear') R.bestStreak = Math.max(R.bestStreak, R.streak + 1);   // the Shredder's own souls don't count
+    if (by !== 'clear') R.bestStreak = Math.max(R.bestStreak, R.streak + 1);   // SHRED-O's own souls don't count
     const wisp = { k: 'wisp', x, y, sx: x, sy: y, t: 0, dur: 1.05, dx: fxr(-10, 10) };
     R.fx.push(wisp);
     if (floor.soulFreed) floor.soulFreed(wisp, source, by);   // it floats up, then flies into the souls counter
@@ -492,7 +492,7 @@
     door: 'OK... HERE WE GO.',   // the stairwell, at the 13th Floor's door, catching his breath
     go: "LET'S GO!"   // the stairwell, two beats into Flight Risk (recorded: the first game's)
   };
-  // Says a line unless it's been said this run or the Shredder is talking (unless `over` it). Returns how long it takes.
+  // Says a line unless it's been said this run or SHRED-O is talking (unless `over` it). Returns how long it takes.
   function bark(key, over) {
     if (floor.lines && floor.lines[key] === false) return 0;
     const said = R.events.said || (R.events.said = {});
@@ -551,7 +551,7 @@
     R.white = Math.max(0, (R.white || 0) - dt); R.zap = Math.max(0, (R.zap || 0) - dt);
     // hit-stop: a few frames' pause when something dies, so kills land
     if (R.freeze > 0) { R.freeze -= dt; return; }
-    // slow motion after the final hit: real time counts down, the game runs slow, then the Shredder blows
+    // slow motion after the final hit: real time counts down, the game runs slow, then SHRED-O blows
     if (R.slow > 0) {
       R.slow -= dt; dt *= TUNE.finish.rate;
       R.boss.flash = Math.floor(R.slow * 14) % 2 ? .05 : 0;
@@ -564,7 +564,7 @@
     else { R.rechargeT = 0; if (R.dry) { R.dry = false; Snd.play('ready'); } }
     R.shake = Math.max(0, R.shake - dt); R.red = Math.max(0, R.red - dt); R.rallyPop = Math.max(0, (R.rallyPop || 0) - dt);
     // a rally speeds the music up as it goes
-    const over = R.phase === 'boss' && R.boss.overtime && R.boss.ph === 2 && TUNE.overtime ? TUNE.overtime.tempo : 1;   // the Shredder's OVERTIME
+    const over = R.phase === 'boss' && R.boss.overtime && R.boss.ph === 2 && TUNE.overtime ? TUNE.overtime.tempo : 1;   // SHRED-O's OVERTIME
     const tempo = over * (R.phase === 'boss' && R.boss.rally ? 1 + Math.min(.4, .05 * R.boss.rally.count) : 1);
     if (tempo !== R.tempo) { R.tempo = tempo; Snd.tempo(tempo, { boundary: 'beat' }); }   // on the beat, so it keeps up with the returns
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
@@ -605,7 +605,7 @@
     for (let i = 0; i < n; i++) g.drawImage(img, i * sw, 0, sw, img.height, Math.round((x + i * dw) * 2) / 2, Math.round((y + Math.sin(ph + i * .75) * amp) * 2) / 2, Math.ceil(dw * 2) / 2, Math.round(h * 2) / 2);
   }
   // Incoming paper has a jagged edge that blinks red and orange, never a round glow, so it can't pass for a pickup.
-  // The Shredder's wads of shredded paper spin in quarter turns and shed strips behind them; the rally's wad has a
+  // SHRED-O's wads of shredded paper spin in quarter turns and shed strips behind them; the rally's wad has a
   // white-hot edge inside the red. Paper you knocked back loses the edge, throws a shadow and sparkles blue.
   // A blaster bolt: a long two-tone tail, a flickering glow ring and a white-hot core. Spread bolts are gold.
   function drawShot(s) {
@@ -755,7 +755,7 @@
       else if (f.k === 'smoke') disc(g, f.x, f.y, 1 + Math.round(k * 4), k < .5 ? '#6a6878' : '#4a4858');
       else if (f.k === 'big') drawBig(f);
       else if (f.k === 'toss') {
-        // the blaster spinning up the rug (or into the Shredder's mouth: tx, ty) after the surge
+        // the blaster spinning up the rug (or into SHRED-O's mouth: tx, ty) after the surge
         const pk = f.pk, z = pk ? pk.w - R.dist : .95, tx = pk ? PX(pk.u, z) : f.tx, ty = pk ? FY(z) - 4 : f.ty, q = k, s2 = Math.max(.5, sc(z) * 1.3);
         const bx = f.x + (tx - f.x) * q, by = f.y + (ty - f.y) * q - Math.sin(q * Math.PI) * 30, w = Math.round(A.uw(A.BLASTER) * s2), h = Math.round(A.uh(A.BLASTER) * s2);
         g.save(); g.translate(Math.round(bx), Math.round(by)); g.rotate(Math.floor(f.t * 16) % 4 * Math.PI / 2); g.drawImage(A.BLASTER, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore();
@@ -788,7 +788,7 @@
     otxt(g, n, W - 4, 5, pulse ? '#ffd44a' : '#fff6e2', 1, 'right');
   }
   function drawWords() {
-    // Big moments sit across the Shredder's mouth; prompts during play sit up top, clear of the action.
+    // Big moments sit across SHRED-O's mouth; prompts during play sit up top, clear of the action.
     const B = R.banner;
     if (B && B.pull) {
       // a prompt during play: one short line in a small strip at the top, never across the hall
@@ -1033,7 +1033,7 @@
     } else if (kind === 'rugged') {
       cardTitle.textContent = 'Rugged.';
       if (checkpoint) {
-        // beaten by the Shredder: pick up at the fight with full hearts, or start the floor over
+        // beaten by SHRED-O: pick up at the fight with full hearts, or start the floor over
         cardText.textContent = floor.continueText ? floor.continueText() : 'Continue from SHRED-O with full hearts?';
         altBtn.textContent = 'Restart floor'; altBtn.hidden = false;
       } else cardText.textContent = 'Continue? The floor starts over.';
@@ -1045,7 +1045,7 @@
   }
   const LABELS = {
     title: 'Title screen: Unruggabull, katana on his back, faces RugCo Tower at sunset while souls drift up to a beacon on its roof.',
-    play: 'Unruggabull, seen from behind, in an office hallway on the 13th Floor of RugCo Tower. Cubicles line the hall, a red runner rug leads to a shredder at the far end.'
+    play: 'Unruggabull, seen from behind, in an office hallway on the 13th Floor of RugCo Tower. Cubicles line the hall, a red runner rug leads to SHRED-O, a giant shredder, at the far end.'
   };
   function setState(s) {
     state = s;
@@ -1057,7 +1057,7 @@
   }
   // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
   let statsRun = null;
-  const STAGES = ['Accounts Payable', 'Moving day', 'All Staff', 'Lights out', 'Copy Room', 'Shredder phase 1', 'Shredder phase 2', 'Shredder phase 3', 'Clear'].map(name => 'the 13th Floor: ' + name);
+  const STAGES = ['Accounts Payable', 'Moving day', 'All Staff', 'Lights out', 'Copy Room', 'SHRED-O phase 1', 'SHRED-O phase 2', 'SHRED-O phase 3', 'Clear'].map(name => 'the 13th Floor: ' + name);
   function stageNo() {
     if (floor.stageNo) return floor.stageNo();
     if (R.phase === 'win') return 9;
@@ -1095,10 +1095,10 @@
     floor.opening();
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
-  // Back at the Shredder: the hall's end, full hearts, the souls you had when it woke, and it wakes again.
+  // Back at SHRED-O: the hall's end, full hearts, the souls you had when it woke, and it wakes again.
   function continueAtBoss() {
     newRun(checkpoint);
-    statsStart();   // a continue is a run of its own, from the Shredder
+    statsStart();   // a continue is a run of its own, from SHRED-O
     setState('play'); card.hidden = true;
     if (floor.resume) floor.resume(); else floor.startWake();
     live(floor.continueText ? floor.continueText() : 'Back at SHRED-O with full hearts.');

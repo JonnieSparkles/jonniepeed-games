@@ -3,7 +3,7 @@
 // Progress is reported as stages, in the report's "wave" column:
 //   Roof: 10 lead-in, 11-13 rounds, 14 crescendo, 15 cleared. Elevator: 16 ride, 17 cleared.
 //   The 48th Floor: 18 no lines down, 19 one down, 20 the last line, 21 collapse and lobby, 22 cleared.
-//   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 Shredder phases 1-3, 9 cleared.
+//   1 Accounts Payable, 2 Moving day, 3 All Staff, 4 Lights out, 5 Copy Room, 6-8 SHRED-O phases 1-3, 9 cleared.
 (function () {
   var renderEffects = false, renderSteps = 0, renderedState = null;
   var log = [], lastStage = 1, ids = new WeakMap(), nextId = 1;

@@ -165,11 +165,11 @@ var UnrugArt = (function () {
   const HEART = ns(NS.CAST.HEART);
   const HEART_EMPTY = ns(NS.CAST.HEART_EMPTY);
   const WAD = ns(NS.CAST.WAD);
-  // What the Shredder spits: a wad of shredded paper, strips sticking out every way, a few with red ink.
+  // What SHRED-O spits: a wad of shredded paper, strips sticking out every way, a few with red ink.
   // The game spins it in quarter turns and gives it a jagged red edge, so it never reads as a pickup.
   const BUNDLE = ns(NS.CAST.BUNDLE);
   const STAPLE = ns(NS.CAST.STAPLE);
-  // A paper airplane coming at you, seen nose-on: the Shredder throws them at head height. Duck.
+  // A paper airplane coming at you, seen nose-on: SHRED-O throws them at head height. Duck.
   const PLANE = ns(NS.CAST.PLANE);
   // Hall dressing: a water cooler and a stack of copy paper
   const COOLER = spr(['..KKKKK..', '.KcggggK.', 'KcgggggcK', 'KcgMggggK', 'KcgMggggK', 'KcgggggcK', '.KcccccK.', '..KKKKK..', '.KPPPPPK.', '.KPpRpPK.', '.KPPPPPK.', '.KPPPPPK.', '.KpPPPpK.', '.KPPPPPK.', '.KPPPPPK.', '.KKKKKKK.']);
@@ -185,7 +185,7 @@ var UnrugArt = (function () {
   const CHAIRS = [spr(CHAIR_TOP.concat(['KKK......KKKK......KKK', '.K.......K..K.......K.'])), spr(CHAIR_TOP.concat(['.K........KK........K.', 'KKK......K..K......KKK']))];
   const CHAIR = spr(['...KKKKKK...', '...KJJJJK...', '...KJjjJK...', '...KJJJJK...', '...KKKKKK...', '.....KK.....', '.KKKKKKKKKK.', '.KJJJJJJJJK.', '.KKKKKKKKKK.', '.....KK.....', '..KKKKKKKK..', '.K.K....K.K.', '.KK......KK.']);
   const FLASH = spr(['...M...', '..MOM..', '.MOMOM.', 'MOMMMOM', '.MOMOM.', '..MOM..', '...M...']);
-  // His blaster from the side, for when the Shredder's surge knocks it out of his hands and it lies on the floor.
+  // His blaster from the side, for when SHRED-O's surge knocks it out of his hands and it lies on the floor.
   // the blaster on its own (knocked out of his hands, lying on the rug): the bull's own, from bull.js, at full size
   const BLASTER = (() => { const c = B.paint(B.BLASTER); c.k = BULL_K; return c; })();
   // A file box, about knee high
