@@ -302,7 +302,7 @@ var UnrugRoof = function (core) {
   function update(dt) {
     if (R.phase === 'dead') { updateBull(dt); updateFx(dt); if (R.phaseT > ROOF.deadWait) endRun('rugged'); return; }
     Q.t += dt; Q.hot = Math.max(0, Q.hot - dt); Q.recalc = Math.max(0, Q.recalc - dt);
-    Q.light = Math.max(0, Q.light - dt * F.lightDecay); Q.lurch = Math.max(0, Q.lurch - dt * 1.4); Q.kick = Math.max(0, (Q.kick || 0) - dt);
+    Q.light = Math.max(0, Q.light - dt * F.lightDecay); if (Q.yank && (Q.yank.t += dt) > .5) Q.yank = null; Q.lurch = Math.max(0, Q.lurch - dt * 1.4); Q.kick = Math.max(0, (Q.kick || 0) - dt);
     updateTips(dt);
     if (!isRound() && Q.state !== 'walk') for (const tl of Q.tiles) tl.flip = tl.flip > 0 ? Math.max(0, tl.flip - dt * 4) : Math.min(0, tl.flip + dt * 4);
     const st = STATES[Q.state];
@@ -544,6 +544,7 @@ var UnrugRoof = function (core) {
       if (under.tick > .22) { under.tick = 0; Snd.play('grip'); }
       if (under.grip >= F.grip) {
         under.carpet = false; under.grip = 0; under.flip = -1; Snd.play('rugPull'); emit('roof_pull');
+        Q.yank = { c: Q.at.c, r: Q.at.r, u: bull.u, t: 0 };   // drawn: the rug whips out from under him (drawYank)
         effects.shake(2, .2); bull.pin = F.pullPin;
         popText('RUG PULL', PX(bull.u, bull.bz), YH(bull.bz, .42), '#ff7050');
         hurtBull(ROOF.hitCost, 'pull');
@@ -1013,6 +1014,40 @@ var UnrugRoof = function (core) {
     g.globalAlpha = .5; for (let yy = y - h / 2; yy < y + h / 2; yy += 1.5) rect(g, x - w / 2, yy, w, .5, '#0a0810');
     g.restore();
   }
+  // The carpet under him grabs: while it grips, it heaves up around his feet in a lump, its corners curl up his legs and
+  // its fringe reaches for him, faster and higher as it's about to pull (owner, Oct 15: you took a hit and didn't know
+  // why). The lump behind his feet is drawn before him, the curling corners and fringe after, so they wrap him.
+  function drawGrab(side) {
+    if (!isRound() || !Q.tiles) return;
+    const tl = T(Q.at.c, Q.at.r); if (!tl.carpet || tl.grip <= 0) return;
+    const k = clamp(tl.grip / F.grip, 0, 1), z = bull.bz, s = sc(z), x = PX(bull.u, z), y = FY(z), wob = Math.sin(R.t * (14 + 30 * k)) * k;
+    const w = TW * .5 * 112 * s;
+    if (side === 'back') {
+      g.save(); g.fillStyle = '#7c161c'; g.beginPath(); g.ellipse(x, y, w * 1.2, (2 + 9 * k) * s, 0, Math.PI, 0); g.fill();
+      g.fillStyle = '#b8262c'; g.beginPath(); g.ellipse(x, y - k * s, w * .8, (1.5 + 5.5 * k) * s, 0, Math.PI, 0); g.fill(); g.restore();
+      return;
+    }
+    // the two front corners curl up his shins, and the fringe stands up and reaches in
+    for (const d of [-1, 1]) {
+      const bx = x + d * w * 1.05, tx = x + d * w * (.6 - .35 * k), ty = y - (5 + 22 * k) * s + wob * 2 * s;
+      poly(g, '#a01f26', [[bx, y + s], [x + d * w * .45, y + s], [tx, ty], [bx + d * 1.5 * s, ty + 4 * s]]);
+      line(g, bx, y + s, tx, ty, '#e0b040');
+    }
+    for (let i = 0; i < 7; i++) {
+      const fx = x - w * .8 + i * w * .27, h = (3 + 9 * k) * s * (1 + .3 * Math.sin(R.t * 40 + i * 1.7)), lean = (x - fx) * .35 * k;
+      line(g, fx, y + 1.5 * s, fx + lean, y + 1.5 * s - h, '#f0d8a8');
+    }
+  }
+  // the rug pulled: the tile's carpet whips up from under him and flies off up the roof, flapping
+  function drawYank() {
+    const yk = Q.yank; if (!yk) return;
+    const k = yk.t / .5, z0 = tileZ(yk.r) + k * .55, h = Math.sin(k * Math.PI) * .22, s = sc(z0), x = PX(yk.u, z0), y = YH(z0, h);
+    const w = TW * .5 * 112 * s * (1 - .3 * k), flap = Math.sin(yk.t * 40) * 3 * s;
+    g.save(); g.globalAlpha = 1 - k * .6;
+    poly(g, '#b8262c', [[x - w, y + flap], [x + w, y - flap], [x + w * .8, y + 6 * s - flap], [x - w * .8, y + 6 * s + flap]]);
+    line(g, x - w, y + 2 * s + flap, x + w, y + 2 * s - flap, '#e0b040');
+    g.restore();
+  }
   function drawRain() {
     if (['dawn', 'clear'].includes(Q.state)) return;
     for (let i = 0; i < LM.rain; i++) {
@@ -1064,7 +1099,7 @@ var UnrugRoof = function (core) {
     drawTiles(); drawWarnings('lit');
     if (Q.walkCarp && !Q.walkCarp.dead) drawFly(Q.walkCarp);
     for (const f of R.flies) { if (f.heavy) drawHeavy(f); drawFly(f); }
-    drawBull(); drawFx('lit');
+    drawGrab('back'); drawBull(); drawGrab('front'); drawYank(); drawFx('lit');
   }
   // the replacement spools glow, so they read past the HUD that sits over the loom's top beam
   function drawSpoolGlow() {
