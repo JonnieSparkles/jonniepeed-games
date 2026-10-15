@@ -471,6 +471,7 @@ with sync_playwright() as p:
         for want in ('mode0', 'mode1', 'mode2', 'start', 'sound', 'exit'):
             assert want in ids, f'{name}: {want} shows ({ids})'
         assert 'board' not in ids, f'{name}: no board line until the boards exist'
+        assert ('full' in ids) == page.evaluate('!!(document.fullscreenEnabled || document.webkitFullscreenEnabled)'), f'{name}: full screen shows where the browser can do it ({ids})'
         for b in lay['buttons']:
             assert b['x'] >= -1 and b['y'] >= -1 and b['x'] + b['w'] <= w + 1 and b['y'] + b['h'] <= h + 1, f'{name}: {b["id"]} on screen ({b})'
             assert min(b['w'], b['h']) >= 43, f'{name}: {b["id"]} at least 44 px ({b})'
@@ -490,12 +491,16 @@ with sync_playwright() as p:
     was = page.evaluate("unrugTest('Snd.muted')")
     page.locator('.tb.tsnd').tap(); page.locator('.tb.tsnd').tap()
     assert page.evaluate("unrugTest('Snd.muted')") == was, 'title: sound flips and flips back'
+    page.locator('.tb[data-label="Full screen"]').tap(); page.wait_for_timeout(150)
+    assert page.evaluate("unrugTest('isFull()')") and page.evaluate("unrugTest('Title.open')"), 'title: full screen, still on the title'
+    page.locator('.tb[data-label="Full screen"]').tap(); page.wait_for_timeout(150)
+    assert not page.evaluate("unrugTest('isFull()')"), 'title: and back'
     with page.expect_navigation():
         page.locator('.tb[data-label="Exit to JonniePeed Games"]').tap()
     assert page.url.rstrip('/').endswith(':8000') or page.url.endswith('/site/'), f'title: Exit goes to JonniePeed Games ({page.url})'
     assert not errors, errors
     context.close()
-    print('PASS title pick, sound and Exit')
+    print('PASS title pick, sound, full screen and Exit')
 
     # The controls audit's fixes (Oct 15): Enter starts from the title; the blaster only where there's a fight (both
     # lobbies and the quiet ride are katana only, with a dry click, no charge bar and no supplies); Shift fires on the

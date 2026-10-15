@@ -2,7 +2,7 @@
 // The first game's view down RugCo Alley, a night later: the owner's painting (title-art.js), with what lives on it drawn
 // here (the garage's neon, RUGS, the carpet band on the tower, smoke, souls, p(Loom)'s eye in the pavilion, him), the
 // logo, and an elevator panel with the difficulty picker: a call button per mode with a Doom-style bull face, a readout,
-// the mode's board, Start, sound and Exit. Upright the painting fills the screen above the panel; sideways and on a
+// the mode's board, Start, sound, full screen and Exit. Upright the painting fills the screen above the panel; sideways and on a
 // desktop it's a 16:9 window that pans up from him to the eye, with the panel as a band over its bottom, like the cards.
 // It draws on its own canvas over the arena, with transparent buttons over what it draws, so the game's picture is never
 // touched. game.js says what the buttons do (actions); this file lays out, draws and remembers the mode.
@@ -70,6 +70,8 @@ var UnrugTitle = (function () {
     button('board', 'Top runs', () => { press('board'); beep('tick'); board = true; });
     button('back', 'Back', () => { press('back'); beep('tick'); board = false; });
     button('sound', 'Sound', () => { press('sound'); act.sound(); beep('tick'); }).classList.add('tsnd');
+    // full screen (owner, Oct 15): hidden where the browser can't do it, like the pause card's
+    button('full', 'Full screen', () => { press('full'); beep('tick'); act.full(); });
     button('exit', 'Exit to JonniePeed Games', () => { press('exit'); beep('tick'); act.exit(); });
 
     // ---- state ----
@@ -293,6 +295,13 @@ var UnrugTitle = (function () {
       Q(-6, -2, 2, 4); Q(-4, -3, 1, 6); Q(-3, -4, 1, 8); Q(-2, -5, 1, 10);
       if (on) { Q(0, -2, 1, 4); Q(2, -4, 1, 8); Q(1, -3, 1, 1); Q(1, 2, 1, 1); } else for (let i = 0; i < 5; i++) { Q(i, -2 + i, 1, 1); Q(4 - i, -2 + i, 1, 1); }
     }
+    // four corners: pointing out to go full screen, in to leave it
+    function fullIcon(g, cx, cy, on, col) {
+      const Q = (x, y, w, h) => R(g, cx + x * 2, cy + y * 2, w * 2, h * 2, col);
+      if (!on) { Q(-5, -5, 3, 1); Q(-5, -5, 1, 3); Q(2, -5, 3, 1); Q(4, -5, 1, 3); Q(-5, 4, 3, 1); Q(-5, 2, 1, 3); Q(2, 4, 3, 1); Q(4, 2, 1, 3); }
+      else { Q(-5, -2, 4, 1); Q(-2, -5, 1, 4); Q(1, -2, 4, 1); Q(1, -5, 1, 4); Q(-5, 1, 4, 1); Q(-2, 1, 1, 4); Q(1, 1, 4, 1); Q(1, 1, 1, 4); }
+    }
+    const canFull = () => !!(act.canFull && act.canFull());
     function steelKey(g, x, y, w, h, id) {
       R(g, x - 1, y - 1, w + 2, h + 2, '#0a0b0e'); R(g, x, y, w, h, down(id) ? '#3a3c48' : '#262830'); R(g, x, y, w, 1, '#5a5c6a'); R(g, x, y + h - 1, w, 1, '#101116');
       zone(x, y, w, h, id);
@@ -334,8 +343,11 @@ var UnrugTitle = (function () {
       const w = GRID, h = PANEL_H;
       steel(g, w, h); gz = [];
       if (board) { boardView(g, w, h, false); return; }
-      led(g, 14, 14, w - 28 - 98, 42, tt);
-      steelKey(g, w - 14 - 42 - 48, 14, 42, 42, 'sound'); speaker(g, w - 14 - 42 - 48 + 21, 14 + 21, act.soundOn(), act.soundOn() ? P.gold : P.dim);
+      const keys = canFull() ? 3 : 2;
+      led(g, 14, 14, w - 28 - 48 * keys + 6, 42, tt);
+      if (keys === 3) { steelKey(g, w - 14 - 42 - 48, 14, 42, 42, 'full'); fullIcon(g, w - 14 - 42 - 48 + 21, 14 + 21, act.fullOn(), act.fullOn() ? P.gold : P.dim); }
+      const sx = w - 14 - 42 - 48 * (keys - 1);
+      steelKey(g, sx, 14, 42, 42, 'sound'); speaker(g, sx + 21, 14 + 21, act.soundOn(), act.soundOn() ? P.gold : P.dim);
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
       MODES.forEach((m, i) => callButton(g, 58 + i * 102, 106, 36, i, tt, 152));
       boardLine(g, 14, 178, w - 28);
@@ -403,18 +415,21 @@ var UnrugTitle = (function () {
         bgx.clearRect(0, 0, AW, BAND_H); drawBand(bgx, tt);
         blit(bandC, 0, 0, AW, BAND_H, px, py + BAND_TOP * kp, pw, BAND_H * kp);
         zones = gz.map(([x, y, w, h, id]) => [px + x * kp, py + (BAND_TOP + y) * kp, w * kp, h * kp, id]);
-        // sound and Exit, Ghost style, where Pause sits in play: the side band on a phone, the band above on a desktop
+        // sound, full screen and Exit, Ghost style, where Pause sits in play: the side band on a phone, the band above on a desktop
         const sideBand = W - (px + pw) >= 50;
         const ix = sideBand ? W - (W - px - pw) / 2 : Math.min(px + pw, W - 8) - 20, iy = sideBand ? 28 : Math.max(4, (py - 40) / 2) + 20;
-        const ex = sideBand ? ix : ix - 76, ey = sideBand ? iy + 50 : iy;
+        const fs = canFull(), fx = sideBand ? ix : ix - 50, fy = sideBand ? iy + 50 : iy;
+        const ex = sideBand ? ix : (fs ? fx : ix) - 76, ey = sideBand ? (fs ? fy : iy) + 50 : iy;
         sg.save(); sg.setTransform(f, 0, 0, f, 0, 0);
         sg.fillStyle = 'rgba(9,7,11,.55)'; sg.strokeStyle = 'rgba(255,246,226,.35)'; sg.lineWidth = 2;
         sg.beginPath(); sg.arc(ix, iy, 20, 0, 7); sg.fill(); sg.beginPath(); sg.arc(ix, iy, 19, 0, 7); sg.stroke();
         sg.beginPath(); sg.roundRect ? sg.roundRect(ex - 25, ey - 14, 50, 28, 14) : sg.rect(ex - 25, ey - 14, 50, 28); sg.fill(); sg.stroke();
         speaker(sg, ix, iy, act.soundOn(), '#fff6e2');
         A.txt(sg, 'EXIT', ex, ey - 5, 'rgba(255,246,226,.9)', 2, 'center');
+        if (fs) { sg.fillStyle = 'rgba(9,7,11,.55)'; sg.beginPath(); sg.arc(fx, fy, 20, 0, 7); sg.fill(); sg.beginPath(); sg.arc(fx, fy, 19, 0, 7); sg.stroke(); fullIcon(sg, fx, fy, act.fullOn(), '#fff6e2'); }
         sg.restore();
         zones.push([ix - 24, iy - 24, 48, 48, 'sound'], [ex - 27, ey - 22, 54, 44, 'exit']);
+        if (fs) zones.push([fx - 24, fy - 24, 48, 48, 'full']);
         out.safe = [py, py + BAND_TOP * kp]; out.logo = [py + (ART.panLogo - ART.pan[1]) * kp, py + (ART.panLogo - ART.pan[1] + LH) * kp];
       }
       // the buttons over what was drawn
@@ -427,6 +442,7 @@ var UnrugTitle = (function () {
       for (const id in BUTTONS) BUTTONS[id].hidden = !shown.has(id);
       MODES.forEach((m, i) => BUTTONS['mode' + i].setAttribute('aria-pressed', String(i === mode)));
       BUTTONS.sound.setAttribute('aria-label', act.soundOn() ? 'Sound on' : 'Sound off');
+      BUTTONS.full.setAttribute('aria-label', act.fullOn && act.fullOn() ? 'Exit full screen' : 'Full screen');
       out.buttons = zones.map(([x, y, w, h, id]) => ({ id, label: BUTTONS[id].dataset.label, x, y, w, h }));
       lay = out;
     }

@@ -10,6 +10,8 @@ The old title was a page: the studio header, Sound and Full screen buttons, a fr
 
 A sequel to Unruggabull: RugCo Alley. The first game looked down RugCo Alley at the RugCo Empire garage with fire on its roof. The title is that view a night later: the fire is out, smoke drifts off the roof, and RugCo Tower stands behind the garage with p(Loom)'s eye in the pavilion on its roof. He stands at the shutter. Dry: nothing explains anything.
 
+**Two sides of the tower** (owner, Oct 15): the title sees RugCo Tower from the back, over the garage in the alley, which is his side. The intro's stills see it from the front, the face RugCo shows the world. Later art keeps them apart: the front's look doesn't show up from the alley, and the alley's garage and shutter don't show up out front.
+
 ## The picture
 
 - **One painting** for every screen: the owner's ChatGPT picture (Oct 15, the third try, outpainted upward to 3:4, 1086 × 1448), shrunk to **480 × 640** and the game's 64 colours exactly as the intro's stills are (`quantize` in `tools/unruggabull-ii/intro/stills.py`: BOX shrink, render.js's palette and lookup, the 4× Bayer dither), saved as a lossless WebP inside `title-art.js` (`UnrugTitleArt`, about 85 KB) by `tools/unruggabull-ii/title/art.py SRC`. The source picture stays out of the repo, as with the intro; the owner has it.
@@ -37,7 +39,7 @@ A RugCo elevator panel, in the family of the cards' strip (#127) but steel: a br
 - **Lines:** BABY BULL: `EXTRA HEALTH.` · REGULAR BULL: `REGULAR HEALTH.` · RAGING BULL: `NO HEALTH RESETS.` (owner). **Regular is the default.**
 - **The board line:** a gold trophy and the picked mode's top run, tappable; it opens that mode's board (top 8 sideways in two columns, top 10 upright) in the panel, with **Back**. Each mode has its own board (item 29). **Built but hidden until the boards exist:** `actions.board(mode)` returns `null` today; when it returns a list (even an empty one: NO RUNS YET), the line shows.
 - **Start**, gold, the panel's main button.
-- **Sound and Exit:** upright, two steel keys on the panel beside the readout; sideways and on a desktop, a Ghost disc and a Ghost EXIT pill where Pause sits in play (outside the picture). Exit goes back to JonniePeed Games (owner, Oct 15: the page's header and studio link are gone from the title). No **Full screen** or **Controls** on the title: Start goes full screen on a touch screen (the controls doc's rule), F on a computer, and both live on the pause card.
+- **Sound, Full screen and Exit:** upright, three steel keys on the panel beside the readout; sideways and on a desktop, two Ghost discs and a Ghost EXIT pill where Pause sits in play (outside the picture). Full screen (added after #130, owner) shows four corners pointing out, or in while full screen, and hides where the browser has none, like the pause card's; Start still goes full screen on a touch screen (the controls doc's rule), and F works too. Exit goes back to JonniePeed Games (owner, Oct 15: the page's header and studio link are gone from the title). No **Controls** on the title: it lives on the pause card.
 - **Room for stage select (item 28):** kept, not designed. Upright, the space between the board line and Start (about 44 grid rows); sideways, under Start (120 × 20).
 
 ## Layout
