@@ -10,6 +10,8 @@ The old title was a page: the studio header, Sound and Full screen buttons, a fr
 
 A sequel to Unruggabull: RugCo Alley. The first game looked down RugCo Alley at the RugCo Empire garage with fire on its roof. The title is that view a night later: the fire is out, smoke drifts off the roof, and RugCo Tower stands behind the garage with p(Loom)'s eye in the pavilion on its roof. He stands at the shutter. Dry: nothing explains anything.
 
+**Two sides of the tower** (owner, Oct 15): the title sees RugCo Tower from the back, over the garage in the alley, which is his side. The intro's stills see it from the front, the face RugCo shows the world. Later art keeps them apart: the front's look doesn't show up from the alley, and the alley's garage and shutter don't show up out front.
+
 ## The picture
 
 - **One painting** for every screen: the owner's ChatGPT picture (Oct 15, the third try, outpainted upward to 3:4, 1086 × 1448), shrunk to **480 × 640** and the game's 64 colours exactly as the intro's stills are (`quantize` in `tools/unruggabull-ii/intro/stills.py`: BOX shrink, render.js's palette and lookup, the 4× Bayer dither), saved as a lossless WebP inside `title-art.js` (`UnrugTitleArt`, about 85 KB) by `tools/unruggabull-ii/title/art.py SRC`. The source picture stays out of the repo, as with the intro; the owner has it.
