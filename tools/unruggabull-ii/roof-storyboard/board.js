@@ -428,7 +428,7 @@ const FRAMES = [
       bull(L, G, 'stand', 0, BZ + .05, { rim: '#e8e4ff' }); rain(L, G, 2, .25);
     }, lights: () => [], amb: '#a8a8d8', flash: .25 },
   { act: 1, title: 'It wakes', time: '0:15', said: 'The eye opens and rides to the middle of its rail. Orange light falls down the roof. The card names it.',
-    note: 'Like the Shredder\'s card on the 13th Floor. The eye looks at him and follows him from here on.',
+    note: 'Like SHRED-O\'s card on the 13th Floor. The eye looks at him and follows him from here on.',
     draw(L, G) {
       fight(L, G, { state: 'awake', souls: 18, eyeX: 120, lookX: 120 }); clutter(L, G, {});
       bull(L, G, 'stand', 0, BZ + .02); rain(L, G, 3, .25);

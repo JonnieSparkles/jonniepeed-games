@@ -436,7 +436,7 @@ var UnrugSets = function (o) {
     }
   };
 
-  // -- Copy room: machines, paper, shelves, a vending machine; dimmer, greener light; the Shredder at the end --
+  // -- Copy room: machines, paper, shelves, a vending machine; dimmer, greener light; SHRED-O at the end --
   function cpCopier(g, gl, it, z) {
     // a big office copier, its front to the aisle: paper drawers below, the body, a dark lid with the glass under it,
     // a control panel on top at the front, the sorter tray sticking out toward you with copies on it
@@ -506,7 +506,7 @@ var UnrugSets = function (o) {
   }
   SECTIONS.copy = {
     name: 'Copy room', slot: .34, wslot: .6,
-    blurb: 'Copiers along the walls (beige, lid up, green panel screens and a scan light that sweeps now and then, glow plus a moving light), paper reams on pallets, recycling bins, tall shelving with binders, a vending machine side-on with its front glowing and lighting the floor. Notice boards and COPY ROOM signs; paper on the floor. Dimmer, greener light and beige walls, the house lights down as in the game. The Shredder waits at the end (the game draws it; not mocked here).',
+    blurb: 'Copiers along the walls (beige, lid up, green panel screens and a scan light that sweeps now and then, glow plus a moving light), paper reams on pallets, recycling bins, tall shelving with binders, a vending machine side-on with its front glowing and lighting the floor. Notice boards and COPY ROOM signs; paper on the floor. Dimmer, greener light and beige walls, the house lights down as in the game. SHRED-O waits at the end (the game draws it; not mocked here).',
     view: { power: .7, house: 0, rail: '#b8a878', look: { lo: [.13, .12, .09], hi: [.2, .19, .15], co: [.16, .15, .12], ce: [.22, .22, .2], ti: [.13, .14, .12], sh: .3, lamp: [1.5, 1.6, 1.3] } },
     piece: (n, s, r) => ['copier', 'reams', 'shelf', 'copier', 'vend', 'shelf', 'bins'][(n * 2 + (s > 0 ? 3 : 0)) % 7],
     wall: (n, s, r) => ['notice', 'oldrug', 'csign', 'clock', 'oldrug', 'notice'][(n + (s > 0 ? 3 : 0)) % 6],

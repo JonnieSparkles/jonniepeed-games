@@ -1,10 +1,10 @@
-// Unruggabull II: The 13th Floor, Accounting, and its boss, the Shredder. Classic script; load after art.js and audio.js
+// Unruggabull II: The 13th Floor, Accounting, and its boss, SHRED-O. Classic script; load after art.js and audio.js
 // and before game.js, which calls UnrugFloor13(core) once with the pieces the floors share and gets back the floor's
 // hooks (listed at the bottom). The core hands over R and bull at each fresh run (newRun).
 //
 // The floor: a hall in three beats (Accounts Payable, All Staff, the Copy Room) with moving day and lights out between
 // them; temps behind their stations throwing paper; rows and boxes to jump; the runner rug that pulls you toward the
-// far end; the far wall that wakes up as the Shredder; its fight; and the souls' hint.
+// far end; the far wall that wakes up as SHRED-O; its fight; and the souls' hint.
 var UnrugFloor13 = function (core) {
   'use strict';
   const {
@@ -17,11 +17,11 @@ var UnrugFloor13 = function (core) {
     glowLayer, setCheckpoint
   } = core;
   let R = null, bull = null;
-  let g = core.g;   // where drawing goes: set by the core (use), and swapped for an offscreen canvas while the Shredder draws
+  let g = core.g;   // where drawing goes: set by the core (use), and swapped for an offscreen canvas while SHRED-O draws
   const lin = UnrugRender.lin;
 
   // The hall comes in three beats, each with its own sign, props and trouble. The first two last `time` seconds
-  // and end with an event; the last wakes the Shredder once you reach the goal (after `minT`, or at `max` regardless).
+  // and end with an event; the last wakes SHRED-O once you reach the goal (after `minT`, or at `max` regardless).
   // The music is one track that grows through the hall (music-floor.js): each beat and event sets its stems, or
   // switches track, on the next bar.
   const STEMS = { hall: ['drums', 'bass', 'lead'], move: ['drums', 'bass', 'lead', 'harmony'], staff: ['drums', 'bass', 'lead', 'harmony', 'power'],
@@ -44,7 +44,7 @@ var UnrugFloor13 = function (core) {
   // ---------- the sets: each section's look and dressing (sets13.js) ----------
   const SETS = UnrugSets({ VX, HY, sc, PX, FY, CY, YH });
   const SET_ORDER = ['ap', 'move', 'staff', 'dark', 'copy'];
-  // the section now: a beat, or the event in it; the copy room's set carries on to the Shredder
+  // the section now: a beat, or the event in it; the copy room's set carries on to SHRED-O
   function secNow() {
     if (R.phase !== 'hall') return 'copy';
     if (R.event) return R.event.kind === 'move' ? 'move' : R.event.kind === 'rush' ? 'staff' : 'dark';
@@ -178,7 +178,7 @@ var UnrugFloor13 = function (core) {
       }
     }
   }
-  // In the copy room, no new desk once the Shredder could wake before it has passed (about five seconds down the hall),
+  // In the copy room, no new desk once SHRED-O could wake before it has passed (about five seconds down the hall),
   // so none is left standing in front of it.
   function wakeSoon() {
     const B = beat();
@@ -225,7 +225,7 @@ var UnrugFloor13 = function (core) {
       spawnFormation('snake');
     }
   }
-  // The dark: lights out in the hall, or the Shredder's power saving mode. Either has t and dur.
+  // The dark: lights out in the hall, or SHRED-O's power saving mode. Either has t and dur.
   const blackout = () => (R.event && R.event.kind === 'dark') ? R.event : R.boss.dark;
   // A kill in the dark frees a second soul.
   function bonusBy() { return R.event && R.event.kind === 'dark' ? 'dark' : null; }
@@ -342,7 +342,7 @@ var UnrugFloor13 = function (core) {
   }
   function updateRows(dt) {
     for (const row of R.rows) {
-      row.w -= (row.v || (row.kind === 'chairs' ? .12 : .22)) * dt;   // chairs roll toward you; paper skids faster; the Shredder's rows set their own speed
+      row.w -= (row.v || (row.kind === 'chairs' ? .12 : .22)) * dt;   // chairs roll toward you; paper skids faster; SHRED-O's rows set their own speed
       const z = row.w - R.dist;
       if (row.hit) { row.hit += dt; continue; }
       if (!R.events.jumpHint && z < .6 && R.phase === 'hall' && !DUCKS[row.kind]) {
@@ -435,7 +435,7 @@ var UnrugFloor13 = function (core) {
         } else if (p.z >= .955) {
           const b = R.boss, rl = b.rally;
           if (p.rally && rl && b.st === 'fight' && b.jam <= 0 && rl.count < rl.target) {
-            // the Shredder bats it back at you, quicker every time
+            // SHRED-O bats it back at you, quicker every time
             rl.count++; b.spit = .2; emit('rally_return', { amount: 1 }); R.rallyPop = .35;
             R.events.bestRally = Math.max(R.events.bestRally || 0, rl.count);
             R.shake = Math.max(R.shake, .05 + .02 * Math.min(rl.count, 10));   // it builds: harder shakes, faster music
@@ -447,7 +447,7 @@ var UnrugFloor13 = function (core) {
           }
           p.dead = true;
           if (p.rally && rl && b.st === 'fight') {
-            // it misses: a smash, and the Shredder reels
+            // it misses: a smash, and SHRED-O reels
             const dmg = TUNE.rally.smash + TUNE.rally.smashPer * rl.count;
             b.rally = null; b.jam = Math.max(b.jam, TUNE.rally.stun); b.jamMax = b.jam; b.jamTag = 'STUNNED x3'; R.shake = .5; R.events.smashes = (R.events.smashes || 0) + 1;
             shove(-14); b.shudder = .8; taunt('smash');
@@ -530,8 +530,8 @@ var UnrugFloor13 = function (core) {
     } else if (P.st === 'warn') {
       if (P.t >= .9) {
         P.st = 'on'; P.t = 0; P.dur = pullDur(); P.count++; P.snd = 0;
-        if (P.count === 1) { R.banner = { text: 'STEP OFF OR SLASH', t: 0, dur: 99, pull: true }; live('The runner rug is pulling you toward the shredder. Step off it, slash to cut the rug, or crouch to grip it.'); }
-        else if (R.phase === 'boss' && !P.spray && !R.events.jamHint && !R.talk) { R.events.jamHint = true; R.banner = { text: 'SLASH THE RUG', t: 0, dur: 99, pull: true }; live('Cut the rug to jam the shredder.'); }
+        if (P.count === 1) { R.banner = { text: 'STEP OFF OR SLASH', t: 0, dur: 99, pull: true }; live('The runner rug is pulling you toward SHRED-O. Step off it, slash to cut the rug, or crouch to grip it.'); }
+        else if (R.phase === 'boss' && !P.spray && !R.events.jamHint && !R.talk) { R.events.jamHint = true; R.banner = { text: 'SLASH THE RUG', t: 0, dur: 99, pull: true }; live('Cut the rug to jam SHRED-O.'); }
       }
     } else if (P.st === 'on') {
       P.snd -= dt;
@@ -558,7 +558,7 @@ var UnrugFloor13 = function (core) {
     if (P.st === 'on') R.roff += TUNE.pullSpeed * dt * 1.4;
     if (R.cut) { R.cut.t += dt; R.cut.z -= R.speed * dt; if (R.cut.t > 1.2) R.cut = null; }
   }
-  // ---------- the Shredder ----------
+  // ---------- SHRED-O ----------
   function startWake() {
     R.shzWake = shredderZ();
     R.phase = 'wake'; R.phaseT = 0; R.noPops = true;
@@ -581,7 +581,7 @@ var UnrugFloor13 = function (core) {
     launch('bundle', { u: rr(-.1, .1), z: .95, h: .1 }, { u: bull.u, z: bull.bz, h: .12 }, dur, { w: .08, hh: .05 });
     b.spit = .25; Snd.play('spit');
   }
-  // Phase 3's rally: a white-hot bundle the Shredder keeps batting back, quicker each time, until it misses.
+  // Phase 3's rally: a white-hot bundle SHRED-O keeps batting back, quicker each time, until it misses.
   function serveRally(long) {
     const b = R.boss;
     const [lo, hi] = TUNE.rally.count[b.ph - 1];
@@ -600,7 +600,7 @@ var UnrugFloor13 = function (core) {
     if (!R.events.rallyHint) { R.events.rallyHint = true; R.banner = { text: 'SLASH IT BACK', t: 0, dur: 1.6, pull: true }; live('Rally! Keep knocking the glowing bundle back until SHRED-O misses.'); }
   }
   // Phase 3's power surge: a bolt from its eyes yanks the blaster out of his hands and into its mouth, where it sticks
-  // in its teeth, sparking ("CONFISCATED."). No dodging it: from then on the katana is all he has, and the Shredder's
+  // in its teeth, sparking ("CONFISCATED."). No dodging it: from then on the katana is all he has, and SHRED-O's
   // own paper knocked back is what wears it down, until the finish (startFinale) brings the blaster back.
   // Once the soul is in the gun, it holds it: the surge still comes, but it breaks on them in a shower of gold.
   const soulsHold = () => R.hint && R.hint.landed >= TUNE.soulHint.souls;
@@ -610,7 +610,7 @@ var UnrugFloor13 = function (core) {
     for (let j = 0; j < 12; j++) R.fx.push({ k: 'spark', x: m.x + fxr(-5, 5), y: m.y + fxr(-5, 5), s: .8, col: j % 2 ? '#ffd44a' : '#ffffff', t: 0, dur: .4, a: Math.random() * 6 });
     R.shake = Math.max(R.shake, .15); Snd.play('surge');
   }
-  // where the Shredder holds the confiscated blaster: up in the air above its head in a crackle of blue, well out of reach
+  // where SHRED-O holds the confiscated blaster: up in the air above its head in a crackle of blue, well out of reach
   // (at the foot of the rug, in its mouth, it looked like something to ride up the carpet for)
   const MOUTH = { x: 120, y: BACK.y0 + 3 };
   function surge() {
@@ -742,7 +742,7 @@ var UnrugFloor13 = function (core) {
     R.banner = { text: 'FINISH IT!', t: 0, dur: 1.6, pull: true };
     live('Finish it with the blaster!');
   }
-  // The Shredder's lines in the fight, beyond its set lines: one at a time, never more often than every 12 seconds,
+  // SHRED-O's lines in the fight, beyond its set lines: one at a time, never more often than every 12 seconds,
   // and never over another line or a banner. Each list goes round in order.
   const TAUNTS = {
     miss: ['SHREDDED.', 'DENIED.', 'FILED UNDER NOPE.'],
@@ -878,13 +878,13 @@ var UnrugFloor13 = function (core) {
   }
   // ---------- the souls' hint ----------
   // A glimpse of the mega stream, saved for the roof. At the finish (startFinale) one soul leaves the counter, pulls the
-  // blaster out of the Shredder's mouth and brings it back to him (or, if it never took it, flies straight into the
+  // blaster out of SHRED-O's mouth and brings it back to him (or, if it never took it, flies straight into the
   // gun), landing with one soft bell (D5) and adding a stream beside the bolt, straight, never bending in; it stays for
   // the rest of the fight. The counter keeps its souls; the stream does normal damage and costs nothing extra. The bells
   // count up the climb: one here, two on the 48th Floor (D, F), three on the roof (D, F, A).
   // It takes its time, so it registers: a beat before the soul lifts off the counter, slow on a wide arc, the music
   // ducked under the bell, and a tiny hitch in time as it hits the gun.
-  // At the finish the soul goes for the blaster first (fetch): into the Shredder's mouth, then back to him with it.
+  // At the finish the soul goes for the blaster first (fetch): into SHRED-O's mouth, then back to him with it.
   function startHint(fetch) {
     const T = TUNE.soulHint;
     R.events.soulHint = true;
@@ -895,7 +895,7 @@ var UnrugFloor13 = function (core) {
     Snd.duck && Snd.duck(arrive + .5);
   }
   const soulsInGun = () => !!(R.hint && R.hint.streams > 1);
-  // Goodbye (the owner's idea, Oct 12): when the Shredder's beaten, after its last line, the soul leaves the gun with a
+  // Goodbye (the owner's idea, Oct 12): when SHRED-O's beaten, after its last line, the soul leaves the gun with a
   // bell, comes round in front of him at head height, salutes and says "GOOD LUCK." with a second bell; then it floats
   // up and away, and every soul freed on the floor rises with it. Then the clear (TUNE.soulBye.later seconds later than
   // without them). Cosmetic and on the clock: it draws in drawBye.
@@ -950,9 +950,9 @@ var UnrugFloor13 = function (core) {
     }
   }
   // the souls on their way from the counter to the gun, drawn over the scene
-  // when the soul reaches the Shredder's mouth on a fetch (seconds into the hint)
+  // when the soul reaches SHRED-O's mouth on a fetch (seconds into the hint)
   const hintMouthAt = () => TUNE.soulHint.fetch;
-  // the blaster held up in the air above the Shredder, sparking, after the surge (drawn over the scene, so it shows in the dark)
+  // the blaster held up in the air above SHRED-O, sparking, after the surge (drawn over the scene, so it shows in the dark)
   function drawGunInMouth() {
     const G = R.boss.gun;
     if (!G || R.phase !== 'boss' || R.boss.st !== 'fight') return;
@@ -1056,7 +1056,7 @@ var UnrugFloor13 = function (core) {
     return Object.assign({}, lk, { lamp: lk.lamp.map((v, i) => v + (red[i] - v) * in_) });
   }
   // The light the floor's things give off this frame: paper knocked back or in a rally, light switches, the monitors
-  // when the lights are out, the Shredder's eyes and its mouth as it winds up.
+  // when the lights are out, SHRED-O's eyes and its mouth as it winds up.
   function lights(r) {
     const at = (u, z, h, cr, cg, cb) => { const [x, y, wz] = world(u, z, h); r.light(x, y, wz, cr, cg, cb); };
     for (const p of R.projs) if (p.friendly || p.rally) at(p.u, p.z, p.h, .25, .4, .6);
@@ -1080,7 +1080,7 @@ var UnrugFloor13 = function (core) {
     if (zS < 1.6 && b.rev > 0 && b.st === 'fight') at(0, zS - .03, .2, 1.2, .15, .08);
   }
   // Where the katana cut the rug: torn across with a ragged edge and loose threads, and the far piece whips away
-  // toward the Shredder, opening a gap of bare floor.
+  // toward SHRED-O, opening a gap of bare floor.
   function drawCut() {
     if (!R.cut || R.cut.z <= 0) return;
     const z = R.cut.z, gap = Math.min(.14, R.cut.t * .55), zf = z + gap, rw = TUNE.runner;
@@ -1097,7 +1097,7 @@ var UnrugFloor13 = function (core) {
     g.restore();
   }
   const mh = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
-  // A live floor: the floor beside the rug goes live. While it warns, a blue shimmer creeps down from the Shredder; then
+  // A live floor: the floor beside the rug goes live. While it warns, a blue shimmer creeps down from SHRED-O; then
   // arcs crawl the tiles on both sides and stop at the rug's edge with a spit of sparks (the rug insulates). Cosmetic: it
   // hashes the clock, no randomness.
   function sprayLanes() {
@@ -1138,7 +1138,7 @@ var UnrugFloor13 = function (core) {
   // Cracks on its panels, clear of the sign, the eyes and the mouth, in the order they appear.
   const CRACKS = [[[8, 6], [13, 12], [11, 17]], [[66, 5], [62, 10], [64, 15], [60, 19]], [[6, 22], [11, 26], [9, 31]], [[68, 24], [63, 27], [66, 31]],
     [[16, 4], [19, 9], [17, 12]], [[58, 8], [55, 13]], [[12, 14], [18, 17]], [[62, 16], [57, 22]]];
-  // The Shredder: a steel shredding machine built across the end of the hall, drawn at the picture's full size. A riveted
+  // SHRED-O: a steel shredding machine built across the end of the hall, drawn at the picture's full size. A riveted
   // steel body in panels, an amber SHRED-O display, its two eyes in dark sockets, side vents with paper caught in them,
   // a hazard-striped feed under the eyes and the mouth with its blades, fed by the runner rug. It wears down: cracks
   // and loose panels the more damage it has taken.
@@ -1191,7 +1191,7 @@ var UnrugFloor13 = function (core) {
     for (const fx of [x0 + 5, x1 - 13]) { hr(fx, y1 - 2.5, 8, 2.5, '#1a1418'); hr(fx + .5, y1 - 2, 7, 1.5, '#5a6070'); }
     if (b.st === 'sleep') for (let i = 0; i < 3; i++) { const k = mod1(t * .4 + i / 3); txt(g, 'Z', x1 - 8 + Math.round(Math.sin(k * 6) * 2), Math.round(y0 + 2 - k * 16), k > .8 ? '#5a5670' : '#a8a0c0'); }
   }
-  // The hall is endless at first: it runs on into the fog. In the copy room the Shredder appears far down it and
+  // The hall is endless at first: it runs on into the fog. In the copy room SHRED-O appears far down it and
   // closes in as you near the goal (souls and time both count), reaching the end of the hall as it wakes. (Cosmetic.)
   function shredderZ() {
     if (R.phase === 'hall') {
@@ -1204,7 +1204,7 @@ var UnrugFloor13 = function (core) {
     if (R.phase === 'wake') { const k = clamp(R.phaseT / 1.2, 0, 1), z0 = R.shzWake === Infinity || R.shzWake == null ? 1.6 : R.shzWake; return z0 + (1 - z0) * k * k * (3 - 2 * k); }
     return 1;
   }
-  // The Shredder is drawn on its own canvas, then onto the scene scaled about the foot of its mouth with hard pixels: it
+  // SHRED-O is drawn on its own canvas, then onto the scene scaled about the foot of its mouth with hard pixels: it
   // swells as it lunges at you and shrinks as it recoils, breathes, and shudders when jammed or hit hard.
   const SHC = A.canvas(W * 2, H * 2), shg = SHC.getContext('2d');
   shg.imageSmoothingEnabled = false;
@@ -1427,7 +1427,7 @@ var UnrugFloor13 = function (core) {
       }
       rect(g, x0 - 1, pt - 1, x1 - x0 + 2, pb - pt + 2, '#1a1418'); rect(g, x0, pt, x1 - x0, pb - pt, '#9a6a3a'); rect(g, x0, pt, x1 - x0, Math.max(1, (pb - pt) * .3), '#b88850');
     } else if (row.kind === 'carpet') {
-      // a carpet of staples skittering across the whole floor, edges blinking red like all the Shredder's paper
+      // a carpet of staples skittering across the whole floor, edges blinking red like all SHRED-O's paper
       const w = Math.max(3, Math.round(A.uw(A.STAPLE) * k * 1.3)), h = Math.max(1, Math.round(A.uh(A.STAPLE) * k * 1.3));
       const sil = tinted(A.STAPLE, Math.floor(R.t * 10) % 2 ? '#ff3020' : '#ff9628');
       for (let u = -.6; u <= .61; u += .15) {
@@ -1489,7 +1489,7 @@ var UnrugFloor13 = function (core) {
     return .82;
   }
   // What glows, laid over the lit hall as it is (the core's draw()): light switches, monitors, the neon sign, the
-  // warning beside the rug, a temp's tell, the Shredder's eyes and teeth once it's up, pickups, paper in flight, bolts,
+  // warning beside the rug, a temp's tell, SHRED-O's eyes and teeth once it's up, pickups, paper in flight, bolts,
   // souls and sparks. With the lights out, eyes too: the temps', the carpshits', and something's far down the hall.
   // Rush hour's cross corridor: a propped-open double door in each wall, facing each other, dark inside, with a red
   // light over each; carpshits stream across between them.
@@ -1605,7 +1605,7 @@ var UnrugFloor13 = function (core) {
     if (!at) addSign(.95, BEATS[0].sign);
   }
   // One tick of play, in this order: the hall, Unruggabull, the rug, the hint, temps, obstacles, pickups, carpshits,
-  // paper, shots, the Shredder, effects and the floor's flow. The order is part of the seeded run, so keep it.
+  // paper, shots, SHRED-O, effects and the floor's flow. The order is part of the seeded run, so keep it.
   function update(dt) {
     if (R.phase === 'hall') updateHall(dt);
     updateBull(dt);
@@ -1673,7 +1673,7 @@ var UnrugFloor13 = function (core) {
   }
 
   // The things in the hall, lit where they stand (the core lays them over the rendered hall): the cut in the rug, the
-  // Shredder, paper in the air, what's on the walls and at the sides, then what's on the floor and Unruggabull, far to
+  // SHRED-O, paper in the air, what's on the walls and at the sides, then what's on the floor and Unruggabull, far to
   // near. Pickups, paper in flight and bolts glow, so they go with the glow (glows()).
   function draw() {
     drawCut();
@@ -1681,7 +1681,7 @@ var UnrugFloor13 = function (core) {
     drawPaper();
     // Fixed things beside and above the aisle go down first, far to near, so nothing moving is ever cut by them.
     const back = [];
-    const zS = shredderZ(), far = Math.min(AHEAD, zS - .01);   // nothing behind the Shredder shows
+    const zS = shredderZ(), far = Math.min(AHEAD, zS - .01);   // nothing behind SHRED-O shows
     const gl = glowLayer();
     for (const it of setItems()) { const z = it.w - R.dist; if (z < far) back.push([z, () => faded(fadeFar(z), () => { if (fadeFar(z) < 1) { gl.save(); gl.globalAlpha = fadeFar(z); } SETS.draw(it, z, g, gl); if (fadeFar(z) < 1) gl.restore(); })]); }
     for (const wk of R.workers) { const z = wk.w - R.dist; if (z < far && z > ZN - .2) back.push([z, () => faded(fadeFar(z), () => drawWorker(wk, z))]); }
@@ -1700,10 +1700,10 @@ var UnrugFloor13 = function (core) {
     for (const e of list) e[1]();
     drawFx('lit');
   }
-  // The floor's part of the HUD: the goal meter in the hall (or the souls counter), the Shredder's bar, the rally count.
+  // The floor's part of the HUD: the goal meter in the hall (or the souls counter), SHRED-O's bar, the rally count.
   function hud() {
     if (R.phase === 'hall') {
-      // the goal: free enough souls and the Shredder wakes
+      // the goal: free enough souls and SHRED-O wakes
       const shown = Math.min(R.souls, R.shown), k = Math.min(1, shown / TUNE.goal), full = k >= 1 && Math.floor(R.t * 6) % 2, pulse = R.meterPulse > 0;
       g.drawImage(A.GHOST, 74, pulse ? 1 : 2, A.uw(A.GHOST), A.uh(A.GHOST));
       rect(g, 86, 4, 64, 7, pulse ? '#fff6e2' : '#1a1418'); rect(g, 87, 5, 62, 5, '#3a2f5e'); rect(g, 87, 5, Math.round(62 * k), 5, full || pulse ? '#ffd44a' : '#7fd4ff');
@@ -1713,7 +1713,7 @@ var UnrugFloor13 = function (core) {
     } else drawSoulsCounter();
     const b = R.boss;
     if (b.st === 'fight' || b.st === 'awake' || (b.st === 'dead' && R.phaseT < 1.2)) {
-      const fill = b.st === 'awake' ? b.bar : b.hp / TUNE.bossHP;   // it ticks up to full while the Shredder wakes
+      const fill = b.st === 'awake' ? b.bar : b.hp / TUNE.bossHP;   // it ticks up to full while SHRED-O wakes
       otxt(g, 'SHRED-O', 86, 5, '#ffd44a', 1, 'right');
       rect(g, 89, 4, 74, 7, '#1a1418'); rect(g, 90, 5, 72, 5, '#3a2f5e');
       const last = b.st === 'fight' && b.hp <= TUNE.lastStand && Math.floor(R.t * 6) % 2;   // its last sliver blinks: stun it, then the blaster finishes it
@@ -1734,7 +1734,7 @@ var UnrugFloor13 = function (core) {
   }
   // With nothing coming at him, the blaster leans further out, to the carpshits at work along the walls.
   function aimIdle(consider) {
-    if (R.phase !== 'hall') return;   // in the fight, every bolt goes at the Shredder
+    if (R.phase !== 'hall') return;   // in the fight, every bolt goes at SHRED-O
     for (const wk of R.workers) for (const c of wk.carps) if (workerLive(c)) consider(c, workerAt(c), TUNE.aimWork);
   }
   // A shot hitting one of the floor's own targets (checked before carpshits). True if it stopped the shot.
@@ -1763,7 +1763,7 @@ var UnrugFloor13 = function (core) {
     }
     return s.dead;
   }
-  // A shot reaching the far end. True if the floor took it (the Shredder, in a fight); otherwise it just puffs out.
+  // A shot reaching the far end. True if the floor took it (SHRED-O, in a fight); otherwise it just puffs out.
   function shotFar(s) {
     // in phase 3 it braces: half damage from the blaster unless it's jammed or reeling from a smash
     if (R.boss.st === 'fight' && Math.abs(s.u) < .8) { bossDamage(R.boss.final && R.boss.final.st === 'fire' ? TUNE.finale.dmg : TUNE.shotDmg * (R.boss.jam > 0 ? TUNE.jamMult : R.boss.ph === 3 ? .5 : 1), 'blaster'); sparks(s.u, .96, s.h, R.boss.jam > 0 ? '#ffd44a' : '#fff6e2'); return true; }
@@ -1773,7 +1773,7 @@ var UnrugFloor13 = function (core) {
   function slash(near) {
     for (const p of R.projs) if (!p.dead && !p.friendly && near(p.u, p.z)) deflect(p);
   }
-  // He's been hit: the Shredder laughs (not on his last heart: that's his WHOA!).
+  // He's been hit: SHRED-O laughs (not on his last heart: that's his WHOA!).
   function hurt(cause) {
     if (R.hearts > 0 && R.phase === 'boss' && R.boss.st === 'fight' && cause !== 'rally') { laugh(); taunt('hit'); }
   }
@@ -1811,7 +1811,7 @@ UnrugFloor13.TUNE = {
     coffeeDrop: .2, rowH: .04,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, mouth: .85,
-    goal: 90,               // souls that wake the Shredder
+    goal: 90,               // souls that wake SHRED-O
     wadTime: 1.25, wadLead: .2, throwChance: .6,
     moveT: 16, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls
@@ -1822,13 +1822,13 @@ UnrugFloor13.TUNE = {
       // of group (space s apart, gap s between groups, alternating direction) at speed across; the head-on waves come
       // thin times as often meanwhile, one smaller, and no formations
       cross: { at: 1.9, from: 1.0, group: 3, space: .3, gap: 1.05, speed: .85, thin: .6, half: .06, clear: .16 } },   // score: the tally this long before it ends; recharge: the blaster's, during it
-    powerSaveT: 7,          // the Shredder's blackout between phases 2 and 3
+    powerSaveT: 7,          // SHRED-O's blackout between phases 2 and 3
     streakDrop: 10,         // a streak this long drops a Spread Shot
     bossHP: 100, shotDmg: .3, jamMult: 3, bundleDmg: 6, stapleDmg: 2, jamT: 2.6, bossSouls: 13,
     bundleT: [2.2, 1.6],    // how long a bundle takes to reach you: phase 1, then later phases
-    tell: .45,              // the Shredder's mouth glows this long before each attack
+    tell: .45,              // SHRED-O's mouth glows this long before each attack
     finish: { slow: 1.3, rate: .3 },   // the final hit: this many real seconds of slow motion, at this speed
-    attackEvery: [1.4, 1.5, 1.4],   // seconds between the Shredder's attacks in each phase
+    attackEvery: [1.4, 1.5, 1.4],   // seconds between SHRED-O's attacks in each phase
     // halfway through phase 2 it goes into OVERTIME (owner, Oct 14): a roar, attacks closer together, the music a notch faster
     overtime: { at: 49.5, every: 1.15, tempo: 1.06 },
     volley: { n: [3, 4, 8], gap: .24, dur: 1.4 }, scrapDmg: 3,   // quick scraps of paper (how many by phase), each worth 3 knocked back
@@ -1838,7 +1838,7 @@ UnrugFloor13.TUNE = {
     // the runner in the boss fight pulls on a steady beat: how long each pull lasts and the gap after it, by phase
     bossPull: { dur: [2.4, 3.2, 3.8], gap: [6, 8, 5] },   // phase 2's pulls further apart (owner, Oct 14): its attacks come round
     cutAfter: .7,   // a slash can't cut the runner until it has pulled this long (a beat or two), in the hall and the fight
-    // rallies, in every phase: the Shredder bats back a few of your returns (count, by phase), each quicker (serve ×
+    // rallies, in every phase: SHRED-O bats back a few of your returns (count, by phase), each quicker (serve ×
     // speedUp per return, down to fastest; your returns fly back in back × speedUp per return, down to backMin), then
     // misses, for smash + smashPer × its bat-backs. Once a phase, a marathon rally of this many.
     rally: { serve: 1, speedUp: .85, fastest: .45, count: [[1, 2], [2, 4], [3, 5]], marathon: [6, 7, 8], back: .3, backMin: .2, smash: 6, smashPer: 2, stun: 1.6 },
@@ -1848,14 +1848,14 @@ UnrugFloor13.TUNE = {
     darkFormEvery: 2.2,     // lights out sends a formation this often
     switchEvery: 3, switchFlash: 1.4,   // lights out: a light switch glows on a wall this often; shoot it and the lights flash on this long, freezing every carpshit
     grip: .25, // crouched he's half height; gripping a pulling rug, it drags him at a quarter of the speed
-    planeT: 1.6, planeDmg: 2,  // the Shredder's paper airplanes at head height: duck them, or slash them back
+    planeT: 1.6, planeDmg: 2,  // SHRED-O's paper airplanes at head height: duck them, or slash them back
     wipeBy: .5,              // a formation wiped out before any of it gets this far down the hall pays a bonus
     // the souls' hint (the mega stream's first glimpse, saved for the roof): the first time the blaster comes back in the
-    // Shredder's fight (or at its last stand, if it never went), this many souls leave the counter (gap apart, each
+    // SHRED-O's fight (or at its last stand, if it never went), this many souls leave the counter (gap apart, each
     // flying for fly seconds) and go into the gun, each adding a stream. One here: the bells count up the climb, one on
     // the 13th Floor, two on the 48th, three on the roof (the owner, Oct 12).
     soulBye: { at: .9, come: 1.2, salute: 1.5, say: 1.7, leave: 3.6, later: 4.6 },   // the goodbye's beats, in seconds
     lastStand: 12,          // nothing takes it below this but the finish: the paper that gets it here stuns it, then the blaster
-    soulHint: { souls: 1, wait: .5, gap: 1.1, fly: 1.6, fetch: 1.2 },   // fetch: up to the blaster the Shredder holds first
+    soulHint: { souls: 1, wait: .5, gap: 1.1, fly: 1.6, fetch: 1.2 },   // fetch: up to the blaster SHRED-O holds first
     finale: { window: 10, dmg: .27 }   // the finish: this long to blast it the rest of the way once the blaster's back
   };

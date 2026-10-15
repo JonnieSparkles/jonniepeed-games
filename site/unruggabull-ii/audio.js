@@ -221,7 +221,7 @@ window.UnrugSound = (function () {
       bass: { wave: 'triangle', vol: .3, gate: .8, pat: 'R R O R R R O R R R O R R O F O' },
       drums: { pat: 'k.hhs.hkk.hhs.hh', fills: { 3: 'k.hhs.hhk.s.ssss', 7: 'k.s.s.s.ssssssss' }, crash: [0, 4] }
     }] },
-    // The Shredder: the tower tune a half step up, faster, with a chugging saw and heavy drums.
+    // SHRED-O: the tower tune a half step up, faster, with a chugging saw and heavy drums.
     shred: { sections: [{
       bpm: 168, transpose: 1, scale: E_MINOR, chords: ['Em', 'C', 'D', 'Em', 'Em', 'C', 'D', 'B'],
       lead: { wave: 'p50', vol: .09, gate: .9, vib: true, notes: TOWER_LEAD },
@@ -684,11 +684,11 @@ window.UnrugSound = (function () {
     sputter: t => { const f = 560 + Math.random() * 90; osc(sfxBus, 'p12', f, t, .045, .07, { to: f * .35 }); osc(sfxBus, 'sawtooth', 96, t, .08, .045, { to: 68 }); for (let i = 0; i < 3; i++) noiseHit(sfxBus, t + .015 + i * .03 + Math.random() * .012, .014, .14, 'bandpass', 3800 - i * 650, 6); },
     ready: t => { [76, 83].forEach((m, i) => osc(sfxBus, 'p25', hz(m + 12), t + i * .07, .08, .07)); },
     coffee: t => { [60, 64, 67].forEach((m, i) => osc(sfxBus, 'triangle', hz(m + 12), t + i * .06, .08, .12)); osc(sfxBus, 'p50', hz(84), t + .2, .25, .07, { vib: true }); },
-    // the Shredder's tell before it spits: a quick rising growl
+    // SHRED-O's tell before it spits: a quick rising growl
     rev: t => { osc(sfxBus, 'sawtooth', 70, t, .32, .07, { to: 200 }); noiseHit(sfxBus, t + .1, .2, .12, 'bandpass', 700, 2); },
     // a whole formation wiped out: a rising run, a bright chord and a crash
     wipe: t => { [72, 76, 79, 84, 88, 91, 96].forEach((m, i) => osc(sfxBus, 'p25', hz(m), t + i * .045, .09, .1)); [84, 88, 91].forEach(m => osc(sfxBus, 'p50', hz(m), t + .33, .45, .07, { vib: true })); noiseHit(sfxBus, t + .33, .6, .35, 'highpass', 5000); },
-    // the Shredder's power surge: an electric crackle; it knocks the blaster away: a zap and a clatter
+    // SHRED-O's power surge: an electric crackle; it knocks the blaster away: a zap and a clatter
     surge: t => { for (let i = 0; i < 8; i++) noiseHit(sfxBus, t + i * .05, .04, .25, 'bandpass', 2500 + (i % 3) * 900, 6); osc(sfxBus, 'sawtooth', 110, t, .4, .06, { to: 160 }); },
     disarm: t => { osc(sfxBus, 'square', 1400, t, .2, .12, { to: 200 }); noiseHit(sfxBus, t, .25, .4, 'bandpass', 3000, 3); for (let i = 0; i < 3; i++) noiseHit(sfxBus, t + .25 + i * .09, .05, .3, 'bandpass', 1800 - i * 300, 4); },
     // the rug rolling back toward you: a reversed whoosh and a clatter
@@ -709,7 +709,7 @@ window.UnrugSound = (function () {
     slash: t => { noiseHit(sfxBus, t, .18, .75, 'bandpass', 5200, 1.1, 900); noiseHit(sfxBus, t, .08, .35, 'highpass', 6500); osc(sfxBus, 'triangle', 420, t, .12, .22, { to: 140 }); osc(sfxBus, 'p12', 2600, t + .02, .22, .06, { to: 2300, sustain: .5 }); osc(sfxBus, 'p12', 3900, t + .02, .16, .035, { sustain: .4 }); },
     // a bright ping; in a rally each return rings a step higher
     deflect: (t, n) => { const up = Math.pow(2, Math.min(12, (n || 0) * 2) / 12); osc(sfxBus, 'p50', 1480 * up, t, .05, .1); osc(sfxBus, 'p50', 2220 * up, t + .045, .09, .09, { sustain: .4 }); noiseHit(sfxBus, t, .04, .25, 'highpass', 4000); },
-    // the Shredder bats the bundle back: a hollow thwock that climbs with the rally
+    // SHRED-O bats the bundle back: a hollow thwock that climbs with the rally
     volley: (t, n) => { const f = 180 * Math.pow(2, Math.min(12, (n || 0) * 2) / 12); osc(sfxBus, 'square', f, t, .09, .14, { to: f * .6 }); noiseHit(sfxBus, t, .07, .35, 'bandpass', 900, 1.5); },
     smash: t => { noiseHit(sfxBus, t, .6, .7, 'lowpass', 3000, 1, 120); osc(sfxBus, 'sine', 160, t, .5, .5, { to: 40, sustain: .5 }); [72, 79, 84].forEach((m, i) => osc(sfxBus, 'p25', hz(m + 12), t + .1 + i * .06, .1, .08)); },
     hit: t => { noiseHit(sfxBus, t, .09, .45, 'lowpass', 2200); osc(sfxBus, 'square', 260, t, .08, .12, { to: 110 }); },

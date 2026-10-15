@@ -27,10 +27,10 @@ The view is the corridor, from behind him, like the 13th Floor, except during th
 
 ### Getting there (frames 1 to 5)
 
-1. **The elevator.** The doors open on the roof in a storm. Unruggabull arrives from the floor before the roof; which floor that is hasn't been decided (the spec's long ride, or a new floor after the Shredder's). No music, just rain and wind. You have control as soon as the doors are open.
+1. **The elevator.** The doors open on the roof in a storm. Unruggabull arrives from the floor before the roof; which floor that is hasn't been decided (the spec's long ride, or a new floor after SHRED-O's). No music, just rain and wind. You have control as soon as the doors are open.
 2. **The walk.** The roof runs on like a hall, slower, with no enemies. Units, vents and a water tank sit beside the aisle. The red runner starts at his feet and runs into the dark ahead. At the far end, something huge is only threads going up into the clouds, with a few trapped souls glowing faintly in them. About 8 seconds of walking.
 3. **Lightning.** One white frame. Then the silhouette holds for half a second: a loom the size of a building, tied into the sky, with souls hanging in its threads. Walking stops here.
-4. **It wakes.** The eye opens and rides to the middle of its rail; orange light falls down the roof. A card names it like the Shredder's: "P(LOOM)" / "RUGCO'S AI. IT HAS RUN THE NUMBERS." From here on, the eye follows him.
+4. **It wakes.** The eye opens and rides to the middle of its rail; orange light falls down the roof. A card names it like SHRED-O's: "P(LOOM)" / "RUGCO'S AI. IT HAS RUN THE NUMBERS." From here on, the eye follows him.
 5. **The odds.** p(Loom) speaks in its orange readout: "HELLO, UNRUGGABULL." / "I HAVE MODELED THIS MEETING." / "PROBABILITY OF YOUR SURVIVAL: 1%." Its odds bar fills up to 99%. He has no line; he raises the blaster. Then the FIGHT pop, the music starts, and control returns.
 
 ### The fight (frames 6 to 11)
