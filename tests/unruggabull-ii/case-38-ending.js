@@ -18,6 +18,9 @@
     // out of his hands: moving and shooting do nothing
     const u = bull.u, shots = R.shots.length; keys.kbRight = true; keys.kbShoot = true; tick(.5); keys.kbRight = false; keys.kbShoot = false;
     check(bull.u === u && R.shots.length === shots, 'no moving or shooting in the ending');
+    R.hearts = 1; played.length = 0; tick(2);
+    check(!played.includes('thump') && !lowHealth(), 'no low-health heartbeat in the ending');
+    R.hearts = 5;
     check(floor.hudAlpha() < 1 && floor.scene(), 'the HUD fades and the touch controls go');
     tick(2.1);
     check(E.at().i === 1 && floor.cutActive() && floor.hudAlpha() === 0, 'the tower is a picture over everything');

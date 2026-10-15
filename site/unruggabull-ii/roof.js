@@ -133,7 +133,8 @@ var UnrugRoof = function (core) {
     Q.state = name; Q.t = 0; R.phaseT = 0;
     Q.history.push(name);
     R.speed = 0;
-    R.phase = ['elevator', 'walk', 'flash', 'wake', 'odds'].includes(name) ? 'wake' : name === 'clear' ? 'win' : 'boss';
+    // the ending is a scene of its own: no low-health heartbeat (the core's check looks for 'boss'), no win pose yet
+    R.phase = ['elevator', 'walk', 'flash', 'wake', 'odds'].includes(name) ? 'wake' : name === 'clear' ? 'win' : name === 'ending' ? 'scene' : 'boss';
     emit('roof_state', { state: name });
     if (STATES[name].entry) STATES[name].entry();
     effects.entry(name, Q, R);
