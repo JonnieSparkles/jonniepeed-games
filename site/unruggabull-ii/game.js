@@ -991,6 +991,7 @@
   // ---------- page: card, sound, full screen ----------
   const gameEl = $('game'), card = $('card'), cardTitle = $('cardTitle'), cardText = $('cardText'), cardStats = $('cardStats'), cardNote = $('cardNote');
   const goBtn = $('go'), altBtn = $('alt'), pauseBtn = $('pause'), snd = $('snd'), fsBtn = $('fs');
+  const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), titleKeys = $('titleKeys'), ipause = $('ipause');
   const BEST_KEY = 'unruggabull-ii-best';
   const bestKey = stage => stage === 'floor13' ? BEST_KEY : BEST_KEY + '-' + stage;
   let best = { souls: 0, time: 0 }, cardKind = 'title';
@@ -1009,6 +1010,8 @@
     cardKind = kind;
     const rows = [];
     altBtn.hidden = true; cardNote.hidden = true;
+    cardText.hidden = false; keyList.hidden = true; moreBtns.hidden = kind !== 'pause'; titleKeys.hidden = kind !== 'title';
+    if (kind === 'pause') fsLabels();
     if (kind === 'title') {
       cardTitle.textContent = 'The 13th Floor: Accounting';
       cardText.textContent = "Every soul you ever freed is still on RugCo's books. Free " + TUNE.goal + ' on the 13th Floor until Accounting notices.';
@@ -1043,6 +1046,43 @@
     stats(rows);
     card.hidden = false;
   }
+  // Controls: what this stage uses on this device (keys and mouse, or the touch controls), from the pause card or the
+  // title card; Back returns to the card it came from.
+  let keysFrom = null;
+  function controlsRows() {
+    const touch = document.body.classList.contains('touch'), title = state === 'title';
+    const tw = !title && twinOn(), roof = !title && !!floor.depthMove, low = !title && crouchWalks();
+    if (touch) {
+      if (tw) return [['Move', 'the left stick'], ['Aim and fire', 'hold the right stick'], ['Slash', 'flick the right stick'], ['', 'a tap slashes the nearest threat'], ['Supply', 'tap its icon by the hearts']];
+      const r = [['Move', 'slide the stick']];
+      if (roof) r.push(['Up the roof', 'push the stick up'], ['Back', 'pull it down']);
+      else r.push(['Jump', 'flick it up'], ['Crouch', 'hold it down']);
+      if (low || title) r.push(['', 'down and sideways walks crouched' + (title ? ' (stairs, lobbies, rides)' : '')]);
+      r.push(['Shoot', 'hold Shoot to keep firing'], ['Slash', 'tap Slash'], ['Supply', 'tap its icon by the hearts']);
+      return r;
+    }
+    const sys = [['Supply', 'E, or click its icon'], ['Pause', 'P or Esc'], ['Sound', 'M'], ['Full screen', 'F']];
+    if (tw) return [['Move', 'W A S D'], ['Aim and fire', 'the mouse: hold the left button'], ['', 'or the arrow keys'], ['Fire', "J, Z or ' (where you move or last aimed)"], ['Slash', 'Space, Shift, Enter, K or X'], ['', 'or the right mouse button']].concat(sys);
+    const r = [['Move', 'A and D, or \u2190 \u2192']];
+    if (roof) r.push(['Up the roof', 'W or \u2191'], ['Back', 'S or \u2193']);
+    else r.push(['Jump', 'W, \u2191 or Space'], ['Crouch', 'S, C or \u2193']);
+    if (low || title) r.push(['', 'down plus left or right walks crouched' + (title ? ' (stairs, lobbies, rides)' : '')]);
+    r.push(['Shoot', "Shift, J, Z or ' (hold to keep firing)"], ['', 'or the left mouse button'], ['Slash', 'Enter, K or X'], ['', 'or the right mouse button']);
+    return r.concat(sys);
+  }
+  function showKeys() {
+    keysFrom = cardKind; cardKind = 'keys';
+    const touch = document.body.classList.contains('touch');
+    cardTitle.textContent = 'Controls';
+    cardText.textContent = state !== 'title' && twinOn() ? 'The 48th Floor' : touch ? 'Touch' : 'Keys and mouse';
+    keyList.textContent = '';
+    for (const [k, v] of controlsRows()) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; keyList.append(dt, dd); }
+    keyList.hidden = false; cardStats.hidden = true; cardNote.hidden = true; moreBtns.hidden = true; titleKeys.hidden = true; altBtn.hidden = true;
+    goBtn.textContent = 'Back';
+    goBtn.focus({ preventScroll: true });
+  }
+  cKeys.addEventListener('click', showKeys);
+  titleKeys.addEventListener('click', showKeys);
   const LABELS = {
     title: 'Title screen: Unruggabull, katana on his back, faces RugCo Tower at sunset while souls drift up to a beacon on its roof.',
     play: 'Unruggabull, seen from behind, in an office hallway on the 13th Floor of RugCo Tower. Cubicles line the hall, a red runner rug leads to SHRED-O, a giant shredder, at the far end.'
@@ -1054,6 +1094,11 @@
     gameEl.classList.toggle('intro', s === 'intro');   // the intro takes the whole screen in full screen
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
+    // in play the game fills the window on every device, in or out of full screen (screen-space.md)
+    const inGame = s === 'play' || s === 'pause' || s === 'over';
+    gameEl.classList.toggle('ingame', inGame);
+    document.body.classList.toggle('locked', inGame || isFull());
+    layoutPlay();
   }
   // ---------- play stats (site/assets/stats.js; switched off in stats/games.json until Jonnie turns it on) ----------
   let statsRun = null;
@@ -1227,6 +1272,7 @@
     goBtn.focus({ preventScroll: true });
   }
   goBtn.addEventListener('click', () => {
+    if (cardKind === 'keys') { showCard(keysFrom); goBtn.focus({ preventScroll: true }); return; }
     if (cardKind === 'pause') { resumeGame(); return; }
     goFull();
     if (cardKind === 'rugged' && checkpoint) { continueAtBoss(); return; }
@@ -1241,10 +1287,11 @@
     else if (cardKind === 'clear' && floor.afterClear) { goFull(); startRun(floor.id); }
   });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
+  ipause.addEventListener('click', () => { if (state === 'play') pauseGame(); });
 
   // Sound: on unless muted, but browsers only let it start after a tap or key press.
   const soundOn = () => Snd.ready && !Snd.muted;
-  function sndLabel() { snd.setAttribute('aria-pressed', String(soundOn())); snd.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; }
+  function sndLabel() { for (const b of [snd, cSnd]) { b.setAttribute('aria-pressed', String(soundOn())); b.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; } }
   Snd.onready = sndLabel;
   function flipSound() {
     if (soundOn()) { Snd.toggle(); sndLabel(); return; }
@@ -1252,8 +1299,9 @@
     Snd.init(); sndLabel();
   }
   snd.addEventListener('click', flipSound);
+  cSnd.addEventListener('click', flipSound);
   function unlockSound(e) {
-    if ((e.target instanceof Node && snd.contains(e.target)) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
+    if ((e.target instanceof Node && (snd.contains(e.target) || cSnd.contains(e.target))) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
     if (e.type === 'keydown' && (e.key === 'm' || e.key === 'M')) return;
     if (Snd.muted || state === 'pause') return;
     Snd.init(); sndLabel();
@@ -1262,10 +1310,12 @@
 
   // Full screen: the Fullscreen API where it exists; on phones without it (iPhone) the game just fills the window.
   let wakeLock = null;
+  const canFull = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  function fsLabels() { cFs.textContent = isFull() ? 'Exit full screen' : 'Full screen'; cFs.hidden = !canFull; }
   function setFull(on) {
-    gameEl.classList.toggle('full', on); document.body.classList.toggle('locked', on);
+    gameEl.classList.toggle('full', on); document.body.classList.toggle('locked', on || gameEl.classList.contains('ingame'));
     fsBtn.lastElementChild.textContent = on ? 'Exit full screen' : 'Full screen';
-    fsBtn.setAttribute('aria-pressed', String(on));
+    fsBtn.setAttribute('aria-pressed', String(on)); fsLabels(); layoutPlay();
     if (on && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; l.addEventListener('release', () => { wakeLock = null; }); }).catch(() => {});
     if (!on && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   }
@@ -1289,6 +1339,7 @@
     else { if (state !== 'pause') Snd.resume(); if (isFull() && navigator.wakeLock && !wakeLock) setFull(true); }
   });
   fsBtn.addEventListener('click', toggleFull);
+  cFs.addEventListener('click', toggleFull);
 
   // ---------- input ----------
   // Physical keys first (so Shift doesn't change what a key does), then the key's name as a fallback.
@@ -1366,7 +1417,7 @@
   const PAD_REACH = 18;
   function padAt(x, y) {
     const el = document.elementFromPoint(x, y), p = el && el.closest && el.closest('.pad');
-    if (p && pads.contains(p)) return p.dataset.k;
+    if (p && pads.contains(p)) { const r = p.getBoundingClientRect(); if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return p.dataset.k; }   // on the pad itself, not its touch margin
     let best = null, bd = PAD_REACH;
     for (const q of pads.querySelectorAll('.pad')) {
       const r = q.getBoundingClientRect(), d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
@@ -1507,6 +1558,85 @@
   addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && (e.movementX || e.movementY)) unmarkTouch(); }, { capture: true, passive: true });
   addEventListener('keydown', e => { if (!e.repeat) unmarkTouch(); }, { capture: true, passive: true });
 
+  // ---------- the in-play layout (docs/games/unruggabull-ii/screen-space.md) ----------
+  // Wide screens (landscape phones, computers): the biggest 16:9 picture that leaves room for Pause, a side band of 56 px
+  // or a 48 px band on top, whichever gives more picture; Pause at the top right of that band. The touch controls keep
+  // their landscape places, and the twin sticks mirror each other. Upright phones: the picture edge to edge with its
+  // bottom on the halfway line, the controls just below it at the same height on every stage, Pause and the tower dial
+  // above it. Run whenever the window, the state, the touch controls or the twin sticks change.
+  const arenaEl = gameEl.querySelector('.arena'), stageEl = $('stage'), dialEl = $('dial'), aimZoneEl = $('aimzone'), stickZoneEl = $('stickzone');
+  const padEls = { shoot: document.querySelector('.pad.shoot'), slash: document.querySelector('.pad.slash') };
+  let layoutKey = '';
+  const place = (el, x, y, w, h) => { const st = el.style; st.left = Math.round(x) + 'px'; st.top = Math.round(y) + 'px'; if (w != null) st.width = Math.round(w) + 'px'; if (h != null) st.height = Math.round(h) + 'px'; };
+  function layoutPlay() {
+    const on = gameEl.classList.contains('ingame');
+    const W = arenaEl.clientWidth, H = arenaEl.clientHeight, twin = document.body.classList.contains('twin');
+    const key = on + ',' + W + ',' + H + ',' + twin;
+    if (key === layoutKey) return;
+    layoutKey = key;
+    const els = [stageEl, ipause, dialEl, stickZoneEl, aimZoneEl, padEls.shoot, padEls.slash];
+    if (!on) { for (const el of els) el.removeAttribute('style'); gameEl.classList.remove('portrait'); return; }
+    const upright = W < H;
+    gameEl.classList.toggle('portrait', upright);
+    if (!upright) {
+      const side = Math.min(H, (W - 112) * 9 / 16), top = Math.min(H - 48, W * 9 / 16);
+      let ph, py;
+      if (side >= top) { ph = side; py = (H - ph) / 2; } else { ph = top; py = Math.max(48, (H - ph) / 2); }
+      const pw = ph * 16 / 9, px = (W - pw) / 2;
+      place(stageEl, px, py, pw, ph);
+      if (side >= top) place(ipause, W - px / 2 - 20, 8); else place(ipause, Math.min(px + pw, W - 8) - 40, Math.max(4, (py - 40) / 2));
+      const s = Math.round(Math.min(H * .2, W * .12, 84)), zw = Math.min(W * .36, 260), zh = Math.min(H * .48, 190);
+      place(stickZoneEl, 12, H - 10 - zh, zw, zh);
+      place(aimZoneEl, W - 12 - zw, H - 10 - zh, zw, zh);   // the same area as the move stick, so the rings mirror
+      for (const k of ['shoot', 'slash']) padEls[k].style.setProperty('--size', s + 'px');
+      place(padEls.shoot, W - 12 - s - 20 - s, H - 8 - s, s, s);
+      place(padEls.slash, W - 12 - s, H - 8 - s - s * .45, s, s);
+    } else {
+      const s = Math.round(Math.min(W * .27, 112)), ctrlH = 2 * s + 18 + 24, ph = W * 9 / 16;
+      const top = Math.min(Math.round(H / 2) + 20, H - 8 - ctrlH), py = top - 20 - ph;
+      place(stageEl, 0, py, W, ph);
+      place(ipause, W - 12 - 40, Math.max(4, py - 48));
+      place(dialEl, 12, Math.max(4, py - 64), W - 24 - 52);
+      if (twin) { place(stickZoneEl, 0, top, 176, ctrlH - 6); place(aimZoneEl, W - 176, top, 176, ctrlH - 6); }   // both rings 88 px in, at one height
+      else place(stickZoneEl, 12, top, (W - 24) * .6, ctrlH - 6);
+      for (const k of ['shoot', 'slash']) padEls[k].style.setProperty('--size', s + 'px');
+      place(padEls.shoot, W - 20 - s, top + 8, s, s);
+      place(padEls.slash, W - 20 - s, top + 8 + s + 18, s, s);
+    }
+  }
+  addEventListener('resize', layoutPlay);
+  // The tower dial (upright phones): a notch a floor from the ground (0) to the roof (99), on the elevator dial's one
+  // scale, with the floor he's on marked. It reads the floors; it changes nothing in them.
+  const dialName = $('dialName'), dialMark = $('dialMark'), dialNum = $('dialNum'), dialTrack = $('dialTrack');
+  for (let i = 0; i <= 99; i++) { const t = document.createElement('i'); if (i % 10 === 0) t.className = 'ten'; t.style.left = (i / 99 * 100) + '%'; dialTrack.prepend(t); }
+  let dialWas = '';
+  function dialAt() {
+    const id = floor.id;
+    if (id === 'stairs' && R.stairs) {
+      const Q = R.stairs, sec = floor.SECTIONS[Q.si], lim = floor.arena.ARENA.limit;
+      if (Q.st === 'door') return [13, 'STAIRWELL'];
+      const low = sec.low === 'G' ? 0 : +sec.low, k = clamp(((bull.u || 0) * sec.dir + lim) / (2 * lim), 0, 1);
+      return [low + k, 'STAIRWELL'];
+    }
+    if (id === 'elevator' && R.elevator) {
+      const Q = R.elevator;
+      if (Q.lobby) return [Q.from || 13, Q.from === 48 ? 'RECLAMATION' : 'ACCOUNTING'];
+      return [Q.indicator != null ? Q.indicator : Q.from || 13, 'ELEVATOR'];
+    }
+    if (id === 'floor48') return [48, 'RECLAMATION'];
+    if (id === 'roof') return [99, 'ROOF'];
+    return [13, 'ACCOUNTING'];
+  }
+  function dialSync() {
+    if (!gameEl.classList.contains('portrait') || !R) return;
+    const [f, name] = dialAt(), n = Math.round(f), k = Math.round(f * 4) / 4, sig = k + name;
+    if (sig === dialWas) return;
+    dialWas = sig;
+    const left = (Math.min(99, Math.max(0, k)) / 99 * 100) + '%';
+    dialName.textContent = name; dialMark.style.left = left; dialNum.style.left = left;
+    dialNum.textContent = n <= 0 ? 'G' : n >= 99 ? 'R' : String(n);
+  }
+
   // ---------- loop ----------
   // Drawn at a steady 30 frames a second, whatever the screen's rate: the lit picture takes more than a 60th of a second
   // on a phone. The game itself still steps in 60ths, two to a frame, so it plays the same.
@@ -1520,7 +1650,7 @@
     let dt = last ? Math.min(.1, Math.max(0, (now - last) / 1000)) : 0;
     last = now;
     while (dt > 1e-6) { const s = Math.min(STEP, dt); update(s); dt -= s; }
-    draw(); padRings(); twinClass();
+    draw(); padRings(); twinClass(); layoutPlay(); dialSync();
   }
   function start() {
     setTimeout(renderer, 60);   // the renderer works out the hall once (a moment's work), while the title's up
