@@ -76,12 +76,11 @@
     bull.u = R.elevator.crate.u; tick(1 / 60); check(R.elevator.crate.got && R.heldDrop === 'spread', 'the crate is the next supply drop');
     bull.u = 0; at(R.elevator.exitAt + .05); tick(1.3); check(R.stage === 'roof' && R.roof.state === 'elevator' && R.souls === 7 && R.heldDrop === 'spread', 'the quiet ride hands off');
     fresh({ fight: false }); R.hearts = 2; at(floor.top().crate + .05); check(R.elevator.crate.kind === 'vest', 'hurt, the operator hands out the vest');
-    fresh({ from: 48, fight: false }); R.souls += 4; bull.inv = 0; hurtBull(5, 'test'); tick(3); goBtn.click();
+    fresh({ from: 48, fight: false }); R.souls += 4; bull.inv = 0; hurtBull(5, 'test'); tick(3); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(R.elevator.from === 48 && !R.elevator.fight && R.elevator.indicator === 48 && R.elevator.t === 0 && R.souls === 7, 'a quiet-ride continue starts it over with its entry souls');
-    // Replay is still the secondary clear-card button and restarts the original floor.
+    // A clear has one button: Continue (the owner, Oct 15: no Replay).
     newRun(); setState('play'); R.phase = 'win'; R.endT = 1; endRun('clear');
-    check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again', 'primary/secondary clear buttons');
-    altBtn.click(); check(R.stage === 'floor13' && R.phase === 'hall' && state === 'play', 'secondary replay restarts Floor 13');
+    check(Cards.labels().join() === 'Continue', 'a clear has one button: Continue (no Replay)');
   } finally {
     Snd.music = music; Snd.say = say; Snd.play = play; emitHook = null; RUN.force = null; checkpoint = null; travelHook = null;
     keys.kbShoot = keys.kbRight = keys.kbLeft = keys.kbDown = false;

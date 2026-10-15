@@ -63,16 +63,20 @@
   for (let i = 0; i < 5; i++) { bull.inv = 0; hurtBull(1); }
   check(R.phase === 'dead' && R.hearts === 0, 'five hits and you are rugged');
   step(TUNE.deadWait + .3);
-  check(state === 'over' && cardTitle.textContent === 'Rugged.' && goBtn.textContent === 'Continue', 'RUGGED. CONTINUE?');
-  goBtn.click();
+  check(state === 'over' && Cards.kind === 'rugged' && Cards.labels().join() === 'Retry,Quit' && Cards.info.back === 'THE DOOR', 'UNIT RUGGED: Retry or Quit');
+  Cards.press('Retry');
+  check(state === 'over' && Cards.confirming && Cards.labels().join() === 'Retry,Back', 'the first Retry asks: it will not count on the leaderboard');
+  Cards.press('Back');
+  check(!Cards.confirming && Cards.labels().join() === 'Retry,Quit', 'Back returns to the card');
+  Cards.press('Retry'); Cards.press('Retry');
   check(state === 'play' && R.hearts === TUNE.hearts && R.souls === 0 && R.phase === 'hall', 'continue starts the floor over');
 
   key('keydown', 'p');
-  check(state === 'pause' && !card.hidden && cardTitle.textContent === 'Paused' && !pauseBtn.hidden, 'P pauses');
+  check(state === 'pause' && Cards.kind === 'pause' && Cards.labels()[0] === 'Resume' && !pauseBtn.hidden, 'P pauses');
   const t = R.t; step(1);
   check(R.t === t, 'nothing moves while paused');
   key('keydown', 'Escape');
-  check(state === 'play' && card.hidden, 'Escape resumes');
+  check(state === 'play' && card.hidden && !Cards.open, 'Escape resumes');
 
   bull.u = 0; key('keydown', 'ArrowLeft'); step(.2); key('keyup', 'ArrowLeft');
   check(bull.u < -.2, 'arrow keys move');
@@ -98,6 +102,6 @@
   check(bull.slash >= 0, 'Enter slashes');
   bull.cd = 0; bull.slash = -1; code('keydown', 'K', 'KeyK'); update(1 / 60);
   check(bull.slash >= 0, 'K slashes even with Shift held');
-  pauseGame(); altBtn.click();
+  pauseGame(); Cards.press('Restart floor');
   check(state === 'play' && R.t < .1, 'restart floor from the pause card');
 })();

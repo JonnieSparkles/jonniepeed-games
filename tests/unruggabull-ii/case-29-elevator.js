@@ -82,7 +82,7 @@
     }
     // The real clear button carries the seeded stream and souls; rugged in the fight, continue from the threads.
     newRun(); setState('play'); R.souls = R.shown = 123; R.hearts = 1; R.phase = 'win'; R.endT = 130;
-    drops.give('spread'); const oldSeed = seed; endRun('clear'); check(goBtn.textContent === 'Take the elevator' && altBtn.textContent === 'Play again' && !altBtn.hidden, 'elevator is primary, replay secondary'); goBtn.click();
+    drops.give('spread'); const oldSeed = seed; endRun('clear'); check(Cards.labels().join() === 'Continue', 'one button: Continue'); Cards.press('Continue');
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters the ride, full hearts');
     check(!R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.stage === 'floor48', 'the 13th Floor takes the quiet ride to the 48th Floor');
     check(R.elevator.lobby && R.phase === 'lobby' && floor.doorOpening() === 0 && bull.u === -1.05 && R.arena.outShrink === false && R.elevator.t === 0,
@@ -113,7 +113,7 @@
     check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 5 && R.heldDrop === 'spread', 'the lobby preserves the carried run');
     tick(.4); check(R.talk && R.talk.text === 'FLOOR?' && R.elevator.t >= .35, 'the ride cues count from the doors closing');
     // A quiet-ride continue skips the lobby and preserves entry souls/seed/held supply.
-    R.hearts = 1; bull.inv = 0; hurtBull(1, 'test'); tick(3); goBtn.click();
+    R.hearts = 1; bull.inv = 0; hurtBull(1, 'test'); tick(3); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(!R.elevator.lobby && floor.doorOpening() === 0 && R.elevator.t === 0 && R.continues === 1 && R.souls === 123 &&
       R.hearts === 5 && R.heldDrop === 'spread' && seed === oldSeed, 'quiet-ride continue skips the lobby and keeps carried state: ' + JSON.stringify({lobby:R.elevator.lobby,doors:floor.doorOpening(),t:R.elevator.t,continues:R.continues,souls:R.souls,hearts:R.hearts,held:R.heldDrop,seed,oldSeed}));
     check(Snd.track === 'pleaseHold', 'the real 13 to 48 quiet ride plays Please Hold');
@@ -171,8 +171,8 @@
     travel('elevator', { fight: true, from: 48 });   // the 48th Floor's lobby takes the long ride
     check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && seed === longSeed, 'the long ride from 48 carries the run');
     bull.inv = 1e9; at(T.reel + 6); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'flyer'); tick(3);
-    check(state === 'over' && checkpoint.souls === 123 && checkpoint.startAt === T.thread, 'the continue card keeps the entry souls and the threads');
-    goBtn.click();
+    check(state === 'over' && checkpoint.souls === 123 && checkpoint.startAt === T.thread && Cards.info.back === 'THE THREADS' && Cards.info.lost === 2, 'the rugged card: back to the threads, the two souls of this try lost');
+    Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && R.elevator.t === T.thread && R.continues === 2 && !R.arena.enemies.length, 'continue starts at the threads');
     tick(.5); check(R.talk && R.talk.speaker === 'ploom', 'the threads come in again');
     // the top: the threads let go and take the last carpshits with them, the music stops
