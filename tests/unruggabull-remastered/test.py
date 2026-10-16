@@ -109,13 +109,16 @@ def phone_checks(p):
     x0 = js(page, 'player.x')
     touch.down(0, cx + cr * 0.8, cy); page.wait_for_timeout(500)
     assert js(page, 'player.x') > x0 + 40, 'right on the pad walks right'
-    # sliding to up-right jumps once while still walking
+    # sliding to up-right jumps while still walking, and held it keeps jumping, like a held jump key
+    js(page, 'window.jumps = 0; { const play = jumpSound.play.bind(jumpSound); jumpSound.play = () => { window.jumps++; return play(); }; } 0')
     touch.move(0, cx + cr * 0.6, cy - cr * 0.6); page.wait_for_timeout(150)
     assert not js(page, 'player.grounded'), 'up-right jumps'
     page.screenshot(path=str(SHOTS / 'phone-jump.png'))
-    page.wait_for_timeout(1400)
-    assert js(page, 'player.grounded'), 'one jump per press: holding up does not keep jumping'
-    touch.up(0)
+    page.wait_for_timeout(1600)
+    assert js(page, 'window.jumps') >= 2, ('holding up keeps jumping', js(page, 'window.jumps'))
+    touch.up(0); page.wait_for_timeout(1200)
+    n = js(page, 'window.jumps'); page.wait_for_timeout(800)
+    assert js(page, 'window.jumps') == n and js(page, 'player.grounded'), 'letting go stops the jumping'
 
     # down crouches
     touch.down(0, cx, cy + cr * 0.8); page.wait_for_timeout(200)
