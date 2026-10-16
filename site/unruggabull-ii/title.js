@@ -11,7 +11,9 @@ var UnrugTitle = (function () {
   const MODES = [
     { id: 'baby', name: 'BABY BULL', short: 'BABY', line: 'EXTRA HEALTH.' },
     { id: 'regular', name: 'REGULAR BULL', short: 'REGULAR', line: 'REGULAR HEALTH.' },
-    { id: 'raging', name: 'RAGING BULL', short: 'RAGING', line: 'NO HEALTH RESETS.' }
+    { id: 'raging', name: 'RAGING BULL', short: 'RAGING', line: 'NO HEALTH RESETS.' },
+    // owner, Oct 16: five hearts for the whole climb, nothing gives one back; locked until Raging Bull is cleared
+    { id: 'impossibull', name: 'IMPOSSIBULL', short: 'IMPOSSIBULL', line: 'NO HEALING.' }
   ];
   const MODE_KEY = 'unruggabull-ii-mode';
   // The painting, 480 x 640 picture pixels, and where things are on it.
@@ -40,7 +42,10 @@ var UnrugTitle = (function () {
     regular: { half: ['PP.........', '.PPP.......', '..pPPP..bbb', '....pPPbBBB', '......bBFFF', '.....bBBFFF', '....bBBBBFF', '..bbBBEEEBB', '.bBBBBEEEBB', '..bBBBBBBBB', '...bBBBBBBB', '....bBBSSSS', '....bBSSSSS', '....bSSnSSS', '....bSSnSSS', '....bSSSSmm', '.....bSSSSS', '......bbbbb'],
       pal: { P: '#f2eee2', p: '#b8b4a8', B: '#7a4a2c', F: '#9a6a40', b: '#4a2a18', S: '#ce8e60', n: '#2a1410', m: '#3a1a10', E: '#ffffff' } },
     raging: { half: ['P..........', 'PP.........', '.PP........', '..pPP..bbbb', '....pPPbBBB', '......bBBFF', '....bKKKBBF', '..bbBBEEKBB', '.bBBBBEEEBB', '..bBBBBBBBB', '...bBBBBBBB', '....bBBSSSS', '....bBSSSSS', '....bSnnSSS', '....bSnnSSS', '....bSMMMMM', '.....bSSSSS', '......bbbbb'],
-      pal: { P: '#fff6e2', p: '#c8b8a8', B: '#6a2a1c', F: '#8a3a24', b: '#3a140c', S: '#b06a48', n: '#1a0806', M: '#fff6e2', K: '#140806', E: '#ffd0c0' } }
+      pal: { P: '#fff6e2', p: '#c8b8a8', B: '#6a2a1c', F: '#8a3a24', b: '#3a140c', S: '#b06a48', n: '#1a0806', M: '#fff6e2', K: '#140806', E: '#ffd0c0' } },
+    // charcoal, cracked horns, eyes that glow, a gold ring through the nose, and fire where Raging has steam
+    impossibull: { half: ['P..........', 'PP.........', 'PPk........', '.PPk...bbbb', '..pPPPbbBBB', '....pPbBBFF', '....bKKKBBF', '..bbBKEEKBB', '.bBBBBEEEBB', '..bBBBBBBBB', '...bBBBBBBB', '....bBBSSSS', '....bBSSSSS', '....bSnnSSS', '....bSnnSSS', '....bSSRSSS', '.....bSSRRR', '......bbbbb'],
+      pal: { P: '#e8e0d0', p: '#a89c8c', k: '#3a3038', B: '#2e2228', F: '#44323a', b: '#100a0e', S: '#5a3a40', n: '#05030a', K: '#000000', E: '#fff6c8', R: '#ffd44a' } }
   };
 
   function make(o) {
@@ -75,8 +80,10 @@ var UnrugTitle = (function () {
     button('exit', 'Exit to JonniePeed Games', () => { press('exit'); beep('tick'); act.exit(); });
 
     // ---- state ----
+    const locked = i => !!(act.locked && act.locked(MODES[i].id));
     let mode = 1;
-    try { const v = localStorage.getItem(MODE_KEY), i = MODES.findIndex(m => m.id === v); if (i >= 0) mode = i; } catch (e) {}
+    try { const v = localStorage.getItem(MODE_KEY), i = MODES.findIndex(m => m.id === v); if (i >= 0 && !locked(i)) mode = i; } catch (e) {}
+    let deniedAt = -9;   // a locked mode was pressed: the readout says what it is and how to get it
     let board = false, t0 = now(), pan0 = t0, changedAt = -9, pressed = null, pressedAt = -9, shapeKey = '', zones = [];
     const t = () => now() - t0;
     function press(id) { pressed = id; pressedAt = t(); }
@@ -84,7 +91,8 @@ var UnrugTitle = (function () {
     // jingle on Start; quiet until the browser lets sound start, like the rest of the game
     const beep = name => { if (act.play) act.play(name); };
     function pick(i) {
-      press('mode' + i); beep('tick');
+      if (locked(i)) { press('mode' + i); beep('empty'); deniedAt = t(); say.textContent = MODES[i].name + ', locked. ' + MODES[i].line + ' Beat Raging Bull.'; return; }
+      press('mode' + i); beep('tick'); deniedAt = -9;
       faceSt[MODES[i].id].react = t();
       if (i === mode) return;
       beep('ready');
@@ -186,11 +194,12 @@ var UnrugTitle = (function () {
     // ---- p(Loom)'s eye: one big eye, orange idle, red when it means it ----
     // Baby: half-lidded and drifting; Regular: it watches him; Raging: red, locked on him, trembling. After a pick it
     // glances down at the panel for a moment.
-    const mood = () => MODES[mode].id === 'baby' ? 'bored' : MODES[mode].id === 'raging' ? 'red' : 'watch';
+    // Impossibull: red and wide open, not a blink, and still
+    const mood = () => ({ baby: 'bored', raging: 'red', impossibull: 'wide' })[MODES[mode].id] || 'watch';
     function drawEye(g, tt, feet) {
       let { x, y, r } = ART.eye;
-      const md = mood(), red = md === 'red', blink = (tt % 4.1) > 3.95;
-      if (red && !still.matches) x += Math.round(Math.sin(tt * 31) * .6);
+      const md = mood(), wide = md === 'wide', red = md === 'red' || wide, blink = !wide && (tt % 4.1) > 3.95;
+      if (red && !wide && !still.matches) x += Math.round(Math.sin(tt * 31) * .6);
       let look;
       if (tt - changedAt < 1.3) look = [0, 1];
       else if (md === 'bored') look = [Math.sin(tt * .6) * .9, .3 + .3 * Math.sin(tt * .37)];
@@ -204,7 +213,7 @@ var UnrugTitle = (function () {
       const lx = Math.round(clamp(look[0], -1, 1) * (r - ir)), ly = Math.round(clamp(look[1], -1, 1) * (r - ir) * .7);
       A.disc(g, x + lx, y + ly, ir, red ? '#ffb0a0' : '#ffd060'); A.disc(g, x + lx, y + ly, pr, '#140806');
       R(g, x + lx - Math.ceil(pr / 2), y + ly - pr, 1, 1, '#fff6e2');
-      const lid = blink ? 1 : md === 'bored' ? .5 + .08 * Math.sin(tt * .9) : red ? .18 : .08;
+      const lid = blink ? 1 : md === 'bored' ? .5 + .08 * Math.sin(tt * .9) : wide ? 0 : red ? .18 : .08;
       g.save(); g.beginPath(); g.arc(x + .5, y + .5, r + 1.5, 0, 7); g.clip();
       const h = Math.round((2 * r + 2) * lid);
       R(g, x - r - 2, y - r - 1, 2 * r + 5, h, '#2a0e08');
@@ -256,6 +265,18 @@ var UnrugTitle = (function () {
           else { P(ex + 1 + gz, 6, 2, 2, '#1a1418'); P(ex + 1 + gz, 6, 1, 1, '#ffffff'); }
         }
         P(8, 11, 4, 3, '#ff8ab4'); P(9, 12, 2, 1, '#e03a78'); P(7, 12, 1, 1, '#ff8ab4'); P(12, 12, 1, 1, '#ff8ab4');   // the pacifier
+      } else if (id === 'impossibull') {
+        P(5, 5, 1, 1, '#8a4a50'); P(6, 6, 1, 1, '#8a4a50'); P(7, 9, 1, 1, '#8a4a50'); P(8, 10, 1, 1, '#8a4a50');   // a scar through his left eye
+        for (const ex of [6, mir(6, 3)]) {
+          if (blink) { P(ex, 7, 3, 2, f.pal.B); P(ex, 8, 3, 1, '#000000'); continue; }
+          if (!dim) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = react ? .6 : .35; A.disc(g, x0 + (ex + 2.5) * sc, y0 + 9 * sc, Math.max(1, Math.round(sc * (react ? 2 : 1.2))), '#ffb02a'); g.restore(); }
+          P(ex + 1, 8, 1, 1, '#ffffff');
+        }
+        if (react) { P(8, 16, 6, 1, '#05030a'); P(8, 15, 1, 1, '#05030a'); P(13, 15, 1, 1, '#05030a'); }
+        if (!dim) for (const [nx, d] of [[6, -1], [mir(6, 2) + 1, 1]]) for (let i = 0; i < 3; i++) {   // fire from the nostrils
+          const k = mod1(tt * (react ? 4 : 2.4) + i / 3 + (d > 0 ? .5 : 0));
+          g.globalAlpha = 1 - k; P(nx + d * Math.round(k * 3), 15 + Math.round(k * 2), 1, 1, k < .4 ? '#fff0a0' : k < .7 ? '#ffb02a' : '#e8261a');
+        }
       } else {
         for (const [ex, rx] of [[6, 7], [mir(6, 3), mir(7, 1)]]) { if (blink) { P(ex, 7, 3, 2, f.pal.B); P(ex, 8, 3, 1, '#140806'); } else P(rx + gz, 8, 1, 1, '#ff2a14'); }
         if (react) { P(7, 15, 8, 2, '#3a0806'); P(7, 15, 8, 1, '#fff6e2'); }
@@ -279,8 +300,10 @@ var UnrugTitle = (function () {
     }
     function led(g, x, y, w, h, tt) {
       R(g, x - 1, y - 1, w + 2, h + 2, '#0a0b0e'); R(g, x, y, w, h, P.led);
-      const m = MODES[mode];
-      for (const [s, c, yy] of [[m.name, P.ledInk, 7], [typed(m.line, changedAt, 50, tt), '#ffb070', 24]]) { g.save(); g.globalAlpha = .35; T(g, s, x + 7, y + yy + 1, P.ledDim, 2); g.restore(); T(g, s, x + 6, y + yy, c, 2); }
+      const m = MODES[mode], dn = tt - deniedAt, lk = dn < 3.2 ? MODES.find((mm, i) => locked(i)) : null;
+      const rows = lk ? [[lk.name, P.ledInk, 7], [dn < 1.4 ? typed(lk.line, deniedAt, 50, tt) : typed('BEAT RAGING BULL.', deniedAt + 1.4, 50, tt), '#ffb070', 24]]
+        : [[m.name, P.ledInk, 7], [typed(m.line, changedAt, 50, tt), '#ffb070', 24]];
+      for (const [s, c, yy] of rows) { g.save(); g.globalAlpha = .35; T(g, s, x + 7, y + yy + 1, P.ledDim, 2); g.restore(); T(g, s, x + 6, y + yy, c, 2); }
       for (let yy = y + 1; yy < y + h; yy += 2) { g.save(); g.globalAlpha = .22; R(g, x, yy, w, 1, '#000000'); g.restore(); }
     }
     function bigButton(g, x, y, w, h, label, main, id, sc) {
@@ -314,8 +337,20 @@ var UnrugTitle = (function () {
       trophy(g, x, y + 1, P.gold); T(g, s, x + 13, y, P.dim, 2); T(g, '>', x + 13 + tw(s, 2) + 6, y, P.dim, 2);
       zone(x, y - 8, Math.max(max || 0, 13 + tw(s, 2) + 14), 26, 'board');
     }
+    function padlock(g, cx, cy, s, col) {
+      R(g, cx - 4 * s, cy - 8 * s, 8 * s, 2 * s, col); R(g, cx - 4 * s, cy - 7 * s, 2 * s, 6 * s, col); R(g, cx + 2 * s, cy - 7 * s, 2 * s, 6 * s, col);
+      R(g, cx - 6 * s, cy - 1 * s, 12 * s, 9 * s, col); R(g, cx - 1 * s, cy + 2 * s, 2 * s, 3 * s, '#101116');
+    }
     function callButton(g, cx, cy, r, i, tt, labelY) {
       const on = i === mode, m = MODES[i];
+      if (locked(i)) {
+        const sh = tt - deniedAt < .35 ? Math.round(Math.sin(tt * 70) * 2) : 0;
+        A.disc(g, cx + sh, cy, r + 2, '#0a0b0e'); A.disc(g, cx + sh, cy, r + 1, '#3a3c48'); A.disc(g, cx + sh, cy, r - 1, '#16171c');
+        padlock(g, cx + sh, cy + 1, Math.max(1, Math.round(r / 15)), '#4a4c5a');
+        if (labelY != null) T(g, m.short, cx, labelY, P.faint, 2, 'center');
+        zone(cx - r - 6, cy - r - 6, r * 2 + 12, labelY != null ? labelY - cy + r + 18 : r * 2 + 12, 'mode' + i);
+        return;
+      }
       if (on) { g.save(); g.globalCompositeOperation = 'lighter'; for (const [rr, a] of [[r + 12, .06], [r + 7, .09], [r + 3, .14]]) { g.globalAlpha = a * (1 + .2 * Math.sin(tt * 4)); A.disc(g, cx, cy, rr, '#ffb02a'); } g.restore(); }
       A.disc(g, cx, cy, r + 2, '#0a0b0e'); A.disc(g, cx, cy, r + 1, on ? '#ffd44a' : '#5a5c6a'); A.disc(g, cx, cy, r - 1, on ? '#3a2a10' : '#262830');
       if (on) { g.save(); g.globalAlpha = .3; A.disc(g, cx, cy, r - 3, '#ffb02a'); g.restore(); }
@@ -349,7 +384,7 @@ var UnrugTitle = (function () {
       const sx = w - 14 - 42 - 48 * (keys - 1);
       steelKey(g, sx, 14, 42, 42, 'sound'); speaker(g, sx + 21, 14 + 21, act.soundOn(), act.soundOn() ? P.gold : P.dim);
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
-      MODES.forEach((m, i) => callButton(g, 58 + i * 102, 106, 36, i, tt, 152));
+      MODES.forEach((m, i) => callButton(g, [42, 116, 192, 268][i], 104, 30, i, tt, 146));
       boardLine(g, 14, 178, w - 28);
       bigButton(g, 10, h - 62, w - 20, 50, 'START', true, 'start', 3);
     }
@@ -358,10 +393,10 @@ var UnrugTitle = (function () {
       const w = AW, h = BAND_H;
       steel(g, w, h); gz = [];
       if (board) { boardView(g, w, h, true); return; }
-      led(g, 12, 8, 166, 40, tt);
-      MODES.forEach((m, i) => callButton(g, 214 + i * 46, 28, 19, i, tt));
+      led(g, 12, 8, 150, 40, tt);
+      MODES.forEach((m, i) => callButton(g, 190 + i * 44, 28, 19, i, tt));
       boardLine(g, 12, 62);
-      bigButton(g, w - 132, 10, 120, 40, 'START', true, 'start', 3);
+      bigButton(g, w - 128, 10, 116, 40, 'START', true, 'start', 3);
     }
 
     // ---- composing the painting with what lives on it ----
@@ -440,7 +475,7 @@ var UnrugTitle = (function () {
         const st = el.style; st.left = x + 'px'; st.top = y + 'px'; st.width = w + 'px'; st.height = h + 'px';
       }
       for (const id in BUTTONS) BUTTONS[id].hidden = !shown.has(id);
-      MODES.forEach((m, i) => BUTTONS['mode' + i].setAttribute('aria-pressed', String(i === mode)));
+      MODES.forEach((m, i) => { BUTTONS['mode' + i].setAttribute('aria-pressed', String(i === mode)); BUTTONS['mode' + i].setAttribute('aria-label', locked(i) ? m.name + ', locked' : m.name); });
       BUTTONS.sound.setAttribute('aria-label', act.soundOn() ? 'Sound on' : 'Sound off');
       BUTTONS.full.setAttribute('aria-label', act.fullOn && act.fullOn() ? 'Exit full screen' : 'Full screen');
       out.buttons = zones.map(([x, y, w, h, id]) => ({ id, label: BUTTONS[id].dataset.label, x, y, w, h }));

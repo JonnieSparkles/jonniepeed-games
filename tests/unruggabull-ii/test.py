@@ -468,7 +468,7 @@ with sync_playwright() as p:
         assert lay['safe'][0] >= -1 and lay['safe'][1] <= h + 1, f'{name}: the safe zone on screen ({lay["safe"]})'
         assert lay['logo'][0] >= -1 and lay['logo'][1] <= h + 1, f'{name}: the logo on screen ({lay["logo"]})'
         ids = [b['id'] for b in lay['buttons']]
-        for want in ('mode0', 'mode1', 'mode2', 'start', 'sound', 'exit'):
+        for want in ('mode0', 'mode1', 'mode2', 'mode3', 'start', 'sound', 'exit'):
             assert want in ids, f'{name}: {want} shows ({ids})'
         assert 'board' not in ids, f'{name}: no board line until the boards exist'
         assert ('full' in ids) == page.evaluate('!!(document.fullscreenEnabled || document.webkitFullscreenEnabled)'), f'{name}: full screen shows where the browser can do it ({ids})'
@@ -486,6 +486,11 @@ with sync_playwright() as p:
     assert page.locator('.tb[data-label="RAGING BULL"]').get_attribute('aria-pressed') == 'true', 'title: the pick is pressed'
     page.reload(); page.wait_for_timeout(200)
     assert page.evaluate("unrugTest('Title.mode')") == 'raging', 'title: the pick is kept on the device'
+    page.keyboard.press('ArrowRight')
+    assert page.evaluate("unrugTest('Title.mode')") == 'raging', 'title: Impossibull is locked, so the arrow stays on Raging'
+    page.locator('.tb[data-label="IMPOSSIBULL"]').tap()
+    assert page.evaluate("unrugTest('Title.mode')") == 'raging', 'title: a tap on locked Impossibull picks nothing'
+    assert page.locator('.tb[data-label="IMPOSSIBULL"]').get_attribute('aria-label') == 'IMPOSSIBULL, locked', 'title: it says it is locked'
     page.keyboard.press('ArrowLeft')
     assert page.evaluate("unrugTest('Title.mode')") == 'regular', 'title: the arrows change the mode'
     was = page.evaluate("unrugTest('Snd.muted')")
@@ -501,6 +506,16 @@ with sync_playwright() as p:
     assert not errors, errors
     context.close()
     print('PASS title pick, sound, full screen and Exit')
+    # Impossibull unlocked (item 29 sets the flag on a Raging clear): it picks, and it's kept
+    context, page, errors = open_page(browser, viewport={'width': 780, 'height': 360}, has_touch=True, is_mobile=True)
+    page.evaluate("localStorage.setItem('unruggabull-ii-impossibull', '1')"); page.reload(); page.wait_for_timeout(200)
+    page.locator('.tb[data-label="IMPOSSIBULL"]').tap()
+    assert page.evaluate("unrugTest('Title.mode + RUN.mode')") == 'impossibullimpossibull', 'title: Impossibull picks once unlocked'
+    page.evaluate("localStorage.removeItem('unruggabull-ii-impossibull')"); page.reload(); page.wait_for_timeout(200)
+    assert page.evaluate("unrugTest('Title.mode')") == 'regular', 'title: a kept Impossibull pick falls back to Regular while it is locked'
+    assert not errors, errors
+    context.close()
+    print('PASS title Impossibull, locked and unlocked')
 
     # The controls audit's fixes (Oct 15): Enter starts from the title; the blaster only where there's a fight (both
     # lobbies and the quiet ride are katana only, with a dry click, no charge bar and no supplies); Shift fires on the

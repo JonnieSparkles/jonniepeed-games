@@ -23,7 +23,7 @@ A sequel to Unruggabull: RugCo Alley. The first game looked down RugCo Alley at 
   - **Smoke** off the garage roof (y 433), soft grey puffs rising and fading.
   - **Souls** rising out of the alley into the eye.
   - **Him**, from behind, the game's standing pose at three quarters, with a warm rim: feet at (240, 586) upright, (240, 552) at the shutter for the sideways pan.
-  - **p(Loom)'s eye** in the pavilion, radius 7: one big eye, orange idle, red when it means it (the intro's colour rule). **Baby:** half-lidded, drifting, bored. **Regular:** watches him. **Raging:** red, locked on him, trembling. It blinks now and then, and glances down at the panel for a moment when the mode changes.
+  - **p(Loom)'s eye** in the pavilion, radius 7: one big eye, orange idle, red when it means it (the intro's colour rule). **Baby:** half-lidded, drifting, bored. **Regular:** watches him. **Raging:** red, locked on him, trembling. **Impossibull:** red and wide open, still, no blink. It blinks now and then, and glances down at the panel for a moment when the mode changes.
 
 ## The logo: Today, sharpened
 
@@ -35,8 +35,9 @@ A sequel to Unruggabull: RugCo Alley. The first game looked down RugCo Alley at 
 A RugCo elevator panel, in the family of the cards' strip (#127) but steel: a brushed dark steel face (`#1b1d24`), a brass rule on top.
 
 - **Readout:** a dark red LED box with the mode's name and its line (typed in when the mode changes).
-- **Three call buttons**, one per mode, each a round button with the mode's **bull face** in it, Doom-style. The picked one is lit gold with a warm halo; the others are dark and dimmed. Faces look around and blink on their own; the one you pick reacts (Baby's eyes squeeze shut, Regular grins, Raging roars); Raging snorts steam.
-- **Lines:** BABY BULL: `EXTRA HEALTH.` · REGULAR BULL: `REGULAR HEALTH.` · RAGING BULL: `NO HEALTH RESETS.` (owner). **Regular is the default.**
+- **Four call buttons**, one per mode, each a round button with the mode's **bull face** in it, Doom-style. The picked one is lit gold with a warm halo; the others are dark and dimmed. Faces look around and blink on their own; the one you pick reacts (Baby's eyes squeeze shut, Regular grins, Raging roars, Impossibull's eyes flare); Raging snorts steam, Impossibull fire. Impossibull is charcoal with cracked horns, glowing eyes, a scar and a gold nose ring.
+- **Lines:** BABY BULL: `EXTRA HEALTH.` · REGULAR BULL: `REGULAR HEALTH.` · RAGING BULL: `NO HEALTH RESETS.` · IMPOSSIBULL: `NO HEALING.` (owner). **Regular is the default.**
+- **Impossibull is locked** (owner, Oct 16) until Raging Bull is cleared: a dark button with a padlock and its name dimmed. A tap (or the arrow onto it) shakes it, gives the blaster's dry click, and the readout shows IMPOSSIBULL, `NO HEALING.`, then `BEAT RAGING BULL.`; the mode doesn't change. Its rule: five hearts for the whole climb and nothing gives one back (no coffee, no katana refill, no crate's hearts, no refill between stages). Unlocked by `unruggabull-ii-impossibull` = `1` on the device, which item 29 sets on a Raging clear (`actions.locked(mode)`); a kept Impossibull pick falls back to Regular while it's locked.
 - **The board line:** a gold trophy and the picked mode's top run, tappable; it opens that mode's board (top 8 sideways in two columns, top 10 upright) in the panel, with **Back**. Each mode has its own board (item 29). **Built but hidden until the boards exist:** `actions.board(mode)` returns `null` today; when it returns a list (even an empty one: NO RUNS YET), the line shows.
 - **Start**, gold, the panel's main button.
 - **Sound, Full screen and Exit:** upright, three steel keys on the panel beside the readout; sideways and on a desktop, two Ghost discs and a Ghost EXIT pill where Pause sits in play (outside the picture). Full screen (added after #130, owner) shows four corners pointing out, or in while full screen, and hides where the browser has none, like the pause card's; Start still goes full screen on a touch screen (the controls doc's rule), and F works too. Exit goes back to JonniePeed Games (owner, Oct 15: the page's header and studio link are gone from the title). No **Controls** on the title: it lives on the pause card.
@@ -54,7 +55,7 @@ The title doesn't follow play's halfway line; it follows its own rules on every 
 
 - Touch and mouse: tap a face to pick; tap Start; tap the board line (when it shows); tap sound or Exit. Each is a real button over what's drawn, so Tab and a screen reader reach them.
 - Keys: ← → or A D (↑ ↓, W S too) change the mode; Enter or Space starts; B opens the board, Escape or B closes it; M sound; F full screen.
-- The pick goes on the run as its mode (`RUN.mode`: `baby`, `regular`, `raging`) and is kept on the device (`unruggabull-ii-mode`; owner, Oct 15); a first visit is Regular. **The picker is the interface only:** half hearts, Raging's carried hearts and the per-mode boards are item 29's job. Until then every mode plays as Regular.
+- The pick goes on the run as its mode (`RUN.mode`: `baby`, `regular`, `raging`, `impossibull`) and is kept on the device (`unruggabull-ii-mode`; owner, Oct 15); a first visit is Regular. **The picker is the interface only:** half hearts, Raging's carried hearts, Impossibull's no healing and its unlock, and the per-mode boards are item 29's job. Until then every mode plays as Regular.
 
 ## Sound
 
