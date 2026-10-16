@@ -19,6 +19,8 @@ The opening is six illustrated stills ([intro-plan.md](intro-plan.md)), a line e
 5. Business was booming. Floor-to-floor carpet was everywhere. Profits were through the roof.
 6. Every soul Unruggabull freed was still on RugCo's books. So Unruggabull had some questions for Accounting. Sharp ones.
 
+Why he climbs (Oct 16): Accounting holds the souls on its books; on the quiet ride he asks where the souls go and the operator, one of the Unrugged, says the 48th; the 48th's clear card is p(Loom) inviting him up (COME UP, THEN.), so the long ride goes to the roof.
+
 No crypto jargon (no HODL, diamond hands, liquidity or airdrops). "Unrugged" and rug pulls stay as the brand.
 
 ## The climb

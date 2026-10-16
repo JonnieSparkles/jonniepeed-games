@@ -68,7 +68,7 @@ Its odds are a small number by its eye, falling as you climb, fixed per stage. A
 | Stairwell | — | AS PROJECTED. | steady, 99% |
 | 13th Floor | ANOMALY LOGGED. | CORRECTED. | steady, 91% |
 | 13th, at SHRED-O | — | SHRED-O IS WAITING. | steady, 91% |
-| 48th Floor | RECALCULATING. (flickers to RECALC4LATING.) | FINALLY. | twitching, 38% |
+| 48th Floor | COME UP, THEN. (flickers to C0ME UP, THEN.; was RECALCULATING. until Oct 16) | FINALLY. | twitching, 38% |
 | Long ride | — | STAY. DOWN. | twitching, 22% |
 | Roof | UNLIKELY. (the stub) | PLEASE STAY DOWN. | red, 4% |
 

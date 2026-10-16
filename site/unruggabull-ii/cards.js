@@ -11,7 +11,8 @@ var UnrugCards = (function () {
     stairs: { rug: 'AS PROJECTED.', p: 99, eye: 'calm' },
     floor13: { win: 'ANOMALY LOGGED.', rug: 'CORRECTED.', p: 91, eye: 'calm' },
     shredo: { rug: 'SHRED-O IS WAITING.', p: 91, eye: 'calm' },
-    floor48: { win: 'RECALCULATING.', rug: 'FINALLY.', p: 38, eye: 'twitch', glitch: true },
+    // the 48th's clear invites him up (owner, Oct 16: why he goes to the roof); it glitches as RECALCULATING. did
+    floor48: { win: 'COME UP, THEN.', rug: 'FINALLY.', p: 38, eye: 'twitch', glitch: ['COME', 'C0ME'] },
     elevator: { rug: 'STAY. DOWN.', p: 22, eye: 'twitch' },
     roof: { win: 'UNLIKELY.', rug: 'PLEASE STAY DOWN.', p: 4, eye: 'red' }
   };
@@ -75,7 +76,7 @@ var UnrugCards = (function () {
     function mood(L) { return info.kind === 'rugged' ? L.rug : L.win; }
     function moodLine(L, x, y, t) {
       let s = mood(L); if (!s) return;
-      if (L.glitch && info.kind === 'clear' && Math.floor(t * 7) % 9 === 0) s = s.replace('CAL', 'C4L');
+      if (L.glitch && info.kind === 'clear' && Math.floor(t * 7) % 9 === 0) s = s.replace(L.glitch[0], L.glitch[1]);
       txt(typed(s, t, .9, 30), x, y, CAP.ink, 2, 'left', CAP.edge);
     }
     function title() { return info.kind === 'rugged' ? 'UNIT RUGGED.' : info.dept + ': OFFLINE.'; }
