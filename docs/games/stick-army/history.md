@@ -28,6 +28,10 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 - **The base mode is Arcade** (Oct 16): "campaign" is now the name of a new mode, so the 20-wave run became Arcade, its spec campaign.md became [arcade.md](arcade.md) and its code campaign.js became `dreadnought.js` (`StickArmyDreadnought`, `DN`). Older pull requests that say "campaign" mean Arcade.
 
+### Code
+
+- **game.js keeps aliases of draw.js and flow.js** (Oct 16, making room for Campaign): the harness and the bots run inside game.js's scope and swap some functions there (`loop`, `sound`, the effects, `medicHelmet`, `drawFlagpole`) and values (`best`, `level`), so callers go through game.js's names or `world`, and flow.js is made where its code always ran so its listeners keep their order. Calling a moved function directly from its new file would quietly skip a stub.
+
 ### Co-op
 
 - **The host runs the game** (round 18): every phone running the same game was ruled out because the logic's trigonometry can differ in the last digit between Safari and Chrome, and two copies would drift.
