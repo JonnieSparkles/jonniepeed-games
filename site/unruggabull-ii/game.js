@@ -1615,6 +1615,8 @@
     exit() { location.href = '../'; },
     sound: flipSound, soundOn, play: name => Snd.play(name),
     full: toggleFull, fullOn: isFull, canFull: () => canFull,
+    // Impossibull unlocks with a Raging Bull clear, which item 29 records here; until then it stays locked
+    locked: id => { if (id !== 'impossibull') return false; try { return localStorage.getItem('unruggabull-ii-impossibull') !== '1'; } catch (e) { return true; } },
     board: () => null   // no boards yet: they come with the modes (item 29); the line and the board stay hidden until then
   } });
   RUN.mode = Title.mode;
