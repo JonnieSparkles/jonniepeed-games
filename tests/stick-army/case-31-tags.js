@@ -5,7 +5,7 @@
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   function source(name) { var x = new XMLHttpRequest(); x.open('GET', name, false); x.send(); check(x.status === 200, 'read ' + name); return x.responseText; }
-  var FILES = ['game.js', 'units.js', 'sky.js', 'squad.js', 'dreadnought.js', 'shop.js', 'shop-screen.js', 'coop.js', 'board.js', 'tune.js'];
+  var FILES = ['game.js', 'draw.js', 'flow.js', 'units.js', 'sky.js', 'squad.js', 'dreadnought.js', 'shop.js', 'shop-screen.js', 'coop.js', 'board.js', 'tune.js'];
   var WRITE = /\.tags\s*(\+\+|--|[+\-*]?=(?!=))/, bad = [];
   FILES.forEach(function (name) {
     var text = source(name);
