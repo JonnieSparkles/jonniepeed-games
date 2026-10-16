@@ -58,7 +58,7 @@ var UnrugTopdown = function (core, tuning) {
   const SPR = (() => {
     const p = rows => half(B.paint(rows));
     const side = {}, back = {};
-    for (const k of ['aim', 'idle', 'run0', 'run1', 'run2', 'run3', 'wind', 'cut', 'hurt']) side[k] = p(B.SIDES[k]);
+    for (const k of ['aim', 'idle', 'run0', 'run1', 'run2', 'run3', 'wind', 'cut', 'hit0', 'hit1']) side[k] = p(B.SIDES[k]);
     for (const k of ['stand', 'aim', 'runA', 'runB', 'runAimA', 'runAimB', 'wind', 'slash', 'hurt']) back[k] = p(B.POSES[k]);
     const front = p(B.VIEWS.front);
     return { side, back, front, sideFeet: { x: B.SIDE_FEET.x / 2, y: B.SIDE_FEET.y / 2 }, backFeet: { x: B.FEET.x / 2, y: B.FEET.y / 2 },
@@ -527,7 +527,7 @@ var UnrugTopdown = function (core, tuning) {
   function bullPose() {
     const b = bull, d = b.dir, moving = Math.hypot(b.vx, b.vy) > 20, hurt = b.inv > TUNE.hurtInv - .4 && b.stag > 0;
     if (d === 'side') {
-      const S = SPR.side, k = hurt ? 'hurt' : b.slash >= 0 ? (b.slash < .05 ? 'wind' : 'cut') : moving ? 'run' + (Math.floor(b.step / 1.3) % 4) : (b.idle > 1.2 && Math.floor(b.idle * 1.3) % 2 ? 'idle' : 'aim');
+      const S = SPR.side, k = hurt ? (TUNE.hurtInv - b.inv < .12 ? 'hit0' : 'hit1') : b.slash >= 0 ? (b.slash < .05 ? 'wind' : 'cut') : moving ? 'run' + (Math.floor(b.step / 1.3) % 4) : (b.idle > 1.2 && Math.floor(b.idle * 1.3) % 2 ? 'idle' : 'aim');
       return { img: S[k], feet: SPR.sideFeet, flip: b.face < 0 };
     }
     if (d === 'up') {

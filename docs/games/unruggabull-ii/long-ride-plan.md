@@ -85,4 +85,4 @@ Done in one pull request: the beats, set, cut-ins, lighting, words and fight abo
 ## Open
 
 - Phone playtesting of the fight's difficulty. The balance bots (100 seeds each) clear it 66/98/100 times (casual/decent/expert), losing 3.6/1.8/0.3 hearts on average, most of them in the last floors.
-- More side poses (a hurt fall, a turn) and p(Loom)'s own voice.
+- More side poses: the hit and the turn are built (Oct 16, item 8). Still to come: p(Loom)'s own voice.
