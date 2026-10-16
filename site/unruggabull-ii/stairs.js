@@ -45,6 +45,9 @@ var UnrugStairs = function (core) {
     // the door, from the top landing: the walk up, a breather bent over with his hands on his hips (until up), standing back up (rise),
     // the line, the brace, the kick, the door at the camera, the 13th Floor
     door: { at: 360, stand: 392, walk: .45, up: 1.8, rise: .2, line: 2.5, brace: 3.6, kick: 3.95, impact: 4.28, hall: 4.36 },
+    // the first-aid box on the top landing (Baby and Regular): it turns up when the last flights are cleared, on his way to
+    // the door (picture pixels), or where he'll stop at the door if he's already past it
+    box: { x: 340, past: 336 },
     ambient: .62, dim: .2,
     // the garage door at the foot of section 1: where it is (picture pixels), when it shuts (past walk, or after wait s), how fast
     garage: { x0: 6, x1: 60, top: 142, walk: 72, wait: 1.8, swing: .28 },
@@ -82,8 +85,10 @@ var UnrugStairs = function (core) {
     if (at) { R.souls = R.shown = at.souls || 0; R.continues = (at.continues || 0) + (at.transfer ? 0 : 1); }
     arena.newRun(R, bull);
     Q = R.stairs = { t: 0, st: 'play', stT: 0, si: 0, secT: 0, katana: !!(at && at.katana), said: {}, says: [], glass: Infinity, taken: Infinity,
-      script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, whip: null, from: 0, step: 0, done: {} };
+      script: 0, scriptT: 0, preDone: false, exitOpen: false, tapeCut: null, whip: null, from: 0, step: 0, done: {}, box: null };
     startSection(at && at.section || 0);
+    // #stage=stairs&at=landing (practice): the top landing, its flights already cleared, so the box turns up at once
+    if (!at && /(^|&)at=landing(&|$)/.test(location.hash.replace(/^#/, ''))) { Q.katana = true; startSection(2); Q.script = Infinity; R.arena.bare = false; }
   }
   function startSection(i, keepHearts) {
     const sec = SECTIONS[i];
@@ -155,7 +160,27 @@ var UnrugStairs = function (core) {
     if (!Q.exitOpen && !L.length) {
       Q.exitOpen = true; emit('stairs_cleared', { section: Q.si + 1 });
       if (cur.tape && Q.tapeCut == null) say('SLASH THE TAPE', .2);   // the way on is the arrow's job, once there is one
+      if (cur.door && core.betweenHeals()) placeBox();
     }
+  }
+
+  // ---------- the first-aid box ----------
+  // Like a coffee: he touches it, it's gone, with the coffee's sound and screen-reader line, but it fills his hearts.
+  // Only on Baby and Regular (owner, Oct 16), right before the 13th Floor, in his path to the door so nobody misses it.
+  function placeBox() {
+    const B2 = STAIRS.box, x = PXu(bull.u) < B2.past ? B2.x : STAIRS.door.stand;
+    Q.box = { x, t: Q.t, got: false }; Snd.play('appear'); emit('stairs_box');
+  }
+  function stepBox() {
+    const b = Q.box; if (!b || b.got) return;
+    if (arena.touches(UX(b.x), ground(UX(b.x)) + .03, .1)) takeBox();
+  }
+  function takeBox() {
+    const b = Q.box, full = R.hearts >= TUNE.hearts; b.got = true;
+    R.hearts = TUNE.hearts;
+    core.popText(full ? 'FULL' : 'FULL HEARTS', b.x / 2, (groundAt(cur, b.x) - 30) / 2, '#ff7050'); Snd.play('coffee');
+    core.live(full ? 'First aid. Hearts already full.' : 'First aid: full hearts.');
+    emit('pickup', { item: 'firstaid' });
   }
 
   // ---------- the Rugmergency ----------
@@ -230,6 +255,7 @@ var UnrugStairs = function (core) {
       : huff ? FRONT['huff' + (Math.floor((k - D.walk) / .42) % 2)] : rise ? FRONT.rise : k < D.line ? FACING : SIDE.aim;   // he faces us for the breather, and turns to the door for the line
     const feet = Object.values(FRONT).includes(img) ? FF : img === FACING ? VF : Object.values(MOVE).includes(img) ? MF : SF;
     R.arena.pose = { img, feet: { x: feet.x, y: feet.y }, face: 1 };
+    if (Q.box && !Q.box.got && k >= D.walk) takeBox();   // at the door: it's his
     if (k >= D.line && !Q.done.line) { Q.done.line = true; core.bark('door'); }
     if (k >= D.brace && !Q.done.brace) { Q.done.brace = true; Snd.play('stairCreak'); }
     if (k >= D.kick && !Q.done.kick) {
@@ -276,6 +302,7 @@ var UnrugStairs = function (core) {
     if (Q.si === 0 && Q.garageShut === Infinity && (PXu(bull.u) > STAIRS.garage.walk || Q.secT > STAIRS.garage.wait)) { Q.garageShut = Q.secT; Snd.play('stairShut'); }
     arena.update(dt, Q.st === 'play');
     if (R.phase === 'dead') return;
+    stepBox();
     if (Q.st !== 'play') return;
     hitGlass();
     // with the katana, the first paper thrown in section 2: knock it back
@@ -457,6 +484,18 @@ var UnrugStairs = function (core) {
     c.fillStyle = '#5a3a20'; c.fillRect(18, 30, 10, 6); c.fillStyle = '#2a1a10'; c.fillRect(20, 31, 6, 4);   // a boot print
     c.restore();
   }
+  // the first-aid box: a small white box with a red cross, about a coffee's size, in the stairwell's colours
+  const BOX = ['.....KKKKKK.....', '.....Kh..hK.....', 'KKKKKKKKKKKKKKKK', 'KhhhhhhhhhhhhhhK', 'KwwwwwwrrwwwwwwK', 'KwwwwwwrrwwwwwwK',
+    'KwwwwrrrrrrwwwwK', 'KwwwwrrrrrrwwwwK', 'KwwwwwwrrwwwwwwK', 'KwwwwwwrrwwwwwwK', 'KssssssssssssssK', 'KKKKKKKKKKKKKKKK'];
+  const BOX_PAL = { K: '#1a1418', h: '#fff6e2', w: '#e8dcc0', r: '#e0281e', s: '#a8a296' };
+  let BOXC = null;
+  function drawBox(c, b) {
+    if (!BOXC) { BOXC = canvas(BOX[0].length, BOX.length); const x = BOXC.getContext('2d'); BOX.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (BOX_PAL[r[i]]) { x.fillStyle = BOX_PAL[r[i]]; x.fillRect(i, j, 1, 1); } }); }
+    const fl = Math.round(groundAt(cur, b.x)), k = Q.t - b.t, pop = k < .25 ? Math.round(Math.sin(k / .25 * Math.PI) * 4) : 0;
+    c.drawImage(BOXC, Math.round(b.x - BOXC.width / 2), fl - BOXC.height - pop);
+    // a twinkle running round it now and then, as the pickups have
+    const ph = (Q.t * .8) % 1; if (ph < .3) { c.fillStyle = '#ffffff'; const tx = Math.round(b.x - 8 + ph / .3 * 16); c.fillRect(tx, fl - BOXC.height - 3, 1, 3); c.fillRect(tx - 1, fl - BOXC.height - 2, 3, 1); }
+  }
   // a tumbler: a carpshit balled up, bouncing and spinning down the stairs
   function drawRoll(e) {
     const x = PXu(e.u), y = PYh(e.h), flap = Math.sin(R.t * 18), img = A.CARPF[flap > 0 ? 0 : 1];
@@ -504,6 +543,7 @@ var UnrugStairs = function (core) {
       if (sec.tape) drawTape(g, sec.tape);
     }
     if (sec.door) doorEnd(g, landing(sec), sec === cur ? doorOpen() : 0);
+    if (sec === cur && Q.box && !Q.box.got) drawBox(g, Q.box);
     if (sec === SECTIONS[0]) garageDoor(g, sec === cur ? garageK() : 1);
     g.restore();
   }

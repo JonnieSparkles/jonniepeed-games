@@ -64,7 +64,7 @@
     // The real clear button carries the seeded stream and souls; rugged in the fight, continue from the threads.
     newRun(); setState('play'); R.souls = R.shown = 123; R.hearts = 1; R.phase = 'win'; R.endT = 130;
     const oldSeed = seed; endRun('clear'); check(Cards.labels().join() === 'Continue', 'one button: Continue'); Cards.press('Continue');
-    check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && seed === oldSeed, 'same run enters the ride, full hearts');
+    check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 1 && seed === oldSeed, 'same run enters the ride, with the hearts it had (item 30)');
     check(!R.elevator.fight && R.elevator.from === 13 && R.elevator.destination.stage === 'floor48', 'the 13th Floor takes the quiet ride to the 48th Floor');
     check(R.elevator.lobby && R.phase === 'lobby' && floor.doorOpening() === 0 && bull.u === -1.05 && R.arena.outShrink === false && R.elevator.t === 0,
       "the clear button starts the 13th Floor's lobby: doors shut, him walking in from the left");
@@ -91,7 +91,7 @@
       'boarding from the lobby draws him full size and fully visible');
     check(!R.elevator.lobby && R.phase === 'boss' && floor.doorOpening() === 0 && R.elevator.t < .05 && !R.talk && !R.arena.out && R.arena.outShrink && Snd.track === 'pleaseHold',
       'boarded: the ride starts with the doors shut, Please Hold carrying on from the lobby');
-    check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 5, 'the lobby preserves the carried run');
+    check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 1, 'the lobby preserves the carried run');
     tick(.4); check(R.talk && R.talk.text === 'FLOOR?' && R.elevator.t >= .35, 'the ride cues count from the doors closing');
     // A quiet-ride continue skips the lobby and preserves entry souls and seed.
     R.hearts = 1; bull.inv = 0; hurtBull(1, 'test'); tick(3); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
@@ -103,13 +103,13 @@
       [5, 'operator', 'GOT A SLIP?'], [7.4, 'bull', 'ACCOUNTING.'],
       [10, 'operator', 'THEY STILL THERE?'], [12.4, 'bull', 'LESS OF THEM.'],
       ...floor.ELEVATOR.quiet.middle[R.elevator.middle].map(([, at, who, text]) => [at, who, text]),
-      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.']
+      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.'], [35.3, 'operator', "YOU'RE GOING TO NEED THIS."]
     ];
     check(R.elevator.middle === (RUN.seed >>> 0) % 3 && floor.ELEVATOR.quiet.middle.length === 3, 'the middle exchange is picked from the run seed');
     const quietEvents = []; emitHook = (type) => quietEvents.push(type);
     let quietTalk = null;
     bull.u = -.4; keys.kbRight = true;
-    while (R.elevator.t < 35.1) {
+    while (R.elevator.t < 37.3) {
       const t = R.elevator.t, before = bull.u;
       if (t >= .2) keys.kbRight = false;
       if (t >= 30.4) bull.u = 0; // already in the doorway: no early exit can swallow the arrival exchange
@@ -127,7 +127,7 @@
       Math.abs(line[0] - expectedQuiet[i][0]) < .02 && line[1] === expectedQuiet[i][1] && line[2] === expectedQuiet[i][2]),
       'all quiet-ride lines play once, in order, at their times: ' + JSON.stringify(quietLines));
     check(!quietEvents.some(type => ['arena_spawn', 'arena_throw', 'elevator_eye', 'elevator_cut', 'elevator_snap', 'elevator_heavy'].includes(type)), 'quiet ride stays quiet');
-    check(R.elevator.indicator === 48 && !R.elevator.crate && floor.doorOpening() === 1, 'arrival at 48 opens the doors, with no crate');
+    check(R.elevator.indicator === 48 && R.elevator.crate && R.elevator.crate.kind === 'quiet' && R.elevator.crate.got && floor.doorOpening() === 1, 'arrival at 48 opens the doors; the crate comes with the last line, and he takes it in the doorway');
     check(seed === oldSeed, 'quiet-ride dialogue and drawing consume no outcome randomness');
     tick(.05); check(R.arena.out > 0 && !R.talk, 'walking out starts only once the last arrival bubble is gone');
     tick(1.2); check(R.stage === 'floor48' && R.souls === 123, 'the quiet ride carries the run onto the 48th Floor');
@@ -162,20 +162,19 @@
     check(!R.arena.enemies.length && R.souls === souls + left2 && Snd.track === null, 'arrival frees the last of them and stops the music');
     at(T.doors + .6); check(floor.doorOpening() > 0 && floor.doorOpening() < 1, 'the doors open');
     // the crate: full hearts, or bonus souls when he's already full
-    at(T.crate + .02); check(R.elevator.crate && !R.elevator.crate.got && R.elevator.crate.kind === 'hearts', 'the operator slides the crate over');
-    R.hearts = 2; bull.u = R.elevator.crate.u; tick(1 / 60);
-    check(R.elevator.crate.got && R.elevator.crate.gave === 'hearts' && R.hearts === 5, 'the crate fills his hearts');
-    let full = R.souls; R.elevator.crate = null; R.elevator.t = T.crate; tick(1 / 60); bull.u = R.elevator.crate.u; tick(1 / 60);
-    check(R.elevator.crate.gave === 'souls', 'full hearts: bonus souls'); tick(.5); check(R.souls === full + 20, 'twenty bonus souls');
-    // walk out the doors: his back to us, onto the roof with what he has
+    R.hearts = 2; bull.u = -.6;   // hurt, and away from the doorway
+    at(T.crate + .02); check(R.elevator.crate && !R.elevator.crate.got && R.elevator.crate.kind === 'long', 'the operator slides the crate over');
+    bull.u = R.elevator.crate.u; tick(1 / 60);
+    check(R.elevator.crate.got && R.elevator.crate.gave === 'hearts' && R.hearts === 5 && !R.elevator.top.kind, 'the crate fills his hearts (a continued run: no cap)');
+    const top0 = R.elevator.top.at, ex = R.elevator.exitAt;
     // in the doorway early, he waits for the exchange: FLOOR? then ROOF., then out (owner, Oct 13)
-    bull.u = 0; at(T.doors + floor.ELEVATOR.exitAfter + .1); check(!R.arena.out, 'on the long ride he waits in the doorway for the exchange');
-    at(T.doors + floor.ELEVATOR.ask.roof + .05); check(R.talk && R.talk.text === 'ROOF.' && !R.arena.out, 'FLOOR? and ROOF. play before he leaves');
-    bull.u = .5; at(T.doors + floor.ELEVATOR.ask.out + .1); check(!R.arena.out, 'he walks out only from the doorway');
+    bull.u = 0; at(ex - .3); check(!R.arena.out, 'on the long ride he waits in the doorway for the exchange');
+    check(R.talk && R.talk.text === 'ROOF.' && !R.arena.out, 'FLOOR? and ROOF. play before he leaves');
+    bull.u = .5; at(ex + .1); check(!R.arena.out, 'he walks out only from the doorway');
     bull.u = 0; tick(.1); check(R.arena.out > 0 && R.arena.locked && R.arena.outShrink, 'in the doorway he walks out, with exit shrinking unchanged');
     const exiting = drawnBull();
     check(Math.abs(exiting.scales[0][0] - (1 - R.arena.out * .35)) < 1e-12, 'the roof walk-out still draws him shrinking');
-    full = R.souls; tick(1.2);
+    const full = R.souls; tick(1.2);
     check(R.stage === 'roof' && R.roof.state === 'elevator' && R.roof.fromRide && R.souls === full && R.roof.caught === full && R.hearts === 5, 'the roof starts its lead-in with the carried souls');
     // every middle exchange comes up: the pick follows the run seed alone
     const middles = new Set();

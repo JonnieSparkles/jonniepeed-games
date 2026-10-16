@@ -257,17 +257,18 @@ var UnrugArena = function (core, tuning) {
       // Turn his back for either direction. Boarding keeps full size/visibility; exits recede as before.
       const img = BACKS[Math.floor(bull.step / 1.6) % 2], shrink = R.arena.outShrink !== false, k = shrink ? 1 - out * .35 : 1;
       g.save(); g.globalAlpha = shrink ? Math.max(0, Math.min(1, 1.6 - out * 1.6)) : 1; g.translate(Math.round(x), Math.round(y - out * 10)); g.scale(k, k);
-      g.drawImage(img, -B.FEET.x, -B.FEET.y); g.restore(); return;
+      g.drawImage(img, -B.FEET.x, -B.FEET.y); hat(img === BACKS[0] ? B.POSES.runA : B.POSES.runB, 'back', -B.FEET.x, -B.FEET.y); g.restore(); return;
     }
     if (R.arena.pose) { const o = R.arena.pose; g.save(); g.translate(Math.round(x), Math.round(y)); g.scale(o.face || 1, 1); g.drawImage(o.img, -o.feet.x, -o.feet.y); g.restore(); return; }
     const p = pose(), set = R.arena.bare ? BARE : POSE;
     g.save();
     if (bull.inv > 0 && Math.floor(R.t * 18) % 2) g.globalAlpha = .4;
-    if (p === 'front') { g.translate(Math.round(x), Math.round(y)); g.drawImage(FRONT, -B.VIEW_FEET.x, -B.VIEW_FEET.y); g.restore(); return; }
+    if (p === 'front') { g.translate(Math.round(x), Math.round(y)); g.drawImage(FRONT, -B.VIEW_FEET.x, -B.VIEW_FEET.y); hat(B.VIEWS.front, 'front', -B.VIEW_FEET.x, -B.VIEW_FEET.y); g.restore(); return; }
     const recoil = (bull.aimT || 0) > .15 ? 3 : 0, land = (bull.sq || 0) > 0;
     g.translate(Math.round(x - recoil * facing()), Math.round(y)); g.scale(facing(), 1);
     if (land && p !== 'jump') g.scale(1.04, .94);
     g.drawImage(set[p], -SF.x, -SF.y);
+    hat((R.arena.bare ? B.SIDES_BARE : B.SIDES)[p], 'side', -SF.x, -SF.y);
     if ((bull.aimT || 0) > .17) { disc(g, SM.x + 2, SM.y, 4, '#fff6e2'); disc(g, SM.x + 2, SM.y, 2, '#7fd4ff'); }
     g.restore();
     if (bull.slash >= 0) {
@@ -277,6 +278,11 @@ var UnrugArena = function (core, tuning) {
       g.strokeStyle = '#7fd4ff'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 31, -1.2 + k * .5, .7 + k * .5); g.stroke();
       g.restore();
     }
+  }
+  // the hat he won at the top of the long ride (hats.js), on the pose just drawn, its top-left at (x0, y0)
+  function hat(rows, view, x0, y0) {
+    const kind = core.hat && core.hat(); if (!kind || !rows) return;
+    g.save(); g.translate(x0, y0); UnrugHats.drawOn(g, kind, view, rows, R.t); g.restore();
   }
   // rugged, side on: he sinks, flickers out in blue sparkles, and his bull's soul rises (as in the hall). Game units.
   function drawDeath() {

@@ -26,6 +26,8 @@
     for (var k in data) e[k] = data[k];
     if (R.stage === 'elevator' && ['hit', 'game_over'].includes(type)) e.kind = ridePart();
     log.push(e);
+    // the hearts the run ends with (and the hat it won), so the next stage can be played from them (item 30)
+    if (type === 'game_over') log.push({ ev: 'stage_end', wave: e.wave, t: e.t, amount: R.hearts, item: RUN.hat || 'none' });
   }
   // The harness drives the game: the page's frame loop stops, and sound never starts without a tap anyway.
   looping = false;
@@ -50,6 +52,9 @@
             stage: Number(options.destination) === 48 ? 'floor48' : 'roof' } });
       } else newRun(null, options && options.stage);
       RUN.force = null;
+      // --option hearts=3: start the stage with that many hearts (hearts carry between stages, item 30), so a stage can be
+      // played from the hearts the bot left the one before it with
+      if (options && options.hearts != null) R.hearts = R.entryHearts = Math.min(TUNE.hearts, Number(options.hearts));
       setState('play'); card.hidden = true; crawl.hidden = true; intro = null;
       input.jump = input.slash = input.shoot = 0;
       keys.kbLeft = keys.kbRight = keys.kbShoot = keys.padLeft = keys.padRight = keys.padShoot = keys.kbDown = keys.padDown = false;

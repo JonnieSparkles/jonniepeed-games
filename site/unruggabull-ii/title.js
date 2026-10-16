@@ -397,6 +397,7 @@ var UnrugTitle = (function () {
       if (!list) return;   // no board: no line
       const top = list[0], s = top ? 'TOP ' + top[0] + ' ' + top[1] : 'NO RUNS YET';
       trophy(g, x, y + 1, P.gold); T(g, s, x + 13, y, P.dim, 2); T(g, '>', x + 13 + tw(s, 2) + 6, y, P.dim, 2);
+      if (top && top[2] && UnrugHats.of(MODES[mode].id)) UnrugHats.board(g, UnrugHats.of(MODES[mode].id), x + 13 + tw('TOP ', 2) + 2 + tw(top[0], 2) / 2, y, 1);
       zone(x, y - 14, Math.max(max || 0, 13 + tw(s, 2) + 14), zh, 'board');
     }
     function padlock(g, cx, cy, s, col) {
@@ -460,6 +461,7 @@ var UnrugTitle = (function () {
           const c = Math.floor(i / per), r = i % per, cx = x + c * (ww / cols), cy = y + r * 16, e = list[i];
           T(g, (i + 1) + '.', cx + 16, cy, P.dim, 2, 'right');
           T(g, e ? e[0] : '---', cx + 22, cy, e ? (i === 0 ? P.gold : P.ink) : P.faint, 2);
+          if (e && e[2] && UnrugHats.of(m.id)) UnrugHats.board(g, UnrugHats.of(m.id), cx + 22 + tw(e[0], 2) / 2, cy, 1);   // the hat it won, over its name
           if (e) T(g, String(e[1]), cx + ww / cols - 14, cy, P.val, 2, 'right');
         }
       };

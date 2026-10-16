@@ -294,6 +294,7 @@ var UnrugEnding = function (core, roof) {
     alpha(L, .55, () => poly(L, '#1a0c0c', [[114, 126], [126, 126], [140, 86], [134, 86]]));
     const F = FRONT(), VF = UnrugBull.VIEW_FEET;
     L.drawImage(F, 120 - VF.x, 126 - VF.y, F.width, F.height);
+    if (core.hat()) { L.save(); L.translate(120 - VF.x, 126 - VF.y); UnrugHats.drawOn(L, core.hat(), 'front', UnrugBull.VIEWS.front, t); L.restore(); }   // still wearing what he won on the ride
   }
   // his caption, as the core draws his lines (top left, typed with the blips), over the still
   function caption(g) {
