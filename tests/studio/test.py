@@ -60,6 +60,7 @@ def state(page, side, focus=False, keyboard=False):
             assert page.evaluate('document.activeElement.id !== "sideA"')
     assert ('stick-army/' in reached) == (side == 'b'), reached
     assert 'unruggabull-ii/' not in reached, reached   # unlisted: no card on either shelf
+    assert ('unruggabull-remastered/' in reached) == (side == 'a'), reached
     assert ('thimbleful/' in reached) == (side == 'a'), reached
     snapshot = page.locator('.grid').aria_snapshot()
     assert ('Stick Army' in snapshot) == (side == 'b'), snapshot
