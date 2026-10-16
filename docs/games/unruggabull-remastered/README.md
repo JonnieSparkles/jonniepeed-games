@@ -75,7 +75,7 @@ Classic scripts, loaded in this order by `site/unruggabull-remastered/index.html
 
 Most of `core.js`, `rugfather.js` and `game.js` is the 2025 source, bundled out of its ES modules (comments name the original file). The changes from 2025: `performance.now()` is `gameNow()` and `setTimeout` is `gameTimeout` everywhere in the game, so time only moves when the game steps; the loop steps at a fixed 60 a second (a 120 Hz phone ran the 2025 game twice as fast); input reads `inputLeft()` and the others instead of fixed keys; drawing goes through `look.js`; the end screens are the end card; a retry resets what the 2025 restart left behind (the open garage, fast music, the last fight's timers and shots); the dev tools are left out; sounds go through `audio.js`.
 
-Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-encoded: music 128 kbit stereo, effects and voices 80 kbit mono). Type: Bungee and Jersey 15 from `site/assets/fonts/`. The share card and thumbnail come from `tools/og/make.py` (a capture of the title in a 4:3 window).
+Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-encoded: music 128 kbit stereo, effects and voices 80 kbit mono). Type: Bungee and Jersey 15 from `site/assets/fonts/`. The share card (1200 × 630) and the games-page thumbnail (768 × 576) are the poster design Jonnie picked, drawn by `tools/og/cards/unruggabull-remastered.html` from the title's painting and built by `tools/og/make.py --game unruggabull-remastered`: the tagline, the wordmark and "NOW ON MOBILE".
 
 ## Validation
 
@@ -83,6 +83,7 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
+- **Oct 16, 2026:** its own share card and thumbnail: the poster mockup, with "Now on mobile".
 - **Oct 16, 2026:** the sound pass (`audio.js`), from https://claude.ai/artifact/GSh1hZRjESrGx2R6ze8iaT: menu set A ("Blaster"), and the "Dying" take on the out-of-shots buzz.
 - **Oct 16, 2026:** the polish (`fx.js`), from two mockups: https://claude.ai/artifact/JF7kkcjtNWmEW9KmGp4ghb (the alley) and https://claude.ai/artifact/QJ7zGoDidQJ97NEBQGLA2w (the sprites). Left out at Jonnie's call: the Rugfather turning to look at the camera.
 - **Oct 16, 2026:** built in one pull request: the 2025 game moved here and plays on phones (step 1), the touched look and title B (step 2), the end card and board (step 3), the share card and thumbnail (step 4).

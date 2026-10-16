@@ -13,6 +13,8 @@ as a page screenshot instead (pass {"screenshot": True} as the last field); thei
 Games with cover art use it instead of a capture (pass {"cover": (file, position)}, with the file in
 brand/covers/). One 4:3 crop of the cover makes both the WebP thumbnail and the card's picture, and the
 card leaves out the title because the cover already has it lettered in.
+Games with a card of their own draw it on a page in tools/og/cards/ (pass {"card": file}); the page is opened with
+?w=&h= and screenshotted at 1200x630 for the card and 768x576 for the WebP thumbnail.
 Use --game stick-army to regenerate only that game's thumbnail and card.
 To add a game: add an entry to GAMES below and run the script again.
 Entries without an existing game index are reported and skipped, never recreated.
@@ -42,6 +44,7 @@ def font_uri(name):
 #   viewport: screenshot viewport (width, height), before device scale factor 2
 #   title_px:   card title size, for long names
 #   cover: (file in brand/covers/, position) uses cover art instead of a capture, so setup can be None.
+#   card:  a page in tools/og/cards/ that draws the game's own card and thumbnail (setup is None)
 #          The 4:3 crop sits at position across the cover: 0 the left edge, 0.5 centred, 1 the right edge.
 GAMES = [
     ("stick-army", "Stick Army", "Pop chutes. Catch recruits. Defend the notebook.", "Play in your browser",
@@ -55,9 +58,9 @@ GAMES = [
     # a 4:3 crop of the top of its canvas
     ("unruggabull-ii", "Unruggabull II", "Climb RugCo Tower. Free the Unrugged. Beat SHRED-O.", "Play in your browser",
      None, {"screenshot": True, "selector": ".ttl canvas", "crop": (0, 0.02, 1, 0.315), "viewport": (420, 1000), "title_px": 34}),
-    # the title screen (title.js) in a 4:3 window: the tagline, the wordmark and the menu beside the RugCo Empire painting
+    # its own card, the poster: the RugCo Empire painting from the title screen, the wordmark and "NOW ON MOBILE"
     ("unruggabull-remastered", "Unruggabull Remastered", "The original Unruggabull, now on phones.", "Play in your browser",
-     "document.getElementById('home').hidden = true; document.getElementById('fs-btn').hidden = true", {"screenshot": True, "selector": "#title-art", "viewport": (800, 600), "title_px": 40}),
+     None, {"card": "unruggabull-remastered.html"}),
     # Side B two-player demo: a screenshot of its title card
     ("dont-click-this", "Don't click this", "Up to four players, anywhere. Find each other.", "Play with friends",
      None, {"screenshot": True}),
@@ -124,6 +127,21 @@ def crop_cover(page, name, position):
         r(k.toDataURL('image/png')); }; i.src = u; })""", [src, position])
 
 
+def own_card(browser, name, width, height, webp=False):
+    """Screenshot a game's own card page (tools/og/cards/) at width x height."""
+    page = browser.new_page(viewport={"width": width, "height": height})
+    page.goto((ROOT / "tools" / "og" / "cards" / name).as_uri() + f"?w={width}&h={height}")
+    page.wait_for_function("window.cardReady === true", timeout=15000)
+    png = page.screenshot()
+    if webp:
+        uri = "data:image/png;base64," + base64.b64encode(png).decode()
+        png = base64.b64decode(page.evaluate("""(u) => new Promise(r => { const i = new Image(); i.onload = () => {
+            const k = document.createElement('canvas'); k.width = i.width; k.height = i.height; k.getContext('2d').drawImage(i, 0, 0);
+            r(k.toDataURL('image/webp', 0.86)); }; i.src = u; })""", uri).split(",")[1])
+    page.close()
+    return png
+
+
 def game_card(scene_uri, title, tagline, cta, pixel=True, title_px=52):
     mark = data_uri(SITE / "assets" / "mark-pixel-dark.png")
     return f"""<!doctype html><html><head><style>{BASE_CSS}
@@ -171,6 +189,11 @@ def main():
                 print("skipped missing game", slug)
                 continue
             opts = more[0] if more else {}
+            if opts.get("card"):
+                (SITE / slug / "thumb.webp").write_bytes(own_card(browser, opts["card"], 768, 576, webp=True))
+                (SITE / slug / "og.png").write_bytes(own_card(browser, opts["card"], 1200, 630))
+                print("wrote", SITE / slug / "thumb.webp", "and og.png")
+                continue
             if opts.get("cover") or opts.get("screenshot"):
                 if opts.get("cover"):
                     scenes[slug] = crop_cover(page, *opts["cover"])
