@@ -34,7 +34,8 @@ def build(T, L, repo, site=None):
     FULL = full()
 
     shots = [
-        (0.0, DROP, Tt, lets - (DROP - 0.85), push(1.0, 1.04, 960, 540, DROP)),           # "Let's go!" just before the drop
+        # "Let's go!" finishes just before the drop (the clip's voice runs 0.5-1.5 s after it's played)
+        (0.0, DROP, Tt, lets - (DROP - 1.6), push(1.0, 1.04, 960, 540, DROP)),
         # the drop: the alley
         (DROP, DROP + BAR, A, k(0) - 0.7, push(1.0, 1.06, 960, 560, BAR)),
         (DROP + BAR, DROP + 2 * BAR, A, k(8) - 0.9, FULL),
