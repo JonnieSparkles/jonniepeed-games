@@ -54,7 +54,7 @@ var StickArmyShopScreen = function (w, shop) {
   // The shop as it stands for this device's player (w.me): their tags, their gift, their gun.
   function render() {
     var S = w.S, coop = !!S.coop, mine = w.tagsOf(w.me);
-    $('shopWave').textContent = 'Wave ' + S.wave + ' survived';
+    $('shopWave').textContent = w.shopLine();
     $('shopCoins').textContent = mine + ' dog tags' + (coop ? ' (yours)' : '');
     var news = $('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
     var hurt = Math.round(S.stats.wallDamage - (S.waveStart.wall || 0));
@@ -63,7 +63,7 @@ var StickArmyShopScreen = function (w, shop) {
     var giftLeft = !S.shop.giftTaken[w.me] && S.shop.gifts[w.me];
     $('shopHint').textContent = (giftLeft ? 'One supply is on the house' + (coop ? ' for you. ' : '. ') : '') +
       (coop ? 'Your tags are your own; anything for the squad is for both of you.' : giftLeft ? 'Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
-      bossHint(w.waveCfg(S.wave + 1));
+      bossHint(w.waveCfg(w.nextWave()));
     function costLabel(it) {
       if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
       if (it.blocked && it.blocked() && !shop.bought(it)) return it.blocked();
@@ -137,7 +137,7 @@ var StickArmyShopScreen = function (w, shop) {
     var undoBtn = $('undoBtn'), last = shop.lastOf();
     undoBtn.hidden = !last;
     if (last) undoBtn.textContent = '↩ Undo ' + (shop.isSend(last.id) ? 'send home' : ITEMS.find(function (it) { return it.id === last.id; }).name.toLowerCase());
-    $('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
+    $('continueBtn').textContent = w.waveName(w.nextWave()) + ' →';
     if (w.afterShop) w.afterShop();
   }
 

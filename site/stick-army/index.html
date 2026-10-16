@@ -234,16 +234,19 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .t-n3 { left: 270px; top: 470px; width: 120px; transform: rotate(-2deg); }
 .t-arrows { position: absolute; left: 0; top: 0; width: 400px; height: 720px; pointer-events: none; }
 .t-arrows path { fill: none; stroke: var(--ink-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.t-foot { position: absolute; left: 0; right: 0; top: 616px; padding: 0 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 14px; }
-.t-start { min-height: 54px; padding: 4px 30px 8px; font-size: 32px; }
+.t-foot { position: absolute; left: 0; right: 0; top: 611px; padding: 0 18px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 4px 10px; }
+/* Two ways to play: Arcade (with its level, the line below) and Campaign. */
+.t-start { min-height: 46px; padding: 2px 10px 5px; font-size: 28px; }
+.t-camp { position: relative; background: var(--friend); }
+.t-camp .t-new { position: absolute; right: -6px; top: -9px; }
 /* The record's rubber stamp sits on the grass at the right, clear of the demo's squad. */
 .t-stamp { position: absolute; right: 8px; bottom: calc(100% + 9px); margin: 0; display: flex; flex-direction: column; align-items: center; padding: 3px 10px 4px; border: 2.5px solid var(--enemy); border-radius: 6px 3px 7px 4px;
   color: var(--enemy); font: 700 13px/1.15 var(--font-display); text-transform: uppercase; letter-spacing: 0.5px; transform: rotate(5deg); opacity: 0.9; }
 .t-stamp #bestLine { font-size: 16px; }
 .t-chips { grid-column: 1 / -1; display: flex; gap: 8px; }
-/* The level: two lines on an enlistment form, a pencil box ticked in blue pen, and the rank's stripes. */
-.t-level { display: grid; gap: 2px; justify-self: start; }
-.t-rank { display: flex; align-items: center; gap: 7px; min-height: 26px; padding: 0 6px 0 2px; font: 19px/1 var(--font-hand); color: var(--ink-soft); background: none; border: 0; border-radius: 6px; cursor: pointer; }
+/* The level: two boxes on an enlistment form, a pencil box ticked in blue pen, and the rank's stripes. Arcade's only. */
+.t-level { grid-column: 1 / -1; display: flex; gap: 14px; justify-self: start; }
+.t-rank { display: flex; align-items: center; gap: 7px; min-height: 24px; padding: 0 6px 0 2px; font: 19px/1 var(--font-hand); color: var(--ink-soft); background: none; border: 0; border-radius: 6px; cursor: pointer; }
 .t-rank[aria-checked="true"] { color: var(--ink); }
 .t-rank:hover .t-rname, .t-rank:focus-visible .t-rname { text-decoration: underline 2px var(--ally); text-underline-offset: 3px; }
 .t-rank:focus-visible { outline: 2px solid var(--ally); outline-offset: 1px; }
@@ -261,7 +264,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .lvl-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -2px 0 4px; font: 18px/1 var(--font-hand); color: var(--ally); }
 .lvl-badge .t-chev { stroke: var(--ally); width: 18px; }
 .t-new { padding: 1px 5px 2px; font: 14px/1 var(--font-hand); color: var(--paper); background: var(--enemy); border-radius: 6px 3px 7px 3px; transform: rotate(-4deg); }
-.t-chip { min-height: 32px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
+.t-chip { min-height: 30px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
 .t-chip:hover, .t-chip:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
 /* The open notebook (wide screens, title only): the game page on the left, the facing page on the right with a
    shadow down the binding. On the left page the logo, the demo, the pencil notes and every button stay; the facing page is for reading. */
@@ -358,6 +361,95 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
   .shop-card .tag { font-size: 15px; }
   .shop-foot { padding-top: 6px; }
 }
+/* ---------- Campaign (campaign-screens.js) ----------
+   Its pages cover the play page in the page's own 400x720 units: the map, the debrief and the barracks are ruled
+   notebook pages (lines every 28 from 100, the margin at 46, holes at 150 and 360, like the canvas's paper); the
+   briefing is a post-it stuck on the map; between missions, a lost mission and "To be continued" are cards over the
+   page, like game over. */
+.c-page { position: absolute; inset: 0; z-index: 1; overflow: hidden; color: var(--ink); font-family: var(--font-hand);
+  background: linear-gradient(to right, transparent 46px, var(--margin) 46px, var(--margin) 47.4px, transparent 47.4px),
+    repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px) 0 100px / 100% 620px no-repeat, var(--paper); }
+.c-page.c-reverse { background: repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px) 0 100px / 100% 620px no-repeat, var(--paper); }
+.c-hole { position: absolute; left: 14px; width: 16px; height: 16px; border-radius: 50%; background: var(--desk); box-shadow: inset 1px 2px 2px var(--desk-shadow); }
+.c-page.c-reverse .c-hole { left: auto; right: 14px; }
+.c-head { position: absolute; left: 62px; right: 16px; top: 22px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.c-title { margin: 0; font: 700 40px/1 var(--font-display); }
+.c-code { font: 700 20px/1 var(--font-display); letter-spacing: 2px; color: var(--ink-soft); white-space: nowrap; }
+.c-back { position: absolute; left: 56px; top: 0; min-height: 22px; padding: 0 4px; font: 15px var(--font-hand); color: var(--ink-soft); background: none; border: 0; cursor: pointer; }
+.c-back:hover, .c-back:focus-visible { color: var(--ink); text-decoration: underline; }
+.c-link { min-height: 32px; padding: 0 2px; font: 18px var(--font-hand); color: var(--ally); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left; }
+.c-link:disabled { color: var(--ink-soft); text-decoration: none; cursor: default; }
+.c-link:focus-visible, .c-back:focus-visible, .c-slip:focus-visible, .c-hire:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
+.c-eyebrow { margin: 0; font-size: 17px; color: var(--enemy); }
+.c-small { margin: 0; font-size: 16px; line-height: 1.2; color: var(--ink-soft); }
+.c-note { position: absolute; transform: rotate(-6deg); font-size: 16px; color: #8f8a80; }
+/* The map: the route in pencil, released operations inked. */
+.c-route { position: absolute; left: 0; top: 0; width: 400px; height: 720px; pointer-events: none; }
+.c-route .path { fill: none; stroke: #9a968e; stroke-width: 2.4; stroke-dasharray: 7 7; stroke-linecap: round; }
+.c-route .node { fill: var(--paper); stroke: #9a968e; stroke-width: 2.4; }
+.c-route .node.open { fill: var(--ally); stroke: var(--ink); stroke-width: 2.5; }
+.c-route .node.done { fill: var(--friend); stroke: var(--ink); stroke-width: 2.5; }
+.c-op { position: absolute; font-size: 16px; line-height: 1; color: #8f8a80; white-space: nowrap; }
+.c-op.open { font: 700 24px/1 var(--font-display); color: var(--ally); }
+.c-op.done { font: 700 24px/1 var(--font-display); color: var(--friend); }
+.c-op small { display: block; margin-top: 3px; font: 15px var(--font-hand); color: var(--ink-soft); }
+.c-op small.c-soon { display: inline; margin-left: 6px; color: #8f8a80; }
+.c-foot { position: absolute; left: 56px; right: 16px; bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.c-links { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.c-foot .btn { align-self: auto; }
+/* The briefing: a post-it on the map. */
+.c-veil { position: absolute; inset: 0; z-index: 2; background: var(--veil); }
+.c-postit { position: absolute; left: 40px; right: 28px; top: 120px; z-index: 3; padding: 26px 22px 20px; display: flex; flex-direction: column; gap: 10px;
+  background: #f7e58a; transform: rotate(-1.5deg); box-shadow: 2px 4px 0 var(--card-shadow), 0 10px 18px rgba(46, 46, 51, 0.15); }
+.c-postit::before { content: ""; position: absolute; left: 50%; top: -10px; width: 90px; height: 22px; margin-left: -45px; background: rgba(214, 222, 232, 0.75); transform: rotate(3deg); }
+.c-postit h2 { margin: 0; font: 700 44px/0.95 var(--font-display); }
+.c-postit p { margin: 0; font-size: 19px; line-height: 1.2; }
+.c-orders { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 19px; line-height: 1.15; }
+.c-orders b { font-weight: 400; color: var(--ink-soft); }
+.c-next { padding-top: 8px; border-top: 2px dashed var(--ink-soft); }
+.c-postit .btn, .c-card .btn { align-self: flex-start; }
+.c-star { display: inline-block; width: 20px; height: 20px; vertical-align: -3px; }
+/* Cards between missions, and the small ones over the map. */
+#cCard { z-index: 4; }
+.c-card .row { align-items: center; }
+.c-card .c-links { flex-direction: row; flex-wrap: wrap; gap: 4px 14px; }
+.c-card h2 { font-size: 42px; }
+.c-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px 6px; }
+.c-figs canvas { width: 24px; height: 52px; }
+.c-figs span { font-size: 17px; color: var(--ink-soft); }
+.c-field { width: 100%; box-sizing: border-box; min-height: 44px; padding: 6px 10px; font: 17px 'Atkinson Hyperlegible', sans-serif; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 4px 10px 5px; }
+.c-field:focus-visible { outline: 3px solid var(--ally); outline-offset: 2px; }
+.c-err { margin: 0; font-size: 17px; color: var(--enemy); }
+/* The debrief: the star, promotions, and three reward slips to pick from. */
+.c-body { position: absolute; left: 60px; right: 16px; top: 18px; bottom: 74px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+.c-starrow { display: flex; align-items: center; gap: 14px; }
+.c-bigstar { flex: none; width: 66px; height: 66px; }
+.c-promos { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 18px; line-height: 1.15; }
+.c-promos i { color: var(--ink-soft); }
+.c-chev { display: inline-block; width: 16px; height: 10px; margin-right: 4px; vertical-align: 1px; fill: none; stroke: var(--ally); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.c-slips { display: grid; gap: 8px; }
+.c-slip { display: grid; gap: 2px; padding: 9px 14px; text-align: left; color: var(--ink); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 255px 14px 225px 14px / 14px 225px 14px 255px; cursor: pointer; font-family: var(--font-hand); }
+.c-slip:nth-child(2) { transform: rotate(0.4deg); }
+.c-slip:nth-child(odd) { transform: rotate(-0.4deg); }
+.c-slip b { font: 700 21px/1.05 var(--font-display); }
+.c-slip span { font-size: 16px; color: var(--ink-soft); }
+.c-slip[aria-pressed="true"] { border-color: var(--ally); border-width: 3.5px; background: #edf2fb; }
+/* The barracks: twelve bunks, recruiting, and the fallen on the back page. */
+.c-bunks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.c-bunk { min-height: 86px; box-sizing: border-box; padding: 4px 3px 5px; display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 10px 6px 11px 7px; }
+.c-bunk canvas { width: 24px; height: 52px; margin-bottom: -6px; }
+.c-bunk b { font-size: 15px; font-weight: 400; line-height: 1.05; }
+.c-bunk span { font-size: 12.5px; line-height: 1.1; color: var(--ink-soft); }
+.c-bunk.out { border-style: dashed; }
+.c-bunk.empty { justify-content: center; border: 2px dashed #b5b0a6; color: #8f8a80; font-size: 15px; }
+.c-hires { display: flex; flex-wrap: wrap; gap: 6px; }
+.c-hire { min-height: 38px; padding: 2px 9px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
+.c-hire:disabled { color: #8f8a80; border-color: #b5b0a6; cursor: default; }
+.c-tags { white-space: nowrap; border: 2px solid #7b8590; border-radius: 9px 9px 14px 14px; padding: 2px 9px; color: #3f4852; background: #e8ecef; font-size: 18px; }
+.c-fallen { margin: 0; padding: 0; list-style: none; display: grid; font-size: 19px; line-height: 1.15; }
+.c-fallen li { padding: 6px 0 7px; border-bottom: 1.5px solid var(--rule); }
+.c-fallen small { display: block; font-size: 15px; color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
 /* Landscape: the page is as tall as the screen allows, and the round buttons stand in the space beside it (a column
    bottom left, full screen bottom right) instead of taking a strip under it. On a phone the page grows about a fifth. */
@@ -431,8 +523,9 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <path d="M300 518 C 290 530, 280 540, 268 552 M 268 538 L 266 554 L 282 552"/>
         </svg>
         <div class="t-foot">
-          <button class="btn t-start" id="startBtn" type="button">Start</button>
-          <div class="t-level" role="radiogroup" aria-label="Level">
+          <button class="btn t-start" id="startBtn" type="button">Arcade</button>
+          <button class="btn t-start t-camp" id="campaignBtn" type="button"><span id="campaignLabel">Campaign</span><span class="t-new" id="campaignNew" hidden>new</span></button>
+          <div class="t-level" role="radiogroup" aria-label="Arcade level">
             <button class="t-rank" type="button" role="radio" data-level="soldier" aria-checked="true"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Soldier</span><svg class="t-chev" viewBox="0 0 30 14" aria-hidden="true"><path d="M3 11 L15 4 L27 11"/></svg></button>
             <button class="t-rank" type="button" role="radio" data-level="veteran" aria-checked="false"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Veteran</span><svg class="t-chev" viewBox="0 0 30 22" aria-hidden="true"><path d="M3 9 L15 2 L27 9 M3 14.5 L15 7.5 L27 14.5 M3 20 L15 13 L27 20"/></svg><span class="t-new" id="vetNew" hidden>new</span></button>
           </div>
@@ -560,7 +653,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="audio.js?v=9f03c91bfb"></script>
 <script src="icons.js?v=9a7c1a9955"></script>
-<script src="draw.js?v=0367c8d1e7"></script>
+<script src="draw.js?v=d4262a967a"></script>
 <script src="units.js?v=1c791a6788"></script>
 <script src="sky.js?v=ff250a1d0e"></script>
 <script src="squad.js?v=2d21997978"></script>
@@ -570,6 +663,8 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 <script src="shop-screen.js?v=cb17a42a29"></script>
 <script src="flow.js?v=e70bafeef1"></script>
 <script src="save.js?v=c147602002"></script>
+<script src="campaign.js?v=242b577782"></script>
+<script src="campaign-screens.js?v=907247a6da"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
 <script src="coop.js?v=224dde6a0c"></script>
 <script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=f694104416"></script>

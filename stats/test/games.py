@@ -174,6 +174,42 @@ def stick_army(browser):
     print('PASS stick-army: start, game over with cause, win at the victory card, keep going, restart from pause')
 
 
+def stick_army_campaign(browser):
+    """Campaign: each mission is a run of its own, with no board, tagged campaign with its operation and mission;
+    a lost mission's report becomes "retried" when Retry is pressed, and quitting from pause reports as quit."""
+    context, page, errors = new_page(browser, viewport={'width': 1000, 'height': 900})
+    source = (ROOT / 'site/stick-army/game.js').read_text()
+    source = source.replace('  start();', "  window.armyTest = function (code) { return eval(code); };\n  start();")
+    page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
+    page.goto(SITE + '/stick-army/')
+    page.click('#campaignBtn')
+    page.click('#cMapGo')
+    page.click('#cBriefGo')
+    start = check_start(beacons(page)[0], 'stick-army', None)
+    page.evaluate("armyTest(\"hurtWall(500, 'bomb'); for (var k = 0; k < 200; k++) update(1 / 60);\")")
+    lost = check_end(beacons(page)[1], start, 'over', ['campaign', 'operation', 'mission', 'result', 'attempt', 'cause'])
+    st = lost['stats']
+    assert st['campaign'] is True and st['operation'] == 'boot-camp' and st['mission'] == 'first-contact' and st['result'] == 'lost' and st['attempt'] == 1, st
+    assert 'score_run' not in lost, lost  # no board
+    page.click('#cRetry')
+    retried = check_end(beacons(page)[2], start, 'over', ['result'])
+    assert retried['stats']['result'] == 'retried', retried
+    second = check_start(beacons(page)[3], 'stick-army', None)
+    page.evaluate("armyTest(\"for (var k = 0; k < 60 * 600 && S.mode !== 'between'; k++) { if (S.mode === 'shop') { continueWave(); continue; } S.wallHP = S.mods.maxHP; S.troopers.forEach(function (t) { t.dead = true; }); S.planes.forEach(function (p) { if (p.state === 'fly') p.x = p.dir > 0 ? 999 : -999; }); update(1 / 60); }\")")
+    won = check_end(beacons(page)[4], second, 'won', ['campaign', 'mission', 'result', 'attempt'])
+    assert won['stats']['result'] == 'won' and won['stats']['attempt'] == 2, won
+    page.click('#cGo')
+    third = check_start(beacons(page)[5], 'stick-army', None)
+    page.click('#pauseBtn')
+    page.click('#pauseQuitBtn')
+    quit = check_end(beacons(page)[6], third, 'quit', ['campaign', 'mission'])
+    assert quit['stats']['attempt'] == 1, quit
+    assert len(beacons(page)) == 7, [b['body'].get('outcome') for b in beacons(page)]
+    assert not errors, errors
+    context.close()
+    print('PASS stick-army campaign: a mission lost, retried, won, and quit from pause; no board')
+
+
 def unruggabull_ii(browser):
     context, page, errors = new_page(browser, viewport={'width': 1000, 'height': 800})
     source = (ROOT / 'site/unruggabull-ii/game.js').read_text()
@@ -251,6 +287,7 @@ with sync_playwright() as p:
     thimbleful(browser)
     crack(browser)
     stick_army(browser)
+    stick_army_campaign(browser)
     unruggabull_ii(browser)
     unruggabull_remastered(browser)
     automated_is_quiet(browser)

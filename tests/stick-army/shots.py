@@ -1,8 +1,14 @@
 """Stick Army's "nothing changed" check: the same six scenes drawn by two versions of the game, compared pixel for
-pixel. Run it on any change that shouldn't change how the game looks (Campaign's groundwork, a refactor):
+pixel. Run it on any change that shouldn't change how Arcade looks (Campaign, a refactor):
 
     python3 tests/stick-army/shots.py --ref main      # this checkout against main; fails on any difference
     python3 tests/stick-army/shots.py                 # just this checkout's scenes
+    python3 tests/stick-army/shots.py --campaign      # also Campaign's screens, at three sizes and full screen
+
+The title is compared apart (TITLE_APART): it's reported, with its diff, but doesn't fail the check, since Campaign
+added its button there. Campaign's screens have nothing to compare with yet; they're drawn for looking at, at phone
+portrait, short landscape and notebook sizes, and at phone portrait in full screen (campaign-<scene>-<size>.png).
+--ref takes what git does: after a shallow clone, a local `main` may be older than `origin/main`.
 
 It serves site/ itself (no server needed) and launches Chromium like the other harnesses (CHROMIUM selects a system
 browser). The scenes: the title, a mid-wave page (wave 9, with a full kit and squad), the night raid, the
@@ -44,6 +50,36 @@ S.mods.secondTramp = true; S.mods.slots = 6; S.mods.trench = 2; S.mods.stacks.sa
 S.mods.hospital = true; S.mods.flag = true; S.flagUp = 1; resizeMats();
 ['rifle', 'engineer', 'bazooka', 'medic', 'sniper'].forEach(function (t, i) { var r = makeRecruit(SLOT_ORDER[i], t); r.waves = 4 * i; r.rank = i; r.name = 'Doodle' + i; S.recruits.push(r); });
 """
+# Compared, reported, but not failing (round 1 of Campaign put its button on the title).
+TITLE_APART = {'title'}
+
+# Campaign's screens, from one tour (K7QMR2) with a small squad, each scene in game.js's scope.
+CAMP = """
+var c = world.campaign, t = c.newTour('K7QMR2');
+t.squad = [{ id: 11, type: 'rifle', stripes: 1, kills: 23 }, { id: 14, type: 'engineer', stripes: 1, kills: 6 }, { id: 19, type: 'sniper', stripes: 0, kills: 4 },
+  { id: 22, type: 'rifle', stripes: 0, kills: 1 }];
+t.fallen = [{ id: 16, type: 'bazooka', stripes: 0, kills: 9, op: 0, m: 0 }]; t.bank = 140; t.nextId = 30;
+t.last = { won: true, mission: 'First contact', caught: 5, planes: 21, time: 70, fresh: 4, fell: [16] };
+c.nameAll(t); c.write();
+"""
+def mission(at):
+    return CAMP + STEP + "t.m = 1; c.startMission(); step(5); t.at = '%s'; S.mode = 'between';" % at
+CAMPAIGN = {
+    'map': CAMP + 'c.screens.map();',
+    'briefing': CAMP + 'c.screens.map(); c.screens.briefing();',
+    'mission': CAMP + STEP + 't.m = 1; c.startMission(); step(7);',
+    'between': mission('between') + 'c.screens.between();',
+    'lost': mission('lost') + "t.last = { won: false, mission: 'Fill the ranks', cause: 'Five planes got across.', fell: [16] }; c.screens.lost();",
+    'debrief': CAMP + "t.squad.forEach(function (s) { s.stripes++; }); c.nameAll(t); t.at = 'debrief'; t.debrief = { op: 0, star: false, promoted: t.squad.map(function (s) { return { id: s.id, named: s.stripes === 1 }; }),"
+               " offers: [{ kind: 'veteran', type: 'medic', name: 'Veteran medic', text: 'A medic with one stripe joins.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' },"
+               " { kind: 'supply', id: 'helmets', name: 'Helmets for the tour', text: 'Every soldier +1 health, every operation.' }] }; c.screens.debrief();",
+    'barracks': CAMP + "t.at = 'barracks'; c.screens.barracks();",
+    'fallen': CAMP + "t.at = 'barracks'; c.screens.barracks(); c.screens.fallen();",
+    'end': CAMP + "t.at = 'end'; t.stars['boot-camp'] = true; c.screens.end();",
+}
+SIZES = {'phone': (390, 844, False), 'landscape': (844, 390, False), 'notebook': (1280, 800, False), 'phone-full': (390, 844, True)}
+
+
 def run(seed):
     return STEP + 'RUN.force = %d; newGame(); RUN.force = null;' % seed + KIT + 'S.hint = false;'
 SCENES = {
@@ -69,8 +105,9 @@ def serve(site):
     return server, 'http://127.0.0.1:%d' % server.server_port
 
 
-def shoot(browser, tree, out, suffix):
-    """Draws every scene with the game in tree (a checkout), into out/<scene><suffix>.png."""
+def shoot(browser, tree, out, suffix, scenes=None, size=(900, 900, False)):
+    """Draws every scene with the game in tree (a checkout), into out/<scene><suffix>.png: Arcade's, or the scenes
+    given, at a size (width, height, full screen)."""
     source = (tree / 'site/stick-army/game.js').read_text()
     if source.count(BRIDGE_AT) != 1:
         sys.exit('%s: the bridge point %r should be in game.js once' % (tree, BRIDGE_AT))
@@ -78,11 +115,12 @@ def shoot(browser, tree, out, suffix):
     server, base = serve(tree / 'site')
     shots = {}
     try:
-        for name, code in SCENES.items():
-            page = browser.new_page(viewport={'width': 900, 'height': 900}, device_scale_factor=1)
+        for name, code in (scenes or SCENES).items():
+            page = browser.new_page(viewport={'width': size[0], 'height': size[1]}, device_scale_factor=1)
             errors = []
             page.on('pageerror', lambda e: errors.append(str(e)))
             page.add_init_script(SEED_RANDOM)
+            page.add_init_script('try { localStorage.clear(); } catch (e) {}')
             page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
             # Nothing over the network: the scores and stats calls fail quietly, as offline.
             page.route('**/scores.jonniepeed.games/**', lambda route: route.abort())
@@ -94,7 +132,7 @@ def shoot(browser, tree, out, suffix):
             page.goto(base + '/stick-army/')
             page.add_style_tag(content=NO_ANIM)
             page.evaluate('document.fonts.ready.then(() => 1)')
-            page.evaluate('(c) => armyTest(c)', code + '\nboil = 0; render();')
+            page.evaluate('(c) => armyTest(c)', code + ('\nsetFull(true);' if size[2] else '') + '\nboil = 0; render();')
             path = out / (name + suffix + '.png')
             page.screenshot(path=str(path))
             page.close()
@@ -126,6 +164,7 @@ def compare(a, b, diff_path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--ref', help='also draw the scenes with this commit and compare (e.g. main); fails on any difference')
+    ap.add_argument('--campaign', action='store_true', help="also draw Campaign's screens at three sizes and full screen")
     args = ap.parse_args()
     out = Path(os.environ.get('SCREENSHOTS', '/tmp/stick-army-shots'))
     out.mkdir(parents=True, exist_ok=True)
@@ -134,6 +173,10 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'))
         mine = shoot(browser, ROOT, out, '')
+        if args.campaign:
+            for size, dims in SIZES.items():
+                shoot(browser, ROOT, out, '-' + size, {'campaign-' + k: v for k, v in CAMPAIGN.items()}, dims)
+            print('Campaign: %s (campaign-<scene>-<size>.png: %s)' % (out, ', '.join(SIZES)))
         if not args.ref:
             browser.close()
             print('Scenes: %s (%s)' % (out, ', '.join(mine)))
@@ -148,8 +191,9 @@ def main():
     bad = 0
     for name in SCENES:
         same, why = compare(mine[name], theirs[name], out / (name + '.diff.png'))
-        print('%-4s %-8s %s' % ('PASS' if same else 'FAIL', name, 'identical to ' + args.ref if same else 'differs from %s: %s' % (args.ref, why)))
-        bad += not same
+        apart = name in TITLE_APART
+        print('%-4s %-8s %s' % ('PASS' if same else 'NOTE' if apart else 'FAIL', name, 'identical to ' + args.ref if same else 'differs from %s: %s%s' % (args.ref, why, ' (compared apart)' if apart else '')))
+        bad += not same and not apart
     print('Scenes: %s' % out)
     sys.exit(1 if bad else 0)
 

@@ -149,7 +149,12 @@
   }
   // Key moments call emit. It does nothing in normal play; test harnesses attach a listener (SPEC-005).
   var emitHook = null;
-  function emit(type, data) { if (S && S.coop) playerEvent(type, data || {}); if (emitHook) emitHook(type, data || {}); }
+  function emit(type, data) {
+    if (S && S.coop) playerEvent(type, data || {});
+    var on = S && S.game && MODES[S.game] && MODES[S.game].on;
+    if (on) on(type, data || {});
+    if (emitHook) emitHook(type, data || {});
+  }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function angDiff(a, b) { var d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
   function mulberry(a) {
@@ -399,7 +404,19 @@
   // ---------- what decides a run ----------
   // A run's kind (S.game, from RUN.game) decides its waves (the recipe for wave n), when it's won (asked as a wave
   // clears) and what winning does, and when it's lost (asked every frame of play). Arcade, the 20 waves that end with
-  // the Dreadnought, is the only kind so far, and the default; Campaign will add its own.
+  // the Dreadnought, is the default; Campaign (campaign.js) adds its own entry. A kind can also have any of these,
+  // which Arcade leaves out, so without them every run plays as Arcade always has:
+  //   cleared()         asked every frame of a wave: a goal met ends it early (the enemy surrenders, the wave clears)
+  //   lose()            what a loss does, instead of the wall's fall (die); over() what the end of dying does
+  //   begin(n)          told as wave n starts; seedKey(n) the number the wave is seeded with, if not n
+  //   next()            the wave after this one, if not S.wave + 1; waveName(n) how the wave is named on the cards,
+  //                     and shopLine() the shop's heading
+  //   banner(n, sub)    the wave's opening banner; endBanner() the one when won() is true as the wave clears
+  //   hud()             { wave, sub }: the HUD's wave label and the line under it
+  //   on(type, data)    hears every event emit() sends, and 'plane_away' when a plane leaves the page
+  //   bench(t)          a catch with no free slot: true if the kind took him (Arcade's "squad full!" otherwise)
+  //   sells(item)       whether the shop offers a supply; room() whether a hire has somewhere to go
+  //   promotes          false: no stripes for waves served (squad.js serveWave)
   var MODES = {
     arcade: {
       wave: function (n) { return waveCfg(n); },
@@ -411,6 +428,11 @@
   function rules() { return MODES[S && S.game] || MODES.arcade; }
   function waveFor(n) { return rules().wave(n); }
   function runWon() { return rules().won(); }
+  // The wave after this one, and how a wave is named on the cards ("Wave 3" in Arcade).
+  function nextWave() { return rules().next ? rules().next() : S.wave + 1; }
+  function waveName(n) { return rules().waveName ? rules().waveName(n) : 'Wave ' + n; }
+  // The shop's heading: "Wave 3 survived".
+  function shopLine() { return rules().shopLine ? rules().shopLine() : waveName(S.wave) + ' survived'; }
 
   // Arcade's waves. A run is 20 waves. Bosses every fifth: a zeppelin (5), the armored zeppelin (10), two zeppelins
   // at once (15) and the Dreadnought (20); in endless the twins return on the fives and the Dreadnought on the tens.
@@ -695,13 +717,19 @@
 
   // Crew health: helmets raise the maximum, trenches cut every kind of damage.
   var TRENCH = [1, 0.6, 0.4];
-  function crewMax(r) { return ENEMIES[r.type].hp + S.mods.helmet + (r.rank || 0) * RANK.HP; }
+  // Campaign's traits (campaign.js) live on the soldier (r.trait): Tough +1 health, Lucky shrugs off one hit a mission,
+  // Brave stays on his feet the first time he'd go down in a mission, Quick fires sooner, Steady aims tighter. Arcade's
+  // soldiers have none.
+  var TRAIT = { QUICK: 0.85, STEADY: 0.6 };
+  function crewMax(r) { return ENEMIES[r.type].hp + S.mods.helmet + (r.rank || 0) * RANK.HP + (r.trait === 'tough' ? 1 : 0); }
   function standing(r) { return !r.dead && !r.down; }
   // At zero health a recruit falls wounded (squad.js); any damage while down finishes him.
   function hurtRecruit(r, amount, cause) {
     if (r.dead) return;
     if (r.down) { recruitDie(r, cause); return; }
+    if (r.trait === 'lucky' && !r.luckUsed) { r.luckUsed = true; r.hurt = Math.max(r.hurt, 0.2); addText('lucky!', r.x, GROUND - 52, BLUE, 20); return; }
     r.hp -= amount * TRENCH[Math.min(S.mods.trench, TRENCH.length - 1)];
+    if (r.hp <= 0 && r.trait === 'brave' && !r.braveUsed) { r.braveUsed = true; r.hp = 0.5; addText('not yet!', r.x, GROUND - 52, BLUE, 20); }
     r.hurt = Math.max(r.hurt, 0.2);
     if (r.hp <= 0) knockDown(r, cause);
   }
@@ -718,7 +746,9 @@
   // field is clear, anything still due (a rush, a cargo plane, the zeppelin) comes in after WAVE_HURRY seconds.
   var WAVE_BANNER = 2.2, WAVE_HURRY = 1.5;
   function startWave(n) {
-    S.wave = n; seedWave(n);
+    var rl = rules();
+    S.wave = n; if (rl.begin) rl.begin(n);
+    seedWave(rl.seedKey ? rl.seedKey(n) : n);
     // With the flag flying, the squad salutes it as the wave's bugle plays.
     if (S.mods.flag && S.flagUp >= 1) S.saluteT = FLAG.SALUTE;
     S.medevac = []; S.skyFx = []; S.wreck = null;
@@ -743,7 +773,7 @@
     if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
     // The Dreadnought needs no horn: it shows through the page first.
     if (c.bossKind === 'dread') { S.spawn.bossT = DREAD.ARRIVE; S.spawn.bossWarned = true; S.spawn.teaser = teaser; }
-    S.banner = { s: n === DREAD.WAVE && !S.won ? 'final wave' : 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
+    S.banner = rl.banner ? rl.banner(n, sub) : { s: n === DREAD.WAVE && !S.won ? 'final wave' : 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
@@ -812,6 +842,9 @@
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, CARGO.GAP[0], CARGO.GAP[1]) * sp.pace; } }
       if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, ROAD.GAP[0], ROAD.GAP[1]) * sp.pace; } }
       SKY.tick(sp, dt);
+      // A goal met (a kind's cleared()) ends the wave: the enemy surrenders and the wave clears as below.
+      var rl = rules();
+      if (rl.cleared && !sp.cleared && rl.cleared()) { sp.cleared = true; DN.surrender(null); }
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
       if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) SKY.settle(sp);
       if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies && !SKY.waiting()) {
@@ -823,7 +856,7 @@
         S.score += bonus + extra; gainTags(waveTags); flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave, untouched: untouched }); emit('coins', { amount: waveTags, reason: 'wave' });
         S.news = []; serveWave(S.news); careAtWaveEnd(S.news);
-        S.banner = runWon() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
+        S.banner = runWon() ? (rl.endBanner ? rl.endBanner() : { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 }) : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
         if (runWon()) S.waveTimer = 3.2;
         S.hint = false;
         // The final wave's own fanfare plays with the victory card, so its banner gets only the cheer.
@@ -915,7 +948,7 @@
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
   world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
   world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches; world.sendOff = sendOff;
-  world.drawItemIcon = drawItemIcon; world.waveCfg = waveFor; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig;
+  world.drawItemIcon = drawItemIcon; world.waveCfg = waveFor; world.nextWave = nextWave; world.waveName = waveName; world.shopLine = shopLine; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig;
   world.squadLine = function (bare, short) { return squadLine(bare, short); };
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   // Co-op's shop (shop.js): turret upgrades are each barrel's own; a guest's taps go to the host (coop.js).
@@ -1137,6 +1170,9 @@
       award(25, r.x, GROUND - 64, label, BLUE, true);
       sound.play('recruit'); world.say('ready!', r.id, false, 0.15);
       if (S.recruits.filter(function (q) { return !q.dead; }).length === S.mods.slots) addText('squad full!', 200, 520, BLUE, 24);
+      S.hint = false;
+    } else if (rules().bench && rules().bench(t)) {
+      // Campaign: no free slot on the field, but a free bunk in the barracks (campaign.js).
       S.hint = false;
     } else {
       emit('capture', { type: t.type, full: true });
@@ -1364,7 +1400,7 @@
     return { x: x + vx * tt, y: y + vy * tt };
   }
   function fireRecruit(r, ang) {
-    var baz = r.type === 'bazooka', a = ang + (RC() * 2 - 1) * ENEMIES[r.type].spread * Math.pow(0.72, S.mods.aim), sp = baz ? 300 : 520;
+    var baz = r.type === 'bazooka', a = ang + (RC() * 2 - 1) * ENEMIES[r.type].spread * Math.pow(0.72, S.mods.aim) * (r.trait === 'steady' ? TRAIT.STEADY : 1), sp = baz ? 300 : 520;
     S.bullets.push({ x: r.x + Math.cos(a) * 16, y: GROUND - 23 + Math.sin(a) * 16, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
       owner: 'ally', by: r.id, kind: baz ? 'rocket' : 'bullet', life: 1.6, dead: false });
     sound.play(baz ? 'rocket' : 'ally');
@@ -1427,7 +1463,7 @@
         if (tg) {
           var ap = aimPoint(r, tg), want = Math.atan2(ap.y - (GROUND - 23), ap.x - r.x);
           r.aim += angDiff(want, r.aim) * Math.min(1, dt * 10);
-          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) * (S.mods.flag ? FLAG.FIRE : 1) + between(RC, 0, 0.3); }
+          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) * (S.mods.flag ? FLAG.FIRE : 1) * (r.trait === 'quick' ? TRAIT.QUICK : 1) + between(RC, 0, 0.3); }
         } else r.cd = Math.max(r.cd, 0.2);
       }
     });
@@ -1453,7 +1489,7 @@
           emit('bomb_dropped', { by: 'bomber' });
           sound.play('whistle');
         }
-        if (p.x < -90 || p.x > W + 90) S.planes.splice(i, 1);
+        if (p.x < -90 || p.x > W + 90) { S.planes.splice(i, 1); if (rules().on) rules().on('plane_away', { kind: p.kind }); }
       } else {
         p.vy += 320 * dt; p.x += p.dir * p.speed * 0.6 * dt; p.y += p.vy * dt; p.rot = Math.min(1.25, p.rot + 1.7 * dt);
         p.smoke -= dt;
@@ -1755,8 +1791,8 @@
     S.recruits = S.recruits.filter(function (r) { return !r.dead; });
     S.bullets = S.bullets.filter(function (b) { return !b.dead; });
     S.bombs = S.bombs.filter(function (m) { return !m.dead; });
-    if (S.mode === 'play' && rules().lost()) die();
-    if (S.mode === 'dying') { S.dieT -= dt; if (S.dieT <= 0) showOver(); }
+    if (S.mode === 'play' && rules().lost()) (rules().lose || die)();
+    if (S.mode === 'dying') { S.dieT -= dt; if (S.dieT <= 0) (rules().over || showOver)(); }
   }
 
   // ---------- the flagpole ----------
@@ -1903,6 +1939,15 @@
     toggleFull = FLOW.toggleFull, nativeFullChanged = FLOW.nativeFullChanged, clearInput = FLOW.clearInput,
     toLogical = FLOW.toLogical, aimAt = FLOW.aimAt, stopFire = FLOW.stopFire, syncCallBtns = FLOW.syncCallBtns,
     wakeSound = FLOW.wakeSound, titleSoundBtn = FLOW.titleSoundBtn, titleScoresBtn = FLOW.titleScoresBtn;
+
+  // ---------- campaign ----------
+  // Campaign, the second way to play (campaign.js, its screens in campaign-screens.js), adds its own entry to MODES
+  // and its own button on the title. It's made after the flow, so its listeners come after Arcade's.
+  Object.assign(game, { die: die, seedWave: seedWave, waveCfg: waveCfg, gainTags: gainTags, tagsOf: tagsOf, openShop: openShop,
+    surrender: DN.surrender, mix: mix, setIds: function (o) { nextId = o.next; bubbleId = o.bubble; },
+    ids: function () { return { next: nextId, bubble: bubbleId }; }, snapshotRun: snapshotRun, restoreRun: restoreRun,
+    SLOT_ORDER: SLOT_ORDER, titleScene: titleScene, togglePause: togglePause, clearInput: clearInput, render: render });
+  var CAMPAIGN = window.StickArmyCampaign ? StickArmyCampaign(world, game) : null;
 
   // ---------- loop ----------
   var last = performance.now(), lastAmbience = 0;

@@ -96,7 +96,7 @@ var StickArmyShop = function (w) {
     ITEMS.push({ id: 'hire-' + h[0], role: h[0], name: h[1], desc: h[3], tier: 'hire', maxStacks: Infinity,
       cost: function () { return fives((h[2] + 15 * w.S.mods.hired) * war(WAR.HIRE)); },
       // One medic at a time: with one in the squad he's greyed, marked "Have one", rather than dropped from the list.
-      available: function () { return w.freeSlot(0) >= 0 && (h[0] !== 'medic' || !hasMedic()); },
+      available: function () { return w.freeSlot(0) >= 0 && (h[0] !== 'medic' || !hasMedic()) && (!w.rules().room || w.rules().room()); },
       blocked: h[0] === 'medic' ? function () { return hasMedic() ? 'Have one' : ''; } : null,
       apply: function (s) { s.mods.hired++; var r = w.makeRecruit(w.freeSlot(0), h[0]); r.fresh = true; s.recruits.push(r); } });
   });
@@ -122,8 +122,10 @@ var StickArmyShop = function (w) {
   // Offers walk a seeded shuffle of every supply and take the first eligible ones, so for a given seed
   // the offers change only when eligibility does.
   var OFFERS = 3;
+  // What this kind of run sells (game.js MODES): Campaign leaves out the extra slot and the training.
+  function sells(it) { var f = w.rules().sells; return !f || f(it); }
   function offer(n, skip) {
-    var order = ITEMS.filter(function (it) { return it.tier === 'supply' && skip.indexOf(it.id) < 0; }), i, j, tmp;
+    var order = ITEMS.filter(function (it) { return it.tier === 'supply' && skip.indexOf(it.id) < 0 && sells(it); }), i, j, tmp;
     for (i = order.length - 1; i > 0; i--) { j = Math.floor(w.RS() * (i + 1)); tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
     return order.filter(offerable).slice(0, n);
   }
@@ -279,9 +281,9 @@ var StickArmyShop = function (w) {
     // and the wave starts as he rides off (updateWave, units.js updateDelivery). New purchases wait, undrawn, until
     // then. A new flagpole goes up next, in its own scene (game.js openWave). Without either, the wave starts now.
     if (S.pizzaOrder) {
-      S.pizzaOrder = false; S.waveState = 'pizza'; S.nextWave = S.wave + 1;
+      S.pizzaOrder = false; S.waveState = 'pizza'; S.nextWave = w.nextWave();
       S.delivery = { x: -30, phase: 'arrive', wait: 0 };
-    } else w.openWave(S.wave + 1);
+    } else w.openWave(w.nextWave());
   }
   // Owned upgrades: this player's kit, the squad's lasting supplies and their own barrel's. Repeatable buys (repairs,
   // pizza, hires) aren't kit.
