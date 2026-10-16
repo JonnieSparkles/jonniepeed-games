@@ -210,7 +210,7 @@ var UnrugArena = function (core, tuning) {
     for (const e of R.arena.enemies) kill(e, by);
     R.arena.enemies = []; R.arena.thrown = []; R.shots = [];
   }
-  function addPickup(kind, u = 0) { const p = { kind, u, h: .08 + ground(u), got: false }; R.arena.pickups.push(p); return p; }
+  function addPickup(kind, u = 0) { const p = { kind, u, h: .08 + ground(u), got: false }; if (kind !== 'coffee' || core.healing()) R.arena.pickups.push(p); return p; }   // no coffee in Impossibull
   function pickups() {
     for (const p of R.arena.pickups) if (!p.got && touches(p.u, p.h, .1)) {
       p.got = true; emit('pickup', { item: p.kind });

@@ -86,6 +86,10 @@ var UnrugFloor48 = function (core) {
     collapse: { souls: 2, firstSoul: 1.6, soulEvery: .8, whip: 10, reserve: 16, reserveHp: 2, reserveSouls: 4, bendMax: .85 },
     ploom: { pan: .6, eye: .3, say: .8, threads: 1.3, snap: 1.75, yank: 2.6, free: 3.05, salute: 3.5, rise: 4.3, close: 4.1, white: 4.7, lobby: 5.3 },
     lobby: { walkIn: 1.1, dialFrom: 61, dingAt: 5.4, doorsT: 1.2, doorU: .6, doorway: .25, walkOut: 1, portraitU: -.12 },
+    // the shift clock (soul audit, owner Oct 15): the whole floor's fight has a time limit, so stalling at the last line
+    // can't farm souls for ever. p(Loom) warns on the PA at 30 and 10 seconds left and a small clock shows from the
+    // first warning; at zero he's reclaimed, an ordinary rugging. Set well past the slowest honest clears (history.md).
+    shift: { secs: 210, warn: [30, 10] },
     deadWait: 2.8
   };
   const td = UnrugTopdown(core, { world: F48.world, bounds: { x0: 30, y0: F48.wallH + 4, x1: 786, y1: 440 } });
@@ -628,8 +632,7 @@ var UnrugFloor48 = function (core) {
       if (!Q.qc) Q.qcPending = { t: F48.qc.delay, n: Q.panic - 1 };
       // the last line: its loom shielded at once (so it can't be finished off under the laser), the vessels awake but
       // holding fire until the laser has passed (owner, Oct 14: "split it")
-      if (Q.panic === 2) startReactor(true);
-      saveCheckpoint();
+      if (Q.panic === 2) startReactor(true);   // no checkpoint here: a continue restarts the whole floor (item 26)
     } else startCollapse();
   }
 
@@ -916,6 +919,21 @@ var UnrugFloor48 = function (core) {
     core.travel('elevator', { fight: true, from: 48, destination: { floor: 99, label: 'R', stage: 'roof' } });
   }
 
+  // ---------- the shift clock ----------
+  const shiftLeft = () => F48.shift.secs - Q.t;
+  function stepShift() {
+    const left = shiftLeft(), C = Q.events;
+    F48.shift.warn.forEach((w, i) => {
+      if (left <= w && !C['shift' + i]) { C['shift' + i] = true; say(i ? w + '.' : 'SHIFT ENDS IN ' + w + '.', 2); Snd.play('thump'); emit('f48_shift', { amount: w }); }
+    });
+    if (left > 0) return false;
+    // time: an ordinary rugging, his soul for reclamation
+    say('TIME. UNIT FLAGGED FOR RECLAMATION.', 3);
+    R.lastCause = 'shift'; emit('hit', { amount: R.hearts, cause: 'shift' });
+    core.die();
+    return true;
+  }
+
   // ---------- the tick ----------
   function update(dt) {
     if (R.phase === 'win') return;
@@ -926,6 +944,7 @@ var UnrugFloor48 = function (core) {
     if (Q.t > 4.4 && !Q.events.said) { Q.events.said = true; core.bark('f48start'); }
     if (Q.t > 1 && !Q.events.pa && Q.panic === 0) { Q.events.pa = true; say('RECLAMATION IS AHEAD OF SCHEDULE.', 2.6); }
     if (Q.st === 'fight') {
+      if (stepShift()) return;
       stepLines(dt); stepHazards(dt); stepChain(dt); stepCues(); stepQC(dt); stepCombo(); stepReactor(dt); stepCart(dt);
       // the overloading loom throws sparks (drawn only)
       const lm = Q.panic === 2 && Q.machines.find(overloaded);
@@ -1468,6 +1487,11 @@ var UnrugFloor48 = function (core) {
         if (!dn) { rect(g, x + 1, y + 1, 1, 5, '#ff7a2a'); rect(g, x + 4, y + 1, 1, 5, '#ff7a2a'); rect(g, x + 7, y + 1, 1, 5, '#ff7a2a'); const k = lm.hp / lm.max; rect(g, x, y + 8, Math.round(10 * k), 1, k < .34 ? '#d63428' : '#3aa86a'); }
         else { core.line(g, x + 1, y + 1, x + 8, y + 6, '#d63428'); core.line(g, x + 8, y + 1, x + 1, y + 6, '#d63428'); }
       }
+      const left = shiftLeft();
+      if (left <= F48.shift.warn[0]) {
+        const s = Math.max(0, Math.ceil(left)), red = left <= F48.shift.warn[1];
+        if (!red || Math.floor(R.t * 4) % 2) otxt(g, Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'), 120, 24, red ? '#ff5a4a' : '#ffd44a', 1, 'center');
+      }
       if (Q.panic && Q.st === 'fight' && Math.floor(R.t * 3) % 2) otxt(g, Q.panic > 1 ? 'PANIC!!' : 'PANIC', 120, 15, Q.panic > 1 ? '#ff5a4a' : '#ffd44a', 1, 'center');
       // the chain callout: big on its beats, gold flickering to orange, gone a second after the last link
       const co = Q.callout;
@@ -1549,11 +1573,12 @@ var UnrugFloor48 = function (core) {
     soulFreed(f) { f.to = { x: W / 2 - 10 - textWidth(String(R.souls)), y: 7 }; },
     aim: noop, shotHits: () => false, shotFar: () => false, posOf: o => o, slash: noop, hurt: noop, blasterBack: noop,
     bonusBy: () => null, endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop,
-    checkpoint() { if (Q && Q.st !== 'lobby') core.setCheckpoint({ stage: 'floor48', souls: R.checkpointSouls != null ? R.checkpointSouls : R.souls, continues: R.continues, down: Q.down.slice(), seedState: core.seedState(), runSeed: core.runSeed() }); },
+    // no checkpoint at a rugging: a continue restarts the whole floor from the one saved as he came in (newRun), with the
+    // souls he came in with, every line running again and the same line kinds (item 26)
     stageNo: () => R.phase === 'win' ? 22 : Q.st === 'lobby' ? 21 : Q.st === 'collapse' ? 21 : 18 + Q.panic,
     stageNames: { 18: 'The 48th Floor', 19: 'The 48th Floor: one line down', 20: 'The 48th Floor: last line', 21: 'The 48th Floor: collapse and lobby', 22: 'The 48th Floor cleared' },
     pauseText: 'The factory waits.',
-    continueText: () => Q && Q.panic ? 'Back in the factory with full hearts? Lines you shut down stay down.' : 'Back in the factory with full hearts?',
+    continueText: () => 'Back to the start of the floor with full hearts?',
     clearCard, afterClear: () => startLobby(false),
     F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, hurtMachine: hurt, solids, startReactor, hitCart, vessels, shielded, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
   };

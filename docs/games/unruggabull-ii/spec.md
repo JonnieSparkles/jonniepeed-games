@@ -83,7 +83,7 @@ A corridor floor of about two minutes, then SHRED-O.
   - Every deflect gives the blaster a few charges back, so deflecting keeps you shooting.
   - If the runner drags you all the way in, you lose two hearts and get spat back out.
 - **Clear.** The final hit runs in slow motion before SHRED-O blows. "THE 13TH FLOOR CLEAR", the souls float up, Unruggabull throws the horns up, and a card shows souls freed, time, deflects, best streak, smashes and best. “Take the elevator” continues this run through the ride to the roof; Play again stays. The quiet ride goes 13→48; the lobby then takes the long ride to the roof.
-- **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor. Beaten by SHRED-O, Continue picks up at the fight with full hearts. (Lives across a full run are still open; see below.)
+- **Dying.** Five hearts. At zero in the hall: "RUGGED. CONTINUE?" restarts the floor, carrying the run. Beaten by SHRED-O, Continue picks up at the fight with full hearts. (Lives and continues across a run: see Difficulty and continues.)
 
 ## Elevator and drops (built)
 
@@ -97,7 +97,7 @@ A side-view car in its shaft, no scrolling: walnut and brass, art-deco doors wit
 
 No supplies are carried (owner, Oct 15): the quiet ride's Spread Shot, Bull Run and Spare Vest were dropped. With the difficulty modes, the long ride's crate is to become a reward for a ride without a hit: the operator's bellhop cap on Regular, a crown on Raging (where the crate gives no hearts), worn for the run and shown on the run's initials on the board. Not built yet.
 
-Rugged in the long ride, Continue goes back to the threads with full hearts and the souls he came in with; Restart floor starts the ride over. `#stage=elevator` starts the 13→R ride.
+Rugged in the long ride, Continue starts the whole ride again with full hearts and the souls he came in with; Restart floor starts the ride over. `#stage=elevator` starts the 13→R ride.
 
 ## Look
 
@@ -156,7 +156,7 @@ The corridor view stays behind him. The open-air set shares the 13th Floor's lit
 6. **The beam.** A thick ribbon from the muzzle, firing on its own; he walks with it (left/right or dragging on the picture), its far end trailing him in a curve and leaning toward the eye. On the eye it drains ten percentage points a second; off it the odds creep back at three points a second. It melts carpshits in its lane, and damage to him never interrupts it. The eye runs along its rail faster as odds fall: “PROBABILITY OF CAPTURE: ZERO.”, then “RECALCULATING.” when caught again.
 7. **Dawn.** At 1%, “UNLIKELY.” and a beat, then the threads snap. Threads loosen, the eye goes dark, rain stops, sunrise opens and the chord hook rings. The souls drift up and the counter keeps rolling before clear. The core's escape into the Sky Wrecker needs its own ending storyboard.
 
-All three cuts freeze fight timers and hold input. Five hearts; a continue preserves broken spools and caught souls and resumes the phase lost, or the quiet for a crescendo death. The direct roof entry seeds 100 earlier-floor captives from one `ROOF.initialCaught` number, already in the score. Every captive is drawn across six rows of ten thread gaps, with slightly offset overlapping layers so roughly 60 silhouettes remain readable when the counter reaches the 200s. The flood and dawn use the full captured count, with no double scoring. Roof charges refill every 0.35 seconds, while the 13th Floor remains at 0.5 seconds. Bot clears take about 2:40 to 2:55. The 13th Floor's clear now connects through the 13→48 quiet ride, factory and lobby, then the 48→R long ride.
+All three cuts freeze fight timers and hold input. Five hearts; a continue preserves broken spools (not the failed try's souls) and resumes the phase lost, or the quiet for a crescendo death. The direct roof entry seeds 100 earlier-floor captives from one `ROOF.initialCaught` number, already in the score. Every captive is drawn across six rows of ten thread gaps, with slightly offset overlapping layers so roughly 60 silhouettes remain readable when the counter reaches the 200s. The flood and dawn use the full captured count, with no double scoring. Roof charges refill every 0.35 seconds, while the 13th Floor remains at 0.5 seconds. Bot clears take about 2:40 to 2:55. The 13th Floor's clear now connects through the 13→48 quiet ride, factory and lobby, then the 48→R long ride.
 
 Sound hooks now synthesize storm rain/wind, delayed thunder, the fight's warnings, lasers, needles, eye, carpet and katana sounds, spool crack/twang, beam roar, final snap and a dawn major chord. The fight track is Saga II (152, heavy 170 BPM, D minor): Coheed-style metal with distorted power chords, a clean echoing intro, a choppy verse and an eight-bar chorus reaching for D, F and A, with a twin guitar from round 2 and the souls' choir from round 3; its heavy version opens on the chorus and adds a tapping solo. Two earlier candidates stay for comparison (`#music=b`, `#music=c`). Spool snaps are one crashing power chord. The final accounted word cuts music without a tail. Quiet/return have only storm ambience and the three D-minor bells; 1% drops to held D5, and a D-major chord crosses snap into dawn. A lower machine pulse voice preserves the previous 38 ms letter cadence. Its final voice is still open. Souls have cosmetic jitter, independent bob/sway, row depth and arrival/quiet pulses. They curve into reserved warp slots, shake loose for the three bells, and depart their actual slots over one second during the flood; arrivals retain their original three-second timing. At most 96 flying souls and three faint trail stamps each are drawn per frame, with eight distributed warm lights. Dawn uses the full count with staggered rises, side-to-side drift and fade; the displayed counter adds released captives to the pre-dawn total and preserves that total on the clear card; seeded run score stays unchanged. The eye supplies orange/red/white light, two distant flashes precede the reveal, the beam supplies six gold lights, and dawn warms in two seconds. Shake uses one decaying function, halved under reduced motion. Spool snaps hold the picture for three frames during their existing intermission, preserving outcomes and input.
 
@@ -165,6 +165,10 @@ Roof fixes: the dawn display and clear card never reset the counter; the full li
 The music system and unlinked phone music lab are ready for composition. Pattern/order, envelopes, vibrato, arpeggios, slides, echoes, stems, beat/bar switches, hard cuts, downbeat slams and stingers are implemented. The six original tracks for the 13th Floor render byte-identically. The fight track is chosen (Saga II); art and phone playtesting remain.
 
 On the roof, playable side/top-down views stay dropped. Moving is the thumb stick on the grid; the beam fires on its own and a finger drags it (the owner, Oct 14). The 48th Floor is top down by design, with two sticks rather than drag-to-move.
+
+## Difficulty and continues (settled Oct 14–16, built)
+
+Four modes, picked on the title and kept for the run, each with its own board: **Baby Bull** (every hit costs half a heart), **Regular Bull** (the game as tuned), **Raging Bull** (hearts carry between stages; more to design once he's played the finished game), **Impossibull** (five hearts from the start and nothing gives one back; unlocked by a Raging Bull clear). Hearts refill between stages on Baby and Regular. Continues are unlimited; a continue loses the failed try's souls; a run that continues is off the board on every mode. Where a continue restarts: the stairwell at the garage or the katana; the 13th Floor at its door, or at SHRED-O once it's woken; the rides over; the 48th Floor whole; the roof at the phase or the quiet (his call, open). The 48th has a shift clock so stalling can't farm souls. Built as the README describes; the long ride's crate as a reward for a ride without a hit (above) is still to build.
 
 ## Later stages
 
@@ -176,7 +180,7 @@ On the roof, playable side/top-down views stay dropped. Moving is the thumb stic
 
 ## Open questions
 
-- Lives across a full run: restart at the floor you died on, and how many lives?
+- The roof's continue point (the phase or the quiet today), after his play of the finished roof.
 - The leaderboard metric: souls freed, floors, or time.
 - The Unruggabull recording script (15 to 20 lines). A first draft is in the game as `LINES`; it needs Jonnie's approval before recording.
 - p(Loom)'s voice (see Sound). Does it start breaking down as its odds fall?

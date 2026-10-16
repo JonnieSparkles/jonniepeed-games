@@ -54,7 +54,11 @@ var UnrugCards = (function () {
       txt(L.p + '%', x + w, y + 2, CAP.dim, 2, 'right');
       return x + 18 + tw('P(LOOM)', 2) + 10;
     }
+    // the run's mode, small and dim, ahead of the flags (item 29)
+    const MODE_NAMES = { baby: 'BABY BULL', regular: 'REGULAR BULL', raging: 'RAGING BULL', impossibull: 'IMPOSSIBULL' };
     function flags(x, y, t) {
+      const mode = MODE_NAMES[info.mode];
+      if (mode) { txt(mode, x, y + 2, CAP.dim, 2); x += tw(mode, 2) + 8; }
       if (t < 1.4) return;
       if (info.best) x += chip(x, y, 'NEW BEST', Math.floor(t * 3) % 2 ? CAP.rule : CAP.ink, CAP.bg) + 6;
       if (info.retried && info.kind === 'clear') chip(x, y, 'RETRIED', '#d63428', '#fff6e2');

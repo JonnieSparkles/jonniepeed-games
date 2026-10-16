@@ -155,11 +155,11 @@ var UnrugElevator = function (core) {
       dust: [], sparks: [], lift: 0, cap: 0, lobby: !fight && at && at.transfer && at.lobby ? true : null };
     Q.exitAt = fight ? T.doors + ELEVATOR.ask.out : top().doors + ELEVATOR.exitAfter;
     Q.cues = (fight ? LONG : quietCues()).slice().sort((a, b2) => a[0] - b2[0]);
-    // a continue from the long ride's fight starts again at the threads, with the souls it came in with
+    // a continue starts the ride again from its doors, with the souls it came in with (item 26: the long ride too, not the threads)
     const startAt = at && !at.transfer && at.startAt ? at.startAt : 0;
     core.setCheckpoint({ stage: 'elevator', souls: R.souls, continues: R.continues,
       destination: Q.destination, from: Q.from, fight,
-      startAt: fight ? T.thread : 0, seedState: core.seedState(), runSeed: core.runSeed() });
+      startAt: 0, seedState: core.seedState(), runSeed: core.runSeed() });
     if (startAt) {
       for (let t = 0; t < startAt; t += 1 / 60) Q.shaft += speedAt(t) / 60;
       Q.t = startAt; while (Q.cue < Q.cues.length && Q.cues[Q.cue][0] < startAt) Q.cue++;
@@ -221,7 +221,7 @@ var UnrugElevator = function (core) {
       c.u = Math.max(Math.max(UX(200), bull.u + .109), c.u - ELEVATOR.crateSpeed * dt);
       if (Math.abs(c.u - bull.u) < .118 && bull.jh < .07) {
         c.got = true; Snd.play('power');
-        if (R.hearts < TUNE.hearts) { c.gave = 'hearts'; R.hearts = TUNE.hearts; core.popText('FULL HEARTS', 120, 78, '#ffd44a'); }
+        if (R.hearts < TUNE.hearts && core.healing()) { c.gave = 'hearts'; R.hearts = TUNE.hearts; core.popText('FULL HEARTS', 120, 78, '#ffd44a'); }
         else { c.gave = 'souls'; Q.crateSouls = ELEVATOR.crateSouls; core.popText('+' + ELEVATOR.crateSouls + ' SOULS', 120, 78, '#ffd44a'); }
         emit('elevator_supply', { item: c.gave });
       }
@@ -627,7 +627,7 @@ var UnrugElevator = function (core) {
     bonusBy: () => null, endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop,
     stageNo: () => R.phase === 'win' ? 17 : 16, stageNames: { 16: 'Elevator ride', 17: 'Elevator cleared' },
     pauseText: 'The elevator waits.',
-    continueText: () => Q.fight ? 'Back to the threads with full hearts?' : 'Ride again with full hearts?',
+    continueText: () => 'Ride again with full hearts?',
     clearCard: (extra, best, clock) => ({ title: 'Elevator clear', text: '', rows: [['Souls', String(R.souls)], ['Time', clock(R.endT)]], note: '' }),
     ELEVATOR, T, arena, top, floorAt, speedAt, shakeAt, doorOpening, fightOn, locked, cutActive, spawnWave
   };

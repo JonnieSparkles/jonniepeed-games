@@ -38,6 +38,8 @@
       renderEffects = options && options.fast === false && ['roof', 'elevator', 'floor48'].includes(options.stage); renderSteps = 0; renderedState = null;
       travelHook = options && ['elevator', 'floor48'].includes(options.stage) ? function () { endRun('clear'); return true; } : null;
       RUN.force = seedv;
+      setMode(options && options.mode || 'regular');   // --option mode=baby (raging, impossibull); Regular by default
+      RUN.full = false;
       if (options && options.stage === 'elevator' && (options.from != null || options.fight != null || options.destination != null)) {
         const ride = floors.elevator.ELEVATOR;
         newRun({ stage: 'elevator', transfer: true, souls: 0,

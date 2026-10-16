@@ -12,7 +12,7 @@ var UnrugTitle = (function () {
     { id: 'baby', name: 'BABY BULL', short: 'BABY', line: 'EXTRA HEALTH.' },
     { id: 'regular', name: 'REGULAR BULL', short: 'REGULAR', line: 'REGULAR HEALTH.' },
     { id: 'raging', name: 'RAGING BULL', short: 'RAGING', line: 'NO HEALTH RESETS.' },
-    // owner, Oct 16: five hearts for the whole climb, nothing gives one back; locked until Raging Bull is cleared
+    // owner, Oct 16: five hearts for the whole climb, nothing gives one back; locked until a full run is cleared on Raging Bull
     { id: 'impossibull', name: 'IMPOSSIBULL', short: 'IMPOSSI', line: 'NO HEALING.' }
   ];
   const MODE_KEY = 'unruggabull-ii-mode';
@@ -391,12 +391,13 @@ var UnrugTitle = (function () {
       zone(x, y, w, h, id);
     }
     function trophy(g, x, y, col) { R(g, x, y, 9, 1, col); R(g, x + 1, y + 1, 7, 4, col); R(g, x, y + 1, 1, 2, col); R(g, x + 8, y + 1, 1, 2, col); R(g, x + 3, y + 5, 3, 2, col); R(g, x + 2, y + 7, 5, 1, col); }
-    function boardLine(g, x, y, max) {
+    // zh: the tap zone's height in grid pixels, so the line is a 44 px target on a phone (40 upright, 34 in the band)
+    function boardLine(g, x, y, max, zh) {
       const list = act.board ? act.board(MODES[mode].id) : null;
-      if (!list) return;   // no boards yet: the line waits for them (item 29)
+      if (!list) return;   // no board: no line
       const top = list[0], s = top ? 'TOP ' + top[0] + ' ' + top[1] : 'NO RUNS YET';
       trophy(g, x, y + 1, P.gold); T(g, s, x + 13, y, P.dim, 2); T(g, '>', x + 13 + tw(s, 2) + 6, y, P.dim, 2);
-      zone(x, y - 8, Math.max(max || 0, 13 + tw(s, 2) + 14), 26, 'board');
+      zone(x, y - 14, Math.max(max || 0, 13 + tw(s, 2) + 14), zh, 'board');
     }
     function padlock(g, cx, cy, s, col) {
       R(g, cx - 4 * s, cy - 8 * s, 8 * s, 2 * s, col); R(g, cx - 4 * s, cy - 7 * s, 2 * s, 6 * s, col); R(g, cx + 2 * s, cy - 7 * s, 2 * s, 6 * s, col);
@@ -480,7 +481,7 @@ var UnrugTitle = (function () {
       steelKey(g, sx, 14, 42, 42, 'sound'); speaker(g, sx + 21, 14 + 21, act.soundOn(), act.soundOn() ? P.gold : P.dim);
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
       MODES.forEach((m, i) => callButton(g, 46 + i * 76, 104, 30, i, tt, 146));
-      boardLine(g, 14, 178, w - 28);
+      boardLine(g, 14, 178, w - 28, 40);
       bigButton(g, 10, h - 50 - FOOT, w - 20, 50, 'START', true, 'start', 3);
     }
     // sideways and on a desktop: a band over the picture's bottom, 480 wide
@@ -490,7 +491,7 @@ var UnrugTitle = (function () {
       if (board) { boardView(g, w, h, true); return; }
       led(g, 12, 8, 150, 40, tt);
       MODES.forEach((m, i) => callButton(g, 190 + i * 44, 28, 19, i, tt));
-      boardLine(g, 12, 62);
+      boardLine(g, 12, 62, 0, 34);
       bigButton(g, w - 128, 10, 116, 40, 'START', true, 'start', 3);
     }
 

@@ -112,7 +112,7 @@
     F.breakMachine(loom, 'shot'); tick(.1);
     check(Q().down[1] && Q().panic === 1 && R.banner && R.banner.text === 'PRODUCTION PANIC', 'the loom takes its line down: Production Panic');
     tick(1.5); check(Q().machines.filter(m => m.line === 1).every(m => m.dead), 'the rest of the line goes down end to end');
-    check(checkpoint && checkpoint.stage === 'floor48' && checkpoint.down[1], 'a continue keeps the line down');
+    check(checkpoint && checkpoint.stage === 'floor48' && !checkpoint.down.some(Boolean) && checkpoint.souls === 0, 'the checkpoint stays the floor\'s start (item 26)');
     // the clutter: canisters set each other off, crates hold power-ups, a console hurts its line's loom
     fresh(); bull.inv = 1e9;
     const cans = Q().props.filter(p => p.kind === 'canister'), c0 = cans[0], c1 = cans[1], s1 = R.souls;
@@ -233,10 +233,12 @@
     fresh(); bull.inv = 1e9; tick(12);
     const bulk = Q().kinds.indexOf('roll');
     check(R.events.made > 2 && R.td.enemies.some(e => e.line === bulk && (e.kind === 'roll' || e.kind === 'flyer')), 'the lines make carpshits, the bulk line rolls');
-    // rugged and continue: the lines stay down
-    fresh(); F.breakMachine(machine(0, 'loom'), 'shot'); tick(.1); bull.inv = 0; hurtBull(5, 'test'); tick(3);
-    check(state === 'over' && checkpoint.down[0], 'rugged in the factory: the continue card');
-    Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry'); check(R.stage === 'floor48' && Q().down[0] && !Q().down[1] && R.hearts === 5 && R.continues === 1, 'continue: full hearts, the line still down');
+    // rugged and continue: the whole floor again, every line running, the failed try's souls gone (item 26, soul audit)
+    fresh(); const kinds0 = Q().kinds.join(); F.breakMachine(machine(0, 'loom'), 'shot'); tick(.1);
+    check(R.souls > 0, 'souls freed in this try'); bull.inv = 0; hurtBull(5, 'test'); tick(3);
+    check(state === 'over' && !checkpoint.down[0] && checkpoint.souls === 0 && Cards.info.back === 'THE START' && Cards.info.lost === R.souls, 'rugged in the factory: back to the start, this try\'s souls lost');
+    Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
+    check(R.stage === 'floor48' && !Q().down.some(Boolean) && R.souls === 0 && Q().kinds.join() === kinds0 && R.hearts === 5 && R.continues === 1, 'continue: the whole floor, full hearts, the same line kinds, no souls kept');
     // the end: the collapse, two souls and two bells, the streams whip across the reserve and bend in, p(Loom)'s beat
     fresh(); bull.inv = 1e9;
     for (const i of [0, 1, 2]) F.breakMachine(machine(i, 'loom'), 'shot');

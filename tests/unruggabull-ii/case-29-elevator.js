@@ -152,10 +152,10 @@
     travel('elevator', { fight: true, from: 48 });   // the 48th Floor's lobby takes the long ride
     check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && seed === longSeed, 'the long ride from 48 carries the run');
     bull.inv = 1e9; at(T.reel + 6); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'flyer'); tick(3);
-    check(state === 'over' && checkpoint.souls === 123 && checkpoint.startAt === T.thread && Cards.info.back === 'THE THREADS' && Cards.info.lost === 2, 'the rugged card: back to the threads, the two souls of this try lost');
+    check(state === 'over' && checkpoint.souls === 123 && !checkpoint.startAt && Cards.info.back === 'FLOOR 48' && Cards.info.lost === 2, 'the rugged card: back to the 48th, the two souls of this try lost (item 26)');
     Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
-    check(R.stage === 'elevator' && R.souls === 123 && R.hearts === 5 && R.elevator.t === T.thread && R.continues === 2 && !R.arena.enemies.length, 'continue starts at the threads');
-    tick(.5); check(R.talk && R.talk.speaker === 'ploom', 'the threads come in again');
+    check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && R.hearts === 5 && R.elevator.t === 0 && R.continues === 2 && !R.arena.enemies.length, 'a continue rides the whole long ride again');
+    at(T.thread + .5); check(R.talk && R.talk.speaker === 'ploom', 'the threads come in again');
     // the top: the threads let go and take the last carpshits with them, the music stops
     bull.inv = 1e9; at(T.arrive - .05); const souls = R.souls, left2 = R.arena.enemies.length;
     check(left2 > 0, 'carpshits up to the top'); tick(.1);

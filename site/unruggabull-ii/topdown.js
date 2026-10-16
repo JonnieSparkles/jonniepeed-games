@@ -445,7 +445,8 @@ var UnrugTopdown = function (core, tuning) {
     R.td.thrown = R.td.thrown.filter(p => !p.dead);
   }
   // pickups on the floor: a RugCo coffee (a heart back) or a Spread Shot; walk over one to take it
-  function addPickup(kind, x, y, life) { const p = { kind, x, y, t: 0, life }; R.td.pickups.push(p); Snd.play('appear'); emit('td_pickup_drop', { item: kind }); return p; }
+  function addPickup(kind, x, y, life) { const p = { kind, x, y, t: 0, life }; if (kind === 'coffee' && !core.healing()) return p;   // no coffee in Impossibull
+    R.td.pickups.push(p); Snd.play('appear'); emit('td_pickup_drop', { item: kind }); return p; }
   function stepPickups(dt) {
     for (const p of R.td.pickups) {
       p.t += dt;

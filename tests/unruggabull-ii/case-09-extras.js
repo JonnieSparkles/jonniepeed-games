@@ -94,13 +94,13 @@
   check(Cards.info.retried && !Cards.info.best, 'a clear after a retry says RETRIED, never NEW BEST');
   check(((JSON.parse(localStorage.getItem('unruggabull-ii-best')).time) || 0) === bestTime, 'a clear with continues does not set the fastest time');
 
-  // dying in the hall still starts the floor over
+  // dying in the hall starts the floor over, carrying the run (item 26)
   RUN.force = 910; startRun();
-  check(!checkpoint, 'a new floor clears the checkpoint');
+  check(checkpoint && checkpoint.hall && checkpoint.souls === 0, 'a new floor saves its door as the checkpoint');
   for (let i = 0; i < TUNE.hearts; i++) { bull.inv = 0; hurtBull(1); }
   step(TUNE.deadWait + .3);
   check(Cards.kind === 'rugged' && Cards.info.back === 'THE DOOR', 'rugged in the hall: Retry starts the floor over');
   Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
-  check(R.phase === 'hall' && R.souls === 0 && R.continues === 0, 'from the top');
+  check(R.phase === 'hall' && R.souls === 0 && R.continues === 1 && R.hearts === TUNE.hearts, 'from the top, the run carried: one retry, full hearts');
   } finally { Snd.music = oldMusic; Snd.stems = oldStems; }
 })();

@@ -190,7 +190,7 @@ var UnrugStairs = function (core) {
     if (k >= T.grab && !Q.done.grab) { Q.done.grab = true; Q.taken = Q.secT; Snd.play('stairShing'); }
     if (k >= T.raise && !Q.done.raise) {
       Q.done.raise = true; Snd.music('stairsFanfare', { slam: true }); emit('stairs_katana');
-      Q.gift = { n: Math.max(0, TUNE.hearts - R.hearts), landed: 0 };   // the hearts he's missing, given to him during the item get
+      Q.gift = { n: core.healing() ? Math.max(0, Math.ceil(TUNE.hearts - R.hearts)) : 0, landed: 0 };   // the hearts he's missing, given to him during the item get (none in Impossibull)
       R.banner = { text: 'RUGMERGENCY KATANA', t: -.25, dur: FANL - .3, top: true };
     }
     if (raising()) {
@@ -209,7 +209,7 @@ var UnrugStairs = function (core) {
       // the cue slams back in a layer up, and the first one with the katana comes
       Q.st = 'play'; Q.katana = true; R.arena.bare = false; R.arena.pose = null; R.arena.locked = false;
       bull.u = UX(to); bull.facing = -1; Q.script = 0; Q.scriptT = 0;
-      R.hearts = TUNE.hearts;   // the Rugmergency refills him
+      if (core.healing()) R.hearts = TUNE.hearts;   // the Rugmergency refills him (not in Impossibull)
       music(true); say('SLASH', .3); checkpoint();
     }
   }
@@ -612,7 +612,7 @@ var UnrugStairs = function (core) {
       const born = .35 + i * .12, lands = GIFT.land + i * GIFT.gap, t0 = lands - GIFT.fly;
       if (r < born) continue;
       const a = r * GIFT.orbit + i * Math.PI * 2 / G.n, ox = cx + Math.cos(a) * GIFT.radius, oy = cy + Math.sin(a) * 5 - Math.sin(a * .5 + i) * 2;
-      const f = r < t0 ? 0 : ease(span(r, t0, lands)), slot = R.hearts + (i - G.landed);
+      const f = r < t0 ? 0 : ease(span(r, t0, lands)), slot = Math.floor(R.hearts) + (i - G.landed);   // Baby Bull's half heart fills first
       const tx = 4 + slot * 10 + hw / 2, ty = 3.5 + hh / 2;
       const x = lerp(ox, tx, f), y = lerp(oy, ty, f), grow = f ? 1 : Math.min(1, (r - born) / .25), depth = f ? 1 : .8 + .2 * Math.sin(a);
       g.globalAlpha = .5 * grow; g.globalCompositeOperation = 'lighter'; g.fillStyle = '#ff4a3a';
