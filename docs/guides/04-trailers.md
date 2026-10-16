@@ -1,6 +1,6 @@
 # 04: Trailers
 
-A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) and Unruggabull (33 s, the game's own theme, from its own repo) have one.
+A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) Unruggabull (33 s, the game's own theme, from its own repo) and Unruggabull Remastered (39 s, the theme again, much of it on a phone) have one.
 
 ## Running
 
@@ -36,6 +36,8 @@ On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 mi
 - **The game's own music, in one pass.** A game that plays its own music from timers (Thimbleful's loop is scheduled from `setInterval`) can't be cut from separate takes without the music jumping at every cut. With `audio.score`, shots.py steers the game's music itself (Thimbleful: `start()`, then `intensity()` at the cozy and storm tempos) and `cut.score_calls` moves every shot's sound effects to the trailer's time. Both are replayed into one sound object, so the music runs straight through and the catch notes still follow its chords. In the replay, the page's timers run on the audio clock (`audio.timers`).
 - **`<audio>` elements.** Games that play files (`new Audio('ow.mp3').play()`, Unruggabull) get `audio.media`: the harness logs every element's plays, pauses, seeks and rate and volume changes, and `media.py` mixes the same files back in at those times. `audio.exclude` leaves the music out, so `music.py` can cut it to the trailer instead (Unruggabull: the theme's intro, its drop, silence for the boss's entrance like the game, then 1.5x for the fight, like the game).
 - **ES modules.** The bridge (`script`, `inject_before`) also works on a module: injected into Unruggabull's `src/controller.js`, its eval sees that module's imports (`state`, `player`, the enemies), and the director reaches other modules with `import()`. A game whose loop only runs during play uses `"hook": "@frame"`: the harness runs the plan from an animation frame of its own, title screen included.
+- **Live sound.** A game whose sound is all one Web Audio context, mixed by its own code (Unruggabull Remastered: ducking, muffles, slow-motion music), gets `audio.live`: its `AudioContext` is an `OfflineAudioContext` that the capture renders a frame at a time, in step with the fake clock, so the take's sound is exactly what the game played. The director can disconnect the music's clips so `music.py` lays the theme in. Wait long enough after load for the sound to decode (`settle_ms`), or a sound can start late and the run stops repeating.
+- **Phones.** A take can set its own `viewport`, `scale`, `touch` (a touch screen: the remaster's d-pad and Fire show and react) and `screen` (screenshots instead of the canvas, for anything drawn outside it: touch controls, the end card, the board). A shot's camera can be an object with `compose(frame, u)` that builds the whole picture: the remaster's `Phone` puts a 2340 × 1080 phone take in a phone held sideways.
 
 ## Making one
 
@@ -55,7 +57,7 @@ Add `tests/<slug>/trailer/`:
 | File | Role |
 | --- | --- |
 | `trailer.json` | The page, viewport and capture `scale`, the per-frame function to hook (`hook`), the framing CSS and director files, and the sound object: `{object, script, init, state}`, where `state` lists flags to restore with each call (Crack: `quiet`). `canvas` (`{selector, upscale}`) films a canvas's own pixels; `audio.timers` and `audio.score` are for games that play their own music (see above); `quiet_marks` lists marker prefixes too frequent to print. Games that keep their code in a closure add `script` and `inject_before`, like `balance.json`, and get the same eval bridge (not tried yet; Stick Army would be the first). |
-| `takes.json` | Takes by name: `seed`, `max_s` and the `plan`. |
+| `takes.json` | Takes by name: `seed`, `max_s` and the `plan`, and optionally the take's own `viewport`, `scale`, `touch` and `screen`. |
 | `director.js` | The scripted player, evaluated in the game's scope after the shared harness. |
 | `trailer.css` | Framing for the trailer: Crack makes the Mom Cam 446 px and hides buttons and stats. |
 | `layers.html` | Text layers. Each `<template id>` becomes a transparent PNG; `{{SITE}}` is the local site's address, for the game's fonts. |

@@ -63,6 +63,10 @@ The 2025 game's files, all of them, plus a sound pass (`audio.js`; heard first o
 
 Reported through `site/assets/stats.js` (switched off): a run starts when the controls screen is dismissed and ends rugged (`over`), cleared (`won`) or quit from the pause card. Score: unrugged. Stats: `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight`, `boss_hp` (0–60, once the fight has started).
 
+## Trailer
+
+39 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../../guides/04-trailers.md)) from `tests/unruggabull-remastered/trailer/`: the 2025 title wiping to the remaster's, "Now on mobile" with the alley played on a phone's touch controls in a phone frame, the polish up close, the Rugfather's entrance in silence, the fight with the theme at 1.5x, then "Race the clock. Earn the medals." over the end card and board, and the share card's poster to close. The sound is the game's own, rendered live from its Web Audio (`audio.live`), with the theme cut to the edit (`music.py`). The board's other rows are seeded on the device for the take, and the take's offline note above them is hidden; the boss take is staged to wave 6 with 73 unrugged. `python3 tools/trailer/make.py unruggabull-remastered` rebuilds it (about 25 minutes on 2 CPUs, most of it the boss take's screenshots).
+
 ## Code
 
 Classic scripts, loaded in this order by `site/unruggabull-remastered/index.html` (after the site's `leaderboard.js` and `stats.js`):

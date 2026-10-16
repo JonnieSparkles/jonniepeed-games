@@ -34,6 +34,7 @@ class Take:
         d = json.loads((self.path / 'take.json').read_text())
         self.frames, self.marks, self.windows, self.dry = np.array(d['frames']), d['marks'], d.get('windows', []), d.get('dry', False)
         self.snd, self.upscale = d.get('snd', []), d.get('upscale') or 1
+        self.screen = bool(d.get('screen'))
         self._audio = None
 
     def mark(self, name, after=None, nth=0):
@@ -112,8 +113,9 @@ class Cut:
         z, cx, cy = cam
         src = take.frame(t)
         sw, sh = src.size
+        k = sw / self.w if getattr(take, 'screen', False) else self.src_scale   # a take filmed at its own size
         w = sw / z; h = w * self.h / self.w
-        x0 = min(max(cx * self.src_scale - w / 2, 0), sw - w); y0 = min(max(cy * self.src_scale - h / 2, 0), sh - h)
+        x0 = min(max(cx * k - w / 2, 0), sw - w); y0 = min(max(cy * k - h / 2, 0), sh - h)
         return src.resize((self.w, self.h), Image.LANCZOS, box=(x0, y0, x0 + w, y0 + h)).convert('RGBA')
 
     def render(self, t):
@@ -124,7 +126,8 @@ class Cut:
             return self.spec.get('overlay', lambda t, im: im)(t, self.spec['open'][1](t))
         for s0, s1, take, src0, cam in self.spec['shots']:
             if s0 <= t < s1:
-                im = self.game_frame(take, src0 + t - s0, cam(t - s0))
+                # a camera with compose() builds the whole picture from the take's frame (a device frame, say)
+                im = cam.compose(take.frame(src0 + t - s0), t - s0) if hasattr(cam, 'compose') else self.game_frame(take, src0 + t - s0, cam(t - s0))
                 break
         else:
             raise ValueError('no shot at %.3fs' % t)

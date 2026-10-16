@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- The trailer's text layers, in the remaster's own type (Bungee, as its wordmark and banners) and colours (ember and
+     amber on near-black). tools/trailer/layers.py renders each <template> to a transparent 1920x1080 PNG. -->
+<link rel="stylesheet" href="{{SITE}}assets/fonts/fonts.css">
+<style>
+:root{--ember:#ff6a1a;--amber:#ffc53a;--cream:#f4e4d0;--night:#0b0606}
+html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hidden}
+#L{position:absolute;inset:0}
+/* the year tag on the 2025 title, and the same tag on the remaster's */
+.tag{position:absolute;right:64px;bottom:56px;margin:0;font:400 64px/1 "Bungee",sans-serif;letter-spacing:.04em;padding:14px 30px 10px;border-radius:14px;
+  color:var(--night);background:var(--cream);box-shadow:0 8px 30px rgba(0,0,0,.6)}
+.tag.new{background:var(--ember);color:#1a0703;border:5px solid var(--amber)}
+/* captions in the banners' style */
+.cap{position:absolute;left:0;right:0;margin:0;text-align:center;font:400 112px/1.02 "Bungee",sans-serif;color:var(--amber);
+  text-shadow:0 8px 0 #4a1405,0 0 40px rgba(255,106,26,.45),0 0 90px rgba(0,0,0,.9)}
+.cap.small{font-size:72px}
+.cap .w{color:var(--cream)}
+.shade{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.62))}
+.pill{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;white-space:nowrap;
+  background:rgba(14,9,9,.94);color:#fff;border:6px solid var(--ember);border-radius:999px;padding:18px 70px 18px 36px;box-shadow:0 14px 50px rgba(0,0,0,.6);
+  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:84px;letter-spacing:.005em}
+.pill img{width:120px;height:132px;image-rendering:pixelated}
+/* the share card has "Now on mobile" bottom left, so the callout sits bottom right, over the bull */
+.pill{left:auto;right:64px;transform:none}
+</style></head><body>
+<div id="L"></div>
+<template id="old"><p class="tag">2025</p></template>
+<template id="new"><p class="tag new">Remastered</p></template>
+<template id="mobile"><p class="cap" style="top:70px">Now on <span class="w">mobile</span></p></template>
+<template id="board"><p class="cap small" style="top:34px;left:70px;right:auto;text-align:left;font-size:66px">Race the clock.<br><span class="w">Earn the medals.</span></p></template>
+<template id="pill"><div class="shade"></div><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
+</body></html>
