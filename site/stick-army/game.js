@@ -129,8 +129,9 @@
   // to seed its own sub-stream, so shooting it early doesn't shift what follows. RC is combat (crew aim and timing).
   var R = Math.random;
   function rr(a, b) { return a + R() * (b - a); }
-  // RUN.players: 2 for a co-op run (two barrels, coop.md), set by coop.js before newGame.
-  var RUN = { seed: 0, force: null, players: 1 }, RW = Math.random, RS = Math.random, RC = Math.random;
+  // RUN.players: 2 for a co-op run (two barrels, coop.md), set by coop.js before newGame. RUN.game: the kind of run
+  // the next newGame starts (MODES; Arcade, the only one so far).
+  var RUN = { seed: 0, force: null, players: 1, game: 'arcade' }, RW = Math.random, RS = Math.random, RC = Math.random;
   function between(rnd, a, b) { return a + rnd() * (b - a); }
   function mix(a, b) {
     var h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab | 0, 0xc2b2ae35);
@@ -385,7 +386,7 @@
       combo: 0, comboT: 0, shake: 0, repairLevel: 0, dieT: 0, smokeT: 0,
       stats: { captured: 0, popped: 0, kills: 0, planes: 0, zeppelins: 0, tanks: 0, dreads: 0, wallDamage: 0, shots: 0, redCross: 0, redCrossHit: 0, hqSafe: 0, hqHit: 0 },
       hint: false, slotRes: {}, finalWon: false, won: false, wonAt: 0, wonScore: 0, endless: false, redCrossPaid: false,
-      matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level,
+      matRight: (mix(RUN.seed, 0x3a7) & 1) === 1, level: level, game: RUN.game,
       // One player in solo, two in co-op (coop.md).
       coop: RUN.players > 1, players: RUN.players > 1 ? [makePlayer(), makePlayer()] : [makePlayer()]
     };
@@ -395,9 +396,26 @@
   }
   function clearInk() { decals.length = 0; inkT = 0; redrawDecals(); if (COOP) COOP.fx('x'); }
 
-  // A run is 20 waves. Bosses every fifth: a zeppelin (5), the armored zeppelin (10), two zeppelins at once (15) and
-  // the Dreadnought (20); in endless the twins return on the fives and the Dreadnought on the tens. Something new
-  // arrives on most waves (startWave says what), and the curves below keep climbing through 19 and on into endless.
+  // ---------- what decides a run ----------
+  // A run's kind (S.game, from RUN.game) decides its waves (the recipe for wave n), when it's won (asked as a wave
+  // clears) and what winning does, and when it's lost (asked every frame of play). Arcade, the 20 waves that end with
+  // the Dreadnought, is the only kind so far, and the default; Campaign will add its own.
+  var MODES = {
+    arcade: {
+      wave: function (n) { return waveCfg(n); },
+      won: function () { return victoryDue(); },
+      win: function () { showWin(); reportWin(); },
+      lost: function () { return S.wallHP <= 0; }
+    }
+  };
+  function rules() { return MODES[S && S.game] || MODES.arcade; }
+  function waveFor(n) { return rules().wave(n); }
+  function runWon() { return rules().won(); }
+
+  // Arcade's waves. A run is 20 waves. Bosses every fifth: a zeppelin (5), the armored zeppelin (10), two zeppelins
+  // at once (15) and the Dreadnought (20); in endless the twins return on the fives and the Dreadnought on the tens.
+  // Something new arrives on most waves (startWave says what), and the curves below keep climbing through 19 and on
+  // into endless.
   function waveCfg(n) {
     var boss = n % BOSS_EVERY === 0, dreadWave = boss && isDreadWave(n), twin = boss && !dreadWave && n >= ZEP.TWIN_WAVE && n % 10 === 5;
     var c = {
@@ -647,7 +665,7 @@
   }
   // Who jumps: type, fall-speed factor and sway phase, drawn from a content stream.
   function rollTrooper(rnd) {
-    var c = S.spawn ? S.spawn.cfg : waveCfg(1), type = 'rifle';
+    var c = S.spawn ? S.spawn.cfg : waveFor(1), type = 'rifle';
     if (rnd() < c.sniperChance) type = 'sniper';
     else if (rnd() < c.special) type = S.wave < ENEMIES.bazooka.minWave ? 'engineer' : (rnd() < 0.5 ? 'bazooka' : 'engineer');
     var kit = { type: type, fall: between(rnd, 0.9, 1.15), sway: rnd() * 6.28, armor: 0 };
@@ -655,7 +673,7 @@
     return kit;
   }
   function spawnTrooper(x, y, kit) {
-    var c = S.spawn ? S.spawn.cfg : waveCfg(1);
+    var c = S.spawn ? S.spawn.cfg : waveFor(1);
     kit = kit || rollTrooper(RW);
     var t = { id: nextId++, x: clamp(x, 14, W - 14), y: y, type: kit.type, state: 'chute', open: 0,
       fall: c.fall * kit.fall, sway: kit.sway, vy: 0, rot: 0, spin: 0, dir: 1, walk: 0, thump: 0,
@@ -706,7 +724,7 @@
     S.medevac = []; S.skyFx = []; S.wreck = null;
     S.waveStart = { kills: S.stats.kills, captured: S.stats.captured, wall: S.stats.wallDamage };
     S.mines = S.mods.mines ? [100, 133, 267, 300].map(function (x) { return { x: x, armed: true }; }) : [];
-    var c = waveCfg(n);
+    var c = waveFor(n);
     // pace: the gaps between rushes, cargo planes, road tanks and the sky's arrivals shrink with the plane interval,
     // so late waves arrive together and build to a peak instead of trickling in after the planes are done.
     S.spawn = { cfg: c, planes: c.planes, bombers: c.bombers, boss: c.boss, bossT: ZEP.ARRIVE, timer: 1.8, rushes: c.rushes, rushT: 8, cargo: c.cargo, cargoT: CARGO.FIRST, road: c.road, roadT: ROAD.FIRST,
@@ -805,16 +823,16 @@
         S.score += bonus + extra; gainTags(waveTags); flyTags(200, 330, waveTags);
         emit('wave_clear', { wave: S.wave, untouched: untouched }); emit('coins', { amount: waveTags, reason: 'wave' });
         S.news = []; serveWave(S.news); careAtWaveEnd(S.news);
-        S.banner = victoryDue() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
-        if (victoryDue()) S.waveTimer = 3.2;
+        S.banner = runWon() ? { s: 'victory!', sub: 'the page is yours!', t: 0, dur: 2.8 } : { s: 'wave cleared!', sub: '+' + bonus + ' bonus' + (untouched ? ' · untouched! +' + extra : ''), t: 0, dur: 1.9 };
+        if (runWon()) S.waveTimer = 3.2;
         S.hint = false;
         // The final wave's own fanfare plays with the victory card, so its banner gets only the cheer.
-        if (!victoryDue()) sound.play('wave');
-        SQUAD.cheer(victoryDue() ? 'hooray!' : 'yeah!');
+        if (!runWon()) sound.play('wave');
+        SQUAD.cheer(runWon() ? 'hooray!' : 'yeah!');
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
-      if (S.waveTimer <= 0) { if (victoryDue()) { showWin(); reportWin(); } else openShop(); }
+      if (S.waveTimer <= 0) { if (runWon()) rules().win(); else openShop(); }
     }
   }
 
@@ -897,7 +915,7 @@
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
   world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
   world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches; world.sendOff = sendOff;
-  world.drawItemIcon = drawItemIcon; world.waveCfg = waveCfg; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig;
+  world.drawItemIcon = drawItemIcon; world.waveCfg = waveFor; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig;
   world.squadLine = function (bare, short) { return squadLine(bare, short); };
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   // Co-op's shop (shop.js): turret upgrades are each barrel's own; a guest's taps go to the host (coop.js).
@@ -915,7 +933,7 @@
   // Records are solo's: a co-op run (S.coop) never writes them.
   world.saveBest = function () { if (S.coop || S.score <= best) return false; best = S.score; save(lv().KEYS.best, best); return true; };
   world.saveBestWave = function (n) { if (!S.coop && n > load(lv().KEYS.wave, 0)) save(lv().KEYS.wave, n); };
-  world.lv = lv; world.LEVELS = LEVELS;
+  world.lv = lv; world.LEVELS = LEVELS; world.MODES = MODES; world.rules = rules;
   Object.defineProperty(world, 'SENTRY', { get: function () { return SENTRY; } });
   var DN = StickArmyDreadnought(world), DREAD = DN.DREAD, isDreadWave = DN.isDreadWave, spawnDread = DN.spawnDread,
     dreadHit = DN.dreadHit, hurtDread = DN.hurtDread, updateDread = DN.updateDread, drawDread = DN.drawDread,
@@ -1737,7 +1755,7 @@
     S.recruits = S.recruits.filter(function (r) { return !r.dead; });
     S.bullets = S.bullets.filter(function (b) { return !b.dead; });
     S.bombs = S.bombs.filter(function (m) { return !m.dead; });
-    if (S.mode === 'play' && S.wallHP <= 0) die();
+    if (S.mode === 'play' && rules().lost()) die();
     if (S.mode === 'dying') { S.dieT -= dt; if (S.dieT <= 0) showOver(); }
   }
 
@@ -1961,7 +1979,7 @@
           var left = p.hp / p.maxHp; p.maxHp = Math.round(zeppelinHP(S.wave) * (p.twin ? ZEP.TWIN_HP : 1)); p.hp = Math.max(1, left * p.maxHp);
         });
         if (before) {
-          var after = waveCfg(Math.max(1, S.wave));
+          var after = waveFor(Math.max(1, S.wave));
           if (S.waveState === 'active') S.spawn.planes = Math.max(0, S.spawn.planes + after.planes - before.planes);
           S.spawn.cfg = after;
           S.troopers.forEach(function (t) { if (t.state === 'chute') t.fall *= after.fall / before.fall; });

@@ -173,6 +173,8 @@ Shooting it down awards `250 + 30 × wave` points (with combo), a "zeppelin down
 
 ## Arcade: the Dreadnought, victory and endless
 
+**What decides a run** (`MODES` in `game.js`): a run's kind, `S.game` (from `RUN.game`, set before `newGame`), gives its waves (`wave(n)`, the recipe `startWave` and the shop's warning use, through `waveFor`), when it's won (`won()`, asked as a wave clears, through `runWon`) and what winning does (`win()`), and when it's lost (`lost()`, asked every frame of play before `die`). Arcade is the only kind, and the default: `waveCfg`, `victoryDue`, `showWin` with `reportWin`, and the wall at zero.
+
 A run is 20 waves; wave 20 is the final wave ("final wave" in the banner and under the wave number), and beating its boss wins the run. These live in `site/stick-army/dreadnought.js` (`StickArmyDreadnought`).
 
 **The Dreadnought** (`DREAD`) is the enemy flagship, an armored airship 600 px long, wider than the page, flying at `DREAD.Y` (210): three spinning propellers, smokestacks pouring smoke, a conning tower, a mast with the enemy flag, lit portholes, a red nose cap with "DN-1" stencilled at the bow, and two searchlights sweeping the ground. `waveCfg` gives its waves a light escort (40% of the planes, in a low lane at y 290–344 under the hull, `SKY_LANES.DREAD`), no bombers, rushes, cargo or road tanks (`bossKind: 'dread'`). It lives in `S.planes` as kind `'dread'`, so bullets, rockets, flak, bazookas and the ambience all see it, and the wave can't clear while it's there. Local x runs stern to bow; on the page a part is at `p.x + p.dir × lx`, turned with the hull as it lists (`at`).
@@ -243,6 +245,7 @@ Open `stick-army/#tune` (or `#tune&seed=42`, see below) on the local server (or 
 | The highlighter | `HL`, `pow`, `highlight`, `drawTexts` |
 | Radio calls going out | `RADIO.TALK`, `radioCall`, `updateRadio`, `drawRadio` |
 | The Dreadnought (`dreadnought.js`) | `DREAD`, `turretHP`, `hangarHP`, `bridgeHP`, `isDreadWave`, `spawnDread`, `settleX`, `stageX`, `updateDread`, `updateGuns`, `fire`, `impact`, `openHangar`, `bridgeGun`, `dreadHit`, `hurtDread`, `drawDread`, `drawDreadBar`, `dreadTargets` |
+| What decides a run | `MODES`, `rules`, `waveFor`, `runWon`, `S.game`, `RUN.game` |
 | Victory, roll call and endless (`dreadnought.js`) | `victoryDue`, `showWin`, `rollCall`, `keepGoing`, `recordLine`, `S.won`, `S.endless` |
 | Kill counts | `shooter`, `credit`, `r.kills`, `SQUAD.record` |
 | Armored troopers | `ARMOR`, `rollTrooper`, `armorHit` |
@@ -327,8 +330,9 @@ Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` is optional for 
 
 - `case-30-round19.js`: tanks rolling in quickly off the page and road tanks evening out the sides, the cargo schedule, an HQ plane paying a safe delivery or lost to friendly fire and the card's "1 of 2", and Veteran's kit cap ("Kit full", greyed; Soldier uncapped).
 - `case-31-tags.js`: no game file writes dog tags outside the four helpers or uses `S.coins` (reads the game's own source).
-- `case-33-save.js`: saving a run at the shop: only there, plain JSON, unchanged by taking it, restored after another run and reading back the same, wave 4 then playing event for event as the uninterrupted run and ending at the same next shop; and no file but game.js and save.js calls it.
 - `case-32-send-home.js`: sending a soldier home: the cost, the card and the hints, nothing spent on a pick and the tags' preview, one a visit, a fresh hire greyed, the goodbye on the field, the freed slot and the unchanged hire price, a hire into it going back with them, undo, the end card's line, and short of tags.
+- `case-33-save.js`: saving a run at the shop: only there, plain JSON, unchanged by taking it, restored after another run and reading back the same, wave 4 then playing event for event as the uninterrupted run and ending at the same next shop; and no file but game.js and save.js calls it.
+- `case-34-modes.js`: Arcade the only kind of run and every run's, its waves `waveCfg`'s; a stand-in kind put in its place deciding the waves, the win and what it does, and the loss.
 - `case-29-coop.js`: solo's one barrel on `S.mods`; each player's dog tags (a kill pays its shooter, the rest split, odd ones in turn, a Red Cross hit from the shooter's); two barrels with their own aim, heat, lock, volleys and upgrades, keys and pointer driving the local one, a sniper heating both, both triggers let go at the end; each player's points, combo, planes, Red Cross hits and catches, the team's own points, shots costing the shooter, play stats; co-op waves harder; the shop's per-barrel upgrades, common supplies once and chosen by the comrade, put-backs and undo per player, and a host with no friend not waiting.
 
 `coop.py` plays a host page and draws a second page only from its messages: every message rebuilds the host's field exactly, sizes, particles, ink and sounds arriving, the pictures matching, and the guest's aim and trigger reaching the host. `coop_room.py` plays co-op over a local room with a computer hosting and a phone joining: the secret and link cards, Start, the guest's trigger, calls, pause, shop (its spread on its own barrel, sandbags chosen by the comrade, both Ready), a reload, each player dropping out and coming back, and the side-by-side end cards.
