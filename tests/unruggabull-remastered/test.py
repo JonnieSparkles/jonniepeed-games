@@ -171,6 +171,10 @@ def desktop_checks(p):
     # the menu by keyboard: down and up move the blaster, Enter picks
     page.keyboard.press('ArrowDown'); page.keyboard.press('ArrowUp')
     assert js(page, "document.querySelector('#menu .on').dataset.act") == 'play'
+    page.keyboard.press('s')
+    assert js(page, "document.querySelector('#menu .on').dataset.act") == 'board', 'S moves down'
+    page.keyboard.press('w')
+    assert js(page, "document.querySelector('#menu .on').dataset.act") == 'play', 'W moves up'
     page.keyboard.press('Enter')
     wait_state(page, 'controls', 6000)
     page.keyboard.press('x')

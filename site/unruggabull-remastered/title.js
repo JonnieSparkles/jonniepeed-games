@@ -87,9 +87,12 @@ window.UnrugTitle = (function () {
   addEventListener('keydown', e => {
     if (titleEl.hidden || anyCardOpen()) return;
     const i = items.findIndex(el => el.classList.contains('on'));
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    // Up/Down or W/S move the blaster; Enter (or Space) picks
+    const k = e.key.toLowerCase();
+    const down = k === 'arrowdown' || k === 's', up = k === 'arrowup' || k === 'w';
+    if (down || up) {
       e.preventDefault();
-      select(items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length], true);
+      select(items[(i + (down ? 1 : items.length - 1)) % items.length], true);
     }
   });
   const anyCardOpen = () => Array.from(document.querySelectorAll('.card-wrap')).some(c => !c.hidden && c.id !== 'rotate');
@@ -174,8 +177,9 @@ window.UnrugTitle = (function () {
   $('gallery-next').addEventListener('click', () => showPicture(gi + 1));
   addEventListener('keydown', e => {
     if ($('gallery').hidden) return;
-    if (e.key === 'ArrowLeft') showPicture(gi - 1);
-    if (e.key === 'ArrowRight') showPicture(gi + 1);
+    const k = e.key.toLowerCase();
+    if (k === 'arrowleft' || k === 'a') showPicture(gi - 1);
+    if (k === 'arrowright' || k === 'd') showPicture(gi + 1);
   });
   let swipeX = null;
   $('gallery-img').addEventListener('pointerdown', e => { swipeX = e.clientX; });

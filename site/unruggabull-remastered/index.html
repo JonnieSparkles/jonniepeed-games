@@ -49,6 +49,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 #menu > .on::before{content:"";position:absolute;left:-1.15em;top:50%;width:.82em;height:.82em;transform:translateY(-55%);background:url(art/blaster-icon.webp) center/contain no-repeat;image-rendering:pixelated;animation:aim .55s ease-in-out infinite alternate}
 #menu > a{font-size:.72em;color:rgba(205,184,168,.85);margin-top:.35em}
 #menu > a.on{color:var(--amber)}
+#menu .out{width:.62em;height:.62em;margin-left:.3em;vertical-align:.05em;filter:drop-shadow(1px 1px 0 #0a0504) drop-shadow(-1px -1px 0 #0a0504)}
 #menu > :focus-visible{text-decoration:underline;text-underline-offset:.15em}
 @keyframes aim{to{translate:.08em 0}}
 #best{position:absolute;margin:0;text-transform:uppercase;letter-spacing:.08em;color:rgba(244,228,208,.75);text-shadow:-2px -2px 0 #0a0504,2px -2px 0 #0a0504,-2px 2px 0 #0a0504,2px 2px 0 #0a0504}
@@ -142,7 +143,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
       <button data-act="board">Leaderboard</button>
       <button data-act="gallery">Gallery</button>
       <button data-act="credits">Credits</button>
-      <a href="https://unruggabull.ar.io" target="_blank" rel="noopener">The 2025 original</a>
+      <a href="https://unruggabull.ar.io" target="_blank" rel="noopener">The 2025 original<svg class="out" viewBox="0 0 12 12" aria-hidden="true"><path d="M5 2H2V10H10V7M7 2H10V5M10 2L5.5 6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></svg><span class="sr"> (opens in a new tab)</span></a>
     </nav>
     <p id="best" hidden></p>
   </div>
@@ -230,7 +231,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 <script src="rugfather.js?v=8a17cbc38a"></script>
 <script src="game.js?v=70dd51c2e3"></script>
 <script src="end.js?v=824fb32729"></script>
-<script src="title.js?v=f9078d15c2"></script>
+<script src="title.js?v=ce494b68e9"></script>
 <script src="phone.js?v=224928de7b"></script>
 </body>
 </html>
