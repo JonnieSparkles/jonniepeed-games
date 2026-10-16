@@ -13,7 +13,7 @@ var UnrugTitle = (function () {
     { id: 'regular', name: 'REGULAR BULL', short: 'REGULAR', line: 'REGULAR HEALTH.' },
     { id: 'raging', name: 'RAGING BULL', short: 'RAGING', line: 'NO HEALTH RESETS.' },
     // owner, Oct 16: five hearts for the whole climb, nothing gives one back; locked until Raging Bull is cleared
-    { id: 'impossibull', name: 'IMPOSSIBULL', short: 'IMPOSSIBULL', line: 'NO HEALING.' }
+    { id: 'impossibull', name: 'IMPOSSIBULL', short: 'IMPOSSI', line: 'NO HEALING.' }
   ];
   const MODE_KEY = 'unruggabull-ii-mode';
   // The painting, 480 x 640 picture pixels, and where things are on it.
@@ -352,12 +352,12 @@ var UnrugTitle = (function () {
       R(g, cx - 4 * s, cy - 8 * s, 8 * s, 2 * s, col); R(g, cx - 4 * s, cy - 7 * s, 2 * s, 6 * s, col); R(g, cx + 2 * s, cy - 7 * s, 2 * s, 6 * s, col);
       R(g, cx - 6 * s, cy - 1 * s, 12 * s, 9 * s, col); R(g, cx - 1 * s, cy + 2 * s, 2 * s, 3 * s, '#101116');
     }
-    // the picked button's ring is on fire, hotter up the modes (Baby's a candle, Impossibull's blue), and it flares on a pick
+    // the picked button's ring is on fire, hotter up the modes (Baby's a candle, Impossibull's crimson and white-hot), and it flares on a pick
     const FIRE = {
       baby: { c: ['#fff6c8', '#ffe08a', '#ffb02a'], h: [2, 5], v: 9, glow: '#ffb02a' },
       regular: { c: ['#fff0a0', '#ffb02a', '#ff5a14'], h: [3, 9], v: 11, glow: '#ff9a2a' },
       raging: { c: ['#ffd0a0', '#ff5a14', '#c81a0a'], h: [4, 13], v: 14, glow: '#ff4a1a' },
-      impossibull: { c: ['#ffffff', '#9ad8ff', '#2a6aff'], h: [5, 15], v: 16, glow: '#5aa0ff' }
+      impossibull: { c: ['#ffffff', '#ff2a1a', '#7a0606'], h: [5, 15], v: 16, glow: '#ff1a10' }
     };
     function fireRing(g, cx, cy, r, id, tt, boost) {
       const F = FIRE[id], k = r / 30, n = Math.round(Math.PI * 2 * r / 3.2), px = r > 24 ? 2 : 1;
@@ -426,7 +426,7 @@ var UnrugTitle = (function () {
       const sx = w - 14 - 42 - 48 * (keys - 1);
       steelKey(g, sx, 14, 42, 42, 'sound'); speaker(g, sx + 21, 14 + 21, act.soundOn(), act.soundOn() ? P.gold : P.dim);
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
-      MODES.forEach((m, i) => callButton(g, [42, 116, 192, 268][i], 104, 30, i, tt, 146));
+      MODES.forEach((m, i) => callButton(g, 46 + i * 76, 104, 30, i, tt, 146));
       boardLine(g, 14, 178, w - 28);
       bigButton(g, 10, h - 62, w - 20, 50, 'START', true, 'start', 3);
     }
