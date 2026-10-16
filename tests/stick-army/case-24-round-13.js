@@ -86,7 +86,7 @@
   render();
   // The real one makes sure.
   zeppelinDown(dz, 'player');
-  for (f = 0; f < 60 * 40 && !(S.banner && S.banner.s === 'dreadnought!' && CAMPAIGN.dread()); f++) update(1 / 60);
+  for (f = 0; f < 60 * 40 && !(S.banner && S.banner.s === 'dreadnought!' && DN.dread()); f++) update(1 / 60);
   check(/REAL/.test(S.banner.sub), 'then the real one: ' + S.banner.sub);
 
   // Enter fires too, like Space.

@@ -1,7 +1,7 @@
-// Stick Army campaign (docs/games/stick-army/campaign.md): the Dreadnought, the final boss at wave 20; the victory card with the squad's roll
+// Stick Army's Dreadnought (docs/games/stick-army/arcade.md): the Dreadnought, the final boss at wave 20; the victory card with the squad's roll
 // call; and endless play after it. Classic script; load after shop.js and before game.js. game.js calls
-// StickArmyCampaign(world) once with the same world object it gives units.js, squad.js and shop.js.
-var StickArmyCampaign = function (w) {
+// StickArmyDreadnought(world) once with the same world object it gives units.js, squad.js and shop.js.
+var StickArmyDreadnought = function (w) {
   'use strict';
   var W = w.W, GROUND = w.GROUND, BK = w.BK;
   var INK = w.INK, INK2 = w.INK2, RED = w.RED, BLUE = w.BLUE, PAPER = w.PAPER, HAT = w.HAT;
@@ -1289,7 +1289,7 @@ var StickArmyCampaign = function (w) {
     winScreen.hidden = false; w.hidePause();
     w.sound.play('victory');
     emit('victory', { wave: S.wave, score: S.score });
-    // The campaign's score goes on the online board now; keeping going doesn't change it.
+    // Arcade's score goes on the online board now; keeping going doesn't change it.
     w.board.finish(winScreen.querySelector('.card'), true);
     document.getElementById('keepBtn').focus({ preventScroll: true });
   }

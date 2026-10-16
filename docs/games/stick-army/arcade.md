@@ -1,4 +1,4 @@
-# Stick Army: campaign
+# Stick Army: Arcade
 
 Twenty waves, four bosses, a victory screen, then optional endless play. Something new arrives on most waves on the way, and each boss wave is different.
 
@@ -23,7 +23,7 @@ A second playtest the same day reached wave 16 at 11:02: "very fun", but "by 12 
 - **One best score,** plus runs won and best wave. A separate endless board waits for online scores.
 - **If Stick Army gets a leaderboard** (Oct 8), its score is the score when the Dreadnought goes down on the final wave (20), or at game over for a run that lost before that. Endless points don't count toward it. Endless keeps ramping regardless.
 - **Playtesting shaped the rest,** from the second playtest to the second win: rounds 9 to 14 (#36 to #53), with the reasons worth keeping in [history.md](history.md).
-- **Later, after an outside playtest:** a "bring it on" difficulty you can buy, new late-game supplies, and a campaign pick at the start. Special forces is held back as a name for something unique.
+- **Later, after an outside playtest:** a "bring it on" difficulty you can buy, new late-game supplies, and a choice of run at the start. Special forces is held back as a name for something unique.
 
 ## The waves
 

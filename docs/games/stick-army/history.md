@@ -24,6 +24,10 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Why it's like this
 
+### Names
+
+- **The base mode is Arcade** (Oct 16): "campaign" is now the name of a new mode, so the 20-wave run became Arcade, its spec campaign.md became [arcade.md](arcade.md) and its code campaign.js became `dreadnought.js` (`StickArmyDreadnought`, `DN`). Older pull requests that say "campaign" mean Arcade.
+
 ### Co-op
 
 - **The host runs the game** (round 18): every phone running the same game was ruled out because the logic's trigonometry can differ in the last digit between Safari and Chrome, and two copies would drift.

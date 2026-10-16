@@ -1,4 +1,4 @@
-// Stick Army sky (docs/games/stick-army/campaign.md): what else crosses the page on the way to wave 20. Bomb balloons (from wave 4), the Red
+// Stick Army sky (docs/games/stick-army/arcade.md): what else crosses the page on the way to wave 20. Bomb balloons (from wave 4), the Red
 // Cross plane you mustn't shoot (6), helicopters (7), HQ supply drops (8), dive bombers (12), heavy bombers (13), and
 // the night raid (16).
 // Classic script; load before game.js. game.js calls StickArmySky(world) once with the same world object it gives
@@ -774,7 +774,7 @@ var StickArmySky = function (w) {
     G.restore();
   }
   // ---------- the Dreadnought's smoke screen ----------
-  // When its last gun goes, campaign.js has it fire smoke pots onto the field (smokePot). Each pours smoke, and the
+  // When its last gun goes, dreadnought.js has it fire smoke pots onto the field (smokePot). Each pours smoke, and the
   // dark rolls out from them as billows that grow outward (SPREAD px/s, faster upward as smoke rises, each filling out
   // over GROW seconds) instead of the page fading evenly, with wisps drifting through it. When the hangar goes down it
   // lingers as long again as it has been up, LINGER seconds at least and at most (round 16: "the smoke could probably
@@ -876,7 +876,7 @@ var StickArmySky = function (w) {
     }
     g.globalCompositeOperation = 'destination-out';
     // The night and the smoke both darken the whole page, the HUD bands too (round 13: "full notebook dark"); game.js
-    // writes the HUD in chalk where it's dark (smokeAt) and campaign.js puts the Dreadnought's gauges over the smoke.
+    // writes the HUD in chalk where it's dark (smokeAt) and dreadnought.js puts the Dreadnought's gauges over the smoke.
     function glow(x, y, r, k) {
       var rg = g.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, 'rgba(0,0,0,' + k + ')'); rg.addColorStop(1, 'rgba(0,0,0,0)');

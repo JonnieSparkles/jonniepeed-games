@@ -1,8 +1,8 @@
 # Stick Army: Veteran
 
-A second level for players who find the campaign easy once their upgrades stack. Soldier is the game as it is; Veteran makes what you buy a real choice and the Dreadnought a real test.
+A second level for players who find Arcade easy once their upgrades stack. Soldier is the game as it is; Veteran makes what you buy a real choice and the Dreadnought a real test.
 
-Status: built in round 17 (Oct 10); the kit added in round 19 (Oct 11). Builds on [the campaign](campaign.md). Current behavior, with the numbers it settled on, is in [README.md](README.md); how it was tuned is in [history.md](history.md).
+Status: built in round 17 (Oct 10); the kit added in round 19 (Oct 11). Builds on [Arcade](arcade.md). Current behavior, with the numbers it settled on, is in [README.md](README.md); how it was tuned is in [history.md](history.md).
 
 ## Why
 

@@ -1,4 +1,4 @@
-// Round 9 (campaign.md stage 1): kill counts, the Dreadnought on the final wave (DREAD.WAVE), victory with the roll call, then endless.
+// Round 9 (arcade.md stage 1): kill counts, the Dreadnought on the final wave (DREAD.WAVE), victory with the roll call, then endless.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var seen = [];
@@ -34,7 +34,7 @@
   for (var df = 0; df < 60 * DREAD.DECOY_BUILD; df++) { update(1 / 60); chirped = chirped || S.bubbles.some(function (b) { return /here it comes/i.test(b.s); }); }
   check(chirped, 'the squad thinks this is it: "Oh no... here it comes!"');
   var decoy = S.planes.find(function (q) { return q.kind === 'zeppelin'; });
-  check(decoy && decoy.decoy && !decoy.armored && decoy.maxHp === Math.round(zeppelinHP(FINAL) * DREAD.DECOY_HP) && !CAMPAIGN.dread(), 'just a zeppelin');
+  check(decoy && decoy.decoy && !decoy.armored && decoy.maxHp === Math.round(zeppelinHP(FINAL) * DREAD.DECOY_HP) && !DN.dread(), 'just a zeppelin');
   for (df = 0; df < 60 * 15 && !S.spawn.decoySeen; df++) update(1 / 60);
   run(0.1);
   check(S.spawn.decoySeen && S.banner && S.banner.s === 'dreadnought!', 'in sight, the full announcement');
@@ -48,14 +48,14 @@
   check(seen.indexOf('dread_tease') >= 0 && ambienceState().dread === 'hush' && S.bubbles.some(function (b) { return /that's it/i.test(b.s); }), "that's it?");
   S.recruits = [];
   run(DREAD.TEASE_GAP);
-  check(!CAMPAIGN.dread() && sign.y < GROUND - 110 && !S.spawn.lameSaid, 'nothing comes while its sign is still falling: ' + Math.round(sign.y));
+  check(!DN.dread() && sign.y < GROUND - 110 && !S.spawn.lameSaid, 'nothing comes while its sign is still falling: ' + Math.round(sign.y));
   S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(1, 'rifle')]; S.bubbles = [];
   for (var sf = 0; sf < 60 * 12 && !S.spawn.lameSaid; sf++) update(1 / 60);
   run(0.1);
   check(S.bubbles.some(function (b) { return /that was lame/i.test(b.s); }) && sign.y < GROUND - 8, 'as it nears the ground: "that was lame"');
-  for (sf = 0; sf < 60 * 12 && !CAMPAIGN.dread(); sf++) update(1 / 60);
+  for (sf = 0; sf < 60 * 12 && !DN.dread(); sf++) update(1 / 60);
   S.recruits = [makeRecruit(0, 'rifle')]; S.bubbles = [];
-  var p = CAMPAIGN.dread();
+  var p = DN.dread();
   check(p && p.wait > 0 && sign.landedT >= DREAD.SIGN_BEAT, 'once it has landed, the real one announces itself');
   run(DREAD.APPROACH * 0.4);
   check(S.bubbles.some(function (b) { return /rumbling/i.test(b.s); }) && !S.texts.some(function (q) { return /coming/.test(q.s); }), 'a soldier wonders what the rumbling is');
@@ -69,7 +69,7 @@
   render();
   for (var f = 0; f < 60 * 30 && p.phase === 'arrive'; f++) update(1 / 60);
   check(p.phase === 'guns' && seen.indexOf('dread_arrive') >= 0 && p.unlockT > 0, 'then it takes station, with the cue to open fire');
-  check(p.maxHp === 4 * CAMPAIGN.turretHP(FINAL) + CAMPAIGN.hangarHP(FINAL) + CAMPAIGN.cannonHP(FINAL) + CAMPAIGN.bridgeHP(FINAL), 'its health counts the main gun');
+  check(p.maxHp === 4 * DN.turretHP(FINAL) + DN.hangarHP(FINAL) + DN.cannonHP(FINAL) + DN.bridgeHP(FINAL), 'its health counts the main gun');
   render();
 
   // Armor: the hull, the closed hangar and the plated bridge only clang while its guns fire.
@@ -169,7 +169,7 @@
   check(p.cannon.deploy > 0 && p.cannon.deploy < 1 && p.cannon.charge === 0, 'the main gun swings down first');
   render();
   run(DREAD.CANNON.DEPLOY);
-  check(p.cannon.deploy === 1 && p.cannon.charge === 0 && Math.abs(CAMPAIGN.muzzleAt(p).a - Math.PI / 2) < 0.4, 'and points at the bunker');
+  check(p.cannon.deploy === 1 && p.cannon.charge === 0 && Math.abs(DN.muzzleAt(p).a - Math.PI / 2) < 0.4, 'and points at the bunker');
   var wallC = S.wallHP; p.cannon.t = 0.01; run(0.05);
   check(p.cannon.charge > 0 && seen.indexOf('dread_charge') >= 0, 'the main gun charges');
   render();
@@ -178,7 +178,7 @@
   // It's a part with its own health: hits count any time, double while it glows, and the crew go for it then.
   function gunTarget() { return dreadTargets().find(function (q) { return q.part === 'cannon'; }); }
   var cg = gunTarget(), cHP = p.cannon.hp;
-  check(cg && !cg.marking && cHP === CAMPAIGN.cannonHP(FINAL) && dreadTargets()[0].part === 'bridge', 'the main gun is a target, after the bridge');
+  check(cg && !cg.marking && cHP === DN.cannonHP(FINAL) && dreadTargets()[0].part === 'bridge', 'the main gun is a target, after the bridge');
   damagePlane(p, 5, 'player', cg.x, cg.y, true);
   check(p.cannon.hp === cHP - 5 && p.cannon.hitT > 0, 'a hit counts, and its bar jumps');
   p.cannon.t = 0.01; run(0.05); cg = gunTarget();
@@ -213,14 +213,14 @@
   // It falls bow first until the bow digs in; the hull slams down after it, half buried, and breaks its back; it burns,
   // and once it has settled the wreck stops holding up the wave and smolders behind the victory banner.
   for (var f = 0; f < 60 * 8 && p.phase === 'sinking'; f++) update(1 / 60);
-  check(p.phase === 'wreck' && p.rot > 0.1 && CAMPAIGN.dread() === p && S.waveState === 'active', 'it falls bow first and digs in: ' + p.rot.toFixed(2));
+  check(p.phase === 'wreck' && p.rot > 0.1 && DN.dread() === p && S.waveState === 'active', 'it falls bow first and digs in: ' + p.rot.toFixed(2));
   render();
   run(DREAD.CRASH.SLAM + 0.05);
   check(p.slammed && seen.indexOf('dread_crash') >= 0 && Math.abs(p.rot - DREAD.CRASH.REST) < 0.01 && p.y + DREAD.HH > GROUND && p.y < GROUND, 'the hull slams down, half buried');
   run(0.3); render();
-  check(p.broken === 1 && CAMPAIGN.dread() === p && S.waveState === 'active', 'broken in two, burning');
+  check(p.broken === 1 && DN.dread() === p && S.waveState === 'active', 'broken in two, burning');
   run(DREAD.CRASH.SETTLE);
-  check(!CAMPAIGN.dread() && S.wreck === p, 'the wreck settles, still smoldering');
+  check(!DN.dread() && S.wreck === p, 'the wreck settles, still smoldering');
   // The wave waits for its captain, the last one out (case-25); here he lands and gets away.
   for (f = 0; f < 60 * 20 && S.waveState === 'active'; f++) update(1 / 60);
   check(S.waveState === 'clear' && S.banner.s === 'victory!' && S.captain === 'escaped', 'victory once the captain is gone: ' + S.captain);
