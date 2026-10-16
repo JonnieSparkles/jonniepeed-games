@@ -82,7 +82,9 @@
     engineer: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
     bazooka: { minWave: 2, cooldown: 4, spread: 0.03, hp: 2.6 },
     // With no crew to hit, a sniper plinks at the turret for abandonAfter seconds, then slips away unrewarded.
-    sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 14 }
+    sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 14 },
+    // Campaign's radio operator (campaign.js): a rifleman's aim and health, and slower to fire; never an enemy.
+    radio: { minWave: Infinity, cooldown: 2.6, spread: 0.16, hp: 2.6 }
   };
   // From ARMOR.WAVE some troopers wear a flak vest that stops one body hit (two from ARMOR.HEAVY, with a helmet).
   // Popping the chute, rockets and other blasts work as usual, so the turret copes better than the crew.
@@ -119,6 +121,8 @@
   var THEME = PAPERS.ruled;
   var PAPER = THEME.PAPER, INK = THEME.INK, INK2 = THEME.INK2;
   var RED = THEME.RED, BLUE = THEME.BLUE, HAT = THEME.HAT, GREEN = THEME.GREEN;
+  // Campaign's straw dummies.
+  var STRAW = '#c9a227';
   var RED_FILL = THEME.RED_FILL, INK_FILL = THEME.INK_FILL, EMPTY = THEME.EMPTY;
   var HAND = '"Schoolbell", "Comic Sans MS", "Chalkboard SE", cursive';
   var DISPLAY = '"Cabin Sketch", "Schoolbell", "Comic Sans MS", cursive';
@@ -418,6 +422,8 @@
   //   bench(t)          a catch with no free slot: true if the kind took him (Arcade's "squad full!" otherwise)
   //   sells(item)       whether the shop offers a supply; room() whether a hire has somewhere to go
   //   promotes          false: no stripes for waves served (squad.js serveWave)
+  //   trooper(kit, rnd, cfg) may change who jumps; pauseLine() a line for the pause card
+  //   callFast()        true: radio calls arrive sooner (units.js); draw() draws over the page before the HUD
   var MODES = {
     arcade: {
       wave: function (n) { return waveCfg(n); },
@@ -693,6 +699,8 @@
     else if (rnd() < c.special) type = S.wave < ENEMIES.bazooka.minWave ? 'engineer' : (rnd() < 0.5 ? 'bazooka' : 'engineer');
     var kit = { type: type, fall: between(rnd, 0.9, 1.15), sway: rnd() * 6.28, armor: 0 };
     if (c.armorChance && type !== 'sniper' && rnd() < c.armorChance) kit.armor = c.armorHits || 1;
+    // A kind of run can change who jumps (Campaign's straw dummies, kit.dummy), from the same stream.
+    var rl = rules(); if (rl.trooper) rl.trooper(kit, rnd, c);
     return kit;
   }
   function spawnTrooper(x, y, kit) {
@@ -703,6 +711,8 @@
       attacking: null, atWall: false, shotCD: 2.2, alone: 0, aim: 0, armor: kit.armor || 0, pingT: -1, dead: false };
     // The Dreadnought's crew bailing out shoot at the squad on the way down.
     if (kit.gunner) { t.gunner = true; t.gunT = 0.8; t.flash = 0; }
+    // A dummy only ever comes down on a chute (a rush on foot is real).
+    if (kit.dummy && y < GROUND - 60) t.dummy = true;
     S.troopers.push(t);
     emit('trooper_spawn', { x: t.x, type: t.type });
     return t;
@@ -897,7 +907,7 @@
   // and the bots reach its functions here by name, as before. medicHelmet and drawFlagpole go through world, since
   // the harness swaps them in this scope.
   world.H = H; world.GREEN = GREEN; world.EMPTY = EMPTY; world.HAND = HAND; world.DISPLAY = DISPLAY;
-  world.REDUCED = REDUCED; world.THEME = THEME; world.PAPERS = PAPERS; world.HL = HL; world.TEXT = TEXT; world.TAG_HUD = TAG_HUD; world.mulberry = mulberry; world.bgx = bgx;
+  world.REDUCED = REDUCED; world.STRAW = STRAW; world.THEME = THEME; world.PAPERS = PAPERS; world.HL = HL; world.TEXT = TEXT; world.TAG_HUD = TAG_HUD; world.mulberry = mulberry; world.bgx = bgx;
   world.standing = standing; world.tagsOf = function (by) { return tagsOf(by); }; world.gun = gun; world.sketchProgress = sketchProgress;
   world.medicHelmet = function (x, y) { medicHelmet(x, y); }; world.drawFlagpole = function () { drawFlagpole(); };
   var DRAW = StickArmyDraw(world),
@@ -1064,7 +1074,8 @@
       if (R() < dt * 9) { var c = Math.cos(t.aim), s = Math.sin(t.aim); puff(t.x + c * 30, TUR.y + s * 30, 2, 0.6); }
       if (t.overheat <= 0) { t.overheat = 0; sound.play('ready'); }
     } else {
-      t.heat = Math.max(0, t.heat - BALANCE.COOL_RATE * dt);
+      // Campaign's rain cools the gun faster (S.coolMore).
+      t.heat = Math.max(0, t.heat - BALANCE.COOL_RATE * (S.coolMore || 1) * dt);
     }
   }
   function killFx(t, force, squash, color) {
@@ -1096,6 +1107,8 @@
   }
   var OUCH = ['ow!', 'oof!', 'argh!', 'yikes!', 'eep!'];
   function killTrooper(t, owner) {
+    // Campaign's straw dummies: a puff of straw, and nothing for it.
+    if (t.dummy) { t.dead = true; burst(t.x, t.y + 14, 8, STRAW, 120); addText('straw!', t.x, t.y - 6, INK2, 16, 'minor'); emit('dummy_shot', {}); return; }
     t.dead = true; killFx(t); S.stats.kills++; credit();
     emit('kill', { by: owner === 'ally' ? 'crew' : 'player', type: t.type, state: t.state });
     if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 8, color: RED, a: 0.34, seed: t.id });
@@ -1158,6 +1171,12 @@
   }
   function joinSquad(t) {
     t.dead = true;
+    if (t.dummy) {
+      if (t.slot >= 0) delete S.slotRes[t.slot];
+      burst(t.x, t.y + 14, 10, STRAW, 140); addText("it's a dummy!", t.x, GROUND - 70, RED, 22, 'alert');
+      emit('dummy_caught', {});
+      return;
+    }
     if (t.captain) { DN.captainCaught(t); return; }
     if (t.slot >= 0) {
       delete S.slotRes[t.slot];
@@ -1182,6 +1201,7 @@
     }
   }
   function land(t) {
+    if (t.dummy) { t.dead = true; burst(t.x, GROUND - 14, 6, STRAW, 90); addText('flop', t.x, GROUND - 46, INK2, 16, 'minor'); return; }
     t.state = 'ground'; t.y = GROUND - 33; t.dir = t.x < 200 ? 1 : -1; t.walk = 0;
     emit('land', { x: t.x, type: t.type });
     // Snipers sit below the firing arc and are easy to miss, so call them out as they land.
@@ -1608,6 +1628,8 @@
         if (t.captain) DN.captainDrift(t, dt);
         else if (t.type === 'sniper') { var edge = t.x < BK.x ? 18 : W - 18; t.x += Math.sign(edge - t.x) * Math.min(Math.abs(edge - t.x), 28 * dt); }
         else t.x += Math.sin(S.t * 1.3 + t.sway) * 7 * dt;
+        // Campaign's wind (S.wind, px/s): chutes drift with it.
+        if (S.wind) t.x += S.wind * dt;
         if (t.x > 150 && t.x < 250) t.x += (t.x < 200 ? -1 : 1) * 10 * dt;
         t.x = clamp(t.x, 12, W - 12);
         if (t.y + 33 >= GROUND) land(t);
@@ -1895,6 +1917,8 @@
     if (S.smoke) drawDreadBar(SKY.smokeAt(200, 116));
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
+    // A kind of run's own drawing over the page (Campaign's weather).
+    if (rules().draw) rules().draw(G);
     drawTexts();
     drawBubbles();
     ctx.restore();

@@ -175,6 +175,13 @@ var StickArmyIcons = function (kit) {
       G.fillStyle = PAPER; G.fillRect(26, 22, 13, 10); G.beginPath(); SP([26, 22, 39, 22, 39, 32, 26, 32], true, 0.3); ink(INK, 1.8); G.stroke();
       G.beginPath(); L(29.5, 27, 35.5, 27); L(32.5, 24, 32.5, 30); ink(RED, 2); G.stroke();
     },
+    // Campaign's radio operator: the pack on his back and its whip antenna, a handset to his ear.
+    'hire-radio': function (G) {
+      G.save(); G.translate(20, 9); G.scale(0.85, 0.85); stick(0, 0, [6, 4, -6, 19, -5, 33, 5, 33], BLUE, 3); G.restore();
+      G.fillStyle = INK; G.fillRect(9, 17, 7, 9);
+      G.beginPath(); L(12, 17, 7, 2, 0.2); ink(INK, 1.6); G.stroke();
+      G.beginPath(); G.arc(7, 1.5, 1.8, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
+    },
     // Training: a sleeve patch with its stripes, and a blue plus.
     bootcamp: function (G) { patch(G, 1); },
     elite: function (G) { patch(G, 2); },

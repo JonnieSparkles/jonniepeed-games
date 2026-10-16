@@ -541,6 +541,8 @@ var StickArmyUnits = function (w) {
   // Fighter cover is a flight of two, the wingman WING_X behind and WING_Y above the lead.
   var FIGHTER = { SPEED: 250, PASSES: [190], EVERY: 0.08, RANGE: 320, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35, DIVE: 50, DIVE_T: 0.5, WING_X: 46, WING_Y: 24 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
+  // Campaign's radio operator, standing, brings calls in sooner (game.js MODES callFast).
+  function callPace() { var f = w.rules().callFast; return f && f() ? 0.4 : 1; }
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
   // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead. Quiet when a banner says it.
   function grantCall(kind, x, y, quiet) {
@@ -594,7 +596,7 @@ var StickArmyUnits = function (w) {
     var dir = w.RC() < 0.5 ? -1 : 1, targets = [];
     for (var i = 0; i < STRIKE.BOMBS; i++) { var x = 24 + i * (W - 48) / (STRIKE.BOMBS - 1); if (Math.abs(x - BK.x) > 46) targets.push(x); }
     if (dir < 0) targets.reverse();
-    S.strike = { x: dir > 0 ? STRIKE.START : W - STRIKE.START, dir: dir, hold: STRIKE.HOLD + RADIO.TALK, drops: targets, id: w.id() };
+    S.strike = { x: dir > 0 ? STRIKE.START : W - STRIKE.START, dir: dir, hold: (STRIKE.HOLD + RADIO.TALK) * callPace(), drops: targets, id: w.id() };
     radioCall('air strike!');
     emit('air_strike', { wave: S.wave, left: S.calls.bomber });
     return true;
@@ -620,7 +622,7 @@ var StickArmyUnits = function (w) {
     // A lead and a wingman, flying in echelon. Each has its own guns, contrail and muzzle flash. From the left or the
     // right, like the air strike.
     var dir = w.RC() < 0.5 ? -1 : 1;
-    S.fighter = { pass: 0, dir: dir, x: dir > 0 ? FIGHTER.START : W - FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, fly: 0, dive: FIGHTER.DIVE, id: w.id(),
+    S.fighter = { pass: 0, dir: dir, x: dir > 0 ? FIGHTER.START : W - FIGHTER.START, y: FIGHTER.PASSES[0], hold: (FIGHTER.HOLD + RADIO.TALK) * callPace(), fly: 0, dive: FIGHTER.DIVE, id: w.id(),
       wing: [{ dx: 0, dy: 0, cd: 0.1, flash: 0, trail: [] }, { dx: -FIGHTER.WING_X, dy: -FIGHTER.WING_Y, cd: 0.16, flash: 0, trail: [] }] };
     radioCall('fighter cover!');
     emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });

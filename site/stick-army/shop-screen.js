@@ -147,7 +147,7 @@ var StickArmyShopScreen = function (w, shop) {
   // them and a "Send home" button; tap again to let them be. One a visit; whoever went home shows as a chip that
   // brings them back (shop.js sendHome, putBack).
   var picked = null;
-  var ROLE = { rifle: 'Rifleman', engineer: 'Engineer', bazooka: 'Bazooka', sniper: 'Sniper', medic: 'Medic' };
+  var ROLE = { rifle: 'Rifleman', engineer: 'Engineer', bazooka: 'Bazooka', sniper: 'Sniper', medic: 'Medic', radio: 'Radio operator' };
   function who(r) { return r.name && r.rank ? w.SQUAD.rankName(r) : 'Rookie ' + (ROLE[r.type] || 'soldier').toLowerCase(); }
   function record(r, bed) {
     var n = r.waves || 0, bits = [ROLE[r.type] || 'Soldier', n + (n === 1 ? ' wave' : ' waves') + ', ' + w.SQUAD.killsText(r.kills || 0)];

@@ -577,7 +577,9 @@ var StickArmySky = function (w) {
     // The smoke lingers into the bridge stage (smokeClear) and clears at once if the Dreadnought goes down.
     var dp = w.dreadPhase && w.dreadPhase(), sm = S.smoke, linger = !!sm && sm.clearing && sm.linger > 0 && dp === 'bridge';
     var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar' || linger);
-    S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
+    // Campaign's dusk (S.dusk): half dark through a wave, the night raid's dark at that strength.
+    if (S.dusk && !dark) { var to = S.waveState === 'active' ? S.dusk : 0, now = S.night || 0; S.night = now < to ? Math.min(to, now + dt / NIGHT.FADE) : Math.max(to, now - dt / NIGHT.FADE); }
+    else S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
     if (sm) { sm.t += dt; if (sm.clearing) { if (linger) sm.linger -= dt; else { sm.clear += dt; if (S.night <= 0) S.smoke = null; } } }
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });

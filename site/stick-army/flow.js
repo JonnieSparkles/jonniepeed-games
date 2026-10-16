@@ -154,6 +154,9 @@ var StickArmyFlow = function (world, game) {
   // The pause card's lines: the wave and time, the kit and the squad.
   function fillPause() { var S = world.S;
     document.getElementById('pauseTime').textContent = world.waveName(S.wave) + ' · ' + clock(S.played) + ' played';
+    // A kind of run's objective (Campaign's mission goal and how it's going).
+    var goal = document.getElementById('pauseGoal'), goalLine = world.rules().pauseLine ? world.rules().pauseLine() : '';
+    goal.textContent = goalLine; goal.hidden = !goalLine;
     // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
     var kit = document.getElementById('pauseKit');
     kit.hidden = !renderKit(kit, false);

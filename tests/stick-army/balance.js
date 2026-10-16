@@ -56,10 +56,13 @@
       var coop = !!options.coop && options.coop !== '0';
       RUN.players = coop ? 2 : 1; me = 0;
       // Campaign (run.py --option game=campaign): one mission of a tour whose code comes from the seed, alone
-      // (--option mission=fill-the-ranks; First contact by default), with --option squad=N rookies to start with.
+      // (--option mission=fill-the-ranks; First contact by default) in its own operation, with --option squad=N rookies to
+      // start with.
       if (options.game === 'campaign') {
         var camp = world.campaign, t = camp.freshTour(camp.codeText(seed % 1073741824));
         t.missions = [options.mission && camp.MISSIONS[options.mission] ? options.mission : 'first-contact'];
+        // In its own operation (its dummies, weather and intel, as the tour code rolls them).
+        t.op = Math.max(0, camp.OPS.findIndex(function (o) { return (o.fixed || []).concat(o.pool || []).indexOf(t.missions[0]) >= 0; }));
         for (var q = 0; q < (Number(options.squad) || 0); q++) t.squad.push({ id: t.nextId++, type: q % 3 === 1 ? 'engineer' : 'rifle', stripes: 0, kills: 0 });
         camp.setTour(t); RUN.players = 1; camp.startMission();
         bot2 = null; return;

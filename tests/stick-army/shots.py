@@ -59,6 +59,15 @@ t.fallen = [{ id: 16, type: 'bazooka', stripes: 0, kills: 9, op: 0, m: 0 }]; t.b
 t.last = { won: true, mission: 'First contact', caught: 5, planes: 21, time: 70, fresh: 4, fell: [16] };
 c.nameAll(t); c.write();
 """
+RD = """
+var c = world.campaign;
+function codeWith(w) { for (var v = 1; v < 500; v++) { var k = c.codeText(v * 31337); if (c.weatherFor(c.freshTour(k), 1) === w) return k; } }
+var fogCode = codeWith('fog'), rainCode = codeWith('rain');
+var t = c.freshTour('K7QMR2'); t.op = 1; t.missions = c.missionsFor(t, 1);
+t.squad = [{ id: 11, type: 'rifle', stripes: 2, kills: 40 }, { id: 14, type: 'engineer', stripes: 1, kills: 9 }, { id: 19, type: 'sniper', stripes: 1, kills: 12 },
+  { id: 22, type: 'radio', stripes: 0, kills: 0 }, { id: 23, type: 'rifle', stripes: 0, kills: 3 }];
+t.nextId = 30; t.at = 'map'; c.nameAll(t); c.setTour(t);
+"""
 def mission(at):
     return CAMP + STEP + "t.m = 1; c.startMission(); step(5); t.at = '%s'; S.mode = 'between';" % at
 CAMPAIGN = {
@@ -74,6 +83,14 @@ CAMPAIGN = {
     'barracks': CAMP + "t.at = 'barracks'; c.screens.barracks();",
     'fallen': CAMP + "t.at = 'barracks'; c.screens.barracks(); c.screens.fallen();",
     'end': CAMP + "t.at = 'end'; t.stars['boot-camp'] = true; c.screens.end();",
+    # Recruitment Drive (round 2): its briefing (weather, intel), the deploy screen, a mission with a straw dummy
+    # coming down, fog and rain over the field, and the pause card's objective. RD picks codes with that weather.
+    'rd-briefing': RD + "c.screens.map(); c.screens.briefing();",
+    'deploy': RD + "c.screens.deploy(function () {});",
+    'dummies': RD + STEP + "c.startMission(); step(4); var d = spawnTrooper(120, 330, { type: 'rifle', fall: 1, sway: 0, armor: 0, dummy: true }); d.open = 1; spawnTrooper(250, 300, { type: 'rifle', fall: 1, sway: 2, armor: 0 }).open = 1; step(0.2);",
+    'fog': RD.replace("'K7QMR2'", "fogCode") + STEP + "c.startMission(); step(6);",
+    'rain': RD.replace("'K7QMR2'", "rainCode") + STEP + "c.startMission(); step(6);",
+    'pause': RD + STEP + "c.startMission(); step(5); togglePause();",
 }
 SIZES = {'phone': (390, 844, False), 'landscape': (844, 390, False), 'notebook': (1280, 800, False), 'phone-full': (390, 844, True)}
 

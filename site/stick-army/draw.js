@@ -173,6 +173,8 @@ var StickArmyDraw = function (world) {
     else if (t.state === 'free' || t.state === 'bounce') { s = Math.sin(S.t * 22 + t.id); pose = [-11, 1 + s * 4, 11, 1 - s * 4, -7 + s * 3, 32, 7 + s * 3, 31]; }
     else if (t.attacking || t.atWall) { s = Math.max(0, Math.sin(S.t * 13 + t.id)); pose = [t.dir * (6 + 7 * s), 8, t.dir * 5, 17, -5, 33, 6, 33]; }
     else { s = Math.sin(t.walk); pose = [-s * 5, 19, s * 5, 19, s * 6, 33, -s * 6, 33]; }
+    // Campaign's straw dummy (t.dummy): straw-yellow, straw at the hands and stitched X eyes, no gun.
+    if (t.dummy) { stick(x, y, pose, world.STRAW); strawMan(x, y, pose); G.restore(); return; }
     if (t.type === 'bazooka') tube(x - 10, y + 20, x + 9, y + 4);
     stick(x, y, pose, RED);
     if (t.type === 'rifle') { G.beginPath(); L(x - 7, y + 17, x + 7, y + 8, 0.4); ink(INK, 2); G.stroke(); }
@@ -185,6 +187,18 @@ var StickArmyDraw = function (world) {
       if (t.state === 'ground' && t.shotCD < 0.8 && S.recruits.some(standing)) { G.save(); G.globalAlpha = 0.28; G.setLineDash([3, 5]); G.beginPath(); L(x + t.dir * 16, y + 11, x + t.dir * 160, y + 11); ink(RED, 1); G.stroke(); G.restore(); }
     }
     G.restore();
+  }
+  function strawMan(x, y, pose) { var G = world.G;
+    G.beginPath();
+    for (var k = 0; k < 2; k++) { var hx = x + pose[k * 2], hy = y + pose[k * 2 + 1]; L(hx, hy, hx - 3, hy + 4, 0.2); L(hx, hy, hx + 3, hy + 4, 0.2); L(hx, hy, hx, hy + 5, 0.2); }
+    ink(world.STRAW, 1.6); G.stroke();
+    G.beginPath(); L(x - 4, y - 2, x - 1, y + 1, 0.1); L(x - 1, y - 2, x - 4, y + 1, 0.1); L(x + 1, y - 2, x + 4, y + 1, 0.1); L(x + 4, y - 2, x + 1, y + 1, 0.1); ink(INK, 1.3); G.stroke();
+  }
+  // Campaign's radio operator: a pack on his back with its whip antenna.
+  function radioPack(x, y, side) { var G = world.G;
+    G.fillStyle = INK; G.fillRect(x - side * 7 - 3, y + 10, 6, 8);
+    G.beginPath(); L(x - side * 7, y + 10, x - side * 10, y - 8, 0.2); ink(INK, 1.4); G.stroke();
+    G.beginPath(); G.arc(x - side * 10, y - 9, 1.6, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
   }
   // A wounded recruit lies on the ground, away from the bunker, under a pulsing red cross.
   function drawDowned(r) { var S = world.S, G = world.G;
@@ -220,7 +234,8 @@ var StickArmyDraw = function (world) {
     if (r.type === 'bazooka') { if (aiming) tube(x - ca * 9, y + 8 - sa * 9, x + ca * 16, y + 8 + sa * 16); else tube(x - 9, y + 19, x + 8, y + 5); }
     stick(x, y, pose, col);
     if (saluting) { G.beginPath(); L(x + side * 10, y + 6, x + side * 6, y - 4, 0.2); L(x + side * 6, y - 4, x + side * 1, y - 5, 0.2); ink(col, 2.4); G.stroke(); }
-    if (r.type === 'rifle') {
+    if (r.type === 'radio') radioPack(x, y, side);
+    if (r.type === 'rifle' || r.type === 'radio') {
       G.beginPath();
       if (aiming) L(x + ca * 4, y + 9.5 + sa * 4, x + ca * 20, y + 9.5 + sa * 20, 0.3);
       else if (saluting) L(x - side * 6, y + 4, x - side * 6, y + 28, 0.2);
@@ -598,6 +613,7 @@ var StickArmyDraw = function (world) {
       if (r.type === 'sniper') { G.beginPath(); SP([-7, -4, -3, -10, 7, -7, 6, -3], true, 0.3); G.fillStyle = hud.INK; G.fill(); }
       if (r.type === 'engineer') hat(0, 0);
       if (r.type === 'medic') world.medicHelmet(0, 0);
+      if (r.type === 'radio') radioPack(0, 0, 1);
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
       chevrons(-8, 9, r.rank || 0);
       G.restore();

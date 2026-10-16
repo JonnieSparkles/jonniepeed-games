@@ -28,6 +28,8 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     '<div id="cBrief" hidden><div class="c-veil" data-act="unbrief"></div><section class="c-postit" role="dialog" aria-modal="true" aria-labelledby="cBriefTitle" id="cBriefBody"></section></div>' +
     '<section class="c-page" id="cDebrief" aria-labelledby="cDebriefTitle" hidden>' + HOLES + '<div class="c-body" id="cDebriefBody"></div>' +
       '<div class="c-foot"><span></span><button class="btn" type="button" id="cTake" disabled>Take it</button></div></section>' +
+    '<section class="c-page" id="cDeploy" aria-labelledby="cDeployTitle" hidden>' + HOLES + '<div class="c-body" id="cDeployBody"></div>' +
+      '<div class="c-foot"><button class="c-link" type="button" id="cBest">Best three</button><button class="btn" type="button" id="cDeployGo">Deploy</button></div></section>' +
     '<section class="c-page" id="cBarracks" aria-labelledby="cBarracksTitle" hidden>' + HOLES + '<div class="c-body" id="cBarracksBody"></div>' +
       '<div class="c-foot"><button class="c-link" type="button" data-act="fallen" id="cFallenLink">The fallen →</button><button class="btn" type="button" id="cBarracksDone">Done</button></div></section>' +
     '<section class="c-page c-reverse" id="cFallen" aria-labelledby="cFallenTitle" hidden>' + HOLES +
@@ -35,7 +37,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       '<button class="c-link" type="button" data-act="bunks">← Bunks</button></div><ul class="c-fallen" id="cFallenList"></ul></div></section>' +
     '<div class="overlay" id="cCard" hidden><div class="card c-card" role="dialog" aria-modal="true" id="cCardBody"></div></div>';
   stage.appendChild(root);
-  var pages = ['cMap', 'cBrief', 'cDebrief', 'cBarracks', 'cFallen', 'cCard'];
+  var pages = ['cMap', 'cBrief', 'cDeploy', 'cDebrief', 'cBarracks', 'cFallen', 'cCard'];
   function hide() { pages.forEach(function (id) { $(id).hidden = true; }); }
   function only(ids) { pages.forEach(function (id) { $(id).hidden = ids.indexOf(id) < 0; }); }
   // A Campaign screen is up: the title goes, nothing runs underneath, and the pause button waits for a mission.
@@ -78,6 +80,8 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       else if (i === ahead) sub = '<small class="c-soon">coming soon</small>';
       ops += '<div class="c-op ' + cls + '" style="top:' + (p[1] - (op.released ? 12 : 9)) + 'px;left:' + (p[0] + (op.released ? 18 : 14)) + 'px">' + NUM[i] + ' ' + esc(op.name) + (i === ahead ? FLAG : '') + sub + '</div>';
     });
+    var live = camp.news();
+    if (live) ops += '<div class="c-live">' + esc(live) + '</div>';
     $('cRoute').innerHTML = svg; $('cOps').innerHTML = ops;
     $('cCode').textContent = camp.showCode(t.code);
     $('cCode').setAttribute('aria-label', 'Tour code ' + camp.showCode(t.code));
@@ -96,18 +100,22 @@ var StickArmyCampaignScreens = function (world, game, camp) {
 
   // ---------- the briefing ----------
   function briefing() {
-    var t = camp.tour(), op = camp.op(), M = camp.MISSIONS[t.missions[t.m]];
+    var t = camp.tour(), op = camp.op(), M = camp.MISSIONS[t.missions[t.m]], weather = camp.weatherFor(t, t.op), intel = camp.intelFor(t, t.op);
     t.at = 'briefing'; camp.write();
     $('cBriefBody').innerHTML =
       '<p class="c-small" style="letter-spacing:.06em">ORDERS · OPERATION ' + (t.op + 1) + '</p>' +
       '<h2 id="cBriefTitle">' + esc(op.name.split(' ')[0]) + ' <span class="pen">' + esc(op.name.split(' ').slice(1).join(' ')) + '</span></h2>' +
       '<p>' + t.missions.length + ' missions on the home page.' + (t.squad.length ? '' : ' You start with nobody: catch your first soldiers.') + '</p>' +
       '<ul class="c-orders"><li><b>Goal</b> · get through all ' + t.missions.length + '</li><li><b>Bonus</b> ' + STAR + ' · ' + esc(op.star.replace(/\.$/, '').toLowerCase()) + '</li>' +
-      '<li><b>Weather</b> · Clear</li><li><b>Squad</b> · ' + op.slots + ' slots</li></ul>' +
+      '<li><b>Weather</b> · ' + esc(camp.WEATHER[weather].text) + '</li>' +
+      (intel ? '<li><b>Intel</b> · intercepted: ' + esc(camp.INTEL[intel.threat].text) + ' in mission ' + (intel.m + 1) + '</li>' : '') +
+      '<li><b>Squad</b> · ' + op.slots + ' slots</li></ul>' +
+      (op.dummies ? '<p class="c-small">Straw dummies come down among the troopers. Catch one and the bounce is wasted.</p>' : '') +
       '<p class="c-next">Mission ' + (t.m + 1) + ' · <b>' + esc(M.name) + '</b><br>' + esc(M.text) + '</p>' +
       '<button class="btn" type="button" id="cBriefGo">Go</button>';
     up(); only(['cMap', 'cBrief']);
-    $('cBriefGo').addEventListener('click', function () { camp.startMission(); });
+    // With more soldiers than slots, who goes out is picked first.
+    $('cBriefGo').addEventListener('click', function () { if (t.squad.length > op.slots) deploy(function () { camp.startMission(); }); else camp.startMission(); });
     focus('cBriefGo');
   }
 
@@ -123,7 +131,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     return ids.map(function (id) { var f = all.find(function (q) { return q.id === id; }); return f ? (f.stripes ? camp.rankName(f) : 'a rookie ' + camp.ROLE_NAME[f.type]) : ''; }).filter(Boolean);
   }
   function figs(t) {
-    var order = camp.deployOrder(t.squad), out = camp.op().slots, box = document.createElement('div');
+    var order = camp.deployed(t), out = camp.op().slots, box = document.createElement('div');
     box.className = 'c-figs';
     order.slice(0, out).forEach(function (s, i) { box.appendChild(fig(s, i)); });
     var rest = order.length - Math.min(out, order.length), line = document.createElement('span');
@@ -135,12 +143,13 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     var t = camp.tour(), op = camp.op(), last = t.last || {}, M = camp.MISSIONS[t.missions[t.m]], fell = names(last.fell || []);
     card('<p class="c-eyebrow">' + esc(op.name) + ' · ' + t.m + ' of ' + t.missions.length + ' done</p>' +
       '<h2>Mission <span class="pen">won</span></h2>' +
-      (last.mission ? '<p class="tag">' + esc(last.mission) + ': ' + last.caught + ' caught, ' + last.planes + ' planes down.</p>' : '') +
+      (last.mission ? '<p class="tag">' + esc(last.mission) + ': ' + last.caught + ' caught, ' + last.planes + ' planes down' + (last.dummies ? ', ' + last.dummies + (last.dummies === 1 ? ' dummy' : ' dummies') + ' caught' : '') + '.</p>' : '') +
       '<div id="cFigs"></div>' +
       (fell.length ? '<p class="tag" style="color:var(--enemy)">Fallen: ' + esc(fell.join(', ')) + '.</p>' : '') +
       '<div class="c-next"><p class="c-small">Next · mission ' + (t.m + 1) + ' of ' + t.missions.length + '</p><p class="tag" style="color:var(--ink)"><b>' + esc(M.name) + '</b>: ' + esc(M.text) + '</p></div>' +
       '<button class="btn" type="button" id="cGo">Go</button>' +
-      '<div class="c-links"><button class="c-link" type="button" data-act="shop">Shop</button><button class="c-link" type="button" data-act="barracks">Barracks</button>' +
+      '<div class="c-links"><button class="c-link" type="button" data-act="shop">Shop</button>' + (t.squad.length > op.slots ? '<button class="c-link" type="button" data-act="swap">Swap</button>' : '') +
+      '<button class="c-link" type="button" data-act="barracks">Barracks</button>' +
       '<button class="c-link" type="button" data-act="copy">Copy save link</button><button class="c-link" type="button" data-act="map">Map</button></div>', 'cGo');
     $('cFigs').appendChild(figs(t));
     $('cGo').addEventListener('click', function () { camp.startMission(); });
@@ -199,12 +208,57 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   });
   $('cTake').addEventListener('click', function () { if (pick >= 0 && camp.takeReward(pick)) barracks(); });
 
+  // ---------- deploy ----------
+  // Who goes out: the barracks' bunks, ticked up to the operation's slots (the pick from the layouts, round 2). Best N
+  // ticks them as round 1 chose. Deploy saves the pick (tour.deploy) and goes on (then).
+  var picked = [], after = null;
+  function deploy(then) {
+    var t = camp.tour(), slots = camp.op().slots;
+    after = then;
+    picked = camp.deployed(t).slice(0, slots).map(function (s) { return s.id; });
+    drawDeploy();
+    up(); only(['cDeploy']);
+    focus('cDeployGo');
+  }
+  function drawDeploy() {
+    var t = camp.tour(), op = camp.op(), slots = op.slots, order = camp.deployOrder(t.squad), body = $('cDeployBody');
+    body.innerHTML = '<div class="c-starrow" style="justify-content:space-between"><h2 class="c-title" id="cDeployTitle">Deploy</h2><span style="font-size:20px"><b class="pen" id="cPicked"></b> of ' + slots + ' picked</span></div>' +
+      '<p class="c-small">Tap who goes out on ' + esc(op.name) + '. The rest wait in the barracks.</p><div class="c-bunks" id="cDeployBunks"></div>';
+    order.forEach(function (s, i) {
+      var on = picked.indexOf(s.id) >= 0, b = document.createElement('button');
+      b.type = 'button'; b.className = 'c-bunk c-pick'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.appendChild(fig(s, i));
+      var n = document.createElement('b'); n.textContent = s.stripes ? camp.rankName(s) : 'rookie';
+      var d = document.createElement('span'); d.textContent = camp.ROLE_NAME[s.type] + (s.trait ? ' · ' + s.trait : '');
+      b.appendChild(n); b.appendChild(d);
+      b.addEventListener('click', function () {
+        var at = picked.indexOf(s.id);
+        if (at >= 0) picked.splice(at, 1); else if (picked.length < slots) picked.push(s.id); else return;
+        drawDeploy(); var again = $('cDeployBunks').children[i]; if (again) again.focus({ preventScroll: true });
+      });
+      $('cDeployBunks').appendChild(b);
+    });
+    $('cPicked').textContent = String(picked.length);
+    $('cBest').textContent = 'Best ' + ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'][slots - 1];
+  }
+  $('cBest').addEventListener('click', function () {
+    var t = camp.tour();
+    picked = camp.deployOrder(t.squad).slice(0, camp.op().slots).map(function (s) { return s.id; });
+    drawDeploy();
+  });
+  $('cDeployGo').addEventListener('click', function () {
+    var t = camp.tour();
+    t.deploy = picked.slice(); camp.write();
+    var then = after; after = null;
+    if (then) then();
+  });
+
   // ---------- the barracks ----------
   // From between missions or a lost mission, Done goes back there; after the debrief, on to what's next.
   var from = null;
   function barracks(back) {
     from = back || null;
-    var t = camp.tour(), order = camp.deployOrder(t.squad), body = $('cBarracksBody'), out = camp.op().slots;
+    var t = camp.tour(), order = camp.deployed(t), body = $('cBarracksBody'), out = camp.op().slots;
     body.innerHTML = '<div class="c-starrow" style="justify-content:space-between"><h2 class="c-title" id="cBarracksTitle">Barracks</h2><span class="c-tags" id="cBank"></span></div>' +
       '<div class="c-bunks" id="cBunks"></div><p class="c-small" id="cBunkNote"></p><p class="c-eyebrow">RECRUIT</p><div class="c-hires" id="cHires"></div>';
     $('cBank').textContent = t.bank + ' tags';
@@ -220,7 +274,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       if (s.trait) b.title = camp.TRAIT_TEXT[s.trait];
       b.appendChild(n); b.appendChild(d); b.appendChild(k); bunks.appendChild(b);
     }
-    $('cBunkNote').textContent = order.length > out ? 'The first ' + out + ' go out on the next mission: most stripes, then most kills. Dashed bunks sit it out.' : 'Each operation has its squad slots: ' + out + ' at ' + camp.op().name + '.';
+    $('cBunkNote').textContent = order.length > out ? 'The first ' + out + ' go out on the next mission (Deploy picks who). Dashed bunks sit it out.' : 'Each operation has its squad slots: ' + out + ' at ' + camp.op().name + '.';
     var hires = $('cHires');
     if (t.squad.length < camp.BARRACKS) camp.ROLES.forEach(function (type) {
       var price = camp.hirePrice(type), h = document.createElement('button');
@@ -317,6 +371,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     else if (act === 'fallen') fallen();
     else if (act === 'bunks') only(['cBarracks']);
     else if (act === 'shop') camp.startMission({ shop: true });
+    else if (act === 'swap') deploy(between);
   });
   // Escape closes a card over the map, and the briefing.
   root.addEventListener('keydown', function (e) {
@@ -344,6 +399,6 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   };
   campaignBtn.addEventListener('click', function () { camp.open(); });
 
-  return { hide: hide, map: map, briefing: briefing, between: between, lost: lost, debrief: debrief, barracks: barracks, fallen: fallen, end: end,
+  return { hide: hide, map: map, deploy: deploy, briefing: briefing, between: between, lost: lost, debrief: debrief, barracks: barracks, fallen: fallen, end: end,
     load: loadCard, copyLink: copyLink };
 };
