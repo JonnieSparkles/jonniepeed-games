@@ -19,6 +19,8 @@ var UnrugElevator = function (core) {
     // the fight: waves down the threads (u of each thread's end), both sides of him; in through the open shaft when he's
     // backed against a wall with no thread that side
     waves: { first: 2.6, every: 1.8, everyLast: 1.5, size: 2, sizeLast: 3, most: 7, lanes: [-.682, -.391, .136, .273, .545], clear: .12 },
+    // where a retry of the long ride starts: just past the reel's cut-in (it shows until T.reel + .15)
+    retryAt: T.reel + .15,
     crateSouls: 20, crateFrom: .473, crateSpeed: .68, deadWait: 2.8, walkOut: 1.1, doorway: .12, exitAfter: 1.4,
     // the souls each hat brings with it (owner, Oct 16)
     hatSouls: { cap: 20, crown: 60, halo: 100 },
@@ -180,14 +182,18 @@ var UnrugElevator = function (core) {
       dust: [], sparks: [], lift: 0, cap: 0, lobby: !fight && at && at.transfer && at.lobby ? true : null };
     Q.exitAt = fight ? Infinity : top().doors + ELEVATOR.exitAfter;   // the long ride's is set when the crate's done
     Q.cues = (fight ? LONG : quietCues()).slice().sort((a, b2) => a[0] - b2[0]);
-    // a continue starts the ride again from its doors, with the souls it came in with (item 26: the long ride too, not the threads)
-    const startAt = at && !at.transfer && at.startAt ? at.startAt : atDoors ? top().arrive - 1.5 : 0;
+    // a continue on the quiet ride starts it again from its doors; on the long ride, straight back into the fight as the
+    // car is reeled up: Horns Up slams in and the waves follow (owner, Oct 16; #137 replayed the whole ride). Either way
+    // with the souls it came in with. Nothing before the reel draws from the seeded stream, so the fight replays as it was.
+    const retry = at && !at.transfer && at.startAt ? at.startAt : 0, startAt = retry || (atDoors ? top().arrive - 1.5 : 0);
     core.setCheckpoint({ stage: 'elevator', souls: R.souls, continues: R.continues,
       destination: Q.destination, from: Q.from, fight,
-      startAt: 0, seedState: core.seedState(), runSeed: core.runSeed() });
+      startAt: fight ? ELEVATOR.retryAt : 0, seedState: core.seedState(), runSeed: core.runSeed() });
     if (startAt) {
       for (let t = 0; t < startAt; t += 1 / 60) Q.shaft += speedAt(t) / 60;
-      Q.t = startAt; while (Q.cue < Q.cues.length && Q.cues[Q.cue][0] < startAt) Q.cue++;
+      // a retry still plays the reel's own beat (the slam into Horns Up and HERE I COME), just past its cut-in
+      const from = retry && fight ? Math.min(startAt, T.reel) : startAt;
+      Q.t = startAt; while (Q.cue < Q.cues.length && Q.cues[Q.cue][0] < from) Q.cue++;
     }
     Q.indicator = Math.round(floorAt(Q.t));
     if (Q.lobby) { lobby.start(R, bull); R.phase = 'lobby'; R.white = .35; }
@@ -829,7 +835,7 @@ var UnrugElevator = function (core) {
     bonusBy: () => null, endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop,
     stageNo: () => R.phase === 'win' ? 17 : 16, stageNames: { 16: 'Elevator ride', 17: 'Elevator cleared' },
     pauseText: 'The elevator waits.',
-    continueText: () => 'Ride again with full hearts?',
+    continueText: () => Q && Q.fight ? 'Back into the fight on the ride up.' : 'Ride again from the doors.',
     clearCard: (extra, best, clock) => ({ title: 'Elevator clear', text: '', rows: [['Souls', String(R.souls)], ['Time', clock(R.endT)]], note: '' }),
     ELEVATOR, T, arena, top, floorAt, speedAt, shakeAt, doorOpening, fightOn, locked, cutActive, spawnWave
   };

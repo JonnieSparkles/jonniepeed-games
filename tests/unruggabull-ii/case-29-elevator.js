@@ -153,10 +153,13 @@
     travel('elevator', { fight: true, from: 48 });   // the 48th Floor's lobby takes the long ride
     check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && seed === longSeed, 'the long ride from 48 carries the run');
     bull.inv = 1e9; at(T.reel + 6); R.souls += 2; R.hearts = 1; bull.inv = 0; hurtBull(1, 'flyer'); tick(3);
-    check(state === 'over' && checkpoint.souls === 123 && !checkpoint.startAt && Cards.info.back === 'FLOOR 48' && Cards.info.lost === 2, 'the rugged card: back to the 48th, the two souls of this try lost (item 26)');
+    check(state === 'over' && checkpoint.souls === 123 && checkpoint.startAt === floor.ELEVATOR.retryAt && Cards.info.back === 'THE FIGHT' && Cards.info.lost === 2, 'the rugged card: back to the fight, the two souls of this try lost (item 26)');
     Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
-    check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && R.hearts === 5 && R.elevator.t === 0 && R.continues === 2 && !R.arena.enemies.length, 'a continue rides the whole long ride again');
-    at(T.thread + .5); check(R.talk && R.talk.speaker === 'ploom', 'the threads come in again');
+    check(R.stage === 'elevator' && R.elevator.fight && R.elevator.from === 48 && R.souls === 123 && R.hearts === 5 && R.elevator.t === floor.ELEVATOR.retryAt && R.continues === 2 && !R.arena.enemies.length && !floor.cutActive(R.elevator.t),
+      'a continue goes straight back into the fight as the car is reeled up, past the cut-in (owner, Oct 16)');
+    update(1 / 60); check(Snd.track === 'hornsUp' && !R.arena.locked, 'Horns Up slams in, and he can move at once');
+    at(T.reel + .7); check(R.talk && R.talk.text === 'HERE I COME, P(LOOM).', 'and he says HERE I COME again');
+    at(T.reel + .6 + floor.ELEVATOR.waves.first + .1); check(R.arena.enemies.length > 0, 'the waves follow');
     // the top: the threads let go and take the last carpshits with them, the music stops
     bull.inv = 1e9; at(T.arrive - .05); const souls = R.souls, left2 = R.arena.enemies.length;
     check(left2 > 0, 'carpshits up to the top'); tick(.1);

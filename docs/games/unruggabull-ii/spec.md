@@ -97,7 +97,7 @@ A side-view car in its shaft, no scrolling: walnut and brass, art-deco doors wit
 
 No supplies are carried (owner, Oct 15): the quiet ride's Spread Shot, Bull Run and Spare Vest were dropped. The crates and the hats (above) are built.
 
-Rugged in the long ride, Continue starts the whole ride again with full hearts and the souls he came in with; Restart floor starts the ride over. `#stage=elevator` starts the 13→R ride.
+Rugged in the long ride, Continue goes straight back into the fight as the car is reeled up (Horns Up slams in, then the waves; Oct 16), with the souls he came in with and a continue's usual hearts. `#stage=elevator` starts the 13→R ride.
 
 ## Look
 
@@ -168,7 +168,7 @@ On the roof, playable side/top-down views stay dropped. Moving is the thumb stic
 
 ## Difficulty and continues (settled Oct 14–16, built)
 
-Four modes, picked on the title and kept for the run, each with its own board: **Baby Bull** (every hit costs half a heart), **Regular Bull** (the game as tuned), **Raging Bull** (nothing heals between stages; more to design once he's played the finished game), **Impossibull** (five hearts from the start and nothing gives one back, not even a continue, which starts the stage with the hearts he came in with; unlocked by a Raging Bull clear without a retry). Hearts carry between stages on every mode; Baby and Regular get the three heals above. Continues are unlimited; a continue loses the failed try's souls; a run that continues is off the board on every mode. Where a continue restarts: the stairwell at the garage or the katana; the 13th Floor at its door, or at SHRED-O once it's woken; the rides over; the 48th Floor whole; the roof at the phase or the quiet (his call, open). The 48th caps what it keeps making (a 100-soul quota on kills and limp rugs (60 until Oct 16), two carts a visit) so stalling can't farm souls, and an arrow points at the nearest loom when he's idle. Built as the README describes, with the crates and hats (above).
+Four modes, picked on the title and kept for the run, each with its own board: **Baby Bull** (every hit costs half a heart), **Regular Bull** (the game as tuned), **Raging Bull** (nothing heals between stages; more to design once he's played the finished game), **Impossibull** (five hearts from the start and nothing gives one back, not even a continue, which starts the stage with the hearts he came in with; unlocked by a Raging Bull clear without a retry). Hearts carry between stages on every mode; Baby and Regular get the three heals above. Continues are unlimited; a continue loses the failed try's souls; a run that continues is off the board on every mode. Where a continue restarts: the stairwell at the garage or the katana; the 13th Floor at its door, or at SHRED-O once it's woken; the quiet ride over, the long ride at its fight; the 48th Floor whole; the roof at the phase or the quiet (his call, open). The 48th caps what it keeps making (a 100-soul quota on kills and limp rugs (60 until Oct 16), two carts a visit) so stalling can't farm souls, and an arrow points at the nearest loom when he's idle. Built as the README describes, with the crates and hats (above).
 
 ## Later stages
 
