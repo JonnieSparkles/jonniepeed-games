@@ -20,8 +20,13 @@ var UnrugElevator = function (core) {
     // backed against a wall with no thread that side
     waves: { first: 2.6, every: 1.8, everyLast: 1.5, size: 2, sizeLast: 3, most: 7, lanes: [-.682, -.391, .136, .273, .545], clear: .12 },
     crateSouls: 20, crateFrom: .473, crateSpeed: .68, deadWait: 2.8, walkOut: 1.1, doorway: .12, exitAfter: 1.4,
-    // the long ride's arrival: the operator asks as the doors finish opening, he answers, and only then can he walk out
+    // the souls each hat brings with it (owner, Oct 16)
+    hatSouls: { cap: 20, crown: 60, halo: 100 },
+    // the operator asks as the doors finish opening (the long ride: once the crate's done), he answers, and only then can
+    // he walk out: FLOOR? at `floor`, ROOF. `roof - floor` after it, out `out - floor` after it
     ask: { floor: .9, roof: 2.2, out: 2.6 },
+    // the quiet ride's last line, after KEEP THE SLIP. (seconds after the doors), and how long it's up
+    last: { at: 4.9, dur: 2 },
     arena: {} };
   const arena = UnrugArena(core, ELEVATOR.arena);
   const lobby = UnrugLobby(core, arena, Object.assign({}, ELEVATOR.lobby, { look: '13', events: { ding: 'elevator_lobby_ding', board: 'elevator_board' } }));
@@ -104,9 +109,8 @@ var UnrugElevator = function (core) {
     [T.arrive, () => { arrive(); Snd.play('rideSlam'); }],
     [T.arrive + .5, () => Snd.play('rideDing')],
     [T.doors, () => { Snd.play('rideDoors'); emit('elevator_doors'); }],
-    [T.doors + ELEVATOR.ask.floor, () => say('operator', 'FLOOR?', 1.6)],
     [T.doors + 1.6, () => Snd.play('thunder')],
-    [T.doors + ELEVATOR.ask.roof, () => { if (!Q.out) say('bull', 'ROOF.', 1.4); }]
+    [T.crate, () => startTop()]
   ];
   // The quiet ride's entire script: anchor, seconds from it, speaker, bubble, duration.
   // Arrival offsets use the same ask timing as the long ride; editing a line/duration also moves the exit gate.
@@ -127,6 +131,14 @@ var UnrugElevator = function (core) {
     [['start', 17, 'operator', 'RECLAMATION. YOU SURE?', 2], ['start', 19.4, 'bull', "IT'S ON THE SLIP.", 1.8], ['start', 24, 'operator', "...I'LL WAIT HERE.", 1.8]],
     [['start', 17, 'bull', 'THIS THING GO FASTER?', 2], ['start', 19.4, 'operator', 'NO.', 1.8], ['start', 24, 'bull', 'GREAT.', 1.8]]
   ];
+  // The last word is the operator's (owner, Oct 16): on Baby and Regular, if he's hurt, he slides the crate over, "YOU'RE
+  // GOING TO NEED THIS."; at full hearts, and always on Raging and Impossibull, there's no crate, "YOU GOT THIS." Decided as
+  // the line comes (nothing can hurt him on this ride, so it's the hearts he arrived with).
+  const quietCrate = () => core.betweenHeals() && R.hearts < TUNE.hearts;
+  function quietLast() {
+    if (quietCrate()) { say('operator', "YOU'RE GOING TO NEED THIS.", ELEVATOR.last.dur); slideCrate('quiet'); }
+    else say('operator', 'YOU GOT THIS.', ELEVATOR.last.dur);
+  }
   function quietCues() {
     Q.middle = (core.runSeed() >>> 0) % QUIET_MIDDLE.length;
     const p = top(), lines = QUIET.concat(QUIET_MIDDLE[Q.middle]).map(([anchor, offset, who, text, dur]) => {
@@ -134,8 +146,10 @@ var UnrugElevator = function (core) {
       Q.exitAt = Math.max(Q.exitAt, t + dur);
       return [t, () => say(who, text, dur)];
     });
+    const last = p.doors + ELEVATOR.last.at, crate = [[last, quietLast]];   // either line holds the exit the same time
+    Q.exitAt = Math.max(Q.exitAt, last + ELEVATOR.last.dur);
     return lines.concat([[p.arrive, () => { arrive(); Snd.play('rideDing'); }],
-      [p.doors, () => { Snd.play('rideDoors'); emit('elevator_doors'); }]]);
+      [p.doors, () => { Snd.play('rideDoors'); emit('elevator_doors'); }]], crate);
   }
   // the top: the threads let go, the last carpshits go with them (their souls are his), the music stops
   function arrive() {
@@ -145,18 +159,21 @@ var UnrugElevator = function (core) {
 
   // ---------- the run ----------
   function newRun(r, b, at) {
-    if (!at && /(^|&)at=lobby(&|$)/.test(location.hash.replace(/^#/, ''))) at = Object.assign({ transfer: true, souls: 0 }, RIDE_13);
+    const hash = location.hash.replace(/^#/, ''), atDoors = !at && /(^|&)at=doors(&|$)/.test(hash);
+    if (!at && /(^|&)at=lobby(&|$)/.test(hash)) at = Object.assign({ transfer: true, souls: 0 }, RIDE_13);
+    // practice: &ride=quiet is the quiet ride to the 48th (no lobby); &at=doors starts either ride just before it arrives
+    if (!at && /(^|&)ride=quiet(&|$)/.test(hash)) at = Object.assign({ transfer: true, souls: 0 }, RIDE_13, { lobby: false });
     R = r; bull = b; R.speed = 0; R.phase = 'boss';
     if (at) { R.souls = R.shown = at.souls || 0; R.continues = (at.continues || 0) + (at.transfer ? 0 : 1); }
     arena.newRun(R, bull);
     const fight = at && at.fight != null ? at.fight : ELEVATOR.fight;
     Q = R.elevator = { t: 0, from: at && at.from != null ? at.from : ELEVATOR.from, fight, destination: Object.assign({}, ELEVATOR.destination, at && at.destination),
-      cues: null, cue: 0, shaft: 0, indicator: 0, nextSpawn: ELEVATOR.waves.first, wave: 0, crate: null, crateSouls: 0, out: 0,
+      cues: null, cue: 0, shaft: 0, indicator: 0, nextSpawn: ELEVATOR.waves.first, wave: 0, crate: null, crateSouls: 0, hatSouls: 0, top: null, out: 0,
       dust: [], sparks: [], lift: 0, cap: 0, lobby: !fight && at && at.transfer && at.lobby ? true : null };
-    Q.exitAt = fight ? T.doors + ELEVATOR.ask.out : top().doors + ELEVATOR.exitAfter;
+    Q.exitAt = fight ? Infinity : top().doors + ELEVATOR.exitAfter;   // the long ride's is set when the crate's done
     Q.cues = (fight ? LONG : quietCues()).slice().sort((a, b2) => a[0] - b2[0]);
     // a continue starts the ride again from its doors, with the souls it came in with (item 26: the long ride too, not the threads)
-    const startAt = at && !at.transfer && at.startAt ? at.startAt : 0;
+    const startAt = at && !at.transfer && at.startAt ? at.startAt : atDoors ? top().arrive - 1.5 : 0;
     core.setCheckpoint({ stage: 'elevator', souls: R.souls, continues: R.continues,
       destination: Q.destination, from: Q.from, fight,
       startAt: 0, seedState: core.seedState(), runSeed: core.runSeed() });
@@ -211,23 +228,101 @@ var UnrugElevator = function (core) {
     stepCosmetic(dt);
     Q.t += dt;
   }
-  // The long ride's crate: the operator slides it over and it waits. It gives full hearts, or bonus souls if he's
-  // already full. The quiet ride has none.
+  // ---------- the crates and the long ride's top (item 30) ----------
+  // The operator slides a crate over and it waits in front of him. The quiet ride's (Baby and Regular): it fills his
+  // hearts, or nothing if he's full. The long ride's, by mode (the owner's rules):
+  //   Baby: hurt, full hearts; full, 20 souls (one a frame). Nothing to wear.
+  //   Regular: hurt, full hearts; full, nothing. Full at the crate with no continues: the operator tosses him his cap.
+  //   Raging: the same-looking crate; its heart floats up out of reach and poofs into smoke. Full at the crate with no
+  //     continues: the operator lifts his cap, the crown was under there, and tosses it over; otherwise
+  //     "YOU CHOSE THIS DIFFICULTY."
+  //   Impossibull: no crate. Full hearts at the top (never hit all climb) with no continues: the operator lifts his cap,
+  //     his halo rises off his head and floats over Unruggabull's horns; otherwise "THERE IS NO CRATE."
+  // No pop words: only the operator speaks. Then FLOOR? / ROOF. and the walk out. Times are seconds from the take (or,
+  // on Impossibull, from the crate's time).
+  const GIFT = {
+    plain: { gave: .9, none: .6 },                                   // Baby and Regular, no hat: the exchange
+    heartIn: .5,                                                     // the crate's heart flying into him (drawn only)
+    cap: { line: .3, toss: .6, land: 1.5, exchange: 2.3 },
+    poof: { rise: .55, end: 1.65 },
+    crown: { lift: [1.75, 2.1, 3.0, 3.3], toss: 2.4, land: 3.2, exchange: 3.8 },
+    raging: { line: 1, dur: 2.4, exchange: 3.6 },
+    halo: { lift: [0, .35, 2.1, 2.4], rise: .6, toss: 1.2, land: 2.2, exchange: 2.9 },
+    impossibull: { line: 0, dur: 2.2, exchange: 2.6 },
+    capLift: 14   // how high he lifts his cap (picture pixels)
+  };
+  ELEVATOR.gift = GIFT;
+  // a cue at an absolute ride time, in order with the rest
+  function later(at, fn) { let i = Q.cue; while (i < Q.cues.length && Q.cues[i][0] <= at) i++; Q.cues.splice(i, 0, [at, fn]); }
+  function slideCrate(kind) {
+    Q.crate = { u: ELEVATOR.crateFrom, got: false, kind };
+    Snd.play('rideCrate'); emit('elevator_crate', { ride: kind });
+  }
+  // The long ride's top, at the crate's time: one test for every hat, full hearts as it comes and no continues.
+  function startTop() {
+    const mode = core.mode(), kind = UnrugHats.of(mode);
+    Q.top = { mode, at: null, kind: kind && R.hearts >= TUNE.hearts && !R.continues ? kind : null };
+    emit('elevator_top', { mode, hat: Q.top.kind || 'none', hearts: R.hearts });
+    if (mode === 'impossibull') beginTop(Q.t); else slideCrate('long');
+  }
+  function takeCrate() {
+    const c = Q.crate; c.got = true; c.at = Q.t; Snd.play('power');
+    const hurt = R.hearts < TUNE.hearts, mode = core.mode();
+    if (c.kind === 'long' && mode === 'raging') { c.gave = 'poof'; core.live('The crate has a heart in it. It floats up out of reach and goes up in smoke.'); }
+    else if (hurt && core.healing()) { c.gave = 'hearts'; R.hearts = TUNE.hearts; Snd.play('coffee'); core.live('The crate: full hearts.'); }
+    else if (c.kind === 'long' && mode === 'baby') { c.gave = 'souls'; Q.crateSouls = ELEVATOR.crateSouls; core.live('The crate: ' + ELEVATOR.crateSouls + ' souls.'); }
+    else { c.gave = 'none'; core.live('The crate is empty. Hearts already full.'); }
+    emit('elevator_supply', { item: c.gave, ride: c.kind });
+    if (c.kind === 'long') beginTop(Q.t);
+  }
+  // what follows the take: the operator's gift or his line, then FLOOR? / ROOF.
+  function beginTop(t0) {
+    const P = Q.top, k = P.kind, at = d => t0 + d, c = Q.crate;
+    P.at = t0;
+    let ex;
+    if (k === 'cap') {
+      later(at(GIFT.cap.line), () => say('operator', 'ON THE HOUSE.', 1.6));
+      later(at(GIFT.cap.toss), () => Snd.play('swoop'));
+      later(at(GIFT.cap.land), () => land('cap'));
+      ex = GIFT.cap.exchange;
+    } else if (P.mode === 'raging') {
+      later(at(GIFT.poof.rise), () => Snd.play('poof'));
+      if (k === 'crown') {
+        later(at(GIFT.crown.lift[0]), () => Snd.play('appear'));
+        later(at(GIFT.crown.toss), () => Snd.play('swoop'));
+        later(at(GIFT.crown.land), () => land('crown'));
+        ex = GIFT.crown.exchange;
+      } else { later(at(GIFT.raging.line), () => say('operator', 'YOU CHOSE THIS DIFFICULTY.', GIFT.raging.dur)); ex = GIFT.raging.exchange; }
+    } else if (P.mode === 'impossibull') {
+      if (k === 'halo') {
+        later(at(GIFT.halo.rise), () => Snd.play('appear'));
+        later(at(GIFT.halo.land), () => land('halo'));
+        ex = GIFT.halo.exchange;
+      } else { later(at(GIFT.impossibull.line), () => say('operator', 'THERE IS NO CRATE.', GIFT.impossibull.dur)); ex = GIFT.impossibull.exchange; }
+    } else ex = c && c.gave !== 'none' ? GIFT.plain.gave : GIFT.plain.none;
+    // then the operator asks, he answers, and he can go (never before the doors' own timing)
+    const A2 = ELEVATOR.ask, f = Math.max(at(ex), T.doors + A2.floor);
+    later(f, () => say('operator', 'FLOOR?', 1.6));
+    later(f + A2.roof - A2.floor, () => say('bull', 'ROOF.', 1.4));
+    Q.exitAt = f + A2.out - A2.floor;
+  }
+  // the hat lands on him: worn for the rest of the run, with its souls (one a frame)
+  function land(kind) {
+    core.giveHat(kind); Q.hatSouls = ELEVATOR.hatSouls[kind] || 0;
+    Snd.play(kind === 'halo' ? 'soul' : 'ready');
+    if (kind !== 'cap') R.white = Math.max(R.white || 0, .3);
+    emit('elevator_hat', { hat: kind, souls: Q.hatSouls });
+    core.live({ cap: "The operator's cap, on the house.", crown: 'The crown that was under his cap.', halo: "The operator's halo." }[kind]);
+  }
   function stepCrate(dt) {
-    if (!Q.fight) return;
-    if (Q.t >= T.crate && !Q.crate && !Q.out) { Q.crate = { u: ELEVATOR.crateFrom, got: false, kind: 'hearts' }; Snd.play('rideCrate'); emit('elevator_crate'); }
     const c = Q.crate;
     if (c && !c.got) {
       c.u = Math.max(Math.max(UX(200), bull.u + .109), c.u - ELEVATOR.crateSpeed * dt);
-      if (Math.abs(c.u - bull.u) < .118 && bull.jh < .07) {
-        c.got = true; Snd.play('power');
-        if (R.hearts < TUNE.hearts && core.healing()) { c.gave = 'hearts'; R.hearts = TUNE.hearts; core.popText('FULL HEARTS', 120, 78, '#ffd44a'); }
-        else { c.gave = 'souls'; Q.crateSouls = ELEVATOR.crateSouls; core.popText('+' + ELEVATOR.crateSouls + ' SOULS', 120, 78, '#ffd44a'); }
-        emit('elevator_supply', { item: c.gave });
-      }
+      if (Math.abs(c.u - bull.u) < .118 && bull.jh < .07) takeCrate();
     }
-    // the bonus souls come out one a frame
+    // the bonus souls come out one a frame: Baby's crate's from the crate, a hat's from his head
     if (Q.crateSouls > 0) { Q.crateSouls--; free(arena.X(c.u) + core.fxr(-7, 7), arena.Y(.05), 'crate', 'crate'); }
+    if (Q.hatSouls > 0) { Q.hatSouls--; free(arena.X(bull.u) + core.fxr(-5, 5), arena.Y(.26), 'hat', 'hat'); }
   }
   // In the doorway once the doors are open and the operator has asked: he answers, turns his back to us and walks out.
   function stepWalkOut(dt) {
@@ -236,7 +331,7 @@ var UnrugElevator = function (core) {
     const gate = Q.exitAt;
     if (!Q.fight && Q.out === 0 && R.talk) return; // wait through the actual bubble, including frame rounding
     if (Q.out <= 0 && !(Q.t > gate && Math.abs(bull.u) < ELEVATOR.doorway && bull.jh <= 0)) return;
-    if (Q.out === 0) { emit('elevator_exit'); if (Q.fight && Q.t < T.doors + ELEVATOR.ask.roof) say('bull', 'ROOF.', 1.4); }   // he answers on his way out
+    if (Q.out === 0) { emit('elevator_exit'); if (Q.crate && !Q.crate.got) takeCrate(); }   // walking out takes a crate he left
     Q.out = Math.min(1, Q.out + dt / ELEVATOR.walkOut); R.arena.out = Q.out;
     bull.u += (0 - bull.u) * (1 - Math.pow(.0016, dt)); bull.step += dt * 8;
     if (Q.out < 1) return;
@@ -438,13 +533,30 @@ var UnrugElevator = function (core) {
     });
   }
   // the operator: one of the Unrugged, a soul at twice the size on his stool, in a bellhop's cap and jacket
+  // His halo (the soul's top five rows) is drawn on its own, so it can lift off on Impossibull; his cap can lift (Raging,
+  // Impossibull) or come off (Regular), and on Raging the crown sits on his head under it.
+  const OPX = 338;
+  const opY = t => 160 - Math.round(Q.lift) - (R.talk && R.talk.speaker === 'operator' && Math.floor(t * 8) % 2 ? 1 : 0);
+  function opState() {
+    const o = { cap: true, lift: 0, halo: true, haloY: 0, crown: false }, P = Q.top;
+    if (!P || P.at == null || !P.kind) return o;
+    const s = Q.t - P.at, liftAt = ([a, b, c, d]) => GIFT.capLift * (s < a ? 0 : s < b ? (s - a) / (b - a) : s < c ? 1 : s < d ? 1 - (s - c) / (d - c) : 0);
+    if (P.kind === 'cap') o.cap = s < GIFT.cap.toss;
+    if (P.kind === 'crown') { o.lift = liftAt(GIFT.crown.lift); o.crown = s < GIFT.crown.toss; }
+    if (P.kind === 'halo') {
+      const H2 = GIFT.halo; o.lift = liftAt(H2.lift);
+      if (s < H2.toss) o.haloY = -Math.round(clamp((s - H2.rise) / (H2.toss - H2.rise), 0, 1) * 12); else o.halo = false;
+    }
+    return o;
+  }
   function drawOperator(t) {
-    const talking = R.talk && R.talk.speaker === 'operator';
-    const x = 338, y = 160 - Math.round(Q.lift) - (talking && Math.floor(t * 8) % 2 ? 1 : 0), S = A.GHOST;
-    g.drawImage(S, x, y, S.width * 2, S.height * 2);
-    const cy = y + 4 - Math.round(Q.cap);   // the cap floats on the drop
-    rect(g, x + 7, cy - 6, 22, 10, '#1a1418'); rect(g, x + 8, cy - 5, 20, 8, '#c8302a'); rect(g, x + 8, cy - 5, 20, 2, '#e8483a'); rect(g, x + 8, cy + 1, 20, 2, '#ffd44a');
-    rect(g, x + 26, cy + 3, 6, 2, '#1a1418');
+    const x = OPX, y = opY(t), o = opState(), H2 = UnrugHats;
+    g.drawImage(H2.OP_BODY, x, y, H2.OP_BODY.width * 2, H2.OP_BODY.height * 2);
+    if (o.halo) g.drawImage(H2.OP_HALO, x, y + o.haloY, H2.OP_HALO.width * 2, H2.OP_HALO.height * 2);
+    if (o.crown) g.drawImage(H2.IMG.crown.back, x + 5, y - 3, 26, 16);   // it was under there all along
+    const cy = y + 4 - Math.round(Q.cap) - Math.round(o.lift);   // the cap floats on the drop, and lifts for the gift
+    if (o.cap) { rect(g, x + 7, cy - 6, 22, 10, '#1a1418'); rect(g, x + 8, cy - 5, 20, 8, '#c8302a'); rect(g, x + 8, cy - 5, 20, 2, '#e8483a'); rect(g, x + 8, cy + 1, 20, 2, '#ffd44a');
+      rect(g, x + 26, cy + 3, 6, 2, '#1a1418'); }
     rect(g, x + 4, y + 30, 28, 12, '#1a1418'); rect(g, x + 5, y + 30, 26, 11, '#a8261e'); rect(g, x + 5, y + 30, 26, 1, '#d63428');
     for (const bx of [x + 12, x + 23]) for (const by of [y + 33, y + 37]) rect(g, bx, by, 2, 2, '#ffd44a');
     rect(g, x + 17, y + 30, 2, 11, '#7a1a14');
@@ -456,6 +568,56 @@ var UnrugElevator = function (core) {
     rect(g, x - 14, FLOOR - 22, 28, 22, '#1a1418'); rect(g, x - 13, FLOOR - 21, 26, 20, '#8c6a44'); rect(g, x - 13, FLOOR - 12, 26, 2, '#6a4a2a');
     rect(g, x - 1, FLOOR - 21, 2, 20, '#6a4a2a');
     g.drawImage(A.HEART, x - Math.round(A.HEART.width / 2), FLOOR - 12 - Math.round(A.HEART.height / 2));
+  }
+  // In front of him: the crate's heart going into him (or, on Raging, floating up and going up in smoke), and a hat
+  // flying from the operator's head to his.
+  const ease2 = k => 1 - (1 - k) * (1 - k);
+  function headAt(kind) {   // where the hat will sit on him now (picture pixels), side on
+    const f = bull.facing || 1, x = PX(bull.u), y = arena.PYh(bull.jh) - Math.round(R.arena.lift || 0), SF2 = UnrugBull.SIDE_FEET;
+    const st = UnrugHats.seat(kind, 'side', UnrugBull.SIDES.idle);
+    return { x: x + f * (st.x + st.w / 2 - SF2.x), y: y - SF2.y + st.y + st.h / 2 };
+  }
+  function drawTop() {
+    const c = Q.crate, P = Q.top;
+    if (c && c.got && c.gave === 'hearts' && Q.t - c.at < GIFT.heartIn) {
+      const k = ease2((Q.t - c.at) / GIFT.heartIn), hx = PX(c.u), to = { x: PX(bull.u), y: arena.PYh(bull.jh) - 36 };
+      g.drawImage(A.HEART, Math.round(hx + (to.x - hx) * k - A.HEART.width / 2), Math.round(FLOOR - 20 + (to.y - FLOOR + 20) * k - Math.sin(k * Math.PI) * 14 - A.HEART.height / 2));
+    }
+    if (c && c.got && c.gave === 'hearts' && Q.t - c.at >= GIFT.heartIn && Q.t - c.at < GIFT.heartIn + .6) {
+      const k = (Q.t - c.at - GIFT.heartIn) / .6, bx = Math.round(PX(bull.u)), by = Math.round(arena.PYh(bull.jh));
+      UnrugHats.sparkle(g, bx - 4, by - 40, 1 - k, '#ff9a9a'); UnrugHats.sparkle(g, bx + 6, by - 52, 1 - k);
+    }
+    if (c && c.got && c.gave === 'poof') drawPoof(PX(c.u), Q.t - c.at);
+    if (!P || P.at == null || !P.kind) return;
+    const s = Q.t - P.at, k = P.kind, G2 = GIFT[k], H2 = UnrugHats;
+    if (s >= G2.toss && s < G2.land) {
+      const y0 = opY(Q.t), from = k === 'halo' ? { x: OPX, y: y0 - 7 } : { x: OPX + 6, y: y0 - 6 - GIFT.capLift * (k === 'crown' ? 1 : 0) };
+      const to = headAt(k), e = ease2((s - G2.toss) / (G2.land - G2.toss)), arc = k === 'halo' ? 10 : 26;
+      const x = from.x + (to.x - 6 - from.x) * e, y = from.y + (to.y - 4 - from.y) * e - Math.sin(e * Math.PI) * arc;
+      if (k === 'cap') { g.save(); g.translate(Math.round(x + 6), Math.round(y + 3)); g.rotate(e * Math.PI * 2); g.drawImage(H2.IMG.cap.side, -6, -3); g.restore(); }
+      else if (k === 'crown') g.drawImage(H2.IMG.crown.side, Math.round(x), Math.round(y));
+      else { H2.glowAt(g, x + 18, y + 5, 12, .45); g.drawImage(H2.OP_HALO, Math.round(x), Math.round(y), 36, 10); }
+      if (k !== 'cap') for (let i = 0; i < 4; i++) { const a = Q.t * 3 + i * Math.PI / 2; H2.sparkle(g, Math.round(x + (k === 'halo' ? 18 : 5) + Math.cos(a) * 12), Math.round(y + 4 + Math.sin(a) * 8), .5 + .5 * Math.sin(Q.t * 9 + i), '#fff07e'); }
+    }
+    if (s >= G2.land && s < G2.land + .7) { const h = headAt(k), q = 1 - (s - G2.land) / .7; H2.sparkle(g, Math.round(h.x - 5), Math.round(h.y), q); H2.sparkle(g, Math.round(h.x + 4), Math.round(h.y - 4), q, '#fff07e'); }
+  }
+  // Raging's trick: the heart floats up from the crate to just above his head height, wobbles, then a white flash and a
+  // puff of grey smoke that drifts up and fades (about 1.1 s). k: seconds since he took it.
+  function drawPoof(x, k) {
+    const P2 = GIFT.poof, top = arena.PYh(0) - UnrugBull.SIDE_FEET.y - 8;
+    if (k < P2.rise) {
+      const e = ease2(k / P2.rise), y = FLOOR - 14 - e * (FLOOR - 14 - top) + (k > .4 ? Math.sin(k * 40) : 0);
+      g.drawImage(A.HEART, Math.round(x - A.HEART.width / 2), Math.round(y - A.HEART.height / 2)); return;
+    }
+    const p = (k - P2.rise) / (P2.end - P2.rise); if (p >= 1) return;
+    g.save();
+    for (let i = 0; i < 12; i++) {
+      const a = i * 2.39, r = 2 + p * (12 + (i % 4) * 3), sz = Math.max(1.5, 6 - p * 4 + (i % 3));
+      g.globalAlpha = (1 - p) * .9; g.fillStyle = ['#c4bece', '#8a8494', '#a8a2b4'][i % 3];
+      g.beginPath(); g.arc(x + Math.cos(a) * r, top + Math.sin(a) * r * .75 - p * 12 - (i % 4) * p * 3, sz, 0, Math.PI * 2); g.fill();
+    }
+    if (p < .12) { g.globalAlpha = 1; rect(g, Math.round(x - 3), Math.round(top - 3), 6, 6, '#fff8e4'); }
+    g.restore();
   }
   // warm sconces; the brownout; dark and red on the drop and the fight
   function shade(t) {
@@ -592,7 +754,7 @@ var UnrugElevator = function (core) {
     drawShaftSides(t); g.drawImage(BG, 0, 0);
     drawDial(t); drawDoors(t); drawHatch(t); drawOperator(t); drawCrate();
     g.restore(); arena.draw(); g.save(); g.scale(.5, .5);
-    drawBits(); shade(t);
+    drawTop(); drawBits(); shade(t);
   });
   function glows() {
     if (Q.lobby) { lobby.glows(); return; }

@@ -25,16 +25,16 @@
     bull.inv = 0; hurtBull(1, 'test');
     check(R.phase === 'dead', 'ten hits rug him');
 
-    // ---- Raging Bull: hearts carry between stages ----
+    // ---- Raging Bull: hearts carry between stages (as on every mode now, item 30) ----
     setMode('raging');
-    check(!RUN.refillBetweenStages, 'Raging Bull: no refill between stages');
+    check(!betweenHeals(), 'Raging Bull: nothing heals between stages');
     RUN.force = 3940; startRun('floor13'); bull.inv = 0; hurtBull(1, 'test'); bull.inv = 0; hurtBull(1, 'test');
     travel('elevator', RIDE_TO_48);
     check(R.stage === 'elevator' && R.hearts === 3, 'Raging Bull: the hearts he leaves a floor with ride up with him');
     travel('floor48');
     check(R.hearts === 3, 'Raging Bull: and on into the 48th');
     setMode('regular'); RUN.force = 3940; startRun('floor13'); bull.inv = 0; hurtBull(1, 'test'); travel('elevator', RIDE_TO_48);
-    check(R.hearts === 5, 'Regular: the hearts refill between stages, as before');
+    check(R.hearts === 4, 'Regular: the hearts carry between stages too (item 30)');
 
     // ---- Impossibull: five hearts, nothing heals ----
     setMode('impossibull');
@@ -84,7 +84,7 @@
     keys0.forEach(k => localStorage.removeItem(k));   // the lock's clears above went on the boards
     setMode('baby'); RUN.force = 3944; startRun('floor13', true); R.souls = 37;
     rugged();
-    check(JSON.stringify(boardOf('baby')) === '[["13TH",37]]' && boardOf('regular').length === 0, "a rugged full run goes on its own mode's board only");
+    check(JSON.stringify(boardOf('baby')) === '[["13TH",37,0]]' && boardOf('regular').length === 0, "a rugged full run goes on its own mode's board only");
     check(Cards.info.mode === 'baby' && Cards.info.ranked, 'the card knows the mode');
     Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(R.continues === 1 && RUN.full && RUN.mode === 'baby', 'a retry carries the run and its mode');
@@ -98,7 +98,7 @@
     localStorage.setItem('unruggabull-ii-impossibull', '1'); check(!cardInfo('rugged').unlock, 'not once Impossibull is open'); localStorage.removeItem('unruggabull-ii-impossibull');
     setMode('baby'); check(!cardInfo('rugged').unlock, 'nor on another mode'); setMode('raging');
     setMode('raging'); RUN.force = 3947; startRun('floor13', true); R.souls = 90; rugged();
-    check(JSON.stringify(boardOf('raging')) === '[["13TH",90],["13TH",50]]', 'the board keeps the best first');
+    check(JSON.stringify(boardOf('raging')) === '[["13TH",90,0],["13TH",50,0]]', 'the board keeps the best first');
     setMode('raging'); RUN.force = 3948; startRun('roof', true); R.endT = R.t; endRun('clear');
     check(boardOf('raging').some(e => e[0] === 'CLEAR'), 'a cleared run goes on as CLEAR');
     check(JSON.stringify(Title.MODES.map(m => (boardOf(m.id) || []).length)) === '[1,0,3,0]', 'four boards, one a mode');

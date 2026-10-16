@@ -84,15 +84,18 @@
   const rr = (a, b) => a + (b - a) * rnd();
   const fxr = (a, b) => a + (b - a) * Math.random();
   // The run's difficulty (item 29), picked on the title and kept for the whole run: Baby Bull's hits cost half a heart,
-  // Regular is the game as tuned, Raging Bull carries his hearts between stages, Impossibull has five hearts from the
-  // start and nothing gives one back (owner, Oct 16): no coffee, no katana refill, no crate hearts, no refill between stages.
+  // Regular is the game as tuned, Raging Bull has nothing that heals between stages, Impossibull has five hearts from the
+  // start and nothing gives one back (owner, Oct 16): no coffee, no katana refill, no crate hearts.
+  // Hearts carry across every stage change on every mode (owner, Oct 16, item 30); on Baby and Regular three heals he
+  // can see come right before a fight: the first-aid box on the stairwell's top landing, the quiet ride's crate and the
+  // long ride's crate (betweenHeals()).
   // full: the run began at Start and has been carried since (no Restart floor, no #stage), so it can go on the board.
-  const RUN = { force: null, seed: 0, refillBetweenStages: true, mode: 'regular', full: false };
+  // hat: what he won at the top of the long ride ('cap', 'crown', 'halo' or null), worn for the rest of the run.
+  const RUN = { force: null, seed: 0, mode: 'regular', full: false, hat: null };
   const MODES = ['baby', 'regular', 'raging', 'impossibull'];
-  function setMode(m) {
-    RUN.mode = MODES.includes(m) ? m : 'regular';
-    RUN.refillBetweenStages = RUN.mode === 'baby' || RUN.mode === 'regular';   // Raging and Impossibull: no refill between stages
-  }
+  function setMode(m) { RUN.mode = MODES.includes(m) ? m : 'regular'; }
+  // the box and the two rides' crates: only on Baby and Regular
+  const betweenHeals = () => RUN.mode === 'baby' || RUN.mode === 'regular';
   // what a hit of n hearts costs in this mode: half in Baby Bull
   const heartCost = n => RUN.mode === 'baby' ? n / 2 : n;
   // whether anything may give him a heart back: never in Impossibull, where even a continue starts the stage again with the
@@ -126,7 +129,7 @@
     // the hearts he comes into this stage with (a continue: the ones its checkpoint saved); every checkpoint keeps them,
     // and in Impossibull a continue gives them back instead of a full five. at.full: a retry of the 13th's hall.
     const entryHearts = at && !at.transfer ? (at.entryHearts != null ? at.entryHearts : TUNE.hearts)
-      : at ? (at.full ? (healing() || at.entryHearts == null ? TUNE.hearts : at.entryHearts) : RUN.refillBetweenStages || at.hearts == null ? TUNE.hearts : Math.min(TUNE.hearts, at.hearts))
+      : at ? (at.full ? (healing() || at.entryHearts == null ? TUNE.hearts : at.entryHearts) : at.hearts == null ? TUNE.hearts : Math.min(TUNE.hearts, at.hearts))
       : TUNE.hearts;
     R = {
       stage: floor.id, t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
@@ -740,10 +743,17 @@
     const sx = 1 + (b.sq || 0), sy = 1 - (b.sq || 0);
     // hit: knocked back a step toward you, rocking side to side, then he catches himself
     const st = b.stag > 0 && R.phase !== 'win' ? b.stag / .3 : 0, kx = Math.round(Math.sin(st * 14) * 3 * st * s), ky = Math.round(st * 4 * s);
-    const k = s * A.BULL_K;
-    g.drawImage(p, Math.round((x - A.POSE_FEET.x * k * sx + kx) * PIC) / PIC, Math.round((feet - A.POSE_FEET.y * k * sy + ky) * PIC) / PIC, A.POSE_W * k * sx, A.POSE_H * k * sy);
+    const k = s * A.BULL_K, bx = Math.round((x - A.POSE_FEET.x * k * sx + kx) * PIC) / PIC, by = Math.round((feet - A.POSE_FEET.y * k * sy + ky) * PIC) / PIC;
+    g.drawImage(p, bx, by, A.POSE_W * k * sx, A.POSE_H * k * sy);
+    wearHat(p, bx, by, k * sx, k * sy);
     // the katana's swoosh, in the glow layer so it reads in the dark: a short arc on the wind-up, the full sweep on the cut
     if (b.slash >= 0 && !cheer) A.arcE(GLOW, x + kx, feet + ky - (b.crouch ? 14 : 20) * s, 26 * s, 11 * s, Math.PI + .2, b.slash < .07 ? Math.PI * 1.45 : Math.PI * 2 - .2);
+  }
+  // The hat from the long ride's top, on him from behind (hats.js), in the same box as the pose just drawn
+  const POSE_ROWS = new Map(Object.keys(UnrugBull.POSES).map(k => [A.POSES[k], UnrugBull.POSES[k]]));
+  function wearHat(img, bx, by, kx, ky) {
+    const rows = RUN.hat && POSE_ROWS.get(img); if (!rows) return;
+    g.save(); g.translate(bx, by); g.scale(kx, ky); UnrugHats.drawOn(g, RUN.hat, 'back', rows, R.t); g.restore();
   }
   // Rugged: the rug is yanked out from under him. He flips up, spins in quarter turns and falls off the screen.
   // Rugged: he's hit, sinks to his knees and flickers out in blue sparkles, and his soul rises, a bull's soul with its
@@ -751,7 +761,7 @@
   // clock alone; the soul is drawn with the glow, so it shows in the dark.
   function drawSoulDeath(s, x, feet) {
     const t = R.phaseT, P = A.POSES, k = s * A.BULL_K;
-    const pose = (img, a) => { g.save(); g.globalAlpha = a; g.drawImage(img, Math.round(x - A.POSE_FEET.x * k), Math.round(feet - A.POSE_FEET.y * k), A.POSE_W * k, A.POSE_H * k); g.restore(); };
+    const pose = (img, a) => { g.save(); g.globalAlpha = a; const bx = Math.round(x - A.POSE_FEET.x * k), by = Math.round(feet - A.POSE_FEET.y * k); g.drawImage(img, bx, by, A.POSE_W * k, A.POSE_H * k); wearHat(img, bx, by, k, k); g.restore(); };
     if (t < .35) pose(P.hurt, 1);
     else if (t < 1.1) { const out = Math.max(0, (t - .8) / .3); if (!(out > 0 && Math.floor(t * 30) % 2)) pose(P.crouch, 1 - out * .6); }
     if (t > .8 && t < 1.3) for (let i = 0; i < 8; i++) {   // the sparkles he goes out in
@@ -1083,7 +1093,7 @@
   // full: Start's run (the stairwell after the story); Restart floor and #stage start one that can't go on the board
   function startRun(stage, full) {
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }   // restarted from pause: the open run is a quit
-    RUN.full = !!full;
+    RUN.full = !!full; RUN.hat = null;   // a new run: no hat
     checkpoint = null;
     newRun(null, stage || floor.id);
     statsStart();
@@ -1244,7 +1254,8 @@
   }
   function postRun(kind) {
     if (!RUN.full || R.continues) return false;
-    const list = boardOf(RUN.mode), row = [kind === 'clear' ? 'CLEAR' : ENDED[floor.id] || 'RUN', R.souls + (R.banked || 0)];
+    // [where it ended, the run's souls, its hat (1 if it won its mode's hat at the top of the long ride; the mode says which)]
+    const list = boardOf(RUN.mode), row = [kind === 'clear' ? 'CLEAR' : ENDED[floor.id] || 'RUN', R.souls + (R.banked || 0), RUN.hat ? 1 : 0];
     let i = list.findIndex(e => e[1] < row[1]); if (i < 0) i = list.length;   // ties keep the earlier run above
     list.splice(i, 0, row);
     try { localStorage.setItem(BOARD_KEY(RUN.mode), JSON.stringify(list.slice(0, 10))); } catch (e) {}
@@ -1705,7 +1716,11 @@
     sndLabel();
     Snd.music('theme');
     // #stage=roof&mode=baby: practice and the bots run any mode (Regular without one); a practice run never goes on a board
-    for (const stage of ['stairs', 'floor13', 'roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) { setMode(hashMode() || 'regular'); startRun(stage); }
+    // &hearts=3 starts it with that many hearts (practice: the box and the crates hurt or full)
+    for (const stage of ['stairs', 'floor13', 'roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) {
+      setMode(hashMode() || 'regular'); startRun(stage);
+      for (const tk of hashTokens()) { const m = /^hearts=(\d+(\.5)?)$/.exec(tk); if (m) R.hearts = R.entryHearts = Math.max(.5, Math.min(TUNE.hearts, +m[1])); }
+    }
     draw();
     requestAnimationFrame(frame);
   }
@@ -1719,7 +1734,8 @@
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer,
+    mode: () => RUN.mode, betweenHeals, hat: () => RUN.hat, giveHat: kind => { RUN.hat = kind || null; }, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts }, v); }
   };
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
   core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick
