@@ -92,18 +92,19 @@
     check(!R.elevator.lobby && R.phase === 'boss' && floor.doorOpening() === 0 && R.elevator.t < .05 && !R.talk && !R.arena.out && R.arena.outShrink && Snd.track === 'pleaseHold',
       'boarded: the ride starts with the doors shut, Please Hold carrying on from the lobby');
     check(seed === oldSeed && R.souls === 123 && R.continues === 0 && R.hearts === 1, 'the lobby preserves the carried run');
-    tick(.4); check(R.talk && R.talk.text === 'FLOOR?' && R.elevator.t >= .35, 'the ride cues count from the doors closing');
+    tick(.4); check(!R.talk, 'from the lobby the operator does not ask FLOOR? again (GOING UP? already did)');
+    tick(2.3); check(R.talk && R.talk.text === 'WHERE DO THE SOULS GO?' && R.elevator.t >= 2.6, 'the ride cues count from the doors closing');
     // A quiet-ride continue skips the lobby and preserves entry souls and seed.
     R.hearts = 1; bull.inv = 0; hurtBull(1, 'test'); tick(3); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(!R.elevator.lobby && floor.doorOpening() === 0 && R.elevator.t === 0 && R.continues === 1 && R.souls === 123 &&
       R.hearts === 5 && seed === oldSeed, 'quiet-ride continue skips the lobby and keeps carried state: ' + JSON.stringify({lobby:R.elevator.lobby,doors:floor.doorOpening(),t:R.elevator.t,continues:R.continues,souls:R.souls,hearts:R.hearts,seed,oldSeed}));
     check(Snd.track === 'pleaseHold', 'the real 13 to 48 quiet ride plays Please Hold');
     const quietLines = [], expectedQuiet = [
-      [.35, 'operator', 'FLOOR?'], [2.6, 'bull', 'FORTY-EIGHT.'],
-      [5, 'operator', 'GOT A SLIP?'], [7.4, 'bull', 'ACCOUNTING.'],
-      [10, 'operator', 'THEY STILL THERE?'], [12.4, 'bull', 'LESS OF THEM.'],
+      [.35, 'operator', 'FLOOR?'], [2.6, 'bull', 'WHERE DO THE SOULS GO?'],
+      [5, 'operator', '...FORTY-EIGHT.'], [7.4, 'bull', 'FORTY-EIGHT, THEN.'],
+      [10, 'operator', 'THOSE RUGS STILL IN ACCOUNTING?'], [13, 'bull', 'LESS OF THEM.'],
       ...floor.ELEVATOR.quiet.middle[R.elevator.middle].map(([, at, who, text]) => [at, who, text]),
-      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.'], [35.3, 'operator', 'YOU GOT THIS.']
+      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'THANKS.'], [35.3, 'operator', 'YOU GOT THIS.']
     ];
     check(R.elevator.middle === (RUN.seed >>> 0) % 3 && floor.ELEVATOR.quiet.middle.length === 3, 'the middle exchange is picked from the run seed');
     const quietEvents = []; emitHook = (type) => quietEvents.push(type);

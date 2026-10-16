@@ -17,7 +17,7 @@ var UnrugCards = (function () {
   };
   const CAP = { bg: '#140806', rule: '#ff7a2a', ink: '#ffd060', label: '#ff7a2a', val: '#fff6e2', dim: '#9a5a2a', warn: '#ff7050', edge: '#140806' };
   const PZ = { bg: '#16112a', rule: '#ffd44a', ink: '#ffd44a', text: '#fff6e2', dim: '#a89cc4' };
-  const PIC_W = 480, PIC_H = 270, BAND = 102, PAUSE_BAND = 158, NOTE_BAND = 112, SAVE_BAND = 158;
+  const PIC_W = 480, PIC_H = 270, BAND = 102, PAUSE_BAND = 158, NOTE_BAND = 120, SAVE_BAND = 158;   // NOTE_BAND: 112 left its line touching the buttons (owner, Oct 16)
   const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   // 2ND, 312TH: the game's font has no #
   const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'TH' : n % 10 === 1 ? 'ST' : n % 10 === 2 ? 'ND' : n % 10 === 3 ? 'RD' : 'TH');

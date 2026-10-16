@@ -1812,7 +1812,7 @@ UnrugFloor13.TUNE = {
     coffeeDrop: .2, rowH: .04,
     scroll: .2,             // walking speed down the hall, depth a second
     pullSpeed: .3, mouth: .85,
-    goal: 90,               // souls that wake SHRED-O
+    goal: 120,              // souls that wake SHRED-O (owner, Oct 16: 90 → 120)
     wadTime: 1.25, wadLead: .2, throwChance: .6,
     moveT: 16, moveClean: 10,   // moving day: how long (its course is MOVES in floor13.js, the last piece reaching you just before the end), and the bonus for a clean run
     darkT: 10,              // lights out in the hall: kills in the dark free double souls

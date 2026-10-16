@@ -70,7 +70,7 @@
     };
     for (const mode of ['baby', 'regular']) {
       const q = quietRide(mode, 2);
-      check(q.said.slice(-3).join() === "operator: RECLAMATION, SIR.,bull: KEEP THE SLIP.,operator: YOU'RE GOING TO NEED THIS.", mode + ': the new line comes last: ' + q.said.join(' / '));
+      check(q.said.slice(-3).join() === "operator: RECLAMATION, SIR.,bull: THANKS.,operator: YOU'RE GOING TO NEED THIS.", mode + ': the new line comes last: ' + q.said.join(' / '));
       check(q.hearts === 5 && q.ev.some(e => e.type === 'elevator_crate' && e.data.ride === 'quiet'), mode + ': the quiet ride\'s crate fills his hearts');
       const p = E.top(), last = p.doors + EL.last.at + EL.last.dur;
       check(q.left >= last - .02, mode + ': the exit gate moves with the new line');
