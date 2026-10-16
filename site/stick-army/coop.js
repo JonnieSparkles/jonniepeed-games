@@ -667,7 +667,7 @@ window.StickArmyCoop = function (w) {
     Encoder: Encoder, Decoder: Decoder, lerp: lerp, LEAVE: LEAVE, EVERY: EVERY, DELAY: DELAY, pieces: pieces, Joiner: Joiner,
     startHost: startHost, stopHost: stopHost, resend: resend, fx: fx, hostTick: hostTick, hostInput: hostInput,
     startGuest: startGuest, stopGuest: stopGuest, receive: receive, guestFrame: guestFrame, guestInput: guestInput,
-    init: init, tick: tick, ask: ask, ready: ready, startMatch: startMatch, TIMING: TIMING, get room() { return room; }, get role() { return role; },
+    init: init, tick: tick, ask: ask, ready: ready, startMatch: startMatch, leave: leaveToTitle, TIMING: TIMING, get room() { return room; }, get role() { return role; },
     get host() { return !!host; }, get guest() { return !!guest; }
   };
 };

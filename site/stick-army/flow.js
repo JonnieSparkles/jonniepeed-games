@@ -366,6 +366,18 @@ var StickArmyFlow = function (world, game) {
   document.getElementById('againBtn').addEventListener('click', newGame);
   document.getElementById('winAgainBtn').addEventListener('click', newGame);
   document.getElementById('restartBtn').addEventListener('click', newGame);
+  // Quit, on the pause, game-over and victory cards: back to the title. A run quit from pause reports as quit to play
+  // stats. In co-op it leaves the room, as the room's own Leave does.
+  function quitToTitle() {
+    if (COOP && COOP.role) { COOP.leave(); return; }
+    if (statsRun && world.S.mode === 'paused') PlayStats.quit(statsRun);
+    statsRun = null;
+    titleScene();
+    document.getElementById('startBtn').focus({ preventScroll: true });
+  }
+  document.getElementById('overQuitBtn').addEventListener('click', quitToTitle);
+  document.getElementById('winQuitBtn').addEventListener('click', quitToTitle);
+  document.getElementById('pauseQuitBtn').addEventListener('click', quitToTitle);
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
   pauseBtn.addEventListener('click', togglePause);
   strikeBtn.addEventListener('click', function () { callStrike(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });

@@ -339,6 +339,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .shop-foot { background: var(--paper); padding-top: 10px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 @media (max-width: 380px) { .shop-card { padding: 16px; } .deal { padding: 5px 8px; } .deal strong { font-size: 18px; } }
 #fullBtn .full-ico { display: none; width: 22px; height: 22px; }
+#fullBtn[aria-pressed="true"] .ico-enter, #fullBtn[aria-pressed="false"] .ico-exit { display: none !important; }
 /* On narrow phones the call buttons need the room: full screen becomes an icon, named for screen readers. */
 @media (max-width: 400px) { #fullBtn { min-width: 52px; padding: 8px; display: flex; align-items: center; justify-content: center; } #fullBtn .full-ico { display: block; } #fullBtn .full-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
 @media (max-height: 500px) and (min-width: 650px) { .shop-card { max-width: 760px; width: 100%; } .shop-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; align-items: start; } .shop-stock section + section { margin-top: 0; } }
@@ -399,7 +400,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <span class="strike-count" id="fighterCount">1</span>
         </button>
       </div>
-  <button id="fullBtn" type="button" aria-pressed="false"><svg class="full-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span class="full-label">Full screen</span></button>
+  <button id="fullBtn" type="button" aria-pressed="false"><svg class="full-ico ico-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="full-ico ico-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M15 20v-5h5M9 20v-5H4"/></svg><span class="full-label">Full screen</span></button>
   <div id="frame">
     <div id="stage">
       <canvas id="game" role="img" aria-label="Stick Army: a turret on a notebook page shooting at stick-figure paratroopers"></canvas>
@@ -460,8 +461,8 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <div class="row">
             <button class="btn" id="resumeBtn" type="button">Resume</button>
             <button class="btn ghost" id="restartBtn" type="button">Restart</button>
+            <button class="btn ghost quit-btn" id="pauseQuitBtn" type="button">Quit</button>
           </div>
-          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
 
@@ -474,7 +475,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <p class="big-score" id="overScore">0</p>
           <p class="flag" id="newBest" hidden>New best!</p>
           <p class="tag" id="stPerfect" hidden></p>
-          <div class="row"><button class="btn" id="againBtn" type="button">Play again</button></div>
+          <div class="row"><button class="btn" id="againBtn" type="button">Play again</button><button class="btn ghost quit-btn" id="overQuitBtn" type="button">Quit</button></div>
           <dl class="stats">
             <dt>Wave</dt><dd id="stWave">1</dd>
             <dt>Time</dt><dd id="stTime">0:00</dd>
@@ -492,7 +493,6 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <canvas class="squad-row" id="overSquadRow" width="216" height="104" aria-hidden="true" hidden></canvas>
           <p class="squad-line" id="overSquad" hidden></p>
           <p class="squad-line" id="overFallen" hidden></p>
-          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
 
@@ -507,6 +507,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <div class="row">
             <button class="btn" id="keepBtn" type="button">Keep going</button>
             <button class="btn ghost" id="winAgainBtn" type="button">Play again</button>
+            <button class="btn ghost quit-btn" id="winQuitBtn" type="button">Quit</button>
           </div>
           <dl class="stats">
             <dt>Time</dt><dd id="winTime">0:00</dd>
@@ -523,7 +524,6 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <p class="squad-line" id="winFallen" hidden></p>
           <p class="squad-line" id="winCaptain" hidden></p>
           <p class="keys" id="winCount"></p>
-          <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">Back to games</a>
         </div>
       </div>
     </div>
@@ -562,10 +562,10 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 <script src="board.js?v=93d3dde0b3"></script>
 <script src="shop.js?v=31e7abd75b"></script>
 <script src="shop-screen.js?v=cb17a42a29"></script>
-<script src="flow.js?v=a7bc3826cd"></script>
+<script src="flow.js?v=cd9398b3b6"></script>
 <script src="save.js?v=c147602002"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
-<script src="coop.js?v=d40fa60379"></script>
+<script src="coop.js?v=1bf1fc5ac2"></script>
 <script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=f694104416"></script>
 </body>
 </html>
