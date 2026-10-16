@@ -2,7 +2,7 @@
 
 The 2025 platformer on phones. A blaster-toting bull clears five waves of carpshits in RugCo Alley, then the garage opens and the Rugfather comes out for a three-phase fight. Plan and decisions: [spec.md](spec.md).
 
-**Shelf:** unlisted (no card, noindexed), reached at `unruggabull-remastered/`. Play stats are wired and switched off (`stats/games.json`). The online board needs the leaderboard Worker deployed with this game's entry in `scores/games.json`; until then clears are kept on the device.
+**Shelf:** Side A (listed, indexed) since Oct 16, 2026, at `unruggabull-remastered/`. Its card on the games page replaced the 2025 game's card, which linked out to unruggabull.ar.io; the title's "The 2025 original" still links there. Play stats are on (switched on with the listing; `stats/games.json`). The online board needs the leaderboard Worker deployed with this game's entry in `scores/games.json`; until then clears are kept on the device.
 
 ## How it plays
 
@@ -45,7 +45,7 @@ A clear (`end.js`): the 2025 congratulations art fades in over the alley as it d
 
 **The timer and splits.** Under the health and shots, the run's time (the board's clock: from the controls screen to the Rugfather's defeat, pauses and hit-stops not counted). When the waves end and when the Rugfather goes down, that split shows beside it for 3 s: green and minus when it's ahead of this device's fastest clear, red and plus when behind, the plain time when there's no clear yet. A new fastest clear on the device keeps its splits for the next run to race.
 
-**Medals**, on the end card (lit one by one) and beside each name on the board: **Flawless** (the heart, a clear at full health), **Under 2:00** (a stopwatch), **Never ran dry** (the blaster: the blaster never ran out of shots in the run). Rows saved before Never ran dry existed don't show it.
+**Medals**, on the end card (lit one by one) and beside each name on the board: **Flawless** (the heart, a clear at full health), **Under 2:30** (a stopwatch; first set at 2:00, moved to 2:30 because a perfect run with average spawns is about 2:00: about 70 s of waves, the 32 s intro and about 19 s of fight), **Never ran dry** (the blaster: the blaster never ran out of shots in the run). Rows saved before Never ran dry existed don't show it.
 
 The board (`BOARD = 1` in `game.js`, `scores/games.json`): **fastest clear**, health breaking ties, unrugged shown beside them, and medals beside each name. Only clears go on it. Every row's score is 1 (a clear); the order comes from `time_ms`, which the Worker checks against the run's token like any game's time (no faster than 75 s, below the fastest possible clear of about 98 s: 75 unrugged at the fastest spawns, the 32-second intro, and 60 shots at the Rugfather). `health` is 0–100 (%), `unrugged` 75 and up, `ran_dry` 0 or 1 (1: the blaster ran out at least once). The standing check before initials leaves `ran_dry` out; a Worker deployed before it existed answers `bad_meta` to a submit with it, and the game resubmits without it, so the clear still saves. The run's token is asked for when the controls screen is dismissed; time is the game clock from then to the Rugfather's defeat, so pauses don't count. The initials picker and transport are the site's (`site/assets/leaderboard.js`); every clear is also kept on the device (top 10), which the title and the board show when the Worker can't be reached.
 
@@ -61,7 +61,7 @@ The 2025 game's files, all of them, plus a sound pass (`audio.js`; heard first o
 
 ## Play stats
 
-Reported through `site/assets/stats.js` (switched off): a run starts when the controls screen is dismissed and ends rugged (`over`), cleared (`won`) or quit from the pause card. Score: unrugged. Stats: `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight`, `boss_hp` (0–60, once the fight has started).
+Reported through `site/assets/stats.js` (on since Oct 16, 2026): a run starts when the controls screen is dismissed and ends rugged (`over`), cleared (`won`) or quit from the pause card. Score: unrugged. Stats: `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight`, `boss_hp` (0–60, once the fight has started).
 
 ## Code
 
@@ -87,6 +87,7 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
+- **Oct 16, 2026:** listed on Side A, play stats switched on, in place of the 2025 game's card (which linked out to unruggabull.ar.io), and no longer noindexed.
 - **Oct 16, 2026:** the run timer with splits against the device's fastest clear, and medals on the end card and the board (`ran_dry` added to the board). From the first plays: holding up on the pad keeps jumping (it was once per press); the garage's embers stop once the Rugfather is out, sparks instead of smoke round his spin, a lighter white on hits and the defeat, and Quit on the game-over card.
 - **Oct 16, 2026:** its own share card and thumbnail: the poster mockup, with "Now on mobile".
 - **Oct 16, 2026:** the sound pass (`audio.js`), from https://claude.ai/artifact/GSh1hZRjESrGx2R6ze8iaT: menu set A ("Blaster"), and the "Dying" take on the out-of-shots buzz.
