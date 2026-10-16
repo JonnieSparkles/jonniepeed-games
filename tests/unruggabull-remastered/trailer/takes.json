@@ -1,0 +1,175 @@
+{
+  "T": {
+    "seed": 3,
+    "max_s": 30,
+    "screen": true,
+    "plan": [
+      {
+        "type": "wait",
+        "dur": 0.5
+      },
+      {
+        "type": "title"
+      },
+      {
+        "type": "capture",
+        "on": true
+      },
+      {
+        "type": "wait",
+        "dur": 5.2
+      },
+      {
+        "type": "start"
+      },
+      {
+        "type": "wait",
+        "dur": 2.5
+      },
+      {
+        "type": "capture"
+      },
+      {
+        "type": "end"
+      }
+    ]
+  },
+  "A": {
+    "seed": 5,
+    "max_s": 90,
+    "plan": [
+      {
+        "type": "wait",
+        "dur": 0.5
+      },
+      {
+        "type": "start"
+      },
+      {
+        "type": "wait",
+        "until": "D.state().gs === 'controls'"
+      },
+      {
+        "type": "wait",
+        "dur": 0.6
+      },
+      {
+        "type": "go"
+      },
+      {
+        "type": "js",
+        "code": "D.minHealth = 8;"
+      },
+      {
+        "type": "capture",
+        "on": true
+      },
+      {
+        "type": "fight",
+        "dur": 24
+      },
+      {
+        "type": "js",
+        "code": "D.wave(4);"
+      },
+      {
+        "type": "fight",
+        "dur": 24
+      },
+      {
+        "type": "capture"
+      },
+      {
+        "type": "end"
+      }
+    ]
+  },
+  "B": {
+    "seed": 9,
+    "max_s": 220,
+    "screen": true,
+    "plan": [
+      {
+        "type": "js",
+        "code": "D.board([{name:'BUL',ms:101400,health:100,unrugged:88,input:'touch',ran_dry:0},{name:'ACE',ms:108900,health:95,unrugged:81,input:'keys',ran_dry:0},{name:'RUG',ms:116200,health:80,unrugged:79,input:'touch',ran_dry:1},{name:'JPG',ms:124700,health:70,unrugged:84,input:'keys',ran_dry:1},{name:'MOO',ms:131500,health:55,unrugged:77,input:'touch',ran_dry:1}]); if (window.Leaderboard) Leaderboard.saveInitials('YOU');"
+      },
+      {
+        "type": "wait",
+        "dur": 0.5
+      },
+      {
+        "type": "start"
+      },
+      {
+        "type": "wait",
+        "until": "D.state().gs === 'controls'"
+      },
+      {
+        "type": "wait",
+        "dur": 0.6
+      },
+      {
+        "type": "go"
+      },
+      {
+        "type": "js",
+        "code": "D.minHealth = 20;"
+      },
+      {
+        "type": "fight",
+        "dur": 8
+      },
+      {
+        "type": "js",
+        "code": "D.wave(6, 73);"
+      },
+      {
+        "type": "fight",
+        "until": "window.__ug.triggered()"
+      },
+      {
+        "type": "capture",
+        "on": true
+      },
+      {
+        "type": "wait",
+        "until": "window.__ug.battle()"
+      },
+      {
+        "type": "boss",
+        "until": "D.state().boss === 0 || D.state().gs !== 'playing'"
+      },
+      {
+        "type": "wait",
+        "until": "D.state().gs === 'congrats' || !document.getElementById('end').hidden"
+      },
+      {
+        "type": "wait",
+        "until": "!!document.querySelector('#end .lb-ok')"
+      },
+      {
+        "type": "wait",
+        "dur": 2.0
+      },
+      {
+        "type": "js",
+        "code": "document.querySelector('#end .lb-ok').click();"
+      },
+      {
+        "type": "wait",
+        "dur": 9
+      },
+      {
+        "type": "capture"
+      },
+      {
+        "type": "end"
+      }
+    ],
+    "viewport": [
+      960,
+      540
+    ],
+    "scale": 2
+  }
+}

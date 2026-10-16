@@ -74,7 +74,7 @@ def shoot(job):
             # games whose sound is re-rendered in one pass over the cut (audio.score) skip the per-take render
             if not dry and d['done'] and cfg['audio'].get('media'):
                 media.render(cfg, site_dir(cfg), Path(out) / ('take' + name), log=lambda s: print(s, flush=True))
-            elif not dry and d['done'] and not cfg['audio'].get('score'):
+            elif not dry and d['done'] and not cfg['audio'].get('score') and not cfg['audio'].get('live'):
                 sound.render(pw, base, cfg, Path(out) / ('take' + name), log=lambda s: print(s, flush=True))
     finally:
         server.shutdown()

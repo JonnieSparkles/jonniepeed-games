@@ -29,7 +29,57 @@ STEP_JS = """([dt, sel]) => { __stepAnims(dt);
   const st = {c: __D.capture, d: __D.done, t: performance.now() / 1000};
   if (st.c && sel) st.png = document.querySelector(sel).toDataURL('image/png').slice(22);
   return st; }"""
+# Live sound (audio.live): the game's own AudioContext is one OfflineAudioContext that renders in step with the fake
+# clock, a frame at a time, so the take's sound is exactly what the game played, mixed by its own code. Its state reads
+# "running" and its suspend/resume belong to the capture, not the game.
+LIVE_AUDIO_JS = """(() => { const SR = 48000, LEN = %f, raw = performance.now.bind(performance), Real = window.OfflineAudioContext;
+  let ctx = null, t0 = 0, done = null;
+  const make = () => {
+    if (ctx) return ctx;
+    ctx = new Real(2, Math.ceil(SR * LEN), SR); t0 = raw();
+    const suspend = ctx.suspend.bind(ctx), resume = ctx.resume.bind(ctx), Q = 128 / SR;
+    Object.defineProperty(ctx, 'state', { get: () => 'running' });
+    ctx.resume = ctx.suspend = ctx.close = () => Promise.resolve();
+    window.__audioStep = async () => {
+      const target = Math.floor(Math.min(LEN - 0.5, (raw() - t0) / 1000) / Q) * Q;
+      if (target <= ctx.currentTime + Q / 2) return;
+      const hit = new Promise(ok => suspend(target).then(ok));
+      if (!done) done = ctx.startRendering(); else resume();
+      await hit;
+    };
+    // the take's time (harness clock) at the sound's sample 0
+    window.__audioBase = () => performance.now() / 1000 - (raw() - t0) / 1000;
+    window.__audioFinish = async () => { if (!done) done = ctx.startRendering(); else resume(); window.__audioBuf = await done; return window.__audioBuf.length; };
+    window.__audioChunk = (i0, n) => {
+      // float, so a mix that goes over full scale (the game has no limiter) isn't clipped here; the cut levels it
+      const L = window.__audioBuf.getChannelData(0), R = window.__audioBuf.getChannelData(1), out = new Float32Array(n * 2);
+      for (let i = 0; i < n; i++) { out[2 * i] = L[i0 + i]; out[2 * i + 1] = R[i0 + i]; }
+      const b = new Uint8Array(out.buffer); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+      return btoa(s);
+    };
+    return ctx;
+  };
+  window.AudioContext = window.webkitAudioContext = function () { return make(); };
+})();"""
 GLOBAL_EVAL ='window.__trailerEval = window.__trailerEval || function (code) { return (0, eval)(code); };'
+
+
+def save_live_audio(page, out, t_end, log):
+    """The live take's sound, rendered to the end of the take, as game.wav and audio.json (like sound.render)."""
+    import numpy as np
+    from scipy.io import wavfile
+    sr = 48000
+    base = page.evaluate('__audioBase()')
+    total = page.evaluate('__audioFinish()')
+    n = min(total, int((t_end - base + 1.0) * sr))
+    parts, step = [], sr * 5
+    for i0 in range(0, n, step):
+        b = base64.b64decode(page.evaluate('([a, b]) => __audioChunk(a, b)', [i0, min(step, n - i0)]))
+        parts.append(np.frombuffer(b, dtype=np.float32).reshape(-1, 2))
+    a = np.concatenate(parts) if parts else np.zeros((1, 2), np.float32)
+    wavfile.write(str(out / 'game.wav'), sr, a)
+    (out / 'audio.json').write_text(json.dumps({'base': base, 'dur': len(a) / sr}))
+    log('sound %s: %.1fs, live, peak %.2f' % (out.name, len(a) / sr, float(np.abs(a).max())))
 
 
 def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
@@ -40,12 +90,16 @@ def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
     for f in list(frames_dir.glob('*.jpg')) + list(frames_dir.glob('*.png')):
         f.unlink()
     fps = cfg.get('fps', 30)
-    vw, vh = cfg.get('viewport', [1920, 1080])
+    # a take can override the framing: its own viewport, pixel density, a touch screen, screenshots instead of the canvas
+    vw, vh = take.get('viewport', cfg.get('viewport', [1920, 1080]))
+    live = cfg['audio'].get('live')
     browser = pw.chromium.launch(executable_path=os.environ.get('CHROMIUM'), args=['--autoplay-policy=no-user-gesture-required'])
     # a dry run draws at 1x: pixel density only changes drawing, so the take plays the same and runs faster.
     # A canvas capture saves the canvas's own pixels, so pixel density doesn't matter there either.
-    canvas = cfg.get('canvas')
-    ctx = browser.new_context(viewport={'width': vw, 'height': vh}, device_scale_factor=1 if dry or canvas else cfg.get('scale', 1))
+    canvas = None if take.get('screen') else cfg.get('canvas')
+    touch = bool(take.get('touch'))
+    ctx = browser.new_context(viewport={'width': vw, 'height': vh}, has_touch=touch, is_mobile=touch,
+                              device_scale_factor=1 if dry or canvas else take.get('scale', cfg.get('scale', 1)))
     page = ctx.new_page()
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
@@ -65,8 +119,10 @@ def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
     page.clock.install(time=1_700_000_000_000)
     page.clock.pause_at(1_700_000_001_000)
     page.add_init_script(SEED_JS % (take['seed'], json.dumps({'audio': cfg['audio'], 'hook': cfg['hook']})))
+    if live:
+        page.add_init_script(LIVE_AUDIO_JS % (take.get('max_s', 300) + 5))
     page.goto(base_url + cfg['page'])
-    page.wait_for_timeout(800)                       # real time: fonts and images load
+    page.wait_for_timeout(cfg.get('settle_ms', 800))   # real time: fonts, images and decoded sound load
     page.evaluate('document.fonts.ready.then(() => 1)')
     page.clock.run_for(500)
     if cfg.get('css'):
@@ -83,6 +139,8 @@ def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
         tgt = round((i + 1) * 1000 / fps)
         page.clock.run_for(tgt - prev)
         st = page.evaluate(STEP_JS, [tgt - prev, canvas['selector'] if canvas and not dry else None])
+        if live:
+            page.evaluate('window.__audioStep && window.__audioStep()')
         prev = tgt
         if st['c'] and not dry:
             if canvas:
@@ -94,9 +152,11 @@ def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
             break
         i += 1
     data = page.evaluate('({marks: __D.marks, windows: __D.windows, snd: __snd, done: __D.done, rng: __D.rng})')
+    if live and not dry and page.evaluate('!!window.__audioBase'):
+        save_live_audio(page, out, page.evaluate('performance.now() / 1000'), log)
     browser.close()
     data.update({'frames': times, 'fps': fps, 'seed': take['seed'], 'dry': dry, 'errors': errors,
-                 'upscale': canvas.get('upscale', 1) if canvas else None})
+                 'upscale': canvas.get('upscale', 1) if canvas else None, 'screen': bool(take.get('screen'))})
     (out / 'take.json').write_text(json.dumps(data))
     status = 'done' if data['done'] else 'HIT max_s before the plan ended'
     filmed = sum((b if b is not None else data['marks'][-1]['t']) - a for a, b in data['windows'])

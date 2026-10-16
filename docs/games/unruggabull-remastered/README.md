@@ -63,6 +63,10 @@ The 2025 game's files, all of them, plus a sound pass (`audio.js`; heard first o
 
 Reported through `site/assets/stats.js` (on since Oct 16, 2026): a run starts when the controls screen is dismissed and ends rugged (`over`), cleared (`won`) or quit from the pause card. Score: unrugged. Stats: `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight`, `boss_hp` (0–60, once the fight has started), `shots` (blaster shots fired), `hits` (shots that landed: carpshits, carpets and the Rugfather, so `hits / shots` is accuracy) and `ran_dry` (the blaster ran out at least once, the Never ran dry medal).
 
+## Trailer
+
+33 s, 1920×1080, made with `tools/trailer/` ([04: Trailers](../../guides/04-trailers.md)) from `tests/unruggabull-remastered/trailer/`: Unruggabull's 2025 trailer remade shot for shot with the remaster. The remaster's title screen, the alley on the theme's drop, the Rugfather's entrance in silence, the fight with the theme at 1.5x (cut before his spin-jump, which reads oddly at trailer speed), and the 2025 ending: the "...he was Unruggabull" poster, "Goodbye, Rugfather.", "Now remastered and on mobile" and jonniepeed.games. The sound is the game's own, rendered live from its Web Audio (`audio.live`), with the theme cut to the edit (`music.py`). The boss take is staged to wave 6 with 73 unrugged, and still films the end card and a seeded board, which the cut doesn't use. `python3 tools/trailer/make.py unruggabull-remastered` rebuilds it (about 20 minutes on 2 CPUs, most of it the boss take's screenshots).
+
 ## Code
 
 Classic scripts, loaded in this order by `site/unruggabull-remastered/index.html` (after the site's `leaderboard.js` and `stats.js`):

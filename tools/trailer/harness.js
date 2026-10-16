@@ -37,7 +37,9 @@
 
   // ---------- sound log
   const LOG = window.__snd = [];
-  if (cfg.audio.media) {
+  if (cfg.audio.live) {
+    // the game's own AudioContext renders offline in step with the frames (capture.py): nothing to log
+  } else if (cfg.audio.media) {
     // Games that play <audio> elements (new Audio(...).play()): log each element's plays, pauses, seeks, rate and
     // volume changes. media.py mixes the files back in from the log. Positions are tracked here, not read from the
     // element, because real playback doesn't follow the fake clock.
