@@ -156,10 +156,13 @@ function updatePhaseLogic(state2) {
     const dramaticPause = 2e3;
     state2.sprite = "hit";
     state2.invulnerable = true;
-    bgMusic.pause();
+    // 2025: the music cut dead for the pause. Now it sinks into it and rises out (audio.js).
+    UnrugSfx.sink();
+    gameTimeout(() => bgMusic.pause(), 550);
     gameTimeout(() => {
       if (state2.sprite === "hit") state2.sprite = "idle";
       bgMusic.play();
+      UnrugSfx.rise();
     }, dramaticPause);
     let extraInvuln = 0;
     if (newPhase === NUM_PHASES) {
@@ -596,7 +599,15 @@ function hit(damage = 1) {
   state.hitFlashEnd = gameNow() + 150;
   state.hitJitterX = 24;
   state.hitJitterY = 12;
-  if (state.hp > 0) fxHitStop(70);
+  if (state.hp > 0) {
+    fxHitStop(70);
+    // a thud on each hit, and his "ouch" and "ow" (unused in 2025) on every fifth
+    const n = UnrugSfx.bossHit();
+    if (n % 5 === 0 && !(prevHp > threshold && state.hp <= threshold)) {
+      const line = n % 10 === 0 ? rugfatherOwSfx : rugfatherOuchSfx;
+      line.playbackRate = 1; line.currentTime = 0; line.play();
+    }
+  }
   if (state.hp < MAX_HP * 0.25) {
     setScreenShake(true);
     setScreenShakeStartTime(gameNow());
@@ -824,6 +835,7 @@ function handleEvent(event, now) {
       }
       break;
     case "startGarageDoorOpen":
+      UnrugSfx.garage();
       setBossTransition(true);
       setBossTransitionStartTime(now);
       break;
@@ -858,6 +870,7 @@ function handleEvent(event, now) {
       setAutoRunLeft(event.data !== false);
       break;
     case "startBattle":
+      UnrugSfx.crackle(1, 2);
       rugfather_default.setEntering(false);
       wovenIntoRugSfx.currentTime = 0;
       wovenIntoRugSfx.play();

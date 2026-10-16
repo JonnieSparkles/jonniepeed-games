@@ -81,7 +81,7 @@ window.UnrugTitle = (function () {
     if (focus) el.focus({ preventScroll: true });
   }
   items.forEach(el => {
-    el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') select(el, false); });
+    el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse' && !el.classList.contains('on')) { select(el, false); UnrugSfx.move(); } });
     el.addEventListener('focus', () => select(el, false));
   });
   addEventListener('keydown', e => {
@@ -93,6 +93,7 @@ window.UnrugTitle = (function () {
     if (down || up) {
       e.preventDefault();
       select(items[(i + (down ? 1 : items.length - 1)) % items.length], true);
+      UnrugSfx.move();
     }
   });
   const anyCardOpen = () => Array.from(document.querySelectorAll('.card-wrap')).some(c => !c.hidden && c.id !== 'rotate');
@@ -104,7 +105,9 @@ window.UnrugTitle = (function () {
     music = true;
     UnrugSound.init();
     titleMusic.currentTime = 0;
+    titleMusic.volume = 0;
     titleMusic.play();
+    titleMusic.fadeTo(0.5, 1.4);
   }
   document.addEventListener('pointerdown', startMusic);
   document.addEventListener('keydown', startMusic);
@@ -116,8 +119,10 @@ window.UnrugTitle = (function () {
     starting = true;
     UnrugSound.init();
     if (window.usingTouch && window.usingTouch() && window.unrugEnterFull) window.unrugEnterFull();
-    titleMusic.pause();
-    titleMusic.currentTime = 0;
+    // the title music fades under "Let's go!" instead of stopping dead
+    UnrugSfx.pick();
+    titleMusic.fadeTo(0, 1.2);
+    setTimeout(() => { titleMusic.pause(); titleMusic.currentTime = 0; }, 1300);
     letsGoSound.currentTime = 0;
     letsGoSound.play();
     $('home').hidden = true;
@@ -140,6 +145,7 @@ window.UnrugTitle = (function () {
     $(focusId).focus({ preventScroll: true });
   }
   function closeCard(id) {
+    if (!$(id).hidden) UnrugSfx.back();
     $(id).hidden = true;
     if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
   }
@@ -167,7 +173,8 @@ window.UnrugTitle = (function () {
     ['art/title.webp', 'The 2025 title screen: the bull aims his blaster, a herd of bulls behind him']
   ];
   let gi = 0;
-  function showPicture(i) {
+  function showPicture(i, quiet) {
+    if (!quiet) UnrugSfx.page(i > gi ? 0.3 : -0.3);
     gi = (i + GALLERY.length) % GALLERY.length;
     const img = $('gallery-img');
     img.src = GALLERY[gi][0]; img.alt = GALLERY[gi][1];
@@ -192,9 +199,10 @@ window.UnrugTitle = (function () {
     const b = e.target.closest('button');
     if (!b) return;
     const act = b.dataset.act;
+    if (act !== 'play') UnrugSfx.pick();
     if (act === 'play') play();
     else if (act === 'board') showBoard();
-    else if (act === 'gallery') { showPicture(gi); openCard('gallery', 'gallery-next'); }
+    else if (act === 'gallery') { showPicture(gi, true); openCard('gallery', 'gallery-next'); }
     else if (act === 'credits') openCard('credits', 'close-credits');
   });
 

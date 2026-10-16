@@ -55,7 +55,7 @@ window.UnrugRun = (function () {
     let you = null;
     const add = r => {
       const tr = body.insertRow();
-      if (highlight != null && r.rank === highlight) { tr.className = 'lb-you'; you = tr; }
+      if (highlight != null && r.rank === highlight) { tr.className = 'lb-you'; you = tr; UnrugSfx.ok(); }
       const m = r.meta || {};
       tr.insertCell().textContent = r.rank;
       tr.insertCell().textContent = r.name;
@@ -186,6 +186,7 @@ window.UnrugRun = (function () {
     art.classList.add('split'); place();
     panel.hidden = false; buttons.hidden = false;
     $('end-h').textContent = 'Your run';
+    [0, 0.12, 0.24].forEach(d => setTimeout(() => UnrugSfx.move(4), d * 1000));
     countUp(statRow('Time', '0:00.0'), result.ms, time, 800);
     countUp(statRow('Health', '0%'), result.health, v => Math.round(v) + '%', 800);
     countUp(statRow('Unrugged', '0'), result.unrugged, v => String(Math.round(v)), 800);
@@ -252,7 +253,16 @@ window.UnrugRun = (function () {
       },
       onSkip() { if (busy) return; close(); onSkip(); }
     });
+    const entry = boardBox.querySelector('.lb-entry');
+    const watch = entry ? new MutationObserver(ms => {
+      if (ms.some(m => m.target.closest && m.target.closest('.lb-letter') || (m.target.parentElement && m.target.parentElement.closest('.lb-letter')))) UnrugSfx.move(Math.floor(Math.random() * 5));
+    }) : null;
+    if (watch) watch.observe(entry, { subtree: true, childList: true, characterData: true });
+    // OK's sound comes with the row landing on the board (drawBoard); Skip sounds like closing a card
+    const sounds = e => { if (e.target.closest && e.target.closest('.lb-skip')) UnrugSfx.back(); };
+    if (entry) entry.addEventListener('click', sounds, true);
     function close() {
+      if (watch) watch.disconnect();
       if (picker) { picker.destroy(); picker = null; }
       endEl.classList.remove('lb-entering');
       $('retry-btn').focus({ preventScroll: true });
@@ -273,11 +283,12 @@ window.UnrugRun = (function () {
   }
 
   function retry() {
+    UnrugSfx.pick();
     hideEnd();
     window.startGame();
   }
   for (const id of ['retry-btn', 'retry2-btn']) $(id).addEventListener('click', retry);
-  for (const id of ['title-btn', 'title2-btn']) $(id).addEventListener('click', () => location.reload());
+  for (const id of ['title-btn', 'title2-btn']) $(id).addEventListener('click', () => { UnrugSfx.pick(); setTimeout(() => location.reload(), 120); });
 
   // ---------- the title's Leaderboard card ----------
   async function loadTitleBoard(box) {
@@ -294,7 +305,9 @@ window.UnrugRun = (function () {
 
   // The game's state changes (core.js calls this from setGameState).
   window.onGameState = function (s) {
-    if (s === 'congrats') cleared();
+    if (s !== 'playing') UnrugSfx.heartbeat(false);
+    if (s === 'dying') { UnrugSfx.windDown(bgMusic); UnrugSfx.crackle(0.4, 1.5); }
+    if (s === 'congrats') { UnrugSfx.fanfare(); UnrugSfx.crackle(0.4, 2); cleared(); }
     else if (s === 'gameover') rugged();
   };
 

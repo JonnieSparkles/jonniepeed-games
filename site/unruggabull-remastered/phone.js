@@ -182,6 +182,7 @@
     if (gamePaused || !canPause()) return;
     gamePaused = true;
     releaseAll();
+    UnrugSfx.pick();
     UnrugSound.setPaused(true);
     pauseCard.hidden = false;
     $('resume-btn').focus({ preventScroll: true });
@@ -193,6 +194,7 @@
     gamePaused = false;
     UnrugSound.setPaused(false);
     UnrugSound.init();
+    UnrugSfx.back();
   }
   pauseBtn.addEventListener('click', pauseGame);
   $('resume-btn').addEventListener('click', resumeGame);

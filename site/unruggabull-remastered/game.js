@@ -356,6 +356,7 @@ function handleBulletKill(bullets2, index, carpshit) {
   carpshit.frame = 3;
   carpshit.falling = true;
   carpshit.vy = 0;
+  carpshitDeathSound.pan = ((carpshit.x + 32) / 480 - 1) * 0.7;
   carpshitDeathSound.currentTime = 0;
   carpshitDeathSound.play();
   bullets2.splice(index, 1);
@@ -369,6 +370,7 @@ function handleBulletKill(bullets2, index, carpshit) {
       const sound = difficultyIncreaseSounds[Math.floor(Math.random() * difficultyIncreaseSounds.length)];
       sound.currentTime = 0;
       sound.play();
+      UnrugSfx.sting();
       increaseDifficulty();
     } else {
       setDifficultyLevel(difficultyLevel + 1);
@@ -395,6 +397,7 @@ function handlePlayerHit(carpshit) {
   carpshit.frame = 3;
   carpshit.falling = true;
   carpshit.vy = 0;
+  carpshitDeathSound.pan = ((carpshit.x + 32) / 480 - 1) * 0.7;
   carpshitDeathSound.currentTime = 0;
   carpshitDeathSound.play();
   const duration = FLASH_DURATION;
@@ -646,8 +649,8 @@ function updateGame(bullets2, canvas4) {
       spawnPlayerBullet(player);
     } else {
       player.blasterEmptyFlashEndTime = now + BLASTER_EMPTY_FLASH_DURATION;
-      blasterEmptySound.currentTime = 0;
-      blasterEmptySound.play();
+      // the 2025 buzz, behind a trigger click and sagging as it fades (audio.js)
+      UnrugSfx.empty();
     }
     player.firing = true;
   } else if (!inputFire()) {
@@ -696,6 +699,7 @@ function updateGame(bullets2, canvas4) {
             if (p.hp > 0) {
               p.flashEndTime = gameNow() + FLASH_DURATION;
               p.jolt = -Math.sign(p.vx) * 9;
+              UnrugSfx.tick();
             } else {
               p.hit = true;
               p.vx = 0;
@@ -1250,6 +1254,8 @@ function beginGame(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
   bgMusic.playbackRate = 1;
   clearEntities(projectiles, tweens, gameTimers, lookSparks);
   fxReset();
+  UnrugSfx.reset();
+  UnrugSfx.crackle(1, 1.5);
   setScreenShake(false);
   setFightBanner(false);
   __bossState.dying = false;

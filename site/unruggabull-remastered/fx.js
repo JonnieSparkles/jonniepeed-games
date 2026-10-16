@@ -133,7 +133,7 @@ var fxBull = { take: 0, land: 0, flash: 0, kb: 0, pg: true };
 var fxBullCanvas = null, fxRimCanvas = null;
 function fxBullStep(p) {
   if (fxBull.pg && !p.grounded && p.vy < 0) fxBull.take = 140;
-  if (!fxBull.pg && p.grounded) { fxBull.land = 140; fxDust(p.x + 32, p.feetY - 3, 6, 12, 0.7); }
+  if (!fxBull.pg && p.grounded) { fxBull.land = 140; fxDust(p.x + 32, p.feetY - 3, 6, 12, 0.7); UnrugSfx.tap(0.22); }
   fxBull.pg = p.grounded;
   if (fxBull.kb) {
     p.x = fxClamp(p.x + fxBull.kb, 0, 960 - PLAYER_WIDTH);
@@ -142,6 +142,7 @@ function fxBullStep(p) {
 }
 function fxBullHit(fromX) {
   fxBull.flash = 80;
+  UnrugSfx.hurt();
   if (player.health > 0) fxBull.kb = (player.x + 32 < fromX ? -1 : 1) * 7;
 }
 function fxBullAlpha(now) { return Math.floor(now / 60) % 2 ? 0.25 : 1; }
@@ -216,7 +217,11 @@ function fxDrawCarpshit(ctx, c) {
     const t = now - c.swoopStart, w = t / c.swoopPeriod * 2 * Math.PI;
     dy = Math.cos(w) * c.swoopAmplitude * 2 * Math.PI / c.swoopPeriod * STEP_MS;
     const ph = (t / c.swoopPeriod) % 1;
-    if (ph >= 0.55 && ph < 0.75) warn = (ph - 0.55) / 0.2;
+    if (ph >= 0.55 && ph < 0.75) {
+      warn = (ph - 0.55) / 0.2;
+      const cycle = Math.floor(t / c.swoopPeriod);
+      if (c.warnCycle !== cycle) { c.warnCycle = cycle; UnrugSfx.whoosh(((c.x + 32) / 480 - 1) * 0.7); }
+    }
   }
   const rot = fxClamp(dy / Math.max(0.5, Math.abs(c.vx)) * 0.5, -0.45, 0.45) * (c.vx < 0 ? -1 : 1) + Math.sin(now / 111 + c.x * 0.01) * 0.04;
   if (warn >= 0) {
@@ -344,6 +349,7 @@ function fxBossLand(s) {
   fxRf.rings.push({ x: cx, y: floor - 4, age: 0 });
   for (let i = 0; i < 26; i++) { const d = Math.random() < 0.5 ? -1 : 1; fxPix(cx + d * fxRnd(20, 90), floor - 4, d * fxRnd(1.5, 5), fxRnd(-2.2, -0.3), fxRnd(500, 900), FX_DUST, 3, 0.05, 0.95); }
   fxShake(13, 350);
+  UnrugSfx.thump();
 }
 function fxBossDefeat(s) {
   fxRf.defeatAt = s.deathStart;
@@ -351,6 +357,8 @@ function fxBossDefeat(s) {
   fxSlowMo(1000, 0.3);
   fxFlashUntil = performance.now() + 700;
   fxShake(10, 400);
+  UnrugSfx.defeat(bgMusic);
+  rugfatherOwSfx.playbackRate = 0.7; rugfatherOwSfx.currentTime = 0; rugfatherOwSfx.play();
 }
 function fxDrawRfPulse(ctx, blit, img) {
   if (fxRf.pulse <= 0) return;
@@ -390,6 +398,7 @@ function fxCarpetStep(c) {
   if (c.hit) {
     if (c.hitAt == null) {
       c.hitAt = gameNow();
+      UnrugSfx.sizzle((c.x / 480 - 1) * 0.7);
       for (let i = 0; i < 14; i++) fxPix(c.x + fxRnd(-24, 24), c.y + fxRnd(-14, 14), fxRnd(-1.2, 1.2), fxRnd(-1.6, -0.4), fxRnd(600, 1100), FX_SMOKE, 6, 0, 0.98);
       for (let i = 0; i < 12; i++) { const a = Math.random() * 6.283, v = fxRnd(1.5, 4); fxPix(c.x, c.y, Math.cos(a) * v, Math.sin(a) * v - 1, fxRnd(300, 600), FX_FLAME, 3, 0.04); }
     }
@@ -404,6 +413,7 @@ function fxCarpetStep(c) {
 // ---------- once per game step ----------
 function fxStep() {
   const dt = STEP_MS, now = gameNow();
+  UnrugSfx.heartbeat(gameState === 'playing' && player.health > 0 && player.health <= 4);
   for (const k of ['take', 'land', 'flash']) if (fxBull[k] > 0) fxBull[k] -= dt;
   if (fxRf.pulse > 0) fxRf.pulse -= dt;
   for (let i = fxParts.length - 1; i >= 0; i--) {

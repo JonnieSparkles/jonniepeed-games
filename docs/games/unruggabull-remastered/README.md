@@ -45,6 +45,16 @@ A clear (`end.js`): the 2025 congratulations art fades in over the alley as it d
 
 The board (`BOARD = 1` in `game.js`, `scores/games.json`): **fastest clear**, health breaking ties, unrugged shown beside them, and a heart for a clear at full health. Only clears go on it. Every row's score is 1 (a clear); the order comes from `time_ms`, which the Worker checks against the run's token like any game's time (no faster than 75 s, below the fastest possible clear of about 98 s: 75 unrugged at the fastest spawns, the 32-second intro, and 60 shots at the Rugfather). `health` is 0–100 (%), `unrugged` 75 and up. The run's token is asked for when the controls screen is dismissed; time is the game clock from then to the Rugfather's defeat, so pauses don't count. The initials picker and transport are the site's (`site/assets/leaderboard.js`); every clear is also kept on the device (top 10), which the title and the board show when the Worker can't be reached.
 
+## Sound
+
+The 2025 game's files, all of them, plus a sound pass (`audio.js`; heard first on https://claude.ai/artifact/GSh1hZRjESrGx2R6ze8iaT). The new sounds are made in code; there are no new files.
+
+- **The mix:** music runs through its own filter and level, game sounds through a muffle, menu sounds straight out. Every voice line is levelled to one loudness (the files were recorded about 23 dB apart, from "do do do" to his "ow"), and the music ducks under every line, the bull's and the Rugfather's.
+- **Menus** (silent in 2025): a small zap moving through the title menu, the blaster's own shot (pitched up) for a pick, a falling zap for closing a card, a short swoosh for a gallery picture, ticks on the initials as they change, a chime when your row lands on the board, ticks for the end card's numbers, and a pick for Retry and Title. Pausing muffles everything for a moment before it stops, with a pick going in and a back coming out. The title music fades in, and fades out under "Let's go!" instead of stopping dead.
+- **The waves:** each blaster shot, jump grunt and carpshit death a few percent higher or lower; carpshit deaths heard from where they were on screen; a quiet crackle and roar from the burning sign under the whole run; a rising whoosh with a swooper's warning; a short sting with each wave; a thud and a muffled dip in the music when the bull is hit; a soft tap when he lands; a slow heartbeat at 4 hearts or fewer. Out of shots: the 2025 buzz, behind a trigger click, quieter and sagging in pitch as it fades, each press cutting the last.
+- **The Rugfather:** a rumble under the garage door and the crackle swelling as it opens; a thud on each hit, and his "ouch" and "ow" (in the 2025 files, never played there) on every fifth; at a phase change the music sinks into the pause with a hiss and rises out of it (still 1.5× and 2× after, as in 2025); a heavy thump when the spin-jump lands; a tick when a carpet takes its first shot and a sizzle when it goes out; on the last hit a boom, his "ow" pitched down, and the music slowing and muffling through the slow motion.
+- **The end of a run:** rugged, the music winds down and muffles to a stop under "game over"; a clear gets a short fanfare.
+
 ## Play stats
 
 Reported through `site/assets/stats.js` (switched off): a run starts when the controls screen is dismissed and ends rugged (`over`), cleared (`won`) or quit from the pause card. Score: unrugged. Stats: `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight`, `boss_hp` (0–60, once the fight has started).
@@ -53,7 +63,7 @@ Reported through `site/assets/stats.js` (switched off): a run starts when the co
 
 Classic scripts, loaded in this order by `site/unruggabull-remastered/index.html` (after the site's `leaderboard.js` and `stats.js`):
 
-- `audio.js`: `UnrugSound` (`clip`, `play`, `preload`, `init`, `muted`, `setPaused`). Every mp3 is decoded once into Web Audio; a `Clip` has the `<audio>` element's play, pause, currentTime, volume, loop, src and playbackRate, so the 2025 code calls it as it did. Below it, the 2025 game's sounds under their old names (`bgMusic`, `fireSound`, ...). Pausing suspends the whole context.
+- `audio.js`: `UnrugSound` (`clip`, `play`, `preload`, `init`, `muted`, `setPaused`, `fx`). Every mp3 is decoded once into Web Audio; a `Clip` has the `<audio>` element's play, pause, currentTime, volume, loop, src and playbackRate, so the 2025 code calls it as it did, plus `pan`, `fadeTo`, `ease` (a speed change without a restart), a bus (`music`, `sfx`, `ui`), `voice` (ducks the music) and `vary` (random pitch). `UnrugSfx` (`UnrugSound.fx`) is the sound pass: menu sounds, the crackle bed, heartbeat, thuds, the music moves. Below it, the 2025 game's sounds under their old names (`bgMusic`, `fireSound`, ...), voice lines levelled from each file's measured loudness. Pausing muffles, then suspends the whole context.
 - `core.js`: the game clock (`gameNow`, `gameTimeout`, `STEP_MS`), input (`keys`, `touchKeys`, `inputLeft()` and the rest), the player, game state (`setGameState` calls `window.onGameState`), the alley background and embers, shots and flaming carpets.
 - `look.js`: the touched look's drawing (`lookHud`, `lookBanner`, `lookPlatforms`, `lookShot`, sparks, `lookBossBar`, `lookControlsScreen`, `lookGameOver`, `lookLogo`).
 - `fx.js`: the polish (`fxStep` once per game step for particles and timers; `fxTime` holds the loop for hit-stops and slow motion; drawing helpers called from `game.js`, `rugfather.js` and the carpets in `core.js`).
@@ -73,5 +83,6 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
+- **Oct 16, 2026:** the sound pass (`audio.js`), from https://claude.ai/artifact/GSh1hZRjESrGx2R6ze8iaT: menu set A ("Blaster"), and the "Dying" take on the out-of-shots buzz.
 - **Oct 16, 2026:** the polish (`fx.js`), from two mockups: https://claude.ai/artifact/JF7kkcjtNWmEW9KmGp4ghb (the alley) and https://claude.ai/artifact/QJ7zGoDidQJ97NEBQGLA2w (the sprites). Left out at Jonnie's call: the Rugfather turning to look at the camera.
 - **Oct 16, 2026:** built in one pull request: the 2025 game moved here and plays on phones (step 1), the touched look and title B (step 2), the end card and board (step 3), the share card and thumbnail (step 4).
