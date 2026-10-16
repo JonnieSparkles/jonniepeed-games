@@ -5,6 +5,7 @@ The game as it is now: its rules, tuning, code entry points and checks. The game
 Also in this folder:
 - [spec.md](spec.md): the first spec (formerly SPEC-002), built in the first rounds.
 - [arcade.md](arcade.md): Arcade, the 20-wave run (formerly SPEC-008), built in rounds 9–14.
+- [campaign.md](campaign.md): Campaign, a tour of ten operations with one squad, shipped one operation at a time (planned Oct 16).
 - [coop.md](coop.md): two players on one bunker over a room (formerly SPEC-010). Built in round 18 (see Co-op below); it ships once it has worked on two real phones on different networks.
 - [veteran.md](veteran.md): the second level, Veteran, built in round 17.
 - [history.md](history.md): why things are the way they are, and what was tried and dropped. Check it before changing a value.
