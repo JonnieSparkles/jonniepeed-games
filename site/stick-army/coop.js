@@ -355,6 +355,14 @@ window.StickArmyCoop = function (w) {
     var card = el('div', 'card coop-card'); overlay.appendChild(card); stage.appendChild(overlay);
     var status = el('p', 'coop-status'); status.id = 'coopStatus'; status.hidden = true; status.setAttribute('role', 'status'); stage.appendChild(status);
     ui = { chip: chip, overlay: overlay, card: card, status: status };
+    // A click on the page around the Play with a friend card (the secret, checking it, the link) cancels, as its Cancel
+    // does; it counts only when it starts and ends off the card. The other cards wait on the room and have no cancel.
+    var downOutside = false;
+    overlay.addEventListener('pointerdown', function (e) { downOutside = e.target === overlay; });
+    overlay.addEventListener('click', function (e) {
+      if (downOutside && e.target === overlay && ui && ['secret', 'checking', 'invite'].indexOf(ui.kind) >= 0) cancel();
+      downOutside = false;
+    });
     chip.addEventListener('click', function () { if (w.sound.init) w.sound.init(); askSecret(false); });
   }
   // A card: a title (its second part in blue pen), lines, and buttons ({ label, fn, ghost, off }).
