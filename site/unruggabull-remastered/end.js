@@ -8,6 +8,8 @@ window.UnrugRun = (function () {
   const endEl = $('end'), art = $('end-art'), panel = $('end-panel'), stats = $('end-stats');
   const msg = $('end-msg'), boardBox = $('end-board'), buttons = $('end-buttons'), ruggedBox = $('end-rugged');
   const DEVICE_KEY = 'unruggabull-remastered-clears-' + BOARD;
+  // the splits of this device's fastest clear: { waves, clear } in ms
+  const SPLITS_KEY = 'unruggabull-remastered-splits-' + BOARD;
   let run = null, picker = null, layoutBox = null;
 
   const time = ms => { const s = Math.max(0, ms) / 1000; return Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); };
@@ -25,7 +27,22 @@ window.UnrugRun = (function () {
     try { localStorage.setItem(DEVICE_KEY, JSON.stringify(rows)); } catch (e) {}
     return rows.indexOf(row) + 1;
   }
-  const asBoard = rows => rows.map((r, i) => ({ rank: i + 1, name: r.name, input: r.input, meta: { time_ms: r.ms, health: r.health, unrugged: r.unrugged } }));
+  const asBoard = rows => rows.map((r, i) => ({ rank: i + 1, name: r.name, input: r.input, meta: { time_ms: r.ms, health: r.health, unrugged: r.unrugged, ran_dry: r.ran_dry } }));
+  function bestSplits() { try { const s = JSON.parse(localStorage.getItem(SPLITS_KEY) || '{}'); return s && typeof s === 'object' ? s : {}; } catch (e) { return {}; } }
+
+  // ---------- medals: on the end card and beside each clear on the board ----------
+  // Flawless: a clear at full health. Under 2:00: a clear in under two minutes. Never ran dry: the blaster never ran
+  // out of shots (older rows don't know, so they don't show it).
+  const MEDALS = [
+    ['heart', 'Flawless', m => m.health === 100],
+    ['watch', 'Under 2:00', m => m.time_ms < 120000],
+    ['blaster', 'Never ran dry', m => m.ran_dry === 0]
+  ];
+  function medalIcons(m) {
+    const span = document.createElement('span'); span.className = 'lb-medals';
+    for (const [cls, label, has] of MEDALS) if (has(m)) { const i = document.createElement('i'); i.className = 'mi ' + cls; i.title = label; i.setAttribute('role', 'img'); i.setAttribute('aria-label', label); span.append(i); }
+    return span;
+  }
 
   // ---------- the board table ----------
   function icon(input) {
@@ -58,11 +75,11 @@ window.UnrugRun = (function () {
       if (highlight != null && r.rank === highlight) { tr.className = 'lb-you'; you = tr; UnrugSfx.ok(); }
       const m = r.meta || {};
       tr.insertCell().textContent = r.rank;
-      tr.insertCell().textContent = r.name;
+      const nm = tr.insertCell(); nm.textContent = r.name; nm.append(medalIcons(m));
       tr.insertCell().textContent = time(m.time_ms);
-      const h = tr.insertCell(); h.textContent = (m.health == null ? '' : m.health + '%');
-      if (m.health === 100) { const heart = document.createElement('span'); heart.className = 'heart'; heart.title = 'Full health'; h.append(heart); }
+      tr.insertCell().textContent = (m.health == null ? '' : m.health + '%');
       tr.insertCell().textContent = m.unrugged == null ? '' : m.unrugged;
+
       tr.insertCell().append(icon(r.input));
     };
     (all ? rows : rows.slice(0, 10)).forEach(add);
@@ -103,7 +120,7 @@ window.UnrugRun = (function () {
     if (picker) { picker.destroy(); picker = null; }
     if (run && run.stats && !run.ended && window.PlayStats) PlayStats.quit(run.stats);
     const touch = window.usingTouch && window.usingTouch();
-    run = { start: window.Leaderboard ? Leaderboard.start(GAME, BOARD) : Promise.resolve(null), input: touch ? 'touch' : 'keys', ended: false };
+    run = { start: window.Leaderboard ? Leaderboard.start(GAME, BOARD) : Promise.resolve(null), input: touch ? 'touch' : 'keys', ended: false, splits: {}, shown: null };
     run.stats = window.PlayStats ? PlayStats.start(GAME, { board: BOARD, token: run.start, progress: report }) : null;
     hideEnd();
   }
@@ -116,6 +133,21 @@ window.UnrugRun = (function () {
     return { score: killCount, time_ms: Math.round(runMs()), input: run ? run.input : undefined, won: gameState === 'congrats', stats: s };
   }
   const runMs = () => (getGameStopTime() || gameNow()) - getGameStartTime();
+  // A split (the waves done, the Rugfather down), shown on the HUD for 3 s against this device's fastest clear.
+  function split(name) {
+    if (!run || run.ended || run.splits[name] != null) return;
+    const ms = Math.round(runMs());
+    run.splits[name] = ms;
+    let ref = bestSplits()[name];
+    if (name === 'clear' && ref == null) { const rows = deviceRows(); if (rows.length) ref = Math.min(...rows.map(r => r.ms)); }
+    run.shown = { label: name === 'waves' ? 'WAVES' : 'CLEAR', ms, delta: ref == null ? null : ms - ref, at: gameNow() };
+  }
+  function shownSplit() {
+    if (!run || !run.shown) return null;
+    const age = gameNow() - run.shown.at;
+    return age > 3000 ? null : Object.assign({ age }, run.shown);
+  }
+  const ms = () => (run ? Math.round(runMs()) : 0);
   // Leaving a run from the pause menu.
   function quit() {
     if (run && !run.ended && run.stats && window.PlayStats) PlayStats.quit(run.stats);
@@ -128,6 +160,7 @@ window.UnrugRun = (function () {
     panel.hidden = true; ruggedBox.hidden = true;
     art.classList.remove('split');
     boardBox.replaceChildren(); stats.replaceChildren(); msg.textContent = '';
+    const medals = $('end-medals'); if (medals) medals.remove();
   }
   function place() {
     // the end card covers the window; the art and the panel are laid out from its size
@@ -174,8 +207,11 @@ window.UnrugRun = (function () {
     if (!run || run.ended) return;
     const ended = run;
     ended.ended = true;
-    const result = { ms: Math.round(runMs()), health: Math.round(Math.max(0, player.health) / PLAYER_START_HEALTH * 100), unrugged: killCount };
+    const result = { ms: Math.round(runMs()), health: Math.round(Math.max(0, player.health) / PLAYER_START_HEALTH * 100), unrugged: killCount, ranDry: runRanDry ? 1 : 0 };
     ended.result = result;
+    // a new fastest clear on this device keeps its splits for the next run to race
+    const fastest = deviceRows().reduce((m, r) => Math.min(m, r.ms), Infinity);
+    if (result.ms < fastest) { try { localStorage.setItem(SPLITS_KEY, JSON.stringify({ waves: ended.splits.waves, clear: result.ms })); } catch (e) {} }
     if (ended.stats && window.PlayStats) PlayStats.end(ended.stats, report());
     endEl.hidden = false; endEl.className = 'cleared';
     art.classList.remove('split'); art.style.opacity = 0;
@@ -190,15 +226,29 @@ window.UnrugRun = (function () {
     countUp(statRow('Time', '0:00.0'), result.ms, time, 800);
     countUp(statRow('Health', '0%'), result.health, v => Math.round(v) + '%', 800);
     countUp(statRow('Unrugged', '0'), result.unrugged, v => String(Math.round(v)), 800);
-    await wait(900);
+    // the medals, lit one by one when earned
+    const row = document.createElement('div'); row.id = 'end-medals';
+    const meta = { time_ms: result.ms, health: result.health, ran_dry: result.ranDry };
+    const lit = [];
+    for (const [cls, label, has] of MEDALS) {
+      const b = document.createElement('span'); b.className = 'medal off';
+      const i = document.createElement('i'); i.className = 'mi ' + cls; i.setAttribute('aria-hidden', 'true');
+      b.append(i, label); row.append(b);
+      if (has(meta)) lit.push(b); else b.setAttribute('aria-label', label + ', not earned');
+    }
+    stats.after(row);
+    lit.forEach((b, k) => setTimeout(() => { b.classList.remove('off'); b.classList.add('pop'); UnrugSfx.move(5 + k * 3); setTimeout(() => b.classList.remove('pop'), 250); }, 900 + k * 260));
+    await wait(900 + lit.length * 260);
     if (run !== ended) return;
     offer(ended, result);
   }
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
   async function offer(ended, result) {
+    // ran_dry goes with the saved clear; the standing check leaves it out (it doesn't change the order)
     const meta = { time_ms: result.ms, health: result.health, unrugged: result.unrugged };
-    const local = () => ({ name: Leaderboard.initials(), ms: result.ms, health: result.health, unrugged: result.unrugged, input: ended.input });
+    const full = Object.assign({ ran_dry: result.ranDry }, meta);
+    const local = () => ({ name: Leaderboard.initials(), ms: result.ms, health: result.health, unrugged: result.unrugged, ran_dry: result.ranDry, input: ended.input });
     msg.textContent = 'Checking the board…';
     const token = window.Leaderboard ? await ended.start : null;
     const data = !window.Leaderboard ? null
@@ -222,7 +272,9 @@ window.UnrugRun = (function () {
     openPicker(ended, async name => {
       Leaderboard.saveInitials(name);
       saveDevice(Object.assign(local(), { name }));
-      const res = await Leaderboard.submit({ game: GAME, board: BOARD, token, name, score: 1, input: ended.input, meta });
+      let res = await Leaderboard.submit({ game: GAME, board: BOARD, token, name, score: 1, input: ended.input, meta: full });
+      // a Worker deployed before ran_dry existed turns it away; the clear still counts without it
+      if (res && res.error === 'bad_meta') res = await Leaderboard.submit({ game: GAME, board: BOARD, token, name, score: 1, input: ended.input, meta });
       if (run !== ended) return true;
       if (res && res.error === 'name_not_allowed') { msg.textContent = 'Try other initials.'; return false; }
       msg.textContent = '';
@@ -311,5 +363,5 @@ window.UnrugRun = (function () {
     else if (s === 'gameover') rugged();
   };
 
-  return { begin, touched, quit, layout, loadTitleBoard, best, time };
+  return { begin, touched, quit, layout, loadTitleBoard, best, time, split, shownSplit, ms };
 })();

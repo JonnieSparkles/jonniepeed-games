@@ -439,7 +439,10 @@ function draw() {
     const fh2 = spriteInfo2.frameHeight;
     if (fxRf.defeatAt === state.deathStart && elapsed < 34) {
       // the last hit, held white through the freeze (fx.js)
+      ctx.drawImage(bossSpriteSheet2, 3 * 256, 0, 256, 256, state.x, state.y, 256 * state.scale, 256 * state.scale);
+      ctx.save(); ctx.globalAlpha = 0.55;
       ctx.drawImage(fxWhite(bossSpriteSheet2), 3 * 256, 0, 256, 256, state.x, state.y, 256 * state.scale, 256 * state.scale);
+      ctx.restore();
       return;
     }
     ctx.save();
@@ -531,10 +534,10 @@ function draw() {
     ctx.restore();
     return;
   }
-  // 2025: a brighter frame for 150 ms on a hit. Now the first 80 ms are a white frame (fx.js); his standing
+  // 2025: a brighter frame for 150 ms on a hit. Now the first 45 ms wash him half white (fx.js); his standing
   // frame breathes and flickers; a red pulse when the phase changes; a flare in his hand before a throw.
   const now = gameNow();
-  const whiteHit = state.hitFlashEnd && now < state.hitFlashEnd - 70;
+  const whiteHit = state.hitFlashEnd && now < state.hitFlashEnd - 105;
   if (!whiteHit && state.hitFlashEnd && now < state.hitFlashEnd) ctx.filter = "brightness(1.5) contrast(1.0)";
   let drawAlpha = state.opacity;
   if (state.invulnerable) {
@@ -577,9 +580,9 @@ function draw() {
     }
     ctx.restore();
   };
-  if (whiteHit) blit(fxWhite(spriteInfo.image), frame * fw, 1);
-  else if (spriteState === "idle" && frame === 3) blit(fxRfStanding(spriteInfo.image), 0, 1);
+  if (spriteState === "idle" && frame === 3) blit(fxRfStanding(spriteInfo.image), 0, 1);
   else blit(spriteInfo.image, frame * fw, 1);
+  if (whiteHit) blit(fxWhite(spriteInfo.image), frame * fw, 0.5);
   ctx.filter = "none";
   fxDrawRfPulse(ctx, (image, alpha) => blit(image, frame * fw, alpha), spriteInfo.image);
   fxDrawRfTell(ctx, state);

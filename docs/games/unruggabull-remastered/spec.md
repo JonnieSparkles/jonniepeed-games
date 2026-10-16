@@ -16,7 +16,7 @@ Phones couldn't play it (they got a "meant for desktop" gallery), and it feels o
 - **Full height**, as the original: the 960 × 540 alley keeps its 16:9 at the window's full height, and the extra width of a phone becomes dark bars where the controls sit.
 - **Controls.** A d-pad on the left: left and right walk, up and the up-diagonals jump (once per press, with a short buffer before landing), down crouches. The right half of the screen is Fire, one shot per tap as on the keyboard, with a big Fire button showing where the thumb goes. No Jump button. A pause button with Resume and Quit.
 - **Title screen: B, the poster.** The RugCo Empire painting with a slow push-in, firelight and rising embers, the tagline, a new wordmark and a menu: Play, Leaderboard, Gallery, Credits and a link to the 2025 original.
-- **The board.** Fastest clear from Start to the Rugfather's defeat; health breaks ties. Unrugged shows as a third column (75 reaches the Rugfather, and the carpshits he calls in during the fight count too, so it varies). A heart marks a clear at full health. A rugged run doesn't go on the board.
+- **The board.** Fastest clear from Start to the Rugfather's defeat; health breaks ties. Unrugged shows as a third column (75 reaches the Rugfather, and the carpshits he calls in during the fight count too, so it varies). A heart marks a clear at full health; since Oct 16, it is one of three medals beside the name (Flawless, Under 2:00, Never ran dry), Jonnie's call to show them on the board. A rugged run doesn't go on the board.
 - **Name:** Unruggabull: RugCo Alley Remastered. Unlisted and noindexed until Jonnie has played it on his phone.
 
 Mockups: https://claude.ai/artifact/FZnKbcDX9AeMxpQDL13LYh
