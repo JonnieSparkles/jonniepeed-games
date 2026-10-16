@@ -13,7 +13,7 @@ var UnrugTitle = (function () {
     { id: 'regular', name: 'REGULAR BULL', short: 'REGULAR', line: 'REGULAR HEALTH.' },
     { id: 'raging', name: 'RAGING BULL', short: 'RAGING', line: 'NO HEALTH RESETS.' },
     // owner, Oct 16: five hearts for the whole climb, nothing gives one back; locked until Raging Bull is cleared
-    { id: 'impossibull', name: 'IMPOSSIBULL', short: 'IMPOSSIBULL', line: 'NO HEALING.' }
+    { id: 'impossibull', name: 'IMPOSSIBULL', short: 'IMPOSSI', line: 'NO HEALING.' }
   ];
   const MODE_KEY = 'unruggabull-ii-mode';
   // The painting, 480 x 640 picture pixels, and where things are on it.
@@ -196,24 +196,77 @@ var UnrugTitle = (function () {
     // glances down at the panel for a moment.
     // Impossibull: red and wide open, not a blink, and still
     const mood = () => ({ baby: 'bored', raging: 'red', impossibull: 'wide' })[MODES[mode].id] || 'watch';
+    // a pick lights the tower up for the eye (owner, Oct 16: all three): the windows black out and light back up floor by
+    // floor, bottom to top, in the mode's colour; then the pavilion blazes and throws rays; and the eye swells
+    const tint = cv(200, 280), tg = tint.getContext('2d');
+    let mask = null;   // the painting's bright pixels (the lit windows) as an alpha mask, made once
+    function bright(x0, y0, w, h) {
+      if (!mask) {
+        mask = cv(AW, AH); const mg = mask.getContext('2d'); mg.drawImage(art, 0, 0);
+        const d = mg.getImageData(0, 0, AW, AH), px = d.data;
+        for (let i = 0; i < px.length; i += 4) { const l = (px[i] * .3 + px[i + 1] * .55 + px[i + 2] * .15) / 255, a = clamp((l - .42) / .3, 0, 1); px[i] = px[i + 1] = px[i + 2] = 255; px[i + 3] = Math.round(a * 255); }
+        mg.putImageData(d, 0, 0);
+      }
+      tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, 200, 280); tg.drawImage(mask, x0, y0, w, h, 0, 0, w, h);
+    }
+    function dark(g, x0, y0, w, h, a) {   // the windows in this box go dark
+      if (a <= 0 || h <= 0) return;
+      bright(x0, y0, w, h); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = '#0a0608'; tg.fillRect(0, 0, w, h);
+      g.save(); g.globalAlpha = Math.min(1, a); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); g.restore();
+    }
+    function lit(g, x0, y0, w, h, a, col) {   // the painting's own pixels in this box, tinted and added: windows light, dark stays dark
+      if (a <= 0 || h <= 0) return;
+      bright(x0, y0, w, h);
+      tg.globalCompositeOperation = 'source-in'; tg.fillStyle = col; tg.fillRect(0, 0, w, h);
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, a); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); if (a > 1) { g.globalAlpha = a - 1; g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); } g.restore();
+    }
+    function eyeFx(g, tt) {
+      const pk = tt - changedAt;
+      if (!art || still.matches || pk < 0 || pk > 2) return;
+      const col = FIRE[MODES[mode].id].glow, { x, y } = ART.eye;
+      {
+        // the windows black out, then light back up floor by floor, bottom to top, into the eye
+        const k = (pk - .12) / .6, by = Math.round(432 - (432 - 176) * clamp(k, 0, 1));
+        if (k < 1) dark(g, 150, 176, 180, by - 176, .92);
+        if (k > 0 && k < 1.25) lit(g, 150, by, 180, Math.min(26, 432 - by), 1.7 * (k < 1 ? 1 : (1.25 - k) * 4), col);
+      }
+      {   // the pavilion blazes and throws rays as the light reaches it
+        const k = pk - .55, fl = k < 0 ? 0 : Math.max(0, 1 - k / 1.2) * Math.min(1, k / .08);
+        if (fl > 0) {
+          lit(g, 196, 168, 88, 64, 1.8 * fl, col);
+          g.save(); g.globalCompositeOperation = 'lighter';
+          for (const [rr, a] of [[46, .08], [30, .14], [18, .22]]) { g.globalAlpha = a * fl; A.disc(g, x, y, Math.round(rr * (.7 + .3 * fl)), col); }
+          g.globalAlpha = .55 * fl;
+          for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + tt * .6, L = 18 + 26 * fl; for (let q = 10; q < L; q += 1.5) R(g, x + Math.cos(a) * q, y + Math.sin(a) * q * .8, 1, 1, i % 2 ? col : '#fff6e2'); }
+          g.restore();
+        }
+      }
+    }
     function drawEye(g, tt, feet) {
       let { x, y, r } = ART.eye;
+      { const pk0 = tt - changedAt, f0 = still.matches ? 0 : Math.max(0, 1 - pk0 / 1.4);   // it swells on a pick
+        if (f0 > 0 && pk0 >= 0) r = Math.round(r + 5 * Math.min(1, pk0 / .2) * f0); }
       const md = mood(), wide = md === 'wide', red = md === 'red' || wide, blink = !wide && (tt % 4.1) > 3.95;
-      if (red && !wide && !still.matches) x += Math.round(Math.sin(tt * 31) * .6);
+      // a pick: it glances down at the panel, flares, then reacts to the mode (Baby: rolls its eye; Regular: narrows
+      // on him; Raging: flares red and shakes; Impossibull: goes wide, its pupil shrinks to a dot, and it shakes)
+      const pk = tt - changedAt, flare = still.matches ? 0 : Math.max(0, 1 - pk / 1.1), react = pk < 1.6;
+      if (red && !wide && !still.matches) x += Math.round(Math.sin(tt * 31) * (.6 + 1.6 * flare));
+      if (wide && react && !still.matches) { x += Math.round(Math.sin(tt * 47) * 1.4 * (1 - pk / 1.6)); y += Math.round(Math.cos(tt * 39) * .8 * (1 - pk / 1.6)); }
       let look;
-      if (tt - changedAt < 1.3) look = [0, 1];
+      if (pk < .35) look = [0, 1];
+      else if (react && md === 'bored') { const a = (pk - .35) / 1.25 * Math.PI * 2 + Math.PI / 2; look = [Math.cos(a), Math.sin(a) * .8 - .2]; }
       else if (md === 'bored') look = [Math.sin(tt * .6) * .9, .3 + .3 * Math.sin(tt * .37)];
       else { const dx = 0, dy = feet - 40 - y, d = Math.hypot(dx, dy) || 1; look = [dx / d + (md === 'watch' ? .25 * Math.sin(tt * .5) : 0), dy / d]; }
       g.save(); g.globalCompositeOperation = 'lighter';
-      const pulse = 1 + .15 * Math.sin(tt * (red ? 7 : 2.5));
+      const pulse = (1 + .15 * Math.sin(tt * (red ? 7 : 2.5))) * (1 + 2.2 * flare);
       for (const [rr, a] of [[r * 3.2, .06], [r * 2.1, .1], [r * 1.4, .16]]) { g.globalAlpha = a * pulse; A.disc(g, x, y, Math.round(rr), red ? '#ff2a14' : '#ff8a2a'); }
       g.restore();
       A.disc(g, x, y, r + 1, '#1a0806'); A.disc(g, x, y, r, red ? '#e8261a' : '#ff7a2a');
-      const ir = Math.max(2, Math.round(r * .6)), pr = Math.max(1, Math.round(r * .32));
+      const ir = Math.max(2, Math.round(r * .6)), pr = wide && react && pk > .35 ? 1 : red && flare > .4 ? Math.round(r * .45) : Math.max(1, Math.round(r * .32));
       const lx = Math.round(clamp(look[0], -1, 1) * (r - ir)), ly = Math.round(clamp(look[1], -1, 1) * (r - ir) * .7);
       A.disc(g, x + lx, y + ly, ir, red ? '#ffb0a0' : '#ffd060'); A.disc(g, x + lx, y + ly, pr, '#140806');
       R(g, x + lx - Math.ceil(pr / 2), y + ly - pr, 1, 1, '#fff6e2');
-      const lid = blink ? 1 : md === 'bored' ? .5 + .08 * Math.sin(tt * .9) : wide ? 0 : red ? .18 : .08;
+      const lid = blink ? 1 : md === 'bored' ? (react && pk > .35 ? .3 : .5 + .08 * Math.sin(tt * .9)) : wide ? 0 : red ? .18 * (1 - flare) : md === 'watch' && react && pk > .35 ? .32 * Math.sin(Math.min(1, (pk - .35) / 1.25) * Math.PI) + .08 : .08;
       g.save(); g.beginPath(); g.arc(x + .5, y + .5, r + 1.5, 0, 7); g.clip();
       const h = Math.round((2 * r + 2) * lid);
       R(g, x - r - 2, y - r - 1, 2 * r + 5, h, '#2a0e08');
@@ -251,7 +304,7 @@ var UnrugTitle = (function () {
       if (tt > s.next) { s.gaze = [-1, 0, 1, 0][Math.floor(hash2(Math.floor(tt * 10), id.length) * 4)]; s.next = tt + .8 + hash2(id.length, Math.floor(tt)) * 1.4; }
       if (tt > s.blinkAt + .14) s.blinkAt = tt + 2.2 + hash2(Math.floor(tt), 7) * 2.5;
       const ww = f.w * sc, hh = f.h * sc, x0 = Math.round(cx - ww / 2), y0 = Math.round(cy - hh / 2);
-      const react = tt - s.react < .7, blink = tt > s.blinkAt && tt < s.blinkAt + .14, W = f.rows[0].length, mir = (x, w) => W - x - w;
+      const react = tt - s.react < 1, blink = tt > s.blinkAt && tt < s.blinkAt + .14, W = f.rows[0].length, mir = (x, w) => W - x - w;
       const P = (x, y, w, h, col) => R(g, x0 + (x + 1) * sc, y0 + (y + 1) * sc, w * sc, h * sc, col);
       g.save(); if (dim) g.globalAlpha = .5;
       g.drawImage(FACEC[id], x0, y0, ww, hh);
@@ -265,6 +318,12 @@ var UnrugTitle = (function () {
           else { P(ex + 1 + gz, 6, 2, 2, '#1a1418'); P(ex + 1 + gz, 6, 1, 1, '#ffffff'); }
         }
         P(8, 11, 4, 3, '#ff8ab4'); P(9, 12, 2, 1, '#e03a78'); P(7, 12, 1, 1, '#ff8ab4'); P(12, 12, 1, 1, '#ff8ab4');   // the pacifier
+        if (react && !dim) for (const [hx, d] of [[2, 0], [17, .25]]) {   // picked: two little hearts float up
+          const k = (tt - s.react - d) / .75; if (k < 0 || k > 1) continue;
+          g.globalAlpha = 1 - k; const hy = 3 - Math.round(k * 7);
+          P(hx, hy, 1, 1, '#ff5a8a'); P(hx + 2, hy, 1, 1, '#ff5a8a'); P(hx, hy + 1, 3, 1, '#ff5a8a'); P(hx + 1, hy + 2, 1, 1, '#ff5a8a');
+          g.globalAlpha = dim ? .5 : 1;
+        }
       } else if (id === 'impossibull') {
         P(5, 5, 1, 1, '#8a4a50'); P(6, 6, 1, 1, '#8a4a50'); P(7, 9, 1, 1, '#8a4a50'); P(8, 10, 1, 1, '#8a4a50');   // a scar through his left eye
         for (const ex of [6, mir(6, 3)]) {
@@ -273,9 +332,9 @@ var UnrugTitle = (function () {
           P(ex + 1, 8, 1, 1, '#ffffff');
         }
         if (react) { P(8, 16, 6, 1, '#05030a'); P(8, 15, 1, 1, '#05030a'); P(13, 15, 1, 1, '#05030a'); }
-        if (!dim) for (const [nx, d] of [[6, -1], [mir(6, 2) + 1, 1]]) for (let i = 0; i < 3; i++) {   // fire from the nostrils
-          const k = mod1(tt * (react ? 4 : 2.4) + i / 3 + (d > 0 ? .5 : 0));
-          g.globalAlpha = 1 - k; P(nx + d * Math.round(k * 3), 15 + Math.round(k * 2), 1, 1, k < .4 ? '#fff0a0' : k < .7 ? '#ffb02a' : '#e8261a');
+        if (!dim) for (const [nx, d] of [[6, -1], [mir(6, 2) + 1, 1]]) for (let i = 0, n = react ? 7 : 3; i < n; i++) {   // fire from the nostrils
+          const k = mod1(tt * (react ? 4 : 2.4) + i / n + (d > 0 ? .5 : 0)), L = react ? 7 : 3;
+          g.globalAlpha = 1 - k; P(nx + d * Math.round(k * L), 15 + Math.round(k * (react ? 3 : 2)), react && k < .5 ? 2 : 1, 1, k < .4 ? '#fff0a0' : k < .7 ? '#ffb02a' : '#e8261a');
         }
       } else {
         for (const [ex, rx] of [[6, 7], [mir(6, 3), mir(7, 1)]]) { if (blink) { P(ex, 7, 3, 2, f.pal.B); P(ex, 8, 3, 1, '#140806'); } else P(rx + gz, 8, 1, 1, '#ff2a14'); }
@@ -341,6 +400,34 @@ var UnrugTitle = (function () {
       R(g, cx - 4 * s, cy - 8 * s, 8 * s, 2 * s, col); R(g, cx - 4 * s, cy - 7 * s, 2 * s, 6 * s, col); R(g, cx + 2 * s, cy - 7 * s, 2 * s, 6 * s, col);
       R(g, cx - 6 * s, cy - 1 * s, 12 * s, 9 * s, col); R(g, cx - 1 * s, cy + 2 * s, 2 * s, 3 * s, '#101116');
     }
+    // the picked button's ring is on fire, hotter up the modes (Baby's a candle, Impossibull's crimson and white-hot), and it flares on a pick
+    const FIRE = {
+      baby: { c: ['#fff6c8', '#ffe08a', '#ffb02a'], h: [2, 5], v: 9, glow: '#ffb02a' },
+      regular: { c: ['#fff0a0', '#ffb02a', '#ff5a14'], h: [3, 9], v: 11, glow: '#ff9a2a' },
+      raging: { c: ['#ffd0a0', '#ff5a14', '#c81a0a'], h: [4, 13], v: 14, glow: '#ff4a1a' },
+      impossibull: { c: ['#ffffff', '#ff2a1a', '#7a0606'], h: [5, 15], v: 16, glow: '#ff1a10' }
+    };
+    function fireRing(g, cx, cy, r, id, tt, boost) {
+      const F = FIRE[id], k = r / 30, n = Math.round(Math.PI * 2 * r / 3.2), px = r > 24 ? 2 : 1;
+      g.save(); g.globalCompositeOperation = 'lighter';
+      for (let j = 0; j < n; j++) {
+        const a = j / n * Math.PI * 2, ux = Math.cos(a), uy = Math.sin(a), up = Math.max(0, -uy);
+        let dx = ux, dy = uy < 0 ? uy - 1.2 * up : uy; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+        const fl = .5 + .5 * Math.sin(tt * F.v + j * 1.7 + Math.sin(tt * 3.1 + j) * 2);
+        const h = Math.round(k * (F.h[0] + (F.h[1] - F.h[0]) * fl) * (.3 + .7 * up) * (1 + 1.6 * boost));
+        const sway = Math.sin(tt * 5 + j * .9) * .8;
+        for (let q = 0; q < h; q++) {
+          const f = q / h; g.globalAlpha = (1 - f) * .9;
+          R(g, cx + ux * (r + 1) + dx * q - px / 2 + sway * f * 2, cy + uy * (r + 1) + dy * q - px / 2, px, px, F.c[f < .3 ? 0 : f < .65 ? 1 : 2]);
+        }
+      }
+      // embers off the top, more on a pick
+      for (let e = 0, ne = Math.round((2 + 6 * boost) * k + (id === 'raging' || id === 'impossibull' ? 2 : 0)); e < ne; e++) {
+        const life = mod1(tt * .9 + hash2(e, id.length)), ex = cx + (hash2(e, 3) - .5) * r * 1.4 + Math.sin(tt * 3 + e) * 2;
+        g.globalAlpha = (1 - life) * .9; R(g, ex, cy - r - 2 - life * r * .9, px, px, F.c[life < .5 ? 1 : 2]);
+      }
+      g.restore();
+    }
     function callButton(g, cx, cy, r, i, tt, labelY) {
       const on = i === mode, m = MODES[i];
       if (locked(i)) {
@@ -351,9 +438,12 @@ var UnrugTitle = (function () {
         zone(cx - r - 6, cy - r - 6, r * 2 + 12, labelY != null ? labelY - cy + r + 18 : r * 2 + 12, 'mode' + i);
         return;
       }
-      if (on) { g.save(); g.globalCompositeOperation = 'lighter'; for (const [rr, a] of [[r + 12, .06], [r + 7, .09], [r + 3, .14]]) { g.globalAlpha = a * (1 + .2 * Math.sin(tt * 4)); A.disc(g, cx, cy, rr, '#ffb02a'); } g.restore(); }
+      // a pick: the button jumps, and on Raging and Impossibull it shakes
+      const pk = tt - faceSt[m.id].react, boost = on && !still.matches ? Math.max(0, 1 - pk / .8) : 0;
+      if (boost) { cy -= Math.round(Math.sin(Math.min(1, pk / .3) * Math.PI) * 3); if (m.id === 'raging' || m.id === 'impossibull') cx += Math.round(Math.sin(tt * 60) * 1.5 * boost); }
+      if (on) { g.save(); g.globalCompositeOperation = 'lighter'; for (const [rr, a] of [[r + 12, .06], [r + 7, .09], [r + 3, .14]]) { g.globalAlpha = a * (1 + .2 * Math.sin(tt * 4)) * (1 + 1.5 * boost); A.disc(g, cx, cy, rr, FIRE[m.id].glow); } g.restore(); }
       A.disc(g, cx, cy, r + 2, '#0a0b0e'); A.disc(g, cx, cy, r + 1, on ? '#ffd44a' : '#5a5c6a'); A.disc(g, cx, cy, r - 1, on ? '#3a2a10' : '#262830');
-      if (on) { g.save(); g.globalAlpha = .3; A.disc(g, cx, cy, r - 3, '#ffb02a'); g.restore(); }
+      if (on) { g.save(); g.globalAlpha = .3; A.disc(g, cx, cy, r - 3, '#ffb02a'); g.restore(); if (!still.matches) fireRing(g, cx, cy, r, m.id, tt, boost); }
       R(g, cx - Math.round(r * .6), cy - Math.round(r * .75), 3, 1, on ? '#fff6c8' : '#6a6c7a');
       drawFace(g, m.id, cx, cy + 1, Math.max(1, Math.floor((r * 2 - 6) / 22)), !on, tt);
       if (labelY != null) T(g, m.short, cx, labelY, on ? P.gold : P.dim, 2, 'center');
@@ -384,7 +474,7 @@ var UnrugTitle = (function () {
       const sx = w - 14 - 42 - 48 * (keys - 1);
       steelKey(g, sx, 14, 42, 42, 'sound'); speaker(g, sx + 21, 14 + 21, act.soundOn(), act.soundOn() ? P.gold : P.dim);
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
-      MODES.forEach((m, i) => callButton(g, [42, 116, 192, 268][i], 104, 30, i, tt, 146));
+      MODES.forEach((m, i) => callButton(g, 46 + i * 76, 104, 30, i, tt, 146));
       boardLine(g, 14, 178, w - 28);
       bigButton(g, 10, h - 62, w - 20, 50, 'START', true, 'start', 3);
     }
@@ -404,7 +494,7 @@ var UnrugTitle = (function () {
       cg.clearRect(0, 0, AW, AH);
       if (art) cg.drawImage(art, 0, 0); else R(cg, 0, 0, AW, AH, '#0b0920');
       drawCarpet(cg, tt); drawSign(cg, tt); drawRugs(cg, tt); drawSmoke(cg, tt); drawSouls(cg, tt);
-      drawEye(cg, tt, feet);
+      eyeFx(cg, tt); drawEye(cg, tt, feet);
       drawBull(cg, feet);
       if (logoA > 0) drawLogo(cg, logoY, tt, logoA);
     }
