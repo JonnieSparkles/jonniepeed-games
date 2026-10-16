@@ -13,7 +13,7 @@ During play (from the end of the intro: playing, paused, and the rugged and clea
 ## Landscape (and desktop)
 
 - **The picture** is the biggest 16:9 picture that leaves room for Pause: a side band of at least 56 px, or a 48 px band on top, whichever gives more picture. On the S25 that's 640 × 360, full height, 42% more than today's 537 × 302; on a 16:10 monitor 1280 × 720 with Pause above it. No frame or rounded corners.
-- **Pause** is one icon at the top right: in the right band on a phone, in the band above the picture on a monitor. The HUD fills the picture's top corners, so it never floats over the picture.
+- **Pause** is one icon at the top right: in the right band on a phone, in the band above the picture on a monitor. The HUD fills the picture's top corners, so it never floats over the picture. On a computer without touch, while the game isn't full screen, **Full screen** (the title's four corners) sits with it: under Pause in a side band, left of it in the band above the picture, where there's no room under it (owner, Oct 16).
 - **The stick, Shoot and Slash** stay where they are today, overlapping the picture's corners a little (owner: don't push the stick to the far left).
 - **The 48th's twin sticks** get areas of the same size, so their resting rings mirror each other: the same height, the same distance in from each edge.
 - **No header** during play.

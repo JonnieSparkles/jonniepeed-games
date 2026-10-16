@@ -24,7 +24,7 @@ window.UnrugSound = (function () {
   const MUSIC_LEVEL = .5, DUCKED = .16;
   let ctx = null, master, musicBus, sfxBus, voiceBus, NOISE = null, want = null, wantOptions = {}, duckUntil = 0;
   const WAVES = {};
-  let muted = false;
+  let muted = false, uiCtx = null;
   try { muted = localStorage.getItem(KEY) === '1'; } catch (e) {}
 
   const notify = () => { if (api.onready) api.onready(); };
@@ -874,6 +874,23 @@ window.UnrugSound = (function () {
       try { localStorage.setItem(KEY, muted ? '1' : '0'); } catch (e) {}
       if (ctx) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, .02);
       return muted;
+    },
+    // The cards' own sounds (owner, Oct 16: the pause menu had none): open, a tick to move, a pick, close. Their own small
+    // context, since the game's is suspended while paused; silent when the sound is off.
+    ui(name) {
+      if (muted) return;
+      const N = { open: [[523, 784], .05, .07], close: [[784, 523], .045, .06], move: [[1320], .025, .025], pick: [[880, 1320], .05, .05] }[name];
+      if (!N) return;
+      try {
+        uiCtx = uiCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (uiCtx.state === 'suspended') uiCtx.resume();
+        const [notes, vol, len] = N; let t = uiCtx.currentTime + .005;
+        for (const f of notes) {
+          const o = uiCtx.createOscillator(), v = uiCtx.createGain(); o.type = 'square'; o.frequency.value = f;
+          v.gain.setValueAtTime(vol, t); v.gain.exponentialRampToValueAtTime(.0005, t + len);
+          o.connect(v); v.connect(uiCtx.destination); o.start(t); o.stop(t + len + .02); t += len * .8;
+        }
+      } catch (e) {}
     },
     pause() { if (ctx && ctx.state === 'running') ctx.suspend(); },
     resume() { if (ctx && ctx.state === 'suspended') wake(); }

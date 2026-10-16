@@ -17,7 +17,7 @@ var UnrugCards = (function () {
   };
   const CAP = { bg: '#140806', rule: '#ff7a2a', ink: '#ffd060', label: '#ff7a2a', val: '#fff6e2', dim: '#9a5a2a', warn: '#ff7050', edge: '#140806' };
   const PZ = { bg: '#16112a', rule: '#ffd44a', ink: '#ffd44a', text: '#fff6e2', dim: '#a89cc4' };
-  const PIC_W = 480, PIC_H = 270, BAND = 102, PAUSE_BAND = 158, NOTE_BAND = 120, SAVE_BAND = 158;   // NOTE_BAND: 112 left its line touching the buttons (owner, Oct 16)
+  const PIC_W = 480, PIC_H = 270, BAND = 102, NOTE_BAND = 120, SAVE_BAND = 158;   // NOTE_BAND: 112 left its line touching the buttons (owner, Oct 16)
   const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   // 2ND, 312TH: the game's font has no #
   const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'TH' : n % 10 === 1 ? 'ST' : n % 10 === 2 ? 'ND' : n % 10 === 3 ? 'RD' : 'TH');
@@ -215,7 +215,7 @@ var UnrugCards = (function () {
     // ---- sideways and desktop: a band over the bottom of the picture ----
     function drawBand(t) {
       const L = LINES[info.who] || LINES.floor13;
-      const by = Math.round((1 - ease(t / .3)) * ch / 2) * 2;
+      const by = info.kind === 'pause' ? Math.round((1 - ease(t / .2)) * ch) : Math.round((1 - ease(t / .3)) * ch / 2) * 2;
       g.clearRect(0, 0, cw, ch);
       if (info.kind === 'pause') return drawPauseBand(t, by);
       R(0, by, cw, ch - by, CAP.bg); R(0, by, cw, 2, CAP.rule);
@@ -301,27 +301,51 @@ var UnrugCards = (function () {
         st.left = '0px'; st.top = top + 'px'; st.width = a.width + 'px'; st.height = h + 'px';
         cw = 320; ch = Math.max(200, Math.round(h * 320 / a.width));
       } else {
-        const band = info.kind === 'pause' ? PAUSE_BAND : saving() ? SAVE_BAND : noting() ? NOTE_BAND : BAND, k = s.width / PIC_W;
+        const band = info.kind === 'pause' ? pauseBand() : saving() ? SAVE_BAND : noting() ? NOTE_BAND : BAND, k = s.width / PIC_W;
         st.left = (s.left - a.left) + 'px'; st.top = (s.bottom - a.top - band * k) + 'px'; st.width = s.width + 'px'; st.height = band * k + 'px';
         cw = PIC_W; ch = band;
       }
       if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
       // the buttons, in the canvas's pixels
       const n = buttons.length;
-      if (upright) {
-        const bh = 40, gap = info.kind === 'pause' ? 5 : 8, y0 = ch - 12 - n * bh - (n - 1) * gap;   // 45 CSS px on a 360 px phone
-        zones = buttons.map((_, i) => ({ x: 12, y: y0 + i * (bh + gap), w: cw - 24, h: bh }));
+      // The buttons are drawn here in the game's pixel font, sized to their labels, on the text's 12-pixel gutter with
+      // 8 between them (owner, Oct 16: the HTML buttons were big boxes with small text, and the spacing was off).
+      if (!n) zones = [];
+      else if (upright) {
+        // thumbs: the main button full width at the bottom (40 CSS px on a 360 px phone), the rest in pairs above it,
+        // Quit furthest from it
+        const full = cw - 24, half = (full - 8) / 2, rest = buttons.map((b, i) => i).slice(1).sort((a, b) => quitFirst(a) - quitFirst(b));
+        zones = []; let y = ch - 12 - 32; zones[0] = { x: 12, y, w: full, h: 32 };
+        const rows = []; for (let i = 0; i < rest.length; i += 2) rows.push(rest.slice(i, i + 2));
+        for (let r = rows.length - 1; r >= 0; r--) {
+          y -= 8 + 26;
+          rows[r].forEach((bi, j) => { zones[bi] = { x: rows[r].length === 1 ? 12 : 12 + j * (half + 8), y, w: rows[r].length === 1 ? full : half, h: 26 }; });
+        }
       } else if (info.kind === 'pause') {
-        zones = buttons.map((_, i) => ({ x: [80, 240, 400][i % 3] - 70, y: [56, 100][Math.floor(i / 3)], w: 140, h: 34 }));
+        // two rows under the line, sized to their labels
+        let x = 12, y = pauseTop();
+        zones = buttons.map((b, i) => { if (i === 3) { x = 12; y += 24 + 8; } const z = { x, y, w: labelW(b), h: 24 }; x += z.w + 8; return z; });
       } else {
-        const w = 112, h = 34, xs = n > 1 ? [240 - 8 - w, 240 + 8] : [240 - w / 2];   // 45 CSS px on a phone sideways
-        zones = buttons.map((_, i) => ({ x: xs[i], y: ch - 37, w, h }));
+        // level-end cards: one row at the bottom right, under the numbers, ending on their right edge
+        let x = cw - 12; zones = [];
+        for (let i = n - 1; i >= 0; i--) { const w = labelW(buttons[i]); x -= w; zones[i] = { x, y: ch - 12 - 24, w, h: 24 }; x -= 8; }
       }
       zones = zones.map((z, i) => buttons[i].z ? buttons[i].z() : z);   // the board step places its own
       const kx = root.clientWidth / cw, ky = root.clientHeight / ch;
-      buttons.forEach((b, i) => { const z = zones[i], bs = b.el.style; bs.left = z.x * kx + 'px'; bs.top = z.y * ky + 'px'; bs.width = z.w * kx + 'px'; bs.height = z.h * ky + 'px'; bs.fontSize = Math.max(11, Math.min(16, z.h * ky * .36)) + 'px'; });
+      // the drawn buttons can be smaller than a finger: each target is at least 44 CSS px, centred on what's drawn
+      buttons.forEach((b, i) => {
+        const z = zones[i], bs = b.el.style, mh = Math.max(z.h, 44 / ky), mw = Math.max(z.w, 44 / kx);
+        const y = Math.max(0, Math.min(ch - mh, z.y - (mh - z.h) / 2)), x = z.x - (mw - z.w) / 2;
+        bs.left = x * kx + 'px'; bs.top = y * ky + 'px'; bs.width = mw * kx + 'px'; bs.height = mh * ky + 'px';
+      });
     }
 
+    const labelW = b => tw(b.label, 2) + 24;
+    const quitFirst = i => buttons[i] && buttons[i].label === 'Quit' ? -1 : 0;
+    // the pause card sideways: the line, then the buttons 10 below it, two rows of 24, and 12 under them
+    const pauseLines = () => wrap(info.line || '', 56).length;
+    const pauseTop = () => 28 + pauseLines() * 12 + 10;
+    const pauseBand = () => pauseTop() + 24 + 8 + 24 + 12;
     function setButtons(list) {
       btns.textContent = '';
       buttons = list.map(b => {
@@ -329,9 +353,40 @@ var UnrugCards = (function () {
         el.textContent = b.label; if (b.id) el.id = b.id; if (b.aria) el.setAttribute('aria-label', b.aria);
         if (lbs && lbs.st === 'busy') el.disabled = true;
         if (b.slot != null) el.addEventListener('focus', () => { if (lbs) lbs.slot = b.slot; });
-        el.addEventListener('click', b.go);
+        const me = Object.assign({ el, on: false, down: false }, b);
+        // what the drawn button shows: lit while it has the focus (the mouse over it gives it the focus, so keys and
+        // mouse agree), pressed while held; a move makes a tick, a press a pick (Resume's close is the game's)
+        el.addEventListener('focus', () => { me.on = true; if (!quietFocus && !b.pk) sfx('move'); });
+        el.addEventListener('blur', () => { me.on = false; me.down = false; });
+        el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse' && document.activeElement !== el && el.style.visibility !== 'hidden') try { el.focus({ preventScroll: true }); } catch (x) {} });
+        el.addEventListener('pointerdown', () => { me.down = true; });
+        for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(ev, () => { me.down = false; });
+        el.addEventListener('click', () => { if (!b.pk && b.go !== act.resume) sfx('pick'); b.go(); });
         btns.append(el);
-        return Object.assign({ el }, b);
+        return me;
+      });
+    }
+    let quietFocus = false;
+    const sfx = name => { if (act.sfx) act.sfx(name); };
+    // the buttons, drawn on the card in the game's pixel font (the HTML buttons over them are clear, for touch,
+    // the keyboard and screen readers); the pause card's come in one after another as it lands
+    function drawButtons(t) {
+      const pz = info.kind === 'pause', C = pz ? PZ : CAP;
+      buttons.forEach((b, i) => {
+        const z = zones[i]; if (b.pk || !z || b.el.style.visibility === 'hidden') return;
+        const a = pz ? Math.max(0, Math.min(1, (t - .18 - i * .025) / .12)) : 1; if (a <= 0) return;
+        g.save(); g.globalAlpha = a * (b.el.disabled ? .55 : 1);
+        const dy = b.down ? 2 : 0, x = z.x, y = z.y + dy, w = z.w, h = z.h, ty = y + Math.round((h - 10) / 2);
+        const gold = pz ? PZ.ink : CAP.rule, back = pz ? PZ.bg : CAP.bg, deep = pz ? '#b8861a' : '#8a3a10';
+        if (!b.sec) {
+          if (!b.down) R(x, y + 2, w, h, deep);
+          R(x, y, w, h, b.on ? '#fff6e2' : gold); R(x + 1, y + 1, w - 2, h - 2, gold);
+          txt(b.label, x + w / 2, ty, back, 2, 'center');
+        } else {
+          R(x, y, w, h, b.on ? gold : pz ? '#3a2f58' : '#5a2a14'); R(x + 1, y + 1, w - 2, h - 2, b.on ? (pz ? '#221a3a' : '#22100a') : back);
+          txt(b.label, x + w / 2, ty, b.on ? gold : b.label === 'Quit' ? C.dim : pz ? PZ.text : CAP.val, 2, 'center');
+        }
+        g.restore();
       });
     }
     function buttonsFor() {
@@ -345,8 +400,8 @@ var UnrugCards = (function () {
       if (confirm) return [{ label: 'Retry', go: act.retry }, { label: 'Back', sec: true, go: () => { confirm = null; setButtons(buttonsFor()); place(); focus(); } }];
       return [{ label: 'Retry', go: () => { if (info.ranked) { confirm = { at: now() - t0 }; setButtons(buttonsFor()); place(); focus(); say.textContent = 'Retry? Your retry will not count on the leaderboard' + (info.unlock ? ' or unlock Impossibull.' : '.'); } else act.retry(); } }, { label: 'Quit', sec: true, go: act.quit }];
     }
-    function relabel() { for (const b of buttons) { if (b.id === 'lSnd') b.el.textContent = act.soundLabel(); if (b.id === 'lFs') b.el.textContent = act.fullLabel(); } }
-    function focus() { const b = lbs && lbs.st === 'pick' ? buttons.find(x => x.slot === lbs.slot) : buttons[0]; if (b && b.el.style.visibility !== 'hidden') try { b.el.focus({ preventScroll: true }); } catch (e) {} }
+    function relabel() { for (const b of buttons) { if (b.id === 'lSnd') b.el.textContent = b.label = act.soundLabel(); if (b.id === 'lFs') b.el.textContent = b.label = act.fullLabel(); } }
+    function focus() { const b = lbs && lbs.st === 'pick' ? buttons.find(x => x.slot === lbs.slot) : buttons[0]; if (b && b.el.style.visibility !== 'hidden') { quietFocus = true; try { b.el.focus({ preventScroll: true }); } catch (e) {} quietFocus = false; } }
 
     // ---- the board step's buttons and moves ----
     function saveButtons() {
@@ -398,7 +453,17 @@ var UnrugCards = (function () {
     // keys for the step (game.js asks first while a card is up): Escape skips the offer; the picker takes letters and
     // digits, the arrows, Backspace, Enter (OK, or Skip when it has focus) and Escape, and keeps the game's shortcuts out
     function key(e) {
-      if (!info || !saving() || !lbs || e.repeat && lbs.st !== 'pick') return false;
+      if (!info) return false;
+      // the arrows step through the buttons (owner, Oct 16), except on the initials picker, which uses them itself
+      const arrows = { ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1 };
+      if (arrows[e.key] && !(lbs && (lbs.st === 'pick' || lbs.st === 'busy'))) {
+        const list = buttons.filter(b => !b.pk && b.el.style.visibility !== 'hidden'); if (!list.length) return true;
+        const at = list.findIndex(b => b.el === document.activeElement), n = list.length;
+        const next = list[at < 0 ? 0 : (at + arrows[e.key] + n) % n];
+        try { next.el.focus({ preventScroll: true }); } catch (x) {}
+        return true;
+      }
+      if (!saving() || !lbs || e.repeat && lbs.st !== 'pick') return false;
       const k = e.key;
       if (lbs.st === 'offer') { if (k === 'Escape') { step('skipped'); return true; } return false; }
       if (lbs.st === 'busy') return k !== 'Tab';
@@ -440,6 +505,7 @@ var UnrugCards = (function () {
       const since = lbs ? t - lbs.at : 0;
       const on = info.kind === 'pause' || (ready && t > (noting() ? 1.2 : .6) && (!lbs || lbs.st === 'pick' || lbs.st === 'busy' || since > (lbs.st === 'offer' ? .9 : .3)));
       for (const b of buttons) b.el.style.visibility = on ? 'visible' : 'hidden';
+      if (on && ready) drawButtons(t);
       if (on && !info.focused) { info.focused = true; focus(); }   // the main button takes the keyboard once it shows
     }
     // for the tests: what the card says and its buttons by label

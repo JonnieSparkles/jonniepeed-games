@@ -217,6 +217,17 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 .ipause::before{content:'';width:12px;height:14px;border-left:4px solid rgba(255,246,226,.9);border-right:4px solid rgba(255,246,226,.9)}
 .ipause:active{transform:none;filter:brightness(1.4)}
 .game.ingame.playing .ipause{display:grid}
+/* Full screen, under Pause on a computer while the game isn't full screen (owner, Oct 16); the title's four corners */
+.ifs{display:none;position:absolute;width:40px;height:40px;padding:0;border-radius:50%;border:0;background:rgba(9,7,11,.5);box-shadow:inset 0 0 0 2px rgba(255,246,226,.35);place-items:center;z-index:2;color:rgba(255,246,226,.9)}
+.ifs svg{width:20px;height:20px;display:block}
+.ifs:active{transform:none;filter:brightness(1.4)}
+.ifs:focus-visible,.ipause:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
+.game.ingame.playing.canfull:not(.full) .ifs{display:grid}
+body.touch .game .ifs{display:none!important}
+/* the picture dims behind the pause card */
+#c{transition:filter .2s}
+.game.paused #c{filter:brightness(.55)}
+@media (prefers-reduced-motion:reduce){#c{transition:none}}
 /* the tower dial (portrait): a notch a floor from the ground to the roof, the floor you're on marked */
 .dial{display:none;position:absolute;pointer-events:none}
 .game.ingame.portrait .dial{display:grid;gap:6px}
@@ -240,18 +251,16 @@ dl.keys dd{margin:0;font-size:15px}
 .lcard{position:absolute;z-index:3;touch-action:manipulation}
 .lcard canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
 .lbtns{position:absolute;inset:0;pointer-events:none}
-.lb{position:absolute;pointer-events:auto;display:flex;align-items:center;justify-content:center;padding:0 .6em;min-height:0;border-radius:0;font-family:var(--display);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;background:#ff7a2a;color:#140806;border:2px solid #140806;box-shadow:0 3px 0 #8a3a10}
-.lb.sec{background:#140806;color:#ff7a2a;border-color:#ff7a2a;box-shadow:none}
-.lb:active{transform:translateY(2px);box-shadow:none}
-.lb:focus-visible{outline:2px solid #fff6e2;outline-offset:2px}
-.lb:disabled{opacity:.55}
+/* the card's buttons are drawn on its canvas in the game's pixel font (cards.js, owner Oct 16); these are clear targets
+   over them for touch, the keyboard and screen readers, and the canvas shows focus and presses */
+.lb{position:absolute;pointer-events:auto;display:block;padding:0;margin:0;min-height:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:transparent;font-size:12px;overflow:hidden;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.lb:active{transform:none;box-shadow:none}
+.lb:focus,.lb:focus-visible{outline:none}
 /* the board step's picker: transparent buttons over the drawn arrows and letters */
 .lpk{position:absolute;pointer-events:auto;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .lpk:active{transform:none;box-shadow:none}
 .lpk:focus-visible{outline:2px solid #fff6e2;outline-offset:-2px}
-.lcard.pz .lb{background:var(--gold);color:#16112a;border-color:#16112a;box-shadow:0 3px 0 var(--gold-deep)}
-.lcard.pz .lb.sec{background:#16112a;color:var(--cream);border-color:var(--edge);box-shadow:none}
-@media (prefers-reduced-motion:reduce){.lb:active{transform:none}}
+
 /* The title screen (title.js, title-plan.md): its own canvas over the whole arena, with a transparent button over each
    thing drawn to press. The game's picture, Pause and the tower dial stay out of the way while it's up. */
 .ttl{position:absolute;inset:0;z-index:4;touch-action:manipulation;user-select:none;-webkit-user-select:none}
@@ -283,6 +292,7 @@ dl.keys dd{margin:0;font-size:15px}
         <div class="crawl" id="crawl" hidden><p aria-hidden="true"><span id="crawlText"></span><span class="more" id="more" hidden>&#9656;<small id="moreTap">Tap</small></span></p><button class="skip snd" id="isnd" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Sound off</span></button><button class="skip" id="skip" type="button">Skip</button></div>
       </div>
       <button class="ipause" id="ipause" type="button" aria-label="Pause"></button>
+      <button class="ifs" id="ifs" type="button" aria-label="Full screen"><svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h3v1H0zM0 0h1v3H0zM7 0h3v1H7zM9 0h1v3H9zM0 9h3v1H0zM0 7h1v3H0zM7 9h3v1H7zM9 7h1v3H9z"/></svg></button>
       <div class="dial" id="dial" aria-hidden="true"><span class="dial-name" id="dialName"></span><div class="dial-track" id="dialTrack"><b id="dialMark"></b><span id="dialNum"></span></div></div>
       <div class="deck">
         <div class="card" id="card" hidden>
