@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8">
-<!-- The trailer's text layers: only the end card's callout, in the remaster's ember. tools/trailer/layers.py renders
+<!-- The trailer's text layers: the end card's line, in the remaster's own type (Bungee, ember and amber), and its callout. tools/trailer/layers.py renders
      each <template> to a transparent 1920x1080 PNG. -->
 <link rel="stylesheet" href="{{SITE}}assets/fonts/fonts.css">
 <style>
@@ -9,8 +9,13 @@ html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hi
 .pill{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;white-space:nowrap;
   background:rgba(14,9,9,.94);color:#fff;border:6px solid #ff6a1a;border-radius:999px;padding:18px 70px 18px 36px;box-shadow:0 14px 50px rgba(0,0,0,.6);
   font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:84px;letter-spacing:.005em}
+.top{position:absolute;left:0;right:0;top:0;height:300px;background:linear-gradient(rgba(0,0,0,.7),rgba(0,0,0,0))}
+.cap{position:absolute;left:0;right:0;top:64px;margin:0;text-align:center;font:400 76px/1 "Bungee",sans-serif;color:#ffc53a;letter-spacing:.01em;
+  text-shadow:0 7px 0 #4a1405,0 0 40px rgba(255,106,26,.45),0 0 80px rgba(0,0,0,.9)}
+.cap .w{color:#f4e4d0}
 .pill img{width:120px;height:132px;image-rendering:pixelated}
 </style></head><body>
 <div id="L"></div>
+<template id="now"><div class="top"></div><p class="cap">Now remastered <span class="w">and on mobile</span></p></template>
 <template id="pill"><div class="shade"></div><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
 </body></html>

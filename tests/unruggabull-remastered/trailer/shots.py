@@ -8,7 +8,8 @@
        embers, the Rugfather spinning out, the whole "Hello, Unruggabull."
 22.00  FIGHT! The theme comes back at 1.5x, like the game plays it: flaming carpets and fireballs, cut before his
        spin-jump ("Heat things up"), which reads oddly at trailer speed
-29.00  end card, as 2025: the poster's last line, "...he was Unruggabull", "Goodbye, Rugfather.", and jonniepeed.games
+29.00  end card, as 2025: the poster's last line, "...he was Unruggabull", "Goodbye, Rugfather.", then "Now remastered
+       and on mobile" and jonniepeed.games
 """
 from PIL import Image, ImageFilter
 
@@ -53,14 +54,16 @@ def build(T, L, repo, site=None):
         (FIGHT + 17 * FB, END, Bt, heat - 10.0, FULL),                                     # a fireball hits
     ]
 
-    pill = L('pill')
+    now, pill = L('now'), L('pill')
     # the 2025 poster, from the remaster's gallery (3/4 the 2025 file's size, so 2025's window at 1010 is 757 here)
     poster = Cover(pad_bottom(repo / 'site/unruggabull-remastered/art/gallery-he-was-unruggabull.webp', 90), top=757,
                    push=0.03, drift=0, dur=DUR - END)
 
     def end(u):
         im = poster.frame(u)
-        k = ease((u - 1.2) / 0.4)
+        k = ease((u - 0.7) / 0.4)
+        if k > 0: im.alpha_composite(fade(now, k, rise=14))
+        k = ease((u - 1.3) / 0.4)
         if k > 0: im.alpha_composite(fade(pill, k, rise=14))
         return im
 
