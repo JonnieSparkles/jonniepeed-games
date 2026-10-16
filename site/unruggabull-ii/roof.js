@@ -615,7 +615,7 @@ var UnrugRoof = function (core) {
         Snd.play('laserWarn'); if (fake) Snd.play('laserWarnFake');
         if (a.set) { if (a.list.some(l => l.k === 'gap')) tip('gap', 'FIND THE GOLD GAP'); }
         else {
-          if (fake) tip('fake', 'DOTTED AND SHAKING = NOT REAL');
+          if (fake) tip('fake', 'DOTTED AND SHAKING: NOT REAL');
           if (a.list.some(l => l.k === 'col') && a.list.some(l => l.real && l.k === 'row')) tip('cross', 'WARP AND WEFT: STEP DIAGONALLY');
           tip('warn', 'STEP OFF THE RED');
         }
