@@ -17,7 +17,7 @@ var UnrugTitle = (function () {
   ];
   const MODE_KEY = 'unruggabull-ii-mode';
   // The painting, 480 x 640 picture pixels, and where things are on it.
-  const AW = 480, AH = 640, WIN = 270, BAND_TOP = 188, BAND_H = 82, GRID = 320, PANEL_H = 316;
+  const AW = 480, AH = 640, WIN = 270, BAND_TOP = 188, BAND_H = 82, GRID = 320, PANEL_H = 290;
   const ART = {
     eye: { x: 240, y: 187, r: 7 },                    // in the pavilion on the tower's roof
     bull: 586, sideBull: 552,                          // his feet: in front of the shutter upright, at it for the pan
@@ -220,17 +220,19 @@ var UnrugTitle = (function () {
       tg.globalCompositeOperation = 'source-in'; tg.fillStyle = col; tg.fillRect(0, 0, w, h);
       g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, a); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); if (a > 1) { g.globalAlpha = a - 1; g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); } g.restore();
     }
-    function eyeFx(g, tt) {
+    // part 'tower' goes right on the painting, under everything that moves (the souls, smoke, carpet, signs); part
+    // 'blaze' goes over them, just under the eye
+    function eyeFx(g, tt, part) {
       const pk = tt - changedAt;
       if (!art || still.matches || pk < 0 || pk > 2) return;
       const col = FIRE[MODES[mode].id].glow, { x, y } = ART.eye;
-      {
+      if (part === 'tower') {
         // the windows black out, then light back up floor by floor, bottom to top, into the eye
         const k = (pk - .12) / .6, by = Math.round(432 - (432 - 176) * clamp(k, 0, 1));
         if (k < 1) dark(g, 150, 176, 180, by - 176, .92);
         if (k > 0 && k < 1.25) lit(g, 150, by, 180, Math.min(26, 432 - by), 1.7 * (k < 1 ? 1 : (1.25 - k) * 4), col);
       }
-      {   // the pavilion blazes and throws rays as the light reaches it
+      if (part === 'blaze') {   // the pavilion blazes and throws rays as the light reaches it
         const k = pk - .55, fl = k < 0 ? 0 : Math.max(0, 1 - k / 1.2) * Math.min(1, k / .08);
         if (fl > 0) {
           lit(g, 196, 168, 88, 64, 1.8 * fl, col);
@@ -461,11 +463,14 @@ var UnrugTitle = (function () {
         }
       };
       if (band) { T(g, 'TOP RUNS: ' + m.name, 12, 8, P.gold, 2); rows(12, 24, w - 160, 8, 2); bigButton(g, w - 132, 10, 120, 40, 'BACK', false, 'back', 2); }
-      else { T(g, 'TOP RUNS: ' + m.name, 14, 14, P.gold, 2); rows(14, 36, w - 28, Math.min(10, Math.floor((h - 110) / 16)), 1); bigButton(g, 10, h - 62, w - 20, 50, 'BACK', false, 'back', 2); }
+      else { T(g, 'TOP RUNS: ' + m.name, 14, 14, P.gold, 2); rows(14, 36, w - 28, Math.min(10, Math.floor((h - 124) / 16)), 1); bigButton(g, 10, h - 50 - FOOT, w - 20, 50, 'BACK', false, 'back', 2); }
     }
-    // upright: under the painting, 320 wide
+    // upright: under the painting, 320 wide, only as tall as what it shows (owner, Oct 16: the room goes to the
+    // painting): the readout, the buttons and Start; the board line adds a row when the boards exist (item 29)
+    const panelH = () => act.board && act.board(MODES[mode].id) ? 290 : 246;
+    const FOOT = 26;   // under Start: clear of a phone's rounded corners in full screen (owner, Oct 16)
     function drawPanel(g, tt) {
-      const w = GRID, h = PANEL_H;
+      const w = GRID, h = panelH();
       steel(g, w, h); gz = [];
       if (board) { boardView(g, w, h, false); return; }
       const keys = canFull() ? 3 : 2;
@@ -476,7 +481,7 @@ var UnrugTitle = (function () {
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
       MODES.forEach((m, i) => callButton(g, 46 + i * 76, 104, 30, i, tt, 146));
       boardLine(g, 14, 178, w - 28);
-      bigButton(g, 10, h - 62, w - 20, 50, 'START', true, 'start', 3);
+      bigButton(g, 10, h - 50 - FOOT, w - 20, 50, 'START', true, 'start', 3);
     }
     // sideways and on a desktop: a band over the picture's bottom, 480 wide
     function drawBand(g, tt) {
@@ -493,8 +498,9 @@ var UnrugTitle = (function () {
     function compose(tt, feet, logoY, logoA) {
       cg.clearRect(0, 0, AW, AH);
       if (art) cg.drawImage(art, 0, 0); else R(cg, 0, 0, AW, AH, '#0b0920');
+      eyeFx(cg, tt, 'tower');
       drawCarpet(cg, tt); drawSign(cg, tt); drawRugs(cg, tt); drawSmoke(cg, tt); drawSouls(cg, tt);
-      eyeFx(cg, tt); drawEye(cg, tt, feet);
+      eyeFx(cg, tt, 'blaze'); drawEye(cg, tt, feet);
       drawBull(cg, feet);
       if (logoA > 0) drawLogo(cg, logoY, tt, logoA);
     }
@@ -516,7 +522,7 @@ var UnrugTitle = (function () {
       if (upright) {
         // the panel takes what it needs, centred on a tablet; the painting gets the rest, as wide as the screen and
         // anchored to the panel, cropping sky first, shrinking (dark sides) only if its safe zone wouldn't fit
-        const k2 = Math.min(W / GRID, 1.5), ph = PANEL_H * k2, sy = H - ph, sw = GRID * k2, px2 = (W - sw) / 2;
+        const PH = panelH(), k2 = Math.min(W / GRID, 1.5), ph = PH * k2, sy = H - ph, sw = GRID * k2, px2 = (W - sw) / 2;
         const k = Math.min(W / AW, sy / (ART.safe[1] - ART.safe[0])), vis = Math.min(AH, sy / k), y0 = Math.max(0, Math.min(AH - vis, ART.safe[0]));
         const dw = AW * k, dx = (W - dw) / 2, top = sy - vis * k;
         const lTop = Math.round(y0 + 8 / k), logoY = lTop + Math.max(0, Math.round((ART.skyTo - lTop - LH) / 2));
@@ -526,7 +532,7 @@ var UnrugTitle = (function () {
         if (dx > 0) { sg.save(); sg.setTransform(f, 0, 0, f, 0, 0); for (let i = 0; i < 12; i++) { sg.fillStyle = `rgba(8,7,12,${(1 - i / 12) * .85})`; sg.fillRect(dx + i * 2, 0, 2, sy); sg.fillRect(dx + dw - (i + 1) * 2, 0, 2, sy); } sg.restore(); }
         pgx.clearRect(0, 0, GRID, PANEL_H); drawPanel(pgx, tt);
         if (px2 > 0) { sg.fillStyle = P.bg; sg.fillRect(0, Math.round(sy * f), screen.width, screen.height); sg.fillStyle = '#c9a24a'; sg.fillRect(0, Math.round(sy * f), screen.width, Math.ceil(2 * k2 * f)); }
-        blit(panelC, 0, 0, GRID, PANEL_H, px2, sy, sw, ph);
+        blit(panelC, 0, 0, GRID, PH, px2, sy, sw, ph);
         zones = gz.map(([x, y, w, h, id]) => [px2 + x * k2, sy + y * k2, w * k2, h * k2, id]);
         out.safe = [top + (ART.safe[0] - y0) * k, top + (ART.safe[1] - y0) * k]; out.logo = [top + (logoY - y0) * k, top + (logoY + LH - y0) * k];
       } else {
