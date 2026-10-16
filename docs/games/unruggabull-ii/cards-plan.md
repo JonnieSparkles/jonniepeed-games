@@ -104,3 +104,5 @@ Built after this plan, from the leaderboard plan's mockup: the roof's clear card
 
 - ~~The 13th Floor's hall restart is a fresh run.~~ Done with the difficulty modes: Retry before SHRED-O carries the run (its retries and the stairwell's souls), so the question is asked once and the trophy shows. The cards also show the run's mode, small and dim, ahead of NEW BEST and RETRIED, and on a Raging Bull run that could still open Impossibull the question adds OR UNLOCK IMPOSSIBULL. (owner, Oct 16).
 - **The roof's own line and restart label** go in after #111 merges (today's checkpoint names are read, `roofState`).
+
+**Style A** (owner, Oct 16, from the menus mockup https://claude.ai/artifact/MP7ZDbZ9v1HhJbJSLoodVh): the buttons are drawn on the card in the game's pixel font, sized to their labels, with even spacing; the pause card is shorter, dims the picture and has sounds. The README has the details.

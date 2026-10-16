@@ -967,7 +967,7 @@
   // ---------- page: card, sound, full screen ----------
   const gameEl = $('game'), card = $('card'), cardTitle = $('cardTitle'), cardText = $('cardText'), cardStats = $('cardStats'), cardNote = $('cardNote');
   const goBtn = $('go'), altBtn = $('alt'), pauseBtn = $('pause'), snd = $('snd'), fsBtn = $('fs');
-  const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), ipause = $('ipause');
+  const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), ipause = $('ipause'), ifsBtn = $('ifs');
   const BEST_KEY = 'unruggabull-ii-best';
   // a floor's best on this device, one per mode (Regular keeps the keys it always had)
   const bestKey = stage => (stage === 'floor13' ? BEST_KEY : BEST_KEY + '-' + stage) + (RUN.mode === 'regular' ? '' : '-' + RUN.mode);
@@ -1052,6 +1052,7 @@
     state = s;
     if (s !== 'intro') c.setAttribute('aria-label', s === 'title' ? LABELS.title : floor.label || LABELS.play);   // the intro labels each still
     gameEl.classList.toggle('playing', s === 'play');
+    gameEl.classList.toggle('paused', s === 'pause');   // the picture dims behind the pause card (owner, Oct 16)
     gameEl.classList.toggle('intro', s === 'intro');   // the intro takes the whole screen in full screen
     pauseBtn.hidden = !(s === 'play' || s === 'pause');
     pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
@@ -1232,12 +1233,12 @@
     if (state !== 'play') return;
     setState('pause'); clearHeld();
     showCard('pause');
-    Snd.pause();
+    Snd.pause(); Snd.ui('open');
   }
   function resumeGame() {
     if (state !== 'pause') return;
     setState('play'); card.hidden = true;
-    Snd.resume();
+    Snd.resume(); Snd.ui('close');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
   function endRun(kind) {
@@ -1351,6 +1352,7 @@
   });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
   ipause.addEventListener('click', () => { if (state === 'play') pauseGame(); });
+  ifsBtn.addEventListener('click', () => { if (state === 'play' && !isFull()) toggleFull(); try { c.focus({ preventScroll: true }); } catch (e) {} });
 
   // Sound: on unless muted, but browsers only let it start after a tap or key press.
   const soundOn = () => Snd.ready && !Snd.muted;
@@ -1375,6 +1377,7 @@
   // Full screen: the Fullscreen API where it exists; on phones without it (iPhone) the game just fills the window.
   let wakeLock = null;
   const canFull = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  gameEl.classList.toggle('canfull', canFull);
   function fsLabels() { cFs.textContent = isFull() ? 'Exit full screen' : 'Full screen'; cFs.hidden = !canFull; }
   function setFull(on) {
     gameEl.classList.toggle('full', on); document.body.classList.toggle('locked', on || gameEl.classList.contains('ingame'));
@@ -1429,7 +1432,7 @@
   function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; if (floor && floor.steer) floor.steer(null); for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (state === 'over' && Cards.key(e)) { e.preventDefault(); return; }   // the board step's offer and initials take their keys first
+    if ((state === 'over' || state === 'pause' && cardKind === 'pause') && Cards.key(e)) { e.preventDefault(); return; }   // the board step's offer and initials, and the arrows between a card's buttons, take their keys first
     if (state === 'title' && cardKind === 'title') {
       const on = document.activeElement;
       if ((e.key === 'Enter' || e.key === ' ') && on && on.closest && on.closest('button, a')) return;   // a focused button or link handles its own
@@ -1667,7 +1670,7 @@
     const key = on + ',' + W + ',' + H + ',' + twin;
     if (key === layoutKey) return;
     layoutKey = key;
-    const els = [stageEl, ipause, dialEl, stickZoneEl, aimZoneEl, padEls.shoot, padEls.slash];
+    const els = [stageEl, ipause, ifsBtn, dialEl, stickZoneEl, aimZoneEl, padEls.shoot, padEls.slash];
     if (!on) { for (const el of els) el.removeAttribute('style'); gameEl.classList.remove('portrait'); return; }
     const upright = W < H;
     gameEl.classList.toggle('portrait', upright);
@@ -1677,7 +1680,8 @@
       if (side >= top) { ph = side; py = (H - ph) / 2; } else { ph = top; py = Math.max(48, (H - ph) / 2); }
       const pw = ph * 16 / 9, px = (W - pw) / 2;
       place(stageEl, px, py, pw, ph);
-      if (side >= top) place(ipause, W - px / 2 - 20, 8); else place(ipause, Math.min(px + pw, W - 8) - 40, Math.max(4, (py - 40) / 2));
+      if (side >= top) { place(ipause, W - px / 2 - 20, 8); place(ifsBtn, W - px / 2 - 20, 56); }
+      else { const bx = Math.min(px + pw, W - 8) - 40, by = Math.max(4, (py - 40) / 2); place(ipause, bx, by); place(ifsBtn, bx - 48, by); }   // the band over the picture is too low to stack them
       const s = Math.round(Math.min(H * .2, W * .12, 84)), zw = Math.min(W * .36, 260), zh = Math.min(H * .48, 190);
       place(stickZoneEl, 12, H - 10 - zh, zw, zh);
       place(aimZoneEl, W - 12 - zw, H - 10 - zh, zw, zh);   // the same area as the move stick, so the rings mirror
@@ -1688,7 +1692,7 @@
       const s = Math.round(Math.min(W * .27, 112)), ctrlH = 2 * s + 18 + 24, ph = W * 9 / 16;
       const top = Math.min(Math.round(H / 2) + 20, H - 8 - ctrlH), py = top - 20 - ph;
       place(stageEl, 0, py, W, ph);
-      place(ipause, W - 12 - 40, Math.max(4, py - 48));
+      place(ipause, W - 12 - 40, Math.max(4, py - 48)); place(ifsBtn, W - 12 - 40 - 48, Math.max(4, py - 48));
       place(dialEl, 12, Math.max(4, py - 64), W - 24 - 52);
       if (twin) { place(stickZoneEl, 0, top, 176, ctrlH - 6); place(aimZoneEl, W - 176, top, 176, ctrlH - 6); }   // both rings 88 px in, at one height
       else place(stickZoneEl, 12, top, (W - 24) * .6, ctrlH - 6);
@@ -1782,7 +1786,7 @@
     },
     retry() { goFull(); if (checkpoint && checkpoint.hall) retryHall(); else if (checkpoint) continueAtBoss(); else startRun(floor.id); },
     quit: quitToTitle,
-    resume: resumeGame,
+    resume: resumeGame, sfx: name => Snd.ui(name),
     restart() { Snd.resume(); startRun(); },
     controls: showKeys,
     sound: flipSound, soundLabel: () => soundOn() ? 'Sound on' : 'Sound off',
