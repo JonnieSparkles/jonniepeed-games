@@ -328,8 +328,14 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .lb-gap td { text-align: center; color: var(--ink-soft); padding: 0; line-height: 1; }
 .lb-input { width: 16px; height: 16px; vertical-align: middle; color: var(--ink-soft); }
 .lb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.scores-card { max-height: calc(100% - 40px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
-#scoresScreen { z-index: 4; }
+/* High scores: only the paper is tilted (::before); the rows stay straight. A tilted card over the title's moving demo
+   gets its own GPU layer in Chrome, which then rotates it as a picture and softens the small table text. The overlay
+   scrolls instead of the card, so nothing tilted ever scrolls. */
+#scoresScreen { z-index: 4; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; align-items: safe center; padding-block: 20px; }
+.overlay > .scores-card { position: relative; isolation: isolate; max-height: none; overflow: visible; flex: none; margin: auto 0;
+  background: none; border: 0; border-radius: 0; box-shadow: none; transform: none; }
+.scores-card::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--paper); border: 2.5px solid var(--ink);
+  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px; box-shadow: 4px 5px 0 var(--card-shadow); transform: rotate(-0.7deg); }
 /* The page has its own sound and full-screen chips on the title, so the buttons around the page wait for play. */
 #wrap:has(#titleScreen:not([hidden])) .hud-btns, #wrap:has(#titleScreen:not([hidden])) #fullBtn { display: none; }
 .roll-title { margin: 2px 0 -6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
