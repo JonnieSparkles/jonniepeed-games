@@ -196,8 +196,56 @@ var UnrugTitle = (function () {
     // glances down at the panel for a moment.
     // Impossibull: red and wide open, not a blink, and still
     const mood = () => ({ baby: 'bored', raging: 'red', impossibull: 'wide' })[MODES[mode].id] || 'watch';
+    // a pick lights the tower up for the eye (owner, Oct 16: all three): the windows black out and light back up floor by
+    // floor, bottom to top, in the mode's colour; then the pavilion blazes and throws rays; and the eye swells
+    const tint = cv(200, 280), tg = tint.getContext('2d');
+    let mask = null;   // the painting's bright pixels (the lit windows) as an alpha mask, made once
+    function bright(x0, y0, w, h) {
+      if (!mask) {
+        mask = cv(AW, AH); const mg = mask.getContext('2d'); mg.drawImage(art, 0, 0);
+        const d = mg.getImageData(0, 0, AW, AH), px = d.data;
+        for (let i = 0; i < px.length; i += 4) { const l = (px[i] * .3 + px[i + 1] * .55 + px[i + 2] * .15) / 255, a = clamp((l - .42) / .3, 0, 1); px[i] = px[i + 1] = px[i + 2] = 255; px[i + 3] = Math.round(a * 255); }
+        mg.putImageData(d, 0, 0);
+      }
+      tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, 200, 280); tg.drawImage(mask, x0, y0, w, h, 0, 0, w, h);
+    }
+    function dark(g, x0, y0, w, h, a) {   // the windows in this box go dark
+      if (a <= 0 || h <= 0) return;
+      bright(x0, y0, w, h); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = '#0a0608'; tg.fillRect(0, 0, w, h);
+      g.save(); g.globalAlpha = Math.min(1, a); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); g.restore();
+    }
+    function lit(g, x0, y0, w, h, a, col) {   // the painting's own pixels in this box, tinted and added: windows light, dark stays dark
+      if (a <= 0 || h <= 0) return;
+      bright(x0, y0, w, h);
+      tg.globalCompositeOperation = 'source-in'; tg.fillStyle = col; tg.fillRect(0, 0, w, h);
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, a); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); if (a > 1) { g.globalAlpha = a - 1; g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); } g.restore();
+    }
+    function eyeFx(g, tt) {
+      const pk = tt - changedAt;
+      if (!art || still.matches || pk < 0 || pk > 2) return;
+      const col = FIRE[MODES[mode].id].glow, { x, y } = ART.eye;
+      {
+        // the windows black out, then light back up floor by floor, bottom to top, into the eye
+        const k = (pk - .12) / .6, by = Math.round(432 - (432 - 176) * clamp(k, 0, 1));
+        if (k < 1) dark(g, 150, 176, 180, by - 176, .92);
+        if (k > 0 && k < 1.25) lit(g, 150, by, 180, Math.min(26, 432 - by), 1.7 * (k < 1 ? 1 : (1.25 - k) * 4), col);
+      }
+      {   // the pavilion blazes and throws rays as the light reaches it
+        const k = pk - .55, fl = k < 0 ? 0 : Math.max(0, 1 - k / 1.2) * Math.min(1, k / .08);
+        if (fl > 0) {
+          lit(g, 196, 168, 88, 64, 1.8 * fl, col);
+          g.save(); g.globalCompositeOperation = 'lighter';
+          for (const [rr, a] of [[46, .08], [30, .14], [18, .22]]) { g.globalAlpha = a * fl; A.disc(g, x, y, Math.round(rr * (.7 + .3 * fl)), col); }
+          g.globalAlpha = .55 * fl;
+          for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + tt * .6, L = 18 + 26 * fl; for (let q = 10; q < L; q += 1.5) R(g, x + Math.cos(a) * q, y + Math.sin(a) * q * .8, 1, 1, i % 2 ? col : '#fff6e2'); }
+          g.restore();
+        }
+      }
+    }
     function drawEye(g, tt, feet) {
       let { x, y, r } = ART.eye;
+      { const pk0 = tt - changedAt, f0 = still.matches ? 0 : Math.max(0, 1 - pk0 / 1.4);   // it swells on a pick
+        if (f0 > 0 && pk0 >= 0) r = Math.round(r + 5 * Math.min(1, pk0 / .2) * f0); }
       const md = mood(), wide = md === 'wide', red = md === 'red' || wide, blink = !wide && (tt % 4.1) > 3.95;
       // a pick: it glances down at the panel, flares, then reacts to the mode (Baby: rolls its eye; Regular: narrows
       // on him; Raging: flares red and shakes; Impossibull: goes wide, its pupil shrinks to a dot, and it shakes)
@@ -446,7 +494,7 @@ var UnrugTitle = (function () {
       cg.clearRect(0, 0, AW, AH);
       if (art) cg.drawImage(art, 0, 0); else R(cg, 0, 0, AW, AH, '#0b0920');
       drawCarpet(cg, tt); drawSign(cg, tt); drawRugs(cg, tt); drawSmoke(cg, tt); drawSouls(cg, tt);
-      drawEye(cg, tt, feet);
+      eyeFx(cg, tt); drawEye(cg, tt, feet);
       drawBull(cg, feet);
       if (logoA > 0) drawLogo(cg, logoY, tt, logoA);
     }
