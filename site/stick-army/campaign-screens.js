@@ -18,7 +18,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   var root = el('<div id="campaign"></div>');
   root.innerHTML =
     '<section class="c-page" id="cMap" aria-labelledby="cMapTitle" hidden>' + HOLES +
-      '<button class="c-back" type="button" data-act="title">‹ Title</button>' +
+      '<button class="c-back" type="button" data-act="title">‹ Quit</button>' +
       '<div class="c-head"><h2 class="c-title" id="cMapTitle">Tour <span class="pen">map</span></h2><span class="c-code" id="cCode"></span></div>' +
       '<svg class="c-route" id="cRoute" viewBox="0 0 400 720" aria-hidden="true"></svg><div id="cOps"></div>' +
       '<div class="c-foot"><div class="c-links"><button class="c-link" type="button" data-act="copy">Copy save link</button>' +
@@ -152,7 +152,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       '<p class="tag">' + esc(last.mission ? last.mission + ': ' : '') + esc(last.cause || '') + '</p>' +
       '<p class="tag">' + (fell.length ? 'Fallen: ' + esc(fell.join(', ')) + '.' : 'Nobody was lost.') + '</p>' +
       '<p class="c-small">Retry starts the mission again with the squad and gear it started with. The fallen stay fallen.</p>' +
-      '<div class="row"><button class="btn" type="button" id="cRetry">Retry</button><button class="btn ghost" type="button" data-act="title">Title</button></div>' +
+      '<div class="row"><button class="btn" type="button" id="cRetry">Retry</button><button class="btn ghost quit-btn" type="button" data-act="title">Quit</button></div>' +
       '<div class="c-links"><button class="c-link" type="button" data-act="barracks">Barracks</button><button class="c-link" type="button" data-act="map">Map</button></div>', 'cRetry');
     $('cRetry').addEventListener('click', function () { camp.retry(); });
   }
@@ -163,7 +163,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       '<h2>To be <span class="pen">continued</span></h2>' +
       '<p class="tag">' + (next ? 'Operation ' + esc(next.name) + ' comes in the next release.' : '') + ' Your squad waits in the barracks.</p>' +
       (t.stars[op.id] ? '<p class="tag">' + STAR + ' Gold star: nobody was lost.</p>' : '') +
-      '<div class="row"><button class="btn" type="button" id="cEndMap">Map</button><button class="btn ghost" type="button" data-act="title">Title</button></div>' +
+      '<div class="row"><button class="btn" type="button" id="cEndMap">Map</button><button class="btn ghost quit-btn" type="button" data-act="title">Quit</button></div>' +
       '<div class="c-links"><button class="c-link" type="button" data-act="barracks">Barracks</button><button class="c-link" type="button" data-act="copy">Copy save link</button></div>', 'cEndMap');
     $('cEndMap').addEventListener('click', map);
   }
