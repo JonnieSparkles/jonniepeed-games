@@ -52,6 +52,7 @@ No IP address, user agent, cookie or device ID is stored. The rate limiter keys 
 | Don't Step on a Crack | feet walked | `steps`, `streak`, `street` (1–6), `giants` (giant steps used) |
 | Stick Army | score | `wave`, `kills`, `captured`, `popped`, `planes`, `zeppelins`, `tanks`, `crew`, `fallen`, `tags`, `cause`; after an Arcade win, also `won_at` and `won_score` (the score at the win), and `endless` once it kept going |
 | Unruggabull II (switched off) | souls freed | `stage` (1–9) and `stage_name` (accounts, moving, all_staff, lights_out, copy_room, phase_1 to phase_3, cleared), `cause`, `continues`, `boss_hp`, `smashes`, `best_rally`, `wipes`, `deflects` |
+| Unruggabull Remastered (switched off) | unrugged | `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight` (the fight had started), `boss_hp` (the Rugfather's HP left, 0–60, once it had) |
 
 Stick Army reports a win as soon as the victory card shows. A winner who keeps going reports again (if the page is hidden mid-run, and at the final game over), and the last report wins.
 

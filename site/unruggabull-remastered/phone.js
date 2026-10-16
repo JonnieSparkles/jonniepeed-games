@@ -3,7 +3,7 @@
 (function () {
   const $ = id => document.getElementById(id);
   const stage = $('stage'), cv = $('gameCanvas'), hud = $('hud'), hctx = hud.getContext('2d');
-  const titleEl = $('title'), veil = $('veil'), startBtn = $('start-btn');
+  const titleEl = $('title');
   const pauseBtn = $('pause-btn'), pauseCard = $('pause'), fsBtn = $('fs-btn'), fs2Btn = $('fs2-btn');
   const soundBtn = $('sound-btn'), rotateEl = $('rotate'), rotateArt = $('rotate-art');
   const coarse = matchMedia('(pointer: coarse)');
@@ -30,6 +30,8 @@
     dpr = Math.min(3, window.devicePixelRatio || 1);
     hud.width = Math.round(W * dpr); hud.height = Math.round(H * dpr);
     readSafe();
+    UnrugTitle.layout(W, H, dpr, safe);
+    UnrugRun.layout({ W, H, gx, gy, gw, gh });
     checkRotate();
   }
   addEventListener('resize', layout);
@@ -59,7 +61,7 @@
     return o;
   };
   const inGame = () => titleEl.hidden;
-  const blocked = e => !inGame() || gamePaused || !rotateEl.hidden || (e.target && e.target.closest && e.target.closest('button, a, .card-wrap'));
+  const blocked = e => !inGame() || gamePaused || !rotateEl.hidden || !$('end').hidden || (e.target && e.target.closest && e.target.closest('button, a, .card-wrap, #end'));
   function track(e, down) {
     const r = stage.getBoundingClientRect(), p = { x: e.clientX - r.left, y: e.clientY - r.top };
     const prev = touches.get(e.pointerId);
@@ -70,6 +72,7 @@
       if (t.up && !(prev && prev.up)) jumpUntil = gameNow() + 120;
     } else if (down) fireTap = true;
     touches.set(e.pointerId, t);
+    UnrugRun.touched();
   }
   stage.addEventListener('pointerdown', e => {
     UnrugSound.init();
@@ -151,8 +154,25 @@
       const s = b.r * 0.78; hctx.drawImage(blasterIcon, b.x - s / 2, b.y - s * 0.7, s, s);
     }
     hctx.fillStyle = 'rgba(244,228,208,0.92)'; hctx.textAlign = 'center'; hctx.textBaseline = 'middle';
-    hctx.font = 'bold ' + Math.round(b.r * 0.34) + 'px Arial, sans-serif';
+    hctx.font = LOOK.pix(Math.round(b.r * 0.42));
     hctx.fillText('FIRE', b.x, b.y + b.r * 0.42);
+  }
+
+  // The bars beside the alley: its own edges, stretched and darkened, so the alley seems to carry on.
+  function drawBars() {
+    if (!bgSprite.complete || !bgSprite.naturalWidth) return;
+    hctx.imageSmoothingEnabled = true;
+    if (gx > 1) {
+      hctx.drawImage(bgSprite, 0, 0, 30, 540, 0, gy, gx, gh);
+      hctx.drawImage(bgSprite, 930, 0, 30, 540, W - gx, gy, gx, gh);
+    }
+    if (gy > 1) {
+      hctx.drawImage(bgSprite, 0, 0, 960, 20, gx, 0, gw, gy);
+      hctx.drawImage(bgSprite, 0, 520, 960, 20, gx, H - gy, gw, gy);
+    }
+    hctx.fillStyle = 'rgba(0,0,0,0.74)';
+    if (gx > 1) { hctx.fillRect(0, 0, gx, H); hctx.fillRect(W - gx, 0, gx, H); }
+    if (gy > 1) { hctx.fillRect(gx, 0, gw, gy); hctx.fillRect(gx, H - gy, gw, gy); }
   }
 
   // ---------- pause ----------
@@ -176,7 +196,7 @@
   }
   pauseBtn.addEventListener('click', pauseGame);
   $('resume-btn').addEventListener('click', resumeGame);
-  $('quit-btn').addEventListener('click', () => location.reload());
+  $('quit-btn').addEventListener('click', () => { UnrugRun.quit(); location.reload(); });
   function showSound() { soundBtn.textContent = UnrugSound.muted ? 'Sound: off' : 'Sound: on'; soundBtn.setAttribute('aria-pressed', String(!UnrugSound.muted)); }
   soundBtn.addEventListener('click', () => { UnrugSound.muted = !UnrugSound.muted; showSound(); });
   showSound();
@@ -217,6 +237,7 @@
   document.addEventListener('fullscreenchange', showFull);
   document.addEventListener('webkitfullscreenchange', showFull);
   if (!canFull) { fsBtn.hidden = true; fs2Btn.hidden = true; }
+  window.unrugEnterFull = enterFull;
 
   // ---------- portrait ----------
   // Landscape only: on a touch screen held upright the game pauses and waits on this screen.
@@ -251,56 +272,12 @@
     hctx.clearRect(0, 0, W, H);
     const playing = inGame() && !gamePaused && PAUSABLE.includes(gameState);
     pauseBtn.hidden = !(inGame() && PAUSABLE.includes(gameState)) || gamePaused;
+    if (UnrugTitle.visible()) UnrugTitle.draw(t);
+    else if (gx > 1 || gy > 1) drawBars();
     if (touchMode && playing && gameState !== 'controls') drawControls();
     if (!rotateEl.hidden) drawRotate(t);
     requestAnimationFrame(frame);
   }
-
-  // ---------- the 2025 title ----------
-  // The veil switches the title music on (browsers need a tap or key first); Start plays "Let's go!", fades
-  // to the alley and opens the controls screen, as in 2025. On a phone, Start also goes full screen.
-  veil.textContent = touchMode ? 'Tap to begin' : 'Press any key';
-  let veilDown = false;
-  function liftVeil() {
-    if (veilDown) return;
-    veilDown = true;
-    UnrugSound.init();
-    titleMusic.currentTime = 0;
-    titleMusic.play();
-    veil.hidden = true;
-    startBtn.focus({ preventScroll: true });
-  }
-  veil.addEventListener('click', liftVeil);
-  stage.addEventListener('pointerdown', e => { if (!titleEl.hidden && !(e.target.closest && e.target.closest('a, .edge, .corner, .card-wrap, #start-btn'))) liftVeil(); });
-  addEventListener('keydown', e => { if (!veilDown && titleEl.hidden === false && !e.ctrlKey && !e.metaKey) { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); liftVeil(); } });
-  let starting = false;
-  startBtn.addEventListener('click', () => {
-    if (starting) return;
-    starting = true;
-    UnrugSound.init();
-    if (touchMode || coarse.matches) enterFull();
-    titleMusic.pause();
-    titleMusic.currentTime = 0;
-    letsGoSound.currentTime = 0;
-    letsGoSound.play();
-    $('home').hidden = true;
-    fsBtn.hidden = true;
-    setTimeout(() => {
-      titleEl.style.opacity = 0;
-      cv.style.opacity = 1;
-      setTimeout(() => {
-        titleEl.hidden = true;
-        window.startGame();
-      }, 700);
-    }, 1000);
-  });
-  addEventListener('keydown', e => {
-    if (veilDown && !titleEl.hidden && !starting && e.key === 'Enter' && document.activeElement !== startBtn) startBtn.click();
-  });
-  const credits = $('credits');
-  $('credits-btn').addEventListener('click', () => { credits.hidden = false; $('close-credits').focus(); });
-  $('close-credits').addEventListener('click', () => { credits.hidden = true; $('credits-btn').focus(); });
-  credits.addEventListener('click', e => { if (e.target === credits) credits.hidden = true; });
 
   layout();
   requestAnimationFrame(frame);

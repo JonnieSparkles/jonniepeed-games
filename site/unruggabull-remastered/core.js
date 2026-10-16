@@ -163,7 +163,9 @@ var INVULNERABLE_TIME = 1500;
 // from the 2025 game: src/state.js
 var gameState = "start";
 function setGameState(s) {
+  const prev = gameState;
   gameState = s;
+  if (prev !== s && window.onGameState) window.onGameState(s, prev);
 }
 function getGameState() {
   return gameState;
@@ -647,12 +649,7 @@ var PlayerBullet = class {
     this.y += this.vy;
   }
   draw(ctx4) {
-    ctx4.save();
-    ctx4.fillStyle = "#ff0";
-    ctx4.beginPath();
-    ctx4.arc(this.x, this.y, 6, 0, Math.PI * 2);
-    ctx4.fill();
-    ctx4.restore();
+    lookShot(ctx4, this);
   }
 };
 

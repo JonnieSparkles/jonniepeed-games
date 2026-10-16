@@ -200,6 +200,33 @@ def unruggabull_ii(browser):
     print('PASS unruggabull-ii: start, rugged with stage and cause, restart from pause')
 
 
+def unruggabull_remastered(browser):
+    context, page, errors = new_page(browser, viewport={'width': 780, 'height': 360}, has_touch=True, is_mobile=True)
+    page.goto(SITE + '/unruggabull-remastered/')
+    page.locator('#menu [data-act=play]').tap()
+    page.wait_for_function("gameState === 'controls'", timeout=6000)
+    page.touchscreen.tap(390, 180)
+    page.wait_for_function("gameState === 'playing'")
+    start = check_start(beacons(page)[0], 'unruggabull-remastered', page.evaluate('BOARD'))
+    # rugged in wave 2: how far he got
+    page.evaluate("setDifficultyLevel(2); incrementKillCount(); player.invulnerable = false; player.health = 1; handlePlayerHit({})")
+    page.wait_for_function("gameState === 'gameover'", timeout=6000)
+    end = check_end(beacons(page)[1], start, 'over', ['wave', 'health', 'boss_fight'])
+    assert end['score'] == 1 and end['stats']['wave'] == 2 and end['input'] == 'touch', end
+    # retry from the end card, then quit from pause: the open run reports as quit
+    page.locator('#retry2-btn').tap()
+    page.wait_for_function("gameState === 'controls'")
+    page.touchscreen.tap(390, 180)
+    page.wait_for_function("gameState === 'playing'")
+    second = check_start(beacons(page)[2], 'unruggabull-remastered', page.evaluate('BOARD'))
+    page.click('#pause-btn')
+    page.evaluate("UnrugRun.quit()")
+    check_end(beacons(page)[3], second, 'quit', ['wave'])
+    assert not errors, errors
+    context.close()
+    print('PASS unruggabull-remastered: start, rugged with wave and health, retry, quit from pause')
+
+
 def automated_is_quiet(browser):
     # Without the override, an automated browser (the harnesses, the balance bots) sends nothing at all.
     context, page, errors = new_page(browser, record=False)
@@ -223,5 +250,6 @@ with sync_playwright() as p:
     crack(browser)
     stick_army(browser)
     unruggabull_ii(browser)
+    unruggabull_remastered(browser)
     automated_is_quiet(browser)
     browser.close()

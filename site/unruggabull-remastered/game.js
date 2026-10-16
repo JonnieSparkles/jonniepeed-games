@@ -1,3 +1,6 @@
+// The leaderboard this copy posts to (scores/games.json; docs/games/unruggabull-remastered/README.md).
+const BOARD = 1;
+
 // from the 2025 game: src/physics.js
 var PLATFORM_WIDTH = 120;
 var PLATFORM_HEIGHT = 16;
@@ -60,12 +63,7 @@ function handlePhysics(player2, platforms2, canvas4) {
   }
 }
 function drawPlatforms(ctx4, platforms2) {
-  ctx4.fillStyle = "#964B00";
-  platforms2.forEach((p) => {
-    ctx4.fillRect(p.x, p.y, p.width, p.height);
-    ctx4.strokeStyle = "#fff8";
-    ctx4.strokeRect(p.x, p.y, p.width, p.height);
-  });
+  lookPlatforms(ctx4, platforms2);
 }
 
 // from the 2025 game: src/levels/rugcoAlley/config.js
@@ -354,6 +352,7 @@ function checkPlayercarpshitCollisions(player2, carpshits2, onHit) {
 
 // from the 2025 game: src/callbacks.js
 function handleBulletKill(bullets2, index, carpshit) {
+  if (bullets2[index]) lookAddSparks(bullets2[index].x, bullets2[index].y);
   carpshit.alive = false;
   carpshit.frame = 3;
   carpshit.falling = true;
@@ -764,106 +763,6 @@ function updateGame(bullets2, canvas4) {
 }
 
 // from the 2025 game: src/ui.js
-var congratsImage = new Image();
-congratsImage.src = "art/congrats.webp";
-function showControlsScreen(ctx4, canvas4) {
-  ctx4.save();
-  ctx4.fillStyle = "rgba(0,0,0,0.85)";
-  ctx4.fillRect(0, 0, canvas4.width, canvas4.height);
-  const titleFont = canvas4.width > 900 ? "bold 56px Arial" : "bold 40px Arial";
-  const textFont = canvas4.width > 900 ? "32px Arial" : "24px Arial";
-  ctx4.font = titleFont;
-  ctx4.fillStyle = "#fff";
-  ctx4.textAlign = "center";
-  ctx4.fillText("Controls", canvas4.width / 2, 120);
-  ctx4.font = textFont;
-  let y = 210;
-  const lineHeight = 48;
-  // on a phone, the touch controls (phone.js)
-  const touch = window.usingTouch && window.usingTouch();
-  ctx4.fillText(touch ? "Move: the pad on the left" : "Move: A / D", canvas4.width / 2, y);
-  y += lineHeight;
-  ctx4.fillText(touch ? "Jump: up on the pad \u00b7 Crouch: down" : "Jump: Space \u00b7 Crouch: C", canvas4.width / 2, y);
-  y += lineHeight;
-  ctx4.fillText(touch ? "Fire: tap the right side" : "Fire: F, J, or Enter", canvas4.width / 2, y);
-  y += lineHeight;
-  ctx4.fillText(touch ? "Tap to start!" : "Press any key to start!", canvas4.width / 2, y + 20);
-  ctx4.restore();
-}
-function drawKillCounter(ctx4, killCount2, canvasWidth) {
-  ctx4.save();
-  ctx4.font = "28px Arial";
-  ctx4.fillStyle = "#fff";
-  ctx4.textAlign = "center";
-  ctx4.fillText(`Unrugged: ${killCount2}`, canvasWidth / 2, 40);
-  ctx4.restore();
-}
-function drawDifficulty(ctx4, difficultyLevel2, canvasWidth) {
-  ctx4.save();
-  ctx4.font = "24px Arial";
-  ctx4.fillStyle = "#0ff";
-  ctx4.textAlign = "center";
-  ctx4.fillText(`Difficulty: ${difficultyLevel2}`, canvasWidth / 2, 70);
-  ctx4.restore();
-}
-function drawGameOver(ctx4, canvas4) {
-  ctx4.save();
-  ctx4.font = "bold 45px Arial";
-  ctx4.textAlign = "center";
-  ctx4.shadowColor = "#000";
-  ctx4.shadowBlur = 12;
-  ctx4.lineWidth = 8;
-  ctx4.strokeStyle = "#fff";
-  ctx4.strokeText("Game over! You got rugged!", canvas4.width / 2, canvas4.height / 2);
-  ctx4.fillStyle = "#f44";
-  ctx4.shadowBlur = 0;
-  ctx4.fillText("Game over! You got rugged!", canvas4.width / 2, canvas4.height / 2);
-  ctx4.restore();
-}
-function drawCongrats(ctx4, canvas4) {
-  const now = gameNow();
-  const start = getCongratsStartTime();
-  const fadeDuration = 2e3;
-  const alpha = Math.min((now - start) / fadeDuration, 1);
-  ctx4.save();
-  ctx4.globalAlpha = alpha;
-  ctx4.drawImage(congratsImage, 0, 0, canvas4.width, canvas4.height);
-  ctx4.restore();
-}
-function drawRestartButton(ctx4, canvas4, restartButton2, isHover) {
-  const { x, y, width, height } = restartButton2;
-  ctx4.save();
-  ctx4.font = "bold 32px Arial";
-  ctx4.textAlign = "center";
-  ctx4.textBaseline = "middle";
-  let grad = ctx4.createLinearGradient(x, y, x, y + height);
-  grad.addColorStop(0, isHover ? "#ffe066" : "#ffd700");
-  grad.addColorStop(1, isHover ? "#ffb300" : "#ff9900");
-  ctx4.fillStyle = grad;
-  ctx4.strokeStyle = isHover ? "#fffbe6" : "#fff8";
-  ctx4.lineWidth = isHover ? 5 : 3;
-  ctx4.shadowColor = isHover ? "#fffbe6" : "#000a";
-  ctx4.shadowBlur = isHover ? 18 : 8;
-  const radius = 18;
-  ctx4.beginPath();
-  ctx4.moveTo(x + radius, y);
-  ctx4.lineTo(x + width - radius, y);
-  ctx4.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx4.lineTo(x + width, y + height - radius);
-  ctx4.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx4.lineTo(x + radius, y + height);
-  ctx4.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx4.lineTo(x, y + radius);
-  ctx4.quadraticCurveTo(x, y, x + radius, y);
-  ctx4.closePath();
-  ctx4.fill();
-  ctx4.stroke();
-  ctx4.shadowColor = isHover ? "#fffbe6" : "transparent";
-  ctx4.shadowBlur = isHover ? 16 : 0;
-  ctx4.fillStyle = isHover ? "#222" : "#fff";
-  ctx4.fillText("Restart", x + width / 2, y + height / 2);
-  ctx4.restore();
-}
 
 // from the 2025 game: src/assets.js
 var playerMasterSprite = new Image();
@@ -915,43 +814,29 @@ var PLAYER_SPRITES = {
 };
 
 // from the 2025 game: src/render.js
+// The 2025 renderGame drew the HUD under the sprites and froze the screen under "FIGHT!". The remaster draws
+// the scene, then the HUD and banners on top of it, steady while the screen shakes.
 function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartHover2) {
+  renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestartHover2);
+  if (gameState === "controls" || gameState === "congrats" || gameState.includes("over")) return;
   const now = gameNow();
+  const maxWaves = levels_default[getCurrentLevelKey()].bossTriggerDifficulty - 1;
+  const showCount = !getBossHold() && !getBossPause() && !getBossTransition() && !getBossActive();
+  lookHud(ctx4, player2, killCount, difficultyLevel, maxWaves, showCount, now);
+  if (getBossActive() && getCurrentBoss() && getBossBattleStarted() && !__bossState.dying) lookBossBar(ctx4, __bossState.hp, MAX_HP);
+  if (getWaveBanner && getWaveBanner()) {
+    const elapsed = now - getWaveBannerStartTime();
+    if (elapsed < 1e3 && difficultyLevel <= maxWaves) lookBanner(ctx4, "WAVE " + difficultyLevel + "/" + maxWaves, elapsed);
+    else setWaveBanner(false);
+  }
   if (getFightBanner && getFightBanner()) {
     const elapsed = now - getFightBannerStartTime();
-    const DURATION = 1e3;
-    if (elapsed < DURATION) {
-      ctx4.save();
-      ctx4.font = "bold 72px Arial";
-      ctx4.fillStyle = "#ff0";
-      ctx4.textAlign = "center";
-      ctx4.shadowColor = "#000";
-      ctx4.shadowBlur = 12;
-      ctx4.fillText("FIGHT!", canvas4.width / 2, canvas4.height / 2 - 50);
-      ctx4.restore();
-      return;
-    } else {
-      setFightBanner(false);
-    }
+    if (elapsed < 1e3) lookBanner(ctx4, "FIGHT!", elapsed);
+    else setFightBanner(false);
   }
-  if (getWaveBanner && getWaveBanner()) {
-    const elapsedWave = now - getWaveBannerStartTime();
-    const DURATION_WAVE = 1e3;
-    const levelConfig3 = levels_default[getCurrentLevelKey()];
-    const maxWaves = levelConfig3.bossTriggerDifficulty - 1;
-    if (elapsedWave < DURATION_WAVE && difficultyLevel <= maxWaves) {
-      ctx4.save();
-      ctx4.font = "bold 72px Arial";
-      ctx4.fillStyle = "#fff";
-      ctx4.textAlign = "center";
-      ctx4.shadowColor = "#000";
-      ctx4.shadowBlur = 12;
-      ctx4.fillText(`Wave ${difficultyLevel}/${maxWaves}`, canvas4.width / 2, canvas4.height / 2 - 50);
-      ctx4.restore();
-    } else {
-      setWaveBanner(false);
-    }
-  }
+}
+function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestartHover2) {
+  const now = gameNow();
   ctx4.save();
   let shouldReturn = false;
   let shaking = false;
@@ -989,56 +874,9 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
     }
   }
   if (gameState === "controls") {
-    showControlsScreen(ctx4, canvas4);
+    lookControlsScreen(ctx4, window.usingTouch && window.usingTouch());
     shouldReturn = true;
   } else {
-    {
-      const iconSize = 32;
-      const iconX = 20;
-      const iconY = 20;
-      ctx4.save();
-      ctx4.drawImage(heartIcon, iconX, iconY, iconSize, iconSize);
-      ctx4.restore();
-      const barX = iconX + iconSize + 4;
-      const barHeight = 12;
-      const barY = iconY + (iconSize - barHeight) / 2;
-      const barWidth = 200;
-      ctx4.save();
-      ctx4.fillStyle = "#222";
-      ctx4.fillRect(barX, barY, barWidth, barHeight);
-      const healthRatio = player2.health / PLAYER_START_HEALTH;
-      ctx4.fillStyle = "#f44";
-      ctx4.fillRect(barX, barY, barWidth * healthRatio, barHeight);
-      ctx4.restore();
-    }
-    {
-      const iconSize = 32;
-      const iconX = 20;
-      const barX = iconX + iconSize + 4;
-      const barY = 60;
-      const barWidth = 200;
-      const barHeight = 12;
-      const iconY = barY - (iconSize - barHeight) / 2;
-      ctx4.save();
-      ctx4.drawImage(blasterIcon, iconX, iconY, iconSize, iconSize);
-      ctx4.restore();
-      ctx4.save();
-      ctx4.fillStyle = "#222";
-      ctx4.fillRect(barX, barY, barWidth, barHeight);
-      const ratio = player2.blasterEnergy / player2.blasterMaxEnergy;
-      ctx4.fillStyle = "#0ff";
-      ctx4.fillRect(barX, barY, barWidth * ratio, barHeight);
-      if (player2.blasterEmptyFlashEndTime > now) {
-        ctx4.globalAlpha = (player2.blasterEmptyFlashEndTime - now) / BLASTER_EMPTY_FLASH_DURATION;
-        ctx4.fillStyle = "red";
-        ctx4.fillRect(barX, barY, barWidth, barHeight);
-      }
-      ctx4.restore();
-    }
-    if (!getBossHold() && !getBossPause() && !getBossTransition() && !getBossActive()) {
-      drawKillCounter(ctx4, killCount, canvas4.width);
-      if (showDifficulty) drawDifficulty(ctx4, difficultyLevel, canvas4.width);
-    }
     if (!getBossTransition() && !getBossActive()) {
       if (getBlinkingOut()) {
         const elapsed = gameNow() - getBlinkingOutStartTime();
@@ -1155,19 +993,12 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
       ctx4.restore();
     }
     if (player2.muzzleFlashTimer > 0) {
-      ctx4.save();
-      ctx4.fillStyle = "yellow";
-      ctx4.globalAlpha = 0.85;
       const direction = player2.facing;
       const muzzleOffsetX = direction === 1 ? player2.width - 6 : -6;
       const muzzleOffsetY = player2.crouching ? player2.height / 2 : player2.height / 2 + 5;
       const muzzleX = player2.x + muzzleOffsetX;
       const muzzleY = player2.crouching ? player2.feetY - player2.height + muzzleOffsetY : player2.y + muzzleOffsetY;
-      ctx4.beginPath();
-      ctx4.ellipse(muzzleX, muzzleY, 14, 7, 0, 0, 2 * Math.PI);
-      ctx4.fill();
-      ctx4.globalAlpha = 1;
-      ctx4.restore();
+      lookMuzzle(ctx4, muzzleX, muzzleY);
     }
     if (DEBUG_HITBOXES) {
       ctx4.save();
@@ -1217,6 +1048,7 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
         drawLowerCarpshits(ctx4);
       }
     }
+    lookDrawSparks(ctx4);
     if (gameState === "congrats") {
       ctx4.save();
       ctx4.globalAlpha = 0.6;
@@ -1224,28 +1056,9 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
       ctx4.fillRect(0, 0, canvas4.width, canvas4.height);
       ctx4.globalAlpha = 1;
       ctx4.restore();
-      drawCongrats(ctx4, canvas4);
-      ctx4.save();
-      ctx4.font = "bold 28px Arial";
-      ctx4.fillStyle = "#fff";
-      ctx4.textAlign = "center";
-      const healthPercent = Math.round(player2.health / PLAYER_START_HEALTH * 100);
-      ctx4.fillText(`Health: ${healthPercent}%`, canvas4.width / 2, canvas4.height / 2 - 30);
-      const stopTime = getGameStopTime() || now;
-      const elapsedMs = stopTime - getGameStartTime();
-      const elapsedSec = (elapsedMs / 1e3).toFixed(1);
-      ctx4.fillText(`Time: ${elapsedSec}s`, canvas4.width / 2, canvas4.height / 2);
+      // the congratulations art, the run's numbers and the buttons are the end card (end.js)
+      if (shaking) ctx4.restore();
       ctx4.restore();
-      restartButton2.x = Math.round(canvas4.width / 2 - restartButton2.width / 2);
-      restartButton2.y = Math.round(canvas4.height / 2 + 20);
-      if (typeof window !== "undefined" && window._lastMousePos) {
-        const { x: mx, y: my } = window._lastMousePos;
-        const over = mx >= restartButton2.x && mx <= restartButton2.x + restartButton2.width && my >= restartButton2.y && my <= restartButton2.y + restartButton2.height;
-        if (typeof window.isRestartHover !== "undefined") {
-          window.isRestartHover = over;
-        }
-      }
-      drawRestartButton(ctx4, canvas4, restartButton2, typeof window.isRestartHover !== "undefined" ? window.isRestartHover : isRestartHover2);
       return;
     }
     if (gameState.includes("over")) {
@@ -1255,10 +1068,10 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
       ctx4.fillRect(0, 0, canvas4.width, canvas4.height);
       ctx4.globalAlpha = 1;
       ctx4.restore();
-      drawGameOver(ctx4, canvas4);
-      restartButton2.x = Math.round(canvas4.width / 2 - restartButton2.width / 2);
-      restartButton2.y = Math.round(canvas4.height / 2 + 40);
-      drawRestartButton(ctx4, canvas4, restartButton2, isRestartHover2);
+      lookGameOver(ctx4);
+      // Retry and Title are the end card's buttons (end.js)
+      if (shaking) ctx4.restore();
+      ctx4.restore();
       return;
     }
     if (getBossActive() && getCurrentBoss()) {
@@ -1270,6 +1083,7 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
       projectiles.forEach((p) => {
         if (p.type === "boss") p.draw(ctx4, DEBUG_HITBOXES);
       });
+      lookDrawSparks(ctx4);
       if (DEBUG_HITBOXES) {
         const bossHitbox = getCurrentBoss().getHitbox();
         ctx4.save();
@@ -1293,25 +1107,6 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
     return;
   }
   if (shaking) ctx4.restore();
-  if (getWaveBanner && getWaveBanner()) {
-    const now2 = gameNow();
-    const elapsedWave = now2 - getWaveBannerStartTime();
-    const DURATION_WAVE = 1e3;
-    const levelConfig3 = levels_default[getCurrentLevelKey()];
-    const maxWaves = levelConfig3.bossTriggerDifficulty - 1;
-    if (elapsedWave < DURATION_WAVE && difficultyLevel <= maxWaves) {
-      ctx4.save();
-      ctx4.font = "bold 72px Arial";
-      ctx4.fillStyle = "#fff";
-      ctx4.textAlign = "center";
-      ctx4.shadowColor = "#000";
-      ctx4.shadowBlur = 12;
-      ctx4.fillText(`Wave ${difficultyLevel}/${maxWaves}`, canvas4.width / 2, canvas4.height / 2 - 50);
-      ctx4.restore();
-    } else {
-      setWaveBanner(false);
-    }
-  }
   ctx4.restore();
 }
 
@@ -1451,6 +1246,15 @@ function gameLoop(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
   tick(last);
 }
 function beginGame(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
+  // A retry after a clear or mid-fight starts clean: the 2025 restart left the garage open, the music fast and the
+  // last fight's timers and shots around.
+  setBackgroundFlickerMode("default");
+  bgMusic.playbackRate = 1;
+  clearEntities(projectiles, tweens, gameTimers, lookSparks);
+  setScreenShake(false);
+  setFightBanner(false);
+  __bossState.dying = false;
+  __bossState.active = false;
   resetGame(canvas4, bullets2);
   setupControls();
   generatePlatforms();
@@ -1462,6 +1266,7 @@ function beginGame(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
     if (gameState === "controls") {
       setGameState("playing");
       setGameStartTime(gameNow());
+      if (window.UnrugRun) UnrugRun.begin();
       setWaveBanner(true);
       setWaveBannerStartTime(gameNow());
       gameLoop(canvas4, ctx4, bullets2, restartButton2, isRestartHover2);
@@ -1486,7 +1291,7 @@ function beginGame(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
   lowerCarpshits.forEach((c) => c.respawnTimer = 0);
 }
 
-// from the 2025 game: src/uiController.js
+// from the 2025 game: src/uiController.js (its canvas Restart button is now the end card's Retry, end.js)
 var isRestartHover = false;
 var restartButton = {
   x: 0,
@@ -1494,36 +1299,6 @@ var restartButton = {
   width: 200,
   height: 60
 };
-function setupRestartUI(canvas4, ctx4, bullets2) {
-  window._lastMousePos = { x: 0, y: 0 };
-  window.isRestartHover = isRestartHover;
-  canvas4.addEventListener("click", function(e) {
-    if (!gameState.includes("over") && gameState !== "congrats") return;
-    const rect = canvas4.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * canvas4.width / rect.width;
-    const my = (e.clientY - rect.top) * canvas4.height / rect.height;
-    if (mx >= restartButton.x && mx <= restartButton.x + restartButton.width && my >= restartButton.y && my <= restartButton.y + restartButton.height) {
-      if (gameState === "congrats") {
-        window.location.reload();
-        return;
-      }
-      isRestartHover = false;
-      beginGame(canvas4, ctx4, bullets2, restartButton, isRestartHover);
-    }
-  });
-  canvas4.addEventListener("mousemove", function(e) {
-    if (!gameState.includes("over") && gameState !== "congrats") return;
-    const rect = canvas4.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * canvas4.width / rect.width;
-    const my = (e.clientY - rect.top) * canvas4.height / rect.height;
-    window._lastMousePos = { x: mx, y: my };
-    isRestartHover = mx >= restartButton.x && mx <= restartButton.x + restartButton.width && my >= restartButton.y && my <= restartButton.y + restartButton.height;
-    window.isRestartHover = isRestartHover;
-    if (gameState.includes("over") || gameState === "congrats") {
-      renderGame(ctx4, canvas4, bullets2, player, restartButton, isRestartHover);
-    }
-  });
-}
 
 
 // from the 2025 game: src/game.js (its dev tools are left out of the remaster)
@@ -1533,5 +1308,4 @@ var bullets = [];
 window.bullets = bullets;
 var DEBUG_HITBOXES = false;
 var showDifficulty = false;
-setupRestartUI(canvas3, ctx3, bullets);
 window.startGame = () => beginGame(canvas3, ctx3, bullets, restartButton, isRestartHover);

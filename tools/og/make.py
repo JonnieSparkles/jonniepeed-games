@@ -55,6 +55,9 @@ GAMES = [
     # a 4:3 crop of the top of its canvas
     ("unruggabull-ii", "Unruggabull II", "Climb RugCo Tower. Free the Unrugged. Beat SHRED-O.", "Play in your browser",
      None, {"screenshot": True, "selector": ".ttl canvas", "crop": (0, 0.02, 1, 0.315), "viewport": (420, 1000), "title_px": 34}),
+    # the title screen (title.js) in a 4:3 window: the tagline, the wordmark and the menu beside the RugCo Empire painting
+    ("unruggabull-remastered", "Unruggabull Remastered", "The original Unruggabull, now on phones.", "Play in your browser",
+     "document.getElementById('home').hidden = true; document.getElementById('fs-btn').hidden = true", {"screenshot": True, "selector": "#title-art", "viewport": (800, 600), "title_px": 40}),
     # Side B two-player demo: a screenshot of its title card
     ("dont-click-this", "Don't click this", "Up to four players, anywhere. Find each other.", "Play with friends",
      None, {"screenshot": True}),

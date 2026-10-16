@@ -28,7 +28,8 @@ def launch(p):
 def watch(page):
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
+    # the scores Worker isn't running here, so its requests fail; the game carries on without it
+    page.on('console', lambda m: errors.append(m.text) if m.type == 'error' and 'Failed to load resource' not in m.text else None)
     return errors
 
 
@@ -79,12 +80,8 @@ def pad(page):
 def start_on_phone(page):
     page.goto(URL, wait_until='load')
     page.wait_for_timeout(500)
-    assert js(page, "document.getElementById('veil').textContent") == 'Tap to begin'
-    page.touchscreen.tap(PHONE['width'] / 2, PHONE['height'] / 2)
-    page.wait_for_timeout(200)
-    assert js(page, "document.getElementById('veil').hidden"), 'a tap lifts the veil'
-    box = page.locator('#start-btn').bounding_box()
-    page.touchscreen.tap(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+    page.screenshot(path=str(SHOTS / 'phone-title.png'))
+    page.locator('#menu [data-act=play]').tap()
     wait_state(page, 'controls', 6000)
     page.screenshot(path=str(SHOTS / 'phone-controls.png'))
     page.touchscreen.tap(PHONE['width'] / 2, PHONE['height'] / 2)
@@ -150,15 +147,14 @@ def phone_checks(p):
     assert js(page, "document.getElementById('rotate').hidden")
     page.click('#resume-btn')
 
-    # rugged: the restart button works on the scaled canvas
+    # rugged: how far he got, and Retry starts a fresh run on the controls screen
     js(page, 'player.invulnerable = false; player.health = 1; handlePlayerHit({})')
     wait_state(page, 'gameover', 6000)
+    assert 'UNRUGGED' in js(page, "document.getElementById('rugged-line').textContent")
     page.screenshot(path=str(SHOTS / 'phone-rugged.png'))
-    r = page.locator('#gameCanvas').bounding_box()
-    b = js(page, 'restartButton')
-    k = r['width'] / 960
-    page.touchscreen.tap(r['x'] + (b['x'] + b['width'] / 2) * k, r['y'] + (b['y'] + b['height'] / 2) * k)
+    page.locator('#retry2-btn').tap()
     wait_state(page, 'controls')
+    assert js(page, "document.getElementById('end').hidden")
 
     assert not errors, errors
     browser.close()
@@ -172,9 +168,9 @@ def desktop_checks(p):
     errors = watch(page)
     page.goto(URL, wait_until='load')
     page.wait_for_timeout(400)
-    assert js(page, "document.getElementById('veil').textContent") == 'Press any key'
-    page.keyboard.press('Shift'); page.wait_for_timeout(100)
-    assert js(page, "document.getElementById('veil').hidden")
+    # the menu by keyboard: down and up move the blaster, Enter picks
+    page.keyboard.press('ArrowDown'); page.keyboard.press('ArrowUp')
+    assert js(page, "document.querySelector('#menu .on').dataset.act") == 'play'
     page.keyboard.press('Enter')
     wait_state(page, 'controls', 6000)
     page.keyboard.press('x')
@@ -199,12 +195,43 @@ def desktop_checks(p):
     print('desktop: ok')
 
 
+def title_checks(p):
+    """The title's cards: the board (offline here: this device's clears), the gallery and the credits."""
+    browser = launch(p)
+    ctx = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+    page = ctx.new_page()
+    errors = watch(page)
+    page.route('http://localhost:8787/**', lambda route: route.abort())
+    page.add_init_script("""localStorage.setItem('unruggabull-remastered-clears-1', JSON.stringify([
+      { name: 'ACE', ms: 112800, health: 100, unrugged: 81, input: 'touch' }, { name: 'BUL', ms: 117100, health: 95, unrugged: 78, input: 'keys' }]));""")
+    page.goto(URL, wait_until='load')
+    page.wait_for_timeout(400)
+    assert 'ACE 1:52.8' in js(page, "document.getElementById('best').textContent")
+    page.locator('#menu [data-act=board]').tap()
+    page.wait_for_selector('#board-list .lb-table')
+    assert js(page, "document.querySelectorAll('#board-list tbody tr').length") == 2
+    page.screenshot(path=str(SHOTS / 'title-board.png'))
+    page.locator('#close-board').tap()
+    page.locator('#menu [data-act=gallery]').tap()
+    first = js(page, "document.getElementById('gallery-img').src")
+    page.locator('#gallery-next').tap()
+    assert js(page, "document.getElementById('gallery-img').src") != first
+    page.locator('#close-gallery').tap()
+    page.locator('#menu [data-act=credits]').tap()
+    assert js(page, "!document.getElementById('credits').hidden")
+    assert js(page, "document.querySelector('#menu a').href").startswith('https://unruggabull.ar.io')
+    assert not errors, errors
+    browser.close()
+    print('title: ok')
+
+
 def boss_checks(p):
     """The whole fight on a fake clock: the 32-second intro, the battle, the Rugfather's defeat and the card."""
     browser = launch(p)
     ctx = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
     page = ctx.new_page()
     errors = watch(page)
+    page.route('http://localhost:8787/**', lambda route: route.abort())
     page.clock.install()
     start_on_phone(page)
     js(page, 'setDifficultyLevel(6)')
@@ -221,6 +248,15 @@ def boss_checks(p):
     page.clock.run_for(15000)
     assert js(page, 'gameState') == 'congrats'
     page.screenshot(path=str(SHOTS / 'congrats.png'))
+    # the end card: the run's numbers, then initials (offline here, so for this device's board)
+    page.clock.run_for(4000)
+    page.wait_for_selector('.lb-entry')
+    assert js(page, "document.querySelectorAll('#end-stats .stat').length") == 3
+    page.screenshot(path=str(SHOTS / 'end-initials.png'))
+    page.locator('.lb-ok').tap()
+    page.wait_for_selector('#end-board .lb-table')
+    assert js(page, "document.querySelector('#end-board .lb-you') !== null")
+    page.screenshot(path=str(SHOTS / 'end-board.png'))
     assert not errors, errors
     browser.close()
     print('boss: ok')
@@ -230,5 +266,6 @@ if __name__ == '__main__':
     with sync_playwright() as p:
         phone_checks(p)
         desktop_checks(p)
+        title_checks(p)
         boss_checks(p)
     print('all ok; screenshots in', SHOTS)

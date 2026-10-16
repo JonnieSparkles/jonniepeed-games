@@ -1,6 +1,6 @@
 # Unruggabull: RugCo Alley Remastered
 
-**Status:** building (Oct 16, 2026). Step 1 is built; steps 2 to 4 follow on the same branch.
+**Status:** built (Oct 16, 2026), unlisted. The living doc is [README.md](README.md). The share card is the site's standard card from the title; one of the mockup cards can replace it once Jonnie picks.
 
 A remaster of the 2025 game, [Unruggabull: RugCo Alley](https://github.com/jonnieSparkles/unruggabull-the-game) (v0.1.0, still live at [unruggabull.ar.io](https://unruggabull.ar.io)), at `jonniepeed.games/unruggabull-remastered/`. The 2025 copy stays where it is as the original.
 

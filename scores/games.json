@@ -116,5 +116,20 @@
         "plausible": { "perSecond": 3, "grace": 100 }
       }
     }
+  },
+  "unruggabull-remastered": {
+    "boards": {
+      "1": {
+        "higherIsBetter": true,
+        "maxScore": 1,
+        "meta": {
+          "time_ms": { "min": 75000, "max": 86400000 },
+          "health": { "min": 0, "max": 100 },
+          "unrugged": { "min": 75, "max": 100000 }
+        },
+        "tieBreak": [["time_ms", "asc"], ["health", "desc"]],
+        "plausible": { "perSecond": 1, "grace": 1 }
+      }
+    }
   }
 }

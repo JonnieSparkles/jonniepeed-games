@@ -588,12 +588,7 @@ function draw() {
     ctx.restore();
     ctx.globalAlpha = 1;
     ctx.restore();
-    const barWidth2 = 200;
-    const hpRatio2 = Math.max(0, state.hp) / MAX_HP;
-    ctx.fillStyle = "red";
-    ctx.fillRect(canvas.width / 2 - barWidth2 / 2, 20, barWidth2 * hpRatio2, 10);
-    ctx.strokeStyle = "white";
-    ctx.strokeRect(canvas.width / 2 - barWidth2 / 2, 20, barWidth2, 10);
+    // the health bar is drawn over the HUD by renderGame (look.js)
     if (filterApplied) ctx.filter = "none";
     return;
   }
@@ -631,12 +626,7 @@ function draw() {
   ctx.restore();
   ctx.globalAlpha = 1;
   ctx.restore();
-  const barWidth = 200;
-  const hpRatio = Math.max(0, state.hp) / MAX_HP;
-  ctx.fillStyle = "red";
-  ctx.fillRect(canvas.width / 2 - barWidth / 2, 20, barWidth * hpRatio, 10);
-  ctx.strokeStyle = "white";
-  ctx.strokeRect(canvas.width / 2 - barWidth / 2, 20, barWidth, 10);
+  // the health bar is drawn over the HUD by renderGame (look.js)
   if (filterApplied) ctx.filter = "none";
 }
 function hit(damage = 1) {
