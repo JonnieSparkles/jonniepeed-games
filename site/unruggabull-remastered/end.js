@@ -31,11 +31,11 @@ window.UnrugRun = (function () {
   function bestSplits() { try { const s = JSON.parse(localStorage.getItem(SPLITS_KEY) || '{}'); return s && typeof s === 'object' ? s : {}; } catch (e) { return {}; } }
 
   // ---------- medals: on the end card and beside each clear on the board ----------
-  // Flawless: a clear at full health. Under 2:00: a clear in under two minutes. Never ran dry: the blaster never ran
+  // Flawless: a clear at full health. Under 2:30: a clear in under two and a half minutes (a perfect run with average spawns is about 2:00). Never ran dry: the blaster never ran
   // out of shots (older rows don't know, so they don't show it).
   const MEDALS = [
     ['heart', 'Flawless', m => m.health === 100],
-    ['watch', 'Under 2:00', m => m.time_ms < 120000],
+    ['watch', 'Under 2:30', m => m.time_ms < 150000],
     ['blaster', 'Never ran dry', m => m.ran_dry === 0]
   ];
   function medalIcons(m) {
