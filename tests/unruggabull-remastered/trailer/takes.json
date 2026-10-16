@@ -17,7 +17,7 @@
       },
       {
         "type": "wait",
-        "dur": 4.5
+        "dur": 5.2
       },
       {
         "type": "start"
@@ -25,63 +25,6 @@
       {
         "type": "wait",
         "dur": 2.5
-      },
-      {
-        "type": "capture"
-      },
-      {
-        "type": "end"
-      }
-    ]
-  },
-  "M": {
-    "seed": 7,
-    "max_s": 90,
-    "screen": true,
-    "touch": true,
-    "viewport": [
-      780,
-      360
-    ],
-    "scale": 3,
-    "plan": [
-      {
-        "type": "wait",
-        "dur": 0.5
-      },
-      {
-        "type": "start"
-      },
-      {
-        "type": "wait",
-        "until": "D.state().gs === 'controls'"
-      },
-      {
-        "type": "wait",
-        "dur": 0.6
-      },
-      {
-        "type": "go"
-      },
-      {
-        "type": "js",
-        "code": "D.minHealth = 8;"
-      },
-      {
-        "type": "capture",
-        "on": true
-      },
-      {
-        "type": "fight",
-        "dur": 22
-      },
-      {
-        "type": "js",
-        "code": "D.wave(4);"
-      },
-      {
-        "type": "fight",
-        "dur": 14
       },
       {
         "type": "capture"

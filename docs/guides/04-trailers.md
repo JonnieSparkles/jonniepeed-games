@@ -1,6 +1,6 @@
 # 04: Trailers
 
-A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) Unruggabull (33 s, the game's own theme, from its own repo) and Unruggabull Remastered (39 s, the theme again, much of it on a phone) have one.
+A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) Unruggabull (33 s, the game's own theme, from its own repo) and Unruggabull Remastered (33 s, the 2025 trailer remade with the remaster) have one.
 
 ## Running
 
@@ -37,7 +37,7 @@ On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 mi
 - **`<audio>` elements.** Games that play files (`new Audio('ow.mp3').play()`, Unruggabull) get `audio.media`: the harness logs every element's plays, pauses, seeks and rate and volume changes, and `media.py` mixes the same files back in at those times. `audio.exclude` leaves the music out, so `music.py` can cut it to the trailer instead (Unruggabull: the theme's intro, its drop, silence for the boss's entrance like the game, then 1.5x for the fight, like the game).
 - **ES modules.** The bridge (`script`, `inject_before`) also works on a module: injected into Unruggabull's `src/controller.js`, its eval sees that module's imports (`state`, `player`, the enemies), and the director reaches other modules with `import()`. A game whose loop only runs during play uses `"hook": "@frame"`: the harness runs the plan from an animation frame of its own, title screen included.
 - **Live sound.** A game whose sound is all one Web Audio context, mixed by its own code (Unruggabull Remastered: ducking, muffles, slow-motion music), gets `audio.live`: its `AudioContext` is an `OfflineAudioContext` that the capture renders a frame at a time, in step with the fake clock, so the take's sound is exactly what the game played. The director can disconnect the music's clips so `music.py` lays the theme in. Wait long enough after load for the sound to decode (`settle_ms`), or a sound can start late and the run stops repeating.
-- **Phones.** A take can set its own `viewport`, `scale`, `touch` (a touch screen: the remaster's d-pad and Fire show and react) and `screen` (screenshots instead of the canvas, for anything drawn outside it: touch controls, the end card, the board). A shot's camera can be an object with `compose(frame, u)` that builds the whole picture: the remaster's `Phone` puts a 2340 × 1080 phone take in a phone held sideways.
+- **Per-take framing.** A take can set its own `viewport`, `scale`, `touch` (a touch screen, with `has_touch` and `is_mobile`) and `screen` (screenshots instead of the canvas, for anything drawn outside it, such as the remaster's title screen). A shot's camera can also be an object with `compose(frame, u)` that builds the whole picture, for a frame around the footage.
 
 ## Making one
 

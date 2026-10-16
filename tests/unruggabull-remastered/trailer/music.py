@@ -1,10 +1,9 @@
-"""The remaster trailer's music: the game's own RugCo Alley theme (120 BPM), cut to the trailer.
+"""The remaster trailer's music, as the 2025 trailer's: the game's own RugCo Alley theme (120 BPM), cut to the trailer.
 
-The theme's quiet intro under the two title screens, its full band from the drop for the mobile play and the polish,
-silence while the garage opens (the game stops the music there too), the theme at 1.5x for the fight (the speed the
-game plays it at once the Rugfather is angry), on through the board and ringing out a bar into the poster, where
-"Goodbye, Rugfather." plays, as the 2025 trailer ends.
-The game's own sounds (voice lines, the blaster, the end card's chime and fanfare) come from the takes.
+The theme's quiet intro under the title screen, its full band from the drop for the alley, silence while the garage
+opens (the game stops the music there too), then the theme at 1.5x for the fight (the speed the game plays it at once
+the Rugfather is angry), ringing out a bar into the poster, where "Goodbye, Rugfather." plays.
+The game's own sounds (voice lines, "Let's go!", the blaster) come from the takes.
 """
 import subprocess
 import sys
@@ -43,9 +42,9 @@ def render(path, site):
         return sig
 
     seg = lambda t0, t1: a[int(t0 * SR):int(t1 * SR)]
-    put(shape(seg(THEME_DROP - DROP, THEME_DROP), fin=1.2), 0.0)                  # the intro, under the titles
-    put(shape(seg(THEME_DROP, THEME_DROP + BOSS - DROP), fout=0.02), DROP)         # the drop
-    # the fight, on through the board, ringing out a bar into the poster (as 2025)
+    put(shape(seg(THEME_DROP - DROP, THEME_DROP), fin=1.2), 0.0)                  # the intro, under the title
+    put(shape(seg(THEME_DROP, THEME_DROP + BOSS - DROP), fout=0.02), DROP)         # the drop: the alley
+    # the fight, ringing out a bar into the poster
     put(shape(tempo(theme, THEME_DROP + (BOSS - DROP), END - FIGHT + BAR / 1.5, 1.5), tail=BAR / 1.5), FIGHT)
     put(media.decode(Path(site) / 'unruggabull-remastered/sound/unruggabull-goodbye-rugfather.mp3') * 1.6, END + 0.35)
     wavfile.write(str(path), SR, out[:int(DUR * SR)])
