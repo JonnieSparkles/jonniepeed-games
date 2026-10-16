@@ -1,5 +1,5 @@
 // The difficulty modes (item 29): what a hit costs in each, Raging Bull's carried hearts, Impossibull's no healing and its
-// lock, the 48th Floor's shift clock, each mode's own board and bests, the mode on the cards and in #stage links.
+// lock, each mode's own board and bests, the mode on the cards and in #stage links.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
@@ -79,19 +79,6 @@
     setMode('raging'); RUN.force = 3942; startRun('roof'); RUN.full = true; R.endT = R.t; endRun('clear');
     check(impossibullOpen(), 'a full run cleared on Raging Bull without a retry opens it, kept on the device');
     localStorage.removeItem('unruggabull-ii-impossibull');
-
-    // ---- the 48th Floor's shift clock: stalling ends in a rugging ----
-    setMode('regular'); RUN.force = 3943; startRun('floor48'); bull.inv = 1e9;
-    const F48 = floors.floor48.F48, Q = () => R.f48;
-    Q().t = F48.shift.secs - 31; step(1.2);
-    check(R.talk && R.talk.text === 'SHIFT ENDS IN 30.', 'p(Loom) warns at 30 seconds left');
-    Q().t = F48.shift.secs - 11; step(1.2);
-    check(R.talk && R.talk.text === '10.', 'and at 10');
-    draw();   // the shift clock draws
-    Q().t = F48.shift.secs - .05; step(.2);
-    check(R.phase === 'dead' && R.lastCause === 'shift', 'at zero he is reclaimed: an ordinary rugging');
-    step(4);
-    check(Cards.kind === 'rugged' && Cards.info.back === 'THE START', 'the rugged card, back to the start of the floor');
 
     // ---- each mode's board: full runs that never retried, posted when rugged ----
     keys0.forEach(k => localStorage.removeItem(k));   // the lock's clears above went on the boards

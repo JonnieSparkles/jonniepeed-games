@@ -301,8 +301,8 @@ var UnrugTopdown = function (core, tuning) {
   function kill(e, by) {
     if (e.dead) return;
     e.dead = true; R.freeze = Math.max(R.freeze, by === 'slash' ? .06 : .03);
-    const s = screenOf(e.x, e.y - e.h);
-    free(s.x / 2, s.y / 2 - 3, e.kind === 'roll' ? 'roll' : 'carpshit', by);
+    const s = screenOf(e.x, e.y - e.h), src = e.kind === 'roll' ? 'roll' : 'carpshit';
+    if (!R.td.pays || R.td.pays(src, by, s.x / 2, s.y / 2)) free(s.x / 2, s.y / 2 - 3, src, by);   // the 48th's quota may say it's unpaid
     Snd.play('poof');
     if (by === 'slash') {
       for (const sd of [-1, 1]) R.td.fx.push({ k: 'half', x: e.x, y: e.y, h: e.h, vx: -bull.sy * sd * 70 + bull.sx * 30, vy: bull.sx * sd * 50 + bull.sy * 30, vh: 60, r: 0, vr: sd * 7, top: sd < 0, roll: e.kind === 'roll', t: 0, dur: .55 });
