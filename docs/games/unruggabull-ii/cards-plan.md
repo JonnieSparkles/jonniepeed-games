@@ -98,7 +98,7 @@ From the pull request, on a 360 × 780 and a 780 × 360 phone and a desktop wind
 
 ## The board step (online leaderboard, Oct 16)
 
-Built after this plan, from the leaderboard plan's mockup: the roof's clear card on a full run that never retried checks the board, offers initials, saves them and shows the top five; a rugged full run says ONLY COMPLETED UNITS ARE PROCESSED., a retried one OFF THE RECORD. What it says and does is in the README under Leaderboard. Sideways the band grows to 158 rows while it's up (112 for the rugged and retried lines).
+Built after this plan, from the leaderboard plan's mockup: the roof's clear card on a full run that never retried checks the board, offers initials, saves them and shows the top five; a rugged full run says ONLY COMPLETED UNITS ARE PROCESSED., a retried one OFF THE RECORD. What it says and does is in the README under Leaderboard. Sideways the band grows to 158 rows while it's up (120 for the rugged and retried lines; 112 left the line touching the buttons, owner Oct 16).
 
 ## Left for later
 

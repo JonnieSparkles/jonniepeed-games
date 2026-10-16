@@ -91,7 +91,7 @@ var UnrugFloor48 = function (core) {
     // flyers and the shag's halves too) and limp rugs count; past souls they pay nothing. The canister cart comes at most
     // carts times. Everything fixed (machines, feeds, clutter, chunks, vessels, chains, the collapse) pays as always.
     // idle: seconds without a loom taking damage before the arrow points at the nearest running one.
-    quota: { souls: 60, carts: 2, unpaidEvery: 3, idle: 20 },
+    quota: { souls: 100, carts: 2, unpaidEvery: 3, idle: 20 },   // souls: 60 → 100 (owner, Oct 16)
     deadWait: 2.8
   };
   const td = UnrugTopdown(core, { world: F48.world, bounds: { x0: 30, y0: F48.wallH + 4, x1: 786, y1: 440 } });
