@@ -131,17 +131,23 @@ var UnrugElevator = function (core) {
     [['start', 17, 'operator', 'RECLAMATION. YOU SURE?', 2], ['start', 19.4, 'bull', "IT'S ON THE SLIP.", 1.8], ['start', 24, 'operator', "...I'LL WAIT HERE.", 1.8]],
     [['start', 17, 'bull', 'THIS THING GO FASTER?', 2], ['start', 19.4, 'operator', 'NO.', 1.8], ['start', 24, 'bull', 'GREAT.', 1.8]]
   ];
-  // The last word is the operator's (owner, Oct 16): on Baby and Regular he slides the crate over, "YOU'RE GOING TO NEED
-  // THIS."; on Raging and Impossibull there's no crate, "YOU GOT THIS."
-  const quietLast = () => ['doors', ELEVATOR.last.at, 'operator', core.betweenHeals() ? "YOU'RE GOING TO NEED THIS." : 'YOU GOT THIS.', ELEVATOR.last.dur];
+  // The last word is the operator's (owner, Oct 16): on Baby and Regular, if he's hurt, he slides the crate over, "YOU'RE
+  // GOING TO NEED THIS."; at full hearts, and always on Raging and Impossibull, there's no crate, "YOU GOT THIS." Decided as
+  // the line comes (nothing can hurt him on this ride, so it's the hearts he arrived with).
+  const quietCrate = () => core.betweenHeals() && R.hearts < TUNE.hearts;
+  function quietLast() {
+    if (quietCrate()) { say('operator', "YOU'RE GOING TO NEED THIS.", ELEVATOR.last.dur); slideCrate('quiet'); }
+    else say('operator', 'YOU GOT THIS.', ELEVATOR.last.dur);
+  }
   function quietCues() {
     Q.middle = (core.runSeed() >>> 0) % QUIET_MIDDLE.length;
-    const p = top(), lines = QUIET.concat(QUIET_MIDDLE[Q.middle], [quietLast()]).map(([anchor, offset, who, text, dur]) => {
+    const p = top(), lines = QUIET.concat(QUIET_MIDDLE[Q.middle]).map(([anchor, offset, who, text, dur]) => {
       const t = (anchor === 'doors' ? p.doors : 0) + offset;
       Q.exitAt = Math.max(Q.exitAt, t + dur);
       return [t, () => say(who, text, dur)];
     });
-    const crate = core.betweenHeals() ? [[p.doors + ELEVATOR.last.at, () => slideCrate('quiet')]] : [];
+    const last = p.doors + ELEVATOR.last.at, crate = [[last, quietLast]];   // either line holds the exit the same time
+    Q.exitAt = Math.max(Q.exitAt, last + ELEVATOR.last.dur);
     return lines.concat([[p.arrive, () => { arrive(); Snd.play('rideDing'); }],
       [p.doors, () => { Snd.play('rideDoors'); emit('elevator_doors'); }]], crate);
   }

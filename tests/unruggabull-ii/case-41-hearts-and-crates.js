@@ -75,7 +75,8 @@
       const p = E.top(), last = p.doors + EL.last.at + EL.last.dur;
       check(q.left >= last - .02, mode + ': the exit gate moves with the new line');
       const f = quietRide(mode, 5);
-      check(f.hearts === 5 && (f.ev.find(e => e.type === 'elevator_supply') || {}).data.item === 'none', mode + ': at full hearts it gives nothing');
+      check(f.hearts === 5 && f.said[f.said.length - 1] === 'operator: YOU GOT THIS.' && !f.ev.some(e => e.type === 'elevator_crate'), mode + ': arriving at full hearts, no crate: "YOU GOT THIS."');
+      check(f.left >= last - .02, mode + ': the same exit gate either way');
     }
     for (const mode of ['raging', 'impossibull']) {
       const q = quietRide(mode, 2);

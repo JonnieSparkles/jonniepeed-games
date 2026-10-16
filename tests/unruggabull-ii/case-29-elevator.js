@@ -103,7 +103,7 @@
       [5, 'operator', 'GOT A SLIP?'], [7.4, 'bull', 'ACCOUNTING.'],
       [10, 'operator', 'THEY STILL THERE?'], [12.4, 'bull', 'LESS OF THEM.'],
       ...floor.ELEVATOR.quiet.middle[R.elevator.middle].map(([, at, who, text]) => [at, who, text]),
-      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.'], [35.3, 'operator', "YOU'RE GOING TO NEED THIS."]
+      [31.3, 'operator', 'RECLAMATION, SIR.'], [33.3, 'bull', 'KEEP THE SLIP.'], [35.3, 'operator', 'YOU GOT THIS.']
     ];
     check(R.elevator.middle === (RUN.seed >>> 0) % 3 && floor.ELEVATOR.quiet.middle.length === 3, 'the middle exchange is picked from the run seed');
     const quietEvents = []; emitHook = (type) => quietEvents.push(type);
@@ -127,7 +127,7 @@
       Math.abs(line[0] - expectedQuiet[i][0]) < .02 && line[1] === expectedQuiet[i][1] && line[2] === expectedQuiet[i][2]),
       'all quiet-ride lines play once, in order, at their times: ' + JSON.stringify(quietLines));
     check(!quietEvents.some(type => ['arena_spawn', 'arena_throw', 'elevator_eye', 'elevator_cut', 'elevator_snap', 'elevator_heavy'].includes(type)), 'quiet ride stays quiet');
-    check(R.elevator.indicator === 48 && R.elevator.crate && R.elevator.crate.kind === 'quiet' && R.elevator.crate.got && floor.doorOpening() === 1, 'arrival at 48 opens the doors; the crate comes with the last line, and he takes it in the doorway');
+    check(R.elevator.indicator === 48 && !R.elevator.crate && floor.doorOpening() === 1, 'arrival at 48 opens the doors; full hearts (the continue): no crate, "YOU GOT THIS."');
     check(seed === oldSeed, 'quiet-ride dialogue and drawing consume no outcome randomness');
     tick(.05); check(R.arena.out > 0 && !R.talk, 'walking out starts only once the last arrival bubble is gone');
     tick(1.2); check(R.stage === 'floor48' && R.souls === 123, 'the quiet ride carries the run onto the 48th Floor');
