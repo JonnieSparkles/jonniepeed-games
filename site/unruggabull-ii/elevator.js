@@ -27,7 +27,7 @@ var UnrugElevator = function (core) {
     ask: { floor: .9, roof: 2.2, out: 2.6 },
     // to the roof he waits out the last word at the doors, then holds this beat before he turns to walk out (owner, Oct 16)
     beat: .8,
-    // the quiet ride's last line, after KEEP THE SLIP. (seconds after the doors), and how long it's up
+    // the quiet ride's last line, after THANKS. (seconds after the doors), and how long it's up
     last: { at: 4.9, dur: 2 },
     // to the roof it hands over as soon as he's turned his back (this far into walkOut), without his shrinking into the
     // doors: the roof's first shot follows him out through the doorway (owner, Oct 15 and 16)
@@ -117,23 +117,26 @@ var UnrugElevator = function (core) {
     [T.doors + 1.6, () => Snd.play('thunder')],
     [T.crate, () => startTop()]
   ];
-  // The quiet ride's entire script: anchor, seconds from it, speaker, bubble, duration.
+  // The quiet ride's entire script: anchor, seconds from it, speaker, bubble, duration, and 'direct' for a line said only
+  // when the ride didn't start in the lobby (a continue or a #stage link): the lobby's GOING UP? already asked.
   // Arrival offsets use the same ask timing as the long ride; editing a line/duration also moves the exit gate.
+  // The operator is one of the Unrugged, so he knows where the souls go: that's why the 48th (owner, Oct 16; the slip
+  // lines went, since the 13th's card no longer prints the routing slip they followed).
   const QUIET = [
-    ['start', .35, 'operator', 'FLOOR?', 1.8],
-    ['start', 2.6, 'bull', 'FORTY-EIGHT.', 1.8],
-    ['start', 5, 'operator', 'GOT A SLIP?', 1.8],
-    ['start', 7.4, 'bull', 'ACCOUNTING.', 1.8],
-    ['start', 10, 'operator', 'THEY STILL THERE?', 1.8],
-    ['start', 12.4, 'bull', 'LESS OF THEM.', 1.8],
+    ['start', .35, 'operator', 'FLOOR?', 1.8, 'direct'],
+    ['start', 2.6, 'bull', 'WHERE DO THE SOULS GO?', 2],
+    ['start', 5, 'operator', '...FORTY-EIGHT.', 1.8],
+    ['start', 7.4, 'bull', 'FORTY-EIGHT, THEN.', 1.8],
+    ['start', 10, 'operator', 'THOSE RUGS STILL IN ACCOUNTING?', 2.6],
+    ['start', 13, 'bull', 'LESS OF THEM.', 1.8],
     ['doors', ELEVATOR.ask.floor, 'operator', 'RECLAMATION, SIR.', 1.8],
-    ['doors', ELEVATOR.ask.floor + 2, 'bull', 'KEEP THE SLIP.', 1.8]
+    ['doors', ELEVATOR.ask.floor + 2, 'bull', 'THANKS.', 1.8]
   ];
   // The middle exchange is one of these, picked from the run's seed (never drawn from the seeded stream, so no run changes
   // and a replay hears the same one). Owner, Oct 14: keep all three.
   const QUIET_MIDDLE = ELEVATOR.quiet.middle = [
     [['start', 17, 'bull', 'THIS SONG...', 2], ['start', 19.4, 'operator', 'IT GETS BETTER.', 1.8], ['start', 24, 'bull', 'DOES IT?', 1.8]],
-    [['start', 17, 'operator', 'RECLAMATION. YOU SURE?', 2], ['start', 19.4, 'bull', "IT'S ON THE SLIP.", 1.8], ['start', 24, 'operator', "...I'LL WAIT HERE.", 1.8]],
+    [['start', 17, 'operator', 'RECLAMATION. YOU SURE?', 2], ['start', 19.4, 'bull', "I'M SURE.", 1.8], ['start', 24, 'operator', "...I'LL WAIT HERE.", 1.8]],
     [['start', 17, 'bull', 'THIS THING GO FASTER?', 2], ['start', 19.4, 'operator', 'NO.', 1.8], ['start', 24, 'bull', 'GREAT.', 1.8]]
   ];
   // The last word is the operator's (owner, Oct 16): on Baby and Regular, if he's hurt, he slides the crate over, "YOU'RE
@@ -146,7 +149,7 @@ var UnrugElevator = function (core) {
   }
   function quietCues() {
     Q.middle = (core.runSeed() >>> 0) % QUIET_MIDDLE.length;
-    const p = top(), lines = QUIET.concat(QUIET_MIDDLE[Q.middle]).map(([anchor, offset, who, text, dur]) => {
+    const p = top(), lines = QUIET.concat(QUIET_MIDDLE[Q.middle]).filter(l => !(l[5] === 'direct' && Q.lobby)).map(([anchor, offset, who, text, dur]) => {
       const t = (anchor === 'doors' ? p.doors : 0) + offset;
       Q.exitAt = Math.max(Q.exitAt, t + dur);
       return [t, () => say(who, text, dur)];
@@ -767,8 +770,9 @@ var UnrugElevator = function (core) {
       otxt(g, 'P(LOOM)', 34, H - 22, '#ff7a2a', 1); otxt(g, s, 34, H - 14, '#ffd060', 2);
     } else if (T2.speaker === 'operator' && Q.lobby) { const p = lobby.talkAt(); bubble(s, p.x, p.y, p.x - 20, true); }
     else if (T2.speaker === 'operator') bubble(s, 356, 128 - Math.round(Q.lift) - Math.round(Q.cap), 356);
-    // Quiet-ride movement stays live: keep his bubble between the phone pads even at either wall.
-    else { const bx = Math.round(PX(bull.u)), lift = Math.round(arena.PYh(0) - arena.PYh(bull.jh)) + Math.round(R.arena.lift || 0); bubble(s, Q.fight ? bx : W / 2, 132 - lift, bx, !Q.fight); }
+    // Quiet-ride movement stays live: keep his bubble between the phone pads even at either wall, but over his side of
+    // the car, so its tail reaches him and not the operator beside him (owner, Oct 16: the talk read as mixed up).
+    else { const bx = Math.round(PX(bull.u)), lift = Math.round(arena.PYh(0) - arena.PYh(bull.jh)) + Math.round(R.arena.lift || 0); bubble(s, Q.fight ? bx : clamp(bx, W * .3, W * .7), 132 - lift, bx, !Q.fight); }
   }
 
   // ---------- the frame ----------
