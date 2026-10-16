@@ -220,17 +220,19 @@ var UnrugTitle = (function () {
       tg.globalCompositeOperation = 'source-in'; tg.fillStyle = col; tg.fillRect(0, 0, w, h);
       g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, a); g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); if (a > 1) { g.globalAlpha = a - 1; g.drawImage(tint, 0, 0, w, h, x0, y0, w, h); } g.restore();
     }
-    function eyeFx(g, tt) {
+    // part 'tower' goes right on the painting, under everything that moves (the souls, smoke, carpet, signs); part
+    // 'blaze' goes over them, just under the eye
+    function eyeFx(g, tt, part) {
       const pk = tt - changedAt;
       if (!art || still.matches || pk < 0 || pk > 2) return;
       const col = FIRE[MODES[mode].id].glow, { x, y } = ART.eye;
-      {
+      if (part === 'tower') {
         // the windows black out, then light back up floor by floor, bottom to top, into the eye
         const k = (pk - .12) / .6, by = Math.round(432 - (432 - 176) * clamp(k, 0, 1));
         if (k < 1) dark(g, 150, 176, 180, by - 176, .92);
         if (k > 0 && k < 1.25) lit(g, 150, by, 180, Math.min(26, 432 - by), 1.7 * (k < 1 ? 1 : (1.25 - k) * 4), col);
       }
-      {   // the pavilion blazes and throws rays as the light reaches it
+      if (part === 'blaze') {   // the pavilion blazes and throws rays as the light reaches it
         const k = pk - .55, fl = k < 0 ? 0 : Math.max(0, 1 - k / 1.2) * Math.min(1, k / .08);
         if (fl > 0) {
           lit(g, 196, 168, 88, 64, 1.8 * fl, col);
@@ -493,8 +495,9 @@ var UnrugTitle = (function () {
     function compose(tt, feet, logoY, logoA) {
       cg.clearRect(0, 0, AW, AH);
       if (art) cg.drawImage(art, 0, 0); else R(cg, 0, 0, AW, AH, '#0b0920');
+      eyeFx(cg, tt, 'tower');
       drawCarpet(cg, tt); drawSign(cg, tt); drawRugs(cg, tt); drawSmoke(cg, tt); drawSouls(cg, tt);
-      eyeFx(cg, tt); drawEye(cg, tt, feet);
+      eyeFx(cg, tt, 'blaze'); drawEye(cg, tt, feet);
       drawBull(cg, feet);
       if (logoA > 0) drawLogo(cg, logoY, tt, logoA);
     }
