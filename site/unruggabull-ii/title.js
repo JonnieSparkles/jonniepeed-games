@@ -17,7 +17,7 @@ var UnrugTitle = (function () {
   ];
   const MODE_KEY = 'unruggabull-ii-mode';
   // The painting, 480 x 640 picture pixels, and where things are on it.
-  const AW = 480, AH = 640, WIN = 270, BAND_TOP = 188, BAND_H = 82, GRID = 320, PANEL_H = 330;
+  const AW = 480, AH = 640, WIN = 270, BAND_TOP = 188, BAND_H = 82, GRID = 320, PANEL_H = 290;
   const ART = {
     eye: { x: 240, y: 187, r: 7 },                    // in the pavilion on the tower's roof
     bull: 586, sideBull: 552,                          // his feet: in front of the shutter upright, at it for the pan
@@ -466,8 +466,7 @@ var UnrugTitle = (function () {
       else { T(g, 'TOP RUNS: ' + m.name, 14, 14, P.gold, 2); rows(14, 36, w - 28, Math.min(10, Math.floor((h - 124) / 16)), 1); bigButton(g, 10, h - 50 - FOOT, w - 20, 50, 'BACK', false, 'back', 2); }
     }
     // upright: under the painting, 320 wide, only as tall as what it shows (owner, Oct 16: the room goes to the
-    // painting): the readout, the buttons and Start; the board line adds a row when the boards exist (item 29), and
-    // stage select (item 28) would add its own, up to PANEL_H
+    // painting): the readout, the buttons and Start; the board line adds a row when the boards exist (item 29)
     const panelH = () => act.board && act.board(MODES[mode].id) ? 290 : 246;
     const FOOT = 26;   // under Start: clear of a phone's rounded corners in full screen (owner, Oct 16)
     function drawPanel(g, tt) {
