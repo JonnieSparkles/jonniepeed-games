@@ -96,6 +96,10 @@ Drawing and layout only. `python3 tools/balance/run.py unruggabull-ii --verify -
 
 From the pull request, on a 360 × 780 and a 780 × 360 phone and a desktop window: [upright](cards/upright.png), [sideways](cards/sideways.png) (the last frame shows the crossed-out trophy after a retry), [desktop](cards/desktop.png).
 
+## The board step (online leaderboard, Oct 16)
+
+Built after this plan, from the leaderboard plan's mockup: the roof's clear card on a full run that never retried checks the board, offers initials, saves them and shows the top five; a rugged full run says ONLY COMPLETED UNITS ARE PROCESSED., a retried one OFF THE RECORD. What it says and does is in the README under Leaderboard. Sideways the band grows to 158 rows while it's up (112 for the rugged and retried lines).
+
 ## Left for later
 
 - ~~The 13th Floor's hall restart is a fresh run.~~ Done with the difficulty modes: Retry before SHRED-O carries the run (its retries and the stairwell's souls), so the question is asked once and the trophy shows. The cards also show the run's mode, small and dim, ahead of NEW BEST and RETRIED, and on a Raging Bull run that could still open Impossibull the question adds OR UNLOCK IMPOSSIBULL. (owner, Oct 16).
