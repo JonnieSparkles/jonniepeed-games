@@ -7,7 +7,7 @@ var UnrugRoof = function (core) {
   'use strict';
   // All roof tuning lives here. Times are starting points; phases end on damage, not a clock.
   const ROOF = {
-    time: { elevator: 4, walk: 25.4, flash: 3.2, wake: 3.5, odds: 8, quiet: 2.8, return: 4.5,
+    time: { elevator: 4, walk: 25.4, flash: 3.2, wake: 3.5, odds: 8, quiet: 2.8, return: 6.2,
       flood: 3, pinch: 1, fusion: 0, lines: 4.5, beam: 2.5, one: 2, snap: 0, dawn: 5, ending: 0, clear: 0 },
     aisle: .84, parapetH: .09, hitsPerSpool: [40, 40, 40],
     eyeZ: .86, eyeH: .71, eyeLimit: .55, eyeFollow: 1.3, eyeHit: .15, aimCone: 2,   // open, the eye draws his shots from anywhere on the roof
@@ -62,8 +62,10 @@ var UnrugRoof = function (core) {
     rise: { from: .3, to: 2.7, bolt: 1.9, shakeEvery: .35, eyeFlicker: 1 },
     // the knockdown before the stream: this far into the quiet a thread off the middle spool lashes him flat and back to
     // the front row (knock: seconds he's thrown); p(Loom) gloats (gloat: seconds after); he's down until the first soul
-    // reaches him, then gets up (rise: seconds) (owner, Oct 16: the souls need a reason to come)
-    down: { at: .3, knock: .3, gloat: .45, rise: .35 },
+    // reaches him, then gets up (rise: seconds; on his knees for the first `knees` of it) and only then, `fire` seconds
+    // on his feet, does the blaster start; the other two souls wait for that (owner, Oct 16: the souls need a reason to
+    // come; then, he fired before he was up: down, the souls come, he gets up, then he fires)
+    down: { at: .3, knock: .3, gloat: .45, rise: 1, knees: .55, fire: .35 },
     reset: { stitchAfter: .3, stitch: 1.8, respoolAfter: 2.3, respool: 3, after: .5, relay: 1.2 },   // relay: a reclaimed tile is woven again after this long
     effects: { jitterX: 5, jitterY: 3, sway: 1.2, bob: .8, curve: 32, captureLift: 14,
       walkAlpha: .055, wakeRise: 1.3, arrivalPulse: .35, pullLoose: .22, departSpan: 1, flightLift: 16, trailGap: .025,
@@ -253,12 +255,12 @@ var UnrugRoof = function (core) {
     }, ready: () => Q.quietT >= ROOF.time.quiet },
     return: { entry() {
       R.gold = true; R.hot = false; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0;
-      Q.flights = Array.from({ length: Math.min(ROOF.spools, Q.caught) }, (_, i) => soulFlight(Q.caught - 1 - i, i * ROOF.returnGap));
+      Q.flights = Array.from({ length: Math.min(ROOF.spools, Q.caught) }, (_, i) => soulFlight(Q.caught - 1 - i, returnDelay(i)));
       say('ERROR. ERR.');
     }, tick(dt) {
       Q.returnT += dt;
       stepDown(dt);
-      while (Q.returned < Q.flights.length && Q.returnT >= Q.returned * ROOF.returnGap + ROOF.returnFly) {
+      while (Q.returned < Q.flights.length && Q.returnT >= returnDelay(Q.returned) + ROOF.returnFly) {
         const n = Q.returned++; Q.caught = Math.max(0, Q.caught - 1); Snd.play('bell', n); emit('roof_return', { amount: 1 });
         if (n === 0 && Q.downT !== null) Q.upT = 0;   // the first soul reaches him: he gets up
       }
@@ -363,10 +365,13 @@ var UnrugRoof = function (core) {
   function streamTick(dt) {
     if (!['return', 'flood', 'pinch'].includes(Q.state)) { Q.vol = null; return; }
     const v = Q.vol || (Q.vol = { cd: 0, shots: [] }), pinch = Q.state === 'pinch';
+    // knocked down, the blaster waits until he's on his feet (ROOF.down.fire): only the shots already out keep flying
+    const D = ROOF.down, holding = Q.downT != null && (Q.upT == null || Q.upT < D.rise + D.fire);
+    if (holding) v.cd = 0;
     const level = Q.state === 'return' ? Math.min(4, 1 + Q.returned) : 5;
     v.squeeze = pinch ? 1 - (k => k * k * (3 - 2 * k))(clamp(Q.t / ROOF.time.pinch, 0, 1)) : 1;
     v.cd -= dt;
-    if (v.cd <= 0) {
+    if (v.cd <= 0 && !holding) {
       v.cd = pinch ? .06 : .17; const lean = clamp(Q.eye.u - bull.u, -ROOF.streamLean, ROOF.streamLean);
       for (const [o, d] of PATTERN[level]) v.shots.push({ base: bull.u, o, d, lean, z: 0 });
       Snd.play('shot', 'soft');
@@ -384,6 +389,8 @@ var UnrugRoof = function (core) {
   // where a stream is across the roof, z of the way to the eye: its spread, squeezed in the pinch, and its lean
   const streamU = (sh, z, v) => sh.base + (sh.o + sh.d * z) * v.squeeze + (sh.lean || 0) * z * z;
   const deadBlaster = () => Q.state === 'quiet' || Q.state === 'reset' && Q.silenced;
+  // when each of the three souls leaves its spool in the return: the first at once; the others after he's up and firing
+  const returnDelay = i => i * ROOF.returnGap + (i ? ROOF.down.rise + ROOF.down.fire : 0);
   // knocked down: from the lash in the quiet until the first soul reaches him (then he gets up, ROOF.down.rise)
   const downed = () => !!Q && Q.downT != null && (Q.state === 'quiet' || Q.state === 'return' && (Q.upT === null || Q.upT < ROOF.down.rise));
   function stepDown(dt) {
@@ -1276,7 +1283,7 @@ var UnrugRoof = function (core) {
   function drawDowned() {
     const t = Q.downT, up = Q.upT !== null && Q.upT !== undefined ? Q.upT : null, P = A.POSES;
     let p, lift = 0;
-    if (up !== null) p = up < ROOF.down.rise * .55 ? P.crouch : P.stand;
+    if (up !== null) p = up < ROOF.down.knees ? P.crouch : P.stand;
     else if (t < DOWN_POSE.flinch) p = P.hurt;
     else if (t < DOWN_POSE.fall) p = P.fall;
     else { p = Math.floor((t - DOWN_POSE.fall) / .45) % 2 ? P.lieB : P.lie; const k = t - DOWN_POSE.fall; if (k < .14) lift = Math.sin(k / .14 * Math.PI) * 1.2; }
@@ -1337,11 +1344,14 @@ var UnrugRoof = function (core) {
   function hud() {
     drawSoulsCounter(displayedCount());
     if (Q.tips.length && (isRound() || Q.state === 'walk' || Q.state === 'reset')) {
-      // a first-time prompt, under the HUD, clear of the roof and the eye
-      const k = Q.tips[0], w = textWidth(k.text) + 10, y = 16;
+      // a first-time prompt, at the right beside the loom, wrapped short: clear of the HUD's odds bar and spool pips,
+      // p(Loom)'s line in the middle and his own lines at the left (owner, Oct 16: it sat over the pips and p(Loom)'s line)
+      const k = Q.tips[0], lines = [];
+      for (const wd of k.text.split(' ')) { const l = lines.length - 1; if (l >= 0 && (lines[l] + ' ' + wd).length <= 18) lines[l] += ' ' + wd; else lines.push(wd); }
+      const w = Math.max(...lines.map(l => textWidth(l))) + 8, h = lines.length * 7 + 3, x = W - 3 - w, y = 37;   // below the longest p(Loom) line, right of the loom
       g.save(); g.globalAlpha = clamp(Math.min(k.t * 6, (F.tipT - k.t) * 4), 0, 1);
-      rect(g, (W - w) / 2, y - 3, w, 11, '#0a0810'); rect(g, (W - w) / 2, y - 3, w, 1, '#ffd44a');
-      txt(g, k.text, W / 2, y, Math.floor(k.t * 4) % 2 ? '#ffffff' : '#ffd44a', 1, 'center'); g.restore();
+      rect(g, x, y, w, h, '#0a0810'); rect(g, x, y, w, 1, '#ffd44a');
+      lines.forEach((l, i) => txt(g, l, x + w / 2, y + 3 + i * 7, Math.floor(k.t * 4) % 2 ? '#ffffff' : '#ffd44a', 1, 'center')); g.restore();
     }
     if (['elevator', 'walk', 'flash'].includes(Q.state)) return;
     otxt(g, 'P(LOOM)', 56, 5, '#ffd44a');

@@ -27,7 +27,12 @@
   check(R.roof.downT > 0 && Math.abs(bull.bz - floor.tileZ(0)) < 1e-9 && spoken.includes('STAY DOWN.'), 'the quiet knocks him down to the front row: STAY DOWN.');
   const zd = bull.bz; keys.kbUp = true; tick(.5); keys.kbUp = false;
   check(bull.bz === zd && R.roof.upT === null, 'down, he can\'t move until a soul reaches him');
-  for (let i = 0; i < 300 && !(R.roof.upT >= floor.ROOF.down.rise); i++) update(1 / 60);
+  // and the blaster waits for him: no stream while he's down or getting up (owner, Oct 16: down, the souls come, he
+  // gets up, then he fires)
+  let early = 0;
+  for (let i = 0; i < 400 && !(R.roof.upT >= floor.ROOF.down.rise + floor.ROOF.down.fire - .02); i++) { update(1 / 60); early += R.roof.vol ? R.roof.vol.shots.length : 0; }
+  check(early === 0 && R.roof.returned === 1, 'no stream until he has been on his feet a moment: ' + early);
+  tick(.1); check(R.roof.vol && R.roof.vol.shots.length > 0, 'then the blaster fires the stream');
   check(R.roof.returned >= 1 && R.roof.upT >= floor.ROOF.down.rise, 'the first soul back gets him up');
   // from the first soul back he walks freely, and the blaster fires the streams on its own
   const u0 = bull.u, z0 = bull.bz; keys.kbRight = true; keys.kbUp = true; tick(.5); keys.kbRight = false; keys.kbUp = false;
@@ -85,6 +90,7 @@
   check(R.t === frozen.t && R.roof.t === frozen.qt && R.freeze > 0, 'fusion freezes fight for 0.14 seconds');
   // before the beam the streams lean toward the eye and clang off its armour, cracking it; off to the side they miss
   fresh(); floor.enter('round3'); R.roof.broken = 3; floor.enter('quiet'); tick(2.1);
+  for (let i = 0; i < 600 && !(R.roof.upT >= floor.ROOF.down.rise + floor.ROOF.down.fire); i++) update(1 / 60);   // he's up and firing
   R.roof.eye.u = 0; bull.u = .05; let clangs = played.filter(n => n === 'clang').length; tick(2);
   check(R.roof.state === 'return' && R.roof.armour > 0 && played.filter(n => n === 'clang').length > clangs, 'under the eye, the streams clang off its armour and crack it');
   const cracked = R.roof.armour; R.roof.eye.u = -.5; bull.u = floor.ROOF.beamBull; tick(1);
