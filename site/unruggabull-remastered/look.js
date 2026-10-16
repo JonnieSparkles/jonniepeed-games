@@ -123,6 +123,37 @@ function lookHud(ctx, p, kills, wave, maxWaves, showCount, now) {
   ctx.restore();
 }
 
+// The run's time, under the health and shots, with a pixel stopwatch; and for 3 s after the waves end and after
+// the Rugfather goes down, that split beside it, green when it's ahead of this device's best and red when behind.
+var LOOK_WATCH = ["..XXX....", "....X....", "..XXXXX..", ".X.....X.", "X...X...X", "X...X...X", "X....XX.X", "X.......X", ".X.....X.", "..XXXXX.."];
+function lookWatch(ctx, x, y, px, col) {
+  ctx.fillStyle = col;
+  LOOK_WATCH.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === 'X') ctx.fillRect(x + i * px, y + j * px, px, px); });
+}
+function lookClock(ms) { const s = Math.max(0, ms) / 1000; return Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); }
+function lookTimer(ctx, ms, split) {
+  ctx.save();
+  ctx.imageSmoothingEnabled = false; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  ctx.font = LOOK.pix(28); lookSpacing(ctx, 1);
+  const text = lookClock(ms), w = Math.max(124, 52 + ctx.measureText(text).width + 12);
+  ctx.fillStyle = 'rgba(12,7,7,0.6)'; lookRoundRect(ctx, 12, 86, w, 34, 8); ctx.fill();
+  lookWatch(ctx, 21, 88, 3, LOOK.amber);
+  lookOutlined(ctx, text, 54, 112, '#fff0d8', '#1a0a06', 4);
+  if (split) {
+    ctx.globalAlpha = split.age < 2600 ? 1 : Math.max(0, 1 - (split.age - 2600) / 400);
+    const d = split.delta;
+    const val = d == null ? lookClock(split.ms) : (d < 0 ? '\u2212' : '+') + (Math.abs(d) / 1000).toFixed(1);
+    const col = d == null ? LOOK.amber : d < 0 ? '#6dff8a' : '#ff6a55';
+    ctx.font = LOOK.pix(19); lookSpacing(ctx, 3); const lw = ctx.measureText(split.label).width;
+    ctx.font = LOOK.pix(28); lookSpacing(ctx, 1); const vw = ctx.measureText(val).width;
+    const x = 12 + w + 6, pw = lw + vw + 30;
+    ctx.fillStyle = 'rgba(12,7,7,0.6)'; lookRoundRect(ctx, x, 86, pw, 34, 8); ctx.fill();
+    ctx.font = LOOK.pix(19); lookSpacing(ctx, 3); lookOutlined(ctx, split.label, x + 10, 109, LOOK.ash, 'rgba(12,6,5,0.9)', 4);
+    ctx.font = LOOK.pix(28); lookSpacing(ctx, 1); lookOutlined(ctx, val, x + 20 + lw, 112, col, '#1a0a06', 4);
+  }
+  ctx.restore();
+}
+
 // "WAVE 2/5" and "FIGHT!": they pop in, hold and fade over the original's one second.
 function lookBanner(ctx, text, elapsed) {
   if (elapsed > 1000) return;

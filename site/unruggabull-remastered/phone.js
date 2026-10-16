@@ -47,7 +47,7 @@
   }
 
   // ---------- touch input ----------
-  // Left half: the pad. Up and the up-diagonals jump, once per press (slide back down to jump again); a press up
+  // Left half: the pad. Up and the up-diagonals jump, and held they keep jumping, like a held jump key; a press up
   // just before landing still jumps when he lands. Down crouches. Right half: fire, one shot per tap.
   const touches = new Map();
   let jumpUntil = -1, fireTap = false;
@@ -90,14 +90,14 @@
 
   // Called by the game loop (game.js) before each step.
   window.beforeGameStep = function () {
-    let l = false, r = false, d = false, f = fireTap;
+    let l = false, r = false, d = false, u = false, f = fireTap;
     for (const t of touches.values()) {
-      if (t.side === 'pad') { const o = padDirs(t); l = l || o.l; r = r || o.r; d = d || o.d; }
+      if (t.side === 'pad') { const o = padDirs(t); l = l || o.l; r = r || o.r; d = d || o.d; u = u || o.u; }
       else f = true;
     }
     fireTap = false;
     touchKeys.left = l; touchKeys.right = r; touchKeys.crouch = d;
-    touchKeys.jump = gameNow() < jumpUntil;
+    touchKeys.jump = u || gameNow() < jumpUntil;
     touchKeys.fire = f;
   };
   function releaseAll() {

@@ -123,7 +123,7 @@ function fxShakeOffset() {
 function fxScreenFlash(ctx) {
   const left = fxFlashUntil - performance.now();
   if (left <= 0) return;
-  ctx.save(); ctx.fillStyle = 'rgba(255,244,230,' + (0.55 * Math.min(1, left / 400)) + ')'; ctx.fillRect(0, 0, 960, 540); ctx.restore();
+  ctx.save(); ctx.fillStyle = 'rgba(255,244,230,' + (0.3 * Math.min(1, left / 400)) + ')'; ctx.fillRect(0, 0, 960, 540); ctx.restore();
 }
 
 // ---------- the bull ----------
@@ -430,11 +430,12 @@ function fxStep() {
   for (let i = fxRf.rings.length - 1; i >= 0; i--) { fxRf.rings[i].age += dt; if (fxRf.rings[i].age > 550) fxRf.rings.splice(i, 1); }
   // the garage's embers
   const open = fxGarageOpen(now);
-  if (open > 0 && Math.random() < 0.9 * open) fxPix(fxRnd(355, 575), fxRnd(330, 435), fxRnd(-1.6, 1.6), fxRnd(-2.4, -0.6), fxRnd(800, 1600), FX_FLAME, Math.random() < 0.5 ? 2 : 3, -0.01);
+  const out = getBossActive() && __bossState.sprite !== 'blink';
+  if (open > 0 && !out && Math.random() < 0.9 * open) fxPix(fxRnd(355, 575), fxRnd(330, 435), fxRnd(-1.6, 1.6), fxRnd(-2.4, -0.6), fxRnd(800, 1600), FX_FLAME, Math.random() < 0.5 ? 2 : 3, -0.01);
   // the Rugfather
   const s = __bossState;
   if (getBossActive() && s.active && !s.dying) {
-    if (s.entering && s.sprite === 'spin' && Math.random() < 0.7) fxPix(s.x + 256 * s.scale * fxRnd(0.2, 0.8), s.y + 256 * s.scale * fxRnd(0.4, 0.95), fxRnd(-0.5, 0.5), fxRnd(-0.7, -0.2), fxRnd(1000, 1800), FX_SMOKE, 6, 0, 0.99);
+    if (s.entering && s.sprite === 'spin' && Math.random() < 0.5) { const a = Math.random() * 6.283, v = fxRnd(1.5, 3.5); fxPix(s.x + 128 * s.scale + Math.cos(a) * 90 * s.scale, s.y + 150 * s.scale + Math.sin(a) * 90 * s.scale, Math.cos(a) * v, Math.sin(a) * v - 1, fxRnd(250, 500), FX_FLAME, 3, 0.12); }
     if (!s.entering) {
       fxRf.breath = Math.sin(now / 2600 * 6.283) > 0.15 ? 1 : 0;
       if ((fxRf.flickT -= dt) <= 0) { fxRf.flickT = 80; fxRf.flick = [0, 0.5, 1, 0.3][Math.floor(Math.random() * 4)]; }

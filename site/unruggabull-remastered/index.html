@@ -123,7 +123,19 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 .lb-table tr.lb-you td{color:var(--amber);background:rgba(255,106,26,.18)}
 .lb-gap td{text-align:center!important;color:var(--ash)}
 .lb-input{width:.9em;height:.9em;vertical-align:-.1em;color:var(--ash)}
-.heart{display:inline-block;width:.8em;height:.8em;margin-left:4px;vertical-align:-.05em;background:url(art/heart-icon.webp) center/contain no-repeat;image-rendering:pixelated}
+/* medals: Flawless (the heart), Under 2:00 (a stopwatch) and Never ran dry (the blaster) */
+.mi{display:inline-block;width:.8em;height:.8em;vertical-align:-.05em;background:center/contain no-repeat;image-rendering:pixelated}
+.mi.heart{background-image:url(art/heart-icon.webp)}
+.mi.watch{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 10' shape-rendering='crispEdges' fill='%23ffc53a'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='5' y='2' width='1' height='1'/%3E%3Crect x='6' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='7' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3Crect x='8' y='4' width='1' height='1'/%3E%3Crect x='0' y='5' width='1' height='1'/%3E%3Crect x='4' y='5' width='1' height='1'/%3E%3Crect x='8' y='5' width='1' height='1'/%3E%3Crect x='0' y='6' width='1' height='1'/%3E%3Crect x='5' y='6' width='1' height='1'/%3E%3Crect x='6' y='6' width='1' height='1'/%3E%3Crect x='8' y='6' width='1' height='1'/%3E%3Crect x='0' y='7' width='1' height='1'/%3E%3Crect x='8' y='7' width='1' height='1'/%3E%3Crect x='1' y='8' width='1' height='1'/%3E%3Crect x='7' y='8' width='1' height='1'/%3E%3Crect x='2' y='9' width='1' height='1'/%3E%3Crect x='3' y='9' width='1' height='1'/%3E%3Crect x='4' y='9' width='1' height='1'/%3E%3Crect x='5' y='9' width='1' height='1'/%3E%3Crect x='6' y='9' width='1' height='1'/%3E%3C/svg%3E")}
+.mi.blaster{background-image:url(art/blaster-icon.webp)}
+.lb-medals{display:inline-flex;gap:2px;margin-left:5px;vertical-align:-.05em}
+.lb-medals:empty{display:none}
+/* a phone's end panel is narrow: the input icon goes and the columns tighten, so the board fits without scrolling */
+@media (max-height:520px){#end-board .lb-table td:nth-child(6),#end-board .lb-table th:nth-child(6){display:none}#end-board .lb-table{font-size:.86em}#end-board .lb-table td,#end-board .lb-table th{padding:0 3px}#end-board .lb-table th{letter-spacing:0}#end-board .lb-medals{gap:1px;margin-left:3px}#end-board .mi{width:.7em;height:.7em}}
+#end-medals{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:2px 0 0}
+.medal{display:inline-flex;align-items:center;gap:5px;font-size:.78em;letter-spacing:.05em;text-transform:uppercase;padding:1px 9px;border:1px solid var(--amber);border-radius:999px;color:var(--cream);background:rgba(255,197,58,.1);transition:opacity .3s,transform .3s}
+.medal.off{opacity:.35;filter:grayscale(1);border-color:#5a3a2c;background:none}
+.medal.pop{transform:scale(1.12)}
 .lb-more{align-self:center;font-size:18px;min-height:36px;padding:2px 14px}
 #board .card{max-width:min(96vw,620px)}
 @media (prefers-reduced-motion:reduce){#gameCanvas,#title{transition:none}#menu > .on::before{animation:none}}
@@ -167,7 +179,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
       <p id="rugged-line"></p>
       <div class="endrow">
         <button class="go" id="retry2-btn">Retry</button>
-        <button id="title2-btn">Title</button>
+        <button id="title2-btn">Quit</button>
       </div>
     </div>
   </div>
@@ -227,12 +239,12 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
 <script src="audio.js?v=61f5f4c9df"></script>
 <script src="core.js?v=952ffcf47c"></script>
-<script src="look.js?v=7345b218fd"></script>
-<script src="fx.js?v=1e889f3bce"></script>
-<script src="rugfather.js?v=407dccaa40"></script>
-<script src="game.js?v=d65423ee18"></script>
-<script src="end.js?v=69e2b0a19d"></script>
+<script src="look.js?v=f391cb8de8"></script>
+<script src="fx.js?v=119ac1a76e"></script>
+<script src="rugfather.js?v=5c158c6ccd"></script>
+<script src="game.js?v=9c91faad15"></script>
+<script src="end.js?v=4a0391e1d9"></script>
 <script src="title.js?v=8d560966e2"></script>
-<script src="phone.js?v=dad3c8ea2d"></script>
+<script src="phone.js?v=009570bb83"></script>
 </body>
 </html>

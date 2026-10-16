@@ -1,5 +1,7 @@
 // The leaderboard this copy posts to (scores/games.json; docs/games/unruggabull-remastered/README.md).
 const BOARD = 1;
+// whether the blaster ran out of shots this run (the "Never ran dry" medal, end.js)
+var runRanDry = false;
 
 // from the 2025 game: src/physics.js
 var PLATFORM_WIDTH = 120;
@@ -465,6 +467,7 @@ function updateGame(bullets2, canvas4) {
     if (!updateGame._defeatSceneStarted) {
       launchRugfatherDefeatScene();
       setGameStopTime(now);
+      if (window.UnrugRun) UnrugRun.split('clear');
       updateGame._defeatSceneStarted = true;
     }
     updateRugfatherDefeatScene(now);
@@ -518,6 +521,7 @@ function updateGame(bullets2, canvas4) {
     }
     setBossHold(true);
     setBossTriggered(true);
+    if (window.UnrugRun) UnrugRun.split('waves');
     startBossIntro();
     setBossHoldStartTime(now);
     bgMusic.pause();
@@ -647,6 +651,7 @@ function updateGame(bullets2, canvas4) {
     if (player.blasterEnergy > 0) {
       player.blasterEnergy--;
       spawnPlayerBullet(player);
+      if (player.blasterEnergy === 0) runRanDry = true;
     } else {
       player.blasterEmptyFlashEndTime = now + BLASTER_EMPTY_FLASH_DURATION;
       // the 2025 buzz, behind a trigger click and sagging as it fades (audio.js)
@@ -835,6 +840,7 @@ function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartH
   const maxWaves = levels_default[getCurrentLevelKey()].bossTriggerDifficulty - 1;
   const showCount = !getBossHold() && !getBossPause() && !getBossTransition() && !getBossActive();
   lookHud(ctx4, player2, killCount, difficultyLevel, maxWaves, showCount, now);
+  if (window.UnrugRun) lookTimer(ctx4, UnrugRun.ms(), UnrugRun.shownSplit());
   if (getBossActive() && getCurrentBoss() && getBossBattleStarted() && !__bossState.dying) lookBossBar(ctx4, __bossState.hp, MAX_HP);
   if (getWaveBanner && getWaveBanner()) {
     const elapsed = now - getWaveBannerStartTime();
@@ -1109,6 +1115,7 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
 // from the 2025 game: src/controller.js
 function resetGame(canvas4, bullets2) {
   setBossTriggered(false);
+  runRanDry = false;
   setBossExit(false);
   setBossExitDoorClosing(false);
   setBossActive(false);
