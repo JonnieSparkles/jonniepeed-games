@@ -15,6 +15,16 @@ As in 2025:
 
 The touches, all presentation (`look.js`): the HUD in Jersey 15 with health in 20 segments, the blaster's 30 shots in cells and the unrugged count with the wave under it, drawn on top and steady while the screen shakes; the Rugfather's health as a segmented bar under his name; fire-escape grates for the platforms; a glowing shot and sparks when a carpshit is unrugged; "Wave n/5", "Fight!" and "Game over!" in Bungee; a new controls screen; the alley's own edges, darkened, in the bars beside it. "Fight!" no longer freezes the screen for its second.
 
+The polish, also presentation (`fx.js`; every frame drawn is still 2025 art, and pieces of things, such as dust, smoke, flames and torn carpshits, are pixel art on a 3 px grid with stepped colours and no rotation):
+
+- **The alley:** firelight that rises and falls with the flames, on the walls and in a pool on the floor; the two RUGS signs rippling in the puddles; red light, embers and smoke out of the opening garage; a soft vignette and faint grain under the HUD.
+- **The bull:** a stretch on take-off and a squash with a puff of dust on landing; a star-shaped muzzle flash and a 3 px kick when he fires; on a hit, a white frame, a short knockback away from what hit him and a quicker blink than 2025's half-fade; an orange rim on the side that faces the burning sign.
+- **Carpshits:** a shadow that shrinks with height; swoopers tilt with their swoop and all of them flutter a little; wind streaks and a glint as a swooper rises to the top of each dive (2025's swoopers weave up and down without stopping, so the warning marks the top of the weave and changes no timing); when one is unrugged, a white frame, then its own frame tears into three ragged bands that fly apart, land with a puff of dust and blink out. One that falls without being shot (the defeat scene) falls whole, as in 2025.
+- **The Rugfather:** his standing frame breathes (the chest and head rise 3 px, stepped), the bright parts of his fire flicker and pixel flames lick off it, and he lights the floor under him; each hit is a white frame for 80 ms (then 2025's brighter frame) and stops the game for 70 ms; a red pulse and a burst of steam at each phase change; smoke and sparks below 30%; a dust ring and a heavier shake when the spin-jump lands; a flare in his hand and on the floor in the beat before he throws (the throw's timing is 2025's); on the last hit, a 0.3 s freeze, a white-out and a second of slow motion before his 2025 defeat.
+- **His flaming carpets:** a pixel flame trail instead of 2025's soft glows; light on the walls and floor as one passes; the first shot gives a white frame and knocks it back about 13 px; the second still shows 2025's burst, now with pixel smoke and embers, and it blinks out.
+
+The hit-stops and the slow motion hold the game clock, so they don't count in a clear's time.
+
 ## Controls
 
 - **Keyboard:** A/D or the arrows walk, W, Space or Up jumps (held, it keeps jumping, as in 2025), S, C or Down crouches, F, J or Enter fires. Escape or P pauses. On the title, W/S or Up/Down move the blaster and Enter picks; in the gallery, A/D or Left/Right turn the pictures.
@@ -46,6 +56,7 @@ Classic scripts, loaded in this order by `site/unruggabull-remastered/index.html
 - `audio.js`: `UnrugSound` (`clip`, `play`, `preload`, `init`, `muted`, `setPaused`). Every mp3 is decoded once into Web Audio; a `Clip` has the `<audio>` element's play, pause, currentTime, volume, loop, src and playbackRate, so the 2025 code calls it as it did. Below it, the 2025 game's sounds under their old names (`bgMusic`, `fireSound`, ...). Pausing suspends the whole context.
 - `core.js`: the game clock (`gameNow`, `gameTimeout`, `STEP_MS`), input (`keys`, `touchKeys`, `inputLeft()` and the rest), the player, game state (`setGameState` calls `window.onGameState`), the alley background and embers, shots and flaming carpets.
 - `look.js`: the touched look's drawing (`lookHud`, `lookBanner`, `lookPlatforms`, `lookShot`, sparks, `lookBossBar`, `lookControlsScreen`, `lookGameOver`, `lookLogo`).
+- `fx.js`: the polish (`fxStep` once per game step for particles and timers; `fxTime` holds the loop for hit-stops and slow motion; drawing helpers called from `game.js`, `rugfather.js` and the carpets in `core.js`).
 - `rugfather.js`: the Rugfather's sprites, constants, AI, boss object, intro and defeat timelines and the orchestrator that plays them.
 - `game.js`: `BOARD`, platforms, the level config, carpshits, collisions, `updateGame`, `renderGame` (the scene, then the HUD and banners) and `renderScene`, `resetGame`, the loop (`gameLoop`) and `beginGame`.
 - `end.js`: `UnrugRun`: the run's token and play stats, the end card, the board table, this device's clears.
@@ -62,4 +73,5 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
+- **Oct 16, 2026:** the polish (`fx.js`), from two mockups: https://claude.ai/artifact/JF7kkcjtNWmEW9KmGp4ghb (the alley) and https://claude.ai/artifact/QJ7zGoDidQJ97NEBQGLA2w (the sprites). Left out at Jonnie's call: the Rugfather turning to look at the camera.
 - **Oct 16, 2026:** built in one pull request: the 2025 game moved here and plays on phones (step 1), the touched look and title B (step 2), the end card and board (step 3), the share card and thumbnail (step 4).

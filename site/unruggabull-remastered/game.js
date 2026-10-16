@@ -254,12 +254,11 @@ function updateCarpshits() {
     nextUpperSpawn = now + getRespawnDelay();
   }
 }
+// drawn through fx.js: shadows, tilt, the swoop warning, and torn apart when unrugged
 function drawCarpshits() {
   carpshits.forEach((carpshit) => {
     if (!carpshit.alive && !carpshit.falling && !carpshit.onFloor) return;
-    const frameToDraw = carpshit.alive ? carpshit.frame : 3;
-    const yDraw = !carpshit.alive && carpshit.onFloor ? carpshit.y + 12 : carpshit.y;
-    ctx2.drawImage(carpshitSprite, frameToDraw * 64, 0, 64, 64, carpshit.x, yDraw, 64, 64);
+    fxDrawCarpshit(ctx2, carpshit);
   });
 }
 function updateLowerCarpshits() {
@@ -311,9 +310,7 @@ function updateLowerCarpshits() {
 function drawLowerCarpshits() {
   lowerCarpshits.forEach((carpshit) => {
     if (!carpshit.alive && !carpshit.falling && !carpshit.onFloor) return;
-    const frameToDraw = carpshit.alive ? carpshit.frame : 3;
-    const yDraw = !carpshit.alive && carpshit.onFloor ? carpshit.y + 12 : carpshit.y;
-    ctx2.drawImage(carpshitSprite, frameToDraw * 64, 0, 64, 64, carpshit.x, yDraw, 64, 64);
+    fxDrawCarpshit(ctx2, carpshit);
   });
 }
 
@@ -353,6 +350,8 @@ function checkPlayercarpshitCollisions(player2, carpshits2, onHit) {
 // from the 2025 game: src/callbacks.js
 function handleBulletKill(bullets2, index, carpshit) {
   if (bullets2[index]) lookAddSparks(bullets2[index].x, bullets2[index].y);
+  carpshit.tearFrame = carpshit.frame;
+  carpshit.killedAt = gameNow();
   carpshit.alive = false;
   carpshit.frame = 3;
   carpshit.falling = true;
@@ -389,6 +388,9 @@ function handlePlayerHit(carpshit) {
     player.sprite = "dead";
     player.width = 128;
   }
+  fxBullHit(carpshit.x + 32);
+  carpshit.tearFrame = carpshit.frame;
+  carpshit.killedAt = gameNow();
   carpshit.alive = false;
   carpshit.frame = 3;
   carpshit.falling = true;
@@ -423,6 +425,7 @@ function handleCarpetHit(projectiles2, index, carpet) {
     player.sprite = "dead";
     player.width = 128;
   }
+  fxBullHit(carpet.x);
   carpet.hit = true;
   carpet.vx = 0;
   carpet.vy = 0;
@@ -636,6 +639,7 @@ function updateGame(bullets2, canvas4) {
   }
   updatePlayerInput();
   handlePhysics(player, platforms, canvas4);
+  fxBullStep(player);
   if (inputFire() && !player.firing) {
     if (player.blasterEnergy > 0) {
       player.blasterEnergy--;
@@ -691,6 +695,7 @@ function updateGame(bullets2, canvas4) {
             p.hp -= 1;
             if (p.hp > 0) {
               p.flashEndTime = gameNow() + FLASH_DURATION;
+              p.jolt = -Math.sign(p.vx) * 9;
             } else {
               p.hit = true;
               p.vx = 0;
@@ -739,6 +744,7 @@ function updateGame(bullets2, canvas4) {
         player.health--;
         player.invulnerable = true;
         player.invulnerableUntil = gameNow() + INVULNERABLE_TIME;
+        fxBullHit(bossHitbox.x + bossHitbox.width / 2);
         setFlashActive(true);
         setFlashColor("rgba(255,0,0,0.5)");
         setFlashEndTime(gameNow() + FLASH_DURATION);
@@ -818,6 +824,8 @@ var PLAYER_SPRITES = {
 // the scene, then the HUD and banners on top of it, steady while the screen shakes.
 function renderGame(ctx4, canvas4, bullets2, player2, restartButton2, isRestartHover2) {
   renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestartHover2);
+  if (gameState !== "controls") fxGrit(ctx4);
+  fxScreenFlash(ctx4);
   if (gameState === "controls" || gameState === "congrats" || gameState.includes("over")) return;
   const now = gameNow();
   const maxWaves = levels_default[getCurrentLevelKey()].bossTriggerDifficulty - 1;
@@ -853,10 +861,17 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
       ctx4.translate(dx, dy);
     }
   }
+  const fxs = fxShakeOffset();
+  if (fxs) {
+    if (!shaking) { shaking = true; ctx4.save(); }
+    ctx4.translate(fxs.x, fxs.y);
+  }
   ctx4.clearRect(0, 0, canvas4.width, canvas4.height);
   const levelConfig2 = levels_default[getCurrentLevelKey()];
   const floorY2 = levelConfig2.floorY;
   levelConfig2.background(ctx4, canvas4);
+  fxFirelight(ctx4, now);
+  fxGarageGlow(ctx4, now);
   if (flashActive) {
     const flashNow = gameNow();
     const timeLeft = flashEndTime - flashNow;
@@ -940,9 +955,8 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
       ctx4.save();
       let alpha = player2.opacity !== void 0 ? player2.opacity : 1;
       if (player2.invulnerable && spriteState !== "dead") {
-        const blinkInterval = 200;
-        const blinkOn = Math.floor(now / blinkInterval) % 2 === 0;
-        alpha *= blinkOn ? 0.5 : 1;
+        // a quicker blink than 2025's slow half-fade (fx.js)
+        alpha *= fxBullAlpha(now);
       }
       ctx4.globalAlpha = alpha;
       const scale = player2.scale !== void 0 ? player2.scale : 1;
@@ -962,33 +976,8 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
         );
       } else {
         const shouldMirror = frameData.mirror || player2.facing < 0 && spriteState !== "walkForward";
-        if (shouldMirror) {
-          ctx4.translate(frameWidth, 0);
-          ctx4.scale(-1, 1);
-          ctx4.drawImage(
-            img,
-            frameData.frame * frameWidth,
-            srcY,
-            frameWidth,
-            srcH,
-            0,
-            0,
-            frameWidth,
-            frameHeight
-          );
-        } else {
-          ctx4.drawImage(
-            img,
-            frameData.frame * frameWidth,
-            srcY,
-            frameWidth,
-            srcH,
-            0,
-            0,
-            frameWidth,
-            frameHeight
-          );
-        }
+        // squash and stretch, the fire kick, the white frame on a hit and the rim light (fx.js)
+        fxDrawBull(ctx4, img, frameData.frame, srcY, frameWidth, frameHeight, shouldMirror, player2, now);
       }
       ctx4.restore();
     }
@@ -998,7 +987,8 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
       const muzzleOffsetY = player2.crouching ? player2.height / 2 : player2.height / 2 + 5;
       const muzzleX = player2.x + muzzleOffsetX;
       const muzzleY = player2.crouching ? player2.feetY - player2.height + muzzleOffsetY : player2.y + muzzleOffsetY;
-      lookMuzzle(ctx4, muzzleX, muzzleY);
+      lookMuzzle(ctx4, muzzleX - direction * 3, muzzleY);
+      fxMuzzleStar(ctx4, muzzleX, muzzleY, direction);
     }
     if (DEBUG_HITBOXES) {
       ctx4.save();
@@ -1048,6 +1038,7 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
         drawLowerCarpshits(ctx4);
       }
     }
+    if (!(getBossActive() && getCurrentBoss())) fxDrawWorld(ctx4);
     lookDrawSparks(ctx4);
     if (gameState === "congrats") {
       ctx4.save();
@@ -1083,6 +1074,7 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
       projectiles.forEach((p) => {
         if (p.type === "boss") p.draw(ctx4, DEBUG_HITBOXES);
       });
+      fxDrawWorld(ctx4);
       lookDrawSparks(ctx4);
       if (DEBUG_HITBOXES) {
         const bossHitbox = getCurrentBoss().getHitbox();
@@ -1227,8 +1219,12 @@ function gameLoop(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
   const tick = (ts) => {
     if (!LOOP_STATES.includes(gameState)) { loopRunning = false; return; }
     if (gamePaused) { last = ts; requestAnimationFrame(tick); return; }
-    acc += Math.min(250, Math.max(0, ts - last));
+    let dt = Math.min(250, Math.max(0, ts - last));
     last = ts;
+    // hit-stop and slow motion (fx.js) spend real time without moving the game clock as far
+    if (fxTime.hold > 0) { const use = Math.min(dt, fxTime.hold); fxTime.hold -= use; dt -= use; }
+    if (fxTime.slow > 0 && dt > 0) { const use = Math.min(dt, fxTime.slow); fxTime.slow -= use; dt -= use * (1 - fxTime.rate); }
+    acc += dt;
     let steps = 0;
     while (acc >= STEP_MS && steps < 8) {
       acc -= STEP_MS;
@@ -1237,7 +1233,9 @@ function gameLoop(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
       runGameTimers();
       if (window.beforeGameStep) window.beforeGameStep();
       updateGame(bullets2, canvas4);
+      fxStep();
       if (!LOOP_STATES.includes(gameState)) break;
+      if (fxTime.hold > 0) { acc = 0; break; }
     }
     if (steps > 0) renderGame(ctx4, canvas4, bullets2, player, restartButton2, isRestartHover2);
     if (LOOP_STATES.includes(gameState)) requestAnimationFrame(tick);
@@ -1251,6 +1249,7 @@ function beginGame(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
   setBackgroundFlickerMode("default");
   bgMusic.playbackRate = 1;
   clearEntities(projectiles, tweens, gameTimers, lookSparks);
+  fxReset();
   setScreenShake(false);
   setFightBanner(false);
   __bossState.dying = false;

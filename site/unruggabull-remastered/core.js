@@ -688,6 +688,7 @@ var RugfatherCarpet = class {
     }
     this.x += this.vx;
     this.y += this.vy;
+    fxCarpetStep(this);
     this.trail.push({ x: this.x, y: this.y, time: now });
     this.trail = this.trail.filter((point) => now - point.time < 300);
   }
@@ -728,52 +729,18 @@ var RugfatherCarpet = class {
       this.frameTimer++;
       frame = Math.floor(this.frameTimer / 6) % 3;
     }
-    const nowTrail = gameNow();
-    for (const point of this.trail) {
-      const age = nowTrail - point.time;
-      const fade = 1 - age / 300;
-      const flickerX = (Math.random() - 0.5) * 6 * fade;
-      const flickerY = (Math.random() - 0.5) * 6 * fade;
-      let color, radius, alpha;
-      if (fade > 0.7) {
-        color = "rgba(255,255,180,1)";
-        radius = 13 * fade;
-        alpha = 0.25 * fade;
-      } else if (fade > 0.4) {
-        color = "rgba(255,180,40,1)";
-        radius = 10 * fade;
-        alpha = 0.18 * fade;
-      } else {
-        color = "rgba(255,60,0,1)";
-        radius = 7 * fade;
-        alpha = 0.1 * fade;
-      }
-      ctx4.save();
-      ctx4.globalAlpha = alpha;
-      ctx4.beginPath();
-      ctx4.arc(point.x + flickerX, point.y + flickerY, Math.max(radius * 1.5, 1), 0, 2 * Math.PI);
-      ctx4.fillStyle = color;
-      ctx4.shadowColor = color;
-      ctx4.shadowBlur = 16;
-      ctx4.fill();
-      ctx4.restore();
-      ctx4.save();
-      ctx4.globalAlpha = alpha * 1.5;
-      ctx4.beginPath();
-      ctx4.arc(point.x + flickerX, point.y + flickerY, Math.max(radius * 0.7, 1), 0, 2 * Math.PI);
-      ctx4.fillStyle = color;
-      ctx4.shadowColor = color;
-      ctx4.shadowBlur = 4;
-      ctx4.fill();
-      ctx4.restore();
-    }
+    // the 2025 soft glow trail is now pixel flames (fx.js), and the carpet lights the alley
+    fxCarpetLight(ctx4, this);
+    if (this.hit && this.hitAt != null && now - this.hitAt > 300 && Math.floor((now - this.hitAt) / 50) % 2) return;
     ctx4.save();
-    if (flashActive2) ctx4.filter = "brightness(2)";
+    // the first shot: a white frame, then 2025's brighter one
+    const whiteNow = flashActive2 && now < this.flashEndTime - FLASH_DURATION + 70;
+    if (flashActive2 && !whiteNow) ctx4.filter = "brightness(2)";
     ctx4.translate(this.x, this.y);
     const sx = this.vx > 0 ? -scale : scale;
     ctx4.scale(sx, scale);
     ctx4.drawImage(
-      this.sprite,
+      whiteNow ? fxWhite(this.sprite) : this.sprite,
       frame * frameW,
       0,
       frameW,

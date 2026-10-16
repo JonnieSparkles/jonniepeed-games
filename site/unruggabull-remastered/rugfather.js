@@ -120,6 +120,7 @@ function spinSwitchBehavior(now, state2) {
     state2.x = state2.spinSwitchEndX;
     state2.y = state2.spinSwitchFloorY;
     state2.sprite = "hit";
+    fxBossLand(state2);
     muhahahaSfx.currentTime = 0;
     muhahahaSfx.play();
     state2.spinSwitchLanded = true;
@@ -179,6 +180,7 @@ function updatePhaseLogic(state2) {
       state2.invulnFadeInStart = gameNow();
     }, dramaticPause + extraInvuln);
     state2.phase = newPhase;
+    fxBossPhase(state2);
     state2.hasCapturedBaseX = false;
     state2.hasCapturedBaseY = false;
     const cd = PHASE_ATTACK_COOLDOWNS[newPhase] || state2.attackCooldown;
@@ -432,6 +434,11 @@ function draw() {
     }
     const fw2 = spriteInfo2.frameWidth;
     const fh2 = spriteInfo2.frameHeight;
+    if (fxRf.defeatAt === state.deathStart && elapsed < 34) {
+      // the last hit, held white through the freeze (fx.js)
+      ctx.drawImage(fxWhite(bossSpriteSheet2), 3 * 256, 0, 256, 256, state.x, state.y, 256 * state.scale, 256 * state.scale);
+      return;
+    }
     ctx.save();
     ctx.globalAlpha = Math.max(0, state.opacity);
     ctx.drawImage(
@@ -454,6 +461,7 @@ function draw() {
     return;
   }
   const levelConfig2 = levels_default[getCurrentLevelKey()];
+  if (!state.entering) fxRfPool(ctx, state, gameNow());
   const bossFeetY = state.y + BOSS_HEIGHT2 * state.scale;
   if (Math.abs(bossFeetY - levelConfig2.floorY) < 10) {
     ctx.save();
@@ -520,19 +528,17 @@ function draw() {
     ctx.restore();
     return;
   }
-  let filterApplied = false;
-  if (state.hitFlashEnd && gameNow() < state.hitFlashEnd) {
-    ctx.filter = "brightness(1.5) contrast(1.0)";
-    filterApplied = true;
-  }
+  // 2025: a brighter frame for 150 ms on a hit. Now the first 80 ms are a white frame (fx.js); his standing
+  // frame breathes and flickers; a red pulse when the phase changes; a flare in his hand before a throw.
+  const now = gameNow();
+  const whiteHit = state.hitFlashEnd && now < state.hitFlashEnd - 70;
+  if (!whiteHit && state.hitFlashEnd && now < state.hitFlashEnd) ctx.filter = "brightness(1.5) contrast(1.0)";
   let drawAlpha = state.opacity;
   if (state.invulnerable) {
     const flickerSpeed = 80;
-    const now = gameNow();
     drawAlpha = Math.floor(now / flickerSpeed) % 2 === 0 ? 0.25 : 1;
   } else if (state.invulnFadeIn) {
     const fadeDuration = 400;
-    const now = gameNow();
     const t = Math.min(1, (now - state.invulnFadeInStart) / fadeDuration);
     drawAlpha = t;
     if (t >= 1) {
@@ -542,92 +548,39 @@ function draw() {
   }
   const jitterX = state.hitJitterX ? (Math.random() - 0.5) * state.hitJitterX : 0;
   const jitterY = state.hitJitterY ? (Math.random() - 0.5) * state.hitJitterY : 0;
-  ctx.save();
-  ctx.globalAlpha = drawAlpha;
   const spriteState = state.sprite || "idle";
-  let spriteInfo = RUGFATHER_SPRITES[spriteState] || RUGFATHER_SPRITES.idle;
+  const spriteInfo = RUGFATHER_SPRITES[spriteState] || RUGFATHER_SPRITES.idle;
   const fw = spriteInfo.frameWidth;
   const fh = spriteInfo.frameHeight;
+  let frame, mirror;
   if (spriteInfo.animated && spriteInfo.frameSequence) {
-    const t = gameNow();
-    const frameSequence = spriteInfo.frameSequence;
-    const frameDuration = spriteInfo.frameDuration;
-    const frameIdx = Math.floor(t / frameDuration) % frameSequence.length;
-    let frameData = frameSequence[frameIdx];
+    let frameData = spriteInfo.frameSequence[Math.floor(now / spriteInfo.frameDuration) % spriteInfo.frameSequence.length];
     if (typeof frameData === "number") frameData = { frame: frameData, mirror: false };
-    const shouldMirror = frameData.mirror || state.facing > 0;
+    frame = frameData.frame;
+    mirror = frameData.mirror || state.facing > 0;
+  } else {
+    frame = spriteInfo.frame || 0;
+    mirror = state.facing > 0;
+  }
+  const blit = (image, sx, alpha) => {
     ctx.save();
-    ctx.globalAlpha = drawAlpha;
-    if (shouldMirror) {
+    ctx.globalAlpha = drawAlpha * alpha;
+    if (mirror) {
       ctx.translate(state.x + jitterX + fw * state.scale, state.y + jitterY);
       ctx.scale(-1, 1);
-      ctx.drawImage(
-        spriteInfo.image,
-        frameData.frame * fw,
-        0,
-        fw,
-        fh,
-        0,
-        0,
-        fw * state.scale,
-        fh * state.scale
-      );
+      ctx.drawImage(image, sx, 0, fw, fh, 0, 0, fw * state.scale, fh * state.scale);
     } else {
-      ctx.drawImage(
-        spriteInfo.image,
-        frameData.frame * fw,
-        0,
-        fw,
-        fh,
-        state.x + jitterX,
-        state.y + jitterY,
-        fw * state.scale,
-        fh * state.scale
-      );
+      ctx.drawImage(image, sx, 0, fw, fh, state.x + jitterX, state.y + jitterY, fw * state.scale, fh * state.scale);
     }
     ctx.restore();
-    ctx.globalAlpha = 1;
-    ctx.restore();
-    // the health bar is drawn over the HUD by renderGame (look.js)
-    if (filterApplied) ctx.filter = "none";
-    return;
-  }
-  const staticFrame = spriteInfo.frame || 0;
-  const mirrorStatic = state.facing > 0;
-  ctx.save();
-  ctx.globalAlpha = drawAlpha;
-  if (mirrorStatic) {
-    ctx.translate(state.x + jitterX + fw * state.scale, state.y + jitterY);
-    ctx.scale(-1, 1);
-    ctx.drawImage(
-      spriteInfo.image,
-      staticFrame * fw,
-      0,
-      fw,
-      fh,
-      0,
-      0,
-      fw * state.scale,
-      fh * state.scale
-    );
-  } else {
-    ctx.drawImage(
-      spriteInfo.image,
-      staticFrame * fw,
-      0,
-      fw,
-      fh,
-      state.x + jitterX,
-      state.y + jitterY,
-      fw * state.scale,
-      fh * state.scale
-    );
-  }
-  ctx.restore();
-  ctx.globalAlpha = 1;
-  ctx.restore();
+  };
+  if (whiteHit) blit(fxWhite(spriteInfo.image), frame * fw, 1);
+  else if (spriteState === "idle" && frame === 3) blit(fxRfStanding(spriteInfo.image), 0, 1);
+  else blit(spriteInfo.image, frame * fw, 1);
+  ctx.filter = "none";
+  fxDrawRfPulse(ctx, (image, alpha) => blit(image, frame * fw, alpha), spriteInfo.image);
+  fxDrawRfTell(ctx, state);
   // the health bar is drawn over the HUD by renderGame (look.js)
-  if (filterApplied) ctx.filter = "none";
 }
 function hit(damage = 1) {
   if (!state.active || state.entering || state.invulnerable || state.dying) {
@@ -643,6 +596,7 @@ function hit(damage = 1) {
   state.hitFlashEnd = gameNow() + 150;
   state.hitJitterX = 24;
   state.hitJitterY = 12;
+  if (state.hp > 0) fxHitStop(70);
   if (state.hp < MAX_HP * 0.25) {
     setScreenShake(true);
     setScreenShakeStartTime(gameNow());
@@ -655,6 +609,7 @@ function hit(damage = 1) {
     state.active = false;
     state.dying = true;
     state.deathStart = gameNow();
+    fxBossDefeat(state);
   }
 }
 function getHitbox2() {
