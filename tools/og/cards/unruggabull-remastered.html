@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Unruggabull Remastered card</title>
+<!-- The share card (1200 x 630) and the games-page thumbnail (768 x 576) for Unruggabull Remastered, the "poster"
+     design Jonnie picked (Oct 16, 2026): the RugCo Empire painting from the title screen, the tagline, the
+     wordmark and "NOW ON MOBILE". tools/og/make.py opens this file with ?w=&h= and screenshots it. -->
+<style>
+@font-face{font-family:'Bungee';src:url('../../../site/assets/fonts/bungee-latin-400-normal.woff2') format('woff2')}
+@font-face{font-family:'Jersey 15';src:url('../../../site/assets/fonts/jersey-15-latin-400-normal.woff2') format('woff2')}
+*{margin:0}
+html,body{background:#140807;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="card"></canvas>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const w = +q.get('w') || 1200, h = +q.get('h') || 630;
+  const cv = document.getElementById('card'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  const img = new Image(); img.src = '../../../site/unruggabull-remastered/art/poster.webp';
+  await Promise.all([img.decode().catch(() => {}), document.fonts.load('64px Bungee'), document.fonts.load('32px "Jersey 15"')]);
+
+  const logo = px => px + 'px Bungee, "Arial Black", Impact, sans-serif', pix = px => px + 'px "Jersey 15", "Courier New", monospace';
+  const spacing = px => { if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; };
+  function outlined(text, x, y, fill, stroke, lw) { ctx.lineJoin = 'round'; ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.strokeText(text, x, y); ctx.fillStyle = fill; ctx.fillText(text, x, y); }
+  // the game's wordmark (look.js): a fire gradient over a dark outline and a short extrude
+  function wordmark(text, x, y, size, align) {
+    ctx.save(); ctx.font = logo(size); ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+    const d = Math.max(2, Math.round(size * 0.075));
+    ctx.lineWidth = Math.max(3, size * 0.12); ctx.strokeStyle = '#140402'; ctx.strokeText(text, x + d * 0.35, y + d);
+    ctx.fillStyle = '#4a1405'; for (let i = d; i >= 1; i--) ctx.fillText(text, x + i * 0.35, y + i);
+    ctx.strokeText(text, x, y);
+    const g = ctx.createLinearGradient(0, y - size * 0.78, 0, y);
+    [[0, '#fff3b0'], [0.38, '#ffc53a'], [0.72, '#ff8a1f'], [1, '#e2460e']].forEach(s => g.addColorStop(s[0], s[1]));
+    ctx.fillStyle = g; ctx.fillText(text, x, y); ctx.restore();
+  }
+  function fit(text, maxW, maxSize) { ctx.save(); ctx.font = logo(100); const m = ctx.measureText(text).width; ctx.restore(); return Math.min(maxSize, maxW / m * 100); }
+  function subtitle(x, y, size, align) {
+    ctx.save(); ctx.font = pix(size); ctx.textAlign = align; spacing(size * 0.16);
+    ctx.shadowColor = 'rgba(255,106,26,0.85)'; ctx.shadowBlur = size * 0.5;
+    outlined('RUGCO ALLEY · REMASTERED', x, y, '#ffe9cf', 'rgba(16,6,4,0.9)', size * 0.14); ctx.restore();
+  }
+  function pill(text, x, y, size) {
+    ctx.save(); ctx.font = pix(size); spacing(size * 0.1); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const pw = ctx.measureText(text).width + size * 0.9, ph = size * 1.15, r = size * 0.2;
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y - ph / 2, pw, ph, r); else ctx.rect(x, y - ph / 2, pw, ph);
+    ctx.fillStyle = '#ff6a1a'; ctx.fill(); ctx.fillStyle = '#1a0703'; ctx.fillText(text, x + size * 0.45, y + size * 0.04); ctx.restore();
+  }
+
+  const IW = img.naturalWidth || 1024, IH = img.naturalHeight || 1080;
+  ctx.fillStyle = '#140807'; ctx.fillRect(0, 0, w, h);
+  if (w / h > 1.5) {
+    // the share card: the painting on the right, the type on the left
+    const ph = h * 1.04, pw = IW / IH * ph, px = w - pw * 0.96, py = -h * 0.02;
+    ctx.drawImage(img, px, py, pw, ph);
+    const g = ctx.createLinearGradient(px, 0, px + pw * 0.45, 0); g.addColorStop(0, '#140807'); g.addColorStop(1, 'rgba(20,8,7,0)');
+    ctx.fillStyle = g; ctx.fillRect(px - 1, 0, pw * 0.45 + 1, h);
+    const x0 = w * 0.055;
+    ctx.save(); ctx.font = pix(h * 0.052); ctx.textAlign = 'left'; outlined('ONE BULL WAS NOT LIKE THE REST, HE WAS...', x0, h * 0.25, '#dcc6b4', '#140807', 3); ctx.restore();
+    wordmark('UNRUGGABULL', x0, h * 0.44, fit('UNRUGGABULL', px + pw * 0.28 - x0, h * 0.17), 'left');
+    subtitle(x0, h * 0.55, h * 0.062, 'left');
+    pill('NOW ON MOBILE', x0, h * 0.82, h * 0.06);
+  } else {
+    // the thumbnail: the painting full width, the wordmark across its foot
+    const ph = IH * w / IW;
+    ctx.drawImage(img, 0, -(ph - h) * 0.15, w, ph);
+    const g = ctx.createLinearGradient(0, h * 0.42, 0, h); g.addColorStop(0, 'rgba(14,6,5,0)'); g.addColorStop(0.6, 'rgba(14,6,5,0.9)'); g.addColorStop(1, '#0e0605');
+    ctx.fillStyle = g; ctx.fillRect(0, h * 0.42, w, h * 0.58);
+    wordmark('UNRUGGABULL', w / 2, h * 0.82, fit('UNRUGGABULL', w * 0.9, h * 0.16), 'center');
+    subtitle(w / 2, h * 0.91, h * 0.055, 'center');
+    pill('NOW ON MOBILE', w * 0.05, h * 0.08, h * 0.055);
+  }
+  window.cardReady = true;
+})();
+</script>
+</body>
+</html>

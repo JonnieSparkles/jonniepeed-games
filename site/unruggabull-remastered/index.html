@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Unruggabull: RugCo Alley Remastered · JonniePeed Games</title>
+<meta name="description" content="Unruggabull: RugCo Alley Remastered. The 2025 platformer, now on phones: a blaster-toting bull, waves of carpshits and a boss fight with the Rugfather in a burning alley.">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="JonniePeed Games">
+<meta property="og:title" content="Unruggabull: RugCo Alley Remastered · JonniePeed Games">
+<meta property="og:description" content="One bull was not like the rest, he was... Unruggabull.">
+<meta property="og:url" content="https://jonniepeed.games/unruggabull-remastered/">
+<meta property="og:image" content="https://jonniepeed.games/unruggabull-remastered/og.png?v=5bb8f63ef2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Unruggabull: RugCo Alley Remastered, now on mobile: the wordmark beside the bull in sunglasses in front of the burning RugCo Empire sign">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Unruggabull: RugCo Alley Remastered · JonniePeed Games">
+<meta name="twitter:description" content="One bull was not like the rest, he was... Unruggabull.">
+<meta name="twitter:image" content="https://jonniepeed.games/unruggabull-remastered/og.png?v=5bb8f63ef2">
+<meta name="twitter:image:alt" content="Unruggabull: RugCo Alley Remastered, now on mobile: the wordmark beside the bull in sunglasses in front of the burning RugCo Empire sign">
+<link rel="icon" href="../assets/favicon.ico?v=443c0101ac" sizes="any">
+<link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
+<link rel="stylesheet" href="../assets/fonts/fonts.css?v=71cddbcae3">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+/* iPhones zoom on a quick double tap, even on buttons. Pinch zoom still works, and stricter rules (none, pan-y) still win. */
+*{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+:root{--night:#0b0606;--panel:#140b0a;--ember:#ff6a1a;--amber:#ffc53a;--cream:#f4e4d0;--ash:#cdb8a8;--logo:'Bungee','Arial Black',Impact,sans-serif;--pix:'Jersey 15','Courier New',monospace;color-scheme:dark}
+html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:var(--pix);overflow:hidden}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* The whole window is the game: the 960 x 540 alley sits in the middle at full height, the touch controls over it and the bars beside it. */
+#stage{position:fixed;inset:0;background:#000;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow:hidden}
+#gameCanvas{position:absolute;left:0;top:0;width:960px;height:540px;display:block;opacity:0;transition:opacity .7s}
+#hud{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#safe{position:absolute;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+
+/* Title: the RugCo Empire painting, drawn with the wordmark on #title-art; the menu is real buttons over it. */
+#title{position:absolute;inset:0;z-index:2;transition:opacity .7s;background:var(--night)}
+#title-art{position:absolute;inset:0;width:100%;height:100%;display:block}
+#menu{position:absolute;display:grid;justify-items:start}
+#menu > *{position:relative;font:inherit;font-family:var(--pix);text-transform:uppercase;letter-spacing:.05em;line-height:1.05;color:rgba(244,228,208,.82);background:none;border:0;padding:.06em .25em;margin:0 0 0 -.25em;cursor:pointer;text-decoration:none;
+  text-shadow:-2px -2px 0 #0a0504,2px -2px 0 #0a0504,-2px 2px 0 #0a0504,2px 2px 0 #0a0504,0 3px 0 #0a0504;outline:none}
+#menu > .on{color:var(--amber)}
+#menu > .on::before{content:"";position:absolute;left:-1.15em;top:50%;width:.82em;height:.82em;transform:translateY(-55%);background:url(art/blaster-icon.webp) center/contain no-repeat;image-rendering:pixelated;animation:aim .55s ease-in-out infinite alternate}
+#menu > a{font-size:.72em;color:rgba(205,184,168,.85);margin-top:.35em}
+#menu > a.on{color:var(--amber)}
+#menu .out{width:.62em;height:.62em;margin-left:.3em;vertical-align:.05em;filter:drop-shadow(1px 1px 0 #0a0504) drop-shadow(-1px -1px 0 #0a0504)}
+#menu > :focus-visible{text-decoration:underline;text-underline-offset:.15em}
+@keyframes aim{to{translate:.08em 0}}
+#best{position:absolute;margin:0;text-transform:uppercase;letter-spacing:.08em;color:rgba(244,228,208,.75);text-shadow:-2px -2px 0 #0a0504,2px -2px 0 #0a0504,-2px 2px 0 #0a0504,2px 2px 0 #0a0504}
+#home{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px));z-index:3;font:18px var(--pix);letter-spacing:.06em;text-transform:uppercase;color:var(--ash);text-decoration:none;background:rgba(0,0,0,.45);border-radius:8px;padding:6px 10px}
+#home:hover,#home:focus-visible{color:var(--cream)}
+
+/* Small buttons along the top edge: full screen on the title, pause in the game. */
+.edge{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:3;font:18px var(--pix);letter-spacing:.06em;text-transform:uppercase;color:var(--cream);background:rgba(14,9,9,.55);border:2px solid rgba(244,228,208,.35);border-radius:10px;min-width:44px;min-height:44px;padding:0 12px;cursor:pointer}
+.edge:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+#pause-btn{display:flex;align-items:center;justify-content:center;gap:5px;padding:0}
+#pause-btn i{display:block;width:5px;height:16px;background:var(--cream);border-radius:1px}
+
+/* Cards: pause, leaderboard, gallery, credits and the portrait screen. A dark panel in a double frame. */
+.card-wrap{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:rgba(5,2,2,.78);padding:12px}
+.card{background:var(--panel);border:2px solid var(--ember);border-radius:12px;box-shadow:inset 0 0 0 4px var(--panel),inset 0 0 0 5px rgba(255,197,58,.35);padding:18px 24px 20px;display:grid;gap:12px;justify-items:center;text-align:center;max-width:min(94vw,520px);max-height:94%;overflow:auto;font-size:20px}
+.card h2{margin:0;font:400 34px/1 var(--logo);color:var(--amber);text-shadow:0 3px 0 #4a1405,0 0 18px rgba(255,106,26,.35)}
+.card .row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.card button{font:22px var(--pix);letter-spacing:.06em;text-transform:uppercase;border:2px solid #5a3a2c;border-radius:8px;padding:6px 18px;min-height:44px;cursor:pointer;background:#1e1211;color:var(--cream)}
+.card button.go{background:var(--ember);border-color:var(--amber);color:#1a0703}
+.card button:focus-visible{outline:3px solid var(--cream);outline-offset:2px}
+#credits .card{justify-items:start;text-align:left;line-height:1.3}
+#credits .card h2,#credits button{justify-self:center}
+#credits .card p{margin:0}
+#credits b{color:var(--amber);font-weight:400}
+#credits a{color:var(--amber)}
+#gallery .card{padding:12px;gap:8px;max-width:96vw}
+#gallery img{display:block;max-height:calc(94vh - 110px);max-width:88vw;width:auto;height:auto;border-radius:6px}
+#gallery .count{color:var(--ash);min-width:4em}
+#rotate{z-index:9;background:#0d0a0b;flex-direction:column;gap:14px;font-size:30px;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+#rotate canvas{width:120px;height:120px}
+#rotate b{font-weight:400;color:var(--amber)}
+#rotate small{font-size:19px;text-transform:none;letter-spacing:0;color:var(--ash)}
+/* The end card: after a clear, the 2025 congratulations art, then the run's numbers, initials and the board. */
+#end{position:absolute;inset:0;z-index:4}
+#end-art{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;transition:opacity 2s ease,transform .6s ease,width .6s ease,height .6s ease;opacity:0;border-radius:6px}
+#end-art.split{box-shadow:0 0 0 2px var(--ember)}
+#end.rugged #end-art{display:none}
+.panel{position:absolute;background:rgba(20,11,10,.94);border:2px solid var(--ember);border-radius:12px;box-shadow:inset 0 0 0 4px rgba(20,11,10,.94),inset 0 0 0 5px rgba(255,197,58,.35);padding:14px 18px;overflow:auto;display:flex;flex-direction:column;gap:8px;font-size:clamp(16px,calc(var(--u) * 26),26px)}
+.panel h2{margin:0;font:400 1.2em/1 var(--logo);color:var(--amber);text-shadow:0 3px 0 #4a1405;text-align:center}
+#end-stats{margin:0;display:grid;gap:2px}
+#end-stats .stat{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid rgba(255,197,58,.18);padding:2px 0}
+#end-stats dt{color:var(--ash);letter-spacing:.06em;text-transform:uppercase}
+#end-stats dd{margin:0;font-size:1.5em;color:#fff0d8;font-variant-numeric:tabular-nums}
+#end-msg{margin:0;color:var(--amber);text-align:center}
+#end-msg:empty{display:none}
+.endrow{position:absolute;display:flex;gap:12px;justify-content:center}
+.endrow button,.lb-more,.lb-button{font:22px var(--pix);letter-spacing:.06em;text-transform:uppercase;border:2px solid #5a3a2c;border-radius:8px;padding:6px 18px;min-height:44px;cursor:pointer;background:#1e1211;color:var(--cream)}
+.endrow button.go,.lb-ok{background:var(--ember)!important;border-color:var(--amber)!important;color:#1a0703!important}
+.endrow button{flex:1;max-width:220px}
+.endrow button:focus-visible,.lb-button:focus-visible,.lb-more:focus-visible{outline:3px solid var(--cream);outline-offset:2px}
+#end.lb-entering .endrow{visibility:hidden}
+#end-rugged{position:absolute;display:grid;justify-items:center;gap:12px}
+#rugged-line{margin:0;font-size:clamp(16px,calc(var(--u) * 28),28px);letter-spacing:.06em;color:var(--ash);text-shadow:-2px -2px 0 #0a0504,2px -2px 0 #0a0504,-2px 2px 0 #0a0504,2px 2px 0 #0a0504;text-align:center}
+#end-rugged .endrow{position:static;width:100%}
+/* the site's initials picker and the board (site/assets/leaderboard.js draws the picker; this styles it) */
+.lb-entry{display:grid;justify-items:center;gap:8px}
+.lb-slots{display:flex;gap:10px}
+.lb-slot{display:grid;justify-items:center;gap:2px}
+.lb-slot .lb-button{padding:0 10px;min-height:34px;min-width:44px;font-size:18px}
+.lb-letter{font:400 34px/1 var(--logo)!important;color:var(--amber)!important;min-width:58px!important;min-height:52px!important;background:#120807!important}
+.lb-current .lb-letter{border-color:var(--ember)!important;box-shadow:0 0 0 2px var(--ember)}
+.lb-actions{display:flex;gap:12px;align-items:center}
+.lb-skip{background:none!important;border:0!important;text-decoration:underline;text-underline-offset:.2em;color:var(--ash)!important}
+.lb-standing,.lb-empty{margin:0;color:var(--ash);text-align:center}
+.lb-list.lb-all{max-height:12em;overflow:auto}
+.lb-table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:1.1em;line-height:1.15}
+.lb-table th{font-weight:400;font-size:.66em;letter-spacing:.08em;color:var(--ash);padding:0 6px 2px;text-align:right;text-transform:uppercase;position:sticky;top:0;background:rgba(20,11,10,.98)}
+.lb-table td{padding:0 6px;text-align:right;white-space:nowrap}
+.lb-table td:nth-child(2),.lb-table th:nth-child(2){text-align:left}
+.lb-table td:first-child{color:var(--ash)}
+.lb-table tr.lb-you td{color:var(--amber);background:rgba(255,106,26,.18)}
+.lb-gap td{text-align:center!important;color:var(--ash)}
+.lb-input{width:.9em;height:.9em;vertical-align:-.1em;color:var(--ash)}
+.heart{display:inline-block;width:.8em;height:.8em;margin-left:4px;vertical-align:-.05em;background:url(art/heart-icon.webp) center/contain no-repeat;image-rendering:pixelated}
+.lb-more{align-self:center;font-size:18px;min-height:36px;padding:2px 14px}
+#board .card{max-width:min(96vw,620px)}
+@media (prefers-reduced-motion:reduce){#gameCanvas,#title{transition:none}#menu > .on::before{animation:none}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="gameCanvas" width="960" height="540" aria-label="Unruggabull: RugCo Alley"></canvas>
+  <canvas id="hud" aria-hidden="true"></canvas>
+  <div id="safe"></div>
+
+  <div id="title">
+    <canvas id="title-art" aria-hidden="true"></canvas>
+    <h1 class="sr">Unruggabull: RugCo Alley Remastered. One bull was not like the rest, he was... Unruggabull.</h1>
+    <nav id="menu" aria-label="Title menu">
+      <button class="on" data-act="play">Play</button>
+      <button data-act="board">Leaderboard</button>
+      <button data-act="gallery">Gallery</button>
+      <button data-act="credits">Credits</button>
+      <a href="https://unruggabull.ar.io" target="_blank" rel="noopener">The 2025 original<svg class="out" viewBox="0 0 12 12" aria-hidden="true"><path d="M5 2H2V10H10V7M7 2H10V5M10 2L5.5 6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></svg><span class="sr"> (opens in a new tab)</span></a>
+    </nav>
+    <p id="best" hidden></p>
+  </div>
+  <a id="home" href="../">&larr; JonniePeed Games</a>
+  <button class="edge" id="fs-btn" aria-pressed="false">Full screen</button>
+  <button class="edge" id="pause-btn" aria-label="Pause" hidden><i></i><i></i></button>
+
+  <div id="end" hidden>
+    <img id="end-art" src="art/congrats.webp?v=76f8e9206c" alt="Congratulations! You have defeated the Rugfather">
+    <section class="panel" id="end-panel" hidden aria-labelledby="end-h">
+      <h2 id="end-h">Your run</h2>
+      <dl id="end-stats"></dl>
+      <p id="end-msg" role="status"></p>
+      <div id="end-board"></div>
+    </section>
+    <div class="endrow" id="end-buttons" hidden>
+      <button class="go" id="retry-btn">Retry</button>
+      <button id="title-btn">Title</button>
+    </div>
+    <div id="end-rugged" hidden>
+      <p id="rugged-line"></p>
+      <div class="endrow">
+        <button class="go" id="retry2-btn">Retry</button>
+        <button id="title2-btn">Title</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-wrap" id="pause" hidden role="dialog" aria-modal="true" aria-labelledby="pause-h">
+    <div class="card">
+      <h2 id="pause-h">Paused</h2>
+      <div class="row">
+        <button class="go" id="resume-btn">Resume</button>
+        <button id="quit-btn">Quit</button>
+      </div>
+      <div class="row">
+        <button id="sound-btn" aria-pressed="true">Sound: on</button>
+        <button id="fs2-btn" aria-pressed="false">Full screen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-wrap" id="board" hidden role="dialog" aria-modal="true" aria-labelledby="board-h">
+    <div class="card">
+      <h2 id="board-h">Fastest clears</h2>
+      <div id="board-list" class="lb"></div>
+      <button class="go" id="close-board">Close</button>
+    </div>
+  </div>
+
+  <div class="card-wrap" id="gallery" hidden role="dialog" aria-modal="true" aria-label="Gallery">
+    <div class="card">
+      <img id="gallery-img" src="" alt="">
+      <div class="row">
+        <button id="gallery-prev" aria-label="Previous picture">&larr;</button>
+        <span class="count" id="gallery-count"></span>
+        <button id="gallery-next" aria-label="Next picture">&rarr;</button>
+        <button class="go" id="close-gallery">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-wrap" id="credits" hidden role="dialog" aria-modal="true" aria-labelledby="credits-h">
+    <div class="card">
+      <h2 id="credits-h">Credits</h2>
+      <p><b>Designs by</b> @JonnieSparkles</p>
+      <p><b>Help from</b> all the chatbots, GIMP, Aseprite, mp3cut.net, Piskel and PixelLab</p>
+      <p><b>Additional sounds by</b> Pixabay users edr, freesound_community, nickpanek620, lkoliks, u_r7cny11q7r, yoursperfectguy, gregorquendel and soundreality</p>
+      <p><b>Type</b> Bungee and Jersey 15, under the SIL Open Font License</p>
+      <p>Remastered in 2026. The 2025 original is still at <a href="https://unruggabull.ar.io" target="_blank" rel="noopener">unruggabull.ar.io</a>.</p>
+      <button class="go" id="close-credits">Close</button>
+    </div>
+  </div>
+
+  <div class="card-wrap" id="rotate" hidden>
+    <canvas id="rotate-art" width="240" height="240" aria-hidden="true"></canvas>
+    <div><b>Turn your phone sideways</b><br><small>Unruggabull plays in landscape.</small></div>
+  </div>
+</div>
+<script src="../assets/leaderboard.js?v=e752579884"></script>
+<script src="../assets/stats.js?v=8e92b66a9a"></script>
+<script src="audio.js?v=61f5f4c9df"></script>
+<script src="core.js?v=952ffcf47c"></script>
+<script src="look.js?v=7345b218fd"></script>
+<script src="fx.js?v=1e889f3bce"></script>
+<script src="rugfather.js?v=407dccaa40"></script>
+<script src="game.js?v=d65423ee18"></script>
+<script src="end.js?v=69e2b0a19d"></script>
+<script src="title.js?v=8d560966e2"></script>
+<script src="phone.js?v=dad3c8ea2d"></script>
+</body>
+</html>

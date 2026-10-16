@@ -17,7 +17,7 @@ site/                   everything that gets published
   <slug>/audio.js       classic sound script loaded before game.js
   assets/fonts/         Silkscreen, Pixelify Sans, Cabin Sketch, Atkinson Hyperlegible, IBM Plex Mono (SIL OFL)
                         and Schoolbell (Apache 2.0), self-hosted
-tools/og/make.py        builds the social preview cards and shelf thumbnails (cover art, pixel canvases, or page screenshots)
+tools/og/make.py        builds the social preview cards and shelf thumbnails (cover art, pixel canvases, page screenshots, or a game's own card page in tools/og/cards/)
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 tools/check_boards.py   checks game BOARD constants before deploying
 tools/balance/          balance bots: seeded headless runs at several skill levels, with reports
