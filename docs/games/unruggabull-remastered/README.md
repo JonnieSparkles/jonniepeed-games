@@ -2,7 +2,7 @@
 
 The 2025 platformer on phones. A blaster-toting bull clears five waves of carpshits in RugCo Alley, then the garage opens and the Rugfather comes out for a three-phase fight. Plan and decisions: [spec.md](spec.md).
 
-**Shelf:** Side A (listed, indexed) since Oct 16, 2026, at `unruggabull-remastered/`. Its card on the games page replaced the 2025 game's card, which linked out to unruggabull.ar.io; the title's "The 2025 original" still links there. Play stats are wired and switched off (`stats/games.json`). The online board needs the leaderboard Worker deployed with this game's entry in `scores/games.json`; until then clears are kept on the device.
+**Shelf:** Side A (listed, indexed) since Oct 16, 2026, at `unruggabull-remastered/`. Its card on the games page replaced the 2025 game's card, which linked out to unruggabull.ar.io; the title's "The 2025 original" still links there. Play stats are on (switched on with the listing; `stats/games.json`). The online board needs the leaderboard Worker deployed with this game's entry in `scores/games.json`; until then clears are kept on the device.
 
 ## How it plays
 
@@ -61,7 +61,7 @@ The 2025 game's files, all of them, plus a sound pass (`audio.js`; heard first o
 
 ## Play stats
 
-Reported through `site/assets/stats.js` (switched off): a run starts when the controls screen is dismissed and ends rugged (`over`), cleared (`won`) or quit from the pause card. Score: unrugged. Stats: `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight`, `boss_hp` (0–60, once the fight has started).
+Reported through `site/assets/stats.js` (on since Oct 16, 2026): a run starts when the controls screen is dismissed and ends rugged (`over`), cleared (`won`) or quit from the pause card. Score: unrugged. Stats: `wave` (1–5, 6 once the Rugfather is triggered), `health` (hits left, 0–20), `boss_fight`, `boss_hp` (0–60, once the fight has started).
 
 ## Code
 
@@ -87,7 +87,7 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
-- **Oct 16, 2026:** listed on Side A, in place of the 2025 game's card (which linked out to unruggabull.ar.io), and no longer noindexed.
+- **Oct 16, 2026:** listed on Side A, play stats switched on, in place of the 2025 game's card (which linked out to unruggabull.ar.io), and no longer noindexed.
 - **Oct 16, 2026:** the run timer with splits against the device's fastest clear, and medals on the end card and the board (`ran_dry` added to the board). From the first plays: holding up on the pad keeps jumping (it was once per press); the garage's embers stop once the Rugfather is out, sparks instead of smoke round his spin, a lighter white on hits and the defeat, and Quit on the game-over card.
 - **Oct 16, 2026:** its own share card and thumbnail: the poster mockup, with "Now on mobile".
 - **Oct 16, 2026:** the sound pass (`audio.js`), from https://claude.ai/artifact/GSh1hZRjESrGx2R6ze8iaT: menu set A ("Blaster"), and the "Dying" take on the out-of-shots buzz.
