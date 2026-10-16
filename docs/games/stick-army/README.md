@@ -294,6 +294,7 @@ CHROMIUM=/usr/bin/chromium python3 tests/stick-army/board.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/coop.py
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/coop_room.py   # also needs a local rooms Worker (05: Rooms, Testing)
 CHROMIUM=/usr/bin/chromium python3 tests/stick-army/perf.py --stress
+CHROMIUM=/usr/bin/chromium python3 tests/stick-army/shots.py --ref main
 CHROMIUM=/usr/bin/chromium python3 tools/balance/run.py stick-army --runs 10 --verify
 node --check site/stick-army/audio.js
 node --check site/stick-army/board.js
@@ -336,6 +337,8 @@ Omit `CHROMIUM` to use Playwright's bundled browser. `SITE_URL` is optional for 
 - `case-29-coop.js`: solo's one barrel on `S.mods`; each player's dog tags (a kill pays its shooter, the rest split, odd ones in turn, a Red Cross hit from the shooter's); two barrels with their own aim, heat, lock, volleys and upgrades, keys and pointer driving the local one, a sniper heating both, both triggers let go at the end; each player's points, combo, planes, Red Cross hits and catches, the team's own points, shots costing the shooter, play stats; co-op waves harder; the shop's per-barrel upgrades, common supplies once and chosen by the comrade, put-backs and undo per player, and a host with no friend not waiting.
 
 `coop.py` plays a host page and draws a second page only from its messages: every message rebuilds the host's field exactly, sizes, particles, ink and sounds arriving, the pictures matching, and the guest's aim and trigger reaching the host. `coop_room.py` plays co-op over a local room with a computer hosting and a phone joining: the secret and link cards, Start, the guest's trigger, calls, pause, shop (its spread on its own barrel, sandbags chosen by the comrade, both Ready), a reload, each player dropping out and coming back, and the side-by-side end cards.
+
+`shots.py` is the "nothing changed" check, for any change that shouldn't change how the game looks (Campaign's groundwork, a refactor): it draws six scenes (the title, a mid-wave page at wave 9 with a full kit and squad, the night raid, the Dreadnought's smoke, the shop and the victory card) with this checkout and, with `--ref`, with that commit too (checked out in a temporary worktree), and fails on any pixel that differs. Each scene is built by driving the game directly under a fake clock paused before the page loads, with `Math.random` seeded, so one version always draws the same pixels. It serves `site/` itself, so it needs no server. Pictures go to `SCREENSHOTS` (default `/tmp/stick-army-shots`), with a `<scene>.diff.png` showing the changed pixels in red for any scene that differs. Its scenes use only names every version has had since round 20, so `--ref` works against older commits; a scene that needs a new name breaks `--ref` against commits from before it.
 
 `ui.py` exercises fullscreen, touch/keyboard, pause and shop/delivery at desktop, portrait, short landscape and small-phone sizes. It also verifies live tuning and both clipboard paths.
 
