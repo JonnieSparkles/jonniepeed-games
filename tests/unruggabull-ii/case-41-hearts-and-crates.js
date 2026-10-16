@@ -91,7 +91,7 @@
     r = top('regular', 3);
     check(supply(r) === 'hearts' && r.hearts === 5 && r.souls === 0 && !r.hat, 'Regular, hurt: the crate fills his hearts, no cap');
     r = top('regular', 5);
-    check(supply(r) === 'none' && r.souls === 0 && r.hat === 'cap' && r.said.includes('operator: ON THE HOUSE.'), 'Regular, full, no continues: nothing from the crate, and the cap');
+    check(supply(r) === 'none' && r.souls === EL.hatSouls.cap && r.hat === 'cap' && r.said.includes('operator: ON THE HOUSE.'), 'Regular, full, no continues: nothing from the crate, and the cap');
     check(r.said.slice(-2).join() === 'operator: FLOOR?,bull: ROOF.', 'then FLOOR? and ROOF.');
     check(r.ev.findIndex(e => e.type === 'elevator_hat') < r.ev.findIndex(e => e.type === 'elevator_exit'), 'the cap lands before he walks out');
     r = top('regular', 5, 1);

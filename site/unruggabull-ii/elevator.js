@@ -20,8 +20,8 @@ var UnrugElevator = function (core) {
     // backed against a wall with no thread that side
     waves: { first: 2.6, every: 1.8, everyLast: 1.5, size: 2, sizeLast: 3, most: 7, lanes: [-.682, -.391, .136, .273, .545], clear: .12 },
     crateSouls: 20, crateFrom: .473, crateSpeed: .68, deadWait: 2.8, walkOut: 1.1, doorway: .12, exitAfter: 1.4,
-    // the souls each hat brings with it (placeholders until the owner sets them; the cap brings none)
-    hatSouls: { cap: 0, crown: 50, halo: 100 },
+    // the souls each hat brings with it (owner, Oct 16)
+    hatSouls: { cap: 20, crown: 60, halo: 100 },
     // the operator asks as the doors finish opening (the long ride: once the crate's done), he answers, and only then can
     // he walk out: FLOOR? at `floor`, ROOF. `roof - floor` after it, out `out - floor` after it
     ask: { floor: .9, roof: 2.2, out: 2.6 },
