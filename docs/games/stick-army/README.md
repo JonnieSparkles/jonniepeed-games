@@ -93,6 +93,10 @@ The **field hospital** (60 tags, one stack) pitches a tent with one bed beside t
 
 You're the commander drawing your army. Once the wave banner has been read (`SKETCH.DELAY`, 0.9 s), whatever you just bought is sketched onto the page in blue ballpoint, one piece at a time (`queueSketches`, `sketched`, `SKETCH`, 0.45 s each): the sentry tower and the tent from the ground up, the newest trench row, the newest layer of sandbags from the ground up, the wire and the second mat left to right, and new hires from their feet up. The pen (`drawPen`) has a steel tip, a blue grip, a clear barrel showing the ink tube, and a blue cap and clip, the same ink as your army. Called planes are sketched in at the left edge of the page before they fly (`STRIKE.HOLD`, `FIGHTER.HOLD`). It's purely a reveal: everything works from the first frame, and the sketch state never feeds the simulation. A pen-scratch sound marks each one.
 
+## The paper
+
+The page is a theme (`PAPERS` in `game.js`, picked as `THEME`; the ruled notebook, `ruled`, is the only one): its colors (read from `index.html`'s CSS, which the cards share, with fallbacks), the army's pens, how it's ruled (grain, blue rules from y 100 every 28 px, the red margin, two punched holes, the ground's tint; `drawPaper` in `draw.js`), and how the HUD reads on it: its pens on the paper, `CHALK` where the page goes dark, where the pen turns over (`PEN_TURN`) and the wall bar's fills (`WALL_BAR`). The night raid and the Dreadnought's smoke use that one chalk switch (`pensAt`). Every file takes the colors once, when it's made, so a paper is picked before the page loads, not mid-run.
+
 ## A readable page
 
 Busy waves stack a lot on one page, so text and effects follow a few rules.

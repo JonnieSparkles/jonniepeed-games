@@ -9,11 +9,11 @@ var StickArmyDraw = function (world) {
   'use strict';
   var W = world.W, H = world.H, GROUND = world.GROUND, BK = world.BK, TUR = world.TUR;
   var INK = world.INK, INK2 = world.INK2, RED = world.RED, BLUE = world.BLUE, HAT = world.HAT, GREEN = world.GREEN, PAPER = world.PAPER;
-  var RULE = world.RULE, MARGIN = world.MARGIN, RED_FILL = world.RED_FILL, INK_FILL = world.INK_FILL, EMPTY = world.EMPTY;
+  var RED_FILL = world.RED_FILL, INK_FILL = world.INK_FILL, EMPTY = world.EMPTY;
   var HAND = world.HAND, DISPLAY = world.DISPLAY, REDUCED = world.REDUCED, HL = world.HL, TEXT = world.TEXT, TAG_HUD = world.TAG_HUD;
   var L = world.L, SP = world.SP, Ci = world.Ci, ink = world.ink, pen = world.pen, jt = world.jt, clamp = world.clamp, mulberry = world.mulberry;
   var crewMax = world.crewMax, standing = world.standing, tagsOf = world.tagsOf, gun = world.gun, sketchProgress = world.sketchProgress;
-  var bgx = world.bgx;
+  var bgx = world.bgx, THEME = world.THEME;
   // Made after this file (the units, the sky, the squad, the Dreadnought, the icons, the flagpole, the sentry and
   // sending soldiers home): link() picks them up before anything is drawn.
   var SKY, ICONS, DREAD, FLAG, LEAVE, SENTRY, chevrons, drawSticker, drawPlate;
@@ -23,20 +23,21 @@ var StickArmyDraw = function (world) {
   }
 
   // ---------- the page ----------
+  // The paper (game.js THEME), drawn once into the page's canvas on every fit.
   function drawPaper() {
-    var g = bgx, rnd = mulberry(7), i, y;
-    g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
-    g.fillStyle = 'rgba(80,70,50,0.05)';
-    for (i = 0; i < 260; i++) g.fillRect(rnd() * W, rnd() * H, 0.6 + rnd(), 0.6);
-    g.strokeStyle = RULE; g.lineWidth = 1; g.beginPath();
-    for (y = 100; y < H; y += 28) { g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); }
+    var g = bgx, P = THEME, rnd = mulberry(P.GRAIN.SEED), i, y;
+    g.fillStyle = P.PAPER; g.fillRect(0, 0, W, H);
+    g.fillStyle = P.GRAIN.COLOR;
+    for (i = 0; i < P.GRAIN.N; i++) g.fillRect(rnd() * W, rnd() * H, 0.6 + rnd(), 0.6);
+    g.strokeStyle = P.RULE; g.lineWidth = P.LINES.WIDTH; g.beginPath();
+    for (y = P.LINES.TOP; y < H; y += P.LINES.GAP) { g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); }
     g.stroke();
-    g.strokeStyle = MARGIN; g.lineWidth = 1.4; g.beginPath(); g.moveTo(46.5, 0); g.lineTo(46.5, H); g.stroke();
-    [150, 360].forEach(function (hy) {
-      g.beginPath(); g.arc(20, hy, 7, 0, Math.PI * 2); g.fillStyle = '#e7e1d3'; g.fill();
-      g.beginPath(); g.arc(20, hy, 7, Math.PI * 0.9, Math.PI * 1.9); g.strokeStyle = 'rgba(60,50,30,0.25)'; g.lineWidth = 1.5; g.stroke();
+    g.strokeStyle = P.MARGIN; g.lineWidth = P.MARGIN_LINE.WIDTH; g.beginPath(); g.moveTo(P.MARGIN_LINE.X, 0); g.lineTo(P.MARGIN_LINE.X, H); g.stroke();
+    P.HOLES.Y.forEach(function (hy) {
+      g.beginPath(); g.arc(P.HOLES.X, hy, P.HOLES.R, 0, Math.PI * 2); g.fillStyle = P.HOLES.FILL; g.fill();
+      g.beginPath(); g.arc(P.HOLES.X, hy, P.HOLES.R, Math.PI * 0.9, Math.PI * 1.9); g.strokeStyle = P.HOLES.RIM; g.lineWidth = 1.5; g.stroke();
     });
-    g.fillStyle = 'rgba(120,96,50,0.07)'; g.fillRect(0, GROUND, W, H - GROUND);
+    g.fillStyle = P.GROUND_TINT; g.fillRect(0, GROUND, W, H - GROUND);
   }
 
   // ---------- drawn in: the pen ----------
@@ -637,15 +638,16 @@ var StickArmyDraw = function (world) {
   }
   // On the night raid and under the Dreadnought's smoke the page goes dark, so the HUD is written in chalk. Each part
   // of it takes its pen from the dark right under it (sky.js smokeAt), blended in between, so the pens fade over as the
-  // night falls or the smoke rolls across, and back as it blows off one side, instead of flipping all at once.
-  var CHALK = { INK: '#f1ebdd', INK2: '#c8cede', TAGS: '#c8cede', BLUE: '#93b8ff', RED: '#ff9484', GREEN: '#8fd6a5' };
-  var PENS = { INK: INK, INK2: INK2, TAGS: '#56606b', BLUE: BLUE, RED: RED, GREEN: GREEN };
+  // night falls or the smoke rolls across, and back as it blows off one side, instead of flipping all at once. The
+  // pens, the chalk and where it turns over are the paper's (game.js THEME).
+  var CHALK = THEME.CHALK;
+  var PENS = { INK: THEME.INK, INK2: THEME.INK2, TAGS: THEME.TAGS, BLUE: THEME.BLUE, RED: THEME.RED, GREEN: THEME.GREEN };
   var hud = PENS;
   var HUD_GAP = 8;
   function rgbOf(h) { var m = /^#([0-9a-f]{6})$/i.exec(h); if (!m) return null; var n = parseInt(m[1], 16); return [n >> 16, n >> 8 & 255, n & 255]; }
   // The pen turns over late and quickly (PEN_TURN): ink reads on paper that's only greyed, chalk once it's truly dark,
   // and a half-and-half pen on half-dark paper reads on neither.
-  var PEN_TURN = [0.55, 0.85];
+  var PEN_TURN = THEME.PEN_TURN;
   function pensAt(x, y) { var S = world.S;
     var d = S.mode === 'title' ? 0 : SKY.smokeAt(x, y), out = { dark: d };
     var k = clamp((d - PEN_TURN[0]) / (PEN_TURN[1] - PEN_TURN[0]), 0, 1); k = k * k * (3 - 2 * k);
@@ -710,7 +712,7 @@ var StickArmyDraw = function (world) {
     c = pensAt(80, y1);
     G.textAlign = 'left'; G.fillStyle = c.INK; G.font = '21px ' + HAND; G.fillText('wall', 58, y1 + 7);
     c = pensAt(bx + bw / 2, y1);
-    G.fillStyle = hp < 30 ? 'rgba(200,67,58,0.45)' : c.dark > 0.6 ? 'rgba(147,184,255,0.55)' : 'rgba(47,111,220,0.4)';
+    G.fillStyle = hp < 30 ? THEME.WALL_BAR.LOW : c.dark > THEME.WALL_BAR.DARK ? THEME.WALL_BAR.CHALK : THEME.WALL_BAR.INK;
     G.fillRect(bx + 2, y1 - 8, (bw - 4) * hp / S.mods.maxHP, 16);
     G.beginPath(); L(bx, y1 - 10, bx + bw, y1 - 10, 0.5); L(bx + bw, y1 - 10, bx + bw, y1 + 10, 0.5); L(bx + bw, y1 + 10, bx, y1 + 10, 0.5); L(bx, y1 + 10, bx, y1 - 10, 0.5);
     ink(c.INK, 2.4); G.stroke();

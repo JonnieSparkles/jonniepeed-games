@@ -93,14 +93,33 @@
   var AIM_MIN = -Math.PI - AIM_DIP, AIM_MAX = AIM_DIP;
   var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
+  // ---------- the paper ----------
+  // The page the game is drawn on, as a theme: its colors and pens, how it's ruled (draw.js drawPaper), and how the
+  // HUD reads on it (draw.js pensAt): in its pens on the paper, and in CHALK where the page goes dark (the night raid,
+  // the Dreadnought's smoke), turning over between PEN_TURN of full dark. The ruled notebook is the only paper so far;
+  // Campaign's missions may add others. The colors are read from index.html's CSS (the cards use the same), and every
+  // file takes them once, when it's made, so a paper is picked before the page loads, not mid-run.
   var css = getComputedStyle(document.documentElement);
   function tok(n, f) { var v = css.getPropertyValue(n).trim(); return v || f; }
-  var PAPER = tok('--paper', '#fbf8ef'), RULE = tok('--rule', '#cfdcec'), MARGIN = tok('--margin', '#e6a2a0');
-  var INK = tok('--ink', '#2e2e33'), INK2 = tok('--ink-soft', '#5d5a55');
-  var RED = tok('--enemy', '#c8433a'), BLUE = tok('--ally', '#2f6fdc'), HAT = tok('--hat', '#f2c230');
-  // Co-op's second player writes in green: blue, red and green are the notebook's three pens, and red is the enemy's.
-  var GREEN = tok('--friend', '#2e8b4a');
-  var RED_FILL = 'rgba(200,67,58,0.14)', INK_FILL = 'rgba(46,46,51,0.07)', EMPTY = '#aaa395';
+  var PAPERS = {
+    ruled: {
+      PAPER: tok('--paper', '#fbf8ef'), RULE: tok('--rule', '#cfdcec'), MARGIN: tok('--margin', '#e6a2a0'),
+      INK: tok('--ink', '#2e2e33'), INK2: tok('--ink-soft', '#5d5a55'),
+      // Co-op's second player writes in green: blue, red and green are the notebook's three pens, and red is the enemy's.
+      RED: tok('--enemy', '#c8433a'), BLUE: tok('--ally', '#2f6fdc'), HAT: tok('--hat', '#f2c230'), GREEN: tok('--friend', '#2e8b4a'),
+      RED_FILL: 'rgba(200,67,58,0.14)', INK_FILL: 'rgba(46,46,51,0.07)', EMPTY: '#aaa395',
+      // The page: flecks of grain, blue rules from TOP every GAP, the red margin, two punched holes, the ground's tint.
+      GRAIN: { N: 260, SEED: 7, COLOR: 'rgba(80,70,50,0.05)' }, LINES: { TOP: 100, GAP: 28, WIDTH: 1 }, MARGIN_LINE: { X: 46.5, WIDTH: 1.4 },
+      HOLES: { X: 20, Y: [150, 360], R: 7, FILL: '#e7e1d3', RIM: 'rgba(60,50,30,0.25)' }, GROUND_TINT: 'rgba(120,96,50,0.07)',
+      // The HUD: the dog tags' grey, chalk for the dark, and the wall bar's fill (low, on paper, in the dark past DARK).
+      TAGS: '#56606b', CHALK: { INK: '#f1ebdd', INK2: '#c8cede', TAGS: '#c8cede', BLUE: '#93b8ff', RED: '#ff9484', GREEN: '#8fd6a5' },
+      PEN_TURN: [0.55, 0.85], WALL_BAR: { LOW: 'rgba(200,67,58,0.45)', INK: 'rgba(47,111,220,0.4)', CHALK: 'rgba(147,184,255,0.55)', DARK: 0.6 }
+    }
+  };
+  var THEME = PAPERS.ruled;
+  var PAPER = THEME.PAPER, INK = THEME.INK, INK2 = THEME.INK2;
+  var RED = THEME.RED, BLUE = THEME.BLUE, HAT = THEME.HAT, GREEN = THEME.GREEN;
+  var RED_FILL = THEME.RED_FILL, INK_FILL = THEME.INK_FILL, EMPTY = THEME.EMPTY;
   var HAND = '"Schoolbell", "Comic Sans MS", "Chalkboard SE", cursive';
   var DISPLAY = '"Cabin Sketch", "Schoolbell", "Comic Sans MS", cursive';
 
@@ -825,8 +844,8 @@
   // The drawing lives in draw.js. It's made before the other files, which draw with its stick figures; the harness
   // and the bots reach its functions here by name, as before. medicHelmet and drawFlagpole go through world, since
   // the harness swaps them in this scope.
-  world.H = H; world.GREEN = GREEN; world.RULE = RULE; world.MARGIN = MARGIN; world.EMPTY = EMPTY; world.HAND = HAND; world.DISPLAY = DISPLAY;
-  world.REDUCED = REDUCED; world.HL = HL; world.TEXT = TEXT; world.TAG_HUD = TAG_HUD; world.mulberry = mulberry; world.bgx = bgx;
+  world.H = H; world.GREEN = GREEN; world.EMPTY = EMPTY; world.HAND = HAND; world.DISPLAY = DISPLAY;
+  world.REDUCED = REDUCED; world.THEME = THEME; world.PAPERS = PAPERS; world.HL = HL; world.TEXT = TEXT; world.TAG_HUD = TAG_HUD; world.mulberry = mulberry; world.bgx = bgx;
   world.standing = standing; world.tagsOf = function (by) { return tagsOf(by); }; world.gun = gun; world.sketchProgress = sketchProgress;
   world.medicHelmet = function (x, y) { medicHelmet(x, y); }; world.drawFlagpole = function () { drawFlagpole(); };
   var DRAW = StickArmyDraw(world),
