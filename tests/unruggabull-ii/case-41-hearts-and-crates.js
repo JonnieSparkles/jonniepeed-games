@@ -141,9 +141,11 @@
       startRun('roof', true); check(RUN.hat === null, 'a new run starts with no hat');
       R.souls = 100; R.phase = 'win'; R.endT = 1; endRun('clear');
       check(boardOf('regular')[1][2] === 0, 'a run without one stores 0');
-      const hats = []; const board = UnrugHats.board; UnrugHats.board = (...a) => { hats.push(a[1]); board(...a); };
-      try { setState('title'); Title.show(); Title.press('Top runs'); Title.frame(); } finally { UnrugHats.board = board; }
-      check(hats.length && hats.every(k => k === 'cap'), "the title's board draws the cap over that row: " + hats.join());
+      // the device's board is the online board's stand-in: with no online board, the title shows it, the cap left of that row
+      const hats = [], beside = UnrugHats.beside, LB = window.Leaderboard; UnrugHats.beside = (...a) => { hats.push(a[1]); beside(...a); };
+      window.Leaderboard = undefined; delete online.regular;
+      try { setState('title'); Title.show(); Title.press('Top runs'); Title.frame(); } finally { UnrugHats.beside = beside; window.Leaderboard = LB; delete online.regular; }
+      check(hats.length && hats.every(k => k === 'cap'), "the title's board draws the cap beside that row: " + hats.join());
     } finally { if (saved == null) localStorage.removeItem(BK); else localStorage.setItem(BK, saved); setMode('regular'); }
     emitHook = null;
   } finally { emitHook = null; setMode('regular'); RUN.hat = null; }
