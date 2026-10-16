@@ -181,7 +181,7 @@ def stick_army_campaign(browser):
     source = (ROOT / 'site/stick-army/game.js').read_text()
     source = source.replace('  start();', "  window.armyTest = function (code) { return eval(code); };\n  start();")
     page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
-    page.goto(SITE + '/stick-army/')
+    page.goto(SITE + '/stick-army/#campaign')   # Campaign is hidden until this link unlocks it
     page.click('#campaignBtn')
     page.click('#cMapGo')
     page.click('#cBriefGo')

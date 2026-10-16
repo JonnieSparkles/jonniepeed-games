@@ -326,10 +326,15 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   });
 
   // ---------- the title's button ----------
-  // "Campaign" for a new tour, "Continue" with one saved; a "new" tag until this release has been opened.
+  // "Campaign" for a new tour, "Continue" with one saved; a "new" tag until this release has been opened. Only once
+  // Campaign is unlocked on the device (campaign.js takeLink); until then the title is Arcade's alone, with Start.
   var campaignBtn = $('campaignBtn');
   world.onTitle = function () {
     hide(); camp.hideRestart(false);
+    var on = camp.unlocked();
+    campaignBtn.hidden = !on;
+    $('startBtn').textContent = on ? 'Arcade' : 'Start';
+    campaignBtn.parentNode.classList.toggle('t-two', on);
     var saved = camp.savedTour();
     $('campaignLabel').textContent = saved ? 'Continue' : 'Campaign';
     campaignBtn.setAttribute('aria-label', saved ? 'Continue your Campaign tour' : 'Campaign');

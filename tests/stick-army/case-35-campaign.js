@@ -1,11 +1,12 @@
 // Campaign (campaign.js, campaign-screens.js), round 1: the tour code and the missions it draws, a tour through a won
 // and a lost mission (deaths stand after Retry, and Retry plays the same waves), the tour save and the wave save
 // restored, the save link round trip, a tour saved by an earlier release still loading (fixtures/), the #tour= link
-// in the address, and none of it touching Arcade's board or its play stats run.
+// in the address, Campaign hidden on the title until #campaign unlocks it, and none of it touching Arcade's board or
+// its play stats run.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var camp = world.campaign, K = camp.keys;
-  function clear() { [K.tour, K.wave, K.stars, K.seen].forEach(function (k) { localStorage.removeItem(k); }); }
+  function clear() { [K.tour, K.wave, K.stars, K.seen, K.unlock].forEach(function (k) { localStorage.removeItem(k); }); }
   // Plays the mission to its end card: every trooper popped over a mat or shot, planes shot down. win: false lets
   // the wall fall instead.
   function play(win, most) {
@@ -34,6 +35,18 @@
     check(a[1] !== a[2] && camp.OPS[0].pool.indexOf(a[1]) >= 0 && camp.OPS[0].pool.indexOf(a[2]) >= 0, 'and two different ones from the pool');
     var draws = {}; for (var v = 0; v < 40; v++) draws[camp.missionsFor(camp.freshTour(camp.codeText(v * 7919)), 0).join()] = true;
     check(Object.keys(draws).length >= 6, 'different codes draw different missions (' + Object.keys(draws).length + ' draws)');
+
+    // ---------- hidden until #campaign ----------
+    titleScene();
+    check(document.getElementById('campaignBtn').hidden && document.getElementById('startBtn').textContent === 'Start', 'the title is Arcade\'s alone, with Start');
+    history.replaceState(null, '', location.pathname + '#tune&campaign');
+    camp.takeLink(); titleScene();
+    check(location.hash === '#tune' && !document.getElementById('campaignBtn').hidden && document.getElementById('startBtn').textContent === 'Arcade', '#campaign shows Arcade and Campaign, and leaves the address');
+    history.replaceState(null, '', location.pathname + '#campaign=off');
+    camp.takeLink(); titleScene();
+    check(location.hash === '' && document.getElementById('campaignBtn').hidden, '#campaign=off hides it again');
+    history.replaceState(null, '', location.pathname + '#campaign');
+    camp.takeLink();
 
     // ---------- a new tour from the title ----------
     titleScene();

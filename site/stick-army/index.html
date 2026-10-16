@@ -234,19 +234,16 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .t-n3 { left: 270px; top: 470px; width: 120px; transform: rotate(-2deg); }
 .t-arrows { position: absolute; left: 0; top: 0; width: 400px; height: 720px; pointer-events: none; }
 .t-arrows path { fill: none; stroke: var(--ink-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.t-foot { position: absolute; left: 0; right: 0; top: 611px; padding: 0 18px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 4px 10px; }
-/* Two ways to play: Arcade (with its level, the line below) and Campaign. */
-.t-start { min-height: 46px; padding: 2px 10px 5px; font-size: 28px; }
-.t-camp { position: relative; background: var(--friend); }
-.t-camp .t-new { position: absolute; right: -6px; top: -9px; }
+.t-foot { position: absolute; left: 0; right: 0; top: 616px; padding: 0 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 14px; }
+.t-start { min-height: 54px; padding: 4px 30px 8px; font-size: 32px; }
 /* The record's rubber stamp sits on the grass at the right, clear of the demo's squad. */
 .t-stamp { position: absolute; right: 8px; bottom: calc(100% + 9px); margin: 0; display: flex; flex-direction: column; align-items: center; padding: 3px 10px 4px; border: 2.5px solid var(--enemy); border-radius: 6px 3px 7px 4px;
   color: var(--enemy); font: 700 13px/1.15 var(--font-display); text-transform: uppercase; letter-spacing: 0.5px; transform: rotate(5deg); opacity: 0.9; }
 .t-stamp #bestLine { font-size: 16px; }
 .t-chips { grid-column: 1 / -1; display: flex; gap: 8px; }
-/* The level: two boxes on an enlistment form, a pencil box ticked in blue pen, and the rank's stripes. Arcade's only. */
-.t-level { grid-column: 1 / -1; display: flex; gap: 14px; justify-self: start; }
-.t-rank { display: flex; align-items: center; gap: 7px; min-height: 24px; padding: 0 6px 0 2px; font: 19px/1 var(--font-hand); color: var(--ink-soft); background: none; border: 0; border-radius: 6px; cursor: pointer; }
+/* The level: two lines on an enlistment form, a pencil box ticked in blue pen, and the rank's stripes. */
+.t-level { display: grid; gap: 2px; justify-self: start; }
+.t-rank { display: flex; align-items: center; gap: 7px; min-height: 26px; padding: 0 6px 0 2px; font: 19px/1 var(--font-hand); color: var(--ink-soft); background: none; border: 0; border-radius: 6px; cursor: pointer; }
 .t-rank[aria-checked="true"] { color: var(--ink); }
 .t-rank:hover .t-rname, .t-rank:focus-visible .t-rname { text-decoration: underline 2px var(--ally); text-underline-offset: 3px; }
 .t-rank:focus-visible { outline: 2px solid var(--ally); outline-offset: 1px; }
@@ -264,8 +261,17 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .lvl-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -2px 0 4px; font: 18px/1 var(--font-hand); color: var(--ally); }
 .lvl-badge .t-chev { stroke: var(--ally); width: 18px; }
 .t-new { padding: 1px 5px 2px; font: 14px/1 var(--font-hand); color: var(--paper); background: var(--enemy); border-radius: 6px 3px 7px 3px; transform: rotate(-4deg); }
-.t-chip { min-height: 30px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
+.t-chip { min-height: 32px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
 .t-chip:hover, .t-chip:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
+/* Campaign unlocked on this device (the #campaign link, campaign.js): Start becomes Arcade beside Campaign, and
+   Arcade's level goes on one line below them. */
+.t-foot.t-two { top: 611px; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.t-two .t-start { min-height: 46px; padding: 2px 10px 5px; font-size: 28px; }
+.t-two .t-level { grid-column: 1 / -1; display: flex; gap: 14px; }
+.t-two .t-rank { min-height: 24px; }
+.t-two .t-chip { min-height: 30px; }
+.t-camp { position: relative; background: var(--friend); }
+.t-camp .t-new { position: absolute; right: -6px; top: -9px; }
 /* The open notebook (wide screens, title only): the game page on the left, the facing page on the right with a
    shadow down the binding. On the left page the logo, the demo, the pencil notes and every button stay; the facing page is for reading. */
 .facing { position: absolute; left: 0; top: 0; width: 400px; height: 720px; transform-origin: 0 0; box-sizing: border-box; padding: 34px 26px 0 66px;
@@ -523,8 +529,8 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <path d="M300 518 C 290 530, 280 540, 268 552 M 268 538 L 266 554 L 282 552"/>
         </svg>
         <div class="t-foot">
-          <button class="btn t-start" id="startBtn" type="button">Arcade</button>
-          <button class="btn t-start t-camp" id="campaignBtn" type="button"><span id="campaignLabel">Campaign</span><span class="t-new" id="campaignNew" hidden>new</span></button>
+          <button class="btn t-start" id="startBtn" type="button">Start</button>
+          <button class="btn t-start t-camp" id="campaignBtn" type="button" hidden><span id="campaignLabel">Campaign</span><span class="t-new" id="campaignNew" hidden>new</span></button>
           <div class="t-level" role="radiogroup" aria-label="Arcade level">
             <button class="t-rank" type="button" role="radio" data-level="soldier" aria-checked="true"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Soldier</span><svg class="t-chev" viewBox="0 0 30 14" aria-hidden="true"><path d="M3 11 L15 4 L27 11"/></svg></button>
             <button class="t-rank" type="button" role="radio" data-level="veteran" aria-checked="false"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Veteran</span><svg class="t-chev" viewBox="0 0 30 22" aria-hidden="true"><path d="M3 9 L15 2 L27 9 M3 14.5 L15 7.5 L27 14.5 M3 20 L15 13 L27 20"/></svg><span class="t-new" id="vetNew" hidden>new</span></button>
@@ -656,17 +662,17 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 <script src="draw.js?v=d4262a967a"></script>
 <script src="units.js?v=1c791a6788"></script>
 <script src="sky.js?v=ff250a1d0e"></script>
-<script src="squad.js?v=2d21997978"></script>
-<script src="dreadnought.js?v=5ab5f97fce"></script>
+<script src="squad.js?v=d6cf414a23"></script>
+<script src="dreadnought.js?v=2250d8ef77"></script>
 <script src="board.js?v=1084286549"></script>
-<script src="shop.js?v=31e7abd75b"></script>
-<script src="shop-screen.js?v=cb17a42a29"></script>
-<script src="flow.js?v=e70bafeef1"></script>
+<script src="shop.js?v=30c67cda00"></script>
+<script src="shop-screen.js?v=e5e8263a4e"></script>
+<script src="flow.js?v=52d2d1a1c1"></script>
 <script src="save.js?v=c147602002"></script>
-<script src="campaign.js?v=242b577782"></script>
-<script src="campaign-screens.js?v=907247a6da"></script>
+<script src="campaign.js?v=f55959556c"></script>
+<script src="campaign-screens.js?v=79b7c05b31"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
 <script src="coop.js?v=224dde6a0c"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=f694104416"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=f243252b93"></script>
 </body>
 </html>

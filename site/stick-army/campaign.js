@@ -638,12 +638,16 @@ var StickArmyCampaign = function (world, game) {
   // A save link opened on this device (#tour=...): the token is taken out of the address at once, keeping any others
   // (#seed=, #tune), so a reload doesn't load it again and nothing else in the game ever sees it. It isn't a practice
   // run: nothing about it fixes a seed or touches the boards.
-  var pending = null;
+  // Campaign is hidden until it's unlocked on the device: #campaign (or a save link) shows its button on the title
+  // from then on, and #campaign=off hides it again (UNLOCK_KEY). Like #tour=, the token leaves the address at once.
+  var pending = null, UNLOCK_KEY = 'stickarmy.campaign.on';
   function takeLink() {
-    var tokens = game.hashTokens(), hit = tokens.find(function (x) { return /^tour=/.test(x); });
-    if (!hit) return null;
-    pending = hit.slice(5);
-    var rest = tokens.filter(function (x) { return x && !/^tour=/.test(x); }).join('&');
+    var tokens = game.hashTokens(), hit = tokens.find(function (x) { return /^tour=/.test(x); }), ours = /^(tour=|campaign(=off)?$)/;
+    if (tokens.indexOf('campaign') >= 0 || hit) save(UNLOCK_KEY, true);
+    if (tokens.indexOf('campaign=off') >= 0) { try { localStorage.removeItem(UNLOCK_KEY); } catch (e) { /* ignore */ } }
+    if (!tokens.some(function (x) { return ours.test(x); })) return null;
+    if (hit) pending = hit.slice(5);
+    var rest = tokens.filter(function (x) { return x && !ours.test(x); }).join('&');
     try { history.replaceState(null, '', location.pathname + location.search + (rest ? '#' + rest : '')); } catch (e) { /* ignore */ }
     return pending;
   }
@@ -655,11 +659,11 @@ var StickArmyCampaign = function (world, game) {
     open: openCampaign, resume: resume, startMission: startMission, retry: retry, takeReward: takeReward, leaveBarracks: leaveBarracks,
     hire: hire, hirePrice: hirePrice, newTour: newTour, loadCode: loadCode, readLink: readLink, linkFor: linkFor, linkCode: linkCode,
     savedTour: savedTour, setTour: function (t) { tour = t; writeTour(); }, write: writeTour, standBy: standBy, showWhere: showWhere,
-    seen: function () { return load(SEEN_KEY, 0) >= RELEASE; }, stars: deviceStars, hideRestart: hideRestart,
+    seen: function () { return load(SEEN_KEY, 0) >= RELEASE; }, unlocked: function () { return !!load(UNLOCK_KEY, false); }, stars: deviceStars, hideRestart: hideRestart,
     pending: function () { var p = pending; pending = null; return p; }, takeLink: takeLink,
     // For the harness and the bots.
     codeText: codeText, codeValue: codeValue, missionsFor: missionsFor, freshTour: freshTour, readTour: readTour, nameAll: nameAll,
-    build: build, goodWaveSave: goodWaveSave, report: report, keys: { tour: TOUR_KEY, wave: WAVE_KEY, stars: STARS_KEY, seen: SEEN_KEY }
+    build: build, goodWaveSave: goodWaveSave, report: report, keys: { tour: TOUR_KEY, wave: WAVE_KEY, stars: STARS_KEY, seen: SEEN_KEY, unlock: UNLOCK_KEY }
   };
   var SCREENS = window.StickArmyCampaignScreens ? StickArmyCampaignScreens(world, game, api) : { hide: function () {}, map: function () {}, briefing: function () {},
     between: function () {}, lost: function () {}, debrief: function () {}, barracks: function () {}, end: function () {} };

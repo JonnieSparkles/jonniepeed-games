@@ -5,9 +5,9 @@ pixel. Run it on any change that shouldn't change how Arcade looks (Campaign, a 
     python3 tests/stick-army/shots.py                 # just this checkout's scenes
     python3 tests/stick-army/shots.py --campaign      # also Campaign's screens, at three sizes and full screen
 
-The title is compared apart (TITLE_APART): it's reported, with its diff, but doesn't fail the check, since Campaign
-added its button there. Campaign's screens have nothing to compare with yet; they're drawn for looking at, at phone
-portrait, short landscape and notebook sizes, and at phone portrait in full screen (campaign-<scene>-<size>.png).
+Campaign's screens have nothing to compare with yet; they're drawn for looking at, at phone portrait, short landscape
+and notebook sizes, and at phone portrait in full screen (campaign-<scene>-<size>.png), with the title as it is once
+Campaign is unlocked. Without the unlock the title is Arcade's, and compared like the rest.
 --ref takes what git does: after a shallow clone, a local `main` may be older than `origin/main`.
 
 It serves site/ itself (no server needed) and launches Chromium like the other harnesses (CHROMIUM selects a system
@@ -50,9 +50,6 @@ S.mods.secondTramp = true; S.mods.slots = 6; S.mods.trench = 2; S.mods.stacks.sa
 S.mods.hospital = true; S.mods.flag = true; S.flagUp = 1; resizeMats();
 ['rifle', 'engineer', 'bazooka', 'medic', 'sniper'].forEach(function (t, i) { var r = makeRecruit(SLOT_ORDER[i], t); r.waves = 4 * i; r.rank = i; r.name = 'Doodle' + i; S.recruits.push(r); });
 """
-# Compared, reported, but not failing (round 1 of Campaign put its button on the title).
-TITLE_APART = {'title'}
-
 # Campaign's screens, from one tour (K7QMR2) with a small squad, each scene in game.js's scope.
 CAMP = """
 var c = world.campaign, t = c.newTour('K7QMR2');
@@ -65,6 +62,7 @@ c.nameAll(t); c.write();
 def mission(at):
     return CAMP + STEP + "t.m = 1; c.startMission(); step(5); t.at = '%s'; S.mode = 'between';" % at
 CAMPAIGN = {
+    'title': 'localStorage.setItem(world.campaign.keys.unlock, "true"); titleScene(); S.t = 0;',
     'map': CAMP + 'c.screens.map();',
     'briefing': CAMP + 'c.screens.map(); c.screens.briefing();',
     'mission': CAMP + STEP + 't.m = 1; c.startMission(); step(7);',
@@ -191,9 +189,8 @@ def main():
     bad = 0
     for name in SCENES:
         same, why = compare(mine[name], theirs[name], out / (name + '.diff.png'))
-        apart = name in TITLE_APART
-        print('%-4s %-8s %s' % ('PASS' if same else 'NOTE' if apart else 'FAIL', name, 'identical to ' + args.ref if same else 'differs from %s: %s%s' % (args.ref, why, ' (compared apart)' if apart else '')))
-        bad += not same and not apart
+        print('%-4s %-8s %s' % ('PASS' if same else 'FAIL', name, 'identical to ' + args.ref if same else 'differs from %s: %s' % (args.ref, why)))
+        bad += not same
     print('Scenes: %s' % out)
     sys.exit(1 if bad else 0)
 
