@@ -86,6 +86,12 @@ var UnrugFloor48 = function (core) {
     collapse: { souls: 2, firstSoul: 1.6, soulEvery: .8, whip: 10, reserve: 16, reserveHp: 2, reserveSouls: 4, bendMax: .85 },
     ploom: { pan: .6, eye: .3, say: .8, threads: 1.3, snap: 1.75, yank: 2.6, free: 3.05, salute: 3.5, rise: 4.3, close: 4.1, white: 4.7, lobby: 5.3 },
     lobby: { walkIn: 1.1, dialFrom: 61, dingAt: 5.4, doorsT: 1.2, doorU: .6, doorway: .25, walkOut: 1, portraitU: -.12 },
+    // the soul quota (soul audit, owner Oct 16): what the floor keeps making pays only so much a visit, so stalling can't
+    // farm souls and a slow player is never punished. Souls from carpshits killed in the fight (any kind, the vessels'
+    // flyers and the shag's halves too) and limp rugs count; past souls they pay nothing. The canister cart comes at most
+    // carts times. Everything fixed (machines, feeds, clutter, chunks, vessels, chains, the collapse) pays as always.
+    // idle: seconds without a loom taking damage before the arrow points at the nearest running one.
+    quota: { souls: 60, carts: 2, unpaidEvery: 3, idle: 20 },
     deadWait: 2.8
   };
   const td = UnrugTopdown(core, { world: F48.world, bounds: { x0: 30, y0: F48.wallH + 4, x1: 786, y1: 440 } });
@@ -129,7 +135,8 @@ var UnrugFloor48 = function (core) {
       pressT: [0, 0, 0], chain: [], fx: [], smokeT: 0, shake: 0, flashT: 0, eye: 0, threads: 0, bend: 0, souls: [], collapse: null, lobby: null,
       started: false, events: {}, music: 'b', lineT: [0, 0, 0], hitSnd: 0, white: 0, debrisT: 0,
       combo: null, callout: null, bestChain: 0, qc: null, qcPending: null,
-      reactor: newReactor(down.filter(Boolean).length === 2 ? 'wait' : 'dormant'), cart: null, cartNext: F48.cart.first, cartN: 0 };
+      reactor: newReactor(down.filter(Boolean).length === 2 ? 'wait' : 'dormant'), cart: null, cartNext: F48.cart.first, cartN: 0,
+      quota: 0, quotaAt: null, unpaid: 0, loomHitAt: 0 };
     const m48 = /(^|&)music48=([abc])/.exec(location.hash.replace(/^#/, '')); if (m48) Q.music = m48[2];
     // lines already down (a continue) stay wrecked
     Q.machines.forEach(m => { if (down[m.line]) { m.dead = true; m.hp = 0; } });
@@ -141,7 +148,7 @@ var UnrugFloor48 = function (core) {
       for (const f of F48.prefill) Q.items[i].push({ x: F48.lineX0 + 80 + (f - i * .22) * (F48.beltEnd - F48.lineX0 - 100) + rr(-12, 12), kind: 'thread' });
       for (const it of Q.items[i]) it.kind = it.x > loomOf(i).x1 ? 'rug' : 'thread';
     });
-    td.room({ solids, push, machineHit, slashMachines, targets });
+    td.room({ solids, push, machineHit, slashMachines, targets, pays: quotaPays });
     R.td.locked = false;
     const lobbyStart = at && at.lobby || /(^|&)at=lobby(&|$)/.test(location.hash.replace(/^#/, '')) && !at;
     saveCheckpoint();
@@ -344,6 +351,7 @@ var UnrugFloor48 = function (core) {
     if (shielded(m)) { Q.reactor.hitT = .25; return; }
     if (overloaded(m)) dmg *= F48.overload.mult;
     m.hp -= dmg; m.flash = .07; m.lastBy = by;
+    if (m.kind === 'loom') Q.loomHitAt = Q.t;   // the loom arrow goes, and its idle count starts again
     if (m.hp > 0) stages(m);
     if (Q.hitSnd <= 0) { Snd.play('machineHit'); Q.hitSnd = .05; }
     R.events.machineDamage = (R.events.machineDamage || 0) + Math.min(dmg, m.hp + dmg);
@@ -578,7 +586,7 @@ var UnrugFloor48 = function (core) {
     const P = F48.cart;
     if (!Q.cart) {
       Q.cartNext -= dt;
-      if (Q.cartNext <= 0) { Q.cartN++; const dir = Q.cartN % 2 ? 1 : -1; Q.cart = { x: dir > 0 ? -30 : F48.world.w + 30, dir, full: true, t: 0, rattle: 0 }; Q.cartNext = P.every; emit('f48_cart', { n: Q.cartN }); }
+      if (Q.cartNext <= 0 && Q.cartN < F48.quota.carts) { Q.cartN++; const dir = Q.cartN % 2 ? 1 : -1; Q.cart = { x: dir > 0 ? -30 : F48.world.w + 30, dir, full: true, t: 0, rattle: 0 }; Q.cartNext = P.every; emit('f48_cart', { n: Q.cartN }); }
       return;
     }
     const c = Q.cart; c.t += dt; c.x += c.dir * P.speed * dt;
@@ -628,8 +636,7 @@ var UnrugFloor48 = function (core) {
       if (!Q.qc) Q.qcPending = { t: F48.qc.delay, n: Q.panic - 1 };
       // the last line: its loom shielded at once (so it can't be finished off under the laser), the vessels awake but
       // holding fire until the laser has passed (owner, Oct 14: "split it")
-      if (Q.panic === 2) startReactor(true);
-      saveCheckpoint();
+      if (Q.panic === 2) startReactor(true);   // no checkpoint here: a continue restarts the whole floor (item 26)
     } else startCollapse();
   }
 
@@ -676,7 +683,7 @@ var UnrugFloor48 = function (core) {
   function limpRug(i) {
     const x = F48.beltEnd + 10, y = LINES[i].y;
     R.td.fx.push({ k: 'debris', x, y, h: 8, vx: 50, vy: rr(-10, 10), vh: 30, s: 8, r: 0, vr: 2, col: '#7a1d1a', t: 0, dur: 1.4 });
-    soulsFrom(x, y, F48.power.souls, 'limp', 'power');
+    for (let k = 0; k < F48.power.souls; k++) { const s = td.screenOf(x, y); if (quotaPays('limp', 'power', s.x / 2, s.y / 2)) soulsFrom(x, y, 1, 'limp', 'power'); }
     emit('f48_limp', { line: i });
   }
   // the press comes down: anything under it on the belt is flattened, him included
@@ -914,6 +921,21 @@ var UnrugFloor48 = function (core) {
     if (!lobby.step(dt)) return;
     R.phase = 'win';
     core.travel('elevator', { fight: true, from: 48, destination: { floor: 99, label: 'R', stage: 'roof' } });
+  }
+
+  // ---------- the soul quota ----------
+  // Whether a soul from what the floor keeps making still pays: true while the quota has room (and counts it). A kill past
+  // it pays nothing, and every few such kills pop a grey UNPAID where they died. The collapse's carpshits always pay.
+  function quotaPays(source, by, x, y) {
+    if (by === 'collapse' || Q.st !== 'fight' || !['carpshit', 'roll', 'limp'].includes(source)) return true;
+    const Z = F48.quota;
+    if (Q.quota < Z.souls) {
+      if (++Q.quota === Z.souls) { Q.quotaAt = Q.t; say('QUOTA MET. OVERTIME IS UNPAID.', 3); emit('f48_quota'); }
+      return true;
+    }
+    if (Q.unpaid++ % Z.unpaidEvery === 0 && x != null) core.popText('UNPAID', x, y - 6, '#8a8494');
+    emit('f48_unpaid', { source });
+    return false;
   }
 
   // ---------- the tick ----------
@@ -1256,16 +1278,25 @@ var UnrugFloor48 = function (core) {
     g.globalAlpha = .9; g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, Math.PI * 1.1, Math.PI * 1.6); g.stroke(); g.restore();
   }
   // The arrow to what he has to do next, when it's off screen: the vessels while they stand (the nearer one), then the
-  // overloading loom. p(Loom)'s orange chevron on the screen's edge, pulsing. The cart is optional: no arrow.
+  // overloading loom. Before the last line, the nearest running loom once no loom has taken damage for F48.quota.idle
+  // seconds, or from the moment the quota fills until he next hurts a loom (owner, Oct 16). p(Loom)'s orange chevron on
+  // the screen's edge, pulsing. The cart is optional, and carpshits never get one (#114).
+  const loomArrow = () => Q.st === 'fight' && Q.panic < 2 && (Q.t - Q.loomHitAt >= F48.quota.idle || (Q.quotaAt != null && Q.loomHitAt < Q.quotaAt));
   function objectiveArrow() {
-    if (Q.st !== 'fight' || !Q.reactor) return;
+    Q.arrowOn = false;
+    if (Q.st !== 'fight') return;
     let tx = null, ty = null;
-    const vs = vessels();
-    if (vs.length) { const v = vs.reduce((a, b) => Math.hypot(a.x - bull.x, a.y - bull.y) < Math.hypot(b.x - bull.x, b.y - bull.y) ? a : b); tx = v.x; ty = v.y - 30; }
+    const vs = Q.reactor ? vessels() : [];
+    if (loomArrow()) {
+      const lm = Q.machines.filter(m => m.kind === 'loom' && !m.dead && live(m.line)).reduce((a, b) => !a || Math.hypot((b.x0 + b.x1) / 2 - bull.x, b.y1 - bull.y) < Math.hypot((a.x0 + a.x1) / 2 - bull.x, a.y1 - bull.y) ? b : a, null);
+      if (lm) { tx = (lm.x0 + lm.x1) / 2; ty = lm.y1 - 20; }
+    } else if (!Q.reactor) return;
+    else if (vs.length) { const v = vs.reduce((a, b) => Math.hypot(a.x - bull.x, a.y - bull.y) < Math.hypot(b.x - bull.x, b.y - bull.y) ? a : b); tx = v.x; ty = v.y - 30; }
     else if (Q.reactor.st === 'down') { const lm = lastLoom(); if (lm) { tx = (lm.x0 + lm.x1) / 2; ty = lm.y1 - 20; } }
     if (tx == null) return;
     const sx = tx - CAM.x, sy = ty - CAM.y, m = 18;
     if (sx > 0 && sx < W && sy > 0 && sy < H) return;
+    Q.arrowOn = true;   // for the tests (drawing only)
     const cx = W / 2, cy = H / 2, dx = sx - cx, dy = sy - cy, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-6), (H / 2 - m - 10) / Math.abs(dy || 1e-6));
     const ax = cx + dx * k, ay = cy + dy * k, a = Math.atan2(dy, dx), pulse = 1 + .18 * Math.sin(R.t * 9);
     g.save(); g.translate(Math.round(ax), Math.round(ay)); g.rotate(a); g.scale(pulse, pulse);
@@ -1549,12 +1580,13 @@ var UnrugFloor48 = function (core) {
     soulFreed(f) { f.to = { x: W / 2 - 10 - textWidth(String(R.souls)), y: 7 }; },
     aim: noop, shotHits: () => false, shotFar: () => false, posOf: o => o, slash: noop, hurt: noop, blasterBack: noop,
     bonusBy: () => null, endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop,
-    checkpoint() { if (Q && Q.st !== 'lobby') core.setCheckpoint({ stage: 'floor48', souls: R.checkpointSouls != null ? R.checkpointSouls : R.souls, continues: R.continues, down: Q.down.slice(), seedState: core.seedState(), runSeed: core.runSeed() }); },
+    // no checkpoint at a rugging: a continue restarts the whole floor from the one saved as he came in (newRun), with the
+    // souls he came in with, every line running again and the same line kinds (item 26)
     stageNo: () => R.phase === 'win' ? 22 : Q.st === 'lobby' ? 21 : Q.st === 'collapse' ? 21 : 18 + Q.panic,
     stageNames: { 18: 'The 48th Floor', 19: 'The 48th Floor: one line down', 20: 'The 48th Floor: last line', 21: 'The 48th Floor: collapse and lobby', 22: 'The 48th Floor cleared' },
     pauseText: 'The factory waits.',
-    continueText: () => Q && Q.panic ? 'Back in the factory with full hearts? Lines you shut down stay down.' : 'Back in the factory with full hearts?',
+    continueText: () => 'Back to the start of the floor with full hearts?',
     clearCard, afterClear: () => startLobby(false),
-    F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, hurtMachine: hurt, solids, startReactor, hitCart, vessels, shielded, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, get Q() { return Q; }
+    F48, LINES, KINDS, td, arena, lineDown, breakMachine, breakProp, hurtProp, hurtMachine: hurt, solids, startReactor, hitCart, vessels, shielded, startCollapse, startLobby, startPloom, cutCable, cables, kindOf, partOf, loomOf, limpRug, stepCart, get Q() { return Q; }
   };
 };

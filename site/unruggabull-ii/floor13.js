@@ -493,8 +493,8 @@ var UnrugFloor13 = function (core) {
   function draggedIn() {
     const b = bull;
     b.bz = TUNE.mouth; b.mouth = .8; b.slash = -1;
-    R.hearts = Math.max(0, R.hearts - 2); R.shake = .35; R.boss.chomp = .8;
-    R.lastCause = 'rug'; emit('hit', { amount: 2, cause: 'rug' });
+    hurtBull(2, 'rug', true);   // two hearts, whatever his safety after a hit; the mode prices it like any other hit
+    R.shake = .35; R.boss.chomp = .8;
     R.events.dragged = (R.events.dragged || 0) + 1;
     endPull();
     Snd.play('chomp');

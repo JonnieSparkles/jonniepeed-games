@@ -83,9 +83,24 @@
   function rnd() { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
   const rr = (a, b) => a + (b - a) * rnd();
   const fxr = (a, b) => a + (b - a) * Math.random();
-  const RUN = { force: null, seed: 0, refillBetweenStages: true, mode: 'regular' };   // mode: the title's pick (baby, regular, raging); nothing reads it yet (item 29)
+  // The run's difficulty (item 29), picked on the title and kept for the whole run: Baby Bull's hits cost half a heart,
+  // Regular is the game as tuned, Raging Bull carries his hearts between stages, Impossibull has five hearts from the
+  // start and nothing gives one back (owner, Oct 16): no coffee, no katana refill, no crate hearts, no refill between stages.
+  // full: the run began at Start and has been carried since (no Restart floor, no #stage), so it can go on the board.
+  const RUN = { force: null, seed: 0, refillBetweenStages: true, mode: 'regular', full: false };
+  const MODES = ['baby', 'regular', 'raging', 'impossibull'];
+  function setMode(m) {
+    RUN.mode = MODES.includes(m) ? m : 'regular';
+    RUN.refillBetweenStages = RUN.mode === 'baby' || RUN.mode === 'regular';   // Raging and Impossibull: no refill between stages
+  }
+  // what a hit of n hearts costs in this mode: half in Baby Bull
+  const heartCost = n => RUN.mode === 'baby' ? n / 2 : n;
+  // whether anything may give him a heart back: never in Impossibull, where even a continue starts the stage again with the
+  // hearts he came into it with (R.entryHearts, saved in every checkpoint; owner, Oct 16)
+  const healing = () => RUN.mode !== 'impossibull';
   let travelHook = null; // test adapter may stop at the end of a single stage
   const hashTokens = () => location.hash.replace(/^#/, '').split('&').filter(Boolean);
+  function hashMode() { for (const tk of hashTokens()) { const m = /^mode=(\w+)$/.exec(tk); if (m && MODES.includes(m[1])) return m[1]; } return null; }
   function hashSeed() { for (const tk of hashTokens()) { const m = /^seed=(\d+)$/.exec(tk); if (m) return +m[1]; } return null; }
   function pickSeed() { const h = hashSeed(); return (RUN.force != null ? RUN.force : h != null ? h : (Date.now() ^ Math.floor(Math.random() * 4294967296))) >>> 0; }
   // Balance bots listen here; in play it does nothing.
@@ -103,9 +118,16 @@
     floor = floors[chosen] || floors.floor13;
     for (const key of Object.keys(TUNE)) delete TUNE[key];
     Object.assign(TUNE, SHARED_TUNE, floor.tune);
-    if (R && R.stage !== floor.id) loadBest(floor.id);
+    if (bestFor !== floor.id + '/' + RUN.mode) loadBest(floor.id);
     RUN.seed = at && at.runSeed != null ? at.runSeed : pickSeed();
     seed = at && at.seedState != null ? at.seedState : RUN.seed;
+    const seed0 = seed;
+    if (!at || at.transfer) checkpoint = null;   // a new floor: its own checkpoints come with it
+    // the hearts he comes into this stage with (a continue: the ones its checkpoint saved); every checkpoint keeps them,
+    // and in Impossibull a continue gives them back instead of a full five. at.full: a retry of the 13th's hall.
+    const entryHearts = at && !at.transfer ? (at.entryHearts != null ? at.entryHearts : TUNE.hearts)
+      : at ? (at.full ? (healing() || at.entryHearts == null ? TUNE.hearts : at.entryHearts) : RUN.refillBetweenStages || at.hearts == null ? TUNE.hearts : Math.min(TUNE.hearts, at.hearts))
+      : TUNE.hearts;
     R = {
       stage: floor.id, t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
       beat: 0, beatT: 0, event: null,
@@ -116,18 +138,24 @@
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
       banner: null, talk: null, bark: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
       shown: 0, meterPulse: 0, pulse: 0, pulseT: 0, ambT: 8,   // cosmetic: souls shown as their wisps land, the low-health pulse, office sounds
-      armed: true, roll: null, zap: 0, forms: []   // the blaster in hand; the rug rolling back; the surge's flash; formations for wipes
+      armed: true, roll: null, zap: 0, forms: [],   // the blaster in hand; the rug rolling back; the surge's flash; formations for wipes
+      entryHearts
     };
     bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0, pin: 0 };
     floor.newRun(R, bull, at && at.transfer && floor.id === 'floor13' ? null : at);
     R.banked = at && at.banked || 0;   // the stairwell's souls: in the run's total, not in the 13th Floor's meter
     if (at && at.transfer) {
       R.souls = R.shown = at.souls;
-      R.hearts = RUN.refillBetweenStages ? TUNE.hearts : at.hearts;
+      R.hearts = entryHearts;
       R.continues = at.continues || 0;
       R.fromStairs = !!at.fromStairs;   // through the stairwell's door: the band's already playing
     }
     R.floorStart = at && !at.transfer && at.floorStart != null ? at.floorStart : R.souls;   // the souls he came into this floor with (the cards' souls freed)
+    if (at && !at.transfer && !healing()) R.hearts = entryHearts;   // an Impossibull continue: no more than he came in with
+    // The 13th Floor's hall: a retry before SHRED-O wakes starts the floor over and carries the run (item 26), with the
+    // souls he came in with, full hearts and the same seed; SHRED-O's waking replaces it with its own.
+    if (floor.id === 'floor13' && (!at || at.transfer)) checkpoint = { stage: 'floor13', hall: true, transfer: true, full: true,
+      souls: R.souls, banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts, continues: R.continues, seedState: seed0, runSeed: RUN.seed };
   }
   // Where a target is, for aiming and hits: the floor knows where its own things are.
   const posOf = o => floor.posOf(o);
@@ -136,6 +164,7 @@
   // They drift toward you a little on their own, so they still arrive when the hall has stopped.
   function addPickup(kind, dz, u) {
     const pk = { kind, w: R.dist + dz, u: clamp(u, -TUNE.aisle + .05, TUNE.aisle - .05), h: .3, t: 0 };
+    if (kind === 'coffee' && !healing()) return pk;   // Impossibull: no coffee turns up
     R.pickups.push(pk);
     if (!R.pickups.some(o => o !== pk && o.t < .05)) Snd.play('appear');   // one chime when a pickup (or a pair) turns up
     return pk;
@@ -354,16 +383,24 @@
     }
     R.shots = R.shots.filter(s => !s.dead && Math.abs(s.u) < 1.1);
   }
-  function hurtBull(n, cause) {
-    if (bull.inv > 0 || bull.mouth > 0 || bull.spat > 0 || R.phase === 'dead' || R.phase === 'win') return false;
-    R.hearts = Math.max(0, R.hearts - n); bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15; bull.stag = .3;   // he staggers (drawn only)
-    if (R.hearts === 1) bark('low');
-    R.lastCause = cause || 'unknown'; emit('hit', { amount: n, cause: R.lastCause });
+  // Every hit goes through here, so the mode prices it: half a heart in Baby Bull (heartCost).
+  // forced: a hit that lands whatever (SHRED-O's chomp): no gate, and the caller does the rest of it (shake, sound, rugging).
+  function hurtBull(n, cause, forced) {
+    if (!forced && (bull.inv > 0 || bull.mouth > 0 || bull.spat > 0 || R.phase === 'dead' || R.phase === 'win')) return false;
+    const cost = heartCost(n);
+    R.hearts = Math.max(0, R.hearts - cost);
+    R.lastCause = cause || 'unknown';
+    if (forced) { emit('hit', { amount: cost, cause: R.lastCause }); return true; }
+    bull.inv = TUNE.hurtInv; R.shake = .2; R.red = .15; bull.stag = .3;   // he staggers (drawn only)
+    if (lowHearts()) bark('low');
+    emit('hit', { amount: cost, cause: R.lastCause });
     floor.hurt(cause);
     Snd.play('hurt');
     if (R.hearts <= 0) die();
     return true;
   }
+  // one heart or less left (Baby Bull's half hearts too)
+  const lowHearts = () => R.hearts > 0 && R.hearts <= 1;
 
 
 
@@ -516,7 +553,7 @@
     live('Unruggabull: ' + text);
     return plan.total;
   }
-  const lowHealth = () => R.hearts === 1 && (R.phase === 'hall' || R.phase === 'wake' || R.phase === 'boss');
+  const lowHealth = () => lowHearts() && (R.phase === 'hall' || R.phase === 'wake' || R.phase === 'boss');
   // Where freed souls fly to: the end of the meter's fill in the hall, the souls counter after.
   function meterSpot() {
     if (R.phase === 'hall') return { x: 87 + Math.round(62 * Math.min(1, R.shown / TUNE.goal)), y: 7 };
@@ -783,7 +820,12 @@
     if (fade < 1) { g.save(); g.globalAlpha = fade; drawHUDNow(); g.restore(); } else drawHUDNow();
   }
   function drawHUDNow() {
-    for (let i = 0; i < TUNE.hearts; i++) g.drawImage(i < R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, A.uw(A.HEART), A.uh(A.HEART));
+    const hw = A.uw(A.HEART), hh = A.uh(A.HEART);
+    for (let i = 0; i < TUNE.hearts; i++) {
+      g.drawImage(i + 1 <= R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, hw, hh);
+      // Baby Bull's half heart: the left half of a full one over an empty one
+      if (i < R.hearts && i + 1 > R.hearts) g.drawImage(A.HEART, 0, 0, A.HEART.width / 2, A.HEART.height, 4 + i * 10, 3.5, hw / 2, hh);
+    }
     // blaster charge under the hearts: blue when ready, red and blinking when empty (and overheated), gold with Spread Shot
     const ch = R.charge / TUNE.charges, dry = R.charge < 1, blink = Math.floor(R.t * 10) % 2;
     if (blasterOff()) { floor.hud(); return; }   // katana only here: no charge bar
@@ -913,11 +955,12 @@
   const goBtn = $('go'), altBtn = $('alt'), pauseBtn = $('pause'), snd = $('snd'), fsBtn = $('fs');
   const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), ipause = $('ipause');
   const BEST_KEY = 'unruggabull-ii-best';
-  const bestKey = stage => stage === 'floor13' ? BEST_KEY : BEST_KEY + '-' + stage;
-  let best = { souls: 0, time: 0 }, cardKind = 'title';
+  // a floor's best on this device, one per mode (Regular keeps the keys it always had)
+  const bestKey = stage => (stage === 'floor13' ? BEST_KEY : BEST_KEY + '-' + stage) + (RUN.mode === 'regular' ? '' : '-' + RUN.mode);
+  let best = { souls: 0, time: 0 }, cardKind = 'title', bestFor = 'floor13/regular';
   try { const v = JSON.parse(localStorage.getItem(BEST_KEY) || 'null'); if (v && typeof v.souls === 'number') best = { souls: v.souls, time: +v.time || 0 }; } catch (e) {}
   function loadBest(stage) {
-    best = { souls: 0, time: 0 };
+    best = { souls: 0, time: 0 }; bestFor = stage + '/' + RUN.mode;
     try { const v = JSON.parse(localStorage.getItem(bestKey(stage)) || 'null'); if (v) best = { souls: +v.souls || 0, time: +v.time || 0 }; } catch (e) {}
   }
   function stats(rows) {
@@ -1037,14 +1080,26 @@
     setState('play'); card.hidden = true; floor.opening();
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
-  function startRun(stage) {
+  // full: Start's run (the stairwell after the story); Restart floor and #stage start one that can't go on the board
+  function startRun(stage, full) {
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }   // restarted from pause: the open run is a quit
+    RUN.full = !!full;
     checkpoint = null;
     newRun(null, stage || floor.id);
     statsStart();
     setState('play');
     card.hidden = true;
     floor.opening();
+    try { c.focus({ preventScroll: true }); } catch (e) {}
+  }
+  // A retry before SHRED-O wakes: the 13th Floor over from its door, the same run carried on (item 26), full hearts.
+  function retryHall() {
+    const at = Object.assign({}, checkpoint, { continues: (checkpoint.continues || 0) + 1 });
+    clearHeld(); input.jump = input.slash = input.shoot = 0;
+    newRun(at);
+    statsStart();   // a continue is a run of its own
+    setState('play'); card.hidden = true; floor.opening();
+    live('Back at the door with full hearts.');
     try { c.focus({ preventScroll: true }); } catch (e) {}
   }
   // Back at SHRED-O: the hall's end, full hearts, the souls you had when it woke, and it wakes again.
@@ -1136,7 +1191,7 @@
   function endIntro(lit) {
     Snd.hush(); intro = null; crawl.hidden = true;
     try { localStorage.setItem(STORY_KEY, '1'); } catch (e) {}
-    startRun('stairs');
+    startRun('stairs', true);
     fadeIn = lit === true ? { t: 0 } : null;
   }
   function drawIntro() {
@@ -1174,8 +1229,28 @@
     best.souls = Math.max(best.souls, R.souls);
     if (kind === 'clear' && !R.continues) best.time = best.time ? Math.min(best.time, R.endT) : R.endT;   // fastest clear counts only without continues
     try { localStorage.setItem(bestKey(floor.id), JSON.stringify(best)); } catch (e) {}
+    if (kind === 'rugged' || floor.id === 'roof') postRun(kind);
+    if (kind === 'clear' && floor.id === 'roof' && RUN.mode === 'raging' && RUN.full && !R.continues) { try { localStorage.setItem(IMPOSSIBULL_KEY, '1'); } catch (e) {} }
     showCard(kind, { newBest });
   }
+  // ---------- each mode's board (item 29) ----------
+  // Kept on this device until the online board's metric, run clock and cap are settled (items 15, 25): a run's total souls
+  // and where it ended, top ten a mode. Only a full run (from Start) that never retried goes on, when it's rugged or the
+  // roof is cleared; a retried run is off the board on every mode, as the cards say.
+  const BOARD_KEY = mode => 'unruggabull-ii-board-' + mode, IMPOSSIBULL_KEY = 'unruggabull-ii-impossibull';
+  const ENDED = { stairs: 'STAIRS', floor13: '13TH', floor48: '48TH', elevator: 'RIDE', roof: 'ROOF' };
+  function boardOf(mode) {
+    try { const v = JSON.parse(localStorage.getItem(BOARD_KEY(mode)) || '[]'); return Array.isArray(v) ? v.filter(e => Array.isArray(e) && typeof e[1] === 'number').slice(0, 10) : []; } catch (e) { return []; }
+  }
+  function postRun(kind) {
+    if (!RUN.full || R.continues) return false;
+    const list = boardOf(RUN.mode), row = [kind === 'clear' ? 'CLEAR' : ENDED[floor.id] || 'RUN', R.souls + (R.banked || 0)];
+    let i = list.findIndex(e => e[1] < row[1]); if (i < 0) i = list.length;   // ties keep the earlier run above
+    list.splice(i, 0, row);
+    try { localStorage.setItem(BOARD_KEY(RUN.mode), JSON.stringify(list.slice(0, 10))); } catch (e) {}
+    return true;
+  }
+  function impossibullOpen() { try { return localStorage.getItem(IMPOSSIBULL_KEY) === '1'; } catch (e) { return false; } }
   // The HTML card is the title card and Controls now; clear, rugged and pause are cards.js's.
   goBtn.addEventListener('click', () => {
     if (cardKind === 'keys') { showCard(keysFrom); return; }
@@ -1573,18 +1648,20 @@
   function backTo() {
     const cp = checkpoint || {};
     if (floor.id === 'stairs') return cp.katana ? 'THE KATANA' : 'THE GARAGE';
-    if (floor.id === 'floor13') return checkpoint ? 'SHRED-O' : 'THE DOOR';
-    if (floor.id === 'floor48') return 'THE FACTORY';
-    if (floor.id === 'elevator') return cp.fight ? 'THE THREADS' : 'THE DOORS';
+    if (floor.id === 'floor13') return checkpoint && !cp.hall ? 'SHRED-O' : 'THE DOOR';
+    if (floor.id === 'floor48') return 'THE START';   // the whole floor again (item 26)
+    if (floor.id === 'elevator') return cp.fight ? 'FLOOR 48' : 'THE DOORS';   // the long ride again from the 48th (item 26)
     if (floor.id === 'roof') return cp.roofState && cp.roofState !== 'quiet' ? String(cp.roofState).replace(/^round/i, 'ROUND ').toUpperCase() : 'THE QUIET';
     return 'THE START';
   }
   function cardInfo(kind, extra = {}) {
-    const dept = dialAt()[1], who = floor.id === 'floor13' && kind === 'rugged' && checkpoint ? 'shredo' : floor.id;
-    if (kind === 'pause') return { who, dept, line: floor.pauseText || '' };
-    if (kind === 'clear') return { who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0 };
+    const dept = dialAt()[1], who = floor.id === 'floor13' && kind === 'rugged' && checkpoint && !checkpoint.hall ? 'shredo' : floor.id;
+    if (kind === 'pause') return { who, dept, line: floor.pauseText || '', mode: RUN.mode };
+    if (kind === 'clear') return { who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0, mode: RUN.mode };
     const from = checkpoint && checkpoint.souls != null ? checkpoint.souls : R.floorStart || 0;
-    return { who, dept, back: backTo(), lost: Math.max(0, R.souls - from), ranked: !R.continues };
+    // unlock: this run could still open Impossibull, so Retry's question says a retry won't
+    return { who, dept, back: backTo(), lost: Math.max(0, R.souls - from), ranked: !R.continues, mode: RUN.mode,
+      unlock: RUN.mode === 'raging' && RUN.full && !R.continues && !impossibullOpen() };
   }
   // Quit (the rugged card and the pause card): the run ends and the title screen comes back.
   function quitToTitle() {
@@ -1601,7 +1678,7 @@
       if (floor.afterClear) { setState('play'); floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
       quitToTitle();   // the roof's clear until the ending takes over, and practice runs
     },
-    retry() { goFull(); if (checkpoint) continueAtBoss(); else startRun(floor.id); },
+    retry() { goFull(); if (checkpoint && checkpoint.hall) retryHall(); else if (checkpoint) continueAtBoss(); else startRun(floor.id); },
     quit: quitToTitle,
     resume: resumeGame,
     restart() { Snd.resume(); startRun(); },
@@ -1610,16 +1687,16 @@
     full: toggleFull, fullLabel: () => isFull() ? 'Exit full screen' : 'Full screen', canFull: () => canFull
   } });
   Title = UnrugTitle.make({ A, arena: gameEl.querySelector('.arena'), stage: $('stage'), actions: {
-    start(mode) { RUN.mode = mode; goFull(); startIntro(); },   // Start always plays the story; skip it from there
-    picked(mode) { RUN.mode = mode; },
+    start(mode) { setMode(mode); goFull(); startIntro(); },   // Start always plays the story; skip it from there
+    picked(mode) { setMode(mode); },
     exit() { location.href = '../'; },
     sound: flipSound, soundOn, play: name => Snd.play(name),
     full: toggleFull, fullOn: isFull, canFull: () => canFull,
-    // Impossibull unlocks with a Raging Bull clear, which item 29 records here; until then it stays locked
-    locked: id => { if (id !== 'impossibull') return false; try { return localStorage.getItem('unruggabull-ii-impossibull') !== '1'; } catch (e) { return true; } },
-    board: () => null   // no boards yet: they come with the modes (item 29); the line and the board stay hidden until then
+    // Impossibull unlocks with a full run cleared on Raging Bull without a retry (endRun); until then it stays locked
+    locked: id => id === 'impossibull' && !impossibullOpen(),
+    board: mode => boardOf(mode)   // each mode's own board, on this device
   } });
-  RUN.mode = Title.mode;
+  setMode(Title.mode);
   function start() {
     setTimeout(renderer, 60);   // the renderer works out the hall once (a moment's work), while the title's up
     newRun();
@@ -1627,7 +1704,8 @@
     showCard('title');
     sndLabel();
     Snd.music('theme');
-    for (const stage of ['stairs', 'floor13', 'roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) startRun(stage);
+    // #stage=roof&mode=baby: practice and the bots run any mode (Regular without one); a practice run never goes on a board
+    for (const stage of ['stairs', 'floor13', 'roof', 'elevator', 'floor48']) if (hashTokens().includes('stage=' + stage)) { setMode(hashMode() || 'regular'); startRun(stage); }
     draw();
     requestAnimationFrame(frame);
   }
@@ -1637,11 +1715,11 @@
   const core = {
     A, Snd, rect, line, disc, poly, txt, otxt, textWidth, W, H, VX,
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
-    rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
+    rnd, rr, fxr, emit, addPickup, healing, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts }, v); }
   };
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
   core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick

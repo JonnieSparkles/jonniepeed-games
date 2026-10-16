@@ -468,9 +468,8 @@ with sync_playwright() as p:
         assert lay['safe'][0] >= -1 and lay['safe'][1] <= h + 1, f'{name}: the safe zone on screen ({lay["safe"]})'
         assert lay['logo'][0] >= -1 and lay['logo'][1] <= h + 1, f'{name}: the logo on screen ({lay["logo"]})'
         ids = [b['id'] for b in lay['buttons']]
-        for want in ('mode0', 'mode1', 'mode2', 'mode3', 'start', 'sound', 'exit'):
+        for want in ('mode0', 'mode1', 'mode2', 'mode3', 'start', 'sound', 'exit', 'board'):
             assert want in ids, f'{name}: {want} shows ({ids})'
-        assert 'board' not in ids, f'{name}: no board line until the boards exist'
         assert ('full' in ids) == page.evaluate('!!(document.fullscreenEnabled || document.webkitFullscreenEnabled)'), f'{name}: full screen shows where the browser can do it ({ids})'
         for b in lay['buttons']:
             assert b['x'] >= -1 and b['y'] >= -1 and b['x'] + b['w'] <= w + 1 and b['y'] + b['h'] <= h + 1, f'{name}: {b["id"]} on screen ({b})'
@@ -493,6 +492,13 @@ with sync_playwright() as p:
     assert page.locator('.tb[data-label="IMPOSSIBULL"]').get_attribute('aria-label') == 'IMPOSSIBULL, locked', 'title: it says it is locked'
     page.keyboard.press('ArrowLeft')
     assert page.evaluate("unrugTest('Title.mode')") == 'regular', 'title: the arrows change the mode'
+    # each mode's board (item 29): the line opens it, Back closes it
+    page.evaluate("localStorage.setItem('unruggabull-ii-board-regular', JSON.stringify([['ROOF', 412]]))")
+    page.locator('.tb[data-label="Top runs"]').tap(); page.wait_for_timeout(100)
+    assert page.evaluate("unrugTest('Title.board')") and 'Back' in page.evaluate("unrugTest('Title.labels()')"), 'title: the board line opens the mode\'s board'
+    page.locator('.tb[data-label="Back"]').tap(); page.wait_for_timeout(100)
+    assert not page.evaluate("unrugTest('Title.board')"), 'title: Back closes it'
+    page.evaluate("localStorage.removeItem('unruggabull-ii-board-regular')")
     was = page.evaluate("unrugTest('Snd.muted')")
     page.locator('.tb.tsnd').tap(); page.locator('.tb.tsnd').tap()
     assert page.evaluate("unrugTest('Snd.muted')") == was, 'title: sound flips and flips back'

@@ -35,15 +35,15 @@ Clear and rugged cards are p(Loom)'s messages, in the **Caption** style: the bar
 
 ## Where Retry restarts (item 26)
 
-The card shows the floor's own restart point; the rules are item 26's (the 48th and the long ride change to restart whole in a separate job).
+The card shows the floor's own restart point; the rules are item 26's (built with the difficulty modes: the 48th and the long ride restart whole, the 13th's hall carries the run).
 
 | Stage | BACK TO |
 | --- | --- |
 | Stairwell | THE GARAGE before the katana, THE KATANA after |
 | 13th Floor | THE DOOR (the top of the floor) |
 | 13th, beaten by SHRED-O | SHRED-O ("BACK FOR SECONDS?" stays its line in the game) |
-| 48th Floor | THE FACTORY today; THE START once it restarts whole |
-| Long ride | THE THREADS today; FLOOR 48 once it restarts whole |
+| 48th Floor | THE START (it restarts whole) |
+| Long ride | FLOOR 48 (it restarts whole) |
 | Roof | ROUND n or THE QUIET (today's checkpoint; the rule is open) |
 
 ## Which stages show a card
@@ -98,5 +98,5 @@ From the pull request, on a 360 × 780 and a 780 × 360 phone and a desktop wind
 
 ## Left for later
 
-- **The 13th Floor's hall restart is a fresh run.** Retry before SHRED-O starts the floor over as a new run (as it did): its retries and the stairwell's souls aren't carried, so it asks the leaderboard question every time and shows no trophy. Item 26's restart job should carry the run through it, as the other floors' checkpoints do.
+- ~~The 13th Floor's hall restart is a fresh run.~~ Done with the difficulty modes: Retry before SHRED-O carries the run (its retries and the stairwell's souls), so the question is asked once and the trophy shows. The cards also show the run's mode, small and dim, ahead of NEW BEST and RETRIED, and on a Raging Bull run that could still open Impossibull the question adds OR UNLOCK IMPOSSIBULL. (owner, Oct 16).
 - **The roof's own line and restart label** go in after #111 merges (today's checkpoint names are read, `roofState`).

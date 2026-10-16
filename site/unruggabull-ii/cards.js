@@ -54,7 +54,11 @@ var UnrugCards = (function () {
       txt(L.p + '%', x + w, y + 2, CAP.dim, 2, 'right');
       return x + 18 + tw('P(LOOM)', 2) + 10;
     }
+    // the run's mode, small and dim, ahead of the flags (item 29)
+    const MODE_NAMES = { baby: 'BABY BULL', regular: 'REGULAR BULL', raging: 'RAGING BULL', impossibull: 'IMPOSSIBULL' };
     function flags(x, y, t) {
+      const mode = MODE_NAMES[info.mode];
+      if (mode) { txt(mode, x, y + 2, CAP.dim, 2); x += tw(mode, 2) + 8; }
       if (t < 1.4) return;
       if (info.best) x += chip(x, y, 'NEW BEST', Math.floor(t * 3) % 2 ? CAP.rule : CAP.ink, CAP.bg) + 6;
       if (info.retried && info.kind === 'clear') chip(x, y, 'RETRIED', '#d63428', '#fff6e2');
@@ -84,7 +88,12 @@ var UnrugCards = (function () {
       flags(fx, 5, t);
       if (confirm) {
         txt('RETRY?', x, y, CAP.ink, 3, 'left', CAP.edge);
-        txt(typed('YOUR RETRY WILL NOT COUNT ON THE LEADERBOARD.', t, confirm.at, 70), x, y + 20, CAP.warn, 2);
+        if (info.unlock) {
+          // a Raging Bull run that could still open Impossibull says so too (owner, Oct 16), beside RETRY? to clear the buttons
+          const wx = x + tw('RETRY?', 3) + 12;
+          txt(typed('YOUR RETRY WILL NOT COUNT ON THE LEADERBOARD', t, confirm.at, 70), wx, y + 1, CAP.warn, 2);
+          txt(typed('OR UNLOCK IMPOSSIBULL.', t, confirm.at + .6, 70), wx, y + 14, CAP.warn, 2);
+        } else txt(typed('YOUR RETRY WILL NOT COUNT ON THE LEADERBOARD.', t, confirm.at, 70), x, y + 20, CAP.warn, 2);
         return true;
       }
       txt(typed(title(), t, .3, 30), x, y, CAP.ink, 3, 'left', CAP.edge);
@@ -126,7 +135,8 @@ var UnrugCards = (function () {
       if (confirm) {
         txt('RETRY?', x, y, CAP.ink, 3, 'left', CAP.edge); y += 21;
         txt(typed('YOUR RETRY WILL NOT COUNT', t, confirm.at, 70), x, y, CAP.warn, 2);
-        txt(typed('ON THE LEADERBOARD.', t, confirm.at + .4, 70), x, y + 13, CAP.warn, 2);
+        txt(typed(info.unlock ? 'ON THE LEADERBOARD' : 'ON THE LEADERBOARD.', t, confirm.at + .4, 70), x, y + 13, CAP.warn, 2);
+        if (info.unlock) txt(typed('OR UNLOCK IMPOSSIBULL.', t, confirm.at + .7, 70), x, y + 26, CAP.warn, 2);
         return true;
       }
       txt(typed(title(), t, .3, 30), x, y, CAP.ink, 3, 'left', CAP.edge); y += 21;
@@ -189,7 +199,7 @@ var UnrugCards = (function () {
         { label: 'Quit', sec: true, go: act.quit }];
       if (info.kind === 'clear') return [{ label: 'Continue', go: act.next }];
       if (confirm) return [{ label: 'Retry', go: act.retry }, { label: 'Back', sec: true, go: () => { confirm = null; setButtons(buttonsFor()); place(); focus(); } }];
-      return [{ label: 'Retry', go: () => { if (info.ranked) { confirm = { at: now() - t0 }; setButtons(buttonsFor()); place(); focus(); say.textContent = 'Retry? Your retry will not count on the leaderboard.'; } else act.retry(); } }, { label: 'Quit', sec: true, go: act.quit }];
+      return [{ label: 'Retry', go: () => { if (info.ranked) { confirm = { at: now() - t0 }; setButtons(buttonsFor()); place(); focus(); say.textContent = 'Retry? Your retry will not count on the leaderboard' + (info.unlock ? ' or unlock Impossibull.' : '.'); } else act.retry(); } }, { label: 'Quit', sec: true, go: act.quit }];
     }
     function relabel() { for (const b of buttons) { if (b.id === 'lSnd') b.el.textContent = act.soundLabel(); if (b.id === 'lFs') b.el.textContent = act.fullLabel(); } }
     function focus() { const b = buttons[0]; if (b && b.el.style.visibility !== 'hidden') try { b.el.focus({ preventScroll: true }); } catch (e) {} }

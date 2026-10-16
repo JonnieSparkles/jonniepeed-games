@@ -56,12 +56,15 @@
   const f = { u: 0, z: .4, h: .2, hp: 1, ph: 0, hit: 0, dead: false };
   R.flies.push(f); killFly(f, 'shot'); tick(1.3);
   check(R.souls === caught + 1 && R.shown === caught + 1 && R.roof.caught === caught + 1, 'a freed soul is counted and ends up hung in the warp');
-  // Continue captures live outcomes (including souls still flying), keeps broken spools, and skips the lead-in.
-  fresh(); floor.enter('round2'); free(120, 80, 'carpshit', 'shot');
+  // A continue goes back to the phase as it began: broken spools kept, the lead-in skipped, and the failed try's souls
+  // lost (the ones he freed and the ones p(Loom) caught from them; soul audit, item 26).
+  fresh(); floor.enter('round2');
+  const souls0 = R.souls, caught0 = R.roof.caught;
+  free(120, 80, 'carpshit', 'shot');
   R.roof.caught = 9; bull.inv = 0; hurtBull(5, 'laser');
-  check(checkpoint.roofState === 'round2', 'round2 death records round2');
+  check(checkpoint.roofState === 'round2' && checkpoint.souls === souls0, 'a round2 rugging keeps the checkpoint saved as round2 began');
   continueAtBoss();
-  check(R.roof.state === 'round2' && R.roof.broken === 1 && R.hearts === 5 && R.souls === floor.ROOF.initialCaught + 1 && R.roof.caught === 10, 'round2 continue preserves outcomes and full hearts');
+  check(R.roof.state === 'round2' && R.roof.broken === 1 && R.hearts === 5 && R.souls === souls0 && R.roof.caught === caught0, 'round2 continue: spools kept, full hearts, the failed try\'s souls gone');
   check(R.roof.history.join() === 'round2' && R.continues === 1, 'continue skips elevator and walk');
   check(R.roof.hp === floor.ROOF.hitsPerSpool[1] && !R.roof.spDone[1] && R.roof.odds === floor.oddsAt(floor.ROOF.hitsPerSpool[0]), 'the phase restarts with its spool whole and its set piece to come');
   Snd.say = oldSay; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');

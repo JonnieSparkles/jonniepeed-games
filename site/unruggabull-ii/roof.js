@@ -117,11 +117,19 @@ var UnrugRoof = function (core) {
     seen[key] = true; Q.tips.push({ text, t: 0 }); live(text);
   }
   const oddsAt = hits => ROOF.odds - (ROOF.odds - F.floorOdds) * hits / (ROOF.spools * HPS);
+  // Saved as a phase or the quiet begins, never at a rugging, so a continue loses the failed try's souls (the souls he
+  // freed and the ones p(Loom) caught from them) as everywhere else. Re-entering a round restores its intact spool at full health.
   function checkpoint() {
-    // Save outcomes, not cosmetic positions. Re-entering a round restores its intact spool at full health.
+    // Save outcomes, not cosmetic positions.
     setCheckpoint({ stage: 'roof', roofState: isRound() ? Q.state : stageNo() === 10 ? 'round1' : 'quiet',
       broken: Q.broken, caught: (isRound() ? Q.caught : Q.capturedTotal) + R.fx.filter(f => f.caught).length, capturedTotal: Q.capturedTotal + R.fx.filter(f => f.caught).length, souls: R.souls, t: R.t, continues: R.continues,
       bestStreak: R.bestStreak, events: Object.assign({}, R.events) });
+  }
+  // A rugging before phase 1 (in the walk): back to phase 1 with what he came onto the roof with.
+  function deathCheckpoint() {
+    if (core.checkpoint()) return;
+    setCheckpoint({ stage: 'roof', roofState: 'round1', broken: 0, caught: Q.entryCaught, capturedTotal: Q.entryCaught, souls: R.floorStart, t: R.t,
+      continues: R.continues, bestStreak: R.bestStreak, events: Object.assign({}, R.events) });
   }
   function clearThreats() {
     R.flies = []; R.shots = []; Q.fakes = []; Q.hatching = []; Q.stall = 0; Q.slam = 0;
@@ -286,6 +294,7 @@ var UnrugRoof = function (core) {
       spDone: [false, false, false], spPending: false, stitch: 0, respool: 0, beat0: 0, drag: null };
     placeBull(2, 0);
     if (at && at.transfer) { Q.caught = Q.capturedTotal = at.souls; Q.fromRide = !!at.ride; }
+    Q.entryCaught = Q.caught;
     effects.reset(at && !at.transfer ? at.capturedTotal + Math.max(0, at.caught - at.capturedTotal) : Q.caught);
     if (at && !at.transfer) {
       Object.assign(R, { t: at.t, souls: at.souls, shown: at.souls, continues: at.continues + 1, bestStreak: at.bestStreak });
@@ -1284,7 +1293,7 @@ var UnrugRoof = function (core) {
   return {
     id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools, recharge: ROOF.recharge, move: 0 }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2], rug: 0, rugEdge: 0 },
     lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
-    stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint,
+    stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint: deathCheckpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
     aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, blasterOff: () => !!Q && deadBlaster(), dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
     hurt: noop, blasterBack: noop, bonusBy: () => null,
