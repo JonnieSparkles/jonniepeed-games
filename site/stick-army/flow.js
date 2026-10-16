@@ -26,6 +26,8 @@ var StickArmyFlow = function (world, game) {
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
     game.facingLoaded = false;
     fit();
+    // Campaign's button says New or Continue (campaign-screens.js).
+    if (world.onTitle) world.onTitle();
   }
   // The level picked on the title (LEVELS): ticked on the form, its record on the rubber stamp ("Best 446,661 / Won
   // 2×", with the best wave once endless has gone past 20), and its board on the notebook's facing page. Veteran wears
@@ -151,7 +153,7 @@ var StickArmyFlow = function (world, game) {
   }
   // The pause card's lines: the wave and time, the kit and the squad.
   function fillPause() { var S = world.S;
-    document.getElementById('pauseTime').textContent = 'Wave ' + S.wave + ' · ' + clock(S.played) + ' played';
+    document.getElementById('pauseTime').textContent = world.waveName(S.wave) + ' · ' + clock(S.played) + ' played';
     // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
     var kit = document.getElementById('pauseKit');
     kit.hidden = !renderKit(kit, false);

@@ -2,7 +2,7 @@
 
 A second way to play beside Arcade: a tour of ten operations with one squad you keep, and can lose. Each operation is a few short missions, each with its own goal, on its own paper. Operations ship one at a time as release packs.
 
-Status: planned (Oct 15–16), not built. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
+Status: planned (Oct 15–16). Round 1, the frame and Boot Camp, built Oct 16 (the game as it is now is in [README.md](README.md#campaign)); its playtest is next. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
 
 ## Why
 

@@ -1,10 +1,11 @@
 // What decides a run (MODES in game.js): its waves, when it's won and what winning does, and when it's lost. Arcade
-// is the default and only kind; a kind put in its place here (and taken out again) decides all four.
+// is the default, and Campaign (campaign.js) the other kind; a kind put in its place here (and taken out again)
+// decides all four.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
-  check(Object.keys(MODES).join() === 'arcade', 'Arcade is the only kind of run');
+  check(Object.keys(MODES).join() === 'arcade,campaign', 'Arcade and Campaign are the kinds of run');
   RUN.force = 31; newGame(); RUN.force = null;
-  check(S.game === 'arcade' && rules() === MODES.arcade, 'and every run is Arcade');
+  check(S.game === 'arcade' && rules() === MODES.arcade, 'and a new run is Arcade');
   check(JSON.stringify(S.spawn.cfg) === JSON.stringify(waveCfg(1)) && JSON.stringify(world.waveCfg(5)) === JSON.stringify(waveCfg(5)), "Arcade's waves are waveCfg's");
 
   // A stand-in kind: two planes and nothing else, won when wave 1 clears (its own win), lost after 3 wall damage.

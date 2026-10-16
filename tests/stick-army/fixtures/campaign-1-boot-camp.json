@@ -1,0 +1,91 @@
+{
+ "release": 1,
+ "note": "A tour saved by Campaign round 1 (Boot Camp), between missions 1 and 2, with its save link. Later releases must still load both.",
+ "tour": {
+  "v": 1,
+  "code": "K7QMR2",
+  "op": 0,
+  "m": 1,
+  "attempt": 0,
+  "at": "between",
+  "missions": [
+   "first-contact",
+   "fill-the-ranks",
+   "bomb-alley"
+  ],
+  "squad": [
+   {
+    "id": 118,
+    "type": "rifle",
+    "stripes": 0,
+    "kills": 9,
+    "name": null,
+    "trait": null
+   },
+   {
+    "id": 131,
+    "type": "engineer",
+    "stripes": 0,
+    "kills": 2,
+    "name": null,
+    "trait": null
+   },
+   {
+    "id": 177,
+    "type": "sniper",
+    "stripes": 0,
+    "kills": 4,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "fallen": [
+   {
+    "id": 140,
+    "type": "rifle",
+    "stripes": 0,
+    "kills": 1,
+    "op": 0,
+    "m": 0,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "gone": [],
+  "bank": 85,
+  "nextId": 212,
+  "opLosses": 1,
+  "hired": 0,
+  "lasting": [],
+  "gear": {
+   "stacks": {
+    "fire": 1,
+    "sandbags": 1
+   },
+   "calls": {
+    "bomber": 0,
+    "fighter": 1
+   },
+   "hired": 0
+  },
+  "stars": {},
+  "debrief": null,
+  "last": {
+   "won": true,
+   "mission": "First contact",
+   "caught": 4,
+   "planes": 19,
+   "time": 71,
+   "fresh": 3,
+   "fell": [
+    140
+   ]
+  }
+ },
+ "link": "https://jonniepeed.games/stick-army/#tour=04K7QMR2000G0NEM040G000108002101000G00VP004R60880ARG26040660200100048",
+ "missions": [
+  "first-contact",
+  "fill-the-ranks",
+  "bomb-alley"
+ ]
+}

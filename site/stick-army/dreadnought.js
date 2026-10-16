@@ -1310,5 +1310,5 @@ var StickArmyDreadnought = function (w) {
   return { DREAD: DREAD, turretHP: turretHP, hangarHP: hangarHP, bridgeHP: bridgeHP, cannonHP: cannonHP, isDreadWave: isDreadWave, dread: dread, spawnDread: spawnDread,
     dreadHit: dreadHit, hurtDread: hurtDread, graze: graze, updateDread: updateDread, drawDread: drawDread, drawDreadBar: drawDreadBar,
     dreadTargets: dreadTargets, dreadPhase: dreadPhase, captainDrift: captainDrift, captainCaught: captainCaught, captainDown: captainDown, captainRun: captainRun, dreadMusic: dreadMusic, dreadBeams: dreadBeams, hangarAt: hangarAt, bridgeAt: bridgeAt, muzzleAt: muzzleAt, victoryDue: victoryDue, rollCall: rollCall, showWin: showWin, keepGoing: keepGoing,
-    recordLine: recordLine };
+    recordLine: recordLine, surrender: surrender };
 };

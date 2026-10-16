@@ -678,7 +678,9 @@ var StickArmyDraw = function (world) {
       }
       // A long score shrinks to stop short of the wave label (round 14: six digits ran into "wave 10").
       var sc = S.score.toLocaleString('en-US');
-      G.font = '26px ' + HAND; var room = 200 - G.measureText('wave ' + Math.max(1, S.wave)).width / 2 - HUD_GAP - 58;
+      // A kind of run can name its own wave and the line under it (game.js MODES hud; Campaign's goal).
+      var own = world.rules().hud ? world.rules().hud() : null, waveLabel = own ? own.wave : 'wave ' + Math.max(1, S.wave);
+      G.font = '26px ' + HAND; var room = 200 - G.measureText(waveLabel).width / 2 - HUD_GAP - 58;
       G.font = '34px ' + HAND; var sw = G.measureText(sc).width;
       if (sw > room) G.font = Math.max(16, Math.floor(34 * room / sw)) + 'px ' + HAND;
       G.fillStyle = c.INK; G.fillText(sc, 58, 58);
@@ -692,7 +694,7 @@ var StickArmyDraw = function (world) {
       if (lose && S.tagLost) { G.save(); G.globalAlpha = Math.min(1, S.tagLoss); G.fillStyle = c.RED; G.font = '22px ' + HAND; G.textAlign = 'left'; G.fillText('-' + S.tagLost, 304, 84); G.restore(); }
       c = pensAt(200, 52);
       G.fillStyle = c.INK;
-      G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText('wave ' + Math.max(1, S.wave), 200, 50);
+      G.textAlign = 'center'; G.font = '26px ' + HAND; G.fillText(waveLabel, 200, 50);
       // Veteran wears its three stripes over the wave.
       if (S.level === 'veteran') { G.beginPath(); for (var vs = 0; vs < 3; vs++) { L(191, 20 + vs * 5, 200, 15 + vs * 5, 0.2); L(200, 15 + vs * 5, 209, 20 + vs * 5, 0.2); } ink(c.BLUE, 2.2); G.stroke(); }
       // In co-op the combo shown is this player's own.
@@ -701,7 +703,8 @@ var StickArmyDraw = function (world) {
         G.fillStyle = c.BLUE; G.font = '22px ' + HAND; G.fillText('combo x' + Math.min(5, cb.combo), 200, 76);
         var cw = 70 * (cb.comboT / 1.4);
         G.beginPath(); L(200 - cw / 2, 82, 200 + cw / 2, 82, 0.4); ink(c.BLUE, 2.4); G.stroke();
-      } else if (S.endless) { G.fillStyle = c.BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
+      } else if (own && own.sub) { G.fillStyle = own.done ? c.BLUE : c.RED; G.font = '17px ' + HAND; G.fillText(own.sub, 200, 73); }
+      else if (S.endless) { G.fillStyle = c.BLUE; G.font = '17px ' + HAND; G.fillText('endless', 200, 73); }
       else if (S.wave === DREAD.WAVE) { G.fillStyle = c.RED; G.font = '17px ' + HAND; G.fillText('final wave', 200, 73); }
     }
     // The title uses the bottom of the page for Start and the chips.
@@ -716,6 +719,8 @@ var StickArmyDraw = function (world) {
     G.fillRect(bx + 2, y1 - 8, (bw - 4) * hp / S.mods.maxHP, 16);
     G.beginPath(); L(bx, y1 - 10, bx + bw, y1 - 10, 0.5); L(bx + bw, y1 - 10, bx + bw, y1 + 10, 0.5); L(bx + bw, y1 + 10, bx, y1 + 10, 0.5); L(bx, y1 + 10, bx, y1 - 10, 0.5);
     ink(c.INK, 2.4); G.stroke();
+    // A goal's mark on the wall (Campaign's "keep the wall above half").
+    if (own && own.mark) { var mx = bx + bw * own.mark; G.beginPath(); L(mx, y1 - 15, mx, y1 + 15, 0.4); ink(c.RED, 3); G.stroke(); }
     c = pensAt(bx + bw + 40, y1);
     G.fillStyle = c.INK2; G.font = '17px ' + HAND; G.fillText(Math.ceil(hp) + '/' + S.mods.maxHP, bx + bw + 10, y1 + 6);
     var y2 = 690;

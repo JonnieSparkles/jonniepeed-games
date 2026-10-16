@@ -58,6 +58,8 @@ var StickArmySquad = function (w) {
     S.recruits.forEach(function (r) {
       if (r.dead || r.down) return;
       r.waves = (r.waves || 0) + 1;
+      // Campaign's stripes come from operations survived, not waves served (campaign.js).
+      if (w.rules().promotes === false) return;
       var want = stripes(r);
       if (want <= (r.rank || 0)) return;
       r.rank = (r.rank || 0) + 1; r.hp += RANK.HP;
