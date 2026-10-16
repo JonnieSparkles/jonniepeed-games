@@ -128,7 +128,8 @@ window.UnrugRun = (function () {
   // What the play stats get: how far he got, and what was left of the Rugfather.
   function report() {
     const boss = getBossBattleStarted() ? Math.max(0, __bossState.hp) : null;
-    const s = { wave: Math.min(difficultyLevel, 6), health: Math.max(0, player.health), boss_fight: getBossBattleStarted() };
+    const s = { wave: Math.min(difficultyLevel, 6), health: Math.max(0, player.health), boss_fight: getBossBattleStarted(),
+      shots: runShots, hits: runHits, ran_dry: runRanDry };
     if (boss !== null) s.boss_hp = boss;
     return { score: killCount, time_ms: Math.round(runMs()), input: run ? run.input : undefined, won: gameState === 'congrats', stats: s };
   }
