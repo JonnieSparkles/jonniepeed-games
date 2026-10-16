@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Unruggabull: RugCo Alley Remastered · JonniePeed Games</title>
+<meta name="description" content="Unruggabull: RugCo Alley Remastered. The 2025 platformer, now on phones: a blaster-toting bull, waves of carpshits and a boss fight with the Rugfather in a burning alley.">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="JonniePeed Games">
+<meta property="og:title" content="Unruggabull: RugCo Alley Remastered · JonniePeed Games">
+<meta property="og:description" content="One bull was not like the rest, he was... Unruggabull.">
+<meta property="og:url" content="https://jonniepeed.games/unruggabull-remastered/">
+<meta property="og:image" content="https://jonniepeed.games/unruggabull-remastered/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Unruggabull in a puffy vest and glasses in front of the burning RugCo Empire sign, beside the Unruggabull wordmark">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Unruggabull: RugCo Alley Remastered · JonniePeed Games">
+<meta name="twitter:description" content="One bull was not like the rest, he was... Unruggabull.">
+<meta name="twitter:image" content="https://jonniepeed.games/unruggabull-remastered/og.png">
+<meta name="twitter:image:alt" content="Unruggabull in a puffy vest and glasses in front of the burning RugCo Empire sign, beside the Unruggabull wordmark">
+<link rel="icon" href="../assets/favicon.ico?v=443c0101ac" sizes="any">
+<link rel="icon" type="image/png" href="../assets/favicon-32.png?v=569f3f592d">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=c9eec24c41">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+/* iPhones zoom on a quick double tap, even on buttons. Pinch zoom still works, and stricter rules (none, pan-y) still win. */
+*{touch-action:manipulation}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+/* The whole window is the game: the 960 x 540 alley sits in the middle at full height, the touch controls over it and the bars beside it. */
+#stage{position:fixed;inset:0;background:#000;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow:hidden}
+#gameCanvas{position:absolute;left:0;top:0;width:960px;height:540px;display:block;opacity:0;transition:opacity .7s;image-rendering:auto}
+#hud{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#safe{position:absolute;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+
+/* The 2025 title: the painting, a gold Start pill and a "press any key" veil that switches the music on. */
+#title{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);aspect-ratio:3/2;width:min(94vw,calc(94vh * 1.5));transition:opacity .7s;z-index:2}
+#title img{display:block;width:100%;height:100%;border-radius:12px;box-shadow:0 4px 32px #0008}
+#start-btn{position:absolute;left:5%;bottom:12%;font:bold clamp(1rem,3.2vmin,2rem) Arial,sans-serif;padding:.6em 1.4em;min-height:48px;border:none;border-radius:999px;background:linear-gradient(180deg,#ffe066 0%,#ffd700 60%,#ffb300 100%);color:#222;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 18px #0006;text-shadow:0 2px 8px #fff8}
+#start-btn:hover,#start-btn:focus-visible{background:linear-gradient(180deg,#fffbe6 0%,#ffe066 60%,#ffd700 100%);color:#b36b00;box-shadow:0 6px 24px #ffd70099,0 0 12px #fffbe6cc;outline:none}
+#veil{position:absolute;inset:0;border-radius:12px;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:clamp(1.2rem,5vmin,2rem);cursor:pointer;border:0;color:#fff;width:100%}
+.corner{position:absolute;bottom:2.5%;font:clamp(.8rem,2.4vmin,1.05rem) Arial,sans-serif;color:#fff;opacity:.8;background:rgba(0,0,0,.45);border:0;border-radius:8px;padding:.35em .7em;cursor:pointer;text-decoration:none}
+.corner:hover,.corner:focus-visible{opacity:1}
+#credits-btn{left:50%;transform:translateX(-50%)}
+#original{right:2.5%}
+#home{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px));z-index:3;font:14px Arial,sans-serif;color:#fff;opacity:.75;text-decoration:none;background:rgba(0,0,0,.45);border-radius:8px;padding:6px 10px}
+#home:hover,#home:focus-visible{opacity:1}
+
+/* Small buttons along the top edge: full screen on the title, pause in the game. */
+.edge{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:3;font:bold 14px Arial,sans-serif;color:#fff;background:rgba(14,9,9,.55);border:2px solid rgba(255,255,255,.35);border-radius:10px;min-width:44px;min-height:44px;padding:0 12px;cursor:pointer}
+#pause-btn{display:flex;align-items:center;justify-content:center;gap:5px;padding:0}
+#pause-btn i{display:block;width:5px;height:16px;background:#fff;border-radius:1px}
+
+/* Cards over the game: pause, credits, and the portrait screen. */
+.card-wrap{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72);padding:16px}
+.card{background:#1d1416;border:2px solid #ffb300;border-radius:14px;padding:20px 24px;display:grid;gap:12px;justify-items:center;text-align:center;max-width:min(92vw,460px);max-height:92vh;overflow:auto}
+.card h2{margin:0;font:bold 32px Arial,sans-serif;color:#ffd700;text-shadow:0 2px 0 #000}
+.card .row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.card button{font:bold 18px Arial,sans-serif;border:0;border-radius:999px;padding:10px 22px;min-height:44px;cursor:pointer;background:#3a2a26;color:#fff}
+.card button.go{background:linear-gradient(180deg,#ffe066 0%,#ffd700 60%,#ffb300 100%);color:#222}
+.card button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+#credits .card{justify-items:start;text-align:left;line-height:1.45;font-size:15px}
+#credits .card h2{justify-self:center}
+#credits .card p{margin:0}
+#credits a{color:#ffd700}
+#credits button{justify-self:center}
+#rotate{z-index:9;background:#0d0a0b;flex-direction:column;gap:18px;font:bold 22px Arial,sans-serif;text-align:center}
+#rotate canvas{width:120px;height:120px}
+#rotate small{font-weight:normal;font-size:15px;opacity:.75}
+@media (prefers-reduced-motion:reduce){#gameCanvas,#title{transition:none}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="gameCanvas" width="960" height="540" aria-label="Unruggabull: RugCo Alley"></canvas>
+  <canvas id="hud" aria-hidden="true"></canvas>
+  <div id="safe"></div>
+
+  <div id="title">
+    <img src="art/title.webp?v=83eadc058b" alt="Unruggabull title screen: the bull in a red vest and glasses aims his blaster, a herd of bulls behind him">
+    <button id="start-btn">Start Game</button>
+    <button class="corner" id="credits-btn">Credits</button>
+    <a class="corner" id="original" href="https://unruggabull.ar.io" target="_blank" rel="noopener">The 2025 original</a>
+    <button id="veil">Press any key</button>
+  </div>
+  <a id="home" href="../">&larr; JonniePeed Games</a>
+  <button class="edge" id="fs-btn" aria-pressed="false">Full screen</button>
+  <button class="edge" id="pause-btn" aria-label="Pause" hidden><i></i><i></i></button>
+
+  <div class="card-wrap" id="pause" hidden role="dialog" aria-modal="true" aria-labelledby="pause-h">
+    <div class="card">
+      <h2 id="pause-h">Paused</h2>
+      <div class="row">
+        <button class="go" id="resume-btn">Resume</button>
+        <button id="quit-btn">Quit</button>
+      </div>
+      <div class="row">
+        <button id="sound-btn" aria-pressed="true">Sound: on</button>
+        <button id="fs2-btn" aria-pressed="false">Full screen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-wrap" id="credits" hidden role="dialog" aria-modal="true" aria-labelledby="credits-h">
+    <div class="card">
+      <h2 id="credits-h">Credits</h2>
+      <p><b>Designs by</b> @JonnieSparkles</p>
+      <p><b>Help from</b> all the chatbots, GIMP, Aseprite, mp3cut.net, Piskel and PixelLab</p>
+      <p><b>Additional sounds by</b> Pixabay users edr, freesound_community, nickpanek620, lkoliks, u_r7cny11q7r, yoursperfectguy, gregorquendel and soundreality</p>
+      <p>Remastered in 2026. The 2025 original is still at <a href="https://unruggabull.ar.io" target="_blank" rel="noopener">unruggabull.ar.io</a>.</p>
+      <button class="go" id="close-credits">Close</button>
+    </div>
+  </div>
+
+  <div class="card-wrap" id="rotate" hidden>
+    <canvas id="rotate-art" width="240" height="240" aria-hidden="true"></canvas>
+    <div>Turn your phone sideways<br><small>Unruggabull plays in landscape.</small></div>
+  </div>
+</div>
+<script src="audio.js?v=8956c04178"></script>
+<script src="core.js?v=65f54c323e"></script>
+<script src="rugfather.js?v=fd305141ca"></script>
+<script src="game.js?v=26b6af2ee8"></script>
+<script src="phone.js?v=c27e385d4a"></script>
+</body>
+</html>
