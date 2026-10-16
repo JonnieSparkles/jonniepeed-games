@@ -95,7 +95,8 @@
   }
   // what a hit of n hearts costs in this mode: half in Baby Bull
   const heartCost = n => RUN.mode === 'baby' ? n / 2 : n;
-  // whether anything may give him a heart back: never in Impossibull (a continue still starts a try with five)
+  // whether anything may give him a heart back: never in Impossibull, where even a continue starts the stage again with the
+  // hearts he came into it with (R.entryHearts, saved in every checkpoint; owner, Oct 16)
   const healing = () => RUN.mode !== 'impossibull';
   let travelHook = null; // test adapter may stop at the end of a single stage
   const hashTokens = () => location.hash.replace(/^#/, '').split('&').filter(Boolean);
@@ -122,6 +123,11 @@
     seed = at && at.seedState != null ? at.seedState : RUN.seed;
     const seed0 = seed;
     if (!at || at.transfer) checkpoint = null;   // a new floor: its own checkpoints come with it
+    // the hearts he comes into this stage with (a continue: the ones its checkpoint saved); every checkpoint keeps them,
+    // and in Impossibull a continue gives them back instead of a full five. at.full: a retry of the 13th's hall.
+    const entryHearts = at && !at.transfer ? (at.entryHearts != null ? at.entryHearts : TUNE.hearts)
+      : at ? (at.full ? (healing() || at.entryHearts == null ? TUNE.hearts : at.entryHearts) : RUN.refillBetweenStages || at.hearts == null ? TUNE.hearts : Math.min(TUNE.hearts, at.hearts))
+      : TUNE.hearts;
     R = {
       stage: floor.id, t: 0, dist: 0, speed: TUNE.scroll, phase: 'hall', phaseT: 0, souls: 0, hearts: TUNE.hearts,
       beat: 0, beatT: 0, event: null,
@@ -132,22 +138,24 @@
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
       banner: null, talk: null, bark: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
       shown: 0, meterPulse: 0, pulse: 0, pulseT: 0, ambT: 8,   // cosmetic: souls shown as their wisps land, the low-health pulse, office sounds
-      armed: true, roll: null, zap: 0, forms: []   // the blaster in hand; the rug rolling back; the surge's flash; formations for wipes
+      armed: true, roll: null, zap: 0, forms: [],   // the blaster in hand; the rug rolling back; the surge's flash; formations for wipes
+      entryHearts
     };
     bull = { u: 0, bz: 0, jh: 0, jv: 0, slash: -1, cd: 0, inv: 0, mouth: 0, spat: 0, step: 0, pin: 0 };
     floor.newRun(R, bull, at && at.transfer && floor.id === 'floor13' ? null : at);
     R.banked = at && at.banked || 0;   // the stairwell's souls: in the run's total, not in the 13th Floor's meter
     if (at && at.transfer) {
       R.souls = R.shown = at.souls;
-      R.hearts = RUN.refillBetweenStages || at.full ? TUNE.hearts : Math.min(TUNE.hearts, at.hearts);   // at.full: a retry of the 13th's hall
+      R.hearts = entryHearts;
       R.continues = at.continues || 0;
       R.fromStairs = !!at.fromStairs;   // through the stairwell's door: the band's already playing
     }
     R.floorStart = at && !at.transfer && at.floorStart != null ? at.floorStart : R.souls;   // the souls he came into this floor with (the cards' souls freed)
+    if (at && !at.transfer && !healing()) R.hearts = entryHearts;   // an Impossibull continue: no more than he came in with
     // The 13th Floor's hall: a retry before SHRED-O wakes starts the floor over and carries the run (item 26), with the
     // souls he came in with, full hearts and the same seed; SHRED-O's waking replaces it with its own.
     if (floor.id === 'floor13' && (!at || at.transfer)) checkpoint = { stage: 'floor13', hall: true, transfer: true, full: true,
-      souls: R.souls, banked: R.banked, floorStart: R.floorStart, continues: R.continues, seedState: seed0, runSeed: RUN.seed };
+      souls: R.souls, banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts, continues: R.continues, seedState: seed0, runSeed: RUN.seed };
   }
   // Where a target is, for aiming and hits: the floor knows where its own things are.
   const posOf = o => floor.posOf(o);
@@ -1222,7 +1230,7 @@
     if (kind === 'clear' && !R.continues) best.time = best.time ? Math.min(best.time, R.endT) : R.endT;   // fastest clear counts only without continues
     try { localStorage.setItem(bestKey(floor.id), JSON.stringify(best)); } catch (e) {}
     if (kind === 'rugged' || floor.id === 'roof') postRun(kind);
-    if (kind === 'clear' && floor.id === 'roof' && RUN.mode === 'raging' && RUN.full) { try { localStorage.setItem(IMPOSSIBULL_KEY, '1'); } catch (e) {} }
+    if (kind === 'clear' && floor.id === 'roof' && RUN.mode === 'raging' && RUN.full && !R.continues) { try { localStorage.setItem(IMPOSSIBULL_KEY, '1'); } catch (e) {} }
     showCard(kind, { newBest });
   }
   // ---------- each mode's board (item 29) ----------
@@ -1651,7 +1659,9 @@
     if (kind === 'pause') return { who, dept, line: floor.pauseText || '', mode: RUN.mode };
     if (kind === 'clear') return { who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0, mode: RUN.mode };
     const from = checkpoint && checkpoint.souls != null ? checkpoint.souls : R.floorStart || 0;
-    return { who, dept, back: backTo(), lost: Math.max(0, R.souls - from), ranked: !R.continues, mode: RUN.mode };
+    // unlock: this run could still open Impossibull, so Retry's question says a retry won't
+    return { who, dept, back: backTo(), lost: Math.max(0, R.souls - from), ranked: !R.continues, mode: RUN.mode,
+      unlock: RUN.mode === 'raging' && RUN.full && !R.continues && !impossibullOpen() };
   }
   // Quit (the rugged card and the pause card): the run ends and the title screen comes back.
   function quitToTitle() {
@@ -1682,7 +1692,7 @@
     exit() { location.href = '../'; },
     sound: flipSound, soundOn, play: name => Snd.play(name),
     full: toggleFull, fullOn: isFull, canFull: () => canFull,
-    // Impossibull unlocks with a full run cleared on Raging Bull (endRun); until then it stays locked
+    // Impossibull unlocks with a full run cleared on Raging Bull without a retry (endRun); until then it stays locked
     locked: id => id === 'impossibull' && !impossibullOpen(),
     board: mode => boardOf(mode)   // each mode's own board, on this device
   } });
@@ -1709,7 +1719,7 @@
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
-    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart }, v); }
+    g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts }, v); }
   };
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
   core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick

@@ -98,5 +98,5 @@ From the pull request, on a 360 × 780 and a 780 × 360 phone and a desktop wind
 
 ## Left for later
 
-- ~~The 13th Floor's hall restart is a fresh run.~~ Done with the difficulty modes: Retry before SHRED-O carries the run (its retries and the stairwell's souls), so the question is asked once and the trophy shows. The cards also show the run's mode, small and dim, ahead of NEW BEST and RETRIED.
+- ~~The 13th Floor's hall restart is a fresh run.~~ Done with the difficulty modes: Retry before SHRED-O carries the run (its retries and the stairwell's souls), so the question is asked once and the trophy shows. The cards also show the run's mode, small and dim, ahead of NEW BEST and RETRIED, and on a Raging Bull run that could still open Impossibull the question adds OR UNLOCK IMPOSSIBULL. (owner, Oct 16).
 - **The roof's own line and restart label** go in after #111 merges (today's checkpoint names are read, `roofState`).

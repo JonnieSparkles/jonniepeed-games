@@ -55,6 +55,19 @@
     bull.inv = 0; hurtBull(3, 'test'); bull.inv = 0; hurtBull(1, 'test');
     check(R.phase === 'dead', 'Impossibull: the fifth heart lost rugs him');
 
+    // ---- a continue: full hearts, but in Impossibull the hearts he came into the stage with ----
+    const continueWith = mode => {
+      setMode(mode); RUN.force = 3950; startRun('floor13'); bull.inv = 0; hurtBull(1, 'test'); bull.inv = 0; hurtBull(1, 'test');
+      travel('floor48'); const came = R.hearts;
+      bull.inv = 0; hurtBull(1, 'test'); rugged(); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
+      return [came, R.hearts, R.stage, R.continues];
+    };
+    check(JSON.stringify(continueWith('impossibull')) === '[3,3,"floor48",1]', 'Impossibull: a continue on the 48th gives back the 3 hearts he came in with');
+    check(JSON.stringify(continueWith('raging')) === '[3,5,"floor48",1]', 'Raging Bull: a continue gives full hearts');
+    setMode('impossibull'); RUN.force = 3951; startRun('floor13'); bull.inv = 0; hurtBull(2, 'test'); R.entryHearts = 3; checkpoint.entryHearts = 3;
+    rugged(); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
+    check(R.stage === 'floor13' && R.hearts === 3 && R.continues === 1, "Impossibull: the 13th's hall retry gives back the hearts he came in with");
+
     // ---- the lock: a full run cleared on Raging Bull opens Impossibull ----
     check(Title.labels().length >= 0 && !impossibullOpen(), 'locked to begin with');
     setMode('raging'); RUN.force = 3942; startRun('roof'); RUN.full = false; R.endT = R.t; endRun('clear');
@@ -62,7 +75,9 @@
     setMode('regular'); RUN.force = 3942; startRun('roof'); RUN.full = true; R.endT = R.t; endRun('clear');
     check(!impossibullOpen(), 'a Regular clear does not open it');
     setMode('raging'); RUN.force = 3942; startRun('roof'); RUN.full = true; R.continues = 2; R.endT = R.t; endRun('clear');
-    check(impossibullOpen(), 'a full run cleared on Raging Bull opens it (retries or not), kept on the device');
+    check(!impossibullOpen(), 'a Raging clear that retried does not open it (owner, Oct 16)');
+    setMode('raging'); RUN.force = 3942; startRun('roof'); RUN.full = true; R.endT = R.t; endRun('clear');
+    check(impossibullOpen(), 'a full run cleared on Raging Bull without a retry opens it, kept on the device');
     localStorage.removeItem('unruggabull-ii-impossibull');
 
     // ---- the 48th Floor's shift clock: stalling ends in a rugging ----
@@ -91,6 +106,10 @@
     setMode('raging'); RUN.force = 3945; startRun('floor13'); R.souls = 50; rugged();
     check(boardOf('raging').length === 0, 'a Restart floor or #stage run is off the board');
     setMode('raging'); RUN.force = 3946; startRun('floor13', true); R.souls = 50; rugged();
+    check(Cards.info.unlock && !boardOf('baby').some(e => e[0] === 'RAGING'), "a Raging run that could still open Impossibull: Retry's question says it won't");
+    Cards.press('Retry'); check(Cards.confirming, 'the question is asked'); Cards.press('Back');
+    localStorage.setItem('unruggabull-ii-impossibull', '1'); check(!cardInfo('rugged').unlock, 'not once Impossibull is open'); localStorage.removeItem('unruggabull-ii-impossibull');
+    setMode('baby'); check(!cardInfo('rugged').unlock, 'nor on another mode'); setMode('raging');
     setMode('raging'); RUN.force = 3947; startRun('floor13', true); R.souls = 90; rugged();
     check(JSON.stringify(boardOf('raging')) === '[["13TH",90],["13TH",50]]', 'the board keeps the best first');
     setMode('raging'); RUN.force = 3948; startRun('roof', true); R.endT = R.t; endRun('clear');

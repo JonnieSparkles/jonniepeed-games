@@ -12,7 +12,7 @@ var UnrugTitle = (function () {
     { id: 'baby', name: 'BABY BULL', short: 'BABY', line: 'EXTRA HEALTH.' },
     { id: 'regular', name: 'REGULAR BULL', short: 'REGULAR', line: 'REGULAR HEALTH.' },
     { id: 'raging', name: 'RAGING BULL', short: 'RAGING', line: 'NO HEALTH RESETS.' },
-    // owner, Oct 16: five hearts for the whole climb, nothing gives one back; locked until a full run is cleared on Raging Bull
+    // owner, Oct 16: five hearts for the whole climb, nothing gives one back; locked until a full run is cleared on Raging Bull without a retry
     { id: 'impossibull', name: 'IMPOSSIBULL', short: 'IMPOSSI', line: 'NO HEALING.' }
   ];
   const MODE_KEY = 'unruggabull-ii-mode';
