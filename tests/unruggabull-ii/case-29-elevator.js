@@ -174,7 +174,7 @@
     // to the roof he waits out the last word at the doors and holds a beat before he turns (owner, Oct 16)
     bull.u = 0; for (let i = 0; i < 900 && !(R.arena.out > 0); i++) update(1 / 60);
     check(R.arena.out > 0 && R.elevator.t - R.elevator.hushAt >= floor.ELEVATOR.beat - 1e-9 && R.elevator.t - R.elevator.hushAt < floor.ELEVATOR.beat + .05, 'a beat after the last word, he walks out');
-    check(R.arena.locked && R.arena.outShrink === false && R.stage === 'elevator', 'in the doorway he walks out, without shrinking: the roof takes over');
+    update(1 / 60); check(R.arena.locked && R.arena.outShrink === false && R.stage === 'elevator', 'in the doorway he walks out, without shrinking: the roof takes over');
     const exiting = drawnBull();
     check(exiting.scales[0][0] === 1, 'he turns, full size, before the roof takes over');
     const full = R.souls; tick(1.2);

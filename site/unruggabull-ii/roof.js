@@ -1251,6 +1251,28 @@ var UnrugRoof = function (core) {
   // toward us and lands flat on his back with a puff of dust, breathing hard, until the first soul reaches him; then he
   // gets to his knees and up. bull.js's poses (fall, lie, lieB, crouch), drawn as the core draws him.
   const DOWN_POSE = { flinch: .12, fall: .3 };
+  // The hat he won on the long ride (#139, hats.js) through the knockdown: the lash knocks a cap or a crown off his head
+  // and it lands on the roof beside him, back on as he gets up; a halo stays floating over his head the whole time.
+  // Sprite pixels, in the pose's own box (bx, by at scale k).
+  function downHat(p, bx, by, k, t, up) {
+    const kind = core.hat && core.hat(); if (!kind) return;
+    const P = A.POSES, B = UnrugBull.POSES, name = p === P.hurt ? 'hurt' : p === P.crouch ? 'crouch' : p === P.stand ? 'stand' : null;
+    g.save(); g.translate(bx, by); g.scale(k, k);
+    if (name && (up !== null || t < DOWN_POSE.flinch || kind === 'halo' && name)) UnrugHats.drawOn(g, kind, 'back', B[name], R.t);
+    else {
+      const seat = UnrugHats.seat(kind, 'back', B.hurt), img = UnrugHats.IMG[kind].back, F = A.POSE_FEET;
+      if (kind === 'halo') {   // it stays over his head as he falls (the fall is the flinch foreshortened) and lies there, with its glow
+        const falling = p === P.fall, hx = falling ? seat.x : F.x - img.width / 2;
+        const hy = (falling ? F.y - (F.y - seat.y) * .62 : F.y - 16) + Math.round(Math.sin(R.t * 3));
+        UnrugHats.glowAt(g, hx + img.width / 2, hy + 2, 11, .45); g.drawImage(img, hx, hy);
+      } else {   // knocked off: up and over in an arc, landing on the roof by his head, upside down
+        const k2 = clamp((t - DOWN_POSE.flinch) / .35, 0, 1), lx = F.x + 24, ly = F.y - img.height;
+        const hx = seat.x + (lx - seat.x) * k2, hy = seat.y + (ly - seat.y) * k2 - Math.sin(k2 * Math.PI) * 10;
+        g.translate(hx + img.width / 2, hy + img.height / 2); g.rotate(k2 * Math.PI); g.drawImage(img, -img.width / 2, -img.height / 2);
+      }
+    }
+    g.restore();
+  }
   function drawDowned() {
     const t = Q.downT, up = Q.upT !== null && Q.upT !== undefined ? Q.upT : null, P = A.POSES;
     let p, lift = 0;
@@ -1261,7 +1283,9 @@ var UnrugRoof = function (core) {
     const s = sc(bull.bz), x = PX(bull.u, bull.bz), feet = YH(bull.bz, 0) - lift * s, k = s * A.BULL_K;
     // his shadow, longer lying down
     g.save(); g.globalAlpha = .35; g.fillStyle = '#08070c'; g.beginPath(); g.ellipse(x, YH(bull.bz, 0), (p === P.lie || p === P.lieB ? 16 : 9) * s, 2.2 * s, 0, 0, Math.PI * 2); g.fill(); g.restore();
-    g.drawImage(p, Math.round((x - A.POSE_FEET.x * k) * 2) / 2, Math.round((feet - A.POSE_FEET.y * k) * 2) / 2, A.POSE_W * k, A.POSE_H * k);
+    const bx = Math.round((x - A.POSE_FEET.x * k) * 2) / 2, by = Math.round((feet - A.POSE_FEET.y * k) * 2) / 2;
+    g.drawImage(p, bx, by, A.POSE_W * k, A.POSE_H * k);
+    downHat(p, bx, by, k, t, up);
     // the lash itself: a white-hot thread off the middle spool to where he stood, for a moment
     if (t < .18 && up === null) {
       const lx = PX(bull.u, Q.downFrom), ly = YH(Q.downFrom, .14), sx = LM.spools[1], sy = LM.top + 6;
