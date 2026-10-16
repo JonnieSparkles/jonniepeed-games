@@ -18,7 +18,7 @@ Rules: the 480 × 270 look; dry, understated humour; freeing the souls stays a w
 
 ## The shots
 
-About 27 seconds, every time a starting point. Hard cuts, except the fade to black into the card.
+About 28.5 seconds (the dead eye stays dark 1.5 s longer, owner, Oct 16), every time a starting point. Hard cuts, except the fade to black into the card.
 
 | # | Shot | Kind | Beats | Length |
 | --- | --- | --- | --- | --- |
@@ -45,6 +45,8 @@ Only shot 2 has a generated picture. Shots 3 and 5 stay drawn in code (owner, Oc
 Shot 2's picture is his second version: the first had a violet and magenta sky that didn't match the in-engine dawn of shots 1, 3 and 4, so he regenerated it as a dusty dawn in the game's own colours. The intro's style block first (with 8:9 and 480 × 540), intro still 5 attached, then the scene:
 
 > Scene: the same flat-topped corporate slab tower from the attached picture, at sunrise just after a storm. The bottom half of the picture is the top of the tower: its upper floors of big plain windows in four columns, the bold zig-zag rug band near the top, and the glass pavilion on the roof. The pavilion is dark and broken, some panes gone, with no glow at all. Loose pale threads hang over the roof edge down the top floors. The windows are mostly dark, with the sunrise reflecting dull orange on their right edges. Behind the roof, a tiny low skyline far below, and the sun just rising at the right, low on the horizon. The top half of the picture is open sky: a muted, dusty dawn with no violet or magenta, in flat horizontal bands from the top down: deep slate indigo (#25224a), dusky plum (#3b2d56), muted mauve (#613c5a), brick rose (#965050), burnt orange (#c87146), amber (#ea9c52), pale gold at the horizon (#fce289). A few torn storm clouds, dark plum with dull orange undersides. Calm, quiet, a little battered. Clear spot: the whole top half of the sky and the air just above the pavilion, empty, for the souls.
+
+Oct 16: the owner had ChatGPT add p(Loom) to it (his earlier picture attached, with a crop of the game's loom at dawn as a reference): standing on the glass pavilion's roof, turned three-quarters toward the sunrise (owner: it should read as rotated from the roof's view of it), dead-eyed, threads snapped, a wisp of smoke, so the shot shows what the souls are leaving. Tries that toppled it beside the pavilion or hung it off the edge were too busy or too small to read.
 
 The source picture stays out of the repo, as with the intro's; `tools/unruggabull-ii/ending/stills.py` makes the game's data from it.
 

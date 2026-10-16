@@ -729,7 +729,7 @@
     if (b.inv > 0 && R.phase !== 'win' && Math.floor(b.inv * 12) % 2) return;
     // He swings his arms as he runs, throws them up to jump, raises the blaster to shoot (with a kick) and swings the katana.
     const P = A.POSES, air = b.jh > 0 || b.spat > 0, aim = b.aimT > 0, kick = b.aimT > .16;
-    const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner())), stride = Math.floor(b.step) % 2;
+    const running = R.phase !== 'dead' && (R.speed > .02 || moveDir() || (floor.depthMove && depthDir()) || (R.pull.st === 'on' && onRunner()) || (floor.walking && floor.walking())), stride = Math.floor(b.step) % 2;
     let p = P.stand;
     const cheer = R.phase === 'win' && !(R.slow > 0) && R.phaseT > .5 && !air;
     if (b.crouch && R.phase !== 'dead') p = b.slash >= 0 ? (b.slash < .07 ? P.crouchWind : P.crouchCut) : aim ? P.crouchAim : running ? (Math.floor(b.step * .6) % 2 ? P.crouchWalkB : P.crouchWalkA) : P.crouch;   // shooting crouched, the blaster comes up; carried along crouched, he shuffles
@@ -830,6 +830,8 @@
     if (fade < 1) { g.save(); g.globalAlpha = fade; drawHUDNow(); g.restore(); } else drawHUDNow();
   }
   function drawHUDNow() {
+    // a cut-in the floor draws in the frame (the long ride's views above the car) has no HUD over it, only the words
+    if (floor.hudBare && floor.hudBare()) { floor.hud(); return; }
     const hw = A.uw(A.HEART), hh = A.uh(A.HEART);
     for (let i = 0; i < TUNE.hearts; i++) {
       g.drawImage(i + 1 <= R.hearts ? A.HEART : A.HEART_EMPTY, 4 + i * 10, 3.5, hw, hh);
@@ -1546,8 +1548,13 @@
   let twinShown = null;
   function twinClass() { const on = state === 'play' && twinOn(); if (on !== twinShown) { twinShown = on; document.body.classList.toggle('twin', on); clearHeld(); } }
   // A scene plays out of his hands (the roof's ending): the touch controls go away until it's done
-  let sceneShown = false;
-  function sceneClass() { const on = state === 'play' && !!(floor.scene && floor.scene()); if (on !== sceneShown) { sceneShown = on; gameEl.classList.toggle('scene', on); clearHeld(); } }
+  let sceneShown = false, cutShown = false;
+  function sceneClass() {
+    const on = state === 'play' && !!(floor.scene && floor.scene()); if (on !== sceneShown) { sceneShown = on; gameEl.classList.toggle('scene', on); clearHeld(); }
+    // the tower dial (portrait) goes away in every cutscene: the ending, the cut cards and the long ride's cut-ins
+    const cut = state === 'play' && (on || !!(floor.cutActive && floor.cutActive()) || !!(floor.hudBare && floor.hudBare()));
+    if (cut !== cutShown) { cutShown = cut; gameEl.classList.toggle('cutscene', cut); }
+  }
   // The touch controls follow whatever was used last: a touch shows them, moving the mouse or pressing a key hides them
   // (a touch-screen laptop; owner, Oct 14: one tap on a power-up kept them up for the rest of the run). Phones only send touch.
   const markTouch = () => document.body.classList.add('touch');

@@ -8,7 +8,7 @@
   check(R.roof.caught === rt.initialCaught && R.souls === rt.initialCaught, 'earlier-floor captives hang from the walk and are already counted');
   R.roof.caught = 240; floor.effects.reset(240); floor.enter('wake');
   const image = g.drawImage; let ghosts = 0;
-  g.drawImage = function (img, ...args) { if (img === A.GHOST) ghosts++; return image.call(this, img, ...args); };
+  g.drawImage = function (img, ...args) { if (img === A.GHOST || floor.effects.MINI.includes(img)) ghosts++; return image.call(this, img, ...args); };   // small ones are the mini soul
   floor.drawWarp(); g.drawImage = image;
   check(ghosts === 240, 'warp draws every captive, with no sample or sprite cap');
   const slots = rt.art.warpColumns * rt.art.warpRows;
@@ -36,10 +36,10 @@
   floor.enter('return'); tick(rt.time.return + .02);
   check(R.roof.state === 'flood' && R.roof.flights.length === count - rt.spools, 'every soul after the three bells gets its own flood flight');
   tick(1.5);
-  ghosts = 0; g.drawImage = function (img, ...args) { if (img === A.GHOST) ghosts++; return image.call(this, img, ...args); };
+  ghosts = 0; g.drawImage = function (img, ...args) { if (img === A.GHOST || floor.effects.MINI.includes(img)) ghosts++; return image.call(this, img, ...args); };   // small ones are the mini soul
   floor.glows(); g.drawImage = image;
   check(ghosts > 0 && ghosts <= rt.art.flightCap * 4, 'flood draws at most 96 souls with three faint trail stamps each, while every flight remains scheduled');
-  ghosts = 0; g.drawImage = function (img, ...args) { if (img === A.GHOST) ghosts++; return image.call(this, img, ...args); };
+  ghosts = 0; g.drawImage = function (img, ...args) { if (img === A.GHOST || floor.effects.MINI.includes(img)) ghosts++; return image.call(this, img, ...args); };   // small ones are the mini soul
   floor.drawWarp('souls'); g.drawImage = image;
   check(ghosts === 0, 'by one second every soul has left its actual warp slot, even before all arrivals');
   const before = JSON.stringify(R.roof), seeded = seed; draw(); draw();

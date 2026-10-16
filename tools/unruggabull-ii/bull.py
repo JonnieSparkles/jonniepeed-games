@@ -82,6 +82,8 @@ class Canvas:
         self.hard = hard
 
     def put(self, x, y, mat, b):
+        if LAY:
+            x, y = LAY(x, y)
         if 0 <= x < W and 0 <= y < H:
             self.mat[y][x] = mat
             self.tone[y][x] = b
@@ -90,11 +92,20 @@ class Canvas:
 
 
 def T(cv, x, y, c):
-    cv.force[(int(x), int(y))] = c
+    cv.force[LAY(int(x), int(y)) if LAY else (int(x), int(y))] = c
+
+
+# Knocked flat (the roof's knockdown): the front view laid out on its back with his head toward us, seen from above
+# and behind. While LAY is set, every pixel a canvas is given lands at LAY(x, y): turned end for end and foreshortened,
+# least at his head (nearest us) and most at his boots; LIGHT_UP turns the shading so the light still comes from above.
+LAY = None
+LIGHT_UP = False
 
 
 def shade(nx, ny, base=0.0):
     # evenly lit from above and a little from the camera; the game adds the real light on top
+    if LIGHT_UP:
+        ny = -ny
     return 0.62 - 0.42 * ny - 0.28 * nx * nx + base
 
 
@@ -596,7 +607,33 @@ def fbend(g, pivot, seam, k):
     return out
 
 
-def build_front(raised=False, huff=None):
+LIE_TOP = FEET - 70     # the tips of his horns in the front view, which land at his feet line lying down
+LIE_FORESHORTEN = ((22, .78), (26, .5), (30, .34))   # how much of each stretch from the horns down survives: head, body, legs
+
+
+def lay_out(breath=0.0):
+    def f(x, y):
+        d, out = y + .5 - LIE_TOP, 0.0
+        for n, k in LIE_FORESHORTEN:
+            k = k + (breath if n == 26 else 0)
+            out += max(0.0, min(d, n)) * k
+            d -= n
+            if d <= 0:
+                break
+        return int(2 * CX - x), int(FEET - out)
+    return f
+
+
+def build_lie(breath=0.0):
+    global LAY, LIGHT_UP
+    LAY, LIGHT_UP = lay_out(breath), True
+    try:
+        return build_front(lie=True)
+    finally:
+        LAY, LIGHT_UP = None, False
+
+
+def build_front(raised=False, huff=None, lie=False):
     # raised: the item-get pose, both fists over his head with the katana pointing straight up, the blaster in his belt
     cv = Canvas()
     x = CX
@@ -785,6 +822,14 @@ def build_front(raised=False, huff=None):
         arm(cv, (x - (SH - 2.4), vy + 1.5), (x - 17.4 - o, vy - 1.5), (hx, hy), 2.6)
         arm(cv, (x + (SH - 2.4), vy + 1.5), (x + 17.0 + o, vy - 2), (x + 17.4 + o, vy - 9.5), 2.6)
         T(cv, hx + 1.6, hy - .4, 'd'); T(cv, x + 17.4 + o - 1.6, vy - 9.9, 'd')
+        furtex(cv)
+        return finish(cv)
+    if lie:
+        # flung flat: the arms thrown out past his head, open hands, no blaster (it went skidding)
+        for s_ in (-1, 1):
+            sh, el, hd = (x + s_ * (SH - 2.4), vy + 1.5), (x + s_ * (SH + 5.0), vy - 3.5), (x + s_ * (SH + 6.5), vy - 11.0)
+            arm(cv, sh, el, hd, 2.4)
+            fist(cv, hd[0], hd[1], 2.6)
         furtex(cv)
         return finish(cv)
     # the blaster held low in his right hand (our left), then the arms over it
@@ -1044,6 +1089,18 @@ def crop(g, b):
 def build_all():
     poses = {n: build_pose(n) for n in POSE}
     pb = box(list(poses.values()))
+    # knocked flat on the roof (two breaths), in the poses' box; checked to fit, so no other pose moves
+    global LAY
+    LAY = lambda x, y: (int(x), int(FEET - (FEET - y - .5) * .62))   # falling back toward us: the flinch, foreshortened
+    try:
+        poses['fall'] = build_pose('hurt')
+    finally:
+        LAY = None
+    for n, br in (('fall', None), ('lie', 0.0), ('lieB', .03)):
+        if br is not None:
+            poses[n] = build_lie(br)
+        lb = box([poses[n]])
+        assert lb[0] >= pb[0] and lb[1] >= pb[1] and lb[2] <= pb[2] and lb[3] <= pb[3], (n, lb, pb)
     views = {'front': build_front(), 'side': build_side(), 'back': poses['stand']}
     vb = box(list(views.values()))
     blaster = build_blaster()

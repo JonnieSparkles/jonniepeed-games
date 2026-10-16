@@ -9,6 +9,12 @@ var UnrugRoofEffects = function (core, tuning, spot) {
   const silhouette = A.canvas(A.GHOST.width, A.GHOST.height), ink = silhouette.getContext('2d');
   ink.drawImage(A.GHOST, 0, 0); ink.globalCompositeOperation = 'source-in';
   ink.fillStyle = '#13111c'; ink.fillRect(0, 0, silhouette.width, silhouette.height);
+  // A small soul drawn for its size (6 x 8 of the picture's pixels), for the captives in the warp: the soul sprite
+  // shrunk to a third lost its rows and read as grey noise (Part B)
+  const MINI = ['.gggg.', '......', '.wwww.', 'wwwwww', 'wkwwkw', 'wwwwww', 'wswwsw', 'w.ww.w'];
+  const mini = dark => { const cv = A.canvas(6, 8), x = cv.getContext('2d'), col = { g: dark ? '#24222f' : '#ffd44a', w: dark ? '#13111c' : '#ecedf0', s: dark ? '#13111c' : '#9496a8', k: dark ? '#13111c' : '#1a1824' };
+    MINI.forEach((row, y) => { for (let i = 0; i < 6; i++) if (col[row[i]]) { x.fillStyle = col[row[i]]; x.fillRect(i, y, 1, 1); } }); return cv; };
+  const MINI_LIT = mini(false), MINI_DARK = mini(true);
   function add() {
     const i = souls.length, p = spot(i), row = Math.floor(i % (LM.warpRows * LM.warpColumns) / LM.warpColumns);
     const s = { x: p.x + (Math.random() - .5) * C.jitterX, y: p.y + (Math.random() - .5) * C.jitterY,
@@ -36,13 +42,13 @@ var UnrugRoofEffects = function (core, tuning, spot) {
       y: s.y + Math.sin(t * s.rate * .8 + s.phase * 1.7) * C.bob };
   }
   function shake(intensity, seconds) { if (intensity > kick) { kick = intensity; decay = intensity / seconds; } }
-  function tick(dt, Q, R, beam) {
+  function tick(dt, Q, R, beam, wind) {
     clock += dt; if (!Q.cut) kick = Math.max(0, kick - dt * decay);
     if (Q.state === 'walk') while (flashes < C.distant.length && Q.t >= C.distant[flashes]) { flashes++; core.Snd.play('thunder', .35); }
     if (Q.state === 'pinch') shake(Math.min(1, Q.t / C.pinchBuild) * C.shake.pinch, .12);
     if (beam) shake(Q.onEye ? C.shake.beamEye : C.shake.beam, .1);
     core.Snd.roofSound({ storm: !['dawn', 'ending', 'clear'].includes(Q.state) && R.phase !== 'dead', beam: beam && R.phase !== 'dead', onEye: !!Q.onEye,
-      gust: Q.gust ? clamp(Q.gust.t / tuning.gustTell, 0, 1) : 0 });
+      gust: wind != null ? clamp(wind - .45, 0, 1) : Q.gust ? clamp(Q.gust.t / tuning.gustTell, 0, 1) : 0 });   // the roof's gusts (roof-art.js wind)
   }
   function offset(R) {
     const k = Math.max(kick, Math.min(1, R.shake * 4) * 3) * (reduced && reduced.matches ? .5 : 1);
@@ -80,7 +86,9 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     const s = souls[i]; if (!s) return;
     g.save(); g.globalAlpha = clamp(alpha, 0, 1);
     const k = size || s.size;
-    g.drawImage(dark ? silhouette : A.GHOST, p.x, p.y, A.uw(A.GHOST) * k, A.uh(A.GHOST) * k); g.restore();
+    if (k < .45) g.drawImage(dark ? MINI_DARK : MINI_LIT, Math.round(p.x * 2) / 2, Math.round(p.y * 2) / 2, 3, 4);
+    else g.drawImage(dark ? silhouette : A.GHOST, p.x, p.y, A.uw(A.GHOST) * k, A.uh(A.GHOST) * k);
+    g.restore();
   }
   function drawWarp(g, Q) {
     if (['pinch', 'fusion', 'lines', 'beam', 'run', 'one', 'snap', 'dawn', 'ending', 'clear'].includes(Q.state)) return;
@@ -151,7 +159,7 @@ var UnrugRoofEffects = function (core, tuning, spot) {
     const list = (Q.flights || []).map(f => flightPoint(f, time, m)).filter(Boolean), stride = Math.max(1, Math.ceil(list.length / C.soulLights));
     for (let i = 0; i < list.length; i += stride) lightAtScreen(r, list[i], tuning.eyeZ * (1 - list[i].k), C.soulLight);
   }
-  return { reset, respoolStart, respoolAll, spooled: i => !!spooled(i), tick, entry, slot, flash, capture, landed, wispMotion, riseMotion, dawnSoul, drawWarp, drawFlights, soulLights,
+  return { MINI: [MINI_LIT, MINI_DARK], reset, respoolStart, respoolAll, spooled: i => !!spooled(i), tick, entry, slot, flash, capture, landed, wispMotion, riseMotion, dawnSoul, drawWarp, drawFlights, soulLights,
     shake, offset, drawRise, spool() { shake(C.shake.spool, .3); heldUntil = clock + C.hitStop; }, frameHeld: () => clock < heldUntil,
     displayedCount(Q, R) { return ['dawn', 'ending', 'clear'].includes(Q.state) ? dawnBase + Math.max(0, R.shown - dawnBase) + released(Q) : Math.min(R.souls, R.shown); }
   };

@@ -1,6 +1,6 @@
 # Unruggabull II: the roof plan
 
-Status: built (Part A, then motion, light and sound). The three rounds were reworked on Oct 14 into MAXIMIZE CARPETS: see [roof-rework-plan.md](roof-rework-plan.md). The lead-in (with the walk now teaching) and the crescendo stand as planned here; Part B is still to come.
+Status: built (Part A, then motion, light and sound). The three rounds were reworked on Oct 14 into MAXIMIZE CARPETS: see [roof-rework-plan.md](roof-rework-plan.md). The lead-in (with the walk now teaching) and the crescendo stand as planned here. Part B's art is built (Oct 15, `roof-art.js`); real-phone playtests and p(Loom)'s final voice remain.
 
 The plan for the roof, the last stage: p(Loom)'s fight and the mega stream finale. It's written to hand off in two parts:
 
@@ -182,7 +182,9 @@ Renderer lights cover the orange/red/white eye, lightning with two distant walk 
 
 `audio.js` now synthesizes the storm, thunder, snare/cut, gust, spool snap, beam roar, final snap, major chord and low machine readout. Replaceable D-minor fight/heavy candidates use the extended chip sequencer: A 160/180 BPM, B 126/142 BPM, C 140/158 BPM. The quiet is storm only; music resumes with the heavier track at fusion. All use the existing mute. Bridge and real Web Audio render checks cover the effects and sounds.
 
-**Still left:** p(Loom)'s art, roof set art, beam look, cut-in pictures, and real-phone tuning/playtests. Existing shapes/sprites and black named cuts remain. The final voice remains a later art/sound choice.
+**Art built (2026-10-15).** Designed with the owner on a review page (the bundled game with scene chips), then ported into `roof-art.js`; README.md's Roof rules describe it. p(Loom) drawn from Loomy (the intro's still 2), narrower than the roof behind its parapet, the race running into shuttle boxes so nothing clips its frame; the set after his RugCo tower pictures (the sky, the city's lamps and towers, the parapet and props, the wet membrane, rain, lightning, dawn) as the renderer's open-air backdrop; the beam as on the finale mockup, bending as he moves, with crackle, rings, sparks and torn scraps; the long ride's car seen from behind him, sliding past as he walks out, the long ride handing over just after he turns (no shrinking) with a push-in; the eye up close, shared with the ending's dead-eye shot, and the ending's escape and reaction drawn in the same art. Drawing only: `--verify` matches and only roof frames and the long ride's last frame differ in parity.
+
+**Still left:** real-phone tuning and playtests. The final voice remains a later art/sound choice. The HUD over the loom's crown is the owner's call (moving the first-time prompts would free it).
 
 
 Done afterward, from the storyboard and the art tools (`tools/unruggabull-ii/bull.py`, `sprites.py`):

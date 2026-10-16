@@ -25,8 +25,13 @@ var UnrugElevator = function (core) {
     // the operator asks as the doors finish opening (the long ride: once the crate's done), he answers, and only then can
     // he walk out: FLOOR? at `floor`, ROOF. `roof - floor` after it, out `out - floor` after it
     ask: { floor: .9, roof: 2.2, out: 2.6 },
+    // to the roof he waits out the last word at the doors, then holds this beat before he turns to walk out (owner, Oct 16)
+    beat: .8,
     // the quiet ride's last line, after KEEP THE SLIP. (seconds after the doors), and how long it's up
     last: { at: 4.9, dur: 2 },
+    // to the roof it hands over as soon as he's turned his back (this far into walkOut), without his shrinking into the
+    // doors: the roof's first shot follows him out through the doorway (owner, Oct 15 and 16)
+    toRoofAt: .12,
     arena: {} };
   const arena = UnrugArena(core, ELEVATOR.arena);
   const lobby = UnrugLobby(core, arena, Object.assign({}, ELEVATOR.lobby, { look: '13', events: { ding: 'elevator_lobby_ding', board: 'elevator_board' } }));
@@ -163,7 +168,7 @@ var UnrugElevator = function (core) {
     if (!at && /(^|&)at=lobby(&|$)/.test(hash)) at = Object.assign({ transfer: true, souls: 0 }, RIDE_13);
     // practice: &ride=quiet is the quiet ride to the 48th (no lobby); &at=doors starts either ride just before it arrives
     if (!at && /(^|&)ride=quiet(&|$)/.test(hash)) at = Object.assign({ transfer: true, souls: 0 }, RIDE_13, { lobby: false });
-    R = r; bull = b; R.speed = 0; R.phase = 'boss';
+    R = r; bull = b; R.speed = 0; R.phase = 'boss'; plate = null;
     if (at) { R.souls = R.shown = at.souls || 0; R.continues = (at.continues || 0) + (at.transfer ? 0 : 1); }
     arena.newRun(R, bull);
     const fight = at && at.fight != null ? at.fight : ELEVATOR.fight;
@@ -325,19 +330,23 @@ var UnrugElevator = function (core) {
     if (Q.hatSouls > 0) { Q.hatSouls--; free(arena.X(bull.u) + core.fxr(-5, 5), arena.Y(.26), 'hat', 'hat'); }
   }
   // In the doorway once the doors are open and the operator has asked: he answers, turns his back to us and walks out.
+  // the words at the doors are over: the quiet ride waits through its last bubble; to the roof, a beat after the last one
+  const toRoof = () => Q.destination.stage === 'roof';
+  const wordsDone = () => toRoof() ? !R.talk && Q.t - (Q.hushAt == null ? -1e9 : Q.hushAt) >= ELEVATOR.beat : Q.fight || !R.talk;
   function stepWalkOut(dt) {
     // on the long ride he can't leave before the exchange at the doors has played (owner, Oct 13: standing in the doorway
     // he walked out before "FLOOR?" and "ROOF."). The quiet ride waits through its last bubble too.
     const gate = Q.exitAt;
-    if (!Q.fight && Q.out === 0 && R.talk) return; // wait through the actual bubble, including frame rounding
+    if (R.talk) Q.hushAt = Q.t;
+    if (Q.out === 0 && !wordsDone()) return; // wait through the actual bubble, including frame rounding (and the roof's beat)
     if (Q.out <= 0 && !(Q.t > gate && Math.abs(bull.u) < ELEVATOR.doorway && bull.jh <= 0)) return;
-    if (Q.out === 0) { emit('elevator_exit'); if (Q.crate && !Q.crate.got) takeCrate(); }   // walking out takes a crate he left
+    if (Q.out === 0) { emit('elevator_exit'); if (Q.crate && !Q.crate.got) takeCrate(); if (Q.destination.stage === 'roof') R.arena.outShrink = false; }   // walking out takes a crate he left
     Q.out = Math.min(1, Q.out + dt / ELEVATOR.walkOut); R.arena.out = Q.out;
     bull.u += (0 - bull.u) * (1 - Math.pow(.0016, dt)); bull.step += dt * 8;
-    if (Q.out < 1) return;
+    if (Q.out < (Q.destination.stage === 'roof' ? ELEVATOR.toRoofAt : 1)) return;
     R.phase = 'win'; R.endT = R.t;
     emit('elevator_clear', { amount: R.t });
-    core.travel(Q.destination.stage, { ride: Q.destination });
+    core.travel(Q.destination.stage, { ride: Q.destination, plate: Q.destination.stage === 'roof' ? plate : null });
   }
   // drawn-only things that move: dust from the hatch, sparks off the brakes and the threads, the operator floating
   function stepCosmetic(dt) {
@@ -472,14 +481,31 @@ var UnrugElevator = function (core) {
       for (let x = 172; x < 312; x += 24) rect(g, x, 96, 16, 50, '#3e3a46');
       rect(g, 168, 176, 144, 2, '#5a5060'); return;
     }
-    for (let i = 0; i < 6; i++) rect(g, 168, 76 + i * 14, 144, 14, ['#0b0916', '#100c20', '#151028', '#1c1230', '#241436', '#2b1638'][i]);
-    if (t > T.doors + 1.6 && t < T.doors + 1.9) rect(g, 168, 76, 144, 90, '#6a5a9a');
-    g.fillStyle = '#07060c'; g.beginPath(); g.moveTo(206, 172); g.lineTo(222, 128); g.lineTo(258, 128); g.lineTo(274, 172); g.closePath(); g.fill();
-    for (const [x0, x1] of [[222, 196], [228, 206], [252, 274], [258, 284]]) line(g, x0, 140, x1, 176, '#07060c');
-    disc(g, 240, 140, 4, '#ff7a2a'); disc(g, 240, 140, 2, '#ffd060');
-    rect(g, 168, 176, 144, 64, '#1a1820'); for (let y = 180; y < 240; y += 8) rect(g, 168, y, 144, 1, '#24222c');
-    rect(g, 168, 176, 144, 2, '#3a3444');
-    for (let i = 0; i < 40; i++) { const x = 168 + ((i * 37 + Math.floor(t * 300) * 3) % 144), y = 76 + ((i * 53 + Math.floor(t * 600)) % 164); line(g, x, y, x - 2, y + 6, '#5a6a9a'); }
+    // The roof as the roof's first shot shows it through this doorway (roof.js, drawHandoff), so the camera can follow him
+    // out without the view changing: the storm sky with its red-lit streaks, the city's lamps far below, the parapet
+    // across the far end with a vent and a duct, the wet roof. Colours as the roof renders them.
+    const hsh = (x, y) => { let n = (x * 374761393 + y * 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+    for (let y = 76; y < 104; y += 2) rect(g, 168, y, 144, 2, y < 82 ? '#1e1430' : '#2e2048');
+    for (let i = 0; i < 12; i++) {
+      const y0 = 78 + (i * 7) % 26, x0 = 168 + ((i * 53 + Math.floor(t * 4)) % 190) - 40, len = 30 + (i * 29) % 50;
+      for (let k = 0; k < len; k++) { const xx = x0 + k, yy = Math.round(y0 + k * .22); if (xx >= 168 && xx < 312 && yy >= 76 && yy < 104) rect(g, xx, yy, 1, 3, k % 9 < 6 ? (i % 3 ? '#9a2050' : '#5c1430') : '#44305e'); }
+    }
+    rect(g, 168, 103, 144, 2, '#9a2050'); rect(g, 168, 105, 144, 3, '#5c1430');
+    if (t > T.doors + 1.6 && t < T.doors + 1.9) rect(g, 168, 76, 144, 32, '#6a5a9a');
+    for (let y = 108; y < 152; y += 2) rect(g, 168, y, 144, 2, y < 116 ? '#24222f' : y < 132 ? '#1a1824' : '#110f18');
+    for (let y = 108; y < 152; y += 2) for (let x = 168; x < 312; x += 2) { const h = hsh(x + (y >> 1), y); if (h < .14) rect(g, x, y, 1, 1, h < .035 ? '#c87818' : '#7a4a2a'); }
+    // the parapet: its coping, its face with the joints, the shadow at its foot
+    rect(g, 168, 152, 144, 2, '#08070c'); rect(g, 168, 154, 144, 3, '#2a2836'); rect(g, 168, 154, 144, 1, '#3b3a48');
+    rect(g, 168, 157, 144, 27, '#1a1824'); for (let x = 176; x < 312; x += 22) rect(g, x, 157, 1, 27, '#110f18');
+    rect(g, 168, 184, 144, 4, '#08070c');
+    rect(g, 182, 146, 8, 26, '#24222f'); rect(g, 180, 144, 12, 3, '#3b3a48'); rect(g, 182, 147, 1, 25, '#3b3a48');
+    rect(g, 300, 162, 12, 16, '#2a2836'); rect(g, 300, 162, 12, 1, '#3b3a48');
+    // the wet roof: membrane sheets running away to the parapet
+    rect(g, 168, 188, 144, 52, '#2f2d3b');
+    for (let y = 188; y < 240; y += 2) for (let x = 168; x < 312; x += 2) if (hsh(x, y + 7) < .1) rect(g, x, y, 2, 2, '#24222f');
+    for (const y of [192, 199, 209, 223]) rect(g, 168, y, 144, 1, '#24222f');
+    for (const xb of [120, 200, 280, 360]) line(g, 240 + (xb - 240) * .62, 188, xb, 240, '#24222f');
+    for (let i = 0; i < 24; i++) { const x = 168 + ((i * 37 + Math.floor(t * 300) * 3) % 144), y = 76 + ((i * 53 + Math.floor(t * 600)) % 164); line(g, x, y, x - 2, y + 6, '#4b4a68'); }
   }
   const doorOpening = () => Q.lobby ? lobby.doorsOpen() : clamp((Q.t - top().doors) / 1.2, 0, 1);
   function drawDoors(t) {
@@ -643,7 +669,7 @@ var UnrugElevator = function (core) {
     for (const s of Q.sparks) { const k = s.t / s.dur; rect(g, s.x, s.y, 1, 1, k < .5 ? '#ffd060' : '#ff7a2a'); rect(g, s.x + 1, s.y, 1, 1, '#ffd060'); }
   }
   function drawExit(t) {
-    if (Q.lobby || Q.t < Q.exitAt || (!Q.fight && R.talk) || Q.out > 0 || R.phase === 'dead') return;
+    if (Q.lobby || Q.t < Q.exitAt || !wordsDone() || Q.out > 0 || R.phase === 'dead') return;
     const bob = Math.round(Math.sin(t * 5) * 2), label = Q.destination.label === 'R' ? 'ROOF' : 'FLOOR ' + Q.destination.label;
     otxt(g, label, 240, 92 + bob, '#ffd44a', 2, 'center');
     rect(g, 236, 106 + bob, 9, 3, '#ffd44a'); rect(g, 238, 109 + bob, 5, 2, '#ffd44a'); rect(g, 240, 111 + bob, 1, 1, '#ffd44a');
@@ -765,8 +791,18 @@ var UnrugElevator = function (core) {
     arena.glows();
   }
   const overlay = half(() => { if (cutActive(Q.t)) drawCut(Q.t); });
+  // Walking out to the roof, the car as drawn (before his words and the HUD) with its doorway cut out (picture pixels):
+  // the roof's first shot follows him out through it (roof.js, drawHandoff). Drawn only.
+  let plate = null;
+  function keepPlate() {
+    if (!Q || Q.lobby || Q.destination.stage !== 'roof' || !(Q.out > 0)) return;
+    const src = g.canvas;
+    if (!plate || plate.width !== src.width) plate = A.canvas(src.width, src.height);
+    const x = plate.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, plate.width, plate.height);
+    x.drawImage(src, 0, 0); x.clearRect(168, 76, 144, 164);
+  }
   function hud() {
-    drawSoulsCounter();
+    if (Q.lobby || !cutActive(Q.t)) drawSoulsCounter();   // the cut-ins above the car have no HUD over them, only the words
     g.save(); g.scale(.5, .5); drawTalk(); g.restore();
   }
   function shakeOffset() {
@@ -782,7 +818,7 @@ var UnrugElevator = function (core) {
     newRun, update, opening: noop, resume: noop, use(x) { g = x; arena.use(x); lobby.use(x); },
     crouchWalk: () => true, lobby, blasterOff: () => !!Q && !Q.fight,   // the 13th's lobby and the quiet ride are katana only   // side on: he can walk crouched in the lobby and both rides (TUNE.crouchWalk)
     view: () => ({ ambient: 1 }), lights: arena.lights, shakeOffset,
-    draw, glows, overlay, hud,
+    draw, glows, overlay() { overlay(); keepPlate(); }, hud, hudBare: () => !!Q && !Q.lobby && cutActive(Q.t),
     fire: arena.fire, slashHits: arena.slashHits, muzzleXY: () => ({ x: arena.X(bull.u + (bull.facing || 1) * .12), y: arena.Y(bull.jh + .14) }),
     soulFreed(f) { f.to = { x: 220, y: 7 }; },
     aim: noop, shotHits: () => false, shotFar: () => false, posOf: o => o, slash: noop, hurt: noop, blasterBack: noop,
