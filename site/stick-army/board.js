@@ -231,6 +231,11 @@ var StickArmyBoard = function (w) {
     return true;
   }
   document.getElementById('scoresClose').addEventListener('click', closeScores);
+  // A click on the page around the card closes it too (one that starts and ends off the card, so a drag out of the
+  // list doesn't).
+  var downOutside = false;
+  scoresScreen.addEventListener('pointerdown', function (e) { downOutside = e.target === scoresScreen; });
+  scoresScreen.addEventListener('click', function (e) { if (downOutside && e.target === scoresScreen) closeScores(); downOutside = false; });
   var rowsReq = 0;
   function titleRows() {
     var ol = document.getElementById('facingRows'), board = boardFor(), req = ++rowsReq;
