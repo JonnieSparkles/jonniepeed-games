@@ -17,7 +17,7 @@ The touches, all presentation (`look.js`): the HUD in Jersey 15 with health in 2
 
 ## Controls
 
-- **Keyboard:** A/D or the arrows walk, Space or Up jumps (held, it keeps jumping, as in 2025), C, S or Down crouches, F, J or Enter fires. Escape or P pauses. On the title, Up and Down move the blaster and Enter picks.
+- **Keyboard:** A/D or the arrows walk, W, Space or Up jumps (held, it keeps jumping, as in 2025), S, C or Down crouches, F, J or Enter fires. Escape or P pauses. On the title, Up and Down move the blaster and Enter picks.
 - **Touch:** a d-pad on the left (left/right walk, up and the up-diagonals jump once per press, down crouches; a press up just before landing still jumps when he lands), and the whole right half of the screen fires, one shot per tap. The Fire button marks where the thumb goes. The pause button is top right; Pause has Resume, Quit, Sound and Full screen.
 - The touch controls show on touch screens, and from the first touch on any other screen.
 

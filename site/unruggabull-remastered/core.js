@@ -21,19 +21,19 @@ function runGameTimers() {
 }
 
 // from the 2025 game: src/input.js
-// Keys as in 2025, plus the arrow keys. The touch controls (phone.js) fill touchKeys.
+// Keys as in 2025 (A/D, Space, C, F/J/Enter), plus W to jump, S to crouch and the arrow keys. The touch controls (phone.js) fill touchKeys.
 var keys = {};
 var touchKeys = { left: false, right: false, crouch: false, jump: false, fire: false };
 var inputRight = () => keys["d"] || keys["D"] || keys["ArrowRight"] || touchKeys.right;
 var inputLeft = () => keys["a"] || keys["A"] || keys["ArrowLeft"] || touchKeys.left;
-var inputJump = () => keys[" "] || keys["ArrowUp"] || touchKeys.jump;
-var inputCrouch = () => keys["c"] || keys["C"] || keys["ArrowDown"] || touchKeys.crouch;
+var inputJump = () => keys[" "] || keys["w"] || keys["W"] || keys["ArrowUp"] || touchKeys.jump;
+var inputCrouch = () => keys["c"] || keys["C"] || keys["s"] || keys["S"] || keys["ArrowDown"] || touchKeys.crouch;
 var inputFire = () => keys["f"] || keys["F"] || keys["j"] || keys["J"] || keys["Enter"] || touchKeys.fire;
 var controlsReady = false;
 function setupControls() {
   if (controlsReady) return;
   controlsReady = true;
-  const controlledKeys = ["a", "A", "d", "D", "j", "J", "f", "F", "Enter", " ", "c", "C", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+  const controlledKeys = ["a", "A", "d", "D", "j", "J", "f", "F", "Enter", " ", "c", "C", "w", "W", "s", "S", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
   document.addEventListener("keydown", (e) => {
     if (controlledKeys.includes(e.key)) {
       e.preventDefault();

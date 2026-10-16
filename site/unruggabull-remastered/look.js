@@ -155,7 +155,7 @@ function lookControlsScreen(ctx, touch) {
   lookLogo(ctx, 'CONTROLS', 480, 130, 64, 'center');
   const rows = touch
     ? [['MOVE', 'the pad on the left'], ['JUMP', 'up on the pad, or up-left / up-right'], ['CROUCH', 'down on the pad'], ['FIRE', 'tap the right side, once per shot']]
-    : [['MOVE', 'A / D or the arrows'], ['JUMP', 'Space or up'], ['CROUCH', 'C or down'], ['FIRE', 'F, J or Enter'], ['PAUSE', 'Escape or P']];
+    : [['MOVE', 'A / D or the arrows'], ['JUMP', 'W, Space or up'], ['CROUCH', 'S, C or down'], ['FIRE', 'F, J or Enter'], ['PAUSE', 'Escape or P']];
   ctx.textBaseline = 'alphabetic';
   let y = 205;
   for (const [k, v] of rows) {

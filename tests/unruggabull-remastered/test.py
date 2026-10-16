@@ -179,9 +179,12 @@ def desktop_checks(p):
     x0 = js(page, 'player.x')
     page.keyboard.down('d'); page.wait_for_timeout(400); page.keyboard.up('d')
     assert js(page, 'player.x') > x0 + 40
-    page.keyboard.down(' '); page.wait_for_timeout(120)
-    assert not js(page, 'player.grounded')
-    page.keyboard.up(' ')
+    page.keyboard.down('w'); page.wait_for_timeout(120)
+    assert not js(page, 'player.grounded'), 'W jumps'
+    page.keyboard.up('w'); page.wait_for_timeout(1300)
+    page.keyboard.down('s'); page.wait_for_timeout(120)
+    assert js(page, 'player.crouching'), 'S crouches'
+    page.keyboard.up('s')
     count_shots(page)
     page.keyboard.down('f'); page.wait_for_timeout(60); page.keyboard.up('f')
     assert js(page, 'window.shots') == 1
