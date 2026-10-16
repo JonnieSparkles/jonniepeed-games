@@ -2,7 +2,7 @@
 
 A Paratrooper-style turret game drawn on lined notebook paper. Planes drop stick-figure troopers. Shoot the trooper and he dies; pop his chute over a trampoline and he bounces into your squad, where he fights for you.
 
-Status: built, stages 0–4, with the owner's added pizza-delivery shop homage (formerly SPEC-002). This is the first work order, kept as it was decided. The game as it is now is in [README.md](README.md), and what changed since in [history.md](history.md). Of the longer-form ideas at the end, the boss every five waves and online scores are built; the [campaign](campaign.md) took the game further.
+Status: built, stages 0–4, with the owner's added pizza-delivery shop homage (formerly SPEC-002). This is the first work order, kept as it was decided. The game as it is now is in [README.md](README.md), and what changed since in [history.md](history.md). Of the longer-form ideas at the end, the boss every five waves and online scores are built; [Arcade](arcade.md) took the game further.
 
 Implementation notes:
 

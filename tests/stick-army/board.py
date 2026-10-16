@@ -1,7 +1,7 @@
 """Online high scores, with the scores API stubbed in the browser (no Worker needed).
 Run python3 tests/stick-army/board.py with site/ on port 8000; optional SCREENSHOTS directory.
 
-Checks: a lost run asks, takes initials and draws the board with the player's row; the victory card saves the campaign
+Checks: a lost run asks, takes initials and draws the board with the player's row; the victory card saves the Arcade
 score with won=1; the endless game over after a win shows the board without asking again; Skip; a run that can't
 reach the scores keeps its buttons; seeded runs never ask for a token; the title's High scores card and the facing
 page's top five."""
@@ -79,7 +79,7 @@ with sync_playwright() as p:
         check(page.locator('#againBtn').is_visible(), 'Play again is back')
         page.screenshot(path=str(OUT / f'board-over-{width}.png'))
 
-        # A win: the victory card saves the campaign score with won=1; Skip works; endless game over just shows the board.
+        # A win: the victory card saves the Arcade score with won=1; Skip works; endless game over just shows the board.
         page.click('#againBtn'); page.wait_for_timeout(200)
         T("S.score = 400000; S.wave = DREAD.WAVE; S.played = 900; S.finalWon = true; showWin();")
         page.wait_for_selector('#winScreen .lb-asking')

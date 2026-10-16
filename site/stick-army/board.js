@@ -1,7 +1,7 @@
 // Stick Army's online high scores (docs/guides/00-leaderboards.md). Classic script; load after
 // ../assets/leaderboard.js and before game.js, which calls StickArmyBoard(world) once.
 //
-// The campaign is the score that counts: a run is saved when the Dreadnought goes down on wave 20 (the victory card)
+// Arcade's score is the one that counts: a run is saved when the Dreadnought goes down on wave 20 (the victory card)
 // or at game over if it ended before that. A winner who keeps going plays on for fun; the endless game over shows the
 // board without offering initials again (the run's token saves one row, ever). Seeded (#seed=) and tuning (#tune)
 // runs never get a token. The rows show initials, score, the wave reached (a star for a win) and touch or keyboard.

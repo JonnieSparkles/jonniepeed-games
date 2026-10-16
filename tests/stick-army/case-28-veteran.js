@@ -16,7 +16,7 @@
   as('soldier');
   var soldier = [9, 11, 12, 15, 19, 20].map(waveCfg), pizza = ITEMS.find(function (it) { return it.id === 'pizza'; }), fire = ITEMS.find(function (it) { return it.id === 'fire'; });
   S.wave = 1; var soldierFirst = SHOP.price(fire);
-  S.wave = 12; var soldierPrice = SHOP.price(fire), soldierPizza = SHOP.price(pizza), soldierGun = CAMPAIGN.turretHP(20);
+  S.wave = 12; var soldierPrice = SHOP.price(fire), soldierPizza = SHOP.price(pizza), soldierGun = DN.turretHP(20);
   as('veteran');
   var vet = [9, 11, 12, 15, 19, 20].map(waveCfg);
   check(vet[0].planes === soldier[0].planes && vet[0].armorChance === soldier[0].armorChance, 'wave 9 is the same');
@@ -28,7 +28,7 @@
   S.wave = 12;
   check(SHOP.price(fire) > soldierPrice && SHOP.price(fire) % 5 === 0, 'prices are up by wave 10, still in fives');
   check(soldierPizza === 25 && SHOP.price(pizza) === 25, 'the pizza stays 25');
-  check(CAMPAIGN.turretHP(20) === Math.round(soldierGun * LEVELS.veteran.DREAD), "the Dreadnought's health follows DREAD");
+  check(DN.turretHP(20) === Math.round(soldierGun * LEVELS.veteran.DREAD), "the Dreadnought's health follows DREAD");
   SKY.smokeStart(1); S.smoke.t = 12; SKY.smokeClear();
   check(S.smoke.linger === 18, 'the smoke lingers half again as long');
   S.smoke = null;
@@ -38,7 +38,7 @@
     as(name); S.recruits = []; S.mods.maxHP = S.wallHP = 1e6;
     startWave(DREAD.WAVE); S.spawn.teaser = false; S.spawn.planes = S.spawn.bombers = 0;
     var p = null;
-    for (var i = 0; i < 60 * 60 && !(p && p.phase === 'guns' && !(p.hold > 0)); i++) { update(1 / 60); S.wallHP = 1e6; S.bombs = []; p = CAMPAIGN.dread(); }
+    for (var i = 0; i < 60 * 60 && !(p && p.phase === 'guns' && !(p.hold > 0)); i++) { update(1 / 60); S.wallHP = 1e6; S.bombs = []; p = DN.dread(); }
     check(p && p.phase === 'guns', 'the Dreadnought is in the fight');
     var at = dreadTargets().filter(function (q) { return q.part === 'gun'; })[0];
     function guns() { return p.turrets.reduce(function (sum, t) { return sum + t.hp; }, 0); }

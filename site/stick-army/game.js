@@ -21,9 +21,9 @@
   // Every BOSS_EVERY waves a zeppelin moves in (see the zeppelin section).
   var BOSS_EVERY = 5;
   // ---------- levels ----------
-  // Soldier is the campaign as it is. Veteran (docs/games/stick-army/veteran.md) goes after stacking upgrades: a
+  // Soldier is Arcade as it is. Veteran (docs/games/stick-army/veteran.md) goes after stacking upgrades: a
   // markup on everything in the shop climbing to PRICE by wave FROM (shop.js markup), PLANES and ARMOR from FROM (waveCfg), a Dreadnought with DREAD times
-  // the health (campaign.js) and SMOKE times the smoke screen's linger (sky.js), and spread shot's side bullets only
+  // the health (dreadnought.js) and SMOKE times the smoke screen's linger (sky.js), and spread shot's side bullets only
   // grazing it, for GRAZE of the damage (hitTest), so it pays to aim the middle one. Round 19 ("I didn't really even
   // notice any difference ... it is that stuff stacks"): a kit that holds KIT pieces (shop.js), so late in
   // the war buying is choosing what to build, not taking everything. Scoring is the same on both; each has its own board and records
@@ -885,7 +885,7 @@
     continueWave = SHOP.continueWave, kitItems = SHOP.kitItems;
   // The shop screen (shop-screen.js) draws what shop.js decides.
   var SHOP_SCREEN = world.shopScreen = StickArmyShopScreen(world, SHOP), renderShop = SHOP_SCREEN.render, renderKit = SHOP_SCREEN.renderKit;
-  // The Dreadnought, the victory card and endless live in campaign.js.
+  // The Dreadnought, the victory card and endless live in dreadnought.js.
   world.HAND = HAND; world.DISPLAY = DISPLAY; world.TENT = SQUAD.TENT; world.SQUAD = SQUAD; world.load = load; world.save = save; world.clock = clock;
   world.recruitDie = function (r, cause) { recruitDie(r, cause); }; world.hurtWall = hurtWall; world.wallText = function (n) { wallText(n); };
   world.openShop = function () { openShop(); }; world.hidePause = function () { pauseBtn.hidden = true; };
@@ -894,13 +894,13 @@
   world.saveBestWave = function (n) { if (!S.coop && n > load(lv().KEYS.wave, 0)) save(lv().KEYS.wave, n); };
   world.lv = lv; world.LEVELS = LEVELS;
   Object.defineProperty(world, 'SENTRY', { get: function () { return SENTRY; } });
-  var CAMPAIGN = StickArmyCampaign(world), DREAD = CAMPAIGN.DREAD, isDreadWave = CAMPAIGN.isDreadWave, spawnDread = CAMPAIGN.spawnDread,
-    dreadHit = CAMPAIGN.dreadHit, hurtDread = CAMPAIGN.hurtDread, updateDread = CAMPAIGN.updateDread, drawDread = CAMPAIGN.drawDread,
-    drawDreadBar = CAMPAIGN.drawDreadBar, dreadTargets = CAMPAIGN.dreadTargets, victoryDue = CAMPAIGN.victoryDue, showWin = CAMPAIGN.showWin,
-    keepGoing = CAMPAIGN.keepGoing, rollCall = CAMPAIGN.rollCall, recordLine = CAMPAIGN.recordLine;
+  var DN = StickArmyDreadnought(world), DREAD = DN.DREAD, isDreadWave = DN.isDreadWave, spawnDread = DN.spawnDread,
+    dreadHit = DN.dreadHit, hurtDread = DN.hurtDread, updateDread = DN.updateDread, drawDread = DN.drawDread,
+    drawDreadBar = DN.drawDreadBar, dreadTargets = DN.dreadTargets, victoryDue = DN.victoryDue, showWin = DN.showWin,
+    keepGoing = DN.keepGoing, rollCall = DN.rollCall, recordLine = DN.recordLine;
   world.BOARD = BOARD;
   var LBOARD = world.board = StickArmyBoard(world);
-  world.dreadTargets = dreadTargets; world.DREAD_DECOY_HP = DREAD.DECOY_HP; world.dreadBeams = CAMPAIGN.dreadBeams; world.dreadPhase = CAMPAIGN.dreadPhase;
+  world.dreadTargets = dreadTargets; world.DREAD_DECOY_HP = DREAD.DECOY_HP; world.dreadBeams = DN.dreadBeams; world.dreadPhase = DN.dreadPhase;
   // Co-op (coop.js, an add-on: without it, COOP is null and every hook below does nothing).
   world.TRAMPS = TRAMPS; world.keys = keys; world.AIM_MIN = AIM_MIN; world.AIM_MAX = AIM_MAX; world.RUN = RUN;
   world.setState = function (o) { S = o; }; world.resizeMats = function () { resizeMats(); }; world.clearInk = function () { clearInk(); };
@@ -911,7 +911,7 @@
   world.takeItem = function (id, by) { return SHOP.takeItem(id, by); }; world.putBack = function (id, by) { return SHOP.putBack(id, by); }; world.undo = function (by) { return SHOP.undo(by); }; world.callStrike = function () { return UNITS.callStrike(); }; world.callFighter = function () { return UNITS.callFighter(); };
   world.screens = function () { return { title: titleScreen, pause: pauseScreen, over: overScreen, win: winScreen, shop: shopScreen, pauseBtn: pauseBtn }; };
   var COOP = window.StickArmyCoop ? StickArmyCoop(world) : null;
-  world.dreadLit = function () { var p = CAMPAIGN.dread(); return !p ? [] : p.phase === 'hangar' ? [CAMPAIGN.hangarAt(p)] : p.phase === 'bridge' ? [CAMPAIGN.bridgeAt(p), CAMPAIGN.hangarAt(p)] : []; };
+  world.dreadLit = function () { var p = DN.dread(); return !p ? [] : p.phase === 'hangar' ? [DN.hangarAt(p)] : p.phase === 'bridge' ? [DN.bridgeAt(p), DN.hangarAt(p)] : []; };
   function drawItemIcon(canvas, id) {
     var g = canvas.getContext('2d'), previous = G, keepBoil = boil, k = canvas.width / 44;
     G = g; boil = 0;
@@ -1057,7 +1057,7 @@
     if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 8, color: RED, a: 0.34, seed: t.id });
     award(10, t.x, t.y - 6, OUCH[t.id % OUCH.length], owner === 'ally' ? BLUE : INK, true);
     sound.play('hit');
-    if (t.captain) CAMPAIGN.captainDown(t);
+    if (t.captain) DN.captainDown(t);
   }
   function armorHit(t, owner) {
     t.armor--; t.pingT = S.t;
@@ -1083,7 +1083,7 @@
     killFx(t, 210, true);
     award(15, t.x, GROUND - 44, 'splat!', RED, true);
     sound.play('splat');
-    if (t.captain) CAMPAIGN.captainDown(t);
+    if (t.captain) DN.captainDown(t);
   }
   function freeSlot(side) {
     var order = side === 0 ? [0, 1, 2, 3, 4, 5, 6, 7] : [4, 5, 6, 7, 0, 1, 2, 3];
@@ -1100,7 +1100,7 @@
     tr.v += 180;
     addText('boing!', t.x, tr.y - 20, INK, 21);
     sound.play('boing');
-    // The Dreadnought's captain is a prisoner, not a recruit: he bounces onto the bunker (campaign.js captainCaught).
+    // The Dreadnought's captain is a prisoner, not a recruit: he bounces onto the bunker (dreadnought.js captainCaught).
     var slot = t.captain ? -1 : freeSlot(tr.x1 < 200 ? 0 : 1);
     t.state = 'bounce'; t.bt = 0; t.bdur = 0.85; t.x0 = t.x; t.y0 = tr.y - 33; t.slot = slot;
     if (slot >= 0) { S.slotRes[slot] = true; t.x1 = SLOTS[slot]; t.y1 = GROUND - 33; t.bh = 120; }
@@ -1114,7 +1114,7 @@
   }
   function joinSquad(t) {
     t.dead = true;
-    if (t.captain) { CAMPAIGN.captainCaught(t); return; }
+    if (t.captain) { DN.captainCaught(t); return; }
     if (t.slot >= 0) {
       delete S.slotRes[t.slot];
       var r = makeRecruit(t.slot, t.type, t.id);
@@ -1243,7 +1243,7 @@
       if (canHit(p) && (p.kind === 'dread' ? dreadHit(p, b.x, b.y, near) : SKY.KINDS[p.kind] ? SKY.hit(p, b.x, b.y, near) : planeHit(p, b.x, b.y, near))) {
         // Veteran: spread shot's side bullets only graze the Dreadnought, for GRAZE of the damage (their flak bursts
         // too), so it pays to aim the middle one.
-        if (p.kind === 'dread' && b.side && lv().GRAZE < 1) { CAMPAIGN.graze(p, b.x, b.y); grazing = lv().GRAZE; }
+        if (p.kind === 'dread' && b.side && lv().GRAZE < 1) { DN.graze(p, b.x, b.y); grazing = lv().GRAZE; }
         if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
         grazing = 1;
         return;
@@ -1425,7 +1425,7 @@
 
   // ---------- update ----------
   function updatePlanes(dt) {
-    // A downed Dreadnought's wreck smolders on until the next wave (campaign.js).
+    // A downed Dreadnought's wreck smolders on until the next wave (dreadnought.js).
     if (S.wreck) updateDread(S.wreck, dt);
     for (var i = S.planes.length - 1; i >= 0; i--) {
       var p = S.planes[i];
@@ -1517,7 +1517,7 @@
     S.enemyShots = S.enemyShots.filter(function (b) { return b.life > 0 && b.x > -20 && b.x < W + 20 && b.y < GROUND + 4; });
   }
   function updateLander(t, dt) {
-    if (t.captain) { CAMPAIGN.captainRun(t, dt); return; }
+    if (t.captain) { DN.captainRun(t, dt); return; }
     if (t.type === 'sniper') { updateSniper(t, dt); return; }
     var mine = S.mines.find(function (m) { return m.armed && Math.abs(t.x - m.x) < 12; });
     if (mine) { mine.armed = false; explode(mine.x, GROUND - 15, 38, 'mine', 'ally'); return; }
@@ -1558,7 +1558,7 @@
         if (t.gunner) gunnerFire(t, dt);
         t.open = Math.min(1, t.open + dt * 2.6);
         t.y += (t.open < 1 ? 95 - 55 * t.open : t.fall) * dt;
-        if (t.captain) CAMPAIGN.captainDrift(t, dt);
+        if (t.captain) DN.captainDrift(t, dt);
         else if (t.type === 'sniper') { var edge = t.x < BK.x ? 18 : W - 18; t.x += Math.sign(edge - t.x) * Math.min(Math.abs(edge - t.x), 28 * dt); }
         else t.x += Math.sin(S.t * 1.3 + t.sway) * 7 * dt;
         if (t.x > 150 && t.x < 250) t.x += (t.x < 200 ? -1 : 1) * 10 * dt;
@@ -1807,7 +1807,7 @@
     G.beginPath(); SP([x - 4.5, y + 7, x + 4.5, y + 7, x + 4, y + 19, x - 4, y + 19], true, 0.3);
     G.fillStyle = flash ? PAPER : '#8a8f96'; G.fill(); ink(INK, 1.5); G.stroke();
   }
-  // The Dreadnought's captain (campaign.js): a peaked officer's cap, dark with a red band, a gold badge and a visor.
+  // The Dreadnought's captain (dreadnought.js): a peaked officer's cap, dark with a red band, a gold badge and a visor.
   function captainCap(x, y, d) {
     G.beginPath(); G.moveTo(x - 5.5, y - 3); G.lineTo(x - 8.5, y - 9); G.quadraticCurveTo(x, y - 12.5, x + 8.5, y - 9); G.lineTo(x + 5.5, y - 3); G.closePath();
     G.fillStyle = '#3b3f4a'; G.fill(); ink(INK, 1.4); G.stroke();
@@ -1842,7 +1842,7 @@
     var x = t.x, y = t.y, pose, s;
     G.save();
     if (t.rot) { G.translate(x, y + 14); G.rotate(t.rot); G.translate(-x, -(y + 14)); }
-    // Sneaking in under the Dreadnought's smoke (campaign.js sneak): crouched, leaning into it.
+    // Sneaking in under the Dreadnought's smoke (dreadnought.js sneak): crouched, leaning into it.
     if (t.sneak && t.state === 'ground' && !t.attacking && !t.atWall) { G.translate(x, y + 33); G.rotate(t.dir * 0.5); G.translate(-x, -(y + 33)); }
     if (t.state === 'chute') { chute(t); pose = [-5, 1, 5, 1, -4, 33, 4, 33]; }
     else if (t.state === 'rope') pose = [-1, -6, 1, -9, -3, 33, 3, 32];
@@ -2467,7 +2467,7 @@
     drawDreadBar();
     if (S.wreck) drawDread(S.wreck);
     S.planes.forEach(function (p) { if (p.kind === 'dread') drawDread(p); });
-    // The mats in front of the Dreadnought's wreck, so its captain can still be caught on one (campaign.js).
+    // The mats in front of the Dreadnought's wreck, so its captain can still be caught on one (dreadnought.js).
     activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
     S.planes.forEach(function (p) { if (SKY.KINDS[p.kind]) SKY.drawPlane(p); else if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });
@@ -2743,7 +2743,7 @@
   }
   // What a run reports to play stats (site/assets/stats.js), at game over or when the page is left mid-run.
   // The crew count includes a recruit in the field hospital (S.bed), as the roll call does.
-  // A run counts as won once S.won is set (the campaign's victory); a winner who keeps going reports again at the end.
+  // A run counts as won once S.won is set (Arcade's victory); a winner who keeps going reports again at the end.
   var statsRun = null;
   function runReport() {
     var st = {
@@ -2936,7 +2936,7 @@
       wave: S.waveState === 'active',
       number: S.wave,
       wallLow: S.wallHP < S.mods.maxHP * 0.3,
-      dread: CAMPAIGN.dreadMusic() || teaserMusic()
+      dread: DN.dreadMusic() || teaserMusic()
     };
   }
   // The final wave's teaser: the Dreadnought's march, thin, until the decoy is down; then a hush until the real one.

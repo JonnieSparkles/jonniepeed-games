@@ -187,7 +187,7 @@
   hurtWall(S.wallHP + 1, 'bomb'); update(1 / 60); run(3);
   check(S.mode === 'over' && document.getElementById('stShots').textContent === '7', 'the game-over card shows it');
   overScreen.hidden = true;
-  RUN.force = 161; newGame(); S.stats.shots = 12480; S.wave = DREAD.WAVE; CAMPAIGN.showWin();
+  RUN.force = 161; newGame(); S.stats.shots = 12480; S.wave = DREAD.WAVE; DN.showWin();
   check(document.getElementById('winShots').textContent === '12,480', 'and the victory card');
   winScreen.hidden = true;
 
@@ -226,8 +226,8 @@
   // ---- Sneak attacks under the smoke screen: crouched infantry from one side, then the other, GROUPS times.
   RUN.force = 164; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'rifle')]; startWave(DREAD.WAVE);
   S.spawn.teaser = false; S.spawn.timer = 99; S.spawn.planes = 0; S.spawn.bossT = 0;
-  for (f = 0; f < 60 * 40 && !(CAMPAIGN.dread() && CAMPAIGN.dread().phase === 'guns'); f++) update(1 / 60);
-  var dn = CAMPAIGN.dread(); check(dn && dn.phase === 'guns', 'the Dreadnought is here');
+  for (f = 0; f < 60 * 40 && !(DN.dread() && DN.dread().phase === 'guns'); f++) update(1 / 60);
+  var dn = DN.dread(); check(dn && dn.phase === 'guns', 'the Dreadnought is here');
   dn.turrets.forEach(function (q) { if (!q.dead) damagePlane(dn, 999, 'player', dn.x + dn.dir * q.lx, dn.y + DREAD.GUN_Y, true); });
   check(dn.phase === 'hangar', 'the hangar stage');
   seen = []; S.bubbles = []; var spotted = false, crouched = false;
@@ -248,8 +248,8 @@
   function alive(t) { return !t.dead; }
   RUN.force = 170; newGame(); S.mods.maxHP = S.wallHP = 1e6; S.recruits = [makeRecruit(0, 'rifle'), makeRecruit(4, 'rifle')]; startWave(DREAD.WAVE);
   S.spawn.teaser = false; S.spawn.timer = 99; S.spawn.planes = 0; S.spawn.bossT = 0;
-  for (f = 0; f < 60 * 40 && !(CAMPAIGN.dread() && CAMPAIGN.dread().phase === 'guns'); f++) update(1 / 60);
-  var dz2 = CAMPAIGN.dread();
+  for (f = 0; f < 60 * 40 && !(DN.dread() && DN.dread().phase === 'guns'); f++) update(1 / 60);
+  var dz2 = DN.dread();
   dz2.turrets.forEach(function (g) { if (!g.dead) damagePlane(dz2, 999, 'player', dz2.x + dz2.dir * g.lx, dz2.y + DREAD.GUN_Y, true); });
   run(DREAD.PAUSE.HANGAR + 0.2);
   damagePlane(dz2, 9999, 'player', dz2.x + dz2.dir * DREAD.HANGAR, dz2.y + DREAD.HANGAR_Y, true);
@@ -308,7 +308,7 @@
   var c3 = spawnTrooper(80, GROUND - 40); c3.captain = true; c3.matX = 57; c3.edge = -1; c3.drift = 40; S.captain = 'out';
   for (f = 0; f < 60 * 6 && !c3.dead; f++) update(1 / 60);
   check(c3.dead && S.captain === 'escaped' && S.wallHP === S.mods.maxHP, 'or he lands and runs off the page, touching nothing');
-  S.captain = 'escaped'; S.wave = DREAD.WAVE; CAMPAIGN.showWin();
+  S.captain = 'escaped'; S.wave = DREAD.WAVE; DN.showWin();
   check(capLine.textContent === 'Their captain got away.', 'and the card says so');
   winScreen.hidden = true;
 
