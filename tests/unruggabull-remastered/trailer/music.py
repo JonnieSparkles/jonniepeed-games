@@ -2,7 +2,8 @@
 
 The theme's quiet intro under the two title screens, its full band from the drop for the mobile play and the polish,
 silence while the garage opens (the game stops the music there too), the theme at 1.5x for the fight (the speed the
-game plays it at once the Rugfather is angry), cut on the last hit's freeze; the end card on the theme's drop again.
+game plays it at once the Rugfather is angry), on through the board and ringing out a bar into the poster, where
+"Goodbye, Rugfather." plays, as the 2025 trailer ends.
 The game's own sounds (voice lines, the blaster, the end card's chime and fanfare) come from the takes.
 """
 import subprocess
@@ -14,7 +15,7 @@ from scipy.io import wavfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'tools' / 'trailer'))
 import media  # noqa: E402
-from shots import DROP, BOSS, FIGHT, CLEAR, END, DUR, THEME_DROP   # noqa: E402
+from shots import DROP, BOSS, FIGHT, END, DUR, BAR, THEME_DROP   # noqa: E402
 
 SR = 48000
 
@@ -44,6 +45,7 @@ def render(path, site):
     seg = lambda t0, t1: a[int(t0 * SR):int(t1 * SR)]
     put(shape(seg(THEME_DROP - DROP, THEME_DROP), fin=1.2), 0.0)                  # the intro, under the titles
     put(shape(seg(THEME_DROP, THEME_DROP + BOSS - DROP), fout=0.02), DROP)         # the drop
-    put(shape(tempo(theme, THEME_DROP + (BOSS - DROP), CLEAR - FIGHT, 1.5), tail=0.6), FIGHT)   # the fight
-    put(shape(seg(THEME_DROP, THEME_DROP + DUR - END), tail=1.6), END)             # the end card, on the drop again
+    # the fight, on through the board, ringing out a bar into the poster (as 2025)
+    put(shape(tempo(theme, THEME_DROP + (BOSS - DROP), END - FIGHT + BAR / 1.5, 1.5), tail=BAR / 1.5), FIGHT)
+    put(media.decode(Path(site) / 'unruggabull-remastered/sound/unruggabull-goodbye-rugfather.mp3') * 1.6, END + 0.35)
     wavfile.write(str(path), SR, out[:int(DUR * SR)])

@@ -5,10 +5,11 @@
 12.00  the polish up close: carpshits torn apart, muzzle flashes, the wave banners
 16.00  the music stops, as it does in the game: the flash, the garage with its red light and embers, the Rugfather
        spinning out, the whole "Hello, Unruggabull."
-23.30  FIGHT! The theme comes back at 1.5x, like the game plays it: hit-stops, "Heat things up", the last hit's
-       freeze and slow motion
-31.30  "Race the clock. Earn the medals.": the end card's time, health and medals, then the board
-35.30  the share card's poster and jonniepeed.games, over the theme's drop
+23.30  FIGHT! The theme comes back at 1.5x, like the game plays it: fireballs and flaming carpets, cut before his
+       spin-jump (the jump and the defeat after it read oddly at trailer speed)
+29.30  "Race the clock. Earn the medals.": the end card's time, health and medals, then the board
+33.30  as the 2025 trailer ends: the poster's last line, "...he was Unruggabull", "Goodbye, Rugfather.", and
+       jonniepeed.games, the fight's music ringing out
 """
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -22,8 +23,8 @@ POLISH = DROP + 3 * BAR             # 12
 BOSS = POLISH + 2 * BAR             # 16
 FIGHT = BOSS + 7.3                  # 23.3: time for the lines to play out
 FB = B / 1.5                        # a beat of the fight's music at 1.5x
-CLEAR = FIGHT + 24 * FB             # 31.3
-END = CLEAR + 4.0                   # 35.3
+CLEAR = FIGHT + 18 * FB             # 29.3
+END = CLEAR + 4.0                   # 33.3
 DUR = END + 4.0
 
 
@@ -59,24 +60,13 @@ class Phone:
         return bg
 
 
-def card(repo, out):
-    """The share card's design at 1920 x 1080 (tools/og/cards/unruggabull-remastered.html), rendered once."""
-    if not out.is_file():
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as pw:
-            b = pw.chromium.launch(); pg = b.new_page(viewport={'width': 1920, 'height': 1080})
-            pg.goto((repo / 'tools/og/cards/unruggabull-remastered.html').resolve().as_uri() + '?w=1920&h=1080')
-            pg.wait_for_timeout(1500); pg.screenshot(path=str(out)); b.close()
-    return Image.open(out).convert('RGB')
-
-
 def build(T, L, repo, site=None):
     Tt, M, A, Bt = T['T'], T['M'], T['A'], T['B']
     lets = Tt.mark('say:lets-go')
     m_play, m_wave = M.mark('gs:playing'), M.mark('wave:4')
     a_kill = lambda n: A.mark('kill', after='gs:playing', nth=n)
     trig, garage, laugh, hello = Bt.mark('boss:trigger'), Bt.mark('say:garage'), Bt.mark('say:laugh'), Bt.mark('say:hello')
-    battle, heat, dying, shown = Bt.mark('boss:battle'), Bt.mark('say:heat'), Bt.mark('boss:dying'), Bt.mark('end:shown')
+    battle, heat, shown = Bt.mark('boss:battle'), Bt.mark('say:heat'), Bt.mark('end:shown')
     FULL = full()
 
     shots = [
@@ -95,8 +85,7 @@ def build(T, L, repo, site=None):
         # the fight
         (FIGHT, FIGHT + 8 * FB, Bt, battle - 0.1, FULL),
         (FIGHT + 8 * FB, FIGHT + 12 * FB, Bt, battle + 6.0, push(1.2, 1.3, 1200, 640, 4 * FB)),
-        (FIGHT + 12 * FB, FIGHT + 18 * FB, Bt, heat - 0.25, FULL),
-        (FIGHT + 18 * FB, CLEAR, Bt, dying - 1.7, push(1.0, 1.15, 1200, 600, 6 * FB)),           # the last hit, frozen, then slow
+        (FIGHT + 12 * FB, CLEAR, Bt, heat - 10.4, push(1.0, 1.12, 1100, 640, 6 * FB)),           # a fireball hits, well before the jump
         # the board
         (CLEAR, END, Bt, shown + 5.3, push(1.0, 1.03, 960, 540, END - CLEAR)),   # initials in, then the board with its medals
     ]
@@ -125,13 +114,23 @@ def build(T, L, repo, site=None):
             im.alpha_composite(fade(board, ease((t - CLEAR - 0.1) / 0.25), rise=12))
         return im
 
-    poster = Cover(card(repo, repo / 'work/trailer/unruggabull-remastered/card-1920.png'), top=0, push=0.03, drift=0, dur=DUR - END)
+    # the 2025 poster, from the remaster's gallery (3/4 the 2025 file's size, so 2025's window at 1010 is 757 here)
+    poster = Cover(pad_bottom(repo / 'site/unruggabull-remastered/art/gallery-he-was-unruggabull.webp', 90), top=757,
+                   push=0.03, drift=0, dur=DUR - END)
 
     def end(u):
         im = poster.frame(u)
-        k = ease((u - 0.6) / 0.4)
+        k = ease((u - 1.2) / 0.4)
         if k > 0: im.alpha_composite(fade(pill, k, rise=14))
         return im
 
     return {'dur': DUR, 'open': (WIPE, opening), 'shots': shots, 'overlay': overlay, 'end': (END, end),
             'mix': {'game': 0.6, 'music': 0.85, 'drive': 1.6}}
+
+
+def pad_bottom(path, px):
+    """The poster with its dark grass carried on below the title, so the callout fits under the lettering (as 2025)."""
+    im = Image.open(path).convert('RGB')
+    strip = im.crop((0, im.height - 18, im.width, im.height)).filter(ImageFilter.GaussianBlur(22)).resize((im.width, px))
+    out = Image.new('RGB', (im.width, im.height + px)); out.paste(im, (0, 0)); out.paste(strip, (0, im.height))
+    return out
