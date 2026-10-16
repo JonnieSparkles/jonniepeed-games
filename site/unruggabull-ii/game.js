@@ -1752,7 +1752,7 @@
     if (floor.id === 'stairs') return cp.katana ? 'THE KATANA' : 'THE GARAGE';
     if (floor.id === 'floor13') return checkpoint && !cp.hall ? 'SHRED-O' : 'THE DOOR';
     if (floor.id === 'floor48') return 'THE START';   // the whole floor again (item 26)
-    if (floor.id === 'elevator') return cp.fight ? 'FLOOR 48' : 'THE DOORS';   // the long ride again from the 48th (item 26)
+    if (floor.id === 'elevator') return cp.fight ? 'THE FIGHT' : 'THE DOORS';   // the long ride's retry starts at the fight (owner, Oct 16)
     if (floor.id === 'roof') return cp.roofState && cp.roofState !== 'quiet' ? String(cp.roofState).replace(/^round/i, 'ROUND ').toUpperCase() : 'THE QUIET';
     return 'THE START';
   }
