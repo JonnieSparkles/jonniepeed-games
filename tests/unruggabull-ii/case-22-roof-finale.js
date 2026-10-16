@@ -22,6 +22,13 @@
   check((R.events.shots || 0) === shots0 && played.filter(n => n === 'sputter').length > puffs0, 'pulling the trigger only sputters');
   for (let i = 0; i < 300 && R.roof.state === 'quiet'; i++) update(1 / 60);
   check(R.roof.state === 'return' && !R.roof.cut && !floor.blasterOff(), 'the quiet goes straight into the return (no cut-in cards), and the blaster is live again');
+  // the quiet knocked him down (a thread off the middle spool) to the front row, with p(Loom) gloating; he's down, out
+  // of his hands, until the first soul reaches him, then gets up (owner, Oct 16)
+  check(R.roof.downT > 0 && Math.abs(bull.bz - floor.tileZ(0)) < 1e-9 && spoken.includes('STAY DOWN.'), 'the quiet knocks him down to the front row: STAY DOWN.');
+  const zd = bull.bz; keys.kbUp = true; tick(.5); keys.kbUp = false;
+  check(bull.bz === zd && R.roof.upT === null, 'down, he can\'t move until a soul reaches him');
+  for (let i = 0; i < 300 && !(R.roof.upT >= floor.ROOF.down.rise); i++) update(1 / 60);
+  check(R.roof.returned >= 1 && R.roof.upT >= floor.ROOF.down.rise, 'the first soul back gets him up');
   // from the first soul back he walks freely, and the blaster fires the streams on its own
   const u0 = bull.u, z0 = bull.bz; keys.kbRight = true; keys.kbUp = true; tick(.5); keys.kbRight = false; keys.kbUp = false;
   check(bull.bz > z0 + .15, 'and forward up the roof, not a row at a time');

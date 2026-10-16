@@ -73,7 +73,7 @@
     check(floor.doorOpening() === 1 && R.elevator.indicator === 99 && !R.elevator.crate, 'the quiet ride opens at R, with no crate');
     check(!events.some(e => ['arena_spawn', 'arena_throw', 'elevator_snap', 'elevator_heavy', 'elevator_eye', 'elevator_crate'].includes(e.type)), 'the quiet ride never fights or hands out a crate');
     check(R.arena.enemies.length === 0 && R.hearts === 5 && R.souls === 7, 'the quiet ride keeps souls and hearts');
-    bull.u = 0; at(R.elevator.exitAt + .05); tick(1.3); check(R.stage === 'roof' && R.roof.state === 'elevator' && R.souls === 7, 'the quiet ride hands off');
+    bull.u = 0; at(R.elevator.exitAt + .05); tick(1.3); check(R.stage === 'roof' && ['elevator', 'walk'].includes(R.roof.state) && R.roof.fromRide && R.souls === 7, 'the quiet ride hands off (the roof picks up with him walking out)');
     fresh({ from: 48, fight: false }); R.souls += 4; bull.inv = 0; hurtBull(5, 'test'); tick(3); Cards.press('Retry'); if (Cards.confirming) Cards.press('Retry');
     check(R.elevator.from === 48 && !R.elevator.fight && R.elevator.indicator === 48 && R.elevator.t === 0 && R.souls === 7, 'a quiet-ride continue starts it over with its entry souls');
     // A clear has one button: Continue (the owner, Oct 15: no Replay).

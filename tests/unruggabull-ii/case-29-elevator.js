@@ -171,11 +171,14 @@
     bull.u = 0; at(ex - .3); check(!R.arena.out, 'on the long ride he waits in the doorway for the exchange');
     check(R.talk && R.talk.text === 'ROOF.' && !R.arena.out, 'FLOOR? and ROOF. play before he leaves');
     bull.u = .5; at(ex + .1); check(!R.arena.out, 'he walks out only from the doorway');
-    bull.u = 0; tick(.1); check(R.arena.out > 0 && R.arena.locked && R.arena.outShrink, 'in the doorway he walks out, with exit shrinking unchanged');
+    // to the roof he waits out the last word at the doors and holds a beat before he turns (owner, Oct 16)
+    bull.u = 0; for (let i = 0; i < 900 && !(R.arena.out > 0); i++) update(1 / 60);
+    check(R.arena.out > 0 && R.elevator.t - R.elevator.hushAt >= floor.ELEVATOR.beat - 1e-9 && R.elevator.t - R.elevator.hushAt < floor.ELEVATOR.beat + .05, 'a beat after the last word, he walks out');
+    update(1 / 60); check(R.arena.locked && R.arena.outShrink === false && R.stage === 'elevator', 'in the doorway he walks out, without shrinking: the roof takes over');
     const exiting = drawnBull();
-    check(Math.abs(exiting.scales[0][0] - (1 - R.arena.out * .35)) < 1e-12, 'the roof walk-out still draws him shrinking');
+    check(exiting.scales[0][0] === 1, 'he turns, full size, before the roof takes over');
     const full = R.souls; tick(1.2);
-    check(R.stage === 'roof' && R.roof.state === 'elevator' && R.roof.fromRide && R.souls === full && R.roof.caught === full && R.hearts === 5, 'the roof starts its lead-in with the carried souls');
+    check(R.stage === 'roof' && ['elevator', 'walk'].includes(R.roof.state) && R.roof.fromRide && R.souls === full && R.roof.caught === full && R.hearts === 5, 'the roof picks up from the ride (he is already walking out) with the carried souls: ' + R.roof.state);
     // every middle exchange comes up: the pick follows the run seed alone
     const middles = new Set();
     for (const k of [0, 1, 2]) { RUN.force = k; newRun({ stage: 'elevator', transfer: true, fight: false, from: 13, souls: 0, destination: { floor: 48, label: '48', stage: 'floor48' } }); RUN.force = null; middles.add(R.elevator.middle); }

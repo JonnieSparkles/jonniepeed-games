@@ -62,6 +62,9 @@ var UnrugRender = (function () {
   // panels; fog ([from, to]), where the far hall fades out.
   function create(W, H, set) {
     const OPEN = !!set.openAir, PARAPET = set.parapet || 0;
+    // the open roof can end (set.end, world z): beyond its far edge a ray sees nothing of the hall, only the backdrop
+    // (set.backdrop: what's beyond and below, worked out by the floor; see surfaces())
+    const END = OPEN && set.end ? set.end : 1e9;
     const E = set.E, C = set.C, HW = set.HW, F = W * set.f, CX = W / 2, CY = H * set.cy, N = W * H;
     const RUG = set.rug, RUGI = set.rug - set.rugEdge, POST = set.post, PANELW = set.post / 2, PANEL = set.panel;
     const SK = set.skirt, DADO = set.rail[0], RAIL = set.rail[1], FOG0 = set.fog[0], FOG1 = set.fog[1];
@@ -73,10 +76,10 @@ var UnrugRender = (function () {
     const HIT = { s: 0, t: 0, x: 0, y: 0, z: 0 };
     function trace(ox, oy, oz, dx, dy, dz) {
       let t = 1e9, s = 0;
-      if (dy < 0) { const tt = -oy / dy; if (tt > 1e-4 && tt < t && (!OPEN || Math.abs(ox + dx * tt) <= HW)) { t = tt; s = 1; } }
+      if (dy < 0) { const tt = -oy / dy; if (tt > 1e-4 && tt < t && (!OPEN || Math.abs(ox + dx * tt) <= HW && oz + dz * tt < END)) { t = tt; s = 1; } }
       if (!OPEN && dy > 0) { const tt = (C - oy) / dy; if (tt > 1e-4 && tt < t) { t = tt; s = 2; } }
-      if (dx < 0) { const tt = (-HW - ox) / dx; if (tt > 1e-4 && tt < t && (!OPEN || (oy + dy * tt >= 0 && oy + dy * tt <= PARAPET))) { t = tt; s = 3; } }
-      if (dx > 0) { const tt = (HW - ox) / dx; if (tt > 1e-4 && tt < t && (!OPEN || (oy + dy * tt >= 0 && oy + dy * tt <= PARAPET))) { t = tt; s = 4; } }
+      if (dx < 0) { const tt = (-HW - ox) / dx; if (tt > 1e-4 && tt < t && (!OPEN || (oy + dy * tt >= 0 && oy + dy * tt <= PARAPET && oz + dz * tt < END))) { t = tt; s = 3; } }
+      if (dx > 0) { const tt = (HW - ox) / dx; if (tt > 1e-4 && tt < t && (!OPEN || (oy + dy * tt >= 0 && oy + dy * tt <= PARAPET && oz + dz * tt < END))) { t = tt; s = 4; } }
       HIT.s = s; HIT.t = t; HIT.x = ox + dx * t; HIT.y = oy + dy * t; HIT.z = oz + dz * t;
       return HIT;
     }
@@ -134,6 +137,12 @@ var UnrugRender = (function () {
       if (all && x1 - x0 === G && y1 - y0 === G) { PK[q] = 1; continue; }
       PK[q] = 2; for (let k = 0; k < 4; k++) PW[q * 4 + k] = w[k] / sum;
     }
+    // the backdrop (open roof): a function of (t, view) giving the light (3 floats a pixel, this size) of whatever lies
+    // beyond the roof; the wet roof mirrors it from the pixel straight across the horizon (MQ)
+    const BACK = OPEN && typeof set.backdrop === 'function' ? set.backdrop : null;
+    let BK = null;
+    const MQ = BACK ? new Int32Array(N) : null;
+    if (MQ) for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) MQ[py * W + px] = Math.max(0, Math.min(H - 1, Math.round(2 * CY - py - 1))) * W + px;
     // the vignette, once
     const VIG = new Float32Array(N);
     for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) { const vx = (px - CX) / W, vy = (py - H * .5) / H; VIG[py * W + px] = 1 - .55 * (vx * vx + vy * vy); }
@@ -207,7 +216,14 @@ var UnrugRender = (function () {
     // posts every POST
     function wall(y, zw) {
       eR = eG = eB = 0; rf = 0;
-      if (OPEN) { aR = .16; aG = .15; aB = .2; return; }
+      if (OPEN) {
+        if (!BACK) { aR = .16; aG = .15; aB = .2; return; }
+        // the parapet: weathered concrete, a coping along its top, a joint every so often, rain stains under the coping
+        const j = fr(zw / 1.5) < .025, top = y > PARAPET - .05, n = noise(zw * 5, y * 9) * .05 + hash(Math.floor(zw * 14), Math.floor(y * 30)) * .02;
+        const stain = !top && fr(zw * 1.7 + noise(zw, 3) * .5) < .22 ? (PARAPET - y) * -.06 : 0;
+        const v = j ? -.06 : top ? .07 : 0;
+        aR = .15 + n + v + stain; aG = .14 + n + v + stain; aB = .18 + n + v + stain; return;
+      }
       if (fr(zw / POST) < .03) { aR = .06; aG = .055; aB = .075; return; }
       const n = noise(zw * 3, y * 3) * .04 - .02;
       const lo = LK.lo, hi = LK.hi;
@@ -220,6 +236,7 @@ var UnrugRender = (function () {
     // the floor: the runner rug down the middle (its own scroll, so it can pull), polished tiles either side
     function floorMat(x, z) {
       eR = eG = eB = 0;
+      if (OPEN && BACK) { roofMat(x, z); return; }
       const ax = Math.abs(x);
       if (ax < RUG) {
         const zr = z + rugScroll;
@@ -238,6 +255,14 @@ var UnrugRender = (function () {
         else { const ck = ((Math.floor(tx) + Math.floor(tz)) & 1) * .03, v = hash(Math.floor(tx), Math.floor(tz)) * .03 + noise(x * 4, zw * 4) * .03; aR = LK.ti[0] + ck + v; aG = LK.ti[1] + ck + v; aB = LK.ti[2] + ck + v; rf = LK.sh; }
         const gm = 1 - Math.max(0, 1 - (HW - ax) * 1.6) * .5; aR *= gm; aG *= gm; aB *= gm;
       }
+    }
+    // the open roof (with a backdrop): a dark wet membrane in sheets with raised seams, gravel, and puddles that shine
+    function roofMat(x, z) {
+      const sheet = fr(x / 1.1 + .5) < .03 || fr(z / 2.3) < .012, n = noise(x * 2.2, z * 2.2), grit = hash(Math.floor(x * 22), Math.floor(z * 22)) * .035;
+      const puddle = noise(x * .7 + 3, z * .45) > .6;
+      if (sheet) { aR = .2; aG = .19; aB = .23; rf = .12; return; }
+      if (puddle) { aR = .05 + grit * .3; aG = .05 + grit * .3; aB = .07 + grit * .3; rf = .85; return; }
+      aR = .1 + n * .04 + grit; aG = .095 + n * .04 + grit; aB = .12 + n * .04 + grit; rf = .32;
     }
     // the ceiling: a grid of tiles, now and then a vent, and a light panel every PANEL
     function ceilMat(x, z, t) {
@@ -307,8 +332,9 @@ var UnrugRender = (function () {
           const i = q * 3, s = S[q];
           material(s, HX[q], HY[q], HZ[q], t);
           alb[i] = aR; alb[i + 1] = aG; alb[i + 2] = aB;
-          const c = s ? [eR, eG, eB] : sky(Math.min(1, ((q / W) | 0) / CY));
-          buf[i] = c[0]; buf[i + 1] = c[1]; buf[i + 2] = c[2];
+          if (s) { buf[i] = eR; buf[i + 1] = eG; buf[i + 2] = eB; }
+          else if (BK) { buf[i] = BK[i]; buf[i + 1] = BK[i + 1]; buf[i + 2] = BK[i + 2]; }
+          else { const c = sky(Math.min(1, ((q / W) | 0) / CY)); buf[i] = c[0]; buf[i + 1] = c[1]; buf[i + 2] = c[2]; }
           shine[q] = s === 1 ? rf * RFD[q] : 0;
         }
         return;
@@ -380,7 +406,7 @@ var UnrugRender = (function () {
     const NXof = [0, 0, 0, 1, -1], NYof = [0, 1, -1, 0, 0];
     const timings = { n: 0, mat: 0, refl: 0, lit: 0, cones: 0, dust: 0, layer: 0, post: 0 };
     // what a shiny pixel reflects, into L; false if nothing
-    function reflect(q) { const s = RS[q]; if (!s) { if (OPEN && S[q] === 1) { const c = sky(.8); L[0] = c[0]; L[1] = c[1]; L[2] = c[2]; return true; } return false; } material(s, RX[q], RY[q], RZ_[q], T); L[0] = aR * .18 + eR; L[1] = aG * .16 + eG; L[2] = aB * .2 + eB; return true; }
+    function reflect(q) { const s = RS[q]; if (!s) { if (OPEN && S[q] === 1) { if (BK) { const m = MQ[q] * 3; L[0] = BK[m] * .7; L[1] = BK[m + 1] * .7; L[2] = BK[m + 2] * .7; return true; } const c = sky(.8); L[0] = c[0]; L[1] = c[1]; L[2] = c[2]; return true; } return false; } material(s, RX[q], RY[q], RZ_[q], T); L[0] = aR * .18 + eR; L[1] = aG * .16 + eG; L[2] = aB * .2 + eB; return true; }
     function addShine(q) { const f = shine[q]; if (!f) return; const i = q * 3; buf[i] += f * L[0]; buf[i + 1] += f * L[1]; buf[i + 2] += f * L[2]; }
     // the view: scroll (the hall's) and rug (the runner's own); power, how bright the ceiling panels are (0 off); house,
     // how far the office's lights are up (0 to 1); dark,
@@ -404,6 +430,7 @@ var UnrugRender = (function () {
         XN = 0; return;
       }
       T = t; setView(v);
+      if (BACK) BK = BACK(t, v);
       buildLights(t); XN = 0;
       surfaces(t);
       const tm = performance.now(); timings.mat += tm - t0;
@@ -593,7 +620,7 @@ var UnrugRender = (function () {
         const waterline = CY + E * F / (set.reflectZ || 12);
         for (let py = Math.ceil(waterline); py < H; py++) for (let px = 0; px < W; px++) {
           const q = py * W + px;
-          if (S[q] !== 1 || FK[q] || lit[q * 4 + 3] > 8) continue;
+          if (S[q] !== 1 || FK[q] || lit[q * 4 + 3] > 8 || (BACK && glow[q * 4 + 3] > 200)) continue;
           const yy = Math.round(2 * waterline - py + Math.sin(px * .2 + py * .7) * 2);
           if (yy < 0 || yy >= H) continue;
           const k = (yy * W + px) * 4, a = glow[k + 3] / 255 * .25, i = q * 3;

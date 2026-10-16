@@ -115,7 +115,8 @@
     bull.u = .9 - .2; R.hearts = 2; at(R.elevator.exitAt + .02); bull.u = 0; qc.u = .9; qc.got = false; tick(1 / 60);
     check(qc.got && R.hearts === 5 && R.arena.out > 0, 'the quiet ride: walking out takes the crate');
     ride('baby', { hearts: 5 }); at(T.arrive - .2); bull.u = 0; while (R.elevator.exitAt === Infinity) { bull.inv = 1e9; update(1 / 60); }
-    at(R.elevator.exitAt - .05); R.elevator.crate = { u: .9, got: false, kind: 'long' }; R.hearts = 4; at(R.elevator.exitAt + .05);
+    at(R.elevator.exitAt - .05); R.elevator.crate = { u: .9, got: false, kind: 'long' }; R.hearts = 4;
+    for (let i = 0; i < 300 && !(R.arena.out > 0); i++) update(1 / 60);   // to the roof he holds a beat after the last word (roof art, Oct 16)
     check(R.elevator.crate.got && R.hearts === 5, 'the long ride: walking out takes the crate too');
 
     // ---- the hat: worn on the roof and in the ending, gone on the next run; on the board ----

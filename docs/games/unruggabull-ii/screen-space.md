@@ -23,7 +23,7 @@ During play (from the end of the intro: playing, paused, and the rugged and clea
 - **The picture** runs edge to edge (360 × 203, 13% more), with its bottom edge on the screen's halfway line.
 - **The controls** start just below it and have the same height on every stage, so the picture never moves between stages (the 48th's had dropped 86 px). The 48th's sticks sit at the same height, each 88 px in from its edge.
 - **Pause** is one icon at the top right, above the picture.
-- **The tower dial** sits in the space above the picture: a notch for every floor from the ground to the roof (longer every tenth), only the floor you're on marked with its number, and the department's name. It follows the elevator dial's one scale for the whole tower. On the stairs and in the rides the marker moves with you. Drawn outside the game's picture.
+- **The tower dial** sits in the space above the picture: a notch for every floor from the ground to the roof (longer every tenth), only the floor you're on marked with its number, and the department's name. It follows the elevator dial's one scale for the whole tower. On the stairs and in the rides the marker moves with you. Drawn outside the game's picture. It goes away in cutscenes (the ending, the cut cards and the long ride's views above the car: the `cutscene` class).
 - **No title** above the picture: the title screen has done that job, and landscape has none.
 
 ## The pause card
