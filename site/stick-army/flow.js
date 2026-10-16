@@ -379,6 +379,10 @@ var StickArmyFlow = function (world, game) {
   document.getElementById('winQuitBtn').addEventListener('click', quitToTitle);
   document.getElementById('pauseQuitBtn').addEventListener('click', quitToTitle);
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
+  // A click on the page around the pause card resumes, as Resume does (one that starts and ends off the card).
+  var pauseDownOutside = false;
+  pauseScreen.addEventListener('pointerdown', function (e) { pauseDownOutside = e.target === pauseScreen; });
+  pauseScreen.addEventListener('click', function (e) { var S = world.S; if (pauseDownOutside && e.target === pauseScreen && S.mode === 'paused') togglePause(); pauseDownOutside = false; });
   pauseBtn.addEventListener('click', togglePause);
   strikeBtn.addEventListener('click', function () { callStrike(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
   fighterBtn.addEventListener('click', function () { callFighter(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
