@@ -414,6 +414,7 @@
   //   banner(n, sub)    the wave's opening banner; endBanner() the one when won() is true as the wave clears
   //   hud()             { wave, sub }: the HUD's wave label and the line under it
   //   on(type, data)    hears every event emit() sends, and 'plane_away' when a plane leaves the page
+  //   skipShop()        true: the next wave starts without the shop
   //   bench(t)          a catch with no free slot: true if the kind took him (Arcade's "squad full!" otherwise)
   //   sells(item)       whether the shop offers a supply; room() whether a hire has somewhere to go
   //   promotes          false: no stripes for waves served (squad.js serveWave)
@@ -865,7 +866,7 @@
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
-      if (S.waveTimer <= 0) { if (runWon()) rules().win(); else openShop(); }
+      if (S.waveTimer <= 0) { if (runWon()) rules().win(); else if (rules().skipShop && rules().skipShop()) { S.waveState = 'idle'; openWave(nextWave()); } else openShop(); }
     }
   }
 

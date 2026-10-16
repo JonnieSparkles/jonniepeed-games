@@ -40,9 +40,10 @@ var StickArmyCampaign = function (world, game) {
   //   down n, away m down n planes before m get across
   //   bombs n        shoot n bombs out of the air
   // A goal with a count that isn't met by the end of the last wave loses the mission. Ids are kept for good, since
-  // saves name missions by them.
+  // saves name missions by them. `shop: false`: no shop between the mission's waves (the first mission has none:
+  // there's nothing to buy with yet).
   var MISSIONS = {
-    'first-contact': { name: 'First contact', goal: { kind: 'survive' }, as: [1, 2], text: 'Survive two waves of planes.',
+    'first-contact': { name: 'First contact', goal: { kind: 'survive' }, as: [1, 2], text: 'Survive two waves of planes.', shop: false,
       recipe: function (c, n) { c.bombers = 0; c.planes = n === 1 ? 10 : 13; } },
     'fill-the-ranks': { name: 'Fill the ranks', goal: { kind: 'catch', n: 4 }, as: [2], text: 'Catch 4 before the planes stop coming.',
       recipe: function (c) { c.bombers = 0; c.planes = 26; c.maxDrops = 3; c.interval = 1.6; c.fall *= 0.75; } },
@@ -435,6 +436,7 @@ var StickArmyCampaign = function (world, game) {
       world.sound.play('recruit');
       return true;
     },
+    skipShop: function () { return MISSIONS[world.S.cm.mission].shop === false; },
     sells: function (it) { return it.id !== 'slot' && it.id !== 'bootcamp' && it.id !== 'elite'; },
     room: function () { return bunksUsed(world.S) < BARRACKS; },
     promotes: false

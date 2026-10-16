@@ -9,9 +9,10 @@
   function clear() { [K.tour, K.wave, K.stars, K.seen, K.unlock].forEach(function (k) { localStorage.removeItem(k); }); }
   // Plays the mission to its end card: every trooper popped over a mat or shot, planes shot down. win: false lets
   // the wall fall instead.
+  var shops = 0;
   function play(win, most) {
     for (var k = 0; k < 60 * (most || 600) && (S.mode === 'play' || S.mode === 'dying' || S.mode === 'shop'); k++) {
-      if (S.mode === 'shop') { continueWave(); continue; }
+      if (S.mode === 'shop') { shops++; continueWave(); continue; }
       if (win) {
         S.wallHP = S.mods.maxHP;
         S.planes.forEach(function (p) { if (p.state === 'fly' && p.kind !== 'zeppelin' && p.x > 30 && p.x < 370 && !p.drops.length) damagePlane(p, 99, 'player', p.x, p.y, true); });
@@ -67,7 +68,8 @@
     var tr = spawnTrooper(200, 300); bounce(tr, TRAMPS[0]); joinSquad(tr);
     check(S.cm.bench.length === 1 && S.cm.count.caught === 1, 'a catch with no slot goes to a bunk');
     S.recruits.splice(0, 3);
-    play(true);
+    shops = 0; play(true);
+    check(shops === 0 && S.wave === 2, 'First contact has no shop between its waves');
     check(S.mode === 'between' && t.at === 'between' && t.m === 1 && !document.getElementById('cCard').hidden, 'won: the card between missions (' + S.mode + ', ' + t.at + ')');
     check(t.squad.length === 1 && t.squad[0].stripes === 0, 'the soldier in the bunk is on the tour');
     check(localStorage.getItem(K.wave) === null, 'the wave save is gone once the mission is over');
@@ -102,7 +104,7 @@
     var before = JSON.stringify(t);
     var back = camp.readTour(JSON.parse(localStorage.getItem(K.tour)));
     check(back && back.code === t.code && back.m === t.m && back.fallen.length === t.fallen.length && back.squad.length === t.squad.length && back.at === 'mission', 'the tour save reads back');
-    t.missions[1] = 'first-contact'; camp.write();
+    t.missions[1] = 'hold-the-line'; camp.write();
     camp.startMission();
     for (f = 0; f < 60 * 300 && S.mode !== 'shop'; f++) { S.wallHP = S.mods.maxHP; S.troopers.forEach(function (q) { q.dead = true; }); update(1 / 60); }
     var ws = JSON.parse(localStorage.getItem(K.wave));

@@ -234,3 +234,4 @@ Which branch comes first at each fork is decided in its round.
 - **The name and logo** on the Campaign side (the map page's logo).
 - **A full barracks:** where does a soldier caught with no bunk free go?
 - **"60 new waves"** in the pitch is tabled until the operations are built.
+- **Skipping teaching missions** (Oct 16, after round 1): a way to skip First contact and any later tutorial missions, for players who've done them before. Later; how (a button on the briefing, or only on a second tour) is open.
