@@ -133,12 +133,15 @@
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function angDiff(a, b) { var d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
   function mulberry(a) {
-    return function () {
+    var next = function () {
       a |= 0; a = (a + 0x6D2B79F5) | 0;
       var t = Math.imul(a ^ (a >>> 15), 1 | a);
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+    // The stream's state, so a saved run picks up exactly where it left off (save.js): state() reads it, state(v) sets it.
+    next.state = function (v) { if (v !== undefined) a = v | 0; return a; };
+    return next;
   }
 
   // ---------- canvas setup ----------
@@ -1824,6 +1827,20 @@
     drawHUD();
     if (S.banner) drawBanner();
   }
+
+  // ---------- saving a run ----------
+  // save.js snapshots a run at the shop and restores it, for Campaign to save after every wave. Arcade never calls it.
+  function stream(state) { if (state == null) return Math.random; var r = mulberry(0); r.state(state); return r; }
+  function streamState(r) { return r.state ? r.state() : null; }
+  var SAVE = StickArmySave(world, { ITEMS: ITEMS,
+    streams: function () { return { seed: RUN.seed, RC: streamState(RC), RW: streamState(RW), RS: streamState(RS) }; },
+    setStreams: function (o) { RUN.seed = o.seed >>> 0; RC = stream(o.RC); RW = stream(o.RW); RS = stream(o.RS); },
+    ids: function () { return { next: nextId, bubble: bubbleId }; },
+    setIds: function (o) { nextId = o.next; bubbleId = o.bubble; },
+    ink: function () { return { decals: JSON.parse(JSON.stringify(decals)), t: inkT }; },
+    setInk: function (o) { decals.length = 0; (o && o.decals || []).forEach(function (d) { decals.push(d); }); inkT = o ? o.t : 0; redrawDecals(); } });
+  var snapshotRun = SAVE.snapshotRun, restoreRun = SAVE.restoreRun;
+  world.snapshotRun = snapshotRun; world.restoreRun = restoreRun;
 
   // ---------- flow ----------
   // The title, a new run, pause, game over, play stats, full screen and input live in flow.js, made here so its
