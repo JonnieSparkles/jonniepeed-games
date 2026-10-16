@@ -1,7 +1,8 @@
 // The leaderboard this copy posts to (scores/games.json; docs/games/unruggabull-remastered/README.md).
 const BOARD = 1;
-// whether the blaster ran out of shots this run (the "Never ran dry" medal, end.js)
-var runRanDry = false;
+// whether the blaster ran out of shots this run (the "Never ran dry" medal, end.js), and the run's shots and hits
+// (carpshits, carpets and the Rugfather) for the play stats
+var runRanDry = false, runShots = 0, runHits = 0;
 
 // from the 2025 game: src/physics.js
 var PLATFORM_WIDTH = 120;
@@ -351,7 +352,7 @@ function checkPlayercarpshitCollisions(player2, carpshits2, onHit) {
 
 // from the 2025 game: src/callbacks.js
 function handleBulletKill(bullets2, index, carpshit) {
-  if (bullets2[index]) lookAddSparks(bullets2[index].x, bullets2[index].y);
+  if (bullets2[index]) { lookAddSparks(bullets2[index].x, bullets2[index].y); runHits++; }
   carpshit.tearFrame = carpshit.frame;
   carpshit.killedAt = gameNow();
   carpshit.alive = false;
@@ -651,6 +652,7 @@ function updateGame(bullets2, canvas4) {
     if (player.blasterEnergy > 0) {
       player.blasterEnergy--;
       spawnPlayerBullet(player);
+      runShots++;
       if (player.blasterEnergy === 0) runRanDry = true;
     } else {
       player.blasterEmptyFlashEndTime = now + BLASTER_EMPTY_FLASH_DURATION;
@@ -701,6 +703,7 @@ function updateGame(bullets2, canvas4) {
           if (b.x > projHitbox.x && b.x < projHitbox.x + projHitbox.width && b.y > projHitbox.y && b.y < projHitbox.y + projHitbox.height) {
             projectiles.splice(j, 1);
             p.hp -= 1;
+            runHits++;
             if (p.hp > 0) {
               p.flashEndTime = gameNow() + FLASH_DURATION;
               p.jolt = -Math.sign(p.vx) * 9;
@@ -739,6 +742,7 @@ function updateGame(bullets2, canvas4) {
         const isBossProjectile = bullet.type === "boss";
         if (!isBossProjectile && checkBossBulletCollision(bullet)) {
           boss.hit(1);
+          runHits++;
           projectiles.splice(i, 1);
         }
       }
@@ -1115,7 +1119,7 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
 // from the 2025 game: src/controller.js
 function resetGame(canvas4, bullets2) {
   setBossTriggered(false);
-  runRanDry = false;
+  runRanDry = false; runShots = 0; runHits = 0;
   setBossExit(false);
   setBossExitDoorClosing(false);
   setBossActive(false);

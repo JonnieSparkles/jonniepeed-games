@@ -351,7 +351,8 @@ const voice = name => UnrugSound.clip(SND + name + '.mp3', levelled(name), { voi
 var bgMusic = UnrugSound.clip('', 0.3, { bus: 'music' });
 bgMusic.loop = true;
 var fireSound = UnrugSound.clip(SND + 'blaster-fire.mp3', 0.08, { vary: 0.06 });
-var jumpSound = UnrugSound.clip(SND + 'unruggabull-jump.mp3', levelled('unruggabull-jump') * 0.8, { vary: 0.04 });
+// the jump grunt plays on every jump, so it stays at its 2025 level, under the levelled lines (louder was too much on a phone)
+var jumpSound = UnrugSound.clip(SND + 'unruggabull-jump.mp3', 1, { vary: 0.04 });
 var playerHitSound = voice('unruggabull-ow');
 var difficultyIncreaseSounds = [voice('unruggabull-oh-yeaaaa'), voice('unruggabull-permanence')];
 var unruggabullVoiceSounds = ['game-over', 'goodbye-rugfather', 'lets-go', 'oh-yeaaaa', 'ow', 'permanence', 'do-do-do', 'oh-shit', 'flawless-victory'].map(n => voice('unruggabull-' + n));

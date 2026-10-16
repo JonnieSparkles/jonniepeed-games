@@ -211,8 +211,10 @@ def unruggabull_remastered(browser):
     # rugged in wave 2: how far he got
     page.evaluate("setDifficultyLevel(2); incrementKillCount(); player.invulnerable = false; player.health = 1; handlePlayerHit({})")
     page.wait_for_function("gameState === 'gameover'", timeout=6000)
-    end = check_end(beacons(page)[1], start, 'over', ['wave', 'health', 'boss_fight'])
+    end = check_end(beacons(page)[1], start, 'over', ['wave', 'health', 'boss_fight', 'shots', 'hits', 'ran_dry'])
     assert end['score'] == 1 and end['stats']['wave'] == 2 and end['input'] == 'touch', end
+    st = end['stats']
+    assert isinstance(st['shots'], int) and 0 <= st['hits'] <= st['shots'] and st['ran_dry'] is False, end
     # retry from the end card, then quit from pause: the open run reports as quit
     page.locator('#retry2-btn').tap()
     page.wait_for_function("gameState === 'controls'")
