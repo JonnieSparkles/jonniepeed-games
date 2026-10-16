@@ -1,0 +1,114 @@
+{
+ "release": 2,
+ "note": "A tour saved by Campaign round 2 (Recruitment Drive), between missions 1 and 2, with a radio operator, a deploy pick and its save link (version 2). Later releases must still load both.",
+ "tour": {
+  "v": 1,
+  "code": "7WDK4P",
+  "op": 1,
+  "m": 1,
+  "attempt": 0,
+  "at": "between",
+  "missions": [
+   "dummy-drop",
+   "hold-out",
+   "full-house"
+  ],
+  "squad": [
+   {
+    "id": 118,
+    "type": "rifle",
+    "stripes": 1,
+    "kills": 31,
+    "name": "Tally",
+    "trait": "lucky"
+   },
+   {
+    "id": 131,
+    "type": "engineer",
+    "stripes": 1,
+    "kills": 6,
+    "name": "Zigzag",
+    "trait": "brave"
+   },
+   {
+    "id": 177,
+    "type": "sniper",
+    "stripes": 1,
+    "kills": 14,
+    "name": "Noodle",
+    "trait": "lucky"
+   },
+   {
+    "id": 205,
+    "type": "radio",
+    "stripes": 0,
+    "kills": 0,
+    "name": null,
+    "trait": null
+   },
+   {
+    "id": 260,
+    "type": "rifle",
+    "stripes": 0,
+    "kills": 4,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "fallen": [
+   {
+    "id": 140,
+    "type": "rifle",
+    "stripes": 0,
+    "kills": 1,
+    "op": 0,
+    "m": 0,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "gone": [],
+  "bank": 210,
+  "nextId": 340,
+  "opLosses": 0,
+  "opDummies": 1,
+  "hired": 1,
+  "lasting": [
+   "helmets"
+  ],
+  "gear": {
+   "stacks": {
+    "helmet": 1,
+    "fire": 1
+   },
+   "calls": {
+    "bomber": 1,
+    "fighter": 0
+   },
+   "hired": 1
+  },
+  "deploy": [
+   118,
+   205,
+   177
+  ],
+  "stars": {},
+  "debrief": null,
+  "last": {
+   "won": true,
+   "mission": "Dummy drop",
+   "caught": 6,
+   "planes": 30,
+   "time": 95,
+   "fresh": 2,
+   "fell": [],
+   "dummies": 1
+  }
+ },
+ "link": "https://jonniepeed.games/stick-army/#tour=087WDK4P040G1MG1TG100081000G4001100G20010NV027W3044GDC81347CT098022040040660200100006003080XT",
+ "missions": [
+  "dummy-drop",
+  "hold-out",
+  "full-house"
+ ]
+}

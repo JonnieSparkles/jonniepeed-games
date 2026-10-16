@@ -258,6 +258,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .lb-tabs button[aria-selected="true"] .t-chev { stroke: var(--ally); }
 .lb-tabs button:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
 .lb-tabs .t-chev { width: 18px; }
+.pause-goal { color: var(--ink); }
 .lvl-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -2px 0 4px; font: 18px/1 var(--font-hand); color: var(--ally); }
 .lvl-badge .t-chev { stroke: var(--ally); width: 18px; }
 .t-new { padding: 1px 5px 2px; font: 14px/1 var(--font-hand); color: var(--paper); background: var(--enemy); border-radius: 6px 3px 7px 3px; transform: rotate(-4deg); }
@@ -448,6 +449,10 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .c-bunk b { font-size: 15px; font-weight: 400; line-height: 1.05; }
 .c-bunk span { font-size: 12.5px; line-height: 1.1; color: var(--ink-soft); }
 .c-bunk.out { border-style: dashed; }
+button.c-bunk { font-family: var(--font-hand); color: var(--ink); cursor: pointer; }
+.c-pick[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
+.c-pick:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
+.c-live { position: absolute; left: 62px; right: 16px; top: 72px; font: 700 18px/1.1 var(--font-display); color: var(--enemy); transform: rotate(-1.5deg); }
 .c-bunk.empty { justify-content: center; border: 2px dashed #b5b0a6; color: #8f8a80; font-size: 15px; }
 .c-hires { display: flex; flex-wrap: wrap; gap: 6px; }
 .c-hire { min-height: 38px; padding: 2px 9px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
@@ -560,6 +565,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
         <div class="card">
           <h2>Paused</h2>
           <p class="tag" id="pauseTime"></p>
+          <p class="tag pause-goal" id="pauseGoal" hidden></p>
           <div class="kit" id="pauseKit" aria-label="Your kit" hidden></div>
           <canvas class="squad-row" id="pauseSquadRow" width="216" height="104" aria-hidden="true" hidden></canvas>
           <p class="squad-line" id="pauseSquad" hidden></p>
@@ -658,21 +664,21 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="audio.js?v=9f03c91bfb"></script>
-<script src="icons.js?v=9a7c1a9955"></script>
-<script src="draw.js?v=d4262a967a"></script>
-<script src="units.js?v=1c791a6788"></script>
-<script src="sky.js?v=ff250a1d0e"></script>
+<script src="icons.js?v=4e1ec076a7"></script>
+<script src="draw.js?v=d81eb4f909"></script>
+<script src="units.js?v=410f211b7e"></script>
+<script src="sky.js?v=998a3fc0f7"></script>
 <script src="squad.js?v=d6cf414a23"></script>
 <script src="dreadnought.js?v=2250d8ef77"></script>
 <script src="board.js?v=1084286549"></script>
-<script src="shop.js?v=30c67cda00"></script>
-<script src="shop-screen.js?v=e5e8263a4e"></script>
-<script src="flow.js?v=52d2d1a1c1"></script>
+<script src="shop.js?v=b984415c52"></script>
+<script src="shop-screen.js?v=28c151aeca"></script>
+<script src="flow.js?v=b5481d0bc7"></script>
 <script src="save.js?v=c147602002"></script>
-<script src="campaign.js?v=4f7bb3904d"></script>
-<script src="campaign-screens.js?v=b457ce9139"></script>
+<script src="campaign.js?v=6749f341e7"></script>
+<script src="campaign-screens.js?v=c9db25ffd4"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
 <script src="coop.js?v=224dde6a0c"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=a43d905a3c"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=af33b07cfd"></script>
 </body>
 </html>
