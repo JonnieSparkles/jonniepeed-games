@@ -863,6 +863,9 @@ SIDE_NEAR = {   # elbow and hand of the near arm, from (x, vy)
     'wind': lambda x, vy: ((x - 2.8, vy + 1.0), (x - 1.8, vy - 6.0)),
     'cut':  lambda x, vy: ((x + 6.2, vy + 5.2), (x + 11.6, vy + 8.2)),
     'flinch': lambda x, vy: ((x - 3.2, vy + 5.0), (x - 6.4, vy + 1.2)),
+    # hit (owner, Oct 16: a real hurt): the forearm up over his face, then thrown out in front to catch his balance
+    'guard': lambda x, vy: ((x + 5.6, vy + 6.0), (x + 7.4, vy - 2.6)),
+    'catch': lambda x, vy: ((x + 6.0, vy + 7.0), (x + 11.0, vy + 9.0)),
 }
 SIDE_FAR = {
     'down': lambda x, vy: ((x - 2.0, vy + 9.5), (x - 2.6, vy + 16.0)),
@@ -870,6 +873,7 @@ SIDE_FAR = {
     'swingB': lambda x, vy: ((x - 3.6, vy + 9.0), (x - 6.6, vy + 14.2)),
     'up': lambda x, vy: ((x + 1.0, vy + 7.5), (x + 3.6, vy + 11.0)),
     'flinch': lambda x, vy: ((x - 4.0, vy + 4.0), (x - 7.4, vy + .5)),
+    'fling': lambda x, vy: ((x - 4.2, vy + 6.6), (x - 7.4, vy + 5.0)),
 }
 _C = CROUCH   # crouch depth, shared with the behind poses
 SIDE_POSE = {
@@ -894,6 +898,10 @@ SIDE_POSE = {
     'wind':   (STAND_LEGS, 'wind', 'swingB', {'lean': -.6}),
     'cut':    (((-3.0, _Lk - .4, -5.2, _Lf), (4.0, _Lk - .8, 5.0, _Lf)), 'cut', 'swingB', {'lean': 1.8, 'tail': 1}),
     'hurt':   (((-1.6, _Lk, -3.2, _Lf), (1.0, _Lk, 2.4, _Lf)), 'flinch', 'flinch', {'lean': -2.2, 'tail': -2}),
+    # a hit, in two frames (owner, Oct 16): knocked back, the head snapped back and the forearm up; then the stagger,
+    # his weight on the back leg, the front boot off the floor, arms out
+    'hit0':   (((-2.4, _Lk + .2, -4.6, _Lf), (2.8, _Lk - .8, 4.6, _Lf - .8)), 'guard', 'fling', {'lean': -3.2, 'head': (-1.8, -1.0), 'tail': -2}),
+    'hit1':   (((-3.0, _Lk - .2, -5.0, _Lf - 1.4), (3.6, _Lk - 4.4, 4.2, _Lf - 5.0)), 'catch', 'fling', {'lean': -2.6, 'bob': 1.4, 'head': (-.6, .4), 'tail': -2}),
 }
 
 
@@ -996,7 +1004,8 @@ def build_side(name='stand', bare=False):
         T(cv, x + 3.4 + k * .8, vy - 1.6 + k * 1.3, 'H' if k % 2 else 'G')
     poly(cv, [(x - 5.6, vy - 1.6), (x - 2.4, vy - 2.4), (x - 1.6, vy + .4), (x - 5.4, vy + 1)], 'vest', shade_fn=lambda px, py: .5)
 
-    # the head: the far horn, skull, a long muzzle forward to the snout
+    # the head: the far horn, skull, a long muzzle forward to the snout (thrown back when he's hit: 'head')
+    hdx, hdy = ex.get('head', (0, 0)); x0 = x; x += hdx; y += hdy; cy += hdy
     horn(cv, [(x - 3.6, y + 7.0, 2.0), (x - 1.6, y + 5.4, 1.9), (x - .4, y + 2.4, 1.6), (x - .4, y - 1.0, 1.1), (x - 1.4, y - 3.6, .7)])
     ellipse(cv, x, cy, 6.2, 6.0, 'fur', base=.16, hard=True)
     cv.begin(True)
@@ -1034,6 +1043,7 @@ def build_side(name='stand', bare=False):
     for k in range(5):
         T(cv, x + 5.0 - k * 1.6, y - .6 + k * .5, 'h' if k < 3 else 'g')
     horn(cv, [(x - 1.4, y + 7.4, 2.4), (x + 1.8, y + 5.8, 2.2), (x + 3.8, y + 2.8, 1.8), (x + 4.2, y - .8, 1.3), (x + 3.2, y - 3.8, .8)])
+    x = x0
 
     # the near arm, and whatever's in its hand
     el, hd = SIDE_NEAR[near](x, vy)

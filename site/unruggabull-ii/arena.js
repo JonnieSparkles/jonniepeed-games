@@ -18,7 +18,9 @@ var UnrugArena = function (core, tuning) {
     low: [.107, .157], high: [.229, .3], highShare: .35, dropSpeed: .5, keep: [.27, .86], drift: .18, bob: .018,
     swoopFirst: [2.2, 4], swoopEvery: [3.2, 5], swoopT: 1.05, rear: .4, diveH: .17, diveOver: .32,
     throwFirst: [1.6, 2.6], throwEvery: [2.6, 4], wadSpeed: .55, spread: .23,
-    entry: .97, enterSpeed: .5, crossRoom: .25, crossSpeed: .55, crossH: .36
+    entry: .97, enterSpeed: .5, crossRoom: .25, crossSpeed: .55, crossH: .36,
+    // drawn only: the first hit frame's seconds (then the stagger), and how long he shows his front turning round
+    hitFrame: .12, turnT: .07
   }, tuning);
   const ground = ARENA.ground || (() => 0), gh = () => ground(bull.u) + bull.jh;   // where his feet are, in h
   let R, bull, swing = 0, g = core.g;
@@ -42,7 +44,11 @@ var UnrugArena = function (core, tuning) {
       if (bull.slash >= 0) { bull.slash += dt; if (bull.slash >= TUNE.slashT) bull.slash = -1; }
       return;
     }
-    if (moveDir() && !bull.crouch) bull.facing = moveDir();
+    if (moveDir() && !bull.crouch) {
+      // turning round: his front for a moment on the way (owner, Oct 16), drawn only
+      if (bull.facing && moveDir() !== bull.facing) bull.turnAt = R.t;
+      bull.facing = moveDir();
+    }
     updateBull(dt);
     if (bull.kick) { bull.u = clamp(bull.u + bull.kick * dt, -ARENA.limit, ARENA.limit); bull.kick *= Math.pow(.0003, dt); if (Math.abs(bull.kick) < .01) bull.kick = 0; }
     bull.u = clamp(bull.u, -ARENA.limit, ARENA.limit);
@@ -239,10 +245,12 @@ var UnrugArena = function (core, tuning) {
   // ---------- drawing (picture pixels: callers scale the game's context by half) ----------
   function pose() {
     const b = bull;
-    if (b.inv > TUNE.hurtInv - .55 && b.stag > 0) return 'hurt';
+    // hit (owner, Oct 16): knocked back, then the stagger
+    if (b.inv > TUNE.hurtInv - .55 && b.stag > 0) return TUNE.hurtInv - b.inv < ARENA.hitFrame ? 'hit0' : 'hit1';
     if (b.slash >= 0) return b.slash < .07 ? 'wind' : 'cut';
     if (b.jh > 0 || (R.arena.lift || 0) > 1) return 'jump';
     if (b.crouch) return b.crouchWalking ? 'crouchWalk' + (Math.floor(b.step / 1.3) % 2) : 'crouch';   // crouch-walking: two low steps
+    if (R.t - (b.turnAt == null ? -9 : b.turnAt) < ARENA.turnT) return 'front';
     if (moveDir() && !R.arena.locked) return 'run' + (Math.floor(b.step / 1.3) % 4);
     const idle = b.idle || 0;
     if (idle > 6 && (idle % 8) < 1.4 && R.arena.glance) return 'front';

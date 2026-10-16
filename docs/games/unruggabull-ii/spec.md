@@ -173,7 +173,7 @@ Four modes, picked on the title and kept for the run, each with its own board: *
 ## Later stages
 
 1. The 48th Floor's phone playtest: the twin sticks (the agreed fallback is the left stick to move with Shoot and Slash buttons), its difficulty, and the Rugfather's painted portrait.
-2. The long ride's phone playtest and polish (more side poses, the fight's difficulty).
+2. The long ride's phone playtest and polish (the fight's difficulty; the side hit and turn poses are in, Oct 16).
 3. Roof Part B (art, final music/voice and feel), and the ending's polish ([ending-plan.md](ending-plan.md): his timing, music, credits, results, skip and the art for its drawn stills).
 4. Floor G cold open/back alley using the arena; its place in the decided climb is not part of this change.
 5. Title flow, crawl, run scoring and the leaderboard ([00: Leaderboards](../../guides/00-leaderboards.md)).
