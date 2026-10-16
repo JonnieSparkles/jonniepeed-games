@@ -3,8 +3,9 @@
   const check=(ok,msg)=>{if(!ok)throw new Error(msg);};
   RUN.force=42;newRun();setState('title');showCard('title');
   check(floor.id==='floor13'&&Title.open&&card.hidden,'the title screen, stable floor id');
-  check(document.title.includes('the 13th Floor'),'brand page title');
-  for(const selector of ['meta[name="description"]','meta[property="og:title"]','meta[property="og:description"]','meta[name="twitter:title"]','meta[name="twitter:description"]'])check(document.querySelector(selector).content.includes('the 13th Floor'),'brand metadata '+selector);
+  check(document.title.includes('Salvation for the Unrugged'),'brand page title');
+  for(const selector of ['meta[property="og:title"]','meta[name="twitter:title"]'])check(document.querySelector(selector).content.includes('Salvation for the Unrugged'),'brand metadata '+selector);
+  for(const selector of ['meta[name="description"]','meta[property="og:description"]','meta[name="twitter:description"]'])check(document.querySelector(selector).content.includes('RugCo Tower')&&!document.querySelector(selector).content.includes('13th Floor'),'brand metadata '+selector);
   check(STORY.length===6&&STORY[5].endsWith('Accounting. Sharp ones.'),'the intro ends on Accounting');
   setState('play');floor.opening();
   check(R.banner.text==='THE 13TH FLOOR'&&textWidth(R.banner.text)*2<=W-8,'opening brand fits at existing size');
