@@ -2,5 +2,5 @@
   "thimbleful": { "name": "Thimbleful" },
   "dont-step-on-a-crack": { "name": "Don't Step on a Crack" },
   "stick-army": { "name": "Stick Army", "levels": ["Soldier", "Veteran"], "modes": { "stat": "coop", "names": ["Solo", "Co-op"] } },
-  "unruggabull-ii": { "name": "Unruggabull II", "reporting": false }
+  "unruggabull-ii": { "name": "Unruggabull II", "reporting": false, "levels": ["Baby Bull", "Regular Bull", "Raging Bull", "Impossibull"] }
 }

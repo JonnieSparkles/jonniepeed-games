@@ -91,7 +91,9 @@
   // long ride's crate (betweenHeals()).
   // full: the run began at Start and has been carried since (no Restart floor, no #stage), so it can go on the board.
   // hat: what he won at the top of the long ride ('cap', 'crown', 'halo' or null), worn for the rest of the run.
-  const RUN = { force: null, seed: 0, mode: 'regular', full: false, hat: null };
+  // The online board (the README's Leaderboard): clock is the run's game time so far, the sum of the stages it has left
+  // (R.t is each stage's own); token is Leaderboard.start's promise for a full run; input is keys until touch drives play.
+  const RUN = { force: null, seed: 0, mode: 'regular', full: false, hat: null, clock: 0, token: null, input: 'keys' };
   const MODES = ['baby', 'regular', 'raging', 'impossibull'];
   function setMode(m) { RUN.mode = MODES.includes(m) ? m : 'regular'; }
   // the box and the two rides' crates: only on Baby and Regular
@@ -1080,9 +1082,11 @@
       stats: { stage: st, stage_name: floor.stageNames ? floor.stageNames[st] : STAGES[st - 1], cause: R.phase === 'win' ? 'cleared' : (R.lastCause || 'none'), continues: R.continues || 0,
         boss_hp: Math.round(R.boss.hp), smashes: R.events.smashes || 0, best_rally: R.events.bestRally || 0, wipes: R.events.wipes || 0, deflects: R.events.deflects || 0 } };
   }
-  function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', { progress: runReport }) : null; }
+  // the roof of a full run is the stretch that ends in a save, so it carries the run's board and token (03: Play stats)
+  function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', Object.assign({ progress: runReport }, RUN.full && floor.id === 'roof' && RUN.token ? { board: BOARDS[RUN.mode], token: RUN.token } : {})) : null; }
   function travel(stage, extra = {}) {
     if (travelHook && travelHook(stage)) return;
+    RUN.clock += R.t;   // the run clock: the stage just left (its game time, pauses excluded)
     const carried = Object.assign({ stage, transfer: true, souls: R.souls + (R.banked || 0), hearts: R.hearts,
       continues: R.continues,
       seedState: seed, runSeed: RUN.seed }, extra);
@@ -1096,6 +1100,9 @@
   function startRun(stage, full) {
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }   // restarted from pause: the open run is a quit
     RUN.full = !!full; RUN.hat = null;   // a new run: no hat
+    RUN.clock = 0; RUN.input = 'keys';
+    // only Start's run asks for a token, in the background: Restart floor and #stage runs never go on the board
+    RUN.token = full && window.Leaderboard ? Leaderboard.start(LB_GAME, BOARDS[RUN.mode]) : null;
     checkpoint = null;
     newRun(null, stage || floor.id);
     statsStart();
@@ -1264,6 +1271,78 @@
     return true;
   }
   function impossibullOpen() { try { return localStorage.getItem(IMPOSSIBULL_KEY) === '1'; } catch (e) { return false; } }
+
+  // ---------- the online board (docs/guides/00-leaderboards.md; the README's Leaderboard) ----------
+  // One board per mode, a set in mode order. Only a finished run posts: the roof cleared, from Start, never retried.
+  // Ranked by the run's souls, faster run first on a tie (time_ms, the run clock); its hat rides along (0 none, 1 cap,
+  // 2 crown, 3 halo). The device's board above stands in when the online one can't be reached.
+  const LB_GAME = 'unruggabull-ii';
+  const BABY_BOARD = 1;
+  const REGULAR_BOARD = 2;
+  const RAGING_BOARD = 3;
+  const IMPOSSIBULL_BOARD = 4;
+  const BOARDS = { baby: BABY_BOARD, regular: REGULAR_BOARD, raging: RAGING_BOARD, impossibull: IMPOSSIBULL_BOARD };
+  const HATS = ['', 'cap', 'crown', 'halo'];
+  const rowOf = s => ({ rank: s.rank, name: s.name, score: s.score, hat: HATS[s.meta && s.meta.hat] || '', time: s.meta ? s.meta.time_ms : null, input: s.input });
+  const runTime = () => RUN.clock + (R.endT || R.t);   // at the roof's clear: the ending isn't counted
+  // your best saved run on each board, kept on the device so the title can always show it at its real rank
+  const MINE_KEY = board => 'unruggabull-ii-mine-' + board;
+  function mineOf(board) {
+    try { const v = JSON.parse(localStorage.getItem(MINE_KEY(board)) || 'null'); return v && typeof v.score === 'number' && v.meta && typeof v.meta.time_ms === 'number' && /^[A-Z0-9]{3}$/.test(v.name) ? v : null; } catch (e) { return null; }
+  }
+  function keepMine(board, run) {
+    const old = mineOf(board);
+    if (old && (old.score > run.score || old.score === run.score && old.meta.time_ms <= run.meta.time_ms)) return;
+    try { localStorage.setItem(MINE_KEY(board), JSON.stringify(run)); } catch (e) {}
+  }
+  // what the title shows for a mode: loading, offline (the device's board stands in) or the online rows with yours
+  const online = {};
+  function loadOnline(mode, force) {
+    const o = online[mode], board = BOARDS[mode];
+    if (o && (o.pending || !force && performance.now() - o.at < 60000)) return;
+    const mine = mineOf(board), entry = { pending: true, at: performance.now() };
+    online[mode] = Object.assign({}, o && o.rows ? o : {}, entry);
+    if (!window.Leaderboard) { online[mode] = { off: true, at: entry.at }; return; }
+    Leaderboard.load(LB_GAME, board, mine ? mine.score : undefined, mine ? mine.meta : undefined).then(data => {
+      if (!data) { online[mode] = { off: true, at: performance.now() }; return; }
+      const rows = data.scores.map(rowOf);
+      let me = null;
+      if (mine) {
+        // yours among the top 50, or below them at its real rank: the run you saved loses its exact tie with itself
+        const i = rows.findIndex(r => r.name === mine.name && r.score === mine.score && r.time === mine.meta.time_ms && r.input === mine.input);
+        if (i >= 0) me = rows[i];
+        else if (typeof data.position === 'number' && data.position > 1) me = { rank: data.position - 1, name: mine.name, score: mine.score, hat: HATS[mine.meta.hat] || '', time: mine.meta.time_ms, input: mine.input };
+      }
+      online[mode] = { rows, me, total: typeof data.total === 'number' ? data.total - (mine ? 1 : 0) : rows.length, at: performance.now() };
+    });
+  }
+  // the card's part (cards.js): nothing for a run that can't post; a rugged or a retried run says why; the roof cleared
+  // checks the board, then offers initials
+  function boardStep(kind) {
+    if (!RUN.full || kind === 'clear' && floor.id !== 'roof') return null;
+    if (R.continues) return { kind: 'retried' };
+    if (kind === 'rugged') return { kind: 'rugged' };
+    const mode = RUN.mode, board = BOARDS[mode], score = R.souls + (R.banked || 0), input = RUN.input;
+    const meta = { time_ms: Math.round(runTime() * 1000), hat: Math.max(0, HATS.indexOf(RUN.hat)) };
+    const tokenP = RUN.token || Promise.resolve(null);
+    let token = null;
+    const step = { kind: 'save', mode, score, time: meta.time_ms / 1000, hat: RUN.hat, input,
+      initials: window.Leaderboard ? Leaderboard.initials() : 'AAA' };
+    // the board where this run would stand; without a token it can't be saved, so it's offline as far as the card goes
+    step.ready = Promise.resolve(tokenP).then(t => {
+      token = t;
+      return t && window.Leaderboard ? Leaderboard.load(LB_GAME, board, score, meta) : null;
+    }).then(data => data ? { placement: data.placement, position: data.position, total: data.total, rows: data.scores.map(rowOf) } : null, () => null);
+    step.submit = name => {
+      Leaderboard.saveInitials(name);
+      return Leaderboard.submit({ game: LB_GAME, board, token, name, score, input, meta }).then(r => {
+        if (r && r.ok) { keepMine(board, { name, score, meta, input }); delete online[mode]; }
+        return r && r.ok ? { ok: true, rank: r.rank, position: r.position, total: r.total, rows: r.scores.map(rowOf) }
+          : r && r.error === 'name_not_allowed' ? { error: 'name_not_allowed' } : null;
+      }, () => null);
+    };
+    return step;
+  }
   // The HTML card is the title card and Controls now; clear, rugged and pause are cards.js's.
   goBtn.addEventListener('click', () => {
     if (cardKind === 'keys') { showCard(keysFrom); return; }
@@ -1350,6 +1429,7 @@
   function clearHeld() { keys.kbUp = keys.kbLeft = keys.kbRight = keys.kbShoot = keys.kbDown = keys.padShoot = keys.mouseShoot = false; if (floor && floor.steer) floor.steer(null); for (const k in twin.kb) twin.kb[k] = 0; twin.mouse.down = false; padPointers.clear(); padSync(); stickOff(null); aimOff(null); }
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (state === 'over' && Cards.key(e)) { e.preventDefault(); return; }   // the board step's offer and initials take their keys first
     if (state === 'title' && cardKind === 'title') {
       const on = document.activeElement;
       if ((e.key === 'Enter' || e.key === ' ') && on && on.closest && on.closest('button, a')) return;   // a focused button or link handles its own
@@ -1566,6 +1646,10 @@
   addEventListener('pointerdown', e => { if (e.pointerType === 'touch') markTouch(); else if (e.pointerType === 'mouse') unmarkTouch(); }, { capture: true, passive: true });
   addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && (e.movementX || e.movementY)) unmarkTouch(); }, { capture: true, passive: true });
   addEventListener('keydown', e => { if (!e.repeat) unmarkTouch(); }, { capture: true, passive: true });
+  // the board's input icon: touch once a finger (or pen) plays, on the controls or the picture; menus don't count
+  addEventListener('pointerdown', e => {
+    if (state === 'play' && (e.pointerType === 'touch' || e.pointerType === 'pen') && e.target instanceof Element && e.target.closest('#pads, #stage')) RUN.input = 'touch';
+  }, { capture: true, passive: true });
 
   // ---------- the in-play layout (docs/games/unruggabull-ii/screen-space.md) ----------
   // Wide screens (landscape phones, computers): the biggest 16:9 picture that leaves room for Pause, a side band of 56 px
@@ -1675,11 +1759,11 @@
   function cardInfo(kind, extra = {}) {
     const dept = dialAt()[1], who = floor.id === 'floor13' && kind === 'rugged' && checkpoint && !checkpoint.hall ? 'shredo' : floor.id;
     if (kind === 'pause') return { who, dept, line: floor.pauseText || '', mode: RUN.mode };
-    if (kind === 'clear') return { who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0, mode: RUN.mode };
+    if (kind === 'clear') return { who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0, mode: RUN.mode, lb: boardStep(kind) };
     const from = checkpoint && checkpoint.souls != null ? checkpoint.souls : R.floorStart || 0;
     // unlock: this run could still open Impossibull, so Retry's question says a retry won't
     return { who, dept, back: backTo(), lost: Math.max(0, R.souls - from), ranked: !R.continues, mode: RUN.mode,
-      unlock: RUN.mode === 'raging' && RUN.full && !R.continues && !impossibullOpen() };
+      unlock: RUN.mode === 'raging' && RUN.full && !R.continues && !impossibullOpen(), lb: boardStep(kind) };
   }
   // Quit (the rugged card and the pause card): the run ends and the title screen comes back.
   function quitToTitle() {
@@ -1712,7 +1796,13 @@
     full: toggleFull, fullOn: isFull, canFull: () => canFull,
     // Impossibull unlocks with a full run cleared on Raging Bull without a retry (endRun); until then it stays locked
     locked: id => id === 'impossibull' && !impossibullOpen(),
-    board: mode => boardOf(mode)   // each mode's own board, on this device
+    board: mode => boardOf(mode),   // each mode's own board on this device: the online board's stand-in
+    // the online board for a mode: { state: 'loading' | 'off' | 'on', rows, me, total }; force asks again (the title coming up)
+    online(mode, force) {
+      loadOnline(mode, force);
+      const o = online[mode] || {};
+      return o.off ? { state: 'off' } : o.rows ? { state: 'on', rows: o.rows, me: o.me, total: o.total } : { state: 'loading' };
+    }
   } });
   setMode(Title.mode);
   function start() {

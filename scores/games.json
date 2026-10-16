@@ -72,5 +72,49 @@
         "plausible": { "perSecond": 1600, "grace": 25000 }
       }
     }
+  },
+  "unruggabull-ii": {
+    "boards": {
+      "1": {
+        "higherIsBetter": true,
+        "maxScore": 100000,
+        "meta": {
+          "time_ms": { "min": 0, "max": 86400000 },
+          "hat": { "min": 0, "max": 3 }
+        },
+        "tieBreak": [["time_ms", "asc"]],
+        "plausible": { "perSecond": 3, "grace": 100 }
+      },
+      "2": {
+        "higherIsBetter": true,
+        "maxScore": 100000,
+        "meta": {
+          "time_ms": { "min": 0, "max": 86400000 },
+          "hat": { "min": 0, "max": 3 }
+        },
+        "tieBreak": [["time_ms", "asc"]],
+        "plausible": { "perSecond": 3, "grace": 100 }
+      },
+      "3": {
+        "higherIsBetter": true,
+        "maxScore": 100000,
+        "meta": {
+          "time_ms": { "min": 0, "max": 86400000 },
+          "hat": { "min": 0, "max": 3 }
+        },
+        "tieBreak": [["time_ms", "asc"]],
+        "plausible": { "perSecond": 3, "grace": 100 }
+      },
+      "4": {
+        "higherIsBetter": true,
+        "maxScore": 100000,
+        "meta": {
+          "time_ms": { "min": 0, "max": 86400000 },
+          "hat": { "min": 0, "max": 3 }
+        },
+        "tieBreak": [["time_ms", "asc"]],
+        "plausible": { "perSecond": 3, "grace": 100 }
+      }
+    }
   }
 }

@@ -41,7 +41,7 @@
       travelHook = options && ['elevator', 'floor48'].includes(options.stage) ? function () { endRun('clear'); return true; } : null;
       RUN.force = seedv;
       setMode(options && options.mode || 'regular');   // --option mode=baby (raging, impossibull); Regular by default
-      RUN.full = false;
+      RUN.full = false; RUN.hat = null;   // a fresh run wears no hat (pages are reused, so the last run's would leak into the report)
       if (options && options.stage === 'elevator' && (options.from != null || options.fight != null || options.destination != null)) {
         const ride = floors.elevator.ELEVATOR;
         newRun({ stage: 'elevator', transfer: true, souls: 0,

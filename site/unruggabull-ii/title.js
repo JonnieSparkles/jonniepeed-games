@@ -72,8 +72,19 @@ var UnrugTitle = (function () {
     };
     MODES.forEach((m, i) => button('mode' + i, m.name, () => pick(i)));
     button('start', 'Start', () => { press('start'); beep('start'); act.start(MODES[mode].id); });
-    button('board', 'Top runs', () => { press('board'); beep('tick'); board = true; });
-    button('back', 'Back', () => { press('back'); beep('tick'); board = false; });
+    button('board', 'Top runs', () => { press('board'); beep('tick'); openBoard(); });
+    button('back', 'Back', () => { press('back'); beep('tick'); closeBoard(); });
+    button('all', 'Top 50', () => { press('all'); beep('tick'); seeAll = !seeAll; scrollY = 0; BUTTONS.all.dataset.label = seeAll ? 'Top 10' : 'Top 50'; BUTTONS.all.setAttribute('aria-label', BUTTONS.all.dataset.label); });
+    // the list scrolls with a drag or the wheel when it's longer than its space, with a thin bar to say where you are
+    let seeAll = false, scrollY = 0, listGH = 1, dragY = null;
+    {
+      const el = document.createElement('div'); el.className = 'tb tlist'; el.style.touchAction = 'none'; el.setAttribute('aria-hidden', 'true'); el.dataset.label = 'List'; btnBox.append(el); BUTTONS.list = el;
+      const k = () => el.offsetHeight / listGH;   // CSS px to a grid pixel
+      el.addEventListener('pointerdown', e => { dragY = e.clientY; try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+      el.addEventListener('pointermove', e => { if (dragY == null) return; scrollY -= (e.clientY - dragY) / k(); dragY = e.clientY; });
+      for (const ty of ['pointerup', 'pointercancel']) el.addEventListener(ty, () => { dragY = null; });
+      el.addEventListener('wheel', e => { e.preventDefault(); scrollY += e.deltaY / k(); }, { passive: false });
+    }
     button('sound', 'Sound', () => { press('sound'); act.sound(); beep('tick'); }).classList.add('tsnd');
     // full screen (owner, Oct 15): hidden where the browser can't do it, like the pause card's
     button('full', 'Full screen', () => { press('full'); beep('tick'); act.full(); });
@@ -90,13 +101,18 @@ var UnrugTitle = (function () {
     // button sounds (owner, Oct 15): a tick for every press, the elevator's chirp when the mode changes, the start
     // jingle on Start; quiet until the browser lets sound start, like the rest of the game
     const beep = name => { if (act.play) act.play(name); };
+    // the board grows the strip up to just under the logo (owner, Oct 16: more room), and Back slides it down again
+    let boardAt = -9, shutAt = -9;
+    const grown = () => still.matches ? (board ? 1 : 0) : board ? ease((t() - boardAt) / .3) : 1 - ease((t() - shutAt) / .3);
+    function closeBoard() { if (board) shutAt = t(); board = false; seeAll = false; scrollY = 0; }
+    function openBoard() { board = true; boardAt = t(); pan0 = Math.min(pan0, now() - 5); seeAll = false; scrollY = 0; BUTTONS.all.dataset.label = 'Top 50'; BUTTONS.all.setAttribute('aria-label', 'Top 50'); if (act.online) act.online(MODES[mode].id); }
     function pick(i) {
       if (locked(i)) { press('mode' + i); beep('empty'); deniedAt = t(); say.textContent = MODES[i].name + ', locked. ' + MODES[i].line + ' Beat Raging Bull.'; return; }
       press('mode' + i); beep('tick'); deniedAt = -9;
       faceSt[MODES[i].id].react = t();
       if (i === mode) return;
       beep('ready');
-      mode = i; changedAt = t(); board = false;
+      mode = i; changedAt = t(); closeBoard();
       MODES.forEach((m, j) => BUTTONS['mode' + j].setAttribute('aria-pressed', String(j === mode)));
       try { localStorage.setItem(MODE_KEY, MODES[i].id); } catch (e) {}
       if (act.picked) act.picked(MODES[i].id);
@@ -348,7 +364,8 @@ var UnrugTitle = (function () {
 
     // ---- the panel: a RugCo elevator panel ----
     const P = { bg: '#1b1d24', ink: '#e8e4d8', dim: '#8a8a9c', faint: '#3a3c48', gold: '#ffd44a', val: '#ffb060', btn: '#ffd44a', btnEdge: '#b88a1a', btnInk: '#1b1d24', ghost: '#22252e', line: '#4a4c5a', led: '#2a0806', ledInk: '#ff8a3a', ledDim: '#5a1a0c' };
-    const panelC = cv(GRID, PANEL_H), pgx = panelC.getContext('2d'), bandC = cv(AW, BAND_H), bgx = bandC.getContext('2d');
+    const PANEL_MAX = 1600;   // grid rows the panel can grow to with the board open
+    const panelC = cv(GRID, PANEL_MAX), pgx = panelC.getContext('2d'), bandC = cv(AW, WIN), bgx = bandC.getContext('2d');
     for (const g of [pgx, bgx, sg, cg]) g.imageSmoothingEnabled = false;
     let gz = [];   // this frame's zones, in the grid being drawn
     const zone = (x, y, w, h, id) => gz.push([x, y, w, h, id]);
@@ -391,15 +408,35 @@ var UnrugTitle = (function () {
       zone(x, y, w, h, id);
     }
     function trophy(g, x, y, col) { R(g, x, y, 9, 1, col); R(g, x + 1, y + 1, 7, 4, col); R(g, x, y + 1, 1, 2, col); R(g, x + 8, y + 1, 1, 2, col); R(g, x + 3, y + 5, 3, 2, col); R(g, x + 2, y + 7, 5, 1, col); }
+    // what the board says for the picked mode (game.js): the online board, or the device's while it can't be reached
+    const boardNow = () => act.online ? act.online(MODES[mode].id) : { state: 'off' };
+    const device = () => (act.board && act.board(MODES[mode].id)) || [];
+    // the board line: a trophy, TOP, #1's hat beside its initials, its souls and a >. Offline, the device's best run.
     // zh: the tap zone's height in grid pixels, so the line is a 44 px target on a phone (40 upright, 34 in the band)
     function boardLine(g, x, y, max, zh) {
-      const list = act.board ? act.board(MODES[mode].id) : null;
-      if (!list) return;   // no board: no line
-      const top = list[0], s = top ? 'TOP ' + top[0] + ' ' + top[1] : 'NO RUNS YET';
-      trophy(g, x, y + 1, P.gold); T(g, s, x + 13, y, P.dim, 2); T(g, '>', x + 13 + tw(s, 2) + 6, y, P.dim, 2);
-      if (top && top[2] && UnrugHats.of(MODES[mode].id)) UnrugHats.board(g, UnrugHats.of(MODES[mode].id), x + 13 + tw('TOP ', 2) + 2 + tw(top[0], 2) / 2, y, 1);
-      zone(x, y - 14, Math.max(max || 0, 13 + tw(s, 2) + 14), zh, 'board');
+      if (!act.board) return;   // no boards: no line
+      const o = boardNow(), top = o.state === 'on' ? o.rows[0] : null, d = device()[0];
+      trophy(g, x, y + 1, P.gold);
+      let cx = x + 13;
+      T(g, 'TOP', cx, y, P.dim, 2); cx += tw('TOP ', 2);
+      if (top) {
+        if (top.hat) { UnrugHats.beside(g, top.hat, cx, y); cx += 18; }   // #1's hat, left of its initials
+        T(g, top.name, cx, y, P.gold, 2); cx += tw(top.name + ' ', 2);
+        T(g, String(top.score), cx, y, P.dim, 2); cx += tw(String(top.score), 2);
+      } else {
+        if (o.state === 'off' && d && d[2] && UnrugHats.of(MODES[mode].id)) { UnrugHats.beside(g, UnrugHats.of(MODES[mode].id), cx, y); cx += 18; }
+        const s = o.state === 'loading' ? '...' : o.state === 'off' && d ? d[0] + ' ' + d[1] : 'NO RUNS YET';
+        T(g, s, cx, y, P.dim, 2); cx += tw(s, 2);
+      }
+      for (const [dx, dy] of [[0, 0], [1, 1], [2, 2], [1, 3], [0, 4]]) R(g, cx + 6 + dx * 2, y + dy * 2, 2, 2, P.dim);   // > (drawn: the font has none)
+      zone(x, y - 14, Math.max(max || 0, cx + 14 - x), zh, 'board');
     }
+    // the input icon: a phone for touch, keys for a keyboard
+    function inputIcon(g, k, x, y, col) {
+      if (k === 'touch') { R(g, x + 1, y, 5, 9, col); R(g, x + 2, y + 1, 3, 6, P.bg); }
+      else { R(g, x, y + 2, 9, 6, col); for (const [a, b] of [[1, 3], [4, 3], [7, 3], [2, 5], [5, 5]]) R(g, x + a, y + b, 1, 1, P.bg); }
+    }
+    const runClock = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = String(s % 60).padStart(2, '0'); return h ? h + ':' + String(m).padStart(2, '0') + ':' + ss : m + ':' + ss; };
     function padlock(g, cx, cy, s, col) {
       R(g, cx - 4 * s, cy - 8 * s, 8 * s, 2 * s, col); R(g, cx - 4 * s, cy - 7 * s, 2 * s, 6 * s, col); R(g, cx + 2 * s, cy - 7 * s, 2 * s, 6 * s, col);
       R(g, cx - 6 * s, cy - 1 * s, 12 * s, 9 * s, col); R(g, cx - 1 * s, cy + 2 * s, 2 * s, 3 * s, '#101116');
@@ -453,29 +490,64 @@ var UnrugTitle = (function () {
       if (labelY != null) T(g, m.short, cx, labelY, on ? P.gold : P.dim, 2, 'center');
       zone(cx - r - 6, cy - r - 6, r * 2 + 12, labelY != null ? labelY - cy + r + 18 : r * 2 + 12, 'mode' + i);
     }
+    // the picked mode's board, in the panel (upright) or the band (two columns): its top 10 or top 50, your best always
+    // at its real rank (under a ... gap when it isn't among the rows above), scrolling when it's longer than the space
+    function listItems() {
+      const o = boardNow();
+      if (o.state === 'off') return [{ text: 'BOARD OFFLINE', col: P.val }].concat(device().map((d, i) => ({ dev: d, rank: i + 1 })));
+      if (o.state !== 'on') return [{ text: 'CHECKING THE BOARD...', col: P.dim }];
+      const shown = seeAll ? 50 : 10, me = o.me;
+      if (!o.rows.length && !me) return [{ text: 'NO RUNS YET', col: P.dim }];
+      const items = o.rows.slice(0, shown).map(e => ({ e, me: e === me }));
+      return me && me.rank > shown ? items.slice(0, shown - (seeAll ? 0 : 2)).concat([{ gap: true }, { e: me, me: true }]) : items;
+    }
     function boardView(g, w, h, band) {
-      const m = MODES[mode], list = (act.board && act.board(m.id)) || [];
-      const rows = (x, y, ww, n, cols) => {
-        const per = Math.ceil(n / cols);
-        for (let i = 0; i < n; i++) {
-          const c = Math.floor(i / per), r = i % per, cx = x + c * (ww / cols), cy = y + r * 16, e = list[i];
-          T(g, (i + 1) + '.', cx + 16, cy, P.dim, 2, 'right');
-          T(g, e ? e[0] : '---', cx + 22, cy, e ? (i === 0 ? P.gold : P.ink) : P.faint, 2);
-          if (e && e[2] && UnrugHats.of(m.id)) UnrugHats.board(g, UnrugHats.of(m.id), cx + 22 + tw(e[0], 2) / 2, cy, 1);   // the hat it won, over its name
-          if (e) T(g, String(e[1]), cx + ww / cols - 14, cy, P.val, 2, 'right');
+      const m = MODES[mode], o = boardNow(), RH = 17, items = listItems();
+      const cols = band ? 2 : 1, lx = band ? 12 : 14, ly = band ? 24 : 36, lw = band ? w - 160 : w - 28, lh = band ? h - ly - 2 : h - 50 - FOOT - ly - 8;
+      const rowsN = Math.ceil(items.length / cols), maxS = Math.max(0, rowsN * RH - lh);
+      scrollY = clamp(scrollY, 0, maxS);
+      T(g, (seeAll ? 'TOP 50: ' : 'TOP 10: ') + m.name, lx, band ? 6 : 14, P.gold, 2);
+      if (!band && o.state === 'on') T(g, 'TIME', w - 32, 14, P.dim, 2, 'right');
+      g.save(); g.beginPath(); g.rect(lx - 6, ly - 4, lw + 10, lh + 4); g.clip();
+      const cw = lw / cols;
+      items.forEach((it, i) => {
+        const c = band ? i % 2 : 0, r = band ? Math.floor(i / 2) : i, cx = lx + c * cw, cy = ly + r * RH - Math.round(scrollY);
+        if (cy < ly - RH || cy > ly + lh) return;
+        if (it.gap) { T(g, '...', cx + 53, cy, P.dim, 2); return; }
+        if (it.text) { T(g, it.text, cx, cy, it.col, 2); return; }
+        if (it.dev) {   // the device's board: where the run ended and its souls
+          T(g, it.rank + '.', cx + 30, cy, P.dim, 2, 'right'); T(g, it.dev[0], cx + 53, cy, it.rank === 1 ? P.gold : P.ink, 2);
+          if (it.dev[2]) UnrugHats.beside(g, UnrugHats.of(m.id), cx + 35, cy);   // the hat that run won (its mode's)
+          T(g, String(it.dev[1]), cx + cw - (band ? 18 : 90), cy, P.val, 2, 'right');
+          return;
         }
-      };
-      if (band) { T(g, 'TOP RUNS: ' + m.name, 12, 8, P.gold, 2); rows(12, 24, w - 160, 8, 2); bigButton(g, w - 132, 10, 120, 40, 'BACK', false, 'back', 2); }
-      else { T(g, 'TOP RUNS: ' + m.name, 14, 14, P.gold, 2); rows(14, 36, w - 28, Math.min(10, Math.floor((h - 124) / 16)), 1); bigButton(g, 10, h - 50 - FOOT, w - 20, 50, 'BACK', false, 'back', 2); }
+        const e = it.e;
+        if (it.me) { R(g, cx - 4, cy - 3, cw - (band ? 4 : 0), 14, '#3a2e10'); R(g, cx - 4, cy - 3, 2, 14, P.gold); }
+        T(g, e.rank + '.', cx + (band ? 24 : 30), cy, P.dim, 2, 'right');
+        UnrugHats.beside(g, e.hat, cx + (band ? 27 : 35), cy);   // the hat in its own slot, left of the initials
+        T(g, e.name, cx + (band ? 43 : 53), cy, e.rank === 1 || it.me ? P.gold : P.ink, 2);
+        T(g, String(e.score), cx + (band ? 98 : 150), cy, P.val, 2, 'right');
+        if (e.time != null) T(g, runClock(e.time), cx + cw - 18, cy, P.ink, 2, 'right');
+        inputIcon(g, e.input, cx + cw - 12, cy - 2, P.dim);
+      });
+      g.restore();
+      if (maxS > 0) { const th = Math.max(10, lh * lh / (rowsN * RH)), ty = ly + (lh - th) * scrollY / maxS; R(g, lx + lw + 4, ly - 2, 2, lh, P.faint); R(g, lx + lw + 4, ty - 2, 2, th, P.dim); }
+      listGH = lh; zone(lx - 4, ly - 6, lw + 8, lh + 6, 'list');
+      const allLabel = seeAll ? 'TOP 10' : 'TOP 50';
+      if (band) { bigButton(g, w - 132, 2, 120, 38, allLabel, false, 'all', 2); bigButton(g, w - 132, 42, 120, 38, 'BACK', false, 'back', 2); }   // 44 px on a short phone
+      else { bigButton(g, 10, h - 50 - FOOT, 146, 50, allLabel, false, 'all', 2); bigButton(g, 164, h - 50 - FOOT, 146, 50, 'BACK', false, 'back', 2); }
     }
     // upright: under the painting, 320 wide, only as tall as what it shows (owner, Oct 16: the room goes to the
     // painting): the readout, the buttons and Start; the board line adds a row when the boards exist (item 29)
     const panelH = () => act.board && act.board(MODES[mode].id) ? 290 : 246;
     const FOOT = 26;   // under Start: clear of a phone's rounded corners in full screen (owner, Oct 16)
-    function drawPanel(g, tt) {
-      const w = GRID, h = panelH();
+    // h: the panel's height now (taller while the board is open or sliding back); the readout, faces and Start keep
+    // to its bottom rows
+    function drawPanel(g, tt, h) {
+      const w = GRID, off = h - panelH();
       steel(g, w, h); gz = [];
       if (board) { boardView(g, w, h, false); return; }
+      g.save(); g.translate(0, off);
       const keys = canFull() ? 3 : 2;
       led(g, 14, 14, w - 28 - 48 * keys + 6, 42, tt);
       if (keys === 3) { steelKey(g, w - 14 - 42 - 48, 14, 42, 42, 'full'); fullIcon(g, w - 14 - 42 - 48 + 21, 14 + 21, act.fullOn(), act.fullOn() ? P.gold : P.dim); }
@@ -484,17 +556,20 @@ var UnrugTitle = (function () {
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
       MODES.forEach((m, i) => callButton(g, 46 + i * 76, 104, 30, i, tt, 146));
       boardLine(g, 14, 178, w - 28, 40);
-      bigButton(g, 10, h - 50 - FOOT, w - 20, 50, 'START', true, 'start', 3);
+      bigButton(g, 10, h - off - 50 - FOOT, w - 20, 50, 'START', true, 'start', 3);
+      g.restore(); for (const z of gz) z[1] += off;
     }
     // sideways and on a desktop: a band over the picture's bottom, 480 wide
-    function drawBand(g, tt) {
-      const w = AW, h = BAND_H;
+    function drawBand(g, tt, h) {
+      const w = AW, off = h - BAND_H;
       steel(g, w, h); gz = [];
       if (board) { boardView(g, w, h, true); return; }
+      g.save(); g.translate(0, off);
       led(g, 12, 8, 150, 40, tt);
       MODES.forEach((m, i) => callButton(g, 190 + i * 44, 28, 19, i, tt));
       boardLine(g, 12, 62, 0, 34);
       bigButton(g, w - 128, 10, 116, 40, 'START', true, 'start', 3);
+      g.restore(); for (const z of gz) z[1] += off;
     }
 
     // ---- composing the painting with what lives on it ----
@@ -533,11 +608,14 @@ var UnrugTitle = (function () {
         if (top > 0) blit(comp, 0, 0, AW, 1, dx, 0, dw, top + 1);   // a tall screen: the top row of sky carries on up
         blit(comp, 0, y0, AW, vis, dx, top, dw, vis * k);
         if (dx > 0) { sg.save(); sg.setTransform(f, 0, 0, f, 0, 0); for (let i = 0; i < 12; i++) { sg.fillStyle = `rgba(8,7,12,${(1 - i / 12) * .85})`; sg.fillRect(dx + i * 2, 0, 2, sy); sg.fillRect(dx + dw - (i + 1) * 2, 0, 2, sy); } sg.restore(); }
-        pgx.clearRect(0, 0, GRID, PANEL_H); drawPanel(pgx, tt);
-        if (px2 > 0) { sg.fillStyle = P.bg; sg.fillRect(0, Math.round(sy * f), screen.width, screen.height); sg.fillStyle = '#c9a24a'; sg.fillRect(0, Math.round(sy * f), screen.width, Math.ceil(2 * k2 * f)); }
-        blit(panelC, 0, 0, GRID, PH, px2, sy, sw, ph);
-        zones = gz.map(([x, y, w, h, id]) => [px2 + x * k2, sy + y * k2, w * k2, h * k2, id]);
         out.safe = [top + (ART.safe[0] - y0) * k, top + (ART.safe[1] - y0) * k]; out.logo = [top + (logoY - y0) * k, top + (logoY + LH - y0) * k];
+        // the board grows the panel up to just under the logo; the painting stays where it is
+        const gh = Math.min(PANEL_MAX, Math.round((H - Math.min(sy, out.logo[1] + 8)) / k2)), hg = Math.round(PH + (gh - PH) * clamp(grown(), 0, 1)), syc = H - hg * k2;
+        pgx.clearRect(0, 0, GRID, PANEL_MAX); drawPanel(pgx, tt, hg);
+        if (px2 > 0) { sg.fillStyle = P.bg; sg.fillRect(0, Math.round(syc * f), screen.width, screen.height); sg.fillStyle = '#c9a24a'; sg.fillRect(0, Math.round(syc * f), screen.width, Math.ceil(2 * k2 * f)); }
+        blit(panelC, 0, 0, GRID, hg, px2, syc, sw, hg * k2);
+        zones = gz.map(([x, y, w, h, id]) => [px2 + x * k2, syc + y * k2, w * k2, h * k2, id]);
+        out.strip = syc;
       } else {
         // the picture is play's 16:9 rectangle (layoutPlay places the stage); a window into the painting that pans up
         const a = arena.getBoundingClientRect(), s = stageEl.getBoundingClientRect();
@@ -546,9 +624,12 @@ var UnrugTitle = (function () {
         const la = still.matches ? 1 : clamp((now() - pan0 - 3.2) / .6, 0, 1);
         compose(tt, ART.sideBull, ART.panLogo, la);
         blit(comp, 0, y0, AW, WIN, px, py, pw, WIN * kp);
-        bgx.clearRect(0, 0, AW, BAND_H); drawBand(bgx, tt);
-        blit(bandC, 0, 0, AW, BAND_H, px, py + BAND_TOP * kp, pw, BAND_H * kp);
-        zones = gz.map(([x, y, w, h, id]) => [px + x * kp, py + (BAND_TOP + y) * kp, w * kp, h * kp, id]);
+        // the board grows the band up to just under the logo (where it sits once the pan is done)
+        const btop = Math.round(BAND_TOP - (BAND_TOP - (ART.panLogo - ART.pan[1] + LH + 6)) * clamp(grown(), 0, 1)), bh = WIN - btop;
+        bgx.clearRect(0, 0, AW, WIN); drawBand(bgx, tt, bh);
+        blit(bandC, 0, 0, AW, bh, px, py + btop * kp, pw, bh * kp);
+        zones = gz.map(([x, y, w, h, id]) => [px + x * kp, py + (btop + y) * kp, w * kp, h * kp, id]);
+        out.strip = py + btop * kp;
         // sound, full screen and Exit, Ghost style, where Pause sits in play: the side band on a phone, the band above on a desktop
         const sideBand = W - (px + pw) >= 50;
         const ix = sideBand ? W - (W - px - pw) / 2 : Math.min(px + pw, W - 8) - 20, iy = sideBand ? 28 : Math.max(4, (py - 40) / 2) + 20;
@@ -582,26 +663,35 @@ var UnrugTitle = (function () {
     }
 
     function show() {
-      root.hidden = false; board = false; t0 = now(); pan0 = t0; shapeKey = '';
+      root.hidden = false; board = false; shutAt = -9; seeAll = false; scrollY = 0; t0 = now(); pan0 = t0; shapeKey = '';
+      if (act.online) act.online(MODES[mode].id, true);   // ask the board again each time the title comes up
       frame();
       say.textContent = 'Unruggabull II: Salvation for the Unrugged. ' + MODES[mode].name + '.';
     }
-    function hide() { root.hidden = true; board = false; }
+    function hide() { root.hidden = true; board = false; shutAt = -9; }
     // keys while the title is up; true when the key was the title's
     function key(e) {
       if (root.hidden || e.repeat) return false;
       const k = e.key;
-      if (board) { if (k === 'Escape' || k === 'b' || k === 'B' || k === 'Enter' || k === ' ') { press('back'); beep('tick'); board = false; return true; } return false; }
+      if (board) {
+        if (k === 'Escape' || k === 'b' || k === 'B' || k === 'Enter' || k === ' ') { BUTTONS.back.click(); return true; }
+        if (k === 'ArrowDown' || k === 'ArrowUp') { scrollY += k === 'ArrowDown' ? 17 : -17; return true; }
+        if (k === 't' || k === 'T') { BUTTONS.all.click(); return true; }
+        return false;
+      }
       if (['ArrowLeft', 'ArrowUp', 'a', 'A', 'w', 'W'].includes(k)) { pick(Math.max(0, mode - 1)); return true; }
       if (['ArrowRight', 'ArrowDown', 'd', 'D', 's', 'S'].includes(k)) { pick(Math.min(MODES.length - 1, mode + 1)); return true; }
-      if ((k === 'b' || k === 'B') && act.board && act.board(MODES[mode].id)) { press('board'); beep('tick'); board = true; return true; }
+      if ((k === 'b' || k === 'B') && act.board) { BUTTONS.board.click(); return true; }
       if (k === 'Enter' || k === ' ') { BUTTONS.start.click(); return true; }
       return false;
     }
     // for the tests
     const labels = () => Object.keys(BUTTONS).filter(id => !BUTTONS[id].hidden).map(id => BUTTONS[id].dataset.label);
     function pressLabel(label) { const id = Object.keys(BUTTONS).find(i => BUTTONS[i].dataset.label === label && !BUTTONS[i].hidden); if (!id) throw new Error('no ' + label + ' button: ' + labels().join(', ')); BUTTONS[id].click(); }
-    return { show, hide, frame, key, labels, press: pressLabel, get mode() { return MODES[mode].id; }, get open() { return !root.hidden; }, get layout() { return lay; }, get board() { return board; }, MODES, el: root };
+    return { show, hide, frame, key, labels, press: pressLabel, get mode() { return MODES[mode].id; }, get open() { return !root.hidden; }, get layout() { return lay; }, get board() { return board; }, MODES, el: root,
+      // for the tests: the board's rows as text (rank and initials, ... for the gap, YOU on yours) and its scroll
+      list: () => listItems().map(it => it.gap ? '...' : it.text ? it.text : it.dev ? it.rank + ' ' + it.dev[0] : it.e.rank + ' ' + it.e.name + (it.me ? ' YOU' : '')),
+      get scroll() { return scrollY; } };
   }
   return { make, MODES };
 })();

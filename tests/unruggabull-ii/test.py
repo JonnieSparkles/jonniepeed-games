@@ -477,6 +477,61 @@ with sync_playwright() as p:
         assert not errors, (name, errors)
         context.close()
         print('PASS title layout', name)
+    # The online board (case-41 has the rules): the clear card's step at every stage of it, the rugged and retried lines,
+    # and the title's board, upright, sideways and on a short landscape phone. Leaderboard is stubbed, so no network.
+    STUB = """(() => {
+      const row = (rank, name, score) => ({ rank, name, score, input: rank % 2 ? 'touch' : 'keys', meta: { time_ms: 500000 + rank * 7000, hat: rank % 4 } });
+      const scores = Array.from({ length: 50 }, (_, i) => row(i + 1, 'R' + String(i).padStart(2, '0'), 800 - i));
+      Object.assign(Leaderboard, { start: () => Promise.resolve('tok'), load: () => Promise.resolve({ ok: true, scores, placement: null, position: 312, total: 1204 }),
+        submit: d => Promise.resolve({ ok: true, rank: null, position: 312, total: 1205, scores }) });
+      localStorage.setItem('unruggabull-ii-mine-2', JSON.stringify({ name: 'YOU', score: 401, meta: { time_ms: 610000, hat: 1 }, input: 'touch' }));
+    })()"""
+    def on_screen(page, w, h, what, small=43):
+        for el in page.locator('.lcard button, .ttl .tb').all():
+            if not el.is_visible():
+                continue
+            b = el.bounding_box()
+            assert b['x'] >= -1 and b['y'] >= -1 and b['x'] + b['width'] <= w + 1 and b['y'] + b['height'] <= h + 1, f'{what}: a button off screen ({b})'
+            least = 37 if 'lpk' in (el.get_attribute('class') or '') else small   # the picker's arrows and letters
+            assert min(b['width'], b['height']) >= least, f'{what}: a button too small ({el.get_attribute("aria-label") or el.inner_text()} {b})'
+    for name, (w, h) in [('upright', (360, 780)), ('short upright', (360, 640)), ('sideways', (780, 360)), ('short landscape', (640, 360))]:
+        context, page, errors = open_page(browser, viewport={'width': w, 'height': h}, has_touch=True, is_mobile=True)
+        page.wait_for_timeout(200)
+        page.evaluate(STUB)
+        page.evaluate("unrugTest(`startRun('roof', true); R.souls = 401; RUN.clock = 470; R.endT = 140; R.phase = 'win'; endRun('clear');`)")
+        page.wait_for_timeout(2700)
+        assert page.evaluate("unrugTest('Cards.step')") == 'offer', f'{name}: the offer after the check'
+        on_screen(page, w, h, f'{name} offer')
+        page.locator('.lcard .lb', has_text='Enter initials').tap(); page.wait_for_timeout(150)
+        on_screen(page, w, h, f'{name} picker')
+        page.locator('.lpk[aria-label="Next character for initial 2"]').tap(); page.wait_for_timeout(50)
+        assert page.evaluate("unrugTest('Cards.initials')") == 'ABA', f'{name}: an arrow tapped steps a letter'
+        page.locator('.lcard .lb', has_text='OK').tap(); page.wait_for_timeout(500)
+        assert page.evaluate("unrugTest('Cards.step')") == 'saved', f'{name}: saved'
+        on_screen(page, w, h, f'{name} saved')
+        page.evaluate("unrugTest(`startRun('floor48', true); for (let i = 0; i < 12 && R.phase !== 'dead'; i++) { bull.inv = 0; hurtBull(1, 'test'); } for (let i = 0; i < 300 && state === 'play'; i++) update(1/60);`)")
+        page.wait_for_timeout(1400)
+        assert page.evaluate("unrugTest('Cards.info.lb.kind')") == 'rugged', f'{name}: rugged'
+        on_screen(page, w, h, f'{name} rugged', 38)   # the rugged card's own buttons, as #127 sized them
+        page.evaluate("unrugTest(`R.continues = 1; showCard('rugged');`)"); page.wait_for_timeout(1400)
+        on_screen(page, w, h, f'{name} retried', 38)
+        page.evaluate("unrugTest(`Cards.hide(); newRun(); setState('title'); showCard('title');`)"); page.wait_for_timeout(300)
+        shut = page.evaluate("unrugTest('Title.layout.strip')")
+        page.locator('.tb[data-label="Top runs"]').tap(); page.wait_for_timeout(450)
+        assert page.evaluate("unrugTest('Title.list()')")[-2:] == ['...', '311 YOU YOU'], f'{name}: your best under the gap'
+        lay = page.evaluate("unrugTest('Title.layout')")
+        assert lay['logo'][1] <= lay['strip'] <= lay['logo'][1] + 12, f'{name}: the board grows the strip up to just under the logo ({lay["strip"]}, {lay["logo"]})'
+        on_screen(page, w, h, f'{name} title board')
+        page.locator('.tb[data-label="Top 50"]').tap(); page.wait_for_timeout(100)
+        lst = page.locator('.tb.tlist').bounding_box()
+        page.mouse.move(lst['x'] + lst['width'] / 2, lst['y'] + lst['height'] / 2); page.mouse.wheel(0, 400); page.wait_for_timeout(100)
+        assert page.evaluate("unrugTest('Title.scroll')") > 0, f'{name}: the top 50 scrolls'
+        page.locator('.tb[data-label="Back"]').tap(); page.wait_for_timeout(450)
+        assert abs(page.evaluate("unrugTest('Title.layout.strip')") - shut) <= 1, f'{name}: Back slides it down again'
+        page.evaluate("localStorage.removeItem('unruggabull-ii-mine-2')")
+        assert not errors, (name, errors)
+        context.close()
+        print('PASS online board layout', name)
     context, page, errors = open_page(browser, viewport={'width': 360, 'height': 780}, has_touch=True, is_mobile=True)
     page.wait_for_timeout(200)
     assert page.evaluate("unrugTest('Title.mode')") == 'regular', 'title: Regular by default'

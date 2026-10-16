@@ -123,5 +123,14 @@ var UnrugHats = (function () {
     const w = rows[0].length, x0 = Math.round(cx - w * s / 2), y0 = y - s - rows.length * s;
     rows.forEach((r, j) => { for (let i = 0; i < w; i++) if (r[i] !== '.') { g.fillStyle = BOARD_PAL[r[i]]; g.fillRect(x0 + i * s, y0 + j * s, s, s); } });
   }
-  return { GRID, SEAT, OF, BOARD, BOARD_PAL, IMG, OP_BODY, OP_HALO, offset, seat, drawOn, board, glint, glowAt, sparkle, of: mode => OF[mode] || null };
+  // The hat beside a board row's initials, in its own slot to their left (owner, Oct 16: everywhere, room to show them
+  // off): x its left edge, y the letters' top, centred on their height th, at s picture pixels a hat pixel (2 beside the
+  // 3x5 font at 2x). Blank rows under the halo are dropped, so every hat sits level with the letters.
+  function beside(g, kind, x, y, s = 2, th = 10) {
+    let rows = BOARD[kind]; if (!rows) return;
+    while (rows.length && !/[^.]/.test(rows[rows.length - 1])) rows = rows.slice(0, -1);
+    const w = rows[0].length, x0 = Math.round(x), y0 = Math.round(y + (th - rows.length * s) / 2);
+    rows.forEach((r, j) => { for (let i = 0; i < w; i++) if (r[i] !== '.') { g.fillStyle = BOARD_PAL[r[i]]; g.fillRect(x0 + i * s, y0 + j * s, s, s); } });
+  }
+  return { GRID, SEAT, OF, BOARD, BOARD_PAL, IMG, OP_BODY, OP_HALO, offset, seat, drawOn, board, beside, glint, glowAt, sparkle, of: mode => OF[mode] || null };
 })();
