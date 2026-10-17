@@ -90,6 +90,7 @@ def mission(at):
 CAMPAIGN = {
     'title': 'localStorage.setItem(world.campaign.keys.unlock, "true"); titleScene(); S.t = 0;',
     'map': CAMP + 'c.screens.map();',
+    'choice': CAMP + "t.m = 1; c.write(); titleScene(); document.getElementById('campaignBtn').click();",
     'briefing': CAMP + 'c.screens.map(); c.screens.briefing();',
     'mission': CAMP + STEP + 't.m = 1; c.startMission(); step(7);',
     'between': mission('between') + 'c.screens.between();',

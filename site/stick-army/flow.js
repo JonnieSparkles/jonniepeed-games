@@ -157,6 +157,8 @@ var StickArmyFlow = function (world, game) {
     // A kind of run's objective (Campaign's mission goal and how it's going).
     var goal = document.getElementById('pauseGoal'), goalLine = world.rules().pauseLine ? world.rules().pauseLine() : '';
     goal.textContent = goalLine; goal.hidden = !goalLine;
+    // A kind of run that keeps your place says so on its Quit (Campaign: "Save and quit").
+    document.getElementById('pauseQuitBtn').textContent = world.rules().quitLabel || 'Quit';
     // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
     var kit = document.getElementById('pauseKit');
     kit.hidden = !renderKit(kit, false);

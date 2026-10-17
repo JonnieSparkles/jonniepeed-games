@@ -74,16 +74,32 @@
     // ---------- ending a tour ----------
     t = tourAt(1); t.at = 'map'; camp.write();
     localStorage.setItem(K.unlock, 'true'); titleScene();
-    check(document.getElementById('campaignLabel').textContent === 'Continue', 'a saved tour: Continue');
-    document.getElementById('campaignBtn').click();
+    check(document.getElementById('campaignLabel').textContent === 'Campaign', 'the title always says Campaign');
+    document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
     var end = document.querySelector('#cMap [data-act="new"]');
     check(end && end.textContent === 'End tour', 'the map offers End tour');
     end.click();
     check(/End this tour/.test(document.getElementById('cCard').textContent), 'which asks first');
     document.getElementById('cNewGo').click();
     check(localStorage.getItem(K.tour) === null && camp.tour() === null && S.mode === 'title' && document.getElementById('campaignLabel').textContent === 'Campaign', 'ended: back on the title, which offers a new Campaign');
-    document.getElementById('campaignBtn').click();
+    document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
     check(camp.tour() && camp.tour().op === 0 && camp.tour().squad.length === 0, 'and Campaign starts a new tour');
+    // ---------- the title's Campaign button with a tour saved: Continue or New tour ----------
+    t = tourAt(2); t.at = 'map'; t.m = 1; camp.write(); titleScene();
+    document.getElementById('campaignBtn').click();
+    check(/Balloon Season, mission 2 of 3/.test(document.getElementById('cCard').textContent), 'it says where the tour stands');
+    document.getElementById('cFresh').click();
+    check(/New tour\?/.test(document.getElementById('cCard').textContent), 'New tour asks first');
+    document.getElementById('cFreshNo').click();
+    check(document.getElementById('cContinue'), 'Back: the choice again');
+    document.getElementById('cFresh').click(); document.getElementById('cFreshGo').click();
+    check(camp.tour() && camp.tour().op === 0 && camp.tour().squad.length === 0 && camp.tour().code !== 'K7QMR2' && !document.getElementById('cMap').hidden, 'Start a new tour: a fresh one, on the map');
+    // Save and quit: the pause card and the cards say so in Campaign, Arcade's pause card says Quit.
+    t = tourAt(1, 'dummy-drop'); camp.startMission(); togglePause();
+    check(document.getElementById('pauseQuitBtn').textContent === 'Save and quit', 'Campaign\'s pause card: Save and quit');
+    togglePause(); RUN.force = 5; newGame(); RUN.force = null; togglePause();
+    check(document.getElementById('pauseQuitBtn').textContent === 'Quit', 'Arcade\'s: Quit');
+    togglePause();
   } finally {
     clear(); RUN.game = 'arcade'; titleScene();
   }

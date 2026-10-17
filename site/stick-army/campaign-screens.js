@@ -18,7 +18,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   var root = el('<div id="campaign"></div>');
   root.innerHTML =
     '<section class="c-page" id="cMap" aria-labelledby="cMapTitle" hidden>' + HOLES +
-      '<button class="c-back" type="button" data-act="title">‹ Quit</button>' +
+      '<button class="c-back" type="button" data-act="title">‹ Save and quit</button>' +
       '<div class="c-head"><h2 class="c-title" id="cMapTitle">Tour <span class="pen">map</span></h2><span class="c-code" id="cCode"></span></div>' +
       '<svg class="c-route" id="cRoute" viewBox="0 0 400 720" aria-hidden="true"></svg><div id="cOps"></div>' +
       '<div class="c-foot"><div class="c-links"><button class="c-link" type="button" data-act="copy">Copy save link</button>' +
@@ -163,7 +163,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       '<p class="tag">' + esc(last.mission ? last.mission + ': ' : '') + esc(last.cause || '') + '</p>' +
       '<p class="tag">' + (fell.length ? 'Fallen: ' + esc(fell.join(', ')) + '.' : 'Nobody was lost.') + '</p>' +
       '<p class="c-small">Retry starts the mission again with the squad and gear it started with. The fallen stay fallen.</p>' +
-      '<div class="row"><button class="btn" type="button" id="cRetry">Retry</button><button class="btn ghost quit-btn" type="button" data-act="title">Quit</button></div>' +
+      '<div class="row"><button class="btn" type="button" id="cRetry">Retry</button><button class="btn ghost quit-btn" type="button" data-act="title">Save and quit</button></div>' +
       '<div class="c-links"><button class="c-link" type="button" data-act="barracks">Barracks</button><button class="c-link" type="button" data-act="map">Map</button></div>', 'cRetry');
     $('cRetry').addEventListener('click', function () { camp.retry(); });
   }
@@ -176,7 +176,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
         next ? 'Operation ' + esc(next.name) + ' comes in the next release.' : '') + ' Your squad waits in the barracks.</p>' +
       // The operation's own star (it said "nobody was lost" for every operation until round 4).
       (t.stars[op.id] ? '<p class="tag">' + STAR + ' Gold star: ' + esc(op.star.replace(/\.$/, '').toLowerCase()) + '.</p>' : '') +
-      '<div class="row"><button class="btn" type="button" id="cEndMap">Map</button><button class="btn ghost quit-btn" type="button" data-act="title">Quit</button></div>' +
+      '<div class="row"><button class="btn" type="button" id="cEndMap">Map</button><button class="btn ghost quit-btn" type="button" data-act="title">Save and quit</button></div>' +
       '<div class="c-links"><button class="c-link" type="button" data-act="barracks">Barracks</button><button class="c-link" type="button" data-act="copy">Copy save link</button></div>', 'cEndMap');
     $('cEndMap').addEventListener('click', map);
   }
@@ -451,14 +451,33 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     campaignBtn.hidden = !on;
     $('startBtn').textContent = on ? 'Arcade' : 'Start';
     campaignBtn.parentNode.classList.toggle('t-two', on);
-    var saved = camp.savedTour();
-    $('campaignLabel').textContent = saved ? 'Continue' : 'Campaign';
-    campaignBtn.setAttribute('aria-label', saved ? 'Continue your Campaign tour' : 'Campaign');
+    // Always "Campaign": with a tour saved, the button asks Continue or New tour (tourChoice).
+    $('campaignLabel').textContent = 'Campaign';
+    campaignBtn.setAttribute('aria-label', 'Campaign');
     $('campaignNew').hidden = camp.seen();
     var p = camp.pending();
     if (p) linkArrived(p);
   };
-  campaignBtn.addEventListener('click', function () { camp.open(); });
+  campaignBtn.addEventListener('click', function () { var saved = camp.savedTour(); if (saved) tourChoice(saved); else camp.open(); });
+  // With a tour saved: Continue it, or start a New tour (which asks first, since the tour and its squad end).
+  function where(t) {
+    var op = camp.OPS[t.op];
+    return t.at === 'end' ? op.name + ' done, waiting for the next release' : op.name + ', mission ' + Math.min(t.m + 1, t.missions.length) + ' of ' + t.missions.length;
+  }
+  function tourChoice(t) {
+    card('<p class="c-eyebrow">TOUR ' + esc(camp.showCode(t.code)) + '</p><h2>Cam<span class="pen">paign</span></h2>' +
+      '<p class="tag">' + esc(where(t)) + '. ' + t.squad.length + (t.squad.length === 1 ? ' soldier' : ' soldiers') + ' in the barracks.</p>' +
+      '<div class="row"><button class="btn" type="button" id="cContinue">Continue</button><button class="btn ghost" type="button" id="cFresh">New tour</button></div>' +
+      '<div class="c-links"><button class="c-link" type="button" data-act="title">Back</button></div>', 'cContinue');
+    $('cContinue').addEventListener('click', function () { camp.open(); });
+    $('cFresh').addEventListener('click', function () {
+      card('<h2>New <span class="pen">tour?</span></h2>' +
+        '<p class="tag">Tour ' + esc(camp.showCode(t.code)) + ' ends here, and its squad with it. Gold stars stay. A copied save link still brings it back.</p>' +
+        '<div class="row"><button class="btn" type="button" id="cFreshGo">Start a new tour</button><button class="btn ghost" type="button" id="cFreshNo">Back</button></div>', 'cFreshNo');
+      $('cFreshGo').addEventListener('click', function () { camp.endTour(); camp.open(); });
+      $('cFreshNo').addEventListener('click', function () { tourChoice(t); });
+    });
+  }
 
   return { hide: hide, map: map, deploy: deploy, briefing: briefing, between: between, lost: lost, debrief: debrief, barracks: barracks, fallen: fallen, end: end,
     load: loadCard, copyLink: copyLink };
