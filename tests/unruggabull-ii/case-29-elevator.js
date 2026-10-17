@@ -122,7 +122,7 @@
         quietTalk = R.talk; quietLines.push([t, R.talk.speaker, R.talk.text]);
       }
       if (t < 29) check(Snd.track === 'pleaseHold', 'Please Hold lasts through the climb');
-      else check(Snd.track === null, 'the ding hard-cuts Please Hold');
+      else check(Snd.track === 'pleaseHold', 'Please Hold sags as the car stops, for the 48th to take its tune');
     }
     check(quietLines.length === expectedQuiet.length && quietLines.every((line, i) =>
       Math.abs(line[0] - expectedQuiet[i][0]) < .02 && line[1] === expectedQuiet[i][1] && line[2] === expectedQuiet[i][2]),
@@ -160,10 +160,13 @@
     update(1 / 60); check(Snd.track === 'hornsUp' && !R.arena.locked, 'Horns Up slams in, and he can move at once');
     at(T.reel + .7); check(R.talk && R.talk.text === 'HERE I COME, P(LOOM).', 'and he says HERE I COME again');
     at(T.reel + .6 + floor.ELEVATOR.waves.first + .1); check(R.arena.enemies.length > 0, 'the waves follow');
-    // the top: the threads let go and take the last carpshits with them, the music stops
-    bull.inv = 1e9; at(T.arrive - .05); const souls = R.souls, left2 = R.arena.enemies.length;
+    // the top: the last carpshits go and their souls are his (T.release); Horns Up's solo plays out its last bar, then
+    // the car arrives and the music stops on a D chord
+    bull.inv = 1e9; at(T.release - .05); const souls = R.souls, left2 = R.arena.enemies.length;
     check(left2 > 0, 'carpshits up to the top'); tick(.1);
-    check(!R.arena.enemies.length && R.souls === souls + left2 && Snd.track === null, 'arrival frees the last of them and stops the music');
+    check(!R.arena.enemies.length && R.souls === souls + left2 && Snd.track === 'hornsUp', 'the last of them freed, the solo still playing');
+    check(Math.abs(T.arrive - T.reel - 31.45) < 1e-9, "the car arrives as Horns Up's solo ends (reel 2 bars, riff 8, breakdown 4, solo 8 at 168)");
+    at(T.arrive + .05); check(!R.arena.enemies.length && Snd.track === null, 'arrival stops the music');
     at(T.doors + .6); check(floor.doorOpening() > 0 && floor.doorOpening() < 1, 'the doors open');
     // the crate: full hearts, or bonus souls when he's already full
     R.hearts = 2; bull.u = -.6;   // hurt, and away from the doorway

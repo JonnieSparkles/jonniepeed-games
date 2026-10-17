@@ -9,8 +9,10 @@ var UnrugElevator = function (core) {
   'use strict';
   const { A, Snd, TUNE, rect, line, disc, txt, otxt, textWidth, clamp, rr, emit, free, updateFx, endRun, drawSoulsCounter } = core;
   // the long ride's beats (seconds)
+  // release: the last carpshits go (their souls are his); arrive: the top, 1.45 s later, so Horns Up's solo (from the reel's
+  // slam) plays out its last bar and the D chord at the top answers its A (the album page's picks, Oct 17)
   const T = { eye: 16, cut: 18.2, snap: 19.45, fall: 20.3, brake: 21.8, hush: 22.6, thread: 24, hook: 24.9, reel: 25.8,
-    armor: 34.8, last: 46.8, arrive: 55.8, doors: 57.2, crate: 58 };
+    armor: 34.8, last: 46.8, release: 55.8, arrive: 57.25, doors: 58.65, crate: 59.45 };
   const ELEVATOR = { from: 13, fight: true, destination: { floor: 99, label: 'R', stage: 'roof' }, T,
     // the quiet ride: doors close, banter on the climb, then the doors
     quiet: { climb: 27 },
@@ -48,7 +50,7 @@ var UnrugElevator = function (core) {
   const lerp = (a, b, k) => a + (b - a) * k, ease = k => k * k * (3 - 2 * k);
   // when the quiet ride and the long ride reach the top
   const top = () => Q.fight ? { arrive: T.arrive, doors: T.doors, crate: T.crate } : { arrive: 2 + ELEVATOR.quiet.climb, doors: 3.4 + ELEVATOR.quiet.climb };
-  const fightOn = t => Q.fight && t >= T.reel + .6 && t < T.arrive - .5;
+  const fightOn = t => Q.fight && t >= T.reel + .6 && t < T.release - .5;
   const lightsOut = t => Q.fight && t >= T.fall && t < T.arrive;
   const locked = t => (Q.fight && t >= T.cut && t < T.hook) || Q.out > 0;
   // the dial, in the long ride's own floors (13 to 99), then scaled to this ride's
@@ -113,6 +115,7 @@ var UnrugElevator = function (core) {
     [T.hook, () => { Snd.play('rideHook'); Snd.play('rideReel'); }],
     [T.reel, () => { Snd.music('hornsUp', { slam: true, pattern: 'reel' }); emit('elevator_heavy'); }],
     [T.reel + .6, () => say('bull', 'HERE I COME, P(LOOM).', 2.2)],
+    [T.release, () => arena.clearThreats('clear')],
     [T.arrive, () => { arrive(); Snd.play('rideSlam'); }],
     [T.arrive + .5, () => Snd.play('rideDing')],
     [T.doors, () => { Snd.play('rideDoors'); emit('elevator_doors'); }],
@@ -161,10 +164,13 @@ var UnrugElevator = function (core) {
     return lines.concat([[p.arrive, () => { arrive(); Snd.play('rideDing'); }],
       [p.doors, () => { Snd.play('rideDoors'); emit('elevator_doors'); }]], crate);
   }
-  // the top: the threads let go, the last carpshits go with them (their souls are his), the music stops
+  // the top: the threads let go, the last carpshits go with them (their souls are his; on the long ride already at
+  // T.release). The long ride stops dead on the roof's key, a D chord; the quiet ride's Please Hold sags as the car stops,
+  // and the 48th's machine takes its tune (the album page's handoffs, Oct 17).
   function arrive() {
     arena.clearThreats('clear');
-    Snd.music(null, { hard: true }); emit('elevator_ding');
+    if (Q.fight) { Snd.music(null, { hard: true }); Snd.roofCue('top'); } else Snd.brownout(2.4);
+    emit('elevator_ding');
   }
 
   // ---------- the run ----------
@@ -197,6 +203,8 @@ var UnrugElevator = function (core) {
     }
     Q.indicator = Math.round(floorAt(Q.t));
     if (Q.lobby) { lobby.start(R, bull); R.phase = 'lobby'; R.white = .35; }
+    // boarding from the 48th's lobby, Please Hold just carries on (Horns Up's muzak is the same tune; the reel still slams it)
+    else if (!startAt && fight && at && at.transfer && Snd.track === 'pleaseHold') Snd.level(1);
     else if (!startAt) Snd.music(fight ? 'hornsUp' : 'pleaseHold', fight ? { slam: true, pattern: 'muzak', loopPattern: true } : { slam: true });
     else Snd.music(null, { hard: true });
     emit('elevator_state', { state: Q.lobby ? 'lobby' : startAt ? 'threads' : 'ask' });

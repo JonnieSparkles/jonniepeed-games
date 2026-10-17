@@ -134,7 +134,7 @@
       check(drawn.includes('cap:front'), 'and in the ending, facing us');
       ride('raging', { hearts: 5 }); at(T.arrive - .2); bull.u = 0; R.hearts = 5;
       while (!RUN.hat) { bull.inv = 1e9; update(1 / 60); }
-      drawn.length = 0; draw(); check(drawn.includes('crown:side'), 'side on in the ride, once it lands');
+      drawn.length = 0; bull.idle = 0; draw(); check(drawn.includes('crown:side'), 'side on in the ride, once it lands');   // (not mid-glance at us)
     } finally { UnrugHats.drawOn = drawOn; }
     // a hat on the board row, and none for a continued run
     const BK = 'unruggabull-ii-board-regular', saved = localStorage.getItem(BK);

@@ -11,7 +11,11 @@
 // music(id,{boundary:'bar'|'beat',slam:true}), music(null,{hard:true}), stinger(name), roofCue(name).
 // A pattern channel with drive:true goes through the overdrive (Saga II's distorted power chords); one with
 // synth:'classic' plays on the section tracks' own voice (Horns Up, written from its storyboard's sections).
-// Roof cues: storm-only lead; fight downbeat; harmony/power added in rounds 2/3; a crashing power chord at each spool;
+// music(id,{level}) starts a track quieter (Please Hold far off under the 48th's card); level(v,seconds) moves it.
+// jump(pattern) moves the playing track to one of its patterns on the next bar (the 48th's alarm on Production Panic).
+// Roof cues: Saga II's intro alone as the overture from the lead-in (roofOverture; rise adds its drums as p(Loom)
+// comes up); the fight's downbeat on the verse; harmony/power added in rounds 2/3; a crashing power chord at each spool
+// (and at the top of the long ride, top);
 // hard cut at the last accounted word; the flood is the souls' own climbing notes (play('rush')) and the pinch sweep;
 // heavy downbeat after the fusion freeze, with the beam's choir roar; 1% held D5; snap D-major chord; from the dawn the
 // ending's music (`ending`, music-roof.js) to the dead eye; Please Hold under the roof's clear card.
@@ -314,6 +318,7 @@ window.UnrugSound = (function () {
       if (P.pendingTrack && P.step % (P.pendingTrack.boundary === 'beat' ? 4 : 16) === 0) {
         const next = P.pendingTrack, at = P.next; P.pendingTrack = null; playTrack(next.id, Object.assign({}, next.options, { at, slam: true })); return;
       }
+      if (P.pendingJump != null && P.step % 16 === 0) { P.si = P.pendingJump; P.step = 0; P.pendingJump = null; }
       if (P.step % 16 === 0 && P.pendingStems) { P.stems = P.pendingStems; P.pendingStems = null; }
       if (P.pendingTempo && P.step % P.tempoEvery === 0) { P.rate = P.pendingTempo; P.pendingTempo = 0; }
       const S = P.comp[P.si], t = P.next, duration = S.stepDur / P.rate;
@@ -323,9 +328,9 @@ window.UnrugSound = (function () {
     }
     restoreDuck();
   }
-  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1, modern: false, patternLoop: null, stems: new Set(), pendingStems: null, pendingTempo: 0, tempoEvery: 16, pendingTrack: null };   // rate: tempo multiplier (a rally speeds the music up)
+  const P = { id: null, comp: null, si: 0, step: 0, next: 0, timer: 0, out: null, drive: null, loopFrom: 0, rate: 1, modern: false, patternLoop: null, stems: new Set(), pendingStems: null, pendingTempo: 0, tempoEvery: 16, pendingTrack: null, pendingJump: null };   // rate: tempo multiplier (a rally speeds the music up)
   function stopTrack(hard = false, at) {
-    P.pendingTrack = null; P.pendingStems = null; P.pendingTempo = 0;
+    P.pendingTrack = null; P.pendingStems = null; P.pendingTempo = 0; P.pendingJump = null;
     if (!P.id) return;
     clearInterval(P.timer); P.timer = 0;
     if (P.out && ctx) { const o = P.out; if (hard || /^roof/.test(P.id)) { const cut = at == null ? ctx.currentTime : at; o.gain.cancelScheduledValues(cut); o.gain.setValueAtTime(0, cut); } else o.gain.setTargetAtTime(0, ctx.currentTime, .03); setTimeout(() => { try { o.disconnect(); if (o.brownout) o.brownout.disconnect(); } catch (e) {} }, 400); }
@@ -349,7 +354,7 @@ window.UnrugSound = (function () {
     }
     P.modern = !!tr.patterns; P.stems = new Set(options.stems || tr.stems || []);
     if (P.modern) { P.next = options.at == null ? ctx.currentTime + .005 : options.at; P.rate = 1; }
-    P.out = ctx.createGain(); P.out.gain.value = 1; P.out.connect(musicBus);
+    P.out = ctx.createGain(); P.out.gain.value = options.level == null ? 1 : options.level; P.out.connect(musicBus);
     // Overdrive for the saw riff: gain into tanh, a speaker-cabinet low-pass, then back down.
     P.drive = ctx.createGain(); P.drive.gain.value = 8;
     const shaper = ctx.createWaveShaper(), curve = new Float32Array(1024);
@@ -410,12 +415,20 @@ window.UnrugSound = (function () {
   // line is down (harmony and power join, a little faster); heavy: the second line is down (the heavy version slams
   // in); fuse: the streams start to bend in (a riser over the music); spoil: p(Loom) breaks them (hard cut, sour chord).
   let factoryChoice = 'b';   // Assembly Line, the owner's pick (Oct 12)
+  // intro { tune: true } (from the quiet ride): the machine plays Please Hold's tune first (factoryBTune), when the
+  // candidate has one. panic: the alarm section (its pattern P) on the next bar, with harmony and power, a notch faster.
   function factoryCue(name, options = {}) {
     if (options.candidate) factoryChoice = /^[abc]$/.test(options.candidate) ? options.candidate : 'b';
-    const id = 'factory' + factoryChoice.toUpperCase(), base = ['drums', 'bass', 'lead', 'machine'];
-    if (name === 'intro') api.music(id + 'Intro', { slam: true });
-    else if (name === 'fight') { if (P.id === id + 'Intro') api.music(id, { boundary: 'bar', stems: base }); else api.music(id, { slam: true, stems: base }); api.tempo(1); }
-    else if (name === 'panic') { if (want !== id) api.music(id, { slam: true, stems: base.concat(['harmony', 'power']) }); else api.stems(base.concat(['harmony', 'power'])); api.tempo(1.05); }
+    const id = 'factory' + factoryChoice.toUpperCase(), base = ['drums', 'bass', 'lead', 'machine'], panic = base.concat(['harmony', 'power']);
+    if (name === 'intro') api.music(options.tune && TRACKS[id + 'Tune'] ? id + 'Tune' : id + 'Intro', { slam: true });
+    else if (name === 'fight') { if (P.id === id + 'Intro' || P.id === id + 'Tune') api.music(id, { boundary: 'bar', stems: base }); else api.music(id, { slam: true, stems: base }); api.tempo(1); }
+    else if (name === 'panic') {
+      const alarm = TRACKS[id] && TRACKS[id].order.includes('P') ? 'P' : null;
+      if (P.pendingTrack && P.pendingTrack.id === id) Object.assign(P.pendingTrack.options, { stems: panic }, alarm ? { pattern: alarm } : {});
+      else if (want !== id) api.music(id, Object.assign({ slam: true, stems: panic }, alarm ? { pattern: alarm } : {}));
+      else { api.stems(panic); if (alarm) api.jump(alarm); }
+      api.tempo(1.05);
+    }
     else if (name === 'heavy') api.music(id + 'Heavy', { slam: true });   // play('lineDown') after it, so its chord isn't cut
     else if (name === 'fuse') riser(options.seconds || 2.5);
     else if (name === 'spoil') { api.music(null, { hard: true }); api.play('sour'); }
@@ -423,7 +436,11 @@ window.UnrugSound = (function () {
   function roofCue(name, options = {}) {
     if (options.candidate) roofChoice = /^[abc]$/.test(options.candidate) ? options.candidate : 'a';
     const id = 'roof' + roofChoice.toUpperCase(), base = ['drums', 'bass', 'lead'];
+    // the lead-in: Saga II's intro alone under the storm (the overture), for the candidate that has one; else silence
+    if (name === 'lead' && roofChoice === 'a' && TRACKS.roofOverture) { api.music('roofOverture', { slam: true, stems: ['bass'] }); return; }
     if (name === 'lead' || name === 'quiet' || name === 'cut') { api.music(null, { hard: true }); return; }
+    if (name === 'rise') { if (P.id === 'roofOverture') api.stems(['bass', 'drums']); return; }   // the overture's drums, as p(Loom) comes up
+    if (name === 'top') { spoolHit(); return; }   // the long ride lands on the roof's key: the spool's D chord
     if (name === 'fight') { stopMusicFx(); api.music(id, { slam: true, stems: base }); }
     else if (name === 'round2' || name === 'round3') {
       const stems = base.concat(name === 'round3' ? ['harmony', 'power'] : ['harmony']);
@@ -854,6 +871,14 @@ window.UnrugSound = (function () {
     // a new tempo on the next bar, or with { boundary: 'beat' } on the next beat (the 13th Floor's rallies)
     tempo(r, o) { const value = Math.max(.5, Math.min(2, r || 1)); if (P.modern) { P.pendingTempo = value; P.tempoEvery = o && o.boundary === 'beat' ? 4 : 16; } else P.rate = value; },
     stems(names) { if (!ctx) wantOptions = Object.assign({}, wantOptions, { stems: names }); P.pendingStems = new Set(names); },
+    // the playing track's own level (1 is full), over a few tenths of a second or `seconds`
+    level(v, seconds = .4) {
+      if (!ctx) { wantOptions = Object.assign({}, wantOptions, { level: v }); return; }
+      if (!P.out || P.out.brownout) return;
+      const n = ctx.currentTime, g = P.out.gain; g.cancelScheduledValues(n); g.setValueAtTime(g.value, n); g.linearRampToValueAtTime(v, n + Math.max(.01, seconds));
+    },
+    // move the playing pattern track to one of its patterns on the next bar (the first time it comes in its order)
+    jump(pattern) { if (!P.id || !P.modern) return; const i = TRACKS[P.id].order.indexOf(pattern); if (i >= 0) P.pendingJump = i; },
     stinger, riser, roofCue, factoryCue,
     // the long ride's brownout: the music muffles and sags over a couple of seconds, until it's stopped
     brownout(seconds = 2.3) {

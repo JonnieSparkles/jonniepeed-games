@@ -28,7 +28,9 @@ var UnrugFloor13 = function (core) {
     dark: ['dark'], lull: ['bass'], heavy: ['drums', 'bass', 'lead', 'harmony', 'power', 'heavy'] };
   const BEATS = [
     { sign: 'ACCOUNTS PAYABLE', time: 26, station: 'cub', temps: .6, fly: 3.8, boxes: true, work: ['type', 'type', 'call', 'sleep', 'cooler', 'office'], rail: '#3a5a8a', music: { track: 'floorHall', stems: STEMS.hall }, after: 'move' },
-    { sign: 'ALL STAFF', time: 20, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: { track: 'floorStaff', stems: STEMS.staff }, after: ['rush', 'dark'] },
+    // All Staff runs 24 s so its music's twin-guitar break plays all eight bars before rush hour; nothing new comes in its
+    // last 4 (hold), so the souls on offer stay as they were at 20 s and the boards keep their scores (owner, Oct 17)
+    { sign: 'ALL STAFF', time: 24, hold: 4, station: 'cub', temps: .35, formations: true, boxes: false, rows: 'chairs', work: ['type', 'call', 'sleep', 'cooler', 'office'], rail: '#961e16', music: { track: 'floorStaff', stems: STEMS.staff }, after: ['rush', 'dark'] },
     { sign: 'COPY ROOM', minT: 18, max: 60, station: 'copier', temps: .65, fly: 3, boxes: true, pulls: true, work: ['copier', 'copier', 'type', 'sleep'], rail: '#b8a878', music: { track: 'floorCopy', stems: STEMS.staff } }
   ];
   // A beat's music: a new track on the next bar, or the playing one's stems on the next bar.
@@ -146,12 +148,13 @@ var UnrugFloor13 = function (core) {
   const BREATHER = 2.5;
   function spawnHall(dt) {
     const B = beat(), ev = (R.event && R.event.kind) || (R.lull > 0 && 'lull');
+    const hold = !ev && B.hold && R.beatT >= B.time - B.hold;   // a beat's last seconds with nothing new: no temps, workers or rows
     while (R.dist + 1.05 >= R.nextCubW) {
-      addCubs(R.nextCubW, R.t > 2.5); R.nextCubW += rr(.28, .38);
+      addCubs(R.nextCubW, R.t > 2.5 && !hold); R.nextCubW += rr(.28, .38);
     }
     // carpshits at work along the walls, coming into view far down the hall
-    while (R.dist + AHEAD >= R.nextWorkW) { addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
-    if (B.fly && !ev) {
+    while (R.dist + AHEAD >= R.nextWorkW) { if (!hold) addWorker(R.nextWorkW); R.nextWorkW += rr(1.1, 1.7); }
+    if (B.fly && !ev && !hold) {
       R.nextFly -= dt;
       if (R.nextFly <= 0) {
         R.flies.push({ u: rr(-.5, .5), z: 1, h: .42, hp: 2, ph: rnd() * 6, hit: 0, dead: false });
@@ -160,15 +163,15 @@ var UnrugFloor13 = function (core) {
     }
     if (B.formations && !ev) {
       R.nextForm -= dt;
-      if (R.nextForm <= 0 && R.beatT < B.time - 5) { spawnFormation(['v', 'line', 'snake'][R.formN++ % 3]); R.nextForm = rr(3.8, 4.8); }
+      if (R.nextForm <= 0 && R.beatT < B.time - (B.hold || 0) - 5) { spawnFormation(['v', 'line', 'snake'][R.formN++ % 3]); R.nextForm = rr(3.8, 4.8); }
     }
     // Rows of rolling office chairs span the whole aisle: the only way past is over.
-    if (B.rows && !ev) {
+    if (B.rows && !ev && !hold) {
       R.nextRow -= dt;
       if (R.nextRow <= 0) { R.rows.push({ w: R.dist + 1.05, kind: B.rows, hit: 0 }); R.nextRow = rr(7, 10); }
     }
     // File boxes sit on the floor: jump them or step around.
-    if (B.boxes && !ev) {
+    if (B.boxes && !ev && !hold) {
       R.nextBox -= dt;
       if (R.nextBox <= 0 && !wakeSoon()) {
         // a low cubicle desk sticking out from one side into the aisle: one lane deep, or two, right up to the runner
@@ -863,7 +866,7 @@ var UnrugFloor13 = function (core) {
     for (const p of R.projs) { p.dead = true; poof(p.u, p.z, p.h); }
     for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
     R.banner = null; R.talk = null; R.shake = .3; R.white = .25; R.freeze = .2; R.slow = TUNE.finish.slow;
-    Snd.music(null); Snd.hush(); Snd.play('smash');
+    Snd.music('floorEnd', { slam: true }); Snd.hush(); Snd.play('smash');   // one last chord as it goes down (music-floor.js)
   }
   function blowUp() {
     R.shake = .6; R.white = .15;
@@ -1023,7 +1026,7 @@ var UnrugFloor13 = function (core) {
         Snd.play('clear'); live('The 13th Floor clear.');
       }
       if (R.banner && R.events.clearBanner) R.banner.sub = 'SOULS FREED: ' + R.souls;
-      if (R.phaseT > 4.4 + bye) endRun('clear');
+      if (R.phaseT > 4.4 + bye) { Snd.music('floorPA', { slam: true }); endRun('clear'); }   // the office PA comes back on under the card, into the lobby
     } else if (R.phase === 'dead') {
       if (R.phaseT > .12 && !(R.events.said && R.events.said.rugged)) { if (R.talk) { R.talk = null; Snd.hush(); } bark('rugged', true); }   // his WHOA! cuts off a taunt
       if (R.phaseT > TUNE.deadWait) endRun('rugged');

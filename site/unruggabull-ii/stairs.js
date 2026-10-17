@@ -39,7 +39,7 @@ var UnrugStairs = function (core) {
     fly: { throwFirst: [1.4, 2.4], swoopy: 1.6 }, pitcher: { keep: [.68, .91], every: [1.5, 2.2] },
     tumbler: { speed: .68, h: .043, hop: .021, radius: .05, tall: .107, reach: .082 },
     whip: .85, deadWait: 2.8, prompt: 2.4,
-    go: 2 * 60 / 162,   // "LET'S GO!", two beats into Flight Risk (162 bpm), in his recorded voice
+    go: 2 * 60 / 162,   // "LET'S GO!", two beats into Flight Risk (162 bpm), or into its bridge from the title, in his recorded voice
     // the Rugmergency, from the glass breaking: he walks to the cabinet, grabs the katana, holds it up to the fanfare
     rug: { walk: .3, grab: .62, raise: .78 },
     // the door, from the top landing: the walk up, a breather bent over with his hands on his hips (until up), standing back up (rise),
@@ -116,7 +116,9 @@ var UnrugStairs = function (core) {
     const n = Q.si === 2 ? 2 : Q.katana ? 1 : 0;
     if (slam) Snd.music('stairs', { slam: true, stems: STAIRS.stems[n] }); else Snd.stems(STAIRS.stems[n]);
   }
-  function opening() { music(true); }
+  // From the title the theme is still playing: the bridge from it (stairsIn: D, C, B and a run up the scale) hits as the
+  // stairwell starts and runs into Flight Risk (the album page's handoff, Oct 17), "LET'S GO!" two beats into it.
+  function opening() { if (Snd.track === 'theme') Snd.music('stairsIn', { slam: true, stems: STAIRS.stems[0] }); else music(true); }
   // a prompt in play (the core's strip at the top), once a run, after a moment
   function say(text, delay = 0) { if (Q.said[text]) return; Q.said[text] = true; Q.says.push({ text, at: Q.t + delay }); }
 
