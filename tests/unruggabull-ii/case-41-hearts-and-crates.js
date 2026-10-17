@@ -107,6 +107,10 @@
     r = top('impossibull', 4);
     check(!r.ev.some(e => e.type === 'elevator_crate') && !r.hat && r.hearts === 4 && r.said.includes('operator: THERE IS NO CRATE.'), 'Impossibull, hit: no crate, "THERE IS NO CRATE."');
     check(top('impossibull', 5, 1).hat === null, 'Impossibull, continued: no halo');
+    // the hat missed and why, for the roof's clear card (owner, Oct 17): hurt, retried (the retry first when it's both)
+    const miss = (mode, hearts, continues) => { top(mode, hearts, continues); return RUN.hatMiss && [RUN.hatMiss.kind, RUN.hatMiss.why].join(); };
+    check(miss('regular', 3) === 'cap,hurt' && miss('raging', 5, 1) === 'crown,retried' && miss('raging', 3, 1) === 'crown,retried' && miss('impossibull', 4) === 'halo,hurt', 'a missed hat is kept with why');
+    check(miss('regular', 5) === null && miss('baby', 3) === null, 'nothing missed when the hat came, or on Baby (no hat)');
     check(!top('regular', 3).said.some(s => /FULL HEARTS|SOULS/.test(s)), 'no pop words on the rides');
 
     // ---- walking out takes a crate he left ----

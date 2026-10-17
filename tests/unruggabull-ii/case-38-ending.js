@@ -8,7 +8,9 @@
   const played = [], spoken = [], oldPlay = Snd.play, oldSay = Snd.say;
   Snd.play = name => played.push(name); Snd.say = text => spoken.push(text);
   try {
+    localStorage.removeItem('unruggabull-ii-ending-seen');
     fresh(); R.roof.broken = 3; R.roof.round = 3; floor.enter('dawn');
+    check(Snd.track === 'ending', "the dawn starts the ending's music");
     const E = floor.ending, souls = R.souls;
     check(E.SHOTS.map(s => s.id).join() === 'breathe,tower,eye,escape,reaction,card', 'six shots in order');
     tick(floor.ROOF.time.dawn + .05);
@@ -22,6 +24,7 @@
     check(!played.includes('thump') && !lowHealth(), 'no low-health heartbeat in the ending');
     R.hearts = 5;
     check(floor.hudAlpha() < 1 && floor.scene(), 'the HUD fades and the touch controls go');
+    check(!floor.skip() && E.at().hint < 0, 'no skipping before it has been seen once');
     tick(2.1);
     check(E.at().i === 1 && floor.cutActive() && floor.hudAlpha() === 0, 'the tower is a picture over everything');
     // every shot draws (the picture's pixels change) without touching the run
@@ -59,6 +62,18 @@
     check(R.endT === from && R.souls === souls && floor.displayedCount() === shown, 'the time, the souls and the count are as they were at dawn');
     check(floor.hudAlpha() === 0 && !floor.scene(), 'the HUD stays away behind the card; the scene is over');
     check(floor.stageNo() === 15, 'the ending counts as cleared in the reports');
+    check(localStorage.getItem('unruggabull-ii-ending-seen') === '1' && Snd.track === 'pleaseHold', 'seen to the end; Please Hold under the clear card');
+    check(R.roof.clearAt === R.t || Math.abs(R.roof.clearAt - R.t) < .6, 'the clear card comes up out of the black');
+    // seen: a press shows SKIP for 2 s; a second press while it shows goes to the clear card
+    Cards.hide(); fresh(); R.roof.broken = 3; R.roof.round = 3; floor.enter('dawn'); tick(floor.ROOF.time.dawn + 3);
+    const from2 = R.roof.endingFrom, souls2 = R.souls;
+    check(floor.skip() && E.at().hint === 0 && R.roof.state === 'ending', 'once seen, a press shows SKIP');
+    tick(E.SKIP.hint + .1); check(E.at().hint < 0, 'SKIP goes after 2 s');
+    floor.skip(); tick(.5); check(R.roof.state === 'ending', 'one press only shows it again');
+    floor.skip(); tick(.05);
+    check(R.roof.state === 'clear' && Cards.kind === 'clear' && E.skipped() && R.endT === from2 && R.souls === souls2, 'the second press skips to the clear card; the time and souls as they were');
+    check(Snd.track === 'pleaseHold' && bull.aimT === 0, 'Please Hold, as at the end');
+    Cards.hide();
     // #stage=roof&at=ending goes straight to dawn, with the fight won
     const hash = location.hash; history.replaceState(null, '', '#stage=roof&at=ending');
     fresh(); history.replaceState(null, '', hash || '#');

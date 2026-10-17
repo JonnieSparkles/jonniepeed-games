@@ -274,8 +274,10 @@ var UnrugElevator = function (core) {
   }
   // The long ride's top, at the crate's time: one test for every hat, full hearts as it comes and no continues.
   function startTop() {
-    const mode = core.mode(), kind = UnrugHats.of(mode);
-    Q.top = { mode, at: null, kind: kind && R.hearts >= TUNE.hearts && !R.continues ? kind : null };
+    const mode = core.mode(), kind = UnrugHats.of(mode), won = !!kind && R.hearts >= TUNE.hearts && !R.continues;
+    Q.top = { mode, at: null, kind: won ? kind : null };
+    // a hat missed, and why, for the roof's clear card (the retry first when it's both; owner, Oct 17)
+    if (kind) core.missHat(won ? null : { kind, why: R.continues ? 'retried' : 'hurt', hearts: R.hearts });
     emit('elevator_top', { mode, hat: Q.top.kind || 'none', hearts: R.hearts });
     if (mode === 'impossibull') beginTop(Q.t); else slideCrate('long');
   }

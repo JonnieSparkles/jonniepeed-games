@@ -37,7 +37,8 @@ def check_music(browser, root):
       S.roofCue('flood');check(S.track===null&&audioTest('musicFx===null'),'the flood leaves the music silent; the returning souls play it');
       S.roofCue('fusion');check(S.track==='roofBHeavy'&&S.musicState.playing==='roofBHeavy','heavy slam remembers selected candidate');
       S.roofCue('one');check(S.track===null&&audioTest('!!musicFx'),'one percent drops to a held note');
-      S.roofCue('dawn');check(S.track===null&&audioTest('musicFx===null'),'dawn releases held music and plays the chord');
+      S.roofCue('snap');check(S.track===null&&audioTest('musicFx===null'),'the snap releases held music and plays the chord');
+      S.roofCue('dawn');check(S.track==='ending'&&S.musicState.playing==='ending'&&audioTest('musicFx===null'),'dawn starts the ending music');
       S.music(null,{hard:true});
       const line=note=>note+' . . . . . . . . . . . . . . .';
       const makeLoop=note=>({bpm:120,loop:1,order:['intro','verse'],stems:['lead'],patterns:{

@@ -1,6 +1,6 @@
 # Unruggabull II: the ending
 
-Status: storyboarded with the owner on his phone, Oct 14 2026 (https://claude.ai/artifact/GUAmJJt23c8HCAJLHdmp7C, version 8), and built as a first pass on Oct 15 with stand-in drawing, "knowing it'll be tweaked later". This is the plan as it was decided; the ending as it is now is in [README.md](README.md) (**The ending**, `ending.js`), and why it is this way is in [history.md](history.md).
+Status: storyboarded with the owner on his phone, Oct 14 2026; its last open calls settled with him on Oct 17 (below) and built (https://claude.ai/artifact/GUAmJJt23c8HCAJLHdmp7C, version 8), and built as a first pass on Oct 15 with stand-in drawing, "knowing it'll be tweaked later". This is the plan as it was decided; the ending as it is now is in [README.md](README.md) (**The ending**, `ending.js`), and why it is this way is in [history.md](history.md).
 
 ## The direction
 
@@ -53,3 +53,15 @@ The source picture stays out of the repo, as with the intro's; `tools/unruggabul
 ## Left for him to settle
 
 Timing, transitions, music, credits, the results screen, the stage-select unlock and skipping. The first pass has no skip (Pause works), plays only sound effects over the dawn chord, and goes to the roof's clear card at the end.
+
+## Settled with him, Oct 17
+
+Talked through on his phone with a playable music page (https://claude.ai/artifact/SNY3EhCyTYv2RzvnrY56gL, nine versions) and a page of the clear card (https://claude.ai/artifact/9AuBoTLSejPu6MK7ttewE3). The stage-select unlock went with stage select (item 28, out, Oct 16).
+
+- **Timing:** as built. One change: the clear card comes up out of the final card's black (about 0.6 s) instead of a hard cut to the bright roof ("fade sounds cool dont mess with anything else tho"). The beat before MAYBE. stays.
+- **Skip:** to the clear card, and only once the ending has been watched through on that device; a tap or key shows SKIP for 2 s and a second press skips, so a stray tap can't. The intro the same: no Skip until it's been seen once ("no skip until seen... thats normal right?"; yes).
+- **Music:** one piece from the snap to the dead eye ("be intentional about the final bang choir sound from winning, through dawn silence, into this... like a prog rock album"). Taken in turns on the page: of the hook, Saga II's solo, a new tune and silence, he picked Saga II's solo at two thirds speed ("perfect"), wanted "more of it" and the move into the eye smoother, a slight fade in at the start, then the instruments dropping out to the eye moment ("pretty sick") with a step down before it, then the snap's choir uplift kept with a moment of silence after it ("that's, like, right when the boss dies"). Picked: "One piece, uplift then silence". The final card stays silent; Please Hold plays under the clear card ("perfect"). Dropped on the way: a new sunrise tune ("mid"), starting the solo at the dawn twice through, fades of any length, and the major-key versions.
+- **Credits:** a Credits button on the title, no roll. "Built with chatbots"; no shout-out for the paintings.
+- **Results:** the clear card as it is (ROOF and TOTAL, the board offer, the hat by the initials), plus IMPOSSIBULL UNLOCKED. the first time a clean Raging clear opens it, and why a run missed its mode's hat (his ask, Oct 17): "NO CROWN. NEEDS FULL HEALTH AT THE TOP." or "NO CROWN. NEEDS NO RETRIES." (he picked the reason over the rule, and "at the top" over "at the top of the ride"). After a full clear, Continue goes to the title with that mode's board open. The TOTAL row's run time of 10:00 and over ran into the souls ("74222:21"); fixed with it.
+
+What's built is in the README's **The ending** and **Leaderboard**.

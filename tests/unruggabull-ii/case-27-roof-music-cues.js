@@ -17,7 +17,8 @@
       check(!cues.some(c=>c.name==='fusion'),'heavy waits until the fusion freeze ends');
       tick(.1);check(cues.some(c=>c.name==='fusion')&&Snd.track==='roof'+choice.toUpperCase()+'Heavy','freeze end slams selected heavy downbeat');
       R.roof.cut=null;floor.enter('one');check(Snd.track===null,'one percent stops the heavy transport');
-      floor.enter('snap');floor.enter('dawn');check(Snd.track===null,'snap and dawn leave no looping track');
+      floor.enter('snap');check(Snd.track===null,'the snap leaves no looping track');
+      floor.enter('dawn');check(Snd.track==='ending','the dawn starts the ending\'s music (one piece to the dead eye, then a silent bar)');
     }
   }finally{Snd.roofCue=old;history.replaceState(null,'',url);emitHook=null;RUN.force=null;checkpoint=null;newRun();setState('title');showCard('title');}
 })();

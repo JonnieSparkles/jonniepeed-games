@@ -93,7 +93,8 @@
   // hat: what he won at the top of the long ride ('cap', 'crown', 'halo' or null), worn for the rest of the run.
   // The online board (the README's Leaderboard): clock is the run's game time so far, the sum of the stages it has left
   // (R.t is each stage's own); token is Leaderboard.start's promise for a full run; input is keys until touch drives play.
-  const RUN = { force: null, seed: 0, mode: 'regular', full: false, hat: null, clock: 0, token: null, input: 'keys' };
+  // hatMiss: the hat the long ride's top didn't give and why ({ kind, why: 'hurt' | 'retried', hearts }), for the clear card
+  const RUN = { force: null, seed: 0, mode: 'regular', full: false, hat: null, hatMiss: null, clock: 0, token: null, input: 'keys' };
   const MODES = ['baby', 'regular', 'raging', 'impossibull'];
   function setMode(m) { RUN.mode = MODES.includes(m) ? m : 'regular'; }
   // the box and the two rides' crates: only on Baby and Regular
@@ -992,7 +993,7 @@
     altBtn.hidden = true; cardNote.hidden = true;
     cardText.hidden = false; keyList.hidden = true; moreBtns.hidden = true;
     // the title screen is title.js's (title-plan.md); the HTML card is only Controls now
-    if (kind === 'title') { card.hidden = true; Title.show(); return; }
+    if (kind === 'title') { card.hidden = true; Title.show(extra); return; }
     stats(rows);
     card.hidden = false;
   }
@@ -1100,7 +1101,7 @@
   // full: Start's run (the stairwell after the story); Restart floor and #stage start one that can't go on the board
   function startRun(stage, full) {
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }   // restarted from pause: the open run is a quit
-    RUN.full = !!full; RUN.hat = null;   // a new run: no hat
+    RUN.full = !!full; RUN.hat = null; RUN.hatMiss = null;   // a new run: no hat
     RUN.clock = 0; RUN.input = 'keys';
     // only Start's run asks for a token, in the background: Restart floor and #stage runs never go on the board
     RUN.token = full && window.Leaderboard ? Leaderboard.start(LB_GAME, BOARDS[RUN.mode]) : null;
@@ -1140,7 +1141,8 @@
   // ---------- the story so far ----------
   // The intro (intro.js): six illustrated stills, a narrated line each, on every Start. A tap finishes a line; once
   // it's said a blinking arrow shows and the still waits, still moving, for another tap. A tap on a still's gag (Loomy,
-  // a soul) plays the gag instead. Skip or Escape ends it. The pictures (intro-stills.js, about 290 KB) are fetched
+  // a soul) plays the gag instead. Once the story has been seen to its end on this device, Skip or Escape ends it
+  // (before that there's no Skip; owner, Oct 17). The pictures (intro-stills.js, about 290 KB) are fetched
   // as the page loads, since every Start plays the story; the intro waits up to 4 s for them.
   const Intro = UnrugIntro, STORY = Intro.LINES;
   const STORY_KEY = 'unruggabull-ii-story';
@@ -1163,7 +1165,8 @@
     setState('intro'); card.hidden = true; crawl.hidden = false;
     crawlText.textContent = ''; more.hidden = true; crawl.style.opacity = '';
     intro = { i: -1, t: 0, wait: 0 };   // waiting for the pictures
-    try { skipBtn.focus({ preventScroll: true }); } catch (e) {}
+    skipBtn.hidden = !storySeen();   // no skipping the story until it's been seen once (owner, Oct 17)
+    try { if (!skipBtn.hidden) skipBtn.focus({ preventScroll: true }); } catch (e) {}
   }
   // The caption is a span per character, so p(Loom)'s letters can be orange and a scrambled one can flicker through
   // junk for a moment as it's typed (not with reduced motion).
@@ -1219,11 +1222,13 @@
     if (intro && intro.i >= 0) { Intro.draw(view, intro.i, intro.t, intro.plan); if (intro.out != null) Intro.exit(view, intro.out / OUT); }
     else { view.fillStyle = '#08070c'; view.fillRect(0, 0, PW, PH); }
   }
-  skipBtn.addEventListener('click', e => { e.stopPropagation(); if (state === 'intro') endIntro(); });
+  skipBtn.addEventListener('click', e => { e.stopPropagation(); if (state === 'intro' && !skipBtn.hidden) endIntro(); });
   // a tap anywhere moves on (on a tall phone that includes the black round the picture), except on a button
   gameEl.addEventListener('click', e => {
     // paused, a click or tap on the picture resumes, as Resume does (owner, Oct 16); the card itself doesn't
     if (state === 'pause' && cardKind === 'pause' && e.target === c) { resumeGame(); return; }
+    // the ending: a tap anywhere but a button (ending.js: SKIP once it's been seen, then a second tap skips)
+    if (state === 'play' && floor.skip && floor.scene && floor.scene() && !e.target.closest('button')) { floor.skip(); return; }
     if (state !== 'intro' || e.target.closest('button')) return;
     if (intro && intro.i >= 0 && e.target === c) {
       const r = c.getBoundingClientRect(), gag = Intro.tap(intro.i, (e.clientX - r.left) / r.width * Intro.W, (e.clientY - r.top) / r.height * Intro.H, intro.t, intro.plan);
@@ -1252,8 +1257,10 @@
     if (kind === 'clear' && !R.continues) best.time = best.time ? Math.min(best.time, R.endT) : R.endT;   // fastest clear counts only without continues
     try { localStorage.setItem(bestKey(floor.id), JSON.stringify(best)); } catch (e) {}
     if (kind === 'rugged' || floor.id === 'roof') postRun(kind);
+    // a full Raging Bull run cleared without a retry opens Impossibull; the card says so the first time (owner, Oct 17)
+    const unlocked = kind === 'clear' && floor.id === 'roof' && RUN.mode === 'raging' && RUN.full && !R.continues && !impossibullOpen();
     if (kind === 'clear' && floor.id === 'roof' && RUN.mode === 'raging' && RUN.full && !R.continues) { try { localStorage.setItem(IMPOSSIBULL_KEY, '1'); } catch (e) {} }
-    showCard(kind, { newBest });
+    showCard(kind, { newBest, unlocked });
   }
   // ---------- each mode's board (item 29) ----------
   // Kept on this device until the online board's metric, run clock and cap are settled (items 15, 25): a run's total souls
@@ -1447,11 +1454,12 @@
       e.preventDefault();
       if (k === 'left') keys.kbLeft = true; else if (k === 'right') keys.kbRight = true; else if (k === 'down') keys.kbDown = true; else if (k === 'up') keys.kbUp = true;
       else { if (k === 'shoot') keys.kbShoot = true; if (!e.repeat) press(k); }
+      if (!e.repeat && (k === 'jump' || k === 'slash' || k === 'shoot') && floor.skip && floor.scene && floor.scene()) floor.skip();   // the ending's skip
       return;
     }
     if (state === 'intro' && (k === 'jump' || k === 'slash' || k === 'shoot' || e.key === 'Escape')) {
       e.preventDefault();
-      if (!e.repeat) { if (e.key === 'Escape') endIntro(); else advanceIntro(); }
+      if (!e.repeat) { if (e.key === 'Escape') { if (!skipBtn.hidden) endIntro(); } else advanceIntro(); }
       return;
     }
     if (e.repeat) return;
@@ -1772,18 +1780,20 @@
   function cardInfo(kind, extra = {}) {
     const dept = dialAt()[1], who = floor.id === 'floor13' && kind === 'rugged' && checkpoint && !checkpoint.hall ? 'shredo' : floor.id;
     if (kind === 'pause') return { who, dept, line: floor.pauseText || '', mode: RUN.mode };
-    if (kind === 'clear') return { who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0, mode: RUN.mode, lb: boardStep(kind) };
+    // the roof's clear of a full run also says if it just opened Impossibull, and which hat it missed and why
+    if (kind === 'clear') return { unlocked: !!extra.unlocked, hatMiss: RUN.full && floor.id === 'roof' ? RUN.hatMiss : null, who, dept, souls: Math.max(0, R.souls - (R.floorStart || 0)), time: R.endT || R.t, run: R.souls + (R.banked || 0), best: !!extra.newBest && !R.continues, retried: R.continues > 0, mode: RUN.mode, lb: boardStep(kind) };
     const from = checkpoint && checkpoint.souls != null ? checkpoint.souls : R.floorStart || 0;
     // unlock: this run could still open Impossibull, so Retry's question says a retry won't
     return { who, dept, back: backTo(), lost: Math.max(0, R.souls - from), ranked: !R.continues, mode: RUN.mode,
       unlock: RUN.mode === 'raging' && RUN.full && !R.continues && !impossibullOpen(), lb: boardStep(kind) };
   }
   // Quit (the rugged card and the pause card): the run ends and the title screen comes back.
-  function quitToTitle() {
+  // opts.board: the title opens on the mode's board (a full run's Continue at the roof's clear, owner, Oct 17)
+  function quitToTitle(opts) {
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }
     if (state === 'pause') Snd.resume();
     checkpoint = null; clearHeld();
-    newRun(); setState('title'); showCard('title');
+    newRun(); setState('title'); showCard('title', opts && opts.board ? { board: true } : undefined);
     Snd.music('theme');
   }
   Cards = UnrugCards.make({ A, arena: gameEl.querySelector('.arena'), stage: $('stage'), actions: {
@@ -1791,7 +1801,8 @@
       goFull();
       if (floor.id === 'floor13') { travel('elevator', RIDE_TO_48); return; }
       if (floor.afterClear) { setState('play'); floor.afterClear(); try { c.focus({ preventScroll: true }); } catch (e) {} return; }
-      quitToTitle();   // the roof's clear until the ending takes over, and practice runs
+      // the roof's clear: a full run goes to the title with its mode's board open (your row lit once it's saved); practice runs to the title
+      quitToTitle({ board: floor.id === 'roof' && RUN.full });
     },
     retry() { goFull(); if (checkpoint && checkpoint.hall) retryHall(); else if (checkpoint) continueAtBoss(); else startRun(floor.id); },
     quit: quitToTitle,
@@ -1846,7 +1857,7 @@
     bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer,
-    mode: () => RUN.mode, betweenHeals, hat: () => RUN.hat, giveHat: kind => { RUN.hat = kind || null; }, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts }, v); }
+    mode: () => RUN.mode, betweenHeals, hat: () => RUN.hat, giveHat: kind => { RUN.hat = kind || null; }, missHat: m => { RUN.hatMiss = m || null; }, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts }, v); }
   };
   const floors = { stairs: UnrugStairs(core), floor13: UnrugFloor13(core), roof: UnrugRoof(core), elevator: UnrugElevator(core), floor48: UnrugFloor48(core) };
   core.floors = floors;   // the stairwell's door starts the 13th Floor's band on the kick

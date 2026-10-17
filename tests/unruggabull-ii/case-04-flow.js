@@ -8,6 +8,9 @@
   check(Title.open && card.hidden, 'the title screen is up');
   Title.press('Start');
   check(state === 'intro' && !crawl.hidden && card.hidden, 'the first Start tells the story');
+  check(skipBtn.hidden, 'no Skip until the story has been seen once (owner, Oct 17)');
+  key('keydown', 'Escape'); key('keyup', 'Escape');
+  check(state === 'intro', 'nor does Escape skip it the first time');
   for (let k = 0; k < 50 && intro.i < 0; k++) step(.1);
   check(intro.i === 0, 'the first still starts once its pictures are in (or after 4 s at most)');
   step(.5);
@@ -52,6 +55,7 @@
   check(Title.open, 'the title again once the story has been seen');
   Title.press('Start');
   check(state === 'intro' && !crawl.hidden, 'every Start plays the story');
+  check(!skipBtn.hidden, 'and once it has been seen, Skip is there');
   for (let k = 0; k < 50 && intro.i < 0; k++) step(.1);
   key('keydown', 'Escape');
   check(state === 'play' && crawl.hidden && storySeen() && !fadeIn, 'Escape skips to the stairwell, with no fade');
