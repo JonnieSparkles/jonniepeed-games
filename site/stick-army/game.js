@@ -84,8 +84,13 @@
     // With no crew to hit, a sniper plinks at the turret for abandonAfter seconds, then slips away unrewarded.
     sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 14 },
     // Campaign's radio operator (campaign.js): a rifleman's aim and health, and slower to fire; never an enemy.
-    radio: { minWave: Infinity, cooldown: 2.6, spread: 0.16, hp: 2.6 }
+    radio: { minWave: Infinity, cooldown: 2.6, spread: 0.16, hp: 2.6 },
+    // Campaign's machine gunner: bursts at the low sky, a round every BURST seconds, heating as he fires (MG).
+    mg: { minWave: Infinity, cooldown: 0.11, spread: 0.2, hp: 2.8 }
   };
+  // The machine gunner's barrel: HEAT a round, cooling COOL a second, and a REST once it's full; he only fires at what's
+  // low (below LOW, or on the ground).
+  var MG = { HEAT: 0.085, COOL: 0.45, REST: 2.2, LOW: 380 };
   // From ARMOR.WAVE some troopers wear a flak vest that stops one body hit (two from ARMOR.HEAVY, with a helmet).
   // Popping the chute, rockets and other blasts work as usual, so the turret copes better than the crew.
   var ARMOR = { WAVE: 10, HEAVY: 17 };
@@ -424,6 +429,8 @@
   //   promotes          false: no stripes for waves served (squad.js serveWave)
   //   trooper(kit, rnd, cfg) may change who jumps; pauseLine() a line for the pause card
   //   callFast()        true: radio calls arrive sooner (units.js); draw() draws over the page before the HUD
+  //   drawSky(G)        draws the kind of run's own things in the sky, behind the aircraft
+  //   shot(b)           a bullet's own targets, before the planes (true: it's spent); tick(dt) every frame of the field
   var MODES = {
     arcade: {
       wave: function (n) { return waveCfg(n); },
@@ -1304,6 +1311,8 @@
   function hitTest(b) {
     var i, p, m, t, seen = b.hits || [], near = b.flak ? 14 : 0;
     if (!inView(b) || SKY.shot(b)) return;
+    // A kind of run's own targets first (Campaign's barrage balloons and their cables).
+    var rl = rules(); if (rl.shot && rl.shot(b)) return;
     for (i = 0; i < S.planes.length; i++) {
       p = S.planes[i];
       if (seen.indexOf(p.id) >= 0) continue;
@@ -1481,10 +1490,12 @@
       } else if (r.role === 'shoot') {
         var tg = pickTarget(r);
         r.cd -= dt;
+        if (r.type === 'mg') { r.heat = Math.max(0, (r.heat || 0) - MG.COOL * dt); if (r.rest > 0) { r.rest -= dt; tg = null; } else if (tg && tg.y < MG.LOW && tg.state !== 'ground') tg = null; }
         if (tg) {
           var ap = aimPoint(r, tg), want = Math.atan2(ap.y - (GROUND - 23), ap.x - r.x);
           r.aim += angDiff(want, r.aim) * Math.min(1, dt * 10);
-          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) * (S.mods.flag ? FLAG.FIRE : 1) * (r.trait === 'quick' ? TRAIT.QUICK : 1) + between(RC, 0, 0.3); }
+          if (r.cd <= 0 && r.type === 'mg') { fireRecruit(r, want); r.cd = ENEMIES.mg.cooldown; r.heat += MG.HEAT; if (r.heat >= 1) { r.rest = MG.REST; addText('hot!', r.x, GROUND - 52, INK2, 15, 'minor'); } }
+          else if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) * (S.mods.flag ? FLAG.FIRE : 1) * (r.trait === 'quick' ? TRAIT.QUICK : 1) + between(RC, 0, 0.3); }
         } else r.cd = Math.max(r.cd, 0.2);
       }
     });
@@ -1784,6 +1795,7 @@
     updatePlanes(dt);
     updateBombs(dt);
     SKY.update(dt);
+    if (rules().tick) rules().tick(dt);
     updateTroopers(dt);
     updateTanks(dt);
     updateStrike(dt);
@@ -1888,6 +1900,8 @@
     // The mats in front of the Dreadnought's wreck, so its captain can still be caught on one (dreadnought.js).
     activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
+    // A kind of run's own things in the sky, behind the aircraft (Campaign's barrage balloons).
+    if (rules().drawSky) rules().drawSky(G);
     S.planes.forEach(function (p) { if (SKY.KINDS[p.kind]) SKY.drawPlane(p); else if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });
     SKY.draw();
     S.bombs.forEach(drawBomb);

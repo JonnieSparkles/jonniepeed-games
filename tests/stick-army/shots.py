@@ -68,6 +68,14 @@ t.squad = [{ id: 11, type: 'rifle', stripes: 2, kills: 40 }, { id: 14, type: 'en
   { id: 22, type: 'radio', stripes: 0, kills: 0 }, { id: 23, type: 'rifle', stripes: 0, kills: 3 }];
 t.nextId = 30; t.at = 'map'; c.nameAll(t); c.setTour(t);
 """
+BS = """
+var c = world.campaign;
+function clearCode() { for (var v = 1; v < 500; v++) { var k = c.codeText(v * 31337); if (c.weatherFor(c.freshTour(k), 2) === 'clear') return k; } }
+var t = c.freshTour(clearCode()); t.op = 2; t.missions = c.missionsFor(t, 2); t.opBalloons = 3;
+t.squad = [{ id: 11, type: 'rifle', stripes: 2, kills: 52 }, { id: 14, type: 'engineer', stripes: 1, kills: 11 }, { id: 19, type: 'sniper', stripes: 1, kills: 18 },
+  { id: 22, type: 'radio', stripes: 1, kills: 2 }, { id: 25, type: 'mg', stripes: 0, kills: 6 }];
+t.deploy = [11, 25, 19, 14]; t.nextId = 30; t.at = 'map'; c.nameAll(t); c.setTour(t);
+"""
 def mission(at):
     return CAMP + STEP + "t.m = 1; c.startMission(); step(5); t.at = '%s'; S.mode = 'between';" % at
 CAMPAIGN = {
@@ -91,6 +99,12 @@ CAMPAIGN = {
     'fog': RD.replace("'K7QMR2'", "fogCode") + STEP + "c.startMission(); step(6);",
     'rain': RD.replace("'K7QMR2'", "rainCode") + STEP + "c.startMission(); step(6);",
     'pause': RD + STEP + "c.startMission(); step(5); togglePause();",
+    # Balloon Season (round 3): the map and briefing, barrage balloons up on their cables with the machine gunner
+    # firing at a chute coming in low, and one popped with its cable falling.
+    'bs-map': BS + "c.screens.map();",
+    'bs-briefing': BS + "c.screens.map(); c.screens.briefing();",
+    'barrage': BS + STEP + "c.startMission(); step(4); var l = spawnTrooper(330, 420, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); l.open = 1; step(0.6);",
+    'barrage-pop': BS + STEP + "c.startMission(); step(4); var q = S.barrage[0]; q.hp = 1; S.bullets.push({ x: q.x, y: q.cy + 30, vx: 0, vy: -700, life: 1, owner: 'player', dead: false }); step(0.5);",
 }
 SIZES = {'phone': (390, 844, False), 'landscape': (844, 390, False), 'notebook': (1280, 800, False), 'phone-full': (390, 844, True)}
 

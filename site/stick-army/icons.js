@@ -182,6 +182,12 @@ var StickArmyIcons = function (kit) {
       G.beginPath(); L(12, 17, 7, 2, 0.2); ink(INK, 1.6); G.stroke();
       G.beginPath(); G.arc(7, 1.5, 1.8, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
     },
+    // Campaign's machine gunner: a heavy gun on a tripod.
+    'hire-mg': function (G) {
+      G.save(); G.translate(14, 9); G.scale(0.85, 0.85); stick(0, 0, [10, 16, 14, 19, -5, 33, 5, 33], BLUE, 3); G.restore();
+      G.beginPath(); L(24, 24, 40, 17, 0.2); ink(INK, 4); G.stroke();
+      G.beginPath(); L(28, 23, 24, 36, 0.2); L(28, 23, 33, 36, 0.2); ink(INK, 1.8); G.stroke();
+    },
     // Training: a sleeve patch with its stripes, and a blue plus.
     bootcamp: function (G) { patch(G, 1); },
     elite: function (G) { patch(G, 2); },

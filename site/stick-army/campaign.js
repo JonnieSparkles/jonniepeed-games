@@ -1,7 +1,7 @@
 // Stick Army: Campaign, the second way to play (docs/games/stick-army/campaign.md). A tour of operations with one
 // squad you keep and can lose; each operation is a few short missions, each with its own goal. Released so far: Boot
-// Camp (round 1, with the frame) and Recruitment Drive (round 2: deploy, weather, intel, straw dummies and the radio
-// operator). This file is the mode: the operations and missions, the goals, the tour and its
+// Camp (round 1, with the frame), Recruitment Drive (round 2: deploy, weather, intel, straw dummies and the radio
+// operator) and Balloon Season (round 3: barrage balloons and the machine gunner). This file is the mode: the operations and missions, the goals, the tour and its
 // code, saving (the tour save, the wave save and the save link) and play stats. Its screens are campaign-screens.js.
 // Classic script; load before game.js, which calls StickArmyCampaign(world, game) once, after the flow, and gets
 // nothing back but the entry this adds to MODES. Arcade never reaches anything here.
@@ -13,14 +13,16 @@ var StickArmyCampaign = function (world, game) {
   // ---------- operations ----------
   // The ten operations with their forks (campaign.md), in map order. Only released ones can be played; the rest are
   // pencilled on the map. An operation's index is its place in this list, which saves and links use: append only.
-  // Each has its deploy slots, its gold star (`star`, and what earns it: `starKind`, lose no one or catch no dummies),
+  // Each has its deploy slots, its gold star (`star`, and what earns it: `starKind`, lose no one, catch no dummies, or
+  // pop STAR_BALLOONS bomb balloons away from the bunker),
   // its share of straw dummies among the troopers (`dummies`), and its missions: `fixed` always played first, then
   // `draw` more from `pool`, picked by the tour code.
   var OPS = [
     { id: 'boot-camp', name: 'Boot Camp', slots: 3, star: 'Lose no one.', starKind: 'losses', released: true, fixed: ['first-contact'], pool: ['fill-the-ranks', 'hold-the-line', 'target-practice', 'bomb-alley'], draw: 2 },
     { id: 'recruitment-drive', name: 'Recruitment Drive', slots: 3, star: 'Catch no dummies.', starKind: 'dummies', dummies: 0.25, released: true,
       fixed: ['dummy-drop'], pool: ['full-house', 'rush-hour', 'sniper-nest', 'hold-out'], draw: 2 },
-    { id: 'balloon-season', name: 'Balloon Season' },
+    { id: 'balloon-season', name: 'Balloon Season', slots: 4, star: 'Pop 10 bomb balloons away from the bunker.', starKind: 'balloons', released: true,
+      fixed: ['cable-cutters'], pool: ['behind-the-wire', 'popcorn', 'hold-fast', 'clear-skies'], draw: 2 },
     { id: 'first-zeppelin', name: 'First Zeppelin' },
     { id: 'mercy-flight', name: 'Mercy Flight', fork: 1 },
     { id: 'chopper-country', name: 'Chopper Country', fork: 1 },
@@ -32,7 +34,7 @@ var StickArmyCampaign = function (world, game) {
     { id: 'the-landship', name: 'The Landship', fork: 3 },
     { id: 'the-air-armada', name: 'The Air Armada', fork: 3 }
   ];
-  var RELEASE = 2;   // the release this is: a newer one puts the "new" tag back on the title's Campaign button
+  var RELEASE = 3;   // the release this is: a newer one puts the "new" tag back on the title's Campaign button
 
   // ---------- missions ----------
   // A mission plays as Arcade waves (`as`: one entry a wave, which sets the wave's recipe, prices and rewards), with
@@ -43,6 +45,7 @@ var StickArmyCampaign = function (world, game) {
   //   down n, away m down n planes before m get across
   //   bombs n        shoot n bombs out of the air
   //   keep           lose no one: a soldier dying loses the mission
+  //   pop n          pop n barrage balloons; bombers n: down n bombers; balloons n: pop n balloons of either kind
   // A goal with a count that isn't met by the end of the last wave loses the mission. Ids are kept for good, since
   // saves name missions by them. `shop: false`: no shop between the mission's waves (the first mission has none:
   // there's nothing to buy with yet). `dummies`: the mission's share of straw dummies, if not its operation's.
@@ -70,6 +73,20 @@ var StickArmyCampaign = function (world, game) {
     'hold-out': { name: 'Hold out', goal: { kind: 'survive' }, as: [4, 5, 6], text: 'Survive three waves, bomb balloons and all.', threats: ['balloons'],
       recipe: function (c, n) { noBoss(c, n); c.planes = 2 * n + 2; c.bombers = 2; } }
   };
+  // Balloon Season: Arcade waves 5 to 7, without wave 5's zeppelin or wave 7's helicopters (Chopper Country's), and
+  // barrage balloons (`c.barrage` a wave, BARRAGE).
+  Object.assign(MISSIONS, {
+    'cable-cutters': { name: 'Cable cutters', goal: { kind: 'pop', n: 4 }, as: [5, 6], text: 'Pop 4 barrage balloons. Their cables stop your bullets.', threats: ['barrage'],
+      recipe: function (c, n) { noBoss(c, n); c.planes = n === 5 ? 12 : 14; c.bombers = 2; c.barrage = 3; } },
+    'behind-the-wire': { name: 'Behind the wire', goal: { kind: 'bombers', n: 3 }, as: [6], text: 'Down 3 bombers flying behind the cables.', threats: ['barrage', 'bombers'],
+      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 3; c.bombers = 5; c.barrage = 2; c.rushes = 0; } },
+    'popcorn': { name: 'Popcorn', goal: { kind: 'balloons', n: 12 }, as: [5, 6, 7], text: 'Pop 12 balloons, barrage or bomb.', threats: ['barrage', 'balloons'],
+      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 2 * n; c.bombers = 1; c.barrage = 2; c.balloons = 4; } },
+    'hold-fast': { name: 'Hold fast', goal: { kind: 'survive' }, as: [5, 6, 7], text: 'Survive three waves under the balloons.', threats: ['barrage'],
+      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 2 * n; c.bombers = 1; c.barrage = 2; } },
+    'clear-skies': { name: 'Clear skies', goal: { kind: 'wall', above: 0.5 }, as: [5, 6], text: 'Balloons keep coming. Keep the wall above half.', threats: ['balloons'],
+      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 2 * n - 2; c.bombers = 1; c.barrage = 2; c.balloons = 4; } }
+  });
   // Arcade's wave 5 is the zeppelin's: as a Recruitment Drive wave it's an ordinary one, with Arcade's plane count.
   function noBoss(c, n) {
     if (!c.boss) return;
@@ -85,7 +102,8 @@ var StickArmyCampaign = function (world, game) {
     low: { text: 'planes flying low', apply: function (c) { c.low = Math.max(c.low, 0.6); } },
     dummies: { text: 'more dummies', apply: function (c) { c.dummiesMore = 0.15; } },
     rushes: { text: 'rushers on foot', apply: function (c) { c.rushes += 2; c.rushSize = Math.max(c.rushSize, 3); } },
-    balloons: { text: 'bomb balloons', apply: function (c) { c.balloons = (c.balloons || 0) + 2; } }
+    balloons: { text: 'bomb balloons', apply: function (c) { c.balloons = (c.balloons || 0) + 2; } },
+    barrage: { text: 'barrage balloons', apply: function (c) { c.barrage = (c.barrage || 0) + 2; } }
   };
   function metThreats(t, uptoOp) {
     var met = [];
@@ -122,6 +140,9 @@ var StickArmyCampaign = function (world, game) {
     if (g.kind === 'bombs') return { sub: 'bombs shot ' + Math.min(k.bombs, g.n) + '/' + g.n, done: k.bombs >= g.n };
     if (g.kind === 'wall') return { sub: 'keep the wall above half', mark: g.above };
     if (g.kind === 'keep') return { sub: 'lose no one' };
+    if (g.kind === 'pop') return { sub: 'popped ' + Math.min(k.barrage, g.n) + '/' + g.n, done: k.barrage >= g.n };
+    if (g.kind === 'bombers') return { sub: 'bombers ' + Math.min(k.bombers, g.n) + '/' + g.n, done: k.bombers >= g.n };
+    if (g.kind === 'balloons') return { sub: 'balloons ' + Math.min(k.barrage + k.popped, g.n) + '/' + g.n, done: k.barrage + k.popped >= g.n };
     return { sub: '' };
   }
   // The pause card's line: the mission, its goal and how it's going, and the weather.
@@ -132,6 +153,9 @@ var StickArmyCampaign = function (world, game) {
     else if (g.kind === 'bombs') how = 'Shot ' + Math.min(k.bombs, g.n) + ' of ' + g.n + '.';
     else if (g.kind === 'wall') how = 'Wall ' + Math.ceil(Math.max(0, S.wallHP)) + ' of ' + S.mods.maxHP + '; keep it above ' + Math.ceil(S.mods.maxHP * g.above) + '.';
     else if (g.kind === 'keep') how = Object.keys(S.cm.dead).length ? 'A soldier fell.' : 'Nobody lost so far.';
+    else if (g.kind === 'pop') how = 'Popped ' + Math.min(k.barrage, g.n) + ' of ' + g.n + '.';
+    else if (g.kind === 'bombers') how = 'Downed ' + Math.min(k.bombers, g.n) + ' of ' + g.n + ' bombers.';
+    else if (g.kind === 'balloons') how = 'Popped ' + Math.min(k.barrage + k.popped, g.n) + ' of ' + g.n + '.';
     else how = 'Wave ' + (S.cm.wi + 1) + ' of ' + S.cm.waves.length + '.';
     var w = S.cm.weather && S.cm.weather !== 'clear' ? ' ' + WEATHER[S.cm.weather].name + '.' : '';
     return M.name + ': ' + goalLine(M) + '. ' + how + w;
@@ -170,8 +194,8 @@ var StickArmyCampaign = function (world, game) {
 
   // ---------- soldiers ----------
   // Roles by index (saves and links): the five Arcade has, then Campaign's own (append only).
-  var ROLES = ['rifle', 'engineer', 'bazooka', 'sniper', 'medic', 'radio'];
-  var ROLE_NAME = { rifle: 'rifleman', engineer: 'engineer', bazooka: 'bazooka', sniper: 'sniper', medic: 'medic', radio: 'radio operator' };
+  var ROLES = ['rifle', 'engineer', 'bazooka', 'sniper', 'medic', 'radio', 'mg'];
+  var ROLE_NAME = { rifle: 'rifleman', engineer: 'engineer', bazooka: 'bazooka', sniper: 'sniper', medic: 'medic', radio: 'radio operator', mg: 'machine gunner' };
   var TRAITS = ['lucky', 'quick', 'steady', 'tough', 'brave'];
   var TRAIT_TEXT = { lucky: 'Lucky: shrugs off one hit a mission.', quick: 'Quick: a faster trigger.', steady: 'Steady: tighter aim.',
     tough: 'Tough: +1 health.', brave: 'Brave: stays up the first time he would fall.' };
@@ -207,7 +231,9 @@ var StickArmyCampaign = function (world, game) {
     var rnd = world.mulberry(game.mix(tourSeed(t), 0x5eaf00 + t.op)), out = [];
     var supplies = LASTING.filter(function (l) { return t.lasting.indexOf(l.id) < 0; });
     for (var i = supplies.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), x = supplies[i]; supplies[i] = supplies[j]; supplies[j] = x; }
-    var role = ROLES[Math.floor(rnd() * ROLES.length)], top = t.squad.slice().sort(function (a, b) { return b.kills - a.kills || a.id - b.id; })[0];
+    // The machine gunner joins the veterans on offer from Balloon Season on, so earlier operations offer as before.
+    var roles = t.op >= 2 ? ROLES : ROLES.slice(0, 6);
+    var role = roles[Math.floor(rnd() * roles.length)], top = t.squad.slice().sort(function (a, b) { return b.kills - a.kills || a.id - b.id; })[0];
     if (t.squad.length < BARRACKS) out.push({ kind: 'veteran', type: role, name: 'Veteran ' + ROLE_NAME[role], text: 'A ' + ROLE_NAME[role] + ' with one stripe joins.' });
     if (top && top.stripes < MAX_STRIPES) out.push({ kind: 'medal', id: top.id, name: 'Medal', text: '+1 stripe for ' + rankName(top) + ', your top gun.' });
     while (out.length < 3 && supplies.length) { var l = supplies.shift(); out.push({ kind: 'supply', id: l.id, name: l.name, text: l.text }); }
@@ -229,7 +255,7 @@ var StickArmyCampaign = function (world, game) {
   var VERSION = 1, tour = null;
   function freshTour(code) {
     var t = { v: VERSION, code: code, op: 0, m: 0, attempt: 0, at: 'map', missions: [], squad: [], fallen: [], gone: [], bank: 0, nextId: 1,
-      opLosses: 0, opDummies: 0, hired: 0, lasting: [], gear: null, deploy: null, stars: {}, debrief: null, last: null };
+      opLosses: 0, opDummies: 0, opBalloons: 0, hired: 0, lasting: [], gear: null, deploy: null, stars: {}, debrief: null, last: null };
     t.missions = missionsFor(t, 0);
     return t;
   }
@@ -237,7 +263,7 @@ var StickArmyCampaign = function (world, game) {
   function readTour(o) {
     if (!o || typeof o !== 'object' || o.v !== 1 || codeValue(o.code) < 0) return null;
     var t = freshTour(cleanCode(o.code).toUpperCase());
-    ['op', 'm', 'attempt', 'bank', 'nextId', 'opLosses', 'opDummies', 'hired'].forEach(function (k) { if (Number.isFinite(o[k])) t[k] = o[k]; });
+    ['op', 'm', 'attempt', 'bank', 'nextId', 'opLosses', 'opDummies', 'opBalloons', 'hired'].forEach(function (k) { if (Number.isFinite(o[k])) t[k] = o[k]; });
     if (typeof o.at === 'string') t.at = o.at;
     ['squad', 'fallen', 'gone', 'lasting'].forEach(function (k) { if (Array.isArray(o[k])) t[k] = o[k].map(function (s) { return typeof s === 'object' ? Object.assign({}, s) : s; }); });
     t.gear = o.gear && typeof o.gear === 'object' ? JSON.parse(JSON.stringify(o.gear)) : null;
@@ -256,7 +282,7 @@ var StickArmyCampaign = function (world, game) {
     enterOp(t, t.op + 1);
   }
   function enterOp(t, op) {
-    t.op = op; t.m = 0; t.attempt = 0; t.opLosses = 0; t.opDummies = 0; t.gear = null; t.missions = missionsFor(t, op); t.at = 'map';
+    t.op = op; t.m = 0; t.attempt = 0; t.opLosses = 0; t.opDummies = 0; t.opBalloons = 0; t.gear = null; t.missions = missionsFor(t, op); t.at = 'map';
   }
   function writeTour() { if (tour) save(TOUR_KEY, tour); }
   function savedTour() { return readTour(load(TOUR_KEY, null)); }
@@ -296,8 +322,9 @@ var StickArmyCampaign = function (world, game) {
     return { b: b, byte: function (n) { b.push(n & 255); }, num: function (n) { n = Math.max(0, Math.floor(n) || 0); do { var x = n % 128; n = Math.floor(n / 128); b.push(x | (n ? 128 : 0)); } while (n); } };
   }
   function check8(b) { var h = 0x5a; b.forEach(function (x) { h = (Math.imul(h ^ x, 31) + 7) & 255; }); return h; }
-  // Version 2 (round 2) adds who's deployed; version 1 links still read.
-  var LINK = 2;
+  // Version 2 (round 2) adds who's deployed, version 3 (round 3) the bomb balloons popped this operation; older links
+  // still read.
+  var LINK = 3;
   function linkCode(t) {
     var o = bytesOut(), v = codeValue(t.code);
     o.byte(LINK); o.byte(v >>> 24); o.byte(v >>> 16); o.byte(v >>> 8); o.byte(v);
@@ -320,6 +347,7 @@ var StickArmyCampaign = function (world, game) {
     // v2: the deployed, as places in the squad list; and the dummies caught this operation.
     var dep = (t.deploy || []).map(function (id) { return t.squad.findIndex(function (q) { return q.id === id; }); }).filter(function (i) { return i >= 0; });
     o.num(dep.length); dep.forEach(function (i) { o.num(i); }); o.num(t.opDummies || 0);
+    o.num(t.opBalloons || 0);
     o.byte(check8(o.b));
     // Bits to base 32, five at a time.
     var out = '', acc = 0, bits = 0;
@@ -344,7 +372,7 @@ var StickArmyCampaign = function (world, game) {
     function byte() { if (p >= bytes.length - 1) { bad = true; return 0; } return bytes[p++]; }
     function num() { var n = 0, k = 1, x; do { x = byte(); n += (x & 127) * k; k *= 128; } while (x & 128 && !bad); return n; }
     var version = byte();
-    if (version !== 1 && version !== 2) return null;
+    if (version < 1 || version > 3) return null;
     var v = ((byte() << 24) | (byte() << 16) | (byte() << 8) | byte()) >>> 0;
     var t = freshTour(codeText(v));
     t.op = byte(); t.m = byte();
@@ -368,6 +396,7 @@ var StickArmyCampaign = function (world, game) {
       for (var d = num(); d > 0 && !bad; d--) { var sq = t.squad[num()]; if (sq) dep.push(sq.id); }
       t.deploy = dep.length ? dep : null; t.opDummies = num();
     }
+    if (version >= 3) t.opBalloons = num();
     if (bad || p !== bytes.length - 1) return null;
     t.at = t.m >= t.missions.length ? 'end' : t.m > 0 ? 'between' : 'map';
     carryOn(t);
@@ -416,7 +445,7 @@ var StickArmyCampaign = function (world, game) {
     });
     var weather = weatherFor(t, t.op), intel = intelFor(t, t.op);
     S.cm = { op: o.id, mission: t.missions[t.m], m: t.m, attempt: t.attempt, waves: M.as.slice(), wi: -1,
-      count: { caught: 0, planes: 0, away: 0, bombs: 0, dummies: 0 }, cleared: false, bench: order.slice(o.slots).map(function (s) { return s.id; }),
+      count: { caught: 0, planes: 0, away: 0, bombs: 0, dummies: 0, barrage: 0, bombers: 0, popped: 0, awayPops: 0 }, cleared: false, bench: order.slice(o.slots).map(function (s) { return s.id; }),
       caught: [], dead: {}, cause: null, start: t.squad.map(function (s) { return s.id; }),
       dummies: M.dummies != null ? M.dummies : o.dummies || 0, weather: weather, intel: intel && intel.m === t.m ? intel.threat : null };
     // The weather, in S so a wave save keeps it: wind pushes chutes (px/s), rain cools the gun, dusk is half dark.
@@ -470,9 +499,10 @@ var StickArmyCampaign = function (world, game) {
   // The goal, read from the counts. met(): its count is reached. failed(): lost now.
   function met(S) {
     var g = MISSIONS[S.cm.mission].goal, k = S.cm.count;
-    return g.kind === 'catch' ? k.caught >= g.n : g.kind === 'down' ? k.planes >= g.n : g.kind === 'bombs' ? k.bombs >= g.n : false;
+    return g.kind === 'catch' ? k.caught >= g.n : g.kind === 'down' ? k.planes >= g.n : g.kind === 'bombs' ? k.bombs >= g.n :
+      g.kind === 'pop' ? k.barrage >= g.n : g.kind === 'bombers' ? k.bombers >= g.n : g.kind === 'balloons' ? k.barrage + k.popped >= g.n : false;
   }
-  function counted(g) { return g.kind === 'catch' || g.kind === 'down' || g.kind === 'bombs'; }
+  function counted(g) { return ['catch', 'down', 'bombs', 'pop', 'bombers', 'balloons'].indexOf(g.kind) >= 0; }
   function failed(S) {
     var g = MISSIONS[S.cm.mission].goal, k = S.cm.count;
     if (S.wallHP <= 0) return 'wall';
@@ -503,6 +533,9 @@ var StickArmyCampaign = function (world, game) {
     callFast: function () { return world.S.recruits.some(function (r) { return r.type === 'radio' && !r.dead && !r.down; }); },
     pauseLine: function () { return pauseLine(world.S); },
     draw: function (G) { drawWeather(world.S, G); },
+    drawSky: function (G) { drawBarrage(world.S, G); },
+    shot: function (b) { return shotBarrage(world.S, b); },
+    tick: function (dt) { tickBarrage(world.S, dt); },
     won: function () { var S = world.S; return S.cm.cleared || lastWave(S); },
     win: function () { var S = world.S; if (counted(MISSIONS[S.cm.mission].goal) && !met(S)) missionLost('goal'); else missionWon(); },
     lost: function () { return !!failed(world.S); },
@@ -544,7 +577,8 @@ var StickArmyCampaign = function (world, game) {
       var S = world.S, k = S.cm && S.cm.count;
       if (!k || S.mode === 'title') return;
       if (type === 'capture' && !data.full) k.caught++;
-      else if (type === 'plane_down' && (data.kind === 'plane' || data.kind === 'bomber' || data.kind == null)) k.planes++;
+      else if (type === 'plane_down' && (data.kind === 'plane' || data.kind === 'bomber' || data.kind == null)) { k.planes++; if (data.kind === 'bomber') k.bombers++; }
+      else if (type === 'plane_down' && data.kind === 'balloon') { k.popped++; if (data.x == null || Math.abs(data.x - world.BK.x) > STAR_BALLOONS.NEAR) k.awayPops++; }
       else if (type === 'plane_away' && (data.kind === 'plane' || data.kind === 'bomber') && !S.cm.cleared) k.away++;
       else if (type === 'bomb_intercepted') k.bombs++;
       else if (type === 'dummy_caught') k.dummies++;
@@ -606,6 +640,7 @@ var StickArmyCampaign = function (world, game) {
     t.bank = game.tagsOf(0);
     t.gear = gearNow(S);
     t.opDummies = (t.opDummies || 0) + (S.cm.count.dummies || 0);
+    t.opBalloons = (t.opBalloons || 0) + (S.cm.count.awayPops || 0);
     if (t.deploy) t.deploy = t.deploy.filter(function (id) { return next.some(function (q) { return q.id === id; }); });
     t.nextId = Math.max(t.nextId, game.ids().next);
     var M = MISSIONS[t.missions[t.m]];
@@ -642,7 +677,7 @@ var StickArmyCampaign = function (world, game) {
   // The operation's done: one stripe for everyone left, the gold star if no one was lost, and three rewards to pick
   // from. All decided now and saved, so a reload shows the same debrief.
   function finishOperation() {
-    var t = tour, o = op(), star = o.starKind === 'dummies' ? !t.opDummies : t.opLosses === 0, promoted = [];
+    var t = tour, o = op(), star = o.starKind === 'dummies' ? !t.opDummies : o.starKind === 'balloons' ? (t.opBalloons || 0) >= STAR_BALLOONS.N : t.opLosses === 0, promoted = [];
     t.squad.forEach(function (s) { if (s.stripes < MAX_STRIPES) { s.stripes++; promoted.push({ id: s.id, named: s.stripes === 1 }); } });
     nameAll(t);
     if (star) { t.stars[o.id] = true; addStar(o.id); }
@@ -674,8 +709,17 @@ var StickArmyCampaign = function (world, game) {
   }
   // Recruiting in the barracks, with the tour's tags: Arcade's hire prices before war prices, and each hire on the
   // tour raises the next by 15.
-  var HIRE = { rifle: 35, engineer: 40, bazooka: 55, sniper: 50, medic: 55, radio: 50 };
-  // The radio operator in the shop too, Campaign's only (`only`, shop.js): priced as Arcade prices its hires.
+  var HIRE = { rifle: 35, engineer: 40, bazooka: 55, sniper: 50, medic: 55, radio: 50, mg: 60 };
+  // Balloon Season's gold star: N bomb balloons popped more than NEAR px from the bunker, through the operation.
+  var STAR_BALLOONS = { N: 10, NEAR: 70 };
+  // Campaign's own hires in the shop too (`only`, shop.js), priced as Arcade prices its hires.
+  function campaignHire(type, name, desc) {
+    world.ITEMS.push({ id: 'hire-' + type, role: type, name: name, desc: desc, tier: 'hire', only: 'campaign', maxStacks: Infinity,
+      cost: function () { return Math.max(5, Math.round((HIRE[type] + 15 * world.S.mods.hired) * game.SHOP.war(game.SHOP.WAR.HIRE) / 5) * 5); },
+      available: function () { return world.freeSlot(0) >= 0 && world.MODES.campaign.room(); },
+      apply: function (s) { s.mods.hired++; var r = world.makeRecruit(world.freeSlot(0), type); r.fresh = true; s.recruits.push(r); } });
+  }
+  campaignHire('mg', 'Machine gunner', 'Bursts at chutes, landers and low planes. Runs hot and rests.');
   world.ITEMS.push({ id: 'hire-radio', role: 'radio', name: 'Radio operator', desc: 'A free radio call each mission, and calls come in sooner while he stands.',
     tier: 'hire', only: 'campaign', maxStacks: Infinity,
     cost: function () { return Math.max(5, Math.round((HIRE.radio + 15 * world.S.mods.hired) * game.SHOP.war(game.SHOP.WAR.HIRE) / 5) * 5); },
@@ -686,6 +730,92 @@ var StickArmyCampaign = function (world, game) {
   // Over the field, under the labels (game.js render, MODES draw). Cosmetic only: positions come from the time and
   // fixed offsets, never a random stream. Fog hides the high sky; rain falls in pencil strokes; wind blows marks
   // across; dusk is the night raid's dark at half (sky.js).
+  // ---------- barrage balloons (Balloon Season) ----------
+  // A wave's `c.barrage` blimps rise on cables from the ground to their places as it starts and float off when it
+  // clears. A cable stops the turret's bullets ("ting!"; flak, rockets and the squad's fire pass), so lanes of the sky
+  // are shut until a balloon is popped: HP hits, then its cable falls. Their places come from the mission and the wave, not a random stream, so
+  // the waves play the same with or without them. They live in S.barrage, so a wave save keeps them.
+  var BARRAGE = { HP: 3, HW: 21, HH: 10, RISE: 2.2, TAGS: 60, X: [70, 330, 125, 275, 98, 302], Y: [168, 196, 150, 214, 182, 160] };
+  function barrageFor(S) {
+    var c = S.spawn && S.spawn.cfg, n = c && c.barrage || 0, out = [];
+    for (var i = 0; i < n; i++) {
+      var k = (S.cm.wi * 2 + S.cm.m + i) % BARRAGE.X.length;
+      out.push({ x: BARRAGE.X[k], y: BARRAGE.Y[(k + S.cm.wi) % BARRAGE.Y.length], hp: BARRAGE.HP, rise: 0, flash: 0, state: 'fly', drop: 0, bob: k });
+    }
+    return out;
+  }
+  function tickBarrage(S, dt) {
+    if (!S.cm) return;
+    if (S.waveState === 'active' && S.cm.barrageWave !== S.cm.wi) { S.cm.barrageWave = S.cm.wi; S.barrage = barrageFor(S); }
+    var list = S.barrage || [];
+    list.forEach(function (b) {
+      b.flash = Math.max(0, b.flash - dt); b.cy = barrageY(b);
+      if (b.state === 'fly') { b.rise = Math.min(1, b.rise + dt / BARRAGE.RISE); if (S.waveState !== 'active') b.state = 'away'; }
+      else if (b.state === 'away') { b.y -= 60 * dt; if (b.y < 40) b.gone = true; }
+      else { b.drop += dt; if (b.drop > 1.2) b.gone = true; }
+    });
+    S.barrage = list.filter(function (b) { return !b.gone; });
+  }
+  // Where a balloon is now: rising from the ground to its place.
+  function barrageY(b) { return world.GROUND - (world.GROUND - b.y) * b.rise; }
+  function shotBarrage(S, b) {
+    var list = S.barrage, i;
+    if (!list || !list.length) return false;
+    var lx = b.cx, plain = b.kind !== 'rocket' && !b.flak && b.owner === 'player';
+    b.cx = b.x;
+    for (i = 0; i < list.length; i++) {
+      var q = list[i], y = barrageY(q);
+      if (q.state !== 'fly') continue;
+      if (Math.abs(b.x - q.x) < BARRAGE.HW && Math.abs(b.y - y) < BARRAGE.HH) { hurtBarrage(S, q, b.owner); if (b.kind !== 'rocket') b.dead = true; return b.dead; }
+      // The cable, from under the balloon to the ground: a bullet that crossed it since its last step.
+      if (plain && lx != null && b.y > y + BARRAGE.HH && (lx - q.x) * (b.x - q.x) <= 0 && lx !== b.x) {
+        b.dead = true;
+        world.addText('ting!', q.x, b.y - 8, world.INK2, 14, 'minor', TING);
+        world.burst(q.x, b.y, 2, world.INK2, 60); world.sound.play('tink');
+        return true;
+      }
+    }
+    return false;
+  }
+  var TING = { key: 'ting', pts: 0, fmt: function () { return 'ting!'; } };
+  function hurtBarrage(S, q, owner) {
+    q.hp--; q.flash = 0.15;
+    world.burst(q.x, barrageY(q), 3, world.INK, 90);
+    if (q.hp > 0) { world.sound.play('clank'); return; }
+    q.state = 'cut';
+    S.cm.count.barrage++;
+    world.emit('barrage_down', { by: owner === 'ally' ? 'crew' : 'player' });
+    world.pow(q.x, barrageY(q), 26);
+    world.award(BARRAGE.TAGS, q.x, barrageY(q) + 24, 'balloon popped!', owner === 'ally' ? BLUE : world.INK, true);
+    world.sound.play('pop');
+  }
+  function drawBarrage(S, G) {
+    (S.barrage || []).forEach(function (q) {
+      var y = barrageY(q) + Math.sin(S.t * 1.3 + q.bob) * 2, gy = world.GROUND;
+      G.save();
+      G.strokeStyle = world.INK; G.lineWidth = 1.2;
+      if (q.state === 'cut') {
+        // The cable falls slack and the envelope is gone.
+        var f = Math.min(1, q.drop / 0.6), top = y + BARRAGE.HH + (gy - y) * f;
+        G.globalAlpha = 1 - Math.max(0, q.drop - 0.6) / 0.6;
+        G.beginPath(); G.moveTo(q.x, gy); G.quadraticCurveTo(q.x + 14 * f, (top + gy) / 2, q.x + 6 * f, top); G.stroke();
+        G.restore(); return;
+      }
+      G.beginPath(); G.moveTo(q.x, y + BARRAGE.HH); G.lineTo(q.x, gy); G.stroke();
+      G.translate(q.x, y);
+      // The blimp: envelope, three fins at the back, a little highlight. It faces into the wind.
+      if (S.wind < 0) G.scale(-1, 1);
+      G.beginPath(); G.moveTo(-15, -3); G.lineTo(-23, -10); G.lineTo(-20, 0); G.lineTo(-23, 10); G.lineTo(-15, 3); G.closePath();
+      G.fillStyle = world.PAPER; G.fill(); G.lineWidth = 1.6; G.stroke();
+      G.beginPath(); G.ellipse(0, 0, BARRAGE.HW - 2, BARRAGE.HH - 1, 0, 0, Math.PI * 2);
+      G.fillStyle = q.flash > 0 ? world.PAPER : '#d6d2c8'; G.fill(); G.lineWidth = 2; G.stroke();
+      G.beginPath(); G.moveTo(-8, -5); G.quadraticCurveTo(0, -8, 8, -5); G.strokeStyle = world.PAPER; G.lineWidth = 1.6; G.stroke();
+      // Hits taken, as patches.
+      G.fillStyle = world.INK;
+      for (var h = 0; h < BARRAGE.HP - q.hp; h++) G.fillRect(-6 + h * 5, 1, 3, 3);
+      G.restore();
+    });
+  }
   function drawWeather(S, G) {
     var w = S.cm && S.cm.weather;
     if (!w || w === 'clear' || w === 'dusk') return;
@@ -731,7 +861,7 @@ var StickArmyCampaign = function (world, game) {
     var st = { campaign: true, operation: c.op, mission: c.mission, attempt: c.attempt + 1, wave: Math.max(1, c.wi + 1),
       kills: S.stats.kills, captured: S.stats.captured, planes: S.stats.planes, wall_damage: Math.round(S.stats.wallDamage), shots: S.stats.shots,
       crew: S.recruits.filter(function (r) { return !r.dead; }).length + (S.bed ? 1 : 0), fallen: tour ? tour.fallen.length : 0,
-      tags: S.players[0].tags, dummies: c.count.dummies || 0 };
+      tags: S.players[0].tags, dummies: c.count.dummies || 0, barrage: c.count.barrage || 0 };
     if (c.weather) st.weather = c.weather;
     if (c.intel) st.intel = c.intel;
     if (typeof result === 'string') st.result = result;
@@ -836,7 +966,7 @@ var StickArmyCampaign = function (world, game) {
     WEATHER: WEATHER, INTEL: INTEL, weatherFor: weatherFor, intelFor: intelFor, deployed: deployed, pauseLine: pauseLine,
     // For the harness and the bots.
     codeText: codeText, codeValue: codeValue, missionsFor: missionsFor, freshTour: freshTour, readTour: readTour, nameAll: nameAll,
-    build: build, goodWaveSave: goodWaveSave, report: report, keys: { tour: TOUR_KEY, wave: WAVE_KEY, stars: STARS_KEY, seen: SEEN_KEY, unlock: UNLOCK_KEY }
+    build: build, goodWaveSave: goodWaveSave, report: report, offersFor: offersFor, BARRAGE: BARRAGE, keys: { tour: TOUR_KEY, wave: WAVE_KEY, stars: STARS_KEY, seen: SEEN_KEY, unlock: UNLOCK_KEY }
   };
   var SCREENS = window.StickArmyCampaignScreens ? StickArmyCampaignScreens(world, game, api) : { hide: function () {}, map: function () {}, briefing: function () {},
     between: function () {}, lost: function () {}, debrief: function () {}, barracks: function () {}, end: function () {} };

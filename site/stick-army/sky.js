@@ -215,7 +215,7 @@ var StickArmySky = function (w) {
     release(p);
     for (var i = 0; i < 4; i++) S.parts.push({ k: 'shred', x: p.x + rr(-12, 12), y: p.y - 12 + rr(-6, 6), vx: rr(-60, 60), vy: rr(-50, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.6, 1), max: 1, id: w.id() });
     w.award(15, p.x, p.y - 16, 'pop!', owner === 'ally' ? BLUE : INK, true);
-    emit('plane_down', { kind: 'balloon', by: owner === 'ally' ? 'crew' : 'player' });
+    emit('plane_down', { kind: 'balloon', by: owner === 'ally' ? 'crew' : 'player', x: Math.round(p.x) });
     w.sound.play('pop');
   }
 

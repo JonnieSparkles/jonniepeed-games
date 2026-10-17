@@ -200,6 +200,14 @@ var StickArmyDraw = function (world) {
     G.beginPath(); L(x - side * 7, y + 10, x - side * 10, y - 8, 0.2); ink(INK, 1.4); G.stroke();
     G.beginPath(); G.arc(x - side * 10, y - 9, 1.6, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
   }
+  // Campaign's machine gunner: a heavy gun on a little tripod at his side, and a heat ring over him while it's hot.
+  function mgTripod(x, y, ca, sa, r) { var G = world.G;
+    var gx = x + 8, gy = y + 20;
+    G.beginPath(); L(gx, gy, gx - 5, y + 33, 0.2); L(gx, gy, gx + 5, y + 33, 0.2); L(gx, gy, gx, y + 33, 0.2); ink(INK, 1.6); G.stroke();
+    G.beginPath(); L(gx - 4, gy, gx + 18 * ca, gy + 18 * sa, 0.2); ink(INK, 3.6); G.stroke();
+    G.fillStyle = INK; G.fillRect(gx - 4, gy - 3, 7, 6);
+    if (r && (r.heat > 0.15 || r.rest > 0)) { var h = r.rest > 0 ? 1 : r.heat; G.beginPath(); G.arc(x, y - 12, 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * h); ink(h > 0.8 ? RED : HAT, 2); G.stroke(); }
+  }
   // A wounded recruit lies on the ground, away from the bunker, under a pulsing red cross.
   function drawDowned(r) { var S = world.S, G = world.G;
     pen(r.id + 5000);
@@ -235,6 +243,7 @@ var StickArmyDraw = function (world) {
     stick(x, y, pose, col);
     if (saluting) { G.beginPath(); L(x + side * 10, y + 6, x + side * 6, y - 4, 0.2); L(x + side * 6, y - 4, x + side * 1, y - 5, 0.2); ink(col, 2.4); G.stroke(); }
     if (r.type === 'radio') radioPack(x, y, side);
+    if (r.type === 'mg') mgTripod(x, y, ca, sa, r);
     if (r.type === 'rifle' || r.type === 'radio') {
       G.beginPath();
       if (aiming) L(x + ca * 4, y + 9.5 + sa * 4, x + ca * 20, y + 9.5 + sa * 20, 0.3);
@@ -614,6 +623,7 @@ var StickArmyDraw = function (world) {
       if (r.type === 'engineer') hat(0, 0);
       if (r.type === 'medic') world.medicHelmet(0, 0);
       if (r.type === 'radio') radioPack(0, 0, 1);
+      if (r.type === 'mg') mgTripod(0, 0, 1, -0.3, null);
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
       chevrons(-8, 9, r.rank || 0);
       G.restore();
