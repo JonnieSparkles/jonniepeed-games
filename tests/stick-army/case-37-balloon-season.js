@@ -31,7 +31,7 @@
     localStorage.setItem(K.seen, '2'); localStorage.setItem(K.unlock, 'true');
     camp.setTour(on); titleScene();
     check(!document.getElementById('campaignNew').hidden, 'the "new" tag is back');
-    document.getElementById('campaignBtn').click();
+    document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
     check(/Operation [A-Za-z ]+ is live/.test(document.getElementById('cOps').textContent), 'and the map says what\'s new');
 
     // ---------- the waves ----------

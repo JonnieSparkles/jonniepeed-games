@@ -54,7 +54,7 @@
     // ---------- a new tour from the title ----------
     titleScene();
     check(document.getElementById('campaignLabel').textContent === 'Campaign' && !document.getElementById('campaignNew').hidden, 'the title offers a new Campaign, tagged new');
-    document.getElementById('campaignBtn').click();
+    document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
     var t = camp.tour();
     check(t && t.squad.length === 0 && t.op === 0 && t.at === 'map' && !document.getElementById('cMap').hidden, 'Campaign opens a tour on the map, with nobody');
     t = camp.newTour('K7QMR2');
@@ -116,14 +116,16 @@
     check(S.mode === 'shop' && ws && ws.build === camp.build() && ws.snap && ws.snap.S, 'a wave save at the shop');
     var shopRun = JSON.stringify(snapshotRun());
     titleScene();
-    check(document.getElementById('campaignLabel').textContent === 'Continue', 'the title says Continue');
+    check(document.getElementById('campaignLabel').textContent === 'Campaign', 'the title says Campaign');
     document.getElementById('campaignBtn').click();
+    check(!document.getElementById('cCard').hidden && document.getElementById('cContinue') && document.getElementById('cFresh') && /mission 2 of 3/.test(document.getElementById('cCard').textContent), 'which asks: Continue or New tour (' + document.getElementById('cCard').textContent.slice(0, 80) + ')');
+    document.getElementById('cContinue').click();
     // A stream's state reads back as the same 32 bits, signed (save.js), so states are compared as such.
     function same(x) { return JSON.stringify(x).replace(/"\$rng":(-?\d+)/g, function (m, v) { return '"$rng":' + (Number(v) | 0); }); }
     var now = snapshotRun(), was = JSON.parse(shopRun), diff = now ? Object.keys(was).filter(function (k) { return same(was[k]) !== same(now[k]); }) : ['all'];
     check(S.mode === 'shop' && S.game === 'campaign' && S.cm.wi === 0 && !diff.length, 'Continue: back at the shop, as it was (' + diff.join() + ')');
     ws.build = 'older'; localStorage.setItem(K.wave, JSON.stringify(ws));
-    titleScene(); document.getElementById('campaignBtn').click();
+    titleScene(); document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
     check(S.mode === 'play' && S.cm.wi === 0 && S.wave === S.cm.waves[0] && localStorage.getItem(K.wave) === null, 'a wave save from another build is dropped: the mission starts again');
     check(camp.tour().code === JSON.parse(before).code, 'the same tour');
 
@@ -155,7 +157,7 @@
       if (fx.tour.gun) check(fromLink.gun === fx.tour.gun && old.gun === fx.tour.gun, name + ': with its gun');
       if (fx.tour.deploy) check(fromLink.deploy && fromLink.deploy.join() === fx.tour.deploy.join() && old.deploy.join() === fx.tour.deploy.join(), name + ': with its deploy pick');
       localStorage.setItem(K.tour, JSON.stringify(fx.tour));
-      titleScene(); document.getElementById('campaignBtn').click();
+      titleScene(); document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
       check(camp.tour().code === fx.tour.code, name + ': Continue opens it');
     });
 

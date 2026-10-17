@@ -432,6 +432,7 @@
   //   promotes          false: no stripes for waves served (squad.js serveWave)
   //   trooper(kit, rnd, cfg) may change who jumps; pauseLine() a line for the pause card
   //   callFast()        true: radio calls arrive sooner (units.js); draw() draws over the page before the HUD
+  //   quitLabel         the pause card's Quit, named (Campaign: "Save and quit")
   //   held()            true: the wave isn't over yet, though its enemies are (Campaign's set pieces still to come)
   //   rescue(t)         a prize (t.prize) caught on a mat; walk(t, dt) true: the kind of run moved this lander itself
   //   spare(t)          true: the squad and the sentry leave this trooper alone (Campaign: chutes over a mat)

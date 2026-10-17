@@ -741,7 +741,8 @@ var StickArmyCampaign = function (world, game) {
     skipShop: function () { return MISSIONS[world.S.cm.mission].shop === false; },
     sells: function (it) { return it.id !== 'slot' && it.id !== 'bootcamp' && it.id !== 'elite' && onShelf(tour, it); },
     room: function () { return bunksUsed(world.S) < BARRACKS; },
-    promotes: false
+    promotes: false,
+    quitLabel: 'Save and quit'
   };
   var SPARE = 70;
   function goalLine(M) { return M.text.replace(/\.$/, '').toLowerCase(); }
