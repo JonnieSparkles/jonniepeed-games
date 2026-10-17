@@ -60,6 +60,10 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 .edge:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 #pause-btn{display:flex;align-items:center;justify-content:center;gap:5px;padding:0}
 #pause-btn i{display:block;width:5px;height:16px;background:var(--cream);border-radius:1px}
+/* in the game, a full screen toggle beside pause: four corners out, or in when full screen */
+#fs3-btn{right:calc(60px + env(safe-area-inset-right,0px));padding:0;display:flex;align-items:center;justify-content:center}
+#fs3-btn svg{width:20px;height:20px}
+#fs3-btn[hidden],#pause-btn[hidden],#fs3-btn path[hidden]{display:none}
 
 /* Cards: pause, leaderboard, gallery, credits and the portrait screen. A dark panel in a double frame. */
 .card-wrap{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:rgba(5,2,2,.78);padding:12px}
@@ -161,6 +165,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
   <a id="home" href="../">&larr; JonniePeed Games</a>
   <button class="edge" id="fs-btn" aria-pressed="false">Full screen</button>
   <button class="edge" id="pause-btn" aria-label="Pause" hidden><i></i><i></i></button>
+  <button class="edge" id="fs3-btn" aria-label="Full screen" aria-pressed="false" hidden><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path class="out" d="M2 7V2H7M13 2H18V7M18 13V18H13M7 18H2V13"/><path class="in" d="M7 2V7H2M18 7H13V2M13 18V13H18M2 13H7V18" hidden/></svg></button>
 
   <div id="end" hidden>
     <img id="end-art" src="art/congrats.webp?v=76f8e9206c" alt="Congratulations! You have defeated the Rugfather">
@@ -236,14 +241,14 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 </div>
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
-<script src="audio.js?v=10b5cb9a61"></script>
+<script src="audio.js?v=420312815d"></script>
 <script src="core.js?v=952ffcf47c"></script>
 <script src="look.js?v=f391cb8de8"></script>
 <script src="fx.js?v=119ac1a76e"></script>
-<script src="rugfather.js?v=5c158c6ccd"></script>
-<script src="game.js?v=4d89e1e701"></script>
+<script src="rugfather.js?v=ffd7e70ed9"></script>
+<script src="game.js?v=543ae1a8dd"></script>
 <script src="end.js?v=82e26de683"></script>
 <script src="title.js?v=8d560966e2"></script>
-<script src="phone.js?v=009570bb83"></script>
+<script src="phone.js?v=a57467981a"></script>
 </body>
 </html>

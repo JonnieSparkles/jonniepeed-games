@@ -133,6 +133,14 @@ def phone_checks(p):
     assert js(page, 'window.shots') == 2, 'holding fire shoots once'
     touch.up(1)
 
+    # the full screen toggle sits by pause in the game
+    assert page.locator('#fs3-btn').is_visible(), 'a full screen toggle by pause'
+    # the last input decides: a key hides the touch controls, a touch brings them back
+    page.keyboard.press('d'); page.wait_for_timeout(50)
+    assert not js(page, 'usingTouch()'), 'a key press hides the touch controls'
+    page.touchscreen.tap(PHONE['width'] * 0.2, PHONE['height'] * 0.2); page.wait_for_timeout(50)
+    assert js(page, 'usingTouch()'), 'a touch brings them back'
+
     # pause stops the clock; resume starts it
     page.click('#pause-btn')
     assert js(page, 'gamePaused')

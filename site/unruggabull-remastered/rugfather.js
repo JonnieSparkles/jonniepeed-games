@@ -469,7 +469,15 @@ function draw() {
   const levelConfig2 = levels_default[getCurrentLevelKey()];
   if (!state.entering) fxRfPool(ctx, state, gameNow());
   const bossFeetY = state.y + BOSS_HEIGHT2 * state.scale;
-  if (Math.abs(bossFeetY - levelConfig2.floorY) < 10) {
+  if (state.entering && state.sprite !== "blink") {
+    // coming out of the garage his feet are on the alley floor further back, so his shadow goes under them, growing with him
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, " + (0.5 * Math.max(0, Math.min(1, state.opacity))) + ")";
+    ctx.beginPath();
+    ctx.ellipse(state.x + BOSS_WIDTH2 * state.scale / 2, bossFeetY - 5 * state.scale, BOSS_WIDTH2 * state.scale / 2.5, 16 * state.scale, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+  } else if (Math.abs(bossFeetY - levelConfig2.floorY) < 10) {
     ctx.save();
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.beginPath();

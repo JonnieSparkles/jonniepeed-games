@@ -950,15 +950,19 @@ function renderScene(ctx4, canvas4, bullets2, player2, restartButton2, isRestart
         srcH = frameHeight;
         destY = player2.feetY - frameHeight + offsetY;
       }
-      if (player2.grounded) {
+      // his shadow when he's on the ground, and all through the Rugfather's intro and defeat scenes, where the
+      // 2025 code moved him without marking him grounded (fx polish, Oct 17); it shrinks and fades with him
+      const pScale = player2.scale !== void 0 ? player2.scale : 1, pAlpha = player2.opacity !== void 0 ? player2.opacity : 1;
+      const floorNow = levels_default[getCurrentLevelKey()].floorY;
+      if ((player2.grounded || !player2.controlEnabled && (player2.feetY >= floorNow - 2 || pScale < 1)) && spriteState !== "dead" && pAlpha > 0) {
         ctx4.save();
-        ctx4.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx4.fillStyle = "rgba(0, 0, 0, " + (0.5 * pAlpha) + ")";
         ctx4.beginPath();
         ctx4.ellipse(
           player2.x + player2.width / 2,
-          player2.feetY - 5,
-          player2.width / 2.5,
-          8,
+          player2.feetY - 5 * pScale,
+          player2.width / 2.5 * pScale,
+          8 * pScale,
           0,
           0,
           2 * Math.PI
