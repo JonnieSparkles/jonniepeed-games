@@ -118,6 +118,8 @@
       o.dread = dreadTargets().map(function (q) { return { id: q.id, part: q.part, x: q.x, y: q.y, vx: q.vx, marking: q.marking ? 'm' + Math.round((S.t - q.markT) * 10) : false }; });
       // Campaign: the mission's goal kind (a boss mission's zeppelin comes first, as a player would know).
       if (S.cm) o.goal = world.campaign.MISSIONS[S.cm.mission].goal.kind;
+      // Campaign's set pieces: what to shoot (a spotter balloon, the big one, an open bomb bay) and friends not to.
+      if (S.cm) { o.extra = world.campaign.pieceView('targets'); o.medevac = o.medevac.concat(world.campaign.pieceView('friends')); }
       // Campaign's barrage balloons (Balloon Season), up on their cables.
       if (S.barrage) o.barrage = S.barrage.filter(function (q) { return q.state === 'fly'; }).map(function (q) { return { id: 'barrage' + q.x, x: q.x, y: q.cy != null ? q.cy : q.y, hp: q.hp }; });
       S.bombs.forEach(function (m) { if (!m.dead && !m.armored) o.bombs.push({ id: m.id, x: m.x, y: m.y, vx: m.vx, vy: m.vy }); });

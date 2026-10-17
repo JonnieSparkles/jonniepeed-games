@@ -31,13 +31,17 @@
     // ---------- the code ----------
     check(camp.codeText(camp.codeValue('K7QMR2')) === 'K7QMR2' && camp.codeValue('k7q-mr2') === camp.codeValue('K7QMR2'), 'a code reads back, in any case, with a dash');
     check(camp.codeValue('O1L') < 0 && camp.codeValue('OIL0OO') === camp.codeValue('011000'), 'typing is forgiving: O is 0, I and L are 1');
-    // Boot Camp's missions are fixed (round 5); an operation with a pool draws from it (Balloon Season here).
+    // The released operations' missions are fixed (rounds 5 and 6). An operation with a pool still draws from it by the
+    // code: tried here with a pool lent to Balloon Season.
     check(camp.missionsFor(camp.freshTour('K7QMR2'), 0).join() === 'first-contact,downed-pilot,hold-the-radio', 'Boot Camp: First contact, Downed pilot, Hold the radio');
+    var op2 = camp.OPS[2], kept = { fixed: op2.fixed, pool: op2.pool, draw: op2.draw };
+    op2.fixed = ['cable-cutters']; op2.pool = ['behind-the-wire', 'popcorn', 'hold-fast', 'clear-skies']; op2.draw = 2;
     var a = camp.missionsFor(camp.freshTour('K7QMR2'), 2), b = camp.missionsFor(camp.freshTour('K7QMR2'), 2);
     check(a.length === 3 && a[0] === 'cable-cutters' && a.join() === b.join(), 'a code always draws the same missions, the fixed one first (' + a + ')');
     check(a[1] !== a[2] && camp.OPS[2].pool.indexOf(a[1]) >= 0 && camp.OPS[2].pool.indexOf(a[2]) >= 0, 'and two different ones from the pool');
     var draws = {}; for (var v = 0; v < 40; v++) draws[camp.missionsFor(camp.freshTour(camp.codeText(v * 7919)), 2).join()] = true;
     check(Object.keys(draws).length >= 6, 'different codes draw different missions (' + Object.keys(draws).length + ' draws)');
+    op2.fixed = kept.fixed; op2.pool = kept.pool; op2.draw = kept.draw;
 
     // ---------- hidden until #campaign ----------
     titleScene();

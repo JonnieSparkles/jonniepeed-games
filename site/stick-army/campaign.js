@@ -25,9 +25,9 @@ var StickArmyCampaign = function (world, game) {
     { id: 'recruitment-drive', name: 'Recruitment Drive', slots: 3, star: 'Catch no dummies.', starKind: 'dummies', dummies: 0.25, released: true,
       fixed: ['dummy-drop', 'supply-drop', 'the-officer'] },
     { id: 'balloon-season', name: 'Balloon Season', slots: 4, star: 'Pop 10 bomb balloons away from the bunker.', starKind: 'balloons', released: true,
-      fixed: ['cable-cutters'], pool: ['behind-the-wire', 'popcorn', 'hold-fast', 'clear-skies'], draw: 2 },
+      fixed: ['cable-cutters', 'spotter-balloon', 'the-big-one'] },
     { id: 'first-zeppelin', name: 'First Zeppelin', slots: 5, star: 'Catch all 3 of the big zeppelin\'s crew.', starKind: 'crew', released: true, gun: 'heavy',
-      fixed: ['shadow'], pool: ['escort-screen', 'bomb-bay', 'long-watch', 'clean-sheet'], draw: 2, last: ['the-zeppelin'] },
+      fixed: ['bay-doors', 'recon-run', 'last-stand'], last: ['the-zeppelin'] },
     { id: 'mercy-flight', name: 'Mercy Flight', fork: 1 },
     { id: 'chopper-country', name: 'Chopper Country', fork: 1 },
     { id: 'supply-line', name: 'Supply Line' },
@@ -126,6 +126,24 @@ var StickArmyCampaign = function (world, game) {
       text: 'Three officers are jumping in. Catch them for intel, or shoot them, but don\'t let one land.',
       recipe: function (c) { noBoss(c, 4); c.planes = 18; c.bombers = 1; } }
   });
+  // Balloon Season's and First Zeppelin's set pieces (round 6). The missions they replaced stay above for old saves.
+  Object.assign(MISSIONS, {
+    'spotter-balloon': { name: 'Spotter balloon', goal: { kind: 'spotter' }, as: [6], piece: 'spotter', threats: ['barrage'],
+      text: 'An enemy spotter is marking targets for their guns. Pop his balloon before the shells find your squad.',
+      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 12; c.bombers = 1; c.barrage = 2; } },
+    'the-big-one': { name: 'The big one', goal: { kind: 'big' }, as: [7], piece: 'bigone', threats: ['balloons'],
+      text: 'A giant bomb balloon is drifting in. Pop it before it reaches the bunker.',
+      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 12; c.bombers = 1; c.balloons = 4; } },
+    'bay-doors': { name: 'Bomb bay', goal: { kind: 'bay', n: 5 }, as: [7], piece: 'bay', threats: ['bombers'],
+      text: 'The zeppelin opens its bomb bay before each run. Hit it in the open bay 5 times.',
+      recipe: function (c) { zep(c); c.helis = 0; c.planes = 5; c.bombers = 0; c.rushes = 0; } },
+    'recon-run': { name: 'Recon run', goal: { kind: 'recon', n: 3 }, as: [8], piece: 'recon', threats: ['low'],
+      text: 'Our recon plane is photographing the zeppelin. Get it across 3 times, and don\'t hit it.',
+      recipe: function (c) { zep(c); c.helis = 0; c.planes = 8; c.bombers = 0; c.rushes = 0; } },
+    'last-stand': { name: 'Last stand', goal: { kind: 'stand' }, as: [9], piece: 'stand', threats: ['rushes'],
+      text: 'The wall is at 40% and the engineers are pinned down. Hold for 45 seconds.',
+      recipe: function (c) { c.helis = 0; c.planes = 14; c.bombers = 0; c.balloons = 1; } }
+  });
   // Arcade's wave 5 is the zeppelin's: as a Recruitment Drive wave it's an ordinary one, with Arcade's plane count.
   function noBoss(c, n) {
     if (!c.boss) return;
@@ -193,6 +211,11 @@ var StickArmyCampaign = function (world, game) {
     if (g.kind === 'pop') return { sub: 'popped ' + Math.min(k.barrage, g.n) + '/' + g.n, done: k.barrage >= g.n };
     if (g.kind === 'bombers') return { sub: 'bombers ' + Math.min(k.bombers, g.n) + '/' + g.n, done: k.bombers >= g.n };
     if (g.kind === 'balloons') return { sub: 'balloons ' + Math.min(k.barrage + k.popped, g.n) + '/' + g.n, done: k.barrage + k.popped >= g.n };
+    if (g.kind === 'spotter') return { sub: k.spotter ? 'spotter down!' : 'pop the spotter · ' + (k.shellHits || 0) + '/' + SPOT.LOSE + ' hit', done: !!k.spotter };
+    if (g.kind === 'big') return { sub: k.big ? 'popped!' : 'pop the big one', done: !!k.big };
+    if (g.kind === 'bay') return { sub: 'bay hits ' + Math.min(k.bay, g.n) + '/' + g.n, done: k.bay >= g.n || k.zeps > 0 };
+    if (g.kind === 'recon') return { sub: 'photos ' + Math.min(k.recon, g.n) + '/' + g.n, done: k.recon >= g.n };
+    if (g.kind === 'stand') return { sub: 'hold ' + Math.max(0, Math.ceil(STAND.TIME - (k.stand || 0))) + 's', done: (k.stand || 0) >= STAND.TIME };
     if (g.kind === 'pilots') return { sub: 'pilots safe ' + Math.min(k.pilots, g.n) + '/' + g.n, done: k.pilots >= g.n };
     if (g.kind === 'radio') return { sub: 'call to HQ ' + Math.min(100, Math.round(100 * (k.radio || 0) / RADIO_CALL.NEED)) + '%', done: (k.radio || 0) >= RADIO_CALL.NEED };
     if (g.kind === 'crates') return { sub: 'crates in ' + Math.min(k.crates, g.n) + '/' + g.n, done: k.crates >= g.n };
@@ -208,6 +231,11 @@ var StickArmyCampaign = function (world, game) {
     else if (g.kind === 'bombs') how = 'Shot ' + Math.min(k.bombs, g.n) + ' of ' + g.n + '.';
     else if (g.kind === 'wall') how = 'Wall ' + Math.ceil(Math.max(0, S.wallHP)) + ' of ' + S.mods.maxHP + '; keep it above ' + Math.ceil(S.mods.maxHP * g.above) + '.';
     else if (g.kind === 'keep') how = Object.keys(S.cm.dead).length ? 'A soldier fell.' : 'Nobody lost so far.';
+    else if (g.kind === 'spotter') how = k.spotter ? 'The spotter is down.' : 'The spotter is up; ' + (k.shellHits || 0) + ' of ' + SPOT.LOSE + ' shells have hit the squad.';
+    else if (g.kind === 'big') how = k.big ? 'It\'s popped.' : 'It\'s still coming.';
+    else if (g.kind === 'bay') how = Math.min(k.bay, g.n) + ' of ' + g.n + ' hits in the bay.';
+    else if (g.kind === 'recon') how = Math.min(k.recon, g.n) + ' of ' + g.n + ' passes made.';
+    else if (g.kind === 'stand') how = Math.max(0, Math.ceil(STAND.TIME - (k.stand || 0))) + ' seconds to hold.';
     else if (g.kind === 'pilots') how = Math.min(k.pilots, g.n) + ' of ' + g.n + ' pilots safe' + (k.pilotsLost ? ', one lost: lose another and the mission fails.' : '.');
     else if (g.kind === 'radio') how = 'The call is ' + Math.min(100, Math.round(100 * (k.radio || 0) / RADIO_CALL.NEED)) + '% through. The mast is ' + Math.max(0, Math.round(S.cm.mast ? S.cm.mast.hp : 0)) + '% standing.';
     else if (g.kind === 'crates') how = Math.min(k.crates, g.n) + ' of ' + g.n + ' crates in; ' + k.hqHit + ' of 2 supply planes hit.';
@@ -554,7 +582,7 @@ var StickArmyCampaign = function (world, game) {
     });
     var weather = weatherFor(t, t.op), intel = intelFor(t, t.op);
     S.cm = { op: o.id, mission: t.missions[t.m], m: t.m, attempt: t.attempt, waves: M.as.slice(), wi: -1,
-      count: { caught: 0, planes: 0, away: 0, bombs: 0, dummies: 0, barrage: 0, bombers: 0, popped: 0, awayPops: 0, zeps: 0, crew: 0, pilots: 0, pilotsLost: 0, radio: 0, crates: 0, hqHit: 0, officers: 0, intel: 0, officerLanded: 0 }, cleared: false, bench: order.slice(o.slots).map(function (s) { return s.id; }),
+      count: { caught: 0, planes: 0, away: 0, bombs: 0, dummies: 0, barrage: 0, bombers: 0, popped: 0, awayPops: 0, zeps: 0, crew: 0, pilots: 0, pilotsLost: 0, radio: 0, crates: 0, hqHit: 0, officers: 0, intel: 0, officerLanded: 0, spotter: 0, shellHits: 0, big: 0, bigLanded: 0, bay: 0, recon: 0, reconLost: 0, stand: 0 }, cleared: false, bench: order.slice(o.slots).map(function (s) { return s.id; }),
       caught: [], dead: {}, cause: null, start: t.squad.map(function (s) { return s.id; }),
       dummies: M.dummies != null ? M.dummies : o.dummies || 0, weather: weather, intel: intel && intel.m === t.m ? intel.threat : null };
     S.cm.planesBy = M.as.map(function (n) { var c = world.MODES.campaign.wave(n); return (c.planes || 0) + (c.bombers || 0); });
@@ -612,10 +640,11 @@ var StickArmyCampaign = function (world, game) {
   function met(S) {
     var g = MISSIONS[S.cm.mission].goal, k = S.cm.count;
     return g.kind === 'catch' ? k.caught >= g.n : g.kind === 'down' ? k.planes >= g.n : g.kind === 'bombs' ? k.bombs >= g.n :
-      g.kind === 'pilots' ? k.pilots >= g.n : g.kind === 'radio' ? (k.radio || 0) >= RADIO_CALL.NEED : g.kind === 'crates' ? k.crates >= g.n : g.kind === 'officers' ? k.officers >= g.n :
+      g.kind === 'spotter' ? !!k.spotter : g.kind === 'big' ? !!k.big : g.kind === 'bay' ? k.bay >= g.n || k.zeps > 0 : g.kind === 'recon' ? k.recon >= g.n :
+      g.kind === 'stand' ? (k.stand || 0) >= STAND.TIME : g.kind === 'pilots' ? k.pilots >= g.n : g.kind === 'radio' ? (k.radio || 0) >= RADIO_CALL.NEED : g.kind === 'crates' ? k.crates >= g.n : g.kind === 'officers' ? k.officers >= g.n :
       g.kind === 'boss' ? k.zeps >= g.n : g.kind === 'pop' ? k.barrage >= g.n : g.kind === 'bombers' ? k.bombers >= g.n : g.kind === 'balloons' ? k.barrage + k.popped >= g.n : false;
   }
-  function counted(g) { return ['catch', 'down', 'bombs', 'pop', 'bombers', 'balloons', 'boss', 'pilots', 'radio', 'crates', 'officers'].indexOf(g.kind) >= 0; }
+  function counted(g) { return ['catch', 'down', 'bombs', 'pop', 'bombers', 'balloons', 'boss', 'pilots', 'radio', 'crates', 'officers', 'spotter', 'big', 'bay', 'recon', 'stand'].indexOf(g.kind) >= 0; }
   // A downed zeppelin's crew still in the air or on the ground: a boss mission waits for them before it ends.
   function crewOut(S) { return S.troopers.some(function (t) { return t.crew && !t.dead; }); }
   function failed(S) {
@@ -626,6 +655,9 @@ var StickArmyCampaign = function (world, game) {
     if (g.kind === 'down' && k.away >= g.away) return 'away';
     if (g.kind === 'keep' && Object.keys(S.cm.dead).length) return 'loss';
     if (g.kind === 'pilots' && k.pilotsLost >= PILOT.LOSE) return 'pilot';
+    if (g.kind === 'spotter' && (k.shellHits || 0) >= SPOT.LOSE) return 'shells';
+    if (g.kind === 'big' && k.bigLanded) return 'big';
+    if (g.kind === 'recon' && k.reconLost) return 'recon';
     if (g.kind === 'radio' && S.cm.mast && S.cm.mast.hp <= 0) return 'mast';
     if (g.kind === 'crates' && k.hqHit >= 2) return 'hq';
     if (g.kind === 'officers' && k.officerLanded) return 'officer';
@@ -633,7 +665,8 @@ var StickArmyCampaign = function (world, game) {
   }
   var CAUSE = { wall: 'The wall came down.', mark: 'The wall dropped below half.', away: 'Too many planes got across.', goal: 'The planes stopped coming before the goal was met.',
     loss: 'A soldier was lost.', pilot: 'Two pilots were lost.', mast: 'The radio mast came down.', hq: 'Two supply planes were shot down.',
-    officer: 'An officer landed and called in his guns.' };
+    officer: 'An officer landed and called in his guns.', shells: 'The spotter\'s shells hit the squad three times.',
+    big: 'The big one reached the bunker.', recon: 'The recon plane went down.' };
   function lastWave(S) { return S.cm.wi >= S.cm.waves.length - 1; }
 
   // ---------- Campaign's entry in MODES ----------
@@ -654,7 +687,7 @@ var StickArmyCampaign = function (world, game) {
     pauseLine: function () { return pauseLine(world.S); },
     draw: function (G) { drawWeather(world.S, G); var pc = world.S.cm && PIECES[MISSIONS[world.S.cm.mission].piece]; if (pc && pc.draw) pc.draw(world.S, G); },
     drawSky: function (G) { drawBarrage(world.S, G); },
-    shot: function (b) { return shotBarrage(world.S, b); },
+    shot: function (b) { var S = world.S, pc = S.cm && PIECES[MISSIONS[S.cm.mission].piece]; return shotBarrage(S, b) || !!(pc && pc.shot && pc.shot(S, b)); },
     tick: function (dt) { tickBarrage(world.S, dt); tickZeps(world.S, dt); var pc = world.S.cm && PIECES[MISSIONS[world.S.cm.mission].piece]; if (pc) pc.tick(world.S, dt); },
     held: function () { var S = world.S, pc = S.cm && PIECES[MISSIONS[S.cm.mission].piece]; return !!(pc && pc.held && pc.held(S)); },
     rescue: function (t) { var pc = PIECES[MISSIONS[world.S.cm.mission].piece]; if (pc && pc.rescue) pc.rescue(world.S, t); else t.dead = true; },
@@ -913,6 +946,8 @@ var StickArmyCampaign = function (world, game) {
   // Over the field, under the labels (game.js render, MODES draw). Cosmetic only: positions come from the time and
   // fixed offsets, never a random stream. Fog hides the high sky; rain falls in pencil strokes; wind blows marks
   // across; dusk is the night raid's dark at half (sky.js).
+  // The bots' view of a set piece (balance.js): things to shoot (`targets`) and friends not to (`friends`).
+  function pieceView(kind) { var S = world.S, pc = S.cm && PIECES[MISSIONS[S.cm.mission].piece]; return pc && pc[kind] ? pc[kind](S) : []; }
   // ---------- set pieces (round 5) ----------
   // A mission's own thing on the page. Each runs from MODES tick (and draw); its state is in S.cm, so a wave save
   // keeps it. Times are seconds into the mission's wave (S.cm.pt); places come from the mats, not a random stream, so
@@ -1054,6 +1089,235 @@ var StickArmyCampaign = function (world, game) {
     }
   };
 
+  // ---------- set pieces for Balloon Season and First Zeppelin (round 6) ----------
+  function ellipseHit(b, x, y, rx, ry) { var dx = (b.x - x) / rx, dy = (b.y - y) / ry; return dx * dx + dy * dy < 1; }
+  function bulletDmg(b) { return b.kind === 'rocket' ? 3 : b.heavy ? 4 : 1; }
+  function bar(G, x, y, w, frac, color) {
+    G.fillStyle = world.PAPER; G.fillRect(x, y, w, 8); G.fillStyle = color; G.fillRect(x + 1, y + 1, (w - 2) * Math.max(0, Math.min(1, frac)), 6);
+    G.strokeStyle = world.INK; G.lineWidth = 1.6; G.strokeRect(x, y, w, 8);
+  }
+  // A shell landing at x: a blast, hurting soldiers within SPOT.R and the wall if it's at the bunker.
+  function shell(S, x, hits) {
+    world.pow(x, world.GROUND - 8, 34); world.burst(x, world.GROUND - 6, 10, world.INK, 160); world.sound.play('boom');
+    S.shake = Math.max(S.shake || 0, 0.3);
+    var hit = 0;
+    S.recruits.forEach(function (r) { if (!r.dead && !r.down && Math.abs(r.x - x) < SPOT.R) { world.hurtRecruit(r, SPOT.HURT, 'shell'); hit++; } });
+    if (Math.abs(x - world.BK.x) < 46) world.hurtWall(SPOT.WALL, 'bomb');
+    if (hit && hits) hits.n++;
+    return hit;
+  }
+  // Spotter balloon: an enemy observation balloon on a cable (SPOT.X from the mat's side), two barrage balloons
+  // beside it. Every SPOT.EVERY seconds its spotter marks a spot (a soldier, the bunker, the mat in turn) with a red X;
+  // SPOT.FUSE seconds later a shell lands there. SPOT.HP hits pop it; SPOT.LOSE soldiers hit loses the mission.
+  var SPOT = { HP: 14, Y: 118, EVERY: 5.5, FUSE: 4, R: 26, HURT: 1.4, WALL: 10, LOSE: 3, RX: 30, RY: 15 };
+  // The big one: a bomb balloon BIG.R across, BIG.HP hits, drifting from the page's edge to the bunker over BIG.TIME
+  // seconds.
+  var BIG = { HP: 70, R: 46, Y: 150, TIME: 50, AT: 3 };
+  // Bomb bay: the zeppelin's bay opens BAY.OPEN seconds before each bomb run; BAY.N hits inside it wins, and each one
+  // stops that run.
+  var BAY = { OPEN: 3, R: 17, N: 5 };
+  // Recon run: our recon plane crosses RECON.PASSES times at RECON.Y; enemy planes within RECON.NEAR wear it down
+  // (RECON.CHIP a second), and so do the zeppelin's gunners while it's within RECON.GUNS of it.
+  var RECON = { HP: 30, Y: 128, SPEED: 34, PASSES: 3, NEAR: 60, CHIP: 1.6, GUNS: 90, GUN_CHIP: 0.8, FRIENDLY: 3, GAP: 4, AT: 3, HW: 34, HH: 12 };
+  // Last stand: the wall starts at STAND.WALL of full and can't be repaired; survive STAND.TIME seconds.
+  var STAND = { WALL: 0.4, TIME: 45 };
+  Object.assign(PIECES, {
+    spotter: {
+      tick: function (S, dt) {
+        var c = S.cm, k = c.count, t = waveTime(S, dt);
+        if (!c.spot) {
+          var m = world.activeTramps()[0], x = m.x1 < 200 ? 300 : 100;
+          c.spot = { x: x, hp: SPOT.HP, flash: 0, next: 3, turn: 0, marks: [], hits: { n: 0 } };
+        }
+        var sp = c.spot;
+        // Its guards: the wave's barrage balloons, moved to either side of it.
+        if (S.barrage && S.barrage.length && !c.guarded) { c.guarded = true; var side = sp.x < 200 ? 1 : -1; S.barrage[0].x = sp.x + side * 60; S.barrage[0].y = 168; if (S.barrage[1]) { S.barrage[1].x = sp.x - side * 50; S.barrage[1].y = 186; } }
+        sp.flash = Math.max(0, sp.flash - dt);
+        k.shellHits = sp.hits.n;
+        sp.marks.forEach(function (q) { q.t -= dt; if (q.t <= 0 && !q.done) { q.done = true; shell(S, q.x, sp.hits); } });
+        sp.marks = sp.marks.filter(function (q) { return !q.done; });
+        if (sp.hp <= 0 || S.waveState !== 'active' || c.cleared) return;
+        if (t >= sp.next) {
+          sp.next = t + SPOT.EVERY;
+          var live = S.recruits.filter(function (r) { return !r.dead; }), m2 = world.activeTramps()[0];
+          var picks = [live.length ? live[sp.turn % live.length].x : world.BK.x, world.BK.x, (m2.x1 + m2.x2) / 2];
+          sp.marks.push({ x: picks[sp.turn % 3], t: SPOT.FUSE });
+          sp.turn++;
+          world.addText('spotted!', sp.x, SPOT.Y - 34, world.RED, 18, 'minor');
+        }
+      },
+      shot: function (S, b) {
+        var sp = S.cm.spot;
+        if (!sp || sp.hp <= 0 || !ellipseHit(b, sp.x, SPOT.Y, SPOT.RX + 3, SPOT.RY + 6)) return false;
+        sp.hp -= bulletDmg(b); sp.flash = 0.15; b.dead = true;
+        world.burst(b.x, b.y, 3, world.INK, 90); world.sound.play('clank');
+        if (sp.hp <= 0) {
+          S.cm.count.spotter = 1; sp.marks = [];
+          world.pow(sp.x, SPOT.Y, 40); world.award(150, sp.x, SPOT.Y + 30, 'spotter down!', b.owner === 'ally' ? BLUE : world.INK, true); world.sound.play('pop');
+        }
+        return true;
+      },
+      held: function (S) { return !S.cm.spot || S.cm.spot.hp > 0; },
+      targets: function (S) { var sp = S.cm.spot; return sp && sp.hp > 0 ? [{ id: 'spotter', x: sp.x, y: SPOT.Y, rank: 330 }] : []; },
+      draw: function (S, G) {
+        var sp = S.cm.spot; if (!sp) return;
+        var g = world.GROUND;
+        sp.marks.forEach(function (q) {
+          var f = 1 - q.t / SPOT.FUSE, s = 7 + 5 * f;
+          G.save(); G.strokeStyle = world.RED; G.lineWidth = 2 + 2 * f; G.globalAlpha = 0.5 + 0.5 * f;
+          G.beginPath(); G.moveTo(q.x - s, g - 4 - s); G.lineTo(q.x + s, g - 4 + s); G.moveTo(q.x + s, g - 4 - s); G.lineTo(q.x - s, g - 4 + s); G.stroke(); G.restore();
+        });
+        if (sp.hp <= 0) return;
+        var y = SPOT.Y + Math.sin(S.t * 1.2) * 2;
+        G.save(); G.strokeStyle = world.INK; G.lineWidth = 1.2; G.beginPath(); G.moveTo(sp.x, y + SPOT.RY + 14); G.lineTo(sp.x, g); G.stroke();
+        G.translate(sp.x, y);
+        G.beginPath(); G.ellipse(0, 0, SPOT.RX, SPOT.RY, 0, 0, Math.PI * 2); G.fillStyle = sp.flash > 0 ? world.PAPER : 'rgba(200,67,58,0.3)'; G.fill(); G.lineWidth = 2.2; G.strokeStyle = world.RED; G.stroke();
+        // The basket and the spotter with his binoculars.
+        G.beginPath(); G.moveTo(-8, SPOT.RY); G.lineTo(-5, SPOT.RY + 8); G.moveTo(8, SPOT.RY); G.lineTo(5, SPOT.RY + 8); G.strokeStyle = world.INK; G.lineWidth = 1.2; G.stroke();
+        G.fillStyle = world.PAPER; G.fillRect(-7, SPOT.RY + 8, 14, 7); G.strokeRect(-7, SPOT.RY + 8, 14, 7);
+        G.beginPath(); G.arc(0, SPOT.RY + 3, 3, 0, Math.PI * 2); G.strokeStyle = world.RED; G.lineWidth = 1.8; G.stroke();
+        G.restore();
+        bar(G, sp.x - 30, SPOT.Y - 30, 60, sp.hp / SPOT.HP, world.RED);
+      }
+    },
+    bigone: {
+      tick: function (S, dt) {
+        var c = S.cm, k = c.count, t = waveTime(S, dt);
+        if (!c.big && t >= BIG.AT && S.waveState === 'active') {
+          // In over the far side from the mat, already most of the way onto the page.
+          var m = world.activeTramps()[0], from = m.x1 < 200 ? world.W - BIG.R + 16 : BIG.R - 16;
+          c.big = { x: from, from: from, hp: BIG.HP, flash: 0, gone: false };
+          world.addText('the big one!', 200, 120, world.RED, 30, 'alert'); world.sound.play('horn');
+        }
+        var b = c.big; if (!b || b.gone) return;
+        b.flash = Math.max(0, b.flash - dt);
+        if (b.hp > 0) {
+          var dir = b.from < world.BK.x ? 1 : -1;
+          b.x += dir * Math.abs(world.BK.x - b.from) / BIG.TIME * dt;
+          if ((world.BK.x - b.x) * dir <= 0) {
+            b.gone = true; k.bigLanded = 1;
+            world.pow(world.BK.x, world.BK.top, 70); world.sound.play('boom'); S.shake = Math.max(S.shake || 0, 0.8);
+            world.hurtWall(S.mods.maxHP * 0.5, 'balloon');
+            world.addText('it dropped its bomb!', 200, 400, world.RED, 26, 'alert');
+          }
+        }
+      },
+      shot: function (S, bl) {
+        var b = S.cm.big;
+        if (!b || b.gone || b.hp <= 0 || !ellipseHit(bl, b.x, BIG.Y, BIG.R, BIG.R * 1.12)) return false;
+        b.hp -= bulletDmg(bl); b.flash = 0.12; bl.dead = true;
+        world.burst(bl.x, bl.y, 3, world.RED, 90);
+        if (b.hp <= 0) {
+          b.gone = true; S.cm.count.big = 1;
+          world.pow(b.x, BIG.Y, 80); world.sound.play('pop'); S.shake = Math.max(S.shake || 0, 0.5);
+          world.award(300, b.x, BIG.Y + 40, 'the big one is down!', bl.owner === 'ally' ? BLUE : world.INK, true);
+        }
+        return true;
+      },
+      held: function (S) { return !S.cm.big || !S.cm.big.gone; },
+      targets: function (S) { var b = S.cm.big; return b && !b.gone && b.x > 20 && b.x < world.W - 20 ? [{ id: 'big', x: b.x, y: BIG.Y, rank: 345 }] : []; },
+      draw: function (S, G) {
+        var b = S.cm.big; if (!b || b.gone) return;
+        var x = b.x, y = BIG.Y + Math.sin(S.t * 0.9) * 3, r = BIG.R;
+        G.save();
+        G.beginPath(); G.moveTo(x - 8, y + r); G.lineTo(x - 14, y + r + 26); G.moveTo(x + 8, y + r); G.lineTo(x + 14, y + r + 26); G.strokeStyle = world.INK; G.lineWidth = 1.6; G.stroke();
+        G.beginPath(); G.ellipse(x, y + r + 40, 13, 18, 0, 0, Math.PI * 2); G.fillStyle = world.INK; G.fill();
+        G.beginPath(); G.ellipse(x, y, r, r * 1.12, 0, 0, Math.PI * 2); G.fillStyle = world.PAPER; G.fill(); G.fillStyle = b.flash > 0 ? 'rgba(200,67,58,0.15)' : 'rgba(200,67,58,0.35)'; G.fill();
+        G.strokeStyle = world.RED; G.lineWidth = 3; G.stroke();
+        G.beginPath(); G.arc(x - r * 0.35, y - r * 0.45, r * 0.25, Math.PI * 1.1, Math.PI * 1.6); G.strokeStyle = world.PAPER; G.lineWidth = 3; G.stroke();
+        G.restore();
+        bar(G, 120, 92, 160, b.hp / BIG.HP, world.RED);
+      }
+    },
+    bay: {
+      tick: function (S, dt) {
+        var c = S.cm, z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
+        c.bayOpen = !!(z && !z.leaving && z.x > 40 && z.x < world.W - 40 && z.bombT < BAY.OPEN);
+        if (c.bayOpen && !c.wasOpen) world.addText('bay doors open!', z.x, z.y + z.hh + 34, world.RED, 20, 'minor');
+        c.wasOpen = c.bayOpen;
+      },
+      shot: function (S, b) {
+        var c = S.cm; if (!c.bayOpen || b.owner !== 'player') return false;
+        var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
+        if (!z || Math.hypot(b.x - (z.x + z.face * 34), b.y - (z.y + z.hh - 2)) > BAY.R) return false;
+        b.dead = true; c.count.bay++; c.bayOpen = false;
+        z.bombT = Math.max(z.bombT, 6);
+        world.award(60, z.x, z.y + z.hh + 40, 'right in the bay! ' + Math.min(c.count.bay, BAY.N) + '/' + BAY.N, world.INK, true);
+        world.pow(z.x + z.face * 34, z.y + z.hh, 26); world.sound.play('boom');
+        return true;
+      },
+      held: function (S) { return S.cm.count.bay < BAY.N && !S.cm.count.zeps; },
+      targets: function (S) {
+        var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
+        return S.cm.bayOpen && z ? [{ id: 'bay' + Math.round(z.bombT * 10), x: z.x + z.face * 34, y: z.y + z.hh - 2, vx: z.face * z.speed, rank: 480 }] : [];
+      },
+      draw: function (S, G) {
+        if (!S.cm.bayOpen) return;
+        var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; }); if (!z) return;
+        var x = z.x + z.face * 34, y = z.y + z.hh - 2;
+        G.save(); G.fillStyle = 'rgba(242,194,48,0.85)'; G.fillRect(x - 14, y - 5, 28, 10); G.strokeStyle = world.RED; G.lineWidth = 2; G.strokeRect(x - 14, y - 5, 28, 10);
+        ring(G, x, y, 24, world.RED); G.restore();
+      }
+    },
+    recon: {
+      tick: function (S, dt) {
+        var c = S.cm, k = c.count, t = waveTime(S, dt);
+        if (!c.recon) c.recon = { hp: RECON.HP, x: 0, dir: 1, flying: false, next: RECON.AT, passes: 0, flash: 0 };
+        var r = c.recon;
+        r.flash = Math.max(0, r.flash - dt);
+        if (r.hp <= 0) return;
+        if (!r.flying && r.passes < RECON.PASSES && t >= r.next && S.waveState === 'active') {
+          r.flying = true; r.dir = r.passes % 2 ? -1 : 1; r.x = r.dir > 0 ? -50 : world.W + 50;
+          world.addText('recon plane coming through!', 200, RECON.Y - 34, BLUE, 20, 'story'); world.sound.play('fighter');
+        }
+        if (!r.flying) return;
+        r.x += r.dir * RECON.SPEED * dt;
+        var chip = 0;
+        S.planes.forEach(function (p) { if (p.state === 'fly' && p.kind !== 'zeppelin' && Math.hypot(p.x - r.x, p.y - RECON.Y) < RECON.NEAR) chip += RECON.CHIP; });
+        var z = S.planes.find(function (p) { return p.kind === 'zeppelin' && p.state === 'fly'; });
+        if (z && Math.abs(z.x - r.x) < RECON.GUNS) chip += RECON.GUN_CHIP;
+        if (chip) { r.hp -= chip * dt; if (Math.random() < dt * 6) world.puff(r.x - r.dir * 20, RECON.Y, 3, 0.6); }
+        if (r.hp <= 0) { r.flying = false; k.reconLost = 1; world.pow(r.x, RECON.Y, 40); world.addText('recon plane down!', r.x, RECON.Y + 30, world.RED, 24, 'alert'); world.sound.play('crash'); return; }
+        if (r.x < -60 || r.x > world.W + 60) { r.flying = false; r.passes++; k.recon = r.passes; r.next = t + RECON.GAP; world.addText('photos ' + r.passes + '/' + RECON.PASSES + '!', 200, RECON.Y + 20, BLUE, 22, 'story'); }
+      },
+      shot: function (S, b) {
+        var r = S.cm.recon;
+        if (!r || !r.flying || b.owner !== 'player' || Math.abs(b.x - r.x) > RECON.HW || Math.abs(b.y - RECON.Y) > RECON.HH) return false;
+        b.dead = true; r.hp -= RECON.FRIENDLY; r.flash = 0.2;
+        world.addText('friendly fire!', r.x, RECON.Y + 34, world.RED, 22, 'alert'); world.sound.play('wrong');
+        return true;
+      },
+      held: function (S) { var r = S.cm.recon; return !r || (r.hp > 0 && r.passes < RECON.PASSES); },
+      friends: function (S) { var r = S.cm.recon; return r && r.flying ? [{ x: r.x, y: RECON.Y, vx: r.dir * RECON.SPEED, hw: RECON.HW, hh: RECON.HH }] : []; },
+      draw: function (S, G) {
+        var r = S.cm.recon; if (!r || !r.flying) return;
+        G.save(); G.translate(r.x, RECON.Y); G.scale(r.dir, 1);
+        G.beginPath(); G.moveTo(-30, 2); G.lineTo(22, -4); G.lineTo(32, 2); G.lineTo(-26, 10); G.closePath();
+        G.fillStyle = r.flash > 0 ? 'rgba(200,67,58,0.3)' : world.PAPER; G.fill(); G.strokeStyle = BLUE; G.lineWidth = 2.2; G.stroke();
+        G.beginPath(); G.moveTo(-6, 4); G.lineTo(-14, 16); G.lineTo(4, 16); G.closePath(); G.fillStyle = BLUE; G.fill();
+        G.beginPath(); G.arc(8, 6, 4, 0, Math.PI * 2); G.fillStyle = world.PAPER; G.fill(); G.strokeStyle = world.INK; G.lineWidth = 1.5; G.stroke();
+        G.restore();
+        bar(G, r.x - 30, RECON.Y - 26, 60, r.hp / RECON.HP, '#2e8b4a');
+      }
+    },
+    stand: {
+      tick: function (S, dt) {
+        var c = S.cm, k = c.count;
+        if (c.standCap == null) { c.standCap = S.wallHP = Math.round(S.mods.maxHP * STAND.WALL); }
+        // No repairs: the wall never goes back up.
+        if (S.wallHP > c.standCap) S.wallHP = c.standCap; else c.standCap = S.wallHP;
+        if (S.waveState === 'active' && !c.cleared) k.stand = Math.min(STAND.TIME, (k.stand || 0) + dt);
+      },
+      held: function (S) { return (S.cm.count.stand || 0) < STAND.TIME; },
+      draw: function (S, G) {
+        var left = Math.max(0, Math.ceil(STAND.TIME - (S.cm.count.stand || 0)));
+        if (S.cm.cleared) return;
+        G.save(); G.globalAlpha = 0.55; G.fillStyle = world.RED; G.font = '700 54px "Cabin Sketch", cursive'; G.textAlign = 'center';
+        G.fillText('0:' + (left < 10 ? '0' : '') + left, 200, 210); G.restore();
+      }
+    }
+  });
+
   // Campaign's zeppelins (ZEPS): each comes with ZEPS.HP of Arcade's health (BOSS_HP in a boss mission), for a squad
   // without Arcade's run of upgrades. Outside a boss mission one cruises over: STAY seconds after it's in, it turns
   // for home. And one still up when the enemy surrenders leaves too (`leaving`, units.js: for the nearer edge).
@@ -1066,7 +1330,9 @@ var StickArmyCampaign = function (world, game) {
       if (!p.cmHp) { p.cmHp = true; p.maxHp = Math.max(1, Math.round(p.maxHp * (boss ? ZEPS.BOSS_HP : ZEPS.HP))); p.hp = Math.min(p.hp, p.maxHp); }
       if (p.leaving) return;
       if (p.entered) p.cmT = (p.cmT || 0) + dt;
-      if (S.cm.cleared || (!boss && p.cmT > ZEPS.STAY)) {
+      // (A mission built on the zeppelin keeps it: its bomb bay, the recon plane's passes.)
+      var keep = ['bay', 'recon'].indexOf(MISSIONS[S.cm.mission].piece) >= 0;
+      if (S.cm.cleared || (!boss && !keep && p.cmT > ZEPS.STAY)) {
         p.leaving = p.x < world.W / 2 ? -1 : 1;
         if (!S.cm.cleared) world.addText('the zeppelin turns for home', 200, p.y + p.hh + 40, world.INK2, 20, 'story');
       }
@@ -1307,7 +1573,7 @@ var StickArmyCampaign = function (world, game) {
   var api = {
     OPS: OPS, MISSIONS: MISSIONS, ROLES: ROLES, ROLE_NAME: ROLE_NAME, TRAIT_TEXT: TRAIT_TEXT, BARRACKS: BARRACKS, LASTING: LASTING, RELEASE: RELEASE,
     tour: function () { return tour; }, op: op, nextOp: nextOp, TREE: TREE, SHELF: SHELF, treeNext: treeNext, takeStep: takeStep, takeBonus: takeBonus,
-    onShelf: onShelf, hireable: hireable, autoTree: autoTree, showCode: showCode, rankName: rankName, deployOrder: deployOrder, progress: progress,
+    onShelf: onShelf, hireable: hireable, autoTree: autoTree, pieceView: pieceView, showCode: showCode, rankName: rankName, deployOrder: deployOrder, progress: progress,
     open: openCampaign, resume: resume, startMission: startMission, retry: retry, takeReward: takeReward, leaveBarracks: leaveBarracks,
     hire: hire, hirePrice: hirePrice, newTour: newTour, endTour: endTour, loadCode: loadCode, readLink: readLink, linkFor: linkFor, linkCode: linkCode,
     savedTour: savedTour, setTour: function (t) { tour = t; writeTour(); }, write: writeTour, standBy: standBy, showWhere: showWhere,
