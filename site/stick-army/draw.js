@@ -777,15 +777,29 @@ var StickArmyDraw = function (world) {
     G.restore();
     hud = PENS;
   }
+  var BANNER_W = 350;
+  function bannerLines(G, text) {
+    if (G.measureText(text).width <= BANNER_W) return [text];
+    var words = text.split(' '), lines = [], line = '';
+    words.forEach(function (w) { var t = line ? line + ' ' + w : w; if (line && G.measureText(t).width > BANNER_W) { lines.push(line); line = w; } else line = t; });
+    if (line) lines.push(line);
+    return lines;
+  }
   function drawBanner() { var S = world.S, G = world.G;
     var b = S.banner, a = Math.min(1, b.t / 0.25, (b.dur - b.t) / 0.4);
     if (a <= 0) return;
     G.save(); G.globalAlpha = a; G.textAlign = 'center';
     G.font = '700 ' + (b.s.length > 8 ? 46 : 56) + 'px ' + DISPLAY;
+    // A long title (Campaign's mission names) shrinks to fit the page.
+    var tw = G.measureText(b.s).width; if (tw > BANNER_W) G.font = '700 ' + Math.floor(46 * BANNER_W / tw) + 'px ' + DISPLAY;
     G.lineWidth = 6; G.lineJoin = 'round'; G.strokeStyle = PAPER; G.strokeText(b.s, 200, 300);
     G.fillStyle = INK; G.fillText(b.s, 200, 300);
     pen(31337); G.beginPath(); SP([120, 316, 160, 320, 200, 314, 240, 320, 280, 315], false, 0.8); ink(BLUE, 3); G.stroke();
-    if (b.sub) { G.font = '24px ' + HAND; G.strokeStyle = PAPER; G.lineWidth = 4; G.strokeText(b.sub, 200, 348); G.fillStyle = BLUE; G.fillText(b.sub, 200, 348); }
+    if (b.sub) {
+      // A sub line wider than the page (Campaign's mission goals) wraps onto more lines under it.
+      G.font = '24px ' + HAND; G.strokeStyle = PAPER; G.lineWidth = 4; G.fillStyle = BLUE;
+      bannerLines(G, b.sub).forEach(function (line, i) { G.strokeText(line, 200, 348 + i * 28); G.fillText(line, 200, 348 + i * 28); });
+    }
     G.restore();
   }
 

@@ -71,6 +71,19 @@
     t = tourAt(3, 'escort-screen'); camp.startMission(); S.cm.count.away = 12;
     for (f = 0; f < 60 * 4 && (S.mode === 'play' || S.mode === 'dying'); f++) update(1 / 60);
     check(t.at === 'lost' && t.last.cause === '12 planes got across.', 'a lost "across" mission names its own limit: ' + t.last.cause);
+    // ---------- ending a tour ----------
+    t = tourAt(1); t.at = 'map'; camp.write();
+    localStorage.setItem(K.unlock, 'true'); titleScene();
+    check(document.getElementById('campaignLabel').textContent === 'Continue', 'a saved tour: Continue');
+    document.getElementById('campaignBtn').click();
+    var end = document.querySelector('#cMap [data-act="new"]');
+    check(end && end.textContent === 'End tour', 'the map offers End tour');
+    end.click();
+    check(/End this tour/.test(document.getElementById('cCard').textContent), 'which asks first');
+    document.getElementById('cNewGo').click();
+    check(localStorage.getItem(K.tour) === null && camp.tour() === null && S.mode === 'title' && document.getElementById('campaignLabel').textContent === 'Campaign', 'ended: back on the title, which offers a new Campaign');
+    document.getElementById('campaignBtn').click();
+    check(camp.tour() && camp.tour().op === 0 && camp.tour().squad.length === 0, 'and Campaign starts a new tour');
   } finally {
     clear(); RUN.game = 'arcade'; titleScene();
   }
