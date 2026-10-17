@@ -1,4 +1,8 @@
-"""Build 1200x630 cards into site/<slug>/og.png and site/assets/studio/og.png.
+"""Build 1200x630 cards into site/<slug>/og.<ext> and site/assets/studio/og.jpg.
+
+Cards are JPEG (og.jpg, quality 85): a PNG of cover art or a screenshot is 4-6 times the size and looks
+no different in a share preview, and every link-preview fetcher reads JPEG. A card whose picture is a pixel
+canvas stays PNG (og.png), like its thumb.png, so the pixels stay sharp. Writing one removes the other.
 
 Run from the repo root:
     python3 tools/og/make.py
@@ -33,8 +37,22 @@ FONT_DIR = SITE / "assets" / "fonts"
 COVERS = ROOT / "brand" / "covers"
 
 
+JPEG_QUALITY = 85
+
+
 def font_uri(name):
     return "data:font/woff2;base64," + base64.b64encode((FONT_DIR / name).read_bytes()).decode()
+
+
+def save_card(page, folder, pixel=False):
+    """Screenshot a 1200x630 card into folder/og.jpg, or og.png for a pixel canvas, and remove the other one."""
+    name, other = ("og.png", "og.jpg") if pixel else ("og.jpg", "og.png")
+    if pixel:
+        page.screenshot(path=str(folder / name))
+    else:
+        page.screenshot(path=str(folder / name), type="jpeg", quality=JPEG_QUALITY)
+    (folder / other).unlink(missing_ok=True)
+    return folder / name
 
 
 
@@ -127,11 +145,16 @@ def crop_cover(page, name, position):
         r(k.toDataURL('image/png')); }; i.src = u; })""", [src, position])
 
 
-def own_card(browser, name, width, height, webp=False):
-    """Screenshot a game's own card page (tools/og/cards/) at width x height."""
+def own_card(browser, name, width, height, webp=False, folder=None):
+    """Screenshot a game's own card page (tools/og/cards/) at width x height.
+    With folder, save it there as the game's card and return the path instead of the image."""
     page = browser.new_page(viewport={"width": width, "height": height})
     page.goto((ROOT / "tools" / "og" / "cards" / name).as_uri() + f"?w={width}&h={height}")
     page.wait_for_function("window.cardReady === true", timeout=15000)
+    if folder:
+        path = save_card(page, folder)
+        page.close()
+        return path
     png = page.screenshot()
     if webp:
         uri = "data:image/png;base64," + base64.b64encode(png).decode()
@@ -191,8 +214,8 @@ def main():
             opts = more[0] if more else {}
             if opts.get("card"):
                 (SITE / slug / "thumb.webp").write_bytes(own_card(browser, opts["card"], 768, 576, webp=True))
-                (SITE / slug / "og.png").write_bytes(own_card(browser, opts["card"], 1200, 630))
-                print("wrote", SITE / slug / "thumb.webp", "and og.png")
+                path = own_card(browser, opts["card"], 1200, 630, folder=SITE / slug)
+                print("wrote", SITE / slug / "thumb.webp", "and", path.name)
                 continue
             if opts.get("cover") or opts.get("screenshot"):
                 if opts.get("cover"):
@@ -223,17 +246,16 @@ def main():
                 continue
             opts = more[0] if more else {}
             # a cover already has the title lettered in, so the card leaves it out
+            pixel = not (opts.get("screenshot") or opts.get("cover"))
             card.set_content(game_card(scenes[slug], None if opts.get("cover") else title, tagline, cta,
-                                       pixel=not (opts.get("screenshot") or opts.get("cover")), title_px=opts.get("title_px", 52)))
+                                       pixel=pixel, title_px=opts.get("title_px", 52)))
             card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
-            card.screenshot(path=str(SITE / slug / "og.png"))
-            print("wrote", SITE / slug / "og.png")
+            print("wrote", save_card(card, SITE / slug, pixel=pixel))
         if not args.game:
             logo_uri = "data:image/png;base64," + base64.b64encode((ROOT / "brand" / "logo.png").read_bytes()).decode()
             card.set_content(index_card().replace("{LOGO_URI}", logo_uri))
             card.evaluate('document.fonts.ready'); card.wait_for_timeout(300)
-            card.screenshot(path=str(OUT / "og.png"))
-            print("wrote", OUT / "og.png")
+            print("wrote", save_card(card, OUT))
         browser.close()
 
 
