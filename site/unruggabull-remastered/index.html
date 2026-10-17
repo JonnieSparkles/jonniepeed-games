@@ -58,6 +58,14 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 /* Small buttons along the top edge: full screen on the title, pause in the game. */
 .edge{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:3;font:18px var(--pix);letter-spacing:.06em;text-transform:uppercase;color:var(--cream);background:rgba(14,9,9,.55);border:2px solid rgba(244,228,208,.35);border-radius:10px;min-width:44px;min-height:44px;padding:0 12px;cursor:pointer}
 .edge:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+@media (hover:hover){.edge:hover{color:var(--amber);border-color:var(--amber);background:rgba(40,20,14,.7)}}
+/* the title's corner: sound and full screen side by side */
+#title-edge{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:3;display:flex;gap:8px}
+#title-edge[hidden]{display:none}
+#title-edge .edge{position:static}
+#snd-btn{padding:0;display:flex;align-items:center;justify-content:center}
+#snd-btn svg{width:22px;height:22px}
+#snd-btn [hidden]{display:none}
 #pause-btn{display:flex;align-items:center;justify-content:center;gap:5px;padding:0}
 #pause-btn i{display:block;width:5px;height:16px;background:var(--cream);border-radius:1px}
 /* in the game, a full screen toggle beside pause: four corners out, or in when full screen */
@@ -163,7 +171,10 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
     <p id="best" hidden></p>
   </div>
   <a id="home" href="../">&larr; JonniePeed Games</a>
-  <button class="edge" id="fs-btn" aria-pressed="false">Full screen</button>
+  <div id="title-edge">
+    <button class="edge" id="snd-btn" aria-pressed="true" aria-label="Sound: on"><svg viewBox="0 0 22 22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 8H7L12 4V18L7 14H3Z" fill="currentColor"/><path class="on" d="M15.5 8.5C16.6 9.8 16.6 12.2 15.5 13.5M18 6C20.4 8.7 20.4 13.3 18 16"/><path class="off" d="M15 8L20 14M20 8L15 14" hidden/></svg></button>
+    <button class="edge" id="fs-btn" aria-pressed="false">Full screen</button>
+  </div>
   <button class="edge" id="pause-btn" aria-label="Pause" hidden><i></i><i></i></button>
   <button class="edge" id="fs3-btn" aria-label="Full screen" aria-pressed="false" hidden><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path class="out" d="M2 7V2H7M13 2H18V7M18 13V18H13M7 18H2V13"/><path class="in" d="M7 2V7H2M18 7H13V2M13 18V13H18M2 13H7V18" hidden/></svg></button>
 
@@ -248,7 +259,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 <script src="rugfather.js?v=ffd7e70ed9"></script>
 <script src="game.js?v=543ae1a8dd"></script>
 <script src="end.js?v=82e26de683"></script>
-<script src="title.js?v=8d560966e2"></script>
-<script src="phone.js?v=a57467981a"></script>
+<script src="title.js?v=e0455be4e3"></script>
+<script src="phone.js?v=c1102a4387"></script>
 </body>
 </html>

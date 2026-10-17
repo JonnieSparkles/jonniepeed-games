@@ -225,6 +225,11 @@ def title_checks(p):
     page.goto(URL, wait_until='load')
     page.wait_for_timeout(400)
     assert 'ACE 1:52.8' in js(page, "document.getElementById('best').textContent")
+    # the speaker by Full screen mutes and unmutes, the same setting as the pause card's Sound
+    page.locator('#snd-btn').tap()
+    assert js(page, 'UnrugSound.muted') and js(page, "document.getElementById('sound-btn').textContent") == 'Sound: off'
+    page.locator('#snd-btn').tap()
+    assert not js(page, 'UnrugSound.muted')
     page.locator('#menu [data-act=board]').tap()
     page.wait_for_selector('#board-list .lb-table')
     assert js(page, "document.querySelectorAll('#board-list tbody tr').length") == 2

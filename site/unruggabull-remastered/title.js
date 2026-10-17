@@ -126,7 +126,7 @@ window.UnrugTitle = (function () {
     letsGoSound.currentTime = 0;
     letsGoSound.play();
     $('home').hidden = true;
-    $('fs-btn').hidden = true;
+    $('title-edge').hidden = true;
     setTimeout(() => {
       titleEl.style.opacity = 0;
       $('gameCanvas').style.opacity = 1;

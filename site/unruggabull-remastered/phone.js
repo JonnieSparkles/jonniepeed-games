@@ -201,8 +201,17 @@
   pauseBtn.addEventListener('click', pauseGame);
   $('resume-btn').addEventListener('click', resumeGame);
   $('quit-btn').addEventListener('click', () => { UnrugRun.quit(); location.reload(); });
-  function showSound() { soundBtn.textContent = UnrugSound.muted ? 'Sound: off' : 'Sound: on'; soundBtn.setAttribute('aria-pressed', String(!UnrugSound.muted)); }
-  soundBtn.addEventListener('click', () => { UnrugSound.muted = !UnrugSound.muted; showSound(); });
+  // the pause card's Sound and the title's speaker share the one setting (UnrugSound.muted, kept on the device)
+  const sndBtn = $('snd-btn');
+  function showSound() {
+    const on = !UnrugSound.muted;
+    soundBtn.textContent = on ? 'Sound: on' : 'Sound: off'; soundBtn.setAttribute('aria-pressed', String(on));
+    sndBtn.setAttribute('aria-pressed', String(on)); sndBtn.setAttribute('aria-label', on ? 'Sound: on' : 'Sound: off');
+    sndBtn.querySelector('.on').toggleAttribute('hidden', !on); sndBtn.querySelector('.off').toggleAttribute('hidden', on);
+  }
+  const toggleSound = () => { UnrugSound.muted = !UnrugSound.muted; showSound(); };
+  soundBtn.addEventListener('click', toggleSound);
+  sndBtn.addEventListener('click', toggleSound);
   showSound();
   document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
   addEventListener('keydown', e => {
