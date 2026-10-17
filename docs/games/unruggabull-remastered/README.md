@@ -93,7 +93,6 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
-- **Oct 17, 2026:** its own favicon. The bulls were first drawn true to each game (this game's black bull, II's brown one); Jonnie swapped them, so the two tabs look different from the games' own bulls on purpose. The background is the alley's night red, not II's tower purple.
 - **Oct 17, 2026:** the win picture burns out (take C of https://claude.ai/artifact/GDzyMEgNE2aEsYpRDvY84x), its lettering in the game's type.
 - **Oct 17, 2026:** a speaker on the title beside Full screen (the same sound setting as the pause card's Sound, kept on the device), and the top-edge buttons light up amber on hover.
 - **Oct 17, 2026:** the touch controls follow the last input (a key hides them, as in Unruggabull II); a full screen toggle by pause; the crackle about 7 dB quieter; shadows under the bull all through the intro and defeat scenes, and under the Rugfather as he comes out of the garage.

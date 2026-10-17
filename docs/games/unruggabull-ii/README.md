@@ -241,7 +241,7 @@ Part A's parity check for the 13th Floor compares all 1,200 run records (400 see
 
 Difficulty is measured with the balance bots above; a full clear of the 13th Floor takes about two minutes and roof bot clears about 2:40 to 2:55. The PR reports clear rates, final-heart causes, completed-round medians, clear-time medians and captives at the quiet over 100 seeds per skill. It still needs playtesting on real phones, and playtesting wins.
 
-`python3 tools/og/make.py --game unruggabull-ii` rebuilds the share card and shelf thumbnail from the title screen. The favicon (`brand/favicons/unruggabull-ii.png`, built by `python3 tools/favicons/make.py --game unruggabull-ii`) is a black bull with gold horns and shades in the fire, not this game's brown bull; see history.md.
+`python3 tools/og/make.py --game unruggabull-ii` rebuilds the share card and shelf thumbnail from the title screen. The favicon (`brand/favicons/unruggabull-ii.png`, built by `python3 tools/favicons/make.py --game unruggabull-ii`) is a black bull with gold horns and shades in the fire.
 
 `python3 tools/unruggabull-ii/bull.py --check` fails if `bull.js` is out of date with the script that draws him, and `python3 tools/unruggabull-ii/sprites.py --check` the same for `sprites.js`.
 
