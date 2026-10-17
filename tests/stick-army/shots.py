@@ -116,6 +116,8 @@ CAMPAIGN = {
     # The set pieces and the requisition tree (round 5): Downed pilot with a blue chute coming over the mat, Hold the
     # radio's mast with a lander at it, The officer jumping, HQ's supply plane in Supply drop, and the debrief's tree
     # after Boot Camp with the gold star.
+    'banner': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(1);",
+    'end-tour': CAMP + "c.screens.map(); document.querySelector('[data-act=new]').click();",
     'pilot': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(9);",
     'radio': CAMP + STEP + "t.tree = []; t.m = 2; c.write(); c.startMission(); step(14);",
     'officer': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'the-officer'; c.write(); c.startMission(); step(8);",

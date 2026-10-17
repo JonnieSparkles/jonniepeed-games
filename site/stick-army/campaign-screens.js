@@ -22,7 +22,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       '<div class="c-head"><h2 class="c-title" id="cMapTitle">Tour <span class="pen">map</span></h2><span class="c-code" id="cCode"></span></div>' +
       '<svg class="c-route" id="cRoute" viewBox="0 0 400 720" aria-hidden="true"></svg><div id="cOps"></div>' +
       '<div class="c-foot"><div class="c-links"><button class="c-link" type="button" data-act="copy">Copy save link</button>' +
-        '<button class="c-link" type="button" data-act="load">Load a code</button><button class="c-link" type="button" data-act="new">New tour</button></div>' +
+        '<button class="c-link" type="button" data-act="load">Load a code</button><button class="c-link" type="button" data-act="new">End tour</button></div>' +
         '<button class="btn" type="button" id="cMapGo">Briefing</button></div>' +
     '</section>' +
     '<div id="cBrief" hidden><div class="c-veil" data-act="unbrief"></div><section class="c-postit" role="dialog" aria-modal="true" aria-labelledby="cBriefTitle" id="cBriefBody"></section></div>' +
@@ -380,12 +380,14 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     $('cLoadGo').addEventListener('click', go);
     $('cLoadField').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); go(); } });
   }
+  // Ending the tour (the map's "End tour"): asks first, then the tour is gone and it's back to the title, where
+  // Campaign starts a new one. Its save link still brings it back.
   function newCard() {
     var t = camp.tour();
-    overMap('<h2>New <span class="pen">tour</span></h2>' +
-      '<p class="tag">Your tour ' + esc(camp.showCode(t.code)) + ' ends here, and its squad with it. Gold stars stay.</p>' +
-      '<div class="row"><button class="btn" type="button" id="cNewGo">Start a new tour</button><button class="btn ghost" type="button" data-act="map">Cancel</button></div>', 'cNewGo');
-    $('cNewGo').addEventListener('click', function () { camp.newTour(); map(); });
+    overMap('<h2>End this <span class="pen">tour?</span></h2>' +
+      '<p class="tag">Tour ' + esc(camp.showCode(t.code)) + ' ends here, and its squad with it. Gold stars stay. A copied save link still brings it back.</p>' +
+      '<div class="row"><button class="btn" type="button" id="cNewGo">End tour</button><button class="btn ghost" type="button" data-act="map">Cancel</button></div>', 'cNewGo');
+    $('cNewGo').addEventListener('click', function () { camp.endTour(); toTitle(); });
   }
   function copyLink(button) {
     var link = camp.linkFor(camp.tour()), copy = window.Rooms && Rooms.copy ? Rooms.copy(link) : Promise.resolve('failed');

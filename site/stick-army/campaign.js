@@ -1258,6 +1258,12 @@ var StickArmyCampaign = function (world, game) {
     if (!tour) { tour = freshTour(codeText(newCodeValue())); writeTour(); }
     resume();
   }
+  // Ending a tour: its save and its wave save are gone, so the title offers a new Campaign. Gold stars stay.
+  function endTour() {
+    dropWaveSave();
+    try { localStorage.removeItem(TOUR_KEY); } catch (e) { /* ignore */ }
+    tour = null;
+  }
   function newTour(code) {
     dropWaveSave();
     tour = freshTour(code || codeText(newCodeValue()));
@@ -1302,7 +1308,7 @@ var StickArmyCampaign = function (world, game) {
     tour: function () { return tour; }, op: op, nextOp: nextOp, TREE: TREE, SHELF: SHELF, treeNext: treeNext, takeStep: takeStep, takeBonus: takeBonus,
     onShelf: onShelf, hireable: hireable, autoTree: autoTree, showCode: showCode, rankName: rankName, deployOrder: deployOrder, progress: progress,
     open: openCampaign, resume: resume, startMission: startMission, retry: retry, takeReward: takeReward, leaveBarracks: leaveBarracks,
-    hire: hire, hirePrice: hirePrice, newTour: newTour, loadCode: loadCode, readLink: readLink, linkFor: linkFor, linkCode: linkCode,
+    hire: hire, hirePrice: hirePrice, newTour: newTour, endTour: endTour, loadCode: loadCode, readLink: readLink, linkFor: linkFor, linkCode: linkCode,
     savedTour: savedTour, setTour: function (t) { tour = t; writeTour(); }, write: writeTour, standBy: standBy, showWhere: showWhere,
     seen: function () { return load(SEEN_KEY, 0) >= RELEASE; }, unlocked: function () { return !!load(UNLOCK_KEY, false); }, stars: deviceStars, hideRestart: hideRestart,
     pending: function () { var p = pending; pending = null; return p; }, takeLink: takeLink, news: function () { var n = news; news = null; return n; },
