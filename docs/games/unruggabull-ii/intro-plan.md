@@ -27,7 +27,7 @@ The narrator's blips tell lines 1 to 3. On line 4, "It grew up so fast." scrambl
 
 ## The look
 
-- Full screen, the intro has the whole screen: the header row is gone (Skip is in the caption bar) and the picture is as big as it fits. On a phone in portrait the picture runs edge to edge with the caption under it, larger, in the room a tall phone leaves. A tap anywhere moves on, black included.
+- The intro fills the window like the title and play, in or out of full screen (Oct 16; there's no header any more). Skip and sound are in the caption bar. On a phone in portrait the picture runs edge to edge with the caption under it, larger, in the room a tall phone leaves. A tap anywhere moves on, black included.
 
 - The eye tells the turn: blue is the innocent baby; orange is what it becomes (p(Loom)'s eye on the roof is orange idle, red attacking, white-hot when hit).
 - The Rugfather is the owner's strip at its own pixel size, with one treatment everywhere: breathing, his fringe stirring, his fire flickering, eyes that glow and blink, embers.

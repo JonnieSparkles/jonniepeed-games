@@ -8,7 +8,7 @@ In full screen the header (title, Pause, Sound, Exit full screen) took 48 of 360
 
 ## The rule
 
-During play (from the end of the intro: playing, paused, and the rugged and clear cards) the game always uses the in-play layout below, on every device, whether or not the browser is in full screen. Full screen only decides whether the browser's own bars show. The title screen fills the window too, with its own layout ([title-plan.md](title-plan.md), Oct 15), so the page layout (the JonniePeed Games link, the header, the help line) no longer shows; Exit on the title goes back to JonniePeed Games. Start still goes full screen on a phone; on a computer it doesn't (the usual practice for browser games), and the Full screen button (on the title and the pause card) and F stay.
+During play (from the end of the intro: playing, paused, and the rugged and clear cards) the game always uses the in-play layout below, on every device, whether or not the browser is in full screen. Full screen only decides whether the browser's own bars show. The title screen fills the window too, with its own layout ([title-plan.md](title-plan.md), Oct 15), so the page layout (the JonniePeed Games link, the header, the help line) no longer shows; Exit on the title goes back to JonniePeed Games. The intro fills the window the same way (Oct 16), and that old page layout is deleted. Start still goes full screen on a phone; on a computer it doesn't (the usual practice for browser games), and the Full screen button (on the title and the pause card) and F stay.
 
 ## Landscape (and desktop)
 

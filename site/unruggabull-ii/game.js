@@ -966,7 +966,7 @@
 
   // ---------- page: card, sound, full screen ----------
   const gameEl = $('game'), card = $('card'), cardTitle = $('cardTitle'), cardText = $('cardText'), cardStats = $('cardStats'), cardNote = $('cardNote');
-  const goBtn = $('go'), altBtn = $('alt'), pauseBtn = $('pause'), snd = $('snd'), fsBtn = $('fs');
+  const goBtn = $('go'), altBtn = $('alt');
   const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), ipause = $('ipause'), ifsBtn = $('ifs'), psndBtn = $('psnd');
   const BEST_KEY = 'unruggabull-ii-best';
   // a floor's best on this device, one per mode (Regular keeps the keys it always had)
@@ -1054,10 +1054,10 @@
     gameEl.classList.toggle('playing', s === 'play');
     gameEl.classList.toggle('paused', s === 'pause');   // the picture dims behind the pause card (owner, Oct 16)
     gameEl.classList.toggle('intro', s === 'intro');   // the intro takes the whole screen in full screen
-    pauseBtn.hidden = !(s === 'play' || s === 'pause');
-    pauseBtn.textContent = s === 'pause' ? 'Resume' : 'Pause';
     // in play the game fills the window on every device, in or out of full screen (screen-space.md)
-    const inGame = s === 'play' || s === 'pause' || s === 'over' || s === 'title';   // the title too (title-plan.md)
+    // the game fills the window from the title on, the intro too (owner, Oct 16: the old page layout, a header, a framed
+    // picture and the keys, still showed for the intro on a computer; it's gone)
+    const inGame = s === 'play' || s === 'pause' || s === 'over' || s === 'title' || s === 'intro';
     if (Cards && s !== 'over' && s !== 'pause') Cards.hide();
     if (Title && s !== 'title') Title.hide();
     gameEl.classList.toggle('ingame', inGame);
@@ -1352,7 +1352,6 @@
     goFull();
     startIntro();   // Start always plays the story; skip it from there (the owner, Oct 13)
   });
-  pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
   ipause.addEventListener('click', () => { if (state === 'play') pauseGame(); });
   ifsBtn.addEventListener('click', () => { if (state === 'play') toggleFull(); try { c.focus({ preventScroll: true }); } catch (e) {} });
   psndBtn.addEventListener('click', () => { flipSound(); try { c.focus({ preventScroll: true }); } catch (e) {} });
@@ -1360,7 +1359,7 @@
   // Sound: on unless muted, but browsers only let it start after a tap or key press.
   const soundOn = () => Snd.ready && !Snd.muted;
   function sndLabel() {
-    for (const b of [snd, cSnd, $('isnd')]) { b.setAttribute('aria-pressed', String(soundOn())); b.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; }
+    for (const b of [cSnd, $('isnd')]) { b.setAttribute('aria-pressed', String(soundOn())); b.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; }
     psndBtn.classList.toggle('muted', !soundOn()); psndBtn.setAttribute('aria-pressed', String(soundOn())); psndBtn.setAttribute('aria-label', soundOn() ? 'Sound on' : 'Sound off');
   }
   Snd.onready = sndLabel;
@@ -1370,11 +1369,10 @@
     Snd.init(); sndLabel();
   }
   sndLabel();   // the play buttons' sound icon from the start
-  snd.addEventListener('click', flipSound);
   cSnd.addEventListener('click', flipSound);
   $('isnd').addEventListener('click', e => { e.stopPropagation(); flipSound(); });
   function unlockSound(e) {
-    if ((e.target instanceof Node && (snd.contains(e.target) || cSnd.contains(e.target) || $('isnd').contains(e.target) || (e.target.closest && e.target.closest('.tb.tsnd')))) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
+    if ((e.target instanceof Node && (cSnd.contains(e.target) || $('isnd').contains(e.target) || (e.target.closest && e.target.closest('.tb.tsnd')))) || (e.type === 'pointerdown' && e.pointerType !== 'mouse')) return;
     if (e.type === 'keydown' && (e.key === 'm' || e.key === 'M')) return;
     if (Snd.muted || state === 'pause') return;
     Snd.init(); sndLabel();
@@ -1388,8 +1386,7 @@
   function fsLabels() { cFs.textContent = isFull() ? 'Exit full screen' : 'Full screen'; cFs.hidden = !canFull; }
   function setFull(on) {
     gameEl.classList.toggle('full', on); document.body.classList.toggle('locked', on || gameEl.classList.contains('ingame'));
-    fsBtn.lastElementChild.textContent = on ? 'Exit full screen' : 'Full screen';
-    fsBtn.setAttribute('aria-pressed', String(on)); fsLabels(); ifsBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen'); layoutPlay();
+    fsLabels(); ifsBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen'); layoutPlay();
     if (on && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; l.addEventListener('release', () => { wakeLock = null; }); }).catch(() => {});
     if (!on && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   }
@@ -1412,7 +1409,6 @@
     if (document.hidden) { if (state === 'play') pauseGame(); Snd.pause(); }
     else { if (state !== 'pause') Snd.resume(); if (isFull() && navigator.wakeLock && !wakeLock) setFull(true); }
   });
-  fsBtn.addEventListener('click', toggleFull);
   cFs.addEventListener('click', toggleFull);
 
   // ---------- input ----------

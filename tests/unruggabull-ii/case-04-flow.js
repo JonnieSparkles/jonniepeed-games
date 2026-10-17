@@ -72,7 +72,7 @@
   check(state === 'play' && R.hearts === TUNE.hearts && R.souls === 0 && R.phase === 'hall', 'continue starts the floor over');
 
   key('keydown', 'p');
-  check(state === 'pause' && Cards.kind === 'pause' && Cards.labels()[0] === 'Resume' && !pauseBtn.hidden, 'P pauses');
+  check(state === 'pause' && Cards.kind === 'pause' && Cards.labels()[0] === 'Resume', 'P pauses');
   const t = R.t; step(1);
   check(R.t === t, 'nothing moves while paused');
   key('keydown', 'Escape');
