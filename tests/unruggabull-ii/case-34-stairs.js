@@ -3,9 +3,9 @@
   function check(ok, why) { if (!ok) throw new Error(why); }
   const step = s => { for (let i = 0; i < Math.round(s * 60); i++) update(1 / 60); };
   const S = floors.stairs;
-  RUN.force = 3434; startRun('stairs'); bull.inv = 1e9;
+  Snd.music('theme'); RUN.force = 3434; startRun('stairs'); bull.inv = 1e9;   // from the title, its theme still playing
   check(R.stage === 'stairs' && R.phase === 'boss' && S.Q.si === 0 && !S.Q.katana && R.arena.bare, 'Start of the stairs: section 1, blaster only, no katana on his back');
-  check(Snd.track === 'stairs', 'Flight Risk plays');
+  check(Snd.track === 'stairsIn', 'from the title, Flight Risk comes in through its bridge from the theme');
   check(S.Q.garageShut === Infinity, 'he comes in through the garage door, open behind him');
   keys.kbRight = true; step(.6); keys.kbRight = false;
   check(S.Q.garageShut < Infinity, 'it swings shut once he is on his way');

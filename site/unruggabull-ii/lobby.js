@@ -18,7 +18,8 @@ var UnrugLobby = function (core, arena, F) {
     arena.newRun(R, bull); R.arena.outShrink = false; bull.u = -1.05; bull.facing = 1; bull.jh = 0; bull.slash = -1; R.shots = [];
     L = { t: 0, said: false, ding: false, out: 0, smoke: 0 };
     R.banner = null; R.talk = null;
-    Snd.music(null, { hard: true });
+    // the office PA (after the 13th Floor) or Please Hold (far off under the 48th's card) carries on into the lobby
+    if (Snd.track !== 'floorPA' && Snd.track !== 'pleaseHold') Snd.music(null, { hard: true });
     return L;
   }
   const dialAt = t => Math.round(F.dialFrom - (F.dialFrom - F.floor) * clamp(t / F.dingAt, 0, 1));
@@ -31,7 +32,12 @@ var UnrugLobby = function (core, arena, F) {
     if (L.t < F.walkIn) { R.arena.locked = true; bull.u = -1.05 + (L.t / F.walkIn) * .35; bull.step += dt * 8; bull.facing = 1; }
     else R.arena.locked = L.out > 0;
     if (F.bark && !L.said && bull.u > F.bark.u - .05) { L.said = true; core.bark(F.bark.key); }
-    if (!L.ding && L.t >= F.dingAt) { L.ding = true; Snd.play('rideDing'); emit(F.events.ding); }
+    if (!L.ding && L.t >= F.dingAt) {
+      L.ding = true; Snd.play('rideDing'); emit(F.events.ding);
+      // Please Hold takes over from the PA on its next bar, or comes up from far off; from silence it starts with the doors
+      if (Snd.track === 'floorPA') { L.muzak = true; Snd.music('pleaseHold', { boundary: 'bar' }); }
+      else if (Snd.track === 'pleaseHold') { L.muzak = true; Snd.level(1, .6); }
+    }
     if (L.ding && !L.doorSnd && L.t >= F.dingAt + .4) { L.doorSnd = true; Snd.play('rideDoors'); }
     if (L.ding && !L.muzak && L.t >= F.dingAt + .9) { L.muzak = true; Snd.music('pleaseHold', { slam: true }); }
     if (L.ding && !L.going && L.t >= F.dingAt + 1.6) { L.going = true; say('operator', 'GOING UP?', 1.8); }

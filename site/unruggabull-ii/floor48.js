@@ -150,6 +150,7 @@ var UnrugFloor48 = function (core) {
     });
     td.room({ solids, push, machineHit, slashMachines, targets, pays: quotaPays });
     R.td.locked = false;
+    Q.fromRide = !!(at && at.transfer);   // up from the quiet ride (not a continue or #stage)
     const lobbyStart = at && at.lobby || /(^|&)at=lobby(&|$)/.test(location.hash.replace(/^#/, '')) && !at;
     saveCheckpoint();
     if (lobbyStart) startLobby(true);
@@ -179,7 +180,7 @@ var UnrugFloor48 = function (core) {
   function opening() {
     if (Q.st === 'lobby') return;
     R.banner = { text: 'THE 48TH FLOOR', sub: 'RECLAMATION', t: 0, dur: 1.7, top: true, then: { text: 'SHUT DOWN', sub: (3 - Q.panic) + (3 - Q.panic === 1 ? ' LINE' : ' LINES'), t: 0, dur: 1.5, top: true } };
-    Snd.factoryCue('intro', { candidate: Q.music });
+    Snd.factoryCue('intro', { candidate: Q.music, tune: Q.fromRide });   // from the quiet ride the machine takes Please Hold's tune
     core.live('The 48th Floor. Shut down the three production lines.');
   }
   function resume() {
@@ -891,7 +892,8 @@ var UnrugFloor48 = function (core) {
     }
     if (pt >= P.white && R.phase !== 'win') {
       // the floor's clear card, over the wreck with the souls going up; its button whites out into the lobby (afterClear)
-      R.phase = 'win'; R.endT = R.t; emit('f48_clear', { amount: R.t }); endRun('clear');
+      // Please Hold drifts in under the card, far off, from the lobby; it comes up on the lobby's DING (lobby.js)
+      R.phase = 'win'; R.endT = R.t; emit('f48_clear', { amount: R.t }); Snd.music('pleaseHold', { slam: true, level: .3 }); endRun('clear');
     }
   }
   // the clear card (owner, Oct 13: "we need an end level card for sure before the lobby")

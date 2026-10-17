@@ -95,6 +95,62 @@ def check_music(browser, root):
       S.music(null,{hard:true});
     }''')
     page.close()
+    # The album page's handoffs between stages (owner's picks, Oct 17): the bridge from the title, SHRED-O's last chord,
+    # the office PA into Please Hold on its bar, Please Hold far off and back, the factory taking the tune, the alarm on
+    # Production Panic, the roof's overture, its drums, the fight on the verse looping from it, and the D chord at the top.
+    page=browser.new_page()
+    page.evaluate('''() => { window.musicNow=0; window.AudioContext=class extends OfflineAudioContext {
+      constructor(){super(1,48000*8,48000);Object.defineProperty(this,'state',{value:'running'});
+      Object.defineProperty(this,'currentTime',{get:()=>window.musicNow});}
+    }; }''')
+    for f in ['music-roof.js','music-floor.js','music-elevator.js','music-factory.js','music-stairs.js']:
+        page.add_script_tag(content=(root/'site/unruggabull-ii'/f).read_text())
+    page.add_script_tag(content=audio)
+    page.evaluate('''() => {
+      const S=UnrugSound, check=(ok,msg)=>{if(!ok)throw new Error(msg);}, until=t=>{while(window.musicNow<t){window.musicNow+=.025;audioTest('pump()');}};
+      const bar=bpm=>240/bpm;
+      S.init();
+      // the title into the stairwell: the bridge, then Flight Risk's own A, looping, on Flight Risk's stems
+      S.music('stairsIn',{slam:true,stems:['drums','bass','lead']});audioTest('clearInterval(P.timer)');
+      check(S.musicState.pattern==='X','the stairwell from the title starts on the bridge');
+      until(2*bar(162)+.1);check(S.musicState.pattern==='A','two bars later, Flight Risk');
+      check(audioTest("TRACKS.stairsIn.patterns.A===TRACKS.stairs.patterns.A"),'the same Flight Risk as the stairwell');
+      S.stems(['drums','bass','lead','harmony']);until(window.musicNow+bar(162)+.05);check(S.musicState.stems.includes('harmony'),'its layers work as Flight Risk\\'s');
+      // SHRED-O goes down: one chord, then a silent bar it rests on
+      S.music('floorEnd',{slam:true});check(S.musicState.pattern==='E','SHRED-O goes down on a last chord');
+      until(window.musicNow+2*bar(178)+.1);check(S.musicState.pattern==='Z','then rests');
+      until(window.musicNow+3*bar(178));check(S.musicState.pattern==='Z'&&S.musicState.playing==='floorEnd','and stays quiet');
+      // the office PA under the card; the lobby's DING queues Please Hold on its next bar
+      S.music('floorPA',{slam:true});check(S.musicState.playing==='floorPA'&&S.musicState.stems.join()==='pa','the office PA comes back on');
+      until(window.musicNow+.5);S.music('pleaseHold',{boundary:'bar'});check(S.musicState.playing==='floorPA'&&S.track==='pleaseHold','Please Hold waits for the PA\\'s bar');
+      until(window.musicNow+bar(150)-.4);check(S.musicState.playing==='pleaseHold','and takes over on it');
+      // far off under the 48th's card, then up on the DING
+      S.music('pleaseHold',{slam:true,level:.3});check(Math.abs(audioTest('P.out.gain.value')-.3)<1e-6,'Please Hold starts far off');
+      audioTest("(() => { const g=P.out.gain, ramp=g.linearRampToValueAtTime.bind(g); window.ramped=null; g.linearRampToValueAtTime=(v,t)=>{window.ramped=[v,t];return ramp(v,t);}; })()");
+      S.level(1,.6);check(window.ramped&&window.ramped[0]===1&&Math.abs(window.ramped[1]-window.musicNow-.6)<1e-6,'and comes up to full over the DING');
+      // the 48th from the quiet ride: the machine plays the tune, then the intro; the fight waits for the bar
+      S.factoryCue('intro',{candidate:'b',tune:true});check(S.musicState.playing==='factoryBTune'&&S.musicState.pattern==='M','the machine takes Please Hold\\'s tune');
+      until(window.musicNow+2*bar(132)+.1);check(S.musicState.pattern==='I','then the factory\\'s intro');
+      S.factoryCue('intro',{candidate:'b'});check(S.musicState.playing==='factoryBIntro','started on the 48th, the plain intro');
+      S.factoryCue('intro',{candidate:'b',tune:true});until(window.musicNow+.3);
+      S.factoryCue('fight',{candidate:'b'});check(S.musicState.pending==='factoryB','the fight waits for the tune\\'s bar');
+      S.factoryCue('panic',{candidate:'b'});check(audioTest("P.pendingTrack.options.pattern")==='P','a line down before it lands: the alarm instead');
+      until(window.musicNow+bar(132));check(S.musicState.playing==='factoryB'&&S.musicState.pattern==='P','Production Panic: the alarm');
+      S.factoryCue('fight',{candidate:'b'});until(window.musicNow+.3);check(S.musicState.pattern==='A','the fight from its top');
+      S.factoryCue('panic',{candidate:'b'});check(S.musicState.pattern==='A'&&audioTest('P.pendingJump')===4,'a line down mid-fight: the alarm queued');
+      until(window.musicNow+bar(132));check(S.musicState.pattern==='P'&&S.musicState.stems.includes('power'),'on the next bar, with harmony and power');
+      until(window.musicNow+4*bar(132*1.05)+.2);check(S.musicState.pattern==='B','and on into the fight\\'s order');
+      S.music(null,{hard:true});S.factoryCue('panic',{candidate:'b'});check(S.musicState.playing==='factoryB'&&S.musicState.pattern==='P','a panic from silence starts on the alarm');
+      // the long ride lands on the roof's key; the roof's overture; its drums as p(Loom) rises; the fight on the verse
+      S.music(null,{hard:true});S.roofCue('top');check(audioTest('!!musicFx'),'the top of the long ride: the D chord');
+      S.roofCue('lead',{candidate:'a'});check(S.musicState.playing==='roofOverture'&&S.musicState.stems.join()==='bass','the walk-in: Saga II\\'s intro alone');
+      S.roofCue('rise');until(window.musicNow+bar(152)+.05);check(S.musicState.stems.join()==='bass,drums','p(Loom) rises: the drums join');
+      S.roofCue('fight');check(S.musicState.playing==='roofA'&&S.musicState.pattern==='V','FIGHT: the verse, on FIGHT');
+      until(window.musicNow+16*bar(152)+.1);check(S.musicState.pattern==='V'&&audioTest('P.si')===1,'after the chorus, the verse again, not the intro');
+      S.roofCue('lead',{candidate:'b'});check(S.track===null,'the earlier candidates keep a silent lead-in');
+      S.music(null,{hard:true});
+    }''')
+    page.close()
     # The lab uses actual button taps to unlock, has phone-sized targets, and switches every candidate.
     context=browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
     page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
@@ -111,4 +167,4 @@ def check_music(browser, root):
     assert page.evaluate('UnrugSound.ready'), 'first tap unlocks audio'
     page.locator('[data-cue="quiet"]').click();assert page.evaluate('UnrugSound.track') is None
     page.locator('#stop').click();assert not errors,errors
-    context.close();server.shutdown();server.server_close();print('PASS music system: patterns, effects, stems, tempo, boundaries, cues, the 13th Floor shuffle and phone lab')
+    context.close();server.shutdown();server.server_close();print('PASS music system: patterns, effects, stems, tempo, boundaries, cues, the 13th Floor shuffle, the handoffs between stages and phone lab')

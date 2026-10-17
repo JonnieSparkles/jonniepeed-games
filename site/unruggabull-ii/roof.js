@@ -186,7 +186,7 @@ var UnrugRoof = function (core) {
     // started on the roof, the doors open first (owner, Oct 15: align the roof's start with the end of the long ride)
     elevator: { entry() { Snd.roofCue('lead', { candidate: musicChoice }); Snd.play('storm'); }, ready: () => !!Q.fromRide || Q.t >= ROOF.time.elevator },
     walk: { entry: walkEntry, tick: walkTick, ready: walkReady, exit() { Q.walkCarp = null; Q.tiles = newTiles(); } },
-    flash: { entry() { Snd.play('slam'); Q.bolted = false; Q.shakeT = 0; }, tick(dt) {
+    flash: { entry() { Snd.play('slam'); Snd.roofCue('rise'); Q.bolted = false; Q.shakeT = 0; }, tick(dt) {
       // it rises from behind the far edge of the roof, rumbling, and the lightning catches it on the way up
       const C = ROOF.rise;
       if (Q.t > C.from && Q.t < C.to && (Q.shakeT -= dt) <= 0) { Q.shakeT = C.shakeEvery; effects.shake(1.6, .25); Snd.play('carpetSpread'); }
