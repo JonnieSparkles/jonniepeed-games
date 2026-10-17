@@ -1,0 +1,145 @@
+{
+ "release": 4,
+ "note": "A tour saved by Campaign round 4 (First Zeppelin), between missions 2 and 3, with the heavy gun picked, a deploy pick and its save link (version 4). Later releases must still load both.",
+ "tour": {
+  "v": 1,
+  "code": "3MZQ8D",
+  "op": 3,
+  "m": 2,
+  "attempt": 0,
+  "at": "between",
+  "missions": [
+   "shadow",
+   "long-watch",
+   "escort-screen",
+   "the-zeppelin"
+  ],
+  "squad": [
+   {
+    "id": 121,
+    "type": "rifle",
+    "stripes": 3,
+    "kills": 71,
+    "name": "Sketch",
+    "trait": "steady"
+   },
+   {
+    "id": 133,
+    "type": "engineer",
+    "stripes": 2,
+    "kills": 14,
+    "name": "Margins",
+    "trait": "lucky"
+   },
+   {
+    "id": 170,
+    "type": "sniper",
+    "stripes": 2,
+    "kills": 30,
+    "name": "Crayon",
+    "trait": "brave"
+   },
+   {
+    "id": 204,
+    "type": "radio",
+    "stripes": 1,
+    "kills": 3,
+    "name": "Nib",
+    "trait": "quick"
+   },
+   {
+    "id": 266,
+    "type": "mg",
+    "stripes": 1,
+    "kills": 25,
+    "name": "Doodle",
+    "trait": "brave"
+   },
+   {
+    "id": 301,
+    "type": "medic",
+    "stripes": 1,
+    "kills": 2,
+    "name": "Quill",
+    "trait": "lucky"
+   },
+   {
+    "id": 388,
+    "type": "bazooka",
+    "stripes": 0,
+    "kills": 4,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "fallen": [
+   {
+    "id": 150,
+    "type": "rifle",
+    "stripes": 0,
+    "kills": 2,
+    "op": 1,
+    "m": 2,
+    "name": null,
+    "trait": null
+   },
+   {
+    "id": 312,
+    "type": "rifle",
+    "stripes": 0,
+    "kills": 6,
+    "op": 2,
+    "m": 1,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "gone": [],
+  "bank": 410,
+  "nextId": 520,
+  "opLosses": 0,
+  "opDummies": 0,
+  "opBalloons": 0,
+  "opCrew": 0,
+  "hired": 3,
+  "gun": "heavy",
+  "lasting": [
+   "helmets",
+   "fins",
+   "sandbags"
+  ],
+  "gear": {
+   "stacks": {
+    "helmet": 1,
+    "fire": 2,
+    "cool": 1,
+    "double": 1
+   },
+   "calls": {
+    "bomber": 1,
+    "fighter": 0
+   },
+   "hired": 3
+  },
+  "deploy": [
+   121,
+   266,
+   170,
+   204,
+   133
+  ],
+  "stars": {
+   "boot-camp": true,
+   "balloon-season": true
+  },
+  "debrief": null,
+  "last": null
+ },
+ "link": "https://jonniepeed.games/stick-army/#tour=0G3MZQ8D0C10B6G3H02000R30010208400102086044020800C3QJ0T7GM0GM3NA04D1XK01541RM0HH36PG4882GG1H0102JR0G00GJQ01001H1002G01020C0G000101PG",
+ "missions": [
+  "shadow",
+  "long-watch",
+  "escort-screen",
+  "the-zeppelin"
+ ]
+}

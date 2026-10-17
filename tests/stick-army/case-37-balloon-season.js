@@ -21,7 +21,7 @@
     clear();
     // ---------- the release ----------
     var op = camp.OPS[2];
-    check(op.released && op.slots === 4 && op.starKind === 'balloons' && camp.RELEASE === 3, 'Balloon Season is out');
+    check(op.released && op.slots === 4 && op.starKind === 'balloons' && camp.RELEASE >= 3, 'Balloon Season is out');
     var draws = {};
     for (var v = 0; v < 30; v++) { var m = camp.missionsFor(camp.freshTour(camp.codeText(v * 104729)), 2); check(m.length === 3 && m[0] === 'cable-cutters', 'Cable cutters first'); draws[m.join()] = 1; }
     check(Object.keys(draws).length >= 5, 'and two of its pool after it');
@@ -32,7 +32,7 @@
     camp.setTour(on); titleScene();
     check(!document.getElementById('campaignNew').hidden, 'the "new" tag is back');
     document.getElementById('campaignBtn').click();
-    check(/Balloon Season is live/.test(document.getElementById('cOps').textContent), 'and the map says what\'s new');
+    check(/Operation [A-Za-z ]+ is live/.test(document.getElementById('cOps').textContent), 'and the map says what\'s new');
 
     // ---------- the waves ----------
     var code = clearCode(), t = bs('cable-cutters', code);

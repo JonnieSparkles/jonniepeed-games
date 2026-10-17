@@ -383,6 +383,7 @@ var StickArmyDraw = function (world) {
   // Two barrels (co-op) each wear their player's color as a band behind the muzzle: the host blue, the guest green.
   var GUN_COLORS = [BLUE, GREEN];
   function drawBarrel(t) { var S = world.S, G = world.G;
+    if (t.heavy) { drawHeavyBarrel(t); return; }
     var len = 31 - t.recoil * 6, hot = clamp((t.heat - 0.35) / 0.65, 0, 1);
     if (t.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
     G.save(); G.translate(t.x, TUR.y); G.rotate(t.aim);
@@ -390,6 +391,17 @@ var StickArmyDraw = function (world) {
     if (hot > 0) { G.globalAlpha = 0.45 * hot; G.fillStyle = RED; G.fillRect(2, -4, len - 2, 8); G.globalAlpha = 1; }
     if (S.turrets.length > 1) { G.fillStyle = GUN_COLORS[t.gun] || INK; G.fillRect(len - 11, -4, 5, 8); }
     G.beginPath(); L(2, -4, len, -4, 0.4); L(2, 4, len, 4, 0.4); L(len, -4.5, len, 4.5, 0.3); ink(hot > 0.7 ? RED : INK, 2.4); G.stroke();
+    G.restore();
+  }
+  // Campaign's heavy gun: a short, fat barrel with a muzzle brake (two bars across the end).
+  function drawHeavyBarrel(t) { var S = world.S, G = world.G;
+    var len = 26 - t.recoil * 8, hot = clamp((t.heat - 0.35) / 0.65, 0, 1);
+    if (t.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
+    G.save(); G.translate(t.x, TUR.y); G.rotate(t.aim);
+    G.fillStyle = PAPER; G.fillRect(2, -6.5, len - 2, 13);
+    if (hot > 0) { G.globalAlpha = 0.45 * hot; G.fillStyle = RED; G.fillRect(2, -6.5, len - 2, 13); G.globalAlpha = 1; }
+    G.beginPath(); L(2, -6.5, len, -6.5, 0.4); L(2, 6.5, len, 6.5, 0.4); ink(hot > 0.7 ? RED : INK, 2.6); G.stroke();
+    G.beginPath(); L(len - 6, -9.5, len - 6, 9.5, 0.3); L(len, -9.5, len, 9.5, 0.3); ink(hot > 0.7 ? RED : INK, 3.4); G.stroke();
     G.restore();
   }
   // A thin gauge arcing over the dome: fills left to right as the gun heats, blinks red when locked. With two barrels,
@@ -496,6 +508,7 @@ var StickArmyDraw = function (world) {
       var sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
       G.beginPath();
       if (b.kind === 'rocket') { G.moveTo(b.x - ux * 9, b.y - uy * 9); G.lineTo(b.x, b.y); ink(INK, 6); G.stroke(); ink(BLUE, 3); G.stroke(); }
+      else if (b.heavy) { G.arc(b.x, b.y, 4, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
       else if (b.tracer) { G.moveTo(b.x - ux * 20, b.y - uy * 20); G.lineTo(b.x, b.y); ink('#d99a00', 3); G.stroke(); ink(HAT, 1.4); G.stroke(); }
       else { G.moveTo(b.x - ux * 7, b.y - uy * 7); G.lineTo(b.x, b.y); ink(b.owner === 'ally' ? BLUE : INK, 2.6); G.stroke(); }
     });

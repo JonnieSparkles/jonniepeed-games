@@ -91,6 +91,9 @@
   // The machine gunner's barrel: HEAT a round, cooling COOL a second, and a REST once it's full; he only fires at what's
   // low (below LOW, or on the ground).
   var MG = { HEAT: 0.085, COOL: 0.45, REST: 2.2, LOW: 380 };
+  // Campaign's heavy gun (a turret with `heavy`, set only by Campaign): FIRE times the cooldown, HEAT times the heat a
+  // shot, and rounds that do DMG damage and go through helmets and armor. Arcade's turrets never have it.
+  var HEAVY = { FIRE: 2.2, HEAT: 2, DMG: 4 };
   // From ARMOR.WAVE some troopers wear a flak vest that stops one body hit (two from ARMOR.HEAVY, with a helmet).
   // Popping the chute, rockets and other blasts work as usual, so the turret copes better than the crew.
   var ARMOR = { WAVE: 10, HEAVY: 17 };
@@ -429,6 +432,7 @@
   //   promotes          false: no stripes for waves served (squad.js serveWave)
   //   trooper(kit, rnd, cfg) may change who jumps; pauseLine() a line for the pause card
   //   callFast()        true: radio calls arrive sooner (units.js); draw() draws over the page before the HUD
+  //   caught(t)         a zeppelin's bailed crewman caught (t.crew), on the field or in a bunk
   //   drawSky(G)        draws the kind of run's own things in the sky, behind the aircraft
   //   shot(b)           a bullet's own targets, before the planes (true: it's spent); tick(dt) every frame of the field
   var MODES = {
@@ -1040,6 +1044,7 @@
       (m.double ? [-4, 4] : [0]).forEach(function (side) {
         S.bullets.push({ x: x0 + ca * 30 - sa * side, y: TUR.y + sa * 30 + ca * side, vx: ca * 700, vy: sa * 700,
           owner: 'player', gun: t.gun, kind: 'bullet', flak: m.flak, pierce: m.pierce ? 3 : 1, hits: [], life: 1.3, dead: false, side: offset !== 0 });
+        if (t.heavy) S.bullets[S.bullets.length - 1].heavy = true;
       });
     });
     if (m.rockets && t.volleys % 4 === 0) {
@@ -1059,8 +1064,8 @@
     t = t || S.turrets[0];
     shoot(t);
     var m = t.mods, rate = Math.pow(0.82, m.fire);
-    t.fireCD = BALANCE.FIRE_COOLDOWN * rate;
-    t.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, m.cool);
+    t.fireCD = BALANCE.FIRE_COOLDOWN * rate * (t.heavy ? HEAVY.FIRE : 1);
+    t.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, m.cool) * (t.heavy ? HEAVY.HEAT : 1);
     S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
     if (S.coop) S.players[t.gun].score = Math.max(0, S.players[t.gun].score - BALANCE.SHOT_COST);
     if (t.heat >= 1) triggerOverheat(t);
@@ -1193,6 +1198,7 @@
       burst(r.x, GROUND - 20, 8, BLUE, 140);
       S.stats.captured++;
       emit('capture', { type: t.type, slot: t.slot });
+      if (t.crew && rules().caught) rules().caught(t);
       var label = t.type === 'engineer' ? 'engineer joined!' : t.type === 'bazooka' ? 'bazooka joined!' : 'recruit!';
       award(25, r.x, GROUND - 64, label, BLUE, true);
       sound.play('recruit'); world.say('ready!', r.id, false, 0.15);
@@ -1200,6 +1206,7 @@
       S.hint = false;
     } else if (rules().bench && rules().bench(t)) {
       // Campaign: no free slot on the field, but a free bunk in the barracks (campaign.js).
+      if (t.crew && rules().caught) rules().caught(t);
       S.hint = false;
     } else {
       emit('capture', { type: t.type, full: true });
@@ -1320,7 +1327,7 @@
         // Veteran: spread shot's side bullets only graze the Dreadnought, for GRAZE of the damage (their flak bursts
         // too), so it pays to aim the middle one.
         if (p.kind === 'dread' && b.side && lv().GRAZE < 1) { DN.graze(p, b.x, b.y); grazing = lv().GRAZE; }
-        if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
+        if (!projectileBurst(b)) { damagePlane(p, b.heavy ? HEAVY.DMG : 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
         grazing = 1;
         return;
       }
@@ -1342,7 +1349,7 @@
       if (b.kind === 'rocket' && projectileBurst(b)) return;
       // Coming down on its chutes, the tank is crated on its pallet: bullets only ping off.
       if (tk.state === 'chute') { if (R() < 0.3) S.parts.push({ k: 'tink', x: b.x, y: b.y, life: 0.2, max: 0.2, c: INK2, id: nextId++ }); }
-      else damageTank(tk, TANK.BULLET, b.owner);
+      else damageTank(tk, TANK.BULLET * (b.heavy ? HEAVY.DMG : 1), b.owner);
       consumeBullet(b, tk);
       return;
     }
@@ -1353,7 +1360,7 @@
       // Rockets explode on contact; flak only bursts near aircraft and bombs, so a direct hit is a plain bullet.
       if (Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
         if (b.kind === 'rocket' && projectileBurst(b)) return;
-        if (t.armor > 0) armorHit(t, b.owner); else killTrooper(t, b.owner);
+        if (t.armor > 0 && !b.heavy) armorHit(t, b.owner); else killTrooper(t, b.owner);
         consumeBullet(b, t);
         return;
       }

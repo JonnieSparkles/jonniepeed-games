@@ -76,6 +76,15 @@ t.squad = [{ id: 11, type: 'rifle', stripes: 2, kills: 52 }, { id: 14, type: 'en
   { id: 22, type: 'radio', stripes: 1, kills: 2 }, { id: 25, type: 'mg', stripes: 0, kills: 6 }];
 t.deploy = [11, 25, 19, 14]; t.nextId = 30; t.at = 'map'; c.nameAll(t); c.setTour(t);
 """
+FZ = """
+var c = world.campaign;
+function clearCode() { for (var v = 1; v < 500; v++) { var k = c.codeText(v * 31337); if (c.weatherFor(c.freshTour(k), 3) === 'clear') return k; } }
+var t = c.freshTour(clearCode()); t.op = 3; t.missions = c.missionsFor(t, 3);
+t.squad = [{ id: 11, type: 'rifle', stripes: 3, kills: 64 }, { id: 14, type: 'engineer', stripes: 2, kills: 13 }, { id: 19, type: 'sniper', stripes: 2, kills: 25 },
+  { id: 22, type: 'radio', stripes: 1, kills: 2 }, { id: 25, type: 'mg', stripes: 1, kills: 17 }, { id: 26, type: 'medic', stripes: 0, kills: 0 }];
+t.nextId = 30; t.at = 'map'; t.gun = 'heavy'; c.nameAll(t); c.setTour(t);
+function zepIn() { for (var i = 0; i < 60 * 30; i++) { update(1 / 60); var z = S.planes.find(function (p) { return p.kind === 'zeppelin'; }); if (z && z.entered) return z; } }
+"""
 def mission(at):
     return CAMP + STEP + "t.m = 1; c.startMission(); step(5); t.at = '%s'; S.mode = 'between';" % at
 CAMPAIGN = {
@@ -104,6 +113,13 @@ CAMPAIGN = {
     'bs-map': BS + "c.screens.map();",
     'bs-briefing': BS + "c.screens.map(); c.screens.briefing();",
     'barrage': BS + STEP + "c.startMission(); step(4); var l = spawnTrooper(330, 420, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); l.open = 1; step(0.6);",
+    # First Zeppelin (round 4): the briefing (the armory line), the deploy screen's gun row, the heavy gun firing at a
+    # zeppelin, the armored boss, and its crew bailing out.
+    'fz-briefing': FZ + "c.screens.map(); c.screens.briefing();",
+    'fz-deploy': FZ + "c.screens.deploy(function () {});",
+    'heavy': FZ + STEP + "c.startMission(); var z = zepIn(); var tu = S.turrets[0]; tu.aim = Math.atan2(z.y + 20 - TUR.y, z.x - tu.x); fireVolley(tu); step(0.15); tu.fireCD = 0; fireVolley(tu); step(0.1);",
+    'boss': FZ.replace("t.missions = c.missionsFor(t, 3);", "t.missions = c.missionsFor(t, 3); t.m = 3;") + STEP + "c.startMission(); zepIn(); step(1);",
+    'crew': FZ.replace("t.missions = c.missionsFor(t, 3);", "t.missions = c.missionsFor(t, 3); t.m = 3;") + STEP + "c.startMission(); var z = zepIn(); zeppelinDown(z, 'player'); step(1.2);",
     'barrage-pop': BS + STEP + "c.startMission(); step(4); var q = S.barrage[0]; q.hp = 1; S.bullets.push({ x: q.x, y: q.cy + 30, vx: 0, vy: -700, life: 1, owner: 'player', dead: false }); step(0.5);",
 }
 SIZES = {'phone': (390, 844, False), 'landscape': (844, 390, False), 'notebook': (1280, 800, False), 'phone-full': (390, 844, True)}

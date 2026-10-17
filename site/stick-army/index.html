@@ -452,6 +452,15 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 button.c-bunk { font-family: var(--font-hand); color: var(--ink); cursor: pointer; }
 .c-pick[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
 .c-pick:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
+/* The deploy screen's gun row (round 4): a slip a gun, ticked in blue like the bunks. */
+.c-sub { margin: 2px 0 0; font: 700 22px/1 var(--font-display); }
+.c-guns { display: flex; gap: 8px; }
+.c-gun { flex: 1 1 0; min-width: 0; min-height: 56px; display: flex; gap: 6px; align-items: center; padding: 4px 8px; text-align: left; font: 18px/1.05 var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
+.c-gun svg { flex: none; }
+.c-gun b { font-weight: 400; display: block; }
+.c-gun small { display: block; font-size: 14px; color: var(--ink-soft); }
+.c-gun[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
+.c-gun:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
 .c-live { position: absolute; left: 62px; right: 16px; top: 72px; font: 700 18px/1.1 var(--font-display); color: var(--enemy); transform: rotate(-1.5deg); }
 .c-bunk.empty { justify-content: center; border: 2px dashed #b5b0a6; color: #8f8a80; font-size: 15px; }
 .c-hires { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -665,8 +674,8 @@ button.c-bunk { font-family: var(--font-hand); color: var(--ink); cursor: pointe
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="audio.js?v=9f03c91bfb"></script>
 <script src="icons.js?v=5affe866b7"></script>
-<script src="draw.js?v=618e023c72"></script>
-<script src="units.js?v=410f211b7e"></script>
+<script src="draw.js?v=375d3c9f06"></script>
+<script src="units.js?v=933aa13d21"></script>
 <script src="sky.js?v=94c524341b"></script>
 <script src="squad.js?v=d6cf414a23"></script>
 <script src="dreadnought.js?v=2250d8ef77"></script>
@@ -675,10 +684,10 @@ button.c-bunk { font-family: var(--font-hand); color: var(--ink); cursor: pointe
 <script src="shop-screen.js?v=364333a172"></script>
 <script src="flow.js?v=b5481d0bc7"></script>
 <script src="save.js?v=c147602002"></script>
-<script src="campaign.js?v=34fa660fbc"></script>
-<script src="campaign-screens.js?v=c9db25ffd4"></script>
+<script src="campaign.js?v=25f3b85f91"></script>
+<script src="campaign-screens.js?v=75eeb59e81"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
 <script src="coop.js?v=224dde6a0c"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=c40ca261b2"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=96148a8f4d"></script>
 </body>
 </html>
