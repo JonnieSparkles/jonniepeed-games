@@ -17,7 +17,7 @@
     clear();
     // ---------- the release ----------
     var op = camp.OPS[1];
-    check(op.released && op.slots === 3 && op.starKind === 'dummies' && camp.RELEASE === 2, 'Recruitment Drive is out');
+    check(op.released && op.slots === 3 && op.starKind === 'dummies' && camp.RELEASE >= 2, 'Recruitment Drive is out');
     var draws = {};
     for (var v = 0; v < 30; v++) { var m = camp.missionsFor(camp.freshTour(camp.codeText(v * 104729)), 1); check(m.length === 3 && m[0] === 'dummy-drop', 'Dummy drop first'); draws[m.join()] = 1; }
     check(Object.keys(draws).length >= 5, 'and two of its pool after it');
@@ -29,7 +29,7 @@
     localStorage.setItem(K.unlock, 'true'); titleScene();
     check(!document.getElementById('campaignNew').hidden, 'the "new" tag is back');
     document.getElementById('campaignBtn').click();
-    check(/Recruitment Drive is live/.test(document.getElementById('cOps').textContent), 'and the map says what\'s new');
+    check(/Operation [A-Za-z ]+ is live/.test(document.getElementById('cOps').textContent), 'and the map says what\'s new');
 
     // ---------- weather and intel ----------
     var t0 = camp.freshTour('K7QMR2'), seen = {};

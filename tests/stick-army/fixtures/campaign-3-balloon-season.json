@@ -1,0 +1,119 @@
+{
+ "release": 3,
+ "note": "A tour saved by Campaign round 3 (Balloon Season), between missions 1 and 2, with a machine gunner, a deploy pick, bomb balloons counted for the star and its save link (version 3). Later releases must still load both.",
+ "tour": {
+  "v": 1,
+  "code": "9HX2TB",
+  "op": 2,
+  "m": 1,
+  "attempt": 0,
+  "at": "between",
+  "missions": [
+   "cable-cutters",
+   "hold-fast",
+   "behind-the-wire"
+  ],
+  "squad": [
+   {
+    "id": 121,
+    "type": "rifle",
+    "stripes": 2,
+    "kills": 48,
+    "name": "Noodle",
+    "trait": "brave"
+   },
+   {
+    "id": 133,
+    "type": "engineer",
+    "stripes": 1,
+    "kills": 9,
+    "name": "Pip",
+    "trait": "quick"
+   },
+   {
+    "id": 170,
+    "type": "sniper",
+    "stripes": 1,
+    "kills": 22,
+    "name": "Stubby",
+    "trait": "steady"
+   },
+   {
+    "id": 204,
+    "type": "radio",
+    "stripes": 1,
+    "kills": 1,
+    "name": "Crayon",
+    "trait": "quick"
+   },
+   {
+    "id": 266,
+    "type": "mg",
+    "stripes": 0,
+    "kills": 13,
+    "name": null,
+    "trait": null
+   },
+   {
+    "id": 301,
+    "type": "medic",
+    "stripes": 0,
+    "kills": 0,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "fallen": [
+   {
+    "id": 150,
+    "type": "rifle",
+    "stripes": 0,
+    "kills": 2,
+    "op": 1,
+    "m": 2,
+    "name": null,
+    "trait": null
+   }
+  ],
+  "gone": [],
+  "bank": 340,
+  "nextId": 420,
+  "opLosses": 0,
+  "opDummies": 0,
+  "opBalloons": 4,
+  "hired": 2,
+  "lasting": [
+   "helmets",
+   "fins"
+  ],
+  "gear": {
+   "stacks": {
+    "helmet": 1,
+    "fire": 1,
+    "cool": 1
+   },
+   "calls": {
+    "bomber": 1,
+    "fighter": 1
+   },
+   "hired": 2
+  },
+  "deploy": [
+   121,
+   266,
+   170,
+   204
+  ],
+  "stars": {
+   "boot-camp": true
+  },
+  "debrief": null,
+  "last": null
+ },
+ "link": "https://jonniepeed.games/stick-army/#tour=0C9HX2TB080G3N02MG1G00G2001020R0040G2201040G41KS08R8A08916N0268PSG0JJ0CA08R0VB82400035G100114004002040R00JP0",
+ "missions": [
+  "cable-cutters",
+  "hold-fast",
+  "behind-the-wire"
+ ]
+}

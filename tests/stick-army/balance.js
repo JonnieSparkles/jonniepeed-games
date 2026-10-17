@@ -109,6 +109,8 @@
       // The Dreadnought: its guns over the page (the one aiming first) and, once exposed, its bridge.
       // marking: false, or a tag for this aim (when it started), so each new aim is a new thing to notice.
       o.dread = dreadTargets().map(function (q) { return { id: q.id, part: q.part, x: q.x, y: q.y, vx: q.vx, marking: q.marking ? 'm' + Math.round((S.t - q.markT) * 10) : false }; });
+      // Campaign's barrage balloons (Balloon Season), up on their cables.
+      if (S.barrage) o.barrage = S.barrage.filter(function (q) { return q.state === 'fly'; }).map(function (q) { return { id: 'barrage' + q.x, x: q.x, y: q.cy != null ? q.cy : q.y, hp: q.hp }; });
       S.bombs.forEach(function (m) { if (!m.dead && !m.armored) o.bombs.push({ id: m.id, x: m.x, y: m.y, vx: m.vx, vy: m.vy }); });
       S.recruits.forEach(function (r) { if (!r.dead) o.recruits.push({ id: r.id, type: r.type, x: r.x, hp: r.hp, max: crewMax(r) }); });
       if (S.mode === 'shop' && S.shop) {
