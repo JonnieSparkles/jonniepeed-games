@@ -54,6 +54,9 @@ window.__balanceBot = function (profile, seed) {
       if (threat && m.y > 200) consider(500 + m.y / 10, lead(o, m.x, m.y, m.vx, m.vy + 130 * 0.4), m.id);
     });
     o.troopers.forEach(function (t) {
+      // Campaign's downed pilot: only ever popped over the mat. Its officer: before anything else on the way down.
+      if (t.pilot && !(t.state === 'chute' && t.open > 0.6 && overMat(t, o) && t.y > 420 && t.y < 540)) return;
+      if (t.officer && t.state === 'chute' && t.open > 0.6 && !overMat(t, o)) { consider(450 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id); return; }
       if (t.state === 'chute' && t.open > 0.6 && overMat(t, o) && t.y > 210 && t.y < 520) {
         // Hit the canopy on its outer edge, away from the body, so the shot pops the chute instead of killing.
         var side = t.x < 200 ? -1 : 1;

@@ -18,9 +18,9 @@
     // ---------- the release ----------
     var op = camp.OPS[1];
     check(op.released && op.slots === 3 && op.starKind === 'dummies' && camp.RELEASE >= 2, 'Recruitment Drive is out');
-    var draws = {};
-    for (var v = 0; v < 30; v++) { var m = camp.missionsFor(camp.freshTour(camp.codeText(v * 104729)), 1); check(m.length === 3 && m[0] === 'dummy-drop', 'Dummy drop first'); draws[m.join()] = 1; }
-    check(Object.keys(draws).length >= 5, 'and two of its pool after it');
+    // Fixed since round 5: Dummy drop, Supply drop, The officer.
+    var v, m = camp.missionsFor(camp.freshTour(camp.codeText(104729)), 1);
+    check(m.join() === 'dummy-drop,supply-drop,the-officer', 'Dummy drop first, then Supply drop and The officer (' + m + ')');
     var ended = camp.freshTour('K7QMR2'); ended.at = 'end'; ended.m = 3;
     var on = camp.readTour(JSON.parse(JSON.stringify(ended)));
     check(on.op === 1 && on.at === 'map' && on.m === 0 && on.missions[0] === 'dummy-drop', 'a tour waiting at "To be continued" carries on into it');

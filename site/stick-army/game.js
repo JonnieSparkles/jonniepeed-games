@@ -432,6 +432,9 @@
   //   promotes          false: no stripes for waves served (squad.js serveWave)
   //   trooper(kit, rnd, cfg) may change who jumps; pauseLine() a line for the pause card
   //   callFast()        true: radio calls arrive sooner (units.js); draw() draws over the page before the HUD
+  //   held()            true: the wave isn't over yet, though its enemies are (Campaign's set pieces still to come)
+  //   rescue(t)         a prize (t.prize) caught on a mat; walk(t, dt) true: the kind of run moved this lander itself
+  //   spare(t)          true: the squad and the sentry leave this trooper alone (Campaign: chutes over a mat)
   //   caught(t)         a zeppelin's bailed crewman caught (t.crew), on the field or in a bunk
   //   drawSky(G)        draws the kind of run's own things in the sky, behind the aircraft
   //   shot(b)           a bullet's own targets, before the planes (true: it's spent); tick(dt) every frame of the field
@@ -869,7 +872,8 @@
       if (rl.cleared && !sp.cleared && rl.cleared()) { sp.cleared = true; DN.surrender(null); }
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
       if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) SKY.settle(sp);
-      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies && !SKY.waiting()) {
+      // A kind of run can hold the wave open for its own thing still to come (Campaign's set pieces, `held`).
+      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies && !SKY.waiting() && !(rules().held && rules().held())) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2;
         // A wave that never touched the wall pays extra: half the wave bonus again, and a tag a wave.
@@ -1170,7 +1174,8 @@
     addText('boing!', t.x, tr.y - 20, INK, 21);
     sound.play('boing');
     // The Dreadnought's captain is a prisoner, not a recruit: he bounces onto the bunker (dreadnought.js captainCaught).
-    var slot = t.captain ? -1 : freeSlot(tr.x1 < 200 ? 0 : 1);
+    // Campaign's prizes (t.prize: a downed pilot, an officer) aren't recruits either: they bounce onto the bunker too.
+    var slot = t.captain || t.prize ? -1 : freeSlot(tr.x1 < 200 ? 0 : 1);
     t.state = 'bounce'; t.bt = 0; t.bdur = 0.85; t.x0 = t.x; t.y0 = tr.y - 33; t.slot = slot;
     if (slot >= 0) { S.slotRes[slot] = true; t.x1 = SLOTS[slot]; t.y1 = GROUND - 33; t.bh = 120; }
     else { t.x1 = BK.x; t.y1 = BK.top - 30; t.bh = 140; }
@@ -1190,6 +1195,7 @@
       return;
     }
     if (t.captain) { DN.captainCaught(t); return; }
+    if (t.prize && rules().rescue) { rules().rescue(t); return; }
     if (t.slot >= 0) {
       delete S.slotRes[t.slot];
       var r = makeRecruit(t.slot, t.type, t.id);
@@ -1403,8 +1409,9 @@
       });
       if (best) return best;
     }
+    var spare = rules().spare;
     S.troopers.forEach(function (t) {
-      if (t.dead || t.captain || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380) return;
+      if (t.dead || t.captain || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380 || (spare && spare(t))) return;
       var d = Math.hypot(t.x - ox, t.y - oy);
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
@@ -1534,7 +1541,8 @@
         p.smoke -= dt;
         if (p.smoke <= 0) { p.smoke = busy() ? 0.14 : 0.07; puff(p.x - p.dir * 18, p.y - 4, 4, 0.7); }
         S.troopers.forEach(function (t) {
-          if (!t.dead && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
+          // A falling plane misses Campaign's prizes (t.prize: a pilot, an officer), so a crash never decides a mission.
+          if (!t.dead && !t.prize && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
             t.dead = true; killFx(t); S.stats.kills++;
             emit('kill', { by: 'crash', type: t.type });
             award(10, t.x, t.y, 'bonk!', INK, true);
@@ -1604,6 +1612,7 @@
   function updateLander(t, dt) {
     if (t.captain) { DN.captainRun(t, dt); return; }
     if (t.type === 'sniper') { updateSniper(t, dt); return; }
+    if (rules().walk && rules().walk(t, dt)) return;
     var mine = S.mines.find(function (m) { return m.armed && Math.abs(t.x - m.x) < 12; });
     if (mine) { mine.armed = false; explode(mine.x, GROUND - 15, 38, 'mine', 'ally'); return; }
     var wallX = t.dir > 0 ? BK.x1 - 7 : BK.x2 + 7, blk = null, bd = 1e9;
@@ -1764,7 +1773,7 @@
       return best;
     }
     return nearest(S.bombs, function (m) { return !m.dead && !m.armored && m.y > 200 && inView(m); }) ||
-      nearest(S.troopers, function (t) { return !t.dead && !t.captain && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low; }) ||
+      nearest(S.troopers, function (t) { return !t.dead && !t.captain && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low && !(rules().spare && rules().spare(t)); }) ||
       nearest(S.troopers, function (t) { return !t.dead && !t.captain && t.state === 'ground'; }) ||
       nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute' && inView(tk); }) ||
       nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon' && p.x > 10 && p.x < W - 10; });

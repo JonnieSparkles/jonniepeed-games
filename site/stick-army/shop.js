@@ -194,9 +194,9 @@ var StickArmyShop = function (w) {
     // Three rotating supplies from one pool (one of them free for each player), both radio calls from wave 3, pizza
     // always, and every role for hire.
     var items = offer(OFFERS, ['pizza', 'strike', 'fighter']), gifts = drawGifts(items);
-    var always = ITEMS.filter(function (it) { return it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE); });
+    var always = ITEMS.filter(function (it) { return (it.id === 'pizza' || (it.id === 'strike' && S.wave >= w.FIGHTER.SHOP_WAVE) || (it.id === 'fighter' && S.wave >= w.FIGHTER.SHOP_WAVE)) && sells(it); });
     // A hire for one kind of run only (Campaign's radio operator, `only`) is left out of the others.
-    S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire' && (!it.only || it.only === S.game); }),
+    S.shop = { items: items.concat(always), hire: ITEMS.filter(function (it) { return it.tier === 'hire' && (!it.only || it.only === S.game) && sells(it); }),
       gifts: gifts, giftTaken: {}, bought: {}, who: {}, base: snapshot(S), log: [] };
     w.emit('shop_offer', Object.assign({ wave: S.wave, items: S.shop.items.map(function (it) { return it.id; }), gift: gifts[0] }, S.coop ? { gifts: gifts } : {}));
     w.shopScreen.open();

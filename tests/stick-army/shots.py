@@ -113,6 +113,16 @@ CAMPAIGN = {
     'bs-map': BS + "c.screens.map();",
     'bs-briefing': BS + "c.screens.map(); c.screens.briefing();",
     'barrage': BS + STEP + "c.startMission(); step(4); var l = spawnTrooper(330, 420, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); l.open = 1; step(0.6);",
+    # The set pieces and the requisition tree (round 5): Downed pilot with a blue chute coming over the mat, Hold the
+    # radio's mast with a lander at it, The officer jumping, HQ's supply plane in Supply drop, and the debrief's tree
+    # after Boot Camp with the gold star.
+    'pilot': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(9);",
+    'radio': CAMP + STEP + "t.tree = []; t.m = 2; c.write(); c.startMission(); step(14);",
+    'officer': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'the-officer'; c.write(); c.startMission(); step(8);",
+    'supply': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'supply-drop'; c.write(); c.startMission(); for (var i = 0; i < 60 * 40 && !S.hq.length; i++) update(1 / 60); step(1.2);",
+    'tree': CAMP + "t.tree = ['double']; t.at = 'debrief'; t.debrief = { op: 0, star: true, promoted: t.squad.map(function (s) { return { id: s.id, named: false }; }), picks: 1,"
+            " bonus: [{ kind: 'pick', name: 'Another requisition', text: 'One more step on the tree.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' }] }; c.write(); c.screens.debrief();"
+            " document.querySelectorAll('#cDebriefBody .c-node.next')[1].click();",
     # First Zeppelin (round 4): the briefing (the armory line), the deploy screen's gun row, the heavy gun firing at a
     # zeppelin, the armored boss, and its crew bailing out.
     'fz-briefing': FZ + "c.screens.map(); c.screens.briefing();",
