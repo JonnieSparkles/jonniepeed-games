@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- The trailer's text layers, in the game's own hand: post-it notes on the desk beside the page, like the orders on
+     the title's facing page (Cabin Sketch on yellow, the army's blue pen and the friend's green), and the callout.
+     tools/trailer/layers.py renders each <template> to a transparent 1920x1080 PNG; shots.py places and fades them. -->
+<link rel="stylesheet" href="{{SITE}}assets/fonts/fonts.css">
+<style>
+:root{--ink:#2e2e33;--ally:#2f6fdc;--friend:#2e8b4a;--enemy:#c8433a;--postit:#f7e58a}
+html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hidden}
+#L{position:absolute;inset:0}
+.note{position:absolute;box-sizing:border-box;width:500px;padding:46px 40px 40px;background:var(--postit);color:var(--ink);
+  font:700 76px/1.02 "Cabin Sketch",cursive;text-align:center;
+  box-shadow:3px 6px 0 rgba(46,46,51,.16),0 18px 34px rgba(46,46,51,.22)}
+.note::before{content:"";position:absolute;left:50%;top:-16px;width:130px;height:32px;margin-left:-65px;background:rgba(214,222,232,.8);transform:rotate(3deg)}
+.note.l{left:96px;top:330px;transform:rotate(-3deg)}
+.note.r{right:96px;top:330px;transform:rotate(2.5deg)}
+.note.top{top:150px}
+.note .b{color:var(--ally)}
+.note .g{color:var(--friend)}
+.note small{display:block;margin-top:14px;font:400 44px/1.1 "Schoolbell",cursive;color:#5d5a55}
+.shade{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.55))}
+.pill{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;white-space:nowrap;
+  background:rgba(22,26,44,.95);color:#fff;border:6px solid var(--ally);border-radius:999px;padding:18px 70px 18px 36px;box-shadow:0 14px 50px rgba(0,0,0,.6);
+  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:84px;letter-spacing:.005em}
+.pill img{width:120px;height:132px;image-rendering:pixelated}
+</style></head><body>
+<div id="L"></div>
+<template id="pop"><p class="note l">Pop chutes.</p></template>
+<template id="catch"><p class="note r">Catch <span class="b">recruits.</span></p></template>
+<template id="defend"><p class="note l">Defend the <span class="b">notebook.</span></p></template>
+<template id="friend"><p class="note l">Bring a <span class="g">friend.</span></p></template>
+<template id="two"><p class="note r"><span class="b">Two</span> <span class="g">barrels.</span> One bunker.</p></template>
+<template id="pill"><div class="shade"></div><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
+</body></html>

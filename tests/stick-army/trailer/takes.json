@@ -1,0 +1,470 @@
+{
+ "T": {
+  "seed": 3,
+  "screen": true,
+  "viewport": [
+   1920,
+   1080
+  ],
+  "scale": 2,
+  "max_s": 40,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 8
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"button\": \"#startBtn\"};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "wait",
+    "dur": 4
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "C": {
+  "seed": 3,
+  "screen": true,
+  "viewport": [
+   1920,
+   1080
+  ],
+  "scale": 2,
+  "max_s": 50,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 3
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "room"
+   },
+   {
+    "type": "click",
+    "text": "Play with a friend"
+   },
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "click",
+    "text": "Meatball"
+   },
+   {
+    "type": "wait",
+    "dur": 0.2
+   },
+   {
+    "type": "click",
+    "text": "Meatball"
+   },
+   {
+    "type": "wait",
+    "dur": 0.2
+   },
+   {
+    "type": "click",
+    "text": "Sausage"
+   },
+   {
+    "type": "wait",
+    "dur": 0.4
+   },
+   {
+    "type": "ready"
+   },
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 1.6
+   },
+   {
+    "type": "join"
+   },
+   {
+    "type": "wait",
+    "dur": 1.6
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"button\": \"#coopStart\"};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "wait",
+    "dur": 5
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "A": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": false};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 3
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "until": "S.mode === 'shop' || S.wave > 3"
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "Z": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": false};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 15
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 45
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "K": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": false};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 13
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "until": "S.mode === 'shop' || S.wave > 13"
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "N": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": false};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 16
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 45
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "D": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": false};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 20,
+    "until": "S.planes.some(p => p.kind === 'dread')"
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 14
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "A2": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": true};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 3
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "until": "S.mode === 'shop' || S.wave > 3"
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "K2": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": true};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 13
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 45
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "N2": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": true};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 16
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 45
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "D2": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7, \"coop\": true};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "wave": 20,
+    "until": "S.planes.some(p => p.kind === 'dread')"
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 14
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ }
+}

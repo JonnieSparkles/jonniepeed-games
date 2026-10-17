@@ -4,6 +4,7 @@
     python3 tools/trailer/make.py dont-step-on-a-crack              # the whole trailer
     python3 tools/trailer/make.py dont-step-on-a-crack --takes C    # re-shoot one take, keep the others
     python3 tools/trailer/make.py dont-step-on-a-crack --cut-only   # re-cut from the takes you have
+    python3 tools/trailer/make.py stick-army --cut coop --cut-only  # another cut of the same takes (shots-coop.py)
 
 Run by hand. Serves site/ itself and launches Chromium like the other harnesses (CHROMIUM selects a system
 browser). A game opts in with tests/<slug>/trailer/: trailer.json (page, framing, sound object, frame hook),
@@ -89,6 +90,8 @@ def main():
     ap.add_argument('--cut-only', action='store_true', help="don't shoot; re-cut from the takes already in the output folder")
     ap.add_argument('--jobs', type=int, default=3, help='takes shot at once (default 3)')
     ap.add_argument('--out', help='output folder (default work/trailer/<slug>/)')
+    ap.add_argument('--cut', help='another cut from the same takes: shots-<cut>.py (and music-<cut>.py if there is one), '
+                    'written as <slug>-<cut>-trailer.mp4')
     args = ap.parse_args()
 
     game_dir = ROOT / 'tests' / args.slug / 'trailer'
@@ -113,10 +116,11 @@ def main():
         if failed:
             sys.exit('take %s ran out of time before its plan ended; look at its markers in %s' % (', '.join(failed), out))
 
-    missing = [n for n in names if not (out / ('take' + n) / 'take.json').is_file()]
-    if missing:
-        sys.exit('no take %s in %s yet; shoot it first' % (', '.join(missing), out))
-    takes = {n: cut.Take(out / ('take' + n), n) for n in names}
+    # Each cut needs only its own takes (a game with two cuts can cut one while the other's are still being shot).
+    class Takes(dict):
+        def __missing__(self, n):
+            sys.exit('no take %s in %s yet; shoot it first' % (n, out))
+    takes = Takes({n: cut.Take(out / ('take' + n), n) for n in names if (out / ('take' + n) / 'take.json').is_file()})
     quiet = tuple(cfg.get('quiet_marks', []))   # markers too frequent to print
     for n, t in takes.items():
         print('take %s markers: %s' % (n, ', '.join('%s %.2f' % (m['name'], m['t'] - t.marks[0]['t']) for m in t.marks if not m['name'].startswith(quiet))))
@@ -127,7 +131,10 @@ def main():
         layers.render(pw, studio_base, game_dir, cfg, out / 'layers')
     studio.shutdown()
     server, base = serve(site_dir(cfg))
-    shots = load(game_dir / 'shots.py', 'trailer_shots_' + args.slug.replace('-', '_'))
+    variant = '-' + args.cut if args.cut else ''
+    if not (game_dir / ('shots%s.py' % variant)).is_file():
+        sys.exit('tests/%s/trailer/shots%s.py not found' % (args.slug, variant))
+    shots = load(game_dir / ('shots%s.py' % variant), 'trailer_shots_' + (args.slug + variant).replace('-', '_'))
 
     def L(name):
         from PIL import Image
@@ -155,15 +162,18 @@ def main():
             score = sound.render_score(pw, base, cfg, spec['score'], c.dur + 0.5, out / 'score.wav')
     server.shutdown()
     music = None
-    if (game_dir / 'music.py').is_file():
-        music = out / 'music.wav'
-        render = load(game_dir / 'music.py', 'trailer_music_' + args.slug.replace('-', '_')).render
+    music_py = game_dir / ('music%s.py' % variant)
+    if not music_py.is_file():
+        music_py = game_dir / 'music.py'
+    if music_py.is_file():
+        music = out / ('music%s.wav' % variant)
+        render = load(music_py, 'trailer_music_' + (args.slug + variant).replace('-', '_')).render
         render(music, **({'site': site_dir(cfg)} if 'site' in inspect.signature(render).parameters else {}))
-    c.sheet(out / 'sheet.jpg')
-    c.mix(out / 'mix.wav', music, score)
-    video = out / (args.slug + '-trailer.mp4')   # always named by game
-    c.encode(video, out / 'mix.wav', crf=cfg.get('crf', 17))
-    print('wrote %s and sheet.jpg in %.0fs' % (video, time.time() - t0))
+    c.sheet(out / ('sheet%s.jpg' % variant))
+    c.mix(out / ('mix%s.wav' % variant), music, score)
+    video = out / (args.slug + variant + '-trailer.mp4')   # always named by game (and cut)
+    c.encode(video, out / ('mix%s.wav' % variant), crf=cfg.get('crf', 17))
+    print('wrote %s and sheet%s.jpg in %.0fs' % (video, variant, time.time() - t0))
 
 
 if __name__ == '__main__':
