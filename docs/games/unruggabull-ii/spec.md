@@ -50,7 +50,7 @@ Six inputs, the same on every floor, laid out like an old game pad:
 - **Shoot** (hold to keep firing). Keys: Shift or ', or J or Z. The blaster runs on charges like the first game's: 20, one back every half second.
 - **Slash** (Enter, or K or X). Slash does whatever is in front of you: cuts a carpshit in two, knocks a projectile back where it came from (a **deflect**), or, standing on a moving runner, **cuts the rug** to break free. Paper can't be shot, only slashed back or dodged.
 
-M toggles sound, F full screen, P or Escape pause.
+M toggles sound, F full screen, P or Escape pause. On a wide screen Pause, Sound and Full screen sit together off the picture during play; paused, a tap on the picture resumes (Oct 16).
 
 ## the 13th Floor: Accounting (this stage)
 

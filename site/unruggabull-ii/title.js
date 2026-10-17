@@ -664,6 +664,10 @@ var UnrugTitle = (function () {
 
     function show() {
       root.hidden = false; board = false; shutAt = -9; seeAll = false; scrollY = 0; t0 = now(); pan0 = t0; shapeKey = '';
+      // the clock starts again, so do the moments it measures from: a pick made last time would otherwise count as
+      // seconds in the future, and the picked button's flare and fire grew huge until the clock caught up (owner, Oct 16)
+      changedAt = boardAt = deniedAt = pressedAt = -9; pressed = null;
+      MODES.forEach((m, i) => Object.assign(faceSt[m.id], { gaze: 0, next: 1 + i * .4, blinkAt: 2 + i * 1.3, react: -9 }));
       if (act.online) act.online(MODES[mode].id, true);   // ask the board again each time the title comes up
       frame();
       say.textContent = 'Unruggabull II: Salvation for the Unrugged. ' + MODES[mode].name + '.';

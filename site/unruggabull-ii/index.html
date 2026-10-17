@@ -38,18 +38,10 @@ html,body{background:var(--bg);color:var(--cream)}
 body{margin:0;font-family:var(--body);font-size:16px}
 /* Pixelify Sans draws "fi" and "fl" as odd ligatures ("Aoor" for "floor") */
 body,button{font-variant-ligatures:none}
-/* Layout: one centred column; header, 16:9 pixel stage, then the deck under it (the card, or the touch pads while playing).
-   Full screen: header on top, stage fitted to the rest; in landscape the card floats over the stage and the pads sit in the corners. */
+/* Layout: the game fills the window from the title on (.ingame, below); this column only holds it while the scripts
+   load, and stays hidden then (.booting). */
 main{max-width:760px;margin:0 auto;padding:20px 16px 28px;display:grid;gap:14px}
-.back{justify-self:start;display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-family:var(--display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
-.back img{width:20px;height:22px;image-rendering:pixelated}
-.back:hover,.back:focus-visible{color:var(--cream)}
-.back:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .game{display:grid;gap:12px}
-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px}
-h1{font-family:var(--display);font-weight:400;font-size:22px;margin:0;color:var(--gold);letter-spacing:.02em}
-h1 span{display:block;font-family:var(--body);font-size:14px;color:var(--muted);letter-spacing:0;margin-top:2px}
-.tools{display:flex;flex-wrap:wrap;gap:8px}
 button{font-family:var(--display);font-size:14px;background:var(--gold);color:var(--bg);border:0;border-radius:4px;padding:10px 18px;box-shadow:0 3px 0 var(--gold-deep);cursor:pointer}
 button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-deep)}
 button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
@@ -57,8 +49,6 @@ button:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 .tool:active{transform:none;box-shadow:none}
 .snd i{display:block;width:8px;height:8px;background:var(--gold)}
 .snd[aria-pressed="false"] i{background:var(--edge)}
-.fs-ico{display:block;width:10px;height:10px;border:2px solid var(--cream)}
-.full .fs-ico{border-style:dashed}
 .arena{display:grid;gap:12px}
 .stage{position:relative;width:min(100%,max(300px,calc((100svh - 250px) * 16 / 9)));margin-inline:auto;aspect-ratio:16/9;border-radius:8px;overflow:hidden;box-shadow:0 0 0 2px var(--edge);background:#09070b}
 canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;outline:none}
@@ -82,7 +72,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .pad-group{display:flex;align-items:end;gap:10px;touch-action:none}
 /* The stick has no frame: a faint ring shows where it rests, and it jumps to wherever the thumb lands in its area. */
 .stickzone{position:relative;flex:1 1 auto;min-width:150px;min-height:140px;touch-action:none}
-.stick{position:absolute;left:50%;top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:0;box-shadow:inset 0 0 0 1px rgba(255,246,226,.28);background:none;pointer-events:none;transition:opacity .2s}
+.stick{position:absolute;left:var(--rest-x,50%);top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:0;box-shadow:inset 0 0 0 1px rgba(255,246,226,.28);background:none;pointer-events:none;transition:opacity .2s}
 .stick.on{box-shadow:inset 0 0 0 2px var(--gold);transition:none}
 .knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,246,226,.2)}
 .stick.on .knob{background:var(--gold)}
@@ -123,10 +113,10 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .crawl{transition:opacity .3s}
 /* p(Loom) telling the story: its letters in its readout's orange */
 .crawl .m{color:#ff9628}
-/* Full screen, the intro takes all of it: no header row (Skip is in the caption bar), no frame, the picture as big as the
+/* Full screen, the intro takes all of it (Skip is in the caption bar), no frame, the picture as big as the
    screen allows. In portrait the caption moves under the picture, into the room a tall phone leaves, and reads larger. */
 .game.full.intro{grid-template-rows:minmax(0,1fr);gap:0;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:#08070c}
-.full.intro header,.full.intro .deck{display:none}
+.full.intro .deck{display:none}
 .full.intro .arena{grid-template-rows:minmax(0,1fr)}
 .full.intro .stage{border-radius:0;box-shadow:none}
 @media (orientation:portrait){
@@ -137,15 +127,9 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
   .full.intro .crawl p{font-size:clamp(16px,5.2cqw,26px);min-height:5.4em}
   .full.intro .skip{font-size:12px;padding:10px 14px}
 }
-.hint{margin:0;color:var(--muted);font-size:14px}
-.hint .touch-only{display:none}
-.touch .hint .touch-only{display:inline}
-.touch .hint .keys-only{display:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 body.locked{overflow:hidden}
 .game.full{position:fixed;inset:0;z-index:10;background:var(--bg);grid-template-rows:auto minmax(0,1fr);gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-right,0px) + 12px) calc(env(safe-area-inset-bottom,0px) + 10px) calc(env(safe-area-inset-left,0px) + 12px)}
-.game.full h1{font-size:16px}
-.game.full h1 span{display:none}
 .game.full .tool{padding:6px 10px}
 .full .arena{min-height:0;grid-template-rows:auto minmax(0,1fr);position:relative}
 .full .stage{width:100%;max-width:calc((100dvh - 120px) * 16 / 9)}
@@ -188,18 +172,13 @@ body.locked{overflow:hidden}
 .stick.aim{box-shadow:inset 0 0 0 1px rgba(127,212,255,.35)}
 .stick.aim.on{box-shadow:inset 0 0 0 2px #7fd4ff}
 .stick.aim.on .knob{background:#7fd4ff}
-.twin .hint .keys-only,.twin .hint .touch-only{display:none}
-.hint .twin-only{display:none}
-body:not(.touch).twin .hint .twin-only.keys{display:inline}
-.touch.twin .hint .twin-only.touch{display:inline}
 @media (orientation:portrait){.full.playing .twin .aimzone,.twin .full .aimzone{min-height:120px;width:100%}}
 /* Landscape full screen: the sticks in the corners, clear of the middle of the picture (owner, Oct 14: the aim stick sat mid-screen). */
 @media (orientation:landscape){.twin .full .aimzone{flex:0 0 auto;width:min(30vw,220px);height:min(44vh,170px);min-height:0}.twin .full .stick-tip{display:none}.twin .full .stickzone:not(.aimzone){flex:0 0 auto}.twin .full .pad-group{flex:0 0 auto}}
-/* In play (playing, paused and the rugged and clear cards) and on the title screen the game fills the window on every
+/* In play (playing, paused and the rugged and clear cards), on the title screen and in the intro the game fills the window on every
    device, in or out of full screen; full screen only hides the browser's bars (docs/games/unruggabull-ii/screen-space.md).
    layoutPlay() in game.js places the picture, Pause, the tower dial and the touch controls. */
 .game.ingame{position:fixed;inset:0;z-index:10;display:block;padding:0;background:#08070c}
-.game.ingame header{display:none}
 .game.ingame .arena{position:absolute;display:block;top:env(safe-area-inset-top,0px);right:env(safe-area-inset-right,0px);bottom:env(safe-area-inset-bottom,0px);left:env(safe-area-inset-left,0px);min-height:0}
 .game.ingame .stage{position:absolute;margin:0;max-width:none;aspect-ratio:auto;border-radius:0;box-shadow:none}
 .game.ingame .deck{position:absolute;inset:0;display:block;padding:0;pointer-events:none;overflow:visible}
@@ -217,13 +196,16 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 .ipause::before{content:'';width:12px;height:14px;border-left:4px solid rgba(255,246,226,.9);border-right:4px solid rgba(255,246,226,.9)}
 .ipause:active{transform:none;filter:brightness(1.4)}
 .game.ingame.playing .ipause{display:grid}
-/* Full screen, under Pause on a computer while the game isn't full screen (owner, Oct 16); the title's four corners */
+/* Sound and Full screen with Pause in play (owner, Oct 16), as on the title: under it in a side band, beside it in the
+   band above the picture; not upright, where the dial has that row. Full screen shows where the browser can do it. */
 .ifs{display:none;position:absolute;width:40px;height:40px;padding:0;border-radius:50%;border:0;background:rgba(9,7,11,.5);box-shadow:inset 0 0 0 2px rgba(255,246,226,.35);place-items:center;z-index:2;color:rgba(255,246,226,.9)}
 .ifs svg{width:20px;height:20px;display:block}
 .ifs:active{transform:none;filter:brightness(1.4)}
 .ifs:focus-visible,.ipause:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
-.game.ingame.playing.canfull:not(.full) .ifs{display:grid}
-body.touch .game .ifs{display:none!important}
+.game.ingame.playing:not(.portrait) .ifs{display:grid}
+.game:not(.canfull) #ifs{display:none!important}
+#ifs .in,.full #ifs .out,#psnd .off,#psnd.muted .on{display:none}
+.full #ifs .in,#psnd.muted .off{display:inline}
 /* the picture dims behind the pause card */
 #c{transition:filter .2s}
 .game.paused #c{filter:brightness(.55)}
@@ -270,29 +252,25 @@ dl.keys dd{margin:0;font-size:15px}
 .tb:active{transform:none;box-shadow:none}
 .tb:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
 .game.titling .stage,.game.titling .ipause{visibility:hidden}
-.game.titling .dial{display:none!important}
+/* Loading: nothing shows until the game draws its title (owner, Oct 16: the old page layout, the header, a framed black
+   box and the keys, flashed up while the scripts loaded). Shown anyway after 12 s, in case a script never runs. */
+.booting main{visibility:hidden;animation:bootShow 0s 12s forwards}
+@keyframes bootShow{to{visibility:visible}}
+.game.titling .dial,.game.intro .dial{display:none!important}
 .game.cutscene .dial{visibility:hidden}
 </style>
 </head>
-<body>
+<body class="booting">
 <main>
-  <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">JonniePeed Games</a>
   <section class="game" id="game" aria-label="Unruggabull II">
-    <header>
-      <h1>Unruggabull II<span>Salvation for the Unrugged</span></h1>
-      <div class="tools">
-        <button class="tool" id="pause" type="button" hidden>Pause</button>
-        <button class="tool snd" id="snd" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Sound off</span></button>
-        <button class="tool" id="fs" type="button" aria-pressed="false"><i class="fs-ico" aria-hidden="true"></i><span>Full screen</span></button>
-      </div>
-    </header>
     <div class="arena">
       <div class="stage" id="stage">
         <canvas id="c" width="480" height="270" tabindex="-1" aria-label="Title screen: Unruggabull stands in RugCo Alley at night, in front of the garage from the first game, its fire out. RugCo Tower rises behind it, p(Loom)&#39;s eye glowing in the pavilion on its roof."></canvas>
         <div class="crawl" id="crawl" hidden><p aria-hidden="true"><span id="crawlText"></span><span class="more" id="more" hidden>&#9656;<small id="moreTap">Tap</small></span></p><button class="skip snd" id="isnd" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Sound off</span></button><button class="skip" id="skip" type="button">Skip</button></div>
       </div>
       <button class="ipause" id="ipause" type="button" aria-label="Pause"></button>
-      <button class="ifs" id="ifs" type="button" aria-label="Full screen"><svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h3v1H0zM0 0h1v3H0zM7 0h3v1H7zM9 0h1v3H9zM0 9h3v1H0zM0 7h1v3H0zM7 9h3v1H7zM9 7h1v3H9z"/></svg></button>
+      <button class="ifs" id="psnd" type="button" aria-label="Sound" aria-pressed="false"><svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M0 3h2v4H0zM2 2h1v6H2zM3 1h1v8H3z"/><path class="on" fill="currentColor" d="M6 3h1v4H6zM8 1h1v8H8z"/><path class="off" fill="currentColor" d="M5 3h1v1H5zM6 4h1v1H6zM7 5h1v1H7zM8 6h1v1H8zM8 3h1v1H8zM7 4h1v1H7zM6 5h1v1H6zM5 6h1v1H5z"/></svg></button>
+      <button class="ifs" id="ifs" type="button" aria-label="Full screen"><svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges"><path class="out" fill="currentColor" d="M0 0h3v1H0zM0 0h1v3H0zM7 0h3v1H7zM9 0h1v3H9zM0 9h3v1H0zM0 7h1v3H0zM7 9h3v1H7zM9 7h1v3H9z"/><path class="in" fill="currentColor" d="M0 2h3v1H0zM2 0h1v3H2zM7 2h3v1H7zM7 0h1v3H7zM0 7h3v1H0zM2 7h1v3H2zM7 7h3v1H7zM7 7h1v3H7z"/></svg></button>
       <div class="dial" id="dial" aria-hidden="true"><span class="dial-name" id="dialName"></span><div class="dial-track" id="dialTrack"><b id="dialMark"></b><span id="dialNum"></span></div></div>
       <div class="deck">
         <div class="card" id="card" hidden>
@@ -322,7 +300,6 @@ dl.keys dd{margin:0;font-size:15px}
     </div>
     <p class="sr" id="live" aria-live="polite"></p>
   </section>
-  <p class="hint"><span class="keys-only">Move with A and D or the arrows; jump with W, Up or Space; crouch with S, C or Down. Hold Shift, J, Z or ' to shoot (watch the charge bar), or the left mouse button. Slash with Enter, K or X, or the right mouse button. Slash cuts carpshits up close and knocks paper back at whoever threw it; temps behind their desks need the blaster or their own paper. Jump for coffee and power-ups. M sound, F full screen, P or Escape pause.</span><span class="touch-only">Slide the thumb stick to move, flick it up to jump, hold it down to crouch. Hold Shoot to fire, but watch the charge bar. Slash cuts carpshits up close and knocks paper back at whoever threw it. Jump for coffee and power-ups.</span><span class="twin-only keys">Move with WASD and aim with the mouse: hold the left button to fire, right-click to slash. The arrow keys aim and fire; Shift, J, Z or ' fire where you move; Space, Enter, K or X slash. M sound, F full screen, P or Escape pause.</span><span class="twin-only touch">The left stick moves. Hold the right stick to aim and fire; flick it to slash.</span></p>
 </main>
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="../assets/stats.js?v=8e92b66a9a"></script>

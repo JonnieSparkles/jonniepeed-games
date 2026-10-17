@@ -82,3 +82,5 @@ The intro, the level-end cards and pause card, the end-of-game screen, what the 
 ## Captures
 
 From the pull request: [upright](title/upright.png) (360 × 780, a pick of Raging, 412 × 915 and a 768 × 1024 tablet), [sideways](title/sideways.png) (780 × 360, the start and end of the pan; the P in EMPIRE caught out), [desktop](title/desktop.png) (1280 × 800).
+
+**Fix (Oct 16):** coming back to the title (Quit, or the end of a run), its clock restarts, and so do the moments it measures from (the last pick, a press, a locked tap, the faces' blinks). Before, a pick from the last visit counted as seconds in the future, and the picked button's glow and fire grew huge over the others until the clock caught up.
