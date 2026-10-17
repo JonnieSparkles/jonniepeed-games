@@ -114,12 +114,15 @@ CAMPAIGN = {
     'bs-map': BS + "c.screens.map();",
     'bs-briefing': BS + "c.screens.map(); c.screens.briefing();",
     'barrage': BS + STEP + "c.startMission(); step(4); var l = spawnTrooper(330, 420, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); l.open = 1; step(0.6);",
-    # The set pieces and the requisition tree (round 5): Downed pilot with a blue chute coming over the mat, Hold the
+    # The set pieces and the requisition tree (round 5): First contact with no mat, Downed pilot's smoking blue plane
+    # with a fighter on its tail and the fighter firing at its pilot coming over the mat, Hold the
     # radio's mast with a lander at it, The officer jumping, HQ's supply plane in Supply drop, and the debrief's tree
     # after Boot Camp with the gold star.
     'banner': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(1);",
     'end-tour': CAMP + "c.screens.map(); document.querySelector('[data-act=new]').click();",
-    'pilot': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(9);",
+    'first-contact': CAMP + STEP + "t.tree = []; t.m = 0; t.squad = []; c.write(); c.startMission(); step(6);",
+    'chase': CAMP + STEP + "t.tree = []; t.m = 1; t.squad = []; c.write(); c.startMission(); step(6);",
+    'pilot': CAMP + STEP + "t.tree = []; t.m = 1; t.squad = []; c.write(); c.startMission(); step(11.5);",
     'radio': CAMP + STEP + "t.tree = []; t.m = 2; c.write(); c.startMission(); step(14);",
     'officer': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'the-officer'; c.write(); c.startMission(); step(8);",
     'supply': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'supply-drop'; c.write(); c.startMission(); for (var i = 0; i < 60 * 40 && !S.hq.length; i++) update(1 / 60); step(1.2);",

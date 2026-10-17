@@ -56,7 +56,8 @@ var StickArmyCampaign = function (world, game) {
   // there's nothing to buy with yet). `dummies`: the mission's share of straw dummies, if not its operation's.
   // `threats`: what the mission shows the squad, which later operations' intel can bring back (INTEL).
   var MISSIONS = {
-    'first-contact': { name: 'First contact', goal: { kind: 'survive' }, as: [1, 2], text: 'Survive two waves of planes.', shop: false, threats: ['low'],
+    // No trampoline yet (`noMats`): just you and the gun.
+    'first-contact': { name: 'First contact', goal: { kind: 'survive' }, as: [1, 2], text: 'No trampoline yet: just you and the gun. Survive two waves.', shop: false, noMats: true, threats: ['low'],
       recipe: function (c, n) { c.bombers = 0; c.planes = n === 1 ? 10 : 13; } },
     'fill-the-ranks': { name: 'Fill the ranks', goal: { kind: 'catch', n: 4 }, as: [2], text: 'Catch 4 before the planes stop coming.',
       recipe: function (c) { c.bombers = 0; c.planes = 26; c.maxDrops = 3; c.interval = 1.6; c.fall *= 0.75; } },
@@ -113,9 +114,9 @@ var StickArmyCampaign = function (world, game) {
   // thing on the page: pilots to catch, a mast to hold, HQ's supply planes, officers. The missions they replaced stay
   // above for saves from before.
   Object.assign(MISSIONS, {
-    'downed-pilot': { name: 'Downed pilot', goal: { kind: 'pilots', n: 3 }, as: [2], piece: 'pilot', threats: ['low'],
-      text: 'Four of our pilots are bailing out. Pop their blue chutes over the mat and catch 3.',
-      recipe: function (c) { c.bombers = 0; c.planes = 12; } },
+    'downed-pilot': { name: 'Downed pilot', goal: { kind: 'pilots', n: 3 }, as: [2], piece: 'pilot', hint: true, threats: ['bombers'],
+      text: 'Enemy fighters are shooting down our planes. Shoot each fighter before it gets the pilot, then catch him on the mat: he\'ll join your squad. Save 3.',
+      recipe: function (c) { c.noDrops = true; c.planes = 0; c.bombers = 3; c.rushes = 0; } },
     'hold-the-radio': { name: 'Hold the radio', goal: { kind: 'radio' }, as: [3], piece: 'radio', threats: ['snipers'],
       text: 'Keep the radio mast standing until the call to HQ goes through.',
       recipe: function (c) { c.planes = 30; c.bombers = 1; } },
@@ -224,7 +225,8 @@ var StickArmyCampaign = function (world, game) {
     return { sub: '' };
   }
   // The pause card's line: the mission, its goal and how it's going, and the weather.
-  function pauseLine(S) {
+  // only: just how it's going (the results card's line).
+  function pauseLine(S, only) {
     var M = MISSIONS[S.cm.mission], g = M.goal, k = S.cm.count, how;
     if (g.kind === 'catch') how = 'Caught ' + Math.min(k.caught, g.n) + ' of ' + g.n + (k.dummies ? ', ' + k.dummies + (k.dummies === 1 ? ' dummy' : ' dummies') : '') + '.';
     else if (g.kind === 'down') how = 'Downed ' + Math.min(k.planes, g.n) + ' of ' + g.n + '; ' + k.away + ' of ' + g.away + ' across.';
@@ -245,6 +247,7 @@ var StickArmyCampaign = function (world, game) {
     else if (g.kind === 'bombers') how = 'Downed ' + Math.min(k.bombers, g.n) + ' of ' + g.n + ' bombers.';
     else if (g.kind === 'balloons') how = 'Popped ' + Math.min(k.barrage + k.popped, g.n) + ' of ' + g.n + '.';
     else how = 'Wave ' + (S.cm.wi + 1) + ' of ' + S.cm.waves.length + '.';
+    if (only) return how;
     var w = S.cm.weather && S.cm.weather !== 'clear' ? ' ' + WEATHER[S.cm.weather].name + '.' : '', left = planesLeft(S);
     if (counted(g) && g.kind !== 'boss' && !M.piece && left != null && !met(S)) how += ' ' + left + (left === 1 ? ' plane' : ' planes') + ' still to come.';
     return M.name + ': ' + goalLine(M) + '. ' + how + w;
@@ -395,7 +398,9 @@ var StickArmyCampaign = function (world, game) {
     ['op', 'm', 'attempt', 'bank', 'nextId', 'opLosses', 'opDummies', 'opBalloons', 'opCrew', 'hired'].forEach(function (k) { if (Number.isFinite(o[k])) t[k] = o[k]; });
     if (typeof o.at === 'string') t.at = o.at;
     if (GUNS.indexOf(o.gun) >= 0) t.gun = o.gun;
-    t.tree = Array.isArray(o.tree) ? o.tree.filter(function (id) { return TREE_IDS.indexOf(id) >= 0; }) : null;
+    // A tour from before the tree gets one: a pick for each operation it has passed (it kept the whole shop until the
+    // round-5 playtest found the shop showing everything).
+    t.tree = Array.isArray(o.tree) ? o.tree.filter(function (id) { return TREE_IDS.indexOf(id) >= 0; }) : autoTree(Number(o.op) || 0);
     ['squad', 'fallen', 'gone', 'lasting'].forEach(function (k) { if (Array.isArray(o[k])) t[k] = o[k].map(function (s) { return typeof s === 'object' ? Object.assign({}, s) : s; }); });
     t.gear = o.gear && typeof o.gear === 'object' ? JSON.parse(JSON.stringify(o.gear)) : null;
     t.stars = o.stars && typeof o.stars === 'object' ? Object.assign({}, o.stars) : {};
@@ -532,7 +537,7 @@ var StickArmyCampaign = function (world, game) {
     }
     if (version >= 3) t.opBalloons = num();
     if (version >= 4) { t.gun = GUNS[byte()] || 'standard'; t.opCrew = num(); }
-    t.tree = null;
+    t.tree = autoTree(t.op);
     if (version >= 5) { var tm = num(); if (tm) { tm--; t.tree = TREE_IDS.filter(function (id, i) { return Math.floor(tm / Math.pow(2, i)) % 2; }); } }
     if (bad || p !== bytes.length - 1) return null;
     t.at = t.m >= t.missions.length ? 'end' : t.m > 0 ? 'between' : 'map';
@@ -594,7 +599,8 @@ var StickArmyCampaign = function (world, game) {
     if (S.recruits.some(function (r) { return r.type === 'radio'; }) && S.calls.bomber + S.calls.fighter < 2) { if (t.m % 2) S.calls.bomber++; else S.calls.fighter++; S.cm.freeCall = true; }
     // The gun picked at deploy (the armory).
     S.cm.gun = gunFor(t); S.turrets[0].heavy = S.cm.gun === 'heavy' || undefined;
-    S.mode = 'play'; S.hint = t.op === 0 && t.m === 0 && t.attempt === 0;
+    // The "pop his chute over the mat" hint: the mission that brings the trampoline (`hint`), the first time.
+    S.mode = 'play'; S.hint = !!M.hint && t.attempt === 0;
     statsRun = window.PlayStats ? PlayStats.start('stick-army', { progress: report }) : null;
     var sc = world.screens();
     sc.title.hidden = sc.pause.hidden = sc.over.hidden = sc.win.hidden = sc.shop.hidden = true;
@@ -719,7 +725,11 @@ var StickArmyCampaign = function (world, game) {
       if (t.state !== 'chute' || (world.S.mods.catcher && t.y > 475)) return false;
       return world.activeTramps().some(function (q) { return t.x > q.x1 + 4 && t.x < q.x2 - 4 && t.y < q.y - SPARE; });
     },
-    caught: function (t) { var S = world.S; if (S.cm && MISSIONS[S.cm.mission].goal.kind === 'boss') S.cm.count.crew++; },
+    caught: function (t) {
+      var S = world.S; if (!S.cm) return;
+      if (t.crew && MISSIONS[S.cm.mission].goal.kind === 'boss') S.cm.count.crew++;
+      var pc = PIECES[MISSIONS[S.cm.mission].piece]; if (pc && pc.caught) pc.caught(S, t);
+    },
     begin: function () { world.S.cm.wi++; },
     seedKey: function () { return world.S.cm.wi + 1; },
     next: function () { var S = world.S, n = S.cm.waves[S.cm.wi + 1]; return n == null ? S.wave + 1 : n; },
@@ -775,7 +785,8 @@ var StickArmyCampaign = function (world, game) {
     sells: function (it) { return it.id !== 'slot' && it.id !== 'bootcamp' && it.id !== 'elite' && onShelf(tour, it); },
     room: function () { return bunksUsed(world.S) < BARRACKS; },
     promotes: false,
-    quitLabel: 'Save and quit'
+    quitLabel: 'Save and quit',
+    noMats: function () { var S = world.S; return !!(S.cm && MISSIONS[S.cm.mission].noMats); }
   };
   var SPARE = 70;
   function goalLine(M) { return M.text.replace(/\.$/, '').toLowerCase(); }
@@ -823,7 +834,7 @@ var StickArmyCampaign = function (world, game) {
     if (t.deploy) t.deploy = t.deploy.filter(function (id) { return next.some(function (q) { return q.id === id; }); });
     t.nextId = Math.max(t.nextId, game.ids().next);
     var M = MISSIONS[t.missions[t.m]];
-    t.last = { won: true, mission: M.name, caught: S.stats.captured, planes: S.stats.planes, time: Math.round(S.played), fresh: fresh,
+    t.last = { won: true, mission: M.name, result: M.goal.kind === 'survive' ? 'Survived ' + (M.as.length > 1 ? 'all ' + M.as.length + ' waves.' : 'the wave.') : pauseLine(S, true), caught: S.stats.captured - (S.cm.count.pilots || 0), planes: S.stats.planes, time: Math.round(S.played), fresh: fresh,
       fell: t.fallen.filter(function (f) { return f.op === t.op && f.m === t.m; }).map(function (f) { return f.id; }), dummies: S.cm.count.dummies || 0 };
     endStats(true, 'won');
     S.cm.ended = true; world.emit('mission_end', { result: 'won' });
@@ -955,11 +966,29 @@ var StickArmyCampaign = function (world, game) {
   function matMid() { var m = world.activeTramps()[0]; return (m.x1 + m.x2) / 2; }
   function ring(G, x, y, r, color) { G.save(); G.setLineDash([6, 5]); G.lineWidth = 2; G.strokeStyle = color; G.beginPath(); G.arc(x, y, r, 0, Math.PI * 2); G.stroke(); G.restore(); }
   function waveTime(S, dt) { if (S.waveState === 'active') S.cm.pt = (S.cm.pt || 0) + dt; return S.cm.pt || 0; }
-  // Downed pilot: PILOT.AT seconds in (or sooner, once the wave's planes have all come), one of ours bails out high
-  // up beside the mat and drifts across it under a blue chute. Pop it over the mat and he bounces onto the bunker.
-  // Shot, splatted or landed anywhere else, he's lost; PILOT.LOSE lost and the mission fails. The squad and the sentry
-  // hold fire on him (spare), and falling planes miss him (t.prize).
-  var PILOT = { AT: [4, 16, 28, 40], Y: 250, LOW: 480, DRIFT: [14, 18, 11, 16], LOSE: 2 };
+  // Downed pilot (Boot Camp's second mission, where the trampoline arrives): PILOT.BAILS blue planes of ours cross,
+  // one every PILOT.EVERY seconds from the mat's far side, already hit and smoking, each with an enemy fighter sitting
+  // PILOT.GAP behind it. Ours goes down PILOT.BAIL px short of the mat (at least PILOT.EDGE in from the page's edge)
+  // whatever you do, and its pilot bails out, falling clear for PILOT.FREE seconds before his blue chute opens, then
+  // drifting to be over the mat about PILOT.LOW px down, where he stays. The fighter goes for him: within PILOT.NEAR it
+  // pulls up PILOT.SIDE px beside him on the turret's side (so a shot at it misses him) and fires, and PILOT.STRAFE
+  // seconds of that hit him. Shoot the fighter, then catch him: he joins the squad. Hit, splatted or landed, he's lost,
+  // and PILOT.LOSE lost fails it. No round, blast or falling plane hurts a pilot (the turret can only pop his chute),
+  // and the squad and the sentry don't aim at one (spare).
+  var PILOT = { FIRST: 3, EVERY: 8, Y: [200, 160, 230, 180], SPEED: 55, CHASE: 1.25, GAP: 72, BAIL: 60, EDGE: 40, NEAR: 90, SIDE: 64, STRAFE: 2.2, FREE: 0.7, LOW: 480, BAILS: 4, LOSE: 2 };
+  function bail(S, b, why) {
+    var c = S.cm, mid = matMid();
+    b.state = 'fall'; b.vy = 0; c.bailed++;
+    world.addText(why, b.x, b.y - 24, why === 'friendly fire!' ? world.RED : world.INK, 20, 'minor'); world.sound.play('boom');
+    world.burst(b.x, b.y, 8, world.INK, 140);
+    var p = world.spawnTrooper(b.x, b.y + 22, { type: 'rifle', fall: 0.95, sway: 0, armor: 0 });
+    p.pilot = true; p.ff = PILOT.FREE;
+    p.drift = Math.max(-40, Math.min(40, (mid - p.x) / Math.max(1, (PILOT.LOW - p.y - PILOT.FREE * 180) / p.fall)));
+    (c.pilotIds = c.pilotIds || []).push(p.id);
+    b.pilot = p.id;
+    world.addText('pilot bailing out!', p.x, p.y - 40, BLUE, 20, 'story');
+  }
+  function chaserOf(S, b) { return S.planes.find(function (p) { return p.id === b.chaser && p.state === 'fly'; }); }
   // Hold the radio: a mast between the mat and the bunker; landers walking past stop and wreck it (MAST.HURT a
   // second each). The call to HQ takes RADIO_CALL.NEED seconds of mast standing; then an air strike comes in.
   var MAST = { HURT: 9, HP: 100 }, RADIO_CALL = { NEED: 45 };
@@ -970,40 +999,97 @@ var StickArmyCampaign = function (world, game) {
   var PIECES = {
     pilot: {
       tick: function (S, dt) {
-        var c = S.cm, k = c.count, t = waveTime(S, dt), sp = S.spawn;
-        c.pilotsOut = c.pilotsOut || 0;
-        var due = c.pilotsOut < PILOT.AT.length && (t >= PILOT.AT[c.pilotsOut] || (sp && sp.planes + sp.bombers === 0 && !S.troopers.some(function (q) { return q.pilot && !q.dead; })));
-        if (due && S.waveState === 'active') {
-          // From the bunker's side of the mat, drifting out over it, timed to be over its middle about PILOT.LOW px up.
-          var mid = matMid(), out = mid < world.BK.x ? -1 : 1, drift = PILOT.DRIFT[c.pilotsOut % PILOT.DRIFT.length];
-          var p = world.spawnTrooper(mid, PILOT.Y, { type: 'rifle', fall: 0.95, sway: 0, armor: 0 });
-          p.x = mid - out * drift * (PILOT.LOW - PILOT.Y) / p.fall;
-          p.pilot = true; p.prize = true; p.drift = out * drift;
-          (c.pilotIds = c.pilotIds || []).push(p.id);
-          var x = p.x;
-          c.pilotsOut++;
-          world.burst(x, PILOT.Y - 30, 8, world.INK, 140); world.puff(x, PILOT.Y - 30, 10, 1);
-          world.addText('pilot bailing out!', x, PILOT.Y - 46, BLUE, 22, 'story');
-          world.sound.play('radio');
+        var c = S.cm, k = c.count, t = waveTime(S, dt);
+        c.blues = c.blues || []; c.bailed = c.bailed || 0; c.settled = c.settled || {};
+        if (!c.toldMat) { c.toldMat = true; world.addText('HQ sent you a trampoline!', 200, 470, BLUE, 22, 'story'); }
+        // Our planes: one every PILOT.EVERY seconds, PILOT.BAILS in all.
+        if (S.waveState === 'active' && (c.bluesOut || 0) < PILOT.BAILS && t >= (c.nextBlue == null ? PILOT.FIRST : c.nextBlue)) {
+          // From the far side of the mat, so its fighter stays between the pilot and the turret, never past him.
+          var n = c.bluesOut = (c.bluesOut || 0) + 1, dir = matMid() < world.W / 2 ? -1 : 1, y = PILOT.Y[n % PILOT.Y.length], x0 = dir > 0 ? -40 : world.W + 40;
+          // It goes down PILOT.BAIL short of the mat, so its pilot drifts the rest of the way (never past the page's edges).
+          var bailX = Math.max(PILOT.EDGE, Math.min(world.W - PILOT.EDGE, matMid() - dir * PILOT.BAIL));
+          c.blues.push({ id: world.id(), x: x0, x0: x0, bailX: bailX, y: y, dir: dir, state: 'fly', vy: 0, chaser: null, pilot: null });
+          c.nextBlue = t + PILOT.EVERY;
         }
-        // Each pilot out until he's settled (c.settled, by id): saved on the bunker (rescue), or lost: landed, or gone
-        // from the field any other way (shot, splatted; the dead leave S.troopers).
-        c.settled = c.settled || {};
+        c.blues.forEach(function (b) {
+          b.firing = false; b.strafing = false;
+          if (b.gone) return fighterHunts(S, b);
+          if ((b.smoke = (b.smoke || 0) - dt) <= 0) { b.smoke = b.state === 'fall' ? 0.07 : 0.16; world.puff(b.x - b.dir * 18, b.y, 4, 0.7); }
+          var f = chaserOf(S, b);
+          // Its fighter comes in at the edge just behind it (a plane further out would be off the page), drops back to
+          // PILOT.GAP and sits on its tail.
+          if (b.chaser == null) {
+            f = world.makePlane('plane', b.dir, b.x0 - b.dir * 45, b.y);
+            f.speed = PILOT.SPEED * PILOT.CHASE; f.chases = b.id; b.chaser = f.id;
+            S.planes.push(f);
+          }
+          if (f && b.state === 'fly') { var gap = (b.x - f.x) * b.dir; f.speed = PILOT.SPEED * (gap > PILOT.GAP + 8 ? PILOT.CHASE : gap < PILOT.GAP - 8 ? 0.8 : 1); }
+          if (b.state === 'fall') {
+            b.vy += 220 * dt; b.y += b.vy * dt; b.x += b.dir * PILOT.SPEED * 0.5 * dt;
+            if (b.y >= world.GROUND - 10) { b.gone = true; world.pow(b.x, world.GROUND - 10, 30); world.sound.play('boom'); }
+          } else {
+            b.x += b.dir * PILOT.SPEED * dt;
+            b.firing = !!f && (b.x - f.x) * b.dir > 0;
+            if ((b.x - b.bailX) * b.dir >= 0) bail(S, b, 'shot down!');
+          }
+          fighterHunts(S, b);
+        });
+        function fighterHunts(S, b) {
+          // The fighter goes for the pilot: near him, it pulls up beside him and fires.
+          var f = chaserOf(S, b), q = b.pilot != null && !c.settled[b.pilot] && S.troopers.find(function (x) { return x.id === b.pilot && !x.dead && x.state === 'chute'; });
+          if (f) {
+            if (q && Math.abs(q.x - f.x) < PILOT.NEAR) {
+              // It holds beside him on the turret's side, so a shot at it doesn't pass through him.
+              var at = q.x + (q.x < world.W / 2 ? 1 : -1) * PILOT.SIDE;
+              f.speed = 0; f.x += Math.max(-70 * dt, Math.min(70 * dt, at - f.x));
+              b.strafing = Math.abs(at - f.x) < 12 && !(q.ff > 0); if (b.strafing) f.strafe = (f.strafe || 0) + dt;
+              if (f.strafe >= PILOT.STRAFE) {
+                q.dead = true; world.burst(q.x, q.y + 14, 8, BLUE, 120); world.sound.play('hit');
+                world.addText('pilot hit!', q.x, q.y - 20, world.RED, 22, 'alert'); world.emit('pilot_lost', { how: 'hit' });
+              }
+            } else if (b.state !== 'fly') f.speed = PILOT.SPEED * PILOT.CHASE;
+          }
+        }
+        // A blue plane's record stays while its pilot is out, so its fighter keeps after him.
+        c.blues = c.blues.filter(function (b) { return !b.gone || (b.pilot != null && !c.settled[b.pilot]); });
+        // Each pilot out until he's settled: caught (he joins the squad), or lost: landed off the mat, or gone (hit by
+        // the fighter, splatted, shot by your turret; the dead leave S.troopers).
         (c.pilotIds || []).forEach(function (id) {
           if (c.settled[id]) return;
           var q = S.troopers.find(function (x) { return x.id === id; });
-          if (q && !q.dead && q.state === 'chute') q.x += q.drift * dt;
-          if (q && !q.dead && q.state === 'ground') { q.dead = true; world.addText('pilot captured!', q.x, world.GROUND - 60, world.RED, 24, 'alert'); }
-          if (!q || q.dead) { c.settled[id] = 'lost'; k.pilotsLost++; }
+          // He falls clear of the planes for PILOT.FREE seconds before his chute opens, then drifts toward the mat.
+          if (q && !q.dead && q.state === 'chute' && q.ff > 0) { q.ff -= dt; q.open = 0; q.y += 85 * dt; }
+          else if (q && !q.dead && q.state === 'chute') { var mid = matMid(); q.x += q.drift * dt; if ((q.x - mid) * q.drift >= 0) { q.x = q.drift ? mid : q.x; q.drift = 0; } }
+          if (q && !q.dead && q.state === 'ground') { q.dead = true; world.addText('pilot captured!', q.x, world.GROUND - 60, world.RED, 24, 'alert'); world.emit('pilot_lost', { how: 'landed' }); }
+          if (!q || (q.dead && !c.settled[id])) { if (!q || q.state !== 'bounce') { c.settled[id] = 'lost'; k.pilotsLost++; } }
         });
       },
-      held: function (S) { return (S.cm.pilotsOut || 0) < PILOT.AT.length || S.troopers.some(function (q) { return q.pilot && !q.dead; }); },
-      rescue: function (S, q) {
-        q.dead = true; (S.cm.settled = S.cm.settled || {})[q.id] = 'saved'; S.cm.count.pilots++;
-        world.award(50, q.x, world.GROUND - 70, 'pilot safe!', BLUE, true);
-        world.sound.play('recruit');
+      // A round from your turret into one of ours brings it down too: its pilot still bails out.
+      shot: function (S, bl) {
+        if (bl.owner !== 'player') return false;
+        var b = (S.cm.blues || []).find(function (q) { return q.state === 'fly' && Math.abs(bl.x - q.x) < 30 && Math.abs(bl.y - q.y) < 11; });
+        if (!b) return false;
+        bl.dead = true; bail(S, b, 'friendly fire!');
+        return true;
       },
+      caught: function (S, q) {
+        if (!q.pilot) return;
+        S.cm.settled[q.id] = 'saved'; S.cm.count.pilots++;
+        world.addText('pilot safe! he joins up', q.x, world.GROUND - 80, BLUE, 22, 'story');
+      },
+      held: function (S) { var c = S.cm; return (c.bailed || 0) < PILOT.BAILS && !met(S) || S.troopers.some(function (q) { return q.pilot && !q.dead; }); },
+      targets: function (S) { return S.planes.filter(function (p) { return p.chases && p.state === 'fly' && p.x > 20 && p.x < world.W - 20; }).map(function (p) { return { id: p.id, x: p.x, y: p.y, vx: p.vx || p.dir * p.speed, rank: 420 }; }); },
+      friends: function (S) { return (S.cm.blues || []).filter(function (b) { return b.state === 'fly'; }).map(function (b) { return { x: b.x, y: b.y, vx: b.dir * PILOT.SPEED, hw: 30, hh: 12 }; }); },
       draw: function (S, G) {
+        (S.cm.blues || []).forEach(function (b) {
+          // Ours: the fighter's blue body, nose down once it's going down.
+          if (!b.gone) world.drawAllyPlane(b.id, b.x, b.y, b.dir, b.state === 'fall' ? 0.5 : 0);
+          var f = chaserOf(S, b), q = b.strafing && S.troopers.find(function (x) { return x.id === b.pilot; });
+          if (f && (b.firing || q) && Math.floor(S.t * 12) % 2) {
+            G.save(); G.setLineDash([4, 5]); G.strokeStyle = world.RED; G.lineWidth = 1.6; G.beginPath(); G.moveTo(f.x + f.dir * 20, f.y + 4);
+            if (q) G.lineTo(q.x, q.y - 4); else G.lineTo(b.x - b.dir * 22, b.y); G.stroke(); G.restore();
+          }
+        });
         S.troopers.forEach(function (q) { if (q.pilot && !q.dead && q.state === 'chute') ring(G, q.x, q.y - 10, 34, BLUE); });
       }
     },

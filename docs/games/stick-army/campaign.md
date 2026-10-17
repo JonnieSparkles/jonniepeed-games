@@ -2,7 +2,7 @@
 
 A second way to play beside Arcade: a tour of ten operations with one squad you keep, and can lose. Each operation is a few short missions, each with its own goal, on its own paper. Operations ship one at a time as release packs.
 
-Status: planned (Oct 15–16). Round 1, the frame and Boot Camp, built Oct 16; round 2, Recruitment Drive, built Oct 16; round 3, Balloon Season, built Oct 16; round 4, First Zeppelin, built Oct 17; then, after a playtest, Boot Camp and Recruitment Drive reworked with set-piece missions and the shop made to build up with a requisition tree (Oct 17); Balloon Season and First Zeppelin reworked the same way (Oct 17) (the game as it is now is in [README.md](README.md#campaign)). Playtests are next. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
+Status: planned (Oct 15–16). Round 1, the frame and Boot Camp, built Oct 16; round 2, Recruitment Drive, built Oct 16; round 3, Balloon Season, built Oct 16; round 4, First Zeppelin, built Oct 17; then, after a playtest, Boot Camp and Recruitment Drive reworked with set-piece missions and the shop made to build up with a requisition tree (Oct 17); Balloon Season and First Zeppelin reworked the same way (Oct 17); after the next playtest, Boot Camp's first two missions reworked (First contact with no trampoline, Downed pilot a dogfight whose pilots join the squad) and the shop's gating fixed for older tours (Oct 17); the flow between waves, missions and operations is to be redesigned next (see below) (the game as it is now is in [README.md](README.md#campaign)). Playtests are next. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
 
 ## Why
 
@@ -69,6 +69,11 @@ What lives where:
   3. **The map:** the notebook page, where you choose at a fork.
   4. **Briefing:** a post-it with the operation's paper, weather, intel and bonus goal.
   5. **Deploy:** who goes (and which gun, once there's more than one).
+- **Redesign (Oct 17 playtest, to build):** the map is the hub and the results card loses its links (Shop, Swap, Barracks, Copy save link, Map).
+  - Between waves: no shop, a quick pick from 3–4 offers suited to the last wave and the squad.
+  - Between missions: the results card with one Go, then the map zoomed into the operation (done missions read-only, only the next one live), then a prep screen (the squad and a few affordable items), then Start. Forward only, no replays.
+  - Between operations: the map zoomed out, with the full shop, the tree and **Squad** (Swap and Barracks merged).
+  - Copy save link moves to the pause card. New shop items get a "new" tag. Only soldiers who deployed are promoted, shown on the results card.
 - **The map** is the tour on one notebook page: released operations inked, the rest pencilled with "coming soon", Enemy HQ's flag moving ahead of you.
 
 ### The squad

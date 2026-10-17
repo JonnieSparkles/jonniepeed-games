@@ -436,7 +436,8 @@
   //   held()            true: the wave isn't over yet, though its enemies are (Campaign's set pieces still to come)
   //   rescue(t)         a prize (t.prize) caught on a mat; walk(t, dt) true: the kind of run moved this lander itself
   //   spare(t)          true: the squad and the sentry leave this trooper alone (Campaign: chutes over a mat)
-  //   caught(t)         a zeppelin's bailed crewman caught (t.crew), on the field or in a bunk
+  //   caught(t)         a soldier caught, on the field or in a bunk (Campaign: a zeppelin's crew, a downed pilot)
+  //   noMats()          true: no mats on the page (Campaign's first mission)
   //   drawSky(G)        draws the kind of run's own things in the sky, behind the aircraft
   //   shot(b)           a bullet's own targets, before the planes (true: it's spent); tick(dt) every frame of the field
   var MODES = {
@@ -667,12 +668,13 @@
   function pickDropX(rnd) {
     // A little more drops over the mats each wave, so catches don't dry up as the sky gets busier.
     var tr = activeTramps(), chance = Math.min(0.3, BALANCE.DROP_CHANCE + 0.012 * Math.max(0, (S.wave || 1) - 1));
-    if (rnd() < chance) { var mat = tr[Math.floor(rnd() * tr.length)]; return between(rnd, mat.x1 + 12, mat.x2 - 12); }
+    if (rnd() < chance && tr.length) { var mat = tr[Math.floor(rnd() * tr.length)]; return between(rnd, mat.x1 + 12, mat.x2 - 12); }
     // The remaining drops avoid mats, preserving the configured opportunity rate (mirrored when the first mat is on the right).
     var x = rnd() < 0.5 ? between(rnd, 106, 146) : (S.mods.secondTramp ? between(rnd, 254, 294) : between(rnd, 254, 382));
     return S.matRight ? W - x : x;
   }
-  function activeTramps() { return S.mods.secondTramp ? TRAMPS : [TRAMPS[0]]; }
+  // A kind of run can take the mats away (Campaign's first mission, MODES noMats).
+  function activeTramps() { var rl = rules(); if (rl.noMats && rl.noMats()) return []; return S.mods.secondTramp ? TRAMPS : [TRAMPS[0]]; }
   function unlockedSlots() { return SLOT_ORDER.slice(0, S.mods.slots); }
 
   function spawnPlane(kind, src) {
@@ -688,6 +690,8 @@
       for (var i = 0; i < n; i++) p.drops.push(pickDropX(rnd));
       p.drops.sort(function (a, b) { return dir * (a - b); });
       p.kits = p.drops.map(function () { return rollTrooper(rnd); });
+      // A kind of run's wave with no paratroopers (Campaign's Downed pilot, c.noDrops): the rolls are made all the same.
+      if (c.noDrops) { p.drops = []; p.kits = []; }
     } else {
       // A spaced string covering both trenches, one crew position and the wall.
       var targets = [];
@@ -959,6 +963,7 @@
     STRIKE = UNITS.STRIKE, callStrike = function () { return COOP && COOP.guest ? COOP.ask('call', 'bomber') : UNITS.callStrike(); }, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
     FIGHTER = UNITS.FIGHTER, callFighter = function () { return COOP && COOP.guest ? COOP.ask('call', 'fighter') : UNITS.callFighter(); }, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio, updateDelivery = UNITS.updateDelivery, drawCourier = UNITS.drawCourier;
+  world.drawAllyPlane = UNITS.drawAllyPlane;
   // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
   world.gainTags = function (n, split) { gainTags(n, split); }; world.takeTags = function (n) { return takeTags(n); };
   world.spendTags = function (n, by) { spendTags(n, by); };
@@ -1205,7 +1210,7 @@
       burst(r.x, GROUND - 20, 8, BLUE, 140);
       S.stats.captured++;
       emit('capture', { type: t.type, slot: t.slot });
-      if (t.crew && rules().caught) rules().caught(t);
+      if (rules().caught) rules().caught(t);
       var label = t.type === 'engineer' ? 'engineer joined!' : t.type === 'bazooka' ? 'bazooka joined!' : 'recruit!';
       award(25, r.x, GROUND - 64, label, BLUE, true);
       sound.play('recruit'); world.say('ready!', r.id, false, 0.15);
@@ -1213,7 +1218,7 @@
       S.hint = false;
     } else if (rules().bench && rules().bench(t)) {
       // Campaign: no free slot on the field, but a free bunk in the barracks (campaign.js).
-      if (t.crew && rules().caught) rules().caught(t);
+      if (rules().caught) rules().caught(t);
       S.hint = false;
     } else {
       emit('capture', { type: t.type, full: true });
@@ -1284,7 +1289,8 @@
     var col = kind === 'rocket' || kind === 'strike' ? BLUE : INK;
     // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
     S.troopers.forEach(function (t) {
-      if (kind !== 'flak' && !t.dead && t.state !== 'bounce' && !(t.captain && owner !== 'player') && Math.hypot(t.x - x, t.y + 14 - y) < r) {
+      // Campaign's downed pilot (t.pilot) is one of ours: blasts never hurt him.
+      if (kind !== 'flak' && !t.dead && !t.pilot && t.state !== 'bounce' && !(t.captain && owner !== 'player') && Math.hypot(t.x - x, t.y + 14 - y) < r) {
         t.dead = true; killFx(t, kind === 'bomb' || kind === 'crash' ? 320 : 240); S.stats.kills++; if (kind === 'rocket') credit();
         emit('kill', { by: kind === 'crash' ? 'crash' : kind === 'strike' ? 'strike' : 'explosion', source: kind, type: t.type });
         award(10, t.x, t.y - 4, 'boom!', col, true);
@@ -1363,9 +1369,12 @@
     for (i = 0; i < S.troopers.length; i++) {
       t = S.troopers[i];
       if (t.dead || t.state === 'bounce' || seen.indexOf(t.id) >= 0) continue;
+      // Only your turret's rounds can hit a downed pilot (Campaign); the squad's pass him by.
+      // Campaign's downed pilots: rounds pass them by; only the turret can pop a pilot's chute.
+      if (t.pilot && b.owner !== 'player') continue;
       // Snipers sit at the edges, mostly beyond the barrel's dip; a shot that does reach one counts.
       // Rockets explode on contact; flak only bursts near aircraft and bombs, so a direct hit is a plain bullet.
-      if (Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
+      if (!t.pilot && Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
         if (b.kind === 'rocket' && projectileBurst(b)) return;
         if (t.armor > 0 && !b.heavy) armorHit(t, b.owner); else killTrooper(t, b.owner);
         consumeBullet(b, t);
@@ -1543,7 +1552,7 @@
         if (p.smoke <= 0) { p.smoke = busy() ? 0.14 : 0.07; puff(p.x - p.dir * 18, p.y - 4, 4, 0.7); }
         S.troopers.forEach(function (t) {
           // A falling plane misses Campaign's prizes (t.prize: a pilot, an officer), so a crash never decides a mission.
-          if (!t.dead && !t.prize && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
+          if (!t.dead && !t.prize && !t.pilot && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
             t.dead = true; killFx(t); S.stats.kills++;
             emit('kill', { by: 'crash', type: t.type });
             award(10, t.x, t.y, 'bonk!', INK, true);

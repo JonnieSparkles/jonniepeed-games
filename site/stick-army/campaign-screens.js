@@ -144,7 +144,8 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     var t = camp.tour(), op = camp.op(), last = t.last || {}, M = camp.MISSIONS[t.missions[t.m]], fell = names(last.fell || []);
     card('<p class="c-eyebrow">' + esc(op.name) + ' · ' + t.m + ' of ' + t.missions.length + ' done</p>' +
       '<h2>Mission <span class="pen">won</span></h2>' +
-      (last.mission ? '<p class="tag">' + esc(last.mission) + ': ' + last.caught + ' caught, ' + last.planes + ' planes down' + (last.dummies ? ', ' + last.dummies + (last.dummies === 1 ? ' dummy' : ' dummies') + ' caught' : '') + '.</p>' : '') +
+      // The mission's own result ("3 of 3 pilots safe."), then what else happened, if anything.
+      (last.mission ? '<p class="tag">' + esc(last.mission) + ': ' + esc(last.result || '') + [last.caught ? last.caught + ' caught' : '', last.planes ? last.planes + ' planes down' : '', last.dummies ? last.dummies + (last.dummies === 1 ? ' dummy' : ' dummies') + ' caught' : ''].filter(Boolean).map(function (x, i) { return (i ? ', ' : ' ') + x; }).join('') + (last.caught || last.planes || last.dummies ? '.' : '') + '</p>' : '') +
       '<div id="cFigs"></div>' +
       (fell.length ? '<p class="tag" style="color:var(--enemy)">Fallen: ' + esc(fell.join(', ')) + '.</p>' : '') +
       '<div class="c-next"><p class="c-small">Next · mission ' + (t.m + 1) + ' of ' + t.missions.length + '</p><p class="tag" style="color:var(--ink)"><b>' + esc(M.name) + '</b>: ' + esc(M.text) + '</p></div>' +
