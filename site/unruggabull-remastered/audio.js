@@ -200,6 +200,8 @@ window.UnrugSound = (function () {
   function rampParam(p, to, secs, at) { const now = T(at); p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); p.exponentialRampToValueAtTime(Math.max(0.0001, to), now + secs); }
   function linParam(p, to, secs, at) { const now = T(at); p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); p.linearRampToValueAtTime(to, now + secs); }
   // the fire's crackle and low roar, a bed under the alley: pops scheduled a little ahead on the audio clock
+  // BED scales it all: it sat too loud on phones and desktops at 1 (Jonnie, Oct 17), so about 7 dB down
+  const BED = 0.45;
   const bed = { a: null, b: null, level: 0, next: 0, timer: 0 };
   function crackle(level, secs) {
     if (!ctx) return;
@@ -212,14 +214,14 @@ window.UnrugSound = (function () {
       };
       bed.a = mk('bandpass', 2600, 0.6); bed.b = mk('lowpass', 140, 0.7);
     }
-    if (bed.a) { linParam(bed.a.gain, 0.012 * level, secs || 0.5); linParam(bed.b.gain, 0.05 * level, secs || 0.5); }
+    if (bed.a) { linParam(bed.a.gain, 0.012 * BED * level, secs || 0.5); linParam(bed.b.gain, 0.05 * BED * level, secs || 0.5); }
     if (!bed.timer && level > 0) {
       bed.next = ctx.currentTime;
       bed.timer = setInterval(() => {
         if (ctx.state !== 'running' || bed.level <= 0) return;
         while (bed.next < ctx.currentTime + 0.15) {
           bed.next = Math.max(bed.next, ctx.currentTime) + 0.03 + Math.random() * 0.14;
-          hiss(bed.next - ctx.currentTime, 0.006 + Math.random() * 0.014, (0.04 + Math.random() * 0.18) * bed.level, { type: 'highpass', freq: 1200 + Math.random() * 2500 });
+          hiss(bed.next - ctx.currentTime, 0.006 + Math.random() * 0.014, (0.04 + Math.random() * 0.18) * BED * bed.level, { type: 'highpass', freq: 1200 + Math.random() * 2500 });
         }
       }, 50);
     }

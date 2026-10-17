@@ -29,7 +29,8 @@ The hit-stops and the slow motion hold the game clock, so they don't count in a 
 
 - **Keyboard:** A/D or the arrows walk, W, Space or Up jumps (held, it keeps jumping, as in 2025), S, C or Down crouches, F, J or Enter fires. Escape or P pauses. On the title, W/S or Up/Down move the blaster and Enter picks; in the gallery, A/D or Left/Right turn the pictures.
 - **Touch:** a d-pad on the left (left/right walk, up and the up-diagonals jump, and held keep jumping like a held jump key, down crouches; a press up just before landing still jumps when he lands), and the whole right half of the screen fires, one shot per tap. The Fire button marks where the thumb goes. The pause button is top right; Pause has Resume, Quit, Sound and Full screen.
-- The touch controls show on touch screens, and from the first touch on any other screen.
+- The touch controls show on touch screens and from a touch on any other screen, and the last input decides: a key press (not a held key's repeats) hides them, a touch brings them back, as in Unruggabull II.
+- In the game, a full screen toggle sits left of the pause button (four corners out, or in when full screen), where the browser can do full screen.
 
 ## Screen
 
@@ -55,7 +56,7 @@ The 2025 game's files, all of them, plus a sound pass (`audio.js`; heard first o
 
 - **The mix:** music runs through its own filter and level, game sounds through a muffle, menu sounds straight out. Every voice line is levelled to one loudness (the files were recorded about 23 dB apart, from "do do do" to his "ow"), and the music ducks under every line, the bull's and the Rugfather's.
 - **Menus** (silent in 2025): a small zap moving through the title menu, the blaster's own shot (pitched up) for a pick, a falling zap for closing a card, a short swoosh for a gallery picture, ticks on the initials as they change, a chime when your row lands on the board, ticks for the end card's numbers, and a pick for Retry, Title and Quit. Pausing muffles everything for a moment before it stops, with a pick going in and a back coming out. The title music fades in, and fades out under "Let's go!" instead of stopping dead.
-- **The waves:** each blaster shot, jump grunt and carpshit death a few percent higher or lower (the jump grunt stays at its 2025 level, not levelled up with the lines: louder was too much on a phone); carpshit deaths heard from where they were on screen; a quiet crackle and roar from the burning sign under the whole run; a rising whoosh with a swooper's warning; a short sting with each wave; a thud and a muffled dip in the music when the bull is hit; a soft tap when he lands; a slow heartbeat at 4 hearts or fewer. Out of shots: the 2025 buzz, behind a trigger click, quieter and sagging in pitch as it fades, each press cutting the last.
+- **The waves:** each blaster shot, jump grunt and carpshit death a few percent higher or lower (the jump grunt stays at its 2025 level, not levelled up with the lines: louder was too much on a phone); carpshit deaths heard from where they were on screen; a quiet crackle and roar from the burning sign under the whole run (turned down about 7 dB on Oct 17: it came through too much); a rising whoosh with a swooper's warning; a short sting with each wave; a thud and a muffled dip in the music when the bull is hit; a soft tap when he lands; a slow heartbeat at 4 hearts or fewer. Out of shots: the 2025 buzz, behind a trigger click, quieter and sagging in pitch as it fades, each press cutting the last.
 - **The Rugfather:** a rumble under the garage door and the crackle swelling as it opens; a thud on each hit, and his "ouch" and "ow" (in the 2025 files, never played there) on every fifth; at a phase change the music sinks into the pause with a hiss and rises out of it (still 1.5× and 2× after, as in 2025); a heavy thump when the spin-jump lands; a tick when a carpet takes its first shot and a sizzle when it goes out; on the last hit a boom, his "ow" pitched down, and the music slowing and muffling through the slow motion.
 - **The end of a run:** rugged, the music winds down and muffles to a stop under "game over"; a clear gets a short fanfare.
 
@@ -91,6 +92,7 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
+- **Oct 17, 2026:** the touch controls follow the last input (a key hides them, as in Unruggabull II); a full screen toggle by pause; the crackle about 7 dB quieter; shadows under the bull all through the intro and defeat scenes, and under the Rugfather as he comes out of the garage.
 - **Oct 16, 2026:** play stats add shots, hits and ran_dry; the jump grunt back down to its 2025 level.
 - **Oct 16, 2026:** listed on Side A, play stats switched on, in place of the 2025 game's card (which linked out to unruggabull.ar.io), and no longer noindexed.
 - **Oct 16, 2026:** the run timer with splits against the device's fastest clear, and medals on the end card and the board (`ran_dry` added to the board). From the first plays: holding up on the pad keeps jumping (it was once per press); the garage's embers stop once the Rugfather is out, sparks instead of smoke round his spin, a lighter white on hits and the defeat, and Quit on the game-over card.

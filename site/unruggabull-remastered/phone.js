@@ -4,14 +4,16 @@
   const $ = id => document.getElementById(id);
   const stage = $('stage'), cv = $('gameCanvas'), hud = $('hud'), hctx = hud.getContext('2d');
   const titleEl = $('title');
-  const pauseBtn = $('pause-btn'), pauseCard = $('pause'), fsBtn = $('fs-btn'), fs2Btn = $('fs2-btn');
+  const pauseBtn = $('pause-btn'), pauseCard = $('pause'), fsBtn = $('fs-btn'), fs2Btn = $('fs2-btn'), fs3Btn = $('fs3-btn');
   const soundBtn = $('sound-btn'), rotateEl = $('rotate'), rotateArt = $('rotate-art');
   const coarse = matchMedia('(pointer: coarse)');
 
   // ---------- touch or keyboard ----------
   // The touch controls show on touch screens, and from the first touch on anything else.
+  // The last input decides: a key press (not a held key's repeats) hides them again, as in Unruggabull II.
   let touchMode = coarse.matches;
   window.usingTouch = () => touchMode;
+  addEventListener('keydown', e => { if (!e.repeat) touchMode = false; }, { capture: true, passive: true });
 
   // ---------- layout ----------
   // Full height, as in 2025: the alley keeps its 16:9 and the window's extra width becomes dark bars, where the
@@ -232,10 +234,13 @@
   function showFull() {
     const on = isFull();
     for (const b of [fsBtn, fs2Btn]) { b.textContent = on ? 'Exit full screen' : 'Full screen'; b.setAttribute('aria-pressed', String(on)); }
+    fs3Btn.setAttribute('aria-pressed', String(on)); fs3Btn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    fs3Btn.querySelector('.out').toggleAttribute('hidden', on); fs3Btn.querySelector('.in').toggleAttribute('hidden', !on);
     setTimeout(layout, 60);
   }
   fsBtn.addEventListener('click', toggleFull);
   fs2Btn.addEventListener('click', toggleFull);
+  fs3Btn.addEventListener('click', e => { toggleFull(); fs3Btn.blur(); });
   document.addEventListener('fullscreenchange', showFull);
   document.addEventListener('webkitfullscreenchange', showFull);
   if (!canFull) { fsBtn.hidden = true; fs2Btn.hidden = true; }
@@ -274,6 +279,7 @@
     hctx.clearRect(0, 0, W, H);
     const playing = inGame() && !gamePaused && PAUSABLE.includes(gameState);
     pauseBtn.hidden = !(inGame() && PAUSABLE.includes(gameState)) || gamePaused;
+    fs3Btn.hidden = pauseBtn.hidden || !canFull;
     if (UnrugTitle.visible()) UnrugTitle.draw(t);
     else if (gx > 1 || gy > 1) drawBars();
     if (touchMode && playing && gameState !== 'controls') drawControls();
