@@ -1,0 +1,5 @@
+{"page": "stick-army/", "viewport": [600, 1080], "scale": 2, "fps": 30, "hook": "loop",
+ "script": "stick-army/game.js", "inject_before": "  start();", "director": "director.js", "css": "trailer.css",
+ "settle_ms": 1500, "audio": {"live": true},
+ "scripts": {"bot": "../bot.js", "balance": "../balance.js", "profiles": "../../../tools/balance/profiles.json"},
+ "quiet_marks": ["ev:capture", "ev:chute_pop", "ev:plane_down", "ev:rip", "ev:crush", "ev:recruit_", "ev:rank_up", "ev:dive", "ev:rope", "ev:purchase", "ev:shop_offer", "ev:refund"]}

@@ -329,6 +329,15 @@ Each run reports to [play stats](../../guides/03-play-stats.md) from `newGame` a
 
 **Campaign** (`campaign.js` `report`): each mission is a run of its own, with no board or token, started at the mission's start (or a restored wave save) and ended on its card. Its `stats` are `campaign` (true), `operation` and `mission` (their ids, such as `boot-camp` and `fill-the-ranks`), `attempt` (1 for the first), `result` (`won`, `lost`, or `retried` once Retry is pressed on a lost mission, which reports the same run again), `cause` for a loss (`wall`, `mark`, `away`, `goal`), `wave` (the mission's), `kills`, `captured`, `planes`, `wall_damage`, `shots`, `crew`, `fallen` (the tour's), `tags`, `dummies` (caught), `weather` and `intel` (its threat, in the mission it's added to). A mission quit from pause reports as quit. Nothing about the tour or the device (no tour code) is sent. The dashboard's mode pills don't show Campaign yet (a separate change to the stats Worker).
 
+## Trailers
+
+Two trailers, 26 s each at 1920×1080, made with `tools/trailer/` ([04: Trailers](../../guides/04-trailers.md)) from `tests/stick-army/trailer/`, on an original march (`music.py`, 120 BPM, B-flat; the game's own music is silenced at its bus in the takes, its effects and voices kept). Both are Arcade only, Soldier level.
+
+- **Solo** (`shots.py`, `stick-army-trailer.mp4`): the title's open notebook; "Pop chutes." and "Catch recruits." over a catch that fills the squad; "Defend the notebook." over two zeppelins, tanks on their chutes, a helicopter's rope, "zeppelin down!", heavy bombers and the night raid; then the final wave's rumbling, "dreadnought!" across the page and its bow just showing at the edge (a tease: nothing more of it); the cover and jonniepeed.games.
+- **Co-op** (`shots-coop.py`, `--cut coop`, `stick-army-coop-trailer.mp4`): the same build with Play with a friend's link card ("Your friend is here!"), "Bring a friend." and "Two barrels. One bunker.", and both barrels firing, a searchlight each in the night raid.
+
+The game's expert balance bot plays every take, two of them in co-op. Later waves are reached off screen (the director's `ff`, wall held up), one run seed for every take. The co-op link card is filmed with a faked room (there's no network while filming), the secret's three words clicked off camera, and the friend's barrel reaches the host as a friend's messages do; the gameplay co-op takes use the balance adapter's co-op runs. The facing page's online top five can't load offline, so it's hidden. `python3 tools/trailer/make.py stick-army` shoots every take and cuts the solo trailer (about 35 minutes on 2 CPUs); `python3 tools/trailer/make.py stick-army --cut coop --cut-only` cuts the co-op one from the same takes.
+
 ## Validation and generated assets
 
 Serve `site/` locally:

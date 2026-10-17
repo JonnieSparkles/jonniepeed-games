@@ -129,6 +129,9 @@ def capture(pw, base_url, game_dir, cfg, name, take, out, dry=False, log=print):
         page.add_style_tag(path=str(game_dir / cfg['css']))
     page.evaluate(GLOBAL_EVAL)
     page.add_script_tag(path=str(HERE / 'harness.js'))
+    if cfg.get('scripts'):
+        # helper scripts for the director (a game's balance bot, say), as text it evaluates where it needs them
+        page.evaluate('s => { window.__trailerScripts = s; }', {k: (game_dir / v).read_text() for k, v in cfg['scripts'].items()})
     page.evaluate('src => window.__trailerEval(src)', (game_dir / cfg['director']).read_text())
     page.evaluate('p => { __D.plan = p; }', take['plan'])
 
