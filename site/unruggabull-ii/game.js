@@ -1690,8 +1690,12 @@
       if (side >= top) { const bx = W - px / 2 - 20; place(ipause, bx, 8); place(psndBtn, bx, 56); place(ifsBtn, bx, 104); }
       else { const bx = Math.min(px + pw, W - 8) - 40, by = Math.max(4, (py - 40) / 2); place(ipause, bx, by); place(psndBtn, bx - 48, by); place(ifsBtn, bx - 96, by); }   // the band over the picture is too low to stack them
       const s = Math.round(Math.min(H * .2, W * .12, 84)), zw = Math.min(W * .36, 260), zh = Math.min(H * .48, 190);
-      place(stickZoneEl, 12, H - 10 - zh, zw, zh);
-      place(aimZoneEl, W - 12 - zw, H - 10 - zh, zw, zh);   // the same area as the move stick, so the rings mirror
+      place(stickZoneEl, 8, H - 10 - zh, zw, zh);
+      place(aimZoneEl, W - 8 - zw, H - 10 - zh, zw, zh);   // the same area as the move stick, so the rings mirror
+      // the stick's resting ring as far left as it fits, in the band beside the picture where there is one (owner,
+      // Oct 16: it sat well in from the edge and covered the picture); the thumb still lands it anywhere in the area
+      const rest = Math.round(Math.min(zw / 2, Math.max(56, px / 2) - 8));
+      stickZoneEl.style.setProperty('--rest-x', rest + 'px'); aimZoneEl.style.setProperty('--rest-x', (zw - rest) + 'px');
       for (const k of ['shoot', 'slash']) padEls[k].style.setProperty('--size', s + 'px');
       // 16 px under them: their rings reach a few pixels past the button, and 8 looked cramped on the S25 (owner, Oct 16)
       place(padEls.shoot, W - 12 - s - 20 - s, H - 16 - s, s, s);
@@ -1702,6 +1706,7 @@
       place(stageEl, 0, py, W, ph);
       place(ipause, W - 12 - 40, Math.max(4, py - 48));
       place(dialEl, 12, Math.max(4, py - 64), W - 24 - 52);
+      for (const z of [stickZoneEl, aimZoneEl]) z.style.removeProperty('--rest-x');
       if (twin) { place(stickZoneEl, 0, top, 176, ctrlH - 6); place(aimZoneEl, W - 176, top, 176, ctrlH - 6); }   // both rings 88 px in, at one height
       else place(stickZoneEl, 12, top, (W - 24) * .6, ctrlH - 6);
       for (const k of ['shoot', 'slash']) padEls[k].style.setProperty('--size', s + 'px');
@@ -1832,6 +1837,7 @@
     }
     draw();
     requestAnimationFrame(frame);
+    requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting')));   // once the title has drawn
   }
   // ---------- the floor ----------
   // Made once, with the core's shared pieces. It gets the run's R and bull from newRun.

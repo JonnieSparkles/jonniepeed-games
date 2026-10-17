@@ -82,7 +82,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .pad-group{display:flex;align-items:end;gap:10px;touch-action:none}
 /* The stick has no frame: a faint ring shows where it rests, and it jumps to wherever the thumb lands in its area. */
 .stickzone{position:relative;flex:1 1 auto;min-width:150px;min-height:140px;touch-action:none}
-.stick{position:absolute;left:50%;top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:0;box-shadow:inset 0 0 0 1px rgba(255,246,226,.28);background:none;pointer-events:none;transition:opacity .2s}
+.stick{position:absolute;left:var(--rest-x,50%);top:46%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:0;box-shadow:inset 0 0 0 1px rgba(255,246,226,.28);background:none;pointer-events:none;transition:opacity .2s}
 .stick.on{box-shadow:inset 0 0 0 2px var(--gold);transition:none}
 .knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,246,226,.2)}
 .stick.on .knob{background:var(--gold)}
@@ -273,11 +273,15 @@ dl.keys dd{margin:0;font-size:15px}
 .tb:active{transform:none;box-shadow:none}
 .tb:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
 .game.titling .stage,.game.titling .ipause{visibility:hidden}
+/* Loading: nothing shows until the game draws its title (owner, Oct 16: the old page layout, the header, a framed black
+   box and the keys, flashed up while the scripts loaded). Shown anyway after 12 s, in case a script never runs. */
+.booting main{visibility:hidden;animation:bootShow 0s 12s forwards}
+@keyframes bootShow{to{visibility:visible}}
 .game.titling .dial{display:none!important}
 .game.cutscene .dial{visibility:hidden}
 </style>
 </head>
-<body>
+<body class="booting">
 <main>
   <a class="back" href="../"><img src="../assets/mark-pixel-dark.png?v=39bbd450b3" alt="" width="40" height="44">JonniePeed Games</a>
   <section class="game" id="game" aria-label="Unruggabull II">
