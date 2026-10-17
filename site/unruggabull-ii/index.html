@@ -217,13 +217,16 @@ body:not(.touch).twin .hint .twin-only.keys{display:inline}
 .ipause::before{content:'';width:12px;height:14px;border-left:4px solid rgba(255,246,226,.9);border-right:4px solid rgba(255,246,226,.9)}
 .ipause:active{transform:none;filter:brightness(1.4)}
 .game.ingame.playing .ipause{display:grid}
-/* Full screen, under Pause on a computer while the game isn't full screen (owner, Oct 16); the title's four corners */
+/* Sound and Full screen with Pause in play (owner, Oct 16), as on the title: under it in a side band, beside it in the
+   band above the picture; not upright, where the dial has that row. Full screen shows where the browser can do it. */
 .ifs{display:none;position:absolute;width:40px;height:40px;padding:0;border-radius:50%;border:0;background:rgba(9,7,11,.5);box-shadow:inset 0 0 0 2px rgba(255,246,226,.35);place-items:center;z-index:2;color:rgba(255,246,226,.9)}
 .ifs svg{width:20px;height:20px;display:block}
 .ifs:active{transform:none;filter:brightness(1.4)}
 .ifs:focus-visible,.ipause:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
-.game.ingame.playing.canfull:not(.full) .ifs{display:grid}
-body.touch .game .ifs{display:none!important}
+.game.ingame.playing:not(.portrait) .ifs{display:grid}
+.game:not(.canfull) #ifs{display:none!important}
+#ifs .in,.full #ifs .out,#psnd .off,#psnd.muted .on{display:none}
+.full #ifs .in,#psnd.muted .off{display:inline}
 /* the picture dims behind the pause card */
 #c{transition:filter .2s}
 .game.paused #c{filter:brightness(.55)}
@@ -292,7 +295,8 @@ dl.keys dd{margin:0;font-size:15px}
         <div class="crawl" id="crawl" hidden><p aria-hidden="true"><span id="crawlText"></span><span class="more" id="more" hidden>&#9656;<small id="moreTap">Tap</small></span></p><button class="skip snd" id="isnd" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Sound off</span></button><button class="skip" id="skip" type="button">Skip</button></div>
       </div>
       <button class="ipause" id="ipause" type="button" aria-label="Pause"></button>
-      <button class="ifs" id="ifs" type="button" aria-label="Full screen"><svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h3v1H0zM0 0h1v3H0zM7 0h3v1H7zM9 0h1v3H9zM0 9h3v1H0zM0 7h1v3H0zM7 9h3v1H7zM9 7h1v3H9z"/></svg></button>
+      <button class="ifs" id="psnd" type="button" aria-label="Sound" aria-pressed="false"><svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M0 3h2v4H0zM2 2h1v6H2zM3 1h1v8H3z"/><path class="on" fill="currentColor" d="M6 3h1v4H6zM8 1h1v8H8z"/><path class="off" fill="currentColor" d="M5 3h1v1H5zM6 4h1v1H6zM7 5h1v1H7zM8 6h1v1H8zM8 3h1v1H8zM7 4h1v1H7zM6 5h1v1H6zM5 6h1v1H5z"/></svg></button>
+      <button class="ifs" id="ifs" type="button" aria-label="Full screen"><svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges"><path class="out" fill="currentColor" d="M0 0h3v1H0zM0 0h1v3H0zM7 0h3v1H7zM9 0h1v3H9zM0 9h3v1H0zM0 7h1v3H0zM7 9h3v1H7zM9 7h1v3H9z"/><path class="in" fill="currentColor" d="M0 2h3v1H0zM2 0h1v3H2zM7 2h3v1H7zM7 0h1v3H7zM0 7h3v1H0zM2 7h1v3H2zM7 7h3v1H7zM7 7h1v3H7z"/></svg></button>
       <div class="dial" id="dial" aria-hidden="true"><span class="dial-name" id="dialName"></span><div class="dial-track" id="dialTrack"><b id="dialMark"></b><span id="dialNum"></span></div></div>
       <div class="deck">
         <div class="card" id="card" hidden>

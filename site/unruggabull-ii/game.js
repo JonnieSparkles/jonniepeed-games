@@ -967,7 +967,7 @@
   // ---------- page: card, sound, full screen ----------
   const gameEl = $('game'), card = $('card'), cardTitle = $('cardTitle'), cardText = $('cardText'), cardStats = $('cardStats'), cardNote = $('cardNote');
   const goBtn = $('go'), altBtn = $('alt'), pauseBtn = $('pause'), snd = $('snd'), fsBtn = $('fs');
-  const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), ipause = $('ipause'), ifsBtn = $('ifs');
+  const keyList = $('keyList'), moreBtns = $('moreBtns'), cSnd = $('cSnd'), cFs = $('cFs'), cKeys = $('cKeys'), ipause = $('ipause'), ifsBtn = $('ifs'), psndBtn = $('psnd');
   const BEST_KEY = 'unruggabull-ii-best';
   // a floor's best on this device, one per mode (Regular keeps the keys it always had)
   const bestKey = stage => (stage === 'floor13' ? BEST_KEY : BEST_KEY + '-' + stage) + (RUN.mode === 'regular' ? '' : '-' + RUN.mode);
@@ -1222,6 +1222,8 @@
   skipBtn.addEventListener('click', e => { e.stopPropagation(); if (state === 'intro') endIntro(); });
   // a tap anywhere moves on (on a tall phone that includes the black round the picture), except on a button
   gameEl.addEventListener('click', e => {
+    // paused, a click or tap on the picture resumes, as Resume does (owner, Oct 16); the card itself doesn't
+    if (state === 'pause' && cardKind === 'pause' && e.target === c) { resumeGame(); return; }
     if (state !== 'intro' || e.target.closest('button')) return;
     if (intro && intro.i >= 0 && e.target === c) {
       const r = c.getBoundingClientRect(), gag = Intro.tap(intro.i, (e.clientX - r.left) / r.width * Intro.W, (e.clientY - r.top) / r.height * Intro.H, intro.t, intro.plan);
@@ -1352,17 +1354,22 @@
   });
   pauseBtn.addEventListener('click', () => { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); });
   ipause.addEventListener('click', () => { if (state === 'play') pauseGame(); });
-  ifsBtn.addEventListener('click', () => { if (state === 'play' && !isFull()) toggleFull(); try { c.focus({ preventScroll: true }); } catch (e) {} });
+  ifsBtn.addEventListener('click', () => { if (state === 'play') toggleFull(); try { c.focus({ preventScroll: true }); } catch (e) {} });
+  psndBtn.addEventListener('click', () => { flipSound(); try { c.focus({ preventScroll: true }); } catch (e) {} });
 
   // Sound: on unless muted, but browsers only let it start after a tap or key press.
   const soundOn = () => Snd.ready && !Snd.muted;
-  function sndLabel() { for (const b of [snd, cSnd, $('isnd')]) { b.setAttribute('aria-pressed', String(soundOn())); b.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; } }
+  function sndLabel() {
+    for (const b of [snd, cSnd, $('isnd')]) { b.setAttribute('aria-pressed', String(soundOn())); b.lastElementChild.textContent = soundOn() ? 'Sound on' : 'Sound off'; }
+    psndBtn.classList.toggle('muted', !soundOn()); psndBtn.setAttribute('aria-pressed', String(soundOn())); psndBtn.setAttribute('aria-label', soundOn() ? 'Sound on' : 'Sound off');
+  }
   Snd.onready = sndLabel;
   function flipSound() {
     if (soundOn()) { Snd.toggle(); sndLabel(); return; }
     if (Snd.muted) Snd.toggle();
     Snd.init(); sndLabel();
   }
+  sndLabel();   // the play buttons' sound icon from the start
   snd.addEventListener('click', flipSound);
   cSnd.addEventListener('click', flipSound);
   $('isnd').addEventListener('click', e => { e.stopPropagation(); flipSound(); });
@@ -1382,7 +1389,7 @@
   function setFull(on) {
     gameEl.classList.toggle('full', on); document.body.classList.toggle('locked', on || gameEl.classList.contains('ingame'));
     fsBtn.lastElementChild.textContent = on ? 'Exit full screen' : 'Full screen';
-    fsBtn.setAttribute('aria-pressed', String(on)); fsLabels(); layoutPlay();
+    fsBtn.setAttribute('aria-pressed', String(on)); fsLabels(); ifsBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen'); layoutPlay();
     if (on && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; l.addEventListener('release', () => { wakeLock = null; }); }).catch(() => {});
     if (!on && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   }
@@ -1670,7 +1677,7 @@
     const key = on + ',' + W + ',' + H + ',' + twin;
     if (key === layoutKey) return;
     layoutKey = key;
-    const els = [stageEl, ipause, ifsBtn, dialEl, stickZoneEl, aimZoneEl, padEls.shoot, padEls.slash];
+    const els = [stageEl, ipause, ifsBtn, psndBtn, dialEl, stickZoneEl, aimZoneEl, padEls.shoot, padEls.slash];
     if (!on) { for (const el of els) el.removeAttribute('style'); gameEl.classList.remove('portrait'); return; }
     const upright = W < H;
     gameEl.classList.toggle('portrait', upright);
@@ -1680,19 +1687,20 @@
       if (side >= top) { ph = side; py = (H - ph) / 2; } else { ph = top; py = Math.max(48, (H - ph) / 2); }
       const pw = ph * 16 / 9, px = (W - pw) / 2;
       place(stageEl, px, py, pw, ph);
-      if (side >= top) { place(ipause, W - px / 2 - 20, 8); place(ifsBtn, W - px / 2 - 20, 56); }
-      else { const bx = Math.min(px + pw, W - 8) - 40, by = Math.max(4, (py - 40) / 2); place(ipause, bx, by); place(ifsBtn, bx - 48, by); }   // the band over the picture is too low to stack them
+      if (side >= top) { const bx = W - px / 2 - 20; place(ipause, bx, 8); place(psndBtn, bx, 56); place(ifsBtn, bx, 104); }
+      else { const bx = Math.min(px + pw, W - 8) - 40, by = Math.max(4, (py - 40) / 2); place(ipause, bx, by); place(psndBtn, bx - 48, by); place(ifsBtn, bx - 96, by); }   // the band over the picture is too low to stack them
       const s = Math.round(Math.min(H * .2, W * .12, 84)), zw = Math.min(W * .36, 260), zh = Math.min(H * .48, 190);
       place(stickZoneEl, 12, H - 10 - zh, zw, zh);
       place(aimZoneEl, W - 12 - zw, H - 10 - zh, zw, zh);   // the same area as the move stick, so the rings mirror
       for (const k of ['shoot', 'slash']) padEls[k].style.setProperty('--size', s + 'px');
-      place(padEls.shoot, W - 12 - s - 20 - s, H - 8 - s, s, s);
-      place(padEls.slash, W - 12 - s, H - 8 - s - s * .45, s, s);
+      // 16 px under them: their rings reach a few pixels past the button, and 8 looked cramped on the S25 (owner, Oct 16)
+      place(padEls.shoot, W - 12 - s - 20 - s, H - 16 - s, s, s);
+      place(padEls.slash, W - 12 - s, H - 16 - s - s * .45, s, s);
     } else {
       const s = Math.round(Math.min(W * .27, 112)), ctrlH = 2 * s + 18 + 24, ph = W * 9 / 16;
       const top = Math.min(Math.round(H / 2) + 20, H - 8 - ctrlH), py = top - 20 - ph;
       place(stageEl, 0, py, W, ph);
-      place(ipause, W - 12 - 40, Math.max(4, py - 48)); place(ifsBtn, W - 12 - 40 - 48, Math.max(4, py - 48));
+      place(ipause, W - 12 - 40, Math.max(4, py - 48));
       place(dialEl, 12, Math.max(4, py - 64), W - 24 - 52);
       if (twin) { place(stickZoneEl, 0, top, 176, ctrlH - 6); place(aimZoneEl, W - 176, top, 176, ctrlH - 6); }   // both rings 88 px in, at one height
       else place(stickZoneEl, 12, top, (W - 24) * .6, ctrlH - 6);
