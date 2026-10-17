@@ -85,7 +85,7 @@ Classic scripts, loaded in this order by `site/unruggabull-remastered/index.html
 
 Most of `core.js`, `rugfather.js` and `game.js` is the 2025 source, bundled out of its ES modules (comments name the original file). The changes from 2025: `performance.now()` is `gameNow()` and `setTimeout` is `gameTimeout` everywhere in the game, so time only moves when the game steps; the loop steps at a fixed 60 a second (a 120 Hz phone ran the 2025 game twice as fast); input reads `inputLeft()` and the others instead of fixed keys; drawing goes through `look.js`; the end screens are the end card; a retry resets what the 2025 restart left behind (the open garage, fast music, the last fight's timers and shots); the dev tools are left out; sounds go through `audio.js`.
 
-Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-encoded: music 128 kbit stereo, effects and voices 80 kbit mono). Type: Bungee and Jersey 15 from `site/assets/fonts/`. The share card (1200 × 630) and the games-page thumbnail (768 × 576) are the poster design Jonnie picked, drawn by `tools/og/cards/unruggabull-remastered.html` from the title's painting and built by `tools/og/make.py --game unruggabull-remastered`: the tagline, the wordmark and "NOW ON MOBILE".
+Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-encoded: music 128 kbit stereo, effects and voices 80 kbit mono). Type: Bungee and Jersey 15 from `site/assets/fonts/`. The share card (1200 × 630) and the games-page thumbnail (768 × 576) are the poster design Jonnie picked, drawn by `tools/og/cards/unruggabull-remastered.html` from the title's painting and built by `tools/og/make.py --game unruggabull-remastered`: the tagline, the wordmark and "NOW ON MOBILE". The favicon (`brand/favicons/unruggabull-remastered.png`, built by `tools/favicons/make.py`) is a brown bull with bone horns and shades on the alley's night red, with a few embers.
 
 ## Validation
 
@@ -93,6 +93,7 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
+- **Oct 17, 2026:** its own favicon. The bulls were first drawn true to each game (this game's black bull, II's brown one); Jonnie swapped them, so the two tabs look different from the games' own bulls on purpose. The background is the alley's night red, not II's tower purple.
 - **Oct 17, 2026:** the win picture burns out (take C of https://claude.ai/artifact/GDzyMEgNE2aEsYpRDvY84x), its lettering in the game's type.
 - **Oct 17, 2026:** a speaker on the title beside Full screen (the same sound setting as the pause card's Sound, kept on the device), and the top-edge buttons light up amber on hover.
 - **Oct 17, 2026:** the touch controls follow the last input (a key hides them, as in Unruggabull II); a full screen toggle by pause; the crackle about 7 dB quieter; shadows under the bull all through the intro and defeat scenes, and under the Rugfather as he comes out of the garage.

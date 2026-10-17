@@ -4,6 +4,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Why it's this way
 
+- **The favicon's bull is black, in the fire** (favicons, Oct 17): the icons were first drawn true to each game, II's brown bull and Remastered's black one; Jonnie swapped them. It doesn't match `bull.js` on purpose, so don't "fix" it.
 - **The crawl became six illustrated stills** (the intro, Oct 13): the owner wanted the story shown, not told: the Rugfather raising p(Loom) like a son, humour in the pictures and a straight face in the narration. The pictures are the owner's, made in ChatGPT; everything moving and every letter is drawn in code, since AI pictures garble text.
 - **Each still waits for a tap** (the intro): it moved on 1.8 s after its line at first; the owner wanted people to look and read as long as they like. A blinking arrow (and "Tap" on the first still) shows when.
 - **The intro shows the souls becoming carpets** (the intro): "we're still not connecting that p(loom) turned evil". Line 4 says it took the order a little too literally; the shadow outgrows the Rugfather and renames itself p(Loom); souls go into the beacon and carpets unroll down the tower; the ledger says 5 SOULS IN > 1 RUG OUT. The factory itself still waits for the 48th Floor.
