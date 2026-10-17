@@ -90,6 +90,8 @@ window.__balanceBot = function (profile, seed) {
     (o.dread || []).forEach(function (q) {
       consider(q.marking ? 560 : q.part === 'gun' ? 360 : 380, lead(o, q.x, q.y, q.vx, 0), q.marking ? q.id + ':' + q.marking : q.id);
     });
+    // Campaign's set-piece targets.
+    (o.extra || []).forEach(function (q) { consider(q.rank, lead(o, q.x, q.y, q.vx || 0, 0), q.id); });
     // Campaign's barrage balloons: their cables stop bullets, so they come down first, after bombers and divers.
     (o.barrage || []).forEach(function (q) { consider(320, { x: q.x, y: q.y }, q.id); });
     // Tanks: on the way down, or parked within the barrel's dip.
