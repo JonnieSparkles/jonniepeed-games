@@ -432,6 +432,7 @@
   //   promotes          false: no stripes for waves served (squad.js serveWave)
   //   trooper(kit, rnd, cfg) may change who jumps; pauseLine() a line for the pause card
   //   callFast()        true: radio calls arrive sooner (units.js); draw() draws over the page before the HUD
+  //   spare(t)          true: the squad and the sentry leave this trooper alone (Campaign: chutes over a mat)
   //   caught(t)         a zeppelin's bailed crewman caught (t.crew), on the field or in a bunk
   //   drawSky(G)        draws the kind of run's own things in the sky, behind the aircraft
   //   shot(b)           a bullet's own targets, before the planes (true: it's spent); tick(dt) every frame of the field
@@ -1403,8 +1404,9 @@
       });
       if (best) return best;
     }
+    var spare = rules().spare;
     S.troopers.forEach(function (t) {
-      if (t.dead || t.captain || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380) return;
+      if (t.dead || t.captain || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380 || (spare && spare(t))) return;
       var d = Math.hypot(t.x - ox, t.y - oy);
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
@@ -1764,7 +1766,7 @@
       return best;
     }
     return nearest(S.bombs, function (m) { return !m.dead && !m.armored && m.y > 200 && inView(m); }) ||
-      nearest(S.troopers, function (t) { return !t.dead && !t.captain && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low; }) ||
+      nearest(S.troopers, function (t) { return !t.dead && !t.captain && ((t.state === 'chute' && t.open >= 1) || t.state === 'rope') && t.y > SENTRY.low && !(rules().spare && rules().spare(t)); }) ||
       nearest(S.troopers, function (t) { return !t.dead && !t.captain && t.state === 'ground'; }) ||
       nearest(S.tanks, function (tk) { return !tk.dead && tk.state !== 'chute' && inView(tk); }) ||
       nearest(S.planes, function (p) { return p.state === 'fly' && p.kind !== 'zeppelin' && p.kind !== 'dread' && p.kind !== 'balloon' && p.x > 10 && p.x < W - 10; });

@@ -90,10 +90,13 @@
     check(S.mode === 'between' && t.at === 'lost' && document.getElementById('cRetry') && !document.getElementById('cCard').hidden, 'lost: the card with Retry');
     document.getElementById('cRetry').click();
     check(t.attempt === 1 && S.recruits.length === 1 && !S.recruits.some(function (r) { return r.id === vid; }), 'Retry: the fallen stay fallen');
-    // With the same squad, a retry plays exactly as the try before it.
-    function attempt() { spawns = []; var all = []; emitHook = function (type, d) { all.push(type + JSON.stringify(d)); }; for (var f = 0; f < 60 * 20; f++) update(1 / 60); emitHook = null; return all; }
+    // With the same squad, a retry plays exactly as the try before it (the squad kept standing, so it is the same).
+    function attempt() { spawns = []; var all = []; emitHook = function (type, d) { all.push(type + JSON.stringify(d)); }; for (var f = 0; f < 60 * 20; f++) { S.recruits.forEach(function (r) { r.hp = crewMax(r); }); update(1 / 60); } emitHook = null; return all; }
     first = attempt();
-    play(false); document.getElementById('cRetry').click();
+    // Lose it at once, so nobody else falls before the retry (the squad must be the same).
+    hurtWall(999, 'bomb');
+    for (var g = 0; g < 600 && (S.mode === 'play' || S.mode === 'dying'); g++) { S.recruits.forEach(function (r) { r.hp = crewMax(r); }); update(1 / 60); }
+    document.getElementById('cRetry').click();
     var second = attempt();
     check(first.length > 50 && first.join('|') === second.join('|'), 'and the waves play the same, event for event (' + first.length + ' / ' + second.length + ')');
     emitHook = null;

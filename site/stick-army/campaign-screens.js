@@ -77,7 +77,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       var sub = '';
       if (op.released && i === t.op && !done) sub = '<small>' + t.missions.length + ' missions · ' + (t.m ? t.m + ' of ' + t.missions.length + ' done' : 'you are here') + '</small>';
       else if (done) sub = '<small>done' + (stars[op.id] ? ' ' + STAR : '') + '</small>';
-      else if (i === ahead) sub = '<small class="c-soon">coming soon</small>';
+      else if (i === ahead) sub = op.released ? '<small>next</small>' : '<small class="c-soon">coming soon</small>';
       ops += '<div class="c-op ' + cls + '" style="top:' + (p[1] - (op.released ? 12 : 9)) + 'px;left:' + (p[0] + (op.released ? 18 : 14)) + 'px">' + NUM[i] + ' ' + esc(op.name) + (i === ahead ? FLAG : '') + sub + '</div>';
     });
     var live = camp.news();
@@ -278,7 +278,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   var from = null;
   function barracks(back) {
     from = back || null;
-    var t = camp.tour(), order = camp.deployed(t), body = $('cBarracksBody'), out = camp.op().slots;
+    var t = camp.tour(), order = camp.deployed(t), body = $('cBarracksBody'), out = camp.nextOp().slots;
     body.innerHTML = '<div class="c-starrow" style="justify-content:space-between"><h2 class="c-title" id="cBarracksTitle">Barracks</h2><span class="c-tags" id="cBank"></span></div>' +
       '<div class="c-bunks" id="cBunks"></div><p class="c-small" id="cBunkNote"></p><p class="c-eyebrow">RECRUIT</p><div class="c-hires" id="cHires"></div>';
     $('cBank').textContent = t.bank + ' tags';
@@ -294,7 +294,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       if (s.trait) b.title = camp.TRAIT_TEXT[s.trait];
       b.appendChild(n); b.appendChild(d); b.appendChild(k); bunks.appendChild(b);
     }
-    $('cBunkNote').textContent = order.length > out ? 'The first ' + out + ' go out on the next mission (Deploy picks who). Dashed bunks sit it out.' : 'Each operation has its squad slots: ' + out + ' at ' + camp.op().name + '.';
+    $('cBunkNote').textContent = order.length > out ? 'The first ' + out + ' go out on the next mission (Deploy picks who). Dashed bunks sit it out.' : 'Each operation has its squad slots: ' + out + ' at ' + camp.nextOp().name + '.';
     var hires = $('cHires');
     if (t.squad.length < camp.BARRACKS) camp.ROLES.forEach(function (type) {
       var price = camp.hirePrice(type), h = document.createElement('button');
