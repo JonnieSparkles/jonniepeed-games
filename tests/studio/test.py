@@ -339,7 +339,8 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(URL + 'unruggabull-ii/', wait_until='load')
     assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
-    page.locator('main > .back').click()
+    # its way home is the title screen's Exit (the old page's studio link was removed on Oct 16)
+    page.locator('.tb[data-label="Exit to JonniePeed Games"]').click()
     page.wait_for_load_state('load')
     assert page.url == URL
     print('PASS unlisted Unruggabull II by direct link')

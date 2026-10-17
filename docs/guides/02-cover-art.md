@@ -50,8 +50,8 @@ If the first read takes more than a second or two, simplify.
 
 ## Making one
 
-1. Look at the game first: its `docs/games/<slug>/README.md`, its current `site/<slug>/og.png` and title screen, and its drawing code for colours and characters.
-2. Brief an image model with the prompt below, and attach a screenshot or the current `og.png` as a reference.
+1. Look at the game first: its `docs/games/<slug>/README.md`, its current `site/<slug>/og.jpg` card and title screen, and its drawing code for colours and characters.
+2. Brief an image model with the prompt below, and attach a screenshot or the current card as a reference.
 3. Iterate in the same chat. The usual asks are "make the title bigger", "one hero moment, thin out the rest", and "move that inset away from the corner".
 
 ```
@@ -70,7 +70,7 @@ Size: 1536×1024 landscape. Keep the title and the hero inside the central 4:3 a
 
 1. Save the full-size image as `brand/covers/<slug>.png`. It isn't published.
 2. In `tools/og/make.py`, give the game's `GAMES` entry `None, {"cover": ("<slug>.png", 0.5)}` in place of its capture setup and options. The number places the crop: `0` is the left edge, `0.5` is centred and `1` is the right edge.
-3. Run `python3 tools/og/make.py --game <slug>`. It writes `site/<slug>/thumb.webp` and `site/<slug>/og.png`. If the game had a `thumb.png` before, delete it and point the shelf `<img>` in `site/index.html` at `thumb.webp`, sized 768×576.
+3. Run `python3 tools/og/make.py --game <slug>`. It writes `site/<slug>/thumb.webp` and `site/<slug>/og.jpg`. If the game had a `thumb.png` before, delete it and point the shelf `<img>` in `site/index.html` at `thumb.webp`, sized 768×576.
 4. Update the alt text on the shelf image and the page's `og:image:alt` and `twitter:image:alt`, plus the line in the game's doc that says where its card comes from.
 5. Look at the card and the thumbnail yourself, then run `python3 tools/stamp.py` last.
 
