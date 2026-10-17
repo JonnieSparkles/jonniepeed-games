@@ -109,13 +109,14 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       '<ul class="c-orders"><li><b>Goal</b> · get through all ' + t.missions.length + '</li><li><b>Bonus</b> ' + STAR + ' · ' + esc(op.star.replace(/\.$/, '').toLowerCase()) + '</li>' +
       '<li><b>Weather</b> · ' + esc(camp.WEATHER[weather].text) + '</li>' +
       (intel ? '<li><b>Intel</b> · intercepted: ' + esc(camp.INTEL[intel.threat].text) + ' in mission ' + (intel.m + 1) + '</li>' : '') +
-      '<li><b>Squad</b> · ' + op.slots + ' slots</li></ul>' +
+      '<li><b>Squad</b> · ' + op.slots + ' slots</li>' +
+      (op.gun ? '<li><b>Armory</b> · HQ sends the ' + esc(camp.GUN_TEXT[op.gun].name.toLowerCase()) + ' gun. Pick it at deploy.</li>' : '') + '</ul>' +
       (op.dummies ? '<p class="c-small">Straw dummies come down among the troopers. Catch one and the bounce is wasted.</p>' : '') +
       '<p class="c-next">Mission ' + (t.m + 1) + ' · <b>' + esc(M.name) + '</b><br>' + esc(M.text) + '</p>' +
       '<button class="btn" type="button" id="cBriefGo">Go</button>';
     up(); only(['cMap', 'cBrief']);
-    // With more soldiers than slots, who goes out is picked first.
-    $('cBriefGo').addEventListener('click', function () { if (t.squad.length > op.slots) deploy(function () { camp.startMission(); }); else camp.startMission(); });
+    // With more soldiers than slots, or a second gun, who goes out and with what is picked first.
+    $('cBriefGo').addEventListener('click', function () { if (camp.needsDeploy(t)) deploy(function () { camp.startMission(); }); else camp.startMission(); });
     focus('cBriefGo');
   }
 
@@ -148,11 +149,12 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       (fell.length ? '<p class="tag" style="color:var(--enemy)">Fallen: ' + esc(fell.join(', ')) + '.</p>' : '') +
       '<div class="c-next"><p class="c-small">Next · mission ' + (t.m + 1) + ' of ' + t.missions.length + '</p><p class="tag" style="color:var(--ink)"><b>' + esc(M.name) + '</b>: ' + esc(M.text) + '</p></div>' +
       '<button class="btn" type="button" id="cGo">Go</button>' +
-      '<div class="c-links"><button class="c-link" type="button" data-act="shop">Shop</button>' + (t.squad.length > op.slots ? '<button class="c-link" type="button" data-act="swap">Swap</button>' : '') +
+      '<div class="c-links"><button class="c-link" type="button" data-act="shop">Shop</button>' + (t.squad.length > op.slots && camp.armory(t).length < 2 ? '<button class="c-link" type="button" data-act="swap">Swap</button>' : '') +
       '<button class="c-link" type="button" data-act="barracks">Barracks</button>' +
       '<button class="c-link" type="button" data-act="copy">Copy save link</button><button class="c-link" type="button" data-act="map">Map</button></div>', 'cGo');
     $('cFigs').appendChild(figs(t));
-    $('cGo').addEventListener('click', function () { camp.startMission(); });
+    // A second gun in the armory: the deploy screen comes before every mission (the pick from the layouts, round 4).
+    $('cGo').addEventListener('click', function () { if (camp.armory(t).length > 1) deploy(function () { camp.startMission(); }); else camp.startMission(); });
   }
   function lost() {
     var t = camp.tour(), op = camp.op(), last = t.last || {}, fell = names(last.fell || []);
@@ -170,8 +172,10 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     map();
     overMap('<p class="c-eyebrow">Operation ' + esc(op.name) + ' complete</p>' +
       '<h2>To be <span class="pen">continued</span></h2>' +
-      '<p class="tag">' + (next ? 'Operation ' + esc(next.name) + ' comes in the next release.' : '') + ' Your squad waits in the barracks.</p>' +
-      (t.stars[op.id] ? '<p class="tag">' + STAR + ' Gold star: nobody was lost.</p>' : '') +
+      '<p class="tag">' + (next && next.fork ? 'A fork, ' + esc(next.name) + ' or ' + esc((camp.OPS[t.op + 2] || next).name) + ', comes in the next release.' :
+        next ? 'Operation ' + esc(next.name) + ' comes in the next release.' : '') + ' Your squad waits in the barracks.</p>' +
+      // The operation's own star (it said "nobody was lost" for every operation until round 4).
+      (t.stars[op.id] ? '<p class="tag">' + STAR + ' Gold star: ' + esc(op.star.replace(/\.$/, '').toLowerCase()) + '.</p>' : '') +
       '<div class="row"><button class="btn" type="button" id="cEndMap">Map</button><button class="btn ghost quit-btn" type="button" data-act="title">Quit</button></div>' +
       '<div class="c-links"><button class="c-link" type="button" data-act="barracks">Barracks</button><button class="c-link" type="button" data-act="copy">Copy save link</button></div>', 'cEndMap');
     $('cEndMap').addEventListener('click', map);
@@ -209,13 +213,20 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   $('cTake').addEventListener('click', function () { if (pick >= 0 && camp.takeReward(pick)) barracks(); });
 
   // ---------- deploy ----------
+  // The gun slips' little pictures: the bunker with its barrel (the heavy one short and fat, with its muzzle brake).
+  var GUN_ICON = {
+    standard: '<svg width="44" height="30" viewBox="0 0 44 30" aria-hidden="true"><rect x="4" y="16" width="26" height="12" fill="#fbf8ef" stroke="#2e2e33" stroke-width="2"/><path d="M17 16 L36 4" stroke="#2e2e33" stroke-width="4"/></svg>',
+    heavy: '<svg width="44" height="30" viewBox="0 0 44 30" aria-hidden="true"><rect x="4" y="16" width="26" height="12" fill="#fbf8ef" stroke="#2e2e33" stroke-width="2"/><path d="M17 16 L32 7" stroke="#2e2e33" stroke-width="8"/><path d="M28 3 L35 13 M32 1 L39 11" stroke="#2e2e33" stroke-width="2.6"/></svg>'
+  };
   // Who goes out: the barracks' bunks, ticked up to the operation's slots (the pick from the layouts, round 2). Best N
   // ticks them as round 1 chose. Deploy saves the pick (tour.deploy) and goes on (then).
-  var picked = [], after = null;
+  // With a second gun in the armory, a row of gun slips comes first (`gunPick`, saved as tour.gun).
+  var picked = [], after = null, gunPick = 'standard';
   function deploy(then) {
     var t = camp.tour(), slots = camp.op().slots;
     after = then;
     picked = camp.deployed(t).slice(0, slots).map(function (s) { return s.id; });
+    gunPick = camp.armory(t).indexOf(t.gun) >= 0 ? t.gun : 'standard';
     drawDeploy();
     up(); only(['cDeploy']);
     focus('cDeployGo');
@@ -223,7 +234,16 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   function drawDeploy() {
     var t = camp.tour(), op = camp.op(), slots = op.slots, order = camp.deployOrder(t.squad), body = $('cDeployBody');
     body.innerHTML = '<div class="c-starrow" style="justify-content:space-between"><h2 class="c-title" id="cDeployTitle">Deploy</h2><span style="font-size:20px"><b class="pen" id="cPicked"></b> of ' + slots + ' picked</span></div>' +
+      (camp.armory(t).length > 1 ? '<h3 class="c-sub">Gun</h3><div class="c-guns" id="cGuns" role="group" aria-label="Gun"></div><h3 class="c-sub">Squad</h3>' : '') +
       '<p class="c-small">Tap who goes out on ' + esc(op.name) + '. The rest wait in the barracks.</p><div class="c-bunks" id="cDeployBunks"></div>';
+    camp.armory(t).forEach(function (id, i) {
+      if (camp.armory(t).length < 2) return;
+      var g = document.createElement('button'), info = camp.GUN_TEXT[id];
+      g.type = 'button'; g.className = 'c-gun'; g.setAttribute('aria-pressed', gunPick === id ? 'true' : 'false');
+      g.innerHTML = GUN_ICON[id] + '<span><b>' + esc(info.name) + '</b><small>' + esc(info.text) + '</small></span>';
+      g.addEventListener('click', function () { gunPick = id; drawDeploy(); var again = $('cGuns').children[i]; if (again) again.focus({ preventScroll: true }); });
+      $('cGuns').appendChild(g);
+    });
     order.forEach(function (s, i) {
       var on = picked.indexOf(s.id) >= 0, b = document.createElement('button');
       b.type = 'button'; b.className = 'c-bunk c-pick'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -248,7 +268,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
   });
   $('cDeployGo').addEventListener('click', function () {
     var t = camp.tour();
-    t.deploy = picked.slice(); camp.write();
+    t.deploy = picked.slice(); t.gun = gunPick; camp.write();
     var then = after; after = null;
     if (then) then();
   });

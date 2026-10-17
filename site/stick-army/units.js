@@ -93,6 +93,13 @@ var StickArmyUnits = function (w) {
     // Turning is a cartoon flip: the hull squashes through zero width, so it slows, stops and heads back.
     p.face += clamp(p.dir - p.face, -dt * 2.6, dt * 2.6);
     if (p.state === 'fly') {
+      // Campaign: once the enemy surrenders it heads for an edge (`leaving`, -1 or 1) and is gone past it. Arcade never sets it.
+      if (p.leaving) {
+        p.dir = p.leaving; p.speed += (ZEP.ENTER_SPEED - p.speed) * Math.min(1, dt * 1.5); p.x += p.face * p.speed * dt;
+        p.y = p.baseY + Math.sin(S.t * 1.1 + p.bob) * 2.5;
+        if (p.x < -p.hw - 40 || p.x > W + p.hw + 40) p.gone = true;
+        return;
+      }
       if (!p.entered && p.x > ZEP.LEFT && p.x < ZEP.RIGHT) p.entered = true;
       var want = !p.entered ? p.enterSpeed || ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
       p.speed += (want - p.speed) * Math.min(1, dt * 1.5);
@@ -185,7 +192,8 @@ var StickArmyUnits = function (w) {
     if (!p.decoy) S.banner = { s: 'zeppelin down!', sub: 'catch the crew! ' + (got ? '+1 air strike' : '+' + RADIO.FULL_TAGS + ' tags'), t: 0, dur: 2.4 };
     S.shake = Math.max(S.shake, 0.5);
     w.sound.play('zepdown');
-    for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
+    // Its crew bail out (`crew`: Campaign's gold star counts them caught).
+    for (var i = 0; i < 3; i++) { var cm = spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)); cm.zep = p.id; cm.crew = true; }
     // The decoy's disguise tears off and flutters down on its own (game.js updateParts).
     if (p.decoy) S.parts.push({ k: 'sticker', x: p.x + p.face * STICKER.X, y: p.y + STICKER.Y, vx: rr(-30, 30), vy: -60, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
   }

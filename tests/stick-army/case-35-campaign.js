@@ -146,6 +146,7 @@
       check(old.missions.join() === fx.missions.join(), name + ': and draws the same missions');
       var fromLink = camp.readLink(fx.link);
       check(fromLink && fromLink.code === fx.tour.code && fromLink.squad.length === fx.tour.squad.length, name + ': its save link loads');
+      if (fx.tour.gun) check(fromLink.gun === fx.tour.gun && old.gun === fx.tour.gun, name + ': with its gun');
       if (fx.tour.deploy) check(fromLink.deploy && fromLink.deploy.join() === fx.tour.deploy.join() && old.deploy.join() === fx.tour.deploy.join(), name + ': with its deploy pick');
       localStorage.setItem(K.tour, JSON.stringify(fx.tour));
       titleScene(); document.getElementById('campaignBtn').click();
