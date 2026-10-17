@@ -89,13 +89,15 @@ var UnrugTitle = (function () {
     // full screen (owner, Oct 15): hidden where the browser can't do it, like the pause card's
     button('full', 'Full screen', () => { press('full'); beep('tick'); act.full(); });
     button('exit', 'Exit to JonniePeed Games', () => { press('exit'); beep('tick'); act.exit(); });
+    // Credits (owner, Oct 17): who made it and how, in the board's place, with Back
+    button('credits', 'Credits', () => { press('credits'); beep('tick'); openCredits(); });
 
     // ---- state ----
     const locked = i => !!(act.locked && act.locked(MODES[i].id));
     let mode = 1;
     try { const v = localStorage.getItem(MODE_KEY), i = MODES.findIndex(m => m.id === v); if (i >= 0 && !locked(i)) mode = i; } catch (e) {}
     let deniedAt = -9;   // a locked mode was pressed: the readout says what it is and how to get it
-    let board = false, t0 = now(), pan0 = t0, changedAt = -9, pressed = null, pressedAt = -9, shapeKey = '', zones = [];
+    let board = false, credits = false, t0 = now(), pan0 = t0, changedAt = -9, pressed = null, pressedAt = -9, shapeKey = '', zones = [];
     const t = () => now() - t0;
     function press(id) { pressed = id; pressedAt = t(); }
     // button sounds (owner, Oct 15): a tick for every press, the elevator's chirp when the mode changes, the start
@@ -105,7 +107,10 @@ var UnrugTitle = (function () {
     let boardAt = -9, shutAt = -9;
     const grown = () => still.matches ? (board ? 1 : 0) : board ? ease((t() - boardAt) / .3) : 1 - ease((t() - shutAt) / .3);
     function closeBoard() { if (board) shutAt = t(); board = false; seeAll = false; scrollY = 0; }
-    function openBoard() { board = true; boardAt = t(); pan0 = Math.min(pan0, now() - 5); seeAll = false; scrollY = 0; BUTTONS.all.dataset.label = 'Top 50'; BUTTONS.all.setAttribute('aria-label', 'Top 50'); if (act.online) act.online(MODES[mode].id); }
+    function openBoard() { credits = false; board = true; boardAt = t(); pan0 = Math.min(pan0, now() - 5); seeAll = false; scrollY = 0; BUTTONS.all.dataset.label = 'Top 50'; BUTTONS.all.setAttribute('aria-label', 'Top 50'); if (act.online) act.online(MODES[mode].id); }
+    // the credits open like the board (the panel or the band grows), saying who made it and how (owner, Oct 17)
+    const CREDITS = ['UNRUGGABULL II', 'BY JONNIESPARKLES', 'BUILT WITH CHATBOTS.'];
+    function openCredits() { credits = true; board = true; boardAt = t(); pan0 = Math.min(pan0, now() - 5); say.textContent = 'Credits. Unruggabull II, by JonnieSparkles. Built with chatbots.'; }
     function pick(i) {
       if (locked(i)) { press('mode' + i); beep('empty'); deniedAt = t(); say.textContent = MODES[i].name + ', locked. ' + MODES[i].line + ' Beat Raging Bull.'; return; }
       press('mode' + i); beep('tick'); deniedAt = -9;
@@ -537,6 +542,19 @@ var UnrugTitle = (function () {
       if (band) { bigButton(g, w - 132, 2, 120, 38, allLabel, false, 'all', 2); bigButton(g, w - 132, 42, 120, 38, 'BACK', false, 'back', 2); }   // 44 px on a short phone
       else { bigButton(g, 10, h - 50 - FOOT, 146, 50, allLabel, false, 'all', 2); bigButton(g, 164, h - 50 - FOOT, 146, 50, 'BACK', false, 'back', 2); }
     }
+    // CREDITS, right-aligned at (x, y), dim like the board line, with its tap zone (zh grid pixels tall)
+    function creditsLine(g, x, y, zh) {
+      const wd = tw('CREDITS', 2);
+      T(g, 'CREDITS', x, y, P.dim, 2, 'right');
+      zone(x - wd - 8, y - 14, wd + 16, zh, 'credits');   // the same rows as the board line's
+    }
+    function creditsView(g, w, h, band) {
+      const lx = band ? 12 : 14, y0 = band ? 6 : 14;
+      T(g, 'CREDITS', lx, y0, P.gold, 2);
+      CREDITS.forEach((l, i) => T(g, l, lx, y0 + (band ? 24 : 32) + i * 18, i ? P.ink : P.val, 2));
+      if (band) bigButton(g, w - 132, 42, 120, 38, 'BACK', false, 'back', 2);
+      else bigButton(g, 10, h - 50 - FOOT, w - 20, 50, 'BACK', false, 'back', 2);
+    }
     // upright: under the painting, 320 wide, only as tall as what it shows (owner, Oct 16: the room goes to the
     // painting): the readout, the buttons and Start; the board line adds a row when the boards exist (item 29)
     const panelH = () => act.board && act.board(MODES[mode].id) ? 290 : 246;
@@ -546,7 +564,7 @@ var UnrugTitle = (function () {
     function drawPanel(g, tt, h) {
       const w = GRID, off = h - panelH();
       steel(g, w, h); gz = [];
-      if (board) { boardView(g, w, h, false); return; }
+      if (board) { (credits ? creditsView : boardView)(g, w, h, false); return; }
       g.save(); g.translate(0, off);
       const keys = canFull() ? 3 : 2;
       led(g, 14, 14, w - 28 - 48 * keys + 6, 42, tt);
@@ -555,7 +573,7 @@ var UnrugTitle = (function () {
       steelKey(g, sx, 14, 42, 42, 'sound'); speaker(g, sx + 21, 14 + 21, act.soundOn(), act.soundOn() ? P.gold : P.dim);
       steelKey(g, w - 14 - 42, 14, 42, 42, 'exit'); T(g, 'EXIT', w - 14 - 21, 14 + 16, P.dim, 2, 'center');
       MODES.forEach((m, i) => callButton(g, 46 + i * 76, 104, 30, i, tt, 146));
-      boardLine(g, 14, 178, w - 28, 40);
+      boardLine(g, 14, 178, 0, 40); creditsLine(g, w - 14, 178, 40);
       bigButton(g, 10, h - off - 50 - FOOT, w - 20, 50, 'START', true, 'start', 3);
       g.restore(); for (const z of gz) z[1] += off;
     }
@@ -563,11 +581,11 @@ var UnrugTitle = (function () {
     function drawBand(g, tt, h) {
       const w = AW, off = h - BAND_H;
       steel(g, w, h); gz = [];
-      if (board) { boardView(g, w, h, true); return; }
+      if (board) { (credits ? creditsView : boardView)(g, w, h, true); return; }
       g.save(); g.translate(0, off);
       led(g, 12, 8, 150, 40, tt);
       MODES.forEach((m, i) => callButton(g, 190 + i * 44, 28, 19, i, tt));
-      boardLine(g, 12, 62, 0, 34);
+      boardLine(g, 12, 62, 0, 34); creditsLine(g, w - 12, 62, 34);
       bigButton(g, w - 128, 10, 116, 40, 'START', true, 'start', 3);
       g.restore(); for (const z of gz) z[1] += off;
     }
@@ -662,23 +680,26 @@ var UnrugTitle = (function () {
       lay = out;
     }
 
-    function show() {
-      root.hidden = false; board = false; shutAt = -9; seeAll = false; scrollY = 0; t0 = now(); pan0 = t0; shapeKey = '';
+    // opts.board: open on the picked mode's board (a full run's Continue, owner, Oct 17)
+    function show(opts) {
+      root.hidden = false; board = false; credits = false; shutAt = -9; seeAll = false; scrollY = 0; t0 = now(); pan0 = t0; shapeKey = '';
       // the clock starts again, so do the moments it measures from: a pick made last time would otherwise count as
       // seconds in the future, and the picked button's flare and fire grew huge until the clock caught up (owner, Oct 16)
       changedAt = boardAt = deniedAt = pressedAt = -9; pressed = null;
       MODES.forEach((m, i) => Object.assign(faceSt[m.id], { gaze: 0, next: 1 + i * .4, blinkAt: 2 + i * 1.3, react: -9 }));
       if (act.online) act.online(MODES[mode].id, true);   // ask the board again each time the title comes up
+      if (opts && opts.board && act.board) openBoard();
       frame();
-      say.textContent = 'Unruggabull II: Salvation for the Unrugged. ' + MODES[mode].name + '.';
+      say.textContent = 'Unruggabull II: Salvation for the Unrugged. ' + MODES[mode].name + '.' + (board ? ' Its top runs.' : '');
     }
-    function hide() { root.hidden = true; board = false; shutAt = -9; }
+    function hide() { root.hidden = true; board = false; credits = false; shutAt = -9; }
     // keys while the title is up; true when the key was the title's
     function key(e) {
       if (root.hidden || e.repeat) return false;
       const k = e.key;
       if (board) {
         if (k === 'Escape' || k === 'b' || k === 'B' || k === 'Enter' || k === ' ') { BUTTONS.back.click(); return true; }
+        if (credits) return false;
         if (k === 'ArrowDown' || k === 'ArrowUp') { scrollY += k === 'ArrowDown' ? 17 : -17; return true; }
         if (k === 't' || k === 'T') { BUTTONS.all.click(); return true; }
         return false;
@@ -692,7 +713,7 @@ var UnrugTitle = (function () {
     // for the tests
     const labels = () => Object.keys(BUTTONS).filter(id => !BUTTONS[id].hidden).map(id => BUTTONS[id].dataset.label);
     function pressLabel(label) { const id = Object.keys(BUTTONS).find(i => BUTTONS[i].dataset.label === label && !BUTTONS[i].hidden); if (!id) throw new Error('no ' + label + ' button: ' + labels().join(', ')); BUTTONS[id].click(); }
-    return { show, hide, frame, key, labels, press: pressLabel, get mode() { return MODES[mode].id; }, get open() { return !root.hidden; }, get layout() { return lay; }, get board() { return board; }, MODES, el: root,
+    return { show, hide, frame, key, labels, press: pressLabel, get mode() { return MODES[mode].id; }, get open() { return !root.hidden; }, get layout() { return lay; }, get board() { return board && !credits; }, get credits() { return board && credits; }, MODES, el: root,
       // for the tests: the board's rows as text (rank and initials, ... for the gap, YOU on yours) and its scroll
       list: () => listItems().map(it => it.gap ? '...' : it.text ? it.text : it.dev ? it.rank + ' ' + it.dev[0] : it.e.rank + ' ' + it.e.name + (it.me ? ' YOU' : '')),
       get scroll() { return scrollY; } };

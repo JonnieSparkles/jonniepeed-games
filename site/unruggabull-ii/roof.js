@@ -9,6 +9,7 @@ var UnrugRoof = function (core) {
   const ROOF = {
     time: { elevator: 4, walk: 25.4, flash: 3.2, wake: 3.5, odds: 8, quiet: 2.8, return: 6.2,
       flood: 3, pinch: 1, fusion: 0, lines: 4.5, beam: 2.5, one: 2, snap: 0, dawn: 5, ending: 0, clear: 0 },
+    clearFade: .6,   // the clear card comes up out of the ending's black over this long (drawn only)
     aisle: .84, parapetH: .09, hitsPerSpool: [40, 40, 40],
     eyeZ: .86, eyeH: .71, eyeLimit: .55, eyeFollow: 1.3, eyeHit: .15, aimCone: 2,   // open, the eye draws his shots from anywhere on the roof
     flyHP: 1, flyH: .05, recharge: .35,
@@ -304,7 +305,8 @@ var UnrugRoof = function (core) {
       Q.endingFrom = R.t; clearThreats(); Object.assign(bull, { aimT: 0, slash: -1 });
       ending.start();
     }, tick(dt) { ending.tick(dt); }, ready: () => ending.done() },
-    clear: { entry() { R.endT = Q.endingFrom != null ? Q.endingFrom : R.t; endRun('clear'); } }
+    // the clear card: up out of the black, with Please Hold under it (owner, Oct 17)
+    clear: { entry() { R.endT = Q.endingFrom != null ? Q.endingFrom : R.t; Q.clearAt = R.t; Snd.music('pleaseHold', { slam: true }); endRun('clear'); } }
   };
   // Every state offers the same entry/tick/exit seam, including states with no extra work yet.
   for (const st of Object.values(STATES)) { st.entry = st.entry || (() => {}); st.exit = st.exit || (() => {}); }
@@ -1333,11 +1335,16 @@ var UnrugRoof = function (core) {
     const flash = effects.flash(Q) + Q.light + strikeNow().k * .5;
     if (flash > .01) { g.save(); g.globalAlpha = Math.min(1, flash) * ROOF.flashWash; rect(g, 0, 0, W, H, '#ffffff'); g.restore(); }
     if (Q.state === 'flash' && effects.flash(Q) > .3) drawFlashLoom();   // the lightning catches it as a silhouette
+    if (Q.state === 'ending') ending.drawSkip(g);
+    // the clear card comes up out of the final card's black, in six steps over ROOF.clearFade (owner, Oct 17)
+    if (Q.state === 'clear' && Q.clearAt != null && R.t - Q.clearAt < ROOF.clearFade) {
+      g.save(); g.globalAlpha = Math.ceil((1 - (R.t - Q.clearAt) / ROOF.clearFade) * 6) / 6; rect(g, 0, 0, W, H, '#000000'); g.restore();
+    }
   }
   // the doors: shut for a moment (the ding), a jolt, then they slide apart; open a moment before he can move
   function elevatorOpen(t) { const k = clamp((t - .7) / 2.6, 0, 1), e = k * k * (3 - 2 * k); return t > .7 && t < .9 ? .03 : e; }
   function drawCut(name) {
-    if (!Q.cut && Q.state === 'ending' && ending.drawStill(g)) return;
+    if (!Q.cut && Q.state === 'ending' && ending.drawStill(g)) { ending.drawSkip(g); return; }
     rect(g, 0, 0, W, H, '#000000'); txt(g, (name || Q.cut.name).toUpperCase(), W / 2, H / 2, '#ffffff', 2, 'center');
   }
   function displayedCount() { return effects.displayedCount(Q, R); }
@@ -1394,6 +1401,7 @@ var UnrugRoof = function (core) {
     endPull: noop, cutRug: noop, draggedIn: noop, blowUp: noop, soulFreed, soulLanded,
     cutActive: () => !!Q.cut || Q.state === 'ending' && ending.still(), cutIn, drawCut,
     scene: () => !!Q && Q.state === 'ending',
+    skip: () => !!Q && Q.state === 'ending' && ending.press(),   // a tap or key in the ending (ending.js says whether it skips)
     hudAlpha: () => Q && (Q.state === 'ending' || Q.state === 'clear') ? ending.hudAlpha() : 1,
     frameHeld: effects.frameHeld, shakeOffset: () => effects.offset(R), wispMotion: effects.wispMotion, riseMotion: effects.riseMotion, drawRise: effects.drawRise,
     pauseText: 'The loom waits.', continueText: () => 'Continue from ' + (isRound() ? 'phase ' + Q.round : 'the quiet') + ' with full hearts?',

@@ -111,6 +111,31 @@ var UnrugCards = (function () {
       if (wide) txt(typed('RETRIED RUNS ARE NOT PROCESSED.', t, .3, 40), x + 16 + tw('OFF THE RECORD.', 2) + 8, y + 1, CAP.dim, 2);
       else txt(typed('RETRIED RUNS ARE NOT PROCESSED.', t, .3, 40), x, y + 16, CAP.dim, 2);
     }
+    // a clear's lines about the run itself (owner, Oct 17): Impossibull just opened, and the hat this mode gives, missed,
+    // with why (the long ride's top wants full health and no retries; the retry first when it's both)
+    const HAT_NAMES = { cap: 'CAP', crown: 'CROWN', halo: 'HALO' };
+    function runLines() {
+      const out = [], m = info && info.kind === 'clear' && info.hatMiss;
+      if (info && info.kind === 'clear' && info.unlocked) out.push({ text: 'IMPOSSIBULL UNLOCKED.', col: CAP.ink });
+      if (m && HAT_NAMES[m.kind]) out.push({ text: 'NO ' + HAT_NAMES[m.kind] + (m.why === 'retried' ? '. NEEDS NO RETRIES.' : '. NEEDS FULL HEALTH AT THE TOP.'), col: CAP.dim, hat: m.kind });
+      return out;
+    }
+    // draws them from (x, y), each wrapped to n characters, the missed hat dimmed and struck through ahead of its line;
+    // returns the height they took
+    function drawRunLines(x, y, t, n, at) {
+      let used = 0;
+      runLines().forEach((l, j) => {
+        const ly = wrap(l.text, l.hat ? n - 2 : n), from = at + j * .6;
+        if (l.hat && t > from) {
+          g.save(); g.globalAlpha = .55; hatAt(l.hat, x, y + used, 2, 10); g.restore();
+          for (let i = 0; i < 11; i++) R(x - 1 + i, y + used + 8 - i, 1, 2, CAP.warn);
+        }
+        ly.forEach((s, i) => { txt(typed(s, t, from + i * .5, 40), l.hat ? x + 16 : x, y + used + 1, l.col, 2); used += 14; });
+      });
+      return used;
+    }
+    // the rows they take sideways (one each, wrapped at 58), for the band's height
+    const runRows = () => runLines().reduce((n, l) => n + wrap(l.text, l.hat ? 56 : 58).length, 0);
     // up to n of a board's rows from y, yours highlighted: rank, the hat beside the initials, souls, time, input
     function boardRows(list, x, y, w, n) {
       list.slice(0, n).forEach((e, i) => {
@@ -180,10 +205,11 @@ var UnrugCards = (function () {
           totals(t, right, 30);
           R(x, 82, w, 1, '#3a1a0c');
         }
-        const top = pick && !tall ? 28 : 90;
+        const hy = !pick || tall ? drawRunLines(x, 90, t, Math.floor((w - 16) / 8), 1.6) : 0;   // the run's own lines first
+        const top = (pick && !tall ? 28 : 90) + hy;
         stepLines(t).forEach(([s, c], i) => txt(s, x, top + i * 14, c, 2));
         if (pick) picker(Math.round((cw - 3 * 56 - 2 * 14) / 2), top + 16, 56, 38, 40, 14);
-        else boardRows(rows, x, 124, w, Math.max(0, Math.min(5, Math.floor((ch - 52 - 8 - 124) / 17) + 1)));
+        else boardRows(rows, x, 124 + hy, w, Math.max(0, Math.min(5, Math.floor((ch - 52 - 8 - 124 - hy) / 17) + 1)));
         return;
       }
       flags(fx, 5, t);
@@ -197,9 +223,10 @@ var UnrugCards = (function () {
       moodLine(L, x, 46, t);
       totals(t, right, 26);
       R(x, 64, w, 1, '#3a1a0c');
+      const used = drawRunLines(x, 70, t, 58, 1.6), hy = used ? used + 2 : 0;   // the run's own lines across, under the rule
       let n = 0;   // the left column, clear of the rows
-      for (const [s, c] of stepLines(t)) for (const l of wrap(s, 28)) txt(l, x, 74 + 14 * n++, c, 2);
-      boardRows(rows, 252, 75, right - 252, 5);
+      for (const [s, c] of stepLines(t)) for (const l of wrap(s, 28)) txt(l, x, 74 + hy + 14 * n++, c, 2);
+      boardRows(rows, 252, 75 + hy, right - 252, 5);
     }
     // the roof's souls and time, and the run's TOTAL under them (what posts, in gold), right of the title
     function totals(t, right, y) {
@@ -207,8 +234,8 @@ var UnrugCards = (function () {
       rows.forEach(([label, souls, time, col], i) => {
         const at = 1 + i * .2, ry = y + i * 14;
         if (t < at) return;
-        txt(label, right - 112, ry, CAP.label, 2);
-        txt(String(count(souls, t, at)), right - 40, ry, col, 2, 'right');
+        txt(label, right - 118, ry, CAP.label, 2);
+        txt(String(count(souls, t, at)), right - 48, ry, col, 2, 'right');   // clear of a time of 10:00 and over
         txt(clock(count(time, t, at + .15)), right, ry, col, 2, 'right');
       });
     }
@@ -244,6 +271,7 @@ var UnrugCards = (function () {
         txt(short, xs[i], y + 20, CAP.label, 2, 'right');
       });
       if (noting()) note(x, 62, t, true);
+      if (info.kind === 'clear') drawRunLines(x, 80, t, 58, 1.6);
       return true;
     }
     function drawPauseBand(t, by) {
@@ -289,6 +317,7 @@ var UnrugCards = (function () {
       });
       flags(x, y + 4, t);
       if (noting()) note(x, y + 26, t, false);
+      if (info.kind === 'clear') drawRunLines(x, y + 26 + (noting() ? 34 : 0), t, Math.floor((w - 16) / 8), 1.6);
       return true;
     }
 
@@ -302,7 +331,7 @@ var UnrugCards = (function () {
         st.left = '0px'; st.top = top + 'px'; st.width = a.width + 'px'; st.height = h + 'px';
         cw = 320; ch = Math.max(200, Math.round(h * 320 / a.width));
       } else {
-        const band = info.kind === 'pause' ? pauseBand() : saving() ? SAVE_BAND : noting() ? NOTE_BAND : BAND, k = s.width / PIC_W;
+        const band = info.kind === 'pause' ? pauseBand() : saving() ? SAVE_BAND + (runRows() ? runRows() * 14 + 2 : 0) : noting() ? NOTE_BAND + runRows() * 16 : BAND, k = s.width / PIC_W;
         st.left = (s.left - a.left) + 'px'; st.top = (s.bottom - a.top - band * k) + 'px'; st.width = s.width + 'px'; st.height = band * k + 'px';
         cw = PIC_W; ch = band;
       }
@@ -514,7 +543,7 @@ var UnrugCards = (function () {
     function press(label) { const b = buttons.find(x => x.el.textContent === label); if (!b) throw new Error('no ' + label + ' button: ' + labels().join(', ')); b.el.click(); }
     return { show, hide, frame, focus, key, labels, press, get info() { return info; }, get open() { return !!info; }, get kind() { return info && info.kind; }, get confirming() { return !!confirm; },
       get step() { return lbs ? lbs.st : null; }, get initials() { return lbs ? lbs.letters.map(i => ABC[i]).join('') : null; }, get slot() { return lbs ? lbs.slot : null; },
-      get stepLines() { return lbs ? stepLines(99).map(l => l[0]) : null; } };
+      get stepLines() { return lbs ? stepLines(99).map(l => l[0]) : null; }, get runLines() { return info ? runLines().map(l => l.text) : []; } };
   }
   return { make, LINES };
 })();

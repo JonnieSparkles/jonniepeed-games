@@ -82,6 +82,7 @@ with sync_playwright() as p:
         assert width <= size[0], f'{name}: no sideways scroll ({width}px)'
         start = page.locator('.tb[data-label="Start"]')
         assert start.is_visible(), f'{name}: Start is visible'
+        page.evaluate("localStorage.setItem('unruggabull-ii-story', '1')")   # a returning player: the story's Skip shows once it's been seen
         start.tap() if touch else start.click()   # a phone taps (a click is a mouse, which hides the pads)
         page.wait_for_timeout(300)
         assert page.locator('#crawl').is_visible(), f'{name}: the first Start tells the story'

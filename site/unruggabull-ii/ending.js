@@ -8,7 +8,8 @@ var UnrugEnding = function (core, roof) {
   'use strict';
   const { A, Snd, txt, textWidth, W, H, PW, PH, PIC, clamp, live } = core;
   // The shots in order: id, length in seconds, and whether it's a picture (drawn over everything) or the game's roof.
-  // Every time is a starting point (the owner settles timing, transitions, music and skip later).
+  // The times are his (settled Oct 17, ending-plan.md); the music (music-roof.js's `ending`) is written to the first two
+  // shots' 8.5 s and the dawn before them, so retime those with it.
   const SHOTS = [
     { id: 'breathe', dur: 2.5, still: false },   // dawn breathes: the roof's own dawn, held a moment longer; the HUD fades
     { id: 'tower', dur: 6, still: true },        // RugCo Tower at sunrise, the souls leaving its broken roof (his picture)
@@ -26,6 +27,10 @@ var UnrugEnding = function (core, roof) {
     card: { fade: .8, at: 1.1, beat: .55, first: '... TO BE CONTINUED...', last: 'MAYBE.' }
   };
   const BLUE_HI = '#c8f4ff';
+  // Skip (owner, Oct 17): only once the ending has been watched to the end on this device; a press shows SKIP for
+  // SKIP.hint seconds and a second press while it shows goes straight to the clear card.
+  const SKIP = { key: 'unruggabull-ii-ending-seen', hint: 2 };
+  const seen = () => { try { return localStorage.getItem(SKIP.key) === '1'; } catch (e) { return false; } };
   let S = null;   // the ending in progress: the shot (i), seconds into it (t), the cues fired, the card's timing
 
   // ---------- small helpers (game units, drawn at half a unit: the picture's own pixels) ----------
@@ -66,7 +71,7 @@ var UnrugEnding = function (core, roof) {
     load();
     // the card's two parts type out with the narrator's blips; MAYBE. comes a beat after the first part is said
     const firstT = Snd.talkTimes(E.card.first, 'narrator'), lastT = Snd.talkTimes(E.card.last, 'narrator');
-    S = { i: 0, t: 0, fired: new Set(), firstT, lastT, lastAt: E.card.at + firstT.total + E.card.beat };
+    S = { i: 0, t: 0, fired: new Set(), firstT, lastT, lastAt: E.card.at + firstT.total + E.card.beat, hint: -1, skipped: false };
     S.cues = CUES.concat([['card', S.lastAt, () => Snd.say(E.card.last, 'narrator')]]);
     SHOTS[SHOTS.length - 1].dur = Math.max(5, S.lastAt + lastT.total + 1.6);
     cues();
@@ -78,11 +83,32 @@ var UnrugEnding = function (core, roof) {
   function tick(dt) {
     if (!S || S.i >= SHOTS.length) return;
     S.t += dt;
+    if (S.hint >= 0 && (S.hint += dt) > SKIP.hint) S.hint = -1;
     while (S.i < SHOTS.length && S.t >= SHOTS[S.i].dur) { S.t -= SHOTS[S.i].dur; S.i++; if (S.i < SHOTS.length) { core.emit('ending_shot', { shot: SHOTS[S.i].id }); cues(); } }
+    if (S.i >= SHOTS.length) { try { localStorage.setItem(SKIP.key, '1'); } catch (e) {} }   // watched to the end
     if (S.i < SHOTS.length) cues();
     // in the escape he raises the blaster by reflex when the eye goes red, and lowers it once it's gone
     const sh = shot();
     if (sh && sh.id === 'escape') roof.bull().aimT = S.t >= E.escape.aim[0] && S.t < E.escape.aim[1] ? .15 : 0;
+  }
+  // a tap or a key in the ending: nothing until it's been seen; then SKIP, and a second press while that shows skips
+  function press() {
+    if (!S || S.i >= SHOTS.length || !seen()) return false;
+    if (S.hint < 0) { S.hint = 0; live('Press again to skip.'); return true; }
+    S.i = SHOTS.length; S.t = 0; S.skipped = true; S.hint = -1;
+    roof.bull().aimT = 0; Snd.hush();
+    core.emit('ending_skip', {}); live('Skipped.');
+    return true;
+  }
+  // SKIP, bottom right, while a press can skip (game units, over the picture or the roof)
+  function drawSkip(g) {
+    if (!S || S.hint < 0 || S.i >= SHOTS.length) return;
+    const a = Math.min(1, (SKIP.hint - S.hint) / .3), x = W - 33, y = H - 15;
+    alpha(g, a, () => {
+      hr(g, x, y, 29, 11, '#140806'); hr(g, x, y, 29, .5, '#ff7a2a'); hr(g, x, y + 10.5, 29, .5, '#ff7a2a'); hr(g, x, y, .5, 11, '#ff7a2a'); hr(g, x + 28.5, y, .5, 11, '#ff7a2a');
+      txt(g, 'SKIP', x + 3, y + 3, '#ffd060', 1);
+      poly(g, '#ffd060', [[x + 21, y + 3], [x + 21, y + 8], [x + 24, y + 5.5]]); poly(g, '#ffd060', [[x + 24, y + 3], [x + 24, y + 8], [x + 27, y + 5.5]]);
+    });
   }
   const shot = () => S && S.i < SHOTS.length ? SHOTS[S.i] : null;
   const done = () => !!S && S.i >= SHOTS.length;
@@ -378,5 +404,5 @@ var UnrugEnding = function (core, roof) {
     if (b) txt(g, b, x + textWidth(C.first + ' ', sc) + sc, y, '#fff6e2', sc);
   }
 
-  return { SHOTS, E, start, reset: () => { S = null; }, tick, done, still, shot, hudAlpha, drawEye, escape, drawRoof, eyeLight, drawStill, load, at: () => S && { i: S.i, t: S.t } };
+  return { SHOTS, E, SKIP, start, reset: () => { S = null; }, tick, done, still, shot, hudAlpha, drawEye, escape, drawRoof, eyeLight, drawStill, load, press, drawSkip, seen, skipped: () => !!S && S.skipped, at: () => S && { i: S.i, t: S.t, hint: S.hint } };
 };

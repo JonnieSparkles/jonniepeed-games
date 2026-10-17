@@ -13,7 +13,8 @@
 // synth:'classic' plays on the section tracks' own voice (Horns Up, written from its storyboard's sections).
 // Roof cues: storm-only lead; fight downbeat; harmony/power added in rounds 2/3; a crashing power chord at each spool;
 // hard cut at the last accounted word; the flood is the souls' own climbing notes (play('rush')) and the pinch sweep;
-// heavy downbeat after the fusion freeze, with the beam's choir roar; 1% held D5; snap/dawn D-major chord, then quiet.
+// heavy downbeat after the fusion freeze, with the beam's choir roar; 1% held D5; snap D-major chord; from the dawn the
+// ending's music (`ending`, music-roof.js) to the dead eye; Please Hold under the roof's clear card.
 // Saga II is roofA; #music=b/c selects an earlier candidate.
 // Characters talk in blips, one tone per letter, timed to match the caption as it types out.
 // Browsers only allow audio after a tap or key press: `ready` is false until then, and `onready` is
@@ -432,7 +433,9 @@ window.UnrugSound = (function () {
     else if (name === 'flood') stopMusicFx();   // the souls play the flood themselves: play('rush', n), then play('pinch')
     else if (name === 'fusion') { stopMusicFx(); api.music(id + 'Heavy', { slam: true }); }
     else if (name === 'one') { api.music(null, { hard: true }); if (ctx) osc(fxBus(), 'p50', hz(74), ctx.currentTime + .005, options.seconds || 2, .09, { attack: .015, sustain: .9 }); }
-    else if (name === 'snap' || name === 'dawn') { api.music(null, { hard: true }); if (!options.continueChord) api.play('chord'); }
+    else if (name === 'snap') { api.music(null, { hard: true }); if (!options.continueChord) api.play('chord'); }
+    // dawn: the ending's music (music-roof.js), one piece from here to the dead eye (owner, Oct 17)
+    else if (name === 'dawn') { api.music('ending', { slam: true }); if (!options.continueChord) api.play('chord'); }
   }
   // ---------- blip talk ----------
   const VOICES = {

@@ -103,7 +103,27 @@
     endRun('clear'); await settle(); await settle(); wait(2.5);
     check(Cards.step === 'off' && Cards.stepLines.join(' ') === 'BOARD OFFLINE. UNPROCESSED.' && calls.load.length === loads, 'no token: BOARD OFFLINE., no lookup');
     wait(.5); check(Cards.labels().join() === 'Continue', 'and Continue');
+    Cards.press('Continue'); Title.frame();
+    check(state === 'title' && Title.board, 'a full run\'s Continue opens the title on its mode\'s board (owner, Oct 17)');
+    await settle(); for (const k in online) delete online[k];   // the title's board asks again later, with its own answer
     Cards.hide();
+    // the clear's lines about the run (owner, Oct 17): the hat it missed and why, and Impossibull the first time it opens
+    const opened = localStorage.getItem('unruggabull-ii-impossibull'), mode0 = RUN.mode; setMode('raging'); localStorage.setItem('unruggabull-ii-impossibull', '1');
+    startRun('roof', true); R.souls = 401; R.endT = 150; R.phase = 'win'; RUN.hatMiss = { kind: 'crown', why: 'hurt', hearts: 3 };
+    endRun('clear');
+    check(Cards.runLines.join() === 'NO CROWN. NEEDS FULL HEALTH AT THE TOP.', 'a missed hat: why, on the clear card');
+    Cards.hide(); localStorage.removeItem('unruggabull-ii-impossibull');
+    startRun('roof', true); R.souls = 401; R.endT = 150; R.phase = 'win'; RUN.hatMiss = { kind: 'crown', why: 'retried', hearts: 5 };
+    endRun('clear');
+    check(Cards.runLines.join() === 'IMPOSSIBULL UNLOCKED.,NO CROWN. NEEDS NO RETRIES.', 'a clean Raging clear opens Impossibull and says so');
+    Cards.hide();
+    startRun('roof', true); R.souls = 401; R.endT = 150; R.phase = 'win'; RUN.hatMiss = null; endRun('clear');
+    check(Cards.runLines.length === 0, 'only the first time; and nothing when the hat came');
+    Cards.hide(); startRun('roof'); RUN.hatMiss = { kind: 'cap', why: 'hurt', hearts: 3 }; R.phase = 'win'; endRun('clear');
+    check(Cards.runLines.length === 0, 'and nothing for a practice run');
+    Cards.hide();
+    if (opened === null) localStorage.removeItem('unruggabull-ii-impossibull'); else localStorage.setItem('unruggabull-ii-impossibull', opened);
+    setMode(mode0);
     LB.start = (game, board) => { calls.start.push([game, board]); return Promise.resolve('tok-' + board); };
 
     // ---- runs that never post ----
