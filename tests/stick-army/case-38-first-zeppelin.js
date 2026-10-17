@@ -25,17 +25,13 @@
     // ---------- the release ----------
     var op = camp.OPS[3];
     check(op.released && op.slots === 5 && op.starKind === 'crew' && op.gun === 'heavy' && camp.RELEASE === 4, 'First Zeppelin is out');
-    var draws = {};
-    for (var v = 0; v < 30; v++) {
-      var m = camp.missionsFor(camp.freshTour(camp.codeText(v * 104729)), 3);
-      check(m.length === 4 && m[0] === 'shadow' && m[3] === 'the-zeppelin', 'Shadow first, the boss mission last (' + m + ')');
-      draws[m.join()] = 1;
-    }
-    check(Object.keys(draws).length >= 5, 'and two of its pool between');
+    // Its missions in a fixed order since round 6, the boss mission last.
+    var v, m = camp.missionsFor(camp.freshTour(camp.codeText(104729)), 3);
+    check(m.join() === 'bay-doors,recon-run,last-stand,the-zeppelin', 'Bomb bay, Recon run, Last stand, then the boss (' + m + ')');
     check(camp.missionsFor(camp.freshTour('K7QMR2'), 2).length === 3, 'earlier operations draw as before');
     var ended = camp.freshTour('K7QMR2'); ended.op = 2; ended.at = 'end'; ended.m = 3; ended.opBalloons = 6;
     var on = camp.readTour(JSON.parse(JSON.stringify(ended)));
-    check(on.op === 3 && on.at === 'map' && on.missions[0] === 'shadow' && on.opBalloons === 0 && on.opCrew === 0, 'a tour waiting at "To be continued" carries on into it');
+    check(on.op === 3 && on.at === 'map' && on.missions[0] === 'bay-doors' && on.opBalloons === 0 && on.opCrew === 0, 'a tour waiting at "To be continued" carries on into it');
     localStorage.setItem(K.seen, '3'); localStorage.setItem(K.unlock, 'true');
     camp.setTour(on); titleScene();
     check(!document.getElementById('campaignNew').hidden, 'the "new" tag is back');

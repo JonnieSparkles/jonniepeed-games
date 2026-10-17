@@ -134,15 +134,15 @@ var StickArmyCampaign = function (world, game) {
     'the-big-one': { name: 'The big one', goal: { kind: 'big' }, as: [7], piece: 'bigone', threats: ['balloons'],
       text: 'A giant bomb balloon is drifting in. Pop it before it reaches the bunker.',
       recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 12; c.bombers = 1; c.balloons = 4; } },
-    'bay-doors': { name: 'Bomb bay', goal: { kind: 'bay', n: 6 }, as: [7], piece: 'bay', threats: ['bombers'],
-      text: 'The zeppelin opens its bomb bay before each run. Hit it in the open bay 6 times.',
-      recipe: function (c) { zep(c); c.helis = 0; c.planes = 8; c.bombers = 0; c.rushes = 0; } },
+    'bay-doors': { name: 'Bomb bay', goal: { kind: 'bay', n: 5 }, as: [7], piece: 'bay', threats: ['bombers'],
+      text: 'The zeppelin opens its bomb bay before each run. Hit it in the open bay 5 times.',
+      recipe: function (c) { zep(c); c.helis = 0; c.planes = 5; c.bombers = 0; c.rushes = 0; } },
     'recon-run': { name: 'Recon run', goal: { kind: 'recon', n: 3 }, as: [8], piece: 'recon', threats: ['low'],
       text: 'Our recon plane is photographing the zeppelin. Get it across 3 times, and don\'t hit it.',
       recipe: function (c) { zep(c); c.helis = 0; c.planes = 8; c.bombers = 0; c.rushes = 0; } },
     'last-stand': { name: 'Last stand', goal: { kind: 'stand' }, as: [9], piece: 'stand', threats: ['rushes'],
       text: 'The wall is at 40% and the engineers are pinned down. Hold for 45 seconds.',
-      recipe: function (c) { c.helis = 0; c.planes = 16; c.bombers = 2; } }
+      recipe: function (c) { c.helis = 0; c.planes = 14; c.bombers = 0; c.balloons = 1; } }
   });
   // Arcade's wave 5 is the zeppelin's: as a Recruitment Drive wave it's an ordinary one, with Arcade's plane count.
   function noBoss(c, n) {
@@ -1110,14 +1110,15 @@ var StickArmyCampaign = function (world, game) {
   // beside it. Every SPOT.EVERY seconds its spotter marks a spot (a soldier, the bunker, the mat in turn) with a red X;
   // SPOT.FUSE seconds later a shell lands there. SPOT.HP hits pop it; SPOT.LOSE soldiers hit loses the mission.
   var SPOT = { HP: 14, Y: 118, EVERY: 5.5, FUSE: 4, R: 26, HURT: 1.4, WALL: 10, LOSE: 3, RX: 30, RY: 15 };
-  // The big one: a bomb balloon BIG.R across, BIG.HP hits, drifting in from an edge to the bunker over BIG.TIME seconds.
+  // The big one: a bomb balloon BIG.R across, BIG.HP hits, drifting from the page's edge to the bunker over BIG.TIME
+  // seconds.
   var BIG = { HP: 70, R: 46, Y: 150, TIME: 50, AT: 3 };
   // Bomb bay: the zeppelin's bay opens BAY.OPEN seconds before each bomb run; BAY.N hits inside it wins, and each one
   // stops that run.
-  var BAY = { OPEN: 3, R: 17, N: 6 };
+  var BAY = { OPEN: 3, R: 17, N: 5 };
   // Recon run: our recon plane crosses RECON.PASSES times at RECON.Y; enemy planes within RECON.NEAR wear it down
   // (RECON.CHIP a second), and so do the zeppelin's gunners while it's within RECON.GUNS of it.
-  var RECON = { HP: 30, Y: 128, SPEED: 34, PASSES: 3, NEAR: 60, CHIP: 2.2, GUNS: 90, GUN_CHIP: 0.8, FRIENDLY: 3, GAP: 4, AT: 3, HW: 34, HH: 12 };
+  var RECON = { HP: 30, Y: 128, SPEED: 34, PASSES: 3, NEAR: 60, CHIP: 1.6, GUNS: 90, GUN_CHIP: 0.8, FRIENDLY: 3, GAP: 4, AT: 3, HW: 34, HH: 12 };
   // Last stand: the wall starts at STAND.WALL of full and can't be repaired; survive STAND.TIME seconds.
   var STAND = { WALL: 0.4, TIME: 45 };
   Object.assign(PIECES, {
@@ -1183,7 +1184,8 @@ var StickArmyCampaign = function (world, game) {
       tick: function (S, dt) {
         var c = S.cm, k = c.count, t = waveTime(S, dt);
         if (!c.big && t >= BIG.AT && S.waveState === 'active') {
-          var m = world.activeTramps()[0], from = m.x1 < 200 ? world.W + BIG.R + 10 : -BIG.R - 10;
+          // In over the far side from the mat, already most of the way onto the page.
+          var m = world.activeTramps()[0], from = m.x1 < 200 ? world.W - BIG.R + 16 : BIG.R - 16;
           c.big = { x: from, from: from, hp: BIG.HP, flash: 0, gone: false };
           world.addText('the big one!', 200, 120, world.RED, 30, 'alert'); world.sound.play('horn');
         }

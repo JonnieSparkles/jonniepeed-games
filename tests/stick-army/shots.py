@@ -126,6 +126,12 @@ CAMPAIGN = {
     'tree': CAMP + "t.tree = ['double']; t.at = 'debrief'; t.debrief = { op: 0, star: true, promoted: t.squad.map(function (s) { return { id: s.id, named: false }; }), picks: 1,"
             " bonus: [{ kind: 'pick', name: 'Another requisition', text: 'One more step on the tree.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' }] }; c.write(); c.screens.debrief();"
             " document.querySelectorAll('#cDebriefBody .c-node.next')[1].click();",
+    # Balloon Season's and First Zeppelin's set pieces (round 6).
+    'spotter': BS + STEP + "t.tree = []; t.missions[0] = 'spotter-balloon'; c.write(); c.startMission(); step(6.5);",
+    'bigone': BS + STEP + "t.tree = []; t.missions[0] = 'the-big-one'; c.write(); c.startMission(); step(16);",
+    'bay': FZ + STEP + "t.tree = []; t.missions[0] = 'bay-doors'; c.write(); c.startMission(); var z = zepIn(); z.bombT = 2.4; step(0.1);",
+    'recon': FZ + STEP + "t.tree = []; t.missions[0] = 'recon-run'; c.write(); c.startMission(); step(7);",
+    'stand': FZ + STEP + "t.tree = []; t.missions[0] = 'last-stand'; c.write(); c.startMission(); step(6);",
     # First Zeppelin (round 4): the briefing (the armory line), the deploy screen's gun row, the heavy gun firing at a
     # zeppelin, the armored boss, and its crew bailing out.
     'fz-briefing': FZ + "c.screens.map(); c.screens.briefing();",

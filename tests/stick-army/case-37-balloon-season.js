@@ -22,9 +22,9 @@
     // ---------- the release ----------
     var op = camp.OPS[2];
     check(op.released && op.slots === 4 && op.starKind === 'balloons' && camp.RELEASE >= 3, 'Balloon Season is out');
-    var draws = {};
-    for (var v = 0; v < 30; v++) { var m = camp.missionsFor(camp.freshTour(camp.codeText(v * 104729)), 2); check(m.length === 3 && m[0] === 'cable-cutters', 'Cable cutters first'); draws[m.join()] = 1; }
-    check(Object.keys(draws).length >= 5, 'and two of its pool after it');
+    // Its missions in a fixed order since round 6.
+    var v, m = camp.missionsFor(camp.freshTour(camp.codeText(104729)), 2);
+    check(m.join() === 'cable-cutters,spotter-balloon,the-big-one', 'Cable cutters, Spotter balloon, The big one (' + m + ')');
     var ended = camp.freshTour('K7QMR2'); ended.op = 1; ended.at = 'end'; ended.m = 3; ended.opDummies = 2;
     var on = camp.readTour(JSON.parse(JSON.stringify(ended)));
     check(on.op === 2 && on.at === 'map' && on.m === 0 && on.missions[0] === 'cable-cutters' && on.opDummies === 0, 'a tour waiting at "To be continued" carries on into it');
