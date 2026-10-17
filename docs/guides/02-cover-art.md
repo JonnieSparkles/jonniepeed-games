@@ -70,8 +70,8 @@ Size: 1536×1024 landscape. Keep the title and the hero inside the central 4:3 a
 
 1. Save the full-size image as `brand/covers/<slug>.png`. It isn't published.
 2. In `tools/og/make.py`, give the game's `GAMES` entry `None, {"cover": ("<slug>.png", 0.5)}` in place of its capture setup and options. The number places the crop: `0` is the left edge, `0.5` is centred and `1` is the right edge.
-3. Run `python3 tools/og/make.py --game <slug>`. It writes `site/<slug>/thumb.webp` and `site/<slug>/og.jpg`, and removes an old `og.png`. If the game had a `thumb.png` before, delete it and point the shelf `<img>` in `site/index.html` at `thumb.webp`, sized 768×576.
-4. Point the page's `og:image` and `twitter:image` at `og.jpg` if they named `og.png`, and update the alt text on the shelf image and the page's `og:image:alt` and `twitter:image:alt`, plus the line in the game's doc that says where its card comes from.
+3. Run `python3 tools/og/make.py --game <slug>`. It writes `site/<slug>/thumb.webp` and `site/<slug>/og.jpg`. If the game had a `thumb.png` before, delete it and point the shelf `<img>` in `site/index.html` at `thumb.webp`, sized 768×576.
+4. Update the alt text on the shelf image and the page's `og:image:alt` and `twitter:image:alt`, plus the line in the game's doc that says where its card comes from.
 5. Look at the card and the thumbnail yourself, then run `python3 tools/stamp.py` last.
 
 ## Covers so far
