@@ -10,14 +10,16 @@ Live site: https://jonniepeed.games/ · Scores API: https://scores.jonniepeed.ga
 site/                   everything that gets published
   index.html            studio page: logo, game shelf, pixel easter egg (assets/studio/ident.js), sound (assets/studio/audio.js)
   <slug>/               one folder per game, its entry index.html (each game's doc is docs/games/<slug>/README.md)
-  assets/               shared fonts, leaderboard, play stats and rooms clients (rooms.js), dark mark and favicons
+  assets/               shared fonts, leaderboard, play stats and rooms clients (rooms.js), dark mark and the studio's favicons
   assets/studio/        logos, ident.js, audio.js, light mark, og.jpg and external-game thumbnails
   <slug>/og.jpg         game-owned social preview card
   <slug>/thumb.<ext>    game-owned shelf thumbnail (retain its image format)
+  <slug>/favicon.ico    game-owned tab icons, with favicon-32.png and apple-touch-icon.png (built by tools/favicons/make.py)
   <slug>/audio.js       classic sound script loaded before game.js
   assets/fonts/         Silkscreen, Pixelify Sans, Cabin Sketch, Atkinson Hyperlegible, IBM Plex Mono (SIL OFL)
                         and Schoolbell (Apache 2.0), self-hosted
 tools/og/make.py        builds the social preview cards and shelf thumbnails (cover art, pixel canvases, page screenshots, or a game's own card page in tools/og/cards/)
+tools/favicons/make.py  builds each game's favicon.ico, favicon-32.png and apple-touch-icon.png from its pixel art in brand/favicons/
 tools/stamp.py          adds ?v=<hash> to file links so updates aren't stuck in browser caches
 tools/check_boards.py   checks game BOARD constants before deploying
 tools/balance/          balance bots: seeded headless runs at several skill levels, with reports
@@ -35,6 +37,7 @@ tests/<slug>/           per-game browser harnesses, plus balance.js, bot.js and 
 work/                   local tool output such as work/balance/ and work/trailer/ (git-ignored, never committed)
 brand/                  source logo and cover art files, not published
   covers/<slug>.png               game cover art, full size, title lettered in (make.py crops it)
+  favicons/<slug>.png             game favicon pixel art, 16x16 full bleed, plus <slug>-32.png when it needs one
   logo.png, logo-dark.png         full logo, transparent, light and dark versions
   mark.png, mark-dark.png         stick figure mark
   mark-pixel*.png                 pixel-art mark (1x and 8x)
@@ -53,8 +56,9 @@ These apply to every change:
 - **No double-tap zoom.** iPhones zoom on a quick double tap, and they ignore `user-scalable=no`. Every page sets `*{touch-action:manipulation}` near the top of its CSS; game surfaces use `touch-action:none` and scrolling cards `pan-y`. Pinch zoom still works.
 - **Cache busting.** Run `python3 tools/stamp.py` after any change in `site/`, so changed files get new `?v=` links.
 - **Social previews.** Every page has Open Graph and Twitter tags and a 1200×630 card. Rebuild with `python3 tools/og/make.py`. The index card stays generic and never lists games. Cards are JPEG (`og.jpg`); only a card whose picture is a pixel canvas stays PNG (`og.png`), like its `thumb.png`.
+- **Game favicons.** Every game has its own tab and home-screen icon, so a game left open in a tab, bookmarked or added to a home screen shows the game, not the studio mark. Draw it as pixel art in `brand/favicons/<slug>.png`: one simple glyph in the game's own colors that reads at 16 px in light and dark tab strips. Build it with `python3 tools/favicons/make.py` and link the three files from the game's `index.html`. The studio page and `404.html` keep the shared studio icons in `site/assets/`. [06: Favicons](docs/guides/06-favicons.md) explains how to make one.
 - **Relative links, clean directory URLs.** Player links use `<slug>/` from the studio and `../` from games back home, preserving the site mount. Assets remain relative; entry files remain `index.html`. No slashless aliases or `<base>` bootstrap. Arweave manifests need the directory entries described below. The one exception is `site/404.html`: GitHub Pages serves it at whatever missing path was asked for, so its assets use absolute `https://jonniepeed.games/` URLs (which `stamp.py` still versions) and its home links use `/`.
-- **Asset ownership.** Only shared files belong at the top of `site/assets/`. Studio-only files belong in `assets/studio/`; game-owned files, including `og.<ext>` and `thumb.<ext>`, belong in `site/<slug>/`. Retiring a game removes its shelf and `GAMES` entries too; permanent scores API records remain.
+- **Asset ownership.** Only shared files belong at the top of `site/assets/`. Studio-only files belong in `assets/studio/`; game-owned files, including `og.<ext>`, `thumb.<ext>` and the favicons, belong in `site/<slug>/`. Retiring a game removes its shelf and `GAMES` entries too; permanent scores API records remain.
 - **Game docs first.** Everything about one game lives in its folder, `docs/games/<slug>/`, named like its `site/` folder. Player help stays inside the game. This README names no game's status, tests or tools, so adding or changing a game never touches it (two games built at once would otherwise collide here): a game's shelf, its checks, bots and trailer go in its own README.
   - **`README.md`** is the living doc: the game as it is now, with its rules, tuning, code entry points and validation. Read it before changing the game, and update it in the same change. Keep it to the present; why a value changed goes in `history.md`.
   - **Specs** are plans for the game or a feature of it, named for what they are, without a number: `spec.md` for the game itself, then names like `arcade.md` or `coop.md`. Write one before building something big. Once it's built, give it a status line saying so and leave the plan as it was decided.
@@ -76,7 +80,7 @@ These apply to every change:
 
 1. For anything bigger than a sketch, start with a spec: `docs/games/yourgame/spec.md` (see Game docs first, above).
 2. Make a folder in `site/` with an `index.html` that only uses relative paths, following the standards above.
-3. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture (see [02: Cover art](docs/guides/02-cover-art.md)).
+3. Add it to `GAMES` in `tools/og/make.py` and run it to make its preview card and index thumbnail. If it has cover art, put the full-size image in `brand/covers/` and give the entry a `cover` option instead of a capture (see [02: Cover art](docs/guides/02-cover-art.md)). Draw its favicon in `brand/favicons/yourgame.png`, run `python3 tools/favicons/make.py --game yourgame`, and link `favicon.ico`, `favicon-32.png` and `apple-touch-icon.png` from its `index.html` (see [06: Favicons](docs/guides/06-favicons.md)).
 4. Copy one of the cards in `site/index.html` and point it at `yourgame/`, using `yourgame/thumb.<ext>` for its image. Development cards use `data-side="b" data-badge="demo" hidden` and a `.badge` span inside `.info`; unmarked cards belong to Side A. The script fills the visible, accessible badge from `data-badge` as text, so other labels need no script changes. Demo pages stay noindexed until approved for promotion.
 5. Write its living doc, `docs/games/yourgame/README.md` ([Thimbleful's](docs/games/thimbleful/README.md) is a good model), beside the game's `spec.md` if it has one, and link it to any browser harness in `tests/yourgame/`. Keep sound in `yourgame/audio.js`, loaded before `game.js`. Run `python3 tools/stamp.py` last.
 6. For online scores, follow the [Adding a game checklist](docs/guides/00-leaderboards.md#adding-a-game) in the leaderboard guide; deploy the Worker before the site.
