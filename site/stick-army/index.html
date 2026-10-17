@@ -441,6 +441,17 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .c-slip b { font: 700 21px/1.05 var(--font-display); }
 .c-slip span { font-size: 16px; color: var(--ink-soft); }
 .c-slip[aria-pressed="true"] { border-color: var(--ally); border-width: 3.5px; background: #edf2fb; }
+/* The requisition tree (round 5): rows of four steps; taken blue, next dashed (a button), the rest pencilled. */
+.c-trow { display: grid; gap: 3px; }
+.c-trow > span { font-size: 17px; }
+.c-nodes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.c-node { min-height: 48px; box-sizing: border-box; padding: 2px 3px; display: flex; align-items: center; justify-content: center; text-align: center; font: 14px/1.05 var(--font-hand); color: #8f8a80; background: var(--paper); border: 2px solid #b5b0a6; border-radius: 10px 6px 11px 7px; overflow-wrap: anywhere; }
+.c-node.got { color: var(--ally); border-color: var(--ally); background: #dce7fa; }
+button.c-node.next { color: var(--ink); border: 2px dashed var(--ink); cursor: pointer; }
+button.c-node.next[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
+.c-node:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
+.c-pickline { margin: 2px 0 0; padding-top: 6px; border-top: 2px dashed var(--ink); font-size: 16px; line-height: 1.25; }
+.c-pickline b { font-weight: 400; color: var(--ally); }
 /* The barracks: twelve bunks, recruiting, and the fallen on the back page. */
 .c-bunks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .c-bunk { min-height: 86px; box-sizing: border-box; padding: 4px 3px 5px; display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center;
@@ -674,20 +685,20 @@ button.c-bunk { font-family: var(--font-hand); color: var(--ink); cursor: pointe
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="audio.js?v=9f03c91bfb"></script>
 <script src="icons.js?v=5affe866b7"></script>
-<script src="draw.js?v=375d3c9f06"></script>
-<script src="units.js?v=933aa13d21"></script>
-<script src="sky.js?v=94c524341b"></script>
+<script src="draw.js?v=4d452392d8"></script>
+<script src="units.js?v=6402c41f81"></script>
+<script src="sky.js?v=c65f1bdba1"></script>
 <script src="squad.js?v=d6cf414a23"></script>
 <script src="dreadnought.js?v=2250d8ef77"></script>
 <script src="board.js?v=1084286549"></script>
-<script src="shop.js?v=b984415c52"></script>
+<script src="shop.js?v=4feb85f42c"></script>
 <script src="shop-screen.js?v=364333a172"></script>
 <script src="flow.js?v=b5481d0bc7"></script>
 <script src="save.js?v=c147602002"></script>
-<script src="campaign.js?v=5a141cb975"></script>
-<script src="campaign-screens.js?v=4a7b074060"></script>
+<script src="campaign.js?v=306a724549"></script>
+<script src="campaign-screens.js?v=43af35513c"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
 <script src="coop.js?v=224dde6a0c"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=ba234e1b2e"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=168d78dbc1"></script>
 </body>
 </html>

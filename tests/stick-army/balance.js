@@ -66,6 +66,9 @@
         for (var q = 0; q < (Number(options.squad) || 0); q++) t.squad.push({ id: t.nextId++, type: q % 3 === 1 ? 'engineer' : 'rifle', stripes: 0, kills: 0 });
         // --option gun=heavy: the heavy gun, where the operation's armory has it (First Zeppelin on).
         if (options.gun) t.gun = options.gun;
+        // The requisition tree: a pick for each operation before this one, round the rows (or --option tree=full for
+        // the whole shop, as a tour from before the tree has).
+        t.tree = options.tree === 'full' ? null : camp.autoTree(t.op);
         // --option bank=N: N dog tags to spend in the shop before the mission (a tour well along has some put by).
         if (options.bank) t.bank = Number(options.bank) || 0;
         camp.setTour(t); RUN.players = 1; camp.startMission({ shop: !!t.bank });
@@ -102,7 +105,7 @@
           .concat(S.hq.filter(function (h) { return !h.hit; }).map(function (h) { return { x: h.x, y: h.y, vx: h.dir * SKY.CRATE.SPEED, hw: SKY.CRATE.HW, hh: SKY.CRATE.HH }; }))
       };
       S.troopers.forEach(function (t) {
-        if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy });
+        if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy, pilot: !!t.pilot, officer: !!t.officer });
       });
       S.planes.forEach(function (p) {
         if (p.kind === 'dread') return; // seen through its parts below

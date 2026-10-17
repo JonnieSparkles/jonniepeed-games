@@ -193,24 +193,62 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     pick = -1;
     $('cDebriefBody').innerHTML =
       '<div class="c-starrow">' + (d.star ? STAR.replace('c-star', 'c-bigstar') : NO_STAR) + '<div><h2 class="c-title" id="cDebriefTitle">' + esc(op.name) + '</h2>' +
-        '<p class="c-small">' + (d.star ? 'Gold star: nobody was lost.' : 'No gold star: ' + esc(op.star.replace(/\.$/, '').toLowerCase()) + ' next time.') + '</p></div></div>' +
+        '<p class="c-small">' + (d.star ? 'Gold star: ' + esc(op.star.replace(/\.$/, '').toLowerCase()) + '.' : 'No gold star: ' + esc(op.star.replace(/\.$/, '').toLowerCase()) + ' next time.') + '</p></div></div>' +
       '<p class="c-eyebrow">' + (promos ? 'PROMOTED' : 'NOBODY TO PROMOTE') + '</p>' +
       (promos ? '<ul class="c-promos">' + promos + '</ul>' : '<p class="c-small">Catch soldiers and keep them alive: each operation survived is a stripe.</p>') +
       (promos ? '<p class="c-small">One stripe each for an operation survived. A first stripe brings a name and a trait.</p>' : '') +
+      (d.picks != null ? (d.picks ? treeHtml(t) : bonusHtml(d)) :
       '<p class="c-eyebrow">PICK ONE</p><div class="c-slips" id="cSlips">' +
-      d.offers.map(function (r, i) { return '<button class="c-slip" type="button" aria-pressed="false" data-i="' + i + '"><b>' + esc(r.name) + '</b><span>' + esc(r.text) + '</span></button>'; }).join('') + '</div>';
-    $('cTake').disabled = true;
+      d.offers.map(function (r, i) { return '<button class="c-slip" type="button" aria-pressed="false" data-i="' + i + '"><b>' + esc(r.name) + '</b><span>' + esc(r.text) + '</span></button>'; }).join('') + '</div>');
+    $('cTake').disabled = true; step = null;
     up(); only(['cDebrief']);
-    var first = $('cSlips').querySelector('button'); if (first) first.focus({ preventScroll: true });
+    var first = $('cDebriefBody').querySelector('.c-node.next, .c-slip'); if (first) first.focus({ preventScroll: true });
+  }
+  // The requisition tree (the pick from the layouts, round 5): three rows of four, taken steps in blue, each row's
+  // next step dashed and pickable, the rest pencilled; the picked step's line under the tree.
+  var step = null;
+  function treeHtml(t) {
+    var next = camp.treeNext(t), d = t.debrief;
+    return '<p class="c-eyebrow">REQUISITION · PICK ONE' + (d.took && d.took.length ? ' MORE' : '') + '</p><p class="c-small">It goes on the shop shelf for the rest of the tour.</p>' +
+      camp.TREE.map(function (r, ri) {
+        return '<div class="c-trow"><span>' + esc(r.name) + '</span><div class="c-nodes">' + r.steps.map(function (id) {
+          var it = world.ITEMS.find(function (x) { return x.id === id; }), got = t.tree.indexOf(id) >= 0, nx = next[ri] === id;
+          return nx ? '<button class="c-node next" type="button" aria-pressed="false" data-step="' + id + '">' + esc(it.name) + '</button>'
+            : '<span class="c-node' + (got ? ' got' : '') + '">' + esc(it.name) + '</span>';
+        }).join('') + '</div></div>';
+      }).join('') +
+      (d.star && d.bonus ? '<p class="c-small" style="color:#8a6d00">' + STAR + ' Gold star: one more pick after this, or a veteran or a medal.</p>' : '') +
+      '<p class="c-pickline" id="cStepLine">Tap a dashed step to see what it does.</p>';
+  }
+  function bonusHtml(d) {
+    return '<p class="c-eyebrow">' + STAR + ' GOLD STAR · PICK ONE</p><div class="c-slips" id="cSlips">' +
+      d.bonus.map(function (r, i) { return '<button class="c-slip" type="button" aria-pressed="false" data-i="' + i + '"><b>' + esc(r.name) + '</b><span>' + esc(r.text) + '</span></button>'; }).join('') + '</div>';
   }
   $('cDebrief').addEventListener('click', function (e) {
+    var n = e.target.closest && e.target.closest('.c-node.next');
+    if (n) {
+      step = n.dataset.step; pick = -1;
+      Array.prototype.forEach.call($('cDebriefBody').querySelectorAll('.c-node.next'), function (x) { x.setAttribute('aria-pressed', x === n ? 'true' : 'false'); });
+      var it = world.ITEMS.find(function (x) { return x.id === step; });
+      $('cStepLine').innerHTML = '<b>' + esc(it.name) + '</b> · ' + esc(it.desc);
+      $('cTake').disabled = false;
+      return;
+    }
     var b = e.target.closest && e.target.closest('.c-slip');
     if (!b) return;
-    pick = Number(b.dataset.i);
+    pick = Number(b.dataset.i); step = null;
     Array.prototype.forEach.call($('cSlips').children, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
     $('cTake').disabled = false;
   });
-  $('cTake').addEventListener('click', function () { if (pick >= 0 && camp.takeReward(pick)) barracks(); });
+  $('cTake').addEventListener('click', function () {
+    var t = camp.tour(), d = t.debrief, left = null;
+    if (d && d.picks != null) {
+      if (step) left = camp.takeStep(step); else if (pick >= 0) left = camp.takeBonus(pick);
+      if (left === 'done') barracks(); else if (left) debrief();
+      return;
+    }
+    if (pick >= 0 && camp.takeReward(pick)) barracks();
+  });
 
   // ---------- deploy ----------
   // The gun slips' little pictures: the bunker with its barrel (the heavy one short and fat, with its muzzle brake).
@@ -297,6 +335,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     $('cBunkNote').textContent = order.length > out ? 'The first ' + out + ' go out on the next mission (Deploy picks who). Dashed bunks sit it out.' : 'Each operation has its squad slots: ' + out + ' at ' + camp.nextOp().name + '.';
     var hires = $('cHires');
     if (t.squad.length < camp.BARRACKS) camp.ROLES.forEach(function (type) {
+      if (!camp.hireable(t, type)) return;
       var price = camp.hirePrice(type), h = document.createElement('button');
       h.type = 'button'; h.className = 'c-hire'; h.textContent = camp.ROLE_NAME[type][0].toUpperCase() + camp.ROLE_NAME[type].slice(1) + ' ' + price;
       h.disabled = t.bank < price;

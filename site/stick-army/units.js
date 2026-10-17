@@ -132,7 +132,7 @@ var StickArmyUnits = function (w) {
     p.smoke -= dt;
     if (p.smoke <= 0) { p.smoke = 0.07; puff(p.x + rr(-0.6, 0.6) * p.hw, p.y - p.hh * 0.6, rr(3, 6), 0.9); }
     S.troopers.forEach(function (t) {
-      if (t.dead || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
+      if (t.dead || t.prize || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
       if (Math.abs(t.x - p.x) < p.hw && Math.abs(t.y + 10 - p.y) < p.hh + 8) { t.dead = true; killFx(t); S.stats.kills++; emit('kill', { by: 'crash', type: t.type }); award(10, t.x, t.y, 'bonk!', INK, true); }
     });
     if (p.y + p.hh * 0.5 >= GROUND - 8) {

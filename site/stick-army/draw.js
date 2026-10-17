@@ -157,9 +157,11 @@ var StickArmyDraw = function (world) {
     G.quadraticCurveTo(x, base - 5 * s, x - w / 3, base);
     G.quadraticCurveTo(x - w * 0.66, base - 5 * s, x - w, base);
     G.closePath();
-    G.fillStyle = RED_FILL; G.fill(); ink(RED, 2.2); G.stroke();
-    G.beginPath(); L(x - w / 3, base, x, top + 4 * s, 0.5); L(x + w / 3, base, x, top + 4 * s, 0.5); ink(RED, 1.3); G.stroke();
-    G.beginPath(); L(x - w, base, x - 5, y + 2, 0.5); L(x + w, base, x + 5, y + 2, 0.5); ink(RED, 1.4); G.stroke();
+    // Campaign's downed pilot (t.pilot) comes down under one of ours: blue.
+    var c = t.pilot ? BLUE : RED;
+    G.fillStyle = t.pilot ? 'rgba(47,111,220,0.16)' : RED_FILL; G.fill(); ink(c, 2.2); G.stroke();
+    G.beginPath(); L(x - w / 3, base, x, top + 4 * s, 0.5); L(x + w / 3, base, x, top + 4 * s, 0.5); ink(c, 1.3); G.stroke();
+    G.beginPath(); L(x - w, base, x - 5, y + 2, 0.5); L(x + w, base, x + 5, y + 2, 0.5); ink(c, 1.4); G.stroke();
   }
   function drawTrooper(t) { var S = world.S, G = world.G;
     pen(t.id);
@@ -175,12 +177,14 @@ var StickArmyDraw = function (world) {
     else { s = Math.sin(t.walk); pose = [-s * 5, 19, s * 5, 19, s * 6, 33, -s * 6, 33]; }
     // Campaign's straw dummy (t.dummy): straw-yellow, straw at the hands and stitched X eyes, no gun.
     if (t.dummy) { stick(x, y, pose, world.STRAW); strawMan(x, y, pose); G.restore(); return; }
+    // Campaign's downed pilot: blue, in a flying helmet, no gun.
+    if (t.pilot) { stick(x, y, pose, BLUE); G.beginPath(); G.arc(x, y - 6, 6.5, Math.PI * 1.05, Math.PI * 1.95); ink(INK, 2.4); G.stroke(); G.restore(); return; }
     if (t.type === 'bazooka') tube(x - 10, y + 20, x + 9, y + 4);
     stick(x, y, pose, RED);
     if (t.type === 'rifle') { G.beginPath(); L(x - 7, y + 17, x + 7, y + 8, 0.4); ink(INK, 2); G.stroke(); }
     if (t.gunner && t.flash > 0) { G.beginPath(); G.arc(x + 8, y + 8, 4, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     if (t.armor > 0) vest(x, y, S.t - t.pingT < 0.12);
-    if (t.captain) captainCap(x, y, t.state === 'ground' ? t.dir : 1);
+    if (t.captain || t.officer) captainCap(x, y, t.state === 'ground' ? t.dir : 1);
     else if (t.type === 'engineer') hat(x, y);
     else if (t.armor > 1) steelPot(x, y);
     if (t.type === 'sniper') { drawScope(x, y, t.state === 'ground' ? t.dir : 1);

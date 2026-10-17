@@ -31,10 +31,12 @@
     // ---------- the code ----------
     check(camp.codeText(camp.codeValue('K7QMR2')) === 'K7QMR2' && camp.codeValue('k7q-mr2') === camp.codeValue('K7QMR2'), 'a code reads back, in any case, with a dash');
     check(camp.codeValue('O1L') < 0 && camp.codeValue('OIL0OO') === camp.codeValue('011000'), 'typing is forgiving: O is 0, I and L are 1');
-    var a = camp.missionsFor(camp.freshTour('K7QMR2'), 0), b = camp.missionsFor(camp.freshTour('K7QMR2'), 0);
-    check(a.length === 3 && a[0] === 'first-contact' && a.join() === b.join(), 'a code always draws the same three missions, First contact first (' + a + ')');
-    check(a[1] !== a[2] && camp.OPS[0].pool.indexOf(a[1]) >= 0 && camp.OPS[0].pool.indexOf(a[2]) >= 0, 'and two different ones from the pool');
-    var draws = {}; for (var v = 0; v < 40; v++) draws[camp.missionsFor(camp.freshTour(camp.codeText(v * 7919)), 0).join()] = true;
+    // Boot Camp's missions are fixed (round 5); an operation with a pool draws from it (Balloon Season here).
+    check(camp.missionsFor(camp.freshTour('K7QMR2'), 0).join() === 'first-contact,downed-pilot,hold-the-radio', 'Boot Camp: First contact, Downed pilot, Hold the radio');
+    var a = camp.missionsFor(camp.freshTour('K7QMR2'), 2), b = camp.missionsFor(camp.freshTour('K7QMR2'), 2);
+    check(a.length === 3 && a[0] === 'cable-cutters' && a.join() === b.join(), 'a code always draws the same missions, the fixed one first (' + a + ')');
+    check(a[1] !== a[2] && camp.OPS[2].pool.indexOf(a[1]) >= 0 && camp.OPS[2].pool.indexOf(a[2]) >= 0, 'and two different ones from the pool');
+    var draws = {}; for (var v = 0; v < 40; v++) draws[camp.missionsFor(camp.freshTour(camp.codeText(v * 7919)), 2).join()] = true;
     check(Object.keys(draws).length >= 6, 'different codes draw different missions (' + Object.keys(draws).length + ' draws)');
 
     // ---------- hidden until #campaign ----------
@@ -146,7 +148,8 @@
     Object.keys(armyFixtures).filter(function (k) { return /^campaign-/.test(k); }).forEach(function (name) {
       var fx = armyFixtures[name], old = camp.readTour(fx.tour);
       check(old && old.code === fx.tour.code && old.squad.length === fx.tour.squad.length, name + ': its tour save loads');
-      check(old.missions.join() === fx.missions.join(), name + ': and draws the same missions');
+      // Its operation's missions as they are now (Boot Camp's and Recruitment Drive's were reworked in round 5).
+      check(old.missions.join() === (camp.OPS[old.op].pool ? fx.missions : camp.missionsFor(old, old.op)).join(), name + ': and draws its missions');
       var fromLink = camp.readLink(fx.link);
       check(fromLink && fromLink.code === fx.tour.code && fromLink.squad.length === fx.tour.squad.length, name + ': its save link loads');
       if (fx.tour.gun) check(fromLink.gun === fx.tour.gun && old.gun === fx.tour.gun, name + ': with its gun');

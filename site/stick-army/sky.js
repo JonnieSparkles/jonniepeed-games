@@ -540,7 +540,7 @@ var StickArmySky = function (w) {
     p.smoke -= dt;
     if (p.smoke <= 0) { p.smoke = 0.08; w.puff(p.x, p.y - 4, 4, 0.7); }
     S.troopers.forEach(function (t) {
-      if (!t.dead && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 28) {
+      if (!t.dead && !t.prize && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 28) {
         t.dead = true; w.killFx(t); S.stats.kills++; emit('kill', { by: 'crash', type: t.type }); w.award(10, t.x, t.y, 'bonk!', INK, true);
       }
     });
