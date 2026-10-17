@@ -38,11 +38,11 @@ Landscape only. The alley is 960 × 540 at the window's full height, centred; on
 
 ## Title
 
-The RugCo Empire painting from the 2025 gallery, with a slow push-in, firelight and rising embers; the 2025 tagline ("One bull was not like the rest, he was..."), the wordmark and "RugCo Alley · Remastered" (`title.js`, drawn on `#title-art`). The menu is buttons: Play ("Let's go!", then the controls screen, as in 2025), Leaderboard, Gallery (the four 2025 gallery paintings and the 2025 title), Credits, and The 2025 original (unruggabull.ar.io, in a new tab). The title music starts on the first tap or key. Bottom right: this device's fastest clear.
+The RugCo Empire painting from the 2025 gallery, with a slow push-in, firelight and rising embers; the 2025 tagline ("One bull was not like the rest, he was..."), the wordmark and "RugCo Alley · Remastered" (`title.js`, drawn on `#title-art`). The menu is buttons: Play ("Let's go!", then the controls screen, as in 2025), Leaderboard, Gallery (the four 2025 gallery paintings and the 2025 title), Credits, and The 2025 original (unruggabull.ar.io, in a new tab). Top right: a speaker (sound on or off, the pause card's setting too) and Full screen. The title music starts on the first tap or key. Bottom right: this device's fastest clear.
 
 ## End of a run and the board
 
-A clear (`end.js`): the 2025 congratulations art fades in over the alley as it did, then moves aside for the run's numbers (time, health, unrugged), then the board. Rugged: the 2025 line on the canvas, with how far he got (wave or the Rugfather, unrugged, time), Retry and Quit (Title after a clear). Retry starts a fresh run on the controls screen; Quit and Title reload to the title.
+A clear (`end.js`): the 2025 congratulations art fades in over the alley as it did (touched, `won.js`: its baked serif lettering covered and redrawn in the game's type, CONGRATULATIONS! in the wordmark style, YOU HAVE DEFEATED in the HUD face, THE RUGFATHER in GAME OVER's red; then the Rugfather burns out, his eyes guttering and going dark and a ragged line of embers on the 3 px grid climbing from his hem to leave cold ash, with embers drifting off him; with reduced motion it shows the ash at once), then moves aside for the run's numbers (time, health, unrugged), then the board. Rugged: the 2025 line on the canvas, with how far he got (wave or the Rugfather, unrugged, time), Retry and Quit (Title after a clear). Retry starts a fresh run on the controls screen; Quit and Title reload to the title.
 
 **The timer and splits.** Under the health and shots, the run's time (the board's clock: from the controls screen to the Rugfather's defeat, pauses and hit-stops not counted). When the waves end and when the Rugfather goes down, that split shows beside it for 3 s: green and minus when it's ahead of this device's fastest clear, red and plus when behind, the plain time when there's no clear yet. A new fastest clear on the device keeps its splits for the next run to race.
 
@@ -79,6 +79,7 @@ Classic scripts, loaded in this order by `site/unruggabull-remastered/index.html
 - `rugfather.js`: the Rugfather's sprites, constants, AI, boss object, intro and defeat timelines and the orchestrator that plays them.
 - `game.js`: `BOARD`, platforms, the level config, carpshits, collisions, `updateGame`, `renderGame` (the scene, then the HUD and banners) and `renderScene`, `resetGame`, the loop (`gameLoop`) and `beginGame`.
 - `end.js`: `UnrugRun`: the run's token and play stats, the end card, the board table, this device's clears.
+- `won.js`: `UnrugWon`, the win picture on the end card's `#end-art` canvas (started and stopped by `end.js`).
 - `title.js`: `UnrugTitle`: the title's drawing, its menu and the Leaderboard, Gallery and Credits cards.
 - `phone.js`: layout, the touch controls and the bars on `#hud`, pause, full screen and the portrait screen.
 
@@ -92,6 +93,8 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## History
 
+- **Oct 17, 2026:** the win picture burns out (take C of https://claude.ai/artifact/GDzyMEgNE2aEsYpRDvY84x), its lettering in the game's type.
+- **Oct 17, 2026:** a speaker on the title beside Full screen (the same sound setting as the pause card's Sound, kept on the device), and the top-edge buttons light up amber on hover.
 - **Oct 17, 2026:** the touch controls follow the last input (a key hides them, as in Unruggabull II); a full screen toggle by pause; the crackle about 7 dB quieter; shadows under the bull all through the intro and defeat scenes, and under the Rugfather as he comes out of the garage.
 - **Oct 16, 2026:** play stats add shots, hits and ran_dry; the jump grunt back down to its 2025 level.
 - **Oct 16, 2026:** listed on Side A, play stats switched on, in place of the 2025 game's card (which linked out to unruggabull.ar.io), and no longer noindexed.

@@ -160,6 +160,7 @@ window.UnrugRun = (function () {
     endEl.hidden = true; endEl.className = '';
     panel.hidden = true; ruggedBox.hidden = true;
     art.classList.remove('split');
+    UnrugWon.stop();
     boardBox.replaceChildren(); stats.replaceChildren(); msg.textContent = '';
     const medals = $('end-medals'); if (medals) medals.remove();
   }
@@ -216,6 +217,7 @@ window.UnrugRun = (function () {
     if (ended.stats && window.PlayStats) PlayStats.end(ended.stats, report());
     endEl.hidden = false; endEl.className = 'cleared';
     art.classList.remove('split'); art.style.opacity = 0;
+    UnrugWon.start(art);
     place();
     requestAnimationFrame(() => { art.style.opacity = 1; });
     await wait(2600);
