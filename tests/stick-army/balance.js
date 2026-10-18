@@ -12,10 +12,6 @@
     var e = { ev: type, wave: S.wave, t: Math.round(S.t * 100) / 100 };
     for (var k in data) e[k] = data[k];
     log.push(e);
-    // A Campaign mission's end reads as a run's end: won as a victory, lost as a game over (a wall brought down has
-    // its own game over already, with what did it).
-    if (type === 'mission_end' && data.result === 'won') log.push({ ev: 'victory', wave: S.wave, t: e.t, score: S.score });
-    else if (type === 'mission_end' && data.cause !== 'wall') log.push({ ev: 'game_over', wave: S.wave, t: e.t, score: S.score, cause: data.cause });
   }
   // The harness drives the game, so the page's own frame loop stops for good (run.py waits out the frame
   // already scheduled) and sound stays off.
@@ -55,26 +51,9 @@
       level = LEVELS[options.level] ? options.level : 'soldier';
       var coop = !!options.coop && options.coop !== '0';
       RUN.players = coop ? 2 : 1; me = 0;
-      // Campaign (run.py --option game=campaign): one mission of a tour whose code comes from the seed, alone
-      // (--option mission=dummy-drop; First contact by default) in its own operation, with --option squad=N rookies to
-      // start with, --option gun=heavy, and --option bank=N tags to shop with first.
-      if (options.game === 'campaign') {
-        var camp = world.campaign, t = camp.freshTour(camp.codeText(seed % 1073741824));
-        t.missions = [options.mission && camp.MISSIONS[options.mission] ? options.mission : 'first-contact'];
-        // In its own operation (its dummies, weather and intel, as the tour code rolls them).
-        t.op = Math.max(0, camp.OPS.findIndex(function (o) { return (o.fixed || []).concat(o.last || []).indexOf(t.missions[0]) >= 0; }));
-        for (var q = 0; q < (Number(options.squad) || 0); q++) t.squad.push({ id: t.nextId++, type: q % 3 === 1 ? 'engineer' : 'rifle', stripes: 0, kills: 0 });
-        // --option gun=heavy: the heavy gun, where the operation's armory has it (First Zeppelin on).
-        if (options.gun) t.gun = options.gun;
-        // The requisition tree: a pick for each operation before this one, round the rows (or --option tree=full for
-        // every step).
-        t.tree = options.tree === 'full' ? camp.autoTree(12) : camp.autoTree(t.op);
-        // --option bank=N: N dog tags to spend in the shop before the mission (a tour well along has some put by).
-        if (options.bank) t.bank = Number(options.bank) || 0;
-        camp.setTour(t); RUN.players = 1; camp.startMission({ shop: !!t.bank });
-        bot2 = null; return;
-      }
-      RUN.force = seed; newGame(); RUN.force = null; RUN.players = 1;
+      // options.challenge: a challenge's id (run.py --option challenge=pilots): its fixed setup, not the seed's run.
+      if (options.challenge) { CHALLENGES.start(options.challenge); RUN.players = 1; }
+      else { RUN.force = seed; newGame(); RUN.force = null; RUN.players = 1; }
       bot2 = coop && profile && window.__balanceBot ? window.__balanceBot(profile, (seed ^ 0x2b7e1516) >>> 0) : null;
       buf2 = []; steps2 = 0; shopped2 = -1; lag2 = profile ? Math.round(profile.reaction_ms / 1000 * 60 / 2) : 0;
     },
@@ -105,8 +84,11 @@
           .concat(S.hq.filter(function (h) { return !h.hit; }).map(function (h) { return { x: h.x, y: h.y, vx: h.dir * SKY.CRATE.SPEED, hw: SKY.CRATE.HW, hh: SKY.CRATE.HH }; }))
       };
       S.troopers.forEach(function (t) {
-        if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy, pilot: !!t.pilot, officer: !!t.officer });
+        if (!t.dead) o.troopers.push({ id: t.id, x: t.x, y: t.y, state: t.state, type: t.type, open: t.open, fall: t.fall, vy: t.vy, pilot: !!t.pilot });
       });
+      // A challenge's big one (challenges.js) is something to shoot, like a plane.
+      var big = S.ch && S.ch.big;
+      if (big && !big.gone) o.planes.push({ id: 'big', kind: 'big', x: big.x, y: CHALLENGES.BIG.Y, vx: 0, vy: 0, state: 'fly', phase: null, armed: false, hw: CHALLENGES.BIG.R, hh: CHALLENGES.BIG.R, hp: big.hp });
       S.planes.forEach(function (p) {
         if (p.kind === 'dread') return; // seen through its parts below
         var fly = p.state === 'fly';
@@ -116,12 +98,6 @@
       // The Dreadnought: its guns over the page (the one aiming first) and, once exposed, its bridge.
       // marking: false, or a tag for this aim (when it started), so each new aim is a new thing to notice.
       o.dread = dreadTargets().map(function (q) { return { id: q.id, part: q.part, x: q.x, y: q.y, vx: q.vx, marking: q.marking ? 'm' + Math.round((S.t - q.markT) * 10) : false }; });
-      // Campaign: the mission's goal kind (a boss mission's zeppelin comes first, as a player would know).
-      if (S.cm) o.goal = world.campaign.MISSIONS[S.cm.mission].goal.kind;
-      // Campaign's set pieces: what to shoot (a spotter balloon, the big one, an open bomb bay) and friends not to.
-      if (S.cm) { o.extra = world.campaign.pieceView('targets'); o.medevac = o.medevac.concat(world.campaign.pieceView('friends')); }
-      // Campaign's barrage balloons (Balloon Season), up on their cables.
-      if (S.barrage) o.barrage = S.barrage.filter(function (q) { return q.state === 'fly'; }).map(function (q) { return { id: 'barrage' + q.x, x: q.x, y: q.cy != null ? q.cy : q.y, hp: q.hp }; });
       S.bombs.forEach(function (m) { if (!m.dead && !m.armored) o.bombs.push({ id: m.id, x: m.x, y: m.y, vx: m.vx, vy: m.vy }); });
       S.recruits.forEach(function (r) { if (!r.dead) o.recruits.push({ id: r.id, type: r.type, x: r.x, hp: r.hp, max: crewMax(r) }); });
       if (S.mode === 'shop' && S.shop) {
@@ -153,8 +129,7 @@
       }
     },
     // A win ends the run too (the victory card); the bot doesn't play on into endless.
-    // A Campaign mission ends on its own card (S.mode 'between').
-    status: function () { return { over: S.mode === 'dying' || S.mode === 'over' || S.mode === 'won' || S.mode === 'between', wave: S.wave, score: S.score, t: S.t, mode: S.mode }; },
+    status: function () { return { over: S.mode === 'dying' || S.mode === 'over' || S.mode === 'won', wave: S.wave, score: S.score, t: S.t, mode: S.mode }; },
     drain: function () { var out = log; log = []; return out; }
   };
 })();

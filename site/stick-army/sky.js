@@ -215,7 +215,7 @@ var StickArmySky = function (w) {
     release(p);
     for (var i = 0; i < 4; i++) S.parts.push({ k: 'shred', x: p.x + rr(-12, 12), y: p.y - 12 + rr(-6, 6), vx: rr(-60, 60), vy: rr(-50, 10), rot: rr(0, 6), vr: rr(-6, 6), life: rr(0.6, 1), max: 1, id: w.id() });
     w.award(15, p.x, p.y - 16, 'pop!', owner === 'ally' ? BLUE : INK, true);
-    emit('plane_down', { kind: 'balloon', by: owner === 'ally' ? 'crew' : 'player', x: Math.round(p.x) });
+    emit('plane_down', { kind: 'balloon', by: owner === 'ally' ? 'crew' : 'player' });
     w.sound.play('pop');
   }
 
@@ -540,7 +540,7 @@ var StickArmySky = function (w) {
     p.smoke -= dt;
     if (p.smoke <= 0) { p.smoke = 0.08; w.puff(p.x, p.y - 4, 4, 0.7); }
     S.troopers.forEach(function (t) {
-      if (!t.dead && !t.prize && !t.pilot && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 28) {
+      if (!t.dead && !t.pilot && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 28) {
         t.dead = true; w.killFx(t); S.stats.kills++; emit('kill', { by: 'crash', type: t.type }); w.award(10, t.x, t.y, 'bonk!', INK, true);
       }
     });
@@ -577,9 +577,7 @@ var StickArmySky = function (w) {
     // The smoke lingers into the bridge stage (smokeClear) and clears at once if the Dreadnought goes down.
     var dp = w.dreadPhase && w.dreadPhase(), sm = S.smoke, linger = !!sm && sm.clearing && sm.linger > 0 && dp === 'bridge';
     var dark = S.waveState === 'active' && ((S.spawn && S.spawn.cfg && S.spawn.cfg.night) || dp === 'hangar' || linger);
-    // Campaign's dusk (S.dusk): half dark through a wave, the night raid's dark at that strength.
-    if (S.dusk && !dark) { var to = S.waveState === 'active' ? S.dusk : 0, now = S.night || 0; S.night = now < to ? Math.min(to, now + dt / NIGHT.FADE) : Math.max(to, now - dt / NIGHT.FADE); }
-    else S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
+    S.night = clamp((S.night || 0) + (dark ? 1 : -1) * dt / NIGHT.FADE, 0, 1);
     if (sm) { sm.t += dt; if (sm.clearing) { if (linger) sm.linger -= dt; else { sm.clear += dt; if (S.night <= 0) S.smoke = null; } } }
     S.skyFx.forEach(function (q) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; });
     S.skyFx = S.skyFx.filter(function (q) { return q.life > 0 && q.y > -60; });

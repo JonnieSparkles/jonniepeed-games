@@ -54,7 +54,7 @@ var StickArmyShopScreen = function (w, shop) {
   // The shop as it stands for this device's player (w.me): their tags, their gift, their gun.
   function render() {
     var S = w.S, coop = !!S.coop, mine = w.tagsOf(w.me);
-    $('shopWave').textContent = w.shopLine();
+    $('shopWave').textContent = 'Wave ' + S.wave + ' survived';
     $('shopCoins').textContent = mine + ' dog tags' + (coop ? ' (yours)' : '');
     var news = $('shopNews'); news.textContent = S.news.join(' '); news.hidden = !S.news.length;
     var hurt = Math.round(S.stats.wallDamage - (S.waveStart.wall || 0));
@@ -63,7 +63,7 @@ var StickArmyShopScreen = function (w, shop) {
     var giftLeft = !S.shop.giftTaken[w.me] && S.shop.gifts[w.me];
     $('shopHint').textContent = (giftLeft ? 'One supply is on the house' + (coop ? ' for you. ' : '. ') : '') +
       (coop ? 'Your tags are your own; anything for the squad is for both of you.' : giftLeft ? 'Spend dog tags on the rest, or save them.' : 'Spend dog tags on what you like, or save them.') +
-      bossHint(w.waveCfg(w.nextWave()));
+      bossHint(w.waveCfg(S.wave + 1));
     function costLabel(it) {
       if (it.id === 'pizza' && S.pizzaOrder) return 'On its way ✓';
       if (it.blocked && it.blocked() && !shop.bought(it)) return it.blocked();
@@ -137,7 +137,7 @@ var StickArmyShopScreen = function (w, shop) {
     var undoBtn = $('undoBtn'), last = shop.lastOf();
     undoBtn.hidden = !last;
     if (last) undoBtn.textContent = '↩ Undo ' + (shop.isSend(last.id) ? 'send home' : ITEMS.find(function (it) { return it.id === last.id; }).name.toLowerCase());
-    $('continueBtn').textContent = w.waveName(w.nextWave()) + ' →';
+    $('continueBtn').textContent = 'Wave ' + (S.wave + 1) + ' →';
     if (w.afterShop) w.afterShop();
   }
 
@@ -147,7 +147,7 @@ var StickArmyShopScreen = function (w, shop) {
   // them and a "Send home" button; tap again to let them be. One a visit; whoever went home shows as a chip that
   // brings them back (shop.js sendHome, putBack).
   var picked = null;
-  var ROLE = { rifle: 'Rifleman', engineer: 'Engineer', bazooka: 'Bazooka', sniper: 'Sniper', medic: 'Medic', radio: 'Radio operator', mg: 'Machine gunner' };
+  var ROLE = { rifle: 'Rifleman', engineer: 'Engineer', bazooka: 'Bazooka', sniper: 'Sniper', medic: 'Medic' };
   function who(r) { return r.name && r.rank ? w.SQUAD.rankName(r) : 'Rookie ' + (ROLE[r.type] || 'soldier').toLowerCase(); }
   function record(r, bed) {
     var n = r.waves || 0, bits = [ROLE[r.type] || 'Soldier', n + (n === 1 ? ' wave' : ' waves') + ', ' + w.SQUAD.killsText(r.kills || 0)];

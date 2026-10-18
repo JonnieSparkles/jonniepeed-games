@@ -93,13 +93,6 @@ var StickArmyUnits = function (w) {
     // Turning is a cartoon flip: the hull squashes through zero width, so it slows, stops and heads back.
     p.face += clamp(p.dir - p.face, -dt * 2.6, dt * 2.6);
     if (p.state === 'fly') {
-      // Campaign: once the enemy surrenders it heads for an edge (`leaving`, -1 or 1) and is gone past it. Arcade never sets it.
-      if (p.leaving) {
-        p.dir = p.leaving; p.speed += (ZEP.ENTER_SPEED - p.speed) * Math.min(1, dt * 1.5); p.x += p.face * p.speed * dt;
-        p.y = p.baseY + Math.sin(S.t * 1.1 + p.bob) * 2.5;
-        if (p.x < -p.hw - 40 || p.x > W + p.hw + 40) p.gone = true;
-        return;
-      }
       if (!p.entered && p.x > ZEP.LEFT && p.x < ZEP.RIGHT) p.entered = true;
       var want = !p.entered ? p.enterSpeed || ZEP.ENTER_SPEED : p.angry ? ZEP.ANGRY_SPEED : ZEP.SPEED;
       p.speed += (want - p.speed) * Math.min(1, dt * 1.5);
@@ -132,7 +125,7 @@ var StickArmyUnits = function (w) {
     p.smoke -= dt;
     if (p.smoke <= 0) { p.smoke = 0.07; puff(p.x + rr(-0.6, 0.6) * p.hw, p.y - p.hh * 0.6, rr(3, 6), 0.9); }
     S.troopers.forEach(function (t) {
-      if (t.dead || t.prize || t.pilot || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
+      if (t.dead || t.pilot || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
       if (Math.abs(t.x - p.x) < p.hw && Math.abs(t.y + 10 - p.y) < p.hh + 8) { t.dead = true; killFx(t); S.stats.kills++; emit('kill', { by: 'crash', type: t.type }); award(10, t.x, t.y, 'bonk!', INK, true); }
     });
     if (p.y + p.hh * 0.5 >= GROUND - 8) {
@@ -192,8 +185,7 @@ var StickArmyUnits = function (w) {
     if (!p.decoy) S.banner = { s: 'zeppelin down!', sub: 'catch the crew! ' + (got ? '+1 air strike' : '+' + RADIO.FULL_TAGS + ' tags'), t: 0, dur: 2.4 };
     S.shake = Math.max(S.shake, 0.5);
     w.sound.play('zepdown');
-    // Its crew bail out (`crew`: Campaign's gold star counts them caught).
-    for (var i = 0; i < 3; i++) { var cm = spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)); cm.zep = p.id; cm.crew = true; }
+    for (var i = 0; i < 3; i++) spawnTrooper(p.x + (i - 1) * p.hw * 0.6, p.y + p.hh + 10, rollTrooper(p.rng)).zep = p.id;
     // The decoy's disguise tears off and flutters down on its own (game.js updateParts).
     if (p.decoy) S.parts.push({ k: 'sticker', x: p.x + p.face * STICKER.X, y: p.y + STICKER.Y, vx: rr(-30, 30), vy: -60, rot: 0, flat: 0, life: 10, max: 10, id: w.id() });
   }
@@ -549,8 +541,6 @@ var StickArmyUnits = function (w) {
   // Fighter cover is a flight of two, the wingman WING_X behind and WING_Y above the lead.
   var FIGHTER = { SPEED: 250, PASSES: [190], EVERY: 0.08, RANGE: 320, BULLET: 760, SHOP_WAVE: 3, START: 34, HOLD: 0.35, DIVE: 50, DIVE_T: 0.5, WING_X: 46, WING_Y: 24 };
   var FIGHTER_PTS = [-34, 1, -32, -5, -18, -7, 22, -5, 28, -6, 34, -16, 40, -16, 38, 1, 16, 5, -24, 6];
-  // Campaign's radio operator, standing, brings calls in sooner (game.js MODES callFast).
-  function callPace() { var f = w.rules().callFast; return f && f() ? 0.4 : 1; }
   function callsHeld() { var c = w.S.calls; return c.bomber + c.fighter; }
   // A free call from HQ or a zeppelin. With the radio full it pays out in tags instead. Quiet when a banner says it.
   function grantCall(kind, x, y, quiet) {
@@ -604,7 +594,7 @@ var StickArmyUnits = function (w) {
     var dir = w.RC() < 0.5 ? -1 : 1, targets = [];
     for (var i = 0; i < STRIKE.BOMBS; i++) { var x = 24 + i * (W - 48) / (STRIKE.BOMBS - 1); if (Math.abs(x - BK.x) > 46) targets.push(x); }
     if (dir < 0) targets.reverse();
-    S.strike = { x: dir > 0 ? STRIKE.START : W - STRIKE.START, dir: dir, hold: (STRIKE.HOLD + RADIO.TALK) * callPace(), drops: targets, id: w.id() };
+    S.strike = { x: dir > 0 ? STRIKE.START : W - STRIKE.START, dir: dir, hold: STRIKE.HOLD + RADIO.TALK, drops: targets, id: w.id() };
     radioCall('air strike!');
     emit('air_strike', { wave: S.wave, left: S.calls.bomber });
     return true;
@@ -630,7 +620,7 @@ var StickArmyUnits = function (w) {
     // A lead and a wingman, flying in echelon. Each has its own guns, contrail and muzzle flash. From the left or the
     // right, like the air strike.
     var dir = w.RC() < 0.5 ? -1 : 1;
-    S.fighter = { pass: 0, dir: dir, x: dir > 0 ? FIGHTER.START : W - FIGHTER.START, y: FIGHTER.PASSES[0], hold: (FIGHTER.HOLD + RADIO.TALK) * callPace(), fly: 0, dive: FIGHTER.DIVE, id: w.id(),
+    S.fighter = { pass: 0, dir: dir, x: dir > 0 ? FIGHTER.START : W - FIGHTER.START, y: FIGHTER.PASSES[0], hold: FIGHTER.HOLD + RADIO.TALK, fly: 0, dive: FIGHTER.DIVE, id: w.id(),
       wing: [{ dx: 0, dy: 0, cd: 0.1, flash: 0, trail: [] }, { dx: -FIGHTER.WING_X, dy: -FIGHTER.WING_Y, cd: 0.16, flash: 0, trail: [] }] };
     radioCall('fighter cover!');
     emit('fighter_cover', { wave: S.wave, left: S.calls.fighter });
@@ -726,7 +716,7 @@ var StickArmyUnits = function (w) {
       fighterBody(f, q, G);
     });
   }
-  // One of ours in the air (the fighter's wing, Campaign's planes in Downed pilot): leaves G translated, rotated and
+  // One of ours in the air (the fighter's wing, Challenges' planes in Pilot rescue): leaves G translated, rotated and
   // scaled to it, for the caller to draw on and restore.
   function allyBody(G, id, x, y, dir, tilt) {
     pen(id); G.save(); G.translate(x, y); G.rotate(dir * tilt); G.scale(-dir * 0.72, 0.72);

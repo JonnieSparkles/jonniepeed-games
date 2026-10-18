@@ -26,7 +26,7 @@ var StickArmyFlow = function (world, game) {
     titleScreen.hidden = false; pauseScreen.hidden = true; overScreen.hidden = true; winScreen.hidden = true; pauseBtn.hidden = true;
     game.facingLoaded = false;
     fit();
-    // Campaign's button says New or Continue (campaign-screens.js).
+    // The title's Challenges button (challenges.js).
     if (world.onTitle) world.onTitle();
   }
   // The level picked on the title (LEVELS): ticked on the form, its record on the rubber stamp ("Best 446,661 / Won
@@ -153,14 +153,10 @@ var StickArmyFlow = function (world, game) {
   }
   // The pause card's lines: the wave and time, the kit and the squad.
   function fillPause() { var S = world.S;
-    document.getElementById('pauseTime').textContent = world.waveName(S.wave) + ' · ' + clock(S.played) + ' played';
-    // A kind of run's objective (Campaign's mission goal and how it's going).
+    document.getElementById('pauseTime').textContent = (world.rules().hud ? world.rules().hud().wave : 'Wave ' + S.wave) + ' · ' + clock(S.played) + ' played';
+    // A kind of run's objective (a challenge's goal and how it's going).
     var goal = document.getElementById('pauseGoal'), goalLine = world.rules().pauseLine ? world.rules().pauseLine() : '';
     goal.textContent = goalLine; goal.hidden = !goalLine;
-    // A kind of run that keeps your place says so on its Quit (Campaign: "Save and quit").
-    document.getElementById('pauseQuitBtn').textContent = world.rules().quitLabel || 'Quit';
-    // A kind of run with a save link offers it here (Campaign's Copy save link; campaign-screens.js copies it).
-    var link = document.getElementById('pauseLink'); if (link) { link.hidden = !world.rules().pauseLink; link.textContent = 'Copy save link'; }
     // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
     var kit = document.getElementById('pauseKit');
     kit.hidden = !renderKit(kit, false);
@@ -316,8 +312,6 @@ var StickArmyFlow = function (world, game) {
     // A call in the HUD makes the call instead of firing.
     var chip = callChipAt(toLogical(e));
     if (chip) { if (chip.kind === 'bomber') callStrike(); else callFighter(); e.preventDefault(); return; }
-    // A kind of run's own controls on the page (Campaign's orders).
-    if (world.rules().tap && world.rules().tap(toLogical(e))) { e.preventDefault(); return; }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     aimAt(toLogical(e)); gun().firing = true;
     // Touch (or a pen) on the page marks the run as touch on the board and in play stats; menus don't count.
@@ -376,13 +370,16 @@ var StickArmyFlow = function (world, game) {
   document.getElementById('startBtn').addEventListener('click', newGame);
   document.getElementById('againBtn').addEventListener('click', newGame);
   document.getElementById('winAgainBtn').addEventListener('click', newGame);
-  document.getElementById('restartBtn').addEventListener('click', newGame);
+  // Restart: a kind of run can restart its own way (a challenge starts again).
+  document.getElementById('restartBtn').addEventListener('click', function () { if (world.rules().restart) world.rules().restart(); else newGame(); });
   // Quit, on the pause, game-over and victory cards: back to the title. A run quit from pause reports as quit to play
   // stats. In co-op it leaves the room, as the room's own Leave does.
   function quitToTitle() {
     if (COOP && COOP.role) { COOP.leave(); return; }
     if (statsRun && world.S.mode === 'paused') PlayStats.quit(statsRun);
     statsRun = null;
+    // A kind of run can go back somewhere of its own (a challenge: the list).
+    if (world.rules().quit) { world.rules().quit(); return; }
     titleScene();
     document.getElementById('startBtn').focus({ preventScroll: true });
   }

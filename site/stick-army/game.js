@@ -82,18 +82,8 @@
     engineer: { minWave: 1, cooldown: 2, spread: 0.14, hp: 2.6 },
     bazooka: { minWave: 2, cooldown: 4, spread: 0.03, hp: 2.6 },
     // With no crew to hit, a sniper plinks at the turret for abandonAfter seconds, then slips away unrewarded.
-    sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 14 },
-    // Campaign's radio operator (campaign.js): a rifleman's aim and health, and slower to fire; never an enemy.
-    radio: { minWave: Infinity, cooldown: 2.6, spread: 0.16, hp: 2.6 },
-    // Campaign's machine gunner: bursts at the low sky, a round every BURST seconds, heating as he fires (MG).
-    mg: { minWave: Infinity, cooldown: 0.11, spread: 0.2, hp: 2.8 }
+    sniper: { minWave: 3, cooldown: 3.2, spread: 0.025, hp: 2.6, damage: 0.9, abandonAfter: 14 }
   };
-  // The machine gunner's barrel: HEAT a round, cooling COOL a second, and a REST once it's full; he only fires at what's
-  // low (below LOW, or on the ground).
-  var MG = { HEAT: 0.085, COOL: 0.45, REST: 2.2, LOW: 380 };
-  // Campaign's heavy gun (a turret with `heavy`, set only by Campaign): FIRE times the cooldown, HEAT times the heat a
-  // shot, and rounds that do DMG damage and go through helmets and armor. Arcade's turrets never have it.
-  var HEAVY = { FIRE: 2.2, HEAT: 2, DMG: 4 };
   // From ARMOR.WAVE some troopers wear a flak vest that stops one body hit (two from ARMOR.HEAVY, with a helmet).
   // Popping the chute, rockets and other blasts work as usual, so the turret copes better than the crew.
   var ARMOR = { WAVE: 10, HEAVY: 17 };
@@ -107,7 +97,7 @@
   // The page the game is drawn on, as a theme: its colors and pens, how it's ruled (draw.js drawPaper), and how the
   // HUD reads on it (draw.js pensAt): in its pens on the paper, and in CHALK where the page goes dark (the night raid,
   // the Dreadnought's smoke), turning over between PEN_TURN of full dark. The ruled notebook is the only paper so far;
-  // Campaign's missions may add others. The colors are read from index.html's CSS (the cards use the same), and every
+  // a challenge may add others. The colors are read from index.html's CSS (the cards use the same), and every
   // file takes them once, when it's made, so a paper is picked before the page loads, not mid-run.
   var css = getComputedStyle(document.documentElement);
   function tok(n, f) { var v = css.getPropertyValue(n).trim(); return v || f; }
@@ -129,8 +119,6 @@
   var THEME = PAPERS.ruled;
   var PAPER = THEME.PAPER, INK = THEME.INK, INK2 = THEME.INK2;
   var RED = THEME.RED, BLUE = THEME.BLUE, HAT = THEME.HAT, GREEN = THEME.GREEN;
-  // Campaign's straw dummies.
-  var STRAW = '#c9a227';
   var RED_FILL = THEME.RED_FILL, INK_FILL = THEME.INK_FILL, EMPTY = THEME.EMPTY;
   var HAND = '"Schoolbell", "Comic Sans MS", "Chalkboard SE", cursive';
   var DISPLAY = '"Cabin Sketch", "Schoolbell", "Comic Sans MS", cursive';
@@ -163,6 +151,7 @@
   var emitHook = null;
   function emit(type, data) {
     if (S && S.coop) playerEvent(type, data || {});
+    // A kind of run hears every event (MODES on; Challenges counts what its stars ask for).
     var on = S && S.game && MODES[S.game] && MODES[S.game].on;
     if (on) on(type, data || {});
     if (emitHook) emitHook(type, data || {});
@@ -176,8 +165,6 @@
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
-    // The stream's state, so a saved run picks up exactly where it left off (save.js): state() reads it, state(v) sets it.
-    next.state = function (v) { if (v !== undefined) a = v | 0; return a; };
     return next;
   }
 
@@ -416,34 +403,21 @@
   // ---------- what decides a run ----------
   // A run's kind (S.game, from RUN.game) decides its waves (the recipe for wave n), when it's won (asked as a wave
   // clears) and what winning does, and when it's lost (asked every frame of play). Arcade, the 20 waves that end with
-  // the Dreadnought, is the default; Campaign (campaign.js) adds its own entry. A kind can also have any of these,
+  // the Dreadnought, is the default; Challenges (challenges.js) adds its own entry. A kind can also have any of these,
   // which Arcade leaves out, so without them every run plays as Arcade always has:
-  //   cleared()         asked every frame of a wave: a goal met ends it early (the enemy surrenders, the wave clears)
-  //   lose()            what a loss does, instead of the wall's fall (die); over() what the end of dying does
-  //   begin(n)          told as wave n starts; seedKey(n) the number the wave is seeded with, if not n
-  //   next()            the wave after this one, if not S.wave + 1; waveName(n) how the wave is named on the cards,
-  //                     and shopLine() the shop's heading
-  //   banner(n, sub)    the wave's opening banner; endBanner() the one when won() is true as the wave clears
-  //   hud()             { wave, sub }: the HUD's wave label and the line under it
   //   on(type, data)    hears every event emit() sends
-  //   skipShop()        true: the next wave starts without the shop
-  //   bench(t)          a catch with no free slot: true if the kind took him (Arcade's "squad full!" otherwise)
-  //   sells(item)       whether the shop offers a supply; room() whether a hire has somewhere to go
-  //   promotes          false: no stripes for waves served (squad.js serveWave)
-  //   trooper(kit, rnd, cfg) may change who jumps; pauseLine() a line for the pause card
-  //   callFast()        true: radio calls arrive sooner (units.js); draw() draws over the page before the HUD
-  //   quitLabel         the pause card's Quit, named (Campaign: "Save and quit")
-  //   held()            true: the wave isn't over yet, though its enemies are (Campaign's set pieces still to come)
-  //   rescue(t)         a prize (t.prize) caught on a mat; walk(t, dt) true: the kind of run moved this lander itself
-  //   spare(t)          true: the squad and the sentry leave this trooper alone (Campaign: chutes over a mat)
-  //   caught(t)         a soldier caught, on the field or in a bunk (Campaign: a zeppelin's crew, a downed pilot)
-  //   noMats()          true: no mats on the page (Campaign's first mission)
-  //   drawSky(G)        draws the kind of run's own things in the sky, behind the aircraft
-  //   shot(b)           a bullet's own targets, before the planes (true: it's spent); tick(dt) every frame of the field
-  //   order()           the squad's orders (Campaign): 'repair' (everyone patches the wall), 'vehicles' (tanks and
-  //                     aircraft first), 'soldiers' (troopers first, on the ground or in the air), 'capture' (chutes
-  //                     only popped over a mat); anything else, as always
-  //   drawHud(G)        draws over the HUD; tap(p) a tap on the page in play: true if the kind of run took it
+  //   banner(n, sub)    the wave's opening banner; endBanner() the one when won() is true as the wave clears
+  //   hud()             { wave, sub, done }: the HUD's wave label and the line under it (blue once done)
+  //   cleared()         asked every frame of a wave: true ends it early (the enemy surrenders, the wave clears)
+  //   held()            true: the wave isn't over yet, though its enemies are (a set piece still going)
+  //   lose()            what a loss does, instead of the wall's fall (die); over() what the end of dying does
+  //   tick(dt)          every frame of the field; draw(G) draws over the page, under the labels
+  //   shot(b)           a bullet's own targets, before the planes (true: it's spent)
+  //   spare(t)          true: the squad and the sentry leave this trooper alone (a downed pilot)
+  //   caught(t)         a soldier caught on the mat
+  //   pauseLine()       a line for the pause card; restart() the pause card's Restart; quit() its Quit
+  // A downed pilot (t.pilot, Challenges) is one of ours: drawn blue, and only your turret can touch him (it pops his
+  // chute); rounds, blasts and falling planes pass him by. A wave whose recipe has noDrops drops no one.
   var MODES = {
     arcade: {
       wave: function (n) { return waveCfg(n); },
@@ -455,11 +429,6 @@
   function rules() { return MODES[S && S.game] || MODES.arcade; }
   function waveFor(n) { return rules().wave(n); }
   function runWon() { return rules().won(); }
-  // The wave after this one, and how a wave is named on the cards ("Wave 3" in Arcade).
-  function nextWave() { return rules().next ? rules().next() : S.wave + 1; }
-  function waveName(n) { return rules().waveName ? rules().waveName(n) : 'Wave ' + n; }
-  // The shop's heading: "Wave 3 survived".
-  function shopLine() { return rules().shopLine ? rules().shopLine() : waveName(S.wave) + ' survived'; }
 
   // Arcade's waves. A run is 20 waves. Bosses every fifth: a zeppelin (5), the armored zeppelin (10), two zeppelins
   // at once (15) and the Dreadnought (20); in endless the twins return on the fives and the Dreadnought on the tens.
@@ -672,13 +641,12 @@
   function pickDropX(rnd) {
     // A little more drops over the mats each wave, so catches don't dry up as the sky gets busier.
     var tr = activeTramps(), chance = Math.min(0.3, BALANCE.DROP_CHANCE + 0.012 * Math.max(0, (S.wave || 1) - 1));
-    if (rnd() < chance && tr.length) { var mat = tr[Math.floor(rnd() * tr.length)]; return between(rnd, mat.x1 + 12, mat.x2 - 12); }
+    if (rnd() < chance) { var mat = tr[Math.floor(rnd() * tr.length)]; return between(rnd, mat.x1 + 12, mat.x2 - 12); }
     // The remaining drops avoid mats, preserving the configured opportunity rate (mirrored when the first mat is on the right).
     var x = rnd() < 0.5 ? between(rnd, 106, 146) : (S.mods.secondTramp ? between(rnd, 254, 294) : between(rnd, 254, 382));
     return S.matRight ? W - x : x;
   }
-  // A kind of run can take the mats away (Campaign's first mission, MODES noMats).
-  function activeTramps() { var rl = rules(); if (rl.noMats && rl.noMats()) return []; return S.mods.secondTramp ? TRAMPS : [TRAMPS[0]]; }
+  function activeTramps() { return S.mods.secondTramp ? TRAMPS : [TRAMPS[0]]; }
   function unlockedSlots() { return SLOT_ORDER.slice(0, S.mods.slots); }
 
   function spawnPlane(kind, src) {
@@ -694,7 +662,7 @@
       for (var i = 0; i < n; i++) p.drops.push(pickDropX(rnd));
       p.drops.sort(function (a, b) { return dir * (a - b); });
       p.kits = p.drops.map(function () { return rollTrooper(rnd); });
-      // A kind of run's wave with no paratroopers (Campaign's Downed pilot, c.noDrops): the rolls are made all the same.
+      // A wave with no paratroopers (a recipe's noDrops): the rolls are made all the same.
       if (c.noDrops) { p.drops = []; p.kits = []; }
     } else {
       // A spaced string covering both trenches, one crew position and the wall.
@@ -722,8 +690,6 @@
     else if (rnd() < c.special) type = S.wave < ENEMIES.bazooka.minWave ? 'engineer' : (rnd() < 0.5 ? 'bazooka' : 'engineer');
     var kit = { type: type, fall: between(rnd, 0.9, 1.15), sway: rnd() * 6.28, armor: 0 };
     if (c.armorChance && type !== 'sniper' && rnd() < c.armorChance) kit.armor = c.armorHits || 1;
-    // A kind of run can change who jumps (Campaign's straw dummies, kit.dummy), from the same stream.
-    var rl = rules(); if (rl.trooper) rl.trooper(kit, rnd, c);
     return kit;
   }
   function spawnTrooper(x, y, kit) {
@@ -734,8 +700,6 @@
       attacking: null, atWall: false, shotCD: 2.2, alone: 0, aim: 0, armor: kit.armor || 0, pingT: -1, dead: false };
     // The Dreadnought's crew bailing out shoot at the squad on the way down.
     if (kit.gunner) { t.gunner = true; t.gunT = 0.8; t.flash = 0; }
-    // A dummy only ever comes down on a chute (a rush on foot is real).
-    if (kit.dummy && y < GROUND - 60) t.dummy = true;
     S.troopers.push(t);
     emit('trooper_spawn', { x: t.x, type: t.type });
     return t;
@@ -751,19 +715,13 @@
 
   // Crew health: helmets raise the maximum, trenches cut every kind of damage.
   var TRENCH = [1, 0.6, 0.4];
-  // Campaign's traits (campaign.js) live on the soldier (r.trait): Tough +1 health, Lucky shrugs off one hit a mission,
-  // Brave stays on his feet the first time he'd go down in a mission, Quick fires sooner, Steady aims tighter. Arcade's
-  // soldiers have none.
-  var TRAIT = { QUICK: 0.85, STEADY: 0.6 };
-  function crewMax(r) { return ENEMIES[r.type].hp + S.mods.helmet + (r.rank || 0) * RANK.HP + (r.trait === 'tough' ? 1 : 0); }
+  function crewMax(r) { return ENEMIES[r.type].hp + S.mods.helmet + (r.rank || 0) * RANK.HP; }
   function standing(r) { return !r.dead && !r.down; }
   // At zero health a recruit falls wounded (squad.js); any damage while down finishes him.
   function hurtRecruit(r, amount, cause) {
     if (r.dead) return;
     if (r.down) { recruitDie(r, cause); return; }
-    if (r.trait === 'lucky' && !r.luckUsed) { r.luckUsed = true; r.hurt = Math.max(r.hurt, 0.2); addText('lucky!', r.x, GROUND - 52, BLUE, 20); return; }
     r.hp -= amount * TRENCH[Math.min(S.mods.trench, TRENCH.length - 1)];
-    if (r.hp <= 0 && r.trait === 'brave' && !r.braveUsed) { r.braveUsed = true; r.hp = 0.5; addText('not yet!', r.x, GROUND - 52, BLUE, 20); }
     r.hurt = Math.max(r.hurt, 0.2);
     if (r.hp <= 0) knockDown(r, cause);
   }
@@ -780,9 +738,7 @@
   // field is clear, anything still due (a rush, a cargo plane, the zeppelin) comes in after WAVE_HURRY seconds.
   var WAVE_BANNER = 2.2, WAVE_HURRY = 1.5;
   function startWave(n) {
-    var rl = rules();
-    S.wave = n; if (rl.begin) rl.begin(n);
-    seedWave(rl.seedKey ? rl.seedKey(n) : n);
+    S.wave = n; seedWave(n);
     // With the flag flying, the squad salutes it as the wave's bugle plays.
     if (S.mods.flag && S.flagUp >= 1) S.saluteT = FLAG.SALUTE;
     S.medevac = []; S.skyFx = []; S.wreck = null;
@@ -807,7 +763,7 @@
     if (n === TANK.WAVE) sub = grantCall('bomber', 200, 340, true) ? 'tanks! +1 air strike from HQ' : 'tanks! radio full: +' + RADIO.FULL_TAGS + ' tags';
     // The Dreadnought needs no horn: it shows through the page first.
     if (c.bossKind === 'dread') { S.spawn.bossT = DREAD.ARRIVE; S.spawn.bossWarned = true; S.spawn.teaser = teaser; }
-    S.banner = rl.banner ? rl.banner(n, sub) : { s: n === DREAD.WAVE && !S.won ? 'final wave' : 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
+    S.banner = rules().banner ? rules().banner(n, sub) : { s: n === DREAD.WAVE && !S.won ? 'final wave' : 'wave ' + n, sub: sub, t: 0, dur: WAVE_BANNER };
     sound.play('bugle');
     emit('wave_start', { wave: n, boss: !!c.boss });
   }
@@ -876,13 +832,12 @@
       if (sp.cargo > 0) { sp.cargoT -= dt; if (sp.cargoT <= 0) { sp.cargo--; spawnCargo(); sp.cargoT = between(RW, CARGO.GAP[0], CARGO.GAP[1]) * sp.pace; } }
       if (sp.road > 0) { sp.roadT -= dt; if (sp.roadT <= 0) { sp.road--; spawnRoadTank(); sp.roadT = between(RW, ROAD.GAP[0], ROAD.GAP[1]) * sp.pace; } }
       SKY.tick(sp, dt);
-      // A goal met (a kind's cleared()) ends the wave: the enemy surrenders and the wave clears as below.
-      var rl = rules();
-      if (rl.cleared && !sp.cleared && rl.cleared()) { sp.cleared = true; DN.surrender(null); }
       var enemies = S.troopers.some(function (t) { return !t.dead; }) || S.tanks.length > 0;
       if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies) SKY.settle(sp);
-      // A kind of run can hold the wave open for its own thing still to come (Campaign's set pieces, `held`).
-      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies && !SKY.waiting() && !(rules().held && rules().held())) {
+      // A goal met (a kind's cleared()) ends the wave: the enemy surrenders and it clears as below.
+      var rl = rules();
+      if (rl.cleared && !sp.cleared && rl.cleared()) { sp.cleared = true; DN.surrender(null); }
+      if (sp.planes + sp.bombers + (sp.boss || 0) + sp.rushes + sp.cargo + (sp.road || 0) + SKY.pending(sp) === 0 && !S.planes.length && !S.bombs.length && !S.enemyShots.length && !enemies && !SKY.waiting() && !(rl.held && rl.held())) {
         S.waveState = 'clear'; S.waveTimer = 2.0;
         var bonus = 100 * S.wave, waveTags = 8 + S.wave * 2;
         // A wave that never touched the wall pays extra: half the wave bonus again, and a tag a wave.
@@ -900,7 +855,7 @@
       }
     } else if (S.waveState === 'clear') {
       S.waveTimer -= dt;
-      if (S.waveTimer <= 0) { if (runWon()) rules().win(); else if (rules().skipShop && rules().skipShop()) { S.waveState = 'idle'; openWave(nextWave()); } else openShop(); }
+      if (S.waveTimer <= 0) { if (runWon()) rules().win(); else openShop(); }
     }
   }
 
@@ -931,7 +886,7 @@
   // and the bots reach its functions here by name, as before. medicHelmet and drawFlagpole go through world, since
   // the harness swaps them in this scope.
   world.H = H; world.GREEN = GREEN; world.EMPTY = EMPTY; world.HAND = HAND; world.DISPLAY = DISPLAY;
-  world.REDUCED = REDUCED; world.STRAW = STRAW; world.THEME = THEME; world.PAPERS = PAPERS; world.HL = HL; world.TEXT = TEXT; world.TAG_HUD = TAG_HUD; world.mulberry = mulberry; world.bgx = bgx;
+  world.REDUCED = REDUCED; world.THEME = THEME; world.PAPERS = PAPERS; world.HL = HL; world.TEXT = TEXT; world.TAG_HUD = TAG_HUD; world.mulberry = mulberry; world.bgx = bgx;
   world.standing = standing; world.tagsOf = function (by) { return tagsOf(by); }; world.gun = gun; world.sketchProgress = sketchProgress;
   world.medicHelmet = function (x, y) { medicHelmet(x, y); }; world.drawFlagpole = function () { drawFlagpole(); };
   var DRAW = StickArmyDraw(world),
@@ -967,7 +922,6 @@
     STRIKE = UNITS.STRIKE, callStrike = function () { return COOP && COOP.guest ? COOP.ask('call', 'bomber') : UNITS.callStrike(); }, updateStrike = UNITS.updateStrike, drawStrike = UNITS.drawStrike,
     FIGHTER = UNITS.FIGHTER, callFighter = function () { return COOP && COOP.guest ? COOP.ask('call', 'fighter') : UNITS.callFighter(); }, updateFighter = UNITS.updateFighter, drawFighter = UNITS.drawFighter,
     updateRadio = UNITS.updateRadio, drawRadio = UNITS.drawRadio, updateDelivery = UNITS.updateDelivery, drawCourier = UNITS.drawCourier;
-  world.drawAllyPlane = UNITS.drawAllyPlane;
   // Balloons, the Red Cross plane, HQ crates, dive bombers and helicopters live in sky.js.
   world.gainTags = function (n, split) { gainTags(n, split); }; world.takeTags = function (n) { return takeTags(n); };
   world.spendTags = function (n, by) { spendTags(n, by); };
@@ -984,7 +938,7 @@
   Object.defineProperty(world, 'RS', { get: function () { return RS; } });
   world.resizeMats = resizeMats; world.freeSlot = freeSlot; world.makeRecruit = makeRecruit;
   world.clearInput = function () { clearInput(); }; world.washDecals = washDecals; world.startWave = startWave; world.openWave = openWave; world.queueSketches = queueSketches; world.sendOff = sendOff;
-  world.drawItemIcon = drawItemIcon; world.waveCfg = waveFor; world.nextWave = nextWave; world.waveName = waveName; world.shopLine = shopLine; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig;
+  world.drawAllyPlane = UNITS.drawAllyPlane; world.drawItemIcon = drawItemIcon; world.waveCfg = waveFor; world.standUp = standUp; world.drawSquadRow = drawSquadRow; world.squadSlots = squadSlots; world.drawSquadFig = drawSquadFig;
   world.squadLine = function (bare, short) { return squadLine(bare, short); };
   world.callsHeld = callsHeld; world.RADIO = RADIO; world.TANK = TANK; world.FIGHTER = FIGHTER;
   // Co-op's shop (shop.js): turret upgrades are each barrel's own; a guest's taps go to the host (coop.js).
@@ -1058,7 +1012,6 @@
       (m.double ? [-4, 4] : [0]).forEach(function (side) {
         S.bullets.push({ x: x0 + ca * 30 - sa * side, y: TUR.y + sa * 30 + ca * side, vx: ca * 700, vy: sa * 700,
           owner: 'player', gun: t.gun, kind: 'bullet', flak: m.flak, pierce: m.pierce ? 3 : 1, hits: [], life: 1.3, dead: false, side: offset !== 0 });
-        if (t.heavy) S.bullets[S.bullets.length - 1].heavy = true;
       });
     });
     if (m.rockets && t.volleys % 4 === 0) {
@@ -1078,8 +1031,8 @@
     t = t || S.turrets[0];
     shoot(t);
     var m = t.mods, rate = Math.pow(0.82, m.fire);
-    t.fireCD = BALANCE.FIRE_COOLDOWN * rate * (t.heavy ? HEAVY.FIRE : 1);
-    t.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, m.cool) * (t.heavy ? HEAVY.HEAT : 1);
+    t.fireCD = BALANCE.FIRE_COOLDOWN * rate;
+    t.heat += BALANCE.HEAT_PER_SHOT * rate * Math.pow(0.8, m.cool);
     S.score = Math.max(0, S.score - BALANCE.SHOT_COST);
     if (S.coop) S.players[t.gun].score = Math.max(0, S.players[t.gun].score - BALANCE.SHOT_COST);
     if (t.heat >= 1) triggerOverheat(t);
@@ -1100,8 +1053,7 @@
       if (R() < dt * 9) { var c = Math.cos(t.aim), s = Math.sin(t.aim); puff(t.x + c * 30, TUR.y + s * 30, 2, 0.6); }
       if (t.overheat <= 0) { t.overheat = 0; sound.play('ready'); }
     } else {
-      // Campaign's rain cools the gun faster (S.coolMore).
-      t.heat = Math.max(0, t.heat - BALANCE.COOL_RATE * (S.coolMore || 1) * dt);
+      t.heat = Math.max(0, t.heat - BALANCE.COOL_RATE * dt);
     }
   }
   function killFx(t, force, squash, color) {
@@ -1133,8 +1085,6 @@
   }
   var OUCH = ['ow!', 'oof!', 'argh!', 'yikes!', 'eep!'];
   function killTrooper(t, owner) {
-    // Campaign's straw dummies: a puff of straw, and nothing for it.
-    if (t.dummy) { t.dead = true; burst(t.x, t.y + 14, 8, STRAW, 120); addText('straw!', t.x, t.y - 6, INK2, 16, 'minor'); emit('dummy_shot', {}); return; }
     t.dead = true; killFx(t); S.stats.kills++; credit();
     emit('kill', { by: owner === 'ally' ? 'crew' : 'player', type: t.type, state: t.state });
     if (t.state === 'ground') addDecal({ kind: 'splat', x: t.x, y: GROUND - 1, r: 8, color: RED, a: 0.34, seed: t.id });
@@ -1184,8 +1134,7 @@
     addText('boing!', t.x, tr.y - 20, INK, 21);
     sound.play('boing');
     // The Dreadnought's captain is a prisoner, not a recruit: he bounces onto the bunker (dreadnought.js captainCaught).
-    // Campaign's prizes (t.prize: a downed pilot, an officer) aren't recruits either: they bounce onto the bunker too.
-    var slot = t.captain || t.prize ? -1 : freeSlot(tr.x1 < 200 ? 0 : 1);
+    var slot = t.captain ? -1 : freeSlot(tr.x1 < 200 ? 0 : 1);
     t.state = 'bounce'; t.bt = 0; t.bdur = 0.85; t.x0 = t.x; t.y0 = tr.y - 33; t.slot = slot;
     if (slot >= 0) { S.slotRes[slot] = true; t.x1 = SLOTS[slot]; t.y1 = GROUND - 33; t.bh = 120; }
     else { t.x1 = BK.x; t.y1 = BK.top - 30; t.bh = 140; }
@@ -1198,14 +1147,7 @@
   }
   function joinSquad(t) {
     t.dead = true;
-    if (t.dummy) {
-      if (t.slot >= 0) delete S.slotRes[t.slot];
-      burst(t.x, t.y + 14, 10, STRAW, 140); addText("it's a dummy!", t.x, GROUND - 70, RED, 22, 'alert');
-      emit('dummy_caught', {});
-      return;
-    }
     if (t.captain) { DN.captainCaught(t); return; }
-    if (t.prize && rules().rescue) { rules().rescue(t); return; }
     if (t.slot >= 0) {
       delete S.slotRes[t.slot];
       var r = makeRecruit(t.slot, t.type, t.id);
@@ -1220,10 +1162,6 @@
       sound.play('recruit'); world.say('ready!', r.id, false, 0.15);
       if (S.recruits.filter(function (q) { return !q.dead; }).length === S.mods.slots) addText('squad full!', 200, 520, BLUE, 24);
       S.hint = false;
-    } else if (rules().bench && rules().bench(t)) {
-      // Campaign: no free slot on the field, but a free bunk in the barracks (campaign.js).
-      if (rules().caught) rules().caught(t);
-      S.hint = false;
     } else {
       emit('capture', { type: t.type, full: true });
       award(60, BK.x, BK.top - 44, 'squad full!', BLUE, true);
@@ -1231,7 +1169,6 @@
     }
   }
   function land(t) {
-    if (t.dummy) { t.dead = true; burst(t.x, GROUND - 14, 6, STRAW, 90); addText('flop', t.x, GROUND - 46, INK2, 16, 'minor'); return; }
     t.state = 'ground'; t.y = GROUND - 33; t.dir = t.x < 200 ? 1 : -1; t.walk = 0;
     emit('land', { x: t.x, type: t.type });
     // Snipers sit below the firing arc and are easy to miss, so call them out as they land.
@@ -1293,7 +1230,6 @@
     var col = kind === 'rocket' || kind === 'strike' ? BLUE : INK;
     // Flak is anti-air only: its bursts spare paratroopers, including ones just jumping from the plane it hit.
     S.troopers.forEach(function (t) {
-      // Campaign's downed pilot (t.pilot) is one of ours: blasts never hurt him.
       if (kind !== 'flak' && !t.dead && !t.pilot && t.state !== 'bounce' && !(t.captain && owner !== 'player') && Math.hypot(t.x - x, t.y + 14 - y) < r) {
         t.dead = true; killFx(t, kind === 'bomb' || kind === 'crash' ? 320 : 240); S.stats.kills++; if (kind === 'rocket') credit();
         emit('kill', { by: kind === 'crash' ? 'crash' : kind === 'strike' ? 'strike' : 'explosion', source: kind, type: t.type });
@@ -1335,7 +1271,7 @@
   function hitTest(b) {
     var i, p, m, t, seen = b.hits || [], near = b.flak ? 14 : 0;
     if (!inView(b) || SKY.shot(b)) return;
-    // A kind of run's own targets first (Campaign's barrage balloons and their cables).
+    // A kind of run's own targets first (Challenges' big one, its downed pilots' planes).
     var rl = rules(); if (rl.shot && rl.shot(b)) return;
     for (i = 0; i < S.planes.length; i++) {
       p = S.planes[i];
@@ -1344,7 +1280,7 @@
         // Veteran: spread shot's side bullets only graze the Dreadnought, for GRAZE of the damage (their flak bursts
         // too), so it pays to aim the middle one.
         if (p.kind === 'dread' && b.side && lv().GRAZE < 1) { DN.graze(p, b.x, b.y); grazing = lv().GRAZE; }
-        if (!projectileBurst(b)) { damagePlane(p, b.heavy ? HEAVY.DMG : 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
+        if (!projectileBurst(b)) { damagePlane(p, 1, b.owner, b.x, b.y, true); consumeBullet(b, p); }
         grazing = 1;
         return;
       }
@@ -1366,21 +1302,20 @@
       if (b.kind === 'rocket' && projectileBurst(b)) return;
       // Coming down on its chutes, the tank is crated on its pallet: bullets only ping off.
       if (tk.state === 'chute') { if (R() < 0.3) S.parts.push({ k: 'tink', x: b.x, y: b.y, life: 0.2, max: 0.2, c: INK2, id: nextId++ }); }
-      else damageTank(tk, TANK.BULLET * (b.heavy ? HEAVY.DMG : 1), b.owner);
+      else damageTank(tk, TANK.BULLET, b.owner);
       consumeBullet(b, tk);
       return;
     }
     for (i = 0; i < S.troopers.length; i++) {
       t = S.troopers[i];
       if (t.dead || t.state === 'bounce' || seen.indexOf(t.id) >= 0) continue;
-      // Only your turret's rounds can hit a downed pilot (Campaign); the squad's pass him by.
-      // Campaign's downed pilots: rounds pass them by; only the turret can pop a pilot's chute.
-      if (t.pilot && b.owner !== 'player') continue;
       // Snipers sit at the edges, mostly beyond the barrel's dip; a shot that does reach one counts.
       // Rockets explode on contact; flak only bursts near aircraft and bombs, so a direct hit is a plain bullet.
+      // A downed pilot: the squad's rounds pass him by, and the turret's only pop his chute.
+      if (t.pilot && b.owner !== 'player') continue;
       if (!t.pilot && Math.abs(b.x - t.x) < 7 && b.y > t.y - 7 && b.y < t.y + 34) {
         if (b.kind === 'rocket' && projectileBurst(b)) return;
-        if (t.armor > 0 && !b.heavy) armorHit(t, b.owner); else killTrooper(t, b.owner);
+        if (t.armor > 0) armorHit(t, b.owner); else killTrooper(t, b.owner);
         consumeBullet(b, t);
         return;
       }
@@ -1396,24 +1331,9 @@
 
   // ---------- recruit brains ----------
   function pickTarget(r) {
-    var ox = r.x, oy = GROUND - 23, best = null, bd = 1e9, tank = null, td = 300, order = rules().order ? rules().order() : null;
+    var ox = r.x, oy = GROUND - 23, best = null, bd = 1e9, tank = null, td = 300;
     S.tanks.forEach(function (tk) { var d = Math.abs(tk.x - ox); if (!tk.dead && tk.state !== 'chute' && inView(tk) && d < td) { td = d; tank = tk; } });
-    if (tank && (r.type === 'bazooka' || order === 'vehicles')) return tank;
-    // Orders (a kind of run's, order()): vehicles first, then the low sky; or soldiers first, high chutes too.
-    if (order === 'vehicles') {
-      var air = S.planes.filter(function (p) { return p.state === 'fly' && p.kind !== 'balloon' && p.kind !== 'dread' && p.kind !== 'zeppelin' && p.x > 10 && p.x < W - 10 && p.y > 120; });
-      air.forEach(function (p) { var d = Math.hypot(p.x - ox, p.y - oy); if (d < bd) { bd = d; best = p; } });
-      if (best) return best;
-    }
-    if (order === 'soldiers') {
-      var spare0 = rules().spare;
-      S.troopers.forEach(function (t) {
-        if (t.dead || t.captain || !(t.state === 'ground' || (t.state === 'chute' && t.open >= 1 && t.y > 220) || t.state === 'rope') || (t.state !== 'ground' && spare0 && spare0(t))) return;
-        var d = Math.hypot(t.x - ox, (t.state === 'ground' ? GROUND - 10 : t.y) - oy) - (t.state === 'ground' ? 200 : 0);
-        if (d < bd) { bd = d; best = t; }
-      });
-      if (best) return best;
-    }
+    if (tank && r.type === 'bazooka') return tank;
     S.troopers.forEach(function (t) {
       if (t.dead || t.captain || t.state !== 'ground') return;
       var d = Math.abs(t.x - ox);
@@ -1438,9 +1358,8 @@
       });
       if (best) return best;
     }
-    var spare = rules().spare;
     S.troopers.forEach(function (t) {
-      if (t.dead || t.captain || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380 || (spare && spare(t))) return;
+      if (t.dead || t.captain || !((t.state === 'chute' && t.open >= 1) || t.state === 'rope') || t.y < 380 || (rules().spare && rules().spare(t))) return;
       var d = Math.hypot(t.x - ox, t.y - oy);
       if (d < 340 && d < bd) { bd = d; best = t; }
     });
@@ -1464,7 +1383,7 @@
     else if (tg.state === 'ground') { x = tg.x; y = tg.y + 14; vx = (tg.type === 'sniper' || tg.atWall || tg.attacking) ? 0 : tg.dir * 22 * (S.mods.wire ? 0.5 : 1); }
     else {
       x = tg.x; y = tg.y + 12; vy = tg.fall;
-      if ((S.mods.catcher || (rules().order && rules().order() === 'capture')) && r.type !== 'bazooka' && tg.state === 'chute' && slotsAvailable() && tg.y > 475) {
+      if (S.mods.catcher && r.type !== 'bazooka' && tg.state === 'chute' && slotsAvailable() && tg.y > 475) {
         var over = activeTramps().some(function (q) { return tg.x > q.x1 + 8 && tg.x < q.x2 - 8; });
         if (over) { y = tg.y - 28; x = tg.x + (r.x > tg.x ? 15 : -15); }
       }
@@ -1473,7 +1392,7 @@
     return { x: x + vx * tt, y: y + vy * tt };
   }
   function fireRecruit(r, ang) {
-    var baz = r.type === 'bazooka', a = ang + (RC() * 2 - 1) * ENEMIES[r.type].spread * Math.pow(0.72, S.mods.aim) * (r.trait === 'steady' ? TRAIT.STEADY : 1), sp = baz ? 300 : 520;
+    var baz = r.type === 'bazooka', a = ang + (RC() * 2 - 1) * ENEMIES[r.type].spread * Math.pow(0.72, S.mods.aim), sp = baz ? 300 : 520;
     S.bullets.push({ x: r.x + Math.cos(a) * 16, y: GROUND - 23 + Math.sin(a) * 16, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
       owner: 'ally', by: r.id, kind: baz ? 'rocket' : 'bullet', life: 1.6, dead: false });
     sound.play(baz ? 'rocket' : 'ally');
@@ -1489,8 +1408,7 @@
     var byNear = function (a, b) { return Math.abs(a.homeX - 200) - Math.abs(b.homeX - 200); };
     var eng = live.filter(function (r) { return r.type === 'engineer'; });
     var oth = live.filter(function (r) { return r.type !== 'engineer' && r.type !== 'medic'; }).sort(byNear);
-    var order = rules().order ? rules().order() : null;
-    var need = order === 'repair' ? (hp < 99.5 ? oth.length : 0) : S.repairLevel === 3 ? oth.length : Math.max(0, S.repairLevel - eng.length);
+    var need = S.repairLevel === 3 ? oth.length : Math.max(0, S.repairLevel - eng.length);
     oth.forEach(function (r, i) { r.role = i < need ? 'repair' : 'shoot'; });
     eng.forEach(function (r) { r.role = hp < 99.5 ? 'repair' : 'idle'; });
     live.filter(function (r) { return r.type === 'medic'; }).forEach(function (r) { r.role = 'heal'; });
@@ -1534,12 +1452,10 @@
       } else if (r.role === 'shoot') {
         var tg = pickTarget(r);
         r.cd -= dt;
-        if (r.type === 'mg') { r.heat = Math.max(0, (r.heat || 0) - MG.COOL * dt); if (r.rest > 0) { r.rest -= dt; tg = null; } else if (tg && tg.y < MG.LOW && tg.state !== 'ground') tg = null; }
         if (tg) {
           var ap = aimPoint(r, tg), want = Math.atan2(ap.y - (GROUND - 23), ap.x - r.x);
           r.aim += angDiff(want, r.aim) * Math.min(1, dt * 10);
-          if (r.cd <= 0 && r.type === 'mg') { fireRecruit(r, want); r.cd = ENEMIES.mg.cooldown; r.heat += MG.HEAT; if (r.heat >= 1) { r.rest = MG.REST; addText('hot!', r.x, GROUND - 52, INK2, 15, 'minor'); } }
-          else if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) * (S.mods.flag ? FLAG.FIRE : 1) * (r.trait === 'quick' ? TRAIT.QUICK : 1) + between(RC, 0, 0.3); }
+          if (r.cd <= 0) { fireRecruit(r, want); r.cd = ENEMIES[r.type].cooldown * Math.pow(RANK.FIRE, r.rank || 0) * (S.mods.flag ? FLAG.FIRE : 1) + between(RC, 0, 0.3); }
         } else r.cd = Math.max(r.cd, 0.2);
       }
     });
@@ -1571,8 +1487,7 @@
         p.smoke -= dt;
         if (p.smoke <= 0) { p.smoke = busy() ? 0.14 : 0.07; puff(p.x - p.dir * 18, p.y - 4, 4, 0.7); }
         S.troopers.forEach(function (t) {
-          // A falling plane misses Campaign's prizes (t.prize: a pilot, an officer), so a crash never decides a mission.
-          if (!t.dead && !t.prize && !t.pilot && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
+          if (!t.dead && !t.pilot && (t.state === 'chute' || t.state === 'free') && Math.hypot(t.x - p.x, t.y + 10 - p.y) < 26) {
             t.dead = true; killFx(t); S.stats.kills++;
             emit('kill', { by: 'crash', type: t.type });
             award(10, t.x, t.y, 'bonk!', INK, true);
@@ -1642,7 +1557,6 @@
   function updateLander(t, dt) {
     if (t.captain) { DN.captainRun(t, dt); return; }
     if (t.type === 'sniper') { updateSniper(t, dt); return; }
-    if (rules().walk && rules().walk(t, dt)) return;
     var mine = S.mines.find(function (m) { return m.armed && Math.abs(t.x - m.x) < 12; });
     if (mine) { mine.armed = false; explode(mine.x, GROUND - 15, 38, 'mine', 'ally'); return; }
     var wallX = t.dir > 0 ? BK.x1 - 7 : BK.x2 + 7, blk = null, bd = 1e9;
@@ -1685,8 +1599,6 @@
         if (t.captain) DN.captainDrift(t, dt);
         else if (t.type === 'sniper') { var edge = t.x < BK.x ? 18 : W - 18; t.x += Math.sign(edge - t.x) * Math.min(Math.abs(edge - t.x), 28 * dt); }
         else t.x += Math.sin(S.t * 1.3 + t.sway) * 7 * dt;
-        // Campaign's wind (S.wind, px/s): chutes drift with it.
-        if (S.wind) t.x += S.wind * dt;
         if (t.x > 150 && t.x < 250) t.x += (t.x < 200 ? -1 : 1) * 10 * dt;
         t.x = clamp(t.x, 12, W - 12);
         if (t.y + 33 >= GROUND) land(t);
@@ -1841,7 +1753,6 @@
     updatePlanes(dt);
     updateBombs(dt);
     SKY.update(dt);
-    if (rules().tick) rules().tick(dt);
     updateTroopers(dt);
     updateTanks(dt);
     updateStrike(dt);
@@ -1872,6 +1783,7 @@
     S.recruits = S.recruits.filter(function (r) { return !r.dead; });
     S.bullets = S.bullets.filter(function (b) { return !b.dead; });
     S.bombs = S.bombs.filter(function (m) { return !m.dead; });
+    if (rules().tick) rules().tick(dt);
     if (S.mode === 'play' && rules().lost()) (rules().lose || die)();
     if (S.mode === 'dying') { S.dieT -= dt; if (S.dieT <= 0) (rules().over || showOver)(); }
   }
@@ -1946,8 +1858,6 @@
     // The mats in front of the Dreadnought's wreck, so its captain can still be caught on one (dreadnought.js).
     activeTramps().forEach(function (tr, i) { if (i) sketched('tramp', [tr.x1 - 6, tr.y - 6, tr.x2 + 6, GROUND], 'right', function () { drawTramp(tr, i); }); else drawTramp(tr, i); });
     S.planes.forEach(function (p) { if (p.kind === 'zeppelin') drawZeppelin(p); });
-    // A kind of run's own things in the sky, behind the aircraft (Campaign's barrage balloons).
-    if (rules().drawSky) rules().drawSky(G);
     S.planes.forEach(function (p) { if (SKY.KINDS[p.kind]) SKY.drawPlane(p); else if (p.kind !== 'zeppelin' && p.kind !== 'dread') drawPlane(p); });
     SKY.draw();
     S.bombs.forEach(drawBomb);
@@ -1956,7 +1866,8 @@
     drawStrike();
     drawFighter();
     drawRadio();
-    if (S.mode === 'dying' || S.mode === 'over') { drawRubble(); if (S.mods.flag) drawFallenFlag(); }
+    // Rubble once the wall is down (a challenge can end, or be lost, with it standing).
+    if ((S.mode === 'dying' || S.mode === 'over') && S.wallHP <= 0) { drawRubble(); if (S.mods.flag) drawFallenFlag(); }
     else {
       // Bought but not yet raised, it isn't there at all until its scene sketches it in (round 19: it showed finished
       // under the wave banner, vanished, then was drawn).
@@ -1977,29 +1888,13 @@
     if (S.smoke) drawDreadBar(SKY.smokeAt(200, 116));
     if (S.mode === 'play') drawAimGuide();
     if (S.hint && S.mode === 'play') drawHint();
-    // A kind of run's own drawing over the page (Campaign's weather).
     if (rules().draw) rules().draw(G);
     drawTexts();
     drawBubbles();
     ctx.restore();
     drawHUD();
-    if (rules().drawHud) rules().drawHud(G);
     if (S.banner) drawBanner();
   }
-
-  // ---------- saving a run ----------
-  // save.js snapshots a run at the shop and restores it, for Campaign to save after every wave. Arcade never calls it.
-  function stream(state) { if (state == null) return Math.random; var r = mulberry(0); r.state(state); return r; }
-  function streamState(r) { return r.state ? r.state() : null; }
-  var SAVE = StickArmySave(world, { ITEMS: ITEMS,
-    streams: function () { return { seed: RUN.seed, RC: streamState(RC), RW: streamState(RW), RS: streamState(RS) }; },
-    setStreams: function (o) { RUN.seed = o.seed >>> 0; RC = stream(o.RC); RW = stream(o.RW); RS = stream(o.RS); },
-    ids: function () { return { next: nextId, bubble: bubbleId }; },
-    setIds: function (o) { nextId = o.next; bubbleId = o.bubble; },
-    ink: function () { return { decals: JSON.parse(JSON.stringify(decals)), t: inkT }; },
-    setInk: function (o) { decals.length = 0; (o && o.decals || []).forEach(function (d) { decals.push(d); }); inkT = o ? o.t : 0; redrawDecals(); } });
-  var snapshotRun = SAVE.snapshotRun, restoreRun = SAVE.restoreRun;
-  world.snapshotRun = snapshotRun; world.restoreRun = restoreRun;
 
   // ---------- flow ----------
   // The title, a new run, pause, game over, play stats, full screen and input live in flow.js, made here so its
@@ -2026,14 +1921,12 @@
     toLogical = FLOW.toLogical, aimAt = FLOW.aimAt, stopFire = FLOW.stopFire, syncCallBtns = FLOW.syncCallBtns,
     wakeSound = FLOW.wakeSound, titleSoundBtn = FLOW.titleSoundBtn, titleScoresBtn = FLOW.titleScoresBtn;
 
-  // ---------- campaign ----------
-  // Campaign, the second way to play (campaign.js, its screens in campaign-screens.js), adds its own entry to MODES
-  // and its own button on the title. It's made after the flow, so its listeners come after Arcade's.
-  Object.assign(game, { die: die, seedWave: seedWave, waveCfg: waveCfg, gainTags: gainTags, tagsOf: tagsOf, openShop: openShop,
-    surrender: DN.surrender, mix: mix, setIds: function (o) { nextId = o.next; bubbleId = o.bubble; },
-    ids: function () { return { next: nextId, bubble: bubbleId }; }, snapshotRun: snapshotRun, restoreRun: restoreRun,
-    SLOT_ORDER: SLOT_ORDER, titleScene: titleScene, togglePause: togglePause, clearInput: clearInput, render: render });
-  var CAMPAIGN = window.StickArmyCampaign ? StickArmyCampaign(world, game) : null;
+  // ---------- challenges ----------
+  // Challenges (challenges.js): short fixed scenarios with three stars each. It adds its own entry to MODES and its
+  // button on the title, made after the flow so its listeners come after Arcade's.
+  Object.assign(game, { die: die, waveCfg: waveCfg, openShop: openShop, mix: mix, SLOT_ORDER: SLOT_ORDER, titleScene: titleScene,
+    togglePause: togglePause, clearInput: clearInput, showOver: showOver });
+  var CHALLENGES = window.StickArmyChallenges ? StickArmyChallenges(world, game) : null;
 
   // ---------- loop ----------
   var last = performance.now(), lastAmbience = 0;

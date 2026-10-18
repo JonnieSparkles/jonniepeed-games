@@ -1,14 +1,8 @@
 """Stick Army's "nothing changed" check: the same six scenes drawn by two versions of the game, compared pixel for
-pixel. Run it on any change that shouldn't change how Arcade looks (Campaign, a refactor):
+pixel. Run it on any change that shouldn't change how the game looks (Challenges, a refactor):
 
     python3 tests/stick-army/shots.py --ref main      # this checkout against main; fails on any difference
     python3 tests/stick-army/shots.py                 # just this checkout's scenes
-    python3 tests/stick-army/shots.py --campaign      # also Campaign's screens, at three sizes and full screen
-
-Campaign's screens have nothing to compare with yet; they're drawn for looking at, at phone portrait, short landscape
-and notebook sizes, and at phone portrait in full screen (campaign-<scene>-<size>.png), with the title as it is once
-Campaign is unlocked. Without the unlock the title is Arcade's, and compared like the rest.
---ref takes what git does: after a shallow clone, a local `main` may be older than `origin/main`.
 
 It serves site/ itself (no server needed) and launches Chromium like the other harnesses (CHROMIUM selects a system
 browser). The scenes: the title, a mid-wave page (wave 9, with a full kit and squad), the night raid, the
@@ -50,105 +44,6 @@ S.mods.secondTramp = true; S.mods.slots = 6; S.mods.trench = 2; S.mods.stacks.sa
 S.mods.hospital = true; S.mods.flag = true; S.flagUp = 1; resizeMats();
 ['rifle', 'engineer', 'bazooka', 'medic', 'sniper'].forEach(function (t, i) { var r = makeRecruit(SLOT_ORDER[i], t); r.waves = 4 * i; r.rank = i; r.name = 'Doodle' + i; S.recruits.push(r); });
 """
-# Campaign's screens, from one tour (K7QMR2) with a small squad, each scene in game.js's scope.
-CAMP = """
-var c = world.campaign, t = c.newTour('K7QMR2');
-t.squad = [{ id: 11, type: 'rifle', stripes: 1, kills: 23 }, { id: 14, type: 'engineer', stripes: 1, kills: 6 }, { id: 19, type: 'sniper', stripes: 0, kills: 4 },
-  { id: 22, type: 'rifle', stripes: 0, kills: 1 }];
-t.fallen = [{ id: 16, type: 'bazooka', stripes: 0, kills: 9, op: 0, m: 0 }]; t.bank = 140; t.nextId = 30;
-t.last = { won: true, mission: 'First contact', caught: 5, planes: 21, time: 70, fresh: 4, fell: [16] };
-c.nameAll(t); c.write();
-"""
-RD = """
-var c = world.campaign;
-function codeWith(w) { for (var v = 1; v < 500; v++) { var k = c.codeText(v * 31337); if (c.weatherFor(c.freshTour(k), 1) === w) return k; } }
-var fogCode = codeWith('fog'), rainCode = codeWith('rain');
-var t = c.freshTour('K7QMR2'); t.op = 1; t.missions = c.missionsFor(t, 1);
-t.squad = [{ id: 11, type: 'rifle', stripes: 2, kills: 40 }, { id: 14, type: 'engineer', stripes: 1, kills: 9 }, { id: 19, type: 'sniper', stripes: 1, kills: 12 },
-  { id: 22, type: 'radio', stripes: 0, kills: 0 }, { id: 23, type: 'rifle', stripes: 0, kills: 3 }];
-t.nextId = 30; t.at = 'map'; c.nameAll(t); c.setTour(t);
-"""
-BS = """
-var c = world.campaign;
-function clearCode() { for (var v = 1; v < 500; v++) { var k = c.codeText(v * 31337); if (c.weatherFor(c.freshTour(k), 2) === 'clear') return k; } }
-var t = c.freshTour(clearCode()); t.op = 2; t.missions = c.missionsFor(t, 2); t.opBalloons = 3;
-t.squad = [{ id: 11, type: 'rifle', stripes: 2, kills: 52 }, { id: 14, type: 'engineer', stripes: 1, kills: 11 }, { id: 19, type: 'sniper', stripes: 1, kills: 18 },
-  { id: 22, type: 'radio', stripes: 1, kills: 2 }, { id: 25, type: 'mg', stripes: 0, kills: 6 }];
-t.deploy = [11, 25, 19, 14]; t.nextId = 30; t.at = 'map'; c.nameAll(t); c.setTour(t);
-"""
-FZ = """
-var c = world.campaign;
-function clearCode() { for (var v = 1; v < 500; v++) { var k = c.codeText(v * 31337); if (c.weatherFor(c.freshTour(k), 3) === 'clear') return k; } }
-var t = c.freshTour(clearCode()); t.op = 3; t.missions = c.missionsFor(t, 3);
-t.squad = [{ id: 11, type: 'rifle', stripes: 3, kills: 64 }, { id: 14, type: 'engineer', stripes: 2, kills: 13 }, { id: 19, type: 'sniper', stripes: 2, kills: 25 },
-  { id: 22, type: 'radio', stripes: 1, kills: 2 }, { id: 25, type: 'mg', stripes: 1, kills: 17 }, { id: 26, type: 'medic', stripes: 0, kills: 0 }];
-t.nextId = 30; t.at = 'map'; t.gun = 'heavy'; c.nameAll(t); c.setTour(t);
-function zepIn() { for (var i = 0; i < 60 * 30; i++) { update(1 / 60); var z = S.planes.find(function (p) { return p.kind === 'zeppelin'; }); if (z && z.entered) return z; } }
-"""
-def mission(at):
-    return CAMP + STEP + "t.m = 1; c.startMission(); step(5); t.at = '%s'; S.mode = 'between';" % at
-CAMPAIGN = {
-    'title': 'localStorage.setItem(world.campaign.keys.unlock, "true"); titleScene(); S.t = 0;',
-    'map': CAMP + 'c.screens.map();',
-    'choice': CAMP + "t.m = 1; c.write(); titleScene(); document.getElementById('campaignBtn').click();",
-    'briefing': CAMP + 'c.screens.map(); c.screens.briefing();',
-    'mission': CAMP + STEP + 't.m = 1; c.startMission(); step(7);',
-    # Part 2's flow: the card with promotions, the operation's map, prep, the shop between operations, orders.
-    'between': mission('between') + "t.squad[0].stripes = 2; c.nameAll(t); t.last = { won: true, mission: 'Downed pilot', result: '3 of 3 pilots safe.', caught: 0, fell: [16], promo: [{ id: 11, was: 1, from: 3, to: 4, promoted: true }, { id: 14, was: 1, from: 1, to: 2 }, { id: 19, was: 0, from: 0, to: 1 }] }; c.screens.between();",
-    'opmap': CAMP + "t.m = 2; t.at = 'op'; t.results = [{ mission: 'First contact', result: 'Survived all 2 waves.' }, { mission: 'Downed pilot', result: '3 of 3 pilots safe.' }]; c.write(); c.screens.opMap();",
-    'shop': RD.replace("t.at = 'map';", "t.at = 'map'; t.bank = 160; t.tree = ['double', 'sandbags']; t.seen = ['mat', 'aim', 'cool'];") + "c.screens.shop();",
-    'orders': CAMP + STEP + "t.tree = ['helmet', 'orders']; t.m = 1; c.write(); c.startMission(); step(4); S.cm.ordersOpen = true;",
-    'lost': mission('lost') + "t.last = { won: false, mission: 'Downed pilot', cause: 'Two pilots were lost.', fell: [16] }; c.screens.lost();",
-    'debrief': CAMP + "t.at = 'debrief'; t.debrief = { op: 0, star: false, picks: 1, bonus: null }; c.screens.debrief();",
-    'squad': CAMP + "t.at = 'map'; c.screens.barracks();",
-    'fallen': CAMP + "t.at = 'map'; c.screens.barracks(); c.screens.fallen();",
-    'end': CAMP + "t.at = 'end'; t.stars['boot-camp'] = true; c.screens.end();",
-    # Recruitment Drive (round 2): its briefing (weather, intel), prep, a mission with a straw dummy
-    # coming down, fog and rain over the field, and the pause card's objective. RD picks codes with that weather.
-    'rd-briefing': RD + "c.screens.map(); c.screens.briefing();",
-    'prep': RD.replace("t.at = 'map';", "t.at = 'op'; t.bank = 140; t.tree = ['sandbags'];") + "c.screens.prep();",
-    'dummies': RD + STEP + "c.startMission(); step(4); var d = spawnTrooper(120, 330, { type: 'rifle', fall: 1, sway: 0, armor: 0, dummy: true }); d.open = 1; spawnTrooper(250, 300, { type: 'rifle', fall: 1, sway: 2, armor: 0 }).open = 1; step(0.2);",
-    'fog': RD.replace("'K7QMR2'", "fogCode") + STEP + "c.startMission(); step(6);",
-    'rain': RD.replace("'K7QMR2'", "rainCode") + STEP + "c.startMission(); step(6);",
-    'pause': RD + STEP + "c.startMission(); step(5); togglePause();",
-    # Balloon Season (round 3): the map and briefing, barrage balloons up on their cables with the machine gunner
-    # firing at a chute coming in low, and one popped with its cable falling.
-    'bs-map': BS + "c.screens.map();",
-    'bs-briefing': BS + "c.screens.map(); c.screens.briefing();",
-    'barrage': BS + STEP + "c.startMission(); step(4); var l = spawnTrooper(330, 420, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); l.open = 1; step(0.6);",
-    # The set pieces and the requisition tree (round 5): First contact with no mat, Downed pilot's smoking blue plane
-    # with a fighter on its tail and the fighter firing at its pilot coming over the mat, Hold the
-    # radio's mast with a lander at it, The officer jumping, HQ's supply plane in Supply drop, and the debrief's tree
-    # after Boot Camp with the gold star.
-    'banner': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(1);",
-    'end-tour': CAMP + "c.screens.map(); document.querySelector('[data-act=new]').click();",
-    'first-contact': CAMP + STEP + "t.tree = []; t.m = 0; t.squad = []; c.write(); c.startMission(); step(6);",
-    'chase': CAMP + STEP + "t.tree = []; t.m = 1; t.squad = []; c.write(); c.startMission(); step(6);",
-    'pilot': CAMP + STEP + "t.tree = []; t.m = 1; t.squad = []; c.write(); c.startMission(); step(11.5);",
-    'radio': CAMP + STEP + "t.tree = []; t.m = 2; c.write(); c.startMission(); step(14);",
-    'officer': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'the-officer'; c.write(); c.startMission(); step(8);",
-    'supply': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'supply-drop'; c.write(); c.startMission(); for (var i = 0; i < 60 * 40 && !S.hq.length; i++) update(1 / 60); step(1.2);",
-    'tree': CAMP + "t.tree = ['double']; t.at = 'debrief'; t.debrief = { op: 0, star: true, picks: 1,"
-            " bonus: [{ kind: 'pick', name: 'Another requisition', text: 'One more step on the tree.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' }] }; c.write(); c.screens.debrief();"
-            " document.querySelectorAll('#cDebriefBody .c-node.next')[1].click();",
-    # Balloon Season's and First Zeppelin's set pieces (round 6).
-    'spotter': BS + STEP + "t.tree = []; t.missions[0] = 'spotter-balloon'; c.write(); c.startMission(); step(6.5);",
-    'bigone': BS + STEP + "t.tree = []; t.missions[0] = 'the-big-one'; c.write(); c.startMission(); step(16);",
-    'bay': FZ + STEP + "t.tree = []; t.missions[0] = 'bay-doors'; c.write(); c.startMission(); var z = zepIn(); z.bombT = 2.4; step(0.1);",
-    'recon': FZ + STEP + "t.tree = []; t.missions[0] = 'recon-run'; c.write(); c.startMission(); step(7);",
-    'stand': FZ + STEP + "t.tree = []; t.missions[0] = 'last-stand'; c.write(); c.startMission(); step(6);",
-    # First Zeppelin (round 4): the briefing (the armory line), prep's gun row, the heavy gun firing at a
-    # zeppelin, the armored boss, and its crew bailing out.
-    'fz-briefing': FZ + "c.screens.map(); c.screens.briefing();",
-    'fz-prep': FZ.replace("t.at = 'map';", "t.at = 'op';") + "c.screens.prep();",
-    'heavy': FZ + STEP + "c.startMission(); var z = zepIn(); var tu = S.turrets[0]; tu.aim = Math.atan2(z.y + 20 - TUR.y, z.x - tu.x); fireVolley(tu); step(0.15); tu.fireCD = 0; fireVolley(tu); step(0.1);",
-    'boss': FZ.replace("t.missions = c.missionsFor(t, 3);", "t.missions = c.missionsFor(t, 3); t.m = 3;") + STEP + "c.startMission(); zepIn(); step(1);",
-    'crew': FZ.replace("t.missions = c.missionsFor(t, 3);", "t.missions = c.missionsFor(t, 3); t.m = 3;") + STEP + "c.startMission(); var z = zepIn(); zeppelinDown(z, 'player'); step(1.2);",
-    'barrage-pop': BS + STEP + "c.startMission(); step(4); var q = S.barrage[0]; q.hp = 1; S.bullets.push({ x: q.x, y: q.cy + 30, vx: 0, vy: -700, life: 1, owner: 'player', dead: false }); step(0.5);",
-}
-SIZES = {'phone': (390, 844, False), 'landscape': (844, 390, False), 'notebook': (1280, 800, False), 'phone-full': (390, 844, True)}
-
-
 def run(seed):
     return STEP + 'RUN.force = %d; newGame(); RUN.force = null;' % seed + KIT + 'S.hint = false;'
 SCENES = {
@@ -174,9 +69,8 @@ def serve(site):
     return server, 'http://127.0.0.1:%d' % server.server_port
 
 
-def shoot(browser, tree, out, suffix, scenes=None, size=(900, 900, False)):
-    """Draws every scene with the game in tree (a checkout), into out/<scene><suffix>.png: Arcade's, or the scenes
-    given, at a size (width, height, full screen)."""
+def shoot(browser, tree, out, suffix):
+    """Draws every scene with the game in tree (a checkout), into out/<scene><suffix>.png."""
     source = (tree / 'site/stick-army/game.js').read_text()
     if source.count(BRIDGE_AT) != 1:
         sys.exit('%s: the bridge point %r should be in game.js once' % (tree, BRIDGE_AT))
@@ -184,12 +78,11 @@ def shoot(browser, tree, out, suffix, scenes=None, size=(900, 900, False)):
     server, base = serve(tree / 'site')
     shots = {}
     try:
-        for name, code in (scenes or SCENES).items():
-            page = browser.new_page(viewport={'width': size[0], 'height': size[1]}, device_scale_factor=1)
+        for name, code in SCENES.items():
+            page = browser.new_page(viewport={'width': 900, 'height': 900}, device_scale_factor=1)
             errors = []
             page.on('pageerror', lambda e: errors.append(str(e)))
             page.add_init_script(SEED_RANDOM)
-            page.add_init_script('try { localStorage.clear(); } catch (e) {}')
             page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
             # Nothing over the network: the scores and stats calls fail quietly, as offline.
             page.route('**/scores.jonniepeed.games/**', lambda route: route.abort())
@@ -201,7 +94,7 @@ def shoot(browser, tree, out, suffix, scenes=None, size=(900, 900, False)):
             page.goto(base + '/stick-army/')
             page.add_style_tag(content=NO_ANIM)
             page.evaluate('document.fonts.ready.then(() => 1)')
-            page.evaluate('(c) => armyTest(c)', code + ('\nsetFull(true);' if size[2] else '') + '\nboil = 0; render();')
+            page.evaluate('(c) => armyTest(c)', code + '\nboil = 0; render();')
             path = out / (name + suffix + '.png')
             page.screenshot(path=str(path))
             page.close()
@@ -233,7 +126,6 @@ def compare(a, b, diff_path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--ref', help='also draw the scenes with this commit and compare (e.g. main); fails on any difference')
-    ap.add_argument('--campaign', action='store_true', help="also draw Campaign's screens at three sizes and full screen")
     args = ap.parse_args()
     out = Path(os.environ.get('SCREENSHOTS', '/tmp/stick-army-shots'))
     out.mkdir(parents=True, exist_ok=True)
@@ -242,10 +134,6 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'))
         mine = shoot(browser, ROOT, out, '')
-        if args.campaign:
-            for size, dims in SIZES.items():
-                shoot(browser, ROOT, out, '-' + size, {'campaign-' + k: v for k, v in CAMPAIGN.items()}, dims)
-            print('Campaign: %s (campaign-<scene>-<size>.png: %s)' % (out, ', '.join(SIZES)))
         if not args.ref:
             browser.close()
             print('Scenes: %s (%s)' % (out, ', '.join(mine)))

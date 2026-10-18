@@ -32,21 +32,12 @@ window.__balanceBot = function (profile, seed) {
   }
   // Every target worth shooting, ranked: bombs bound for the bunker or crew, chutes over a mat to capture,
   // troopers about to land or at the wall, aircraft, then any other chute. New ones need noticing first.
-  // Campaign's barrage balloons: a target whose line of fire crosses a cable below its balloon can't be hit yet, so it
-  // waits, as a player would see. (Not in Arcade, which has no o.barrage.)
-  function behindCable(o, p, id) {
-    return o.barrage.some(function (r) {
-      if (r.id === id || (r.x - o.turret.x) * (p.x - o.turret.x) <= 0 || Math.abs(r.x - o.turret.x) >= Math.abs(p.x - o.turret.x)) return false;
-      return o.turret.y + (p.y - o.turret.y) * (r.x - o.turret.x) / (p.x - o.turret.x) > r.y + 10;
-    });
-  }
   function candidates(o) {
     var list = [];
     function consider(rank, point, id) {
       if (!(id in seen)) seen[id] = o.t;
       if (o.t - seen[id] < profile.notice_s) return;
       var a = angle(o, point);
-      if (o.barrage && behindCable(o, point, id)) return;
       if (a >= o.aimMin && a <= o.aimMax) list.push({ id: id, rank: rank, point: point, angle: a });
     }
     o.bombs.forEach(function (m) {
@@ -54,13 +45,12 @@ window.__balanceBot = function (profile, seed) {
       if (threat && m.y > 200) consider(500 + m.y / 10, lead(o, m.x, m.y, m.vx, m.vy + 130 * 0.4), m.id);
     });
     o.troopers.forEach(function (t) {
-      // Campaign's downed pilot: only ever popped over the mat. Its officer: before anything else on the way down.
-      if (t.pilot && !(t.state === 'chute' && t.open > 0.6 && overMat(t, o) && t.y > 420 && t.y < 540)) return;
-      if (t.officer && t.state === 'chute' && t.open > 0.6 && !overMat(t, o)) { consider(450 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id); return; }
       if (t.state === 'chute' && t.open > 0.6 && overMat(t, o) && t.y > 210 && t.y < 520) {
         // Hit the canopy on its outer edge, away from the body, so the shot pops the chute instead of killing.
         var side = t.x < 200 ? -1 : 1;
         consider(400 + t.y / 10, lead(o, t.x + side * 11, t.y - 25, 0, t.fall), t.id);
+      } else if (t.pilot) {
+        // One of ours (a challenge's downed pilot): only ever popped over the mat.
       } else if (t.state === 'chute' && t.y > 400) {
         consider(300 + t.y / 10, lead(o, t.x, t.y + 14, 0, t.fall), t.id);
       } else if (t.state === 'rope') {
@@ -80,7 +70,7 @@ window.__balanceBot = function (profile, seed) {
       // Bombers get priority over troopers: downing one saves chasing its whole bomb run. A dive bomber in its dive
       // comes before nearly everything. A zeppelin comes before planes and high chutes: its escort keeps coming while
       // it flies, so leaving it for last (it was ranked below every chute) let some waves run for minutes.
-      var rank = p.kind === 'zeppelin' ? (o.goal === 'boss' ? 360 : 280) : p.kind === 'bomber' ? 340 : p.kind === 'heavy' ? 345 : p.kind === 'cargo' ? 260 : p.kind === 'heli' ? 330 :
+      var rank = p.kind === 'big' ? 345 : p.kind === 'zeppelin' ? 280 : p.kind === 'bomber' ? 340 : p.kind === 'heavy' ? 345 : p.kind === 'cargo' ? 260 : p.kind === 'heli' ? 330 :
         p.kind === 'diver' ? (p.phase === 'dive' ? 470 : 300) : 200 + p.y / 10;
       consider(rank, lead(o, p.x, p.y, p.vx, p.vy || 0), p.id);
     });
@@ -90,10 +80,6 @@ window.__balanceBot = function (profile, seed) {
     (o.dread || []).forEach(function (q) {
       consider(q.marking ? 560 : q.part === 'gun' ? 360 : 380, lead(o, q.x, q.y, q.vx, 0), q.marking ? q.id + ':' + q.marking : q.id);
     });
-    // Campaign's set-piece targets.
-    (o.extra || []).forEach(function (q) { consider(q.rank, lead(o, q.x, q.y, q.vx || 0, 0), q.id); });
-    // Campaign's barrage balloons: their cables stop bullets, so they come down first, after bombers and divers.
-    (o.barrage || []).forEach(function (q) { consider(320, { x: q.x, y: q.y }, q.id); });
     // Tanks: on the way down, or parked within the barrel's dip.
     (o.tanks || []).forEach(function (tk) {
       // A tank on its chutes shrugs off bullets; wait for it to land.
