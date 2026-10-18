@@ -29,8 +29,10 @@
     // ---------- the requisition tree ----------
     t = tourAt(0, 'hold-the-radio', []); t.m = 2; t.missions[2] = 'hold-the-radio'; t.opLosses = 0; camp.write();
     camp.startMission(); S.cm.count.radio = 99; S.cm.cleared = true; world.MODES.campaign.win();
-    check(t.at === 'debrief' && t.debrief.picks === 1 && t.debrief.star && t.debrief.bonus.length >= 2, 'the debrief: one pick, and the gold star\'s bonus');
-    camp.screens.debrief();
+    check(t.at === 'between' && t.debrief.picks === 1 && t.debrief.star && t.debrief.bonus.length >= 2, 'the last mission\'s card first; the debrief decided: one pick, and the gold star\'s bonus');
+    check(/on to the debrief/.test(document.getElementById('cCardBody').textContent), 'the card says the debrief is next');
+    document.getElementById('cGo').click();
+    check(t.at === 'debrief' && !document.getElementById('cDebrief').hidden, 'Go: the debrief');
     var next = document.querySelectorAll('#cDebriefBody .c-node.next');
     check(next.length === 3 && [].map.call(next, function (b) { return b.dataset.step; }).join() === 'double,sandbags,helmet', 'three rows, each one\'s first step pickable');
     check(document.getElementById('cTake').disabled, 'Take it waits for a pick');
@@ -42,7 +44,7 @@
     next = document.querySelectorAll('#cDebriefBody .c-node.next');
     check(next.length === 3 && [].map.call(next, function (b) { return b.dataset.step; }).join() === 'double,wire,helmet', '"Another requisition": the tree again, Barbed wire next on its row');
     next[0].click(); document.getElementById('cTake').click();
-    check(t.tree.join() === 'sandbags,double' && t.at === 'barracks' && !document.getElementById('cBarracks').hidden, 'two steps taken, on to the barracks');
+    check(t.tree.join() === 'sandbags,double' && t.at === 'map' && t.op === 1 && !document.getElementById('cMap').hidden, 'two steps taken, on to the next operation\'s map');
     var back = camp.readLink(camp.linkCode(t));
     check(back && back.tree.slice().sort().join() === 'double,sandbags', 'the save link carries the tree');
     // No star: one pick, no bonus.

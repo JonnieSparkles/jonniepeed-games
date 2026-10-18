@@ -59,6 +59,10 @@
     document.getElementById('cMapGo').click();
     check(!document.getElementById('cBrief').hidden && /Boot/.test(document.getElementById('cBriefTitle').textContent), 'the briefing');
     document.getElementById('cBriefGo').click();
+    check(!document.getElementById('cOp').hidden && t.at === 'op' && document.querySelectorAll('#cOpBody .c-mnode').length === 3 && document.querySelector('#cOpBody .c-mnode.live'), 'Go: the operation\'s map, the first mission live');
+    document.getElementById('cOpGo').click();
+    check(!document.getElementById('cPrep').hidden, 'Prep');
+    document.getElementById('cPrepGo').click();
     check(S.game === 'campaign' && S.mode === 'play' && S.mods.slots === 3 && S.cm.mission === 'first-contact' && S.wave === 1, 'First contact plays as Arcade wave 1, with three slots');
     check(world.rules().promotes === false && !SHOP.offer(99, []).some(function (it) { return it.id === 'slot' || it.id === 'bootcamp'; }), 'no stripes for waves, no extra slot or training in the shop');
     // Catches on a full field go to the barracks.
@@ -67,7 +71,7 @@
     check(S.cm.bench.length === 1 && S.cm.count.caught === 1, 'a catch with no slot goes to a bunk');
     S.recruits.splice(0, 3);
     shops = 0; play(true);
-    check(shops === 0 && S.wave === 2, 'First contact has no shop between its waves');
+    check(shops === 0 && S.wave === 2, 'no shop between a mission\'s waves');
     check(S.mode === 'between' && t.at === 'between' && t.m === 1 && !document.getElementById('cCard').hidden, 'won: the card between missions (' + S.mode + ', ' + t.at + ')');
     check(t.squad.length === 1 && t.squad[0].stripes === 0, 'the soldier in the bunk is on the tour');
     check(localStorage.getItem(K.wave) === null, 'the wave save is gone once the mission is over');
@@ -106,19 +110,15 @@
     var back = camp.readTour(JSON.parse(localStorage.getItem(K.tour)));
     check(back && back.code === t.code && back.m === t.m && back.fallen.length === t.fallen.length && back.squad.length === t.squad.length && back.at === 'mission', 'the tour save reads back');
     camp.startMission();
-    for (f = 0; f < 60 * 300 && S.mode !== 'shop'; f++) { S.wallHP = S.mods.maxHP; S.troopers.forEach(function (q) { q.dead = true; }); update(1 / 60); }
+    for (f = 0; f < 60 * 300 && localStorage.getItem(K.wave) === null; f++) { S.wallHP = S.mods.maxHP; S.troopers.forEach(function (q) { q.dead = true; }); update(1 / 60); }
     var ws = JSON.parse(localStorage.getItem(K.wave));
-    check(S.mode === 'shop' && ws && ws.build === camp.build() && ws.snap && ws.snap.S, 'a wave save at the shop');
-    var shopRun = JSON.stringify(snapshotRun());
+    check(ws && ws.build === camp.build() && ws.snap && ws.snap.S && S.mode === 'play' && S.cm.wi === 1, 'a wave save as the first wave clears, and straight on into the second');
     titleScene();
     check(document.getElementById('campaignLabel').textContent === 'Campaign', 'the title says Campaign');
     document.getElementById('campaignBtn').click();
     check(!document.getElementById('cCard').hidden && document.getElementById('cContinue') && document.getElementById('cFresh') && /mission 2 of 3/.test(document.getElementById('cCard').textContent), 'which asks: Continue or New tour (' + document.getElementById('cCard').textContent.slice(0, 80) + ')');
     document.getElementById('cContinue').click();
-    // A stream's state reads back as the same 32 bits, signed (save.js), so states are compared as such.
-    function same(x) { return JSON.stringify(x).replace(/"\$rng":(-?\d+)/g, function (m, v) { return '"$rng":' + (Number(v) | 0); }); }
-    var now = snapshotRun(), was = JSON.parse(shopRun), diff = now ? Object.keys(was).filter(function (k) { return same(was[k]) !== same(now[k]); }) : ['all'];
-    check(S.mode === 'shop' && S.game === 'campaign' && S.cm.wi === 0 && !diff.length, 'Continue: back at the shop, as it was (' + diff.join() + ')');
+    check(S.mode === 'play' && S.game === 'campaign' && S.cm.wi === 1 && S.wave === S.cm.waves[1] && !S.shop && document.getElementById('shopScreen').hidden, 'Continue: on into the second wave (' + S.mode + ', ' + S.cm.wi + ')');
     ws.build = 'older'; localStorage.setItem(K.wave, JSON.stringify(ws));
     titleScene(); document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
     check(S.mode === 'play' && S.cm.wi === 0 && S.wave === S.cm.waves[0] && localStorage.getItem(K.wave) === null, 'a wave save from another build is dropped: the mission starts again');
