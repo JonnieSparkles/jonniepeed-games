@@ -1,5 +1,5 @@
 // Campaign round 4, First Zeppelin: the operation released (four missions, the boss mission last) and a round-3 tour
-// carrying on into it, the armory (the heavy gun handed over on the briefing, the gun row on the deploy screen before
+// carrying on into it, the armory (the heavy gun handed over on the briefing, the gun row at prep before
 // every mission), the heavy gun itself (slower, hotter, rounds that down a bomber and go through a helmet; Arcade never
 // has it), Campaign's zeppelins (lighter, leaving when the enemy surrenders), the boss mission (waits for the crew,
 // counts the ones caught), the gold star, and the save link.
@@ -40,21 +40,22 @@
     // ---------- the armory ----------
     var code = clearCode(), t = fz('bay-doors', code);
     check(camp.armory(t).join() === 'standard,heavy' && camp.armory(Object.assign({}, t, { op: 2 })).join() === 'standard', 'the heavy gun comes with First Zeppelin');
-    check(camp.needsDeploy(t) && t.squad.length === op.slots, 'so the deploy screen comes first, even with the whole squad fitting');
     t.at = 'briefing'; camp.write(); camp.screens.briefing();
     check(/HQ sends the heavy gun/.test(document.getElementById('cBriefBody').textContent), 'the briefing says so');
-    document.getElementById('cBriefGo').click();
+    document.getElementById('cBriefGo').click(); document.getElementById('cOpGo').click();
     var guns = document.querySelectorAll('#cGuns .c-gun');
-    check(!document.getElementById('cDeploy').hidden && guns.length === 2 && guns[0].getAttribute('aria-pressed') === 'true', 'Go opens deploy with the gun row, Standard ticked');
+    check(!document.getElementById('cPrep').hidden && guns.length === 2 && guns[0].getAttribute('aria-pressed') === 'true', 'prep has the gun row, Standard ticked');
     guns[1].click();
     check(document.querySelectorAll('#cGuns .c-gun')[1].getAttribute('aria-pressed') === 'true' && document.querySelectorAll('#cGuns .c-gun')[0].getAttribute('aria-pressed') === 'false', 'tap Heavy');
-    document.getElementById('cDeployGo').click();
-    check(S.mode === 'play' && t.gun === 'heavy' && S.turrets[0].heavy && S.cm.gun === 'heavy' && S.recruits.length === 5, 'Deploy goes out with the heavy gun');
-    // Between missions, Go comes by the deploy screen too.
-    t.at = 'between'; t.m = 1; t.last = { won: true, mission: 'Bomb bay', caught: 4, planes: 3, fell: [] }; camp.write(); S.mode = 'between'; camp.screens.between();
+    document.getElementById('cPrepGo').click();
+    check(S.mode === 'play' && t.gun === 'heavy' && S.turrets[0].heavy && S.cm.gun === 'heavy' && S.recruits.length === 5, 'Start goes out with the heavy gun');
+    // After a mission's card, Go: the operation's map, then prep with the pick kept.
+    t.at = 'between'; t.m = 1; t.last = { won: true, mission: 'Bomb bay', result: '5 of 5 hits in the bay.', fell: [], promo: [] }; camp.write(); S.mode = 'between'; camp.screens.between();
+    check(!document.querySelector('#cCard .c-links'), 'the card has one Go and no links');
     document.getElementById('cGo').click();
-    check(!document.getElementById('cDeploy').hidden && document.querySelectorAll('#cGuns .c-gun')[1].getAttribute('aria-pressed') === 'true', 'the next Go opens deploy, the pick kept');
-    check(!document.querySelector('#cCard [data-act="swap"]'), 'so the card needs no Swap link');
+    check(!document.getElementById('cOp').hidden && t.at === 'op', 'Go: the operation\'s map');
+    document.getElementById('cOpGo').click();
+    check(!document.getElementById('cPrep').hidden && document.querySelectorAll('#cGuns .c-gun')[1].getAttribute('aria-pressed') === 'true', 'prep keeps the gun picked');
 
     // ---------- the heavy gun ----------
     t = fz('bay-doors', code); t.gun = 'standard'; camp.startMission();

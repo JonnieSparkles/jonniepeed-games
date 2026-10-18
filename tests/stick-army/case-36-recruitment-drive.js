@@ -1,5 +1,5 @@
 // Campaign round 2, Recruitment Drive: the operation released and a round-1 tour carrying on into it, weather and
-// intel from the tour code, straw dummies (caught, shot, landing, the gold star), the deploy pick and the save link
+// intel from the tour code, straw dummies (caught, shot, landing, the gold star), the pick at prep and the save link
 // that carries it, the radio operator (Campaign's hire only, a free call, calls sooner), and the pause card's
 // objective.
 (function () {
@@ -96,16 +96,17 @@
     check(S.recruits.map(function (r) { return r.id; }).sort().join() === '4,5,6' && S.cm.bench.join() === '3', 'the deploy pick goes out (' + S.recruits.map(function (r) { return r.id; }) + ')');
     var link = camp.linkCode(t), back = camp.readLink(link);
     check(back && back.deploy && back.deploy.join() === '6,5,4', 'the save link carries it');
-    // The deploy screen itself.
+    // Prep: the whole squad, the slots ticked.
     t.at = 'briefing'; camp.write(); camp.screens.briefing();
-    document.getElementById('cBriefGo').click();
-    check(!document.getElementById('cDeploy').hidden && document.querySelectorAll('#cDeployBunks .c-pick[aria-pressed="true"]').length === 3, 'more soldiers than slots: the deploy screen, three ticked');
-    var first = document.querySelector('#cDeployBunks .c-pick[aria-pressed="true"]'); first.click();
-    check(document.querySelectorAll('#cDeployBunks .c-pick[aria-pressed="true"]').length === 2, 'untick one');
-    document.getElementById('cBest').click();
-    check(document.querySelectorAll('#cDeployBunks .c-pick[aria-pressed="true"]').length === 3, 'Best three ticks three');
-    document.getElementById('cDeployGo').click();
-    check(S.mode === 'play' && S.game === 'campaign' && S.recruits.length === 3 && t.deploy.length === 3, 'Deploy starts the mission');
+    document.getElementById('cBriefGo').click(); document.getElementById('cOpGo').click();
+    check(!document.getElementById('cPrep').hidden && document.querySelectorAll('#cPrepBunks .c-pick').length === 4 && document.querySelectorAll('#cPrepBunks .c-pick[aria-pressed="true"]').length === 3, 'prep: the whole squad, three ticked');
+    check(/select 3 to deploy/i.test(document.getElementById('cPrepBody').textContent), 'it says how many go out');
+    var first = document.querySelector('#cPrepBunks .c-pick[aria-pressed="true"]'); first.click();
+    check(document.querySelectorAll('#cPrepBunks .c-pick[aria-pressed="true"]').length === 2, 'untick one');
+    var other = document.querySelector('#cPrepBunks .c-pick[aria-pressed="false"]'); other.click(); other = document.querySelector('#cPrepBunks .c-pick[aria-pressed="false"]'); other.click();
+    check(document.querySelectorAll('#cPrepBunks .c-pick[aria-pressed="true"]').length === 3, 'no more than three');
+    document.getElementById('cPrepGo').click();
+    check(S.mode === 'play' && S.game === 'campaign' && S.recruits.length === 3 && t.deploy.length === 3, 'Start starts the mission');
 
     // ---------- the radio operator ----------
     t = rd(kinds.clear, 'dummy-drop'); t.deploy = [6, 3, 4]; camp.startMission();
