@@ -159,6 +159,8 @@ var StickArmyFlow = function (world, game) {
     goal.textContent = goalLine; goal.hidden = !goalLine;
     // A kind of run that keeps your place says so on its Quit (Campaign: "Save and quit").
     document.getElementById('pauseQuitBtn').textContent = world.rules().quitLabel || 'Quit';
+    // A kind of run with a save link offers it here (Campaign's Copy save link; campaign-screens.js copies it).
+    var link = document.getElementById('pauseLink'); if (link) { link.hidden = !world.rules().pauseLink; link.textContent = 'Copy save link'; }
     // The kit as icons (as in the shop) and the squad as the HUD draws it, with a short line of names.
     var kit = document.getElementById('pauseKit');
     kit.hidden = !renderKit(kit, false);
@@ -314,6 +316,8 @@ var StickArmyFlow = function (world, game) {
     // A call in the HUD makes the call instead of firing.
     var chip = callChipAt(toLogical(e));
     if (chip) { if (chip.kind === 'bomber') callStrike(); else callFighter(); e.preventDefault(); return; }
+    // A kind of run's own controls on the page (Campaign's orders).
+    if (world.rules().tap && world.rules().tap(toLogical(e))) { e.preventDefault(); return; }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     aimAt(toLogical(e)); gun().firing = true;
     // Touch (or a pen) on the page marks the run as touch on the board and in play stats; menus don't count.

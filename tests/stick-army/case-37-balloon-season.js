@@ -75,8 +75,8 @@
     S.spawn.planes = S.spawn.bombers = S.spawn.rushes = S.spawn.cargo = S.spawn.road = S.spawn.balloons = 0; S.spawn.boss = 0;
     for (var f = 0; f < 60 * 30 && S.waveState === 'active'; f++) { S.planes = []; S.troopers = []; S.bombs = []; S.wallHP = S.mods.maxHP; update(1 / 60); }
     check(S.waveState !== 'active', 'the wave clears');
-    frames(60 * 4);
-    check(!S.barrage.length || S.barrage.every(function (r) { return r.state === 'away'; }), 'and the rest float off');
+    var up = S.barrage.slice(); frames(60);
+    check(up.every(function (r) { return r.state === 'away' || S.barrage.indexOf(r) < 0; }), 'and the rest float off');
 
     // ---------- the gold star ----------
     t = bs('cable-cutters', code); camp.startMission();

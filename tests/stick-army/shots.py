@@ -93,17 +93,20 @@ CAMPAIGN = {
     'choice': CAMP + "t.m = 1; c.write(); titleScene(); document.getElementById('campaignBtn').click();",
     'briefing': CAMP + 'c.screens.map(); c.screens.briefing();',
     'mission': CAMP + STEP + 't.m = 1; c.startMission(); step(7);',
-    'between': mission('between') + 'c.screens.between();',
+    # Part 2's flow: the card with promotions, the operation's map, prep, the shop between operations, orders.
+    'between': mission('between') + "t.squad[0].stripes = 2; c.nameAll(t); t.last = { won: true, mission: 'Downed pilot', result: '3 of 3 pilots safe.', caught: 0, fell: [16], promo: [{ id: 11, was: 1, from: 3, to: 4, promoted: true }, { id: 14, was: 1, from: 1, to: 2 }, { id: 19, was: 0, from: 0, to: 1 }] }; c.screens.between();",
+    'opmap': CAMP + "t.m = 2; t.at = 'op'; t.results = [{ mission: 'First contact', result: 'Survived all 2 waves.' }, { mission: 'Downed pilot', result: '3 of 3 pilots safe.' }]; c.write(); c.screens.opMap();",
+    'shop': RD.replace("t.at = 'map';", "t.at = 'map'; t.bank = 160; t.tree = ['double', 'sandbags']; t.seen = ['mat', 'aim', 'cool'];") + "c.screens.shop();",
+    'orders': CAMP + STEP + "t.tree = ['helmet', 'orders']; t.m = 1; c.write(); c.startMission(); step(4); S.cm.ordersOpen = true;",
     'lost': mission('lost') + "t.last = { won: false, mission: 'Downed pilot', cause: 'Two pilots were lost.', fell: [16] }; c.screens.lost();",
-    'debrief': CAMP + "t.squad.forEach(function (s) { s.stripes++; }); c.nameAll(t); t.at = 'debrief'; t.debrief = { op: 0, star: false, promoted: t.squad.map(function (s) { return { id: s.id, named: s.stripes === 1 }; }),"
-               " picks: 1, bonus: null }; c.screens.debrief();",
-    'barracks': CAMP + "t.at = 'barracks'; c.screens.barracks();",
-    'fallen': CAMP + "t.at = 'barracks'; c.screens.barracks(); c.screens.fallen();",
+    'debrief': CAMP + "t.at = 'debrief'; t.debrief = { op: 0, star: false, picks: 1, bonus: null }; c.screens.debrief();",
+    'squad': CAMP + "t.at = 'map'; c.screens.barracks();",
+    'fallen': CAMP + "t.at = 'map'; c.screens.barracks(); c.screens.fallen();",
     'end': CAMP + "t.at = 'end'; t.stars['boot-camp'] = true; c.screens.end();",
-    # Recruitment Drive (round 2): its briefing (weather, intel), the deploy screen, a mission with a straw dummy
+    # Recruitment Drive (round 2): its briefing (weather, intel), prep, a mission with a straw dummy
     # coming down, fog and rain over the field, and the pause card's objective. RD picks codes with that weather.
     'rd-briefing': RD + "c.screens.map(); c.screens.briefing();",
-    'deploy': RD + "c.screens.deploy(function () {});",
+    'prep': RD.replace("t.at = 'map';", "t.at = 'op'; t.bank = 140; t.tree = ['sandbags'];") + "c.screens.prep();",
     'dummies': RD + STEP + "c.startMission(); step(4); var d = spawnTrooper(120, 330, { type: 'rifle', fall: 1, sway: 0, armor: 0, dummy: true }); d.open = 1; spawnTrooper(250, 300, { type: 'rifle', fall: 1, sway: 2, armor: 0 }).open = 1; step(0.2);",
     'fog': RD.replace("'K7QMR2'", "fogCode") + STEP + "c.startMission(); step(6);",
     'rain': RD.replace("'K7QMR2'", "rainCode") + STEP + "c.startMission(); step(6);",
@@ -125,7 +128,7 @@ CAMPAIGN = {
     'radio': CAMP + STEP + "t.tree = []; t.m = 2; c.write(); c.startMission(); step(14);",
     'officer': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'the-officer'; c.write(); c.startMission(); step(8);",
     'supply': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'supply-drop'; c.write(); c.startMission(); for (var i = 0; i < 60 * 40 && !S.hq.length; i++) update(1 / 60); step(1.2);",
-    'tree': CAMP + "t.tree = ['double']; t.at = 'debrief'; t.debrief = { op: 0, star: true, promoted: t.squad.map(function (s) { return { id: s.id, named: false }; }), picks: 1,"
+    'tree': CAMP + "t.tree = ['double']; t.at = 'debrief'; t.debrief = { op: 0, star: true, picks: 1,"
             " bonus: [{ kind: 'pick', name: 'Another requisition', text: 'One more step on the tree.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' }] }; c.write(); c.screens.debrief();"
             " document.querySelectorAll('#cDebriefBody .c-node.next')[1].click();",
     # Balloon Season's and First Zeppelin's set pieces (round 6).
@@ -134,10 +137,10 @@ CAMPAIGN = {
     'bay': FZ + STEP + "t.tree = []; t.missions[0] = 'bay-doors'; c.write(); c.startMission(); var z = zepIn(); z.bombT = 2.4; step(0.1);",
     'recon': FZ + STEP + "t.tree = []; t.missions[0] = 'recon-run'; c.write(); c.startMission(); step(7);",
     'stand': FZ + STEP + "t.tree = []; t.missions[0] = 'last-stand'; c.write(); c.startMission(); step(6);",
-    # First Zeppelin (round 4): the briefing (the armory line), the deploy screen's gun row, the heavy gun firing at a
+    # First Zeppelin (round 4): the briefing (the armory line), prep's gun row, the heavy gun firing at a
     # zeppelin, the armored boss, and its crew bailing out.
     'fz-briefing': FZ + "c.screens.map(); c.screens.briefing();",
-    'fz-deploy': FZ + "c.screens.deploy(function () {});",
+    'fz-prep': FZ.replace("t.at = 'map';", "t.at = 'op';") + "c.screens.prep();",
     'heavy': FZ + STEP + "c.startMission(); var z = zepIn(); var tu = S.turrets[0]; tu.aim = Math.atan2(z.y + 20 - TUR.y, z.x - tu.x); fireVolley(tu); step(0.15); tu.fireCD = 0; fireVolley(tu); step(0.1);",
     'boss': FZ.replace("t.missions = c.missionsFor(t, 3);", "t.missions = c.missionsFor(t, 3); t.m = 3;") + STEP + "c.startMission(); zepIn(); step(1);",
     'crew': FZ.replace("t.missions = c.missionsFor(t, 3);", "t.missions = c.missionsFor(t, 3); t.m = 3;") + STEP + "c.startMission(); var z = zepIn(); zeppelinDown(z, 'player'); step(1.2);",

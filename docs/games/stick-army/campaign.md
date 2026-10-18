@@ -2,7 +2,7 @@
 
 A second way to play beside Arcade: a tour of ten operations with one squad you keep, and can lose. Each operation is a few short missions, each with its own goal, on its own paper. Operations ship one at a time as release packs.
 
-Status: planned (Oct 15–16). Round 1, the frame and Boot Camp, built Oct 16; round 2, Recruitment Drive, built Oct 16; round 3, Balloon Season, built Oct 16; round 4, First Zeppelin, built Oct 17; then, after a playtest, Boot Camp and Recruitment Drive reworked with set-piece missions and the shop made to build up with a requisition tree (Oct 17); Balloon Season and First Zeppelin reworked the same way (Oct 17); after the next playtest, Boot Camp's first two missions reworked (First contact with no trampoline, Downed pilot a dogfight whose pilots join the squad) and the shop's gating fixed for older tours (Oct 17); the flow between waves, missions and operations is to be redesigned next (see below) (the game as it is now is in [README.md](README.md#campaign)). Playtests are next. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
+Status: planned (Oct 15–16). Round 1, the frame and Boot Camp, built Oct 16; round 2, Recruitment Drive, built Oct 16; round 3, Balloon Season, built Oct 16; round 4, First Zeppelin, built Oct 17; then, after a playtest, Boot Camp and Recruitment Drive reworked with set-piece missions and the shop made to build up with a requisition tree (Oct 17); Balloon Season and First Zeppelin reworked the same way (Oct 17); after the next playtest, Boot Camp's first two missions reworked (First contact with no trampoline, Downed pilot a dogfight whose pilots join the squad) and the shop's gating fixed for older tours (Oct 17); old saves dropped until release, and the flow between waves, missions and operations redesigned (results card, the operation's map, prep, the shop and Squad between operations, promotions a quarter stripe a mission, squad orders; Oct 18) (the game as it is now is in [README.md](README.md#campaign)). Playtests are next. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
 
 ## Why
 
@@ -62,35 +62,32 @@ What lives where:
 
 ### Between missions and operations
 
-- **Between missions: one screen, one tap.** Who fell and who was promoted, the next mission's goal, and Go. The shop, the barracks and "Copy save link" are there but optional.
+- **Between waves: nothing.** No shop and no pick inside a mission (Oct 18; a pick from 3–4 offers was considered and left out): a wave clears and the next comes. A mission can still hand something over when it has a reason (Supply drop's crates).
+- **Between missions: one card, one Go** (Oct 18). The result, who was promoted, who fell, the next mission's goal and Go, with no links. Go opens the operation's map: its missions on a trail with a badge each, done ones read only, only the next one live (forward only, no replays). Then **prep**: the whole squad drawn as in the game, select who deploys, and up to three supplies the tags can buy, tagged "new" and with how long they last. Then Start.
+- **Promotions** (Oct 18): a quarter stripe for each soldier who went out on a mission won, shown on the card as gold chevrons filling in. Nobody in the barracks is promoted. (Before: a stripe for everyone at the end of an operation.)
 - **Between operations:**
-  1. **Debrief:** the gold star (or not), promotions, and the reward pick.
-  2. **Barracks:** recruit with tags; the back page lists the fallen (name, role, kills, where).
-  3. **The map:** the notebook page, where you choose at a fork.
-  4. **Briefing:** a post-it with the operation's paper, weather, intel and bonus goal.
-  5. **Deploy:** who goes (and which gun, once there's more than one).
-- **Redesign (Oct 17 playtest, to build):** the map is the hub and the results card loses its links (Shop, Swap, Barracks, Copy save link, Map).
-  - Between waves: no shop, a quick pick from 3–4 offers suited to the last wave and the squad.
-  - Between missions: the results card with one Go, then the map zoomed into the operation (done missions read-only, only the next one live), then a prep screen (the squad and a few affordable items), then Start. Forward only, no replays.
-  - Between operations: the map zoomed out, with the full shop, the tree and **Squad** (Swap and Barracks merged).
-  - Copy save link moves to the pause card. New shop items get a "new" tag. Only soldiers who deployed are promoted, shown on the results card.
+  1. **The last mission's card**, then the **debrief:** the gold star (or not) and the requisition tree.
+  2. **The tour map**, zoomed out, with the **Shop** (everything on the shelf, for the operation ahead) and **Squad** (recruit with tags; the back page lists the fallen). The old Swap and Barracks are merged into Squad, and deploy is now prep.
+  3. **Briefing:** a post-it with the operation's paper, weather, intel and bonus goal.
+- **Copy save link** is on the pause card (Oct 18).
+- **Squad orders** (Oct 18, the player's idea): a step on the tree's Squad row. A chip on the HUD gives the squad a focus: general, repair, vehicles, soldiers or capture, without stopping the game or leaving the turret.
 - **The map** is the tour on one notebook page: released operations inked, the rest pencilled with "coming soon", Enemy HQ's flag moving ahead of you.
 
 ### The squad
 
-- **A barracks of 12.** Each operation has deploy slots: 3 at Boot Camp, rising to 8 by the finale (3, 3, 4, 5, 5, 6, 7, 7, 8, 8). You pick who deploys at the start of an operation and can swap between missions. Soldiers caught on the mat still join during a mission.
+- **A barracks of 12.** Each operation has deploy slots: 3 at Boot Camp, rising to 8 by the finale (3, 3, 4, 5, 5, 6, 7, 7, 8, 8). You pick who deploys at prep, before every mission. Soldiers caught on the mat still join during a mission.
 - **Roles:** Arcade's five (rifleman, engineer, bazooka, sniper, medic) and four new ones, hired the same way or joining as rewards:
   - **Mortar:** lobs shells over the wall at things on the ground: tanks, rushes, mortar teams.
   - **Machine gunner:** sprays the low sky (chutes, landers, low planes); runs hot like your gun and rests between bursts.
   - **Radio operator:** one extra radio call a mission, and calls come in faster while he's standing.
   - **Scout:** sees through fog, dusk and jungle leaves; hidden snipers on his side of the page show up.
 - **Traits:** each soldier rolls one when he earns his name: Lucky (shrugs off one hit a mission), Quick (faster trigger), Steady (tighter aim), Tough (+1 health) or Brave (keeps working while wounded). Shown on his bunk.
-- **Promotion is one stripe per operation survived,** not per wave served (a tour has many short missions, and waves would promote everyone to the top by mid-tour). Medals add stripes. The shop doesn't sell Boot Camp or Elite Training in Campaign: stripes come from the tour, and the operation is already called Boot Camp.
+- **Promotion is a quarter stripe per mission won out on the field** (since Oct 18; it was one stripe per operation survived, for everyone), not per wave served (a tour has many short missions, and waves would promote everyone to the top by mid-tour). Medals add stripes. The shop doesn't sell Boot Camp or Elite Training in Campaign: stripes come from the tour, and the operation is already called Boot Camp.
 - **Special Forces:** the first soldier to survive five operations. One at a time; he wears a beret, keeps his role, and once a mission goes over the wall to take out a tank or a mortar team by hand. If he falls, the title passes to the next who qualifies.
 
 ### Gear, the shop and the gun
 
-- **The shop works as in Arcade,** between waves and between missions. Gear lasts the operation, then resets. Dog tags carry across the tour.
+- **The shop** (since Oct 18): a few supplies at prep before each mission, the whole shelf between operations, nothing between waves. Gear lasts the operation, then resets. Dog tags carry across the tour.
 - **The armory.** The standard gun is always there; you pick one gun for an operation at deploy, and the shop's upgrades stack on it. Earned as rewards: the **heavy gun** (slow, big rounds that punch through armor and down a plane in one hit; heats fast) and the **wire launcher** (shells that land leave barbed wire that slows walkers). The **flare** is alternate fire in Night Raid only, from a button beside pause like the radio calls.
 - **Turret twists,** one operation each:
   - **Convoy** (Supply Line): the gun rides a truck in a supply convoy. The truck stays in the middle of the page while the ground scrolls underneath, so the bunker's position never moves; the mats ride on the truck beds, and losing the trucks loses the mission.

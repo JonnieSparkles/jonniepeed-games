@@ -440,6 +440,10 @@
   //   noMats()          true: no mats on the page (Campaign's first mission)
   //   drawSky(G)        draws the kind of run's own things in the sky, behind the aircraft
   //   shot(b)           a bullet's own targets, before the planes (true: it's spent); tick(dt) every frame of the field
+  //   order()           the squad's orders (Campaign): 'repair' (everyone patches the wall), 'vehicles' (tanks and
+  //                     aircraft first), 'soldiers' (troopers first, on the ground or in the air), 'capture' (chutes
+  //                     only popped over a mat); anything else, as always
+  //   drawHud(G)        draws over the HUD; tap(p) a tap on the page in play: true if the kind of run took it
   var MODES = {
     arcade: {
       wave: function (n) { return waveCfg(n); },
@@ -1392,9 +1396,24 @@
 
   // ---------- recruit brains ----------
   function pickTarget(r) {
-    var ox = r.x, oy = GROUND - 23, best = null, bd = 1e9, tank = null, td = 300;
+    var ox = r.x, oy = GROUND - 23, best = null, bd = 1e9, tank = null, td = 300, order = rules().order ? rules().order() : null;
     S.tanks.forEach(function (tk) { var d = Math.abs(tk.x - ox); if (!tk.dead && tk.state !== 'chute' && inView(tk) && d < td) { td = d; tank = tk; } });
-    if (tank && r.type === 'bazooka') return tank;
+    if (tank && (r.type === 'bazooka' || order === 'vehicles')) return tank;
+    // Orders (a kind of run's, order()): vehicles first, then the low sky; or soldiers first, high chutes too.
+    if (order === 'vehicles') {
+      var air = S.planes.filter(function (p) { return p.state === 'fly' && p.kind !== 'balloon' && p.kind !== 'dread' && p.kind !== 'zeppelin' && p.x > 10 && p.x < W - 10 && p.y > 120; });
+      air.forEach(function (p) { var d = Math.hypot(p.x - ox, p.y - oy); if (d < bd) { bd = d; best = p; } });
+      if (best) return best;
+    }
+    if (order === 'soldiers') {
+      var spare0 = rules().spare;
+      S.troopers.forEach(function (t) {
+        if (t.dead || t.captain || !(t.state === 'ground' || (t.state === 'chute' && t.open >= 1 && t.y > 220) || t.state === 'rope') || (t.state !== 'ground' && spare0 && spare0(t))) return;
+        var d = Math.hypot(t.x - ox, (t.state === 'ground' ? GROUND - 10 : t.y) - oy) - (t.state === 'ground' ? 200 : 0);
+        if (d < bd) { bd = d; best = t; }
+      });
+      if (best) return best;
+    }
     S.troopers.forEach(function (t) {
       if (t.dead || t.captain || t.state !== 'ground') return;
       var d = Math.abs(t.x - ox);
@@ -1445,7 +1464,7 @@
     else if (tg.state === 'ground') { x = tg.x; y = tg.y + 14; vx = (tg.type === 'sniper' || tg.atWall || tg.attacking) ? 0 : tg.dir * 22 * (S.mods.wire ? 0.5 : 1); }
     else {
       x = tg.x; y = tg.y + 12; vy = tg.fall;
-      if (S.mods.catcher && r.type !== 'bazooka' && tg.state === 'chute' && slotsAvailable() && tg.y > 475) {
+      if ((S.mods.catcher || (rules().order && rules().order() === 'capture')) && r.type !== 'bazooka' && tg.state === 'chute' && slotsAvailable() && tg.y > 475) {
         var over = activeTramps().some(function (q) { return tg.x > q.x1 + 8 && tg.x < q.x2 - 8; });
         if (over) { y = tg.y - 28; x = tg.x + (r.x > tg.x ? 15 : -15); }
       }
@@ -1470,7 +1489,8 @@
     var byNear = function (a, b) { return Math.abs(a.homeX - 200) - Math.abs(b.homeX - 200); };
     var eng = live.filter(function (r) { return r.type === 'engineer'; });
     var oth = live.filter(function (r) { return r.type !== 'engineer' && r.type !== 'medic'; }).sort(byNear);
-    var need = S.repairLevel === 3 ? oth.length : Math.max(0, S.repairLevel - eng.length);
+    var order = rules().order ? rules().order() : null;
+    var need = order === 'repair' ? (hp < 99.5 ? oth.length : 0) : S.repairLevel === 3 ? oth.length : Math.max(0, S.repairLevel - eng.length);
     oth.forEach(function (r, i) { r.role = i < need ? 'repair' : 'shoot'; });
     eng.forEach(function (r) { r.role = hp < 99.5 ? 'repair' : 'idle'; });
     live.filter(function (r) { return r.type === 'medic'; }).forEach(function (r) { r.role = 'heal'; });
@@ -1963,6 +1983,7 @@
     drawBubbles();
     ctx.restore();
     drawHUD();
+    if (rules().drawHud) rules().drawHud(G);
     if (S.banner) drawBanner();
   }
 
