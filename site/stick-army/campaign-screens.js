@@ -198,9 +198,7 @@ var StickArmyCampaignScreens = function (world, game, camp) {
       '<p class="c-eyebrow">' + (promos ? 'PROMOTED' : 'NOBODY TO PROMOTE') + '</p>' +
       (promos ? '<ul class="c-promos">' + promos + '</ul>' : '<p class="c-small">Catch soldiers and keep them alive: each operation survived is a stripe.</p>') +
       (promos ? '<p class="c-small">One stripe each for an operation survived. A first stripe brings a name and a trait.</p>' : '') +
-      (d.picks != null ? (d.picks ? treeHtml(t) : bonusHtml(d)) :
-      '<p class="c-eyebrow">PICK ONE</p><div class="c-slips" id="cSlips">' +
-      d.offers.map(function (r, i) { return '<button class="c-slip" type="button" aria-pressed="false" data-i="' + i + '"><b>' + esc(r.name) + '</b><span>' + esc(r.text) + '</span></button>'; }).join('') + '</div>');
+      (d.picks ? treeHtml(t) : bonusHtml(d));
     $('cTake').disabled = true; step = null;
     up(); only(['cDebrief']);
     var first = $('cDebriefBody').querySelector('.c-node.next, .c-slip'); if (first) first.focus({ preventScroll: true });
@@ -242,13 +240,9 @@ var StickArmyCampaignScreens = function (world, game, camp) {
     $('cTake').disabled = false;
   });
   $('cTake').addEventListener('click', function () {
-    var t = camp.tour(), d = t.debrief, left = null;
-    if (d && d.picks != null) {
-      if (step) left = camp.takeStep(step); else if (pick >= 0) left = camp.takeBonus(pick);
-      if (left === 'done') barracks(); else if (left) debrief();
-      return;
-    }
-    if (pick >= 0 && camp.takeReward(pick)) barracks();
+    var left = null;
+    if (step) left = camp.takeStep(step); else if (pick >= 0) left = camp.takeBonus(pick);
+    if (left === 'done') barracks(); else if (left) debrief();
   });
 
   // ---------- deploy ----------

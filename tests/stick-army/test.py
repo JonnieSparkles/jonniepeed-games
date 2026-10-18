@@ -2,7 +2,6 @@
 Requires Python Playwright; CHROMIUM selects a system browser.
 The test-only bridge is injected into the response, never shipped in the game.
 """
-import json
 import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -18,9 +17,6 @@ with sync_playwright() as p:
     page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
     page.goto(os.environ.get('SITE_URL', 'http://127.0.0.1:8000') + '/stick-army/')
     page.clock.install()
-    # Saved data from earlier releases (Campaign's tours), for the cases as armyFixtures.
-    fixtures = {f.stem: json.loads(f.read_text()) for f in sorted((Path(__file__).parent / 'fixtures').glob('*.json'))}
-    page.evaluate('(f) => { window.armyFixtures = f; }', fixtures)
     for case in sorted(Path(__file__).parent.glob('case-*.js')):
         page.evaluate('(code) => armyTest(code)', case.read_text())
         print('PASS', case.stem)

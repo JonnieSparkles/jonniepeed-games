@@ -1,5 +1,5 @@
 // Campaign round 5: the shop that builds up (the shelf by operation, the requisition tree on the debrief with the
-// gold star's bonus, a tour from before the tree getting one, the link carrying the tree), and the
+// gold star's bonus, the link carrying the tree), and the
 // reworked Boot Camp and Recruitment Drive (Downed pilot, Hold the radio, Supply drop, The officer).
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -25,8 +25,6 @@
     check(S.shop.hire.map(function (it) { return it.id; }).sort().join() === 'hire-engineer,hire-rifle', 'hires too (' + S.shop.hire.map(function (it) { return it.id; }) + ')');
     t = tourAt(1, 'dummy-drop', ['sandbags']);
     check(camp.onShelf(t, item('tramp')) && camp.onShelf(t, item('strike')) && camp.onShelf(t, item('sandbags')) && !camp.onShelf(t, item('wire')) && camp.onShelf(t, item('hire-medic')), 'Recruitment Drive adds its basics and hires; the tree adds Sandbags');
-    var legacy = camp.readTour({ v: 1, code: 'K7QMR2', op: 2, m: 0, at: 'map', squad: [], fallen: [], gone: [], lasting: [] });
-    check(legacy.tree.join() === camp.autoTree(2).join() && !camp.onShelf(legacy, item('rockets')), 'a tour from before the tree gets one, a pick for each operation passed (' + legacy.tree + ')');
 
     // ---------- the requisition tree ----------
     t = tourAt(0, 'hold-the-radio', []); t.m = 2; t.missions[2] = 'hold-the-radio'; t.opLosses = 0; camp.write();
@@ -46,9 +44,7 @@
     next[0].click(); document.getElementById('cTake').click();
     check(t.tree.join() === 'sandbags,double' && t.at === 'barracks' && !document.getElementById('cBarracks').hidden, 'two steps taken, on to the barracks');
     var back = camp.readLink(camp.linkCode(t));
-    check(back && back.tree.slice().sort().join() === 'double,sandbags', 'the save link carries the tree (version 5)');
-    var old = camp.readLink(armyFixtures['campaign-4-first-zeppelin'].link);
-    check(old && old.tree.join() === camp.autoTree(old.op).join(), 'a link from before it gets the tree too');
+    check(back && back.tree.slice().sort().join() === 'double,sandbags', 'the save link carries the tree');
     // No star: one pick, no bonus.
     t = tourAt(0, 'hold-the-radio', []); t.m = 2; t.missions[2] = 'hold-the-radio'; t.opLosses = 1; camp.write();
     camp.startMission(); S.cm.count.radio = 99; S.cm.cleared = true; world.MODES.campaign.win();

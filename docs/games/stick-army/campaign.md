@@ -16,7 +16,7 @@ Arcade is a 20-wave run of about 15 minutes, chasing a score on the board. Campa
 
 - **Campaign** is the mode. A **tour** is one playthrough.
 - An **operation** is one of the named chapters (Boot Camp, Recruitment Drive…). It has its paper, briefing and gold star; it's what you choose at a fork, and one operation is one release pack.
-- A **mission** is one play with one goal: catch 6, keep the wall above half, get the Red Cross planes across, down the zeppelin. An operation has 2–4 missions, drawn from its pool.
+- A **mission** is one play with one goal: catch 6, keep the wall above half, get the Red Cross planes across, down the zeppelin. An operation has 3–4 missions, in a fixed order.
 - A **wave** is as in Arcade, only in missions that use waves. A mission can also be a timed hold, a convoy run or a boss fight.
 - **Arcade** is the base mode (renamed from "campaign" on Oct 16), and it doesn't change.
 
@@ -44,7 +44,7 @@ What lives where:
 | Mission | the goal, its waves if any, retry on a loss, a save at its start |
 | Wave | the shop between waves, as in Arcade |
 
-- **Missions come from a pool.** Each operation has 4–5 possible missions and a tour draws 2–4 of them; an operation can fix its first or last one (a teaching mission, a boss). A tour is roughly 30 missions of 2–4 minutes.
+- **Missions are fixed** (since the round-4 playtest, Oct 17; first planned as a draw from a pool): each operation has 3–4 missions in order, each with its own set piece, a boss last where there is one. Tours differ by their code (weather, intel, names) and the choices made. A tour is roughly 30 missions of 2–4 minutes.
 - **Losing a mission:** retry it from its start, with the squad and gear it started with, except that anyone who died stays dead. The lost-mission card says what went wrong and who fell, with Retry.
 - **The squad wiped out** ends the tour. A new tour keeps the gold stars and what they unlocked; the squad, route and rewards start over with rookies.
 - **One tour per device.**
@@ -56,7 +56,7 @@ What lives where:
 - **Mission pools** (above).
 - **Weather,** rolled for each operation and shown on its briefing: Clear, Wind (chutes drift), Rain (the gun cools faster, chutes fall faster), Fog (the high sky is hidden), Dusk (half dark). Boot Camp is always Clear; Night Raid never rolls Dusk.
 - **Intel,** from the second operation: one intercepted surprise per operation, named on the briefing so it's fair ("intercepted: tanks by road in the last mission"), drawn only from threats already met on this route.
-- **Rewards:** after each operation, pick 1 of 3 from a pool: a role, a lasting supply for the tour, a veteran recruit, a gun for the armory, a medal (+1 stripe for one soldier). This is the main reason two tours end with different armies.
+- **Rewards:** after each operation, a step on the requisition tree (since round 5; first planned as 1 of 3 from a pool), and with the gold star a bonus: another step, a veteran recruit or a medal (+1 stripe for one soldier). Guns come from the operations (the armory). The tree is the main reason two tours end with different armies.
 - **Gold stars:** one per operation, for its bonus goal; 13 in all, but a tour passes 10, so the rest are on the forks not taken. Never spent; they unlock things for later tours: at 3, every tour starts with a medic; at 6, the wire launcher is in the armory from the start; at 9, harder tours (intel every mission, Veteran's prices); at 12, a gold star on the logo.
 - **The tour code.** Every tour has a short code (like `K7Q-MR2`) that sets its rolls: the missions drawn, weather, intel, reward offers and soldiers' names. It shows on the map; entering a friend's code plays the same tour, though how it goes is down to you.
 
@@ -220,7 +220,7 @@ Which branch comes first at each fork is decided in its round.
 ## Checks, every round
 
 - **Arcade unchanged:** the Stick Army harness passes; seeded bot runs in solo, co-op and Veteran match `main` run for run; screenshots of Arcade's play, shop, night raid and victory card match `main` (the title is compared apart, since it gains the Campaign button in round 1). The screenshot script from #135 goes into `tests/stick-army/` in round 1.
-- **Campaign's own cases:** a tour from start through a won and a lost mission (deaths standing after a retry), the tour save and wave save restored, the save link round trip, and a saved tour from every earlier release still loading.
+- **Campaign's own cases:** a tour from start through a won and a lost mission (deaths standing after a retry), the tour save and wave save restored, the save link round trip, and a save or link this build can't read dropped. No old saves are kept working until the game is released (Oct 18).
 - **The balance bots** can play a Campaign mission (`--option game=campaign`), to check each new mission is winnable and not trivial.
 - **The new screens** at phone portrait, short landscape and notebook sizes, with full screen, as the Standards ask; then a playtest on a phone.
 - `python3 tools/stamp.py` last; README updated in the same change; a line in history.md when there's a reason worth keeping.

@@ -425,7 +425,7 @@
   //                     and shopLine() the shop's heading
   //   banner(n, sub)    the wave's opening banner; endBanner() the one when won() is true as the wave clears
   //   hud()             { wave, sub }: the HUD's wave label and the line under it
-  //   on(type, data)    hears every event emit() sends, and 'plane_away' when a plane leaves the page
+  //   on(type, data)    hears every event emit() sends
   //   skipShop()        true: the next wave starts without the shop
   //   bench(t)          a catch with no free slot: true if the kind took him (Arcade's "squad full!" otherwise)
   //   sells(item)       whether the shop offers a supply; room() whether a hire has somewhere to go
@@ -1545,7 +1545,7 @@
           emit('bomb_dropped', { by: 'bomber' });
           sound.play('whistle');
         }
-        if (p.x < -90 || p.x > W + 90) { S.planes.splice(i, 1); if (rules().on) rules().on('plane_away', { kind: p.kind }); }
+        if (p.x < -90 || p.x > W + 90) S.planes.splice(i, 1);
       } else {
         p.vy += 320 * dt; p.x += p.dir * p.speed * 0.6 * dt; p.y += p.vy * dt; p.rot = Math.min(1.25, p.rot + 1.7 * dt);
         p.smoke -= dt;

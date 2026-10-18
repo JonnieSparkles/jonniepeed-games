@@ -1,6 +1,6 @@
 // Campaign (campaign.js, campaign-screens.js), round 1: the tour code and the missions it draws, a tour through a won
 // and a lost mission (deaths stand after Retry, and Retry plays the same waves), the tour save and the wave save
-// restored, the save link round trip, a tour saved by an earlier release still loading (fixtures/), the #tour= link
+// restored, the save link round trip, a save or link this build can't read dropped, the #tour= link
 // in the address, Campaign hidden on the title until #campaign unlocks it, and none of it touching Arcade's board or
 // its play stats run.
 (function () {
@@ -31,17 +31,9 @@
     // ---------- the code ----------
     check(camp.codeText(camp.codeValue('K7QMR2')) === 'K7QMR2' && camp.codeValue('k7q-mr2') === camp.codeValue('K7QMR2'), 'a code reads back, in any case, with a dash');
     check(camp.codeValue('O1L') < 0 && camp.codeValue('OIL0OO') === camp.codeValue('011000'), 'typing is forgiving: O is 0, I and L are 1');
-    // The released operations' missions are fixed (rounds 5 and 6). An operation with a pool still draws from it by the
-    // code: tried here with a pool lent to Balloon Season.
+    // The released operations' missions are fixed, in order (rounds 5 and 6).
     check(camp.missionsFor(camp.freshTour('K7QMR2'), 0).join() === 'first-contact,downed-pilot,hold-the-radio', 'Boot Camp: First contact, Downed pilot, Hold the radio');
-    var op2 = camp.OPS[2], kept = { fixed: op2.fixed, pool: op2.pool, draw: op2.draw };
-    op2.fixed = ['cable-cutters']; op2.pool = ['behind-the-wire', 'popcorn', 'hold-fast', 'clear-skies']; op2.draw = 2;
-    var a = camp.missionsFor(camp.freshTour('K7QMR2'), 2), b = camp.missionsFor(camp.freshTour('K7QMR2'), 2);
-    check(a.length === 3 && a[0] === 'cable-cutters' && a.join() === b.join(), 'a code always draws the same missions, the fixed one first (' + a + ')');
-    check(a[1] !== a[2] && camp.OPS[2].pool.indexOf(a[1]) >= 0 && camp.OPS[2].pool.indexOf(a[2]) >= 0, 'and two different ones from the pool');
-    var draws = {}; for (var v = 0; v < 40; v++) draws[camp.missionsFor(camp.freshTour(camp.codeText(v * 7919)), 2).join()] = true;
-    check(Object.keys(draws).length >= 6, 'different codes draw different missions (' + Object.keys(draws).length + ' draws)');
-    op2.fixed = kept.fixed; op2.pool = kept.pool; op2.draw = kept.draw;
+    check(camp.missionsFor(camp.freshTour('K7QMR2'), 3).join() === 'bay-doors,recon-run,last-stand,the-zeppelin', 'First Zeppelin ends with its boss');
 
     // ---------- hidden until #campaign ----------
     titleScene();
@@ -63,7 +55,7 @@
     check(t && t.squad.length === 0 && t.op === 0 && t.at === 'map' && !document.getElementById('cMap').hidden, 'Campaign opens a tour on the map, with nobody');
     t = camp.newTour('K7QMR2');
     check(JSON.parse(localStorage.getItem(K.tour)).code === t.code, 'and saves it');
-    t.missions = ['first-contact', 'fill-the-ranks', 'hold-the-line']; camp.write();
+    t.missions = ['first-contact', 'dummy-drop', 'dummy-drop']; camp.write();
     document.getElementById('cMapGo').click();
     check(!document.getElementById('cBrief').hidden && /Boot/.test(document.getElementById('cBriefTitle').textContent), 'the briefing');
     document.getElementById('cBriefGo').click();
@@ -83,7 +75,7 @@
     // ---------- a lost mission, Retry ----------
     t.squad.push({ id: t.nextId++, type: 'engineer', stripes: 0, kills: 3 }); camp.write();
     camp.startMission();
-    check(S.cm.mission === 'fill-the-ranks' && S.recruits.length === 2, 'the squad goes out (' + S.recruits.length + ')');
+    check(S.cm.mission === 'dummy-drop' && S.recruits.length === 2, 'the squad goes out (' + S.recruits.length + ')');
     var spawns = [], log = function (type, d) { if (type === 'plane_spawn') spawns.push(JSON.stringify(d)); };
     emitHook = log;
     for (var f = 0; f < 60 * 8; f++) update(1 / 60);
@@ -107,13 +99,12 @@
     check(first.length > 50 && first.join('|') === second.join('|'), 'and the waves play the same, event for event (' + first.length + ' / ' + second.length + ')');
     emitHook = null;
     var rep = camp.report('lost');
-    check(rep.stats.campaign === true && rep.stats.operation === 'boot-camp' && rep.stats.mission === 'fill-the-ranks' && rep.stats.result === 'lost' && rep.stats.attempt === t.attempt + 1, 'play stats: a campaign run, with its mission');
+    check(rep.stats.campaign === true && rep.stats.operation === 'boot-camp' && rep.stats.mission === 'dummy-drop' && rep.stats.result === 'lost' && rep.stats.attempt === t.attempt + 1, 'play stats: a campaign run, with its mission');
 
     // ---------- the tour save and the wave save ----------
     var before = JSON.stringify(t);
     var back = camp.readTour(JSON.parse(localStorage.getItem(K.tour)));
     check(back && back.code === t.code && back.m === t.m && back.fallen.length === t.fallen.length && back.squad.length === t.squad.length && back.at === 'mission', 'the tour save reads back');
-    t.missions[1] = 'hold-the-line'; camp.write();
     camp.startMission();
     for (f = 0; f < 60 * 300 && S.mode !== 'shop'; f++) { S.wallHP = S.mods.maxHP; S.troopers.forEach(function (q) { q.dead = true; }); update(1 / 60); }
     var ws = JSON.parse(localStorage.getItem(K.wave));
@@ -137,33 +128,27 @@
     t = camp.tour();
     t.squad = [{ id: 7, type: 'sniper', stripes: 2, kills: 41 }, { id: 9, type: 'medic', stripes: 0, kills: 0 }, { id: 300, type: 'bazooka', stripes: 1, kills: 130 }];
     t.fallen = [{ id: 4, type: 'rifle', stripes: 1, kills: 12, op: 0, m: 1 }]; t.gone = [{ id: 5, stripes: 1 }];
-    t.bank = 1234; t.nextId = 301; t.hired = 2; t.lasting = ['fins']; t.stars = { 'boot-camp': true }; t.opLosses = 1; t.m = 2; t.at = 'between';
+    t.bank = 1234; t.nextId = 301; t.hired = 2; t.tree = ['double', 'sandbags']; t.stars = { 'boot-camp': true }; t.opLosses = 1; t.m = 2; t.at = 'between';
     t.gear = { stacks: { cool: 2, helmet: 1, tramp: 1 }, calls: { bomber: 1, fighter: 0 }, hired: 3 };
     camp.nameAll(t); camp.write();
     var code = camp.linkCode(t), link = camp.linkFor(t), got = camp.readLink(link);
     check(code.length <= 110, 'a save code is about 100 characters (' + code.length + ')');
     check(got && camp.linkCode(got) === code, 'the link reads back to the same tour');
     check(got.squad.map(function (s) { return s.id + s.type + s.stripes + s.kills + s.name + s.trait; }).join() === t.squad.map(function (s) { return s.id + s.type + s.stripes + s.kills + s.name + s.trait; }).join(), 'the same soldiers, names and traits');
-    check(got.bank === 1234 && got.lasting.join() === 'fins' && got.stars['boot-camp'] && got.gear.stacks.cool === 2 && got.gear.calls.bomber === 1 && got.fallen[0].m === 1 && got.at === 'between', 'tags, rewards, stars, gear and the fallen');
+    check(got.bank === 1234 && got.tree.join() === 'double,sandbags' && got.stars['boot-camp'] && got.gear.stacks.cool === 2 && got.gear.calls.bomber === 1 && got.fallen[0].m === 1 && got.at === 'between', 'tags, the tree, stars, gear and the fallen');
     check(camp.readLink(code.toLowerCase().replace(/(.{5})/g, '$1-')) !== null, 'a pasted code can be lowercase, with dashes');
     var bad = code.slice(0, 10) + (code[10] === 'A' ? 'B' : 'A') + code.slice(11);
     check(camp.readLink(bad) === null && camp.readLink('hello') === null, 'a mistyped code is refused');
     check(camp.loadCode('ZZZ-ZZZ') === 'code' && camp.tour().code === 'ZZZZZZ' && camp.tour().squad.length === 0, "a friend's tour code starts that tour");
 
-    // ---------- an earlier release's tour ----------
-    Object.keys(armyFixtures).filter(function (k) { return /^campaign-/.test(k); }).forEach(function (name) {
-      var fx = armyFixtures[name], old = camp.readTour(fx.tour);
-      check(old && old.code === fx.tour.code && old.squad.length === fx.tour.squad.length, name + ': its tour save loads');
-      // Its operation's missions as they are now (Boot Camp's and Recruitment Drive's were reworked in round 5).
-      check(old.missions.join() === (camp.OPS[old.op].pool ? fx.missions : camp.missionsFor(old, old.op)).join(), name + ': and draws its missions');
-      var fromLink = camp.readLink(fx.link);
-      check(fromLink && fromLink.code === fx.tour.code && fromLink.squad.length === fx.tour.squad.length, name + ': its save link loads');
-      if (fx.tour.gun) check(fromLink.gun === fx.tour.gun && old.gun === fx.tour.gun, name + ': with its gun');
-      if (fx.tour.deploy) check(fromLink.deploy && fromLink.deploy.join() === fx.tour.deploy.join() && old.deploy.join() === fx.tour.deploy.join(), name + ': with its deploy pick');
-      localStorage.setItem(K.tour, JSON.stringify(fx.tour));
-      titleScene(); document.getElementById('campaignBtn').click(); if (!document.getElementById('cCard').hidden && document.getElementById('cContinue')) document.getElementById('cContinue').click();
-      check(camp.tour().code === fx.tour.code, name + ': Continue opens it');
-    });
+    // ---------- a save or link this build can't read ----------
+    var odd = JSON.parse(localStorage.getItem(K.tour)); delete odd.tree;
+    check(camp.readTour(odd) === null, 'a tour save without the tree isn\'t read');
+    localStorage.setItem(K.tour, JSON.stringify(odd));
+    titleScene(); document.getElementById('campaignBtn').click();
+    check(!document.getElementById('cMap').hidden && camp.tour().code !== odd.code && camp.tour().op === 0 && camp.tour().squad.length === 0, 'it\'s dropped: Campaign starts a new tour, on the map');
+    var bytes = code.split(''); bytes[0] = bytes[0] === '1' ? '2' : '1';
+    check(camp.readLink(bytes.join('')) === null, 'nor is a link from another version');
 
     // ---------- a link in the address ----------
     history.replaceState(null, '', location.pathname + '#seed=5&tour=' + code + '&tune');

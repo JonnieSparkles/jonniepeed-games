@@ -1,8 +1,8 @@
 // Campaign round 3, Balloon Season: the operation released and a round-2 tour carrying on into it, its waves (Arcade
 // 5 to 7 without the zeppelin or the helicopters), barrage balloons (their places, a cable stopping a bullet, three hits
-// to pop one, the cable falling, floating off when the wave clears), the new goals, the gold star (bomb balloons popped
-// away from the bunker), the save link that carries it (version 3, version 2 still read) and the machine gunner
-// (Campaign's hire only, bursts at low targets, runs hot and rests).
+// to pop one, the cable falling, floating off when the wave clears), the gold star (bomb balloons popped away from the
+// bunker), the save link that carries it, and the machine gunner (Campaign's hire only, bursts at low targets, runs hot
+// and rests).
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var camp = world.campaign, K = camp.keys;
@@ -38,8 +38,8 @@
     var code = clearCode(), t = bs('cable-cutters', code);
     camp.startMission();
     check(S.wave === 5 && !S.spawn.cfg.boss && S.spawn.cfg.barrage === 3, 'Cable cutters plays as wave 5, no zeppelin, three barrage balloons');
-    t = bs('behind-the-wire', code); camp.startMission();
-    check(S.wave === 6 && S.spawn.cfg.bombers === 5 && !S.spawn.cfg.helis, 'Behind the wire: bombers and no helicopters');
+    t = bs('spotter-balloon', code); camp.startMission();
+    check(S.wave === 6 && !S.spawn.cfg.helis, 'Spotter balloon: wave 6 with no helicopters');
     var c7 = world.MODES.campaign.wave(7);
     check(!c7.helis && !c7.boss, 'and its wave 7 has no helicopters either');
     check(S.recruits.length === 4, 'four go out');
@@ -77,31 +77,22 @@
     check(S.waveState !== 'active', 'the wave clears');
     frames(60 * 4);
     check(!S.barrage.length || S.barrage.every(function (r) { return r.state === 'away'; }), 'and the rest float off');
-    // The other goals.
-    t = bs('popcorn', code); camp.startMission();
-    world.emit('plane_down', { kind: 'balloon', x: 60 }); S.cm.count.barrage = 2;
-    check(/balloons 3\/12/.test(world.MODES.campaign.hud().sub), 'Popcorn counts both kinds: ' + world.MODES.campaign.hud().sub);
-    t = bs('behind-the-wire', code); camp.startMission();
-    world.emit('plane_down', { kind: 'bomber' }); world.emit('plane_down', { kind: 'plane' });
-    check(/bombers 1\/3/.test(world.MODES.campaign.hud().sub), 'Behind the wire counts bombers only');
 
     // ---------- the gold star ----------
-    t = bs('popcorn', code); camp.startMission();
+    t = bs('cable-cutters', code); camp.startMission();
     world.emit('plane_down', { kind: 'balloon', x: 330 }); world.emit('plane_down', { kind: 'balloon', x: 215 });
     check(S.cm.count.awayPops === 1, 'a bomb balloon popped over the bunker doesn\'t count for the star');
-    t = bs('hold-fast', code); t.m = 2; t.missions[2] = 'hold-fast'; t.opBalloons = 9; camp.write();
-    camp.startMission(); world.emit('plane_down', { kind: 'balloon', x: 40 }); S.cm.cleared = true; world.MODES.campaign.win();
+    t = bs(null, code); t.m = 2; t.opBalloons = 9; camp.write();
+    camp.startMission(); world.emit('plane_down', { kind: 'balloon', x: 40 }); S.cm.count.big = 1; S.cm.cleared = true; world.MODES.campaign.win();
     check(t.debrief && t.debrief.star === true && t.opBalloons === 10, 'ten away from the bunker: the gold star');
-    t = bs('hold-fast', code); t.m = 2; t.missions[2] = 'hold-fast'; t.opBalloons = 8;
-    camp.startMission(); world.emit('plane_down', { kind: 'balloon', x: 40 }); S.cm.cleared = true; world.MODES.campaign.win();
+    t = bs(null, code); t.m = 2; t.opBalloons = 8;
+    camp.startMission(); world.emit('plane_down', { kind: 'balloon', x: 40 }); S.cm.count.big = 1; S.cm.cleared = true; world.MODES.campaign.win();
     check(t.debrief && t.debrief.star === false, 'nine: none');
 
     // ---------- the save link ----------
     t = bs('cable-cutters', code); t.opBalloons = 7; t.deploy = [6, 3, 4, 5];
     var back = camp.readLink(camp.linkCode(t));
-    check(back && back.opBalloons === 7 && back.squad.some(function (s) { return s.type === 'mg'; }) && back.deploy.join() === '6,3,4,5', 'the save link carries the balloons and the machine gunner (version 3)');
-    var old = camp.readLink(armyFixtures['campaign-2-recruitment-drive'].link);
-    check(old && old.opDummies === 1 && !old.opBalloons, 'a version 2 link still reads');
+    check(back && back.opBalloons === 7 && back.squad.some(function (s) { return s.type === 'mg'; }) && back.deploy.join() === '6,3,4,5', 'the save link carries the balloons and the machine gunner');
 
     // ---------- the machine gunner ----------
     t = bs('cable-cutters', code); t.deploy = [6, 3, 4, 5]; camp.startMission();
@@ -123,9 +114,9 @@
     RUN.force = 5; newGame(); RUN.force = null; S.planes = []; S.troopers = []; openShop();
     check(!S.shop.hire.some(function (x) { return x.id === 'hire-mg'; }), 'Arcade\'s doesn\'t');
     for (v = 0; v < 400; v++) check(rollTrooper(Math.random).type !== 'mg', 'nobody jumps as a machine gunner');
-    // Earlier operations offer veterans as before (never a machine gunner).
-    var t1 = camp.freshTour('K7QMR2'); t1.op = 1;
-    for (v = 0; v < 40; v++) { t1.code = camp.codeText(v * 7919); camp.offersFor(t1).forEach(function (o) { check(o.type !== 'mg', 'Recruitment Drive never offers him'); }); }
+    // A gold star's veteran is a role the next operation hires: after Boot Camp, never a machine gunner.
+    var t1 = camp.freshTour('K7QMR2'); t1.op = 0;
+    for (v = 0; v < 40; v++) { t1.code = camp.codeText(v * 7919); camp.bonusFor(t1).forEach(function (o) { check(o.type !== 'mg' && o.type !== 'bazooka', 'Boot Camp never offers him'); }); }
   } finally {
     clear(); RUN.game = 'arcade'; titleScene();
   }

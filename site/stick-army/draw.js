@@ -762,8 +762,6 @@ var StickArmyDraw = function (world) {
     G.fillRect(bx + 2, y1 - 8, (bw - 4) * hp / S.mods.maxHP, 16);
     G.beginPath(); L(bx, y1 - 10, bx + bw, y1 - 10, 0.5); L(bx + bw, y1 - 10, bx + bw, y1 + 10, 0.5); L(bx + bw, y1 + 10, bx, y1 + 10, 0.5); L(bx, y1 + 10, bx, y1 - 10, 0.5);
     ink(c.INK, 2.4); G.stroke();
-    // A goal's mark on the wall (Campaign's "keep the wall above half").
-    if (own && own.mark) { var mx = bx + bw * own.mark; G.beginPath(); L(mx, y1 - 15, mx, y1 + 15, 0.4); ink(c.RED, 3); G.stroke(); }
     c = pensAt(bx + bw + 40, y1);
     G.fillStyle = c.INK2; G.font = '17px ' + HAND; G.fillText(Math.ceil(hp) + '/' + S.mods.maxHP, bx + bw + 10, y1 + 6);
     var y2 = 690;

@@ -94,10 +94,9 @@ CAMPAIGN = {
     'briefing': CAMP + 'c.screens.map(); c.screens.briefing();',
     'mission': CAMP + STEP + 't.m = 1; c.startMission(); step(7);',
     'between': mission('between') + 'c.screens.between();',
-    'lost': mission('lost') + "t.last = { won: false, mission: 'Fill the ranks', cause: 'Five planes got across.', fell: [16] }; c.screens.lost();",
+    'lost': mission('lost') + "t.last = { won: false, mission: 'Downed pilot', cause: 'Two pilots were lost.', fell: [16] }; c.screens.lost();",
     'debrief': CAMP + "t.squad.forEach(function (s) { s.stripes++; }); c.nameAll(t); t.at = 'debrief'; t.debrief = { op: 0, star: false, promoted: t.squad.map(function (s) { return { id: s.id, named: s.stripes === 1 }; }),"
-               " offers: [{ kind: 'veteran', type: 'medic', name: 'Veteran medic', text: 'A medic with one stripe joins.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' },"
-               " { kind: 'supply', id: 'helmets', name: 'Helmets for the tour', text: 'Every soldier +1 health, every operation.' }] }; c.screens.debrief();",
+               " picks: 1, bonus: null }; c.screens.debrief();",
     'barracks': CAMP + "t.at = 'barracks'; c.screens.barracks();",
     'fallen': CAMP + "t.at = 'barracks'; c.screens.barracks(); c.screens.fallen();",
     'end': CAMP + "t.at = 'end'; t.stars['boot-camp'] = true; c.screens.end();",

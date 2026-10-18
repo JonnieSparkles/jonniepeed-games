@@ -16,11 +16,9 @@ var StickArmyCampaign = function (world, game) {
   // pencilled on the map. An operation's index is its place in this list, which saves and links use: append only.
   // Each has its deploy slots, its gold star (`star`, and what earns it: `starKind`, lose no one, catch no dummies, or
   // pop STAR_BALLOONS bomb balloons away from the bunker, or catch a downed boss zeppelin's whole crew),
-  // its share of straw dummies among the troopers (`dummies`), and its missions: `fixed` always played first, then
-  // `draw` more from `pool`, picked by the tour code, then `last` (a boss mission).
+  // its share of straw dummies among the troopers (`dummies`), and its missions: `fixed`, in order, then `last` (a
+  // boss mission).
   var OPS = [
-    // Boot Camp and Recruitment Drive were reworked after the round-4 playtest: a fixed set of missions, each with its
-    // own set piece (`piece`), in place of a draw from a pool of Arcade waves with a counter.
     { id: 'boot-camp', name: 'Boot Camp', slots: 3, star: 'Lose no one.', starKind: 'losses', released: true, fixed: ['first-contact', 'downed-pilot', 'hold-the-radio'] },
     { id: 'recruitment-drive', name: 'Recruitment Drive', slots: 3, star: 'Catch no dummies.', starKind: 'dummies', dummies: 0.25, released: true,
       fixed: ['dummy-drop', 'supply-drop', 'the-officer'] },
@@ -45,96 +43,45 @@ var StickArmyCampaign = function (world, game) {
   // its recipe edited from Arcade's (waveCfg), and a goal. Goals are data, one of:
   //   survive        hold out to the end of the last wave
   //   catch n        catch n soldiers (a goal met ends the mission: the enemy surrenders)
-  //   wall above k   keep the wall above k of its maximum to the end; below it, the mission is lost
-  //   down n, away m down n planes before m get across
-  //   bombs n        shoot n bombs out of the air
-  //   keep           lose no one: a soldier dying loses the mission
-  //   pop n          pop n barrage balloons; bombers n: down n bombers; balloons n: pop n balloons of either kind
+  //   pop n          pop n barrage balloons
   //   boss n         down n zeppelins (a boss mission); it ends once their bailed crews are down or caught
-  // A goal with a count that isn't met by the end of the last wave loses the mission. Ids are kept for good, since
-  // saves name missions by them. `shop: false`: no shop between the mission's waves (the first mission has none:
-  // there's nothing to buy with yet). `dummies`: the mission's share of straw dummies, if not its operation's.
-  // `threats`: what the mission shows the squad, which later operations' intel can bring back (INTEL).
+  // or a set piece's own (`piece`, PIECES): pilots, radio, crates, officers, spotter, big, bay, recon, stand.
+  // A goal with a count that isn't met by the end of the last wave loses the mission. Saves name missions by id.
+  // `shop: false`: no shop between the mission's waves (the first mission has none: there's nothing to buy with yet).
+  // `dummies`: the mission's share of straw dummies, if not its operation's. `threats`: what the mission shows the
+  // squad, which later operations' intel can bring back (INTEL). `hint`: the hint card on its first attempt.
+  function zep(c) { c.boss = 1; c.bossKind = 'zeppelin'; }
   var MISSIONS = {
-    // No trampoline yet (`noMats`): just you and the gun.
+    // Boot Camp: Arcade waves 1 to 3. No trampoline in the first (`noMats`): just you and the gun.
     'first-contact': { name: 'First contact', goal: { kind: 'survive' }, as: [1, 2], text: 'No trampoline yet: just you and the gun. Survive two waves.', shop: false, noMats: true, threats: ['low'],
       recipe: function (c, n) { c.bombers = 0; c.planes = n === 1 ? 10 : 13; } },
-    'fill-the-ranks': { name: 'Fill the ranks', goal: { kind: 'catch', n: 4 }, as: [2], text: 'Catch 4 before the planes stop coming.',
-      recipe: function (c) { c.bombers = 0; c.planes = 26; c.maxDrops = 3; c.interval = 1.6; c.fall *= 0.75; } },
-    'hold-the-line': { name: 'Hold the line', goal: { kind: 'wall', above: 0.5 }, as: [2, 3], text: 'Bombers only. Keep the wall above half.', threats: ['bombers'],
-      recipe: function (c, n) { c.planes = 0; c.bombers = n === 2 ? 5 : 6; c.bombCount = 4; c.interval = 2.4; } },
-    'target-practice': { name: 'Target practice', goal: { kind: 'down', n: 12, away: 5 }, as: [3], text: 'Down 12 planes before 5 get across.', threats: ['snipers'],
-      recipe: function (c) { c.planes = 24; c.bombers = 0; c.maxDrops = 2; c.interval = 1.9; c.speed *= 0.72; c.low = 0; } },
-    'bomb-alley': { name: 'Bomb alley', goal: { kind: 'bombs', n: 8 }, as: [3], text: 'Shoot 8 bombs out of the air before they land.', threats: ['bombers'],
-      recipe: function (c) { c.planes = 2; c.bombers = 10; c.bombCount = 3; c.interval = 2.4; c.low = 0; } },
-    // Recruitment Drive: Arcade waves 3 to 6, with no zeppelin on 5 (that's First Zeppelin's), and straw dummies.
-    'dummy-drop': { name: 'Dummy drop', goal: { kind: 'catch', n: 5 }, as: [3, 4], text: 'Catch 5 real soldiers. Straw dummies are mixed in.', dummies: 0.35, threats: ['dummies'],
-      recipe: function (c, n) { c.planes = n === 3 ? 24 : 26; c.bombers = 0; c.maxDrops = 3; c.fall *= 0.75; } },
-    'full-house': { name: 'Full house', goal: { kind: 'catch', n: 6 }, as: [3, 4], text: 'Catch 6 before the planes stop coming.', threats: ['dummies'],
-      recipe: function (c, n) { c.planes = n === 3 ? 24 : 26; c.bombers = 0; c.maxDrops = 3; c.interval = 1.5; c.fall *= 0.75; } },
-    'rush-hour': { name: 'Rush hour', goal: { kind: 'wall', above: 0.5 }, as: [5, 6], text: 'Rushers on foot. Keep the wall above half.', threats: ['rushes'],
-      recipe: function (c, n) { noBoss(c, n); c.planes = n === 5 ? 10 : 12; c.bombers = 1; c.rushes = 2; c.rushSize = 3; } },
-    'sniper-nest': { name: 'Sniper nest', goal: { kind: 'keep' }, as: [4, 5], text: 'Snipers on every drop. Lose no one.', threats: ['snipers'],
-      recipe: function (c, n) { noBoss(c, n); c.planes = n === 4 ? 12 : 14; c.bombers = 0; c.sniperChance = 0.25; } },
-    'hold-out': { name: 'Hold out', goal: { kind: 'survive' }, as: [4, 5, 6], text: 'Survive three waves, bomb balloons and all.', threats: ['balloons'],
-      recipe: function (c, n) { noBoss(c, n); c.planes = 2 * n + 2; c.bombers = 2; } }
-  };
-  // Balloon Season: Arcade waves 5 to 7, without wave 5's zeppelin or wave 7's helicopters (Chopper Country's), and
-  // barrage balloons (`c.barrage` a wave, BARRAGE).
-  Object.assign(MISSIONS, {
-    'cable-cutters': { name: 'Cable cutters', goal: { kind: 'pop', n: 4 }, as: [5, 6], text: 'Pop 4 barrage balloons. Their cables stop your bullets.', threats: ['barrage'],
-      recipe: function (c, n) { noBoss(c, n); c.planes = n === 5 ? 12 : 14; c.bombers = 2; c.barrage = 3; } },
-    'behind-the-wire': { name: 'Behind the wire', goal: { kind: 'bombers', n: 3 }, as: [6], text: 'Down 3 bombers flying behind the cables.', threats: ['barrage', 'bombers'],
-      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 3; c.bombers = 5; c.barrage = 2; c.rushes = 0; } },
-    'popcorn': { name: 'Popcorn', goal: { kind: 'balloons', n: 12 }, as: [5, 6, 7], text: 'Pop 12 balloons, barrage or bomb.', threats: ['barrage', 'balloons'],
-      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 2 * n; c.bombers = 1; c.barrage = 2; c.balloons = 4; } },
-    'hold-fast': { name: 'Hold fast', goal: { kind: 'survive' }, as: [5, 6, 7], text: 'Survive three waves under the balloons.', threats: ['barrage'],
-      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 2 * n; c.bombers = 1; c.barrage = 2; } },
-    'clear-skies': { name: 'Clear skies', goal: { kind: 'wall', above: 0.5 }, as: [5, 6], text: 'Balloons keep coming. Keep the wall above half.', threats: ['balloons'],
-      recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 2 * n - 2; c.bombers = 1; c.barrage = 2; c.balloons = 4; } }
-  });
-  // First Zeppelin: Arcade waves 6 to 10 without helicopters, a zeppelin brought into chosen waves (`zep`), and the
-  // armored one of wave 10 as the boss mission, always last.
-  function zep(c) { c.boss = 1; c.bossKind = 'zeppelin'; }
-  Object.assign(MISSIONS, {
-    'shadow': { name: 'Shadow', goal: { kind: 'catch', n: 4 }, as: [6], text: 'A zeppelin cruises over dropping troopers. Catch 4.', threats: ['bombers'],
-      recipe: function (c) { zep(c); c.helis = 0; c.planes = 6; c.bombers = 1; } },
-    'escort-screen': { name: 'Escort screen', goal: { kind: 'down', n: 8, away: 12 }, as: [6], text: 'Down 8 of the zeppelin\'s escort before 12 get across.', threats: ['bombers'],
-      recipe: function (c) { zep(c); c.helis = 0; c.planes = 12; c.bombers = 1; c.rushes = 0; } },
-    'bomb-bay': { name: 'Bomb bay', goal: { kind: 'bombs', n: 10 }, as: [7], text: 'Shoot 10 of its bombs before they land.', threats: ['bombers'],
-      recipe: function (c) { zep(c); c.helis = 0; c.planes = 6; c.bombers = 1; c.rushes = 0; } },
-    'long-watch': { name: 'Long watch', goal: { kind: 'survive' }, as: [6, 7], text: 'Survive two waves. The zeppelin comes in the second.', threats: ['balloons'],
-      recipe: function (c, n) { if (n === 7) zep(c); c.helis = 0; c.planes = n === 7 ? 6 : 12; c.bombers = 1; c.rushes = 0; } },
-    'clean-sheet': { name: 'Clean sheet', goal: { kind: 'keep' }, as: [6], text: 'Lose no one while the zeppelin is overhead.', threats: ['snipers'],
-      recipe: function (c) { zep(c); c.helis = 0; c.planes = 6; c.bombers = 0; c.rushes = 0; c.sniperChance = Math.min(c.sniperChance, 0.08); } },
-    'the-zeppelin': { name: 'The Zeppelin', goal: { kind: 'boss', n: 1 }, as: [10], text: 'Down the armored zeppelin. Strip its plates, then hit the gondola.', threats: [],
-      recipe: function (c) { c.helis = 0; c.planes = 6; c.rushes = 0; c.balloons = 0; c.cargo = 0; } }
-  });
-  // The set-piece missions (round 5): Boot Camp's and Recruitment Drive's. Each has a `piece` (PIECES) that runs its
-  // thing on the page: pilots to catch, a mast to hold, HQ's supply planes, officers. The missions they replaced stay
-  // above for saves from before.
-  Object.assign(MISSIONS, {
     'downed-pilot': { name: 'Downed pilot', goal: { kind: 'pilots', n: 3 }, as: [2], piece: 'pilot', hint: true, threats: ['bombers'],
       text: 'Enemy fighters are shooting down our planes. Shoot each fighter before it gets the pilot, then catch him on the mat: he\'ll join your squad. Save 3.',
       recipe: function (c) { c.noDrops = true; c.planes = 0; c.bombers = 3; c.rushes = 0; } },
     'hold-the-radio': { name: 'Hold the radio', goal: { kind: 'radio' }, as: [3], piece: 'radio', threats: ['snipers'],
       text: 'Keep the radio mast standing until the call to HQ goes through.',
       recipe: function (c) { c.planes = 30; c.bombers = 1; } },
+    // Recruitment Drive: Arcade waves 3 and 4, with straw dummies.
+    'dummy-drop': { name: 'Dummy drop', goal: { kind: 'catch', n: 5 }, as: [3, 4], text: 'Catch 5 real soldiers. Straw dummies are mixed in.', dummies: 0.35, threats: ['dummies'],
+      recipe: function (c, n) { c.planes = n === 3 ? 24 : 26; c.bombers = 0; c.maxDrops = 3; c.fall *= 0.75; } },
     'supply-drop': { name: 'Supply drop', goal: { kind: 'crates', n: 3 }, as: [3, 4], piece: 'supply', threats: ['bombers'],
       text: 'HQ\'s planes are bringing supplies. Get 3 crates in, and don\'t shoot the blue-ringed planes.',
       recipe: function (c) { c.crates = 2; c.planes = 14; c.bombers = 1; } },
     'the-officer': { name: 'The officer', goal: { kind: 'officers', n: 3 }, as: [4], piece: 'officer', threats: ['rushes'],
       text: 'Three officers are jumping in. Catch them for intel, or shoot them, but don\'t let one land.',
-      recipe: function (c) { noBoss(c, 4); c.planes = 18; c.bombers = 1; } }
-  });
-  // Balloon Season's and First Zeppelin's set pieces (round 6). The missions they replaced stay above for old saves.
-  Object.assign(MISSIONS, {
+      recipe: function (c) { noBoss(c, 4); c.planes = 18; c.bombers = 1; } },
+    // Balloon Season: Arcade waves 5 to 7, without wave 5's zeppelin or wave 7's helicopters (Chopper Country's), and
+    // barrage balloons (`c.barrage` a wave, BARRAGE).
+    'cable-cutters': { name: 'Cable cutters', goal: { kind: 'pop', n: 4 }, as: [5, 6], text: 'Pop 4 barrage balloons. Their cables stop your bullets.', threats: ['barrage'],
+      recipe: function (c, n) { noBoss(c, n); c.planes = n === 5 ? 12 : 14; c.bombers = 2; c.barrage = 3; } },
     'spotter-balloon': { name: 'Spotter balloon', goal: { kind: 'spotter' }, as: [6], piece: 'spotter', threats: ['barrage'],
       text: 'An enemy spotter is marking targets for their guns. Pop his balloon before the shells find your squad.',
       recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 12; c.bombers = 1; c.barrage = 2; } },
     'the-big-one': { name: 'The big one', goal: { kind: 'big' }, as: [7], piece: 'bigone', threats: ['balloons'],
       text: 'A giant bomb balloon is drifting in. Pop it before it reaches the bunker.',
       recipe: function (c, n) { noBoss(c, n); c.helis = 0; c.planes = 12; c.bombers = 1; c.balloons = 4; } },
+    // First Zeppelin: Arcade waves 7 to 10 without helicopters, a zeppelin brought into chosen waves (`zep`), and the
+    // armored one of wave 10 as the boss mission, always last.
     'bay-doors': { name: 'Bomb bay', goal: { kind: 'bay', n: 5 }, as: [7], piece: 'bay', threats: ['bombers'],
       text: 'The zeppelin opens its bomb bay before each run. Hit it in the open bay 5 times.',
       recipe: function (c) { zep(c); c.helis = 0; c.planes = 5; c.bombers = 0; c.rushes = 0; } },
@@ -143,9 +90,11 @@ var StickArmyCampaign = function (world, game) {
       recipe: function (c) { zep(c); c.helis = 0; c.planes = 8; c.bombers = 0; c.rushes = 0; } },
     'last-stand': { name: 'Last stand', goal: { kind: 'stand' }, as: [9], piece: 'stand', threats: ['rushes'],
       text: 'The wall is at 40% and the engineers are pinned down. Hold for 45 seconds.',
-      recipe: function (c) { c.helis = 0; c.planes = 14; c.bombers = 0; c.balloons = 1; } }
-  });
-  // Arcade's wave 5 is the zeppelin's: as a Recruitment Drive wave it's an ordinary one, with Arcade's plane count.
+      recipe: function (c) { c.helis = 0; c.planes = 14; c.bombers = 0; c.balloons = 1; } },
+    'the-zeppelin': { name: 'The Zeppelin', goal: { kind: 'boss', n: 1 }, as: [10], text: 'Down the armored zeppelin. Strip its plates, then hit the gondola.', threats: [],
+      recipe: function (c) { c.helis = 0; c.planes = 6; c.rushes = 0; c.balloons = 0; c.cargo = 0; } }
+  };
+  // A wave Arcade gives a zeppelin (5), played outside a zeppelin mission, is an ordinary one, with Arcade's plane count.
   function noBoss(c, n) {
     if (!c.boss) return;
     c.boss = 0; c.bossKind = null; c.twin = false;
@@ -204,14 +153,8 @@ var StickArmyCampaign = function (world, game) {
   function progress(M, k) {
     var g = M.goal;
     if (g.kind === 'catch') return { sub: 'caught ' + Math.min(k.caught, g.n) + '/' + g.n, done: k.caught >= g.n };
-    if (g.kind === 'down') return { sub: 'downed ' + Math.min(k.planes, g.n) + '/' + g.n + ' · across ' + k.away + '/' + g.away, done: k.planes >= g.n };
-    if (g.kind === 'bombs') return { sub: 'bombs shot ' + Math.min(k.bombs, g.n) + '/' + g.n, done: k.bombs >= g.n };
-    if (g.kind === 'wall') return { sub: 'keep the wall above half', mark: g.above };
-    if (g.kind === 'keep') return { sub: 'lose no one' };
     if (g.kind === 'boss') return { sub: k.zeps >= g.n ? 'zeppelin down!' : 'down the zeppelin', done: k.zeps >= g.n };
     if (g.kind === 'pop') return { sub: 'popped ' + Math.min(k.barrage, g.n) + '/' + g.n, done: k.barrage >= g.n };
-    if (g.kind === 'bombers') return { sub: 'bombers ' + Math.min(k.bombers, g.n) + '/' + g.n, done: k.bombers >= g.n };
-    if (g.kind === 'balloons') return { sub: 'balloons ' + Math.min(k.barrage + k.popped, g.n) + '/' + g.n, done: k.barrage + k.popped >= g.n };
     if (g.kind === 'spotter') return { sub: k.spotter ? 'spotter down!' : 'pop the spotter · ' + (k.shellHits || 0) + '/' + SPOT.LOSE + ' hit', done: !!k.spotter };
     if (g.kind === 'big') return { sub: k.big ? 'popped!' : 'pop the big one', done: !!k.big };
     if (g.kind === 'bay') return { sub: 'bay hits ' + Math.min(k.bay, g.n) + '/' + g.n, done: k.bay >= g.n || k.zeps > 0 };
@@ -229,10 +172,6 @@ var StickArmyCampaign = function (world, game) {
   function pauseLine(S, only) {
     var M = MISSIONS[S.cm.mission], g = M.goal, k = S.cm.count, how;
     if (g.kind === 'catch') how = 'Caught ' + Math.min(k.caught, g.n) + ' of ' + g.n + (k.dummies ? ', ' + k.dummies + (k.dummies === 1 ? ' dummy' : ' dummies') : '') + '.';
-    else if (g.kind === 'down') how = 'Downed ' + Math.min(k.planes, g.n) + ' of ' + g.n + '; ' + k.away + ' of ' + g.away + ' across.';
-    else if (g.kind === 'bombs') how = 'Shot ' + Math.min(k.bombs, g.n) + ' of ' + g.n + '.';
-    else if (g.kind === 'wall') how = 'Wall ' + Math.ceil(Math.max(0, S.wallHP)) + ' of ' + S.mods.maxHP + '; keep it above ' + Math.ceil(S.mods.maxHP * g.above) + '.';
-    else if (g.kind === 'keep') how = Object.keys(S.cm.dead).length ? 'A soldier fell.' : 'Nobody lost so far.';
     else if (g.kind === 'spotter') how = k.spotter ? 'The spotter is down.' : 'The spotter is up; ' + (k.shellHits || 0) + ' of ' + SPOT.LOSE + ' shells have hit the squad.';
     else if (g.kind === 'big') how = k.big ? 'It\'s popped.' : 'It\'s still coming.';
     else if (g.kind === 'bay') how = Math.min(k.bay, g.n) + ' of ' + g.n + ' hits in the bay.';
@@ -244,8 +183,6 @@ var StickArmyCampaign = function (world, game) {
     else if (g.kind === 'officers') how = Math.min(k.officers, g.n) + ' of ' + g.n + ' officers dealt with, ' + k.intel + ' caught for intel.';
     else if (g.kind === 'boss') how = k.zeps >= g.n ? 'The zeppelin is down. Catch its crew!' : 'The zeppelin is still up.';
     else if (g.kind === 'pop') how = 'Popped ' + Math.min(k.barrage, g.n) + ' of ' + g.n + '.';
-    else if (g.kind === 'bombers') how = 'Downed ' + Math.min(k.bombers, g.n) + ' of ' + g.n + ' bombers.';
-    else if (g.kind === 'balloons') how = 'Popped ' + Math.min(k.barrage + k.popped, g.n) + ' of ' + g.n + '.';
     else how = 'Wave ' + (S.cm.wi + 1) + ' of ' + S.cm.waves.length + '.';
     if (only) return how;
     var w = S.cm.weather && S.cm.weather !== 'clear' ? ' ' + WEATHER[S.cm.weather].name + '.' : '', left = planesLeft(S);
@@ -275,12 +212,8 @@ var StickArmyCampaign = function (world, game) {
   function newCodeValue() { return Math.floor(Math.random() * 1073741824); }
   function tourSeed(t) { return game.mix(codeValue(t.code), 0x70); }
   function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
-  // The missions a tour plays in an operation: its fixed ones, then `draw` from its pool, shuffled by the tour code.
-  function missionsFor(t, op) {
-    var o = OPS[op], pool = (o.pool || []).slice(), rnd = world.mulberry(game.mix(tourSeed(t), hashStr(o.id)));
-    for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), x = pool[i]; pool[i] = pool[j]; pool[j] = x; }
-    return (o.fixed || []).concat(pool.slice(0, o.draw || 0), o.last || []);
-  }
+  // The missions a tour plays in an operation: its fixed ones, then its last (a boss mission).
+  function missionsFor(t, op) { var o = OPS[op]; return (o.fixed || []).concat(o.last || []); }
   // A mission's run seed: the same every attempt, so Retry plays the same waves.
   function missionSeed(t) { return game.mix(tourSeed(t), hashStr(OPS[t.op].id + '/' + t.missions[t.m])); }
 
@@ -326,20 +259,11 @@ var StickArmyCampaign = function (world, game) {
   // Who goes out: the most stripes, then the most kills, then who's been here longest.
   function deployOrder(list) { return list.slice().sort(function (a, b) { return b.stripes - a.stripes || b.kills - a.kills || a.id - b.id; }); }
 
-  // ---------- rewards ----------
-  // After an operation, pick one of three: a veteran recruit (a role with a stripe), a medal (+1 stripe for the top
-  // gun), or a lasting supply for the rest of the tour. Lasting supplies are shop stacks every operation starts with.
-  var LASTING = [
-    { id: 'helmets', item: 'helmet', name: 'Helmets for the tour', text: 'Every soldier +1 health, every operation.' },
-    { id: 'sandbags', item: 'sandbags', name: 'Sandbags for the tour', text: '+25 wall health, every operation.' },
-    { id: 'fins', item: 'cool', name: 'Cooling fins for the tour', text: 'The gun heats 20% less, every operation.' }
-  ];
   // ---------- the shelf and the requisition tree ----------
   // The shop builds up over a tour. Each operation puts a few basics on the shelf (SHELF, by operation reached) and
   // the hires it brings (HIRES_AT); the rest come from the requisition tree (TREE): three rows of four, one pick after
   // each operation (and a bonus pick for a gold star), each step on the row after the last. What's unlocked is on the
-  // shelf for the rest of the tour, still bought with tags each visit. A tour from before the tree (tour.tree null)
-  // keeps the whole shop.
+  // shelf for the rest of the tour, still bought with tags each visit.
   var SHELF = [['repair', 'mat', 'aim', 'cool', 'pizza'], ['tramp', 'strike', 'fighter'], ['flag'], ['pierce']];
   var HIRES_AT = { rifle: 0, engineer: 0, medic: 1, sniper: 1, radio: 1, bazooka: 2, mg: 2 };
   var TREE = [
@@ -349,26 +273,24 @@ var StickArmyCampaign = function (world, game) {
   ];
   var TREE_IDS = TREE.reduce(function (a, r) { return a.concat(r.steps); }, []);
   function onShelf(t, it) {
-    if (!t || !t.tree) return true;
+    if (!t) return true;
     if (it.tier === 'hire') return HIRES_AT[it.role] == null || HIRES_AT[it.role] <= t.op;
     for (var i = 0; i <= t.op && i < SHELF.length; i++) if (SHELF[i].indexOf(it.id) >= 0) return true;
     return t.tree.indexOf(it.id) >= 0;
   }
-  function hireable(t, type) { return !t.tree || HIRES_AT[type] <= t.op; }
+  function hireable(t, type) { return HIRES_AT[type] <= t.op; }
   // Each row's next step (null once the row is done).
   function treeNext(t) { return TREE.map(function (r) { return r.steps.find(function (id) { return t.tree.indexOf(id) < 0; }) || null; }); }
-  // The bots' tree (balance.js): n picks, round the rows in turn.
+  // The bots' tree (balance.js): n picks, round the rows in turn (12: every step).
   function autoTree(n) { var out = []; for (var i = 0; i < n; i++) { var r = TREE[i % 3]; out.push(r.steps[Math.floor(i / 3)]); } return out; }
-  function offersFor(t) {
-    var rnd = world.mulberry(game.mix(tourSeed(t), 0x5eaf00 + t.op)), out = [];
-    var supplies = LASTING.filter(function (l) { return t.lasting.indexOf(l.id) < 0; });
-    for (var i = supplies.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), x = supplies[i]; supplies[i] = supplies[j]; supplies[j] = x; }
-    // The machine gunner joins the veterans on offer from Balloon Season on, so earlier operations offer as before.
-    var roles = t.op >= 2 ? ROLES : ROLES.slice(0, 6);
+  // A gold star's bonus after the tree pick: another pick, a veteran recruit (a role with a stripe), or a medal (+1
+  // stripe for the top gun).
+  function bonusFor(t) {
+    var rnd = world.mulberry(game.mix(tourSeed(t), 0x5eaf00 + t.op)), out = [{ kind: 'pick', name: 'Another requisition', text: 'One more step on the tree.' }];
+    var roles = ROLES.filter(function (r) { return HIRES_AT[r] <= t.op + 1; });
     var role = roles[Math.floor(rnd() * roles.length)], top = t.squad.slice().sort(function (a, b) { return b.kills - a.kills || a.id - b.id; })[0];
     if (t.squad.length < BARRACKS) out.push({ kind: 'veteran', type: role, name: 'Veteran ' + ROLE_NAME[role], text: 'A ' + ROLE_NAME[role] + ' with one stripe joins.' });
     if (top && top.stripes < MAX_STRIPES) out.push({ kind: 'medal', id: top.id, name: 'Medal', text: '+1 stripe for ' + rankName(top) + ', your top gun.' });
-    while (out.length < 3 && supplies.length) { var l = supplies.shift(); out.push({ kind: 'supply', id: l.id, name: l.name, text: l.text }); }
     return out;
   }
 
@@ -382,29 +304,29 @@ var StickArmyCampaign = function (world, game) {
   //   end               after the last released operation ("To be continued")
   // The squad lists everyone alive (deployed or in a bunk), the fallen everyone who died, `gone` named soldiers sent
   // home (kept for their names). Gear is the operation's shop stacks and radio calls, as of the mission's start; it
-  // resets to the lasting supplies with each new operation. `bank` is the tour's dog tags between missions.
+  // starts empty with each new operation. `bank` is the tour's dog tags between missions. `tree` is the requisition
+  // tree's steps taken.
   var TOUR_KEY = 'stickarmy.campaign.tour', WAVE_KEY = 'stickarmy.campaign.wave', STARS_KEY = 'stickarmy.campaign.stars', SEEN_KEY = 'stickarmy.campaign.seen';
   var VERSION = 1, tour = null;
   function freshTour(code) {
     var t = { v: VERSION, code: code, op: 0, m: 0, attempt: 0, at: 'map', missions: [], squad: [], fallen: [], gone: [], bank: 0, nextId: 1,
-      opLosses: 0, opDummies: 0, opBalloons: 0, opCrew: 0, hired: 0, gun: 'standard', tree: [], lasting: [], gear: null, deploy: null, stars: {}, debrief: null, last: null };
+      opLosses: 0, opDummies: 0, opBalloons: 0, opCrew: 0, hired: 0, gun: 'standard', tree: [], gear: null, deploy: null, stars: {}, debrief: null, last: null };
     t.missions = missionsFor(t, 0);
     return t;
   }
-  // A saved tour from any release, or null. Missions come from the code, so a tour always draws the same ones.
+  // A saved tour, or null if it isn't one this build can read (it's then dropped, and the title offers a new tour).
   function readTour(o) {
-    if (!o || typeof o !== 'object' || o.v !== 1 || codeValue(o.code) < 0) return null;
+    if (!o || typeof o !== 'object' || o.v !== VERSION || codeValue(o.code) < 0 || !Array.isArray(o.tree) || !Array.isArray(o.squad)) return null;
     var t = freshTour(cleanCode(o.code).toUpperCase());
     ['op', 'm', 'attempt', 'bank', 'nextId', 'opLosses', 'opDummies', 'opBalloons', 'opCrew', 'hired'].forEach(function (k) { if (Number.isFinite(o[k])) t[k] = o[k]; });
     if (typeof o.at === 'string') t.at = o.at;
     if (GUNS.indexOf(o.gun) >= 0) t.gun = o.gun;
-    // A tour from before the tree gets one: a pick for each operation it has passed (it kept the whole shop until the
-    // round-5 playtest found the shop showing everything).
-    t.tree = Array.isArray(o.tree) ? o.tree.filter(function (id) { return TREE_IDS.indexOf(id) >= 0; }) : autoTree(Number(o.op) || 0);
-    ['squad', 'fallen', 'gone', 'lasting'].forEach(function (k) { if (Array.isArray(o[k])) t[k] = o[k].map(function (s) { return typeof s === 'object' ? Object.assign({}, s) : s; }); });
+    t.tree = o.tree.filter(function (id) { return TREE_IDS.indexOf(id) >= 0; });
+    ['squad', 'fallen', 'gone'].forEach(function (k) { if (Array.isArray(o[k])) t[k] = o[k].map(function (s) { return typeof s === 'object' ? Object.assign({}, s) : s; }); });
     t.gear = o.gear && typeof o.gear === 'object' ? JSON.parse(JSON.stringify(o.gear)) : null;
     t.stars = o.stars && typeof o.stars === 'object' ? Object.assign({}, o.stars) : {};
     t.debrief = o.debrief || null; t.last = o.last || null;
+    if (t.at === 'debrief' && !(t.debrief && t.debrief.picks != null)) return null;
     t.deploy = Array.isArray(o.deploy) ? o.deploy.filter(Number.isFinite) : null;
     if (!OPS[t.op] || !OPS[t.op].released) return null;
     t.missions = missionsFor(t, t.op);
@@ -421,7 +343,11 @@ var StickArmyCampaign = function (world, game) {
     t.op = op; t.m = 0; t.attempt = 0; t.opLosses = 0; t.opDummies = 0; t.opBalloons = 0; t.opCrew = 0; t.gear = null; t.missions = missionsFor(t, op); t.at = 'map';
   }
   function writeTour() { if (tour) save(TOUR_KEY, tour); }
-  function savedTour() { return readTour(load(TOUR_KEY, null)); }
+  function savedTour() {
+    var o = load(TOUR_KEY, null), t = readTour(o);
+    if (o && !t) { try { localStorage.removeItem(TOUR_KEY); } catch (e) { /* ignore */ } }
+    return t;
+  }
   // Gold stars are the device's: a new tour keeps them.
   function deviceStars() { var s = load(STARS_KEY, {}); return s && typeof s === 'object' ? s : {}; }
   function addStar(id) { var s = deviceStars(); s[id] = true; save(STARS_KEY, s); }
@@ -450,25 +376,22 @@ var StickArmyCampaign = function (world, game) {
 
   // ---------- the save link ----------
   // The tour at a mission's start in about 100 characters: Crockford base 32 of a few bytes (a version, the code,
-  // the place, stars, tags, the squad, the fallen, the rewards and the operation's gear), with a check byte so a
-  // mistyped code is caught. Names and traits come from the code. Lists below are append-only, like the versions.
+  // the place, stars, tags, the squad, the fallen, the operation's gear and the tree), with a check byte so a
+  // mistyped code is caught. Names and traits come from the code. Lists below are append-only.
   var KIT_IDS = ['fire', 'cool', 'mat', 'aim', 'sandbags', 'wire', 'double', 'trench', 'helmet', 'tramp', 'spread', 'flak', 'rockets', 'pierce', 'mines', 'auto', 'hospital', 'flag', 'catcher'];
   function bytesOut() {
     var b = [];
     return { b: b, byte: function (n) { b.push(n & 255); }, num: function (n) { n = Math.max(0, Math.floor(n) || 0); do { var x = n % 128; n = Math.floor(n / 128); b.push(x | (n ? 128 : 0)); } while (n); } };
   }
   function check8(b) { var h = 0x5a; b.forEach(function (x) { h = (Math.imul(h ^ x, 31) + 7) & 255; }); return h; }
-  // Version 2 (round 2) adds who's deployed, version 3 (round 3) the bomb balloons popped this operation, version 4
-  // (round 4) the gun picked and the zeppelin crew caught; older links still read.
-  // Version 5 (the requisition tree) adds the tree's steps; older links read as tours from before it.
-  var LINK = 5;
+  // Only this version reads; a link from another isn't a tour.
+  var LINK = 1;
   function linkCode(t) {
     var o = bytesOut(), v = codeValue(t.code);
     o.byte(LINK); o.byte(v >>> 24); o.byte(v >>> 16); o.byte(v >>> 8); o.byte(v);
     o.byte(t.op); o.byte(t.m);
     var stars = 0; OPS.forEach(function (op, i) { if (t.stars[op.id]) stars += Math.pow(2, i); }); o.num(stars);
     o.num(t.bank); o.num(t.nextId); o.num(t.opLosses); o.num(t.hired);
-    o.byte(t.lasting.length); t.lasting.forEach(function (id) { o.byte(LASTING.findIndex(function (l) { return l.id === id; })); });
     var g = t.gear;
     if (!g) o.byte(0);
     else {
@@ -481,12 +404,13 @@ var StickArmyCampaign = function (world, game) {
     o.num(t.squad.length); t.squad.forEach(soldier);
     o.num(t.fallen.length); t.fallen.forEach(function (s) { soldier(s); o.byte(s.op * 16 + s.m); });
     o.num(t.gone.length); t.gone.forEach(function (s) { o.num(s.id); o.byte(Math.min(7, s.stripes)); });
-    // v2: the deployed, as places in the squad list; and the dummies caught this operation.
+    // The deployed, as places in the squad list; the operation's dummies caught, bomb balloons popped, gun and crew
+    // caught; and the tree's steps, as bits.
     var dep = (t.deploy || []).map(function (id) { return t.squad.findIndex(function (q) { return q.id === id; }); }).filter(function (i) { return i >= 0; });
     o.num(dep.length); dep.forEach(function (i) { o.num(i); }); o.num(t.opDummies || 0);
     o.num(t.opBalloons || 0);
     o.byte(Math.max(0, GUNS.indexOf(t.gun))); o.num(t.opCrew || 0);
-    o.num(t.tree ? 1 + t.tree.reduce(function (m, id) { return m + Math.pow(2, TREE_IDS.indexOf(id)); }, 0) : 0);
+    o.num(t.tree.reduce(function (m, id) { return m + Math.pow(2, TREE_IDS.indexOf(id)); }, 0));
     o.byte(check8(o.b));
     // Bits to base 32, five at a time.
     var out = '', acc = 0, bits = 0;
@@ -510,8 +434,7 @@ var StickArmyCampaign = function (world, game) {
     var p = 0, bad = false;
     function byte() { if (p >= bytes.length - 1) { bad = true; return 0; } return bytes[p++]; }
     function num() { var n = 0, k = 1, x; do { x = byte(); n += (x & 127) * k; k *= 128; } while (x & 128 && !bad); return n; }
-    var version = byte();
-    if (version < 1 || version > 5) return null;
+    if (byte() !== LINK) return null;
     var v = ((byte() << 24) | (byte() << 16) | (byte() << 8) | byte()) >>> 0;
     var t = freshTour(codeText(v));
     t.op = byte(); t.m = byte();
@@ -519,7 +442,6 @@ var StickArmyCampaign = function (world, game) {
     t.missions = missionsFor(t, t.op);
     var stars = num(); OPS.forEach(function (op, i) { if (Math.floor(stars / Math.pow(2, i)) % 2) t.stars[op.id] = true; });
     t.bank = num(); t.nextId = num(); t.opLosses = num(); t.hired = num();
-    for (var n = byte(); n > 0; n--) { var l = LASTING[byte()]; if (l) t.lasting.push(l.id); }
     if (byte()) {
       var g = { stacks: {}, calls: {}, hired: 0 };
       for (var k = byte(); k > 0; k--) { var id = KIT_IDS[byte()], c = byte(); if (id) g.stacks[id] = c; }
@@ -530,15 +452,12 @@ var StickArmyCampaign = function (world, game) {
     for (var q = num(); q > 0 && !bad; q--) t.squad.push(soldier());
     for (var f = num(); f > 0 && !bad; f--) { var s = soldier(), w = byte(); s.op = w >> 4; s.m = w & 15; t.fallen.push(s); }
     for (var h = num(); h > 0 && !bad; h--) t.gone.push({ id: num(), stripes: byte() });
-    if (version >= 2) {
-      var dep = [];
-      for (var d = num(); d > 0 && !bad; d--) { var sq = t.squad[num()]; if (sq) dep.push(sq.id); }
-      t.deploy = dep.length ? dep : null; t.opDummies = num();
-    }
-    if (version >= 3) t.opBalloons = num();
-    if (version >= 4) { t.gun = GUNS[byte()] || 'standard'; t.opCrew = num(); }
-    t.tree = autoTree(t.op);
-    if (version >= 5) { var tm = num(); if (tm) { tm--; t.tree = TREE_IDS.filter(function (id, i) { return Math.floor(tm / Math.pow(2, i)) % 2; }); } }
+    var dep = [];
+    for (var d = num(); d > 0 && !bad; d--) { var sq = t.squad[num()]; if (sq) dep.push(sq.id); }
+    t.deploy = dep.length ? dep : null; t.opDummies = num();
+    t.opBalloons = num();
+    t.gun = GUNS[byte()] || 'standard'; t.opCrew = num();
+    var tm = num(); t.tree = TREE_IDS.filter(function (id, i) { return Math.floor(tm / Math.pow(2, i)) % 2; });
     if (bad || p !== bytes.length - 1) return null;
     t.at = t.m >= t.missions.length ? 'end' : t.m > 0 ? 'between' : 'map';
     carryOn(t);
@@ -572,8 +491,8 @@ var StickArmyCampaign = function (world, game) {
     S.level = 'soldier';
     // Ids go on from the tour's, so every attempt at a mission numbers its soldiers and enemies the same.
     game.setIds({ next: t.nextId, bubble: game.ids().bubble });
-    // The operation's gear, as shop stacks: the lasting supplies at its start, then whatever was bought since.
-    applyGear(S, t.gear || lastingGear(t));
+    // The operation's gear, as shop stacks: whatever was bought since its start.
+    applyGear(S, t.gear || { stacks: {}, calls: { bomber: 0, fighter: 0 }, hired: 0 });
     S.mods.slots = o.slots; S.wallHP = S.mods.maxHP; S.flagUp = S.mods.flag ? 1 : 0;
     game.resizeMats();
     if (t.bank) game.gainTags(t.bank, true);
@@ -587,7 +506,7 @@ var StickArmyCampaign = function (world, game) {
     });
     var weather = weatherFor(t, t.op), intel = intelFor(t, t.op);
     S.cm = { op: o.id, mission: t.missions[t.m], m: t.m, attempt: t.attempt, waves: M.as.slice(), wi: -1,
-      count: { caught: 0, planes: 0, away: 0, bombs: 0, dummies: 0, barrage: 0, bombers: 0, popped: 0, awayPops: 0, zeps: 0, crew: 0, pilots: 0, pilotsLost: 0, radio: 0, crates: 0, hqHit: 0, officers: 0, intel: 0, officerLanded: 0, spotter: 0, shellHits: 0, big: 0, bigLanded: 0, bay: 0, recon: 0, reconLost: 0, stand: 0 }, cleared: false, bench: order.slice(o.slots).map(function (s) { return s.id; }),
+      count: { caught: 0, dummies: 0, barrage: 0, popped: 0, awayPops: 0, zeps: 0, crew: 0, pilots: 0, pilotsLost: 0, radio: 0, crates: 0, hqHit: 0, officers: 0, intel: 0, officerLanded: 0, spotter: 0, shellHits: 0, big: 0, bigLanded: 0, bay: 0, recon: 0, reconLost: 0, stand: 0 }, cleared: false, bench: order.slice(o.slots).map(function (s) { return s.id; }),
       caught: [], dead: {}, cause: null, start: t.squad.map(function (s) { return s.id; }),
       dummies: M.dummies != null ? M.dummies : o.dummies || 0, weather: weather, intel: intel && intel.m === t.m ? intel.threat : null };
     S.cm.planesBy = M.as.map(function (n) { var c = world.MODES.campaign.wave(n); return (c.planes || 0) + (c.bombers || 0); });
@@ -626,11 +545,6 @@ var StickArmyCampaign = function (world, game) {
     S.calls = { bomber: g.calls.bomber || 0, fighter: g.calls.fighter || 0 };
     S.mods.hired = g.hired || 0;
   }
-  function lastingGear(t) {
-    var g = { stacks: {}, calls: { bomber: 0, fighter: 0 }, hired: 0 };
-    t.lasting.forEach(function (id) { var l = LASTING.find(function (x) { return x.id === id; }); if (l) g.stacks[l.item] = (g.stacks[l.item] || 0) + 1; });
-    return g;
-  }
   function gearNow(S) {
     var g = { stacks: {}, calls: { bomber: S.calls.bomber, fighter: S.calls.fighter }, hired: S.mods.hired };
     KIT_IDS.forEach(function (id) { var n = (S.mods.stacks[id] || 0) + (S.turrets[0].mods.stacks[id] || 0); if (n) g.stacks[id] = n; });
@@ -645,21 +559,18 @@ var StickArmyCampaign = function (world, game) {
   // The goal, read from the counts. met(): its count is reached. failed(): lost now.
   function met(S) {
     var g = MISSIONS[S.cm.mission].goal, k = S.cm.count;
-    return g.kind === 'catch' ? k.caught >= g.n : g.kind === 'down' ? k.planes >= g.n : g.kind === 'bombs' ? k.bombs >= g.n :
+    return g.kind === 'catch' ? k.caught >= g.n :
       g.kind === 'spotter' ? !!k.spotter : g.kind === 'big' ? !!k.big : g.kind === 'bay' ? k.bay >= g.n || k.zeps > 0 : g.kind === 'recon' ? k.recon >= g.n :
       g.kind === 'stand' ? (k.stand || 0) >= STAND.TIME : g.kind === 'pilots' ? k.pilots >= g.n : g.kind === 'radio' ? (k.radio || 0) >= RADIO_CALL.NEED : g.kind === 'crates' ? k.crates >= g.n : g.kind === 'officers' ? k.officers >= g.n :
-      g.kind === 'boss' ? k.zeps >= g.n : g.kind === 'pop' ? k.barrage >= g.n : g.kind === 'bombers' ? k.bombers >= g.n : g.kind === 'balloons' ? k.barrage + k.popped >= g.n : false;
+      g.kind === 'boss' ? k.zeps >= g.n : g.kind === 'pop' ? k.barrage >= g.n : false;
   }
-  function counted(g) { return ['catch', 'down', 'bombs', 'pop', 'bombers', 'balloons', 'boss', 'pilots', 'radio', 'crates', 'officers', 'spotter', 'big', 'bay', 'recon', 'stand'].indexOf(g.kind) >= 0; }
+  function counted(g) { return ['catch', 'pop', 'boss', 'pilots', 'radio', 'crates', 'officers', 'spotter', 'big', 'bay', 'recon', 'stand'].indexOf(g.kind) >= 0; }
   // A downed zeppelin's crew still in the air or on the ground: a boss mission waits for them before it ends.
   function crewOut(S) { return S.troopers.some(function (t) { return t.crew && !t.dead; }); }
   function failed(S) {
     var g = MISSIONS[S.cm.mission].goal, k = S.cm.count;
     if (S.wallHP <= 0) return 'wall';
     if (S.cm.cleared) return null;
-    if (g.kind === 'wall' && S.wallHP < S.mods.maxHP * g.above) return 'mark';
-    if (g.kind === 'down' && k.away >= g.away) return 'away';
-    if (g.kind === 'keep' && Object.keys(S.cm.dead).length) return 'loss';
     if (g.kind === 'pilots' && k.pilotsLost >= PILOT.LOSE) return 'pilot';
     if (g.kind === 'spotter' && (k.shellHits || 0) >= SPOT.LOSE) return 'shells';
     if (g.kind === 'big' && k.bigLanded) return 'big';
@@ -669,8 +580,7 @@ var StickArmyCampaign = function (world, game) {
     if (g.kind === 'officers' && k.officerLanded) return 'officer';
     return null;
   }
-  var CAUSE = { wall: 'The wall came down.', mark: 'The wall dropped below half.', away: 'Too many planes got across.', goal: 'The planes stopped coming before the goal was met.',
-    loss: 'A soldier was lost.', pilot: 'Two pilots were lost.', mast: 'The radio mast came down.', hq: 'Two supply planes were shot down.',
+  var CAUSE = { wall: 'The wall came down.', goal: 'The planes stopped coming before the goal was met.', pilot: 'Two pilots were lost.', mast: 'The radio mast came down.', hq: 'Two supply planes were shot down.',
     officer: 'An officer landed and called in his guns.', shells: 'The spotter\'s shells hit the squad three times.',
     big: 'The big one reached the bunker.', recon: 'The recon plane went down.' };
   function lastWave(S) { return S.cm.wi >= S.cm.waves.length - 1; }
@@ -708,7 +618,7 @@ var StickArmyCampaign = function (world, game) {
       S.cm.ended = true; world.emit('mission_end', { result: 'lost', cause: why });
       S.mode = 'dying'; S.dieT = 1.4; world.screens().pauseBtn.hidden = true;
       S.turrets.forEach(function (t) { t.firing = false; });
-      S.banner = { s: 'mission failed', sub: why === 'mark' ? 'the wall is below half' : why === 'loss' ? 'a soldier fell' : why === 'away' ? 'they got across' : (CAUSE[why] || '').replace(/\.$/, '').toLowerCase(), t: 0, dur: 1.6 };
+      S.banner = { s: 'mission failed', sub: (CAUSE[why] || '').replace(/\.$/, '').toLowerCase(), t: 0, dur: 1.6 };
       world.sound.play('over');
     },
     over: function () { missionLost(world.S.cm.cause || 'wall'); },
@@ -753,18 +663,15 @@ var StickArmyCampaign = function (world, game) {
       // A counted goal races the planes: how many are still to come, until it's met.
       // (A set-piece mission's clock is its set piece: no plane count.)
       var clock = counted(M.goal) && M.goal.kind !== 'boss' && !M.piece && !p.done && left != null ? ' · ' + left + ' planes left' : '';
-      return { wave: of > 1 ? 'wave ' + Math.max(1, S.cm.wi + 1) + '/' + of : 'mission ' + (S.cm.m + 1), sub: p.sub + clock, done: p.done, mark: p.mark };
+      return { wave: of > 1 ? 'wave ' + Math.max(1, S.cm.wi + 1) + '/' + of : 'mission ' + (S.cm.m + 1), sub: p.sub + clock, done: p.done };
     },
     on: function (type, data) {
       var S = world.S, k = S.cm && S.cm.count;
       if (!k || S.mode === 'title') return;
       // A catch counts even with the barracks full (he just can't stay).
       if (type === 'capture') k.caught++;
-      else if (type === 'plane_down' && (data.kind === 'plane' || data.kind === 'bomber' || data.kind == null)) { k.planes++; if (data.kind === 'bomber') k.bombers++; }
       else if (type === 'plane_down' && data.kind === 'zeppelin') k.zeps++;
       else if (type === 'plane_down' && data.kind === 'balloon') { k.popped++; if (data.x == null || Math.abs(data.x - world.BK.x) > STAR_BALLOONS.NEAR) k.awayPops++; }
-      else if (type === 'plane_away' && (data.kind === 'plane' || data.kind === 'bomber') && !S.cm.cleared) k.away++;
-      else if (type === 'bomb_intercepted') k.bombs++;
       else if (type === 'crate_caught') k.crates++;
       else if (type === 'hq_hit') k.hqHit++;
       else if (type === 'dummy_caught') k.dummies++;
@@ -850,7 +757,7 @@ var StickArmyCampaign = function (world, game) {
     S.mode = 'between';
     world.screens().pauseBtn.hidden = true;
     t.at = 'lost';
-    t.last = { won: false, mission: MISSIONS[t.missions[t.m]].name, cause: why === 'away' ? MISSIONS[t.missions[t.m]].goal.away + ' planes got across.' : CAUSE[why] || CAUSE.wall,
+    t.last = { won: false, mission: MISSIONS[t.missions[t.m]].name, cause: CAUSE[why] || CAUSE.wall,
       fell: t.fallen.filter(function (f) { return f.op === t.op && f.m === t.m; }).map(function (f) { return f.id; }) };
     endStats(false, 'lost', why);
     if (!S.cm.ended) { S.cm.ended = true; world.emit('mission_end', { result: 'lost', cause: why }); }
@@ -864,17 +771,15 @@ var StickArmyCampaign = function (world, game) {
     tour.attempt++;
     startMission();
   }
-  // The operation's done: one stripe for everyone left, the gold star if no one was lost, and three rewards to pick
-  // from. All decided now and saved, so a reload shows the same debrief.
+  // The operation's done: one stripe for everyone left, the gold star if earned, and the requisition tree's pick. All
+  // decided now and saved, so a reload shows the same debrief.
   function finishOperation() {
     var t = tour, o = op(), star = o.starKind === 'dummies' ? !t.opDummies : o.starKind === 'balloons' ? (t.opBalloons || 0) >= STAR_BALLOONS.N : o.starKind === 'crew' ? (t.opCrew || 0) >= 3 : t.opLosses === 0, promoted = [];
     t.squad.forEach(function (s) { if (s.stripes < MAX_STRIPES) { s.stripes++; promoted.push({ id: s.id, named: s.stripes === 1 }); } });
     nameAll(t);
     if (star) { t.stars[o.id] = true; addStar(o.id); }
-    // The debrief: a pick from the requisition tree, and with a gold star a bonus (another pick, a veteran or a
-    // medal). A tour from before the tree picks from the old slips.
-    t.debrief = t.tree ? { op: t.op, star: star, promoted: promoted, picks: 1, bonus: star ? [{ kind: 'pick', name: 'Another requisition', text: 'One more step on the tree.' }].concat(offersFor(t).filter(function (r) { return r.kind !== 'supply'; })) : null }
-      : { op: t.op, star: star, promoted: promoted, offers: offersFor(t) };
+    // The debrief: a pick from the requisition tree, and with a gold star a bonus (another pick, a veteran or a medal).
+    t.debrief = { op: t.op, star: star, promoted: promoted, picks: 1, bonus: star ? bonusFor(t) : null };
     t.gear = null; t.deploy = null;
     t.at = 'debrief';
   }
@@ -882,7 +787,7 @@ var StickArmyCampaign = function (world, game) {
   // star's slips), or 'done' (on to the barracks).
   function takeStep(id) {
     var t = tour, d = t.debrief;
-    if (!d || !t.tree || !d.picks || treeNext(t).indexOf(id) < 0) return null;
+    if (!d || !d.picks || treeNext(t).indexOf(id) < 0) return null;
     t.tree.push(id); d.picks--;
     (d.took = d.took || []).push(id);
     return debriefLeft();
@@ -902,20 +807,9 @@ var StickArmyCampaign = function (world, game) {
     if (d.picks > 0 && treeNext(t).some(Boolean)) { writeTour(); return 'pick'; }
     d.picks = 0;
     if (d.bonus) { writeTour(); return 'bonus'; }
-    t.taken = { kind: 'tree', ids: d.took || [] }; t.debrief = null; t.at = 'barracks';
+    t.debrief = null; t.at = 'barracks';
     writeTour();
     return 'done';
-  }
-  function takeReward(i) {
-    var t = tour, d = t.debrief, r = d && d.offers[i];
-    if (!r) return false;
-    if (r.kind === 'veteran' && t.squad.length < BARRACKS) { t.squad.push({ id: t.nextId++, type: r.type, stripes: 1, kills: 0 }); }
-    else if (r.kind === 'medal') { var s = t.squad.find(function (q) { return q.id === r.id; }); if (s) s.stripes = Math.min(MAX_STRIPES, s.stripes + 1); }
-    else if (r.kind === 'supply' && t.lasting.indexOf(r.id) < 0) t.lasting.push(r.id);
-    nameAll(t);
-    t.taken = r; t.debrief = null; t.at = 'barracks';
-    writeTour();
-    return true;
   }
   // After the barracks: the next operation, or "To be continued" when it isn't out yet.
   // The operation the squad goes out on next: after an operation's last mission (the debrief and the barracks), the
@@ -1405,23 +1299,16 @@ var StickArmyCampaign = function (world, game) {
   });
 
   // Campaign's zeppelins (ZEPS): each comes with ZEPS.HP of Arcade's health (BOSS_HP in a boss mission), for a squad
-  // without Arcade's run of upgrades. Outside a boss mission one cruises over: STAY seconds after it's in, it turns
-  // for home. And one still up when the enemy surrenders leaves too (`leaving`, units.js: for the nearer edge).
-  var ZEPS = { HP: 0.6, BOSS_HP: 0.6, STAY: 50 };
+  // without Arcade's run of upgrades. One still up when the enemy surrenders leaves (`leaving`, units.js: for the
+  // nearer edge).
+  var ZEPS = { HP: 0.6, BOSS_HP: 0.6 };
   function tickZeps(S, dt) {
     if (!S.cm) return;
     var boss = MISSIONS[S.cm.mission].goal.kind === 'boss';
     S.planes.forEach(function (p) {
       if (p.kind !== 'zeppelin' || p.state !== 'fly') return;
       if (!p.cmHp) { p.cmHp = true; p.maxHp = Math.max(1, Math.round(p.maxHp * (boss ? ZEPS.BOSS_HP : ZEPS.HP))); p.hp = Math.min(p.hp, p.maxHp); }
-      if (p.leaving) return;
-      if (p.entered) p.cmT = (p.cmT || 0) + dt;
-      // (A mission built on the zeppelin keeps it: its bomb bay, the recon plane's passes.)
-      var keep = ['bay', 'recon'].indexOf(MISSIONS[S.cm.mission].piece) >= 0;
-      if (S.cm.cleared || (!boss && !keep && p.cmT > ZEPS.STAY)) {
-        p.leaving = p.x < world.W / 2 ? -1 : 1;
-        if (!S.cm.cleared) world.addText('the zeppelin turns for home', 200, p.y + p.hh + 40, world.INK2, 20, 'story');
-      }
+      if (!p.leaving && S.cm.cleared) p.leaving = p.x < world.W / 2 ? -1 : 1;
     });
   }
 
@@ -1657,10 +1544,10 @@ var StickArmyCampaign = function (world, game) {
   takeLink();
 
   var api = {
-    OPS: OPS, MISSIONS: MISSIONS, ROLES: ROLES, ROLE_NAME: ROLE_NAME, TRAIT_TEXT: TRAIT_TEXT, BARRACKS: BARRACKS, LASTING: LASTING, RELEASE: RELEASE,
+    OPS: OPS, MISSIONS: MISSIONS, ROLES: ROLES, ROLE_NAME: ROLE_NAME, TRAIT_TEXT: TRAIT_TEXT, BARRACKS: BARRACKS, RELEASE: RELEASE,
     tour: function () { return tour; }, op: op, nextOp: nextOp, TREE: TREE, SHELF: SHELF, treeNext: treeNext, takeStep: takeStep, takeBonus: takeBonus,
     onShelf: onShelf, hireable: hireable, autoTree: autoTree, pieceView: pieceView, showCode: showCode, rankName: rankName, deployOrder: deployOrder, progress: progress,
-    open: openCampaign, resume: resume, startMission: startMission, retry: retry, takeReward: takeReward, leaveBarracks: leaveBarracks,
+    open: openCampaign, resume: resume, startMission: startMission, retry: retry, leaveBarracks: leaveBarracks,
     hire: hire, hirePrice: hirePrice, newTour: newTour, endTour: endTour, loadCode: loadCode, readLink: readLink, linkFor: linkFor, linkCode: linkCode,
     savedTour: savedTour, setTour: function (t) { tour = t; writeTour(); }, write: writeTour, standBy: standBy, showWhere: showWhere,
     seen: function () { return load(SEEN_KEY, 0) >= RELEASE; }, unlocked: function () { return !!load(UNLOCK_KEY, false); }, stars: deviceStars, hideRestart: hideRestart,
@@ -1668,7 +1555,7 @@ var StickArmyCampaign = function (world, game) {
     WEATHER: WEATHER, INTEL: INTEL, weatherFor: weatherFor, intelFor: intelFor, deployed: deployed, pauseLine: pauseLine,
     // For the harness and the bots.
     codeText: codeText, codeValue: codeValue, missionsFor: missionsFor, freshTour: freshTour, readTour: readTour, nameAll: nameAll,
-    build: build, goodWaveSave: goodWaveSave, report: report, offersFor: offersFor, BARRAGE: BARRAGE, GUNS: GUNS, GUN_TEXT: GUN_TEXT, armory: armory, needsDeploy: needsDeploy, keys: { tour: TOUR_KEY, wave: WAVE_KEY, stars: STARS_KEY, seen: SEEN_KEY, unlock: UNLOCK_KEY }
+    build: build, goodWaveSave: goodWaveSave, report: report, bonusFor: bonusFor, BARRAGE: BARRAGE, GUNS: GUNS, GUN_TEXT: GUN_TEXT, armory: armory, needsDeploy: needsDeploy, keys: { tour: TOUR_KEY, wave: WAVE_KEY, stars: STARS_KEY, seen: SEEN_KEY, unlock: UNLOCK_KEY }
   };
   var SCREENS = window.StickArmyCampaignScreens ? StickArmyCampaignScreens(world, game, api) : { hide: function () {}, map: function () {}, briefing: function () {},
     between: function () {}, lost: function () {}, debrief: function () {}, barracks: function () {}, end: function () {} };

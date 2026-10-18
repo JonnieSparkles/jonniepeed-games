@@ -56,19 +56,19 @@
       var coop = !!options.coop && options.coop !== '0';
       RUN.players = coop ? 2 : 1; me = 0;
       // Campaign (run.py --option game=campaign): one mission of a tour whose code comes from the seed, alone
-      // (--option mission=fill-the-ranks; First contact by default) in its own operation, with --option squad=N rookies to
+      // (--option mission=dummy-drop; First contact by default) in its own operation, with --option squad=N rookies to
       // start with, --option gun=heavy, and --option bank=N tags to shop with first.
       if (options.game === 'campaign') {
         var camp = world.campaign, t = camp.freshTour(camp.codeText(seed % 1073741824));
         t.missions = [options.mission && camp.MISSIONS[options.mission] ? options.mission : 'first-contact'];
         // In its own operation (its dummies, weather and intel, as the tour code rolls them).
-        t.op = Math.max(0, camp.OPS.findIndex(function (o) { return (o.fixed || []).concat(o.pool || [], o.last || []).indexOf(t.missions[0]) >= 0; }));
+        t.op = Math.max(0, camp.OPS.findIndex(function (o) { return (o.fixed || []).concat(o.last || []).indexOf(t.missions[0]) >= 0; }));
         for (var q = 0; q < (Number(options.squad) || 0); q++) t.squad.push({ id: t.nextId++, type: q % 3 === 1 ? 'engineer' : 'rifle', stripes: 0, kills: 0 });
         // --option gun=heavy: the heavy gun, where the operation's armory has it (First Zeppelin on).
         if (options.gun) t.gun = options.gun;
         // The requisition tree: a pick for each operation before this one, round the rows (or --option tree=full for
-        // the whole shop, as a tour from before the tree has).
-        t.tree = options.tree === 'full' ? null : camp.autoTree(t.op);
+        // every step).
+        t.tree = options.tree === 'full' ? camp.autoTree(12) : camp.autoTree(t.op);
         // --option bank=N: N dog tags to spend in the shop before the mission (a tour well along has some put by).
         if (options.bank) t.bank = Number(options.bank) || 0;
         camp.setTour(t); RUN.players = 1; camp.startMission({ shop: !!t.bank });
