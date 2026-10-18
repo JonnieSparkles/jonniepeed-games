@@ -4,6 +4,7 @@ Why things are the way they are, and what was tried and dropped, so a later chan
 
 ## Tried and dropped
 
+- **Campaign** (Oct 15–17, dropped Oct 18): a tour of operations with one squad you keep, missions with goals, promotions, a requisition tree and a map ([campaign.md](campaign.md)). Built through four operations, then: "its boring. the missions arent exciting. and i dont feel engaged". Replaced by Challenges: the same set pieces as short fixed scenarios with stars, a better go each time. Rather than strip it out piece by piece, Arcade's files went back to how they were before it (#150) with only the hooks Challenges needs added, since the bots had shown Arcade unchanged through every Campaign round. Ideas parked from it: Campaign's set pieces as surprise events inside Arcade waves, and squad orders (general, repairs, vehicles, soldiers, capture).
 - **A gun that runs hotter late** (round 10, dropped in 11): it undid the cooling fins you'd bought ("id rather it not get worse while at the same time im buying cool downs"). Heat per shot is the same all run.
 - **The browser's own speech** for the voices (round 10, dropped in 11): it sounded bad, and different on every phone. The words are in speech bubbles, over gibberish chatter.
 - **Round 15's sound variety** (undone in 16): a sound for each voice mood, a march that thinned and filled with the action, and a whistle for each kind of bomb ("everything was kind of different but similar enough", "there's a lot going on").

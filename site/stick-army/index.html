@@ -258,21 +258,55 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .lb-tabs button[aria-selected="true"] .t-chev { stroke: var(--ally); }
 .lb-tabs button:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
 .lb-tabs .t-chev { width: 18px; }
-.pause-goal { color: var(--ink); }
 .lvl-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -2px 0 4px; font: 18px/1 var(--font-hand); color: var(--ally); }
 .lvl-badge .t-chev { stroke: var(--ally); width: 18px; }
-.t-new { padding: 1px 5px 2px; font: 14px/1 var(--font-hand); color: var(--paper); background: var(--enemy); border-radius: 6px 3px 7px 3px; transform: rotate(-4deg); }
-.t-chip { min-height: 32px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
-.t-chip:hover, .t-chip:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
-/* Campaign unlocked on this device (the #campaign link, campaign.js): Start becomes Arcade beside Campaign, and
-   Arcade's level goes on one line below them. */
+/* Two ways to play on the title: Arcade and Challenges side by side, the level under them. */
 .t-foot.t-two { top: 611px; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
 .t-two .t-start { min-height: 46px; padding: 2px 10px 5px; font-size: 28px; }
 .t-two .t-level { grid-column: 1 / -1; display: flex; gap: 14px; }
 .t-two .t-rank { min-height: 24px; }
 .t-two .t-chip { min-height: 30px; }
-.t-camp { position: relative; background: var(--friend); }
-.t-camp .t-new { position: absolute; right: -6px; top: -9px; }
+.t-chal { background: var(--friend); }
+.pause-goal { color: var(--ink); }
+
+/* ---------- Challenges (challenges.js) ----------
+   The list is a ruled notebook page over the play page, in its 400x720 units (lines every 28 from 100, the margin at
+   46, holes at 142 and 352); a challenge's end card is a card like game over. */
+.ch-page { position: absolute; inset: 0; z-index: 1; overflow: hidden; color: var(--ink); font-family: var(--font-hand);
+  background: linear-gradient(to right, transparent 46px, var(--margin) 46px, var(--margin) 47.4px, transparent 47.4px),
+    repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px) 0 100px / 100% 620px no-repeat, var(--paper); }
+.ch-hole { position: absolute; left: 14px; width: 16px; height: 16px; border-radius: 50%; background: var(--desk); box-shadow: inset 1px 2px 2px var(--desk-shadow); }
+.ch-back { position: absolute; left: 56px; top: 0; min-height: 22px; padding: 0 4px; font: 15px var(--font-hand); color: var(--ink-soft); background: none; border: 0; cursor: pointer; }
+.ch-back:hover, .ch-back:focus-visible { color: var(--ink); text-decoration: underline; }
+.ch-body { position: absolute; left: 58px; right: 14px; top: 24px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+.ch-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ch-title { margin: 0; font: 700 40px/1 var(--font-display); }
+.ch-total { font-size: 17px; color: var(--enemy); white-space: nowrap; }
+.ch-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.ch-item { width: 100%; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 8px; text-align: left;
+  font-family: var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 12px 5px 12px 5px; cursor: pointer; }
+.ch-item:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
+.ch-item:disabled { cursor: default; color: #9a968e; border-style: dashed; border-color: #b5b0a6; }
+.ch-item:disabled .ch-badge svg { opacity: 0.45; }
+.ch-badge { width: 36px; height: 36px; box-sizing: border-box; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 50%; background: var(--paper); }
+.ch-badge svg { width: 28px; height: 28px; }
+.ch-name { display: grid; min-width: 0; font-size: 19px; line-height: 1.1; }
+.ch-name small { font-size: 13.5px; color: var(--ink-soft); }
+.ch-item:disabled .ch-name small { color: #9a968e; }
+.ch-side { display: grid; justify-items: end; gap: 2px; font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+.ch-stars { display: inline-flex; gap: 2px; }
+.ch-stars svg { width: 18px; height: 18px; }
+.ch-note { margin: 4px 0 0; font-size: 15px; color: var(--ink-soft); }
+.ch-card .ch-stars svg { width: 44px; height: 44px; }
+.ch-card .ch-stars { gap: 8px; justify-content: center; }
+.ch-goals { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 18px; text-align: left; }
+.ch-goals li { display: flex; gap: 6px; align-items: center; }
+.ch-goals li.miss { color: var(--ink-soft); }
+.ch-goals svg { flex: none; width: 18px; height: 18px; }
+#chCard { z-index: 4; }
+.t-new { padding: 1px 5px 2px; font: 14px/1 var(--font-hand); color: var(--paper); background: var(--enemy); border-radius: 6px 3px 7px 3px; transform: rotate(-4deg); }
+.t-chip { min-height: 32px; padding: 2px 12px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
+.t-chip:hover, .t-chip:focus-visible { background: #edf2fb; outline: 2px solid var(--ally); outline-offset: 2px; }
 /* The open notebook (wide screens, title only): the game page on the left, the facing page on the right with a
    shadow down the binding. On the left page the logo, the demo, the pencil notes and every button stay; the facing page is for reading. */
 .facing { position: absolute; left: 0; top: 0; width: 400px; height: 720px; transform-origin: 0 0; box-sizing: border-box; padding: 34px 26px 0 66px;
@@ -368,178 +402,6 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
   .shop-card .tag { font-size: 15px; }
   .shop-foot { padding-top: 6px; }
 }
-/* ---------- Campaign (campaign-screens.js) ----------
-   Its pages cover the play page in the page's own 400x720 units: the map, the debrief and the barracks are ruled
-   notebook pages (lines every 28 from 100, the margin at 46, holes at 150 and 360, like the canvas's paper); the
-   briefing is a post-it stuck on the map; between missions, a lost mission and "To be continued" are cards over the
-   page, like game over. */
-.c-page { position: absolute; inset: 0; z-index: 1; overflow: hidden; color: var(--ink); font-family: var(--font-hand);
-  background: linear-gradient(to right, transparent 46px, var(--margin) 46px, var(--margin) 47.4px, transparent 47.4px),
-    repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px) 0 100px / 100% 620px no-repeat, var(--paper); }
-.c-page.c-reverse { background: repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px) 0 100px / 100% 620px no-repeat, var(--paper); }
-.c-hole { position: absolute; left: 14px; width: 16px; height: 16px; border-radius: 50%; background: var(--desk); box-shadow: inset 1px 2px 2px var(--desk-shadow); }
-.c-page.c-reverse .c-hole { left: auto; right: 14px; }
-.c-head { position: absolute; left: 62px; right: 16px; top: 22px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.c-title { margin: 0; font: 700 40px/1 var(--font-display); }
-.c-code { font: 700 20px/1 var(--font-display); letter-spacing: 2px; color: var(--ink-soft); white-space: nowrap; }
-.c-back { position: absolute; left: 56px; top: 0; min-height: 22px; padding: 0 4px; font: 15px var(--font-hand); color: var(--ink-soft); background: none; border: 0; cursor: pointer; }
-.c-back:hover, .c-back:focus-visible { color: var(--ink); text-decoration: underline; }
-.c-link { min-height: 32px; padding: 0 2px; font: 18px var(--font-hand); color: var(--ally); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left; }
-.c-link:disabled { color: var(--ink-soft); text-decoration: none; cursor: default; }
-.c-link:focus-visible, .c-back:focus-visible, .c-slip:focus-visible, .c-hire:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
-.c-eyebrow { margin: 0; font-size: 17px; color: var(--enemy); }
-.c-small { margin: 0; font-size: 16px; line-height: 1.2; color: var(--ink-soft); }
-.c-note { position: absolute; transform: rotate(-6deg); font-size: 16px; color: #8f8a80; }
-/* The map: the route in pencil, released operations inked. */
-.c-route { position: absolute; left: 0; top: 0; width: 400px; height: 720px; pointer-events: none; }
-.c-route .path { fill: none; stroke: #9a968e; stroke-width: 2.4; stroke-dasharray: 7 7; stroke-linecap: round; }
-.c-route .node { fill: var(--paper); stroke: #9a968e; stroke-width: 2.4; }
-.c-route .node.open { fill: var(--ally); stroke: var(--ink); stroke-width: 2.5; }
-.c-route .node.done { fill: var(--friend); stroke: var(--ink); stroke-width: 2.5; }
-.c-op { position: absolute; font-size: 16px; line-height: 1; color: #8f8a80; white-space: nowrap; }
-.c-op.open { font: 700 24px/1 var(--font-display); color: var(--ally); }
-.c-op.done { font: 700 24px/1 var(--font-display); color: var(--friend); }
-.c-op small { display: block; margin-top: 3px; font: 15px var(--font-hand); color: var(--ink-soft); }
-.c-op small.c-soon { display: inline; margin-left: 6px; color: #8f8a80; }
-.c-foot { position: absolute; left: 56px; right: 16px; bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
-.c-links { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
-.c-foot .btn { align-self: auto; }
-/* The briefing: a post-it on the map. */
-.c-veil { position: absolute; inset: 0; z-index: 2; background: var(--veil); }
-.c-postit { position: absolute; left: 40px; right: 28px; top: 120px; z-index: 3; padding: 26px 22px 20px; display: flex; flex-direction: column; gap: 10px;
-  background: #f7e58a; transform: rotate(-1.5deg); box-shadow: 2px 4px 0 var(--card-shadow), 0 10px 18px rgba(46, 46, 51, 0.15); }
-.c-postit::before { content: ""; position: absolute; left: 50%; top: -10px; width: 90px; height: 22px; margin-left: -45px; background: rgba(214, 222, 232, 0.75); transform: rotate(3deg); }
-.c-postit h2 { margin: 0; font: 700 44px/0.95 var(--font-display); }
-.c-postit p { margin: 0; font-size: 19px; line-height: 1.2; }
-.c-orders { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 19px; line-height: 1.15; }
-.c-orders b { font-weight: 400; color: var(--ink-soft); }
-.c-next { padding-top: 8px; border-top: 2px dashed var(--ink-soft); }
-.c-postit .btn, .c-card .btn { align-self: flex-start; }
-.c-star { display: inline-block; width: 20px; height: 20px; vertical-align: -3px; }
-/* Cards between missions, and the small ones over the map. */
-#cCard { z-index: 4; }
-.c-card .row { align-items: center; }
-.c-card .c-links { flex-direction: row; flex-wrap: wrap; gap: 4px 14px; }
-.c-card h2 { font-size: 42px; }
-.c-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px 6px; }
-.c-figs canvas { width: 24px; height: 52px; }
-.c-figs span { font-size: 17px; color: var(--ink-soft); }
-.c-field { width: 100%; box-sizing: border-box; min-height: 44px; padding: 6px 10px; font: 17px 'Atkinson Hyperlegible', sans-serif; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 4px 10px 5px; }
-.c-field:focus-visible { outline: 3px solid var(--ally); outline-offset: 2px; }
-.c-err { margin: 0; font-size: 17px; color: var(--enemy); }
-/* The debrief: the star, promotions, and three reward slips to pick from. */
-.c-body { position: absolute; left: 60px; right: 16px; top: 18px; bottom: 74px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
-.c-starrow { display: flex; align-items: center; gap: 14px; }
-.c-bigstar { flex: none; width: 66px; height: 66px; }
-.c-promos { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 18px; line-height: 1.15; }
-.c-promos i { color: var(--ink-soft); }
-.c-chev { display: inline-block; width: 16px; height: 10px; margin-right: 4px; vertical-align: 1px; fill: none; stroke: var(--ally); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.c-slips { display: grid; gap: 8px; }
-.c-slip { display: grid; gap: 2px; padding: 9px 14px; text-align: left; color: var(--ink); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 255px 14px 225px 14px / 14px 225px 14px 255px; cursor: pointer; font-family: var(--font-hand); }
-.c-slip:nth-child(2) { transform: rotate(0.4deg); }
-.c-slip:nth-child(odd) { transform: rotate(-0.4deg); }
-.c-slip b { font: 700 21px/1.05 var(--font-display); }
-.c-slip span { font-size: 16px; color: var(--ink-soft); }
-.c-slip[aria-pressed="true"] { border-color: var(--ally); border-width: 3.5px; background: #edf2fb; }
-/* The requisition tree (round 5): rows of four steps; taken blue, next dashed (a button), the rest pencilled. */
-.c-trow { display: grid; gap: 3px; }
-.c-trow > span { font-size: 17px; }
-.c-nodes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-.c-node { min-height: 48px; box-sizing: border-box; padding: 2px 3px; display: flex; align-items: center; justify-content: center; text-align: center; font: 14px/1.05 var(--font-hand); color: #8f8a80; background: var(--paper); border: 2px solid #b5b0a6; border-radius: 10px 6px 11px 7px; overflow-wrap: anywhere; }
-.c-node.got { color: var(--ally); border-color: var(--ally); background: #dce7fa; }
-button.c-node.next { color: var(--ink); border: 2px dashed var(--ink); cursor: pointer; }
-button.c-node.next[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
-.c-node:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
-.c-pickline { margin: 2px 0 0; padding-top: 6px; border-top: 2px dashed var(--ink); font-size: 16px; line-height: 1.25; }
-.c-pickline b { font-weight: 400; color: var(--ally); }
-/* The barracks: twelve bunks, recruiting, and the fallen on the back page. */
-.c-bunks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.c-bunk { min-height: 86px; box-sizing: border-box; padding: 4px 3px 5px; display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center;
-  background: var(--paper); border: 2px solid var(--ink); border-radius: 10px 6px 11px 7px; }
-.c-bunk canvas { width: 24px; height: 52px; margin-bottom: -6px; }
-.c-bunk b { font-size: 15px; font-weight: 400; line-height: 1.05; }
-.c-bunk span { font-size: 12.5px; line-height: 1.1; color: var(--ink-soft); }
-.c-bunk.out { border-style: dashed; }
-button.c-bunk { font-family: var(--font-hand); color: var(--ink); cursor: pointer; }
-.c-pick[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
-.c-pick:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
-/* The deploy screen's gun row (round 4): a slip a gun, ticked in blue like the bunks. */
-.c-sub { margin: 2px 0 0; font: 700 22px/1 var(--font-display); }
-.c-guns { display: flex; gap: 8px; }
-.c-gun { flex: 1 1 0; min-width: 0; min-height: 56px; display: flex; gap: 6px; align-items: center; padding: 4px 8px; text-align: left; font: 18px/1.05 var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
-.c-gun svg { flex: none; }
-/* The tour map's links between operations: Squad and Shop, then Load a code and End tour. */
-.c-links.c-grid2 { display: grid; grid-template-columns: auto auto; gap: 0 14px; }
-/* The operation's map (part 2): its missions down a pencilled trail, each with its badge. */
-.c-trail { list-style: none; margin: 6px 0 0; padding: 0 0 0 2px; display: grid; gap: 16px; position: relative; }
-.c-trail::before { content: ""; position: absolute; left: 24px; top: 24px; bottom: 24px; border-left: 2.4px dashed #9a968e; }
-.c-mnode { position: relative; display: grid; gap: 4px; }
-.c-mbtn { display: grid; grid-template-columns: 50px 1fr; gap: 10px; align-items: center; padding: 0; text-align: left; font: inherit; color: inherit; background: none; border: 0; }
-button.c-mbtn { cursor: pointer; }
-button.c-mbtn:focus-visible { outline: 2px solid var(--ally); outline-offset: 3px; }
-.c-badge { position: relative; z-index: 1; width: 46px; height: 46px; box-sizing: border-box; display: grid; place-items: center; background: var(--paper); border: 2px solid var(--ink); border-radius: 50%; }
-.c-badge-svg { width: 34px; height: 34px; }
-.c-mnode.done .c-badge { border-color: var(--ally); }
-.c-mnode.done .c-badge::after { content: "✓"; position: absolute; right: -5px; bottom: -5px; width: 19px; height: 19px; border-radius: 50%; background: var(--ally); color: #fff; font: 14px/19px var(--font-hand); text-align: center; }
-.c-mnode.live .c-badge { width: 52px; height: 52px; margin-left: -3px; border: 3px solid var(--ally); box-shadow: 0 0 0 5px rgba(47, 111, 220, 0.18); }
-.c-mnode.later .c-badge { border-style: dashed; border-color: #b5b0a6; opacity: 0.6; }
-.c-mname { font: 700 22px/1.05 var(--font-display); }
-.c-mnode.done .c-mname { color: var(--ally); }
-.c-mnode.later .c-mname { color: #8f8a80; font: 19px/1.05 var(--font-hand); }
-.c-mname small { display: block; margin-top: 2px; font: 16px/1.1 var(--font-hand); color: var(--ink-soft); }
-.c-goal { margin: 0 0 0 60px; padding: 8px 10px; font-size: 17px; line-height: 1.2; background: #f7e58a; transform: rotate(-1deg); box-shadow: 1px 2px 0 var(--card-shadow); }
-.c-then { margin-top: 4px; }
-/* Prep and the squad: bunks four across. */
-.c-bunks.c-four { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-.c-four .c-bunk { min-height: 78px; }
-.c-four .c-bunk b { font-size: 13.5px; }
-.c-four .c-bunk span { font-size: 11.5px; }
-.c-bunk.empty { justify-content: center; color: #8f8a80; border-style: dashed; border-color: #b5b0a6; font-size: 14px; }
-/* Supplies at prep and in the shop: a slip each, with how long it lasts, "new" and the price. */
-.c-gears { display: grid; gap: 6px; }
-.c-gear { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; align-items: center; padding: 5px 10px; text-align: left; font-family: var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 12px 5px 12px 5px; }
-button.c-gear { cursor: pointer; }
-button.c-gear:disabled { opacity: 0.5; cursor: default; }
-.c-gear[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
-.c-gear:focus-visible, .c-buy:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
-.c-gname { font-size: 18px; line-height: 1.1; }
-.c-gdesc { grid-column: 1; font-size: 14px; line-height: 1.15; color: var(--ink-soft); }
-.c-price { grid-row: 1 / 3; grid-column: 2; font: 700 20px/1 var(--font-display); color: #8a6d00; }
-.c-new { display: inline-block; margin-left: 6px; padding: 0 4px; font: 12px/1.35 var(--font-hand); font-style: normal; color: #fff; background: var(--enemy); border-radius: 2px; transform: rotate(-4deg); vertical-align: 2px; }
-.c-lasts { display: inline-block; margin-left: 6px; padding: 0 4px; font: 12px/1.3 var(--font-hand); font-style: normal; color: var(--ink-soft); border: 1px solid currentColor; border-radius: 2px; vertical-align: 2px; }
-.c-gbtns { grid-row: 1 / 3; grid-column: 2; display: flex; align-items: center; gap: 6px; }
-.c-buy { min-width: 52px; min-height: 36px; font: 700 18px/1 var(--font-display); color: #fff; background: var(--ally); border: 2px solid var(--ink); border-radius: 8px 4px 8px 4px; cursor: pointer; }
-.c-buy:disabled { color: var(--ink-soft); background: transparent; border-color: #b5b0a6; cursor: default; }
-/* Promotions on a mission's card: everyone who went out, with his gold chevrons (the next one filling a quarter). */
-.c-promo { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px 10px; }
-.c-promo.c-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.c-promo li { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; }
-.c-promo canvas { width: 24px; height: 52px; }
-.c-pname { min-width: 0; font-size: 17px; line-height: 1.1; }
-.c-pname b { font-weight: 400; }
-.c-pname small { display: block; font-size: 14px; color: var(--ink-soft); }
-.c-promoted { display: inline-block; margin-left: 6px; padding: 0 4px; font: 14px/1.3 var(--font-hand); font-style: normal; color: #8a6d00; border: 2px solid #d4a017; border-radius: 3px; transform: rotate(-3deg); }
-.c-rank { display: block; }
-.c-rank .c-fill { transform-box: fill-box; transform-origin: left center; animation: c-fill 0.7s 0.35s ease-out both; }
-.c-rank .c-newstripe { animation: c-stripe 0.5s 0.7s ease-out both; }
-@keyframes c-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes c-stripe { from { fill: var(--paper); } to { fill: #d4a017; } }
-@media (prefers-reduced-motion: reduce) { .c-rank .c-fill, .c-rank .c-newstripe { animation: none; } }
-/* The pause card's Copy save link (Campaign). */
-.pause-link { align-self: center; }
-.c-gun b { font-weight: 400; display: block; }
-.c-gun small { display: block; font-size: 14px; color: var(--ink-soft); }
-.c-gun[aria-pressed="true"] { border: 3px solid var(--ally); background: #edf2fb; }
-.c-gun:focus-visible { outline: 2px solid var(--ally); outline-offset: 2px; }
-.c-live { position: absolute; left: 62px; right: 16px; top: 72px; font: 700 18px/1.1 var(--font-display); color: var(--enemy); transform: rotate(-1.5deg); }
-.c-bunk.empty { justify-content: center; border: 2px dashed #b5b0a6; color: #8f8a80; font-size: 15px; }
-.c-hires { display: flex; flex-wrap: wrap; gap: 6px; }
-.c-hire { min-height: 38px; padding: 2px 9px; font: 16px var(--font-hand); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px 6px 14px 6px; cursor: pointer; }
-.c-hire:disabled { color: #8f8a80; border-color: #b5b0a6; cursor: default; }
-.c-tags { white-space: nowrap; border: 2px solid #7b8590; border-radius: 9px 9px 14px 14px; padding: 2px 9px; color: #3f4852; background: #e8ecef; font-size: 18px; }
-.c-fallen { margin: 0; padding: 0; list-style: none; display: grid; font-size: 19px; line-height: 1.15; }
-.c-fallen li { padding: 6px 0 7px; border-bottom: 1.5px solid var(--rule); }
-.c-fallen small { display: block; font-size: 15px; color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
 /* Landscape: the page is as tall as the screen allows, and the round buttons stand in the space beside it (a column
    bottom left, full screen bottom right) instead of taking a strip under it. On a phone the page grows about a fifth. */
@@ -614,8 +476,8 @@ button.c-gear:disabled { opacity: 0.5; cursor: default; }
         </svg>
         <div class="t-foot">
           <button class="btn t-start" id="startBtn" type="button">Start</button>
-          <button class="btn t-start t-camp" id="campaignBtn" type="button" hidden><span id="campaignLabel">Campaign</span><span class="t-new" id="campaignNew" hidden>new</span></button>
-          <div class="t-level" role="radiogroup" aria-label="Arcade level">
+          <button class="btn t-start t-chal" id="challengesBtn" type="button" hidden>Challenges</button>
+          <div class="t-level" role="radiogroup" aria-label="Level">
             <button class="t-rank" type="button" role="radio" data-level="soldier" aria-checked="true"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Soldier</span><svg class="t-chev" viewBox="0 0 30 14" aria-hidden="true"><path d="M3 11 L15 4 L27 11"/></svg></button>
             <button class="t-rank" type="button" role="radio" data-level="veteran" aria-checked="false"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Veteran</span><svg class="t-chev" viewBox="0 0 30 22" aria-hidden="true"><path d="M3 9 L15 2 L27 9 M3 14.5 L15 7.5 L27 14.5 M3 20 L15 13 L27 20"/></svg><span class="t-new" id="vetNew" hidden>new</span></button>
           </div>
@@ -645,7 +507,6 @@ button.c-gear:disabled { opacity: 0.5; cursor: default; }
           <h2>Paused</h2>
           <p class="tag" id="pauseTime"></p>
           <p class="tag pause-goal" id="pauseGoal" hidden></p>
-          <button class="c-link pause-link" id="pauseLink" type="button" hidden>Copy save link</button>
           <div class="kit" id="pauseKit" aria-label="Your kit" hidden></div>
           <canvas class="squad-row" id="pauseSquadRow" width="216" height="104" aria-hidden="true" hidden></canvas>
           <p class="squad-line" id="pauseSquad" hidden></p>
@@ -744,21 +605,19 @@ button.c-gear:disabled { opacity: 0.5; cursor: default; }
 <script src="../assets/stats.js?v=8e92b66a9a"></script>
 <script src="../assets/leaderboard.js?v=e752579884"></script>
 <script src="audio.js?v=9f03c91bfb"></script>
-<script src="icons.js?v=5affe866b7"></script>
-<script src="draw.js?v=d3100cef7a"></script>
-<script src="units.js?v=3c42caa6d3"></script>
-<script src="sky.js?v=03e296f355"></script>
-<script src="squad.js?v=d6cf414a23"></script>
+<script src="icons.js?v=9a7c1a9955"></script>
+<script src="draw.js?v=b656604518"></script>
+<script src="units.js?v=e712c24a25"></script>
+<script src="sky.js?v=4ef8f4020b"></script>
+<script src="squad.js?v=2d21997978"></script>
 <script src="dreadnought.js?v=2250d8ef77"></script>
 <script src="board.js?v=1084286549"></script>
-<script src="shop.js?v=4feb85f42c"></script>
-<script src="shop-screen.js?v=364333a172"></script>
-<script src="flow.js?v=b71b35f66c"></script>
-<script src="save.js?v=c147602002"></script>
-<script src="campaign.js?v=cfaa185c36"></script>
-<script src="campaign-screens.js?v=4c53a756d3"></script>
+<script src="shop.js?v=31e7abd75b"></script>
+<script src="shop-screen.js?v=cb17a42a29"></script>
+<script src="flow.js?v=d092260fc1"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
 <script src="coop.js?v=224dde6a0c"></script>
-<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=1391e0362c"></script>
+<script src="challenges.js?v=1e61415028"></script>
+<script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=a0ce65ca80"></script>
 </body>
 </html>

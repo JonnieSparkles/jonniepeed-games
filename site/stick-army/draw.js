@@ -157,7 +157,7 @@ var StickArmyDraw = function (world) {
     G.quadraticCurveTo(x, base - 5 * s, x - w / 3, base);
     G.quadraticCurveTo(x - w * 0.66, base - 5 * s, x - w, base);
     G.closePath();
-    // Campaign's downed pilot (t.pilot) comes down under one of ours: blue.
+    // A downed pilot (t.pilot, Challenges) comes down under one of ours: blue.
     var c = t.pilot ? BLUE : RED;
     G.fillStyle = t.pilot ? 'rgba(47,111,220,0.16)' : RED_FILL; G.fill(); ink(c, 2.2); G.stroke();
     G.beginPath(); L(x - w / 3, base, x, top + 4 * s, 0.5); L(x + w / 3, base, x, top + 4 * s, 0.5); ink(c, 1.3); G.stroke();
@@ -175,42 +175,20 @@ var StickArmyDraw = function (world) {
     else if (t.state === 'free' || t.state === 'bounce') { s = Math.sin(S.t * 22 + t.id); pose = [-11, 1 + s * 4, 11, 1 - s * 4, -7 + s * 3, 32, 7 + s * 3, 31]; }
     else if (t.attacking || t.atWall) { s = Math.max(0, Math.sin(S.t * 13 + t.id)); pose = [t.dir * (6 + 7 * s), 8, t.dir * 5, 17, -5, 33, 6, 33]; }
     else { s = Math.sin(t.walk); pose = [-s * 5, 19, s * 5, 19, s * 6, 33, -s * 6, 33]; }
-    // Campaign's straw dummy (t.dummy): straw-yellow, straw at the hands and stitched X eyes, no gun.
-    if (t.dummy) { stick(x, y, pose, world.STRAW); strawMan(x, y, pose); G.restore(); return; }
-    // Campaign's downed pilot: blue, in a flying helmet, no gun.
-    if (t.pilot) { stick(x, y, pose, BLUE); G.beginPath(); G.arc(x, y - 6, 6.5, Math.PI * 1.05, Math.PI * 1.95); ink(INK, 2.4); G.stroke(); G.restore(); return; }
     if (t.type === 'bazooka') tube(x - 10, y + 20, x + 9, y + 4);
     stick(x, y, pose, RED);
     if (t.type === 'rifle') { G.beginPath(); L(x - 7, y + 17, x + 7, y + 8, 0.4); ink(INK, 2); G.stroke(); }
     if (t.gunner && t.flash > 0) { G.beginPath(); G.arc(x + 8, y + 8, 4, 0, Math.PI * 2); G.fillStyle = 'rgba(255,214,38,0.95)'; G.fill(); }
     if (t.armor > 0) vest(x, y, S.t - t.pingT < 0.12);
-    if (t.captain || t.officer) captainCap(x, y, t.state === 'ground' ? t.dir : 1);
+    // A downed pilot: blue, in a flying helmet, no gun.
+    if (t.pilot) { stick(x, y, pose, BLUE); G.beginPath(); G.arc(x, y - 6, 6.5, Math.PI * 1.05, Math.PI * 1.95); ink(INK, 2.4); G.stroke(); G.restore(); return; }
+    if (t.captain) captainCap(x, y, t.state === 'ground' ? t.dir : 1);
     else if (t.type === 'engineer') hat(x, y);
     else if (t.armor > 1) steelPot(x, y);
     if (t.type === 'sniper') { drawScope(x, y, t.state === 'ground' ? t.dir : 1);
       if (t.state === 'ground' && t.shotCD < 0.8 && S.recruits.some(standing)) { G.save(); G.globalAlpha = 0.28; G.setLineDash([3, 5]); G.beginPath(); L(x + t.dir * 16, y + 11, x + t.dir * 160, y + 11); ink(RED, 1); G.stroke(); G.restore(); }
     }
     G.restore();
-  }
-  function strawMan(x, y, pose) { var G = world.G;
-    G.beginPath();
-    for (var k = 0; k < 2; k++) { var hx = x + pose[k * 2], hy = y + pose[k * 2 + 1]; L(hx, hy, hx - 3, hy + 4, 0.2); L(hx, hy, hx + 3, hy + 4, 0.2); L(hx, hy, hx, hy + 5, 0.2); }
-    ink(world.STRAW, 1.6); G.stroke();
-    G.beginPath(); L(x - 4, y - 2, x - 1, y + 1, 0.1); L(x - 1, y - 2, x - 4, y + 1, 0.1); L(x + 1, y - 2, x + 4, y + 1, 0.1); L(x + 4, y - 2, x + 1, y + 1, 0.1); ink(INK, 1.3); G.stroke();
-  }
-  // Campaign's radio operator: a pack on his back with its whip antenna.
-  function radioPack(x, y, side) { var G = world.G;
-    G.fillStyle = INK; G.fillRect(x - side * 7 - 3, y + 10, 6, 8);
-    G.beginPath(); L(x - side * 7, y + 10, x - side * 10, y - 8, 0.2); ink(INK, 1.4); G.stroke();
-    G.beginPath(); G.arc(x - side * 10, y - 9, 1.6, 0, Math.PI * 2); G.fillStyle = RED; G.fill();
-  }
-  // Campaign's machine gunner: a heavy gun on a little tripod at his side, and a heat ring over him while it's hot.
-  function mgTripod(x, y, ca, sa, r) { var G = world.G;
-    var gx = x + 8, gy = y + 20;
-    G.beginPath(); L(gx, gy, gx - 5, y + 33, 0.2); L(gx, gy, gx + 5, y + 33, 0.2); L(gx, gy, gx, y + 33, 0.2); ink(INK, 1.6); G.stroke();
-    G.beginPath(); L(gx - 4, gy, gx + 18 * ca, gy + 18 * sa, 0.2); ink(INK, 3.6); G.stroke();
-    G.fillStyle = INK; G.fillRect(gx - 4, gy - 3, 7, 6);
-    if (r && (r.heat > 0.15 || r.rest > 0)) { var h = r.rest > 0 ? 1 : r.heat; G.beginPath(); G.arc(x, y - 12, 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * h); ink(h > 0.8 ? RED : HAT, 2); G.stroke(); }
   }
   // A wounded recruit lies on the ground, away from the bunker, under a pulsing red cross.
   function drawDowned(r) { var S = world.S, G = world.G;
@@ -246,9 +224,7 @@ var StickArmyDraw = function (world) {
     if (r.type === 'bazooka') { if (aiming) tube(x - ca * 9, y + 8 - sa * 9, x + ca * 16, y + 8 + sa * 16); else tube(x - 9, y + 19, x + 8, y + 5); }
     stick(x, y, pose, col);
     if (saluting) { G.beginPath(); L(x + side * 10, y + 6, x + side * 6, y - 4, 0.2); L(x + side * 6, y - 4, x + side * 1, y - 5, 0.2); ink(col, 2.4); G.stroke(); }
-    if (r.type === 'radio') radioPack(x, y, side);
-    if (r.type === 'mg') mgTripod(x, y, ca, sa, r);
-    if (r.type === 'rifle' || r.type === 'radio') {
+    if (r.type === 'rifle') {
       G.beginPath();
       if (aiming) L(x + ca * 4, y + 9.5 + sa * 4, x + ca * 20, y + 9.5 + sa * 20, 0.3);
       else if (saluting) L(x - side * 6, y + 4, x - side * 6, y + 28, 0.2);
@@ -387,7 +363,6 @@ var StickArmyDraw = function (world) {
   // Two barrels (co-op) each wear their player's color as a band behind the muzzle: the host blue, the guest green.
   var GUN_COLORS = [BLUE, GREEN];
   function drawBarrel(t) { var S = world.S, G = world.G;
-    if (t.heavy) { drawHeavyBarrel(t); return; }
     var len = 31 - t.recoil * 6, hot = clamp((t.heat - 0.35) / 0.65, 0, 1);
     if (t.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
     G.save(); G.translate(t.x, TUR.y); G.rotate(t.aim);
@@ -395,17 +370,6 @@ var StickArmyDraw = function (world) {
     if (hot > 0) { G.globalAlpha = 0.45 * hot; G.fillStyle = RED; G.fillRect(2, -4, len - 2, 8); G.globalAlpha = 1; }
     if (S.turrets.length > 1) { G.fillStyle = GUN_COLORS[t.gun] || INK; G.fillRect(len - 11, -4, 5, 8); }
     G.beginPath(); L(2, -4, len, -4, 0.4); L(2, 4, len, 4, 0.4); L(len, -4.5, len, 4.5, 0.3); ink(hot > 0.7 ? RED : INK, 2.4); G.stroke();
-    G.restore();
-  }
-  // Campaign's heavy gun: a short, fat barrel with a muzzle brake (two bars across the end).
-  function drawHeavyBarrel(t) { var S = world.S, G = world.G;
-    var len = 26 - t.recoil * 8, hot = clamp((t.heat - 0.35) / 0.65, 0, 1);
-    if (t.overheat > 0) hot = Math.floor(S.t * 8) % 2 ? 1 : 0.6;
-    G.save(); G.translate(t.x, TUR.y); G.rotate(t.aim);
-    G.fillStyle = PAPER; G.fillRect(2, -6.5, len - 2, 13);
-    if (hot > 0) { G.globalAlpha = 0.45 * hot; G.fillStyle = RED; G.fillRect(2, -6.5, len - 2, 13); G.globalAlpha = 1; }
-    G.beginPath(); L(2, -6.5, len, -6.5, 0.4); L(2, 6.5, len, 6.5, 0.4); ink(hot > 0.7 ? RED : INK, 2.6); G.stroke();
-    G.beginPath(); L(len - 6, -9.5, len - 6, 9.5, 0.3); L(len, -9.5, len, 9.5, 0.3); ink(hot > 0.7 ? RED : INK, 3.4); G.stroke();
     G.restore();
   }
   // A thin gauge arcing over the dome: fills left to right as the gun heats, blinks red when locked. With two barrels,
@@ -512,7 +476,6 @@ var StickArmyDraw = function (world) {
       var sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
       G.beginPath();
       if (b.kind === 'rocket') { G.moveTo(b.x - ux * 9, b.y - uy * 9); G.lineTo(b.x, b.y); ink(INK, 6); G.stroke(); ink(BLUE, 3); G.stroke(); }
-      else if (b.heavy) { G.arc(b.x, b.y, 4, 0, Math.PI * 2); G.fillStyle = INK; G.fill(); }
       else if (b.tracer) { G.moveTo(b.x - ux * 20, b.y - uy * 20); G.lineTo(b.x, b.y); ink('#d99a00', 3); G.stroke(); ink(HAT, 1.4); G.stroke(); }
       else { G.moveTo(b.x - ux * 7, b.y - uy * 7); G.lineTo(b.x, b.y); ink(b.owner === 'ally' ? BLUE : INK, 2.6); G.stroke(); }
     });
@@ -639,8 +602,6 @@ var StickArmyDraw = function (world) {
       if (r.type === 'sniper') { G.beginPath(); SP([-7, -4, -3, -10, 7, -7, 6, -3], true, 0.3); G.fillStyle = hud.INK; G.fill(); }
       if (r.type === 'engineer') hat(0, 0);
       if (r.type === 'medic') world.medicHelmet(0, 0);
-      if (r.type === 'radio') radioPack(0, 0, 1);
-      if (r.type === 'mg') mgTripod(0, 0, 1, -0.3, null);
       if (state) { G.beginPath(); L(-5.5, -2, 5.5, 1, 0.2); ink(INK, 4.4); G.stroke(); ink(PAPER, 2.4); G.stroke(); }
       chevrons(-8, 9, r.rank || 0);
       G.restore();
@@ -721,7 +682,7 @@ var StickArmyDraw = function (world) {
       }
       // A long score shrinks to stop short of the wave label (round 14: six digits ran into "wave 10").
       var sc = S.score.toLocaleString('en-US');
-      // A kind of run can name its own wave and the line under it (game.js MODES hud; Campaign's goal).
+      // A kind of run can name its own wave and the line under it (game.js MODES hud; a challenge's name and goal).
       var own = world.rules().hud ? world.rules().hud() : null, waveLabel = own ? own.wave : 'wave ' + Math.max(1, S.wave);
       G.font = '26px ' + HAND; var room = 200 - G.measureText(waveLabel).width / 2 - HUD_GAP - 58;
       G.font = '34px ' + HAND; var sw = G.measureText(sc).width;
@@ -788,13 +749,13 @@ var StickArmyDraw = function (world) {
     if (a <= 0) return;
     G.save(); G.globalAlpha = a; G.textAlign = 'center';
     G.font = '700 ' + (b.s.length > 8 ? 46 : 56) + 'px ' + DISPLAY;
-    // A long title (Campaign's mission names) shrinks to fit the page.
+    // A long title (a challenge's name) shrinks to fit the page.
     var tw = G.measureText(b.s).width; if (tw > BANNER_W) G.font = '700 ' + Math.floor(46 * BANNER_W / tw) + 'px ' + DISPLAY;
     G.lineWidth = 6; G.lineJoin = 'round'; G.strokeStyle = PAPER; G.strokeText(b.s, 200, 300);
     G.fillStyle = INK; G.fillText(b.s, 200, 300);
     pen(31337); G.beginPath(); SP([120, 316, 160, 320, 200, 314, 240, 320, 280, 315], false, 0.8); ink(BLUE, 3); G.stroke();
     if (b.sub) {
-      // A sub line wider than the page (Campaign's mission goals) wraps onto more lines under it.
+      // A sub line wider than the page (a challenge's goal) wraps onto more lines under it.
       G.font = '24px ' + HAND; G.strokeStyle = PAPER; G.lineWidth = 4; G.fillStyle = BLUE;
       bannerLines(G, b.sub).forEach(function (line, i) { G.strokeText(line, 200, 348 + i * 28); G.fillText(line, 200, 348 + i * 28); });
     }
