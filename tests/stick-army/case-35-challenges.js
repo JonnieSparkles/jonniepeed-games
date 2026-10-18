@@ -2,12 +2,19 @@
 // end card, a failed one, and Arcade untouched afterwards.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
-  var KEY = 'stickarmy.challenges', kept = localStorage.getItem(KEY);
+  var KEY = 'stickarmy.challenges', ON = 'stickarmy.challenges.on', kept = localStorage.getItem(KEY), keptOn = localStorage.getItem(ON);
   localStorage.removeItem(KEY);
   try {
     var L = CHALLENGES.LIST;
     check(L.length === 8 && L.every(function (x) { return x.stars.length === 3; }), 'eight challenges, three stars each');
     check(CHALLENGES.stars() === 0, 'no stars on a fresh device');
+
+    // Hidden until unlocked on the device (#challenges): Start alone, as before.
+    localStorage.removeItem(ON); titleScene();
+    var cbtn = document.getElementById('challengesBtn'), sbtn = document.getElementById('startBtn');
+    check(cbtn.hidden && sbtn.textContent === 'Start' && !sbtn.parentNode.classList.contains('t-two') && !CHALLENGES.unlocked(), 'hidden until unlocked');
+    localStorage.setItem(ON, 'true'); titleScene();
+    check(!cbtn.hidden && sbtn.textContent === 'Arcade' && sbtn.parentNode.classList.contains('t-two'), 'unlocked: Arcade beside Challenges');
 
     // The list: over the title, the hard ones locked until enough stars.
     titleScene();
@@ -66,6 +73,7 @@
     check(S.game === 'arcade' && !S.ch && rules() === MODES.arcade, 'Arcade afterwards');
   } finally {
     if (kept == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, kept);
+    if (keptOn == null) localStorage.removeItem(ON); else localStorage.setItem(ON, keptOn);
   }
   titleScene();
   return 'ok';

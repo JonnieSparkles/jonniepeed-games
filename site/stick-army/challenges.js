@@ -456,6 +456,25 @@ var StickArmyChallenges = function (world, game) {
     if (b.dataset.id && !b.disabled) start(b.dataset.id);
   });
   document.getElementById('challengesBtn').addEventListener('click', function () { world.sound.init(); showPage(); });
+  // Hidden for now: the title shows Start alone until stick-army/#challenges is opened on the device, which unlocks
+  // it from then on; #challenges=off hides it again (UNLOCK). The token leaves the address at once.
+  var UNLOCK = 'stickarmy.challenges.on';
+  (function takeLink() {
+    var tokens = game.hashTokens(), ours = /^challenges(=off)?$/;
+    if (!tokens.some(function (x) { return ours.test(x); })) return;
+    if (tokens.indexOf('challenges') >= 0) save(UNLOCK, true);
+    if (tokens.indexOf('challenges=off') >= 0) { try { localStorage.removeItem(UNLOCK); } catch (e) { /* ignore */ } }
+    var rest = tokens.filter(function (x) { return x && !ours.test(x); }).join('&');
+    try { history.replaceState(null, '', location.pathname + location.search + (rest ? '#' + rest : '')); } catch (e) { /* ignore */ }
+  })();
+  function unlocked() { return !!load(UNLOCK, false); }
+  // Unlocked, Start reads Arcade beside Challenges, the level on a line under both (.t-two).
+  function showButtons() {
+    var on = unlocked(), btn = document.getElementById('challengesBtn'), startBtn = document.getElementById('startBtn');
+    btn.hidden = !on; startBtn.textContent = on ? 'Arcade' : 'Start';
+    startBtn.parentNode.classList.toggle('t-two', on);
+  }
+  showButtons();
   // The list is over the title, so the title's keys (Enter starts Arcade) stay off while it's open; Escape closes it.
   window.addEventListener('keydown', function (e) {
     if (!page.hidden) {
@@ -463,7 +482,7 @@ var StickArmyChallenges = function (world, game) {
       else if (!(document.activeElement && page.contains(document.activeElement))) e.stopImmediatePropagation();
     } else if (!card.hidden && e.key !== 'Tab' && !(document.activeElement && card.contains(document.activeElement))) e.stopImmediatePropagation();
   }, true);
-  world.onTitle = function () { hideCard(); };
+  world.onTitle = function () { hideCard(); showButtons(); };
 
   function hideCard() { card.hidden = true; }
   var CAUSE = { goal: 'The wave ended before the goal was met.', wall: 'The wall came down.' };
@@ -496,5 +515,5 @@ var StickArmyChallenges = function (world, game) {
     card.querySelector('#chList').addEventListener('click', function () { hideCard(); game.titleScene(); showPage(); });
   }
 
-  return { LIST: LIST, start: start, stars: totalStars, records: records, show: showPage, PILOT: PILOT, BIG: BIG, STAND: STAND, cur: function () { return cur; }, state: C };
+  return { unlocked: unlocked, LIST: LIST, start: start, stars: totalStars, records: records, show: showPage, PILOT: PILOT, BIG: BIG, STAND: STAND, cur: function () { return cur; }, state: C };
 };
