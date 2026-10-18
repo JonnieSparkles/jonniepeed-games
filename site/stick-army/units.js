@@ -132,7 +132,7 @@ var StickArmyUnits = function (w) {
     p.smoke -= dt;
     if (p.smoke <= 0) { p.smoke = 0.07; puff(p.x + rr(-0.6, 0.6) * p.hw, p.y - p.hh * 0.6, rr(3, 6), 0.9); }
     S.troopers.forEach(function (t) {
-      if (t.dead || t.prize || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
+      if (t.dead || t.prize || t.pilot || t.zep === p.id || (t.state !== 'chute' && t.state !== 'free')) return;
       if (Math.abs(t.x - p.x) < p.hw && Math.abs(t.y + 10 - p.y) < p.hh + 8) { t.dead = true; killFx(t); S.stats.kills++; emit('kill', { by: 'crash', type: t.type }); award(10, t.x, t.y, 'bonk!', INK, true); }
     });
     if (p.y + p.hh * 0.5 >= GROUND - 8) {
@@ -726,14 +726,20 @@ var StickArmyUnits = function (w) {
       fighterBody(f, q, G);
     });
   }
-  function fighterBody(f, q, G) {
-    var tilt = f.dive > 0 ? f.dive / FIGHTER.DIVE * 0.5 : 0, at = wingAt(f, q);
-    pen(f.id + q.dx); G.save(); G.translate(at.x, at.y); G.rotate(f.dir * tilt); G.scale(-f.dir * 0.72, 0.72);
+  // One of ours in the air (the fighter's wing, Campaign's planes in Downed pilot): leaves G translated, rotated and
+  // scaled to it, for the caller to draw on and restore.
+  function allyBody(G, id, x, y, dir, tilt) {
+    pen(id); G.save(); G.translate(x, y); G.rotate(dir * tilt); G.scale(-dir * 0.72, 0.72);
     G.beginPath(); SP(FIGHTER_PTS, true, 0.5); G.fillStyle = PAPER; G.fill(); G.fillStyle = 'rgba(47,111,220,0.16)'; G.fill(); ink(INK, 3); G.stroke();
     G.beginPath(); L(-10, 2, 12, 3); ink(INK, 3.6); G.stroke();
     G.beginPath(); G.arc(12, -2, 4, 0, Math.PI * 2); G.fillStyle = BLUE; G.fill();
     G.beginPath(); G.arc(12, -2, 1.6, 0, Math.PI * 2); G.fillStyle = PAPER; G.fill();
     var pl = w.boil % 2 ? 10 : 5; G.beginPath(); L(-38, -pl, -38, pl, 0.4); ink(INK, 2.6); G.stroke();
+  }
+  function drawAllyPlane(id, x, y, dir, tilt) { allyBody(w.G, id, x, y, dir, tilt || 0); w.G.restore(); }
+  function fighterBody(f, q, G) {
+    var tilt = f.dive > 0 ? f.dive / FIGHTER.DIVE * 0.5 : 0, at = wingAt(f, q);
+    allyBody(G, f.id + q.dx, at.x, at.y, f.dir, tilt);
     if (q.flash > 0) {
       // A big muzzle flash at both wing guns.
       G.beginPath(); L(-42, -1, -62, -1, 0.3); L(-42, 2, -58, 8, 0.3); L(-42, -3, -58, -9, 0.3); L(-24, 6, -40, 7, 0.3);
@@ -785,6 +791,6 @@ var StickArmyUnits = function (w) {
     TANK: TANK, tankHP: tankHP, cargoHP: cargoHP, spawnCargo: spawnCargo, updateCargo: updateCargo, spawnRoadTank: spawnRoadTank, tankHit: tankHit, damageTank: damageTank, updateTanks: updateTanks,
     blastTanks: blastTanks, drawTank: drawTank,
     RADIO: RADIO, callsHeld: callsHeld, grantCall: grantCall, STRIKE: STRIKE, callStrike: callStrike, updateStrike: updateStrike, drawStrike: drawStrike,
-    FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, updateRadio: updateRadio, drawRadio: drawRadio,
+    FIGHTER: FIGHTER, callFighter: callFighter, updateFighter: updateFighter, drawFighter: drawFighter, drawAllyPlane: drawAllyPlane, updateRadio: updateRadio, drawRadio: drawRadio,
     updateDelivery: updateDelivery, drawCourier: drawCourier };
 };

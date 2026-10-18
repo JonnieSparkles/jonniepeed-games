@@ -2,7 +2,7 @@
 
 A second way to play beside Arcade: a tour of ten operations with one squad you keep, and can lose. Each operation is a few short missions, each with its own goal, on its own paper. Operations ship one at a time as release packs.
 
-Status: planned (Oct 15–16). Round 1, the frame and Boot Camp, built Oct 16; round 2, Recruitment Drive, built Oct 16; round 3, Balloon Season, built Oct 16; round 4, First Zeppelin, built Oct 17; then, after a playtest, Boot Camp and Recruitment Drive reworked with set-piece missions and the shop made to build up with a requisition tree (Oct 17) (the game as it is now is in [README.md](README.md#campaign)). Playtests are next. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
+Status: planned (Oct 15–16). Round 1, the frame and Boot Camp, built Oct 16; round 2, Recruitment Drive, built Oct 16; round 3, Balloon Season, built Oct 16; round 4, First Zeppelin, built Oct 17; then, after a playtest, Boot Camp and Recruitment Drive reworked with set-piece missions and the shop made to build up with a requisition tree (Oct 17); Balloon Season and First Zeppelin reworked the same way (Oct 17); after the next playtest, Boot Camp's first two missions reworked (First contact with no trampoline, Downed pilot a dogfight whose pilots join the squad) and the shop's gating fixed for older tours (Oct 17); the flow between waves, missions and operations is to be redesigned next (see below) (the game as it is now is in [README.md](README.md#campaign)). Playtests are next. It's built in rounds, one operation a round, and each operation ships when it has been playtested. Only the next round is planned in detail; later operations are sketches, decided in their own round. Builds on [Arcade](arcade.md) and on the "make room for Campaign" pull request (#135: `game.js` split into `draw.js` and `flow.js`, `save.js`, the paper table `PAPERS`, the run hooks `MODES`). The game as it is now is in [README.md](README.md).
 
 ## Why
 
@@ -16,7 +16,7 @@ Arcade is a 20-wave run of about 15 minutes, chasing a score on the board. Campa
 
 - **Campaign** is the mode. A **tour** is one playthrough.
 - An **operation** is one of the named chapters (Boot Camp, Recruitment Drive…). It has its paper, briefing and gold star; it's what you choose at a fork, and one operation is one release pack.
-- A **mission** is one play with one goal: catch 6, keep the wall above half, get the Red Cross planes across, down the zeppelin. An operation has 2–4 missions, drawn from its pool.
+- A **mission** is one play with one goal: catch 6, keep the wall above half, get the Red Cross planes across, down the zeppelin. An operation has 3–4 missions, in a fixed order.
 - A **wave** is as in Arcade, only in missions that use waves. A mission can also be a timed hold, a convoy run or a boss fight.
 - **Arcade** is the base mode (renamed from "campaign" on Oct 16), and it doesn't change.
 
@@ -44,7 +44,7 @@ What lives where:
 | Mission | the goal, its waves if any, retry on a loss, a save at its start |
 | Wave | the shop between waves, as in Arcade |
 
-- **Missions come from a pool.** Each operation has 4–5 possible missions and a tour draws 2–4 of them; an operation can fix its first or last one (a teaching mission, a boss). A tour is roughly 30 missions of 2–4 minutes.
+- **Missions are fixed** (since the round-4 playtest, Oct 17; first planned as a draw from a pool): each operation has 3–4 missions in order, each with its own set piece, a boss last where there is one. Tours differ by their code (weather, intel, names) and the choices made. A tour is roughly 30 missions of 2–4 minutes.
 - **Losing a mission:** retry it from its start, with the squad and gear it started with, except that anyone who died stays dead. The lost-mission card says what went wrong and who fell, with Retry.
 - **The squad wiped out** ends the tour. A new tour keeps the gold stars and what they unlocked; the squad, route and rewards start over with rookies.
 - **One tour per device.**
@@ -56,7 +56,7 @@ What lives where:
 - **Mission pools** (above).
 - **Weather,** rolled for each operation and shown on its briefing: Clear, Wind (chutes drift), Rain (the gun cools faster, chutes fall faster), Fog (the high sky is hidden), Dusk (half dark). Boot Camp is always Clear; Night Raid never rolls Dusk.
 - **Intel,** from the second operation: one intercepted surprise per operation, named on the briefing so it's fair ("intercepted: tanks by road in the last mission"), drawn only from threats already met on this route.
-- **Rewards:** after each operation, pick 1 of 3 from a pool: a role, a lasting supply for the tour, a veteran recruit, a gun for the armory, a medal (+1 stripe for one soldier). This is the main reason two tours end with different armies.
+- **Rewards:** after each operation, a step on the requisition tree (since round 5; first planned as 1 of 3 from a pool), and with the gold star a bonus: another step, a veteran recruit or a medal (+1 stripe for one soldier). Guns come from the operations (the armory). The tree is the main reason two tours end with different armies.
 - **Gold stars:** one per operation, for its bonus goal; 13 in all, but a tour passes 10, so the rest are on the forks not taken. Never spent; they unlock things for later tours: at 3, every tour starts with a medic; at 6, the wire launcher is in the armory from the start; at 9, harder tours (intel every mission, Veteran's prices); at 12, a gold star on the logo.
 - **The tour code.** Every tour has a short code (like `K7Q-MR2`) that sets its rolls: the missions drawn, weather, intel, reward offers and soldiers' names. It shows on the map; entering a friend's code plays the same tour, though how it goes is down to you.
 
@@ -69,6 +69,11 @@ What lives where:
   3. **The map:** the notebook page, where you choose at a fork.
   4. **Briefing:** a post-it with the operation's paper, weather, intel and bonus goal.
   5. **Deploy:** who goes (and which gun, once there's more than one).
+- **Redesign (Oct 17 playtest, to build):** the map is the hub and the results card loses its links (Shop, Swap, Barracks, Copy save link, Map).
+  - Between waves: no shop, a quick pick from 3–4 offers suited to the last wave and the squad.
+  - Between missions: the results card with one Go, then the map zoomed into the operation (done missions read-only, only the next one live), then a prep screen (the squad and a few affordable items), then Start. Forward only, no replays.
+  - Between operations: the map zoomed out, with the full shop, the tree and **Squad** (Swap and Barracks merged).
+  - Copy save link moves to the pause card. New shop items get a "new" tag. Only soldiers who deployed are promoted, shown on the results card.
 - **The map** is the tour on one notebook page: released operations inked, the rest pencilled with "coming soon", Enemy HQ's flag moving ahead of you.
 
 ### The squad
@@ -215,7 +220,7 @@ Which branch comes first at each fork is decided in its round.
 ## Checks, every round
 
 - **Arcade unchanged:** the Stick Army harness passes; seeded bot runs in solo, co-op and Veteran match `main` run for run; screenshots of Arcade's play, shop, night raid and victory card match `main` (the title is compared apart, since it gains the Campaign button in round 1). The screenshot script from #135 goes into `tests/stick-army/` in round 1.
-- **Campaign's own cases:** a tour from start through a won and a lost mission (deaths standing after a retry), the tour save and wave save restored, the save link round trip, and a saved tour from every earlier release still loading.
+- **Campaign's own cases:** a tour from start through a won and a lost mission (deaths standing after a retry), the tour save and wave save restored, the save link round trip, and a save or link this build can't read dropped. No old saves are kept working until the game is released (Oct 18).
 - **The balance bots** can play a Campaign mission (`--option game=campaign`), to check each new mission is winnable and not trivial.
 - **The new screens** at phone portrait, short landscape and notebook sizes, with full screen, as the Standards ask; then a playtest on a phone.
 - `python3 tools/stamp.py` last; README updated in the same change; a line in history.md when there's a reason worth keeping.

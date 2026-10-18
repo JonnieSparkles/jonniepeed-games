@@ -94,10 +94,9 @@ CAMPAIGN = {
     'briefing': CAMP + 'c.screens.map(); c.screens.briefing();',
     'mission': CAMP + STEP + 't.m = 1; c.startMission(); step(7);',
     'between': mission('between') + 'c.screens.between();',
-    'lost': mission('lost') + "t.last = { won: false, mission: 'Fill the ranks', cause: 'Five planes got across.', fell: [16] }; c.screens.lost();",
+    'lost': mission('lost') + "t.last = { won: false, mission: 'Downed pilot', cause: 'Two pilots were lost.', fell: [16] }; c.screens.lost();",
     'debrief': CAMP + "t.squad.forEach(function (s) { s.stripes++; }); c.nameAll(t); t.at = 'debrief'; t.debrief = { op: 0, star: false, promoted: t.squad.map(function (s) { return { id: s.id, named: s.stripes === 1 }; }),"
-               " offers: [{ kind: 'veteran', type: 'medic', name: 'Veteran medic', text: 'A medic with one stripe joins.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' },"
-               " { kind: 'supply', id: 'helmets', name: 'Helmets for the tour', text: 'Every soldier +1 health, every operation.' }] }; c.screens.debrief();",
+               " picks: 1, bonus: null }; c.screens.debrief();",
     'barracks': CAMP + "t.at = 'barracks'; c.screens.barracks();",
     'fallen': CAMP + "t.at = 'barracks'; c.screens.barracks(); c.screens.fallen();",
     'end': CAMP + "t.at = 'end'; t.stars['boot-camp'] = true; c.screens.end();",
@@ -114,18 +113,27 @@ CAMPAIGN = {
     'bs-map': BS + "c.screens.map();",
     'bs-briefing': BS + "c.screens.map(); c.screens.briefing();",
     'barrage': BS + STEP + "c.startMission(); step(4); var l = spawnTrooper(330, 420, { type: 'rifle', fall: 1, sway: 0, armor: 0 }); l.open = 1; step(0.6);",
-    # The set pieces and the requisition tree (round 5): Downed pilot with a blue chute coming over the mat, Hold the
+    # The set pieces and the requisition tree (round 5): First contact with no mat, Downed pilot's smoking blue plane
+    # with a fighter on its tail and the fighter firing at its pilot coming over the mat, Hold the
     # radio's mast with a lander at it, The officer jumping, HQ's supply plane in Supply drop, and the debrief's tree
     # after Boot Camp with the gold star.
     'banner': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(1);",
     'end-tour': CAMP + "c.screens.map(); document.querySelector('[data-act=new]').click();",
-    'pilot': CAMP + STEP + "t.tree = []; t.m = 1; c.write(); c.startMission(); step(9);",
+    'first-contact': CAMP + STEP + "t.tree = []; t.m = 0; t.squad = []; c.write(); c.startMission(); step(6);",
+    'chase': CAMP + STEP + "t.tree = []; t.m = 1; t.squad = []; c.write(); c.startMission(); step(6);",
+    'pilot': CAMP + STEP + "t.tree = []; t.m = 1; t.squad = []; c.write(); c.startMission(); step(11.5);",
     'radio': CAMP + STEP + "t.tree = []; t.m = 2; c.write(); c.startMission(); step(14);",
     'officer': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'the-officer'; c.write(); c.startMission(); step(8);",
     'supply': RD + STEP + "t.tree = ['sandbags']; t.missions[0] = 'supply-drop'; c.write(); c.startMission(); for (var i = 0; i < 60 * 40 && !S.hq.length; i++) update(1 / 60); step(1.2);",
     'tree': CAMP + "t.tree = ['double']; t.at = 'debrief'; t.debrief = { op: 0, star: true, promoted: t.squad.map(function (s) { return { id: s.id, named: false }; }), picks: 1,"
             " bonus: [{ kind: 'pick', name: 'Another requisition', text: 'One more step on the tree.' }, { kind: 'medal', id: 11, name: 'Medal', text: '+1 stripe for your top gun.' }] }; c.write(); c.screens.debrief();"
             " document.querySelectorAll('#cDebriefBody .c-node.next')[1].click();",
+    # Balloon Season's and First Zeppelin's set pieces (round 6).
+    'spotter': BS + STEP + "t.tree = []; t.missions[0] = 'spotter-balloon'; c.write(); c.startMission(); step(6.5);",
+    'bigone': BS + STEP + "t.tree = []; t.missions[0] = 'the-big-one'; c.write(); c.startMission(); step(16);",
+    'bay': FZ + STEP + "t.tree = []; t.missions[0] = 'bay-doors'; c.write(); c.startMission(); var z = zepIn(); z.bombT = 2.4; step(0.1);",
+    'recon': FZ + STEP + "t.tree = []; t.missions[0] = 'recon-run'; c.write(); c.startMission(); step(7);",
+    'stand': FZ + STEP + "t.tree = []; t.missions[0] = 'last-stand'; c.write(); c.startMission(); step(6);",
     # First Zeppelin (round 4): the briefing (the armory line), the deploy screen's gun row, the heavy gun firing at a
     # zeppelin, the armored boss, and its crew bailing out.
     'fz-briefing': FZ + "c.screens.map(); c.screens.briefing();",

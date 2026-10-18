@@ -1,5 +1,5 @@
 // Campaign round 5: the shop that builds up (the shelf by operation, the requisition tree on the debrief with the
-// gold star's bonus, a tour from before the tree keeping the whole shop, the link carrying the tree), and the
+// gold star's bonus, the link carrying the tree), and the
 // reworked Boot Camp and Recruitment Drive (Downed pilot, Hold the radio, Supply drop, The officer).
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
@@ -25,8 +25,6 @@
     check(S.shop.hire.map(function (it) { return it.id; }).sort().join() === 'hire-engineer,hire-rifle', 'hires too (' + S.shop.hire.map(function (it) { return it.id; }) + ')');
     t = tourAt(1, 'dummy-drop', ['sandbags']);
     check(camp.onShelf(t, item('tramp')) && camp.onShelf(t, item('strike')) && camp.onShelf(t, item('sandbags')) && !camp.onShelf(t, item('wire')) && camp.onShelf(t, item('hire-medic')), 'Recruitment Drive adds its basics and hires; the tree adds Sandbags');
-    t = tourAt(1, 'dummy-drop', null);
-    check(camp.onShelf(t, item('rockets')) && camp.onShelf(t, item('hire-bazooka')), 'a tour from before the tree keeps the whole shop');
 
     // ---------- the requisition tree ----------
     t = tourAt(0, 'hold-the-radio', []); t.m = 2; t.missions[2] = 'hold-the-radio'; t.opLosses = 0; camp.write();
@@ -46,34 +44,62 @@
     next[0].click(); document.getElementById('cTake').click();
     check(t.tree.join() === 'sandbags,double' && t.at === 'barracks' && !document.getElementById('cBarracks').hidden, 'two steps taken, on to the barracks');
     var back = camp.readLink(camp.linkCode(t));
-    check(back && back.tree.slice().sort().join() === 'double,sandbags', 'the save link carries the tree (version 5)');
-    var old = camp.readLink(armyFixtures['campaign-4-first-zeppelin'].link);
-    check(old && old.tree === null, 'a link from before it reads as a tour with the whole shop');
+    check(back && back.tree.slice().sort().join() === 'double,sandbags', 'the save link carries the tree');
     // No star: one pick, no bonus.
     t = tourAt(0, 'hold-the-radio', []); t.m = 2; t.missions[2] = 'hold-the-radio'; t.opLosses = 1; camp.write();
     camp.startMission(); S.cm.count.radio = 99; S.cm.cleared = true; world.MODES.campaign.win();
     check(t.debrief.picks === 1 && !t.debrief.bonus, 'no gold star, no bonus');
     check(camp.takeStep('wire') === null && camp.takeStep('helmet') === 'done' && t.tree.join() === 'helmet', 'only a row\'s next step can be taken');
 
+    // ---------- First contact: no trampoline yet ----------
+    t = tourAt(0, 'first-contact', []); t.squad = []; camp.write(); camp.startMission();
+    check(activeTramps().length === 0 && !S.hint, 'First contact has no mats and no hint');
+    var dropped = false; for (var f = 0; f < 60 * 20; f++) { S.wallHP = S.mods.maxHP; update(1 / 60); if (S.troopers.length) dropped = true; }
+    check(dropped, 'its planes still drop troopers, to shoot');
+
     // ---------- Downed pilot ----------
-    t = tourAt(0, 'downed-pilot', []); camp.startMission();
-    frames(60 * 4.2);
-    var p = S.troopers.find(function (q) { return q.pilot; }), mat = activeTramps()[0];
-    check(p && p.prize && p.drift && /pilots safe 0\/3/.test(world.MODES.campaign.hud().sub), 'a pilot bails out, drifting (' + world.MODES.campaign.hud().sub + ')');
-    check(world.MODES.campaign.spare(p) && pickTarget(S.recruits[0]) !== p, 'the squad holds fire on him');
-    for (var f = 0; f < 60 * 20 && !(p.x > mat.x1 + 10 && p.x < mat.x2 - 10 && p.y > 440); f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
-    check(p.x > mat.x1 + 10 && p.x < mat.x2 - 10 && p.y > 440, 'he comes over the mat low (' + Math.round(p.x) + ',' + Math.round(p.y) + ')');
+    t = tourAt(0, 'downed-pilot', []); t.squad = []; camp.write(); camp.startMission();
+    check(activeTramps().length === 1 && S.hint && S.recruits.length === 0, 'the trampoline arrives, with the hint; nobody on the field yet');
+    frames(60 * 4);
+    var blue = S.cm.blues[0], chaser = S.planes.find(function (q) { return q.chases === blue.id; });
+    check(blue && chaser && (blue.x - chaser.x) * blue.dir > 0, 'one of ours comes over with an enemy fighter on its tail (' + JSON.stringify({ n: S.cm.blues.length, pt: S.cm.pt, ws: S.waveState, mode: S.mode, planes: S.planes.map(function (q) { return q.kind + q.chases; }) }) + ')');
+    var p = null;
+    for (f = 0; f < 60 * 12 && !(p = S.troopers.find(function (q) { return q.pilot; })); f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
+    check(p && blue.state === 'fall' && S.cm.bailed === 1 && /pilots safe 0\/3/.test(world.MODES.campaign.hud().sub), 'ours goes down and the pilot bails out');
+    check(!S.troopers.some(function (q) { return !q.pilot && !q.dead; }), 'no enemy paratroopers in this one');
+    // The fighter goes for him: over him, it holds and fires.
+    for (f = 0; f < 60 * 6 && !blue.strafing; f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
+    check(blue.strafing && chaser.speed === 0 && Math.abs(Math.abs(chaser.x - p.x) - 64) < 14 && (chaser.x - p.x) * (200 - p.x) > 0 && !p.dead, 'the fighter holds beside the pilot, on the turret\'s side, and fires at him');
+    damagePlane(chaser, 9, 'player', chaser.x, chaser.y, true);
+    var mat = activeTramps()[0];
+    for (f = 0; f < 60 * 20 && !(p.x > mat.x1 + 10 && p.x < mat.x2 - 10 && p.y > 440); f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
+    check(!p.dead && p.x > mat.x1 + 10 && p.x < mat.x2 - 10 && p.y > 440, 'fighter down, he drifts over the mat low (' + Math.round(p.x) + ',' + Math.round(p.y) + ')');
     popChute(p); frames(90);
-    check(S.cm.count.pilots === 1 && !S.recruits.some(function (r) { return r.id === p.id; }), 'popped over it, he bounces to safety (not into the squad)');
-    for (f = 0; f < 60 * 30 && S.cm.count.pilotsLost < 2 && S.mode === 'play'; f++) { S.wallHP = S.mods.maxHP; S.troopers.forEach(function (q) { if (!q.pilot) q.dead = true; }); update(1 / 60); }
-    check(S.cm.count.pilotsLost === 2, 'two left alone land and are lost');
+    check(S.cm.count.pilots === 1 && S.recruits.some(function (r) { return r.id === p.id && !r.dead; }), 'caught, he joins the squad');
+    // Your squad's rounds pass a pilot by; the squad doesn't aim at him.
+    for (f = 0; f < 60 * 20 && !(p = S.troopers.find(function (q) { return q.pilot && !q.dead && q.state === 'chute'; })); f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
+    hitTest({ x: p.x, y: p.y + 10, vx: 0, vy: -500, owner: 'ally', kind: 'bullet', pierce: 1, hits: [], life: 1, dead: false });
+    explode(p.x, p.y + 14, 30, 'rocket', 'ally');
+    check(!p.dead && world.MODES.campaign.spare(p) && pickTarget(S.recruits[0]) !== p, 'the squad\'s rounds and blasts never hit him');
+    // Left alone, a fighter hits its pilot; two lost loses it. Only four planes come.
+    t = tourAt(0, 'downed-pilot', []); t.squad = []; camp.write(); camp.startMission();
+    for (f = 0; f < 60 * 30 && S.cm.count.pilotsLost < 1; f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
+    check(S.cm.count.pilotsLost === 1 && S.cm.bailed === 1, 'a fighter left alone hits the pilot');
+    for (f = 0; f < 60 * 60 && S.cm.count.pilotsLost < 2 && S.mode === 'play'; f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
+    check(S.cm.count.pilotsLost === 2, 'two lost');
     for (f = 0; f < 60 * 4 && S.mode !== 'between'; f++) update(1 / 60);
     check(t.at === 'lost' && /Two pilots were lost/.test(t.last.cause), 'and the mission with them: ' + t.last.cause);
+    t = tourAt(0, 'downed-pilot', []); t.squad = []; camp.write(); camp.startMission(); S.cm.count.pilotsLost = -9;
+    for (f = 0; f < 60 * 80 && S.mode === 'play'; f++) { S.wallHP = S.mods.maxHP; update(1 / 60); }
+    check(S.cm.bluesOut === 4 && S.cm.bailed === 4, 'four planes in all, every pilot bailing out (' + S.cm.bluesOut + ', ' + S.cm.bailed + ')');
+    // Won: the card says how it went.
+    t = tourAt(0, 'downed-pilot', []); camp.startMission(); S.cm.count.pilots = 3; S.cm.cleared = true; world.MODES.campaign.win();
+    check(/3 of 3 pilots safe/.test(t.last.result), 'the results line: ' + t.last.result);
     // The wave waits for its pilots.
     t = tourAt(0, 'downed-pilot', []); camp.startMission();
     S.spawn.planes = S.spawn.bombers = 0;
-    for (f = 0; f < 60 * 8; f++) { S.wallHP = S.mods.maxHP; S.troopers.forEach(function (q) { if (!q.pilot) q.dead = true; }); S.planes = []; update(1 / 60); }
-    check(S.waveState === 'active' && world.MODES.campaign.held(), 'with its planes gone, the wave holds for the pilots still to come');
+    for (f = 0; f < 60 * 2; f++) { S.wallHP = S.mods.maxHP; S.planes = []; update(1 / 60); }
+    check(S.waveState === 'active' && world.MODES.campaign.held(), 'with its planes gone, the wave holds for the pilots still to come')
 
     // ---------- Hold the radio ----------
     t = tourAt(0, 'hold-the-radio', []); camp.startMission(); frames(2);

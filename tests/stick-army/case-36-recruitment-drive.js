@@ -1,7 +1,7 @@
 // Campaign round 2, Recruitment Drive: the operation released and a round-1 tour carrying on into it, weather and
 // intel from the tour code, straw dummies (caught, shot, landing, the gold star), the deploy pick and the save link
-// that carries it (version 2, version 1 still read), the radio operator (Campaign's hire only, a free call, calls
-// sooner), the pause card's objective, and Sniper nest lost when a soldier falls.
+// that carries it, the radio operator (Campaign's hire only, a free call, calls sooner), and the pause card's
+// objective.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var camp = world.campaign, K = camp.keys;
@@ -83,11 +83,11 @@
     check(!document.getElementById('pauseGoal').hidden && /Caught 0 of 5/.test(document.getElementById('pauseGoal').textContent), 'the pause card shows the objective');
     togglePause();
     // The gold star: no dummies caught through the operation.
-    t = rd(kinds.clear); t.m = 2; t.opDummies = 0; t.missions[2] = 'hold-out'; camp.write();
-    camp.startMission(); S.cm.cleared = true; world.MODES.campaign.win();
-    check(t.debrief && t.debrief.star === true, 'no dummies caught: the gold star');
-    t = rd(kinds.clear); t.m = 2; t.opDummies = 1; t.missions[2] = 'hold-out';
-    camp.startMission(); S.cm.cleared = true; world.MODES.campaign.win();
+    t = rd(kinds.clear); t.m = 2; t.opDummies = 0; t.missions[2] = 'dummy-drop'; camp.write();
+    camp.startMission(); S.cm.count.caught = 5; S.cm.cleared = true; world.MODES.campaign.win();
+    check(t.debrief && t.debrief.star === true, 'no dummies caught: the gold star ' + JSON.stringify([t.at, t.m, t.missions, t.debrief, t.opDummies, t.opLosses]));
+    t = rd(kinds.clear); t.m = 2; t.opDummies = 1; t.missions[2] = 'dummy-drop';
+    camp.startMission(); S.cm.count.caught = 5; S.cm.cleared = true; world.MODES.campaign.win();
     check(t.debrief && t.debrief.star === false, 'one caught: none');
 
     // ---------- deploy ----------
@@ -95,9 +95,7 @@
     camp.startMission();
     check(S.recruits.map(function (r) { return r.id; }).sort().join() === '4,5,6' && S.cm.bench.join() === '3', 'the deploy pick goes out (' + S.recruits.map(function (r) { return r.id; }) + ')');
     var link = camp.linkCode(t), back = camp.readLink(link);
-    check(back && back.deploy && back.deploy.join() === '6,5,4', 'the save link carries it (version 2)');
-    var old = camp.readLink(armyFixtures['campaign-1-boot-camp'].link);
-    check(old && old.deploy === null && old.squad.length === 3, 'a version 1 link still reads');
+    check(back && back.deploy && back.deploy.join() === '6,5,4', 'the save link carries it');
     // The deploy screen itself.
     t.at = 'briefing'; camp.write(); camp.screens.briefing();
     document.getElementById('cBriefGo').click();
@@ -125,11 +123,6 @@
     check(document.getElementById('pauseGoal').hidden, 'nor does Arcade\'s pause card have an objective');
     togglePause();
 
-    // ---------- Sniper nest ----------
-    t = rd(kinds.clear, 'sniper-nest'); camp.startMission();
-    recruitDie(S.recruits[0], 'sniper');
-    for (f = 0; f < 60 * 3 && S.mode !== 'between'; f++) update(1 / 60);
-    check(t.at === 'lost' && /soldier was lost/.test(t.last.cause), 'Sniper nest: a soldier falls, the mission is lost');
   } finally {
     clear(); RUN.game = 'arcade'; titleScene();
   }

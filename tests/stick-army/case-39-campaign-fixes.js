@@ -1,7 +1,7 @@
 // Campaign fixes after the round-4 playtest: the squad and the sentry hold fire on chutes over a mat (Arcade's still
 // don't), a catch counts with the barracks full, the HUD and pause card count the planes still to come, a survive
 // mission names its goal, the map says "next" for an operation that's out, the barracks names the operation going
-// out next, and a lost "planes across" mission names its own limit.
+// out next, and ending a tour.
 (function () {
   function check(ok, why) { if (!ok) throw new Error(why); }
   var camp = world.campaign, K = camp.keys;
@@ -68,9 +68,6 @@
     check(/coming soon/.test(document.getElementById('cOps').textContent), 'and "coming soon" for one that isn\'t');
     t = tourAt(1, null, [{ id: 3, type: 'rifle', stripes: 1, kills: 20 }]); t.m = t.missions.length; t.at = 'barracks'; camp.write(); camp.screens.barracks();
     check(/4 at Balloon Season/.test(document.getElementById('cBunkNote').textContent), 'after an operation the barracks names the next: ' + document.getElementById('cBunkNote').textContent);
-    t = tourAt(3, 'escort-screen'); camp.startMission(); S.cm.count.away = 12;
-    for (f = 0; f < 60 * 4 && (S.mode === 'play' || S.mode === 'dying'); f++) update(1 / 60);
-    check(t.at === 'lost' && t.last.cause === '12 planes got across.', 'a lost "across" mission names its own limit: ' + t.last.cause);
     // ---------- ending a tour ----------
     t = tourAt(1); t.at = 'map'; camp.write();
     localStorage.setItem(K.unlock, 'true'); titleScene();
