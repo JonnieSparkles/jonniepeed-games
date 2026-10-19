@@ -114,7 +114,9 @@ var StickArmyFlow = function (world, game) {
     var fixed = RUN.force != null ? RUN.force : hashSeed();
     // The online board: practice runs (a fixed seed, the tuning panel) never get a token, so they can't be saved.
     // Co-op runs aren't on the boards (coop.md).
-    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0 || RUN.players > 1);
+    // A token that only came from a retry mid-run still links the play stats run to its row.
+    var token = LBOARD.begin(fixed != null || hashTokens().indexOf('tune') >= 0 || RUN.players > 1,
+      function (late) { if (statsRun && window.PlayStats.token) PlayStats.token(statsRun, late); });
     // Play stats: a run still open (a restart from pause) reports as quit before reset() clears it.
     if (window.PlayStats) statsRun = PlayStats.start('stick-army', { board: world.levelBoard(), token: token || undefined, progress: runReport });
     seedRun(fixed != null ? fixed : Math.floor(Math.random() * 4294967296));

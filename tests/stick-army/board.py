@@ -3,8 +3,9 @@ Run python3 tests/stick-army/board.py with site/ on port 8000; optional SCREENSH
 
 Checks: a lost run asks, takes initials and draws the board with the player's row; the victory card saves the Arcade
 score with won=1; the endless game over after a win shows the board without asking again; Skip; a run that can't
-reach the scores keeps its buttons; seeded runs never ask for a token; the title's High scores card and the facing
-page's top five."""
+reach the scores keeps its buttons and says it can't be saved; a run whose first token request fails gets one from a
+retry mid-run and saves its time from then; a run that never gets one says so; a refused save says so; seeded runs
+never ask for a token; the title's High scores card and the facing page's top five."""
 import json, os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -99,8 +100,85 @@ with sync_playwright() as p:
         T("die(); S.dieT = 0; update(1/60);")
         page.wait_for_timeout(900)
         check(page.locator('#againBtn').is_visible(), 'offline keeps Play again')
+        page.wait_for_selector('#overScreen .lb-message:has-text("can\'t be saved")')
         calls['online'] = True
         page.close()
+
+    # The token: a failed start retried mid-run, one never got, and a refused save. RETRY shortened to 300 ms.
+    page = browser.new_page(viewport={'width': 390, 'height': 844}, has_touch=True)
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    net = {'start': 0, 'start_ok': False, 'submit': [], 'refuse': False}
+
+    def api2(route):
+        url = route.request.url
+        if '/v2/start' in url:
+            net['start'] += 1
+            if not net['start_ok']:
+                return route.abort()
+            return route.fulfill(status=200, content_type='application/json', body=json.dumps({'ok': True, 'token': 'run.2.sig'}))
+        if '/v2/top' in url:
+            body = {'ok': True, 'game': 'stick-army', 'board': 1, 'scores': ROWS}
+            if 'score=' in url:
+                body.update({'placement': 3, 'position': 3, 'total': 40})
+            return route.fulfill(status=200, content_type='application/json', body=json.dumps(body))
+        if '/v2/submit' in url:
+            net['submit'].append(json.loads(route.request.post_data))
+            if net['refuse']:
+                return route.fulfill(status=400, content_type='application/json', body=json.dumps({'ok': False, 'error': 'rejected'}))
+            return route.fulfill(status=200, content_type='application/json', body=json.dumps({'ok': True, 'id': 2, 'rank': 3, 'position': 3, 'total': 41, 'scores': ROWS}))
+        return route.continue_()
+    page.route('http://localhost:8787/**', api2)
+    game_src = (ROOT / 'site/stick-army/game.js').read_text().replace('  start();', '  window.armyTest = function(code) { return eval(code); };\n  start();')
+    board_src = (ROOT / 'site/stick-army/board.js').read_text().replace('RETRY = [15000, 30000, 60000]', 'RETRY = [300, 300, 300]')
+    check('RETRY = [300, 300, 300]' in board_src, 'RETRY found in board.js')
+    page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=game_src, content_type='application/javascript'))
+    page.route('**/stick-army/board.js*', lambda route: route.fulfill(body=board_src, content_type='application/javascript'))
+    page.goto(SITE + '/stick-army/')
+    T = lambda code: page.evaluate('(c) => armyTest(c)', code)
+
+    # Recovered: the first request fails, a retry gets the token, and the save's time counts from then.
+    page.click('#startBtn')
+    page.wait_for_timeout(500)
+    first = net['start']
+    check(first >= 1, 'a real run asks for a token')
+    T("S.played = 120;")
+    net['start_ok'] = True
+    page.wait_for_timeout(900)
+    check(net['start'] > first, 'a failed start is retried')
+    T("S.score = 150000; S.played = 720; S.wave = 14; die(); S.dieT = 0; update(1/60);")
+    page.wait_for_selector('#overScreen .lb-asking .lb-note:has-text("New high score")')
+    page.click('#overScreen .lb-ask .btn'); page.wait_for_selector('#overScreen .lb-entry')
+    page.click('#overScreen .lb-ok'); page.wait_for_selector('#overScreen .lb-table')
+    sent = net['submit'][-1]
+    check(sent['token'] == 'run.2.sig' and abs(sent['meta']['time_ms'] - 600000) <= 1000, sent)
+    tries = net['start']
+    page.wait_for_timeout(800)
+    check(net['start'] == tries, 'no retries once the run has its token')
+
+    # Refused: the card says the save failed.
+    net['refuse'] = True
+    page.click('#againBtn'); page.wait_for_timeout(300)
+    T("S.score = 140000; S.played = 300; die(); S.dieT = 0; update(1/60);")
+    page.wait_for_selector('#overScreen .lb-asking')
+    page.click('#overScreen .lb-ask .btn'); page.wait_for_selector('#overScreen .lb-entry')
+    page.click('#overScreen .lb-ok')
+    page.wait_for_selector('#overScreen .lb-message:has-text("Couldn\'t save this run")')
+    check(page.locator('#againBtn').is_visible(), 'Play again after a refused save')
+    net['refuse'] = False
+
+    # Never: no token by the end, so no ask, a note, the board and the buttons; retries stop with the run.
+    net['start_ok'] = False
+    page.click('#againBtn'); page.wait_for_timeout(1000)
+    T("S.score = 130000; S.played = 300; die(); S.dieT = 0; update(1/60);")
+    page.wait_for_selector('#overScreen .lb-table')
+    check(page.locator('#overScreen .lb-message:has-text("can\'t be saved")').count() == 1, 'a run without a token says so')
+    check(not page.locator('#overScreen .card').evaluate('(c) => c.classList.contains("lb-asking")'), 'no ask without a token')
+    check(page.locator('#againBtn').is_visible(), 'Play again without a token')
+    page.screenshot(path=str(OUT / 'board-nosave-390.png'))
+    tries = net['start']
+    page.wait_for_timeout(800)
+    check(net['start'] == tries, 'retries stop when the run ends')
+    page.close()
 
     # A seeded run never asks for a token.
     page = browser.new_page(viewport={'width': 390, 'height': 844})
@@ -112,4 +190,4 @@ with sync_playwright() as p:
     page.close()
     browser.close()
     check(not errors, errors)
-print('PASS board: ask, save, skip, win, endless, offline, seeded, title (and Space starts a run)')
+print('PASS board: ask, save, skip, win, endless, offline, token retry, no token, refused, seeded, title (and Space starts a run)')
