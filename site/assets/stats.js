@@ -129,6 +129,13 @@
         active = run;
       } catch (_) { /* never reaches the game */ }
     },
+    // Call with a leaderboard token that arrived after start() (a game that retried a failed Leaderboard.start), so
+    // the run's reports carry its run ID. A run that already has one keeps it.
+    token(run, token) {
+      try {
+        if (run && !run.token && typeof token === 'string') run.token = token;
+      } catch (_) { /* never reaches the game */ }
+    },
     // Call when the player leaves a run without finishing it, such as back to the title from pause.
     quit(run) {
       try {
