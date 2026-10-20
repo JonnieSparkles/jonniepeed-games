@@ -456,8 +456,9 @@ var StickArmyChallenges = function (world, game) {
     if (b.dataset.id && !b.disabled) start(b.dataset.id);
   });
   document.getElementById('challengesBtn').addEventListener('click', function () { world.sound.init(); showPage(); });
-  // Hidden for now: the title shows Start alone until stick-army/#challenges is opened on the device, which unlocks
-  // it from then on; #challenges=off hides it again (UNLOCK). The token leaves the address at once.
+  // Coming soon: on the title for everyone, but drawn as a dashed outline that can't be pressed, until
+  // stick-army/#challenges is opened on the device, which unlocks it from then on; #challenges=off locks it again
+  // (UNLOCK). The token leaves the address at once.
   var UNLOCK = 'stickarmy.challenges.on';
   (function takeLink() {
     var tokens = game.hashTokens(), ours = /^challenges(=off)?$/;
@@ -468,11 +469,10 @@ var StickArmyChallenges = function (world, game) {
     try { history.replaceState(null, '', location.pathname + location.search + (rest ? '#' + rest : '')); } catch (e) { /* ignore */ }
   })();
   function unlocked() { return !!load(UNLOCK, false); }
-  // Unlocked, Start reads Arcade beside Challenges, the level on a line under both (.t-two).
   function showButtons() {
-    var on = unlocked(), btn = document.getElementById('challengesBtn'), startBtn = document.getElementById('startBtn');
-    btn.hidden = !on; startBtn.textContent = on ? 'Arcade' : 'Start';
-    startBtn.parentNode.classList.toggle('t-two', on);
+    var on = unlocked(), btn = document.getElementById('challengesBtn');
+    btn.disabled = !on;
+    btn.innerHTML = on ? 'Challenges' : 'Challenges<small>(coming soon)</small>';
   }
   showButtons();
   // The list is over the title, so the title's keys (Enter starts Arcade) stay off while it's open; Escape closes it.

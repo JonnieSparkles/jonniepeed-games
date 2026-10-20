@@ -238,7 +238,8 @@ var StickArmyDraw = function (world) {
     if (r.type === 'sniper') drawScope(x, y, Math.cos(r.aim) < 0 ? -1 : 1);
     chevrons(x - 7, y + 9, r.rank || 0);
     // Crew health makes the cost of leaving a sniper alive visible.
-    if (r.leaving != null) return;
+    // Not on the title's demo, where there's nothing to read it for.
+    if (r.leaving != null || S.mode === 'title') return;
     G.fillStyle = 'rgba(46,46,51,0.15)'; G.fillRect(x-6, GROUND+4, 12, 2);
     G.fillStyle = r.hp < 1 ? RED : BLUE; G.fillRect(x-6, GROUND+4, 12 * Math.max(0,r.hp) / crewMax(r), 2);
   }
