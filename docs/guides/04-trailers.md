@@ -1,6 +1,6 @@
 # 04: Trailers
 
-A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) Unruggabull (33 s, the game's own theme, from its own repo) Unruggabull Remastered (33 s, the 2025 trailer remade with the remaster) and Stick Army (26 s, new music, two cuts: solo and co-op) have one.
+A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) Unruggabull (33 s, the game's own theme, from its own repo) Unruggabull Remastered (33 s, the 2025 trailer remade with the remaster) and Stick Army (36 s solo and a 26 s co-op cut of the same takes, new music) have one.
 
 ## Running
 

@@ -1,4 +1,5 @@
-"""The co-op cut (make.py --cut coop): the same 26 s and the same march (music.py), with two barrels.
+"""The co-op cut (make.py --cut coop): 26 s on its own march (music-coop.py), with two barrels. It follows the first
+solo cut; the solo trailer has since grown to 36 s with the shop and the enemies, and this one hasn't yet.
 
 0.00   the title's open notebook; then Play with a friend's link card: "Waiting for your friend…", "Your friend is
        here!" (the secret's three words are clicked off camera)
@@ -10,7 +11,11 @@
 """
 from cut import Cover, ease, fade, push
 from page import Page
-from shots import B, BAR, DROP, MONTAGE, TEASE, END, DUR, ev, at
+from shots import ev, at
+
+# its own grid (the first cut's): 26 s at 120 BPM, on music-coop.py
+BPM, B, BAR = 120, 0.5, 2.0
+DROP, MONTAGE, TEASE, END, DUR = 4.0, 8.0, 16.0, 22.0, 26.0
 
 
 def build(T, L, repo):

@@ -1,6 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8">
 <!-- The trailer's text layers, in the game's own hand: post-it notes on the desk beside the page, like the orders on
-     the title's facing page (Cabin Sketch on yellow, the army's blue pen and the friend's green), and the callout.
+     the title's facing page (Cabin Sketch on yellow, the army's blue pen and the friend's green); the enemy's names in its
+     red pen; a red rubber stamp; and the callout.
      tools/trailer/layers.py renders each <template> to a transparent 1920x1080 PNG; shots.py places and fades them. -->
 <link rel="stylesheet" href="{{SITE}}assets/fonts/fonts.css">
 <style>
@@ -17,6 +18,12 @@ html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hi
 .note .b{color:var(--ally)}
 .note .g{color:var(--friend)}
 .note small{display:block;margin-top:14px;font:400 44px/1.1 "Schoolbell",cursive;color:#5d5a55}
+.label{position:absolute;left:1340px;top:470px;margin:0;font:400 92px/1 "Schoolbell",cursive;color:var(--enemy);transform:rotate(-3deg)}
+.label::after{content:"";display:block;height:6px;margin-top:6px;width:100%;background:var(--enemy);border-radius:3px;transform:rotate(1deg);opacity:.85}
+/* the rubber stamp over the Dreadnought: red ink, a double border, worn */
+.stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-11deg);margin:0;padding:22px 46px 14px;
+  font:400 118px/1 "Bungee",sans-serif;letter-spacing:.06em;color:#c8261d;border:10px solid #c8261d;border-radius:18px;
+  box-shadow:inset 0 0 0 6px rgba(255,255,255,0),0 0 0 6px rgba(200,38,29,0);outline:4px solid #c8261d;outline-offset:8px;filter:url(#worn);opacity:.92}
 .shade{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.55))}
 .pill{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;white-space:nowrap;
   background:rgba(22,26,44,.95);color:#fff;border:6px solid var(--ally);border-radius:999px;padding:18px 70px 18px 36px;box-shadow:0 14px 50px rgba(0,0,0,.6);
@@ -26,7 +33,20 @@ html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hi
 <div id="L"></div>
 <template id="pop"><p class="note l">Pop chutes.</p></template>
 <template id="catch"><p class="note r">Catch <span class="b">recruits.</span></p></template>
-<template id="defend"><p class="note l">Defend the <span class="b">notebook.</span></p></template>
+<template id="squad"><p class="note l">Build your <span class="b">squad.</span></p></template>
+<template id="gun"><p class="note l">Upgrade your <span class="b">gun.</span></p></template>
+<template id="enemy"><p class="note l">Know your enemy.</p></template>
+<template id="dread"><p class="note l top">Defeat the Dreadnought.</p></template>
+<template id="l-tanks"><p class="label">tanks</p></template>
+<template id="l-snipers"><p class="label">snipers</p></template>
+<template id="l-choppers"><p class="label">helicopters</p></template>
+<template id="l-divers"><p class="label">dive bombers</p></template>
+<template id="l-heavies"><p class="label">heavy bombers</p></template>
+<template id="l-zeps"><p class="label">zeppelins</p></template>
+<template id="l-night"><p class="label">night raids</p></template>
+<template id="classified"><svg width="0" height="0" style="position:absolute"><filter id="worn"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n"/>
+  <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.55" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter></svg>
+  <p class="stamp">CLASSIFIED</p></template>
 <template id="friend"><p class="note l">Bring a <span class="g">friend.</span></p></template>
 <template id="two"><p class="note r"><span class="b">Two</span> <span class="g">barrels.</span> One bunker.</p></template>
 <template id="pill"><div class="shade"></div><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>

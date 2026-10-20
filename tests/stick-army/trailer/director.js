@@ -10,10 +10,13 @@
 // silenced at its one bus; the effects and voices play as in the game.
 //
 // Plan items for takes.json:
-//   ff     {wave, until}   play on off screen until wave `wave` has started (and `until`, a condition, holds)
+//   ff     {wave, until, shop}   play on off screen until wave `wave` has started (and `until`, a condition, holds);
+//                         with `shop`, until the shop after wave `wave` opens. Every shop passed leaves a marker.
 //   click  {sel | text}    click an element, by selector or by its text
 //   room   {}              the co-op room, faked (there's no network): Play with a friend opens it, with no one there
 //   join   {}              the friend arrives in the faked room
+//   pick   {id}            with D.manualShop, tap a shop row (a supply or a hire) by its item id
+//   go     {}              the shop's continue button
 // Before `start`, a `js` item sets D.opts: {run: the run's seed, coop: two barrels, button: start from this button
 // instead of the adapter}.
 (() => {
@@ -72,6 +75,7 @@
     if (p !== dread) { dread = p; p.__m = {}; D.mark('dread:spawn'); }
     const m = p.__m;
     if (!m.named && p.phase === 'arrive' && !(p.wait > 0)) { m.named = true; D.mark('dread:named'); }
+    if (p.phase === 'arrive' && !(p.wait > 0)) D.mark('dread:pos', { x: +p.x.toFixed(1), y: +p.y.toFixed(1), dir: p.dir, hw: p.hw, hh: p.hh });
     const bow = p.x + p.dir * p.hw;
     if (!m.in && (p.dir > 0 ? bow > 0 : bow < W)) { m.in = true; D.mark('dread:in'); }
   });
@@ -96,7 +100,7 @@
       buf.push(B.observe()); if (buf.length > LAG + 1) buf.shift();
       B.act(bot.decide(buf[0]));
       if (bot2 && S.turrets[1]) { buf2.push(B.observe(1)); if (buf2.length > LAG + 1) buf2.shift(); act2(bot2.decide(buf2[0])); }
-    } else if (S.mode === 'shop') {
+    } else if (S.mode === 'shop' && !D.manualShop) {
       buf = []; buf2 = [];
       B.act(bot.shop(B.observe()));   // the adapter shops for co-op's second bot too, and continues
     }
@@ -118,8 +122,13 @@
     quiet = true;
     let shops = 0;
     for (let i = 0; i < 3000; i++) {
-      if (S.wave >= it.wave && S.mode === 'play' && (!it._c || it._c(0, D))) { it.fin = true; break; }
-      if (S.mode === 'shop') { if (++shops > 20) throw new Error('ff: stuck in the shop'); buf = []; B.act(bot.shop(B.observe())); continue; }
+      if (it.shop ? S.wave >= it.wave && S.mode === 'shop' : S.wave >= it.wave && S.mode === 'play' && (!it._c || it._c(0, D))) { it.fin = true; break; }
+      if (S.mode === 'shop') {
+        // every shop passed, with what it offered (shops are seeded, so a take can be pointed at the one it wants)
+        if (shops === 0) D.mark('shop:' + S.wave, { items: S.shop.items.map(q => q.id), tags: tagsOf(0), owned: Object.keys(S.mods).filter(k => S.mods[k] === true) });
+        if (++shops > 20) throw new Error('ff: stuck in the shop');
+        buf = []; B.act(bot.shop(B.observe())); continue;
+      }
       shops = 0;
       if (S.mode === 'play' && i % 2 === 0) {
         buf.push(B.observe()); if (buf.length > LAG + 1) buf.shift();
@@ -147,6 +156,14 @@
     if (!el) throw new Error('click: nothing matches ' + (it.sel || it.text));
     el.click(); it.fin = true;
   };
+  // The shop by hand (D.manualShop): a supply or a hire tapped through its own button, scrolled into view first as a
+  // finger would; `go` taps the continue button.
+  D.items.pick = (it) => {
+    const el = document.querySelector('#shopScreen [data-item="' + it.id + '"]');
+    if (!el) throw new Error('pick: ' + it.id + ' is not in this shop');
+    el.scrollIntoView({ block: 'center' }); el.click(); D.mark('pick:' + it.id); it.fin = true;
+  };
+  D.items.go = (it) => { document.getElementById('continueBtn').click(); D.mark('go'); it.fin = true; };
   D.items.room = (it) => { Rooms.open = fakeRoom; it.fin = true; };
   D.items.ready = (it) => { room.fire('ready'); it.fin = true; };
   D.items.join = (it) => { room.others = [{ seat: 2 }]; room.fire('join', 2); it.fin = true; };

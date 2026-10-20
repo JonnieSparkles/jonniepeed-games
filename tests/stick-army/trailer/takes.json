@@ -312,7 +312,7 @@
    },
    {
     "type": "wait",
-    "dur": 14
+    "dur": 15
    },
    {
     "type": "capture"
@@ -458,6 +458,126 @@
    {
     "type": "wait",
     "dur": 14
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "S": {
+  "seed": 5,
+  "screen": true,
+  "max_s": 400,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.5
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"run\": 7};"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "js",
+    "code": "D.manualShop = true;"
+   },
+   {
+    "type": "ff",
+    "wave": 7,
+    "shop": true
+   },
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "capture",
+    "on": true,
+    "name": "shop7"
+   },
+   {
+    "type": "wait",
+    "dur": 1.2
+   },
+   {
+    "type": "pick",
+    "id": "hire-bazooka"
+   },
+   {
+    "type": "wait",
+    "dur": 1.0
+   },
+   {
+    "type": "pick",
+    "id": "hire-medic"
+   },
+   {
+    "type": "wait",
+    "dur": 1.0
+   },
+   {
+    "type": "pick",
+    "id": "auto"
+   },
+   {
+    "type": "wait",
+    "dur": 1.0
+   },
+   {
+    "type": "pick",
+    "id": "wire"
+   },
+   {
+    "type": "wait",
+    "dur": 1.2
+   },
+   {
+    "type": "go"
+   },
+   {
+    "type": "wait",
+    "dur": 9
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "wait",
+    "until": "S.mode === 'shop' && S.wave >= 8"
+   },
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "capture",
+    "on": true,
+    "name": "shop8"
+   },
+   {
+    "type": "wait",
+    "dur": 1.0
+   },
+   {
+    "type": "pick",
+    "id": "spread"
+   },
+   {
+    "type": "wait",
+    "dur": 1.2
+   },
+   {
+    "type": "go"
+   },
+   {
+    "type": "wait",
+    "dur": 18
    },
    {
     "type": "capture"
