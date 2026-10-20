@@ -77,6 +77,13 @@ def pad(page):
     return 0.23 * u, h - 0.3 * u, 0.19 * u
 
 
+def buttons(page):
+    """With the Jump button: Jump's centre, then Fire's, as phone.js lays them out."""
+    w, h = page.viewport_size['width'], page.viewport_size['height']
+    u = min(h, w * 0.6)
+    return w - 0.17 * u, h - 0.37 * u, w - 0.44 * u, h - 0.2 * u
+
+
 def start_on_phone(page):
     page.goto(URL, wait_until='load')
     page.wait_for_timeout(500)
@@ -84,7 +91,10 @@ def start_on_phone(page):
     page.locator('#menu [data-act=play]').tap()
     wait_state(page, 'controls', 6000)
     page.screenshot(path=str(SHOTS / 'phone-controls.png'))
-    page.touchscreen.tap(PHONE['width'] / 2, PHONE['height'] / 2)
+    # picking on the controls screen doesn't start the run
+    page.locator('#ctl-pick .pick[data-mode=pad]').tap(); page.wait_for_timeout(150)
+    assert js(page, 'gameState') == 'controls', 'picking controls does not start'
+    page.touchscreen.tap(PHONE['width'] / 2, PHONE['height'] * 0.9)
     wait_state(page, 'playing')
 
 
@@ -109,10 +119,16 @@ def phone_checks(p):
     x0 = js(page, 'player.x')
     touch.down(0, cx + cr * 0.8, cy); page.wait_for_timeout(500)
     assert js(page, 'player.x') > x0 + 40, 'right on the pad walks right'
-    # sliding to up-right jumps while still walking, and held it keeps jumping, like a held jump key
+    # a thumb riding 35 degrees high still only walks (up starts at 40)
     js(page, 'window.jumps = 0; { const play = jumpSound.play.bind(jumpSound); jumpSound.play = () => { window.jumps++; return play(); }; } 0')
+    x0 = js(page, 'player.x')
+    touch.move(0, cx + cr * 0.8 * 0.819, cy - cr * 0.8 * 0.574); page.wait_for_timeout(500)
+    assert js(page, 'window.jumps') == 0 and js(page, 'player.grounded') and js(page, 'player.x') > x0 + 30, 'a thumb a little high walks'
+    # sliding to up-right jumps while still walking, and held it keeps jumping, like a held jump key
     touch.move(0, cx + cr * 0.6, cy - cr * 0.6); page.wait_for_timeout(150)
     assert not js(page, 'player.grounded'), 'up-right jumps'
+    # once jumping, up holds down to 30 degrees, so 33 still counts
+    touch.move(0, cx + cr * 0.8 * 0.839, cy - cr * 0.8 * 0.545)
     page.screenshot(path=str(SHOTS / 'phone-jump.png'))
     page.wait_for_timeout(1600)
     assert js(page, 'window.jumps') >= 2, ('holding up keeps jumping', js(page, 'window.jumps'))
@@ -132,6 +148,31 @@ def phone_checks(p):
     touch.down(1, PHONE['width'] * 0.8, PHONE['height'] * 0.7); page.wait_for_timeout(400)
     assert js(page, 'window.shots') == 2, 'holding fire shoots once'
     touch.up(1)
+
+    # the Jump button, picked in pause: up on the pad no longer jumps, Jump does (held, it keeps jumping), Fire still fires
+    page.click('#pause-btn'); page.wait_for_timeout(150)
+    assert page.locator('#pause-pick').is_visible(), 'the picker is in pause by touch'
+    page.click('#pause-pick .pick[data-mode=button]')
+    assert page.locator('#pause-pick .pick[data-mode=button]').get_attribute('aria-pressed') == 'true'
+    assert js(page, "localStorage.getItem('unruggabull-remastered-controls')") == 'button', 'the choice is kept'
+    page.click('#resume-btn'); page.wait_for_timeout(300)
+    page.screenshot(path=str(SHOTS / 'phone-jump-button.png'))
+    jx, jy, fx, fy = buttons(page)
+    touch.down(0, cx, cy - cr * 0.8); page.wait_for_timeout(400)
+    assert js(page, 'player.grounded'), 'up on the pad does nothing with the Jump button'
+    touch.up(0); page.wait_for_timeout(100)
+    n = js(page, 'window.jumps')
+    touch.down(1, jx, jy); page.wait_for_timeout(150)
+    assert not js(page, 'player.grounded'), 'Jump jumps'
+    page.wait_for_timeout(1600)
+    assert js(page, 'window.jumps') >= n + 2, 'holding Jump keeps jumping'
+    touch.up(1); page.wait_for_timeout(1200)
+    count_shots(page)
+    page.touchscreen.tap(fx, fy); page.wait_for_timeout(80)
+    assert js(page, 'window.shots') == 1, 'Fire fires with the Jump button'
+    # back to the pad for the rest
+    page.click('#pause-btn'); page.wait_for_timeout(150)
+    page.click('#pause-pick .pick[data-mode=pad]'); page.click('#resume-btn'); page.wait_for_timeout(200)
 
     # the full screen toggle sits by pause in the game
     assert page.locator('#fs3-btn').is_visible(), 'a full screen toggle by pause'

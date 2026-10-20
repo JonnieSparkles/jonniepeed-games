@@ -1283,6 +1283,7 @@ function beginGame(canvas4, ctx4, bullets2, restartButton2, isRestartHover2) {
   bgMusic.currentTime = 0;
   bgMusic.play();
   function controlsScreenHandler(e) {
+    if (e.target && e.target.closest && e.target.closest(".picks")) return;   // picking touch controls doesn't start
     if (gameState === "controls") {
       setGameState("playing");
       setGameStartTime(gameNow());

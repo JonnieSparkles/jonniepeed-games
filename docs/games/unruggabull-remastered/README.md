@@ -28,7 +28,10 @@ The hit-stops and the slow motion hold the game clock, so they don't count in a 
 ## Controls
 
 - **Keyboard:** A/D or the arrows walk, W, Space or Up jumps (held, it keeps jumping, as in 2025), S, C or Down crouches, F, J or Enter fires. Escape or P pauses. On the title, W/S or Up/Down move the blaster and Enter picks; in the gallery, A/D or Left/Right turn the pictures.
-- **Touch:** a d-pad on the left (left/right walk, up and the up-diagonals jump, and held keep jumping like a held jump key, down crouches; a press up just before landing still jumps when he lands), and the whole right half of the screen fires, one shot per tap. The Fire button marks where the thumb goes. The pause button is top right; Pause has Resume, Quit, Sound and Full screen.
+- **Touch:** two ways, picked on the controls screen or in pause (two pictures side by side, the chosen one lit) and kept on the device.
+  - **Pad jumps** (the default): a d-pad on the left (left/right walk, up and the up-diagonals jump, and held keep jumping like a held jump key, down crouches; a press up just before landing still jumps when he lands), and the whole right half of the screen fires, one shot per tap. The Fire button marks where the thumb goes. Up starts 40° above level and, once jumping, holds down to 30°, so a thumb walking a little high doesn't hop and a diagonal doesn't flicker.
+  - **Jump button:** the pad walks and crouches (up does nothing); Fire sits low and inward and Jump raised in the corner, as Unruggabull II's Shoot and Slash do (and a Game Boy's B and A). The right half still works anywhere: each touch goes to the nearer button, and sliding onto the other presses it. Held, Jump keeps jumping; Fire is one shot per tap.
+  - The pause button is top right; Pause has Resume, Quit, the touch controls picker (by touch), Sound and Full screen.
 - The touch controls show on touch screens and from a touch on any other screen, and the last input decides: a key press (not a held key's repeats) hides them, a touch brings them back, as in Unruggabull II.
 - In the game, a full screen toggle sits left of the pause button (four corners out, or in when full screen), where the browser can do full screen.
 
@@ -89,9 +92,11 @@ Art is in `art/` (webp, converted from the 2025 PNGs), sound in `sound/` (re-enc
 
 ## Validation
 
-`tests/unruggabull-remastered/test.py` (serve `site/` first, see the README's Browser checks): on a phone-sized touch screen it checks the layout, the clock rate, walking, an up-diagonal jump that happens once, crouching, one shot per tap and per hold, pause, the portrait screen, getting rugged and Retry; on a desktop, the title menu by keyboard and the game's keys; the title's board (this device's clears), gallery, credits and the link to the original; and on a fake clock, the whole boss intro, fight, congratulations and the end card through initials to the board. Screenshots go to `SCREENSHOTS` (default `/tmp/unruggabull-remastered`). `stats/test/games.py` covers its play stats; `tools/check_boards.py` its board.
+`tests/unruggabull-remastered/test.py` (serve `site/` first, see the README's Browser checks): on a phone-sized touch screen it checks the layout, the clock rate, walking (with the thumb a little high), an up-diagonal jump held to keep jumping, the Jump button picked in pause, crouching, one shot per tap and per hold, pause, the portrait screen, getting rugged and Retry; on a desktop, the title menu by keyboard and the game's keys; the title's board (this device's clears), gallery, credits and the link to the original; and on a fake clock, the whole boss intro, fight, congratulations and the end card through initials to the board. Screenshots go to `SCREENSHOTS` (default `/tmp/unruggabull-remastered`). `stats/test/games.py` covers its play stats; `tools/check_boards.py` its board.
 
 ## History
+
+- **Oct 20, 2026:** from playtest feedback (jumping without meaning to): up on the pad starts at 40° above level instead of 30°, holding down to 30° once jumping; and a choice of touch controls, Pad jumps or a Jump button, on the controls screen and in pause (mockup: https://claude.ai/artifact/NqP5pnL5GYncQVXqz6CKcy).
 
 - **Oct 17, 2026:** the win picture burns out (take C of https://claude.ai/artifact/GDzyMEgNE2aEsYpRDvY84x), its lettering in the game's type.
 - **Oct 17, 2026:** a speaker on the title beside Full screen (the same sound setting as the pause card's Sound, kept on the device), and the top-edge buttons light up amber on hover.

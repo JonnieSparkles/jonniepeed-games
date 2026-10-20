@@ -34,45 +34,69 @@
     readSafe();
     UnrugTitle.layout(W, H, dpr, safe);
     UnrugRun.layout({ W, H, gx, gy, gw, gh });
+    // the picker sits over the alley's middle on the controls screen, between the heading and TAP TO START
+    const pk = gh / 540;
+    Object.assign(ctlPick.style, { left: gx + 'px', top: gy + 175 * pk + 'px', width: gw + 'px', height: 250 * pk + 'px' });
+    ctlPick.style.setProperty('--k', pk);
     checkRotate();
   }
   addEventListener('resize', layout);
   addEventListener('orientationchange', () => setTimeout(layout, 120));
 
-  // Where the controls go, in CSS pixels. The pad's arms and the fire button are sized from the screen's height.
+  // Two ways to play by touch, picked on the controls screen or in pause and kept on the device:
+  // 'pad', up on the pad jumps; 'button', a Jump button beside Fire and the pad only walks and crouches.
+  const MODE_KEY = 'unruggabull-remastered-controls';
+  let mode = 'pad';
+  try { if (localStorage.getItem(MODE_KEY) === 'button') mode = 'button'; } catch (e) {}
+
+  // Where the controls go, in CSS pixels. The pad's arms and the buttons are sized from the screen's height.
+  // With a Jump button they sit as Unruggabull II's Shoot and Slash do: Fire low and inward, Jump raised in the corner.
   function controls() {
-    const u = Math.min(H, W * 0.6);
-    return {
-      pad: { x: safe.l + 0.23 * u, y: H - safe.b - 0.3 * u, r: 0.19 * u },
-      fire: { x: W - safe.r - 0.23 * u, y: H - safe.b - 0.27 * u, r: 0.15 * u }
+    const u = Math.min(H, W * 0.6), pad = { x: safe.l + 0.23 * u, y: H - safe.b - 0.3 * u, r: 0.19 * u };
+    if (mode === 'button') return {
+      pad,
+      fire: { x: W - safe.r - 0.44 * u, y: H - safe.b - 0.2 * u, r: 0.125 * u },
+      jump: { x: W - safe.r - 0.17 * u, y: H - safe.b - 0.37 * u, r: 0.125 * u }
     };
+    return { pad, fire: { x: W - safe.r - 0.23 * u, y: H - safe.b - 0.27 * u, r: 0.15 * u } };
   }
 
   // ---------- touch input ----------
   // Left half: the pad. Up and the up-diagonals jump, and held they keep jumping, like a held jump key; a press up
   // just before landing still jumps when he lands. Down crouches. Right half: fire, one shot per tap.
+  // Up starts at 40 degrees above level (it was 30: a thumb walking a little high hopped) and, once jumping, holds
+  // down to 30, so a diagonal doesn't flicker. With the Jump button, up on the pad does nothing and the right half
+  // goes to whichever button is nearer; Jump held keeps jumping.
   const touches = new Map();
   let jumpUntil = -1, fireTap = false;
-  const padDirs = p => {
+  const padDirs = (p, wasUp) => {
     const c = controls().pad, dx = p.x - c.x, dy = p.y - c.y, d = Math.hypot(dx, dy);
     const o = { l: false, r: false, u: false, d: false };
     if (d > c.r * 0.22 && d < c.r * 2.6) {
       o.l = dx / d < -0.38; o.r = dx / d > 0.38;
-      o.u = dy / d < -0.5; o.d = dy / d > 0.6;
+      o.u = mode === 'pad' && dy / d < (wasUp ? -0.5 : -0.643); o.d = dy / d > 0.6;
     }
     return o;
+  };
+  const nearer = p => {
+    const c = controls();
+    if (!c.jump) return 'fire';
+    return Math.hypot(p.x - c.jump.x, p.y - c.jump.y) < Math.hypot(p.x - c.fire.x, p.y - c.fire.y) ? 'jump' : 'fire';
   };
   const inGame = () => titleEl.hidden;
   const blocked = e => !inGame() || gamePaused || !rotateEl.hidden || !$('end').hidden || (e.target && e.target.closest && e.target.closest('button, a, .card-wrap, #end'));
   function track(e, down) {
     const r = stage.getBoundingClientRect(), p = { x: e.clientX - r.left, y: e.clientY - r.top };
     const prev = touches.get(e.pointerId);
-    const side = prev ? prev.side : (p.x < W / 2 ? 'pad' : 'fire');
-    const t = { x: p.x, y: p.y, side, up: false };
+    const half = prev ? prev.half : (p.x < W / 2 ? 'pad' : 'buttons');
+    const side = half === 'pad' ? 'pad' : nearer(p);
+    const t = { x: p.x, y: p.y, half, side, dirs: null };
     if (side === 'pad') {
-      t.up = padDirs(p).u;
-      if (t.up && !(prev && prev.up)) jumpUntil = gameNow() + 120;
-    } else if (down) fireTap = true;
+      t.dirs = padDirs(p, prev && prev.dirs && prev.dirs.u);
+      if (t.dirs.u && !(prev && prev.dirs && prev.dirs.u)) jumpUntil = gameNow() + 120;
+    } else if (down || !prev || prev.side !== side) {
+      if (side === 'fire') fireTap = true; else jumpUntil = gameNow() + 120;   // landing on a button presses it
+    }
     touches.set(e.pointerId, t);
     UnrugRun.touched();
   }
@@ -94,7 +118,8 @@
   window.beforeGameStep = function () {
     let l = false, r = false, d = false, u = false, f = fireTap;
     for (const t of touches.values()) {
-      if (t.side === 'pad') { const o = padDirs(t); l = l || o.l; r = r || o.r; d = d || o.d; u = u || o.u; }
+      if (t.side === 'pad') { const o = t.dirs; l = l || o.l; r = r || o.r; d = d || o.d; u = u || o.u; }
+      else if (t.side === 'jump') u = true;
       else f = true;
     }
     fireTap = false;
@@ -108,6 +133,42 @@
     for (const k in keys) keys[k] = false;
   }
   addEventListener('blur', releaseAll);
+
+  // ---------- picking the controls ----------
+  // Two pictures side by side, the chosen one lit: on the controls screen and in pause, while playing by touch.
+  const ctlPick = $('ctl-pick'), pausePick = $('pause-pick'), pausePickH = $('pause-pick-h');
+  function picture(m) {
+    const ring = 'rgba(255,197,58,.75)', hot = '#ff6a1a', cream = '#f4e4d0', base = 'rgba(14,9,9,.85)';
+    const tri = (x, y, d, f) => {
+      const k = 7, p = { l: [[x - k, y], [x + k * .7, y - k], [x + k * .7, y + k]], r: [[x + k, y], [x - k * .7, y - k], [x - k * .7, y + k]], u: [[x, y - k], [x - k, y + k * .7], [x + k, y + k * .7]], d: [[x, y + k], [x - k, y - k * .7], [x + k, y - k * .7]] }[d];
+      return '<path d="M' + p.map(q => q.join(' ')).join('L') + 'Z" fill="' + f + '"/>';
+    };
+    const btn = (x, y, r, label, lit) => '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + (lit ? hot : base) + '" stroke="' + (lit ? '#ffc53a' : hot) + '" stroke-width="3"/><text x="' + x + '" y="' + (y + r * .24) + '" text-anchor="middle" font-family="Jersey 15, Courier New, monospace" font-size="' + Math.round(r * .68) + '" fill="' + (lit ? '#1a0703' : cream) + '">' + label + '</text>';
+    let s = '<svg viewBox="0 0 240 110" aria-hidden="true"><rect x="1" y="1" width="238" height="108" rx="16" fill="rgba(255,255,255,.04)" stroke="rgba(244,228,208,.18)"/>';
+    s += '<path d="M47 18H73V43H98V69H73V94H47V69H22V43H47Z" fill="' + base + '" stroke="' + ring + '" stroke-width="2.5" stroke-linejoin="round"/>';
+    if (m === 'pad') s += '<rect x="48" y="19" width="24" height="24" fill="' + hot + '" opacity=".85"/>';
+    s += tri(36, 56, 'l', cream) + tri(84, 56, 'r', cream) + tri(60, 80, 'd', cream) + tri(60, 32, 'u', m === 'pad' ? '#1a0703' : 'rgba(244,228,208,.18)');
+    s += m === 'pad' ? btn(180, 56, 30, 'FIRE') : btn(160, 72, 24, 'FIRE') + btn(204, 40, 24, 'JUMP', true);
+    return s + '</svg>';
+  }
+  const PICKS = [['pad', 'Pad jumps', 'up on the pad jumps'], ['button', 'Jump button', 'a Jump button by Fire']];
+  for (const box of [ctlPick, pausePick]) for (const [m, name, sub] of PICKS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'pick'; b.dataset.mode = m;
+    b.innerHTML = picture(m) + name + '<span>' + sub + '</span>';
+    b.setAttribute('aria-label', name + ': ' + sub);
+    b.addEventListener('click', () => setMode(m));
+    box.append(b);
+  }
+  function showMode() { for (const b of document.querySelectorAll('.pick')) b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); }
+  function setMode(m) {
+    if (m === mode) return;
+    mode = m; touches.clear(); fireTap = false; jumpUntil = -1;
+    try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
+    UnrugSfx.move(); showMode();
+  }
+  showMode();
+  window.touchControlsMode = () => mode;
 
   // ---------- drawing the controls ----------
   const BASE = 'rgba(14,9,9,0.46)', RING = 'rgba(255,197,58,0.6)', HOT = 'rgba(255,106,26,0.66)';
@@ -129,9 +190,10 @@
   }
   function drawControls() {
     const c = controls(), p = c.pad, a = p.r * 0.68, lw = Math.max(1.5, H * 0.006);
-    let l = false, r = false, u = false, d = false, f = false;
+    let l = false, r = false, u = false, d = false, f = false, j = false;
     for (const t of touches.values()) {
-      if (t.side === 'pad') { const o = padDirs(t); l = l || o.l; r = r || o.r; u = u || o.u; d = d || o.d; }
+      if (t.side === 'pad') { const o = t.dirs; l = l || o.l; r = r || o.r; u = u || o.u; d = d || o.d; }
+      else if (t.side === 'jump') j = true;
       else f = true;
     }
     crossPath(p.x, p.y, p.r, a); hctx.fillStyle = BASE; hctx.fill();
@@ -144,20 +206,25 @@
     crossPath(p.x, p.y, p.r, a); hctx.lineWidth = lw; hctx.strokeStyle = RING; hctx.stroke();
     hctx.fillStyle = 'rgba(244,228,208,0.85)';
     const ts = a * 0.2, o = p.r * 0.62;
-    tri(p.x - o, p.y, ts, 'l'); tri(p.x + o, p.y, ts, 'r'); tri(p.x, p.y - o, ts, 'u'); tri(p.x, p.y + o, ts, 'd');
+    tri(p.x - o, p.y, ts, 'l'); tri(p.x + o, p.y, ts, 'r'); tri(p.x, p.y + o, ts, 'd');
+    if (mode === 'button') hctx.fillStyle = 'rgba(244,228,208,0.16)';   // up does nothing with the Jump button
+    tri(p.x, p.y - o, ts, 'u');
     hctx.beginPath(); hctx.arc(p.x, p.y, a * 0.16, 0, 7); hctx.fillStyle = 'rgba(244,228,208,0.18)'; hctx.fill();
 
-    const b = c.fire;
-    hctx.beginPath(); hctx.arc(b.x, b.y, b.r, 0, 7); hctx.fillStyle = f ? HOT : BASE; hctx.fill();
+    roundButton(c.fire, f, 'FIRE', blasterIcon, lw);
+    if (c.jump) roundButton(c.jump, j, 'JUMP', null, lw);
+  }
+  function roundButton(b, on, label, icon, lw) {
+    hctx.beginPath(); hctx.arc(b.x, b.y, b.r, 0, 7); hctx.fillStyle = on ? HOT : BASE; hctx.fill();
     hctx.lineWidth = lw * 1.2; hctx.strokeStyle = 'rgba(255,106,26,0.85)'; hctx.stroke();
     hctx.beginPath(); hctx.arc(b.x, b.y, b.r * 0.8, 0, 7); hctx.lineWidth = lw * 0.6; hctx.strokeStyle = 'rgba(244,228,208,0.14)'; hctx.stroke();
-    if (blasterIcon.complete && blasterIcon.naturalWidth) {
+    if (icon && icon.complete && icon.naturalWidth) {
       hctx.imageSmoothingEnabled = false;
-      const s = b.r * 0.78; hctx.drawImage(blasterIcon, b.x - s / 2, b.y - s * 0.7, s, s);
+      const s = b.r * 0.78; hctx.drawImage(icon, b.x - s / 2, b.y - s * 0.7, s, s);
     }
     hctx.fillStyle = 'rgba(244,228,208,0.92)'; hctx.textAlign = 'center'; hctx.textBaseline = 'middle';
-    hctx.font = LOOK.pix(Math.round(b.r * 0.42));
-    hctx.fillText('FIRE', b.x, b.y + b.r * 0.42);
+    hctx.font = LOOK.pix(Math.round(b.r * (icon ? 0.42 : 0.5)));
+    hctx.fillText(label, b.x, icon ? b.y + b.r * 0.42 : b.y + b.r * 0.04);
   }
 
   // The bars beside the alley: its own edges, stretched and darkened, so the alley seems to carry on.
@@ -292,6 +359,8 @@
     if (UnrugTitle.visible()) UnrugTitle.draw(t);
     else if (gx > 1 || gy > 1) drawBars();
     if (touchMode && playing && gameState !== 'controls') drawControls();
+    ctlPick.hidden = !(touchMode && playing && gameState === 'controls');
+    pausePick.hidden = pausePickH.hidden = !touchMode;
     if (!rotateEl.hidden) drawRotate(t);
     requestAnimationFrame(frame);
   }
