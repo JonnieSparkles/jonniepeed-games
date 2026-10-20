@@ -90,7 +90,25 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mark-light{display:none}:root:not([data-theme="light"]) .mark-dark{display:block}}
 :root[data-theme="dark"] .mark-light{display:none}
 :root[data-theme="dark"] .mark-dark{display:block}
-@media (prefers-reduced-motion:reduce){.grid.flip-out,.grid.flip-in{animation:none}.card{transition:none}.card:hover{transform:none}}
+/* Side B with no cards: a little arcade cabinet in attract mode (ident.js shows it and runs Coin and Start) */
+.empty-b{grid-column:1/-1;display:grid;justify-items:center;gap:14px;text-align:center;padding-block:8px 4px}
+.empty-b>p{margin:0;color:var(--muted);max-width:36ch}
+.cab{width:min(100%,280px)}
+.marq{background:var(--pink);color:#fff;font:15px var(--display);letter-spacing:.14em;padding:8px 6px;border:3px solid var(--ink);border-bottom:0;border-radius:10px 10px 0 0}
+.bez{background:#17141f;padding:14px;border-inline:3px solid var(--ink)}
+.crt{aspect-ratio:4/3;max-width:100%;background:#0d0b14;border-radius:14px;display:grid;place-items:center;align-content:center;padding:10px;position:relative;overflow:hidden;color:#fff;font:13px/1.5 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.crt::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(transparent 0 2px,rgba(255,255,255,.05) 2px 3px);pointer-events:none}
+.crt #crtText{display:grid;gap:14px}
+.crt .big{font-size:20px;line-height:1.3;color:#8fd43c}
+.crt .blink{animation:blink 1s steps(2) infinite}
+.crt .credits{position:absolute;right:10px;bottom:6px;font-size:10px;color:#aaa3bb}
+.deck{background:var(--card);border:3px solid var(--ink);border-radius:0 0 10px 10px;padding:12px;display:flex;justify-content:center;gap:16px}
+.deck button{min-height:44px;border:3px solid var(--ink);font:11px var(--display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:var(--ink)}
+.deck .coin{background:var(--bg);border-radius:6px;padding:0 12px}
+.deck .start{background:var(--orange);color:#fff;border-radius:999px;padding:0 16px}
+.deck button:focus-visible{outline:3px solid var(--pink);outline-offset:3px}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.crt .blink{animation:none}.grid.flip-out,.grid.flip-in{animation:none}.card{transition:none}.card:hover{transform:none}}
 </style>
 </head>
 <body>
@@ -100,6 +118,15 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
 <main class="shelf wrap">
   <div class="shelf-head"><h2 id="shelfHeading" tabindex="-1">Games</h2><button id="sideA" type="button" hidden>Side A</button></div>
   <div class="grid">
+    <a class="card green" href="stick-army/">
+      <div class="thumb"><img src="stick-army/thumb.webp?v=1556bb5d14" width="768" height="576" alt="Stick Army cover: a ballpoint doodle of a stick-figure turret blasting at paratroopers, with the squad dug in below a hand-lettered title"></div>
+      <div class="info">
+        <span class="tag">Game · phone or desktop</span>
+        <h3>Stick Army</h3>
+        <p>Battle the enemy stick army. Recruit a squad, upgrade your turret and hold the line.</p>
+        <span class="go">Play</span>
+      </div>
+    </a>
     <a class="card pink" href="dont-step-on-a-crack/">
       <div class="thumb"><img src="dont-step-on-a-crack/thumb.webp?v=a95a4c17e6" width="768" height="576" alt="Don't Step on a Crack cover: the title chalked across a cracked sidewalk above your sneakers, with Mom glaring from the Mom Cam and a corgi bounding in"></div>
       <div class="info">
@@ -127,16 +154,14 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
         <span class="go">Play</span>
       </div>
     </a>
-    <a class="card green" href="stick-army/" data-side="b" data-badge="demo" hidden>
-      <div class="thumb"><img src="stick-army/thumb.webp?v=1556bb5d14" width="768" height="576" alt="Stick Army cover: a ballpoint doodle of a stick-figure turret blasting at paratroopers, with the squad dug in below a hand-lettered title"></div>
-      <div class="info">
-        <span class="badge"></span>
-        <span class="tag">Game · phone or desktop</span>
-        <h3>Stick Army</h3>
-        <p>Pop chutes low, recruit a stick army, and kit out your notebook turret between waves.</p>
-        <span class="go">Play</span>
+    <div class="empty-b" id="sideBEmpty" hidden>
+      <div class="cab">
+        <div class="marq" aria-hidden="true">SIDE B</div>
+        <div class="bez"><div class="crt" role="status" aria-live="polite"><span id="crtText"><span class="big">Coming<br>soon</span><span class="blink">Insert coin</span></span><span class="credits" id="crtCredits">Credits 0</span></div></div>
+        <div class="deck"><button class="coin" id="cabCoin" type="button">Coin</button><button class="start" id="cabStart" type="button">Start</button></div>
       </div>
-    </a>
+      <p>New games and early demos land on Side B first. Nothing here right now. Stay tuned.</p>
+    </div>
   </div>
   <div class="egg"><canvas id="ident" width="120" height="48" tabindex="0" role="img" aria-label="Pixel JonniePeed sending a rainbow along the shelf floor. Hold with a pointer, Space or Enter to build power. Keep holding at full power for three more seconds to discover Side B."></canvas></div>
 </main>
@@ -148,6 +173,6 @@ footer img{width:20px;height:22px;image-rendering:pixelated}
   </div>
 </footer>
 <script src="assets/studio/audio.js?v=77dda938b0"></script>
-<script src="assets/studio/ident.js?v=1e8085e7fc"></script>
+<script src="assets/studio/ident.js?v=29dd40bf88"></script>
 </body>
 </html>

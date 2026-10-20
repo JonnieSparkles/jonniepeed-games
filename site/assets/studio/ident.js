@@ -15,6 +15,7 @@
   const heading = document.getElementById('shelfHeading');
   const sideA = document.getElementById('sideA');
   const cards = Array.from(grid.querySelectorAll('.card'));
+  const empty = document.getElementById('sideBEmpty');
   // Sound is optional: if audio.js didn't load, the shelf and the egg still work.
   const sound = typeof StudioSound === 'undefined' ? { init() {}, play() {}, ready: false, muted: false, none: true } : StudioSound;
   const soundKey = 'jonniepeed.muted';
@@ -34,6 +35,8 @@
       heading.textContent = side === 'b' ? 'Side B' : 'Games';
       for (const card of cards) card.hidden = (card.dataset.side || 'a') !== side;
       sideA.hidden = side !== 'b';
+      // An empty Side B shows the cabinet instead (it comes and goes with Side B's cards).
+      if (empty) empty.hidden = side !== 'b' || cards.some(card => card.dataset.side === 'b');
       try { sessionStorage.setItem(shelfKey, side); } catch (_) {}
     }
     function finish() {
@@ -58,6 +61,22 @@
       grid.classList.replace('flip-out', 'flip-in');
       setTimeout(finish, FLIP_MS);
     }, FLIP_MS);
+  }
+  // The cabinet on an empty Side B: Coin adds a credit, Start spends one on a game that isn't there yet.
+  if (empty) {
+    const text = document.getElementById('crtText'), creditsEl = document.getElementById('crtCredits');
+    let credits = 0, back = 0;
+    const attract = () => { text.innerHTML = '<span class="big">Coming<br>soon</span><span class="blink">' + (credits ? 'Press start' : 'Insert coin') + '</span>'; };
+    document.getElementById('cabCoin').addEventListener('click', () => {
+      credits = Math.min(9, credits + 1); creditsEl.textContent = 'Credits ' + credits; sound.play('tick', credits); clearTimeout(back); attract();
+    });
+    document.getElementById('cabStart').addEventListener('click', () => {
+      sound.play('press');
+      if (!credits) { attract(); return; }
+      credits--; creditsEl.textContent = 'Credits ' + credits;
+      text.innerHTML = '<span>No game loaded</span><span class="big">Stay tuned</span><span>New games land here first</span>';
+      clearTimeout(back); back = setTimeout(attract, 3500);
+    });
   }
   let savedSide;
   try { savedSide = sessionStorage.getItem(shelfKey); } catch (_) {}

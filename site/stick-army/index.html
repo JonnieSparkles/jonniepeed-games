@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex">
 <title>Stick Army — JonniePeed Games</title>
 <meta name="description" content="Defend your notebook bunker. Pop chutes low, recruit a stick army, and kit out your turret between waves.">
 <meta property="og:type" content="website">
@@ -261,12 +260,16 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .lvl-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -2px 0 4px; font: 18px/1 var(--font-hand); color: var(--ally); }
 .lvl-badge .t-chev { stroke: var(--ally); width: 18px; }
 /* Two ways to play on the title: Arcade and Challenges side by side, the level under them. */
-.t-foot.t-two { top: 611px; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
-.t-two .t-start { min-height: 46px; padding: 2px 10px 5px; font-size: 28px; }
+.t-foot.t-two { top: 619px; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+/* Arcade and Challenges sit just under the ground line, not over it. */
+.t-two .t-start { min-height: 40px; height: 40px; padding: 0 10px 3px; font-size: 24px; }
 .t-two .t-level { grid-column: 1 / -1; display: flex; gap: 14px; }
 .t-two .t-rank { min-height: 24px; }
 .t-two .t-chip { min-height: 30px; }
 .t-chal { background: var(--friend); }
+/* Coming soon: a dashed pencil outline, not inked in yet, that can't be pressed (challenges.js). */
+.t-chal:disabled { opacity: 1; display: grid; align-content: center; line-height: 0.9; padding: 0 6px 2px; font-size: 21px; color: #8f8b84; background: transparent; border: 2.5px dashed #8f8b84; }
+.t-chal small { font: 13px/1 var(--font-hand); color: inherit; }
 .pause-goal { color: var(--ink); }
 
 /* ---------- Challenges (challenges.js) ----------
@@ -474,9 +477,9 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
           <path d="M262 262 C 278 266, 286 278, 288 296 M 280 286 L 288 300 L 294 284"/>
           <path d="M300 518 C 290 530, 280 540, 268 552 M 268 538 L 266 554 L 282 552"/>
         </svg>
-        <div class="t-foot">
-          <button class="btn t-start" id="startBtn" type="button">Start</button>
-          <button class="btn t-start t-chal" id="challengesBtn" type="button" hidden>Challenges</button>
+        <div class="t-foot t-two">
+          <button class="btn t-start" id="startBtn" type="button">Arcade</button>
+          <button class="btn t-start t-chal" id="challengesBtn" type="button" disabled>Challenges<small>(coming soon)</small></button>
           <div class="t-level" role="radiogroup" aria-label="Level">
             <button class="t-rank" type="button" role="radio" data-level="soldier" aria-checked="true"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Soldier</span><svg class="t-chev" viewBox="0 0 30 14" aria-hidden="true"><path d="M3 11 L15 4 L27 11"/></svg></button>
             <button class="t-rank" type="button" role="radio" data-level="veteran" aria-checked="false"><span class="t-box" aria-hidden="true"></span><span class="t-rname">Veteran</span><svg class="t-chev" viewBox="0 0 30 22" aria-hidden="true"><path d="M3 9 L15 2 L27 9 M3 14.5 L15 7.5 L27 14.5 M3 20 L15 13 L27 20"/></svg><span class="t-new" id="vetNew" hidden>new</span></button>
@@ -606,7 +609,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 <script src="../assets/leaderboard.js?v=a2ece6d863"></script>
 <script src="audio.js?v=9f03c91bfb"></script>
 <script src="icons.js?v=9a7c1a9955"></script>
-<script src="draw.js?v=b656604518"></script>
+<script src="draw.js?v=60cb71092f"></script>
 <script src="units.js?v=e712c24a25"></script>
 <script src="sky.js?v=4ef8f4020b"></script>
 <script src="squad.js?v=2d21997978"></script>
@@ -617,7 +620,7 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 <script src="flow.js?v=cc8744d807"></script>
 <script src="../assets/rooms.js?v=70c7b43633"></script>
 <script src="coop.js?v=224dde6a0c"></script>
-<script src="challenges.js?v=1e61415028"></script>
+<script src="challenges.js?v=8c2347c5d9"></script>
 <script data-tune-src="tune.js?v=b249b8cabb" src="game.js?v=a0ce65ca80"></script>
 </body>
 </html>
