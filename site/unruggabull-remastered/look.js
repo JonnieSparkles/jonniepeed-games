@@ -184,9 +184,14 @@ function lookControlsScreen(ctx, touch) {
   ctx.save();
   ctx.fillStyle = 'rgba(8,4,4,0.86)'; ctx.fillRect(0, 0, 960, 540);
   lookLogo(ctx, 'CONTROLS', 480, 130, 64, 'center');
-  const rows = touch
-    ? [['MOVE', 'the pad on the left'], ['JUMP', 'up on the pad, or up-left / up-right'], ['CROUCH', 'down on the pad'], ['FIRE', 'tap the right side, once per shot']]
-    : [['MOVE', 'A / D or the arrows'], ['JUMP', 'W, Space or up'], ['CROUCH', 'S, C or down'], ['FIRE', 'F, J or Enter'], ['PAUSE', 'Escape or P']];
+  if (touch) {
+    // by touch, the two control pictures (phone.js, #ctl-pick) fill the middle
+    ctx.font = LOOK.pix(34); lookSpacing(ctx, 4); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    lookOutlined(ctx, 'TAP TO START', 480, 478, '#fff0d8', '#1a0a06', 5);
+    ctx.restore();
+    return;
+  }
+  const rows = [['MOVE', 'A / D or the arrows'], ['JUMP', 'W, Space or up'], ['CROUCH', 'S, C or down'], ['FIRE', 'F, J or Enter'], ['PAUSE', 'Escape or P']];
   ctx.textBaseline = 'alphabetic';
   let y = 205;
   for (const [k, v] of rows) {
@@ -195,7 +200,7 @@ function lookControlsScreen(ctx, touch) {
     y += 44;
   }
   ctx.font = LOOK.pix(34); lookSpacing(ctx, 4); ctx.textAlign = 'center';
-  lookOutlined(ctx, touch ? 'TAP TO START' : 'PRESS ANY KEY TO START', 480, y + 34, '#fff0d8', '#1a0a06', 5);
+  lookOutlined(ctx, 'PRESS ANY KEY TO START', 480, y + 34, '#fff0d8', '#1a0a06', 5);
   ctx.restore();
 }
 

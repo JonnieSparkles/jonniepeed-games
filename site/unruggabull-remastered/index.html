@@ -94,6 +94,23 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 #rotate b{font-weight:400;color:var(--amber)}
 #rotate small{font-size:19px;text-transform:none;letter-spacing:0;color:var(--ash)}
 /* The end card: after a clear, the 2025 congratulations art, then the run's numbers, initials and the board. */
+/* The touch controls picker: two pictures side by side, on the controls screen (over the alley) and in pause. */
+.picks{display:flex;gap:12px;justify-content:center}
+.pick{all:unset;box-sizing:border-box;cursor:pointer;display:grid;justify-items:center;gap:4px;padding:8px 10px 7px;border-radius:12px;border:2px solid rgba(255,197,58,.25);background:rgba(20,11,10,.72);position:relative;font-family:var(--pix);text-transform:uppercase;letter-spacing:.06em;color:var(--amber)}
+.pick:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
+.pick[aria-pressed="true"]{border-color:var(--ember);background:rgba(255,106,26,.14)}
+.pick[aria-pressed="true"]::after{content:"";position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;background:var(--ember) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M6 11.5l3.2 3.2L16 8' fill='none' stroke='%231a0703' stroke-width='2.6' stroke-linecap='square'/%3E%3C/svg%3E") center/100% no-repeat}
+.pick svg{display:block;width:150px;height:auto}
+.pick span{font-size:12px;letter-spacing:0;text-transform:none;color:var(--ash);font-family:'Barlow','Helvetica Neue',Arial,sans-serif}
+.card .pick{font-size:18px;padding:6px 8px 5px;min-height:0;border-radius:10px;border:2px solid rgba(255,197,58,.25);background:rgba(20,11,10,.72);color:var(--amber)}
+.card .pick[aria-pressed="true"]{border-color:var(--ember);background:rgba(255,106,26,.14)}
+.card .pick svg{width:110px}
+.card .pick span{display:none}
+.pick-h{margin:0 0 -6px;font-size:16px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash)}
+#ctl-pick{position:absolute;z-index:1;align-items:center;gap:calc(var(--k) * 34px)}
+#ctl-pick .pick{padding:calc(var(--k) * 14px) calc(var(--k) * 18px) calc(var(--k) * 12px);gap:calc(var(--k) * 8px);border-radius:calc(var(--k) * 18px);border-width:max(2px,calc(var(--k) * 3px));font-size:calc(var(--k) * 30px)}
+#ctl-pick .pick svg{width:calc(var(--k) * 250px)}
+#ctl-pick .pick span{font-size:calc(var(--k) * 20px)}
 #end{position:absolute;inset:0;z-index:4}
 #end-art{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;transition:opacity 2s ease,transform .6s ease,width .6s ease,height .6s ease;opacity:0;border-radius:6px}
 #end-art.split{box-shadow:0 0 0 2px var(--ember)}
@@ -157,6 +174,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
   <canvas id="gameCanvas" width="960" height="540" aria-label="Unruggabull: RugCo Alley"></canvas>
   <canvas id="hud" aria-hidden="true"></canvas>
   <div id="safe"></div>
+  <div class="picks" id="ctl-pick" role="group" aria-label="Touch controls" hidden></div>
 
   <div id="title">
     <canvas id="title-art" aria-hidden="true"></canvas>
@@ -206,6 +224,8 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
         <button class="go" id="resume-btn">Resume</button>
         <button id="quit-btn">Quit</button>
       </div>
+      <p class="pick-h" id="pause-pick-h" hidden>Touch controls</p>
+      <div class="picks" id="pause-pick" role="group" aria-labelledby="pause-pick-h" hidden></div>
       <div class="row">
         <button id="sound-btn" aria-pressed="true">Sound: on</button>
         <button id="fs2-btn" aria-pressed="false">Full screen</button>
@@ -254,13 +274,13 @@ html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:va
 <script src="../assets/stats.js?v=85945b1406"></script>
 <script src="audio.js?v=420312815d"></script>
 <script src="core.js?v=952ffcf47c"></script>
-<script src="look.js?v=f391cb8de8"></script>
+<script src="look.js?v=ef5aca219a"></script>
 <script src="fx.js?v=119ac1a76e"></script>
 <script src="rugfather.js?v=ffd7e70ed9"></script>
-<script src="game.js?v=543ae1a8dd"></script>
+<script src="game.js?v=ba30b04f51"></script>
 <script src="won.js?v=239a16a709"></script>
 <script src="end.js?v=b49c3aab12"></script>
 <script src="title.js?v=e0455be4e3"></script>
-<script src="phone.js?v=c1102a4387"></script>
+<script src="phone.js?v=2c703bdeb3"></script>
 </body>
 </html>
