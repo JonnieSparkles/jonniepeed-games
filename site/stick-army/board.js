@@ -13,16 +13,16 @@
 //   done      the buttons come back and the board sits below them, so nothing moves under a finger
 // If the scores take longer than WAIT ms the buttons come back anyway and a late answer offers initials in the board.
 //
-// A run that can't get its token when it begins (a phone briefly offline) keeps asking in the background, waiting
-// RETRY ms between tries. The board only accepts play the token was there for, so a late token saves the run's time
-// from when it arrived (run.from), which only matters for ties. A run still without one at the end, or whose save
-// fails, says so on its card (NOTOKEN, NOSAVE, FAILED) instead of quietly showing the board.
+// A run that can't get its token when it begins (a phone briefly offline) keeps asking in the background
+// (Leaderboard.run). The board only accepts play the token was there for, so a late token saves the run's time from
+// when it arrived (lb.time), which only matters for ties. A run still without one at the end, or whose save fails,
+// says so on its card (NOTOKEN, NOSAVE, FAILED) instead of quietly showing the board.
 //
 // Each level has its own board (game.js LEVELS): a run saves to its level's, fixed when it begins. The title's High
 // scores card has a tab for each level and opens on the one picked; the notebook's facing page shows the picked one.
 var StickArmyBoard = function (w) {
   'use strict';
-  var GAME = 'stick-army', BEAT = 600, WAIT = 2500, RETRY = [15000, 30000, 60000], LB = window.Leaderboard || null;
+  var GAME = 'stick-army', BEAT = 600, WAIT = 2500, LB = window.Leaderboard || null;
   var NOSAVE = "Couldn't reach the scores, so this run can't be saved.", FAILED = "Couldn't save this run.";
   var NOTOKEN = "This run can't be saved. The scores couldn't be reached while you played.";
   var run = null, picker = null, current = null;
@@ -62,32 +62,17 @@ var StickArmyBoard = function (w) {
   }
 
   // ---------- a run ----------
-  // Real play begins: ask for the run's token in the background. Play never waits for it. onLate(token) hears of a
-  // token that came from a retry (play stats links the run with it).
+  // Real play begins: ask for the run's token in the background (Leaderboard.run, which retries a failed request).
+  // Play never waits for it. onLate(token) hears of a token that came from a retry (play stats links the run with it).
   function begin(practice, onLate) {
     clear();
+    if (run) run.lb.stop();
     var board = boardFor();
-    run = LB && !practice ? { board: board, start: LB.start(GAME, board), token: null, from: 0, tries: 0, retryTimer: 0, input: 'keys', used: false, onLate: onLate } : null;
-    if (!run) return null;
-    var r = run;
-    r.start.then(function (token) {
-      if (token) r.token = token;
-      else if (run === r && !r.used) retryLater(r);
-    });
-    return r.start;
+    run = LB && !practice ? { board: board, lb: LB.run(GAME, board, { played: function () { return w.S.played * 1000; }, onLate: onLate }), token: null, input: 'keys', used: false } : null;
+    return run ? run.lb.start : null;
   }
-  // No token yet: try again after the next wait (the last one repeats) until one comes or the run ends.
-  function retryLater(r) {
-    r.retryTimer = setTimeout(function () {
-      if (run !== r || r.used) return;
-      LB.start(GAME, r.board).then(function (token) {
-        if (run !== r || r.used) return;
-        if (!token) { retryLater(r); return; }
-        r.token = token; r.from = w.S.played;
-        if (r.onLate) r.onLate(token);
-      });
-    }, RETRY[Math.min(r.tries++, RETRY.length - 1)]);
-  }
+  // The run was left (back to the title): stop asking for its token.
+  function leave() { if (run && !run.used) run.lb.stop(); }
   function touched() { if (run) run.input = 'touch'; }
   // The run is over (won: the victory card; otherwise the game-over card).
   function finish(cardEl, won) {
@@ -102,12 +87,13 @@ var StickArmyBoard = function (w) {
       LB.load(GAME, board).then(function (data) { if (data && data.scores.length && current && current.card === cardEl && !run_changed(r)) draw(current.box, data.scores); });
       return;
     }
-    r.used = true; clearTimeout(r.retryTimer);
-    r.score = S.score; r.meta = { time_ms: Math.round(Math.max(0, S.played - r.from) * 1000), wave: Math.max(1, S.wave), won: won ? 1 : 0 };
+    r.used = true;
+    var tokenP = r.lb.end();
+    r.score = S.score; r.meta = { time_ms: r.lb.time(S.played * 1000), wave: Math.max(1, S.wave), won: won ? 1 : 0 };
     var began = performance.now();
     phase('checking');
     r.waitTimer = setTimeout(function () { if (run === r && !r.shown) { r.late = true; back(); } }, WAIT);
-    (r.token ? Promise.resolve(r.token) : r.start).then(function (token) {
+    tokenP.then(function (token) {
       r.token = token;
       if (!token) r.note = NOTOKEN;
       return token ? LB.load(GAME, r.board, r.score, r.meta) : LB.load(GAME, r.board);
@@ -167,7 +153,7 @@ var StickArmyBoard = function (w) {
   // Leaving an end card (play again, keep going, back to the title): forget the board, keep the run's token spent.
   function clear() {
     if (picker) { picker.destroy(); picker = null; }
-    if (run) { clearTimeout(run.waitTimer); clearTimeout(run.retryTimer); }
+    if (run) clearTimeout(run.waitTimer);
     if (current) { phase(null); current.box.replaceChildren(); current.box.hidden = true; }
     current = null;
   }
@@ -284,6 +270,6 @@ var StickArmyBoard = function (w) {
     });
   }
 
-  return { begin: begin, touched: touched, finish: finish, clear: clear, openScores: openScores, closeScores: closeScores, titleRows: titleRows,
+  return { begin: begin, leave: leave, touched: touched, finish: finish, clear: clear, openScores: openScores, closeScores: closeScores, titleRows: titleRows,
     get picking() { return !!picker; }, available: !!LB };
 };

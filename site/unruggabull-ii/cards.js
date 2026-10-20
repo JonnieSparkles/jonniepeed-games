@@ -173,6 +173,7 @@ var UnrugCards = (function () {
       if (lbs.st === 'offer') { const [a, b] = offerLines(); return [[typed(a, s, 0, 40), CAP.val], [typed(b, s, .5, 40), CAP.ink]]; }
       if (lbs.st === 'pick' || lbs.st === 'busy') return [[lbs.st === 'busy' ? 'PROCESSING...' : lbs.msg || 'INITIALS', lbs.msg && lbs.st === 'pick' ? CAP.warn : CAP.label]];
       if (lbs.st === 'saved') { const r = lbs.result; return [['PROCESSED. ' + ord(r.position || r.rank) + ' OF ' + commas(r.total) + '.', CAP.val]]; }
+      if (lbs.failed) return [['PROCESSING FAILED. UNPROCESSED.', CAP.warn]];
       return [['UNPROCESSED. IT WOULD BE ' + ord(d.placement || d.position) + '.', CAP.dim]];
     }
     // the three letters: an arrow above and below each, the slot you're on lit, the run's hat over them
@@ -465,6 +466,7 @@ var UnrugCards = (function () {
       const d = lbs.data;
       say.textContent = st === 'offer' ? offerLines().join(' ') : st === 'pick' ? (lbs.msg ? 'Try other initials.' : 'Enter your initials.')
         : st === 'saved' ? 'Processed. ' + ord(lbs.result.position || lbs.result.rank) + ' of ' + commas(lbs.result.total) + '.'
+        : st === 'skipped' && lbs.failed ? 'Processing failed. Unprocessed.'
         : st === 'skipped' && d ? 'Unprocessed. It would be ' + ord(d.placement || d.position) + '.' : st === 'off' ? 'Board offline.' : say.textContent;
     }
     function cycle(j, dv) { if (lbs.st !== 'pick') return; lbs.letters[j] = (lbs.letters[j] + dv + ABC.length) % ABC.length; lbs.slot = j; relabelSlots(); }
@@ -477,7 +479,7 @@ var UnrugCards = (function () {
         if (!info || info.lb !== lb) return;   // the card moved on
         if (r && r.ok) { lbs.result = r; step('saved'); }
         else if (r && r.error === 'name_not_allowed') { lbs.msg = 'TRY OTHER INITIALS.'; step('pick'); }
-        else step('skipped');   // refused or failed: the board without the row, saying nothing more
+        else { lbs.failed = true; step('skipped'); }   // refused or failed: the board without the row, and it says so
       });
     }
     // keys for the step (game.js asks first while a card is up): Escape skips the offer; the picker takes letters and

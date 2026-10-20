@@ -113,11 +113,11 @@ Either way, merging the change deploys the stats Worker by itself. No site deplo
 2. Include `../assets/stats.js` before `game.js` (after `leaderboard.js` if it has one).
 3. When real play begins (never for demos or watch modes), start a run and keep the handle on the game's run state:
    ```js
-   statsRun = window.PlayStats ? PlayStats.start('pebble-hop', { board: BOARD, token: lbRun && lbRun.start, progress: runReport }) : null;
+   statsRun = window.PlayStats ? PlayStats.start('pebble-hop', { board: BOARD, token: run && run.lb.start, progress: runReport }) : null;
    ```
-   `token` is the promise from `Leaderboard.start`, if the game has a board. `progress` returns the same shape as an end report, for a run left mid-way; read live state in it, and call `PlayStats.start` before resetting that state, so a run still open reports its real progress.
+   `token` is the run's `lb.start` (the first request's promise from `Leaderboard.run`, or `Leaderboard.start`'s), if the game has a board. `progress` returns the same shape as an end report, for a run left mid-way; read live state in it, and call `PlayStats.start` before resetting that state, so a run still open reports its real progress.
 4. At game over, report: `PlayStats.end(statsRun, runReport())`, where `runReport()` returns `{ score, time_ms, input, won, stats }`. `input` is `lbRun.input` where the game tracks it; otherwise `stats.js` uses touch if a touch landed during the run. `won: true` makes the outcome `won`. `end` can be called again for the same run; the last report wins. If a run carries on after an end (a winner who keeps going), call `PlayStats.resume(statsRun)` so hiding the page mid-run reports it again.
-   A game that retries a failed `Leaderboard.start` during the run passes the token that finally comes to `PlayStats.token(statsRun, token)`, so the run is still matched to its row.
+   When `Leaderboard.run` gets a token from a retry, its `onLate` passes it on with `PlayStats.token(statsRun, token)`, so the run is still matched to its row.
 5. When the player leaves a run from a menu, call `PlayStats.quit(statsRun)` before the state is reset.
 6. Pick a few `stats` that answer "how far did they get": up to 24 short lowercase keys (`a-z`, digits, `_`), each a number, a boolean or text up to 40 characters. Numbers get histograms; text gets its most common values. Anything else is dropped in the client so one bad stat never loses the run.
 7. List the stats in the game's living doc and in SPEC-009's table, run `python3 tools/stamp.py`, and add the game to `stats/test/games.py`.

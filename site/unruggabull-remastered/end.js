@@ -257,7 +257,8 @@ window.UnrugRun = (function () {
     const data = !window.Leaderboard ? null
       : token ? await Leaderboard.load(GAME, BOARD, 1, meta) : await Leaderboard.load(GAME, BOARD);
     if (run !== ended) return;
-    // Offline, or no token: the board on this device.
+    // Offline, or no token: the board on this device. The online board ranks by time, so a token that came late can't
+    // carry the run (its time would be cut short); Remastered asks once and says why when it can't save online.
     if (!data || !token) {
       const rows = deviceRows();
       const would = rows.filter(r => order(r, result) < 0).length + 1;
@@ -265,7 +266,7 @@ window.UnrugRun = (function () {
       openPicker(ended, async name => {
         const rank = saveDevice(Object.assign(local(), { name }));
         msg.textContent = '';
-        drawBoard(boardBox, asBoard(deviceRows()), rank, data ? null : 'The online board couldn’t be reached. Saved on this device.');
+        drawBoard(boardBox, asBoard(deviceRows()), rank, data ? 'The online board couldn’t be reached when this run began. Saved on this device.' : 'The online board couldn’t be reached. Saved on this device.');
       }, () => { msg.textContent = ''; drawBoard(boardBox, data ? data.scores : asBoard(deviceRows()), null); });
       return;
     }
@@ -281,7 +282,8 @@ window.UnrugRun = (function () {
       if (run !== ended) return true;
       if (res && res.error === 'name_not_allowed') { msg.textContent = 'Try other initials.'; return false; }
       msg.textContent = '';
-      const note = res && res.ok && !(res.rank && res.rank <= 50) && res.position ? 'Saved. You’re #' + res.position + ' of ' + res.total + '.' : null;
+      const note = !(res && res.ok) ? 'Couldn’t save this run online. Saved on this device.'
+        : !(res.rank && res.rank <= 50) && res.position ? 'Saved. You’re #' + res.position + ' of ' + res.total + '.' : null;
       drawBoard(boardBox, res && res.ok ? res.scores : data.scores, res && res.ok ? res.rank : null, note);
       return true;
     }, () => {
