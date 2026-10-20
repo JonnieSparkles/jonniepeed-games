@@ -267,7 +267,7 @@ window.UnrugRun = (function () {
         const rank = saveDevice(Object.assign(local(), { name }));
         msg.textContent = '';
         drawBoard(boardBox, asBoard(deviceRows()), rank, data ? 'The online board couldn’t be reached when this run began. Saved on this device.' : 'The online board couldn’t be reached. Saved on this device.');
-      }, () => { msg.textContent = ''; drawBoard(boardBox, data ? data.scores : asBoard(deviceRows()), null); });
+      }, () => { msg.textContent = ''; drawBoard(boardBox, data ? data.scores : asBoard(deviceRows()), null, data ? 'The online board couldn’t be reached when this run began, so it can’t go on it.' : 'The online board couldn’t be reached.'); });
       return;
     }
     const top = typeof data.placement === 'number';

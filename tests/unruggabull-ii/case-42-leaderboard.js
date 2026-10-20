@@ -118,6 +118,7 @@
     loadAnswer = { ok: true, scores: TOP, placement: null, position: 312, total: 1204 };
     endRun('clear'); await settle(); await settle(); wait(2.5);
     check(Cards.step === 'offer' && calls.load[calls.load.length - 1][3].time_ms === 330000, 'it offers, with the run\'s time from the token (450 s less 120 s)');
+    check(Cards.info.lb.played === 450 && Cards.info.lb.time === 330, 'the card\'s TOTAL shows the run\'s real time; the save, the time from the token');
     Cards.press('Enter initials'); submitAnswer = d => ({ ok: true, rank: null, position: 312, total: 1205, scores: TOP });
     Cards.press('OK'); await settle();
     const lateSave = calls.submit[calls.submit.length - 1];

@@ -1340,7 +1340,8 @@
     const tokenP = RUN.lb ? RUN.lb.end() : Promise.resolve(null);
     const meta = { time_ms: RUN.lb ? RUN.lb.time(runTime() * 1000) : Math.round(runTime() * 1000), hat: Math.max(0, HATS.indexOf(RUN.hat)) };
     let token = null;
-    const step = { kind: 'save', mode, score, time: meta.time_ms / 1000, hat: RUN.hat, input,
+    // time: what it saves (the board's row); played: the run's real time, for the card's TOTAL row
+    const step = { kind: 'save', mode, score, time: meta.time_ms / 1000, played: runTime(), hat: RUN.hat, input,
       initials: window.Leaderboard ? Leaderboard.initials() : 'AAA' };
     // the board where this run would stand; without a token it can't be saved, so it's offline as far as the card goes
     step.ready = Promise.resolve(tokenP).then(t => {

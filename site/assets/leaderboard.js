@@ -41,7 +41,9 @@
     // briefly offline), it asks again in the background after each of retryWaits (the last repeats) until a token
     // comes or the run ends. The Worker only accepts play its token was there for, so a run whose token came late
     // saves time(ms): its play time from when the token came. That's only fair where time breaks ties or isn't on the
-    // board; a board ranked by time can't use a late token (docs/guides/00-leaderboards.md, Run tokens).
+    // board; a board ranked by time can't use a late token. The shorter time also tightens the Worker's score cap, so
+    // a very late token on a fast-scoring run can still be refused (docs/guides/00-leaderboards.md, Run tokens in the
+    // game). A retry still out when the run ends is dropped.
     //   options.played()       the run's play time so far in ms, as the game counts it (default: time since run())
     //   options.onLate(token)  a token came from a retry; pass it to PlayStats.token
     // Returns { start, token, from, time(ms), end(), stop() }: start is the first request's promise (for

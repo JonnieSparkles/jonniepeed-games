@@ -188,11 +188,11 @@ def suite(page, game, size, label):
     page.evaluate('Leaderboard.retryWaits=[200]')
     start(page,game); assert page.evaluate('lbRun.lb.start') is None
     api_mode['start']=True
-    page.wait_for_function('lbRun.lb.token!==null')
+    page.wait_for_function('lbRun.lb.token!==null'); since=page.evaluate('lbRun.lb.from')
     finish(page,game,5700); picker(page,game)
     page.keyboard.type('lat'); page.get_by_role('button',name='Save score',exact=True).click()
     page.locator('.lb-you').wait_for()
-    late=sent[-1]; assert late['name']=='LAT' and 0<=late['meta']['time_ms']<=2000000,late   # the run claims 2,000 s, counted from the token (Crack's clock hadn't started)
+    late=sent[-1]; assert late['name']=='LAT' and abs(late['meta']['time_ms']-(2000000-since))<=1,(late,since)   # the run's 2,000 s, less its time before the token
     page.evaluate('Leaderboard.retryWaits=[15000,30000,60000]')
     # A refused submit: the board comes back without the run's row, and says the save failed.
     api_mode['sign']=False

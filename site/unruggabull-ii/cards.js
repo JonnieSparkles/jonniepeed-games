@@ -231,7 +231,7 @@ var UnrugCards = (function () {
     }
     // the roof's souls and time, and the run's TOTAL under them (what posts, in gold), right of the title
     function totals(t, right, y) {
-      const rows = [['ROOF', info.souls, info.time, CAP.val], ['TOTAL', info.lb.score, info.lb.time, CAP.ink]];
+      const rows = [['ROOF', info.souls, info.time, CAP.val], ['TOTAL', info.lb.score, info.lb.played != null ? info.lb.played : info.lb.time, CAP.ink]];
       rows.forEach(([label, souls, time, col], i) => {
         const at = 1 + i * .2, ry = y + i * 14;
         if (t < at) return;
