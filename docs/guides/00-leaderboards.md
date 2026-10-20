@@ -339,16 +339,6 @@ Dashboard: run `SELECT * FROM scores WHERE name = 'JON' ORDER BY created_at DESC
 wrangler d1 execute jonniepeed-games-scores --remote --command="SELECT * FROM scores WHERE name = 'JON' ORDER BY created_at DESC;"
 ```
 
-### Add a score by hand
-
-For an honest run that didn't save (its token never came, say), once you're sure of it. Find the run in play stats first: `SELECT score_run, board, ended_at, time_ms, stats FROM runs WHERE game = '<game-id>' AND score = <score>;` against `jonniepeed-games-stats`. Use its `score_run` as `run_id` when there is one, so play stats links the run to the row; otherwise any unique string, such as `manual-2026-10-19-spt` (the column is unique, so one row per run). Copy `meta` from the board's rules in `games.json`. The insert skips the blocklist, so check the initials. `created_at` is the time you add it.
-
-```sql
-INSERT INTO scores (game, board, run_id, name, score, input, meta) VALUES ('stick-army', 1, 'manual-2026-10-19-spt', 'SPT', 443055, 'touch', '{"time_ms":1101170,"wave":20,"won":1}');
-```
-
-From a terminal, save the statement as a file in `scores/` and run `wrangler d1 execute jonniepeed-games-scores --remote --file=<file>.sql` (Windows shells mangle the quotes in `--command`), then delete the file.
-
 ### Delete one score
 
 Dashboard: first run `SELECT * FROM scores WHERE id = 123;`, then `DELETE FROM scores WHERE id = 123;` after confirming the row.
