@@ -1,0 +1,5 @@
+/* The trailer films the page alone: the round buttons beside it (pause, mute, full screen, the radio calls) stay
+   out of the picture. The calls held still show in the HUD's chips. */
+#pauseBtn, #muteBtn, #fullBtn, #strikeBtn, #fighterBtn { visibility: hidden !important; }
+/* The facing page's online top five can't load while filming (no network), so its "Couldn't load" note stays out. */
+.facing .f-board { visibility: hidden !important; }
