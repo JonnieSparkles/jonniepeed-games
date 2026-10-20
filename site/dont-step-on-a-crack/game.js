@@ -17,27 +17,37 @@ const coarse=matchMedia('(pointer: coarse)').matches;
 /* ---------- online arcade board ---------- */
 let lbRun = null, lbEntry = null;
 const lbBox = $('#board');
+// A walk with no token by its end can't be saved, and the call says so rather than quietly showing the board; so does
+// one that can't reach the scores, or whose save fails (the leaderboard guide's Run tokens).
+const LB_NOTOKEN = "This walk can't be saved. The scores couldn't be reached while you walked.";
+const LB_NOSAVE = "Couldn't reach the scores, so this walk can't be saved.", LB_FAILED = "Couldn't save this walk.";
 function clearLeaderboard() {
   if (lbEntry) lbEntry.destroy();
+  if (lbRun) lbRun.lb.stop();
   lbEntry = null; lbRun = null; lbBox.replaceChildren(); lbBox.hidden = true;
   afterEl.classList.remove('lb-entering');
 }
 function resetLeaderboard() {
   clearLeaderboard();
-  // the run's token is fetched in the background; play never waits for it
-  if (window.Leaderboard) lbRun = { start: Leaderboard.start('dont-step-on-a-crack', BOARD), token: null, input: 'keys', data: null, shown: false };
+  // the run's token is fetched in the background, and asked for again if that fails; play never waits for it
+  if (window.Leaderboard) lbRun = { lb: Leaderboard.run('dont-step-on-a-crack', BOARD, { played: () => walkReport().time_ms,
+    onLate: token => { if (statsRun && PlayStats.token) PlayStats.token(statsRun, token); } }), token: null, input: 'keys', data: null, shown: false };
 }
 function loadLeaderboard(score, meta) {
   const run = lbRun;
   if (!run || !window.Leaderboard) return;
+  // a token that came late counts the walk's time from then (time only breaks ties on feet)
+  const tokenP = run.lb.end();
+  meta = Object.assign({}, meta, { time_ms: run.lb.time(meta.time_ms) });
   run.score = score; run.meta = meta;
   // without a token the run can't be saved, so ask for the board only: no placement, no picker
-  run.start.then(token => {
+  tokenP.then(token => {
     run.token = token;
+    if (!token) run.note = LB_NOTOKEN;
     return token ? Leaderboard.load('dont-step-on-a-crack', BOARD, score, meta) : Leaderboard.load('dont-step-on-a-crack', BOARD);
   }).then(data => {
     if (lbRun !== run || !(mode === 'over')) return;
-    run.data = data;
+    run.data = data; run.answered = true;
     if (!afterEl.hidden) showLeaderboard();
   });
 }
@@ -46,10 +56,14 @@ function loadLeaderboard(score, meta) {
 const count = v => Number(v).toLocaleString('en-US');
 function showLeaderboard() {
   const run = lbRun;
-  if (!run || !run.data || run.shown || !(mode === 'over')) return;
+  if (!run || !run.answered || run.shown || !(mode === 'over')) return;
   run.shown = true;
   const data = run.data;
   lbBox.hidden = false;
+  if (!data) {
+    const note = document.createElement('p'); note.className = 'lb-message'; note.setAttribute('role', 'status');
+    note.textContent = LB_NOSAVE; lbBox.replaceChildren(note); return;
+  }
   const placed = typeof data.placement === 'number';
   if (!placed && !(run.token && typeof data.position === 'number')) { drawLeaderboard(data.scores); return; }
   const heading = document.createElement('h3'); heading.textContent = placed ? 'New high score!' : 'Save your walk';
@@ -78,8 +92,9 @@ function showLeaderboard() {
       if (result?.error === 'name_not_allowed') {
         message.textContent = 'Try other initials'; picker.setBusy(false); return;
       }
+      if (!result?.ok) run.note = LB_FAILED;
       // Saved below the top 50: the board doesn't show the row, so say where it landed.
-      if (result?.ok && result.rank == null && typeof result.position === 'number') run.note = `Saved. You're #${count(result.position)} of ${count(result.total)}.`;
+      else if (result.rank == null && typeof result.position === 'number') run.note = `Saved. You're #${count(result.position)} of ${count(result.total)}.`;
       finish(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
     },
     onSkip() {
@@ -2276,7 +2291,7 @@ function startGame(){
   overEl.hidden=true; showScreen(pauseEl,false);
   if(!titleEl.hidden) showScreen(titleEl,false);
   reset(); mode='play'; syncGiant(); giantsUsed=0;
-  if(window.PlayStats) statsRun=PlayStats.start('dont-step-on-a-crack',{board:BOARD, token:lbRun&&lbRun.start, progress:walkReport});
+  if(window.PlayStats) statsRun=PlayStats.start('dont-step-on-a-crack',{board:BOARD, token:lbRun&&lbRun.lb.start, progress:walkReport});
   view.classList.remove('titling');
   requestWake();
 }

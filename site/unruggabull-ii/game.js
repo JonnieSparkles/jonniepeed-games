@@ -92,9 +92,10 @@
   // full: the run began at Start and has been carried since (no Restart floor, no #stage), so it can go on the board.
   // hat: what he won at the top of the long ride ('cap', 'crown', 'halo' or null), worn for the rest of the run.
   // The online board (the README's Leaderboard): clock is the run's game time so far, the sum of the stages it has left
-  // (R.t is each stage's own); token is Leaderboard.start's promise for a full run; input is keys until touch drives play.
+  // (R.t is each stage's own); lb is a full run's Leaderboard.run (its token, asked for again if the first request
+  // fails); input is keys until touch drives play.
   // hatMiss: the hat the long ride's top didn't give and why ({ kind, why: 'hurt' | 'retried', hearts }), for the clear card
-  const RUN = { force: null, seed: 0, mode: 'regular', full: false, hat: null, hatMiss: null, clock: 0, token: null, input: 'keys' };
+  const RUN = { force: null, seed: 0, mode: 'regular', full: false, hat: null, hatMiss: null, clock: 0, lb: null, input: 'keys' };
   const MODES = ['baby', 'regular', 'raging', 'impossibull'];
   function setMode(m) { RUN.mode = MODES.includes(m) ? m : 'regular'; }
   // the box and the two rides' crates: only on Baby and Regular
@@ -1085,7 +1086,7 @@
         boss_hp: Math.round(R.boss.hp), smashes: R.events.smashes || 0, best_rally: R.events.bestRally || 0, wipes: R.events.wipes || 0, deflects: R.events.deflects || 0 } };
   }
   // the roof of a full run is the stretch that ends in a save, so it carries the run's board and token (03: Play stats)
-  function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', Object.assign({ progress: runReport }, RUN.full && floor.id === 'roof' && RUN.token ? { board: BOARDS[RUN.mode], token: RUN.token } : {})) : null; }
+  function statsStart() { statsRun = window.PlayStats ? PlayStats.start('unruggabull-ii', Object.assign({ progress: runReport }, RUN.full && floor.id === 'roof' && RUN.lb ? { board: BOARDS[RUN.mode], token: RUN.lb.token || RUN.lb.start } : {})) : null; }
   function travel(stage, extra = {}) {
     if (travelHook && travelHook(stage)) return;
     RUN.clock += R.t;   // the run clock: the stage just left (its game time, pauses excluded)
@@ -1103,8 +1104,11 @@
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }   // restarted from pause: the open run is a quit
     RUN.full = !!full; RUN.hat = null; RUN.hatMiss = null;   // a new run: no hat
     RUN.clock = 0; RUN.input = 'keys';
-    // only Start's run asks for a token, in the background: Restart floor and #stage runs never go on the board
-    RUN.token = full && window.Leaderboard ? Leaderboard.start(LB_GAME, BOARDS[RUN.mode]) : null;
+    // only Start's run asks for a token, in the background: Restart floor and #stage runs never go on the board. A
+    // token that only comes from a retry mid-run saves the run's time from then (time only breaks ties on souls).
+    if (RUN.lb) RUN.lb.stop();
+    RUN.lb = full && window.Leaderboard ? Leaderboard.run(LB_GAME, BOARDS[RUN.mode], { played: () => runTime() * 1000,
+      onLate: token => { if (statsRun && floor.id === 'roof' && PlayStats.token) PlayStats.token(statsRun, token); } }) : null;
     checkpoint = null;
     newRun(null, stage || floor.id);
     statsStart();
@@ -1333,10 +1337,11 @@
     if (R.continues) return { kind: 'retried' };
     if (kind === 'rugged') return { kind: 'rugged' };
     const mode = RUN.mode, board = BOARDS[mode], score = R.souls + (R.banked || 0), input = RUN.input;
-    const meta = { time_ms: Math.round(runTime() * 1000), hat: Math.max(0, HATS.indexOf(RUN.hat)) };
-    const tokenP = RUN.token || Promise.resolve(null);
+    const tokenP = RUN.lb ? RUN.lb.end() : Promise.resolve(null);
+    const meta = { time_ms: RUN.lb ? RUN.lb.time(runTime() * 1000) : Math.round(runTime() * 1000), hat: Math.max(0, HATS.indexOf(RUN.hat)) };
     let token = null;
-    const step = { kind: 'save', mode, score, time: meta.time_ms / 1000, hat: RUN.hat, input,
+    // time: what it saves (the board's row); played: the run's real time, for the card's TOTAL row
+    const step = { kind: 'save', mode, score, time: meta.time_ms / 1000, played: runTime(), hat: RUN.hat, input,
       initials: window.Leaderboard ? Leaderboard.initials() : 'AAA' };
     // the board where this run would stand; without a token it can't be saved, so it's offline as far as the card goes
     step.ready = Promise.resolve(tokenP).then(t => {
@@ -1791,6 +1796,7 @@
   // opts.board: the title opens on the mode's board (a full run's Continue at the roof's clear, owner, Oct 17)
   function quitToTitle(opts) {
     if (statsRun && window.PlayStats) { PlayStats.quit(statsRun); statsRun = null; }
+    if (RUN.lb) RUN.lb.stop();
     if (state === 'pause') Snd.resume();
     checkpoint = null; clearHeld();
     newRun(); setState('title'); showCard('title', opts && opts.board ? { board: true } : undefined);

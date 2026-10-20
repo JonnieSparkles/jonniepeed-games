@@ -59,6 +59,10 @@ const lbBox = $('board');
 //   done      Play again comes back and the board opens below the buttons, so they don't move
 // If the scores take longer than LB_WAIT the buttons come back anyway, and a late result offers initials inside the board.
 const LB_BEAT = 600, LB_WAIT = 2500;
+// A run with no token by its end can't be saved, and the card says so rather than quietly showing the board; so does
+// one that can't reach the scores, or whose save fails (the leaderboard guide's Run tokens).
+const LB_NOTOKEN = "This run can't be saved. The scores couldn't be reached while you played.";
+const LB_NOSAVE = "Couldn't reach the scores, so this run can't be saved.", LB_FAILED = "Couldn't save this run.";
 const card = lbBox.parentElement, lbRow = $('lbRow'), lbAsk = $('lbAsk'), lbNote = $('lbNote'), lbEnter = $('lbEnter'), lbSkip = $('lbSkip');
 function lbPhase(name) {
   card.classList.remove('lb-checking', 'lb-asking', 'lb-entering');
@@ -66,15 +70,16 @@ function lbPhase(name) {
 }
 function clearLeaderboard() {
   if (lbEntry) lbEntry.destroy();
-  if (lbRun) clearTimeout(lbRun.waitTimer);
+  if (lbRun) { clearTimeout(lbRun.waitTimer); lbRun.lb.stop(); }
   if (scoresOpen) { scoresOpen = false; scoresReq++; }
   lbEntry = null; lbRun = null; lbBox.replaceChildren(); lbBox.hidden = true;
   lbPhase(null);
 }
 function resetLeaderboard() {
   clearLeaderboard();
-  // the run's token is fetched in the background; play never waits for it
-  if (window.Leaderboard) lbRun = { start: Leaderboard.start('thimbleful', BOARD), token: null, input: 'keys', data: null, shown: false };
+  // the run's token is fetched in the background, and asked for again if that fails; play never waits for it
+  if (window.Leaderboard) lbRun = { lb: Leaderboard.run('thimbleful', BOARD, { played: () => el * 1000,
+    onLate: token => { if (statsRun && PlayStats.token) PlayStats.token(statsRun, token); } }), token: null, input: 'keys', data: null, shown: false };
 }
 // What a run reports to play stats, at game over or when the page is left mid-run.
 function runReport() {
@@ -84,6 +89,9 @@ function runReport() {
 function loadLeaderboard(score, meta) {
   const run = lbRun;
   if (!run || !window.Leaderboard) return;
+  // a token that came late counts the run's time from then; Thimbleful's board doesn't rank by time, only the Worker checks it
+  const tokenP = run.lb.end();
+  meta = Object.assign({}, meta, { time_ms: run.lb.time(meta.time_ms) });
   run.score = score; run.meta = meta;
   const began = performance.now();
   lbPhase('checking');
@@ -92,8 +100,9 @@ function loadLeaderboard(score, meta) {
     run.late = true; lbPhase(null); try { go.focus({ preventScroll: true }); } catch (_) {}
   }, LB_WAIT);
   // without a token the run can't be saved, so ask for the board only: no placement, no picker
-  run.start.then(token => {
+  tokenP.then(token => {
     run.token = token;
+    if (!token) run.note = LB_NOTOKEN;
     return token ? Leaderboard.load('thimbleful', BOARD, score, meta) : Leaderboard.load('thimbleful', BOARD);
   }).then(data => {
     if (lbRun !== run || state !== 'over') return;
@@ -101,7 +110,12 @@ function loadLeaderboard(score, meta) {
     setTimeout(() => {
       if (lbRun !== run || state !== 'over') return;
       clearTimeout(run.waitTimer);
-      if (!data) { lbPhase(null); if (!run.late) try { go.focus({ preventScroll: true }); } catch (_) {} return; }
+      if (!data) {
+        lbPhase(null); if (!run.late) try { go.focus({ preventScroll: true }); } catch (_) {}
+        const note = document.createElement('p'); note.className = 'lb-message'; note.setAttribute('role', 'status');
+        note.textContent = LB_NOSAVE; lbBox.replaceChildren(note); lbBox.hidden = false;
+        return;
+      }
       run.data = data;
       showLeaderboard();
     }, after);
@@ -165,8 +179,9 @@ function openPicker(run) {
       if (result?.error === 'name_not_allowed') {
         message.textContent = 'Try other initials'; picker.setBusy(false); return;
       }
+      if (!result?.ok) run.note = LB_FAILED;
       // Saved below the top 50: the board doesn't show the row, so say where it landed.
-      if (result?.ok && result.rank == null && typeof result.position === 'number') run.note = `Saved. You're #${count(result.position)} of ${count(result.total)}.`;
+      else if (result.rank == null && typeof result.position === 'number') run.note = `Saved. You're #${count(result.position)} of ${count(result.total)}.`;
       finish(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
     },
     onSkip() { if (run.busy) return; skipped(run); finish(data.scores, null); }
@@ -269,7 +284,7 @@ scoresBtn.addEventListener('click', () => scoresOpen ? closeScores() : openScore
 function start(withIntro) {
   resetLeaderboard();
   golds = 0; earned = 0;
-  if (window.PlayStats) statsRun = PlayStats.start('thimbleful', { board: BOARD, token: lbRun && lbRun.start, progress: runReport });
+  if (window.PlayStats) statsRun = PlayStats.start('thimbleful', { board: BOARD, token: lbRun && lbRun.lb.start, progress: runReport });
   if (withIntro === true) introSeen = false;
   ThimbleSound.start();
   score = 0; spills = 0; el = 0; target = null; drops = []; parts = []; wet = []; flash = 0; nextGold = false;

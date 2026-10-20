@@ -29,7 +29,7 @@
     setMode('raging'); startRun('stairs', true);
     check(calls.start.length === 1 && calls.start[0][0] === 'unruggabull-ii' && calls.start[0][1] === 3 && RUN.full && RUN.input === 'keys', 'a full run asks for a token on its mode\'s board (Raging is 3)');
     setMode('regular'); startRun('stairs');
-    check(calls.start.length === 1 && RUN.token === null && !RUN.full, 'Restart floor and #stage runs never ask for a token');
+    check(calls.start.length === 1 && RUN.lb === null && !RUN.full, 'Restart floor and #stage runs never ask for a token');
     // the board's input icon: touch once a finger plays, not before
     setMode('baby'); startRun('stairs', true);
     check(calls.start[1][1] === 1 && RUN.input === 'keys', 'Baby is board 1');
@@ -90,11 +90,11 @@
     const before = calls.submit.length; wait(.5);
     check(Cards.labels().join() === 'Continue' && calls.submit.length === before, 'skipping saves nothing');
     Cards.hide();
-    // a refused save: the board without the row, nothing more said
+    // a refused save: the board without the row, and it says so
     startRun('roof', true); R.souls = 401; R.endT = 150; R.phase = 'win';
     endRun('clear'); await settle(); wait(2.5); Cards.press('Enter initials');
     submitAnswer = null; Cards.press('OK'); await settle();
-    check(Cards.step === 'skipped', 'a refused or failed save: unprocessed');
+    check(Cards.step === 'skipped' && Cards.stepLines[0] === 'PROCESSING FAILED. UNPROCESSED.', 'a refused or failed save: PROCESSING FAILED. UNPROCESSED.');
     Cards.hide();
     // no token (the Worker was down when the run began): offline, never an offer
     LB.start = () => Promise.resolve(null);
@@ -107,6 +107,26 @@
     check(state === 'title' && Title.board, 'a full run\'s Continue opens the title on its mode\'s board (owner, Oct 17)');
     await settle(); for (const k in online) delete online[k];   // the title's board asks again later, with its own answer
     Cards.hide();
+    // a token from a retry (the Worker down when the run began, back mid-run): it saves, timed from the token
+    let tries = 0;
+    LB.start = () => { tries++; return Promise.resolve(tries === 1 ? null : 'tok-late'); };
+    LB.retryWaits = [5];
+    startRun('roof', true); RUN.clock = 100; R.t = 20; R.endT = 0;
+    await new Promise(r => setTimeout(r, 80)); await settle();
+    check(tries === 2 && RUN.lb.token === 'tok-late' && RUN.lb.from === 120000, 'a failed token request is asked again; the token counts from 120 s in');
+    RUN.clock = 300; R.souls = 401; R.endT = 150; R.phase = 'win';
+    loadAnswer = { ok: true, scores: TOP, placement: null, position: 312, total: 1204 };
+    endRun('clear'); await settle(); await settle(); wait(2.5);
+    check(Cards.step === 'offer' && calls.load[calls.load.length - 1][3].time_ms === 330000, 'it offers, with the run\'s time from the token (450 s less 120 s)');
+    check(Cards.info.lb.played === 450 && Cards.info.lb.time === 330, 'the card\'s TOTAL shows the run\'s real time; the save, the time from the token');
+    Cards.press('Enter initials'); submitAnswer = d => ({ ok: true, rank: null, position: 312, total: 1205, scores: TOP });
+    Cards.press('OK'); await settle();
+    const lateSave = calls.submit[calls.submit.length - 1];
+    check(lateSave.token === 'tok-late' && lateSave.meta.time_ms === 330000 && Cards.step === 'saved', 'and saves with the late token');
+    await new Promise(r => setTimeout(r, 40));
+    check(tries === 2, 'no more asking once the run has its token');
+    Cards.hide();
+    LB.start = () => Promise.resolve(null);   // the cards below run without a token, as before
     // the clear's lines about the run (owner, Oct 17): the hat it missed and why, and Impossibull the first time it opens
     const opened = localStorage.getItem('unruggabull-ii-impossibull'), mode0 = RUN.mode; setMode('raging'); localStorage.setItem('unruggabull-ii-impossibull', '1');
     startRun('roof', true); R.souls = 401; R.endT = 150; R.phase = 'win'; RUN.hatMiss = { kind: 'crown', why: 'hurt', hearts: 3 };

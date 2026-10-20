@@ -37,6 +37,50 @@
         return data?.ok ? data.token : null;
       } catch (_) { return null; }
     },
+    // Call when real play begins, in place of start(), and don't wait for it. If the first request fails (a phone
+    // briefly offline), it asks again in the background after each of retryWaits (the last repeats) until a token
+    // comes or the run ends. The Worker only accepts play its token was there for, so a run whose token came late
+    // saves time(ms): its play time from when the token came. That's only fair where time breaks ties or isn't on the
+    // board; a board ranked by time can't use a late token. The shorter time also tightens the Worker's score cap, so
+    // a very late token on a fast-scoring run can still be refused (docs/guides/00-leaderboards.md, Run tokens in the
+    // game). A retry still out when the run ends is dropped.
+    //   options.played()       the run's play time so far in ms, as the game counts it (default: time since run())
+    //   options.onLate(token)  a token came from a retry; pass it to PlayStats.token
+    // Returns { start, token, from, time(ms), end(), stop() }: start is the first request's promise (for
+    // PlayStats.start); token is the token once one has come; end() stops asking and resolves to the token or null,
+    // waiting for the first request if it's still out; stop() just stops asking (the run was left).
+    run(game, board, options = {}) {
+      const t0 = performance.now();
+      const played = typeof options.played === 'function' ? options.played : () => performance.now() - t0;
+      let timer = 0, tries = 0, over = false;
+      const handle = {
+        start: api.start(game, board), token: null, from: 0,
+        time: ms => Math.max(0, Math.round(ms - handle.from)),
+        stop() { over = true; clearTimeout(timer); },
+        end() {
+          handle.stop();
+          // no token yet: the first request's answer is the run's (a retry's token would already be in token)
+          return handle.token ? Promise.resolve(handle.token) : handle.start;
+        }
+      };
+      const again = () => {
+        const waits = api.retryWaits;
+        timer = setTimeout(async () => {
+          if (over) return;
+          const token = await api.start(game, board);
+          if (over) return;
+          if (!token) { again(); return; }
+          let at = 0;
+          try { at = Number(played()) || 0; } catch (_) {}
+          handle.token = token; handle.from = Math.max(0, at);
+          try { if (options.onLate) options.onLate(token); } catch (_) {}
+        }, waits[Math.min(tries++, waits.length - 1)]);
+      };
+      handle.start.then(token => { if (token) handle.token = token; else if (!over) again(); });
+      return handle;
+    },
+    // The waits between run()'s tries, in ms. Harnesses shorten them.
+    retryWaits: [15000, 30000, 60000],
     async load(game, board, score, meta) {
       try {
         const query = new URLSearchParams({ game, board });

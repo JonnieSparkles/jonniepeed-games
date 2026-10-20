@@ -9,6 +9,7 @@ Then: CHROMIUM=/usr/bin/chromium python3 tests/unruggabull-remastered/test.py
 SITE_URL overrides the site address. SCREENSHOTS sets where screenshots go (default /tmp/unruggabull-remastered).
 The game's own globals (gameState, player, gameNow and the rest) are read straight from the page.
 """
+import json
 import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -248,13 +249,38 @@ def title_checks(p):
     print('title: ok')
 
 
-def boss_checks(p):
-    """The whole fight on a fake clock: the 32-second intro, the battle, the Rugfather's defeat and the card."""
+def scores_api(mode):
+    """The scores API for the end card: 'offline' (nothing answers), 'notoken' (no run token, the board answers) or
+    'refused' (a token, then the save is turned away)."""
+    def route(r):
+        url = r.request.url
+        if mode == 'offline':
+            return r.abort()
+        if '/v2/start' in url:
+            if mode == 'notoken':
+                return r.fulfill(status=503, content_type='application/json', body='{"ok":false,"error":"unavailable"}')
+            return r.fulfill(status=200, content_type='application/json', body='{"ok":true,"token":"run.1.sig"}')
+        if '/v2/top' in url:
+            return r.fulfill(status=200, content_type='application/json', body=json.dumps({'ok': True, 'game': 'unruggabull-remastered', 'board': 1, 'scores': [], 'placement': 1, 'position': 1, 'total': 1}))
+        if '/v2/submit' in url:
+            return r.fulfill(status=400, content_type='application/json', body='{"ok":false,"error":"rejected"}')
+        return r.abort()
+    return route
+
+
+NOTES = {'offline': 'The online board couldn’t be reached. Saved on this device.',
+         'notoken': 'The online board couldn’t be reached when this run began. Saved on this device.',
+         'refused': 'Couldn’t save this run online. Saved on this device.'}
+
+
+def boss_checks(p, mode='offline'):
+    """The whole fight on a fake clock: the 32-second intro, the battle, the Rugfather's defeat and the card. mode is
+    how the scores answer (scores_api); each says why the clear wasn't saved online."""
     browser = launch(p)
     ctx = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
     page = ctx.new_page()
     errors = watch(page)
-    page.route('http://localhost:8787/**', lambda route: route.abort())
+    page.route('http://localhost:8787/**', scores_api(mode))
     page.clock.install()
     start_on_phone(page)
     js(page, 'setDifficultyLevel(6)')
@@ -277,12 +303,16 @@ def boss_checks(p):
     assert js(page, "document.querySelectorAll('#end-stats .stat').length") == 3
     page.screenshot(path=str(SHOTS / 'end-initials.png'))
     page.locator('.lb-ok').tap()
-    page.wait_for_selector('#end-board .lb-table')
-    assert js(page, "document.querySelector('#end-board .lb-you') !== null")
-    page.screenshot(path=str(SHOTS / 'end-board.png'))
+    # a refused save draws the online board, empty here, with the note
+    page.wait_for_selector('#end-board .lb-standing' if mode == 'refused' else '#end-board .lb-table')
+    if mode != 'refused':
+        assert js(page, "document.querySelector('#end-board .lb-you') !== null")
+    note = js(page, "document.getElementById('end-board').textContent")
+    assert NOTES[mode] in note, (mode, note)
+    page.screenshot(path=str(SHOTS / f'end-board-{mode}.png'))
     assert not errors, errors
     browser.close()
-    print('boss: ok')
+    print(f'boss ({mode}): ok')
 
 
 if __name__ == '__main__':
@@ -290,5 +320,6 @@ if __name__ == '__main__':
         phone_checks(p)
         desktop_checks(p)
         title_checks(p)
-        boss_checks(p)
+        for mode in ('offline', 'notoken', 'refused'):
+            boss_checks(p, mode)
     print('all ok; screenshots in', SHOTS)

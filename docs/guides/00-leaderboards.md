@@ -23,16 +23,26 @@ The production API is https://scores.jonniepeed.games/. Nothing has been uploade
 
 Anyone can call the API, so the Worker checks every save. None of this needs looking after day to day.
 
-- **Run tokens.** When real play begins, the game asks `POST /v2/start` for a token. The token is signed with `RUN_SECRET` for that game and board and carries its own run ID and start time. Nothing is stored. A token saves one row, ever.
+- **Run tokens.** When real play begins, the game asks `POST /v2/start` for a token. The token is signed with `RUN_SECRET` for that game and board and carries its own run ID and start time. Nothing is stored. A token saves one row, ever. If the first request fails, the game keeps asking during the run; see [Run tokens in the game](#run-tokens-in-the-game).
 - **Time.** A run can't claim more play time than its token has existed (`time_ms` up to the token's age plus 5 s). Tokens last 24 hours.
 - **Score caps.** A score can't come faster than a perfect player could earn it: at most `perSecond × seconds + grace`, from the board's `plausible` rule. See [Score caps](#score-caps).
 - **Rate limit.** Twenty new rows a minute per connection, counted per Cloudflare location (the `SUBMITS` binding in `wrangler.jsonc`). Refusals and retries of a run that already saved don't count. The IP is used in memory only and never stored.
 
-Refused saves answer `rejected` with no reason, and the game says nothing: the board comes back without the row. Each refusal logs one line (game, board, score, time and the check that failed, never the IP), so "why didn't my score save?" can be answered; see [Why didn't a score save?](#why-didnt-a-score-save).
+Refused saves answer `rejected` with no reason. The game doesn't say why either, only that the save failed ("Couldn't save this run."), and the board comes back without the row. Each refusal logs one line (game, board, score, time and the check that failed, never the IP), so "why didn't my score save?" can be answered; see [Why didn't a score save?](#why-didnt-a-score-save).
 
 What this stops: floods, scripts that post without playing, replays, and impossible scores like 9999 in a few seconds. What it doesn't stop: a bot that really plays, or someone who edits the game in their browser, plays a full-length run and swaps in a believable score. Clean those up with the [admin recipes](#admin-recipes).
 
 If the Worker has no `RUN_SECRET`, `start` and `submit` answer `unavailable` and games quietly run without saving. The deploy workflow checks for this. Rotating the secret (`wrangler secret put RUN_SECRET` again) is optional; runs in progress at that moment just don't save.
+
+### Run tokens in the game
+
+A phone can be offline for a moment just as a run begins. If the token request fails then and is never tried again, the run can't be saved, and a player who did well finds out only at the end, when no initials prompt appears (Stick Army, Oct 19). So every game with a board does three things:
+
+- **Keep asking.** Start the run with `Leaderboard.run(game, BOARD, { played, onLate })` rather than `Leaderboard.start`. It sends the first request at once and, if that fails, asks again in the background (after 15 s, 30 s, then every minute) until a token comes or the run ends. `played()` returns the run's play time so far in ms, as the game counts it. `onLate(token)` hears of a token that came from a retry; pass it to `PlayStats.token`.
+- **Count time from the token.** The Worker only accepts play its token was there for (the time check above), so a run whose token came late saves `lb.time(ms)`: its time from when the token arrived. That keeps the check honest. It costs the run on a tie, and it tightens the [score cap](#score-caps), which counts the same time: a token that came late in a fast-scoring run can still be refused, and the card says the save failed. Those runs couldn't save at all before. It's only fair where time breaks ties or isn't on the board (Thimbleful, Crack, Stick Army, Unruggabull II). **A board ranked by time can't use a late token**, since the cut-short time would rank it higher: Unruggabull Remastered asks once with `Leaderboard.start` and says why when it can't save online.
+- **Say so.** A run with no token by its end card shows the board without the picker and says it can't be saved ("This run can't be saved. The scores couldn't be reached while you played."). One whose lookup fails says "Couldn't reach the scores, so this run can't be saved." where the board goes, and a refused or failed save says "Couldn't save this run." A game says these in its own voice (Crack's walk, Unruggabull II's p(Loom)), but never ends a run silently.
+
+At the end card, `lb.end()` stops the asking and resolves to the token, waiting for the first request if it's still out; `lb.stop()` stops it when the player leaves a run. Harnesses shorten the waits with `Leaderboard.retryWaits`.
 
 ### Score caps
 
@@ -107,7 +117,7 @@ Open the site on localhost or 127.0.0.1. Those two hostnames automatically use t
 
 From `scores/`, run `node test/smoke.mjs`. Each run starts with an empty random negative board. The test never deletes any scores. The smoke runner prints one PASS/FAIL per case and exits nonzero on failure. Against the local Worker it also signs its own backdated tokens (with `local-dev-only`, or `RUN_SECRET` if set) to fill boards and test ranking, expiry and the rate limit; each request claims its own connection, which only the local Worker honours. Against the live Worker those cases are skipped, and it plays one real run end to end. To check the games, finish a qualifying run and test OK, Skip, refused initials and See all; fill a local board to test a losing run. Test portrait, short landscape and desktop, including full screen. Stop the Worker and finish another run: the original end screen should appear without an online board.
 
-The optional browser regression runner is `python3 scores/test/games.py` from the repository root. It requires Python Playwright (`python3 -m pip install playwright`, then `python3 -m playwright install chromium`), plus the two local servers above. If system Chromium is already installed, use `CHROMIUM=/usr/bin/chromium python3 scores/test/games.py` instead of downloading a browser. It seeds isolated negative boards, drives the actual end-screen handlers with deterministic finished scores, tests the UI in all three orientations, and saves screenshots in a temporary directory (or `SCREENSHOTS=<directory>`). Its API interception changes the test board numbers and signs backdated tokens for the long test runs, leaving production boards untouched. It also checks a run whose token never arrived (no picker) and a refused save (the board without the row).
+The optional browser regression runner is `python3 scores/test/games.py` from the repository root. It requires Python Playwright (`python3 -m pip install playwright`, then `python3 -m playwright install chromium`), plus the two local servers above. If system Chromium is already installed, use `CHROMIUM=/usr/bin/chromium python3 scores/test/games.py` instead of downloading a browser. It seeds isolated negative boards, drives the actual end-screen handlers with deterministic finished scores, tests the UI in all three orientations, and saves screenshots in a temporary directory (or `SCREENSHOTS=<directory>`). Its API interception changes the test board numbers and signs backdated tokens for the long test runs, leaving production boards untouched. It also checks a run whose token never arrived (no picker, and a line saying it can't be saved), a token that came from a retry (saved, with its time from then), and a refused save (the board without the row, and a line saying the save failed).
 
 Run `node scores/test/versions.mjs` from the root to test historical-rule isolation. It starts its own ephemeral Wrangler/D1 instance with a synthetic next board and a test-only blocked name, verifies both rule sets and caps, that a board without a cap is read-only, test-board selection and name refusal, then removes that temporary database. It never contacts the live Worker or changes the production blocklist. If Wrangler is not on PATH, set `WRANGLER=/absolute/path/to/wrangler`.
 
@@ -118,11 +128,11 @@ Checklist, in this order:
 1. Choose a permanent folder/game ID and initial positive board number. Add its `boards` mapping to `scores/games.json`; put the full score range, integer meta (including `time_ms`), tie-breaks and a [score cap](#score-caps) inside the initial board entry. Add a blocked name only in `blocklist.json`, not in game code.
 2. Deploy the Worker first, so the new game's board is accepted before any site copy uses it.
 3. Include `../assets/leaderboard.js` before `game.js`, and add `const BOARD = 1;` to `game.js`. Use board-specific local-best keys without migrating old keys.
-4. When real play begins, call `Leaderboard.start(game, BOARD)` and keep the promise on the run; don't wait for it. Reset input to `keys`. Record `touch` only when touch or pen drives the play area; menus do not count. Exclude demos and watch modes.
-5. At game over, freeze the score/meta (with `time_ms`) and await the run's token. With a token, load placement and position and show the result in the game's end screen: every run gets the offer of initials (the picker), with "New high score! You're #N" for the top 50 and "You'd be #N of M" below it. A skipped or saved run below the top 50 gets a line saying where it stands. Without one, load the board only (no score), so the game never asks for initials it can't save. A null load adds nothing. Guard asynchronous responses against restarts, and prevent game keyboard shortcuts while the picker is open.
-6. On OK, save initials, submit the frozen run with its token, and draw the returned board with `rank` highlighted. On `name_not_allowed`, keep the picker open with “Try other initials.” Any other refusal draws the original board, saying nothing. On Skip, display the original board without submitting. Keep the same token for retries. Destroy the picker on restart.
+4. When real play begins, call `Leaderboard.run(game, BOARD, { played, onLate })` and keep the handle on the run; don't wait for it ([Run tokens in the game](#run-tokens-in-the-game); a board ranked by time uses `Leaderboard.start` instead). Stop it with `lb.stop()` when the player leaves a run. Reset input to `keys`. Record `touch` only when touch or pen drives the play area; menus do not count. Exclude demos and watch modes.
+5. At game over, call `lb.end()`, freeze the score/meta with `time_ms` from `lb.time(ms)`, and await the token `end()` gives. With a token, load placement and position and show the result in the game's end screen: every run gets the offer of initials (the picker), with "New high score! You're #N" for the top 50 and "You'd be #N of M" below it. A skipped or saved run below the top 50 gets a line saying where it stands. Without one, load the board only (no score), so the game never asks for initials it can't save, and say the run can't be saved. A null load says the scores couldn't be reached. Guard asynchronous responses against restarts, and prevent game keyboard shortcuts while the picker is open.
+6. On OK, save initials, submit the frozen run with its token, and draw the returned board with `rank` highlighted. On `name_not_allowed`, keep the picker open with “Try other initials.” Any other refusal draws the original board with “Couldn't save this run.” On Skip, display the original board without submitting. Keep the same token for retries. Destroy the picker on restart.
 7. Draw rank, initials, score, any game-specific meta and a touch/keyboard icon with an accessible label. Show 10 rows, then “…” and the player's row when below 10; See all must show up to 50 in a scrollable region. Style `.lb-` picker elements to match the game; the shared script adds no CSS.
-8. Report runs to play stats too, passing the run's `Leaderboard.start` promise as `token` so saved runs can be matched to their row; see [03: Play stats](03-play-stats.md#adding-a-game).
+8. Report runs to play stats too, passing `lb.start` as `token` (and a late token to `PlayStats.token` from `onLate`) so saved runs can be matched to their row; see [03: Play stats](03-play-stats.md#adding-a-game).
 9. Run `python3 tools/check_boards.py`. Test against the local Worker and verify all end-screen flows and orientations. Rebuild social cards after game-art changes with `python3 tools/og/make.py`, then run `python3 tools/stamp.py`. Deploy the site after the Worker.
 
 ### Worked example: pebble-hop
@@ -155,11 +165,14 @@ Adapt these lines to the game's existing start, pointer and key handlers:
 ```js
 const BOARD = 1;
 const BEST_KEY = 'pebble-hop-best-' + BOARD;
-let run = null, picker = null;
+let run = null, picker = null, played = 0; // played: the game's own play-time clock, in seconds
 function beginRun() {
   picker?.destroy(); picker = null;
   board.hidden = true; board.replaceChildren();
-  run = { start: Leaderboard.start('pebble-hop', BOARD), input: 'keys' }; // token arrives in the background
+  run?.lb.stop();
+  // The token arrives in the background; a failed request is asked again during the run.
+  run = { lb: Leaderboard.run('pebble-hop', BOARD, { played: () => played * 1000,
+    onLate: token => statsRun && PlayStats.token(statsRun, token) }), input: 'keys' };
   // Start the game's own simulation here; demos do not call this.
 }
 // Inside the existing play-area pointerdown, after checking actual play mode:
@@ -168,18 +181,22 @@ if (e.pointerType === 'touch' || e.pointerType === 'pen') run.input = 'touch';
 if (picker) return;
 ```
 
-Use `document.getElementById('board')` for `board`. The example below assumes `drawBoard(scores, highlightedRank)` is your game's renderer; copy/adapt `drawLeaderboard` from either existing game's `game.js` for table creation, accessible input icons, top 10 plus player row and See all. Also copy/adapt its `.lb-` CSS from that game's `index.html`. No game repeats the Worker's limits or ranking rules.
+Use `document.getElementById('board')` for `board`. The example below assumes `drawBoard(scores, highlightedRank)` is your game's renderer and `say(text)` adds a status line to the board (`.lb-standing`); copy/adapt `drawLeaderboard` from either existing game's `game.js` for table creation, accessible input icons, top 10 plus player row and See all. Also copy/adapt its `.lb-` CSS from that game's `index.html`. No game repeats the Worker's limits or ranking rules.
 
 ```js
 async function finished(points, seconds) {
   const ended = run;
-  const token = await ended.start; // null if the Worker couldn't be reached when the run began
-  const payload = { game: 'pebble-hop', board: BOARD, token,
-    score: points, input: ended.input, meta: { time_ms: Math.round(seconds * 1000) } };
+  const tokenP = ended.lb.end(); // stop asking; null if no request ever reached the Worker
+  // A late token counts the run's time from when it came, which the Worker's time check needs.
+  const meta = { time_ms: ended.lb.time(seconds * 1000) };
+  const token = await tokenP;
+  const payload = { game: 'pebble-hop', board: BOARD, token, score: points, input: ended.input, meta };
   // Without a token the run can't be saved: load the board only, so there's no placement and no picker.
-  const data = token ? await Leaderboard.load(payload.game, BOARD, points, payload.meta) : await Leaderboard.load(payload.game, BOARD);
-  if (run !== ended || !data) return; // Also check the game's current end-screen state.
+  const data = token ? await Leaderboard.load(payload.game, BOARD, points, meta) : await Leaderboard.load(payload.game, BOARD);
+  if (run !== ended) return; // Also check the game's current end-screen state.
   board.hidden = false;
+  if (!data) { say("Couldn't reach the scores, so this run can't be saved."); return; }
+  if (!token) { drawBoard(data.scores); say("This run can't be saved. The scores couldn't be reached while you played."); return; }
   // A token means the run can be saved: offer initials to every run. Top 50: "New high score! You're #N";
   // below: "You'd be #N of M" from data.position and data.total.
   if (typeof data.placement !== 'number' && typeof data.position !== 'number') { drawBoard(data.scores); return; }
@@ -198,13 +215,14 @@ async function finished(points, seconds) {
       }
       picker.destroy(); picker = null;
       drawBoard(result?.ok ? result.scores : data.scores, result?.ok ? result.rank : null);
+      if (!result?.ok) say("Couldn't save this run.");
     },
     onSkip() { if (busy) return; picker.destroy(); picker = null; drawBoard(data.scores); }
   });
 }
 ```
 
-Hide/reset the board and invalidate `run` when leaving an end screen. A game also guards or skips the client when `window.Leaderboard` is unavailable; see the existing integrations. The shared client bounds requests to about four seconds and retries a network-failed start or submit once (a submit with the same token). It resolves failures instead of throwing into game code: `start` resolves to a token or null, and a refused submit resolves like a failed one. Initials use `jpg-initials` storage with an `AAA` default. Picker keys: letters/digits fill and advance, Left/Right select, Up/Down cycle A–Z then 0–9, Backspace selects the preceding slot, Enter confirms, Escape skips. Native buttons also support Tab and Space.
+Hide/reset the board and invalidate `run` when leaving an end screen. A game also guards or skips the client when `window.Leaderboard` is unavailable; see the existing integrations. The shared client bounds requests to about four seconds and retries a network-failed start or submit once (a submit with the same token). It resolves failures instead of throwing into game code: `start` resolves to a token or null, and a refused submit resolves like a failed one. `run` keeps asking after a failed start (see [Run tokens in the game](#run-tokens-in-the-game)). Initials use `jpg-initials` storage with an `AAA` default. Picker keys: letters/digits fill and advance, Left/Right select, Up/Down cycle A–Z then 0–9, Backspace selects the preceding slot, Enter confirms, Escape skips. Native buttons also support Tab and Space.
 
 ### End-screen board conventions
 
@@ -300,7 +318,7 @@ Refused saves log one line each. In the Cloudflare dashboard, open **Workers & P
 - `time`: the run claimed more play time than its token had existed.
 - `score`: over the board's cap. If that run was honest, the cap is too low; raise it.
 
-A run that never got a token (offline at the start) doesn't reach the Worker at all: the game just shows the board. A `rate_limited` answer isn't logged.
+A run that never got a token (offline at the start and through every retry) doesn't reach the Worker at all: its end card says it can't be saved, and play stats shows the run with no `score_run`. A run whose token only came late saves its time from then, so a very late token on a fast-scoring run can still be refused as `score`. A `rate_limited` answer isn't logged.
 
 ### Check the score caps
 

@@ -90,8 +90,8 @@ def suite(page, game, size, label):
     board=-secrets.randbelow(2**45)-1
     seed(game,board)
     # 'start' False refuses run tokens (Worker down at run start). 'sign' False sends the game's own token,
-    # which the Worker refuses because these runs claim 2,000 s of play.
-    api_mode={'start':True,'sign':True}
+    # which the Worker refuses because these runs claim 2,000 s of play. Saves are kept in 'sent'.
+    api_mode={'start':True,'sign':True}; sent=[]
     def route(r):
         u=urlsplit(r.request.url)
         headers={**r.request.headers,'cf-connecting-ip':any_ip()}
@@ -99,6 +99,7 @@ def suite(page, game, size, label):
             r.fulfill(status=503,content_type='application/json',body='{"ok":false,"error":"unavailable"}'); return
         if r.request.method=='POST':
             d=json.loads(r.request.post_data); d['board']=board
+            if u.path=='/v2/submit': sent.append(dict(d))
             if u.path=='/v2/submit' and api_mode['sign']: d['token']=forge(d['game'],board)
             response=r.fetch(post_data=json.dumps(d),headers=headers); r.fulfill(response=response)
         else:
@@ -110,7 +111,7 @@ def suite(page, game, size, label):
     assert page.locator('#board').is_hidden()
     title_scores(page,game,size,label)
     start(page,game)
-    first_token=page.evaluate('lbRun.start')   # waits for the run's token
+    first_token=page.evaluate('lbRun.lb.start')   # waits for the run's token
     assert first_token
     # Menu touches must not count; actual play-area pen input must count.
     assert page.evaluate('lbRun.input')=='keys'
@@ -132,7 +133,7 @@ def suite(page, game, size, label):
     assert page.locator('.lb-you').inner_text().split()[1]=='JON'
     assert page.locator('.lb-you [aria-label="touch"]').count()==1
     assert page.locator('.lb-table tbody tr').count()==10
-    start(page,game); assert page.evaluate('lbRun.start')!=first_token; assert page.evaluate('lbRun.input')=='keys'
+    start(page,game); assert page.evaluate('lbRun.lb.start')!=first_token; assert page.evaluate('lbRun.input')=='keys'
     finish(page,game,6000); picker(page,game); page.keyboard.type('skp'); page.get_by_role('button',name='Skip score entry').click()
     assert page.evaluate("localStorage.getItem('jpg-initials')")=='JON'
     assert page.locator('.lb-entry').count()==0
@@ -174,23 +175,36 @@ def suite(page, game, size, label):
     assert parent['y']+parent['height']<=size['height']+1,(label,parent,size)
     page.screenshot(path=str(ARTIFACTS/f'{game}-{label}.png'))
     if game=='thimbleful': page.evaluate('setFull(false)')
-    # No token (Worker down at run start): a winning run shows the board only, never asks for initials.
+    # No token (Worker down all run): a winning run shows the board only, never asks for initials, and says it
+    # can't be saved.
+    noun='run' if game=='thimbleful' else 'walk'
     api_mode['start']=False
-    start(page,game); assert page.evaluate('lbRun.start') is None
+    start(page,game); assert page.evaluate('lbRun.lb.start') is None
     finish(page,game,5500); page.locator('.lb-table').wait_for()
     assert page.locator('.lb-entry').count()==0 and page.locator('.lb-you').count()==0
+    assert page.locator('.lb-standing').inner_text().startswith(f"This {noun} can't be saved."),page.locator('.lb-standing').inner_text()
     if game=='thimbleful': assert page.locator('#lbEnter').is_hidden() and page.locator('#go').is_visible()
+    # A token from a retry (Worker down at run start, back mid-run): the run saves, with its time from the token.
+    page.evaluate('Leaderboard.retryWaits=[200]')
+    start(page,game); assert page.evaluate('lbRun.lb.start') is None
     api_mode['start']=True
-    # A refused submit: the board comes back without the run's row, and nothing says why.
+    page.wait_for_function('lbRun.lb.token!==null'); since=page.evaluate('lbRun.lb.from')
+    finish(page,game,5700); picker(page,game)
+    page.keyboard.type('lat'); page.get_by_role('button',name='Save score',exact=True).click()
+    page.locator('.lb-you').wait_for()
+    late=sent[-1]; assert late['name']=='LAT' and abs(late['meta']['time_ms']-(2000000-since))<=1,(late,since)   # the run's 2,000 s, less its time before the token
+    page.evaluate('Leaderboard.retryWaits=[15000,30000,60000]')
+    # A refused submit: the board comes back without the run's row, and says the save failed.
     api_mode['sign']=False
     start(page,game); finish(page,game,5600); picker(page,game)
     page.keyboard.type('ref'); page.get_by_role('button',name='Save score',exact=True).click()
     page.locator('.lb-entry').wait_for(state='detached'); page.locator('.lb-table').wait_for()
     assert page.locator('.lb-you').count()==0
+    assert page.locator('.lb-standing').inner_text()==f"Couldn't save this {noun}.",page.locator('.lb-standing').inner_text()
     assert 'REF' not in [row['name'] for row in api('/v2/top?'+urlencode({'game':game,'board':board}))['scores']]
     api_mode['sign']=True
     assert not errors,errors
-    print(f'PASS {game} {label}: OK, Skip, outside the top 50, input, shortcuts, gap row, 50-row scrolling and end-screen fit, title-screen scores, no token, refused run',flush=True)
+    print(f'PASS {game} {label}: OK, Skip, outside the top 50, input, shortcuts, gap row, 50-row scrolling and end-screen fit, title-screen scores, no token, a token from a retry, refused run',flush=True)
 
 with sync_playwright() as p:
     browser=p.chromium.launch(**({'executable_path': os.environ['CHROMIUM']} if os.environ.get('CHROMIUM') else {}))

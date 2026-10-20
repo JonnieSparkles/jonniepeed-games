@@ -380,6 +380,7 @@ var StickArmyFlow = function (world, game) {
     if (COOP && COOP.role) { COOP.leave(); return; }
     if (statsRun && world.S.mode === 'paused') PlayStats.quit(statsRun);
     statsRun = null;
+    LBOARD.leave();
     // A kind of run can go back somewhere of its own (a challenge: the list).
     if (world.rules().quit) { world.rules().quit(); return; }
     titleScene();

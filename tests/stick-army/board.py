@@ -104,7 +104,7 @@ with sync_playwright() as p:
         calls['online'] = True
         page.close()
 
-    # The token: a failed start retried mid-run, one never got, and a refused save. RETRY shortened to 300 ms.
+    # The token: a failed start retried mid-run, one never got, and a refused save. Leaderboard.retryWaits shortened to 300 ms.
     page = browser.new_page(viewport={'width': 390, 'height': 844}, has_touch=True)
     page.on('pageerror', lambda e: errors.append(str(e)))
     net = {'start': 0, 'start_ok': False, 'submit': [], 'refuse': False}
@@ -129,11 +129,9 @@ with sync_playwright() as p:
         return route.continue_()
     page.route('http://localhost:8787/**', api2)
     game_src = (ROOT / 'site/stick-army/game.js').read_text().replace('  start();', '  window.armyTest = function(code) { return eval(code); };\n  start();')
-    board_src = (ROOT / 'site/stick-army/board.js').read_text().replace('RETRY = [15000, 30000, 60000]', 'RETRY = [300, 300, 300]')
-    check('RETRY = [300, 300, 300]' in board_src, 'RETRY found in board.js')
     page.route('**/stick-army/game.js*', lambda route: route.fulfill(body=game_src, content_type='application/javascript'))
-    page.route('**/stick-army/board.js*', lambda route: route.fulfill(body=board_src, content_type='application/javascript'))
     page.goto(SITE + '/stick-army/')
+    page.evaluate('Leaderboard.retryWaits = [300, 300, 300]')
     T = lambda code: page.evaluate('(c) => armyTest(c)', code)
 
     # Recovered: the first request fails, a retry gets the token, and the save's time counts from then.
