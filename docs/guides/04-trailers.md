@@ -1,6 +1,6 @@
 # 04: Trailers
 
-A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) Unruggabull (33 s, the game's own theme, from its own repo) and Unruggabull Remastered (33 s, the 2025 trailer remade with the remaster) have one.
+A trailer is built from the game itself: a scripted player plays seeded takes in a headless browser, every frame is captured under a fake clock, and the game's own sound is re-rendered from what it played. Text layers, music and the cut are added on top. Don't Step on a Crack (15 s, 1920×1080, new music), Thimbleful (16.1 s, the game's own music) Unruggabull (33 s, the game's own theme, from its own repo) Unruggabull Remastered (33 s, the 2025 trailer remade with the remaster) and Stick Army (36 s solo and a 26 s co-op cut of the same takes, new music) have one.
 
 ## Running
 
@@ -11,6 +11,7 @@ python3 tools/trailer/make.py dont-step-on-a-crack --dry        # play every tak
 python3 tools/trailer/make.py dont-step-on-a-crack              # the whole trailer
 python3 tools/trailer/make.py dont-step-on-a-crack --takes C    # re-shoot one take, keep the others
 python3 tools/trailer/make.py dont-step-on-a-crack --cut-only   # re-cut from the takes you have
+python3 tools/trailer/make.py stick-army --cut coop --cut-only  # another cut of the same takes
 ```
 
 | Flag | What it does |
@@ -20,6 +21,7 @@ python3 tools/trailer/make.py dont-step-on-a-crack --cut-only   # re-cut from th
 | `--cut-only` | Doesn't shoot; renders the music, layers and cut from the takes already there. |
 | `--jobs N` | Takes shot at once (default 3). |
 | `--out DIR` | Output folder, default `work/trailer/<slug>/` (git-ignored). |
+| `--cut NAME` | Another cut from the same takes: `shots-NAME.py` (and `music-NAME.py` if there is one, else `music.py`), written as `<slug>-NAME-trailer.mp4` with `sheet-NAME.jpg`. Stick Army's co-op trailer is `--cut coop`. A cut needs only its own takes, so one can be cut while the other's are still being shot. |
 
 The output folder gets the trailer, named by game (`<slug>-trailer.mp4`, so a copy says what it is), `sheet.jpg` (three frames from every shot and the end card), `music.wav`, `mix.wav`, `layers/` and one folder per take with its frames, markers and `game.wav`. `CHROMIUM` selects a system browser, as in the other harnesses.
 
@@ -37,7 +39,9 @@ On a 2-CPU machine, Crack's three takes take about 6 minutes dry and 15 to 20 mi
 - **`<audio>` elements.** Games that play files (`new Audio('ow.mp3').play()`, Unruggabull) get `audio.media`: the harness logs every element's plays, pauses, seeks and rate and volume changes, and `media.py` mixes the same files back in at those times. `audio.exclude` leaves the music out, so `music.py` can cut it to the trailer instead (Unruggabull: the theme's intro, its drop, silence for the boss's entrance like the game, then 1.5x for the fight, like the game).
 - **ES modules.** The bridge (`script`, `inject_before`) also works on a module: injected into Unruggabull's `src/controller.js`, its eval sees that module's imports (`state`, `player`, the enemies), and the director reaches other modules with `import()`. A game whose loop only runs during play uses `"hook": "@frame"`: the harness runs the plan from an animation frame of its own, title screen included.
 - **Live sound.** A game whose sound is all one Web Audio context, mixed by its own code (Unruggabull Remastered: ducking, muffles, slow-motion music), gets `audio.live`: its `AudioContext` is an `OfflineAudioContext` that the capture renders a frame at a time, in step with the fake clock, so the take's sound is exactly what the game played. The director can disconnect the music's clips so `music.py` lays the theme in. Wait long enough after load for the sound to decode (`settle_ms`), or a sound can start late and the run stops repeating.
-- **Per-take framing.** A take can set its own `viewport`, `scale`, `touch` (a touch screen, with `has_touch` and `is_mobile`) and `screen` (screenshots instead of the canvas, for anything drawn outside it, such as the remaster's title screen). A shot's camera can also be an object with `compose(frame, u)` that builds the whole picture, for a frame around the footage.
+- **The game's own bot plays.** A game with a balance bot can lend it to the director: `scripts` in `trailer.json` names files (paths from the trailer folder) that reach the director as text in `window.__trailerScripts`, to evaluate where it needs them. Stick Army's director evaluates its bot and balance adapter in the game's scope, and the expert bot plays every take (two of them in co-op, one on each barrel), thinking each frame with its reaction delay, through the same input paths the balance runs use.
+- **Fast-forward off screen.** Stick Army's takes reach waves 13 to 20 with an `ff` item: inside a frame or two, the adapter plays the run on in fixed 1/60 s steps with the bot, silently and with no markers, the wall held up, and hands back to the page's own loop as the wave starts. Waves are seeded from the run's seed alone, so every take sees the same waves, and the filmed part plays normally.
+- **Per-take framing.** A take can set its own `viewport`, `scale`, `touch` (a touch screen, with `has_touch` and `is_mobile`) and `screen` (screenshots instead of the canvas, for anything drawn outside it, such as the remaster's title screen). A shot's camera can also be an object with `compose(frame, u)` that builds the whole picture, for a frame around the footage. Stick Army films its portrait page alone (600×1080 at 2x) and its `Page` camera (`page.py`) lays it back on the desk at 16:9, as the game shows it on a wide screen; its title takes are filmed at 1920×1080, where the notebook opens.
 
 ## Making one
 
@@ -56,13 +60,13 @@ Add `tests/<slug>/trailer/`:
 
 | File | Role |
 | --- | --- |
-| `trailer.json` | The page, viewport and capture `scale`, the per-frame function to hook (`hook`), the framing CSS and director files, and the sound object: `{object, script, init, state}`, where `state` lists flags to restore with each call (Crack: `quiet`). `canvas` (`{selector, upscale}`) films a canvas's own pixels; `audio.timers` and `audio.score` are for games that play their own music (see above); `quiet_marks` lists marker prefixes too frequent to print. Games that keep their code in a closure add `script` and `inject_before`, like `balance.json`, and get the same eval bridge (not tried yet; Stick Army would be the first). |
+| `trailer.json` | The page, viewport and capture `scale`, the per-frame function to hook (`hook`), the framing CSS and director files, and the sound object: `{object, script, init, state}`, where `state` lists flags to restore with each call (Crack: `quiet`). `canvas` (`{selector, upscale}`) films a canvas's own pixels; `audio.timers` and `audio.score` are for games that play their own music (see above); `quiet_marks` lists marker prefixes too frequent to print. Games that keep their code in a closure add `script` and `inject_before`, like `balance.json`, and get the same eval bridge (Stick Army). `scripts` lends the director helper files, such as the balance bot. |
 | `takes.json` | Takes by name: `seed`, `max_s` and the `plan`, and optionally the take's own `viewport`, `scale`, `touch` and `screen`. |
 | `director.js` | The scripted player, evaluated in the game's scope after the shared harness. |
 | `trailer.css` | Framing for the trailer: Crack makes the Mom Cam 446 px and hides buttons and stats. |
 | `layers.html` | Text layers. Each `<template id>` becomes a transparent PNG; `{{SITE}}` is the local site's address, for the game's fonts. |
 | `music.py` | Optional: `render(path)` for new music, written with `tools/trailer/synth.py`, or `render(path, site)` to cut the game's own music from its folder. Without it, the game's own sound is the whole soundtrack. |
-| `shots.py` | `build(takes, layer, repo)` returns the cut: `dur`, `shots`, `overlay`, `end` and `mix`, made with `tools/trailer/cut.py`, and optionally `open`, a card before the first shot (Unruggabull's title screen). `build(takes, layer, repo, site)` also gets the game's folder, for art kept there. |
+| `shots.py` | `build(takes, layer, repo)` returns the cut: `dur`, `shots`, `overlay`, `end` and `mix`, made with `tools/trailer/cut.py`, and optionally `open`, a card before the first shot (Unruggabull's title screen). `build(takes, layer, repo, site)` also gets the game's folder, for art kept there. A second cut is `shots-<cut>.py`. |
 
 A plan is a list of items, played one at a time, once per game frame. The shared harness provides `start`, `capture` (`on`), `wait` (`dur` or `until`, a JavaScript condition in the game's scope), `js` (`code`, run once with `now` and `D`), `mark` and `end`. Any item can have a `name`, which leaves a marker when it starts. The director adds the game's own items; Crack's are `walk`, `crack`, `shoes`, `roll` and `jump` (see the top of its `director.js`).
 
