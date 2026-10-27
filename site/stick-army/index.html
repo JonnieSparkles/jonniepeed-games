@@ -260,11 +260,11 @@ button.squad-slot:focus-visible { outline: 2px solid var(--ally); outline-offset
 .lvl-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -2px 0 4px; font: 18px/1 var(--font-hand); color: var(--ally); }
 .lvl-badge .t-chev { stroke: var(--ally); width: 18px; }
 /* Two ways to play on the title: Arcade and Challenges side by side, the level under them. */
-.t-foot.t-two { top: 619px; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
-/* Arcade and Challenges sit just under the ground line, not over it. */
-.t-two .t-start { min-height: 40px; height: 40px; padding: 0 10px 3px; font-size: 24px; }
+.t-foot.t-two { top: 617px; grid-template-columns: 1fr 1fr; gap: 3px 10px; }
+/* Arcade and Challenges sit just under the ground line, not over it, and the chips clear the page's bottom edge. */
+.t-two .t-start { min-height: 38px; height: 38px; padding: 0 10px 3px; font-size: 24px; }
 .t-two .t-level { grid-column: 1 / -1; display: flex; gap: 14px; }
-.t-two .t-rank { min-height: 24px; }
+.t-two .t-rank { min-height: 22px; }
 .t-two .t-chip { min-height: 30px; }
 .t-chal { background: var(--friend); }
 /* Coming soon: a dashed pencil outline, not inked in yet, that can't be pressed (challenges.js). */
