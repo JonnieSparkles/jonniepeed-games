@@ -9,12 +9,14 @@
     check(L.length === 8 && L.every(function (x) { return x.stars.length === 3; }), 'eight challenges, three stars each');
     check(CHALLENGES.stars() === 0, 'no stars on a fresh device');
 
-    // Hidden until unlocked on the device (#challenges): Start alone, as before.
+    // Coming soon until unlocked on the device (#challenges): on the title, but it can't be pressed.
     localStorage.removeItem(ON); titleScene();
     var cbtn = document.getElementById('challengesBtn'), sbtn = document.getElementById('startBtn');
-    check(cbtn.hidden && sbtn.textContent === 'Start' && !sbtn.parentNode.classList.contains('t-two') && !CHALLENGES.unlocked(), 'hidden until unlocked');
+    check(!cbtn.hidden && cbtn.disabled && /coming soon/.test(cbtn.textContent) && sbtn.textContent === 'Arcade' && !CHALLENGES.unlocked(), 'coming soon until unlocked: shown, not pressable');
+    cbtn.click();
+    check(document.getElementById('chPage').hidden, 'and pressing it does nothing');
     localStorage.setItem(ON, 'true'); titleScene();
-    check(!cbtn.hidden && sbtn.textContent === 'Arcade' && sbtn.parentNode.classList.contains('t-two'), 'unlocked: Arcade beside Challenges');
+    check(!cbtn.disabled && cbtn.textContent === 'Challenges' && sbtn.parentNode.classList.contains('t-two'), 'unlocked: Challenges opens');
 
     // The list: over the title, the hard ones locked until enough stars.
     titleScene();

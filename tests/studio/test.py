@@ -43,10 +43,11 @@ def follow(page, selector, path='', card=False):
 def state(page, side, focus=False, keyboard=False):
     page.wait_for_load_state('load')
     expect(page.locator('#shelfHeading')).to_have_text('Games' if side == 'a' else 'Side B')
-    assert page.locator('.card:visible').count() == (3 if side == 'a' else 1)
+    # Every game is on Side A; an empty Side B shows the arcade cabinet instead.
+    assert page.locator('.card:visible').count() == (4 if side == 'a' else 0)
     assert page.locator('#sideA').is_visible() == (side == 'b')
-    assert page.locator('.card[hidden]').count() == (1 if side == 'a' else 3)
-    assert page.locator('[data-side="b"]').is_visible() == (side == 'b')
+    assert page.locator('.card[hidden]').count() == (0 if side == 'a' else 4)
+    assert page.locator('#sideBEmpty').is_visible() == (side == 'b')
     if focus:
         focus_outline(page, keyboard)
     # Real Tab traversal and accessibility snapshot must exclude inactive cards/button.
@@ -58,12 +59,13 @@ def state(page, side, focus=False, keyboard=False):
         reached.append(page.evaluate('document.activeElement.getAttribute("href")'))
         if side == 'a':
             assert page.evaluate('document.activeElement.id !== "sideA"')
-    assert ('stick-army/' in reached) == (side == 'b'), reached
+    assert ('stick-army/' in reached) == (side == 'a'), reached
     assert 'unruggabull-ii/' not in reached, reached   # unlisted: no card on either shelf
     assert ('unruggabull-remastered/' in reached) == (side == 'a'), reached
     assert ('thimbleful/' in reached) == (side == 'a'), reached
     snapshot = page.locator('.grid').aria_snapshot()
-    assert ('Stick Army' in snapshot) == (side == 'b'), snapshot
+    assert ('Stick Army' in snapshot) == (side == 'a'), snapshot
+    assert ('Insert coin' in snapshot) == (side == 'b'), snapshot
     assert ('Thimbleful' in snapshot) == (side == 'a'), snapshot
 
 
@@ -126,7 +128,7 @@ def hold_flip(page, key=None, calm=False):
         assert page.locator('.grid').evaluate('(el) => el.inert')
         assert page.locator('.grid').evaluate('(el) => el.classList.contains("flip-out")')
         page.clock.run_for(200)
-        assert page.locator('[data-side="b"]').get_attribute('hidden') is None
+        assert page.locator('#sideBEmpty').get_attribute('hidden') is None
         assert page.locator('.grid').evaluate('(el) => el.inert && el.classList.contains("flip-in")')
     page.clock.run_for(300)
     assert not page.locator('.grid').evaluate('(el) => el.inert')
@@ -170,8 +172,9 @@ with sync_playwright() as p:
     assert page.evaluate('document.activeElement === document.body')  # Initial load does not steal focus.
     state(page, 'a')
     assert page.locator('meta[name="robots"]').count() == 0
-    assert page.locator('[data-side="b"]').get_attribute('data-badge') == 'demo'
-    assert page.locator('[data-side="b"] .badge').text_content() == 'demo'
+    # Stick Army is a released game: on Side A, with no badge.
+    card = page.locator('a.card[href="stick-army/"]')
+    assert card.get_attribute('data-side') is None and card.get_attribute('data-badge') is None and card.locator('.badge').count() == 0
     # Both pre-charge and almost-complete overflow release preserve the original splash.
     for duration in [600, 4100, 2400, 2400]:
         page.clock.run_for(1000)
@@ -217,11 +220,17 @@ with sync_playwright() as p:
     assert not page.evaluate('studioTest("flipping")')
     assert page.evaluate('document.activeElement === document.body')
     state(page, 'b')
+    # The cabinet: Start with no credit asks for a coin; a coin, then Start, says no game is loaded yet.
+    crt = page.locator('#crtText')
+    page.locator('#cabStart').click(); expect(crt).to_contain_text('Insert coin')
+    page.locator('#cabCoin').click(); expect(page.locator('#crtCredits')).to_have_text('Credits 1'); expect(crt).to_contain_text('Press start')
+    page.locator('#cabStart').click(); expect(crt).to_contain_text('No game loaded'); expect(page.locator('#crtCredits')).to_have_text('Credits 0')
+    page.clock.run_for(3600); expect(crt).to_contain_text('Insert coin')
     reload(page)
     expect(page.locator('#shelfHeading')).to_have_text('Side B')
-    follow(page, '[data-side="b"]', 'stick-army/', card=True)
+    page.goto(URL + 'stick-army/', wait_until='load')
     assert page.url == URL + 'stick-army/'
-    assert page.locator('meta[name="robots"]').get_attribute('content') == 'noindex'
+    assert page.locator('meta[name="robots"]').count() == 0
     for selector in ['link[rel="icon"][type="image/png"]', 'link[rel="apple-touch-icon"]']:
         assert page.locator(selector).count() == 1
     assert page.locator('#titleScreen .back img').evaluate('(el) => el.complete && el.naturalWidth > 0')
@@ -291,7 +300,7 @@ with sync_playwright() as p:
             expect(page.locator('#shelfHeading')).to_have_css('outline-style', 'none')
         state(page, 'b', focus=True)
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        assert page.locator('[data-side="b"] img').evaluate('(el) => el.complete && el.naturalWidth === 768')
+        assert page.locator('a.card[href="stick-army/"] img').evaluate('(el) => el.complete && el.naturalWidth === 768')
         page.locator('#shelfHeading').scroll_into_view_if_needed()
         page.screenshot(path=str(OUT / f'side-b-{width}-{theme}.png'))
         page.locator('#sideA').click()
@@ -314,7 +323,8 @@ with sync_playwright() as p:
     prepare(page)
     state(page, 'a')
     # Edit HTML attributes before the script executes, including an HTML-looking label.
-    html = (ROOT / 'site/index.html').read_text().replace('data-badge="demo"', 'data-badge="&lt;new label&gt;"')
+    # A demo on Side B, as a future one would be listed, with an HTML-looking label.
+    html = (ROOT / 'site/index.html').read_text().replace('<a class="card green" href="stick-army/">', '<a class="card green" href="stick-army/" data-side="b" data-badge="&lt;new label&gt;" hidden>')
     page.route(URL, lambda route: route.fulfill(body=html, content_type='text/html'))
     prepare(page)
     assert page.locator('.badge').text_content() == '<new label>'
@@ -323,6 +333,7 @@ with sync_playwright() as p:
     page.wait_for_load_state('load')
     reload(page)
     assert '<new label>' in page.locator('.grid').aria_snapshot()
+    assert page.locator('#sideBEmpty').is_hidden()  # a Side B with a card has no cabinet
     print('PASS unknown storage and visible/accessibility badge sourced from data-badge as text')
     context.close()
 
@@ -330,8 +341,8 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(URL + '#side-b', wait_until='load')
     page.wait_for_load_state('load')
-    assert page.locator('.card:visible').count() == 3
-    assert page.locator('[data-side="b"]').is_hidden()
+    assert page.locator('.card:visible').count() == 4
+    assert page.locator('#sideBEmpty').is_hidden()
     assert page.locator('#sideA').is_hidden()
     context.close()
     # Unruggabull II is unlisted: reached only by its link, noindexed, with a way home
