@@ -90,3 +90,23 @@ The game needs:
 3. **A director that plays through the player's input path.** Crack's presses and holds sides, steers with the arrow-key flags and jumps with `keyJump()`, the same paths as touch and keys, so the footage shows real play.
 
 Nothing here ships. The harness and director are injected at capture time only.
+
+## A made trailer
+
+A teaser can be made instead of played: a sequence drawn from the game's own art and timed to its own sound, with no takes. Unruggabull II's teaser is one, in `tests/unruggabull-ii/trailer/`:
+
+```sh
+python3 tests/unruggabull-ii/trailer/film.py               # work/trailer/unruggabull-ii/unruggabull-ii-teaser.mp4
+python3 tests/unruggabull-ii/trailer/film.py --picture     # re-film the picture on the sound already made
+python3 tests/unruggabull-ii/trailer/film.py --sound       # re-make the sound on the frames already made
+```
+
+| File | Role |
+| --- | --- |
+| `teaser.js` | The picture: shots drawn on a 480×270 canvas with the game's art modules, as a pure function of time (seeded noise), so any frame renders on its own. It also lists the sound cues. |
+| `film.py` | Draws every frame at 30 fps, scales them 4× with nearest-neighbour to 1080p, records the sound and muxes them. About 2 minutes on 2 CPUs. |
+| `chip.py` | Records the game's own `audio.js` offline: its `AudioContext` is the trailer tool's live `OfflineAudioContext` (`LIVE_AUDIO_JS`) stepped under a fake clock, with `Math.random` seeded, so music, voices and effects come out as the game makes them and the same every build. |
+| `bridge.js` | Music the game doesn't have, in its pattern format, registered after `audio.js` and played by its own sequencer, which switches to the title theme on a bar line. |
+
+Keep each kind of sound in its own recording on the cut's timeline (`trim=False`) and mix them in numpy: the game's blip voices sit far under its music, and a section of a track (the theme's verse, say) is cut from a recording of the whole track at its bar line rather than started on its own. Check what can be checked by script (cue onsets against the shots, loudness every half second, a contact sheet of frames); the feel needs a person.
+

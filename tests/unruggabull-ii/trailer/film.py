@@ -1,13 +1,17 @@
-"""Film the Unruggabull II teaser: teaser.js's picture at 30 fps, 4x to 1920 x 1080, with its soundtrack.
+"""Film the Unruggabull II teaser: teaser.js's picture at 30 fps, 4x to 1920 x 1080, with its soundtrack, all made from
+the game's own art and sound.
 
-    python3 tests/unruggabull-ii/trailer/film.py OUTDIR [A|B ...] [--sound|--picture]   # one of the two, the other kept
+    python3 tests/unruggabull-ii/trailer/film.py                # work/trailer/unruggabull-ii/unruggabull-ii-teaser.mp4
+    python3 tests/unruggabull-ii/trailer/film.py --out DIR
+    python3 tests/unruggabull-ii/trailer/film.py --picture      # new picture on the sound already in the folder
+    python3 tests/unruggabull-ii/trailer/film.py --sound        # new sound on the frames already in the folder
 
-A  "The machine wakes": 2 s of the first game's RugCo Alley drop, the tape stop, the bridge (bridge.js teaserWake) on
-   the new game's synth into the title theme (options.py), with thunder and "LET'S GO!" from the game's sound.
-C  A's music with B's best: p(Loom)'s hello over the machine waking, the theme stopped for the odds and LET'S GO,
-   and started again under the logo.
-B  "Saga II": all the game's own sound, recorded in one take: thunder, p(Loom)'s "HELLO, UNRUGGABULL.", the roof
-   fight's heavy chorus (roofAHeavy), the odds, "LET'S GO!" and the title theme.
+The sound, recorded offline from the game's audio.js (chip.py) on the cut's timeline:
+- the machine waking (bridge.js teaserWake, four bars) into the title theme's four-bar build, switched on the bar line
+  by the game's own sequencer, and cut on the build's last bar line;
+- the theme's verse from its first downbeat under the logo (recorded from the top, taken from bar 5);
+- p(Loom)'s two lines in its blip voice, brought up to sit just under the music; thunder and "LET'S GO!".
+Takes about 2 minutes on 2 CPUs, and the same every build (chip.py seeds the synth's noise). Listen before posting: levels and timing are checked by script, the feel isn't.
 """
 import base64
 import json
@@ -22,22 +26,11 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 import chip  # noqa: E402
-import options as O  # noqa: E402
 
 SR, FPS = 48000, 30
 SITE = ROOT / 'site' / 'unruggabull-ii'
-PAGE_SCRIPTS = ['bull.js', 'sprites.js', 'art.js', 'intro-stills.js', 'title-art.js', 'portrait.js', 'voice.js', 'audio.js', 'intro.js']
-
-
-def cut_info(name):
-    """The cut's length and sound cues, from teaser.js."""
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as pw:
-        b = pw.chromium.launch(args=['--allow-file-access-from-files']); pg = b.new_page()
-        pg.goto(page(Path('/tmp')).as_uri())
-        r = pg.evaluate('n => { const c = UnrugTeaser.make(n); return { dur: c.dur, stop: c.stop, tl: c.tl, w0: c.w0, sfx: c.sfx, shots: c.shots.map(s => [s[0], s[1]]) }; }', name)
-        b.close()
-    return r
+PAGE_SCRIPTS = ['bull.js', 'sprites.js', 'art.js', 'intro-stills.js', 'title-art.js', 'voice.js', 'audio.js']
+NAME = 'unruggabull-ii-teaser'
 
 
 def page(out):
@@ -48,98 +41,65 @@ def page(out):
     return p
 
 
+def cut_info(out):
+    """The cut's length, its stop and logo times, its bar and its sound cues, from teaser.js."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        b = pw.chromium.launch(args=['--allow-file-access-from-files']); pg = b.new_page()
+        pg.goto(page(out).as_uri())
+        r = pg.evaluate('() => { const c = UnrugTeaser.make(); return { dur: c.dur, stop: c.stop, tl: c.tl, bar: UnrugTeaser.BAR, sfx: c.sfx }; }')
+        b.close()
+    return r
+
+
 def cues_js(sfx):
     """setTimeout calls for the game's sound, at each cue's time in the cut."""
     out = []
     for t, what in sfx:
         if what == 'thunder': js = "UnrugSound.play('thunder', 1.3)"
         elif what == 'go': js = "UnrugSound.voice('go')"
-        elif what == 'stop': js = "UnrugSound.music(null, { hard: true })"
         elif what.startswith('say:'): js = 'UnrugSound.say(%s, "loom")' % json.dumps(what[4:])
-        elif what.startswith('music:'): js = "UnrugSound.music(%s, { slam: true })" % json.dumps(what[6:])
         else: raise ValueError(what)
         out.append('setTimeout(() => %s, %d);' % (js, round(t * 1000)))
     return ' '.join(out)
 
 
-def sound_a(out, info):
-    """option_e's 2 s taste, tape stop and machine wakes into the theme, with the cut's thunder and LET'S GO added on
-    the same level as the chip music."""
-    b_, th = O.BAR152, 2.85 + 4 * O.BAR152
-    theme_s = info['dur'] - th
-    a = O.alley(O.DROP, 2.6); a[:, :int(.01 * SR)] *= np.linspace(0, 1, int(.01 * SR))
-    a = O.tape_stop(a, 2.0, .55)
-    band_rms = np.sqrt(np.mean(a[:, :int(2.0 * SR)] ** 2))
-    a = np.concatenate([a, np.zeros((2, int(2.85 * SR) - a.shape[1]))], 1)
-    br = O.bridge(out, 'teaserWake', 4, round(theme_s, 2))
-    g = band_rms / (np.sqrt(np.mean(br[:, int(4 * b_ * SR):int((4 * b_ + 3) * SR)] ** 2)) + 1e-9)
-    mix = np.concatenate([a, br * g], 1)
-    sfx_p = Path(out) / 'sfx-A.wav'
-    chip.record(None, info['dur'] + .5, sfx_p, extra_js=cues_js(info['sfx']), trim=False)
-    sfx = wavfile.read(str(sfx_p))[1].T.astype(np.float64)
-    n = min(mix.shape[1], sfx.shape[1]); mix = mix[:, :int(info['dur'] * SR)]
-    mix[:, :n] += sfx[:, :n] * g * .6               # thunder and LET'S GO a little under the music's peaks
-    return mix
+def wav(p):
+    return wavfile.read(str(p))[1].T.astype(np.float64)
 
 
-def sound_b(out, info):
-    """Recorded as three takes on the cut's timeline (the music, p(Loom) and his voice, the thunder) and mixed: p(Loom)'s
-    blips are quiet in the game, so they come up to sit just under the music; the title theme comes up to the roof
-    chorus's level, so the logo lands at least as loud as what came before it."""
-    parts = {}
-    for key, keep in (('music', lambda w: w.startswith('music:') or w == 'stop'), ('say', lambda w: w.startswith('say:')),
-                      ('go', lambda w: w == 'go'), ('fx', lambda w: w == 'thunder')):
-        p = Path(out) / ('chip-B-%s.wav' % key)
-        chip.record(None, info['dur'] + .5, p, extra_js=cues_js([c for c in info['sfx'] if keep(c[1])]), trim=False)
-        x = wavfile.read(str(p))[1].T.astype(np.float64)
-        parts[key] = np.pad(x, ((0, 0), (0, max(0, int(info['dur'] * SR) - x.shape[1]))))[:, :int(info['dur'] * SR)]
-    rms = lambda x, t0, t1: np.sqrt(np.mean(x[:, int(t0 * SR):int(t1 * SR)] ** 2)) + 1e-9
-    cue = {w: t for t, w in info['sfx']}
-    c0, stop, th = cue['music:roofAHeavy'], cue['stop'], cue['music:theme']
-    chorus = rms(parts['music'], c0, stop)
-    m = parts['music'].copy(); m[:, int(th * SR):] *= chorus / rms(m, th + .1, info['dur'] - 1.5)
-    say = parts['say']; voiced = say[:, np.abs(say).max(0) > 1e-4]
-    say_g = .7 * chorus / (np.sqrt(np.mean(voiced ** 2)) + 1e-9)
-    return m + say * say_g + parts['go'] + parts['fx']
-
-
-def sound_c(out, info):
-    """A's music, the theme stopped on its fanfare's last bar line for p(Loom)'s odds and LET'S GO, then the theme from
-    its top under the logo; p(Loom)'s hello over the machine waking. The theme's restart is its own recording, on the
-    bridge's level; p(Loom)'s blips come up to sit just under the music, as in B."""
-    b_, w0 = O.BAR152, info['w0']
-    stop, tl, n = info['stop'], info['tl'], int(info['dur'] * SR)
-    mix = np.zeros((2, n)); g = 1.0
-    br = O.bridge(out, 'teaserWake', 4, round(4 * b_, 2))
-    if w0:                                   # the first game's drop and the tape stop (C, D; E opens on the bridge)
-        a = O.alley(O.DROP, 2.6); a[:, :int(.01 * SR)] *= np.linspace(0, 1, int(.01 * SR))
-        a = O.tape_stop(a, 2.0, .55)
-        band_rms = np.sqrt(np.mean(a[:, :int(2.0 * SR)] ** 2))
-        mix[:, :a.shape[1]] = a
-        g = band_rms / (np.sqrt(np.mean(br[:, int(4 * b_ * SR):int((4 * b_ + 3) * SR)] ** 2)) + 1e-9)
-    i0, i1 = int(w0 * SR), int(stop * SR)
-    seg = br[:, :i1 - i0].copy(); f = int(.02 * SR); seg[:, -f:] *= np.linspace(1, 0, f)
-    mix[:, i0:i0 + seg.shape[1]] += seg * g
-    # the logo lands on the theme's verse, the release after the four-bar build the bridge stopped on (owner, Oct 30:
-    # "we shouldn't restart the theme song, it should land on ... the part after the build"): recorded from the top and
-    # taken from bar 5's downbeat
-    p = Path(out) / 'theme-C-verse.wav'
+def sound(out, info):
+    b, stop, tl, n = info['bar'], info['stop'], info['tl'], int(info['dur'] * SR)
+    mix = np.zeros((2, n))
+    # the machine waking into the theme's build: four bars of bridge, the theme switched in on its last bar line
+    p = Path(out) / 'bridge.wav'
     if not p.is_file():
-        chip.record('theme', 4 * b_ + info['dur'] - tl + .5, p)
-    th = wavfile.read(str(p))[1].T.astype(np.float64)[:, int(round(4 * b_ * SR)):][:, :n - int(tl * SR)]
+        js = (HERE / 'bridge.js').read_text() + "\nsetTimeout(() => UnrugSound.music('theme', { boundary: 'bar' }), %d);" % int(3.5 * b * 1000)
+        chip.record('teaserWake', 8 * b, p, extra_js=js)
+    br = wav(p)[:, :int(stop * SR)]
+    f = int(.02 * SR); br[:, -f:] *= np.linspace(1, 0, f)                  # cut on the build's last bar line
+    mix[:, :br.shape[1]] += br
+    music_rms = np.sqrt(np.mean(br[:, int(4 * b * SR):] ** 2))
+    # the logo lands on the theme's verse, the release after the build (owner, Oct 30: "we shouldn't restart the theme
+    # song, it should land on ... the part after the build"): recorded from the top, taken from bar 5's downbeat
+    p = Path(out) / 'theme.wav'
+    if not p.is_file():
+        chip.record('theme', 4 * b + info['dur'] - tl + .5, p)
+    th = wav(p)[:, int(round(4 * b * SR)):][:, :n - int(tl * SR)]
     fi = int(.004 * SR); th[:, :fi] *= np.linspace(0, 1, fi)
-    mix[:, int(tl * SR):int(tl * SR) + th.shape[1]] += th * g
-    music_rms = np.sqrt(np.mean((br[:, int(4 * b_ * SR):int(8 * b_ * SR)] * g) ** 2))
-    for key, keep in (('say', lambda w: w.startswith('say:')), ('fx', lambda w: w in ('thunder', 'go'))):
-        q = Path(out) / ('chip-%s-%s.wav' % ('C' if w0 else 'E', key))
-        chip.record(None, info['dur'] + .5, q, extra_js=cues_js([c for c in info['sfx'] if keep(c[1])]), trim=False)
-        x = wavfile.read(str(q))[1].T.astype(np.float64)[:, :n]
+    mix[:, int(tl * SR):int(tl * SR) + th.shape[1]] += th
+    # p(Loom) (its blips are quiet in the game, so they come up to sit just under the music), thunder and LET'S GO
+    for key, keep in (('say', lambda w: w.startswith('say:')), ('fx', lambda w: not w.startswith('say:'))):
+        p = Path(out) / ('%s.wav' % key)
+        chip.record(None, info['dur'] + .5, p, extra_js=cues_js([c for c in info['sfx'] if keep(c[1])]), trim=False)
+        x = wav(p)[:, :n]
         if key == 'say':
             v = x[:, np.abs(x).max(0) > 1e-4]; x = x * .7 * music_rms / (np.sqrt(np.mean(v ** 2)) + 1e-9)
         else:
-            x = x * g * .6
+            x = x * .6
         mix[:, :x.shape[1]] += x
-    return mix
+    f = int(1.2 * SR); mix[:, -f:] *= np.linspace(1, 0, f) ** 2
+    return loud(mix)
 
 
 def loud(a, target=-13.0):
@@ -149,14 +109,14 @@ def loud(a, target=-13.0):
     return .95 * np.tanh(a * g / .95)
 
 
-def frames(out, name, dur):
+def frames(out, dur):
     from playwright.sync_api import sync_playwright
-    d = Path(out) / ('frames-' + name); d.mkdir(exist_ok=True)
+    d = Path(out) / 'frames'; d.mkdir(exist_ok=True)
     for f in d.glob('*.png'): f.unlink()
     with sync_playwright() as pw:
         b = pw.chromium.launch(args=['--allow-file-access-from-files']); pg = b.new_page()
         pg.goto(page(out).as_uri())
-        pg.evaluate('async n => { await UnrugTeaser.ready(); window.__cut = UnrugTeaser.make(n); window.__g = document.getElementById("c").getContext("2d"); }', name)
+        pg.evaluate('async () => { await UnrugTeaser.ready(); window.__cut = UnrugTeaser.make(); window.__g = document.getElementById("c").getContext("2d"); }')
         for i in range(int(dur * FPS)):
             u = pg.evaluate('t => { __cut.draw(__g, t); return __g.canvas.toDataURL(); }', i / FPS)
             (d / ('%05d.png' % i)).write_bytes(base64.b64decode(u.split(',')[1]))
@@ -164,31 +124,20 @@ def frames(out, name, dur):
     return d
 
 
-def film(out, name, picture=True):
-    info = cut_info(name)
-    wav = Path(out) / ('teaser-%s.wav' % name)
-    if picture == 'only':                    # new picture on the sound already made
-        d = frames(out, name, info['dur'])
-        return mux(out, name, d, wav, info)
-    mix = {'A': sound_a, 'B': sound_b, 'C': sound_c, 'D': sound_c, 'E': sound_c}[name](out, info)
-    f = int(1.2 * SR); mix[:, -f:] *= np.linspace(1, 0, f) ** 2
-    mix = loud(mix)
-    wav = Path(out) / ('teaser-%s.wav' % name); wavfile.write(str(wav), SR, mix.T.astype(np.float32))
-    d = frames(out, name, info['dur']) if picture else Path(out) / ('frames-' + name)
-    return mux(out, name, d, wav, info)
-
-
-def mux(out, name, d, wav, info):
-    mp4 = Path(out) / ('unruggabull-ii-teaser-%s.mp4' % name)
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(FPS), '-i', str(d / '%05d.png'), '-i', str(wav),
+def main(argv):
+    out = Path(argv[argv.index('--out') + 1]) if '--out' in argv else ROOT / 'work' / 'trailer' / 'unruggabull-ii'
+    out.mkdir(parents=True, exist_ok=True)
+    info = cut_info(out)
+    w = out / 'mix.wav'
+    if '--picture' not in argv:
+        wavfile.write(str(w), SR, sound(out, info).T.astype(np.float32))
+    d = frames(out, info['dur']) if '--sound' not in argv else out / 'frames'
+    mp4 = out / (NAME + '.mp4')
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(FPS), '-i', str(d / '%05d.png'), '-i', str(w),
                     '-vf', 'scale=1920:1080:flags=neighbor', '-c:v', 'libx264', '-crf', '16', '-preset', 'medium', '-pix_fmt', 'yuv420p',
                     '-c:a', 'aac', '-b:a', '256k', '-shortest', '-movflags', '+faststart', str(mp4)], check=True)
-    print('%s: %.2f s -> %s' % (name, info['dur'], mp4))
-    return info
+    print('%.2f s -> %s' % (info['dur'], mp4))
 
 
 if __name__ == '__main__':
-    out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
-    names = [n for n in sys.argv[2:] if not n.startswith('--')] or ['A', 'B']
-    for n in names:
-        film(out, n, picture='only' if '--picture' in sys.argv else '--sound' not in sys.argv)
+    main(sys.argv[1:])

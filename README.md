@@ -132,6 +132,8 @@ python3 tools/trailer/make.py <slug> --dry
 python3 tools/trailer/make.py <slug>
 ```
 
+A trailer made from a game's art rather than its play has its own script in that folder instead ([A made trailer](docs/guides/04-trailers.md#a-made-trailer)).
+
 Output goes to `work/trailer/` (git-ignored). Trailer videos stay out of the repo, so clones and deploys stay light: post the cut from `work/trailer/<slug>/<slug>-trailer.mp4` to YouTube and social platforms. The same command rebuilds the exact cut from the repo.
 
 ## Social previews

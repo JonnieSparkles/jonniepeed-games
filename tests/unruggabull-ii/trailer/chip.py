@@ -1,6 +1,6 @@
 """Record a piece of Unruggabull II's own music from its chip synth (site/unruggabull-ii/audio.js), offline and exact:
 the game's AudioContext is the trailer tool's live OfflineAudioContext (tools/trailer/capture.py), stepped under a
-fake clock. Used for the teaser's handoff into the title theme.
+fake clock. film.py records the teaser's music and p(Loom)'s lines with it.
 
     python3 tests/unruggabull-ii/trailer/chip.py theme 7 out.wav      # the first 7 s of the title theme
 """
@@ -19,6 +19,10 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tools' / 'trailer'))
 from capture import LIVE_AUDIO_JS  # noqa: E402
 
+# Math.random seeded (mulberry32), so a recording is the same every time: the drums' and thunder's noise and the
+# synth's small random detunes come from it
+SEEDED = '''(() => { let a = 0x9e3779b9; Math.random = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; })();'''
 SCRIPTS = ['bull.js', 'sprites.js', 'art.js', 'music-roof.js', 'music-floor.js', 'music-elevator.js', 'music-factory.js',
            'music-stairs.js', 'voice.js', 'audio.js']
 
@@ -39,6 +43,7 @@ def record(track, seconds, out, extra_js='', trim=True):
             pg.route('**/__chip.html', lambda r: r.fulfill(body=page_html, content_type='text/html'))
             pg.clock.install(time=1_700_000_000_000); pg.clock.pause_at(1_700_000_001_000)
             pg.add_init_script(LIVE_AUDIO_JS % (seconds + 3))
+            pg.add_init_script(SEEDED)                     # the synth's noise and jitter, the same every build
             pg.goto('http://127.0.0.1:%d/__chip.html' % srv.server_port)
             pg.evaluate('() => { UnrugSound.init(); ' + extra_js + ' UnrugSound.music(%s); }' % json.dumps(track))
             for _ in range(int(seconds * 60)):
