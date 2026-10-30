@@ -12,6 +12,9 @@ C  The first game's own RugCo Alley theme at its drop (the remaster's file), sto
    C1 speeds it up into the theme's tempo, C2 crunches its last bar.
 D  The drop, the tape stop, a breath, then a new bridge on the game's own synth (bridge.js) building into the theme:
    D1 the machine waking over four bars, D2 a two-bar countdown.
+E  Only a taste of the drop (owner, Oct 29: "only 1.2s of the original rugco alley... just a taste"): 1, 2 or 4 s
+   on its beat grid, the tape stop, a breath, the machine waking (D1's bridge) and the theme.
+F  The same, with the eight-bar machine (teaserWakeLong) the teaser's picture is cut to: F2 a 2 s taste, F1 1 s.
 
     python3 tests/unruggabull-ii/trailer/options.py OUTDIR      # writes A.wav, B.wav, C.wav (and theme.wav)
 """
@@ -344,13 +347,14 @@ BRIDGE = HERE / 'bridge.js'
 BAR152 = 60 / 152 * 4
 
 
-def bridge(out_dir, track, bars):
-    """The bridge (bridge.js) recorded on the game's own synth, switching to the title theme on its last bar line."""
-    p = Path(out_dir) / ('bridge-%s.wav' % track)
+def bridge(out_dir, track, bars, theme_s=9.5):
+    """The bridge (bridge.js) recorded on the game's own synth, switching to the title theme on its last bar line,
+    then `theme_s` seconds of the theme."""
+    p = Path(out_dir) / ('bridge-%s-%g.wav' % (track, theme_s))
     if not p.is_file():
         import chip
         js = BRIDGE.read_text() + "\nsetTimeout(() => UnrugSound.music('theme', { boundary: 'bar' }), %d);" % int((bars - .5) * BAR152 * 1000)
-        chip.record(track, bars * BAR152 + 9.5, p, extra_js=js)
+        chip.record(track, bars * BAR152 + theme_s, p, extra_js=js)
     sr, a = wavfile.read(str(p))
     return a.T.astype(np.float64)
 
@@ -368,11 +372,34 @@ def option_d(out_dir, track, bars, gap=1.2):
     return master(np.concatenate([a, b * band_rms / theme_rms], 1))
 
 
+def option_e(out_dir, taste, breath=.3, theme_s=13.0, track='teaserWake', bars=4):
+    """A taste of the drop (`taste` seconds, on its beat grid), the tape stop, a breath, then the machine waking
+    (teaserWake, or the eight-bar teaserWakeLong) into the title theme."""
+    a = alley(DROP, taste + .6)
+    a[:, :int(.01 * SR)] *= np.linspace(0, 1, int(.01 * SR))
+    a = tape_stop(a, taste, .55)
+    band_rms = np.sqrt(np.mean(a[:, :int(taste * SR)] ** 2))
+    a = np.concatenate([a, np.zeros((2, int(breath * SR)))], 1)
+    b = bridge(out_dir, track, bars, theme_s)
+    theme_rms = np.sqrt(np.mean(b[:, int(bars * BAR152 * SR):int((bars * BAR152 + 3) * SR)] ** 2)) + 1e-9
+    out = np.concatenate([a, b * band_rms / theme_rms], 1)
+    f = int(1.2 * SR); out[:, -f:] *= np.linspace(1, 0, f) ** 2                  # the theme fades on its last bar
+    return master(out)
+
+
 if __name__ == '__main__':
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     ch = theme(out)
     for name, f in (('A', option_a), ('B', option_b), ('C', option_c), ('C1', option_c1), ('C2', option_c2)):
         a = f(ch)
+        wavfile.write(str(out / (name + '.wav')), SR, a.T.astype(np.float32))
+        print('%s: %.1f s' % (name, a.shape[1] / SR))
+    for name, taste, track, bars in (('F2', 2.0, 'teaserWakeLong', 8), ('F1', 1.0, 'teaserWakeLong', 8)):
+        a = option_e(out, taste, theme_s=9.5, track=track, bars=bars)
+        wavfile.write(str(out / (name + '.wav')), SR, a.T.astype(np.float32))
+        print('%s: %.1f s' % (name, a.shape[1] / SR))
+    for name, taste in (('E1', 1.0), ('E2', 2.0), ('E4', 4.0)):
+        a = option_e(out, taste)
         wavfile.write(str(out / (name + '.wav')), SR, a.T.astype(np.float32))
         print('%s: %.1f s' % (name, a.shape[1] / SR))
     for name, track, bars in (('D1', 'teaserWake', 4), ('D2', 'teaserCount', 2)):

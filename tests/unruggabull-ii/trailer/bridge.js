@@ -5,6 +5,7 @@
 //   teaserWake   4 bars: a lone bass and a ticking arpeggio, the saw swelling in, the theme's opening called softly
 //                with echo, then a snare roll and a run up into the theme
 //   teaserCount  2 bars: a rising arpeggio over a kick, then the roll and the run
+//   teaserWakeLong  8 bars: the long one the teaser's picture is cut to (see below)
 (function () {
   'use strict';
   const S = window.UnrugSound;
@@ -45,8 +46,39 @@
     drums: { stem: 'drums', wave: 'noise', vol: .5, notes: 'K . h . K . h . K . h . K K h . | K . . . S . . . S S S S S S S S' }
   } };
 
+  // The long one, eight bars, to carry the teaser's picture (owner, Oct 29: "the machine wakes can be longer and fit
+  // the teaser too"): the heartbeat alone (the eye opening), the saw holding D with the theme's first notes called
+  // softly, chugs and a backbeat under a low eerie line, the climb (D, F, G, A), and the roll and run into the theme.
+  const P = (n, len, ch, vol) => pw(n, len, ch, vol);
+  const chug = (n, f, vol) => [P(n, 2, [f], vol), '.', P(n, 1, [f], vol), P(n, 2, [f], vol), '.', P(n, 1, [f], vol)];
+  const long = { bars: 8, channels: {
+    bass: { stem: 'bass', wave: 'triangle', vol: .3, gate: .8, notes: [
+      'D2 - - . . . . . D2 - - . . . . .', 'D2 - - . . . . . D2 - - . . . . .', 'D2 - - . . . D2 . D2 - - . . . D2 .', 'D2 - - . . . D2 . D2 - - . . . D2 .',
+      'D2 - D2 - D2 - D2 - F2 - F2 - G2 - G2 -', 'D2 - D2 - D2 - D2 - Bb1 - Bb1 - A1 - A1 -', 'D2 - D2 - F2 - F2 - G2 - G2 - A2 - A2 -',
+      'Bb1 - Bb1 - Bb1 - Bb1 - C2 - C2 - C2 - C2 -'].join(' | ') },
+    tick: { stem: 'bass', wave: 'pulse', duty: .125, vol: .028, gate: .5, echo: { delay: .2, feedback: .25, repeats: 1 }, notes: [
+      arp(['D4', 'F4', 'A4', 'D5'], 2), arp(['D5', 'F5', 'A5', 'D6'], 2),
+      'D5 F5 A5 D6 D5 F5 A5 D6 F5 A5 C6 F6 G5 Bb5 D6 G6', 'D5 F5 A5 D6 D5 F5 A5 D6 Bb4 D5 F5 Bb5 A4 C#5 E5 A5',
+      'D5 F5 A5 D6 F5 A5 C6 F6 G5 Bb5 D6 G6 A5 C#6 E6 A6', 'Bb4 D5 F5 Bb5 Bb4 D5 F5 Bb5 C5 E5 G5 C6 C5 E5 G5 C6'].join(' | ') },
+    gtr: { stem: 'bass', wave: 'sawtooth', drive: true, vol: .03, notes: [].concat(Array(32).fill('.'),
+      [P('D3', 16, ['A3', 'D4'], .02), P('D3', 16, ['A3', 'D4'], .027)],
+      chug('D3', 'A3', .034), [P('F3', 4, ['C4'], .036), P('G3', 4, ['D4'], .036)],
+      chug('D3', 'A3', .034), [P('Bb2', 4, ['F3'], .036), P('A2', 4, ['E3'], .036)],
+      [P('D3', 4, ['A3'], .038), P('F3', 4, ['C4'], .038), P('G3', 4, ['D4'], .04), P('A3', 4, ['E4'], .04)],
+      [P('Bb2', 8, ['F3', 'Bb3'], .042), P('C3', 8, ['G3', 'C4'], .042)]) },
+    lead: { stem: 'lead', wave: 'pulse', duty: .5, vol: .055, gate: .92, echo: { delay: .3, feedback: .3, repeats: 2 }, notes: [
+      rest(16), rest(16), rest(16), 'D5 - - - - - A4 - D5 - F5 - A5 - - -',
+      'A4 - - - - - - - Bb4 - - - A4 - - -', 'D5 - - - - - - - C#5 - - - - - - -', 'D5 - - - F5 - - - G5 - - - A5 - - -',
+      '. . . . . . . . A4 Bb4 C5 D5 E5 F5 G5 A5'].join(' | ') },
+    drums: { stem: 'drums', wave: 'noise', vol: .5, notes: [
+      'k . . k . . . . k . . k . . . .', 'k . . k . . . . k . . k . . . .', 'k . . k . . . . k . . k . . h .', 'K . . k . . h . K . . k . . h .',
+      'K . h . S . h . K K h . S . h .', 'K . h . S . h . K K h . S . h K', 'K h K h S h K h K h K h S h S S', 'K . . . S . . . S S S S S S S S'].join(' | ') },
+    crash: { stem: 'drums', wave: 'noise', vol: .3, notes: [rest(16), rest(16), rest(16), rest(16), 'c ' + rest(15), rest(16), 'c ' + rest(15), rest(16)].join(' | ') }
+  } };
+
   const track = (name, pattern) => ({ name, key: 'Dm', bpm: 152, swing: 0, loop: 0, order: ['A'], stems: ['bass', 'lead', 'drums'], patterns: { A: pattern } });
   S.registerTrack('teaserWake', track('The machine wakes', wake));
   S.registerTrack('teaserCount', track('Countdown', count));
-  window.UnrugTeaserBridge = { wake: 4, count: 2, bar: 60 / 152 * 4 };
+  S.registerTrack('teaserWakeLong', track('The machine wakes, long', long));
+  window.UnrugTeaserBridge = { wake: 4, count: 2, wakeLong: 8, bar: 60 / 152 * 4 };
 })();
