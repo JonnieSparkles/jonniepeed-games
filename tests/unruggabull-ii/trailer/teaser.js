@@ -5,6 +5,7 @@
 //      synth (bridge.js teaserWake) and the title theme.
 //   C  A's music with B's best: p(Loom)'s talk, the shaking eye, the roof over his shoulder, the odds in a stop.
 //   D  C smoothed: one camera move through the machine waking, the climb as one shot, the roof held to the end.
+//   E  D without the first game's drop and tape stop (owner, Oct 30): it opens on the machine waking.
 //   B  "Saga II": no first-game music. p(Loom) speaks in the dark, the roof fight's heavy chorus slams in, it gives his
 //      odds, "LET'S GO!", and the title theme.
 // UnrugTeaser.make(cut) -> { dur, draw(g, t) }. Pure in t (seeded noise), so any frame renders on its own.
@@ -384,6 +385,7 @@ var UnrugTeaser = (function () {
       if (u > b * 1.6) rain(g, u, .25);
       if (Math.abs(blur) > 1) smear(g, -blur);
       vignette(g, .85);
+      if (s.fadeIn) fill(g, '#000', 1 - u / s.fadeIn);   // E opens here: up from black on the first heartbeats
       if (s.text && u < (s.textUntil || 1e9)) caption(g, s.text, u - (s.say || 0), s.cy || 222, 2);
     },
     // the climb as one shot: the counter runs 1 to 48 while RugCo's floors stream past; the blaster for a bar, then
@@ -499,7 +501,7 @@ var UnrugTeaser = (function () {
   // and the theme starts again under the logo.
   function cutC() {
     const w0 = 2.85, b = BAR152, q = b / 4, th = w0 + 4 * b, stop = th + 4 * b, go = stop + 1.96, tl = go + .95, end = tl + 5.5 * b;
-    return { dur: end, stop, tl, shots: [
+    return { dur: end, stop, tl, w0, shots: [
       [0, 'drop'], [2.0, 'tapestop', { len: .55 }], [2.55, 'black'],
       [w0, 'wake', { len: b * 1.15 }],
       [w0 + b, 'talk', { open: [0, .5], z: 3, bright: .4, text: 'HELLO, UNRUGGABULL.', say: .12, cy: 222 }],
@@ -519,11 +521,11 @@ var UnrugTeaser = (function () {
 
   // D: C, smoothed (owner, Oct 30: "the flow is a little jumpy"): about 7 cuts, one camera move through the machine
   // waking, the climb as one shot, the roof held to the end, flashes only for lightning and the logo. Same sound as C.
-  function cutD() {
-    const w0 = 2.85, b = BAR152, th = w0 + 4 * b, stop = th + 4 * b, go = stop + 1.96, tl = go + .95, end = tl + 5.5 * b;
-    return { dur: end, stop, tl, shots: [
-      [0, 'drop'], [2.0, 'tapestop', { len: .55 }], [2.55, 'black'],
-      [w0, 'tower', { bar: b, text: 'HELLO, UNRUGGABULL.', say: b + .12, textUntil: 2 * b + .4 }],
+  function cutD(w0 = 2.85) {
+    const b = BAR152, th = w0 + 4 * b, stop = th + 4 * b, go = stop + 1.96, tl = go + .95, end = tl + 5.5 * b;
+    return { dur: end, stop, tl, w0, shots: [
+      ...(w0 ? [[0, 'drop'], [2.0, 'tapestop', { len: .55 }], [2.55, 'black']] : []),
+      [w0, 'tower', { bar: b, text: 'HELLO, UNRUGGABULL.', say: b + .12, textUntil: 2 * b + .4, fadeIn: w0 ? 0 : 1.2 }],
       [th, 'hero', { strikes: [0, .95], z0: 1, z1: 1.08, noFlash: true, whipOut: .2 }],
       [th + b, 'climb', { bar: b }],
       [th + 3 * b, 'roofEnd', { stop: b, go: b + 1.96, text: 'PROBABILITY OF YOUR SURVIVAL: 1%.', say: .26 }],
@@ -533,7 +535,7 @@ var UnrugTeaser = (function () {
   }
 
   function make(name) {
-    const c = { A: cutA, B: cutB, C: cutC, D: cutD }[name]();
+    const c = { A: cutA, B: cutB, C: cutC, D: cutD, E: () => cutD(0) }[name]();
     c.shots.forEach((s, i) => { s[2] = Object.assign({ len: (c.shots[i + 1] ? c.shots[i + 1][0] : c.dur) - s[0] }, s[2] || {}); });
     c.draw = (g, t) => {
       g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);

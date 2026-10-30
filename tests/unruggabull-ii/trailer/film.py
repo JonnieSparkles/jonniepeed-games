@@ -35,7 +35,7 @@ def cut_info(name):
     with sync_playwright() as pw:
         b = pw.chromium.launch(args=['--allow-file-access-from-files']); pg = b.new_page()
         pg.goto(page(Path('/tmp')).as_uri())
-        r = pg.evaluate('n => { const c = UnrugTeaser.make(n); return { dur: c.dur, stop: c.stop, tl: c.tl, sfx: c.sfx, shots: c.shots.map(s => [s[0], s[1]]) }; }', name)
+        r = pg.evaluate('n => { const c = UnrugTeaser.make(n); return { dur: c.dur, stop: c.stop, tl: c.tl, w0: c.w0, sfx: c.sfx, shots: c.shots.map(s => [s[0], s[1]]) }; }', name)
         b.close()
     return r
 
@@ -107,14 +107,16 @@ def sound_c(out, info):
     """A's music, the theme stopped on its fanfare's last bar line for p(Loom)'s odds and LET'S GO, then the theme from
     its top under the logo; p(Loom)'s hello over the machine waking. The theme's restart is its own recording, on the
     bridge's level; p(Loom)'s blips come up to sit just under the music, as in B."""
-    b_, w0 = O.BAR152, 2.85
+    b_, w0 = O.BAR152, info['w0']
     stop, tl, n = info['stop'], info['tl'], int(info['dur'] * SR)
-    a = O.alley(O.DROP, 2.6); a[:, :int(.01 * SR)] *= np.linspace(0, 1, int(.01 * SR))
-    a = O.tape_stop(a, 2.0, .55)
-    band_rms = np.sqrt(np.mean(a[:, :int(2.0 * SR)] ** 2))
-    mix = np.zeros((2, n)); mix[:, :a.shape[1]] = a
+    mix = np.zeros((2, n)); g = 1.0
     br = O.bridge(out, 'teaserWake', 4, round(4 * b_, 2))
-    g = band_rms / (np.sqrt(np.mean(br[:, int(4 * b_ * SR):int((4 * b_ + 3) * SR)] ** 2)) + 1e-9)
+    if w0:                                   # the first game's drop and the tape stop (C, D; E opens on the bridge)
+        a = O.alley(O.DROP, 2.6); a[:, :int(.01 * SR)] *= np.linspace(0, 1, int(.01 * SR))
+        a = O.tape_stop(a, 2.0, .55)
+        band_rms = np.sqrt(np.mean(a[:, :int(2.0 * SR)] ** 2))
+        mix[:, :a.shape[1]] = a
+        g = band_rms / (np.sqrt(np.mean(br[:, int(4 * b_ * SR):int((4 * b_ + 3) * SR)] ** 2)) + 1e-9)
     i0, i1 = int(w0 * SR), int(stop * SR)
     seg = br[:, :i1 - i0].copy(); f = int(.02 * SR); seg[:, -f:] *= np.linspace(1, 0, f)
     mix[:, i0:i0 + seg.shape[1]] += seg * g
@@ -129,7 +131,7 @@ def sound_c(out, info):
     mix[:, int(tl * SR):int(tl * SR) + th.shape[1]] += th * g
     music_rms = np.sqrt(np.mean((br[:, int(4 * b_ * SR):int(8 * b_ * SR)] * g) ** 2))
     for key, keep in (('say', lambda w: w.startswith('say:')), ('fx', lambda w: w in ('thunder', 'go'))):
-        q = Path(out) / ('chip-C-%s.wav' % key)
+        q = Path(out) / ('chip-%s-%s.wav' % ('C' if w0 else 'E', key))
         chip.record(None, info['dur'] + .5, q, extra_js=cues_js([c for c in info['sfx'] if keep(c[1])]), trim=False)
         x = wavfile.read(str(q))[1].T.astype(np.float64)[:, :n]
         if key == 'say':
@@ -164,7 +166,7 @@ def frames(out, name, dur):
 
 def film(out, name, picture=True):
     info = cut_info(name)
-    mix = {'A': sound_a, 'B': sound_b, 'C': sound_c, 'D': sound_c}[name](out, info)
+    mix = {'A': sound_a, 'B': sound_b, 'C': sound_c, 'D': sound_c, 'E': sound_c}[name](out, info)
     f = int(1.2 * SR); mix[:, -f:] *= np.linspace(1, 0, f) ** 2
     mix = loud(mix)
     wav = Path(out) / ('teaser-%s.wav' % name); wavfile.write(str(wav), SR, mix.T.astype(np.float32))
