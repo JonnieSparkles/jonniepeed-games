@@ -118,10 +118,14 @@ def sound_c(out, info):
     i0, i1 = int(w0 * SR), int(stop * SR)
     seg = br[:, :i1 - i0].copy(); f = int(.02 * SR); seg[:, -f:] *= np.linspace(1, 0, f)
     mix[:, i0:i0 + seg.shape[1]] += seg * g
-    p = Path(out) / 'theme-C.wav'
+    # the logo lands on the theme's verse, the release after the four-bar build the bridge stopped on (owner, Oct 30:
+    # "we shouldn't restart the theme song, it should land on ... the part after the build"): recorded from the top and
+    # taken from bar 5's downbeat
+    p = Path(out) / 'theme-C-verse.wav'
     if not p.is_file():
-        chip.record('theme', info['dur'] - tl + .5, p)
-    th = wavfile.read(str(p))[1].T.astype(np.float64)[:, :n - int(tl * SR)]
+        chip.record('theme', 4 * b_ + info['dur'] - tl + .5, p)
+    th = wavfile.read(str(p))[1].T.astype(np.float64)[:, int(round(4 * b_ * SR)):][:, :n - int(tl * SR)]
+    fi = int(.004 * SR); th[:, :fi] *= np.linspace(0, 1, fi)
     mix[:, int(tl * SR):int(tl * SR) + th.shape[1]] += th * g
     music_rms = np.sqrt(np.mean((br[:, int(4 * b_ * SR):int(8 * b_ * SR)] * g) ** 2))
     for key, keep in (('say', lambda w: w.startswith('say:')), ('fx', lambda w: w in ('thunder', 'go'))):
