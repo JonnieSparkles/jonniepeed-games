@@ -3,6 +3,7 @@
 // Two cuts, each timed to its own soundtrack (film.py):
 //   A  "The machine wakes": a taste of the first game's RugCo Alley drop, the tape stop, the bridge on the new game's
 //      synth (bridge.js teaserWake) and the title theme.
+//   C  A's music with B's best: p(Loom)'s talk, the shaking eye, the roof over his shoulder, the odds in a stop.
 //   B  "Saga II": no first-game music. p(Loom) speaks in the dark, the roof fight's heavy chorus slams in, it gives his
 //      odds, "LET'S GO!", and the title theme.
 // UnrugTeaser.make(cut) -> { dur, draw(g, t) }. Pure in t (seeded noise), so any frame renders on its own.
@@ -16,7 +17,9 @@ var UnrugTeaser = (function () {
   const HERO = { rise: paint(B.FRONTS.rise), huff0: paint(B.FRONTS.huff0), huff1: paint(B.FRONTS.huff1), back: paint(B.VIEWS.back) };
   const RUN = [0, 1, 2, 3].map(i => paint(B.SIDES['run' + i]));
   const SIDE = { aim: paint(B.SIDES.aim), wind: paint(B.SIDES.wind), cut: paint(B.SIDES.cut) };
-  const ready = () => Promise.all([STILL1, STORM, TITLE].map(i => i.complete ? 0 : new Promise(r => { i.onload = r; })));
+  const SF = B.SIDE_FEET, SM = B.SIDE_MUZZLE, FF = B.FRONT_FEET, VF = B.VIEW_FEET;
+  const SP = UnrugIntroStills.sprites;
+  const ready = () => Promise.all([STILL1, STORM, TITLE, SP.heap.img, SP.reach.img, UnrugPortrait.img].map(i => i.complete ? 0 : new Promise(r => { i.onload = r; })));
 
   // ---------- helpers ----------
   const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
@@ -79,8 +82,66 @@ var UnrugTeaser = (function () {
     }
   }
   // the title's alley with the eye on the tower's roof, as a world to film with cam()
+  // neon letters as title.js draws them: the game's font at 2x as tubes, each tube pixel with a bright core
+  function neon(s, col, core) {
+    const c = A.canvas(A.textWidth(s, 2) + 2, 12), x = c.getContext('2d');
+    A.txt(x, s, 1, 1, col, 2);
+    const d = x.getImageData(0, 0, c.width, c.height);
+    x.fillStyle = core;
+    for (let yy = 1; yy < c.height; yy += 2) for (let xx = 1; xx < c.width; xx += 2) if (d.data[(yy * c.width + xx) * 4 + 3]) x.fillRect(xx, yy, 1, 1);
+    return c;
+  }
+  function glowDraw(g, c, x, y, a) {
+    g.save(); g.globalCompositeOperation = 'lighter';
+    for (const [r, al] of [[3, .07], [2, .12], [1, .22]]) { g.globalAlpha = al * a; for (const [dx, dy] of [[-r, 0], [r, 0], [0, -r], [0, r]]) g.drawImage(c, x + dx, y + dy); }
+    g.restore();
+  }
+  const SIGN_ON = neon('RUGCO EMPIRE', '#ff6a2a', '#ffd0a0'), SIGN_OFF = neon('RUGCO EMPIRE', '#3a1208', '#5a1a0c');
+  // RUGS on the blue panel on the right wall (title.js: x 381, y 388, slope -.8), each column dropped by the slope
+  const RUGS = (() => {
+    const flat = neon('RUGS', '#7ad8ff', '#e0f8ff'), sl = -.8, rise = Math.ceil(-sl * flat.width);
+    const c = A.canvas(flat.width, flat.height + rise + 1), x = c.getContext('2d');
+    for (let i = 0; i < flat.width; i++) x.drawImage(flat, i, 0, 1, flat.height, i, rise + Math.round(sl * i), 1, flat.height);
+    c.rise = rise; return c;
+  })();
+  const RUGS_OFF = (() => { const c = A.canvas(RUGS.width, RUGS.height), x = c.getContext('2d'); x.drawImage(RUGS, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#123850'; x.fillRect(0, 0, c.width, c.height); return c; })();
   const TW = A.canvas(480, 640), tw = TW.getContext('2d');
-  function titleWorld(open, o) { tw.imageSmoothingEnabled = false; tw.drawImage(TITLE, 0, 0); eye(tw, 240, 187, 7, open, o); return TW; }
+  function titleWorld(open, o, tt = 0) {
+    tw.imageSmoothingEnabled = false; tw.drawImage(TITLE, 0, 0); eye(tw, 240, 187, 7, open, o);
+    const sx = 177 + Math.round((126 - SIGN_ON.width) / 2), sy = 443;
+    tw.drawImage(SIGN_OFF, sx, sy);
+    if ((Math.floor(tt * 13) % 37) > 1) { glowDraw(tw, SIGN_ON, sx, sy, 1); tw.drawImage(SIGN_ON, sx, sy); }
+    // RUGS flashes: on, off, on, with a buzz now and then
+    const ph = tt % .9, on = ph < .5 || (ph > .62 && ph < .74), rx = 380, ry = 387 - RUGS.rise;
+    if (on && hash(Math.floor(tt * 20)) > .06) {
+      glowDraw(tw, RUGS, rx, ry, 1.2); tw.drawImage(RUGS, rx, ry);
+      tw.save(); tw.globalCompositeOperation = 'lighter'; tw.globalAlpha = .12; A.disc(tw, rx + 16, ry + 14, 26, '#46aad4'); tw.restore();
+    } else tw.drawImage(RUGS_OFF, rx, ry);
+    return TW;
+  }
+  // the intro's first still, as the intro draws it: the first game's garage, the Rugfather a burning heap on the floor,
+  // the alley's neon saying RUGS
+  const IC = A.canvas(480, 270), ic = IC.getContext('2d');
+  function garage(tt) { UnrugIntro.draw(ic, 0, tt + 3, {}); return IC; }
+  // a side sprite by its feet (bull.js SIDE_FEET), a front or back one by theirs
+  const side = (g, c, x, feet, s) => g.drawImage(c, Math.round(x - SF.x * s), Math.round(feet - SF.y * s), Math.round(c.width * s), Math.round(c.height * s));
+  const front = (g, c, x, feet, s, f = FF) => g.drawImage(c, Math.round(x - f.x * s), Math.round(feet - f.y * s), Math.round(c.width * s), Math.round(c.height * s));
+  const TINT = new Map();
+  function silhouette(c, col) {
+    const k = col + c.width + 'x' + c.height + (TINT.size); let m = TINT.get(c); if (!m) TINT.set(c, m = {});
+    if (!m[col]) { const d = A.canvas(c.width, c.height), x = d.getContext('2d'); x.drawImage(c, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = col; x.fillRect(0, 0, d.width, d.height); m[col] = d; }
+    return m[col];
+  }
+  // him from the front in his ready stance, breathing (his top half rises a pixel), lit by lightning (a cold rim)
+  function stance(g, x, feet, s, u, light) {
+    const c = HERO.rise, waist = 34, up = Math.sin(u * 3.2) > .3 ? 1 : 0;
+    const x0 = Math.round(x - FF.x * s), y0 = Math.round(feet - FF.y * s), w = Math.round(c.width * s);
+    if (light > 0) { g.globalAlpha = Math.min(1, light); const r = silhouette(c, '#dfe8ff'); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) g.drawImage(r, x0 + dx * s, y0 + dy * s, w, Math.round(c.height * s)); g.globalAlpha = 1; }
+    g.drawImage(c, 0, 0, c.width, waist, x0, y0 - up * s, w, Math.round(waist * s));
+    g.drawImage(c, 0, waist, c.width, c.height - waist, x0, y0 + Math.round(waist * s), w, Math.round((c.height - waist) * s));
+    if (up) g.drawImage(c, 0, waist, c.width, 1, x0, y0 + Math.round((waist - 1) * s), w, Math.round(s));
+    if (light > 0) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = .35 * Math.min(1, light); g.drawImage(silhouette(c, '#8090c0'), x0, y0 - up * s, w, Math.round(c.height * s)); g.restore(); }
+  }
   // the game's caption: a dark box, orange text typed in by p(Loom)'s talk times
   function caption(g, text, u, y = 30, sc = 2, rate = 1) {
     if (u < 0) return; u *= rate;
@@ -95,14 +156,53 @@ var UnrugTeaser = (function () {
     A.otxt(g, 'FLOOR', 26, 26, '#b9a9cf', 3);
     A.otxt(g, String(n), 26, 50, '#ffc53a', 9);
   }
-  function speedBg(g, t, hue) {                 // the climb: a dark shaft with streaks falling past
+  function speedBg(g, t, hue, seed = 0) {        // the climb: RugCo's offices streaming down past him as he goes up
     g.fillStyle = hue; g.fillRect(0, 0, W, H);
-    for (let i = 0; i < 40; i++) {
-      const x = Math.round(hash(i * 7) * W), y = (hash(i * 3) * H + t * 900) % (H + 60) - 60;
-      g.fillStyle = 'rgba(255,200,120,' + (.06 + .1 * hash(i)) + ')'; g.fillRect(x, Math.round(y), 1 + (i % 2), 40);
+    // far: the city's lights, slow
+    for (let i = 0; i < 70; i++) { const x = Math.round(hash(i * 5 + seed) * W), y = Math.round((hash(i * 11) * H + t * 120) % H); g.fillStyle = hash(i) < .5 ? '#5a3a6a' : '#8a5a3a'; g.fillRect(x, y, 1, 2); }
+    // the floors: a row of office windows every 54 px, lit or dark, smeared by the speed
+    const sp = 620, off = (t * sp) % 54;
+    for (let r = -1; r < 6; r++) {
+      const y = Math.round(r * 54 + off), fl = Math.floor((t * sp) / 54) - r;
+      g.fillStyle = '#2c2040'; g.fillRect(0, y + 38, W, 8);                       // the slab
+      g.fillStyle = '#3d2c55'; g.fillRect(0, y + 38, W, 1);
+      for (let i = 0; i < 12; i++) {
+        const x = 8 + i * 40, lit = hash(fl * 13 + i + seed) > .45;
+        g.fillStyle = lit ? 'rgba(242,182,50,.38)' : 'rgba(60,40,80,.5)'; g.fillRect(x, y + 6, 28, 26);
+        g.fillStyle = lit ? 'rgba(255,230,150,.25)' : 'rgba(60,40,80,.25)'; g.fillRect(x, y + 32, 28, 6);  // the smear
+        g.fillStyle = 'rgba(26,20,24,.7)'; g.fillRect(x + 13, y + 6, 2, 26);
+      }
     }
+    // near: girders flashing past
+    for (let i = 0; i < 2; i++) { const y = Math.round(((t * 1500 + i * 190) % 420) - 80); g.fillStyle = '#120d1c'; g.fillRect(0, y, W, 12); g.fillStyle = '#2a1c34'; for (let x = 6; x < W; x += 24) g.fillRect(x, y + 4, 3, 3); }
+    // what he stands on: the elevator's car floor
     g.fillStyle = '#120d1c'; g.fillRect(0, 208, W, H - 208);
-    g.fillStyle = '#2c2040'; g.fillRect(0, 208, W, 2);
+    g.fillStyle = '#543424'; g.fillRect(0, 208, W, 3); g.fillStyle = '#281a14'; g.fillRect(0, 211, W, 2);
+    const v = g.createLinearGradient(0, 0, 0, 208); v.addColorStop(0, 'rgba(10,6,14,.55)'); v.addColorStop(.5, 'rgba(10,6,14,0)'); v.addColorStop(1, 'rgba(10,6,14,.4)'); g.fillStyle = v; g.fillRect(0, 0, W, 208);
+  }
+  // the blaster's shot, as the game draws it (game.js drawShot: a blue trail, a pale bolt with a white core), bigger
+  function shotAt(g, x, y, len) {
+    g.save(); g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) { g.globalAlpha = .12 * (1 - i / 6); g.fillStyle = '#3aa8e0'; g.fillRect(Math.round(x - len - i * 3), y - 4, len, 8); }
+    g.globalAlpha = .4; A.disc(g, x, y, 8, '#7fd4ff'); g.restore();
+    g.fillStyle = '#243a6c'; g.fillRect(Math.round(x - len), y - 1, Math.round(len * .5), 3);
+    g.fillStyle = '#3aa8e0'; g.fillRect(Math.round(x - len * .6), y - 2, Math.round(len * .6), 4);
+    A.disc(g, x, y, 4, '#7fd4ff'); A.disc(g, x, y, 2, '#e0f8ff'); g.fillStyle = '#fff'; g.fillRect(x, y - 1, 2, 2);
+  }
+  function muzzleFlash(g, x, y, k) {             // k: 1 on the shot, fading to 0
+    if (k <= 0) return;
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = .5 * k; A.disc(g, x, y, Math.round(14 * k), '#3aa8e0'); g.restore();
+    A.disc(g, x, y, Math.round(6 * k), '#e0f8ff');
+    g.fillStyle = '#ffffff';
+    for (const [dx, dy] of [[1, 0], [.7, -.7], [.7, .7], [0, -1], [0, 1]]) for (let r = 4; r < 4 + 14 * k; r += 2) g.fillRect(Math.round(x + dx * r), Math.round(y + dy * r), 2, 2);
+  }
+  function sparks(g, x, y, k, seed) {           // k: 0 at the hit, 1 when they've gone
+    if (k < 0 || k >= 1) return;
+    for (let i = 0; i < 12; i++) {
+      const a = hash(i + seed) * 6.3, r = 6 + k * (30 + 30 * hash(i * 3 + seed)), px = x + Math.cos(a) * r, py = y + Math.sin(a) * r + k * k * 20;
+      g.fillStyle = k < .4 ? '#ffffff' : i % 2 ? '#7fd4ff' : '#ffd44a'; g.fillRect(Math.round(px), Math.round(py), 2, 2);
+    }
+    if (k < .25) { A.disc(g, x, y, Math.round(14 * (1 - k * 4)), '#e0f8ff'); }
   }
 
   // ---------- shots: (g, u, s) with u the shot's own time; s is the cut's options ----------
@@ -111,14 +211,14 @@ var UnrugTeaser = (function () {
     // the first game's garage onto RugCo Alley, punched on the drop's beats
     drop(g, u) {
       const b = u % .5, p = Math.exp(-b / .1);
-      cam(g, STILL1, 240 + (hash(Math.floor(u / .5)) - .5) * 6 * p, 135, 1.02 + .05 * p);
+      cam(g, garage(u), 240 + (hash(Math.floor(u / .5)) - .5) * 6 * p, 135, 1.02 + .05 * p);
       fill(g, '#ffd8a0', .18 * p);
     },
     // the tape stops: the picture slows, drains and sags into black, with tracking bands
     tapestop(g, u, s) {
       const k = clamp(u / s.len);
       g.save(); g.translate(0, Math.round(k * k * 50));
-      cam(g, STILL1, 240, 135, 1.02, 'grayscale(' + k + ') brightness(' + (1 - .85 * k) + ') contrast(' + (1 + k) + ')');
+      cam(g, garage(s.at || 2), 240, 135, 1.02, 'grayscale(' + k + ') brightness(' + (1 - .85 * k) + ') contrast(' + (1 + k) + ')');
       g.restore();
       for (let i = 0; i < 5; i++) {
         const y = Math.round((hash(i + Math.floor(u * 30)) * H)), h = 3 + Math.round(hash(i * 5) * 8);
@@ -129,7 +229,7 @@ var UnrugTeaser = (function () {
     // the machine wakes: the alley in the dark, tilting up toward the tower on the bass's heartbeat
     wake(g, u, s) {
       const k = u / s.len, beat = s.beat || .7895;
-      cam(g, titleWorld(0), 240, lerp(505, 395, ease(k)), 1);
+      cam(g, titleWorld(0, {}, u), 240, lerp(505, 395, ease(k)), 1);
       const p = Math.exp(-(u % beat) / .18);
       fill(g, '#06030a', .88 - .32 * ease(k) - .12 * p);
       vignette(g, .8);
@@ -137,7 +237,7 @@ var UnrugTeaser = (function () {
     // p(Loom)'s eye opens on the tower's roof
     eyeOpen(g, u, s) {
       const open = s.open ? ease((u - s.open[0]) / s.open[1]) : 1, z = lerp(s.z0 || 3.6, s.z1 || 4.4, ease(u / s.len));
-      const sh = s.shake ? Math.sin(u * 61) * s.shake * Math.exp(-u * 2) : 0;
+      const sh = s.shake ? Math.sin(u * 61) * s.shake * Math.exp(-u * (s.hold ? .4 : 2)) : 0;
       cam(g, titleWorld(open, { red: s.red, look: [Math.sin(u * 1.7) * .4, .2], pupil: s.red ? .22 : .32 }), 240 + sh, 187, z);
       fill(g, '#06030a', s.dark == null ? .35 : s.dark);
       vignette(g, .9);
@@ -164,47 +264,55 @@ var UnrugTeaser = (function () {
     // him, in the alley: front on, huffing, backlit by the storm
     hero(g, u, s) {
       const z = lerp(s.z0 || 1, s.z1 || 1.1, ease(u / s.len));
-      cam(g, titleWorld(1), 240, 470, z, 'brightness(.5)');
-      const f = s.flash == null ? 0 : s.flash, fl = u >= f ? Math.exp(-(u - f) / .2) : 0;
-      fill(g, '#cfd8ff', .35 * fl);
+      const strikes = s.strikes || [0, .9], last = strikes.filter(f => f <= u).pop(), fl = last == null ? 0 : Math.exp(-(u - last) / .18) * (hash(Math.floor(u * 40)) > .3 ? 1 : .5);
+      cam(g, titleWorld(1, {}, u), 240, 470, z, 'brightness(' + (.5 + .45 * fl) + ')');
+      if (last != null) bolt(g, 90 + hash(last * 7) * 300, 11 + last * 5, 1 - (u - last) / .22);
       rain(g, u, .3);
-      const pose = u < (s.rise || .35) ? HERO.rise : (Math.floor(u / .4) % 2 ? HERO.huff1 : HERO.huff0);
-      const sc = s.sc || 3;
-      sprite(g, pose, 240, 262 + (z - 1) * 120, sc * z);
+      stance(g, 240, 262 + (z - 1) * 120, (s.sc || 3) * z, u, fl * 1.4);
       vignette(g, .75);
-      fill(g, '#fff', 1 - u / .1);
+      if (!s.noFlash) fill(g, '#fff', 1 - u / .1);
     },
     // running through the alley toward the tower
     run(g, u, s) {
       const k = u / s.len;
-      cam(g, titleWorld(1), lerp(150, 330, k), 470, 1.25, 'brightness(.55)');
+      cam(g, titleWorld(1, {}, u), lerp(150, 330, k), 470, 1.25, 'brightness(.55)');
       rain(g, u, .3);
-      sprite(g, RUN[Math.floor(u / .09) % 4], lerp(120, 330, k), 255, 3);
+      side(g, RUN[Math.floor(u / .09) % 4], lerp(120, 330, k), 255, 3);
       vignette(g, .7);
     },
     // the climb: FLOOR 13 with the blaster, carpshits coming in and popping
     shoot(g, u, s) {
       speedBg(g, u, '#1d1530');
-      floorSign(g, 'FLOOR', u, s.n0, s.n1);
-      sprite(g, SIDE.aim, 150, 208, 3);
-      for (let i = 0; i < 4; i++) {           // carpets fly in from the right, each popped by a bolt
-        const t0 = i * s.len / 4, du = u - t0; if (du < 0) continue;
-        const y = 130 + (i % 2) * 34, x = lerp(470, 300, clamp(du / .25));
-        if (du < .25) {
-          g.fillStyle = '#ffd44a'; const bx = lerp(200, x, clamp(du / .25)); g.fillRect(Math.round(bx), 150, 18, 3);
-          const c = A.CARPF[Math.floor(u / .12) % 2]; g.drawImage(c, Math.round(x), y, c.width * 2, c.height * 2);
-        } else if (du < .5) {
-          g.globalAlpha = 1 - (du - .25) / .25; const c = A.CARP_HIT; g.drawImage(c, Math.round(x + (du - .25) * 120), Math.round(y - (du - .25) * 60), c.width * 2, c.height * 2); g.globalAlpha = 1;
-          A.disc(g, Math.round(x + 10), y + 10, Math.round(12 * (1 - (du - .25) / .25)), '#fff1dc');
+      const sc = 3, fx = 150, feet = 208, SPEED = 1100, n = s.hits || 4, CW = A.CARPF[0].width;
+      const hits = Array.from({ length: n }, (_, i) => .22 + i * (s.len - .45) / (n - 1));
+      let recoil = 0, flash = 0;
+      const mx = fx + SM.x * sc, my = Math.round(feet + SM.y * sc);
+      for (let i = 0; i < n; i++) {
+        const hx = 350 + (i % 2) * 50 - CW, fire = hits[i] - (hx - mx) / SPEED, a = u - fire;
+        if (a >= 0 && a < .09) { recoil = Math.max(recoil, 1 - a / .09); flash = Math.max(flash, 1 - a / .07); }
+      }
+      // the carpshits fly in at the muzzle's height, each met by a bolt
+      for (let i = 0; i < n; i++) {
+        const cx = 350 + (i % 2) * 50, hx = cx - CW, h = hits[i], fire = h - (hx - mx) / SPEED, c = A.CARPF[Math.floor(u / .1) % 2];
+        const cy = my - c.height - (i % 2 ? 6 : -2), x = u < h ? cx + (h - u) * 260 : cx, du = u - h;
+        if (u < h && x < W + 10) g.drawImage(c, Math.round(x - c.width), Math.round(cy + Math.sin(u * 9 + i) * 3), c.width * 2, c.height * 2);
+        if (u >= fire && u < h) shotAt(g, Math.round(mx + 6 + (u - fire) * SPEED), my, Math.min(70, (u - fire) * SPEED));
+        if (du >= 0 && du < .45) {
+          const k = du / .45, ch = A.CARP_HIT; g.globalAlpha = 1 - k;
+          g.save(); g.translate(Math.round(cx + k * 90), Math.round(cy + c.height - k * 50 + k * k * 120)); g.rotate(k * 5); g.drawImage(ch, -ch.width, -ch.height, ch.width * 2, ch.height * 2); g.restore(); g.globalAlpha = 1;
+          sparks(g, hx, my, du / .3, i * 17);
         }
       }
+      side(g, SIDE.aim, fx - Math.round(recoil * 2) * sc / 3 * 2, feet, sc);
+      muzzleFlash(g, mx - recoil * 2 + 4, my, flash);
+      floorSign(g, 'FLOOR', u, s.n0, s.n1);
+      fill(g, '#cfeaff', .12 * flash);
     },
     // FLOOR 48 with the katana: a wind-up and a cut across two carpshits
     slash(g, u, s) {
-      speedBg(g, u + 3, '#24132a');
-      floorSign(g, 'FLOOR', u, s.n0, s.n1);
+      speedBg(g, u + 3, '#24132a', 5);
       const cutAt = s.cutAt || .35, cut = u >= cutAt;
-      sprite(g, cut ? SIDE.cut : SIDE.wind, 190, 208, 3);
+      side(g, cut ? SIDE.cut : SIDE.wind, 170, 208, 3);
       for (let i = 0; i < 2; i++) {
         const y = 120 + i * 40, x = 280 + i * 30, du = u - cutAt;
         if (!cut) { const c = A.CARPF[Math.floor(u / .12) % 2]; g.drawImage(c, x, y, c.width * 2, c.height * 2); }
@@ -212,23 +320,27 @@ var UnrugTeaser = (function () {
       }
       if (cut) {                              // the slash: a white arc that fades
         const a = clamp(1 - (u - cutAt) / .2);
-        g.save(); g.globalAlpha = a; g.strokeStyle = '#fff6e2'; g.lineWidth = 4; g.beginPath(); g.arc(200, 150, 90, -1.1, .9); g.stroke(); g.restore();
-        fill(g, '#fff', .4 * a);
+        g.save(); g.globalAlpha = a;
+        for (const [w, col, r] of [[12, 'rgba(127,212,255,.35)', 92], [6, '#bfefff', 92], [2, '#ffffff', 92]]) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(200, 150, r, -1.2, 1.0); g.stroke(); }
+        g.restore();
+        fill(g, '#fff', .35 * a);
       }
+      floorSign(g, 'FLOOR', u, s.n0, s.n1);
     },
     // the roof: from behind, looking up at the tower's crown and the eye
     roof(g, u, s) {
-      cam(g, titleWorld(1, { red: true, look: [0, 1], pupil: .22 }), 240, lerp(235, 215, ease(u / s.len)), 2, 'brightness(.8)');
+      cam(g, titleWorld(1, { red: true, look: [0, 1], pupil: .22 }, u), 240, lerp(235, 215, ease(u / s.len)), 2, 'brightness(.8)');
       rain(g, u, .35);
-      sprite(g, HERO.back, 240, 345, 3.5);
+      front(g, HERO.back, 240, 345, 3.5, VF);
       vignette(g, .7);
       floorSign(g, 'FLOOR', u, 0, 'R');
     },
     // p(Loom) talking in the dark: just the eye and its caption
     talk(g, u, s) {
-      const open = s.open ? ease((u - s.open[0]) / s.open[1]) : 1;
-      cam(g, titleWorld(open, { red: s.red, look: [0, .4], pupil: s.red ? .22 : .32 }), 240, 192, s.z || 3, 'brightness(' + (s.bright || .35) + ')');
-      eye(g, 240 + Math.round((240 - 240) * (s.z || 3)), Math.round(135 + (187 - 192) * (s.z || 3)), 7 * (s.z || 3), open, { red: s.red, look: [0, .4], pupil: s.red ? .22 : .32, glow: .6 });
+      const open = s.open ? ease((u - s.open[0]) / s.open[1]) : 1, z = s.z || 3;
+      const sh = s.shake ? Math.round(Math.sin(u * 61) * s.shake * (.6 + .4 * Math.sin(u * 7))) : 0;
+      cam(g, titleWorld(open, { red: s.red, look: [0, .4], pupil: s.red ? .22 : .32 }), 240 + sh / z, 192, z, 'brightness(' + (s.bright || .35) + ')');
+      eye(g, 240 - sh, Math.round(135 + (187 - 192) * z), 7 * z, open, { red: s.red, look: [0, .4], pupil: s.red ? .22 : .32, glow: .6 });
       if (s.flash != null) { const f = s.flash; bolt(g, 80, 3, 1 - (u - f) / .25); fill(g, '#fff', .45 * (u >= f ? 1 - (u - f) / .1 : 0)); }
       vignette(g, .95);
       if (s.text) caption(g, s.text, u - (s.say || 0), s.cy || 214, 2, s.rate || 1);
@@ -294,8 +406,31 @@ var UnrugTeaser = (function () {
       [cEnd + .3, 'say:PROBABILITY OF YOUR SURVIVAL: 1%.'], [go, 'go'], [th, 'music:theme'], [th, 'thunder']] };
   }
 
+  // C: A's music with B's best (owner, Oct 30): p(Loom) says hello over the heartbeat, its eye opens shaking on the
+  // crash, the floors, the roof over his shoulder; the theme stops on its fanfare's last bar for the odds, "LET'S GO!",
+  // and the theme starts again under the logo.
+  function cutC() {
+    const w0 = 2.85, b = BAR152, q = b / 4, th = w0 + 4 * b, stop = th + 4 * b, go = stop + 1.96, tl = go + .95, end = tl + 5.5 * b;
+    return { dur: end, stop, tl, shots: [
+      [0, 'drop'], [2.0, 'tapestop', { len: .55 }], [2.55, 'black'],
+      [w0, 'wake', { len: b * 1.15 }],
+      [w0 + b, 'talk', { open: [0, .5], z: 3, bright: .4, text: 'HELLO, UNRUGGABULL.', say: .12, cy: 222 }],
+      [w0 + 2 * b, 'eyeOpen', { len: b, red: true, flash: true, z0: 3.6, z1: 4.6, shake: 4, hold: true, dark: .25 }],
+      [w0 + 3 * b, 'storm', { len: q, flash: 0 }], [w0 + 3 * b + q, 'souls', { len: q }],
+      [w0 + 3 * b + 2 * q, 'eyeOpen', { len: q, red: true, z0: 5.2, z1: 5.8, shake: 4, hold: true, dark: .15 }], [w0 + 3 * b + 3 * q, 'white', { len: q }],
+      [th, 'hero', { strikes: [0, .95] }],
+      [th + b, 'shoot', { n0: 1, n1: 13 }],
+      [th + 2 * b, 'slash', { n0: 13, n1: 48, cutAt: .45 }],
+      [th + 3 * b, 'roof'],
+      [stop, 'talk', { red: true, z: 3.2, bright: .3, shake: 3, text: 'PROBABILITY OF YOUR SURVIVAL: 1%.', say: .26, cy: 222 }],
+      [go, 'hero', { z0: 1.15, z1: 1.5, strikes: [.05], noFlash: true }],
+      [tl, 'logo', { bar: b }]
+    ], sfx: [[w0 + b + .12, 'say:HELLO, UNRUGGABULL.'], [w0 + 2 * b, 'thunder'], [stop, 'stop'], [stop, 'thunder'],
+      [stop + .26, 'say:PROBABILITY OF YOUR SURVIVAL: 1%.'], [go, 'go'], [tl, 'music:theme'], [tl, 'thunder']] };
+  }
+
   function make(name) {
-    const c = name === 'B' ? cutB() : cutA();
+    const c = name === 'B' ? cutB() : name === 'C' ? cutC() : cutA();
     c.shots.forEach((s, i) => { s[2] = Object.assign({ len: (c.shots[i + 1] ? c.shots[i + 1][0] : c.dur) - s[0] }, s[2] || {}); });
     c.draw = (g, t) => {
       g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
