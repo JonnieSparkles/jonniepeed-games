@@ -413,7 +413,7 @@ var UnrugTeaser = (function () {
       if (fl > 0) { g.globalAlpha = Math.min(1, fl * 1.4); const r = silhouette(HERO.back, '#dfe8ff'); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) g.drawImage(r, x0 + dx * 3, y0 + dy * 3, Math.round(HERO.back.width * sc), Math.round(HERO.back.height * sc)); g.globalAlpha = 1; }
       front(g, HERO.back, 240, feet, sc, VF);
       vignette(g, .7);
-      if (u < stop + .3) { g.globalAlpha = clamp((stop + .3 - u) / .3); A.otxt(g, 'FLOOR', 26, 26, '#b9a9cf', 3); A.otxt(g, 'R', 26, 50, '#ffc53a', 9); g.globalAlpha = 1; }
+      if (u < stop + .3) { g.globalAlpha = clamp((stop + .3 - u) / .3); A.otxt(g, 'ROOF', 26, 26, '#ffc53a', 9); g.globalAlpha = 1; }   // owner, Oct 30: "FLOOR R is weird"
       if (s.text) caption(g, s.text, u - stop - (s.say || 0), 16, 2);
       smear(g, 60 * (1 - ease(u / .2)));
     },
