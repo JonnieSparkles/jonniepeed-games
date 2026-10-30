@@ -23,7 +23,7 @@ SCRIPTS = ['bull.js', 'sprites.js', 'art.js', 'music-roof.js', 'music-floor.js',
            'music-stairs.js', 'voice.js', 'audio.js']
 
 
-def record(track, seconds, out, extra_js=''):
+def record(track, seconds, out, extra_js='', trim=True):
     from playwright.sync_api import sync_playwright
     class Quiet(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *a):
@@ -54,7 +54,8 @@ def record(track, seconds, out, extra_js=''):
         srv.shutdown()
     a = np.concatenate(parts)
     nz = np.where(np.abs(a).max(1) > 1e-4)[0]
-    a = a[nz[0]:] if len(nz) else a                      # from its first sound
+    if trim:
+        a = a[nz[0]:] if len(nz) else a                  # from its first sound
     wavfile.write(str(out), 48000, a.astype(np.float32))
     return a
 
