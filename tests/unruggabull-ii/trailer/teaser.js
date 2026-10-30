@@ -388,14 +388,14 @@ var UnrugTeaser = (function () {
       if (s.fadeIn) fill(g, '#000', 1 - u / s.fadeIn);   // E opens here: up from black on the first heartbeats
       if (s.text && u < (s.textUntil || 1e9)) caption(g, s.text, u - (s.say || 0), s.cy || 222, 2);
     },
-    // the climb as one shot: the counter runs 1 to 48 while RugCo's floors stream past; the blaster for a bar, then
+    // the climb as one shot: the counter runs 1 to 99 while RugCo's floors stream past; the blaster for a bar, then
     // the katana. It arrives and leaves on a whip.
     climb(g, u, s) {
       const b = s.bar;
       speedBg(g, u, '#1d1530');
       if (u < b) SHOT.shoot(g, u, { len: b, noBg: true, noSign: true });
       else SHOT.slash(g, u - b, { len: b, cutAt: .45, noBg: true, noSign: true, x: 150 });
-      const n = Math.max(1, Math.round(lerp(1, 48, ease(u / (s.len - .35)))));
+      const n = Math.max(1, Math.round(lerp(1, 99, ease(u / (s.len - .35)))));   // owner, Oct 30: up to 99
       A.otxt(g, 'FLOOR', 26, 26, '#b9a9cf', 3); A.otxt(g, String(n), 26, 50, '#ffc53a', 9);
       smear(g, 60 * (1 - ease(u / .2)) - 60 * ease((u - s.len + .2) / .2));
     },
@@ -413,7 +413,7 @@ var UnrugTeaser = (function () {
       if (fl > 0) { g.globalAlpha = Math.min(1, fl * 1.4); const r = silhouette(HERO.back, '#dfe8ff'); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) g.drawImage(r, x0 + dx * 3, y0 + dy * 3, Math.round(HERO.back.width * sc), Math.round(HERO.back.height * sc)); g.globalAlpha = 1; }
       front(g, HERO.back, 240, feet, sc, VF);
       vignette(g, .7);
-      if (u < stop + .3) { g.globalAlpha = clamp((stop + .3 - u) / .3); A.otxt(g, 'ROOF', 26, 26, '#ffc53a', 9); g.globalAlpha = 1; }   // owner, Oct 30: "FLOOR R is weird"
+      // no label: p(Loom) in the shot says where he is (owner, Oct 30)
       if (s.text) caption(g, s.text, u - stop - (s.say || 0), 16, 2);
       smear(g, 60 * (1 - ease(u / .2)));
     },

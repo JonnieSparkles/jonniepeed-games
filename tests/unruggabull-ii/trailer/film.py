@@ -1,6 +1,6 @@
 """Film the Unruggabull II teaser: teaser.js's picture at 30 fps, 4x to 1920 x 1080, with its soundtrack.
 
-    python3 tests/unruggabull-ii/trailer/film.py OUTDIR [A|B ...] [--sound]     # --sound: new sound, frames kept
+    python3 tests/unruggabull-ii/trailer/film.py OUTDIR [A|B ...] [--sound|--picture]   # one of the two, the other kept
 
 A  "The machine wakes": 2 s of the first game's RugCo Alley drop, the tape stop, the bridge (bridge.js teaserWake) on
    the new game's synth into the title theme (options.py), with thunder and "LET'S GO!" from the game's sound.
@@ -166,11 +166,19 @@ def frames(out, name, dur):
 
 def film(out, name, picture=True):
     info = cut_info(name)
+    wav = Path(out) / ('teaser-%s.wav' % name)
+    if picture == 'only':                    # new picture on the sound already made
+        d = frames(out, name, info['dur'])
+        return mux(out, name, d, wav, info)
     mix = {'A': sound_a, 'B': sound_b, 'C': sound_c, 'D': sound_c, 'E': sound_c}[name](out, info)
     f = int(1.2 * SR); mix[:, -f:] *= np.linspace(1, 0, f) ** 2
     mix = loud(mix)
     wav = Path(out) / ('teaser-%s.wav' % name); wavfile.write(str(wav), SR, mix.T.astype(np.float32))
     d = frames(out, name, info['dur']) if picture else Path(out) / ('frames-' + name)
+    return mux(out, name, d, wav, info)
+
+
+def mux(out, name, d, wav, info):
     mp4 = Path(out) / ('unruggabull-ii-teaser-%s.mp4' % name)
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(FPS), '-i', str(d / '%05d.png'), '-i', str(wav),
                     '-vf', 'scale=1920:1080:flags=neighbor', '-c:v', 'libx264', '-crf', '16', '-preset', 'medium', '-pix_fmt', 'yuv420p',
@@ -181,6 +189,6 @@ def film(out, name, picture=True):
 
 if __name__ == '__main__':
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
-    names = [n for n in sys.argv[2:] if n != '--sound'] or ['A', 'B']
+    names = [n for n in sys.argv[2:] if not n.startswith('--')] or ['A', 'B']
     for n in names:
-        film(out, n, picture='--sound' not in sys.argv)
+        film(out, n, picture='only' if '--picture' in sys.argv else '--sound' not in sys.argv)
