@@ -4,6 +4,7 @@
 //   A  "The machine wakes": a taste of the first game's RugCo Alley drop, the tape stop, the bridge on the new game's
 //      synth (bridge.js teaserWake) and the title theme.
 //   C  A's music with B's best: p(Loom)'s talk, the shaking eye, the roof over his shoulder, the odds in a stop.
+//   D  C smoothed: one camera move through the machine waking, the climb as one shot, the roof held to the end.
 //   B  "Saga II": no first-game music. p(Loom) speaks in the dark, the roof fight's heavy chorus slams in, it gives his
 //      odds, "LET'S GO!", and the title theme.
 // UnrugTeaser.make(cut) -> { dur, draw(g, t) }. Pure in t (seeded noise), so any frame renders on its own.
@@ -205,6 +206,21 @@ var UnrugTeaser = (function () {
     if (k < .25) { A.disc(g, x, y, Math.round(14 * (1 - k * 4)), '#e0f8ff'); }
   }
 
+  // a whip: the frame smeared along y by px (up is negative), as a fast camera move blurs it
+  const TMP = A.canvas(W, H), tmp = TMP.getContext('2d');
+  function smear(g, px) {
+    if (Math.abs(px) < 1) return;
+    tmp.clearRect(0, 0, W, H); tmp.drawImage(g.canvas, 0, 0);
+    for (let i = 1; i <= 6; i++) { g.globalAlpha = .2; g.drawImage(TMP, 0, Math.round(px * i / 6)); }
+    g.globalAlpha = 1;
+  }
+  // the title world filmed at (cx, cy, z), dimmed to `bright`, with p(Loom)'s eye drawn crisp over it
+  function towerCam(g, cx, cy, z, bright, open, eo, tt) {
+    cam(g, titleWorld(open, eo, tt), cx, cy, z, 'brightness(' + bright.toFixed(3) + ')');
+    const ex = Math.round(W / 2 + (240 - cx) * z), ey = Math.round(H / 2 + (187 - cy) * z), r = Math.round(7 * z);
+    if (open > 0 && ey > -3 * r && ey < H + 3 * r) eye(g, ex, ey, r, open, Object.assign({ glow: .4 + .6 * open }, eo));
+  }
+
   // ---------- shots: (g, u, s) with u the shot's own time; s is the cut's options ----------
   const SHOT = {
     black() {},
@@ -271,6 +287,7 @@ var UnrugTeaser = (function () {
       stance(g, 240, 262 + (z - 1) * 120, (s.sc || 3) * z, u, fl * 1.4);
       vignette(g, .75);
       if (!s.noFlash) fill(g, '#fff', 1 - u / .1);
+      if (s.whipOut) smear(g, -ease((u - (s.len - s.whipOut)) / s.whipOut) * 60);
     },
     // running through the alley toward the tower
     run(g, u, s) {
@@ -282,7 +299,7 @@ var UnrugTeaser = (function () {
     },
     // the climb: FLOOR 13 with the blaster, carpshits coming in and popping
     shoot(g, u, s) {
-      speedBg(g, u, '#1d1530');
+      if (!s.noBg) speedBg(g, u, '#1d1530');
       const sc = 3, fx = 150, feet = 208, SPEED = 1100, n = s.hits || 4, CW = A.CARPF[0].width;
       const hits = Array.from({ length: n }, (_, i) => .22 + i * (s.len - .45) / (n - 1));
       let recoil = 0, flash = 0;
@@ -305,14 +322,14 @@ var UnrugTeaser = (function () {
       }
       side(g, SIDE.aim, fx - Math.round(recoil * 2) * sc / 3 * 2, feet, sc);
       muzzleFlash(g, mx - recoil * 2 + 4, my, flash);
-      floorSign(g, 'FLOOR', u, s.n0, s.n1);
+      if (!s.noSign) floorSign(g, 'FLOOR', u, s.n0, s.n1);
       fill(g, '#cfeaff', .12 * flash);
     },
     // FLOOR 48 with the katana: a wind-up and a cut across two carpshits
     slash(g, u, s) {
-      speedBg(g, u + 3, '#24132a', 5);
+      if (!s.noBg) speedBg(g, u + 3, '#24132a', 5);
       const cutAt = s.cutAt || .35, cut = u >= cutAt;
-      side(g, cut ? SIDE.cut : SIDE.wind, 170, 208, 3);
+      side(g, cut ? SIDE.cut : SIDE.wind, s.x || 170, 208, 3);
       for (let i = 0; i < 2; i++) {
         const y = 120 + i * 40, x = 280 + i * 30, du = u - cutAt;
         if (!cut) { const c = A.CARPF[Math.floor(u / .12) % 2]; g.drawImage(c, x, y, c.width * 2, c.height * 2); }
@@ -323,9 +340,80 @@ var UnrugTeaser = (function () {
         g.save(); g.globalAlpha = a;
         for (const [w, col, r] of [[12, 'rgba(127,212,255,.35)', 92], [6, '#bfefff', 92], [2, '#ffffff', 92]]) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(200, 150, r, -1.2, 1.0); g.stroke(); }
         g.restore();
-        fill(g, '#fff', .35 * a);
+        fill(g, '#fff', (s.noBg ? .12 : .35) * a);
       }
-      floorSign(g, 'FLOOR', u, s.n0, s.n1);
+      if (!s.noSign) floorSign(g, 'FLOOR', u, s.n0, s.n1);
+    },
+    // D: one camera move over the whole machine waking (owner, Oct 30: "the flow is a little jumpy"). From the alley
+    // it tilts up the tower on the heartbeat to the crown, where p(Loom) says hello; on the crash it pushes into the eye
+    // as it opens red and shaking; on the roll it whips back down the tower through the rising souls and lands on him.
+    tower(g, u, s) {
+      const b = s.bar, beat = b / 2;
+      let cy, z, br, open, sh = 0, blur = 0;
+      if (u < 2 * b) {                         // up the tower: the alley, then faster, then easing onto the crown
+        const k = ease(u / (2 * b));
+        cy = lerp(505, 187, k); z = lerp(1, 2.6, Math.pow(k, 2.2));
+        br = lerp(.14, .55, k) + .12 * Math.exp(-(u % beat) / .18);
+        open = clamp((u - b + .3) / .8) * .55;    // it half-opens as it speaks
+        blur = (ease((u + .03) / (2 * b)) - ease(u / (2 * b))) * 318 / .03 * z / 30 * .02;
+      } else if (u < 3 * b) {                  // the crash: it opens red, shaking, and the camera pushes in
+        const v = u - 2 * b;
+        cy = 187; z = lerp(2.6, 4.6, ease(v / b)); br = .62 + .3 * Math.exp(-v / .2);
+        open = lerp(.55, 1, ease(v / .25)); sh = Math.sin(u * 61) * 4 * Math.exp(-v * .5);
+      } else {                                 // the whip back down to the alley, through the souls
+        const v = u - 3 * b, k = ease(v / b);
+        cy = lerp(187, 470, k); z = lerp(4.6, 1, Math.pow(k, .6)); br = lerp(.62, .5, k); open = 1;
+        sh = Math.sin(u * 61) * 3 * (1 - k);
+        blur = (lerp(187, 470, ease((v + .03) / b)) - cy) * z * .5;
+      }
+      const red = u >= 2 * b;
+      towerCam(g, 240 + sh / z, cy, z, br, open, { red, look: red ? [Math.sin(u * 1.7) * .4, .2] : [0, .4], pupil: red ? .22 : .32 }, u);
+      if (u >= 3 * b) {                        // the Unrugged streaming up past the camera
+        const v = u - 3 * b;
+        for (let i = 0; i < 18; i++) {
+          const x = 20 + hash(i * 13) * 440, sp = 500 + hash(i) * 400, y = H + 40 - ((v * sp + hash(i * 7) * 320) % (H + 120));
+          const sc = 1 + (i % 3 === 0);
+          g.globalAlpha = .3; g.drawImage(A.GHOST, Math.round(x), Math.round(y + 14 * sc), A.GHOST.width * sc, A.GHOST.height * sc);
+          g.globalAlpha = 1; g.drawImage(A.GHOST, Math.round(x + Math.sin(v * 6 + i) * 3), Math.round(y), A.GHOST.width * sc, A.GHOST.height * sc);
+        }
+        // him, in the foreground, rising into view as the camera lands (the hero shot's framing at the end)
+        const feet = 262 + (470 - cy) * z * 1.6;
+        if (feet - 65 * 3 < H) stance(g, 240, feet, 3 * (1 + (z - 1) * .08), u, 0);
+      }
+      if (u >= 2 * b && u < 2 * b + .25) bolt(g, 70, 5, 1 - (u - 2 * b) / .25);
+      if (u > b * 1.6) rain(g, u, .25);
+      if (Math.abs(blur) > 1) smear(g, -blur);
+      vignette(g, .85);
+      if (s.text && u < (s.textUntil || 1e9)) caption(g, s.text, u - (s.say || 0), s.cy || 222, 2);
+    },
+    // the climb as one shot: the counter runs 1 to 48 while RugCo's floors stream past; the blaster for a bar, then
+    // the katana. It arrives and leaves on a whip.
+    climb(g, u, s) {
+      const b = s.bar;
+      speedBg(g, u, '#1d1530');
+      if (u < b) SHOT.shoot(g, u, { len: b, noBg: true, noSign: true });
+      else SHOT.slash(g, u - b, { len: b, cutAt: .45, noBg: true, noSign: true, x: 150 });
+      const n = Math.max(1, Math.round(lerp(1, 48, ease(u / (s.len - .35)))));
+      A.otxt(g, 'FLOOR', 26, 26, '#b9a9cf', 3); A.otxt(g, String(n), 26, 50, '#ffc53a', 9);
+      smear(g, 60 * (1 - ease(u / .2)) - 60 * ease((u - s.len + .2) / .2));
+    },
+    // the roof to the end: over his shoulder at the eye; the music stops and the camera creeps in as it gives the
+    // odds, shaking; lightning on LET'S GO
+    roofEnd(g, u, s) {
+      const { stop, go } = s, p = ease((u - stop) / (go - stop + .6));
+      const z = lerp(2, 2.7, p), cy = lerp(lerp(235, 220, ease(u / stop)), 205, p);
+      const shaking = u >= stop ? 3 * (.6 + .4 * Math.sin(u * 7)) : 0, sh = Math.sin(u * 61) * shaking;
+      const strikes = [stop, go], last = strikes.filter(f => f <= u).pop(), fl = last == null ? 0 : Math.exp(-(u - last) / .2) * (hash(Math.floor(u * 40)) > .3 ? 1 : .5);
+      towerCam(g, 240 + sh / z, cy, z, .8 + .4 * fl, 1, { red: true, look: [0, 1], pupil: .22 }, u);
+      if (last != null) bolt(g, 100 + hash(last) * 280, last * 3, 1 - (u - last) / .25);
+      rain(g, u, .35);
+      const sc = 3.5 * (1 + .2 * p), feet = 345 + 50 * p, x0 = Math.round(240 - VF.x * sc), y0 = Math.round(feet - VF.y * sc);
+      if (fl > 0) { g.globalAlpha = Math.min(1, fl * 1.4); const r = silhouette(HERO.back, '#dfe8ff'); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) g.drawImage(r, x0 + dx * 3, y0 + dy * 3, Math.round(HERO.back.width * sc), Math.round(HERO.back.height * sc)); g.globalAlpha = 1; }
+      front(g, HERO.back, 240, feet, sc, VF);
+      vignette(g, .7);
+      if (u < stop + .3) { g.globalAlpha = clamp((stop + .3 - u) / .3); A.otxt(g, 'FLOOR', 26, 26, '#b9a9cf', 3); A.otxt(g, 'R', 26, 50, '#ffc53a', 9); g.globalAlpha = 1; }
+      if (s.text) caption(g, s.text, u - stop - (s.say || 0), 16, 2);
+      smear(g, 60 * (1 - ease(u / .2)));
     },
     // the roof: from behind, looking up at the tower's crown and the eye
     roof(g, u, s) {
@@ -429,8 +517,23 @@ var UnrugTeaser = (function () {
       [stop + .26, 'say:PROBABILITY OF YOUR SURVIVAL: 1%.'], [go, 'go'], [tl, 'music:theme'], [tl, 'thunder']] };
   }
 
+  // D: C, smoothed (owner, Oct 30: "the flow is a little jumpy"): about 7 cuts, one camera move through the machine
+  // waking, the climb as one shot, the roof held to the end, flashes only for lightning and the logo. Same sound as C.
+  function cutD() {
+    const w0 = 2.85, b = BAR152, th = w0 + 4 * b, stop = th + 4 * b, go = stop + 1.96, tl = go + .95, end = tl + 5.5 * b;
+    return { dur: end, stop, tl, shots: [
+      [0, 'drop'], [2.0, 'tapestop', { len: .55 }], [2.55, 'black'],
+      [w0, 'tower', { bar: b, text: 'HELLO, UNRUGGABULL.', say: b + .12, textUntil: 2 * b + .4 }],
+      [th, 'hero', { strikes: [0, .95], z0: 1, z1: 1.08, noFlash: true, whipOut: .2 }],
+      [th + b, 'climb', { bar: b }],
+      [th + 3 * b, 'roofEnd', { stop: b, go: b + 1.96, text: 'PROBABILITY OF YOUR SURVIVAL: 1%.', say: .26 }],
+      [tl, 'logo', { bar: b }]
+    ], sfx: [[w0 + b + .12, 'say:HELLO, UNRUGGABULL.'], [w0 + 2 * b, 'thunder'], [stop, 'stop'], [stop, 'thunder'],
+      [stop + .26, 'say:PROBABILITY OF YOUR SURVIVAL: 1%.'], [go, 'go'], [tl, 'music:theme'], [tl, 'thunder']] };
+  }
+
   function make(name) {
-    const c = name === 'B' ? cutB() : name === 'C' ? cutC() : cutA();
+    const c = { A: cutA, B: cutB, C: cutC, D: cutD }[name]();
     c.shots.forEach((s, i) => { s[2] = Object.assign({ len: (c.shots[i + 1] ? c.shots[i + 1][0] : c.dur) - s[0] }, s[2] || {}); });
     c.draw = (g, t) => {
       g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);

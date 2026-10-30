@@ -160,7 +160,7 @@ def frames(out, name, dur):
 
 def film(out, name, picture=True):
     info = cut_info(name)
-    mix = {'A': sound_a, 'B': sound_b, 'C': sound_c}[name](out, info)
+    mix = {'A': sound_a, 'B': sound_b, 'C': sound_c, 'D': sound_c}[name](out, info)
     f = int(1.2 * SR); mix[:, -f:] *= np.linspace(1, 0, f) ** 2
     mix = loud(mix)
     wav = Path(out) / ('teaser-%s.wav' % name); wavfile.write(str(wav), SR, mix.T.astype(np.float32))
