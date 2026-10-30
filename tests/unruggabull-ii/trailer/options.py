@@ -8,7 +8,10 @@ A  Hoedown: 152 BPM in D, the theme's tempo. A power-chord hit, then a train bea
    blue third, a fiddle tune over it, a breakdown, and the whole band crushed down to 8-bit into the theme.
 B  Swamp stomp: a slow, sludgy slide-guitar riff over stomps and claps, then double time into a hoedown, crushed into
    the theme.
-C  The first game's own RugCo Alley theme at its drop (the remaster's file), stopped like a tape into the theme.
+C  The first game's own RugCo Alley theme at its drop (the remaster's file), stopped like a tape into the theme;
+   C1 speeds it up into the theme's tempo, C2 crunches its last bar.
+D  The drop, the tape stop, a breath, then a new bridge on the game's own synth (bridge.js) building into the theme:
+   D1 the machine waking over four bars, D2 a two-bar countdown.
 
     python3 tests/unruggabull-ii/trailer/options.py OUTDIR      # writes A.wav, B.wav, C.wav (and theme.wav)
 """
@@ -337,10 +340,42 @@ def option_c2(chip_theme):
     return master(join(a, 12.0, chip_theme, level=1.05))
 
 
+BRIDGE = HERE / 'bridge.js'
+BAR152 = 60 / 152 * 4
+
+
+def bridge(out_dir, track, bars):
+    """The bridge (bridge.js) recorded on the game's own synth, switching to the title theme on its last bar line."""
+    p = Path(out_dir) / ('bridge-%s.wav' % track)
+    if not p.is_file():
+        import chip
+        js = BRIDGE.read_text() + "\nsetTimeout(() => UnrugSound.music('theme', { boundary: 'bar' }), %d);" % int((bars - .5) * BAR152 * 1000)
+        chip.record(track, bars * BAR152 + 9.5, p, extra_js=js)
+    sr, a = wavfile.read(str(p))
+    return a.T.astype(np.float64)
+
+
+def option_d(out_dir, track, bars, gap=1.2):
+    """The drop, the tape stop, `gap` seconds of nothing, then the new game waking up on its chip synth (the bridge)
+    and building into the title theme."""
+    a = alley(DROP, 12.6)
+    a[:, :int(.01 * SR)] *= np.linspace(0, 1, int(.01 * SR))
+    a = tape_stop(a, 12.0, .55)
+    band_rms = np.sqrt(np.mean(a[:, int(8 * SR):int(12 * SR)] ** 2))
+    a = np.concatenate([a, np.zeros((2, int(gap * SR)))], 1)
+    b = bridge(out_dir, track, bars)
+    theme_rms = np.sqrt(np.mean(b[:, int(bars * BAR152 * SR):int((bars * BAR152 + 3) * SR)] ** 2)) + 1e-9
+    return master(np.concatenate([a, b * band_rms / theme_rms], 1))
+
+
 if __name__ == '__main__':
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     ch = theme(out)
     for name, f in (('A', option_a), ('B', option_b), ('C', option_c), ('C1', option_c1), ('C2', option_c2)):
         a = f(ch)
+        wavfile.write(str(out / (name + '.wav')), SR, a.T.astype(np.float32))
+        print('%s: %.1f s' % (name, a.shape[1] / SR))
+    for name, track, bars in (('D1', 'teaserWake', 4), ('D2', 'teaserCount', 2)):
+        a = option_d(out, track, bars)
         wavfile.write(str(out / (name + '.wav')), SR, a.T.astype(np.float32))
         print('%s: %.1f s' % (name, a.shape[1] / SR))
