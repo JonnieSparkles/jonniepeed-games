@@ -288,10 +288,59 @@ def option_c(chip_theme):
     return master(join(a, a.shape[1] / SR, chip_theme, level=1.1))
 
 
+def alley(t0, dur):
+    """The first game's RugCo Alley theme (the remaster's file), from t0 for dur seconds, at 48 kHz stereo."""
+    src = ROOT / 'site/unruggabull-remastered/sound/alley-theme.mp3'
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-ss', str(t0), '-t', str(dur), '-i', str(src), '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-'],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32).reshape(-1, 2).T.astype(np.float64)
+
+
+def atempo(a, rate):
+    """Stretch a stereo clip to 1/rate of its length, pitch kept (ffmpeg's atempo)."""
+    p = subprocess.run(['ffmpeg', '-v', 'error', '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-i', '-', '-af', 'atempo=%.5f' % rate,
+                        '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-'], input=a.T.astype(np.float32).tobytes(), capture_output=True, check=True)
+    return np.frombuffer(p.stdout, np.float32).reshape(-1, 2).T.astype(np.float64)
+
+
+DROP, BEAT = 21.35, .5            # the alley theme's drop, on its beat grid (0.35 + 0.5k), at 120 BPM
+THEME_BEAT = 60 / 152             # Unruggabull II's title theme
+
+
+def option_c1(chip_theme):
+    """The drop for two riff cycles, then two bars that speed up from 120 to the theme's 152, beat by beat, crushing
+    into 8-bit as they go; the chip theme lands on the next downbeat, already in its tempo."""
+    head = alley(DROP, 8.0)                                            # bars 0-3 as they are
+    ramp = alley(DROP + 8.0, 4.2)
+    beats, n = [], 8
+    for i in range(n):
+        rate = (152 / 120) ** ((i + 1) / n)                             # each beat a little quicker; the last at 152
+        seg = ramp[:, int(i * BEAT * SR):int(((i + 1) * BEAT + .03) * SR)]
+        beats.append(atempo(seg, rate))
+    out = head; xf = int(.012 * SR)
+    for b in beats:
+        L = int(round(b.shape[1] * BEAT / (BEAT + .03)))       # the beat's own length; the 30 ms after it is overlap
+        tail = out[:, -xf:].copy()
+        out = np.concatenate([out, b[:, :L]], 1)
+        i = out.shape[1] - L
+        out[:, i:i + xf] = tail * np.linspace(1, 0, xf) + out[:, i:i + xf] * np.linspace(0, 1, xf)
+    t_land = out.shape[1] / SR
+    out = crush(out, t_land - 4 * THEME_BEAT * 1.15, t_land, sr1=4000, b1=4)    # the last bar turns to chip
+    return master(join(out, t_land, chip_theme, level=1.05))
+
+
+def option_c2(chip_theme):
+    """The drop for three riff cycles at full speed; the last bar dissolves into 8-bit, and the chip theme lands on the
+    bar line."""
+    a = alley(DROP, 12.3)
+    a = crush(a, 10.0, 12.0, sr1=3600, b1=4)
+    return master(join(a, 12.0, chip_theme, level=1.05))
+
+
 if __name__ == '__main__':
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     ch = theme(out)
-    for name, f in (('A', option_a), ('B', option_b), ('C', option_c)):
+    for name, f in (('A', option_a), ('B', option_b), ('C', option_c), ('C1', option_c1), ('C2', option_c2)):
         a = f(ch)
         wavfile.write(str(out / (name + '.wav')), SR, a.T.astype(np.float32))
         print('%s: %.1f s' % (name, a.shape[1] / SR))
