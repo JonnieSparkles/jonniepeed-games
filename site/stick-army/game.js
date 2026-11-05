@@ -42,7 +42,7 @@
   // (rushes, tanks by air and road, balloons, dive bombers, helicopters, heavies) grows from SIDE[0] to SIDE[1] by FULL.
   // Two wallets fund one squad, so things for the squad cost SQUAD_PRICE times as much (shop.js); each player's own gun
   // upgrades keep their price. Tuned with the balance bots playing two barrels (run.py --option coop=1).
-  var COOP_HARD = { MORE: [1.35, 2.5], SIDE: [1, 1.5], FULL: 15, LONG: 1.25, DREAD: 2, SQUAD_PRICE: 1.5 }, coopLevels = {};
+  var COOP_HARD = { MORE: [1.35, 2.2], SIDE: [1, 1.3], FULL: 15, LONG: 1.6, DREAD: 2, SQUAD_PRICE: 1.5 }, coopLevels = {};
   function coopRamp(n, r) { var k = Math.min(1, Math.max(0, (n - 1) / (COOP_HARD.FULL - 1))); return r[0] + (r[1] - r[0]) * k; }
   function coopMore(n) { return coopRamp(n, COOP_HARD.MORE); }
   function coopSide(n) { return coopRamp(n, COOP_HARD.SIDE); }
