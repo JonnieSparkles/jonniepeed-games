@@ -72,6 +72,10 @@
     RUN.players = 1; RUN.force = 31; newGame();
     var so = waveCfg(12);
     check(co.planes === Math.round(so.planes * coopMore(12)) && co.bombers === Math.round(so.bombers * coopMore(12)) && coopMore(1) < coopMore(12) && dreadCo === lv().DREAD * COOP_HARD.DREAD, 'co-op waves are harder, more so later');
+    // The planes come closer together, so their stream lasts about LONG times solo's rather than trickling on.
+    var stream = function (c) { return (c.planes + c.bombers) * c.interval; };
+    check(Math.abs(stream(co) / stream(so) - COOP_HARD.LONG) < 0.1 && co.rushes === Math.round(so.rushes * coopSide(12)) && co.cargo === Math.round(so.cargo * coopSide(12)) && co.divers === Math.round(so.divers * coopSide(12)),
+      'co-op planes come closer together and the rest of the wave grows too');
 
     // Co-op runs leave this device's records alone (best score, best wave, wins).
     var K = LEVELS.soldier.KEYS, rec = function () { return [load(K.best, 0), load(K.wave, 0), load(K.wins, 0)].join(); }, before = rec(), bestWas = best;
