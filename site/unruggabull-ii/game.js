@@ -537,11 +537,11 @@
     R.meterPulse = Math.max(0, R.meterPulse - dt);
   }
   // Unruggabull's lines: each once per run, in a caption, in his recorded voice where voice.js has it, his blips until then.
+  // The script (owner, Nov 6) is these plus the floors' own (floor48.js, roof.js); tools/unruggabull-ii/voice/ records them.
   const LINES = {
-    start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', deflect: 'NO THANK YOU.', move: 'LIFT WITH YOUR LEGS.',
-    dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.", coffee: 'DECAF. FINE.', streak: 'ON A ROLL.',
-    copy: 'COPY THAT.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', jam: 'PAPER JAM. CLASSIC.', smash: 'OUT OF OFFICE.',
-    rush: 'BRING IT.', low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', disarm: 'HEY! THAT WAS MINE.', wipe: 'CLEAN SWEEP.',
+    start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.",
+    coffee: 'MMM. COFFEE.', streak: 'ON A ROLL.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', smash: 'OUT OF OFFICE.',
+    low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', wipe: 'CLEAN SWEEP.',
     door: 'OK... HERE WE GO.',   // the stairwell, at the 13th Floor's door, catching his breath
     comeOn: 'OH, COME ON.',   // the ending, as p(Loom) gets away
     go: "LET'S GO!"   // the stairwell, two beats into Flight Risk (recorded: the first game's)

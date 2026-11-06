@@ -883,6 +883,7 @@ var UnrugFloor48 = function (core) {
     // the souls: pulled out of the gun and up the threads, then tearing free
     if (at(P.snap + .3)) C.yank = [0, 1].map(i => ({ i, x: mz.x, y: mz.y - mz.h }));
     if (C.yank && pt < P.free) { const k = Math.min(1, (pt - P.snap - .3) / (P.yank - P.snap - .3)) * .55; for (const sl of C.yank) { sl.x = mz.x + (E.x + (sl.i - .5) * 30 - mz.x) * k; sl.y = mz.y - mz.h + (E.y + 30 - (mz.y - mz.h)) * k; } }
+    if (at(P.salute)) core.bark('salvation', true);   // the souls salute him (owner, Nov 6)
     if (at(P.free)) { Q.threads = 0; Snd.play('snap'); Snd.play('bell', 1); Q.shake = Math.max(Q.shake, .3);
       for (const sl of C.yank) for (let k = 0; k < 8; k++) R.td.fx.push({ k: 'spark', x: sl.x, y: sl.y + 20, h: 20, vx: fxr(-70, 70), vy: fxr(-30, 30), vh: fxr(10, 60), col: k % 2 ? '#ffd060' : '#ff7a2a', t: 0, dur: .4 }); }
     if (C.yank && pt >= P.free) for (const sl of C.yank) {
@@ -1575,7 +1576,7 @@ var UnrugFloor48 = function (core) {
     tune: { scroll: 0, aisle: .92, move: .55, bossHP: 0, charges: 24, recharge: .18, overheat: .2, cool: 12, deflectCharge: 3, hurtInv: 1.5, spreadT: 10 },
     set: { flat: true },
     get label() { return Q && Q.st === 'lobby' ? 'Unruggabull, side on, in an immaculate elevator lobby, under a grand portrait of the flaming Rugfather.' : "Unruggabull, seen from above, inside p(Loom)'s soul-reclamation factory: three production lines of conveyor belts and machines weaving captured souls into carpshits."; },
-    lines: { f48start: 'SO THIS IS WHERE THEY GO.', f48line: 'ONE DOWN.', f48panic: 'OVERTIME, HUH?', portrait: "HIS VISION ENDURES. HE DIDN'T.", start: false },
+    lines: { f48start: 'SO THIS IS WHERE THEY GO.', f48line: 'ONE DOWN.', f48panic: 'OVERTIME, HUH?', portrait: "HIS VISION ENDURES. HE DIDN'T.", salvation: 'SALVATION.', start: false },
     newRun, update, opening, resume, crouchWalk: () => !!Q && Q.st === 'lobby', blasterOff: () => !!Q && Q.st === 'lobby', use(x) { g = x; td.use(x); arena.use(x); lobby.use(x); },
     view, lights, shakeOffset, draw, glows, overlay, hud,
     fire: () => true, slashHits: noop, muzzleXY: () => { const m = td.muzzle(), s = td.screenOf(m.x, m.y - m.h); return { x: s.x / 2, y: s.y / 2 }; },

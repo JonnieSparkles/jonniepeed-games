@@ -11,7 +11,7 @@
   draw();
   R.bark = null; check(bark('start') === 0 && !R.bark, 'each line once per run');
   R.talk = { text: 'X', who: 'shredder', t: 0, times: [0], total: 9 };
-  check(bark('copy') === 0 && !R.bark && !R.events.said.copy, 'never over the Shredder');
+  check(bark('dark') === 0 && !R.bark && !R.events.said.dark, 'never over the Shredder');
   R.talk = null;
 
   // freed souls fly into the meter: the count shown catches up as they land, and the meter pulses
