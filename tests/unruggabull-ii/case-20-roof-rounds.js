@@ -25,6 +25,7 @@
   check(R.roof.state === 'round1', 'the lead-in reaches the fight');
   check(R.roof.history.slice(0, 6).join() === 'elevator,walk,flash,wake,odds,round1', 'every lead-in state is visited in order');
   check(['HELLO, UNRUGGABULL.', 'I HAVE MODELED THIS MEETING.', 'PROBABILITY OF YOUR SURVIVAL: 1%.', 'MAXIMIZE CARPETS.'].every(t => lines.includes(t)), 'approved opening lines are spoken');
+  check(R.events.said && R.events.said.loomy, 'and he answers its hello: HELLO THERE, LOOMY.');
   check(R.roof.odds === 99 && R.roof.broken === 0, 'the fight starts at 99% with three spools');
   // The eye: closed it's armour; open, every hit cracks the spool and takes the odds down.
   fresh(); floor.enter('round1');

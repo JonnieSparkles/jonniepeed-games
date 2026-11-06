@@ -197,9 +197,12 @@ var UnrugRoof = function (core) {
     odds: { entry() { Q.odds = 0; Q.line = 0; say('HELLO, UNRUGGABULL.'); }, tick() {
       Q.eye.u = bull.u; bull.aimT = ROOF.aimHold;
       Q.odds = Math.min(ROOF.odds, ROOF.odds * Q.t / ROOF.time.odds);
-      if (Q.line === 0 && (!R.talk || R.talk.t >= R.talk.total)) { Q.line++; say('I HAVE MODELED THIS MEETING.'); }
-      else if (Q.line === 1 && (!R.talk || R.talk.t >= R.talk.total)) { Q.line++; say('PROBABILITY OF YOUR SURVIVAL: 1%.'); }
-    }, ready() { return Q.t >= ROOF.time.odds && Q.line === 2 && (!R.talk || R.talk.t >= R.talk.total); }, exit() {
+      // he answers its hello with the name it crossed out in the intro (owner, Nov 6), and it carries on regardless
+      const quiet = (!R.talk || R.talk.t >= R.talk.total) && !(R.bark && R.bark.t < R.bark.total - 1.1);
+      if (Q.line === 0 && quiet) { Q.line++; core.bark('loomy', true); }
+      else if (Q.line === 1 && quiet) { Q.line++; say('I HAVE MODELED THIS MEETING.'); }
+      else if (Q.line === 2 && quiet) { Q.line++; say('PROBABILITY OF YOUR SURVIVAL: 1%.'); }
+    }, ready() { return Q.t >= ROOF.time.odds && Q.line === 3 && (!R.talk || R.talk.t >= R.talk.total); }, exit() {
       R.banner = { text: 'FIGHT', t: 0, dur: ROOF.fightBanner, pull: true }; Q.odds = ROOF.odds;
     } },
     round1: { entry: () => roundEntry(1), tick: roundTick, exit: roundExit },
@@ -1399,7 +1402,7 @@ var UnrugRoof = function (core) {
   const noop = () => {};
   return {
     id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools, recharge: ROOF.recharge, move: 0 }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2], rug: 0, rugEdge: 0, end: core.world(0, ROOF.art.edgeZ, 0)[2], backdrop: art.backdrop },
-    lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS.", ohYeah: 'OH YEAH!', notAChance: 'NOT A CHANCE.', zero: 'PROBABILITY: ZERO.' }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
+    lines: { low: false, loomy: 'HELLO THERE, LOOMY.', odds: "LET'S DISCUSS THOSE ODDS.", ohYeah: 'OH YEAH!', notAChance: 'NOT A CHANCE.', zero: 'PROBABILITY: ZERO.' }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint: deathCheckpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
     aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, blasterOff: () => !!Q && deadBlaster(), dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
