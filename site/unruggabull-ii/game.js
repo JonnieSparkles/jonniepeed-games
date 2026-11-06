@@ -587,7 +587,7 @@
     g.save(); g.globalAlpha = k > .85 ? .5 : .9; g.drawImage(A.GHOST, Math.round(f.x - 4.5), Math.round(f.y - 5.5), A.uw(A.GHOST), A.uh(A.GHOST)); g.restore();
   }
   function talk(text, who) {
-    // TEST ONLY (branch unruggabull-ii-ploom-choir-test): p(Loom)'s recorded lines where voice-loom.js has them
+    // p(Loom)'s roof lines play in its voice where voice-loom.js has them (owner, Nov 6); everything else in blips
     const rec = who === 'loom' && Snd.loomLength && Snd.loomLength(text);
     const plan = rec ? { times: [...text].map((c, i) => i / text.length * rec * .66), total: rec } : Snd.talkTimes(text, who);
     R.talk = { text, who, t: 0, times: plan.times, total: plan.total + 1.3 };

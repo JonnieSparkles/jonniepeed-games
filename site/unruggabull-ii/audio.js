@@ -505,7 +505,7 @@ window.UnrugSound = (function () {
   // Unruggabull's recorded lines (voice.js, from tools/unruggabull-ii/voice/voice.py): 6-bit samples packed four to three
   // bytes, each held until the next as a chip would play it, on the voice bus with the music ducked under them like say().
   const VOICE = window.UnrugVoice, lineBufs = {};
-  // TEST ONLY (branch unruggabull-ii-ploom-choir-test): p(Loom)'s roof lines, keyed by text (voice-loom.js)
+  // p(Loom)'s roof lines (voice-loom.js, from tools/unruggabull-ii/voice/loom.py: SAM through the choir), keyed by text
   const LOOM = window.UnrugLoomVoice;
   function voiceLength(key) { const l = VOICE && VOICE.lines[key]; return l ? l.n / VOICE.rate : 0; }
   function loomLength(text) { const l = LOOM && LOOM.lines[text]; return l ? l.n / LOOM.rate : 0; }

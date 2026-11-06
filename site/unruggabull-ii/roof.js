@@ -53,7 +53,7 @@ var UnrugRoof = function (core) {
       spread: [5.2, 4, 3], spreadAge: 1.2, cap: [6, 8, 10],
       hatch: [4, 6, 8], hatchEvery: [6.5, 5.2, 4.2], hatchFirst: 2.5, hatchWarn: .7, hatchAge: .6, hatchRetry: .5, fakeCarp: [0, .39, .45], fakeSpeed: .34,
       reach: 1, whiff: .5, reclaimFreeze: .045,
-      snapT: 2.8, yeahAt: 1.5, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
+      snapT: 2.8, yeahAt: 1.85, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
       twin: 1.4, tipT: 2.6
     },
     // the walk opens with his arrival: he steps out of the elevator (arrive seconds, from startZ) while the floodlights
@@ -817,7 +817,7 @@ var UnrugRoof = function (core) {
     if (Q.pendingRound) {
       if (Q.snapT >= F.thunderAt && !Q.thundered) { Q.thundered = true; Q.light = .5; Snd.play('thunder', .8); effects.shake(4, .4); }
       if (Q.snapT >= F.whipAt && Q.whip < 0) { Q.whip = 0; Snd.play('whip'); }
-      // his answer to NO CHANGE., after the whip (a line plays once a run, so after the first spool only; owner, Nov 6)
+      // his answer to NO CHANGE., once it has said it (1.7 s in its voice) (a line plays once a run, so after the first spool only; owner, Nov 6)
       if (Q.yeah && Q.snapT >= F.yeahAt) { Q.yeah = false; core.bark('ohYeah', true); }
       if (Q.whip >= 0 && Q.whip < 1.2) {
         const before = Q.whip; Q.whip += dt / F.whipT;
