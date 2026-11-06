@@ -73,7 +73,8 @@ GAMES = [
      # the Mom Cam is in the cover's top-left corner, so the crop sits near the left edge
      None, {"cover": ("dont-step-on-a-crack.png", 0.18)}),
     ("unruggabull-ii", "Unruggabull II", "Climb RugCo Tower. Free the Unrugged. Beat SHRED-O.", "Play in your browser",
-     None, {"cover": ("unruggabull-ii.png", 0.5)}),
+     # its own card: the cover art (brand/covers/unruggabull-ii.png) full bleed, like Remastered's
+     None, {"card": "unruggabull-ii.html"}),
     # its own card, the poster: the RugCo Empire painting from the title screen, the wordmark and "NOW ON MOBILE"
     ("unruggabull-remastered", "Unruggabull Remastered", "The original Unruggabull, now on phones.", "Play in your browser",
      None, {"card": "unruggabull-remastered.html"}),

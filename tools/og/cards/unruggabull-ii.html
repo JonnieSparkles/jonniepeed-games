@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Unruggabull II card</title>
+<!-- The share card (1200 x 630) and the games-page thumbnail (768 x 576) for Unruggabull II: the cover art
+     (brand/covers/unruggabull-ii.png, Nov 6, 2026) full bleed, like Unruggabull Remastered's card, with no panel
+     beside it; the logo is lettered into the cover. tools/og/make.py opens this file with ?w=&h= and screenshots it. -->
+<style>
+*{margin:0}
+html,body{background:#120c24;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="card"></canvas>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const w = +q.get('w') || 1200, h = +q.get('h') || 630;
+  const cv = document.getElementById('card'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  const img = new Image(); img.src = '../../../brand/covers/unruggabull-ii.png';
+  await img.decode().catch(() => {});
+  const IW = img.naturalWidth || 1536, IH = img.naturalHeight || 1024;
+  // cover-crop: fill the card, centred across; down the cover, Y places the crop (0 top, 1 bottom). The share card
+  // is wider than the cover, so it keeps the top (the logo is near the top edge) and loses the wet street.
+  const Y = w / h > 1.5 ? 0.02 : 0.5;
+  const s = Math.max(w / IW, h / IH), dw = IW * s, dh = IH * s;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, (w - dw) / 2, -(dh - h) * Y, dw, dh);
+  window.cardReady = true;
+})();
+</script>
+</body>
+</html>
