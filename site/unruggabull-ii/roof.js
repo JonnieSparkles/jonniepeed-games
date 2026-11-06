@@ -264,7 +264,9 @@ var UnrugRoof = function (core) {
       stepDown(dt);
       while (Q.returned < Q.flights.length && Q.returnT >= returnDelay(Q.returned) + ROOF.returnFly) {
         const n = Q.returned++; Q.caught = Math.max(0, Q.caught - 1); Snd.play('bell', n); emit('roof_return', { amount: 1 });
-        if (n === 0 && Q.downT !== null) { Q.upT = 0; core.bark('notAChance', true); }   // the first soul reaches him: he gets up, answering STAY DOWN.
+        // the second soul gets him up (owner, Nov 6: one soul and he's still down, the next gets him up, the last and he
+        // fires), answering STAY DOWN.
+        if (n === Math.min(1, Q.flights.length - 1) && Q.downT !== null) { Q.upT = 0; core.bark('notAChance', true); }
       }
     } },
     flood: { entry() {
@@ -368,8 +370,9 @@ var UnrugRoof = function (core) {
   function streamTick(dt) {
     if (!['return', 'flood', 'pinch'].includes(Q.state)) { Q.vol = null; return; }
     const v = Q.vol || (Q.vol = { cd: 0, shots: [] }), pinch = Q.state === 'pinch';
-    // knocked down, the blaster waits until he's on his feet (ROOF.down.fire): only the shots already out keep flying
-    const D = ROOF.down, holding = Q.downT != null && (Q.upT == null || Q.upT < D.rise + D.fire);
+    // knocked down, the blaster waits until he's on his feet (ROOF.down.fire) and the last soul is in: then it opens with
+    // a stream for each (owner, Nov 6). Only the shots already out keep flying
+    const D = ROOF.down, holding = Q.downT != null && (Q.upT == null || Q.upT < D.rise + D.fire || Q.state === 'return' && Q.flights && Q.returned < Q.flights.length);
     if (holding) v.cd = 0;
     const level = Q.state === 'return' ? Math.min(4, 1 + Q.returned) : 5;
     v.squeeze = pinch ? 1 - (k => k * k * (3 - 2 * k))(clamp(Q.t / ROOF.time.pinch, 0, 1)) : 1;
@@ -392,9 +395,9 @@ var UnrugRoof = function (core) {
   // where a stream is across the roof, z of the way to the eye: its spread, squeezed in the pinch, and its lean
   const streamU = (sh, z, v) => sh.base + (sh.o + sh.d * z) * v.squeeze + (sh.lean || 0) * z * z;
   const deadBlaster = () => Q.state === 'quiet' || Q.state === 'reset' && Q.silenced;
-  // when each of the three souls leaves its spool in the return: the first at once; the others after he's up and firing
-  const returnDelay = i => i * ROOF.returnGap + (i ? ROOF.down.rise + ROOF.down.fire : 0);
-  // knocked down: from the lash in the quiet until the first soul reaches him (then he gets up, ROOF.down.rise)
+  // when each of the three souls leaves its spool in the return: one every ROOF.returnGap, landing 1.2, 2.7 and 4.2 s in
+  const returnDelay = i => i * ROOF.returnGap;
+  // knocked down: from the lash in the quiet until the second soul reaches him (then he gets up, ROOF.down.rise)
   const downed = () => !!Q && Q.downT != null && (Q.state === 'quiet' || Q.state === 'return' && (Q.upT === null || Q.upT < ROOF.down.rise));
   function stepDown(dt) {
     if (Q.downT === null || Q.downT === undefined) return;

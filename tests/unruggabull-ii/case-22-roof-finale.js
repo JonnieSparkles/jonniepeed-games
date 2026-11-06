@@ -29,14 +29,14 @@
   check(R.roof.downT > 0 && Math.abs(bull.bz - floor.tileZ(0)) < 1e-9 && spoken.includes('STAY DOWN.'), 'the quiet knocks him down to the front row: STAY DOWN.');
   const zd = bull.bz; keys.kbUp = true; tick(.5); keys.kbUp = false;
   check(bull.bz === zd && R.roof.upT === null, 'down, he can\'t move until a soul reaches him');
-  // and the blaster waits for him: no stream while he's down or getting up (owner, Oct 16: down, the souls come, he
-  // gets up, then he fires)
+  // the souls come in order (owner, Nov 6): the first and he's still down, the second gets him up, the third and the
+  // blaster opens with a stream for each
   let early = 0;
-  for (let i = 0; i < 400 && !(R.roof.upT >= floor.ROOF.down.rise + floor.ROOF.down.fire - .02); i++) { update(1 / 60); early += R.roof.vol ? R.roof.vol.shots.length : 0; }
-  check(early === 0 && R.roof.returned === 1, 'no stream until he has been on his feet a moment: ' + early);
-  tick(.1); check(R.roof.vol && R.roof.vol.shots.length > 0, 'then the blaster fires the stream');
-  check(R.roof.returned >= 1 && R.roof.upT >= floor.ROOF.down.rise, 'the first soul back gets him up');
-  check(R.events.said && R.events.said.notAChance, 'and he answers STAY DOWN. with NOT A CHANCE.');
+  const until = n => { for (let i = 0; i < 600 && R.roof.returned < n; i++) { update(1 / 60); if (R.roof.returned < 3) early += R.roof.vol ? R.roof.vol.shots.length : 0; } };
+  until(1); check(R.roof.returned === 1 && R.roof.upT === null, 'the first soul back, and he is still down');
+  until(2); check(R.roof.returned === 2 && R.roof.upT !== null && R.events.said && R.events.said.notAChance, 'the second gets him up, answering STAY DOWN. with NOT A CHANCE.');
+  until(3); check(early === 0 && R.roof.upT >= floor.ROOF.down.rise, 'no stream until the third, and he is on his feet: ' + early);
+  tick(.1); check(R.roof.vol && R.roof.vol.shots.length >= 3, 'then the blaster opens with all three streams');
   // from the first soul back he walks freely, and the blaster fires the streams on its own
   const u0 = bull.u, z0 = bull.bz; keys.kbRight = true; keys.kbUp = true; tick(.5); keys.kbRight = false; keys.kbUp = false;
   check(bull.bz > z0 + .15, 'and forward up the roof, not a row at a time');
