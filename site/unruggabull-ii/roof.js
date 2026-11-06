@@ -227,7 +227,7 @@ var UnrugRoof = function (core) {
       if (!musicCut && R.talk && R.talk.t >= R.talk.times[R.talk.text.length - 1]) { musicCut = true; Snd.roofCue('cut'); }
       if (!Q.silenced && (!R.talk || R.talk.t >= Q.accounted)) { Q.silenced = true; Snd.music(null); }
       if (!Q.silenced) return;
-      if (!Q.resetT) tip('reset', 'SLASH IT BACK!');
+      if (!Q.resetT) tip('reset', 'SLASH THE CARPET');
       Q.resetT += dt;
       Q.stitch = clamp((Q.resetT - C.stitchAfter) / C.stitch, 0, 1);
       Q.odds = Q.realOdds + (ROOF.odds - Q.realOdds) * Q.stitch;
@@ -804,7 +804,7 @@ var UnrugRoof = function (core) {
       // the armour: a clang and sparks, nothing more
       sparks(s.u, ROOF.eyeZ, s.h, '#9aa0b8'); Snd.play('clang');
       if (Q.state === 'reset') popText('NO CHANGE.', PX(Q.eye.u, ROOF.eyeZ), YH(ROOF.eyeZ, ROOF.eyeH) - 12, '#9aa0b8');
-      if (isRound()) { tip('armour', 'ARMOURED: WAIT FOR IT TO OPEN'); if (Q.recalc <= 0) { say('RECALCULATING.'); Q.recalc = ROOF.recalculatingGap; } }
+      if (isRound()) { tip('armour', 'ARMORED: WAIT FOR IT TO OPEN'); if (Q.recalc <= 0) { say('RECALCULATING.'); Q.recalc = ROOF.recalculatingGap; } }
     }
     return true;
   }
