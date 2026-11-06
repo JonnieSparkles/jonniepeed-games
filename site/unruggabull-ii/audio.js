@@ -520,10 +520,13 @@ window.UnrugSound = (function () {
   function voice(key) {
     if (!ctx || !voiceLength(key)) return;
     const s = ctx.createBufferSource(), t0 = ctx.currentTime + .02; s.buffer = lineBuffer(key); s.connect(voiceBus); s.start(t0);
-    talking.push(s);
+    talking.push(s); lineSrc = s;
     musicBus.gain.setTargetAtTime(DUCKED, ctx.currentTime, .05);
     duckUntil = t0 + s.buffer.duration;
   }
+  // Stop only his recorded line, when a line that can't wait (a story beat) cuts it off.
+  let lineSrc = null;
+  function hushLine() { if (lineSrc) { try { lineSrc.stop(); } catch (e) {} lineSrc = null; } }
   // Stop whatever line is being said, for skipping ahead.
   function hush() {
     if (!ctx) return;
@@ -896,7 +899,7 @@ window.UnrugSound = (function () {
     },
     get musicState() { return { pattern: P.modern && P.id ? TRACKS[P.id].order[P.si] : null, patternLoop: P.patternLoop, playing: P.id, pending: P.pendingTrack && P.pendingTrack.id, stems: [...P.stems], nextStems: P.pendingStems && [...P.pendingStems], rate: P.rate }; },
     tracks() { return Object.entries(TRACKS).filter(([id]) => !['roof', 'roofHeavy'].includes(id)).map(([id, tr]) => ({ id, name: tr.name || id, key: tr.key, bpm: tr.bpm || tr.sections[0].bpm, stems: tr.patterns ? [...new Set(Object.values(tr.patterns).flatMap(p => Object.values(p.channels).map(c => c.stem)))] : [], seconds: tr.patterns ? compilePatterns(tr).reduce((n,p) => n + p.steps*p.stepDur, 0) : tr.sections.map(compile).reduce((n,p)=>n+p.steps*p.stepDur,0) })); },
-    say, talkTimes, hush, voice, voiceLength,
+    say, talkTimes, hush, hushLine, voice, voiceLength,
     toggle() {
       muted = !muted;
       try { localStorage.setItem(KEY, muted ? '1' : '0'); } catch (e) {}

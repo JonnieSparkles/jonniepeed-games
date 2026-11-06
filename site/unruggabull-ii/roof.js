@@ -9,6 +9,7 @@ var UnrugRoof = function (core) {
   const ROOF = {
     time: { elevator: 4, walk: 25.4, flash: 3.2, wake: 3.5, odds: 8, quiet: 2.8, return: 6.2,
       flood: 3, pinch: 1, fusion: 0, lines: 4.5, beam: 2.5, one: 2, snap: 0, dawn: 5, ending: 0, clear: 0 },
+    zeroAt: 2,       // PROBABILITY: ZERO. in the dawn's beat of silence, after the snap's chord dies (owner, Nov 6)
     clearFade: .6,   // the clear card comes up out of the ending's black over this long (drawn only)
     aisle: .84, parapetH: .09, hitsPerSpool: [40, 40, 40],
     eyeZ: .86, eyeH: .71, eyeLimit: .55, eyeFollow: 1.3, eyeHit: .15, aimCone: 2,   // open, the eye draws his shots from anywhere on the roof
@@ -52,7 +53,7 @@ var UnrugRoof = function (core) {
       spread: [5.2, 4, 3], spreadAge: 1.2, cap: [6, 8, 10],
       hatch: [4, 6, 8], hatchEvery: [6.5, 5.2, 4.2], hatchFirst: 2.5, hatchWarn: .7, hatchAge: .6, hatchRetry: .5, fakeCarp: [0, .39, .45], fakeSpeed: .34,
       reach: 1, whiff: .5, reclaimFreeze: .045,
-      snapT: 2.8, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
+      snapT: 2.8, yeahAt: 1.5, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
       twin: 1.4, tipT: 2.6
     },
     // the walk opens with his arrival: he steps out of the elevator (arrive seconds, from startZ) while the floodlights
@@ -196,9 +197,12 @@ var UnrugRoof = function (core) {
     odds: { entry() { Q.odds = 0; Q.line = 0; say('HELLO, UNRUGGABULL.'); }, tick() {
       Q.eye.u = bull.u; bull.aimT = ROOF.aimHold;
       Q.odds = Math.min(ROOF.odds, ROOF.odds * Q.t / ROOF.time.odds);
-      if (Q.line === 0 && (!R.talk || R.talk.t >= R.talk.total)) { Q.line++; say('I HAVE MODELED THIS MEETING.'); }
-      else if (Q.line === 1 && (!R.talk || R.talk.t >= R.talk.total)) { Q.line++; say('PROBABILITY OF YOUR SURVIVAL: 1%.'); }
-    }, ready() { return Q.t >= ROOF.time.odds && Q.line === 2 && (!R.talk || R.talk.t >= R.talk.total); }, exit() {
+      // he answers its hello with the name it crossed out in the intro (owner, Nov 6), and it carries on regardless
+      const quiet = (!R.talk || R.talk.t >= R.talk.total) && !(R.bark && R.bark.t < R.bark.total - 1.1);
+      if (Q.line === 0 && quiet) { Q.line++; core.bark('loomy', true); }
+      else if (Q.line === 1 && quiet) { Q.line++; say('I HAVE MODELED THIS MEETING.'); }
+      else if (Q.line === 2 && quiet) { Q.line++; say('PROBABILITY OF YOUR SURVIVAL: 1%.'); }
+    }, ready() { return Q.t >= ROOF.time.odds && Q.line === 3 && (!R.talk || R.talk.t >= R.talk.total); }, exit() {
       R.banner = { text: 'FIGHT', t: 0, dur: ROOF.fightBanner, pull: true }; Q.odds = ROOF.odds;
     } },
     round1: { entry: () => roundEntry(1), tick: roundTick, exit: roundExit },
@@ -263,7 +267,9 @@ var UnrugRoof = function (core) {
       stepDown(dt);
       while (Q.returned < Q.flights.length && Q.returnT >= returnDelay(Q.returned) + ROOF.returnFly) {
         const n = Q.returned++; Q.caught = Math.max(0, Q.caught - 1); Snd.play('bell', n); emit('roof_return', { amount: 1 });
-        if (n === 0 && Q.downT !== null) Q.upT = 0;   // the first soul reaches him: he gets up
+        // the second soul gets him up (owner, Nov 6: one soul and he's still down, the next gets him up, the last and he
+        // fires), answering STAY DOWN.
+        if (n === Math.min(1, Q.flights.length - 1) && Q.downT !== null) { Q.upT = 0; core.bark('notAChance', true); }
       }
     } },
     flood: { entry() {
@@ -299,7 +305,7 @@ var UnrugRoof = function (core) {
       for (let i = 0; i < Q.dawnCount; i++) {
         R.fx.push(effects.dawnSoul(i, Q.dawnCount));
       }
-    } },
+    }, tick() { if (Q.t >= ROOF.zeroAt && !Q.zeroSaid) { Q.zeroSaid = true; core.bark('zero', true); } } },
     // the ending (ending.js): the run's time stops where it starts, as it did at the clear card before there was one
     ending: { entry() {
       Q.endingFrom = R.t; clearThreats(); Object.assign(bull, { aimT: 0, slash: -1 });
@@ -367,8 +373,9 @@ var UnrugRoof = function (core) {
   function streamTick(dt) {
     if (!['return', 'flood', 'pinch'].includes(Q.state)) { Q.vol = null; return; }
     const v = Q.vol || (Q.vol = { cd: 0, shots: [] }), pinch = Q.state === 'pinch';
-    // knocked down, the blaster waits until he's on his feet (ROOF.down.fire): only the shots already out keep flying
-    const D = ROOF.down, holding = Q.downT != null && (Q.upT == null || Q.upT < D.rise + D.fire);
+    // knocked down, the blaster waits until he's on his feet (ROOF.down.fire) and the last soul is in: then it opens with
+    // a stream for each (owner, Nov 6). Only the shots already out keep flying
+    const D = ROOF.down, holding = Q.downT != null && (Q.upT == null || Q.upT < D.rise + D.fire || Q.state === 'return' && Q.flights && Q.returned < Q.flights.length);
     if (holding) v.cd = 0;
     const level = Q.state === 'return' ? Math.min(4, 1 + Q.returned) : 5;
     v.squeeze = pinch ? 1 - (k => k * k * (3 - 2 * k))(clamp(Q.t / ROOF.time.pinch, 0, 1)) : 1;
@@ -391,9 +398,9 @@ var UnrugRoof = function (core) {
   // where a stream is across the roof, z of the way to the eye: its spread, squeezed in the pinch, and its lean
   const streamU = (sh, z, v) => sh.base + (sh.o + sh.d * z) * v.squeeze + (sh.lean || 0) * z * z;
   const deadBlaster = () => Q.state === 'quiet' || Q.state === 'reset' && Q.silenced;
-  // when each of the three souls leaves its spool in the return: the first at once; the others after he's up and firing
-  const returnDelay = i => i * ROOF.returnGap + (i ? ROOF.down.rise + ROOF.down.fire : 0);
-  // knocked down: from the lash in the quiet until the first soul reaches him (then he gets up, ROOF.down.rise)
+  // when each of the three souls leaves its spool in the return: one every ROOF.returnGap, landing 1.2, 2.7 and 4.2 s in
+  const returnDelay = i => i * ROOF.returnGap;
+  // knocked down: from the lash in the quiet until the second soul reaches him (then he gets up, ROOF.down.rise)
   const downed = () => !!Q && Q.downT != null && (Q.state === 'quiet' || Q.state === 'return' && (Q.upT === null || Q.upT < ROOF.down.rise));
   function stepDown(dt) {
     if (Q.downT === null || Q.downT === undefined) return;
@@ -797,7 +804,7 @@ var UnrugRoof = function (core) {
     effects.spool(); Snd.play('spoolSnap'); Snd.roofCue('spool'); Q.broken++; Q.hot = ROOF.spoolFlash; emit('roof_spool', { amount: 1 });
     R.shots = []; Q.stall = 0; Q.lurch = 1;
     Q.atk = { stage: 'idle', t: 0, wait: 99, list: [], end: 0, set: false, real: false, open: F.open };
-    if (Q.round < 3) { say('NO CHANGE.'); Q.pendingRound = Q.round + 1; Q.intermission = Math.max(R.talk.total, F.snapT); }
+    if (Q.round < 3) { say('NO CHANGE.'); Q.pendingRound = Q.round + 1; Q.intermission = Math.max(R.talk.total, F.snapT); Q.yeah = true; }
     else { say('NO CH'); Q.pendingRound = 0; Q.intermission = F.lastSnapT; }
     Q.snapT = 0; Q.whip = -1; Q.thundered = false;
   }
@@ -810,6 +817,8 @@ var UnrugRoof = function (core) {
     if (Q.pendingRound) {
       if (Q.snapT >= F.thunderAt && !Q.thundered) { Q.thundered = true; Q.light = .5; Snd.play('thunder', .8); effects.shake(4, .4); }
       if (Q.snapT >= F.whipAt && Q.whip < 0) { Q.whip = 0; Snd.play('whip'); }
+      // his answer to NO CHANGE., after the whip (a line plays once a run, so after the first spool only; owner, Nov 6)
+      if (Q.yeah && Q.snapT >= F.yeahAt) { Q.yeah = false; core.bark('ohYeah', true); }
       if (Q.whip >= 0 && Q.whip < 1.2) {
         const before = Q.whip; Q.whip += dt / F.whipT;
         for (let r = GR.rows - 1; r >= 0; r--) {
@@ -1393,7 +1402,7 @@ var UnrugRoof = function (core) {
   const noop = () => {};
   return {
     id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools, recharge: ROOF.recharge, move: 0 }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2], rug: 0, rugEdge: 0, end: core.world(0, ROOF.art.edgeZ, 0)[2], backdrop: art.backdrop },
-    lines: { low: false, odds: "LET'S DISCUSS THOSE ODDS." }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
+    lines: { low: false, loomy: 'HELLO, LOOMY.', odds: "LET'S DISCUSS THOSE ODDS.", ohYeah: 'OH YEAH!', notAChance: 'NOT A CHANCE.', zero: 'PROBABILITY: ZERO.' }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint: deathCheckpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
     aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, blasterOff: () => !!Q && deadBlaster(), dragSteer: () => !!Q && (freeMove() || beamActive()), steer,

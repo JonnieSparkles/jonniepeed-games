@@ -4,8 +4,10 @@
   const tick = s => { for (let i = 0; i < Math.ceil(s * 60); i++) update(1 / 60); };
   const fresh = () => { RUN.force = 42; newRun(null, 'roof'); setState('play'); card.hidden = true; clearHeld(); input.jump = input.slash = input.shoot = 0; };
   fresh(); floor.enter('round3'); R.roof.broken = 3; floor.enter('reset');
-  const bells = [], played = [], music = [], spoken = [], oldPlay = Snd.play, oldMusic = Snd.music, oldSay = Snd.say;
+  const bells = [], played = [], music = [], spoken = [], oldPlay = Snd.play, oldMusic = Snd.music, oldSay = Snd.say, oldVoice = Snd.voice;
   Snd.say = text => spoken.push(text);
+  // his recorded lines play by key, not text
+  Snd.voice = key => { const l = floor.lines && floor.lines[key]; spoken.push(typeof l === 'string' ? l : LINES[key]); };
   Snd.play = (name, arg) => { played.push(name); if (name === 'bell') bells.push(arg); };
   Snd.music = name => music.push(name);
   for (let i = 0; i < 300 && !R.roof.silenced; i++) update(1 / 60);
@@ -27,13 +29,14 @@
   check(R.roof.downT > 0 && Math.abs(bull.bz - floor.tileZ(0)) < 1e-9 && spoken.includes('STAY DOWN.'), 'the quiet knocks him down to the front row: STAY DOWN.');
   const zd = bull.bz; keys.kbUp = true; tick(.5); keys.kbUp = false;
   check(bull.bz === zd && R.roof.upT === null, 'down, he can\'t move until a soul reaches him');
-  // and the blaster waits for him: no stream while he's down or getting up (owner, Oct 16: down, the souls come, he
-  // gets up, then he fires)
+  // the souls come in order (owner, Nov 6): the first and he's still down, the second gets him up, the third and the
+  // blaster opens with a stream for each
   let early = 0;
-  for (let i = 0; i < 400 && !(R.roof.upT >= floor.ROOF.down.rise + floor.ROOF.down.fire - .02); i++) { update(1 / 60); early += R.roof.vol ? R.roof.vol.shots.length : 0; }
-  check(early === 0 && R.roof.returned === 1, 'no stream until he has been on his feet a moment: ' + early);
-  tick(.1); check(R.roof.vol && R.roof.vol.shots.length > 0, 'then the blaster fires the stream');
-  check(R.roof.returned >= 1 && R.roof.upT >= floor.ROOF.down.rise, 'the first soul back gets him up');
+  const until = n => { for (let i = 0; i < 600 && R.roof.returned < n; i++) { update(1 / 60); if (R.roof.returned < 3) early += R.roof.vol ? R.roof.vol.shots.length : 0; } };
+  until(1); check(R.roof.returned === 1 && R.roof.upT === null, 'the first soul back, and he is still down');
+  until(2); check(R.roof.returned === 2 && R.roof.upT !== null && R.events.said && R.events.said.notAChance, 'the second gets him up, answering STAY DOWN. with NOT A CHANCE.');
+  until(3); check(early === 0 && R.roof.upT >= floor.ROOF.down.rise, 'no stream until the third, and he is on his feet: ' + early);
+  tick(.1); check(R.roof.vol && R.roof.vol.shots.length >= 3, 'then the blaster opens with all three streams');
   // from the first soul back he walks freely, and the blaster fires the streams on its own
   const u0 = bull.u, z0 = bull.bz; keys.kbRight = true; keys.kbUp = true; tick(.5); keys.kbRight = false; keys.kbUp = false;
   check(bull.bz > z0 + .15, 'and forward up the roof, not a row at a time');
@@ -56,7 +59,8 @@
   q.eye.u = 0; keys.kbLeft = true; tick(.3); keys.kbLeft = false;
   check(bull.u < .3 - .3 && q.beamU > bull.u + .05 && floor.beamAt(q.eye.z || floor.ROOF.eyeZ) > floor.beamAt(bull.bz + .1), 'he walks with the stick, and the beam trails behind him in a curve');
   const drain = RF.drain; RF.drain = 0; floor.enter('beam'); bull.inv = 1e9; let made = 0;
-  for (let i = 0; i < 120; i++) { const n = R.flies.length; tick(.25); made += Math.max(0, R.flies.length - n); }
+  // count each carpshit once, frame by frame (counting the swarm's growth missed ones the beam melted in between)
+  const seen = new Set(R.flies); for (let i = 0; i < 60 * 30; i++) { update(1 / 60); for (const f of R.flies) if (!seen.has(f)) { seen.add(f); made++; } }
   RF.drain = drain;
   check(q.beamLeft === 0 && made <= RF.beamFlies && made > RF.beamFlies / 2, 'the beam fight sends a fixed number of carpshits, however long it lasts');
   const phase = q.state; bull.inv = 0; hurtBull(1, 'carp');
@@ -81,6 +85,7 @@
   fresh(); floor.enter('beam'); R.roof.nextFly = 99; R.roof.fusedAt = R.t - 30; R.roof.odds = 1.1; R.roof.eye.u = R.roof.beamU = R.roof.beamBase = bull.u = 0; tick(RF.bar + .05);
   check(R.roof.state === 'one' && R.roof.odds === 1 && R.talk.text === 'UNLIKELY.', '1% says UNLIKELY.');
   tick(12); check(R.roof.state === 'ending', 'dawn hands over to the ending');
+  check(R.events.said && R.events.said.zero, 'in the dawn: PROBABILITY: ZERO.');
   tick(40);   // the ending (case-38)
   check(R.roof.state === 'clear' && state === 'over' && R.phase === 'win' && Cards.kind === 'clear' && Cards.info.dept === 'ROOF', 'snap, dawn, the ending and roof clear');
   check(R.roof.history.includes('snap') && R.roof.history.includes('dawn') && R.roof.history.includes('ending') && played.includes('snap') && played.includes('chord'), 'snap and dawn beats call sound hooks');
@@ -101,5 +106,5 @@
   check(!/Jump|Crouch/.test(rows) && /Up the roof/.test(rows) && /freely once the souls come back/.test(rows) && /fire on their own/.test(rows), 'the Controls list has the roof\'s moves: ' + rows);
   fresh(); floor.enter('odds'); bull.slash = .02; tick(TUNE.slashT + .1);
   check(R.roof.state === 'odds' && bull.slash === -1, 'a swing started before a cut finishes instead of freezing mid-cut');
-  Snd.play = oldPlay; Snd.music = oldMusic; Snd.say = oldSay; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
+  Snd.play = oldPlay; Snd.music = oldMusic; Snd.say = oldSay; Snd.voice = oldVoice; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
 })();

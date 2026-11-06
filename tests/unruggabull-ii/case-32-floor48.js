@@ -265,6 +265,7 @@
       to(P8.snap + .1); check(R.td.scatter, 'the streams snap apart');
       to(P8.snap + .5); check(R.td.streams === 0 && !R.gold, 'back to normal');
       to(P8.salute + .1); check(Q().collapse.yank && Q().collapse.yank.every(s => s.salute) && bells.length === 3, 'the souls tear free and salute');
+      check(R.bark && R.bark.text === 'SALVATION.', 'and he says SALVATION.');
       for (let i = 0; i < 600 && state !== 'over'; i++) update(1 / 60);
       check(state === 'over' && cardKind === 'clear' && card.hidden && Cards.kind === 'clear' && Cards.info.dept === 'RECLAMATION' && Cards.labels().join() === 'Continue', 'white, then the clear card');
       check(Cards.info.run === R.souls && Cards.info.souls === R.souls - R.floorStart && R.phase === 'win' && R.endT > 0, 'the card has the run\'s numbers');

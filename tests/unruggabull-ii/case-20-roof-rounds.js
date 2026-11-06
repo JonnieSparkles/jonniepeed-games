@@ -25,6 +25,7 @@
   check(R.roof.state === 'round1', 'the lead-in reaches the fight');
   check(R.roof.history.slice(0, 6).join() === 'elevator,walk,flash,wake,odds,round1', 'every lead-in state is visited in order');
   check(['HELLO, UNRUGGABULL.', 'I HAVE MODELED THIS MEETING.', 'PROBABILITY OF YOUR SURVIVAL: 1%.', 'MAXIMIZE CARPETS.'].every(t => lines.includes(t)), 'approved opening lines are spoken');
+  check(R.events.said && R.events.said.loomy, 'and he answers its hello: HELLO, LOOMY.');
   check(R.roof.odds === 99 && R.roof.broken === 0, 'the fight starts at 99% with three spools');
   // The eye: closed it's armour; open, every hit cracks the spool and takes the odds down.
   fresh(); floor.enter('round1');
@@ -45,6 +46,7 @@
   hit(); check(q.broken === 1, 'extra shots cannot break a second spool in the snap');
   const odds = q.odds; tick(F.snapT + .1);
   check(q.state === 'round2' && q.broken === 1 && q.odds === odds && lines.includes('I AM CONFIDENT. I AM CONFIDENT.'), 'the snap moment leads into phase 2 with the damage kept');
+  check(R.events.said && R.events.said.ohYeah, 'he answers NO CHANGE. with OH YEAH!');
   floor.enter('round3'); q.spDone[2] = true; q.stall = 2;
   for (let i = 0; i < 60 && q.broken < 3; i++) { q.stall = 2; hit(); }
   check(q.broken === 3 && Math.abs(q.odds - rt.fight.floorOdds) < 1e-9, 'three spools take the odds to 55');

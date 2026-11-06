@@ -107,7 +107,7 @@ var UnrugElevator = function (core) {
     [T.cut + .3, () => Snd.play('rideCreak')],
     [T.cut + .6, () => Snd.play('rideWind')],
     [T.snap, () => { Snd.play('rideSlack'); emit('elevator_snap'); }],
-    [T.fall, () => { Snd.play('rideFall'); emit('elevator_fall'); }],
+    [T.fall, () => { Snd.play('rideFall'); emit('elevator_fall'); core.bark('ohNo', true); }],   // the cable's gone (owner, Nov 6)
     [T.brake, () => Snd.play('rideBrake')],
     [T.hush + .5, () => say('operator', '...FLOOR?', 1.3)],
     [T.thread, () => { Snd.play('rideBurst'); emit('elevator_threads'); }],
@@ -834,7 +834,7 @@ var UnrugElevator = function (core) {
   return {
     id: 'elevator', tune: { scroll: 0, aisle: arena.ARENA.limit, move: .55, bossHP: 0 }, set: { flat: true },
     get label() { return Q && Q.lobby ? "Unruggabull, side on, in the 13th Floor's elevator lobby, waiting for the car." : 'Unruggabull, side on, in the walnut-and-brass elevator climbing RugCo Tower, with its Unrugged operator on his stool.'; },
-    lines: { low: false, rugged: false, spread: false, deflect: false },
+    lines: { low: false, rugged: false, spread: false, ohNo: 'OH NO.' },
     newRun, update, opening: noop, resume: noop, use(x) { g = x; arena.use(x); lobby.use(x); },
     crouchWalk: () => true, lobby, blasterOff: () => !!Q && !Q.fight,   // the 13th's lobby and the quiet ride are katana only   // side on: he can walk crouched in the lobby and both rides (TUNE.crouchWalk)
     view: () => ({ ambient: 1 }), lights: arena.lights, shakeOffset,

@@ -12,7 +12,7 @@ var UnrugFloor13 = function (core) {
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
-    bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
+    bark, barkSoon, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     glowLayer, setCheckpoint
   } = core;
@@ -211,14 +211,12 @@ var UnrugFloor13 = function (core) {
       addPickup('spread', .8, rr(-.25, .25));
       Snd.play('warn'); Snd.music('floorRush', { boundary: 'bar', stems: STEMS.heavy });
       live('Rush hour: carpshits flood the hall.');
-      bark('rush');
     } else if (C) {
       // moving day: no one to shoot, and a course of furniture to jump and duck, one move at a time
       Object.assign(R.event, { course: kind, moves: C.moves, bonus: C.clean, nextOb: 1.8, obN: 0, obs: [], clean: true, marked: {}, souls: [], lane: 1 });   // a beat to read the sign before the first piece
       for (const f of R.flies) { f.dead = true; poof(f.u, f.z, f.h); }
       addSign(.75, C.sign, 'move');
       Snd.play('start'); Snd.stems(STEMS.move); live(C.say);
-      if (kind === 'move') bark('move');
     } else {
       // carpshits come out of the dark, only their eyes showing; everything freed in the dark counts double
       R.event.nextFly = 1.2; R.event.nextForm = TUNE.darkFormEvery; R.event.formN = 0; R.event.nextSwitch = 1.6; R.event.flash = 0; R.switches = [];
@@ -328,7 +326,7 @@ var UnrugFloor13 = function (core) {
         R.event = null; R.beat++; R.beatT = 0; R.switches = [];
         R.nextFly = Math.max(R.nextFly, BREATHER); R.nextForm = Math.max(R.nextForm, BREATHER + .8); R.nextRow = Math.max(R.nextRow, BREATHER + 1.5); R.nextBox = Math.max(R.nextBox, BREATHER);
         addSign(1, beat().sign);
-        if (beat().pulls) { bark('copy'); R.copyAt = R.souls; }
+        if (beat().pulls) R.copyAt = R.souls;
         floorMusic(beat().music);
         if (beat().pulls) R.pull.next = R.t + 3;
         // a coffee after each event, and a Spread Shot to try out after moving day
@@ -418,7 +416,6 @@ var UnrugFloor13 = function (core) {
     const rl = R.boss.rally, dur = p.rally && rl ? Math.max(TUNE.rally.backMin, TUNE.rally.back * Math.pow(TUNE.rally.speedUp, rl.count)) : .45;
     p.vu = (to.u - p.u) / dur; p.vz = (to.z - p.z) / dur; p.vh = (to.h - p.h) / dur; p.gv = 0;
     R.events.deflects = (R.events.deflects || 0) + 1;
-    if (!p.rally) bark('deflect');
     emit('deflect', { kind: p.rally ? 'rally' : p.kind });
     const before = R.charge;
     R.charge = Math.min(TUNE.charges, R.charge + TUNE.deflectCharge); R.chargeFlash = .3; R.freeze = Math.max(R.freeze, .04);
@@ -623,9 +620,10 @@ var UnrugFloor13 = function (core) {
     R.armed = false; R.shake = .3; R.zap = .3; R.boss.spit = .3; R.boss.gun = { at: R.t + TUNE.surgeFly };
     R.fx.push({ k: 'toss', x: m.x, y: m.y, tx: MOUTH.x, ty: MOUTH.y, t: 0, dur: TUNE.surgeFly });
     R.events.disarms = (R.events.disarms || 0) + 1; emit('disarm');
-    Snd.play('snatch'); bark('disarm');
+    Snd.play('snatch');
     R.fx.push({ k: 'big', text: 'BLASTER GONE!', x: 120, y: 44, t: 0, dur: 1.2 }); R.freeze = Math.max(R.freeze, .12);   // every time, so it can't be missed
     if (!R.events.surgeHint) { R.events.surgeHint = true; talk('CONFISCATED.', 'shredder'); }
+    barkSoon('disarm', 4);   // his answer, once CONFISCATED. is said (owner, Nov 6)
     live('Power surge! SHRED-O pulls the blaster into its mouth. Knock its paper back to wear it down.');
   }
   // The soul puts the blaster back in his hands at the finish, charged.
@@ -692,7 +690,7 @@ var UnrugFloor13 = function (core) {
   function jam(bz) {
     const b = R.boss, close = clamp((bz || 0) / TUNE.mouth, 0, 1);
     b.jam = TUNE.jamT * (1 + TUNE.rideJam * close); b.jamMax = b.jam; b.jamTag = 'JAMMED x3'; b.volley = null; endPull();
-    R.events.jams = (R.events.jams || 0) + 1; emit('jam', { amount: Math.round(b.jam * 10) / 10 }); bark('jam');
+    R.events.jams = (R.events.jams || 0) + 1; emit('jam', { amount: Math.round(b.jam * 10) / 10 });
     Snd.play('jam');
   }
   function bossDamage(n, by) {

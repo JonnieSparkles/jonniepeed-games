@@ -4,8 +4,10 @@ Writes site/unruggabull-ii/voice.js (window.UnrugVoice) from the recordings besi
 the same recipe so they sound alike: mono, trimmed to the words and their ring-out, levelled, squashed with tanh so the
 quiet parts survive, then 8 kHz and 6-bit (Chip voice, picked by the owner on the audition page, Oct 14). The samples
 are packed four to three bytes and base64'd; audio.js unpacks them and plays each sample held until the next, as a chip
-would. Needs ffmpeg and numpy. Record new lines at about the same distance and loudness as lets-go.mp3."""
+would. Needs ffmpeg and numpy. New lines are recorded with record.py into takes/ (gitignored, so the recordings stay on
+the machine that made them), each with its trim in takes/trims.json; this builds every one it finds there."""
 import base64
+import json
 import subprocess
 from pathlib import Path
 
@@ -18,6 +20,12 @@ RATE, BITS, DRIVE = 8000, 6, 2.4
 LINES = {
     'go': ('lets-go.mp3', .44, 2.0, 1.59),   # from unruggabull-the-game, the first game's "Let's go!"
 }
+try:
+    for key, t in json.loads((HERE / 'takes' / 'trims.json').read_text()).items():
+        if (HERE / 'takes' / f'{key}.wav').exists():
+            LINES[key] = (f'takes/{key}.wav', t['start'], t['end'], t['fade'])
+except FileNotFoundError:
+    pass
 
 
 def crush(name, start, end, fade):

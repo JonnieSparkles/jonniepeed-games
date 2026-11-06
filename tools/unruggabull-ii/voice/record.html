@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unruggabull's Lines</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Silkscreen&display=swap">
+<style>
+/* One column of line cards in play order, grouped by stage, in the game's night-purple and gold; a bar at the bottom
+   holds the mic, its level and Build. Served by record.py; nothing here works from file://. */
+:root{--bg:#120d1f;--panel:#221a36;--edge:#3a2f58;--cream:#fff6e2;--muted:#a89cc4;--gold:#ffd44a;--gold-deep:#b8861a;--green:#6fe08a;--red:#ff6a5a;--wave:#7d6bb0;--well:#0b0814;
+  --display:'Silkscreen',ui-monospace,monospace;--body:'Pixelify Sans',system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--cream);font-family:var(--body);font-size:16px;line-height:1.45}
+main{max-width:680px;margin:0 auto;padding:28px 16px 24px;display:grid;gap:18px}
+h1{font-family:var(--display);font-weight:400;font-size:24px;margin:0;color:var(--gold)}
+.lede{margin:6px 0 0;color:var(--muted);max-width:62ch}
+h2{font-family:var(--display);font-weight:400;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 0}
+p{margin:0}
+button{font-family:var(--display);font-size:12px;background:var(--gold);color:var(--bg);border:0;border-radius:4px;padding:9px 13px;box-shadow:0 3px 0 var(--gold-deep);cursor:pointer;line-height:1.2}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-deep)}
+button.ghost{background:transparent;color:var(--cream);box-shadow:inset 0 0 0 2px var(--edge)}
+button.rec{background:var(--red);box-shadow:0 3px 0 #9a2c22;color:var(--cream)}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,select:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
+select{font-family:var(--body);font-size:14px;background:var(--well);color:var(--cream);border:2px solid var(--edge);border-radius:4px;padding:6px 8px;max-width:100%}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.panel,.line{background:var(--panel);border:2px solid var(--edge);border-radius:6px;padding:14px;display:grid;gap:10px;min-width:0}
+.line.saved{border-color:#3d6b4a}
+.line.live{border-color:var(--red)}
+.top{display:grid;grid-template-columns:2ch 1fr auto;gap:10px;align-items:start}
+.num{font-family:var(--display);font-size:11px;color:var(--muted);padding-top:3px;font-variant-numeric:tabular-nums}
+.say{font-family:var(--display);font-size:14px;letter-spacing:.02em}
+.cue{margin-top:2px;color:var(--muted);font-size:14px}
+.chip{font-family:var(--display);font-size:9px;letter-spacing:.06em;padding:4px 6px;border-radius:3px;box-shadow:inset 0 0 0 2px var(--edge);color:var(--muted);white-space:nowrap}
+.chip.new{color:var(--gold);box-shadow:inset 0 0 0 2px var(--gold-deep)}
+.chip.ok{color:var(--green);box-shadow:inset 0 0 0 2px #3d6b4a}
+.chip.live{color:var(--red);box-shadow:inset 0 0 0 2px var(--red)}
+canvas.wave{width:100%;height:64px;display:block;background:var(--well);border-radius:4px;touch-action:none;cursor:ew-resize}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.warn{color:var(--red)}
+.cap{font-family:var(--display);font-size:12px;background:var(--well);border-radius:4px;padding:8px 10px;min-height:2.3em}
+.bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--edge)}
+.bar>div{max-width:680px;margin:0 auto;padding:10px 16px;display:grid;gap:8px}
+.meter{flex:1 1 120px;height:10px;background:var(--well);border-radius:2px;overflow:hidden;min-width:80px}
+.meter i{display:block;height:100%;width:0;background:var(--green)}
+.count{font-family:var(--display);font-size:12px;color:var(--gold)}
+pre{margin:0;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:8em;overflow:auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Unruggabull's lines</h1>
+    <p class="lede">Record each line, hear it as recorded and in Chip voice, drag the handles to the start and end of the words, and Accept. Accepted takes go in <code>takes/</code> on this machine; Build turns them into the game's <code>voice.js</code>.</p>
+  </header>
+  <section class="panel">
+    <h2 style="margin:0">Match this</h2>
+    <p>"LET'S GO!" is already in the game. Record at about the same distance and loudness, and let each line ring out a moment before you stop.</p>
+    <div class="row"><button id="refPlay">Play LET'S GO!</button></div>
+    <div class="cap" id="refCap"></div>
+  </section>
+  <div id="lines" style="display:grid;gap:12px"></div>
+</main>
+<div class="bar"><div>
+  <div class="row">
+    <select id="mic" aria-label="Microphone"><option value="">Default microphone</option></select>
+    <span class="meter" aria-hidden="true"><i id="level"></i></span>
+    <span class="count" id="count"></span>
+    <button class="ghost" id="build">Build voice.js</button>
+  </div>
+  <pre id="out" role="status" hidden></pre>
+</div></div>
+<script>
+(function () {
+  'use strict';
+  // The script (owner, Nov 6; five lines added after his first play the same day). Keys match LINES in game.js and the floors' own lines; go is from the first game.
+  const SCRIPT = [
+    ['Stairwell', 'go', "LET'S GO!", 'Two beats into the stairwell music as the climb starts.'],
+    ['Stairwell', 'door', 'OK... HERE WE GO.', "Reaching the 13th Floor's door, out of breath."],
+    ['13th Floor', 'start', 'THE 13TH FLOOR. UNLUCKY FOR SOME.', 'About five seconds into the hall.'],
+    ['13th Floor', 'dark', 'WHO TURNED OUT THE LIGHTS?', 'The lights go out and the carpshits come out of the dark.'],
+    ['13th Floor', 'wake', 'PROCESS THIS.', 'SHRED-O wakes with "YOUR RUG HAS BEEN PROCESSED." and he answers.'],
+    ['13th Floor', 'again', 'ROUND TWO.', 'Same moment after a continue, answering "BACK FOR SECONDS?"'],
+    ['13th Floor', 'smash', 'OUT OF OFFICE.', 'He smashes SHRED-O with a rally return.'],
+    ['13th Floor', 'disarm', 'GIVE THAT BACK!', "Phase 3: SHRED-O's surge pulls the blaster out of his hands."],
+    ['13th Floor', 'rugged', 'WHOA!', 'He gets rugged. Cuts off whatever SHRED-O is saying.'],
+    ['13th Floor', 'clear', 'THE 13TH FLOOR: UNRUGGED.', 'The floor is cleared.'],
+    ['Anywhere it happens', 'spread', "NOW WE'RE TALKING.", 'He picks up a Spread Shot.'],
+    ['Anywhere it happens', 'coffee', 'MMM. COFFEE.', 'He drinks a coffee and gets a heart back.'],
+    ['Anywhere it happens', 'streak', 'ON A ROLL.', 'A 10-soul streak drops a Spread Shot.'],
+    ['Anywhere it happens', 'wipe', 'CLEAN SWEEP.', 'He wipes out a whole formation.'],
+    ['Anywhere it happens', 'low', 'BEEN WORSE. NOT MUCH.', 'He takes a hit and is down to low hearts.'],
+    ['48th Floor', 'portrait', "HIS VISION ENDURES. HE DIDN'T.", "Walking past the Rugfather's portrait in the lobby, singed."],
+    ['48th Floor', 'f48start', 'SO THIS IS WHERE THEY GO.', 'About four seconds into the factory floor, seeing the looms.'],
+    ['48th Floor', 'f48line', 'ONE DOWN.', 'He takes out the first line.'],
+    ['48th Floor', 'f48panic', 'OVERTIME, HUH?', 'Second line down, and the factory panics.'],
+    ['48th Floor', 'salvation', 'SALVATION.', 'The two souls tear free of p(Loom), salute him and rise. Quiet, a little tired.'],
+    ['Long ride', 'ohNo', 'OH NO.', 'p(Loom) cuts the cable and the car drops.'],
+    ['Roof and ending', 'loomy', 'HELLO, LOOMY.', 'p(Loom) wakes and says "HELLO, UNRUGGABULL." He calls it the name it crossed out.'],
+    ['Roof and ending', 'ohYeah', 'OH YEAH!', 'He snaps the first spool and p(Loom) says "NO CHANGE."'],
+    ['Roof and ending', 'notAChance', 'NOT A CHANCE.', 'Knocked down after "STAY DOWN.", the first soul comes back and he gets up.'],
+    ['Roof and ending', 'odds', "LET'S DISCUSS THOSE ODDS.", 'After p(Loom) says "THAT OUTCOME WAS NOT IN THE MODEL."'],
+    ['Roof and ending', 'zero', 'PROBABILITY: ZERO.', 'p(Loom) is finished: its threads snap, the eye goes dark, and in the beat of silence as dawn opens. Dry.'],
+    ['Roof and ending', 'comeOn', 'OH, COME ON.', 'The ending, as p(Loom) gets away.']
+  ].map(([stage, key, text, cue], i) => ({ stage, key, text, cue, n: i + 1 }));
+  const TODO = SCRIPT.filter(L => L.key !== 'go').length;
+
+  // ---------- Chip voice, as voice.py makes it: mono, 10 ms fade in, quarter-sine fade out over the ring-out, peak to
+  // .95, tanh(2.4), 8 kHz, 6-bit, each sample held until the next. Sizes match voice.py's to the byte. ----------
+  const RATE = 8000, DRIVE = 2.4, TAIL = .4;
+  let ctx = null, playing = null;
+  function audio() { if (!ctx) ctx = new AudioContext(); if (ctx.state !== 'running') ctx.resume(); return ctx; }
+  function stopPlay() { if (playing) { try { playing.stop(); } catch (e) {} playing = null; } }
+  function playBuffer(b) { stopPlay(); const c = audio(), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(); playing = s; return b.duration; }
+  function heldBuffer(q) {
+    const c = audio(), sr = c.sampleRate, n = Math.ceil(q.length * sr / RATE), b = c.createBuffer(1, n, sr), ch = b.getChannelData(0);
+    for (let i = 0; i < n; i++) ch[i] = (q[Math.min(q.length - 1, Math.floor(i * RATE / sr))] - 31.5) / 31.5;
+    return b;
+  }
+  function unpack(l) {
+    const bin = atob(l.data), q = new Uint8Array(l.n);
+    for (let i = 0, j = 0; j < l.n; i += 3, j += 4) {
+      const w = bin.charCodeAt(i) << 16 | bin.charCodeAt(i + 1) << 8 | bin.charCodeAt(i + 2);
+      q[j] = w >> 18 & 63; q[j + 1] = w >> 12 & 63; q[j + 2] = w >> 6 & 63; q[j + 3] = w & 63;
+    }
+    return q;
+  }
+  async function resample(x, from, to) {
+    const n = Math.max(1, Math.round(x.length * to / from)), oc = new OfflineAudioContext(1, n, to);
+    const b = oc.createBuffer(1, x.length, from); b.copyToChannel(x, 0);
+    const s = oc.createBufferSource(); s.buffer = b; s.connect(oc.destination); s.start();
+    return (await oc.startRendering()).getChannelData(0).slice();
+  }
+  // a take's clip: from the start handle to the words' end plus the ring-out
+  function clipOf(t) { return t.x.subarray(Math.round(t.s * t.rate), Math.min(t.x.length, Math.round((t.w + TAIL) * t.rate))); }
+  async function crush(t) {
+    const x = Float64Array.from(await resample(Float32Array.from(clipOf(t)), t.rate, RATE));
+    const n = x.length, fin = Math.round(.01 * RATE), fadeAt = Math.round((t.w - t.s) * RATE), fl = Math.max(1, n - fadeAt);
+    for (let i = 0; i < n; i++) {
+      if (i < fin) x[i] *= i / fin;
+      if (i >= fadeAt) x[i] *= Math.sin(Math.PI / 2 * Math.max(0, 1 - (i - fadeAt) / fl));
+    }
+    let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v));
+    const q = new Uint8Array(n + (-n & 3)).fill(32), th = Math.tanh(DRIVE);
+    for (let i = 0; i < n; i++) q[i] = Math.max(0, Math.min(63, Math.round((Math.tanh(DRIVE * x[i] / (pk || 1) * .95) / th + 1) / 2 * 63)));
+    t.chip = q; t.kb = 4 * Math.ceil(q.length * 3 / 4 / 3) / 1024;   // base64 bytes in voice.js
+  }
+
+  // ---------- where the words are: the first and last 10 ms frames over a threshold ----------
+  function wordsIn(x, rate) {
+    const f = Math.round(rate * .01), r = new Float32Array(Math.floor(x.length / f));
+    for (let k = 0; k < r.length; k++) { let s = 0; for (let i = k * f; i < (k + 1) * f; i++) s += x[i] * x[i]; r[k] = Math.sqrt(s / f); }
+    const sorted = Array.from(r).sort((a, b) => a - b), floor = sorted[Math.floor(sorted.length * .1)] || 0, top = sorted[Math.floor(sorted.length * .98)] || 0;
+    const th = Math.max(floor * 4, top * .08, 1e-4); let a = -1, b = -1;
+    for (let k = 0; k < r.length; k++) if (r[k] > th) { if (a < 0) a = k; b = k; }
+    if (a < 0) return { s: 0, w: Math.max(.1, x.length / rate - TAIL) };
+    return { s: Math.max(0, a * .01 - .05), w: Math.min(x.length / rate, (b + 1) * .01 + .03) };
+  }
+  function peakOf(x) { let p = 0; for (const v of x) p = Math.max(p, Math.abs(v)); return p; }
+
+  // ---------- the mic: raw (no echo cancelling, noise suppression or auto gain), one stream for the page ----------
+  let stream = null, src = null, analyser = null, tap = null, recording = null;
+  const micSel = document.getElementById('mic'), levelEl = document.getElementById('level');
+  // Exactly one mic and one tap at a time: an old tap left connected keeps posting blank chunks from its stopped mic,
+  // which land between the real ones and make a take slow, crackly and quiet.
+  function closeMic() {
+    if (tap) { tap.port.onmessage = null; tap.disconnect(); tap = null; }
+    if (src) { src.disconnect(); src = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    analyser = null;
+  }
+  let workletReady = false;
+  async function openMic() {
+    const id = micSel.value;
+    if (stream && stream.active && (!id || stream.getAudioTracks()[0].getSettings().deviceId === id)) return true;
+    closeMic();
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+    } catch (e) { say('The browser refused the microphone. Allow it for this page and try again.'); return false; }
+    const c = audio();
+    src = c.createMediaStreamSource(stream);
+    analyser = c.createAnalyser(); analyser.fftSize = 1024; src.connect(analyser);
+    if (!workletReady) {
+      const code = "registerProcessor('tap',class extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice());return true}})";
+      await c.audioWorklet.addModule(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
+      workletReady = true;
+    }
+    tap = new AudioWorkletNode(c, 'tap', { channelCount: 1, channelCountMode: 'explicit' }); src.connect(tap);
+    tap.port.onmessage = e => { if (recording) recording.chunks.push(e.data); };
+    const mute = c.createGain(); mute.gain.value = 0; tap.connect(mute); mute.connect(c.destination);
+    listMics();
+    return true;
+  }
+  async function listMics() {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'), keep = micSel.value;
+    micSel.innerHTML = '';
+    for (const d of devs) { const o = document.createElement('option'); o.value = d.deviceId; o.textContent = d.label || 'Microphone'; micSel.append(o); }
+    if (keep && devs.some(d => d.deviceId === keep)) micSel.value = keep;
+    else if (stream) { const cur = stream.getAudioTracks()[0].getSettings().deviceId; if (cur) micSel.value = cur; }
+  }
+  micSel.onchange = () => { closeMic(); openMic(); };
+  (function meter() {
+    if (analyser) {
+      const d = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(d);
+      const p = peakOf(d), db = Math.max(-60, 20 * Math.log10(p || 1e-9));
+      levelEl.style.width = ((db + 60) / 60 * 100) + '%';
+      levelEl.style.background = p > .97 ? 'var(--red)' : 'var(--green)';
+    }
+    requestAnimationFrame(meter);
+  })();
+
+  // ---------- the cards ----------
+  const takes = {}, cards = {}, list = document.getElementById('lines');
+  let stage = '';
+  for (const L of SCRIPT) {
+    if (L.stage !== stage) { stage = L.stage; const h = document.createElement('h2'); h.textContent = stage; list.append(h); }
+    const el = document.createElement('article'); el.className = 'line';
+    el.innerHTML = '<div class="top"><span class="num"></span><div><p class="say"></p><p class="cue"></p></div><span class="chip"></span></div><div class="body" style="display:grid;gap:10px"></div>';
+    el.querySelector('.num').textContent = L.n;
+    el.querySelector('.say').textContent = L.text;
+    el.querySelector('.cue').textContent = L.cue;
+    list.append(el); cards[L.key] = el;
+    render(L);
+  }
+  function status(L) {
+    const t = takes[L.key];
+    if (L.key === 'go') return ['ok', 'IN THE GAME'];
+    if (recording && recording.key === L.key) return ['live', 'RECORDING'];
+    if (!t) return ['', 'NO TAKE'];
+    if (t.saved) return ['ok', 'ACCEPTED'];
+    return ['new', t.wasSaved ? 'CHANGED' : 'NEW TAKE'];
+  }
+  function render(L) {
+    const el = cards[L.key], t = takes[L.key], body = el.querySelector('.body'), [cls, label] = status(L), live = recording && recording.key === L.key;
+    const chip = el.querySelector('.chip'); chip.className = 'chip ' + cls; chip.textContent = label;
+    el.classList.toggle('saved', cls === 'ok'); el.classList.toggle('live', !!live);
+    body.innerHTML = '';
+    if (L.key === 'go') { body.append(row(button('Chip', () => playGo(el.querySelector('.cap')))), capBox()); return; }
+    const rec = button(live ? 'Stop' : t ? 'Re-record' : 'Record', () => live ? stopRec() : startRec(L), t && !live);
+    if (live) rec.className = 'rec';
+    if (recording && !live) rec.disabled = true;
+    if (!t || live) { body.append(row(rec)); return; }
+    const cv = document.createElement('canvas'); cv.className = 'wave';
+    cv.setAttribute('aria-label', 'Waveform. Drag the left handle to the start of the words and the right one to where they end; the shaded part after it is the ring-out.');
+    body.append(cv); requestAnimationFrame(() => drawWave(cv, t)); handles(cv, t, L);
+    const meta = document.createElement('div'); meta.className = 'meta'; fillMeta(meta, t); body.append(meta);
+    body.append(row(button('Original', () => playRaw(L), true), button('Chip', () => playChip(L)), rec,
+      t.saved ? null : button('Accept', () => accept(L))), capBox());
+  }
+  function row(...kids) { const d = document.createElement('div'); d.className = 'row'; for (const k of kids) if (k) d.append(k); return d; }
+  function capBox() { const d = document.createElement('div'); d.className = 'cap'; d.setAttribute('aria-live', 'polite'); return d; }
+  function button(label, fn, ghost) { const b = document.createElement('button'); b.textContent = label; if (ghost) b.className = 'ghost'; b.onclick = fn; return b; }
+  function fillMeta(meta, t) {
+    const add = (text, warn) => { const s = document.createElement('span'); s.textContent = text; if (warn) s.className = 'warn'; meta.append(s); };
+    add((t.w - t.s).toFixed(2) + ' s of words + ' + TAIL + ' s ring-out');
+    if (t.kb != null) add(t.kb.toFixed(1) + ' KB in the game');
+    if (t.peak >= .99) add('Clipped: back off the mic a little', true);
+    else if (t.peak < .03) add('Very quiet: get a little closer', true);
+  }
+  function drawWave(cv, t) {
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600, h = 64;
+    cv.width = w * dpr; cv.height = h * dpr; const g = cv.getContext('2d'); g.scale(dpr, dpr);
+    const css = getComputedStyle(document.documentElement), dur = t.x.length / t.rate, X = s => s / dur * w, step = t.x.length / w;
+    g.fillStyle = 'rgba(255,212,74,.08)'; g.fillRect(X(t.s), 0, X(t.w) - X(t.s), h);
+    g.fillStyle = 'rgba(255,212,74,.03)'; g.fillRect(X(t.w), 0, X(Math.min(dur, t.w + TAIL)) - X(t.w), h);
+    for (let px = 0; px < w; px++) {
+      let m = 0; for (let i = Math.floor(px * step); i < Math.floor((px + 1) * step); i++) m = Math.max(m, Math.abs(t.x[i]));
+      const sec = px / w * dur; g.fillStyle = css.getPropertyValue(sec >= t.s && sec <= t.w + TAIL ? '--cream' : '--wave');
+      const a = Math.max(1, m * h * .9); g.fillRect(px, (h - a) / 2, 1, a);
+    }
+    g.fillStyle = css.getPropertyValue('--gold');
+    for (const sec of [t.s, t.w]) { g.fillRect(X(sec) - 1, 0, 2, h); g.fillRect(X(sec) - 5, 0, 10, 8); }
+  }
+  function handles(cv, t, L) {
+    let which = null;
+    const sec = e => { const r = cv.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * t.x.length / t.rate; };
+    const move = e => { if (!which) return; const s = sec(e); if (which === 's') t.s = Math.min(s, t.w - .1); else t.w = Math.max(s, t.s + .1); drawWave(cv, t); };
+    cv.onpointerdown = e => { const s = sec(e); which = Math.abs(s - t.s) < Math.abs(s - t.w) ? 's' : 'w'; cv.setPointerCapture(e.pointerId); move(e); };
+    cv.onpointermove = move;
+    cv.onpointerup = cv.onpointercancel = async () => { if (!which) return; which = null; if (t.saved) { t.saved = false; t.wasSaved = true; } await crush(t); render(L); count(); };
+  }
+  // the caption types over the first two thirds of the clip, as the game does with a recorded line
+  function typeCaption(box, text, dur) {
+    if (!box) return; box.textContent = ''; const t0 = performance.now();
+    (function tick() { const k = Math.min(text.length, Math.ceil((performance.now() - t0) / 1000 / (dur * .66) * text.length)); box.textContent = text.slice(0, k); if (k < text.length) requestAnimationFrame(tick); })();
+  }
+  async function playChip(L) { const t = takes[L.key]; if (!t.chip) await crush(t); typeCaption(cards[L.key].querySelector('.cap'), L.text, playBuffer(heldBuffer(t.chip))); }
+  function playRaw(L) { const t = takes[L.key], c = audio(), clip = clipOf(t), b = c.createBuffer(1, clip.length, t.rate); b.copyToChannel(Float32Array.from(clip), 0); playBuffer(b); cards[L.key].querySelector('.cap').textContent = ''; }
+  let goBuf = null;
+  function playGo(box) { const go = window.UnrugVoice && window.UnrugVoice.lines.go; if (!go) return; if (!goBuf) goBuf = heldBuffer(unpack(go)); typeCaption(box, "LET'S GO!", playBuffer(goBuf)); }
+  document.getElementById('refPlay').onclick = () => playGo(document.getElementById('refCap'));
+
+  // ---------- recording ----------
+  async function startRec(L) {
+    stopPlay();
+    if (!(await openMic())) return;
+    recording = { key: L.key, chunks: [] };
+    render(L); for (const M of SCRIPT) if (M !== L) render(M);
+  }
+  async function stopRec() {
+    const r = recording; recording = null;
+    const n = r.chunks.reduce((a, c) => a + c.length, 0), x = new Float32Array(n); let p = 0;
+    for (const c of r.chunks) { x.set(c, p); p += c.length; }
+    const L = SCRIPT.find(l => l.key === r.key), rate = audio().sampleRate;
+    if (n > rate * .3) {
+      const was = takes[L.key], w = wordsIn(x, rate);
+      takes[L.key] = { x, rate, s: w.s, w: w.w, peak: peakOf(x), saved: false, wasSaved: !!(was && (was.saved || was.wasSaved)) };
+      await crush(takes[L.key]);
+    }
+    for (const M of SCRIPT) render(M);
+    count();
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && recording) stopRec(); });
+
+  // ---------- saving through record.py ----------
+  function wav(x, rate) {
+    const b = new DataView(new ArrayBuffer(44 + x.length * 2)), s = (o, str) => { for (let i = 0; i < str.length; i++) b.setUint8(o + i, str.charCodeAt(i)); };
+    s(0, 'RIFF'); b.setUint32(4, 36 + x.length * 2, true); s(8, 'WAVE'); s(12, 'fmt '); b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+    b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true); b.setUint16(32, 2, true); b.setUint16(34, 16, true); s(36, 'data'); b.setUint32(40, x.length * 2, true);
+    for (let i = 0; i < x.length; i++) b.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, Math.round(x[i] * 32767))), true);
+    return b.buffer;
+  }
+  async function accept(L) {
+    const t = takes[L.key], end = Math.min(t.x.length / t.rate, t.w + TAIL);
+    const q = new URLSearchParams({ start: t.s.toFixed(3), end: end.toFixed(3), fade: t.w.toFixed(3) });
+    try {
+      const r = await fetch('/takes/' + L.key + '?' + q, { method: 'POST', body: wav(t.x, t.rate) });
+      if (!r.ok) throw new Error((await r.json()).error);
+      t.saved = true; t.wasSaved = false;
+    } catch (e) { say('Could not save ' + L.text + ': ' + e.message + '. Is record.py still running?'); return; }
+    render(L); count();
+  }
+  async function loadSaved() {
+    let saved = {};
+    try { saved = await (await fetch('/takes')).json(); } catch (e) { say('This page needs record.py: run python3 tools/unruggabull-ii/voice/record.py and open the address it prints.'); return; }
+    for (const [key, v] of Object.entries(saved)) {
+      const L = SCRIPT.find(l => l.key === key); if (!L) continue;
+      try {
+        const b = await audio().decodeAudioData(await (await fetch('/takes/' + key + '.wav')).arrayBuffer());
+        const x = b.getChannelData(0).slice();
+        takes[key] = { x, rate: b.sampleRate, s: v.start, w: v.fade, peak: peakOf(x), saved: true };
+        await crush(takes[key]); render(L);
+      } catch (e) {}
+    }
+    count();
+  }
+  function count() { const n = SCRIPT.filter(L => L.key !== 'go' && takes[L.key] && takes[L.key].saved).length; document.getElementById('count').textContent = n + ' / ' + TODO + ' accepted'; }
+  const out = document.getElementById('out');
+  function say(text) { out.hidden = false; out.textContent = text; }
+  document.getElementById('build').onclick = async e => {
+    const b = e.target; b.disabled = true; say('Building voice.js…');
+    try {
+      const r = await (await fetch('/build', { method: 'POST' })).json();
+      say(r.ok ? r.out + '\nDone. Reload the game to hear them, and commit site/unruggabull-ii/voice.js.' : 'voice.py failed:\n' + r.out);
+      if (r.ok) { goBuf = null; const s = document.createElement('script'); s.src = '/voice.js?' + Date.now(); document.head.append(s); }
+    } catch (err) { say('Could not reach record.py. Is it still running?'); }
+    b.disabled = false;
+  };
+  count();
+  loadSaved();
+})();
+</script>
+<script src="/voice.js"></script>
+</body>
+</html>

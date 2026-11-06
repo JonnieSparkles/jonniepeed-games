@@ -42,7 +42,7 @@
   check(rate > .3 && rate < .75 / TUNE.recharge, 'held dry, it fires in short bursts (' + rate + ' a second, against ' + 1 / TUNE.recharge + ' for a trickle)');
 
   // his caption wraps into short lines on the left
-  R.events.said = {}; R.talk = null; bark('move', true); for (let i = 0; i < 120; i++) update(1 / 60);
+  R.events.said = {}; R.talk = null; bark('low', true); for (let i = 0; i < 120; i++) update(1 / 60);
   // the right of the screen at caption height looks the same with or without it
   const right = () => { R.shake = 0; draw(); return Array.from(view.getImageData(110 * PIC, 20 * PIC, 128 * PIC, 22 * PIC).data).join(); };
   const withIt = right(), K = R.bark; R.bark = null; const without = right(); R.bark = K;
