@@ -4,9 +4,10 @@
   const tick = s => { for (let i = 0; i < Math.ceil(s * 60); i++) update(1 / 60); };
   const fresh = () => { RUN.force = 42; newRun(null, 'roof'); setState('play'); card.hidden = true; clearHeld(); input.jump = input.slash = input.shoot = 0; };
   fresh(); floor.enter('round3'); R.roof.broken = 3; floor.enter('reset');
-  const bells = [], played = [], music = [], spoken = [], oldPlay = Snd.play, oldMusic = Snd.music, oldSay = Snd.say, oldVoice = Snd.voice;
+  const bells = [], played = [], music = [], spoken = [], oldPlay = Snd.play, oldMusic = Snd.music, oldSay = Snd.say, oldVoice = Snd.voice, oldLoom = Snd.loomVoice;
   Snd.say = text => spoken.push(text);
-  // his recorded lines play by key, not text
+  // his recorded lines play by key, not text; p(Loom)'s recorded lines by text
+  Snd.loomVoice = text => spoken.push(text);
   Snd.voice = key => { const l = floor.lines && floor.lines[key]; spoken.push(typeof l === 'string' ? l : LINES[key]); };
   Snd.play = (name, arg) => { played.push(name); if (name === 'bell') bells.push(arg); };
   Snd.music = name => music.push(name);
@@ -16,7 +17,7 @@
   floor.placeBull(2, 0); press('slash'); update(1 / 60); update(1 / 60);
   check(!R.roof.tiles[2].carpet && !R.roof.tiles[1].carpet, 'in the reset a slash flips the carpet back');
   tick(floor.ROOF.reset.relay + .6); check(R.roof.tiles[2].carpet, 'and p(Loom) weaves it again a moment later');
-  for (let i = 0; i < 1200 && R.roof.state === 'reset'; i++) update(1 / 60);
+  for (let i = 0; i < 2400 && R.roof.state === 'reset'; i++) update(1 / 60);   // its recorded lines run longer than blips
   check(R.roof.state === 'quiet' && R.roof.respool === 1 && spoken.includes('REPLACEMENT SPOOLS ORDERED.') && spoken.includes('PROBABILITY OF YOUR SURVIVAL: 1%.'), 'the reset re-spools from the souls and hands over to the quiet');
   check(R.roof.odds === 99 && R.roof.realOdds < 99, 'the bar is stitched back to 99 over damage it keeps');
   check(R.roof.state === 'quiet' && R.charge === 0 && floor.blasterOff(), 'in the quiet the blaster is dead, and the core knows it (blasterOff: greyed Shoot pad, no charge bar)');
@@ -106,5 +107,5 @@
   check(!/Jump|Crouch/.test(rows) && /Up the roof/.test(rows) && /freely once the souls come back/.test(rows) && /fire on their own/.test(rows), 'the Controls list has the roof\'s moves: ' + rows);
   fresh(); floor.enter('odds'); bull.slash = .02; tick(TUNE.slashT + .1);
   check(R.roof.state === 'odds' && bull.slash === -1, 'a swing started before a cut finishes instead of freezing mid-cut');
-  Snd.play = oldPlay; Snd.music = oldMusic; Snd.say = oldSay; Snd.voice = oldVoice; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
+  Snd.play = oldPlay; Snd.music = oldMusic; Snd.say = oldSay; Snd.voice = oldVoice; Snd.loomVoice = oldLoom; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
 })();

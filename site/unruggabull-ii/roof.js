@@ -17,7 +17,8 @@ var UnrugRoof = function (core) {
     odds: 99, minimum: 1, drain: 10, creep: 3, beamHit: .25, dragSteer: 4,
     returnGap: 1.5,
     // the eye glides on its rail in the beam fight, as on the finale mockup (a smooth wave, not a bounce)
-    eyeSwing: .47, eyeSwingRate: .75,
+    creak: [3, 6],   // the loom's groans in the fight, seconds apart (owner, Nov 6)
+    eyeSwing: .47, eyeSwingRate: 1.25, eyeSway: .15, eyeSwayRate: 1.6,   // the chase's glide (a sweep in 5 s; was 8.4 s) and the sway before it (owner, Nov 6)
     // the beam fight lasts through Saga II heavy's solo (its first 16 bars at 170 BPM; owner, Oct 15: the solo "doesn't
     // play long enough"). The countdown runs with the music, no hold: the odds can't fall below a line from 99 when the
     // beam first lands to 1% at the solo's end, so on the eye they ride it and off it they creep back; the 1% lands on
@@ -53,7 +54,7 @@ var UnrugRoof = function (core) {
       spread: [5.2, 4, 3], spreadAge: 1.2, cap: [6, 8, 10],
       hatch: [4, 6, 8], hatchEvery: [6.5, 5.2, 4.2], hatchFirst: 2.5, hatchWarn: .7, hatchAge: .6, hatchRetry: .5, fakeCarp: [0, .39, .45], fakeSpeed: .34,
       reach: 1, whiff: .5, reclaimFreeze: .045,
-      snapT: 2.8, yeahAt: 1.5, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
+      snapT: 2.8, yeahAt: 1.85, lastSnapT: .9, thunderAt: .45, whipAt: .8, whipT: .7, lightDecay: 2.5,
       twin: 1.4, tipT: 2.6
     },
     // the walk opens with his arrival: he steps out of the elevator (arrive seconds, from startZ) while the floodlights
@@ -261,7 +262,6 @@ var UnrugRoof = function (core) {
     return: { entry() {
       R.gold = true; R.hot = false; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0;
       Q.flights = Array.from({ length: Math.min(ROOF.spools, Q.caught) }, (_, i) => soulFlight(Q.caught - 1 - i, returnDelay(i)));
-      say('ERROR. ERR.');
     }, tick(dt) {
       Q.returnT += dt;
       stepDown(dt);
@@ -277,6 +277,7 @@ var UnrugRoof = function (core) {
       Q.flights = Array.from({ length: Q.floodFrom }, (_, i) => soulFlight(Q.floodFrom - 1 - i,
         i / Math.max(1, Q.floodFrom - 1) * (ROOF.time.flood - ROOF.returnFly)));
       Snd.roofCue('flood', { seconds: ROOF.time.flood + ROOF.time.pinch });
+      say('ERROR. ERR.');   // as the rest pour back, not while he's getting up (owner, Nov 6: it "kills the moment")
     }, tick() {
       const due = Q.flights.filter(f => Q.t + 1e-9 >= f.delay + ROOF.returnFly).length;
       const returned = Q.floodFrom - Q.caught;
@@ -295,7 +296,7 @@ var UnrugRoof = function (core) {
       beamTick(dt);
     }, ready: () => Q.line === 1 && !R.bark },
     beam: { entry() { R.gold = true; R.beam = true; Q.eye.u = 0; Q.nextFly = ROOF.beamFlyGap[1]; Q.beamLeft = ROOF.beamFlies; }, tick: beamTick },
-    run: { entry() { Q.eye.dir = 1; Q.swingT = Math.asin(clamp(Q.eye.u / ROOF.eyeSwing, -1, 1)) / ROOF.eyeSwingRate; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
+    run: { entry() { const a = Math.asin(clamp(Q.eye.u / ROOF.eyeSwing, -1, 1)); Q.eye.dir = 1; Q.swingT = (Q.eye.v < 0 ? Math.PI - a : a) / ROOF.eyeSwingRate; Q.onEye = false; say('PROBABILITY OF CAPTURE: ZERO.'); }, tick: beamTick },
     one: { entry() { clearThreats(); Q.odds = ROOF.minimum; Snd.roofCue('one', { seconds: ROOF.time.one }); say('UNLIKELY.'); }, ready: () => Q.t >= ROOF.time.one && !R.talk },
     snap: { entry() { R.beam = false; clearThreats(); Snd.play('snap'); Snd.roofCue('snap'); } },
     dawn: { entry() {
@@ -422,6 +423,11 @@ var UnrugRoof = function (core) {
     const st = STATES[Q.state];
     if (freeMove() && controlled()) walkFree(dt);
     if (st.tick) st.tick(dt);
+    // in the fight the loom groans between hits, every 3 to 6 s, louder each phase (sound only; the gaps are fixed, not random)
+    if (isRound() && !Q.intermission) {
+      Q.creakT = (Q.creakT == null ? ROOF.creak[0] : Q.creakT) - dt;
+      if (Q.creakT <= 0) { Q.creaks = (Q.creaks || 0) + 1; Snd.play('loomCreak', Q.round); Q.creakT = ROOF.creak[0] + (Q.creaks * 7 % 4) / 3 * (ROOF.creak[1] - ROOF.creak[0]); }
+    }
     streamTick(dt);
     if (R.phase === 'dead') return;
     if (controlled()) updateBull(dt);
@@ -784,6 +790,8 @@ var UnrugRoof = function (core) {
       if (!Q.spDone[i] && Q.hp <= th) { sparks(Q.eye.u, ROOF.eyeZ, ROOF.eyeH, '#9aa0b8'); return true; }
       Q.hp--; Q.hits++; Q.heatHits = (Q.heatHits || 0) + 1; Q.odds = Q.realOdds = oddsAt(Q.hits); Q.kick = .12;
       emit('roof_spool_damage', { amount: 1 }); Snd.play('eyeHit', Math.min(14, Q.heatHits));
+      // the spool cracks a third and two thirds of the way down (sound only)
+      for (const k of [1, 2]) if (Q.hp + 1 > HPS * (1 - k / 3) && Q.hp <= HPS * (1 - k / 3)) Snd.play('spoolCrack', k);
       for (let k = 0; k < 2; k++) sparks(Q.eye.u, ROOF.eyeZ, ROOF.eyeH, k ? '#ffffff' : '#ffd44a');
       if (Q.heatHits % 4 === 1) popText(Math.ceil(Q.odds) + '%', PX(Q.eye.u, ROOF.eyeZ) + (Math.random() - .5) * 20, YH(ROOF.eyeZ, ROOF.eyeH) - 10, '#ff7050');
       if (!Q.spDone[i] && Q.hp <= th) {
@@ -817,7 +825,7 @@ var UnrugRoof = function (core) {
     if (Q.pendingRound) {
       if (Q.snapT >= F.thunderAt && !Q.thundered) { Q.thundered = true; Q.light = .5; Snd.play('thunder', .8); effects.shake(4, .4); }
       if (Q.snapT >= F.whipAt && Q.whip < 0) { Q.whip = 0; Snd.play('whip'); }
-      // his answer to NO CHANGE., after the whip (a line plays once a run, so after the first spool only; owner, Nov 6)
+      // his answer to NO CHANGE., once it has said it (1.7 s in its voice) (a line plays once a run, so after the first spool only; owner, Nov 6)
       if (Q.yeah && Q.snapT >= F.yeahAt) { Q.yeah = false; core.bark('ohYeah', true); }
       if (Q.whip >= 0 && Q.whip < 1.2) {
         const before = Q.whip; Q.whip += dt / F.whipT;
@@ -853,6 +861,11 @@ var UnrugRoof = function (core) {
       Q.swingT = (Q.swingT || 0) + dt;
       const w = ROOF.eyeSwingRate, u = ROOF.eyeSwing * Math.sin(w * Q.swingT);
       Q.eye.v = ROOF.eyeSwing * w * Math.cos(w * Q.swingT); Q.eye.u = u;
+    } else if (Q.state === 'lines' || Q.state === 'beam') {
+      // before the chase it sways, never further than the beam is wide, so it's never still but he needn't follow it
+      // (owner, Nov 6: it "kinda just sits there")
+      Q.swayT = (Q.swayT || 0) + dt;
+      const w = ROOF.eyeSwayRate; Q.eye.u = ROOF.eyeSway * Math.sin(w * Q.swayT); Q.eye.v = ROOF.eyeSway * w * Math.cos(w * Q.swayT);
     }
     const on = Math.abs(Q.beamU - Q.eye.u) < ROOF.beamHit, music = R.t - (Q.fusedAt || 0);
     if (on) {
@@ -1386,11 +1399,7 @@ var UnrugRoof = function (core) {
       }
     }
     otxt(g, Math.ceil(Q.odds) + '%', 179, 5, '#fff6e0');
-    for (let i = 0; i < 3; i++) {
-      const broken = i < Q.broken, pale = broken && Q.respool > 0 && !beamActive() && !['pinch', 'fusion', 'snap', ...AFTER].includes(Q.state);
-      rect(g, 91 + i * 9, 13, 6, 3, broken ? '#3b3a48' : '#ffd44a');
-      if (pale) rect(g, 91 + i * 9, 13, Math.round(6 * Q.respool), 3, '#dfeeff');
-    }
+    // no spool pips under it: the loom's own spools show the same (owner, Nov 6)
     if (R.talk && R.talk.readout) {
       const T = R.talk; let n = 0; while (n < T.text.length && T.times[n] <= T.t) n++;
       const w = textWidth(T.text) + 8;

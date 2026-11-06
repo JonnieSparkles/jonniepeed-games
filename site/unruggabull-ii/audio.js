@@ -505,10 +505,20 @@ window.UnrugSound = (function () {
   // Unruggabull's recorded lines (voice.js, from tools/unruggabull-ii/voice/voice.py): 6-bit samples packed four to three
   // bytes, each held until the next as a chip would play it, on the voice bus with the music ducked under them like say().
   const VOICE = window.UnrugVoice, lineBufs = {};
+  // p(Loom)'s roof lines (voice-loom.js, from tools/unruggabull-ii/voice/loom.py: SAM through the choir), keyed by text
+  const LOOM = window.UnrugLoomVoice;
   function voiceLength(key) { const l = VOICE && VOICE.lines[key]; return l ? l.n / VOICE.rate : 0; }
-  function lineBuffer(key) {
+  function loomLength(text) { const l = LOOM && LOOM.lines[text]; return l ? l.n / LOOM.rate : 0; }
+  function loomVoice(text) {
+    if (!ctx || !loomLength(text)) return;
+    const s = ctx.createBufferSource(), t0 = ctx.currentTime + .02; s.buffer = lineBuffer('loom:' + text, LOOM.lines[text]); s.connect(voiceBus); s.start(t0);
+    talking.push(s);
+    musicBus.gain.setTargetAtTime(DUCKED, ctx.currentTime, .05);
+    duckUntil = t0 + s.buffer.duration;
+  }
+  function lineBuffer(key, given) {
     if (lineBufs[key]) return lineBufs[key];
-    const l = VOICE.lines[key], bin = atob(l.data), q = new Uint8Array(l.n);
+    const l = given || VOICE.lines[key], bin = atob(l.data), q = new Uint8Array(l.n);
     for (let i = 0, j = 0; j < l.n; i += 3, j += 4) {
       const w = bin.charCodeAt(i) << 16 | bin.charCodeAt(i + 1) << 8 | bin.charCodeAt(i + 2);
       q[j] = w >> 18 & 63; q[j + 1] = w >> 12 & 63; q[j + 2] = w >> 6 & 63; q[j + 3] = w & 63;
@@ -673,7 +683,16 @@ window.UnrugSound = (function () {
     laser: t => { osc(sfxBus, 'sawtooth', 98, t, .42, .09, { to: 82, sustain: .5 }); noiseHit(sfxBus, t, .42, .1, 'bandpass', 900, 1); },
     stitch: t => { osc(sfxBus, 'square', 1200, t, .05, .03, { to: 300 }); noiseHit(sfxBus, t, .08, .06, 'bandpass', 3000, 2); },
     eyeOpen: t => { noiseHit(sfxBus, t, .5, .08, 'bandpass', 4500, 1, 1500); osc(sfxBus, 'triangle', hz(88), t, .25, .07); osc(sfxBus, 'triangle', hz(93), t + .07, .25, .05); },
-    eyeHit: (t, n) => { osc(sfxBus, 'square', 260 + (n || 0) * 34, t, .08, .08, { to: 180 + (n || 0) * 30 }); noiseHit(sfxBus, t, .06, .07, 'highpass', 3000); },
+    // a hit on the open eye: the climbing blip, with a body under it (owner, Nov 6: the fight needs more hit sounds)
+    eyeHit: (t, n) => { osc(sfxBus, 'square', 260 + (n || 0) * 34, t, .08, .08, { to: 180 + (n || 0) * 30 }); noiseHit(sfxBus, t, .06, .07, 'highpass', 3000);
+      osc(sfxBus, 'sine', 120, t, .09, .14, { to: 62 }); noiseHit(sfxBus, t, .05, .1, 'lowpass', 900); },
+    // a spool cracking as it takes damage, a third and two thirds of the way: a wood crack and a creak of thread
+    spoolCrack: (t, n) => { noiseHit(sfxBus, t, .07, .32, 'bandpass', 1700, 2); noiseHit(sfxBus, t + .01, .16, .2, 'lowpass', 420);
+      osc(sfxBus, 'square', n > 1 ? 120 : 150, t + .04, .22, .05, { to: n > 1 ? 70 : 95 }); twang(t + .03, n > 1 ? 150 : 210, .12); },
+    // the loom's frame groaning between hits in the fight, louder each phase: a low wooden groan and a few ticks
+    loomCreak: (t, n) => { const v = .7 + .3 * (n || 1);
+      osc(sfxBus, 'sawtooth', 64, t, .6, .035 * v, { to: 47, sustain: .8 }); osc(sfxBus, 'triangle', 96, t + .05, .5, .03 * v, { to: 82, sustain: .8 });
+      for (const d of [0, .13, .27, .44]) noiseHit(sfxBus, t + d, .025, .07 * v, 'bandpass', 2300, 3); },
     clang: t => { osc(sfxBus, 'square', 1900, t, .06, .035); osc(sfxBus, 'triangle', 2530, t, .05, .035); },
     slam: t => { osc(sfxBus, 'square', 90, t, .25, .16, { to: 40 }); noiseHit(sfxBus, t, .2, .22, 'lowpass', 500); },
     setPiece: t => { [73.4, 110, 146.8].forEach((f, i) => osc(sfxBus, 'sawtooth', f, t + i * .02, 1.1, .07, { sustain: .4 })); noiseHit(sfxBus, t, .9, .22, 'lowpass', 600, 1, 3000); },
@@ -899,7 +918,7 @@ window.UnrugSound = (function () {
     },
     get musicState() { return { pattern: P.modern && P.id ? TRACKS[P.id].order[P.si] : null, patternLoop: P.patternLoop, playing: P.id, pending: P.pendingTrack && P.pendingTrack.id, stems: [...P.stems], nextStems: P.pendingStems && [...P.pendingStems], rate: P.rate }; },
     tracks() { return Object.entries(TRACKS).filter(([id]) => !['roof', 'roofHeavy'].includes(id)).map(([id, tr]) => ({ id, name: tr.name || id, key: tr.key, bpm: tr.bpm || tr.sections[0].bpm, stems: tr.patterns ? [...new Set(Object.values(tr.patterns).flatMap(p => Object.values(p.channels).map(c => c.stem)))] : [], seconds: tr.patterns ? compilePatterns(tr).reduce((n,p) => n + p.steps*p.stepDur, 0) : tr.sections.map(compile).reduce((n,p)=>n+p.steps*p.stepDur,0) })); },
-    say, talkTimes, hush, hushLine, voice, voiceLength,
+    say, talkTimes, hush, hushLine, voice, voiceLength, loomVoice, loomLength,
     toggle() {
       muted = !muted;
       try { localStorage.setItem(KEY, muted ? '1' : '0'); } catch (e) {}

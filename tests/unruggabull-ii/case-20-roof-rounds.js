@@ -6,7 +6,7 @@
   const fresh = () => { RUN.force = 42; checkpoint = null; newRun(null, 'roof'); setState('play'); card.hidden = true; clearHeld(); input.jump = input.slash = input.shoot = 0; };
   const rt = floors.roof.ROOF, F = rt.fight, carpets = () => R.roof.tiles.filter(t => t.carpet).length;
   fresh();
-  const lines = [], oldSay = Snd.say; Snd.say = text => lines.push(text);
+  const lines = [], oldSay = Snd.say, oldLoom = Snd.loomVoice; Snd.say = text => lines.push(text); Snd.loomVoice = text => lines.push(text);
   tick(rt.time.elevator + .2);
   check(R.roof.state === 'walk', 'the doors open on the walk');
   tick(rt.walk.rows[2] + .2);
@@ -21,7 +21,7 @@
   check(wc && R.roof.state === 'walk', 'a carpshit turns up to shoot once the roof is clear');
   check(floor.shotHits({ u: wc.u, z: wc.z, h: wc.h }) && R.souls === souls + 1, 'shooting it frees a soul');
   tick(.1); check(R.roof.state === 'flash', 'a clear roof and the carpshit down end the walk');
-  tick(18);
+  for (let i = 0; i < 60 * 30 && R.roof.state !== 'round1'; i++) update(1 / 60);   // p(Loom)'s recorded lines set the pace
   check(R.roof.state === 'round1', 'the lead-in reaches the fight');
   check(R.roof.history.slice(0, 6).join() === 'elevator,walk,flash,wake,odds,round1', 'every lead-in state is visited in order');
   check(['HELLO, UNRUGGABULL.', 'I HAVE MODELED THIS MEETING.', 'PROBABILITY OF YOUR SURVIVAL: 1%.', 'MAXIMIZE CARPETS.'].every(t => lines.includes(t)), 'approved opening lines are spoken');
@@ -44,7 +44,7 @@
   for (let i = 0; i < 60 && q.broken === 0; i++) hit();
   check(q.broken === 1 && Math.abs(q.odds - floor.oddsAt(hp)) < 1e-9 && R.talk.text === 'NO CHANGE.' && q.hot > 0, 'the spool snaps, "NO CHANGE.", while the odds stay down');
   hit(); check(q.broken === 1, 'extra shots cannot break a second spool in the snap');
-  const odds = q.odds; tick(F.snapT + .1);
+  const odds = q.odds; for (let i = 0; i < 60 * 5 && q.state !== 'round2'; i++) update(1 / 60);   // the snap moment, or its line if longer
   check(q.state === 'round2' && q.broken === 1 && q.odds === odds && lines.includes('I AM CONFIDENT. I AM CONFIDENT.'), 'the snap moment leads into phase 2 with the damage kept');
   check(R.events.said && R.events.said.ohYeah, 'he answers NO CHANGE. with OH YEAH!');
   floor.enter('round3'); q.spDone[2] = true; q.stall = 2;
@@ -69,5 +69,5 @@
   check(R.roof.state === 'round2' && R.roof.broken === 1 && R.hearts === 5 && R.souls === souls0 && R.roof.caught === caught0, 'round2 continue: spools kept, full hearts, the failed try\'s souls gone');
   check(R.roof.history.join() === 'round2' && R.continues === 1, 'continue skips elevator and walk');
   check(R.roof.hp === floor.ROOF.hitsPerSpool[1] && !R.roof.spDone[1] && R.roof.odds === floor.oddsAt(floor.ROOF.hitsPerSpool[0]), 'the phase restarts with its spool whole and its set piece to come');
-  Snd.say = oldSay; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
+  Snd.say = oldSay; Snd.loomVoice = oldLoom; RUN.force = null; checkpoint = null; newRun(); setState('title'); showCard('title');
 })();
