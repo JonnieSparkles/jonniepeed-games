@@ -14,7 +14,7 @@ var UnrugCards = (function () {
     // the 48th's clear invites him up (owner, Oct 16: why he goes to the roof); it glitches as RECALCULATING. did
     floor48: { win: 'COME UP, THEN.', rug: 'FINALLY.', p: 38, eye: 'twitch', glitch: ['COME', 'C0ME'] },
     elevator: { rug: 'STAY. DOWN.', p: 22, eye: 'twitch' },
-    roof: { win: 'UNLIKELY.', rug: 'PLEASE STAY DOWN.', p: 4, eye: 'red' }
+    roof: { win: 'SEE YOU NEXT QUARTER.', rug: 'PLEASE STAY DOWN.', p: 4, eye: 'red' }
   };
   const CAP = { bg: '#140806', rule: '#ff7a2a', ink: '#ffd060', label: '#ff7a2a', val: '#fff6e2', dim: '#9a5a2a', warn: '#ff7050', edge: '#140806' };
   const PZ = { bg: '#16112a', rule: '#ffd44a', ink: '#ffd44a', text: '#fff6e2', dim: '#a89cc4' };

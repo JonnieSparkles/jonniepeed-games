@@ -1795,7 +1795,7 @@ var UnrugFloor13 = function (core) {
     if (R.continues) rows.push(['Continues', String(R.continues)]);
     rows.push(['Best', best.souls + ' souls']);
     return { title: 'The 13th Floor clear', text: extra.newBest ? 'New best! The Unrugged drift up toward the roof.' : 'The Unrugged drift up toward the roof.',
-      rows, note: 'The elevator to floor 42 comes in a later build.' };
+      rows, note: '' };
   }
   return {
     id: 'floor13', tune: UnrugFloor13.TUNE, opening, clearCard, pauseText: 'SHRED-O will wait. It has nowhere else to be.',
