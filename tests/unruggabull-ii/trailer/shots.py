@@ -1,14 +1,16 @@
-"""The full trailer's cut (tools/trailer/make.py unruggabull-ii): about 36 s on grid.py's beats, no mega stream, no
+"""The full trailer's cut (tools/trailer/make.py unruggabull-ii): about 34 s on grid.py's beats, no mega stream, no
 ending.
 
 0.00   the made opening, the teaser's tower move (teaser.js), over Saga II's intro; the logo on the first frames, for
        previews; p(Loom): HELLO, UNRUGGABULL.
-6.32   real play, the expert bot at the controls, two bars a stage on Saga II's verse and chorus, a caption on each:
-       the 13th Floor's hall, SHRED-O, the 48th Floor, the long ride, the roof (MAXIMIZE CARPETS); the chorus's last
-       bar cut on its beats
-25.26  the music stops: p(Loom) on the roof gives his odds, in its own words and voice from the take; LET'S GO!
-30.11  the cover, PLAY NOW and jonniepeed.games on the title theme's verse
+6.32   real play, the expert bot at the controls, on Saga II heavy (170 BPM): six shots of two bars, each one whole
+       moment that lands before the cut (owner, Nov 6: the first cut was "sporadic", cut "before something finishes",
+       and the 13th Floor wasn't epic): rush hour, lights out's WIPED OUT!, SHRED-O's marathon rally, the 48th's chain,
+       the roof's laser and its FIRST PASS. Slow pushes, a punch-in on each impact, captions in the game's font
+23.26  the music stops: p(Loom) on the roof gives his odds, in its own words and voice from the take; LET'S GO!
+28.11  the cover, PLAY NOW and jonniepeed.games on the title theme's verse
 """
+import math
 import sys
 from pathlib import Path
 
@@ -36,36 +38,41 @@ def opening(out):
 
 
 def build(T, L, repo, site=None):
-    H, S, F, E, Z = T['H'], T['S'], T['F'], T['E'], T['Z']
+    H, S, F, Z = T['H'], T['S'], T['F'], T['Z']
     out = H.path.parent
     frames = opening(out)
     FULL = full()
 
-    m = lambda k: G.MONT + k * BAR                       # the montage's bar lines
-    awake, f48, ride = S.mark('boss:awake'), F.mark('f48:fight'), E.mark('ev:elevator_wave')
-    r1, odds = Z.mark('roof:round1'), Z.mark(ODDS_LINE)
-    hall0 = H.windows[0][0]                              # the hall from its start
+    m = lambda k: G.MONT + k * G.HBAR                    # the play's bar lines, Saga II heavy's
+    D2 = 2 * G.HBAR                                      # a shot: two bars, one whole moment
+    rush, wipe = H.mark('event:rush'), H.mark('ev:wipe', after='event:dark')
+    marathon = S.mark("talk:LET'S GO THE DISTANCE.")
+    chain = F.mark('ev:f48_break:spinner')
+    attack, pass1, odds = Z.mark('ev:roof_attack'), Z.mark('ev:roof_set'), Z.mark(ODDS_LINE)
+
+    def cam(z0, z1, cx, cy, hits=()):
+        """A slow push over the shot, and a small punch-in on each impact (shot-local times)."""
+        return lambda u: (z0 + (z1 - z0) * ease(u / D2) + sum(.045 * math.exp(-(u - h) / .14) for h in hits if u >= h), cx, cy)
+
+    # Each shot starts just before its moment and cuts after it lands (picked from the footage, placed by markers):
     shots = [
-        # verse: the 13th Floor's hall, then moving day
-        (m(0), m(2), H, hall0 + 4.0, push(1.0, 1.06, 960, 600, 2 * BAR)),
-        (m(2), m(4), H, H.mark('event:move') + 1.0, FULL),
-        # chorus: SHRED-O wakes, the 48th, the long ride, the roof
-        (m(4), m(6), S, awake - 0.4, push(1.0, 1.08, 960, 500, 2 * BAR)),
-        (m(6), m(8), F, f48 + 8.0, FULL),
-        (m(8), m(10), E, ride + 6.0, FULL),
-        (m(10), m(11), Z, r1 + 0.2, FULL),
-        # the chorus's last bar on its beats
-        (m(11), m(11) + B, S, awake + 9.0, FULL),
-        (m(11) + B, m(11) + 2 * B, F, f48 + 20.0, FULL),
-        (m(11) + 2 * B, m(11) + 3 * B, E, ride + 12.0, FULL),
-        (m(11) + 3 * B, G.STOP, Z, Z.mark('ev:roof_attack', nth=2) + 0.6, FULL),
+        # the chorus: rush hour's stampede down the hall, every carpshit on the floor charging him
+        (m(0), m(2), H, rush + 4.5, cam(1.0, 1.08, 960, 700)),
+        # lights out: the hall dark, and WIPED OUT! as the whole swarm pops
+        (m(2), m(4), H, wipe - 1.3, cam(1.04, 1.12, 960, 640, hits=(1.3,))),
+        # SHRED-O's marathon rally, slashed back again and again, to MARATHON X6
+        (m(4), m(6), S, marathon + 2.6, cam(1.0, 1.1, 960, 560, hits=(.6, 1.2, 1.8, 2.35))),
+        # the 48th: a chain of machines blowing, to CHAIN X5
+        (m(6), m(8), F, chain - 0.2, cam(1.0, 1.08, 1000, 560, hits=(.2, 1.1, 1.9))),
+        # the verse: the roof. A warning, the laser, the eye open and his shots going in
+        (m(8), m(10), Z, attack - 0.1, cam(1.0, 1.08, 960, 520, hits=(2.5,))),
+        # FIRST PASS: the whole roof red but one tile
+        (m(10), m(12), Z, pass1 - 0.4, cam(1.02, 1.1, 960, 600)),
         # the stop: the odds, in p(Loom)'s words, held through LET'S GO (cut before its FIGHT)
         (G.STOP, G.TL, Z, odds - 0.15, push(1.0, 1.15, 960, 420, G.TL - G.STOP)),
     ]
 
-    # captions in the game's font; SHRED-O's own banner names him, so his shot has none
-    caps = [(m(0), m(2), L('c-hall')), (m(6), m(8), L('c-f48')), (m(8), m(10), L('c-ride')),
-            (m(10), m(11), L('c-roof'))]
+    caps = [(m(0), m(2), L('c-hall')), (m(6), m(8), L('c-f48')), (m(8), m(10), L('c-roof'))]
     logo = L('logo')
 
     def overlay(t, im):
