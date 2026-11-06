@@ -262,7 +262,6 @@ var UnrugRoof = function (core) {
     return: { entry() {
       R.gold = true; R.hot = false; R.charge = TUNE.charges; Q.returned = 0; Q.returnT = 0;
       Q.flights = Array.from({ length: Math.min(ROOF.spools, Q.caught) }, (_, i) => soulFlight(Q.caught - 1 - i, returnDelay(i)));
-      say('ERROR. ERR.');
     }, tick(dt) {
       Q.returnT += dt;
       stepDown(dt);
@@ -278,6 +277,7 @@ var UnrugRoof = function (core) {
       Q.flights = Array.from({ length: Q.floodFrom }, (_, i) => soulFlight(Q.floodFrom - 1 - i,
         i / Math.max(1, Q.floodFrom - 1) * (ROOF.time.flood - ROOF.returnFly)));
       Snd.roofCue('flood', { seconds: ROOF.time.flood + ROOF.time.pinch });
+      say('ERROR. ERR.');   // as the rest pour back, not while he's getting up (owner, Nov 6: it "kills the moment")
     }, tick() {
       const due = Q.flights.filter(f => Q.t + 1e-9 >= f.delay + ROOF.returnFly).length;
       const returned = Q.floodFrom - Q.caught;
@@ -1399,11 +1399,7 @@ var UnrugRoof = function (core) {
       }
     }
     otxt(g, Math.ceil(Q.odds) + '%', 179, 5, '#fff6e0');
-    for (let i = 0; i < 3; i++) {
-      const broken = i < Q.broken, pale = broken && Q.respool > 0 && !beamActive() && !['pinch', 'fusion', 'snap', ...AFTER].includes(Q.state);
-      rect(g, 91 + i * 9, 13, 6, 3, broken ? '#3b3a48' : '#ffd44a');
-      if (pale) rect(g, 91 + i * 9, 13, Math.round(6 * Q.respool), 3, '#dfeeff');
-    }
+    // no spool pips under it: the loom's own spools show the same (owner, Nov 6)
     if (R.talk && R.talk.readout) {
       const T = R.talk; let n = 0; while (n < T.text.length && T.times[n] <= T.t) n++;
       const w = textWidth(T.text) + 8;
