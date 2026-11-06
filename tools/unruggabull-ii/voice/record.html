@@ -157,22 +157,31 @@ pre{margin:0;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:8
   // ---------- the mic: raw (no echo cancelling, noise suppression or auto gain), one stream for the page ----------
   let stream = null, src = null, analyser = null, tap = null, recording = null;
   const micSel = document.getElementById('mic'), levelEl = document.getElementById('level');
+  // Exactly one mic and one tap at a time: an old tap left connected keeps posting blank chunks from its stopped mic,
+  // which land between the real ones and make a take slow, crackly and quiet.
+  function closeMic() {
+    if (tap) { tap.port.onmessage = null; tap.disconnect(); tap = null; }
+    if (src) { src.disconnect(); src = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    analyser = null;
+  }
+  let workletReady = false;
   async function openMic() {
     const id = micSel.value;
-    if (stream && stream._id === id) return true;
-    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (stream && stream.active && (!id || stream.getAudioTracks()[0].getSettings().deviceId === id)) return true;
+    closeMic();
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
     } catch (e) { say('The browser refused the microphone. Allow it for this page and try again.'); return false; }
-    stream._id = id;
     const c = audio();
     src = c.createMediaStreamSource(stream);
     analyser = c.createAnalyser(); analyser.fftSize = 1024; src.connect(analyser);
-    if (!tap) {
+    if (!workletReady) {
       const code = "registerProcessor('tap',class extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice());return true}})";
       await c.audioWorklet.addModule(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
+      workletReady = true;
     }
-    tap = new AudioWorkletNode(c, 'tap'); src.connect(tap);
+    tap = new AudioWorkletNode(c, 'tap', { channelCount: 1, channelCountMode: 'explicit' }); src.connect(tap);
     tap.port.onmessage = e => { if (recording) recording.chunks.push(e.data); };
     const mute = c.createGain(); mute.gain.value = 0; tap.connect(mute); mute.connect(c.destination);
     listMics();
@@ -185,7 +194,7 @@ pre{margin:0;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:8
     if (keep && devs.some(d => d.deviceId === keep)) micSel.value = keep;
     else if (stream) { const cur = stream.getAudioTracks()[0].getSettings().deviceId; if (cur) micSel.value = cur; }
   }
-  micSel.onchange = () => { stream && stream.getTracks().forEach(t => t.stop()); stream = null; openMic(); };
+  micSel.onchange = () => { closeMic(); openMic(); };
   (function meter() {
     if (analyser) {
       const d = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(d);
