@@ -72,10 +72,8 @@ GAMES = [
     ("dont-step-on-a-crack", "Don't Step on a Crack", "Every crack you step on folds Mom up a little more.", "Play in your browser",
      # the Mom Cam is in the cover's top-left corner, so the crop sits near the left edge
      None, {"cover": ("dont-step-on-a-crack.png", 0.18)}),
-    # the title screen (title.js) as an upright phone shows it: the logo over RugCo Tower's roof and p(Loom)'s eye,
-    # a 4:3 crop of the top of its canvas
     ("unruggabull-ii", "Unruggabull II", "Climb RugCo Tower. Free the Unrugged. Beat SHRED-O.", "Play in your browser",
-     None, {"screenshot": True, "selector": ".ttl canvas", "crop": (0, 0.02, 1, 0.315), "viewport": (420, 1000), "title_px": 34}),
+     None, {"cover": ("unruggabull-ii.png", 0.5)}),
     # its own card, the poster: the RugCo Empire painting from the title screen, the wordmark and "NOW ON MOBILE"
     ("unruggabull-remastered", "Unruggabull Remastered", "The original Unruggabull, now on phones.", "Play in your browser",
      None, {"card": "unruggabull-remastered.html"}),

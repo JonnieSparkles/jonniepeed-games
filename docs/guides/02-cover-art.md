@@ -81,5 +81,6 @@ Size: 1536×1024 landscape. Keep the title and the hero inside the central 4:3 a
 | Stick Army | ballpoint on lined notebook paper | hand-lettered in pen, STICK in blue and ARMY in red | the turret blasting into the sky, a trooper landing on the trampoline | centred |
 | Don't Step on a Crack | painted sidewalk, seen from above | chalked on the slab, with the crack running through CRACK | your sneakers at the crack, Mom glaring from the Mom Cam | `0.18`, to keep the top-left Mom Cam |
 | Thimbleful | painterly, with pixel texture | a cross-stitch sampler with needle and thread | the explorer holding up her thimble under the sly watering can | centred |
+| Unruggabull II | 16-bit pixel art, arcade marquee | the game's logo in the sky: orange-to-gold, thick outline, a glint on the II | him from behind in RugCo Alley, facing the tower and p(Loom)'s eye | centred |
 
 Unruggabull lives in its own repo, and its shelf thumbnail is already title art.
