@@ -1402,7 +1402,7 @@ var UnrugRoof = function (core) {
   const noop = () => {};
   return {
     id: 'roof', tune: { scroll: 0, aisle: ROOF.aisle, bossHP: ROOF.spools, recharge: ROOF.recharge, move: 0 }, set: { openAir: true, parapet: ROOF.parapetH * core.world(0, 0, 1)[1], reflectZ: core.world(0, 1, 0)[2], rug: 0, rugEdge: 0, end: core.world(0, ROOF.art.edgeZ, 0)[2], backdrop: art.backdrop },
-    lines: { low: false, loomy: 'HELLO THERE, LOOMY.', odds: "LET'S DISCUSS THOSE ODDS.", ohYeah: 'OH YEAH!', notAChance: 'NOT A CHANCE.', zero: 'PROBABILITY: ZERO.' }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
+    lines: { low: false, loomy: 'HELLO, LOOMY.', odds: "LET'S DISCUSS THOSE ODDS.", ohYeah: 'OH YEAH!', notAChance: 'NOT A CHANCE.', zero: 'PROBABILITY: ZERO.' }, label: 'Unruggabull on the open roof of RugCo Tower in a storm, facing p(Loom) across a grid of roof tiles.',
     stageNo, stageNames, newRun, opening: noop, resume: noop, checkpoint: deathCheckpoint,
     update(dt) { if (!afterSpool(dt)) update(dt); }, hold, use: x => { g = x; }, view, lights, draw, glows, overlay, hud,
     aim, shotHits, shotFar: () => false, posOf: o => o, slash, depthMove, blasterOff: () => !!Q && deadBlaster(), dragSteer: () => !!Q && (freeMove() || beamActive()), steer,
