@@ -1,0 +1,163 @@
+{
+ "H": {
+  "seed": 11,
+  "max_s": 50,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"stage\": \"floor13\", \"run\": 11}; D.minHearts = 2;"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 40
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "S": {
+  "seed": 12,
+  "max_s": 40,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"stage\": \"floor13\", \"run\": 12}; D.minHearts = 2;"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "ff",
+    "until": "R.phase === 'wake'",
+    "max": 400,
+    "label": "wake"
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 30
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "F": {
+  "seed": 13,
+  "max_s": 50,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"stage\": \"floor48\", \"run\": 13}; D.minHearts = 2;"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 40
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "E": {
+  "seed": 14,
+  "max_s": 55,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"stage\": \"elevator\", \"run\": 14}; D.minHearts = 2;"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 45
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ },
+ "Z": {
+  "seed": 15,
+  "max_s": 85,
+  "plan": [
+   {
+    "type": "wait",
+    "dur": 0.3
+   },
+   {
+    "type": "js",
+    "code": "D.opts = {\"stage\": \"roof\", \"run\": 15}; D.minHearts = 2;"
+   },
+   {
+    "type": "start"
+   },
+   {
+    "type": "capture",
+    "on": true
+   },
+   {
+    "type": "wait",
+    "dur": 75
+   },
+   {
+    "type": "capture"
+   },
+   {
+    "type": "end"
+   }
+  ]
+ }
+}

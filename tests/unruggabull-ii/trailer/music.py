@@ -1,0 +1,59 @@
+"""The full trailer's music: all the game's own, recorded offline from its audio.js (chip.py) on grid.py's beats.
+
+- Saga II (the roof's music) from its intro through one verse into its chorus (I, V, C), cut dead on the chorus's last
+  bar line, as the game's own roof cuts it;
+- p(Loom)'s HELLO, UNRUGGABULL. over the intro, in its recorded voice;
+- LET'S GO! after the odds, then the title theme's verse (taken from bar 5 of a recording from the top, as the
+  teaser lands its logo) with thunder, fading out at the end.
+The game's sound effects and voices in the footage come from the takes themselves (cut.py mixes them in).
+"""
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+from scipy.io import wavfile
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import chip  # noqa: E402
+import grid as G  # noqa: E402
+
+SR = 48000
+
+
+def _wav(p):
+    return wavfile.read(str(p))[1].T.astype(np.float64)
+
+
+def render(path):
+    path = Path(path); cache = path.parent / 'music-parts'; cache.mkdir(exist_ok=True)
+    n = int(G.DUR * SR); mix = np.zeros((2, n))
+    # Saga II, I V C, all its stems
+    p = cache / 'saga.wav'
+    if not p.is_file():
+        js = ("const A = UnrugRoofMusic.roofA; UnrugSound.registerTrack('trailerSaga', Object.assign({}, A, { order: ['I', 'V', 'C'], loop: 0, "
+              "startPattern: 'I', name: 'Saga II, for the trailer' }));")   # the roof starts it on its verse; here, the top
+        chip.record('trailerSaga', G.STOP + 1, p, extra_js=js)
+    s = _wav(p)[:, :int(G.STOP * SR)]
+    f = int(.02 * SR); s[:, -f:] *= np.linspace(1, 0, f)
+    mix[:, :s.shape[1]] += s
+    music_rms = np.sqrt(np.mean(s[:, int(G.MONT * SR):] ** 2))
+    # the theme's verse under the cover
+    p = cache / 'theme.wav'
+    if not p.is_file():
+        chip.record('theme', 4 * G.BAR + G.DUR - G.TL + .5, p)
+    th = _wav(p)[:, int(round(4 * G.BAR * SR)):][:, :n - int(G.TL * SR)]
+    fi = int(.004 * SR); th[:, :fi] *= np.linspace(0, 1, fi)
+    th *= music_rms / (np.sqrt(np.mean(th[:, :int(3 * SR)] ** 2)) + 1e-9)   # as loud as the chorus it follows
+    mix[:, int(G.TL * SR):int(G.TL * SR) + th.shape[1]] += th
+    # p(Loom)'s hello over the intro (its recorded voice), LET'S GO and the thunder under the cover
+    cues = [(G.BAR + .12, 'UnrugSound.loomVoice("HELLO, UNRUGGABULL.")'), (G.GO, "UnrugSound.voice('go')"),
+            (G.TL, "UnrugSound.play('thunder', 1.3)")]
+    p = cache / 'cues.wav'
+    chip.record(None, G.DUR + .5, p, extra_js=' '.join('setTimeout(() => %s, %d);' % (js, round(t * 1000)) for t, js in cues),
+                trim=False, loom=True)
+    x = _wav(p)[:, :n]
+    mix[:, :x.shape[1]] += x * .8
+    f = int(1.2 * SR); mix[:, -f:] *= np.linspace(1, 0, f) ** 2
+    wavfile.write(str(path), SR, (mix / max(1e-9, np.abs(mix).max()) * .9).T.astype(np.float32))

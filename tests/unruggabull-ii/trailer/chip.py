@@ -27,7 +27,9 @@ SCRIPTS = ['bull.js', 'sprites.js', 'art.js', 'music-roof.js', 'music-floor.js',
            'music-stairs.js', 'voice.js', 'audio.js']
 
 
-def record(track, seconds, out, extra_js='', trim=True):
+def record(track, seconds, out, extra_js='', trim=True, loom=False):
+    """loom: load voice-loom.js too, so p(Loom) talks in its recorded voice (SAM through the choir) as in the game
+    since Nov 6; the teaser was made before that, with its blip voice."""
     from playwright.sync_api import sync_playwright
     class Quiet(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *a):
@@ -35,7 +37,8 @@ def record(track, seconds, out, extra_js='', trim=True):
     handler = functools.partial(Quiet, directory=str(ROOT / 'site'))
     srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    page_html = '<!doctype html><body>' + ''.join('<script src="/unruggabull-ii/%s"></script>' % s for s in SCRIPTS) + '</body>'
+    scripts = SCRIPTS[:-1] + ['voice-loom.js', 'audio.js'] if loom else SCRIPTS
+    page_html = '<!doctype html><body>' + ''.join('<script src="/unruggabull-ii/%s"></script>' % s for s in scripts) + '</body>'
     try:
         with sync_playwright() as pw:
             b = pw.chromium.launch(args=['--autoplay-policy=no-user-gesture-required'])

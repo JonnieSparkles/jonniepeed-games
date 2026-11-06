@@ -1,0 +1,6 @@
+{"page": "unruggabull-ii/", "viewport": [1920, 1080], "fps": 30, "hook": "draw",
+ "script": "unruggabull-ii/game.js", "inject_before": "  start();", "director": "director.js",
+ "canvas": {"selector": "#c", "upscale": 4}, "settle_ms": 2500,
+ "audio": {"live": true},
+ "scripts": {"bot": "../bot.js", "balance": "../balance.js", "profiles": "../profiles.json"},
+ "quiet_marks": ["ev:", "talk:", "beat:"]}

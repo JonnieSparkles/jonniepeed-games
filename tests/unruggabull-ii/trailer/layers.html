@@ -1,0 +1,48 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- The full trailer's text layers (tools/trailer/layers.py renders each <template> to a transparent 1920x1080 PNG).
+     Captions are in the game's own 3x5 pixel font, drawn by its art.js (UnrugArt.otxt: outlined) at the game's
+     480x270 and scaled 4x, so they sit on the footage like the game's own text. The end card's line and the
+     studio pill are the house style of the other trailers. -->
+<link rel="stylesheet" href="{{SITE}}assets/fonts/fonts.css">
+<style>
+html,body{margin:0;width:1920px;height:1080px;background:transparent;overflow:hidden}
+#L{position:absolute;inset:0}
+canvas.px{position:absolute;left:0;top:0;width:1920px;height:1080px;image-rendering:pixelated}
+.shade{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.6))}
+.pill{position:absolute;left:1304px;bottom:60px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;white-space:nowrap;
+  background:rgba(22,26,44,.95);color:#fff;border:6px solid #ff9628;border-radius:999px;padding:18px 70px 18px 36px;box-shadow:0 14px 50px rgba(0,0,0,.6);
+  font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700;font-size:84px;letter-spacing:.005em}
+.pill img{width:120px;height:132px;image-rendering:pixelated}
+</style>
+<script src="{{SITE}}unruggabull-ii/bull.js"></script>
+<script src="{{SITE}}unruggabull-ii/sprites.js"></script>
+<script src="{{SITE}}unruggabull-ii/art.js"></script>
+</head><body>
+<div id="L"></div>
+<!-- a caption: <canvas class="px" data-text="..." data-scale="3" data-x="12" data-y="244" data-align="left" data-col="#fff1dc">, in the
+     game's 480x270 pixels; the bottom corner clear of him (the ride's on the right: he fights from the left) -->
+<template id="c-hall"><canvas class="px" data-text="FREE THE UNRUGGED." data-scale="3" data-x="12" data-y="244" data-align="left"></canvas></template>
+<template id="c-f48"><canvas class="px" data-text="SHUT DOWN PRODUCTION." data-scale="3" data-x="12" data-y="244" data-align="left"></canvas></template>
+<template id="c-ride"><canvas class="px" data-text="HOLD THE ELEVATOR." data-scale="3" data-x="468" data-y="244" data-align="right"></canvas></template>
+<template id="c-roof"><canvas class="px" data-text="TAKE THE ROOF." data-scale="3" data-x="12" data-y="244" data-align="left"></canvas></template>
+<template id="logo"><canvas class="px" data-logo="1" data-y="120"></canvas></template>
+<template id="play"><canvas class="px" data-text="PLAY NOW" data-scale="5" data-x="326" data-y="168" data-col="#ffc53a" data-box="1"></canvas></template>
+<template id="pill"><div class="shade"></div><div class="pill"><img src="{{SITE}}assets/mark-pixel-dark.png" alt=""><span>jonniepeed.games</span></div></template>
+<script>
+// draw each caption canvas as it's put into #L: the game's font at 480x270, outlined, centred
+new MutationObserver(() => {
+  for (const c of document.querySelectorAll('#L canvas[data-text], #L canvas[data-logo]')) {
+    if (c.__drawn) continue; c.__drawn = true;
+    c.width = 480; c.height = 270;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    if (c.dataset.logo) { const L = UnrugArt.logo(); g.drawImage(L, Math.round(240 - L.width / 2), Math.round(+c.dataset.y - L.height / 2)); continue; }
+    if (c.dataset.box) {   // the game's caption box behind it
+      const sc = +c.dataset.scale, w = UnrugArt.textWidth(c.dataset.text, sc), x = +c.dataset.x, y = +c.dataset.y;
+      g.fillStyle = '#1a1418'; g.fillRect(Math.round(x - w / 2) - 2 * sc, y - 2 * sc, w + 4 * sc, 9 * sc);
+      g.fillStyle = '#ff9628'; g.fillRect(Math.round(x - w / 2) - 2 * sc, y - 2 * sc + 9 * sc, w + 4 * sc, 1);
+    }
+    UnrugArt.otxt(g, c.dataset.text, c.dataset.x ? +c.dataset.x : 240, +c.dataset.y, c.dataset.col || '#fff1dc', +c.dataset.scale, c.dataset.align || 'center');
+  }
+}).observe(document.getElementById('L'), { childList: true, subtree: true });
+</script>
+</body></html>
