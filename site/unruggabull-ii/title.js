@@ -109,8 +109,8 @@ var UnrugTitle = (function () {
     function closeBoard() { if (board) shutAt = t(); board = false; seeAll = false; scrollY = 0; }
     function openBoard() { credits = false; board = true; boardAt = t(); pan0 = Math.min(pan0, now() - 5); seeAll = false; scrollY = 0; BUTTONS.all.dataset.label = 'Top 50'; BUTTONS.all.setAttribute('aria-label', 'Top 50'); if (act.online) act.online(MODES[mode].id); }
     // the credits open like the board (the panel or the band grows), saying who made it and how (owner, Oct 17)
-    const CREDITS = ['UNRUGGABULL II', 'BY JONNIESPARKLES', 'BUILT WITH CHATBOTS.'];
-    function openCredits() { credits = true; board = true; boardAt = t(); pan0 = Math.min(pan0, now() - 5); say.textContent = 'Credits. Unruggabull II, by JonnieSparkles. Built with chatbots.'; }
+    const CREDITS = ['UNRUGGABULL II', 'BY JONNIESPARKLES'];   // owner, Nov 6: just these two
+    function openCredits() { credits = true; board = true; boardAt = t(); pan0 = Math.min(pan0, now() - 5); say.textContent = 'Credits. Unruggabull II, by JonnieSparkles.'; }
     function pick(i) {
       if (locked(i)) { press('mode' + i); beep('empty'); deniedAt = t(); say.textContent = MODES[i].name + ', locked. ' + MODES[i].line + ' Beat Raging Bull.'; return; }
       press('mode' + i); beep('tick'); deniedAt = -9;
