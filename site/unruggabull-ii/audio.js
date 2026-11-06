@@ -683,7 +683,16 @@ window.UnrugSound = (function () {
     laser: t => { osc(sfxBus, 'sawtooth', 98, t, .42, .09, { to: 82, sustain: .5 }); noiseHit(sfxBus, t, .42, .1, 'bandpass', 900, 1); },
     stitch: t => { osc(sfxBus, 'square', 1200, t, .05, .03, { to: 300 }); noiseHit(sfxBus, t, .08, .06, 'bandpass', 3000, 2); },
     eyeOpen: t => { noiseHit(sfxBus, t, .5, .08, 'bandpass', 4500, 1, 1500); osc(sfxBus, 'triangle', hz(88), t, .25, .07); osc(sfxBus, 'triangle', hz(93), t + .07, .25, .05); },
-    eyeHit: (t, n) => { osc(sfxBus, 'square', 260 + (n || 0) * 34, t, .08, .08, { to: 180 + (n || 0) * 30 }); noiseHit(sfxBus, t, .06, .07, 'highpass', 3000); },
+    // a hit on the open eye: the climbing blip, with a body under it (owner, Nov 6: the fight needs more hit sounds)
+    eyeHit: (t, n) => { osc(sfxBus, 'square', 260 + (n || 0) * 34, t, .08, .08, { to: 180 + (n || 0) * 30 }); noiseHit(sfxBus, t, .06, .07, 'highpass', 3000);
+      osc(sfxBus, 'sine', 120, t, .09, .14, { to: 62 }); noiseHit(sfxBus, t, .05, .1, 'lowpass', 900); },
+    // a spool cracking as it takes damage, a third and two thirds of the way: a wood crack and a creak of thread
+    spoolCrack: (t, n) => { noiseHit(sfxBus, t, .07, .32, 'bandpass', 1700, 2); noiseHit(sfxBus, t + .01, .16, .2, 'lowpass', 420);
+      osc(sfxBus, 'square', n > 1 ? 120 : 150, t + .04, .22, .05, { to: n > 1 ? 70 : 95 }); twang(t + .03, n > 1 ? 150 : 210, .12); },
+    // the loom's frame groaning between hits in the fight, louder each phase: a low wooden groan and a few ticks
+    loomCreak: (t, n) => { const v = .7 + .3 * (n || 1);
+      osc(sfxBus, 'sawtooth', 64, t, .6, .035 * v, { to: 47, sustain: .8 }); osc(sfxBus, 'triangle', 96, t + .05, .5, .03 * v, { to: 82, sustain: .8 });
+      for (const d of [0, .13, .27, .44]) noiseHit(sfxBus, t + d, .025, .07 * v, 'bandpass', 2300, 3); },
     clang: t => { osc(sfxBus, 'square', 1900, t, .06, .035); osc(sfxBus, 'triangle', 2530, t, .05, .035); },
     slam: t => { osc(sfxBus, 'square', 90, t, .25, .16, { to: 40 }); noiseHit(sfxBus, t, .2, .22, 'lowpass', 500); },
     setPiece: t => { [73.4, 110, 146.8].forEach((f, i) => osc(sfxBus, 'sawtooth', f, t + i * .02, 1.1, .07, { sustain: .4 })); noiseHit(sfxBus, t, .9, .22, 'lowpass', 600, 1, 3000); },
