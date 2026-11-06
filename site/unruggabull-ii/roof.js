@@ -227,7 +227,7 @@ var UnrugRoof = function (core) {
       if (!musicCut && R.talk && R.talk.t >= R.talk.times[R.talk.text.length - 1]) { musicCut = true; Snd.roofCue('cut'); }
       if (!Q.silenced && (!R.talk || R.talk.t >= Q.accounted)) { Q.silenced = true; Snd.music(null); }
       if (!Q.silenced) return;
-      if (!Q.resetT) tip('reset', 'SLASH IT BACK');
+      if (!Q.resetT) tip('reset', 'SLASH THE CARPET');
       Q.resetT += dt;
       Q.stitch = clamp((Q.resetT - C.stitchAfter) / C.stitch, 0, 1);
       Q.odds = Q.realOdds + (ROOF.odds - Q.realOdds) * Q.stitch;
