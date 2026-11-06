@@ -29,6 +29,7 @@
     check(stop && Math.abs(stop.t - T.cut) < .02 && heavy && heavy.id === 'hornsUp' && Math.abs(heavy.t - T.reel) < .02, 'the muzak stops as p(Loom) takes the cable; Horns Up turns heavy on the reel');
     check(['rideCreak', 'rideWind', 'rideSlack', 'rideFall', 'rideBrake', 'rideBurst', 'rideHook', 'rideReel'].every(s => sounds.includes(s)), 'the cable, the drop, the brakes and the threads sound');
     check(['elevator_eye', 'elevator_cut', 'elevator_snap', 'elevator_fall', 'elevator_threads', 'elevator_heavy'].every(k => events.filter(e => e.type === k).length === 1), 'each beat once');
+    check(R.events.said && R.events.said.ohNo, 'the car drops: OH NO.');
     // he can't act while the camera's above the car; he can after
     fresh(); at(T.cut + .5);
     const u0 = bull.u, shots0 = R.shots.length; keys.kbRight = true; press('shoot'); tick(.2); keys.kbRight = false;

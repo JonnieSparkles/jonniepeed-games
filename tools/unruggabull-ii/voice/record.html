@@ -75,7 +75,7 @@ pre{margin:0;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:8
 <script>
 (function () {
   'use strict';
-  // The script (owner, Nov 6). Keys match LINES in game.js and the floors' own lines; go is from the first game.
+  // The script (owner, Nov 6; five lines added after his first play the same day). Keys match LINES in game.js and the floors' own lines; go is from the first game.
   const SCRIPT = [
     ['Stairwell', 'go', "LET'S GO!", 'Two beats into the stairwell music as the climb starts.'],
     ['Stairwell', 'door', 'OK... HERE WE GO.', "Reaching the 13th Floor's door, out of breath."],
@@ -84,6 +84,7 @@ pre{margin:0;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:8
     ['13th Floor', 'wake', 'PROCESS THIS.', 'SHRED-O wakes with "YOUR RUG HAS BEEN PROCESSED." and he answers.'],
     ['13th Floor', 'again', 'ROUND TWO.', 'Same moment after a continue, answering "BACK FOR SECONDS?"'],
     ['13th Floor', 'smash', 'OUT OF OFFICE.', 'He smashes SHRED-O with a rally return.'],
+    ['13th Floor', 'disarm', 'GIVE THAT BACK!', "Phase 3: SHRED-O's surge pulls the blaster out of his hands."],
     ['13th Floor', 'rugged', 'WHOA!', 'He gets rugged. Cuts off whatever SHRED-O is saying.'],
     ['13th Floor', 'clear', 'THE 13TH FLOOR: UNRUGGED.', 'The floor is cleared.'],
     ['Anywhere it happens', 'spread', "NOW WE'RE TALKING.", 'He picks up a Spread Shot.'],
@@ -96,7 +97,11 @@ pre{margin:0;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:8
     ['48th Floor', 'f48line', 'ONE DOWN.', 'He takes out the first line.'],
     ['48th Floor', 'f48panic', 'OVERTIME, HUH?', 'Second line down, and the factory panics.'],
     ['48th Floor', 'salvation', 'SALVATION.', 'The two souls tear free of p(Loom), salute him and rise. Quiet, a little tired.'],
+    ['Long ride', 'ohNo', 'OH NO.', 'p(Loom) cuts the cable and the car drops.'],
+    ['Roof and ending', 'ohYeah', 'OH YEAH!', 'He snaps the first spool and p(Loom) says "NO CHANGE."'],
+    ['Roof and ending', 'notAChance', 'NOT A CHANCE.', 'Knocked down after "STAY DOWN.", the first soul comes back and he gets up.'],
     ['Roof and ending', 'odds', "LET'S DISCUSS THOSE ODDS.", 'After p(Loom) says "THAT OUTCOME WAS NOT IN THE MODEL."'],
+    ['Roof and ending', 'zero', 'PROBABILITY: ZERO.', 'p(Loom) is finished: its threads snap, the eye goes dark, and in the beat of silence as dawn opens. Dry.'],
     ['Roof and ending', 'comeOn', 'OH, COME ON.', 'The ending, as p(Loom) gets away.']
   ].map(([stage, key, text, cue], i) => ({ stage, key, text, cue, n: i + 1 }));
   const TODO = SCRIPT.filter(L => L.key !== 'go').length;

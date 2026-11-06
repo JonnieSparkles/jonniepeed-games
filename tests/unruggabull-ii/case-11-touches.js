@@ -13,6 +13,12 @@
   R.talk = { text: 'X', who: 'shredder', t: 0, times: [0], total: 9 };
   check(bark('dark') === 0 && !R.bark && !R.events.said.dark, 'never over the Shredder');
   R.talk = null;
+  // one line at a time: a second waits for the first, then plays (owner, Nov 6: coffee over the lights)
+  bark('dark'); bark('coffee');
+  check(R.bark && R.bark.key === 'dark' && R.barkNext && R.barkNext.key === 'coffee', 'a second line waits while he is talking');
+  let heard = false; for (let i = 0; i < 60 * 4 && !heard; i++) { update(1 / 60); heard = !!(R.bark && R.bark.key === 'coffee'); }
+  check(heard && !R.barkNext, 'and comes once he has finished');
+  R.bark = null;
 
   // freed souls fly into the meter: the count shown catches up as they land, and the meter pulses
   R.cubs = []; R.flies = []; R.projs = []; R.nextFly = 1e9; R.nextCubW = R.dist + 1e9;

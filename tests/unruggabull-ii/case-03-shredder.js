@@ -30,7 +30,8 @@
 
   b.hp = 60; update(1 / 60);
   check(b.ph === 2, 'phase two below two thirds');
-  R.projs = []; R.talk = null; b.atk = 0; b.atkN = 0; update(1 / 60);
+  // no rally on (whether one has started by now depends on how long his recorded lines run)
+  R.projs = []; R.talk = null; b.rally = null; b.atk = 0; b.atkN = 0; update(1 / 60);
   check(R.projs.filter(p => p.kind === 'staple').length === 4, 'phase two spits staple fans with one gap');
   R.projs = []; b.hp = 30; update(1 / 60);
   check(b.ph === 3, 'phase three below a third');

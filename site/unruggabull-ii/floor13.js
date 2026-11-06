@@ -12,7 +12,7 @@ var UnrugFloor13 = function (core) {
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
     rnd, rr, fxr, emit, addPickup, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
     updateShots, updateFx, muzzleXY, sparks, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
-    bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
+    bark, barkSoon, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     glowLayer, setCheckpoint
   } = core;
@@ -623,6 +623,7 @@ var UnrugFloor13 = function (core) {
     Snd.play('snatch');
     R.fx.push({ k: 'big', text: 'BLASTER GONE!', x: 120, y: 44, t: 0, dur: 1.2 }); R.freeze = Math.max(R.freeze, .12);   // every time, so it can't be missed
     if (!R.events.surgeHint) { R.events.surgeHint = true; talk('CONFISCATED.', 'shredder'); }
+    barkSoon('disarm', 4);   // his answer, once CONFISCATED. is said (owner, Nov 6)
     live('Power surge! SHRED-O pulls the blaster into its mouth. Knock its paper back to wear it down.');
   }
   // The soul puts the blaster back in his hands at the finish, charged.

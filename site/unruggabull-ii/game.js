@@ -143,7 +143,7 @@
       charge: TUNE.charges, rechargeT: 0, heat: 0, hot: false, empty: 0, spread: 0, streak: 0, streakT: 0, bestStreak: 0, freeze: 0,
       pull: { st: 'idle', t: 0, dur: 0, next: 0, count: 0, snd: 0 }, roff: 0, cut: null,
       boss: { hp: TUNE.bossHP, st: 'sleep', ph: 1, atk: 0, atkN: 0, jam: 0, flash: 0, tick: 0, chomp: 0, spit: 0, hitSnd: 0, freed: 0, bar: 0, dark: null },
-      banner: null, talk: null, bark: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
+      banner: null, talk: null, bark: null, barkNext: null, shake: 0, red: 0, endT: 0, continues: 0, events: {},
       shown: 0, meterPulse: 0, pulse: 0, pulseT: 0, ambT: 8,   // cosmetic: souls shown as their wisps land, the low-health pulse, office sounds
       armed: true, roll: null, zap: 0, forms: [],   // the blaster in hand; the rug rolling back; the surge's flash; formations for wipes
       entryHearts
@@ -540,18 +540,27 @@
   // The script (owner, Nov 6) is these plus the floors' own (floor48.js, roof.js); tools/unruggabull-ii/voice/ records them.
   const LINES = {
     start: 'THE 13TH FLOOR. UNLUCKY FOR SOME.', dark: 'WHO TURNED OUT THE LIGHTS?', spread: "NOW WE'RE TALKING.",
-    coffee: 'MMM. COFFEE.', streak: 'ON A ROLL.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', smash: 'OUT OF OFFICE.',
+    coffee: 'MMM. COFFEE.', streak: 'ON A ROLL.', wake: 'PROCESS THIS.', again: 'ROUND TWO.', smash: 'OUT OF OFFICE.', disarm: 'GIVE THAT BACK!',
     low: 'BEEN WORSE. NOT MUCH.', clear: 'THE 13TH FLOOR: UNRUGGED.', rugged: 'WHOA!', wipe: 'CLEAN SWEEP.',
     door: 'OK... HERE WE GO.',   // the stairwell, at the 13th Floor's door, catching his breath
     comeOn: 'OH, COME ON.',   // the ending, as p(Loom) gets away
     go: "LET'S GO!"   // the stairwell, two beats into Flight Risk (recorded: the first game's)
   };
   // Says a line unless it's been said this run or SHRED-O is talking (unless `over` it). Returns how long it takes.
+  // While he's still saying a line, a new one waits for it (one at a time, BARK_WAIT seconds at most, then dropped), so
+  // two of his lines never play over each other (owner, Nov 6: the coffee came during WHO TURNED OUT THE LIGHTS?). A
+  // line said `over` is a story beat that can't wait: it cuts his current line off instead.
+  const BARK_WAIT = 3;
   function bark(key, over) {
     if (floor.lines && floor.lines[key] === false) return 0;
     const said = R.events.said || (R.events.said = {});
     if (said[key] || (R.talk && !over)) return 0;
+    if (R.bark && R.bark.key !== key && R.bark.t < R.bark.total - 1.1) {
+      if (!over) { barkSoon(key); return 0; }
+      Snd.hushLine(); R.bark = null;
+    }
     said[key] = true;
+    if (over || R.barkNext && R.barkNext.key === key) R.barkNext = null;   // a story beat drops whatever was waiting
     const text = floor.lines && floor.lines[key] || LINES[key], rec = Snd.voiceLength(key);
     // recorded: the caption types out over the first two thirds of the clip
     const plan = rec ? { times: [...text].map((c, i) => i / text.length * rec * .66), total: rec } : Snd.talkTimes(text, 'bull');
@@ -560,6 +569,9 @@
     live('Unruggabull: ' + text);
     return plan.total;
   }
+  // A line to say once he and whoever's talking have finished (BARK_WAIT seconds at most): a reply, like GIVE THAT
+  // BACK! after SHRED-O's CONFISCATED.
+  function barkSoon(key, wait) { R.barkNext = { key, until: R.t + (wait || BARK_WAIT) }; }   // the newest waits; an older one is dropped
   const lowHealth = () => lowHearts() && (R.phase === 'hall' || R.phase === 'wake' || R.phase === 'boss');
   // Where freed souls fly to: the end of the meter's fill in the hall, the souls counter after.
   function meterSpot() {
@@ -624,6 +636,8 @@
     if (R.banner) { R.banner.t += dt; if (R.banner.t > R.banner.dur) R.banner = R.banner.then || null; }
     if (R.talk) { R.talk.t += dt; if (R.talk.t > R.talk.total) R.talk = null; }
     if (R.bark) { R.bark.t += dt; if (R.bark.t > R.bark.total) R.bark = null; }
+    if (R.barkNext && R.t > R.barkNext.until) R.barkNext = null;
+    if (R.barkNext && !(R.bark && R.bark.t < R.bark.total - 1.1) && !R.talk) { const n = R.barkNext; R.barkNext = null; bark(n.key); }
     if (floor.id === 'floor13' && R.phase === 'hall' && R.t > 5.2) bark('start');
     // one heart left: a heartbeat
     R.pulse = Math.max(0, R.pulse - dt);
@@ -634,7 +648,7 @@
   function die() {
     if (floor.checkpoint) floor.checkpoint();
     R.statsStage = stageNo();
-    R.phase = 'dead'; R.phaseT = 0; R.hearts = 0; R.bark = null;
+    R.phase = 'dead'; R.phaseT = 0; R.hearts = 0; R.bark = null; R.barkNext = null;
     emit('game_over', { cause: R.lastCause || 'unknown', score: R.souls });
     floor.endPull();
     Snd.music(null); Snd.play('over'); Snd.play('yank');
@@ -1860,7 +1874,7 @@
     HY, ZN, sc, PX, FY, CY, YH, BACK, mod1, clamp, quadF, TUNE,
     rnd, rr, fxr, emit, addPickup, healing, overlaps, moveDir, shooting, onRunner, updateBull, updatePickups, updateFlies,
     updateShots, updateFx, muzzleXY, sparks, overheat, sputter, hot, hurtBull, die, endRun, free, bonusSoul, killFly, poof, popText,
-    bark, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
+    bark, barkSoon, talk, live, duckHint, shadow, tinted, drawBull, drawFly, drawPickup, drawShot, drawFx, drawWisp,
     drawBig, drawSoulsCounter, world, WZ,
     g, travel, input, twin, keys, press, state: () => state, checkpoint: () => checkpoint, PW, PH, PIC, fire: () => fire, slashHits: () => slashHits, lowHealth: () => lowHealth(), STEP: 1 / 60, seedState: () => seed, runSeed: () => RUN.seed, glowLayer: () => GLOW, flatRenderer,
     mode: () => RUN.mode, betweenHeals, hat: () => RUN.hat, giveHat: kind => { RUN.hat = kind || null; }, missHat: m => { RUN.hatMiss = m || null; }, setCheckpoint: v => { checkpoint = Object.assign({ banked: R.banked, floorStart: R.floorStart, entryHearts: R.entryHearts }, v); }
