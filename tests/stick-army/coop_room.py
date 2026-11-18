@@ -53,10 +53,10 @@ with Phones() as phones:
     for word in ('Meatball', 'Meatball', 'Sausage'):
         host.click('#coopScreen button:text-is("%s")' % word)
     wait(host, "() => document.getElementById('coopStart')")
-    check(card(host) == 'Send the link' and host.is_disabled('#coopStart'), 'the link card waits for a friend, Start greyed')
+    check(card(host) == 'Send the code' and host.is_disabled('#coopStart'), 'the link card waits for a friend, Start greyed')
     link = host.text_content('.coop-link')
     check('#' in link, 'the link carries the match: ' + link)
-    code = host.text_content('#coopCode').replace('Code:', '').strip()
+    code = host.text_content('#coopCode').strip()
     check(len(code) == 5 and code.isalpha() and code.lower() in link, 'and a short code to type in: ' + code)
 
     # The friend joins by typing the code (for phones whose messages won't send a link).
@@ -68,8 +68,7 @@ with Phones() as phones:
     guest.fill('#coopCodeIn', 'abc')
     guest.click('#coopJoin')
     check('5 letters' in guest.text_content('#coopScreen'), 'a short code: try again')
-    guest.fill('#coopCodeIn', code.lower())
-    guest.click('#coopJoin')
+    guest.fill('#coopCodeIn', code.lower())   # the fifth letter joins
     wait(guest, "() => { const o = document.getElementById('coopScreen'); return o && !o.hidden && /Waiting for your/.test(o.textContent); }")
     check(not guest.is_hidden('#titleScreen'), "the guest waits on the title's demo")
     wait(host, "() => !document.getElementById('coopStart').disabled")
