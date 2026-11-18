@@ -5,7 +5,7 @@ Needs the site and a local rooms Worker (docs/guides/05-rooms.md, Testing):
     (cd rooms && wrangler dev --local --port 8788 --var GHOST_MS:6000 --var LEAVE_GRACE_MS:500)
     python3 tests/stick-army/coop_room.py
 
-Checks: the secret and the link card, the guest's waiting card, Start, the guest drawing the host's game, the guest's
+Checks: the secret and the link card, joining with the short code, the guest's waiting card, Start, the guest drawing the host's game, the guest's
 trigger and calls and pause reaching the host, the guest dropping out and coming back (and a reload), the host
 dropping out and coming back, and no page errors.
 """
@@ -47,7 +47,7 @@ with Phones() as phones:
     check(card(host) == 'Play with a friend', 'Play with a friend asks for the secret')
     # Three words: Meatball, Meatball, Sausage; a wrong one starts over.
     host.click('#coopScreen button:text-is("Meatball")')
-    wrong = host.evaluate("() => [...document.querySelectorAll('#coopScreen button')].map(b => b.textContent).find(t => t !== 'Meatball' && t !== 'Cancel')")
+    wrong = host.evaluate("() => [...document.querySelectorAll('#coopScreen button')].map(b => b.textContent).find(t => t !== 'Meatball' && t !== 'Cancel' && t !== 'I have a code')")
     host.click('#coopScreen button:text-is("%s")' % wrong)
     check('Nope' in host.text_content('#coopScreen'), 'a wrong second word: nope, start over')
     for word in ('Meatball', 'Meatball', 'Sausage'):
@@ -56,10 +56,20 @@ with Phones() as phones:
     check(card(host) == 'Send the link' and host.is_disabled('#coopStart'), 'the link card waits for a friend, Start greyed')
     link = host.text_content('.coop-link')
     check('#' in link, 'the link carries the match: ' + link)
+    code = host.text_content('#coopCode').replace('Code:', '').strip()
+    check(len(code) == 5 and code.isalpha() and code.lower() in link, 'and a short code to type in: ' + code)
 
+    # The friend joins by typing the code (for phones whose messages won't send a link).
     guest = phones.new()
     bridge(guest)
-    guest.goto(link)
+    guest.goto(phones.url('stick-army/'))
+    guest.click('#coopBtn')
+    guest.click('#coopHaveCode')
+    guest.fill('#coopCodeIn', 'abc')
+    guest.click('#coopJoin')
+    check('5 letters' in guest.text_content('#coopScreen'), 'a short code: try again')
+    guest.fill('#coopCodeIn', code.lower())
+    guest.click('#coopJoin')
     wait(guest, "() => { const o = document.getElementById('coopScreen'); return o && !o.hidden && /Waiting for your/.test(o.textContent); }")
     check(not guest.is_hidden('#titleScreen'), "the guest waits on the title's demo")
     wait(host, "() => !document.getElementById('coopStart').disabled")
