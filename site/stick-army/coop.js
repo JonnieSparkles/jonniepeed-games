@@ -333,9 +333,14 @@ window.StickArmyCoop = function (w) {
     '.coop-card .nope { color: var(--enemy); }',
     '.coop-card.shake { animation: coop-shake .35s; } @keyframes coop-shake { 25% { translate: -6px 0; } 75% { translate: 6px 0; } }',
     '@media (prefers-reduced-motion: reduce) { .coop-card.shake { animation: none; } }',
-    '.coop-code { margin: 0; font-size: 34px; letter-spacing: 4px; color: var(--ink); user-select: all; }',
-    '.coop-code-in { font: 34px var(--font-hand); letter-spacing: 6px; text-transform: uppercase; text-align: center; width: 7em; max-width: 100%;',
-    '  padding: 2px 8px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 10px 4px 10px 4px; }',
+    '.coop-code-box { display: flex; flex-direction: column; align-items: center; margin: 2px 0; }',
+    '.coop-code-cap { font-size: 16px; color: var(--ink-soft); }',
+    '.coop-code { margin: 0; font-size: 44px; line-height: 1; letter-spacing: 8px; padding-left: 8px; color: var(--ally); user-select: all; }',
+    '.coop-slots { position: relative; display: flex; justify-content: center; gap: 10px; margin: 6px 0 2px; cursor: text; }',
+    '.coop-slot { width: 36px; height: 50px; font-size: 42px; line-height: 50px; text-align: center; color: var(--ally); border-bottom: 3px dashed var(--ink); }',
+    '.coop-slot.next { border-bottom-color: var(--ally); border-bottom-style: solid; }',
+    '.coop-code-in { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; border: 0; padding: 0; caret-color: transparent; }',
+    '.coop-alt { margin: 2px 0 0; font-size: 18px; color: var(--ink-soft); } .coop-alt .undo { margin: 0; max-width: none; font-size: 18px; }',
     '.coop-link { margin: 0; font-size: 15px; line-height: 1.2; color: var(--ink-soft); word-break: break-all; user-select: all; }',
     '.coop-table { width: 100%; border-collapse: collapse; font-size: 19px; }',
     '.coop-table th { font-weight: 400; text-align: right; }',
@@ -401,10 +406,21 @@ window.StickArmyCoop = function (w) {
   // Joining with a friend's code: no secret needed, as with a link.
   function askCode(wrong) {
     leaveRoom();
+    // Five blanks in pencil over an input you can't see (it still takes the typing, the keyboard and pasting).
+    var box = el('label', 'coop-slots'), slots = [];
+    for (var i = 0; i < SHORT_LEN; i++) slots.push(box.appendChild(el('span', 'coop-slot')));
     var input = el('input', 'coop-code-in'); input.id = 'coopCodeIn';
     input.maxLength = SHORT_LEN; input.autocomplete = 'off'; input.spellcheck = false;
     input.setAttribute('autocapitalize', 'characters'); input.setAttribute('aria-label', 'Code');
-    input.placeholder = 'ABCDE';
+    box.appendChild(input);
+    function show() {
+      var v = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, SHORT_LEN);
+      if (input.value !== v) input.value = v;
+      slots.forEach(function (sl, i) { sl.textContent = v[i] || ''; sl.classList.toggle('next', i === v.length); });
+      return v;
+    }
+    input.addEventListener('input', function () { if (show().length === SHORT_LEN) go(); });
+    input.addEventListener('focus', show);
     function go() {
       var v = input.value.toUpperCase().replace(/[^A-Z]/g, '');
       if (v.length !== SHORT_LEN) return askCode(true);
@@ -417,7 +433,8 @@ window.StickArmyCoop = function (w) {
     }
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
     var line = el('p', 'tag' + (wrong ? ' nope' : ''), wrong ? 'Codes are ' + SHORT_LEN + ' letters.' : "Type the code on your friend's screen.");
-    showCard(['Join with a ', 'code'], [line, input], [{ label: 'Join', fn: go, id: 'coopJoin' }, { label: 'Cancel', ghost: true, fn: cancel }], 'secret');
+    showCard(['Join with a ', 'code'], [line, box], [{ label: 'Join', fn: go, id: 'coopJoin' }, { label: 'Cancel', ghost: true, fn: cancel }], 'secret');
+    show();
     input.focus({ preventScroll: true });
   }
   function askSecret(wrong, got) {
@@ -434,8 +451,14 @@ window.StickArmyCoop = function (w) {
         if (step + 1 < SECRET.length) return askSecret(false, got.concat([word]));
         openRoom();
       } };
-    }).concat(step ? [] : [{ label: 'I have a code', ghost: true, fn: function () { askCode(false); }, id: 'coopHaveCode' }])
-      .concat([{ label: 'Cancel', ghost: true, fn: cancel }]), 'secret');
+    }).concat([{ label: 'Cancel', ghost: true, fn: cancel }]), 'secret');
+    // Joining a friend's match needs no secret: a pencil link under the words, so it doesn't read as a fourth word.
+    if (!step && ui) {
+      var alt = el('p', 'coop-alt', 'Joining a friend? '), have = el('button', 'undo', 'I have a code');
+      have.type = 'button'; have.id = 'coopHaveCode';
+      have.addEventListener('click', function () { if (w.sound.play) w.sound.play('click'); askCode(false); });
+      alt.appendChild(have); ui.card.appendChild(alt);
+    }
     if (wrong && ui) { var c = ui.card; c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); }
   }
   function openRoom() {
@@ -456,8 +479,13 @@ window.StickArmyCoop = function (w) {
     if (role !== 'host' || started) return;
     var link = el('p', 'coop-link', room ? room.link : '');
     var short = room ? shortOf(room.code) : '';
-    var codeLine = short ? el('p', 'coop-code', 'Code: ' + short) : null;
-    if (codeLine) codeLine.id = 'coopCode';
+    var codeLine = null;
+    if (short) {
+      codeLine = el('div', 'coop-code-box');
+      codeLine.appendChild(el('span', 'coop-code-cap', 'Your code'));
+      var big = codeLine.appendChild(el('p', 'coop-code', short)); big.id = 'coopCode';
+      link.hidden = true;   // Copy link has it; the code is what a friend reads off the screen
+    }
     // Copy link everywhere (the owner, Oct 11): the phone's share sheet was more in the way than a copy.
     var share = { label: 'Copy link', id: 'coopCopy', fn: function () {
       Rooms.copy(room.link).then(function (r) {
@@ -466,7 +494,7 @@ window.StickArmyCoop = function (w) {
       });
     } };
     share.ghost = friend;
-    showCard(['Send the ', 'link'], [codeLine, short ? 'Or your friend taps "I have a code" and types it.' : null, link, friend ? 'Your friend is here!' : 'Waiting for your friend…',
+    showCard(['Send the ', short ? 'code' : 'link'], [codeLine, link, friend ? 'Your friend is here!' : 'Waiting for your friend…',
       'You get the blue barrel, your friend the green one. You play ' + w.lv().NAME + ', your pick.'],
       [share, { label: 'Start', fn: startMatch, off: !friend, id: 'coopStart' }, { label: 'Cancel', ghost: true, fn: cancel }], 'invite');
   }
