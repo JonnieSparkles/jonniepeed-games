@@ -333,6 +333,9 @@ window.StickArmyCoop = function (w) {
     '.coop-card .nope { color: var(--enemy); }',
     '.coop-card.shake { animation: coop-shake .35s; } @keyframes coop-shake { 25% { translate: -6px 0; } 75% { translate: 6px 0; } }',
     '@media (prefers-reduced-motion: reduce) { .coop-card.shake { animation: none; } }',
+    '.coop-code { margin: 0; font-size: 34px; letter-spacing: 4px; color: var(--ink); user-select: all; }',
+    '.coop-code-in { font: 34px var(--font-hand); letter-spacing: 6px; text-transform: uppercase; text-align: center; width: 7em; max-width: 100%;',
+    '  padding: 2px 8px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 10px 4px 10px 4px; }',
     '.coop-link { margin: 0; font-size: 15px; line-height: 1.2; color: var(--ink-soft); word-break: break-all; user-select: all; }',
     '.coop-table { width: 100%; border-collapse: collapse; font-size: 19px; }',
     '.coop-table th { font-weight: 400; text-align: right; }',
@@ -392,6 +395,31 @@ window.StickArmyCoop = function (w) {
   // decoys; a wrong pick starts over. The room itself is opened with its own secret (rooms/, "meatball"); the three
   // steps are this page's.
   var SECRET = ['Meatball', 'Meatball', 'Sausage'];
+  // Short codes: five letters, none that look alike (no I, L, O). The room's code is SHORT_PREFIX + them, lowercase.
+  var SHORT_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ', SHORT_LEN = 5, SHORT_PREFIX = 'stickarmy';
+  function shortOf(code) { return code && code.indexOf(SHORT_PREFIX) === 0 ? code.slice(SHORT_PREFIX.length).toUpperCase() : ''; }
+  // Joining with a friend's code: no secret needed, as with a link.
+  function askCode(wrong) {
+    leaveRoom();
+    var input = el('input', 'coop-code-in'); input.id = 'coopCodeIn';
+    input.maxLength = SHORT_LEN; input.autocomplete = 'off'; input.spellcheck = false;
+    input.setAttribute('autocapitalize', 'characters'); input.setAttribute('aria-label', 'Code');
+    input.placeholder = 'ABCDE';
+    function go() {
+      var v = input.value.toUpperCase().replace(/[^A-Z]/g, '');
+      if (v.length !== SHORT_LEN) return askCode(true);
+      var code = SHORT_PREFIX + v.toLowerCase();
+      history.replaceState(null, '', location.pathname + location.search + '#' + code);
+      role = 'guest';
+      var r = Rooms.join({ game: GAME, code: code });
+      showCard(['Joining your ', 'friend'], ['Connecting…'], [{ label: 'Cancel', ghost: true, fn: leaveToTitle }], 'joining');
+      use(r);
+    }
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+    var line = el('p', 'tag' + (wrong ? ' nope' : ''), wrong ? 'Codes are ' + SHORT_LEN + ' letters.' : "Type the code on your friend's screen.");
+    showCard(['Join with a ', 'code'], [line, input], [{ label: 'Join', fn: go, id: 'coopJoin' }, { label: 'Cancel', ghost: true, fn: cancel }], 'secret');
+    input.focus({ preventScroll: true });
+  }
   function askSecret(wrong, got) {
     leaveRoom();
     got = got || [];
@@ -406,19 +434,30 @@ window.StickArmyCoop = function (w) {
         if (step + 1 < SECRET.length) return askSecret(false, got.concat([word]));
         openRoom();
       } };
-    }).concat([{ label: 'Cancel', ghost: true, fn: cancel }]), 'secret');
+    }).concat(step ? [] : [{ label: 'I have a code', ghost: true, fn: function () { askCode(false); }, id: 'coopHaveCode' }])
+      .concat([{ label: 'Cancel', ghost: true, fn: cancel }]), 'secret');
     if (wrong && ui) { var c = ui.card; c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); }
   }
   function openRoom() {
     showCard(['Play with a ', 'friend'], ['Checking the secret…'], [], 'checking');
     role = 'host';
-    var r = Rooms.open({ game: GAME, max: 2, secret: 'meatball' });
+    // The room's code ends in a short code a friend can type in (for when a link won't send, say a kid's phone
+    // whose messages block links). Its link still works as before.
+    var short = '', abc = SHORT_ABC, bytes = new Uint8Array(SHORT_LEN);
+    crypto.getRandomValues(bytes);
+    for (var i = 0; i < SHORT_LEN; i++) short += abc[bytes[i] % abc.length];
+    var code = SHORT_PREFIX + short.toLowerCase();
+    history.replaceState(null, '', location.pathname + location.search + '#' + code);
+    var r = Rooms.join({ game: GAME, max: 2, secret: 'meatball', code: code });
     store.set('stickarmy.coop.host.' + r.code, '1');
     use(r);
   }
   function invite() {
     if (role !== 'host' || started) return;
     var link = el('p', 'coop-link', room ? room.link : '');
+    var short = room ? shortOf(room.code) : '';
+    var codeLine = short ? el('p', 'coop-code', 'Code: ' + short) : null;
+    if (codeLine) codeLine.id = 'coopCode';
     // Copy link everywhere (the owner, Oct 11): the phone's share sheet was more in the way than a copy.
     var share = { label: 'Copy link', id: 'coopCopy', fn: function () {
       Rooms.copy(room.link).then(function (r) {
@@ -427,7 +466,7 @@ window.StickArmyCoop = function (w) {
       });
     } };
     share.ghost = friend;
-    showCard(['Send the ', 'link'], [link, friend ? 'Your friend is here!' : 'Waiting for your friend…',
+    showCard(['Send the ', 'link'], [codeLine, short ? 'Or your friend taps "I have a code" and types it.' : null, link, friend ? 'Your friend is here!' : 'Waiting for your friend…',
       'You get the blue barrel, your friend the green one. You play ' + w.lv().NAME + ', your pick.'],
       [share, { label: 'Start', fn: startMatch, off: !friend, id: 'coopStart' }, { label: 'Cancel', ghost: true, fn: cancel }], 'invite');
   }
@@ -489,7 +528,7 @@ window.StickArmyCoop = function (w) {
       if (reason === 'nope') return askSecret(true);
       started = false;
       var why = reason === 'full' ? 'Two people are already playing this match.' : reason === 'replaced' ? 'This match is open in another tab or window.'
-        : reason === 'wrong-game' ? "That link is for a different game." : "Ask your friend to start a new one and send you the link.";
+        : reason === 'wrong-game' ? "That link is for a different game." : "Check the code, or ask your friend to start a new one and send you the link or code.";
       showCard([reason === 'replaced' ? 'Open somewhere ' : "This match isn't ", reason === 'replaced' ? 'else' : 'open'], [why], [{ label: 'OK', fn: leaveToTitle }], 'refused');
     });
     r.on('message', function (m, from) {
