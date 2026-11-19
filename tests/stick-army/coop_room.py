@@ -124,10 +124,18 @@ with Phones() as phones:
     host.click('#continueBtn')
     wait(guest, "() => /Friend ready ✓/.test(document.getElementById('coopReady').textContent)")
     check(js(host, 'S.mode') == 'shop', 'the host is ready; the wave waits for the guest, who sees it')
+    # The guest's phone drops at the supply table: the wave keeps waiting, and the host may go on alone.
+    guest.context.set_offline(True)
+    wait(host, "() => /Friend away/.test(document.getElementById('coopReady').textContent)", 15000)
+    check(js(host, 'S.mode') == 'shop' and host.text_content('#continueBtn') == 'Go without your friend',
+          'a guest dropping at the supply table: the wave still waits, and the host is offered to go without them')
+    # The guest taps Ready while its connection is down; it gets there once it's back.
     guest.click('#continueBtn')
-    wait(host, "() => armyTest('S.mode') === 'play'")
-    wait(guest, "() => document.getElementById('shopScreen').hidden")
-    check(True, "the guest's Ready starts the wave")
+    check(guest.text_content('#continueBtn') == 'Ready ✓', "the guest's Ready shows at once")
+    guest.context.set_offline(False)
+    wait(host, "() => armyTest('S.mode') === 'play'", 20000)
+    wait(guest, "() => document.getElementById('shopScreen').hidden", 10000)
+    check(True, "a Ready tapped while offline arrives once the guest is back, and starts the wave for both")
 
     # The guest reloads: it keeps its seat and draws again from a fresh field.
     guest.reload()

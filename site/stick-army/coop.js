@@ -534,8 +534,9 @@ window.StickArmyCoop = function (w) {
         friend = false;
         if (started) {
           var t = w.S.turrets && w.S.turrets[1]; if (t) t.firing = false; status('Your friend dropped out');
-          // Waiting at the supply table for a friend who's gone: on without them.
-          if (w.S.mode === 'shop' && w.S.shop && w.S.shop.ready && w.S.shop.ready[0]) w.continueWave(); else if (w.S.mode === 'shop') w.renderShop();
+          // At the supply table the wave keeps waiting: a phone that blinks out usually comes straight back, and its
+          // Ready with it. The host's button offers to go on alone (afterShop).
+          if (w.S.mode === 'shop') w.renderShop();
         } else invite();
       } else if (seat === HOST_SEAT) {
         if (started) { awaySince = now(); away(); }
@@ -569,7 +570,7 @@ window.StickArmyCoop = function (w) {
           if (m.k.a === 'take') w.takeItem(String(m.k.id), 1);
           else if (m.k.a === 'back') w.putBack(String(m.k.id), 1);
           else if (m.k.a === 'undo') w.undo(1);
-        } else if (m.t === 'ready') markReady(1);
+        } else if (m.t === 'ready' && (m.k == null || m.k === w.S.wave)) markReady(1);
       } else if (from === HOST_SEAT) {
         // The host has no run any more: back to the waiting card (a fresh page, which rejoins the same seat).
         if (m.t === 'lobby') { if (guest) { stopGuest(); location.reload(); } return; }
@@ -660,8 +661,11 @@ window.StickArmyCoop = function (w) {
     if (first) { sc.shop.scrollTop = 0; var stock = sc.shop.querySelector('.shop-stock'); if (stock) stock.scrollTop = 0; }
   }
   // Ready: the next wave waits for both players at the supply table (game.js asks before continuing).
+  // The guest's Ready is kept (wantReady, the wave it's for) and sent again every READY_AGAIN ms until the host's shop
+  // shows it: a Ready sent as the connection dropped would otherwise be lost, leaving the wave waiting for it.
+  var wantReady = 0, readyAt = 0, READY_AGAIN = 1000;
   function ready() {
-    if (guest) { ask('ready'); return true; }
+    if (guest) { wantReady = w.S.wave; readyAt = now(); ask('ready', wantReady); w.renderShop(); return true; }
     if (!host || !w.S.coop || w.S.mode !== 'shop' || !w.S.shop) return false;
     markReady(0);
     return true;
@@ -681,8 +685,8 @@ window.StickArmyCoop = function (w) {
     var r = S.shop.ready || {}, me = w.me, other = 1 - me, line = document.getElementById('coopReady');
     // Only the friend's state: the button says yours.
     if (!line) { line = el('p', 'coop-ready'); line.id = 'coopReady'; line.setAttribute('role', 'status'); btn.parentNode.insertBefore(line, btn.parentNode.firstChild); btn.parentNode.classList.add('coop-foot'); }
-    btn.textContent = r[me] ? 'Ready ✓' : 'Ready for wave ' + (S.wave + 1);
-    var away = role === 'host' && !friend;
+    var away = role === 'host' && !friend, mine = r[me] || (guest && wantReady === S.wave);
+    btn.textContent = away && mine ? 'Go without your friend' : mine ? 'Ready ✓' : 'Ready for wave ' + (S.wave + 1);
     line.textContent = away ? 'Friend away' : r[other] ? 'Friend ready ✓' : 'Friend shopping…';
   }
   w.afterShop = afterShop;
@@ -717,6 +721,11 @@ window.StickArmyCoop = function (w) {
     if (flashT && t > flashT) { flashT = 0; status(role === 'host' && started && !friend ? 'Your friend dropped out' : ''); }
     if (guest && room) {
       if (awaySince) away();
+      if (wantReady) {
+        var V = w.S;
+        if (V.mode !== 'shop' || V.wave !== wantReady) wantReady = 0;
+        else if (!(V.shop && V.shop.ready && V.shop.ready[1]) && room.status === 'connected' && now() - readyAt > READY_AGAIN) { readyAt = now(); ask('ready', wantReady); }
+      }
       var m = guestInput();
       if (m) {
         var changed = !sentIn || Math.abs(m.a - sentIn.a) > 0.002 || m.d !== sentIn.d;
